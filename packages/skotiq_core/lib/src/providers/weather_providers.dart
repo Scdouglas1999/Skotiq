@@ -10,6 +10,8 @@ import '../services/weather/weather_alert_service.dart';
 import '../database/database.dart' as db;
 import '../services/safety_config_service.dart';
 import '../backend/remote_host.dart';
+import 'backend_provider.dart';
+import 'host_forecast_cloud_cover.dart';
 import 'host_role.dart';
 import 'database_provider.dart';
 import 'settings_provider.dart';
@@ -424,6 +426,11 @@ RadarProviderType _parseProviderType(String providerString) {
 /// Cloud cover over the site now, percent: the one figure the screens, the
 /// alerts and weather safety read (see [CurrentSky.percent]).
 final cloudCoverPercentageProvider = FutureProvider<double?>((ref) async {
+  // A viewer shows the host's forecast. It does not fetch the sky for its
+  // own site, which may be unset or a different place than the rig.
+  if (ref.watch(backendProvider).linksToHost) {
+    return ref.watch(hostForecastCloudCoverProvider);
+  }
   return (await ref.watch(currentSkyProvider.future))?.percent;
 });
 

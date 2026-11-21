@@ -163,7 +163,6 @@
     "useTargetCoords": false
   },
   {
-    "accuracyArcsec": 2.5,
     "comment": "center note",
     "customDec": -5.3,
     "customRa": 5.6,

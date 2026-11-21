@@ -156,6 +156,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiFloorSample dco_decode_api_floor_sample(dynamic raw);
 
   @protected
+  ApiLiveStackFilterSummary dco_decode_api_live_stack_filter_summary(
+    dynamic raw,
+  );
+
+  @protected
+  ApiLiveStackFrameEvent dco_decode_api_live_stack_frame_event(dynamic raw);
+
+  @protected
   ApiLiveStackingConfig dco_decode_api_live_stacking_config(dynamic raw);
 
   @protected
@@ -187,6 +195,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiSkyRectangle dco_decode_api_sky_rectangle(dynamic raw);
+
+  @protected
+  ApiStretchedPreview dco_decode_api_stretched_preview(dynamic raw);
 
   @protected
   ApiTargetScoreNow dco_decode_api_target_score_now(dynamic raw);
@@ -227,6 +238,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiDepthReport dco_decode_box_autoadd_api_depth_report(dynamic raw);
+
+  @protected
+  ApiLiveStackFrameEvent dco_decode_box_autoadd_api_live_stack_frame_event(
+    dynamic raw,
+  );
 
   @protected
   ApiLiveStackingConfig dco_decode_box_autoadd_api_live_stacking_config(
@@ -593,6 +609,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<ApiFloorSample> dco_decode_list_api_floor_sample(dynamic raw);
 
   @protected
+  List<ApiLiveStackFilterSummary> dco_decode_list_api_live_stack_filter_summary(
+    dynamic raw,
+  );
+
+  @protected
+  List<ApiLiveStackFrameEvent> dco_decode_list_api_live_stack_frame_event(
+    dynamic raw,
+  );
+
+  @protected
   List<ApiNightScore> dco_decode_list_api_night_score(dynamic raw);
 
   @protected
@@ -751,6 +777,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiDepthReport? dco_decode_opt_box_autoadd_api_depth_report(dynamic raw);
+
+  @protected
+  ApiLiveStackFrameEvent? dco_decode_opt_box_autoadd_api_live_stack_frame_event(
+    dynamic raw,
+  );
 
   @protected
   ApiReferenceGeometry? dco_decode_opt_box_autoadd_api_reference_geometry(
@@ -1109,6 +1140,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ApiFloorSample sse_decode_api_floor_sample(SseDeserializer deserializer);
 
   @protected
+  ApiLiveStackFilterSummary sse_decode_api_live_stack_filter_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiLiveStackFrameEvent sse_decode_api_live_stack_frame_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ApiLiveStackingConfig sse_decode_api_live_stacking_config(
     SseDeserializer deserializer,
   );
@@ -1154,6 +1195,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiSkyRectangle sse_decode_api_sky_rectangle(SseDeserializer deserializer);
+
+  @protected
+  ApiStretchedPreview sse_decode_api_stretched_preview(
+    SseDeserializer deserializer,
+  );
 
   @protected
   ApiTargetScoreNow sse_decode_api_target_score_now(
@@ -1208,6 +1254,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiDepthReport sse_decode_box_autoadd_api_depth_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiLiveStackFrameEvent sse_decode_box_autoadd_api_live_stack_frame_event(
     SseDeserializer deserializer,
   );
 
@@ -1664,6 +1715,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  List<ApiLiveStackFilterSummary> sse_decode_list_api_live_stack_filter_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<ApiLiveStackFrameEvent> sse_decode_list_api_live_stack_frame_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<ApiNightScore> sse_decode_list_api_night_score(
     SseDeserializer deserializer,
   );
@@ -1866,6 +1927,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ApiDepthReport? sse_decode_opt_box_autoadd_api_depth_report(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  ApiLiveStackFrameEvent? sse_decode_opt_box_autoadd_api_live_stack_frame_event(
     SseDeserializer deserializer,
   );
 
@@ -2330,6 +2396,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_api_depth_report();
     cst_api_fill_to_wire_api_depth_report(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_api_live_stack_frame_event>
+  cst_encode_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_api_live_stack_frame_event();
+    cst_api_fill_to_wire_api_live_stack_frame_event(raw, ptr.ref);
     return ptr;
   }
 
@@ -2877,6 +2954,33 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  ffi.Pointer<wire_cst_list_api_live_stack_filter_summary>
+  cst_encode_list_api_live_stack_filter_summary(
+    List<ApiLiveStackFilterSummary> raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_live_stack_filter_summary(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_live_stack_filter_summary(
+        raw[i],
+        ans.ref.ptr[i],
+      );
+    }
+    return ans;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_list_api_live_stack_frame_event>
+  cst_encode_list_api_live_stack_frame_event(List<ApiLiveStackFrameEvent> raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ans = wire.cst_new_list_api_live_stack_frame_event(raw.length);
+    for (var i = 0; i < raw.length; ++i) {
+      cst_api_fill_to_wire_api_live_stack_frame_event(raw[i], ans.ref.ptr[i]);
+    }
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_cst_list_api_night_score> cst_encode_list_api_night_score(
     List<ApiNightScore> raw,
   ) {
@@ -3286,6 +3390,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     return raw == null
         ? ffi.nullptr
         : cst_encode_box_autoadd_api_depth_report(raw);
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_api_live_stack_frame_event>
+  cst_encode_opt_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_api_live_stack_frame_event(raw);
   }
 
   @protected
@@ -3798,6 +3913,46 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_api_live_stack_filter_summary(
+    ApiLiveStackFilterSummary apiObj,
+    wire_cst_api_live_stack_filter_summary wireObj,
+  ) {
+    wireObj.filter_key = cst_encode_String(apiObj.filterKey);
+    wireObj.width = cst_encode_u_32(apiObj.width);
+    wireObj.height = cst_encode_u_32(apiObj.height);
+    wireObj.channels = cst_encode_u_32(apiObj.channels);
+    wireObj.reference_image_path = cst_encode_opt_String(
+      apiObj.referenceImagePath,
+    );
+    wireObj.revision = cst_encode_u_64(apiObj.revision);
+    cst_api_fill_to_wire_api_live_stacking_stats(apiObj.stats, wireObj.stats);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent apiObj,
+    wire_cst_api_live_stack_frame_event wireObj,
+  ) {
+    wireObj.sequence_index = cst_encode_u_32(apiObj.sequenceIndex);
+    wireObj.filter_key = cst_encode_String(apiObj.filterKey);
+    wireObj.source_label = cst_encode_String(apiObj.sourceLabel);
+    wireObj.accepted = cst_encode_bool(apiObj.accepted);
+    wireObj.rejection_reason = cst_encode_opt_String(apiObj.rejectionReason);
+    wireObj.detected_stars = cst_encode_u_32(apiObj.detectedStars);
+    wireObj.matched_pairs = cst_encode_u_32(apiObj.matchedPairs);
+    wireObj.inlier_pairs = cst_encode_u_32(apiObj.inlierPairs);
+    wireObj.alignment_residual_px = cst_encode_f_64(apiObj.alignmentResidualPx);
+    wireObj.shift_x_px = cst_encode_f_64(apiObj.shiftXPx);
+    wireObj.shift_y_px = cst_encode_f_64(apiObj.shiftYPx);
+    wireObj.rotation_deg = cst_encode_f_64(apiObj.rotationDeg);
+    wireObj.sigma_rejected_pixels = cst_encode_u_64(apiObj.sigmaRejectedPixels);
+    wireObj.exposure_secs = cst_encode_opt_box_autoadd_f_64(
+      apiObj.exposureSecs,
+    );
+    wireObj.timestamp_ms = cst_encode_i_64(apiObj.timestampMs);
+  }
+
+  @protected
   void cst_api_fill_to_wire_api_live_stacking_config(
     ApiLiveStackingConfig apiObj,
     wire_cst_api_live_stacking_config wireObj,
@@ -3808,6 +3963,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.match_radius_px = cst_encode_f_64(apiObj.matchRadiusPx);
     wireObj.match_flux_tolerance = cst_encode_f_64(apiObj.matchFluxTolerance);
     wireObj.min_matched_pairs = cst_encode_u_32(apiObj.minMatchedPairs);
+    wireObj.max_alignment_residual_px = cst_encode_f_64(
+      apiObj.maxAlignmentResidualPx,
+    );
+    wireObj.star_detection_sigma = cst_encode_f_64(apiObj.starDetectionSigma);
+    wireObj.star_detection_min_snr = cst_encode_f_64(
+      apiObj.starDetectionMinSnr,
+    );
     wireObj.sensor_mode = cst_encode_String(apiObj.sensorMode);
     wireObj.bayer_pattern = cst_encode_opt_String(apiObj.bayerPattern);
     wireObj.demosaic_quality = cst_encode_String(apiObj.demosaicQuality);
@@ -3836,6 +3998,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.channels = cst_encode_u_32(apiObj.channels);
     wireObj.data = cst_encode_list_prim_u_16_strict(apiObj.data);
     cst_api_fill_to_wire_api_live_stacking_stats(apiObj.stats, wireObj.stats);
+    wireObj.filter_key = cst_encode_String(apiObj.filterKey);
+    wireObj.revision = cst_encode_u_64(apiObj.revision);
+    wireObj.last_event = cst_encode_opt_box_autoadd_api_live_stack_frame_event(
+      apiObj.lastEvent,
+    );
   }
 
   @protected
@@ -3856,6 +4023,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     );
     wireObj.total_sigma_rejected_pixels = cst_encode_u_64(
       apiObj.totalSigmaRejectedPixels,
+    );
+    wireObj.total_integration_secs = cst_encode_f_64(
+      apiObj.totalIntegrationSecs,
     );
     wireObj.other_filter_frames = cst_encode_u_32(apiObj.otherFilterFrames);
     wireObj.last_other_filter = cst_encode_opt_String(apiObj.lastOtherFilter);
@@ -3983,6 +4153,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.width_arcsec = cst_encode_f_64(apiObj.widthArcsec);
     wireObj.height_arcsec = cst_encode_f_64(apiObj.heightArcsec);
     wireObj.rotation_deg = cst_encode_f_64(apiObj.rotationDeg);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_api_stretched_preview(
+    ApiStretchedPreview apiObj,
+    wire_cst_api_stretched_preview wireObj,
+  ) {
+    wireObj.width = cst_encode_u_32(apiObj.width);
+    wireObj.height = cst_encode_u_32(apiObj.height);
+    wireObj.channels = cst_encode_u_32(apiObj.channels);
+    wireObj.rgba = cst_encode_list_prim_u_8_strict(apiObj.rgba);
   }
 
   @protected
@@ -4118,6 +4299,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ffi.Pointer<wire_cst_api_depth_report> wireObj,
   ) {
     cst_api_fill_to_wire_api_depth_report(apiObj, wireObj.ref);
+  }
+
+  @protected
+  void cst_api_fill_to_wire_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent apiObj,
+    ffi.Pointer<wire_cst_api_live_stack_frame_event> wireObj,
+  ) {
+    cst_api_fill_to_wire_api_live_stack_frame_event(apiObj, wireObj.ref);
   }
 
   @protected
@@ -5634,7 +5823,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       return;
     }
     if (apiObj is GuidingEvent_Settled) {
-      var pre_rms = cst_encode_f_64(apiObj.rms);
+      var pre_rms = cst_encode_opt_box_autoadd_f_64(apiObj.rms);
       wireObj.tag = 6;
       wireObj.kind.Settled.rms = pre_rms;
       return;
@@ -7899,6 +8088,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_api_live_stack_filter_summary(
+    ApiLiveStackFilterSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_api_live_stacking_config(
     ApiLiveStackingConfig self,
     SseSerializer serializer,
@@ -7955,6 +8156,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_api_sky_rectangle(
     ApiSkyRectangle self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_api_stretched_preview(
+    ApiStretchedPreview self,
     SseSerializer serializer,
   );
 
@@ -8021,6 +8228,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_api_depth_report(
     ApiDepthReport self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent self,
     SseSerializer serializer,
   );
 
@@ -8604,6 +8817,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_list_api_live_stack_filter_summary(
+    List<ApiLiveStackFilterSummary> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_api_live_stack_frame_event(
+    List<ApiLiveStackFrameEvent> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_api_night_score(
     List<ApiNightScore> self,
     SseSerializer serializer,
@@ -8885,6 +9110,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_opt_box_autoadd_api_depth_report(
     ApiDepthReport? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_opt_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent? self,
     SseSerializer serializer,
   );
 
@@ -9443,6 +9674,52 @@ class RustLibWire implements BaseWire {
               int,
               int,
               ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+            )
+          >();
+
+  void wire__crate__api__live_stacking__api_auto_stretch_preview_async(
+    int port_,
+    int width,
+    int height,
+    int channels,
+    ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
+    int max_dimension,
+  ) {
+    return _wire__crate__api__live_stacking__api_auto_stretch_preview_async(
+      port_,
+      width,
+      height,
+      channels,
+      data,
+      max_dimension,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_auto_stretch_preview_asyncPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Uint32,
+            ffi.Uint32,
+            ffi.Uint32,
+            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_auto_stretch_preview_async',
+      );
+  late final _wire__crate__api__live_stacking__api_auto_stretch_preview_async =
+      _wire__crate__api__live_stacking__api_auto_stretch_preview_asyncPtr
+          .asFunction<
+            void Function(
+              int,
+              int,
+              int,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+              int,
             )
           >();
 
@@ -15906,6 +16183,40 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
+  void wire__crate__api__live_stacking__api_stacking_add_frame_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> image_path,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_add_frame_for_filter(
+      port_,
+      filter_key,
+      image_path,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_add_frame_for_filterPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
+          >();
+
   void wire__crate__api__live_stacking__api_stacking_add_frame_from_data(
     int port_,
     int width,
@@ -15948,6 +16259,53 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void
+  wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    int width,
+    int height,
+    ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
+    double pedestal,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter(
+      port_,
+      filter_key,
+      width,
+      height,
+      data,
+      pedestal,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+            ffi.Double,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filterPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+              double,
+            )
+          >();
+
   WireSyncRust2DartDco
   wire__crate__api__live_stacking__api_stacking_frame_count() {
     return _wire__crate__api__live_stacking__api_stacking_frame_count();
@@ -15961,6 +16319,33 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__live_stacking__api_stacking_frame_countPtr
           .asFunction<WireSyncRust2DartDco Function()>();
 
+  void wire__crate__api__live_stacking__api_stacking_get_events(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_get_events(
+      port_,
+      filter_key,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_get_eventsPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_events',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_get_events =
+      _wire__crate__api__live_stacking__api_stacking_get_eventsPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__live_stacking__api_stacking_get_result(int port_) {
     return _wire__crate__api__live_stacking__api_stacking_get_result(port_);
   }
@@ -15973,6 +16358,33 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__live_stacking__api_stacking_get_resultPtr
           .asFunction<void Function(int)>();
 
+  void wire__crate__api__live_stacking__api_stacking_get_result_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_get_result_for_filter(
+      port_,
+      filter_key,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_get_result_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_get_result_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_get_result_for_filterPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
   void wire__crate__api__live_stacking__api_stacking_get_stats(int port_) {
     return _wire__crate__api__live_stacking__api_stacking_get_stats(port_);
   }
@@ -15984,6 +16396,33 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__live_stacking__api_stacking_get_stats =
       _wire__crate__api__live_stacking__api_stacking_get_statsPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__live_stacking__api_stacking_get_stats_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_get_stats_for_filter(
+      port_,
+      filter_key,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_get_stats_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_get_stats_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_get_stats_for_filterPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   WireSyncRust2DartDco
   wire__crate__api__live_stacking__api_stacking_is_active() {
@@ -15998,6 +16437,48 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__live_stacking__api_stacking_is_activePtr
           .asFunction<WireSyncRust2DartDco Function()>();
 
+  void wire__crate__api__live_stacking__api_stacking_list_filters(int port_) {
+    return _wire__crate__api__live_stacking__api_stacking_list_filters(port_);
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_list_filtersPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_list_filters',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_list_filters =
+      _wire__crate__api__live_stacking__api_stacking_list_filtersPtr
+          .asFunction<void Function(int)>();
+
+  void wire__crate__api__live_stacking__api_stacking_render_preview_rgba(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    int max_dimension,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_render_preview_rgba(
+      port_,
+      filter_key,
+      max_dimension,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_render_preview_rgbaPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_render_preview_rgba',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_render_preview_rgba =
+      _wire__crate__api__live_stacking__api_stacking_render_preview_rgbaPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>, int)
+          >();
+
   void wire__crate__api__live_stacking__api_stacking_reset(int port_) {
     return _wire__crate__api__live_stacking__api_stacking_reset(port_);
   }
@@ -16009,6 +16490,33 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__live_stacking__api_stacking_reset =
       _wire__crate__api__live_stacking__api_stacking_resetPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__live_stacking__api_stacking_reset_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_reset_for_filter(
+      port_,
+      filter_key,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_reset_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_reset_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_reset_for_filterPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
 
   void wire__crate__api__live_stacking__api_stacking_save_master_fits(
     int port_,
@@ -16035,6 +16543,41 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__live_stacking__api_stacking_save_master_fitsPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void
+  wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> file_path,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter(
+      port_,
+      filter_key,
+      file_path,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filterPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            )
           >();
 
   void wire__crate__api__live_stacking__api_stacking_start(
@@ -16066,6 +16609,44 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(
               int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_api_live_stacking_config>,
+            )
+          >();
+
+  void wire__crate__api__live_stacking__api_stacking_start_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> reference_image_path,
+    ffi.Pointer<wire_cst_api_live_stacking_config> config,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_start_for_filter(
+      port_,
+      filter_key,
+      reference_image_path,
+      config,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_start_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_api_live_stacking_config>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_start_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_start_for_filterPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_api_live_stacking_config>,
             )
@@ -16117,6 +16698,56 @@ class RustLibWire implements BaseWire {
             )
           >();
 
+  void wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    int width,
+    int height,
+    ffi.Pointer<wire_cst_list_prim_u_16_loose> data,
+    double pedestal,
+    ffi.Pointer<wire_cst_api_live_stacking_config> config,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter(
+      port_,
+      filter_key,
+      width,
+      height,
+      data,
+      pedestal,
+      config,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_start_from_data_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Uint32,
+            ffi.Uint32,
+            ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+            ffi.Double,
+            ffi.Pointer<wire_cst_api_live_stacking_config>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_start_from_data_for_filterPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              int,
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_16_loose>,
+              double,
+              ffi.Pointer<wire_cst_api_live_stacking_config>,
+            )
+          >();
+
   void wire__crate__api__live_stacking__api_stacking_stop(int port_) {
     return _wire__crate__api__live_stacking__api_stacking_stop(port_);
   }
@@ -16128,6 +16759,67 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__live_stacking__api_stacking_stop =
       _wire__crate__api__live_stacking__api_stacking_stopPtr
           .asFunction<void Function(int)>();
+
+  void wire__crate__api__live_stacking__api_stacking_stop_for_filter(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_stop_for_filter(
+      port_,
+      filter_key,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_stop_for_filterPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop_for_filter',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_stop_for_filter =
+      _wire__crate__api__live_stacking__api_stacking_stop_for_filterPtr
+          .asFunction<
+            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
+          >();
+
+  void wire__crate__api__live_stacking__api_stacking_update_config(
+    int port_,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key,
+    ffi.Pointer<wire_cst_api_live_stacking_config> config,
+  ) {
+    return _wire__crate__api__live_stacking__api_stacking_update_config(
+      port_,
+      filter_key,
+      config,
+    );
+  }
+
+  late final _wire__crate__api__live_stacking__api_stacking_update_configPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Void Function(
+            ffi.Int64,
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+            ffi.Pointer<wire_cst_api_live_stacking_config>,
+          )
+        >
+      >(
+        'frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_update_config',
+      );
+  late final _wire__crate__api__live_stacking__api_stacking_update_config =
+      _wire__crate__api__live_stacking__api_stacking_update_configPtr
+          .asFunction<
+            void Function(
+              int,
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
+              ffi.Pointer<wire_cst_api_live_stacking_config>,
+            )
+          >();
 
   void
   wire__crate__api__polar_alignment__entrypoints__api_start_all_sky_polar_alignment(
@@ -17168,6 +17860,23 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_api_depth_reportPtr
           .asFunction<ffi.Pointer<wire_cst_api_depth_report> Function()>();
 
+  ffi.Pointer<wire_cst_api_live_stack_frame_event>
+  cst_new_box_autoadd_api_live_stack_frame_event() {
+    return _cst_new_box_autoadd_api_live_stack_frame_event();
+  }
+
+  late final _cst_new_box_autoadd_api_live_stack_frame_eventPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_api_live_stack_frame_event> Function()
+        >
+      >('frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stack_frame_event');
+  late final _cst_new_box_autoadd_api_live_stack_frame_event =
+      _cst_new_box_autoadd_api_live_stack_frame_eventPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_api_live_stack_frame_event> Function()
+          >();
+
   ffi.Pointer<wire_cst_api_live_stacking_config>
   cst_new_box_autoadd_api_live_stacking_config() {
     return _cst_new_box_autoadd_api_live_stacking_config();
@@ -17981,6 +18690,46 @@ class RustLibWire implements BaseWire {
       >('frbgen_skotiq_bridge_cst_new_list_api_floor_sample');
   late final _cst_new_list_api_floor_sample = _cst_new_list_api_floor_samplePtr
       .asFunction<ffi.Pointer<wire_cst_list_api_floor_sample> Function(int)>();
+
+  ffi.Pointer<wire_cst_list_api_live_stack_filter_summary>
+  cst_new_list_api_live_stack_filter_summary(int len) {
+    return _cst_new_list_api_live_stack_filter_summary(len);
+  }
+
+  late final _cst_new_list_api_live_stack_filter_summaryPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_live_stack_filter_summary> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_live_stack_filter_summary');
+  late final _cst_new_list_api_live_stack_filter_summary =
+      _cst_new_list_api_live_stack_filter_summaryPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_api_live_stack_filter_summary> Function(
+              int,
+            )
+          >();
+
+  ffi.Pointer<wire_cst_list_api_live_stack_frame_event>
+  cst_new_list_api_live_stack_frame_event(int len) {
+    return _cst_new_list_api_live_stack_frame_event(len);
+  }
+
+  late final _cst_new_list_api_live_stack_frame_eventPtr =
+      _lookup<
+        ffi.NativeFunction<
+          ffi.Pointer<wire_cst_list_api_live_stack_frame_event> Function(
+            ffi.Int32,
+          )
+        >
+      >('frbgen_skotiq_bridge_cst_new_list_api_live_stack_frame_event');
+  late final _cst_new_list_api_live_stack_frame_event =
+      _cst_new_list_api_live_stack_frame_eventPtr
+          .asFunction<
+            ffi.Pointer<wire_cst_list_api_live_stack_frame_event> Function(int)
+          >();
 
   ffi.Pointer<wire_cst_list_api_night_score> cst_new_list_api_night_score(
     int len,
@@ -19111,6 +19860,15 @@ final class wire_cst_api_live_stacking_config extends ffi.Struct {
   @ffi.Uint32()
   external int min_matched_pairs;
 
+  @ffi.Double()
+  external double max_alignment_residual_px;
+
+  @ffi.Double()
+  external double star_detection_sigma;
+
+  @ffi.Double()
+  external double star_detection_min_snr;
+
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> sensor_mode;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> bayer_pattern;
@@ -19270,6 +20028,49 @@ final class wire_cst_api_depth_report extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> reason;
 
   external ffi.Pointer<wire_cst_api_depth_forecast> forecast;
+}
+
+final class wire_cst_api_live_stack_frame_event extends ffi.Struct {
+  @ffi.Uint32()
+  external int sequence_index;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> source_label;
+
+  @ffi.Bool()
+  external bool accepted;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rejection_reason;
+
+  @ffi.Uint32()
+  external int detected_stars;
+
+  @ffi.Uint32()
+  external int matched_pairs;
+
+  @ffi.Uint32()
+  external int inlier_pairs;
+
+  @ffi.Double()
+  external double alignment_residual_px;
+
+  @ffi.Double()
+  external double shift_x_px;
+
+  @ffi.Double()
+  external double shift_y_px;
+
+  @ffi.Double()
+  external double rotation_deg;
+
+  @ffi.Uint64()
+  external int sigma_rejected_pixels;
+
+  external ffi.Pointer<ffi.Double> exposure_secs;
+
+  @ffi.Int64()
+  external int timestamp_ms;
 }
 
 final class wire_cst_list_prim_i_32_strict extends ffi.Struct {
@@ -19979,8 +20780,7 @@ final class wire_cst_frame_capture_metadata extends ffi.Struct {
 }
 
 final class wire_cst_GuidingEvent_Settled extends ffi.Struct {
-  @ffi.Double()
-  external double rms;
+  external ffi.Pointer<ffi.Double> rms;
 }
 
 final class wire_cst_GuidingEvent_SettleTimedOut extends ffi.Struct {
@@ -21318,6 +22118,70 @@ final class wire_cst_list_api_depth_goal extends ffi.Struct {
   external int len;
 }
 
+final class wire_cst_api_live_stacking_stats extends ffi.Struct {
+  @ffi.Uint32()
+  external int stacked_frame_count;
+
+  @ffi.Uint32()
+  external int total_frames_attempted;
+
+  @ffi.Uint32()
+  external int rejected_alignment_failures;
+
+  @ffi.Double()
+  external double avg_matched_pairs;
+
+  @ffi.Double()
+  external double avg_alignment_residual;
+
+  @ffi.Uint64()
+  external int total_sigma_rejected_pixels;
+
+  @ffi.Double()
+  external double total_integration_secs;
+
+  @ffi.Uint32()
+  external int other_filter_frames;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_other_filter;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
+}
+
+final class wire_cst_api_live_stack_filter_summary extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key;
+
+  @ffi.Uint32()
+  external int width;
+
+  @ffi.Uint32()
+  external int height;
+
+  @ffi.Uint32()
+  external int channels;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> reference_image_path;
+
+  @ffi.Uint64()
+  external int revision;
+
+  external wire_cst_api_live_stacking_stats stats;
+}
+
+final class wire_cst_list_api_live_stack_filter_summary extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_live_stack_filter_summary> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+final class wire_cst_list_api_live_stack_frame_event extends ffi.Struct {
+  external ffi.Pointer<wire_cst_api_live_stack_frame_event> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 final class wire_cst_api_night_score extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> target_id;
 
@@ -21883,33 +22747,6 @@ final class wire_cst_api_live_stacking_master extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> date_obs;
 }
 
-final class wire_cst_api_live_stacking_stats extends ffi.Struct {
-  @ffi.Uint32()
-  external int stacked_frame_count;
-
-  @ffi.Uint32()
-  external int total_frames_attempted;
-
-  @ffi.Uint32()
-  external int rejected_alignment_failures;
-
-  @ffi.Double()
-  external double avg_matched_pairs;
-
-  @ffi.Double()
-  external double avg_alignment_residual;
-
-  @ffi.Uint64()
-  external int total_sigma_rejected_pixels;
-
-  @ffi.Uint32()
-  external int other_filter_frames;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> last_other_filter;
-
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter;
-}
-
 final class wire_cst_api_live_stacking_result extends ffi.Struct {
   @ffi.Uint32()
   external int width;
@@ -21923,6 +22760,26 @@ final class wire_cst_api_live_stacking_result extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_16_strict> data;
 
   external wire_cst_api_live_stacking_stats stats;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> filter_key;
+
+  @ffi.Uint64()
+  external int revision;
+
+  external ffi.Pointer<wire_cst_api_live_stack_frame_event> last_event;
+}
+
+final class wire_cst_api_stretched_preview extends ffi.Struct {
+  @ffi.Uint32()
+  external int width;
+
+  @ffi.Uint32()
+  external int height;
+
+  @ffi.Uint32()
+  external int channels;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> rgba;
 }
 
 final class wire_cst_autofocus_result_api extends ffi.Struct {

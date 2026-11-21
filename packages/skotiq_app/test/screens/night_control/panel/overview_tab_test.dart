@@ -1,6 +1,4 @@
-// The Overview tab against the running and ready boards: the last frame,
-// session, equipment, conditions and log during a run; "Before you start"
-// in their place before one, and its row actions.
+// Overview shows readiness before a run and the current operation during it.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,7 +88,8 @@ void main() {
     });
   });
 
-  testWidgets('a running night shows the frame, session, gear, sky and log',
+  testWidgets(
+      'a running night shows the operation, frame, session, sky and log',
       (tester) async {
     await pumpPanel(
       tester,
@@ -105,8 +104,8 @@ void main() {
     expect(find.textContaining('87 frames'), findsOneWidget);
     expect(find.text('Equipment'), findsOneWidget);
     expect(find.text('−10.0 °C · 20% · g139 o21 · 1×1'), findsOneWidget);
-    // The rotator is not in the profile.
-    expect(find.text('none'), findsOneWidget);
+    expect(find.text('Capturing'), findsWidgets);
+    expect(find.text('139'), findsOneWidget);
     expect(find.text('Safe'), findsOneWidget);
     expect(find.text('Before you start'), findsNothing);
 
@@ -184,6 +183,7 @@ void main() {
     );
 
     expect(find.text('Before you start'), findsOneWidget);
+    expect(find.text('Equipment'), findsOneWidget);
     expect(find.text('2 to look at'), findsOneWidget);
     expect(find.text('Last frame'), findsNothing);
     expect(find.text('Session'), findsNothing);

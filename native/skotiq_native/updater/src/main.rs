@@ -873,7 +873,16 @@ fn rollback_in_place(install_dir: &Path, log: &RollbackLog) -> Result<()> {
 
     // 1. Restore moved files: rename .bak back over whatever we wrote.
     for entry in &log.moved {
-        let dst = install_dir.join(from_posix(&entry.rel));
+        let dst = match safe_join_under(install_dir, &entry.rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!(
+                    "rollback: invalid moved path {:?}: {}",
+                    entry.rel, e
+                ));
+                continue;
+            }
+        };
         let bak = PathBuf::from(&entry.bak);
         // Remove the new file that was copied in (if present) so the rename
         // can succeed even on platforms where rename refuses to overwrite.
@@ -896,7 +905,13 @@ fn rollback_in_place(install_dir: &Path, log: &RollbackLog) -> Result<()> {
 
     // 2. Delete files that we created from scratch.
     for rel in &log.created {
-        let dst = install_dir.join(from_posix(rel));
+        let dst = match safe_join_under(install_dir, rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("rollback: invalid created path {:?}: {}", rel, e));
+                continue;
+            }
+        };
         if dst.exists() {
             if let Err(e) = fs::remove_file(&dst) {
                 errors.push(format!(
@@ -912,7 +927,16 @@ fn rollback_in_place(install_dir: &Path, log: &RollbackLog) -> Result<()> {
     let mut dirs: Vec<&String> = log.created_dirs.iter().collect();
     dirs.sort_by_key(|s| std::cmp::Reverse(s.matches('/').count()));
     for rel in dirs {
-        let dst = install_dir.join(from_posix(rel));
+        let dst = match safe_join_under(install_dir, rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!(
+                    "rollback: invalid created directory {:?}: {}",
+                    rel, e
+                ));
+                continue;
+            }
+        };
         // Why: only remove if empty. If something else dropped a file in there
         // since we created it, that's not our directory to delete.
         if dst.exists() {
@@ -955,13 +979,30 @@ fn retain_restore_point(install_dir: &Path, backup_dir: &Path, log: &RollbackLog
     let restore_root = backup_dir.join(RESTORE_POINT_DIR);
 
     for entry in &log.moved {
+        let install_target = match safe_join_under(install_dir, &entry.rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("retain: invalid moved path {:?}: {}", entry.rel, e));
+                continue;
+            }
+        };
+        let dest = match safe_join_under(&restore_root, &entry.rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!(
+                    "retain: invalid restore destination {:?}: {}",
+                    entry.rel, e
+                ));
+                continue;
+            }
+        };
         // The canonical bak path recorded at apply time, with a fallback to the
         // computed sibling path in case the log's absolute path drifted.
         let bak = PathBuf::from(&entry.bak);
         let source = if bak.exists() {
             bak
         } else {
-            backup_path_for(&install_dir.join(from_posix(&entry.rel)))
+            backup_path_for(&install_target)
         };
         if !source.exists() {
             errors.push(format!(
@@ -970,8 +1011,6 @@ fn retain_restore_point(install_dir: &Path, backup_dir: &Path, log: &RollbackLog
             ));
             continue;
         }
-
-        let dest = restore_root.join(from_posix(&entry.rel));
         if let Some(parent) = dest.parent() {
             if let Err(e) = fs::create_dir_all(parent) {
                 errors.push(format!(
@@ -1120,8 +1159,26 @@ fn restore_from_restore_point(
 
     // 1. Restore replaced files from the retained originals.
     for entry in &log.moved {
-        let dst = install_dir.join(from_posix(&entry.rel));
-        let src = restore_root.join(from_posix(&entry.rel));
+        let dst = match safe_join_under(install_dir, &entry.rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!(
+                    "rollback: invalid moved path {:?}: {}",
+                    entry.rel, e
+                ));
+                continue;
+            }
+        };
+        let src = match safe_join_under(restore_root, &entry.rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!(
+                    "rollback: invalid restore source path {:?}: {}",
+                    entry.rel, e
+                ));
+                continue;
+            }
+        };
         if !src.exists() {
             errors.push(format!(
                 "rollback: retained original missing for {} (expected {:?})",
@@ -1149,7 +1206,13 @@ fn restore_from_restore_point(
 
     // 2. Delete files apply created from scratch.
     for rel in &log.created {
-        let dst = install_dir.join(from_posix(rel));
+        let dst = match safe_join_under(install_dir, rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("rollback: invalid created path {:?}: {}", rel, e));
+                continue;
+            }
+        };
         if dst.exists() {
             if let Err(e) = fs::remove_file(&dst) {
                 errors.push(format!(
@@ -1164,7 +1227,16 @@ fn restore_from_restore_point(
     let mut dirs: Vec<&String> = log.created_dirs.iter().collect();
     dirs.sort_by_key(|s| std::cmp::Reverse(s.matches('/').count()));
     for rel in dirs {
-        let dst = install_dir.join(from_posix(rel));
+        let dst = match safe_join_under(install_dir, rel) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!(
+                    "rollback: invalid created directory {:?}: {}",
+                    rel, e
+                ));
+                continue;
+            }
+        };
         if dst.exists() {
             match fs::remove_dir(&dst) {
                 Ok(()) => {}
@@ -1307,7 +1379,8 @@ fn verify_against_manifest(install_dir: &Path, expected: &ExpectedHashes) -> Res
     let mut mismatches: Vec<String> = Vec::new();
     let mut missing: Vec<String> = Vec::new();
     for (rel, expected_hex) in &expected.files {
-        let path = install_dir.join(from_posix(rel));
+        let path = safe_join_under(install_dir, rel)
+            .with_context(|| format!("Manifest contains unsafe path {:?}", rel))?;
         if !path.exists() {
             missing.push(rel.clone());
             continue;
@@ -1373,6 +1446,52 @@ fn to_posix(p: &Path) -> String {
 
 fn from_posix(s: &str) -> PathBuf {
     PathBuf::from(s.replace('/', std::path::MAIN_SEPARATOR_STR))
+}
+
+/// Join a manifest or rollback-log relative POSIX path under `root`, refusing
+/// empty paths, absolute paths, Windows prefixes, backslashes, or `..`
+/// components that would escape `root`.
+fn safe_join_under(root: &Path, rel: &str) -> Result<PathBuf> {
+    if rel.is_empty() || rel.contains('\\') || rel.starts_with('/') {
+        return Err(anyhow::anyhow!(
+            "relative path {:?} must not be empty, absolute, or contain backslashes",
+            rel
+        ));
+    }
+    let rel_path = from_posix(rel);
+    if rel_path.is_absolute() {
+        return Err(anyhow::anyhow!(
+            "relative path {:?} must not be absolute",
+            rel
+        ));
+    }
+    let mut joined = root.to_path_buf();
+    let mut saw_normal = false;
+    for component in rel_path.components() {
+        match component {
+            std::path::Component::Normal(part) => {
+                joined.push(part);
+                saw_normal = true;
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::ParentDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_) => {
+                return Err(anyhow::anyhow!(
+                    "relative path {:?} escapes target root {:?}",
+                    rel,
+                    root
+                ));
+            }
+        }
+    }
+    if !saw_normal {
+        return Err(anyhow::anyhow!(
+            "relative path {:?} has no normal path components",
+            rel
+        ));
+    }
+    Ok(joined)
 }
 
 fn cleanup_staging(staging_dir: &Path) -> Result<()> {
@@ -2375,6 +2494,55 @@ mod tests {
             started.elapsed() < Duration::from_millis(450),
             "slept {:?} retrying a permanent error",
             started.elapsed()
+        );
+    }
+
+    #[test]
+    fn path_traversal_in_rollback_log_or_manifest_is_rejected_without_touching_outside_files() {
+        let tmp = tempdir().unwrap();
+        let install = tmp.path().join("install");
+        let backup = tmp.path().join("backup");
+        let outside = tmp.path().join("victim.txt");
+        fs::create_dir_all(&install).unwrap();
+        fs::create_dir_all(&backup).unwrap();
+        write(&outside, b"must-survive");
+
+        for bad in ["../victim.txt", "/etc/passwd", r"sub\..\victim.txt", ""] {
+            assert!(
+                safe_join_under(&install, bad).is_err(),
+                "expected traversal/invalid path {bad:?} to be rejected"
+            );
+        }
+
+        let malicious_log = RollbackLog {
+            moved: vec![],
+            created: vec!["../victim.txt".to_string()],
+            created_dirs: vec!["../".to_string()],
+        };
+        assert!(
+            rollback_in_place(&install, &malicious_log).is_err(),
+            "rollback_in_place must fail on traversal entries"
+        );
+        assert!(
+            outside.exists() && fs::read(&outside).unwrap() == b"must-survive",
+            "outside file must not be deleted by rollback_in_place"
+        );
+
+        assert!(
+            restore_from_restore_point(&install, &backup, &malicious_log).is_err(),
+            "restore_from_restore_point must fail on traversal entries"
+        );
+        assert!(
+            outside.exists() && fs::read(&outside).unwrap() == b"must-survive",
+            "outside file must not be deleted by restore_from_restore_point"
+        );
+
+        let hashes = ExpectedHashes {
+            files: HashMap::from([("../victim.txt".to_string(), sha256_file(&outside).unwrap())]),
+        };
+        assert!(
+            verify_against_manifest(&install, &hashes).is_err(),
+            "verify_against_manifest must reject traversal keys even when hashes match"
         );
     }
 }

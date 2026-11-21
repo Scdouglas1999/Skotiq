@@ -63,6 +63,7 @@ impl SequenceExecutor {
         let custom_recovery_branches = self.prepare_sequence_recovery_triggers().await?;
 
         self.is_cancelled.store(false, Ordering::Relaxed);
+        self.run_state.clear_stop();
         let (command_tx, commands) = mpsc::channel::<ExecutorCommand>(32);
         self.commands.set(Some(command_tx));
         let (run_completion_tx, run_completion_rx) = watch::channel(false);
@@ -157,6 +158,7 @@ impl SequenceExecutor {
             latitude: config.latitude,
             longitude: config.longitude,
             filter_focus_offsets: config.filter_focus_offsets,
+            filter_focus_reference: config.filter_focus_reference,
         };
 
         let budget_registry = crate::scheduling::integration_budget::BudgetRegistry::new();

@@ -329,6 +329,48 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     );
   }
 
+  /// Replace the run from a host snapshot. Opening or minimizing the panel
+  /// happens only when a run starts or a result first appears; a window that
+  /// has the panel closed keeps it closed.
+  void applyHostState(AutofocusOverlayState incoming) {
+    if (!incoming.isRunning &&
+        incoming.status.isEmpty &&
+        incoming.result == null &&
+        incoming.vcurvePoints.isEmpty) {
+      _cancelResultDismiss();
+      state = incoming;
+      return;
+    }
+    final starting = incoming.isRunning && !state.isRunning;
+    final ending = !incoming.isRunning && state.isRunning;
+    final firstResult = state.status.isEmpty && incoming.status.isNotEmpty;
+    if (incoming.isRunning || incoming.hasError) {
+      _cancelResultDismiss();
+    } else if (ending || firstResult) {
+      _armResultDismiss();
+    }
+    state = AutofocusOverlayState(
+      isRunning: incoming.isRunning,
+      currentPoint: incoming.currentPoint,
+      totalPoints: incoming.totalPoints,
+      vcurvePoints: incoming.vcurvePoints,
+      currentHfr: incoming.currentHfr,
+      bestHfr: incoming.bestHfr,
+      starCount: incoming.starCount,
+      status: incoming.status,
+      result: incoming.result,
+      isMinimized: starting
+          ? false
+          : ending || firstResult
+          ? true
+          : state.isMinimized,
+      isVisible: starting || ending || firstResult || state.isVisible,
+      focusRange: incoming.focusRange,
+      starCrops: incoming.starCrops,
+      hasError: incoming.hasError,
+    );
+  }
+
   void toggleMinimized() {
     state = state.copyWith(isMinimized: !state.isMinimized);
   }
@@ -345,7 +387,9 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
   /// Tonight Focus tab reads it from here; the next run replaces it.
   void dismiss() {
     _cancelResultDismiss();
-    state = state.copyWith(isVisible: false, isRunning: false);
+    // Hiding the panel is local. Clearing [isRunning] would tell the host the
+    // sweep had stopped.
+    state = state.copyWith(isVisible: false);
   }
 
   void _armResultDismiss() {

@@ -150,7 +150,7 @@ impl DeviceManager {
             Ok(focuser) => focuser.position().await,
             Err(e) => Err(e),
         };
-        self.note_status_read(device_id, &result);
+        self.note_read(device_id, &result).await;
         result
     }
 

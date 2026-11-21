@@ -85,6 +85,7 @@ Future<ProviderContainer> _hydrate(
           imagingRun: null,
           lastEnded: null,
           lastEndedPlanLoaded: false,
+          restoredCheckpoint: null,
           stopEvidence: null,
           runStartedAt: null,
           stats: status.runVitals == null

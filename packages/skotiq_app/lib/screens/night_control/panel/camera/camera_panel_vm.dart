@@ -219,9 +219,39 @@ final nightCameraPanelProvider = Provider<NightCameraPanelVm>((ref) {
 
   final activeStep = runLive ? ref.watch(nightActiveStepProvider) : null;
   final stepNode = activeStep?.node;
+  final NightCaptureValues? stepValues;
+  if (stepNode is ExposureNode) {
+    stepValues = NightCaptureValues.fromStep(stepNode);
+  } else if (stepNode is SmartExposureNode) {
+    final progressFilter = ref.watch(
+      sequenceProgressProvider.select((progress) => progress.currentFilter),
+    );
+    // An empty filter at the first moment of the step is not a choice.
+    // The wheel's current name is the same slot the filter strip shows.
+    final filter = progressFilter == null || progressFilter.isEmpty
+        ? wheel.currentFilterName
+        : progressFilter;
+    final plan = stepNode.plans
+        .where((candidate) => candidate.filterName == filter)
+        .firstOrNull;
+    stepValues = plan == null
+        ? null
+        : NightCaptureValues(
+            exposureSecs: plan.durationSecs,
+            gain: plan.gain,
+            offset: plan.offset,
+            frameType: FrameType.light,
+            binning: plan.binning.index + 1,
+            filter: plan.filterName,
+          );
+  } else {
+    stepValues = null;
+  }
   final projection = ref.watch(nightDiskProjectionProvider);
+  // A live sample is newer than a projection computed earlier. Null means
+  // no sample yet (or no path), and the projection's free bytes stand.
   final free =
-      projection?.freeBytes ?? ref.watch(nightCaptureFreeBytesProvider);
+      ref.watch(nightCaptureFreeBytesProvider) ?? projection?.freeBytes;
   final perNight = projection?.projectedBytes;
   final outputPath =
       ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath;
@@ -239,8 +269,7 @@ final nightCameraPanelProvider = Provider<NightCameraPanelVm>((ref) {
     coolerPower: connected ? camera.coolerPower : null,
     defaultSetpoint: ref.watch(nightCoolerSetpointProvider),
     manual: runLive ? null : ref.watch(exposureSettingsProvider),
-    step:
-        stepNode is ExposureNode ? NightCaptureValues.fromStep(stepNode) : null,
+    step: stepValues,
     stepNodeId: stepNode?.id,
     stepLabel: stepNode == null ? null : nightStepLabel(stepNode),
     stepIndex: runLive

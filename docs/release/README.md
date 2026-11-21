@@ -1,13 +1,17 @@
 # Releases
 
-## Current release
+## Downloads and release notes
 
-**[Skotiq 9.0.0](v9.0.0.md)** — shared host and companion state, sequencer and camera fixes, local cloud forecasts, mosaic and image-reading corrections, and improved capture responsiveness.
+The [latest public release on GitHub](https://github.com/Scdouglas1999/Skotiq/releases/latest) includes downloads for Windows, Linux and Android.
 
-[Download](https://github.com/Scdouglas1999/Skotiq/releases/tag/v9.0.0) · [Changelog](../CHANGELOG.md) · [Compatibility](../known-limitations.md)
+This source tree is **Skotiq 9.1.0**. Its release notes cover host-owned flat capture, live stacking, and sequence and equipment changes. [9.1.0 release notes](v9.1.0.md)
+
+[Changelog](../CHANGELOG.md) · [Compatibility](../known-limitations.md)
 
 ## Earlier releases
 
+- [9.0.1](v9.0.1.md)
+- [9.0.0](v9.0.0.md)
 - [8.2.1](v8.2.1.md)
 - [8.2.0](v8.2.0.md)
 - [8.1.3](v8.1.3.md)

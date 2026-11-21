@@ -53,6 +53,8 @@ class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
     state = backend;
   }
+
+  void use(SkotiqBackend backend) => state = backend;
 }
 
 class _MutableCameraNotifier extends CameraStateNotifier {
@@ -90,6 +92,7 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
   final StreamController<SkotiqEvent> _events =
       StreamController<SkotiqEvent>.broadcast();
   int saveCount = 0;
+  int exposureStarts = 0;
   final List<int> wheelMoves = [];
   int _seq = 0;
 
@@ -155,6 +158,7 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
     int? width,
     int? height,
   }) async {
+    exposureStarts++;
     if (blockExposure) return; // never completes — the run parks
     scheduleMicrotask(() {
       if (_events.isClosed) return;
@@ -191,11 +195,38 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
 
 /// NetworkBackend whose flat-history write always FAILS, to prove the failure is
 /// surfaced (warning) rather than silently swallowed.
+class _OfflineMasterHistory extends Mock implements HostCalibrationFrames {}
+
 class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
   final StreamController<SkotiqEvent> _events =
       StreamController<SkotiqEvent>.broadcast();
   final List<String> savedPaths = [];
+  final List<Map<String, dynamic>> startBodies = [];
+  Completer<Map<String, dynamic>>? pendingStart;
+  final preview = Completer<CapturedImageResult>();
+  int cancels = 0;
+
+  @override
+  Future<CapturedImageResult> getFlatWizardPreview(String key) =>
+      preview.future;
+
+  @override
+  Future<Map<String, dynamic>> cancelFlatWizardRun() async {
+    cancels++;
+    return {};
+  }
+
+  int exposureStarts = 0;
   int _seq = 0;
+
+  @override
+  Future<Map<String, dynamic>> startFlatWizardRun(
+    Map<String, dynamic> draft,
+  ) async {
+    startBodies.add(draft);
+    if (pendingStart != null) return pendingStart!.future;
+    return {'state': draft, 'busy': false, 'output': {}};
+  }
 
   @override
   void dispose() {
@@ -250,6 +281,7 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
     int? width,
     int? height,
   }) async {
+    exposureStarts++;
     scheduleMicrotask(() {
       if (_events.isClosed) return;
       _events.add(
@@ -310,6 +342,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(FrameType.flat);
+    registerFallbackValue(DateTime.utc(2020));
     registerFallbackValue(
       const FitsWriteHeader(
         frameType: 'FLAT',
@@ -336,6 +369,7 @@ void main() {
     List<String> filterNames = const ['L', 'R'],
     List<String>? profileFilters,
     bool cameraConnected = true,
+    List<Override> extraOverrides = const [],
   }) {
     final container = ProviderContainer(
       overrides: [
@@ -364,6 +398,7 @@ void main() {
         filterWheelStateProvider.overrideWith(
           (ref) => _MutableFilterWheelNotifier(ref, wheel),
         ),
+        ...extraOverrides,
       ],
     );
     addTearDown(container.dispose);
@@ -657,7 +692,31 @@ void main() {
 
   test('a flat-history write failure surfaces a NON-FATAL warning; frames are '
       'still saved', () async {
-    final backend = _ThrowingHistoryBackend();
+    final frames = _OfflineMasterHistory();
+    when(
+      () => frames.listFlats(
+        filter: any(named: 'filter'),
+        equipmentProfileId: any(named: 'equipmentProfileId'),
+        gain: any(named: 'gain'),
+        since: any(named: 'since'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => const []);
+    when(
+      () => frames.recordFlat(
+        filter: any(named: 'filter'),
+        exposureDuration: any(named: 'exposureDuration'),
+        adu: any(named: 'adu'),
+        histogramTarget: any(named: 'histogramTarget'),
+        gain: any(named: 'gain'),
+        binning: any(named: 'binning'),
+        panelBrightness: any(named: 'panelBrightness'),
+        skyAduRate: any(named: 'skyAduRate'),
+        twilightPhase: any(named: 'twilightPhase'),
+        equipmentProfileId: any(named: 'equipmentProfileId'),
+      ),
+    ).thenThrow(StateError('master offline'));
+    final backend = _WorkflowBackend();
     addTearDown(backend.dispose);
     final container = makeContainer(
       backend,
@@ -666,6 +725,9 @@ void main() {
         filterNames: ['L'],
       ),
       filterNames: const ['L'],
+      extraOverrides: [
+        linkedHostCalibrationFramesProvider.overrideWithValue(frames),
+      ],
     );
     final notifier = await primeWizard(container);
 
@@ -673,17 +735,147 @@ void main() {
 
     final state = container.read(flatWizardProvider);
     // The frame landed on disk and the filter is complete…
-    expect(backend.savedPaths, isNotEmpty);
+    expect(backend.saveCount, greaterThan(0));
     expect(state.filterSettings[0].status, FilterCalibrationStatus.complete);
     // …but the library write failure is surfaced, not swallowed.
     expect(state.warningMessage, isNotNull);
     expect(state.warningMessage!.toLowerCase(), contains('did not record'));
-    // A remote session must not have written to the local slave DB either.
+    // The master owns the flat library; the failed post did not land locally.
     final local = await db.flatHistoryDao.getRecentCalibrations(
       filterName: 'L',
     );
     expect(local, isEmpty);
   });
+
+  test(
+    'flat admission protects the sequence, manual camera and start prompt',
+    () async {
+      final backend = _WorkflowBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      final draft = container.read(flatWizardProvider);
+      final record = container.read(runRecordProvider.notifier);
+      record.setLaunching(true);
+      expect(wizard.startHostRun(draft), isFalse);
+      await wizard.runCapture();
+      expect(
+        container.read(flatWizardProvider).errorMessage,
+        contains('sequencer'),
+      );
+      record.setLaunching(false);
+      record.setLifecycle(SequenceExecutionState.paused);
+      expect(wizard.startHostRun(draft), isFalse);
+      record.setLifecycle(SequenceExecutionState.completed);
+      container.read(sessionStateProvider.notifier).setCapturing(true);
+      expect(wizard.startHostRun(draft), isFalse);
+      container.read(sessionStateProvider.notifier).setCapturing(false);
+      container.read(cameraStateProvider.notifier).setExposing(true);
+      expect(wizard.startHostRun(draft), isFalse);
+      container.read(cameraStateProvider.notifier).setExposing(false);
+      container.read(rawCameraExposureInFlightProvider.notifier).state = true;
+      expect(wizard.startHostRun(draft), isFalse);
+      container.read(rawCameraExposureInFlightProvider.notifier).state = false;
+      expect(wizard.reserveStartPrompt(), isTrue);
+      expect(wizard.startHostRun(draft), isFalse);
+      wizard.releaseStartPrompt();
+      expect(wizard.startBlockReason, isNull);
+      expect(backend.exposureStarts, 0);
+    },
+  );
+
+  test(
+    'a linked start leaves the default folder to the host and orders cancellation after admission',
+    () async {
+      final host = _ThrowingHistoryBackend()..pendingStart = Completer();
+      addTearDown(host.dispose);
+      final container = makeContainer(host, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      wizard.updateGlobalSettings(
+        container
+            .read(flatWizardProvider)
+            .globalSettings
+            .copyWith(savePath: null),
+      );
+      final started = wizard.runCapture();
+      final body = host.startBodies.single;
+      expect((body['globalSettings'] as Map)['savePath'], isNull);
+      wizard.requestCancel();
+      expect(host.cancels, 0);
+      host.pendingStart!.complete({'state': body, 'busy': true, 'output': {}});
+      await started;
+      expect(host.cancels, 1);
+      expect(host.exposureStarts, 0);
+    },
+  );
+
+  test(
+    'switching hosts drops the old run, preview and pending commands',
+    () async {
+      final oldHost = _ThrowingHistoryBackend()..pendingStart = Completer();
+      final newHost = _ThrowingHistoryBackend();
+      addTearDown(oldHost.dispose);
+      addTearDown(newHost.dispose);
+      final container = makeContainer(oldHost, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      final starting = wizard.runCapture();
+      final old = {
+        'state': oldHost.startBodies.single,
+        'busy': true,
+        'output': {},
+        'previewKey': 'old',
+      };
+      wizard.applyHostSnapshot(old);
+      expect(wizard.isBusy, isTrue);
+      (container.read(backendProvider.notifier) as _FixedBackendNotifier).use(
+        newHost,
+      );
+      wizard.requestCancel();
+      oldHost.pendingStart!.complete(old);
+      oldHost.preview.complete(_image(1000));
+      await starting;
+      await _pump();
+      expect(wizard.isBusy, isFalse);
+      expect(container.read(flatWizardProvider).lastImageData, isNull);
+      expect(
+        container.read(flatWizardProvider).globalSettings.savePath,
+        isNull,
+      );
+      expect(container.read(flatRunOutputProvider).remote, isFalse);
+      expect(oldHost.cancels, 0);
+      expect(newHost.cancels, 0);
+    },
+  );
+
+  test(
+    'the last streamed state wins over a late start reply and keeps the selected tab',
+    () async {
+      final host = _ThrowingHistoryBackend()..pendingStart = Completer();
+      addTearDown(host.dispose);
+      final container = makeContainer(host, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      wizard.setMode(FlatWizardMode.batch);
+      wizard.toggleAduGraph(false);
+      final start = wizard.runCapture();
+      final state = {
+        ...host.startBodies.single,
+        'mode': 'quick',
+        'showAduGraph': true,
+      };
+      wizard.applyHostSnapshot({
+        'state': {...state, 'statusMessage': 'Completed'},
+        'busy': false,
+        'output': {},
+      });
+      host.pendingStart!.complete({'state': state, 'busy': true, 'output': {}});
+      await start;
+      expect(wizard.isBusy, isFalse);
+      final shown = container.read(flatWizardProvider);
+      expect(shown.mode, FlatWizardMode.batch);
+      expect(shown.showAduGraph, isFalse);
+      expect(shown.statusMessage, 'Completed');
+    },
+  );
 
   test('a linked Windows host gets flat paths in its own path style', () async {
     final backend = _ThrowingHistoryBackend();
@@ -710,19 +902,16 @@ void main() {
 
     await notifier.runCapture();
 
-    expect(backend.savedPaths, isNotEmpty);
-    for (final saved in backend.savedPaths) {
-      expect(saved, startsWith(r'C:\Users\observer\Documents\Flats\'));
-      expect(saved, contains(r'\L\'));
-      expect(saved, isNot(contains('/')));
-    }
-    // Named by the Settings naming pattern, as every kept frame is, and
-    // never twice the same name.
-    expect(
-      backend.savedPaths.map((path) => path.split(r'\').last),
-      everyElement(matches(RegExp(r'^Flat_L_[0-9.]+_\d{4}\.fits$'))),
-    );
-    expect(backend.savedPaths.toSet(), hasLength(backend.savedPaths.length));
+    // The client sends the host path unchanged and does not build the files.
+    // The imaging host joins subfolders in its own path style when it runs.
+    expect(backend.startBodies, hasLength(1));
+    expect(backend.exposureStarts, 0);
+    expect(backend.savedPaths, isEmpty);
+    final settings =
+        backend.startBodies.single['globalSettings'] as Map<String, dynamic>;
+    expect(settings['savePath'], r'C:\Users\observer\Documents\Flats');
+    expect(settings['createDateSubfolder'], isTrue);
+    expect(settings['createFilterSubfolders'], isTrue);
   });
 
   test(

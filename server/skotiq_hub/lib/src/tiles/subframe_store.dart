@@ -49,6 +49,24 @@ class SubframeStore {
     return dest;
   }
 
+  /// Asynchronous variant of [save] for HTTP upload handlers so large FITS
+  /// payloads do not block the hub event loop.
+  Future<String> saveAsync({
+    required String accountId,
+    required int tileId,
+    required int order,
+    required String contributionId,
+    required Uint8List bytes,
+  }) async {
+    final dest = pathFor(accountId, tileId, order, contributionId);
+    final dir = Directory(p.dirname(dest));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final tmp = File('$dest.tmp');
+    await tmp.writeAsBytes(bytes, flush: true);
+    await tmp.rename(dest);
+    return dest;
+  }
+
   Uint8List? load(String path) {
     final file = File(path);
     if (!file.existsSync()) return null;

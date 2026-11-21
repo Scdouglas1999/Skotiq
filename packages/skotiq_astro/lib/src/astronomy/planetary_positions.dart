@@ -146,8 +146,7 @@ class PlanetaryPositions {
       planetIndex,
       planetR,
       distance,
-      geoLon,
-      earthLon,
+      earthR,
     );
 
     return (ra / 15, dec, magnitude); // Convert RA to hours
@@ -706,7 +705,7 @@ class PlanetaryPositions {
     var geoLon = math.atan2(y, x) * _rad2deg;
     geoLon = geoLon % 360;
     if (geoLon < 0) geoLon += 360;
-    final geoLat = math.asin(z / distance) * _rad2deg;
+    final geoLat = math.asin((z / distance).clamp(-1.0, 1.0)) * _rad2deg;
 
     return (geoLon, geoLat, distance);
   }
@@ -715,8 +714,7 @@ class PlanetaryPositions {
     int planetIndex,
     double sunDist,
     double earthDist,
-    double geoLon,
-    double earthLon,
+    double earthSunDist,
   ) {
     // Base magnitude at 1 AU from Sun and Earth, at 0° phase angle
     const baseMagnitudes = [
@@ -729,22 +727,37 @@ class PlanetaryPositions {
       -6.87, // Neptune
     ];
 
-    // Phase angle approximation
-    var phaseAngle = (geoLon - earthLon).abs();
-    if (phaseAngle > 180) phaseAngle = 360 - phaseAngle;
-    final phaseRad = phaseAngle * _deg2rad;
-
-    // Illuminated fraction (Lambert's law approximation)
-    final illum = (1 + math.cos(phaseRad)) / 2;
+    // True Sun-Planet-Earth phase angle from the Law of Cosines:
+    //   cos(i) = (r^2 + Δ^2 - R^2) / (2 * r * Δ)
+    // where r = sunDist, Δ = earthDist, R = earthSunDist.
+    final denom = 2.0 * sunDist * earthDist;
+    final cosPhase = denom > 0
+        ? ((sunDist * sunDist +
+                      earthDist * earthDist -
+                      earthSunDist * earthSunDist) /
+                  denom)
+              .clamp(-1.0, 1.0)
+        : 1.0;
+    final phaseRad = math.acos(cosPhase);
+    final phaseAngle = phaseRad * _rad2deg;
 
     // Distance correction: m = m0 + 5*log10(r*d)
     final distCorrection = 5 * math.log(sunDist * earthDist) / math.ln10;
 
-    // Phase correction (simplified)
+    // Phase correction (Meeus, Astronomical Algorithms, Ch. 41)
     var phaseCorrection = 0.0;
-    if (planetIndex <= 1) {
-      // Mercury and Venus (inner planets) have strong phase effects
-      phaseCorrection = -2.5 * math.log(illum.clamp(0.01, 1.0)) / math.ln10;
+    if (planetIndex == 0) {
+      // Mercury
+      phaseCorrection =
+          0.0380 * phaseAngle -
+          0.000273 * phaseAngle * phaseAngle +
+          0.000002 * phaseAngle * phaseAngle * phaseAngle;
+    } else if (planetIndex == 1) {
+      // Venus
+      phaseCorrection =
+          0.0009 * phaseAngle +
+          0.000239 * phaseAngle * phaseAngle -
+          0.00000065 * phaseAngle * phaseAngle * phaseAngle;
     } else if (planetIndex == 2) {
       // Mars has moderate phase effects
       phaseCorrection = 0.016 * phaseAngle;

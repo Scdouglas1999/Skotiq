@@ -694,7 +694,12 @@ where
             );
             let member = &members[member_index];
             let device = Arc::new(make(base_url, device_number));
-            let result = (member.run)(device).await;
+            // Building the next device synchronously loads the TLS trust store.
+            // Let an issued request keep polling its socket while the driver
+            // below prepares another case on a slow runner.
+            let result = tokio::spawn((member.run)(device))
+                .await
+                .expect("wire transcript operation panicked");
             let mut log = slots.lock().unwrap().remove(&device_number).unwrap().log;
             if member.parallel {
                 log = log
@@ -718,7 +723,9 @@ where
                 text,
             }
         })
-        .buffer_unordered(32)
+        // Each device transcript already has four Tokio workers, and libtest
+        // runs several devices at once. Bound the independent cases per device.
+        .buffer_unordered(4)
         .collect()
         .await;
 

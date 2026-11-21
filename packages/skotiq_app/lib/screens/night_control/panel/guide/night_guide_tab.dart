@@ -48,6 +48,16 @@ class NightGuideTab extends ConsumerWidget {
   }
 }
 
+String _disconnectedGuiderTitle(
+  SkotiqLocalizations l10n,
+  GuiderState guider, {
+  required bool phd2,
+}) {
+  final name = guider.deviceName?.trim();
+  if (name != null && name.isNotEmpty) return name;
+  return l10n.text(phd2 ? 'nightScopePhd2' : 'nightScopeGuider');
+}
+
 /// No guider connected: say so, and offer what connects the profile's guider.
 class _NoGuiderSection extends ConsumerStatefulWidget {
   const _NoGuiderSection();
@@ -68,7 +78,12 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
         guider.connectionState == DeviceConnectionState.connecting;
     final profileGuider = ref.watch(profileGuiderProvider);
     if (profileGuider.kind != ProfileGuiderKind.phd2) {
-      return _deviceGuiderSection(profileGuider, canCommand, connecting);
+      return _deviceGuiderSection(
+        profileGuider,
+        canCommand,
+        connecting,
+        guider,
+      );
     }
     final reason = !canCommand
         ? l10n.text('nightActWhyNoHost')
@@ -76,10 +91,11 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
             ? l10n.text('nightScopeGuideConnecting')
             : null;
     return NightPanelSection(
-      title: l10n.text('nightScopePhd2'),
+      title: _disconnectedGuiderTitle(l10n, guider, phd2: true),
       trailing: l10n.text('nightScopeNotConnected'),
       trailingTone: MetricGridTone.warning,
       children: [
+        if (guider.lastError != null) NightPanelNote(guider.lastError!.message),
         NightPanelNote(l10n.text('nightScopeGuideNoPhd2')),
         NightPanelButtonGrid(
           columns: 2,
@@ -113,6 +129,7 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
     ProfileGuider profileGuider,
     bool canCommand,
     bool connecting,
+    GuiderState guider,
   ) {
     final l10n = context.l10n;
     if (profileGuider.kind == ProfileGuiderKind.none) {
@@ -129,10 +146,11 @@ class _NoGuiderSectionState extends ConsumerState<_NoGuiderSection> {
             ? l10n.text('nightScopeGuideConnectingDevice')
             : null;
     return NightPanelSection(
-      title: l10n.text('nightScopeGuider'),
+      title: _disconnectedGuiderTitle(l10n, guider, phd2: false),
       trailing: l10n.text('nightScopeNotConnected'),
       trailingTone: MetricGridTone.warning,
       children: [
+        if (guider.lastError != null) NightPanelNote(guider.lastError!.message),
         NightPanelNote(l10n.text('nightScopeGuideNoDevice')),
         NightPanelButtonGrid(
           columns: 2,

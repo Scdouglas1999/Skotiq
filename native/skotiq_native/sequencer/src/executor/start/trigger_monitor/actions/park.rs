@@ -1,34 +1,31 @@
 //! `ParkAndAbort`: end the run, parking and closing the rig unless the
-//! operator's park setting says to leave it. When the trigger ends the night
-//! (dawn, an obstruction), the plan's own shutdown steps run afterwards.
+//! operator's park setting says to leave it. The plan's own end steps the run
+//! did not reach run afterwards, whichever trigger ended it.
 
 use super::super::super::night_end::{self, AlreadySafe, StepOutcome};
 use super::custom_branch::CustomBranches;
 use super::*;
 
-/// The plan's shutdown steps, when `trigger_id` ends the night and the run has
-/// a plan to read them from.
-async fn finish_the_night(
-    trigger_id: &str,
+/// The plan's end steps the run did not reach, by the one rule on how a run
+/// ends ([`night_end::run_owed_end_steps`]).
+async fn finish_the_run(
     trigger_name: &str,
     rig: &Rig,
     plan: &CustomBranches,
     run: &RunControl,
     already: AlreadySafe,
 ) -> Vec<StepOutcome> {
-    if !night_end::ends_the_night(trigger_id) {
-        return Vec::new();
-    }
     let Some(sequence) = plan.sequence.as_ref() else {
         return Vec::new();
     };
     run.state
         .set_message(format!("{trigger_name}: putting the rig away"));
-    night_end::run_plan_shutdown_steps(
+    night_end::run_owed_end_steps(
         trigger_name,
         sequence,
         &plan.context,
         rig.device_ops(),
+        &run.state,
         already,
     )
     .await
@@ -74,8 +71,7 @@ pub(in super::super) async fn end_without_parking(
 ) -> ActionFlow {
     park.stop_node_tree(&run.is_cancelled).await;
     let guiding_stopped = night_end::ends_the_night(trigger_id) && stop_guiding(rig, run).await;
-    let steps = finish_the_night(
-        trigger_id,
+    let steps = finish_the_run(
         trigger_name,
         rig,
         plan,
@@ -112,7 +108,6 @@ pub(in super::super) async fn end_without_parking(
 /// and dome through the shared safe-state sweep. Every step's failure is
 /// logged as well as sent, since a headless run has no event subscriber.
 pub(in super::super) async fn park_and_abort(
-    trigger_id: &str,
     trigger_name: &str,
     rig: &Rig,
     plan: &CustomBranches,
@@ -205,7 +200,7 @@ pub(in super::super) async fn park_and_abort(
             && safe_state.cover_close_error.is_none(),
         dome_closed: devices.dome_id.is_some() && safe_state.dome_close_error.is_none(),
     };
-    finish_the_night(trigger_id, trigger_name, rig, plan, run, already).await;
+    finish_the_run(trigger_name, rig, plan, run, already).await;
 
     park.parked();
     ActionFlow::Terminate {

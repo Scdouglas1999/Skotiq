@@ -472,6 +472,8 @@ class PlateSolveService {
   }
 }
 
+bool _sameMeasurement(double a, double b) => a == b || (a.isNaN && b.isNaN);
+
 /// Whether two results describe the same solve outcome.
 ///
 /// `PlateSolveResult ==` compares its SIP coefficient lists by identity, so a
@@ -481,9 +483,9 @@ bool samePlateSolveOutcome(PlateSolveResult a, PlateSolveResult b) =>
     a.success == b.success &&
     a.ra == b.ra &&
     a.dec == b.dec &&
-    a.pixelScale == b.pixelScale &&
-    a.rotation == b.rotation &&
-    a.solveTimeSecs == b.solveTimeSecs &&
+    _sameMeasurement(a.pixelScale, b.pixelScale) &&
+    _sameMeasurement(a.rotation, b.rotation) &&
+    _sameMeasurement(a.solveTimeSecs, b.solveTimeSecs) &&
     a.error == b.error;
 
 class PlateSolveState {

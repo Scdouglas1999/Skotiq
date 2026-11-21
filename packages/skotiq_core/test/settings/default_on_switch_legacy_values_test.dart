@@ -32,7 +32,6 @@ const _strictlyRead = {
 const _onUnlessFalse = {
   'tutorials_enabled',
   'frame_watch_recenter_enabled',
-  'frame_watch_obstruction_detection',
   'calibration.auto_dark_from_library',
   'transient_alert_notify_on_new',
 };

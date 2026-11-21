@@ -256,8 +256,6 @@ async fn take_burst(
     let consecutive_rejects_handle = ctx.run.grading.consecutive_rejects.clone();
     let frames_accepted_handle = ctx.run.grading.frames_accepted.clone();
     let frames_rejected_handle = ctx.run.grading.frames_rejected.clone();
-    let quality_check_default = ctx.run.grading.default_quality_check.clone();
-    let reject_folder_override = ctx.run.grading.reject_folder_path.clone();
 
     // A dark/flat/bias burst has no stars: grading would reject every frame
     // as "0 stars", dithering would pulse the mount for nothing, and star
@@ -265,8 +263,16 @@ async fn take_burst(
     let is_light_frame = config.frame_type.is_sky_frame();
 
     for frame in (control.frames_taken + 1)..=config.count {
+        // Each frame takes the operator's grading and saving settings as they
+        // stand when it starts, so an edit during a long burst applies from
+        // its next frame.
+        let crate::instructions::FrameSettings {
+            default_quality_check: quality_check_default,
+            reject_folder_path: reject_folder_override,
+            camera_file_saving,
+        } = ctx.run.frame_settings();
         if let Some(result) =
-            hold_frame_for_set_point(config, ctx, &camera_id, control, frame).await
+            hold_frame_for_set_point(config, ctx, &camera_id, control, frame, false).await
         {
             return result;
         }
@@ -474,7 +480,17 @@ async fn take_burst(
                     .after_failure(ctx, error, &format!("on frame {}/{}", frame, config.count))
                     .await
                 {
-                    RetryOutcome::Retry => {}
+                    RetryOutcome::Retry => {
+                        if camera_retries.take_reopened() {
+                            if let Some(result) = hold_frame_for_set_point(
+                                config, ctx, &camera_id, control, frame, true,
+                            )
+                            .await
+                            {
+                                return result;
+                            }
+                        }
+                    }
                     RetryOutcome::Cancelled => {
                         return InstructionResult::cancelled("Exposure cancelled")
                     }
@@ -625,8 +641,8 @@ async fn take_burst(
         // Image Grading: decide accept/reject BEFORE picking the
         // final path — rejects go to a sibling Reject/ folder. The
         // grading honours the per-burst override (`config.quality_check`)
-        // first, then falls back to the global default from runtime_config
-        // (set by the executor at start time). If neither is configured
+        // first, then falls back to the operator's default as it stood when
+        // this frame started. If neither is configured
         // the frame is accepted unconditionally and the path stays the
         // canonical capture folder.
         let active_check = if is_light_frame {
@@ -646,15 +662,14 @@ async fn take_burst(
                 frame_filter_name.as_deref(),
             );
             let target_altitude = target_altitude_now(ctx);
-            let (filter_hfr, star_baseline) = crate::quality::filter_baseline::baselines_for(
+            let mut baselines = crate::quality::filter_baseline::baselines_for(
                 &star_count_baselines_handle,
                 &baseline_key,
                 target_altitude,
             )
             .await;
-            let baseline = filter_hfr.or(*frame_baseline_handle.read().await);
-            let g =
-                crate::quality::grade_frame_with_baselines(qc, &metrics, baseline, star_baseline);
+            baselines.hfr = baselines.hfr.or(*frame_baseline_handle.read().await);
+            let g = crate::quality::grade_frame_with_baselines(qc, &metrics, &baselines);
             match g {
                 crate::quality::FrameGrade::Pass => {
                     // Update the baselines with this accepted frame.
@@ -670,8 +685,7 @@ async fn take_burst(
                     crate::quality::filter_baseline::record_accepted(
                         &star_count_baselines_handle,
                         baseline_key,
-                        measured_star_count,
-                        measured_hfr,
+                        &metrics,
                         target_altitude,
                     )
                     .await;
@@ -818,7 +832,7 @@ async fn take_burst(
             // FITS writer downstream will surface any path-resolution error.
             full_path.to_str().unwrap_or(&filename),
             &frame_ctx,
-            ctx.run.camera_file_saving,
+            camera_file_saving,
             // A Take Exposures frame is a kept frame.
             true,
         )
@@ -954,22 +968,43 @@ enum GuidingForFrame {
     Stop(InstructionResult),
 }
 
-/// Hold a frame matched to lights by temperature (a dark, a bias, a dark
-/// flat) until the sensor is at the cooler's set-point. `None` takes the
-/// frame; a sensor that never gets there ends the burst as Skipped with a
-/// notice, so no frame is recorded against a temperature it was not taken
-/// at, and the run goes on with its next step.
+/// How long a frame retried on a reopened camera waits for its sensor to come
+/// back to the set-point. A sensor that warmed during a power loss (the rig,
+/// 2026-11-17: -5.7°C against -10°C) is pulled back in about a minute and a
+/// half; a cooler that has not got there in this time is not going to soon.
+const REOPEN_SET_POINT_LIMIT: Duration = Duration::from_secs(10 * 60);
+
+/// Hold a frame until the sensor is at the cooler's set-point: a frame
+/// matched to lights by temperature (a dark, a bias, a dark flat) always,
+/// and any frame retried on a camera that was just reopened (`after_reopen`),
+/// since a reopen after a power loss finds the sensor warm. `None` takes the
+/// frame. A calibration frame whose sensor never gets there ends the burst as
+/// Skipped with a notice, so no frame is recorded against a temperature it
+/// was not taken at, and the run goes on with its next step; a light frame is
+/// taken anyway with a warning.
 async fn hold_frame_for_set_point(
     config: &ExposureConfig,
     ctx: &InstructionContext,
     camera_id: &str,
     control: &BurstControl<'_>,
     frame: u32,
+    after_reopen: bool,
 ) -> Option<InstructionResult> {
-    if !config.frame_type.is_matched_by_sensor_temperature() {
+    let calibration = config.frame_type.is_matched_by_sensor_temperature();
+    if !calibration && !after_reopen {
         return None;
     }
-    let set_point_c = ctx.set_temp_c?;
+    let set_point_c = match ctx.set_temp_c {
+        Some(set_point) => set_point,
+        None if after_reopen => ctx
+            .run
+            .device_ops
+            .camera_get_cooler_setpoint(camera_id)
+            .await
+            .ok()
+            .flatten()?,
+        None => return None,
+    };
     // A cooler that is off holds no set-point; the frame records the sensor
     // as it is.
     if matches!(
@@ -978,14 +1013,29 @@ async fn hold_frame_for_set_point(
     ) {
         return None;
     }
-    let settle_by = ctx
-        .set_point_settle_by
-        .unwrap_or_else(|| tokio::time::Instant::now() + CoolConfig::default().settle_budget());
+    let settle_by = if after_reopen {
+        tokio::time::Instant::now() + REOPEN_SET_POINT_LIMIT
+    } else {
+        ctx.set_point_settle_by
+            .unwrap_or_else(|| tokio::time::Instant::now() + CoolConfig::default().settle_budget())
+    };
     let tolerance_c = ctx.calibration_temperature_tolerance_c();
     let report = |message: &str| control.report(message);
     match hold_for_set_point(ctx, camera_id, set_point_c, tolerance_c, settle_by, &report).await {
         SetPointHold::Ready => None,
         SetPointHold::Cancelled(result) => Some(result),
+        SetPointHold::NotReached { reason } if !calibration => {
+            let message = format!(
+                "Frame {frame}/{} is taken on the reopened camera off its {set_point_c:.1}°C \
+                 set-point: {reason}.",
+                config.count
+            );
+            tracing::warn!("[SEQ] {message}");
+            if let Some(event_tx) = &ctx.run.event_tx {
+                let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
+            }
+            None
+        }
         SetPointHold::NotReached { reason } => {
             let frames = match config.frame_type {
                 FrameType::Bias => "bias",
@@ -1152,7 +1202,7 @@ async fn recenter_after_mount_fault(
         use_target_coords: true,
         custom_ra: None,
         custom_dec: None,
-        accuracy_arcsec: 10.0,
+        accuracy_arcsec: None,
         max_attempts: 3,
         exposure_duration: 5.0,
         filter: None,

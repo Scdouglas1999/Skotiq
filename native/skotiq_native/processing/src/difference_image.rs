@@ -19,7 +19,7 @@
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::difference_image::{
     difference_against_decoded, DecodedFrame, DifferenceOptions, DifferenceRejections,
-    DifferenceResult, TransientCandidate,
+    TransientCandidate,
 };
 use skotiq_imaging::sky_atlas::{
     tile_center, tile_ids_for_frame, AtlasError, TileId, ATLAS_HEALPIX_ORDER,
@@ -33,6 +33,22 @@ use crate::sky_atlas::{describe_atlas_error, open_atlas, parse_interp, read_fram
 
 /// Tiles differenced concurrently for one frame.
 const DIFFERENCE_WORKERS: usize = 4;
+
+// Capture can enqueue another scan before the previous frame finishes. A
+// process-wide pool keeps their combined resident tile budget bounded.
+fn difference_pool() -> Result<&'static rayon::ThreadPool, String> {
+    static POOL: std::sync::OnceLock<Result<rayon::ThreadPool, String>> =
+        std::sync::OnceLock::new();
+    POOL.get_or_init(|| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(DIFFERENCE_WORKERS)
+            .thread_name(|index| format!("difference-{index}"))
+            .build()
+            .map_err(|error| format!("could not create difference worker pool: {error}"))
+    })
+    .as_ref()
+    .map_err(Clone::clone)
+}
 
 // difference_image
 
@@ -317,14 +333,18 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
     let mut tiles_unnormalized: Vec<TileId> = Vec::new();
     let mut rejected = RejectionsJson::default();
 
-    // The frame is decoded once; tiles are differenced on a small pool (each
-    // worker holds one ~42 MB template plus a few tile-sized planes).
+    // The frame is decoded once. Tiles share one process-wide pool (each
+    // worker holds one ~42 MB template plus a few tile-sized planes, and
+    // drops those planes before the tile result leaves the worker).
     let decoded = DecodedFrame::new(&frame);
     enum TileOutcome {
         NoTemplate,
         Thin,
         Unnormalized(DifferenceRejections),
-        Checked(Box<DifferenceResult>),
+        Checked {
+            candidates: Vec<CandidateJson>,
+            rejections: DifferenceRejections,
+        },
     }
     let run_tile = |tid: TileId| -> Result<TileOutcome, String> {
         let Some(template) = atlas.load_tile(tid).map_err(|e| describe_atlas_error(&e))? else {
@@ -348,41 +368,9 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
         if result.normalization_stars < skotiq_imaging::difference_image::MIN_NORMALIZATION_STARS {
             return Ok(TileOutcome::Unnormalized(result.rejections));
         }
-        Ok(TileOutcome::Checked(Box::new(result)))
-    };
-    let outcomes: Vec<(TileId, Result<TileOutcome, String>)> = {
-        use rayon::prelude::*;
-        match rayon::ThreadPoolBuilder::new()
-            .num_threads(DIFFERENCE_WORKERS)
-            .build()
-        {
-            Ok(pool) => pool.install(|| tiles.par_iter().map(|&t| (t, run_tile(t))).collect()),
-            Err(_) => tiles.iter().map(|&t| (t, run_tile(t))).collect(),
-        }
-    };
-
-    for (tid, outcome) in outcomes {
-        let result = match outcome? {
-            TileOutcome::NoTemplate => {
-                tiles_no_template.push(tid);
-                continue;
-            }
-            TileOutcome::Thin => {
-                tiles_skipped_thin.push(tid);
-                continue;
-            }
-            TileOutcome::Unnormalized(r) => {
-                rejected.add(&r);
-                tiles_unnormalized.push(tid);
-                continue;
-            }
-            TileOutcome::Checked(r) => r,
-        };
-        rejected.add(&result.rejections);
-        tiles_checked.push(tid);
-
+        let mut tile_candidates = Vec::with_capacity(result.candidates.len());
         for c in &result.candidates {
-            candidates.push(candidate_json(tid, c));
+            tile_candidates.push(candidate_json(tid, c));
             if let Some(dir) = crop_dir {
                 for (stage, plane) in [
                     ("template", &result.template_image),
@@ -412,6 +400,40 @@ fn difference_impl(args: DifferenceArgs) -> Result<DifferenceResultJson, String>
         {
             let path = Path::new(dir).join(format!("residual_{tid}.png"));
             write_preview_png(&result.residual, &path)?;
+        }
+        Ok(TileOutcome::Checked {
+            candidates: tile_candidates,
+            rejections: result.rejections,
+        })
+    };
+    let outcomes: Vec<(TileId, Result<TileOutcome, String>)> = {
+        use rayon::prelude::*;
+        difference_pool()?.install(|| tiles.par_iter().map(|&t| (t, run_tile(t))).collect())
+    };
+
+    for (tid, outcome) in outcomes {
+        match outcome? {
+            TileOutcome::NoTemplate => {
+                tiles_no_template.push(tid);
+                continue;
+            }
+            TileOutcome::Thin => {
+                tiles_skipped_thin.push(tid);
+                continue;
+            }
+            TileOutcome::Unnormalized(r) => {
+                rejected.add(&r);
+                tiles_unnormalized.push(tid);
+                continue;
+            }
+            TileOutcome::Checked {
+                candidates: tile_candidates,
+                rejections,
+            } => {
+                rejected.add(&rejections);
+                tiles_checked.push(tid);
+                candidates.extend(tile_candidates);
+            }
         }
     }
 
@@ -534,6 +556,34 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn overlapping_frames_share_the_difference_worker_limit() {
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::Barrier;
+        let ready = Barrier::new(8);
+        let active = AtomicUsize::new(0);
+        let peak = AtomicUsize::new(0);
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                scope.spawn(|| {
+                    let pool = super::difference_pool().expect("difference worker pool");
+                    ready.wait();
+                    pool.install(|| {
+                        let count = active.fetch_add(1, Ordering::SeqCst) + 1;
+                        peak.fetch_max(count, Ordering::SeqCst);
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        active.fetch_sub(1, Ordering::SeqCst);
+                    });
+                });
+            }
+        });
+        assert!(
+            peak.load(Ordering::SeqCst) <= super::DIFFERENCE_WORKERS,
+            "overlapping frames exceeded the resident tile worker budget: {}",
+            peak.load(Ordering::SeqCst)
+        );
+    }
 
     /// A scratch directory that deletes itself when the test ends.
     /// `Drop` rather than a cleanup call at the end of each test: the leak was

@@ -50,6 +50,12 @@ class RelayServerConfig {
   /// Cap on simultaneously connected phones per appliance.
   final int maxClientsPerAppliance;
 
+  /// Cap on concurrently open mux streams per client session.
+  final int maxStreamsPerClient;
+
+  /// First-time appliance registrations allowed per source IP per window.
+  final int newRegistrationLimitPerIp;
+
   /// Where registered appliance ids + secret hashes persist across relay
   /// restarts. Null = memory only (every restart forgets registrations).
   final String? stateFilePath;
@@ -66,6 +72,8 @@ class RelayServerConfig {
     this.tlsPrivateKeyPath,
     this.maxAppliances = 50,
     this.maxClientsPerAppliance = 8,
+    this.maxStreamsPerClient = 64,
+    this.newRegistrationLimitPerIp = 5,
     this.stateFilePath,
     this.registrationFailureLimit = 5,
     this.registrationFailureWindow = const Duration(minutes: 1),
@@ -76,6 +84,7 @@ class RelayServerConfig {
 class RelayApplianceRegistry {
   final Map<String, String> _secretHashes = {};
   final String? _path;
+  Future<void> _persistTail = Future<void>.value();
 
   RelayApplianceRegistry({String? path}) : _path = path;
 
@@ -125,20 +134,24 @@ class RelayApplianceRegistry {
     }
   }
 
-  Future<void> _persist() async {
+  Future<void> _persist() {
     final path = _path;
-    if (path == null) return;
-    final file = File(path);
-    await file.parent.create(recursive: true);
-    final payload = jsonEncode({
-      'appliances': {
-        for (final entry in _secretHashes.entries)
-          entry.key: {'secretHash': entry.value},
-      },
+    if (path == null) return Future<void>.value();
+    final run = _persistTail.catchError((Object _) {}).then((_) async {
+      final file = File(path);
+      await file.parent.create(recursive: true);
+      final payload = jsonEncode({
+        'appliances': {
+          for (final entry in _secretHashes.entries)
+            entry.key: {'secretHash': entry.value},
+        },
+      });
+      final tmp = File('$path.tmp');
+      await tmp.writeAsString(payload, flush: true);
+      await tmp.rename(path);
     });
-    final tmp = File('$path.tmp');
-    await tmp.writeAsString(payload, flush: true);
-    await tmp.rename(path);
+    _persistTail = run;
+    return run;
   }
 }
 
@@ -154,6 +167,7 @@ class RelayServer {
 
   final Map<String, _ApplianceSession> _online = {};
   final Map<String, List<DateTime>> _authFailuresByIp = {};
+  final Map<String, List<DateTime>> _newRegistrationsByIp = {};
 
   RelayServer(this.config, {this.onLog, Random? random})
     : _random = random ?? Random.secure();
@@ -284,100 +298,122 @@ class RelayServer {
     // The very first frame MUST be a register control message.
     final Map<String, dynamic> register;
     final queue = StreamIterator<dynamic>(ws);
+    var cancelQueueInFinally = true;
     try {
-      final gotFirst = await queue.moveNext().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => false,
-      );
-      if (!gotFirst) {
-        await ws.close(WebSocketStatus.policyViolation, 'no registration');
-        return;
-      }
-      final frame = _decodeWsFrame(queue.current);
-      if (frame.type != MuxFrameType.control ||
-          frame.streamId != kMuxControlStreamId) {
-        throw const MuxProtocolException('first frame is not control');
-      }
-      final decoded = jsonDecode(utf8.decode(frame.payload));
-      if (decoded is! Map<String, dynamic> || decoded['op'] != 'register') {
-        throw const MuxProtocolException('first control message not register');
-      }
-      register = decoded;
-    } on Exception catch (e) {
-      _log('uplink from $remoteIp rejected: $e');
-      await ws.close(WebSocketStatus.protocolError, 'bad registration');
-      return;
-    }
-
-    final suppliedId = register['applianceId'];
-    final suppliedSecret = register['secret'];
-    String applianceId;
-    String? mintedSecret;
-
-    if (suppliedId is String && suppliedId.isNotEmpty) {
-      // Returning appliance: id + secret must verify.
-      if (suppliedSecret is! String ||
-          !registry.verify(suppliedId, suppliedSecret)) {
-        _recordAuthFailure(remoteIp);
-        _log('uplink auth failure for "$suppliedId" from $remoteIp');
-        _sendControl(ws, {
-          'op': 'error',
-          'code': 'auth_failed',
-          'message': 'unknown appliance id or wrong secret',
-        });
-        await ws.close(WebSocketStatus.policyViolation, 'auth failed');
-        return;
-      }
-      applianceId = suppliedId;
-    } else {
-      // First registration: mint id + secret, return the secret exactly once.
-      if (registry.count >= config.maxAppliances) {
-        _sendControl(ws, {
-          'op': 'error',
-          'code': 'capacity',
-          'message': 'relay is at its registered-appliance limit',
-        });
-        await ws.close(WebSocketStatus.policyViolation, 'capacity');
-        return;
-      }
-      do {
-        applianceId = mintApplianceId(_random);
-      } while (registry.contains(applianceId));
-      mintedSecret = mintSecret(_random);
-      await registry.register(applianceId, mintedSecret);
-      _log('minted new appliance id $applianceId for $remoteIp');
-    }
-
-    // Replace a stale session for the same id (rig rebooted; the dead WS
-    // may linger until ping timeout — newest registration wins).
-    final stale = _online.remove(applianceId);
-    if (stale != null) {
-      _log('replacing stale uplink for $applianceId');
-      await stale.close('replaced by a newer uplink');
-    }
-
-    final session = _ApplianceSession(applianceId, ws, this);
-    _online[applianceId] = session;
-    _sendControl(ws, {
-      'op': 'registered',
-      'applianceId': applianceId,
-      if (mintedSecret != null) 'secret': mintedSecret,
-    });
-    _log('appliance $applianceId online (from $remoteIp)');
-
-    try {
-      while (await queue.moveNext()) {
+      try {
+        final gotFirst = await queue.moveNext().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => false,
+        );
+        if (!gotFirst) {
+          await ws.close(WebSocketStatus.policyViolation, 'no registration');
+          return;
+        }
         final frame = _decodeWsFrame(queue.current);
-        session.handleApplianceFrame(frame);
+        if (frame.type != MuxFrameType.control ||
+            frame.streamId != kMuxControlStreamId) {
+          throw const MuxProtocolException('first frame is not control');
+        }
+        final decoded = jsonDecode(utf8.decode(frame.payload));
+        if (decoded is! Map<String, dynamic> || decoded['op'] != 'register') {
+          throw const MuxProtocolException(
+            'first control message not register',
+          );
+        }
+        register = decoded;
+      } on Exception catch (e) {
+        _log('uplink from $remoteIp rejected: $e');
+        await ws.close(WebSocketStatus.protocolError, 'bad registration');
+        return;
       }
-    } on Exception catch (e) {
-      _log('uplink $applianceId failed: $e');
+
+      final suppliedId = register['applianceId'];
+      final suppliedSecret = register['secret'];
+      String applianceId;
+      String? mintedSecret;
+
+      if (suppliedId is String && suppliedId.isNotEmpty) {
+        // Returning appliance: id + secret must verify.
+        if (suppliedSecret is! String ||
+            !registry.verify(suppliedId, suppliedSecret)) {
+          _recordAuthFailure(remoteIp);
+          _log('uplink auth failure for "$suppliedId" from $remoteIp');
+          _sendControl(ws, {
+            'op': 'error',
+            'code': 'auth_failed',
+            'message': 'unknown appliance id or wrong secret',
+          });
+          await ws.close(WebSocketStatus.policyViolation, 'auth failed');
+          return;
+        }
+        applianceId = suppliedId;
+      } else {
+        // First registration: throttle per source IP so an unauthenticated
+        // peer cannot exhaust maxAppliances in a burst.
+        if (_isNewRegistrationRateLimited(remoteIp)) {
+          _sendControl(ws, {
+            'op': 'error',
+            'code': 'rate_limited',
+            'message': 'too many new appliance registrations; retry later',
+          });
+          await ws.close(WebSocketStatus.policyViolation, 'rate limited');
+          return;
+        }
+        if (registry.count >= config.maxAppliances) {
+          _sendControl(ws, {
+            'op': 'error',
+            'code': 'capacity',
+            'message': 'relay is at its registered-appliance limit',
+          });
+          await ws.close(WebSocketStatus.policyViolation, 'capacity');
+          return;
+        }
+        _recordNewRegistration(remoteIp);
+        do {
+          applianceId = mintApplianceId(_random);
+        } while (registry.contains(applianceId));
+        mintedSecret = mintSecret(_random);
+        await registry.register(applianceId, mintedSecret);
+        _log('minted new appliance id $applianceId for $remoteIp');
+      }
+
+      // Replace a stale session for the same id (rig rebooted; the dead WS
+      // may linger until ping timeout — newest registration wins).
+      final stale = _online.remove(applianceId);
+      if (stale != null) {
+        _log('replacing stale uplink for $applianceId');
+        await stale.close('replaced by a newer uplink');
+      }
+
+      final session = _ApplianceSession(applianceId, ws, this);
+      _online[applianceId] = session;
+      _sendControl(ws, {
+        'op': 'registered',
+        'applianceId': applianceId,
+        if (mintedSecret != null) 'secret': mintedSecret,
+      });
+      _log('appliance $applianceId online (from $remoteIp)');
+
+      cancelQueueInFinally = false;
+      try {
+        while (await queue.moveNext()) {
+          final frame = _decodeWsFrame(queue.current);
+          session.handleApplianceFrame(frame);
+        }
+      } on Exception catch (e) {
+        _log('uplink $applianceId failed: $e');
+      } finally {
+        await queue.cancel();
+        if (identical(_online[applianceId], session)) {
+          _online.remove(applianceId);
+        }
+        await session.close('appliance uplink closed');
+        _log('appliance $applianceId offline');
+      }
     } finally {
-      if (identical(_online[applianceId], session)) {
-        _online.remove(applianceId);
+      if (cancelQueueInFinally) {
+        await queue.cancel();
       }
-      await session.close('appliance uplink closed');
-      _log('appliance $applianceId offline');
     }
   }
 
@@ -478,6 +514,22 @@ class RelayServer {
   void _recordAuthFailure(String ip) {
     (_authFailuresByIp[ip] ??= []).add(DateTime.now());
   }
+
+  bool _isNewRegistrationRateLimited(String ip) {
+    final cutoff = DateTime.now().subtract(config.registrationFailureWindow);
+    final entries = _newRegistrationsByIp[ip];
+    if (entries == null) return false;
+    entries.removeWhere((t) => t.isBefore(cutoff));
+    if (entries.isEmpty) {
+      _newRegistrationsByIp.remove(ip);
+      return false;
+    }
+    return entries.length >= config.newRegistrationLimitPerIp;
+  }
+
+  void _recordNewRegistration(String ip) {
+    (_newRegistrationsByIp[ip] ??= []).add(DateTime.now());
+  }
 }
 
 /// Server-side state for one appliance uplink plus the clients tunnelled
@@ -504,6 +556,29 @@ class _ApplianceSession {
     }
     switch (frame.type) {
       case MuxFrameType.open:
+        // If a client reuses an already-open streamId, tear down the prior
+        // uplink binding cleanly so _byUplinkId never leaks an orphan.
+        final prior = client.byClientId[frame.streamId];
+        if (prior != null) {
+          _toAppliance(
+            MuxFrame(
+              prior.uplinkStreamId,
+              MuxFrameType.reset,
+              Uint8List.fromList(utf8.encode('duplicate client stream id')),
+            ),
+          );
+          _unbind(prior);
+        }
+        if (client.byClientId.length >= server.config.maxStreamsPerClient) {
+          client.send(
+            MuxFrame(
+              frame.streamId,
+              MuxFrameType.reset,
+              Uint8List.fromList(utf8.encode('too many open streams')),
+            ),
+          );
+          return;
+        }
         final uplinkId = _nextUplinkStreamId++;
         final binding = _StreamBinding(client, frame.streamId, uplinkId);
         _byUplinkId[uplinkId] = binding;

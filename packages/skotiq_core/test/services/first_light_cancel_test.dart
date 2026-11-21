@@ -22,7 +22,7 @@ import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 /// cancel exists for. `cancelExposure` records the device-level abort and
 /// resolves the capture the way the real service does when it aborts a frame.
 class _StalledImagingService extends ImagingService {
-  _StalledImagingService(super.ref);
+  _StalledImagingService(super.ref) : super(flatCaptureBusy: () => false);
 
   final Completer<CapturedImageData?> _pending =
       Completer<CapturedImageData?>();

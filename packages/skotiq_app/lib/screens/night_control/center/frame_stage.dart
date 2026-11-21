@@ -13,7 +13,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -36,6 +35,7 @@ import '../data/session/camera_exposure_provider.dart';
 import '../data/session/session_frames_provider.dart';
 import '../night_control_contracts.dart';
 import 'center_format.dart';
+import 'night_stage_live_stack.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'frame_stage_overlays.dart';
@@ -337,8 +337,13 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
 /// Snapshots and loop frames that are not kept land on one reused scratch
 /// file per camera (`liveview_<camera>.fits`, see ImagingService); a frame
 /// there is shown but never saved.
-bool nightIsScratchFrame(String? filePath) =>
-    filePath != null && p.basename(filePath).startsWith('liveview_');
+bool nightIsScratchFrame(String? filePath) {
+  if (filePath == null || filePath.isEmpty) return false;
+  // The host's path may use Windows separators on a Linux viewer.
+  // `basename` on this process does not treat `\` as a separator.
+  final name = filePath.split(RegExp(r'[\\/]')).last;
+  return name.startsWith('liveview_');
+}
 
 /// The run phases in which nothing has been captured for tonight yet.
 bool nightIsBeforeRun(NightRunPhase phase) =>
@@ -367,6 +372,12 @@ class FrameStage extends ConsumerWidget {
     final image = ref.watch(nightStageImageProvider);
     final frames = ref.watch(nightSessionFramesProvider);
     final selectedId = ref.watch(nightStageSelectionProvider);
+    final liveStackActive = ref.watch(
+      liveStackingProvider.select((s) => s.isActiveOrArmed),
+    );
+    final stageMode = ref.watch(nightStageModeProvider);
+    final showLiveStack =
+        liveStackActive && stageMode == NightStageMode.liveStack;
     StripFrameVm? selected;
     for (final frame in frames) {
       if (frame.id == selectedId) selected = frame;
@@ -385,11 +396,16 @@ class FrameStage extends ConsumerWidget {
               return Stack(
                 children: <Widget>[
                   Positioned.fill(
-                    child: selected != null
-                        ? _SavedStageFrame(frame: selected, viewport: viewport)
-                        : image != null
-                            ? _LiveFrame(image: image, viewport: viewport)
-                            : const _EmptyStage(),
+                    child: showLiveStack
+                        ? const NightStageLiveStackView()
+                        : selected != null
+                            ? _SavedStageFrame(
+                                frame: selected,
+                                viewport: viewport,
+                              )
+                            : image != null
+                                ? _LiveFrame(image: image, viewport: viewport)
+                                : const _EmptyStage(),
                   ),
                   Positioned.fill(
                     child: _ExposureTicker(
@@ -409,13 +425,14 @@ class FrameStage extends ConsumerWidget {
                               image: image,
                               selected: selected,
                               nowUtc: nowUtc,
+                              showLiveStack: showLiveStack,
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  if (selected != null || image != null)
+                  if (!showLiveStack && (selected != null || image != null))
                     Positioned(
                       right: _inset,
                       bottom: _inset,

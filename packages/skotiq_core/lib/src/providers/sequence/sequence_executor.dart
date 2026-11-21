@@ -1,6 +1,7 @@
 import '../../models/imaging/session_status.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,7 +26,11 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // provider (defined in flat_wizard_provider since the tracker is
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
+import '../../services/live_stacking_broadcast_service.dart';
+import '../flat_wizard_provider.dart';
 import '../meridian_flip_provider.dart';
+import '../session_handoff_provider.dart';
+import '../../services/session_handoff_service.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -166,15 +171,75 @@ class SequenceExecutor {
     logger: () => _logger,
   );
 
+  /// True once this executor's feed has activated a sequence Live Stacking
+  /// node and has not deactivated it. An operator-owned stack never sets it.
+  bool _sequenceLiveStackArmed = false;
+
+  /// Resolved while [_ref] is alive. Dispose uses these and does not read
+  /// providers: the container may already be gone.
+  LiveStackingBroadcastService? _ownedBroadcast;
+  LiveStackingNotifier? _ownedStacker;
+  LoggingService? _cachedLogger;
+
   /// Feeds accepted frames to the live stacker when the sequence asks for it.
   late final LiveStackingFeed _liveStacking = LiveStackingFeed(
-    sequence: () => _ref.read(currentSequenceProvider),
-    progress: () => _ref.read(sequenceProgressProvider),
-    broadcast: () => _ref.read(liveStackingBroadcastServiceProvider),
-    stacker: () => _ref.read(liveStackingProvider.notifier),
-    stackState: () => _ref.read(liveStackingProvider),
+    sequence: () => _disposed ? null : _ref.read(currentSequenceProvider),
+    progress: () => _disposed
+        ? const SequenceProgress()
+        : _ref.read(sequenceProgressProvider),
+    broadcast: _broadcastForFeed,
+    stacker: _stackerForFeed,
+    stackState: _stackStateForFeed,
     logger: () => _logger,
   );
+
+  LoggingService get _logger {
+    final cached = _cachedLogger;
+    if (cached != null) return cached;
+    if (_disposed) {
+      throw StateError('SequenceExecutor logged after dispose');
+    }
+    final logger = _ref.read(loggingServiceProvider);
+    _cachedLogger = logger;
+    return logger;
+  }
+
+  LiveStackingBroadcastService _broadcastForFeed() {
+    final cached = _ownedBroadcast;
+    if (cached != null) return cached;
+    if (_disposed) {
+      throw StateError(
+        'The sequence executor read the live-stack broadcast after dispose',
+      );
+    }
+    final inner = _ref.read(liveStackingBroadcastServiceProvider);
+    final wrapped = _SequenceArmedBroadcast(
+      ref: _ref,
+      inner: inner,
+      onArmed: (armed) => _sequenceLiveStackArmed = armed,
+    );
+    _ownedBroadcast = wrapped;
+    return wrapped;
+  }
+
+  LiveStackingNotifier _stackerForFeed() {
+    final cached = _ownedStacker;
+    if (cached != null) return cached;
+    if (_disposed) {
+      throw StateError(
+        'The sequence executor read the live stacker after dispose',
+      );
+    }
+    final stacker = _ref.read(liveStackingProvider.notifier);
+    _ownedStacker = stacker;
+    return stacker;
+  }
+
+  LiveStackingState _stackStateForFeed() {
+    return _disposed
+        ? const LiveStackingState()
+        : _ref.read(liveStackingProvider);
+  }
 
   /// The run's frame counters, `captured_images` rows and live preview.
   late final RunFrameRecorder _frames = RunFrameRecorder(
@@ -198,6 +263,7 @@ class SequenceExecutor {
     logger: () => _logger,
     warn: _surfaceRunWarning,
     setExecutionState: _setExecutionState,
+    onLivePauseChanged: _applyNativePause,
     onTerminal: _onTerminalEvent,
   );
 
@@ -227,8 +293,6 @@ class SequenceExecutor {
     ref: _ref,
     logger: () => _logger,
   );
-
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
 
   SequenceExecutor(this._ref, {SkotiqBackend? backend})
     : _backend = backend ?? _ref.read(backendProvider);
@@ -338,6 +402,14 @@ class SequenceExecutor {
 
   Future<void> start() async {
     _ensureBackendAuthority();
+    // A flat run or a flip already owns the mount and the camera. Refuse
+    // before the launch latch, so this start opens no session and no run.
+    if (_ref.read(flatWizardProvider.notifier).isBusy ||
+        _ref.read(isFlipInProgressProvider)) {
+      throw StateError(
+        'Cannot start: a flat capture or a meridian flip is in progress.',
+      );
+    }
     // A. Start serialization + admissible-state gate.
     // Reject a second concurrent start (latch) or a start while the executor
     // is already busy (running / paused / stopping / recovering). A
@@ -462,6 +534,13 @@ class SequenceExecutor {
   /// host's own pre-flight and records. A plan restored from the host's
   /// checkpoint is already in the host's executor and is started as it is.
   Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
+    final ignoreHistory = _ref.read(
+      sessionHandoffIgnoreUnavailableOnceProvider,
+    );
+    if (ignoreHistory) {
+      _ref.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state =
+          false;
+    }
     if (!_hostRestoreAwaitingStart) {
       _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
       final sequence = _ref.read(currentSequenceProvider);
@@ -472,7 +551,15 @@ class SequenceExecutor {
         isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
       );
     }
-    await backend.sequencerStart();
+    final decisions = await _clientHandoffForHost(ignoreHistory);
+    if (decisions.isEmpty && !ignoreHistory) {
+      await backend.sequencerStart();
+    } else {
+      await host.sequencerStartOnHost(
+        handoffDecisions: decisions,
+        ignoreUnavailableHistory: ignoreHistory,
+      );
+    }
     if (_hostRestoreAwaitingStart) {
       _hostRestoreAwaitingStart = false;
       _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
@@ -483,6 +570,37 @@ class SequenceExecutor {
       source: 'SequenceExecutor',
     );
     await _reflectHostRunState(backend);
+  }
+
+  /// The operator's handoff choices on this client. The host seeds from its
+  /// own history after Start, so the choices have to travel with the request.
+  /// A history read that throws is not "no history": without an explicit
+  /// confirmation the start fails and the host is not asked to run.
+  Future<Map<String, String>> _clientHandoffForHost(bool ignoreHistory) async {
+    final sequence = _ref.read(currentSequenceProvider);
+    final decisions = <String, String>{};
+    if (sequence != null && sequence.targetHeaders.isNotEmpty) {
+      List<SessionCarryOver> carry = const [];
+      try {
+        carry = await _ref.read(sessionCarryOverProvider.future);
+      } catch (error, stackTrace) {
+        if (!ignoreHistory) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+      }
+      for (final entry in carry) {
+        final decision = _ref.read(
+          sessionHandoffDecisionProvider((
+            sequenceId: sequence.databaseId,
+            targetId: entry.targetId,
+          )),
+        );
+        if (decision != null) {
+          decisions['${entry.targetId}'] = decision.name;
+        }
+      }
+    }
+    return decisions;
   }
 
   /// Stop the run on the imaging host through the host's own executor, which
@@ -679,9 +797,34 @@ class SequenceExecutor {
   /// neither row.
   Future<void> startLoadedRun({
     LoadedRunLabel? label,
+    Future<void> Function()? prepare,
     Future<void> Function()? admit,
   }) async {
     _ensureBackendAuthority();
+    final admissionState = _ref.read(sequenceExecutionStateProvider);
+    if (_lifecycle.launch.isHeld ||
+        !admissionState.canStart ||
+        _ref.read(currentRunIdProvider) != null) {
+      throw StateError(
+        'Cannot start: a sequence start is already in flight or the executor '
+        'is not in an admissible state (state: ${admissionState.name}).',
+      );
+    }
+    // Held across the settings seed and the native start. Releasing it
+    // before sequencerStart returns lets a second headless start through.
+    _acquireLaunchLatch();
+    try {
+      await prepare?.call();
+      await _startLoadedRunBody(label: label, admit: admit);
+    } finally {
+      _releaseLaunchLatch();
+    }
+  }
+
+  Future<void> _startLoadedRunBody({
+    required LoadedRunLabel? label,
+    required Future<void> Function()? admit,
+  }) async {
     try {
       await _runtimeConfig.seedFromSettings();
     } catch (e, st) {
@@ -690,14 +833,11 @@ class SequenceExecutor {
     await admit?.call();
 
     // Clear the previous run's progress, as [_acquireAndStartRun] does: the
-    // integration total and the per-node badges accumulate otherwise. A run
-    // id already set means a run is under way, and its progress stands.
-    if (_ref.read(currentRunIdProvider) == null) {
-      _ref.read(runRecordProvider.notifier)
-        ..resetProgress()
-        ..resetTally()
-        ..setFramesDoneBeforeRun(const {});
-    }
+    // integration total and the per-node badges accumulate otherwise.
+    _ref.read(runRecordProvider.notifier)
+      ..resetProgress()
+      ..resetTally()
+      ..setFramesDoneBeforeRun(const {});
 
     // The session row first: it must exist before the first frame event
     // arrives, or that frame is stamped with no session.
@@ -721,6 +861,12 @@ class SequenceExecutor {
         runId: runId,
       );
       Error.throwWithStackTrace(NativeStartRefused(e), st);
+    }
+    // The native Started event can arrive after the command returns. Keep
+    // that window closed to another launch even when this run has no row.
+    if (_lifecycle.phase is RunLive &&
+        _ref.read(sequenceExecutionStateProvider).canStart) {
+      _setExecutionState(SequenceExecutionState.running);
     }
   }
 
@@ -775,19 +921,7 @@ class SequenceExecutor {
   ///
   /// No snapshot: the column holds the editor's sequence map, and the native
   /// wire JSON is a different document the run diff cannot compare.
-  ///
-  /// A run id already set means a run is under way; it is kept rather than
-  /// orphaned in `running`.
   Future<int?> _openRunRowForLoadedRun(LoadedRunLabel label) async {
-    final existing = _ref.read(currentRunIdProvider);
-    if (existing != null) {
-      _logger.warning(
-        'A native start asked for a run row while run $existing is still '
-        'live; keeping the live run',
-        source: 'SequenceExecutor',
-      );
-      return existing;
-    }
     try {
       return await _openRunRecords(sequenceName: label.name);
     } catch (e) {
@@ -1700,6 +1834,18 @@ class SequenceExecutor {
     if (_lifecycle.phase is RunLive) _lifecycle.setPaused(paused);
   }
 
+  /// A native Paused or Resumed event for a live run. A pause that arrives
+  /// after the run has left [RunLive] must not recreate a row status.
+  void _applyNativePause(bool paused) {
+    if (_lifecycle.phase is! RunLive) return;
+    _notePausedByExecutor(paused);
+    unawaited(
+      _persistLiveRunStatus(
+        paused ? SequenceRunStatus.paused : SequenceRunStatus.running,
+      ),
+    );
+  }
+
   /// Publish the run's live state onto its `sequence_runs` row.
   ///
   /// The GUI knew the run was paused; the database did not, and the headless
@@ -1950,29 +2096,22 @@ class SequenceExecutor {
       await stop();
     }
 
-    _ref.read(runRecordProvider.notifier).resetProgress();
-    _ref.read(runRecordProvider.notifier).resetTally();
-    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
-
-    final backend = _backend;
-    try {
-      await backend.sequencerReset();
-    } catch (e) {
-      _logger.warning(
-        'Error resetting native sequencer: $e',
-        source: 'SequenceExecutor',
-      );
-      // The Dart-side reset above is the authoritative source of truth.
+    await _backend.sequencerReset();
+    // A linked host's reset endpoint already clears its durable checkpoint.
+    if (!_backend.linksToHost) {
+      await _backend.discardCheckpoint();
     }
 
-    try {
-      await backend.discardCheckpoint();
-    } catch (e) {
-      _logger.warning(
-        'Error clearing checkpoint on reset: $e',
-        source: 'SequenceExecutor',
-      );
-    }
+    _ref.read(runRecordProvider.notifier)
+      ..resetProgress()
+      ..resetTally()
+      ..setFramesDoneBeforeRun(const {});
+
+    // A reset starts the next run from the beginning. A restored checkpoint
+    // that survived this would make that start continue the old tree, on
+    // this process and on a client that was waiting to continue the host.
+    _clearRestored();
+    _hostRestoreAwaitingStart = false;
 
     _setExecutionState(SequenceExecutionState.idle);
 
@@ -2317,8 +2456,11 @@ class SequenceExecutor {
   Future<void> _attachToNativeRun() async {
     _ensureBackendAuthority();
     final backend = _backend;
+    // start() has already entered Launching, where this is a no-op. A
+    // loaded run is still Idle or Settled, including while its launch
+    // latch is held, and this is what makes that run live.
     final settled = _lifecycle.phase;
-    if (!_lifecycle.launch.isHeld && _lifecycle.attachNativeRun()) {
+    if (_lifecycle.attachNativeRun()) {
       _logger.info(
         'A new native run is starting on an executor whose previous run '
         'settled as "${(settled as RunSettled).runStatus.token}"; releasing that '
@@ -2368,6 +2510,11 @@ class SequenceExecutor {
   /// Tear down everything the executor owns. A run retained in stopFailed /
   /// cleanupFailed never released its per-run resources, so dispose must
   /// cancel each of them itself.
+  ///
+  /// The live stack is stopped only when this executor armed it. Dispose does
+  /// not read [_ref]: a provider rebuild and a container shutdown both run
+  /// this after the ref is no longer usable, and an operator-owned stack must
+  /// keep its broadcast.
   void dispose() {
     _disposed = true;
     _timers.dispose();
@@ -2375,6 +2522,41 @@ class SequenceExecutor {
     _nativeEventSubscription = null;
     _releaseEventFold();
     _runtimeConfig.dispose();
+    if (!_sequenceLiveStackArmed) return;
+    _sequenceLiveStackArmed = false;
+    final broadcast = _ownedBroadcast;
+    final stacker = _ownedStacker;
+    unawaited(_stopSequenceLiveStack(broadcast, stacker));
+  }
+
+  Future<void> _stopSequenceLiveStack(
+    LiveStackingBroadcastService? broadcast,
+    LiveStackingNotifier? stacker,
+  ) async {
+    Object? failure;
+    StackTrace? failureTrace;
+    try {
+      broadcast?.deactivate();
+    } catch (e, st) {
+      failure = e;
+      failureTrace = st;
+    }
+    try {
+      // A container shutdown may already have disposed the stacker. Its own
+      // dispose owns that case; calling stop() on it throws after the fact.
+      if (stacker != null && stacker.mounted) await stacker.stop();
+    } catch (e, st) {
+      failure ??= e;
+      failureTrace ??= st;
+    }
+    if (failure != null) {
+      Log.warning(
+        'Could not tear down the live stack this sequence armed',
+        source: 'SequenceExecutor',
+        error: failure,
+        stackTrace: failureTrace,
+      );
+    }
   }
 }
 
@@ -2453,4 +2635,48 @@ class _RestoredCheckpoint {
         restored.rootNodeId == current.rootNodeId &&
         mapEquals(restored.nodes, current.nodes);
   }
+}
+
+/// The broadcast the sequence feed sees. [activate] and [deactivate] are the
+/// only signals that this executor, rather than the operator, owns the session.
+final class _SequenceArmedBroadcast extends LiveStackingBroadcastService {
+  _SequenceArmedBroadcast({
+    required Ref ref,
+    required LiveStackingBroadcastService inner,
+    required void Function(bool armed) onArmed,
+  }) : _inner = inner,
+       _onArmed = onArmed,
+       super(ref);
+
+  final LiveStackingBroadcastService _inner;
+  final void Function(bool armed) _onArmed;
+
+  @override
+  void activate(LiveStackingNode node) {
+    _onArmed(true);
+    _inner.activate(node);
+  }
+
+  @override
+  void deactivate() {
+    _onArmed(false);
+    _inner.deactivate();
+  }
+
+  @override
+  void updateCurrentTarget(String? targetName) =>
+      _inner.updateCurrentTarget(targetName);
+
+  @override
+  void publishFrame({
+    required int width,
+    required int height,
+    required Uint16List previewData,
+    required double exposureSecs,
+  }) => _inner.publishFrame(
+    width: width,
+    height: height,
+    previewData: previewData,
+    exposureSecs: exposureSecs,
+  );
 }

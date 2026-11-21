@@ -112,6 +112,36 @@ void main() {
     return container.read(currentRunIdProvider)!;
   }
 
+  test(
+    'two overlapping loaded starts reach the native executor once',
+    () async {
+      final container = buildContainer();
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      var starts = 0;
+      when(() => backend.sequencerStart()).thenAnswer((_) async {
+        starts++;
+        if (!entered.isCompleted) entered.complete();
+        await release.future;
+      });
+      final executor = container.read(sequenceExecutorProvider);
+      final first = executor.startLoadedRun(
+        label: const LoadedRunLabel(name: 'overlap'),
+      );
+      try {
+        await entered.future;
+        final second = executor.startLoadedRun(
+          label: const LoadedRunLabel(name: 'overlap'),
+        );
+        await expectLater(second, throwsA(isA<StateError>()));
+        expect(starts, 1);
+      } finally {
+        if (!release.isCompleted) release.complete();
+        await first;
+      }
+    },
+  );
+
   test('a native start opens a run row that the run history can see', () async {
     final container = buildContainer();
     final executor = container.read(sequenceExecutorProvider);
@@ -197,22 +227,27 @@ void main() {
     expect(container.read(currentRunIdProvider), isNull);
   });
 
-  test('a native start never opens a second row over a live run', () async {
+  test('a delayed duplicate start leaves the active run row intact', () async {
     final container = buildContainer();
     final executor = container.read(sequenceExecutorProvider);
     final runId = await startNativeRun(container, executor);
-
-    await executor.startLoadedRun(
-      label: const LoadedRunLabel(
-        name: 'a second load while the first is live',
+    when(
+      () => backend.sequencerStart(),
+    ).thenThrow(StateError('already running'));
+    await expectLater(
+      executor.startLoadedRun(
+        label: const LoadedRunLabel(name: 'delayed request'),
       ),
+      throwsA(isA<StateError>()),
     );
-
-    expect(container.read(currentRunIdProvider), runId);
+    final row = await container.read(sequenceRunsDaoProvider).getRunById(runId);
+    verify(() => backend.sequencerStart()).called(1);
     expect(
       (await container.read(sequenceRunsDaoProvider).getAllRuns()).length,
       1,
     );
+    expect(row!.status, 'running');
+    expect(container.read(currentRunIdProvider), runId);
   });
 
   test('a second native run reports only its own integration time', () async {

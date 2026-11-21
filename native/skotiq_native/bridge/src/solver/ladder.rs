@@ -282,7 +282,6 @@ async fn solve_once(
             "blind"
         }
     };
-    let _solve_guard = acquire_solve_gate(label).await;
 
     let path = std::path::Path::new(file_path);
     if !path.exists() {
@@ -296,7 +295,7 @@ async fn solve_once(
     // the timeout passed to the process runner, which kills and reaps the
     // child on expiry.
     let owned_path = path.to_path_buf();
-    tokio::task::spawn_blocking(move || match position {
+    run_solver_worker(label, move || match position {
         Some(hint) => skotiq_platesolve::solve_near_with_timeout(
             &owned_path,
             hint.ra_degrees,
@@ -312,6 +311,20 @@ async fn solve_once(
             scale_arcsec_per_px,
             downsample,
         ),
+    })
+    .await
+}
+
+async fn run_solver_worker(
+    label: &str,
+    solve: impl FnOnce() -> PlateSolveResult + Send + 'static,
+) -> Result<PlateSolveResult, SkotiqError> {
+    let guard = acquire_solve_gate(label).await;
+    tokio::task::spawn_blocking(move || {
+        // Dropping the async waiter cannot stop a blocking solver process.
+        // Keep other processes out until this worker has reaped its child.
+        let _guard = guard;
+        solve()
     })
     .await
     .map_err(|error| SkotiqError::OperationFailed(format!("Plate-solve task failed: {error}")))
@@ -406,43 +419,64 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn cancelling_the_waiter_keeps_the_gate_until_its_worker_finishes() {
+        let (started, running) = tokio::sync::oneshot::channel();
+        let (release, finish) = std::sync::mpsc::channel();
+        let worker = tokio::spawn(run_solver_worker("first", move || {
+            started.send(()).unwrap();
+            finish.recv().expect("the test releases the solver worker");
+            PlateSolveResult::default()
+        }));
+        running.await.unwrap();
+        worker.abort();
+        assert!(worker.await.unwrap_err().is_cancelled());
+
+        let mut next = Box::pin(acquire_solve_gate("next"));
+        assert!(
+            futures::poll!(&mut next).is_pending(),
+            "a second solver was admitted while the first was running"
+        );
+        release.send(()).unwrap();
+        drop(next.await);
+    }
+
     /// The escalation must live inside the single-flight entry, so a second
     /// caller waiting on the same frame gets the answer the ladder ENDED on
     /// rather than the rung it started with. Two callers, one ladder, one
     /// escalated result.
     #[tokio::test]
     async fn a_follower_receives_the_escalated_result_not_the_first_rung() {
-        static RUNS: AtomicUsize = AtomicUsize::new(0);
+        let runs = AtomicUsize::new(0);
+        let finish = tokio::sync::Notify::new();
         let path =
             std::env::temp_dir().join(format!("sk-ladder-coalesce-{}.fits", std::process::id()));
         std::fs::write(&path, b"not a real frame").expect("scratch file");
-        let key = path.to_string_lossy().to_string();
+        let key = path.to_string_lossy();
 
-        // Stands in for the ladder: slow enough that the second caller is a
-        // follower, and it "escalates" from the first rung's failure to a
-        // success only at the end.
-        let ladder = |key: String| async move {
+        let ladder = || {
             coalesced_solve(&key, "test", SolvePreference::Hinted, || async {
-                RUNS.fetch_add(1, AtomicOrdering::SeqCst);
-                tokio::time::sleep(Duration::from_millis(50)).await;
+                runs.fetch_add(1, AtomicOrdering::SeqCst);
+                finish.notified().await;
                 let mut escalated = empty_solve_result("first rung failed");
                 escalated.success = true;
                 escalated.error = None;
                 escalated.ra = 42.0;
                 Ok(escalated)
             })
-            .await
         };
-
-        let leader = tokio::spawn(ladder(key.clone()));
-        tokio::time::sleep(Duration::from_millis(10)).await;
-        let follower = tokio::spawn(ladder(key.clone()));
-
-        let leader = leader.await.expect("leader").expect("leader result");
-        let follower = follower.await.expect("follower").expect("follower result");
+        let mut leader = Box::pin(ladder());
+        let mut follower = Box::pin(ladder());
+        // Drive both callers into admission before the leader can finish.
+        assert!(futures::poll!(&mut leader).is_pending());
+        assert!(futures::poll!(&mut follower).is_pending());
+        finish.notify_waiters();
+        let (leader, follower) = tokio::join!(leader, follower);
+        let leader = leader.expect("leader result");
+        let follower = follower.expect("follower result");
 
         assert_eq!(
-            RUNS.load(AtomicOrdering::SeqCst),
+            runs.load(AtomicOrdering::SeqCst),
             1,
             "the ladder must run once for one frame"
         );

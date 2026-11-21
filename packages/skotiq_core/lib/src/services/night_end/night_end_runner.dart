@@ -49,9 +49,16 @@ final nightEndRunsProvider = NotifierProvider<NightEndRuns, List<NightEndRun>>(
 /// goes, so the Activity tab shows it and a run cut short by a restart
 /// carries on at the next launch.
 class NightEndRunner {
-  NightEndRunner(this._ref);
+  NightEndRunner(this._ref) {
+    _ref.onDispose(() {
+      _disposed = true;
+      _finished?.cancel();
+      _finished = null;
+    });
+  }
 
   final Ref _ref;
+  bool _disposed = false;
   Future<void>? _restored;
   Future<void> _saving = Future<void>.value();
   Future<void> _queue = Future<void>.value();
@@ -63,27 +70,40 @@ class NightEndRunner {
 
   /// Read the saved runs and the saved builds back, follow builds that end,
   /// and carry on any run a restart cut short.
-  Future<void> start() => _restored ??= _start();
+  Future<void> start() async {
+    final future = _restored ??= _start();
+    try {
+      await future;
+    } catch (_) {
+      if (identical(_restored, future)) {
+        _restored = null;
+      }
+      rethrow;
+    }
+  }
 
   Future<void> _start() async {
     await _jobs.restore();
+    if (_disposed) return;
     try {
       final saved = await _ref
           .read(darkroomStateStoreProvider)
           .read(nightEndRunsStateKey);
+      if (_disposed) return;
       final runs = <NightEndRun>[
         for (final r in saved?['runs'] as List? ?? const [])
           if (r is Map) NightEndRun.fromJson(Map<String, dynamic>.from(r)),
       ];
       if (_runs.isEmpty) _ref.read(nightEndRunsProvider.notifier)._set(runs);
     } catch (e) {
+      if (_disposed) return;
       _log.warning(
         'The saved night-end runs could not be read: $e',
         source: 'NightEnd',
       );
     }
+    if (_disposed) return;
     _finished ??= _jobs.finished.listen(_onBuildFinished);
-    _ref.onDispose(() => _finished?.cancel());
     final builds = [
       ?_ref.read(darkroomBuildJobsProvider),
       ..._ref.read(darkroomRecentBuildsProvider),

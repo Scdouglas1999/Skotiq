@@ -49,19 +49,21 @@ extension _NetworkBackendEventTracking on NetworkBackendTransport {
         _lastSeenEventSeq = null;
         _serverInstanceId = eventInstance;
         _previousServerInstanceId = eventInstance;
-        _eventController.add(
-          SkotiqEvent(
-            timestamp: DateTime.now().millisecondsSinceEpoch,
-            category: EventCategory.system,
-            eventType: 'BackendReconnected',
-            severity: EventSeverity.info,
-            data: {
-              'message': 'Server instance changed mid-stream',
-              'previousInstance': cached,
-              'currentInstance': eventInstance,
-            },
-          ),
-        );
+        if (!_eventController.isClosed) {
+          _eventController.add(
+            SkotiqEvent(
+              timestamp: DateTime.now().millisecondsSinceEpoch,
+              category: EventCategory.system,
+              eventType: 'BackendReconnected',
+              severity: EventSeverity.info,
+              data: {
+                'message': 'Server instance changed mid-stream',
+                'previousInstance': cached,
+                'currentInstance': eventInstance,
+              },
+            ),
+          );
+        }
       } else if (cached == null) {
         _serverInstanceId = eventInstance;
         _previousServerInstanceId = eventInstance;

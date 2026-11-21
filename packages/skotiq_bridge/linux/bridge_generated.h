@@ -401,6 +401,9 @@ typedef struct wire_cst_api_live_stacking_config {
   double match_radius_px;
   double match_flux_tolerance;
   uint32_t min_matched_pairs;
+  double max_alignment_residual_px;
+  double star_detection_sigma;
+  double star_detection_min_snr;
   struct wire_cst_list_prim_u_8_strict *sensor_mode;
   struct wire_cst_list_prim_u_8_strict *bayer_pattern;
   struct wire_cst_list_prim_u_8_strict *demosaic_quality;
@@ -482,6 +485,24 @@ typedef struct wire_cst_api_depth_report {
   struct wire_cst_list_prim_u_8_strict *reason;
   struct wire_cst_api_depth_forecast *forecast;
 } wire_cst_api_depth_report;
+
+typedef struct wire_cst_api_live_stack_frame_event {
+  uint32_t sequence_index;
+  struct wire_cst_list_prim_u_8_strict *filter_key;
+  struct wire_cst_list_prim_u_8_strict *source_label;
+  bool accepted;
+  struct wire_cst_list_prim_u_8_strict *rejection_reason;
+  uint32_t detected_stars;
+  uint32_t matched_pairs;
+  uint32_t inlier_pairs;
+  double alignment_residual_px;
+  double shift_x_px;
+  double shift_y_px;
+  double rotation_deg;
+  uint64_t sigma_rejected_pixels;
+  double *exposure_secs;
+  int64_t timestamp_ms;
+} wire_cst_api_live_stack_frame_event;
 
 typedef struct wire_cst_list_prim_i_32_strict {
   int32_t *ptr;
@@ -889,7 +910,7 @@ typedef struct wire_cst_frame_capture_metadata {
 } wire_cst_frame_capture_metadata;
 
 typedef struct wire_cst_GuidingEvent_Settled {
-  double rms;
+  double *rms;
 } wire_cst_GuidingEvent_Settled;
 
 typedef struct wire_cst_GuidingEvent_SettleTimedOut {
@@ -1660,6 +1681,39 @@ typedef struct wire_cst_list_api_depth_goal {
   int32_t len;
 } wire_cst_list_api_depth_goal;
 
+typedef struct wire_cst_api_live_stacking_stats {
+  uint32_t stacked_frame_count;
+  uint32_t total_frames_attempted;
+  uint32_t rejected_alignment_failures;
+  double avg_matched_pairs;
+  double avg_alignment_residual;
+  uint64_t total_sigma_rejected_pixels;
+  double total_integration_secs;
+  uint32_t other_filter_frames;
+  struct wire_cst_list_prim_u_8_strict *last_other_filter;
+  struct wire_cst_list_prim_u_8_strict *filter;
+} wire_cst_api_live_stacking_stats;
+
+typedef struct wire_cst_api_live_stack_filter_summary {
+  struct wire_cst_list_prim_u_8_strict *filter_key;
+  uint32_t width;
+  uint32_t height;
+  uint32_t channels;
+  struct wire_cst_list_prim_u_8_strict *reference_image_path;
+  uint64_t revision;
+  struct wire_cst_api_live_stacking_stats stats;
+} wire_cst_api_live_stack_filter_summary;
+
+typedef struct wire_cst_list_api_live_stack_filter_summary {
+  struct wire_cst_api_live_stack_filter_summary *ptr;
+  int32_t len;
+} wire_cst_list_api_live_stack_filter_summary;
+
+typedef struct wire_cst_list_api_live_stack_frame_event {
+  struct wire_cst_api_live_stack_frame_event *ptr;
+  int32_t len;
+} wire_cst_list_api_live_stack_frame_event;
+
 typedef struct wire_cst_api_night_score {
   struct wire_cst_list_prim_u_8_strict *target_id;
   double total_score;
@@ -1977,25 +2031,23 @@ typedef struct wire_cst_api_live_stacking_master {
   struct wire_cst_list_prim_u_8_strict *date_obs;
 } wire_cst_api_live_stacking_master;
 
-typedef struct wire_cst_api_live_stacking_stats {
-  uint32_t stacked_frame_count;
-  uint32_t total_frames_attempted;
-  uint32_t rejected_alignment_failures;
-  double avg_matched_pairs;
-  double avg_alignment_residual;
-  uint64_t total_sigma_rejected_pixels;
-  uint32_t other_filter_frames;
-  struct wire_cst_list_prim_u_8_strict *last_other_filter;
-  struct wire_cst_list_prim_u_8_strict *filter;
-} wire_cst_api_live_stacking_stats;
-
 typedef struct wire_cst_api_live_stacking_result {
   uint32_t width;
   uint32_t height;
   uint32_t channels;
   struct wire_cst_list_prim_u_16_strict *data;
   struct wire_cst_api_live_stacking_stats stats;
+  struct wire_cst_list_prim_u_8_strict *filter_key;
+  uint64_t revision;
+  struct wire_cst_api_live_stack_frame_event *last_event;
 } wire_cst_api_live_stacking_result;
+
+typedef struct wire_cst_api_stretched_preview {
+  uint32_t width;
+  uint32_t height;
+  uint32_t channels;
+  struct wire_cst_list_prim_u_8_strict *rgba;
+} wire_cst_api_stretched_preview;
 
 typedef struct wire_cst_autofocus_result_api {
   int32_t best_position;
@@ -2744,6 +2796,13 @@ WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__imaging__api_auto_st
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__imaging__api_auto_stretch_image(uint32_t width,
                                                                                             uint32_t height,
                                                                                             struct wire_cst_list_prim_u_16_loose *data);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_auto_stretch_preview_async(int64_t port_,
+                                                                                          uint32_t width,
+                                                                                          uint32_t height,
+                                                                                          uint32_t channels,
+                                                                                          struct wire_cst_list_prim_u_16_loose *data,
+                                                                                          uint32_t max_dimension);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__sequencer__mosaic__api_broadcast_deactivate(void);
 
@@ -3593,28 +3652,66 @@ void frbgen_skotiq_bridge_wire__crate__api__sky_atlas__regions__api_sky_atlas_re
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame(int64_t port_,
                                                                                   struct wire_cst_list_prim_u_8_strict *image_path);
 
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_for_filter(int64_t port_,
+                                                                                             struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                             struct wire_cst_list_prim_u_8_strict *image_path);
+
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data(int64_t port_,
                                                                                             uint32_t width,
                                                                                             uint32_t height,
                                                                                             struct wire_cst_list_prim_u_16_loose *data,
                                                                                             double pedestal);
 
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter(int64_t port_,
+                                                                                                       struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                                       uint32_t width,
+                                                                                                       uint32_t height,
+                                                                                                       struct wire_cst_list_prim_u_16_loose *data,
+                                                                                                       double pedestal);
+
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_frame_count(void);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_events(int64_t port_,
+                                                                                   struct wire_cst_list_prim_u_8_strict *filter_key);
 
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result(int64_t port_);
 
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result_for_filter(int64_t port_,
+                                                                                              struct wire_cst_list_prim_u_8_strict *filter_key);
+
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats(int64_t port_);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats_for_filter(int64_t port_,
+                                                                                             struct wire_cst_list_prim_u_8_strict *filter_key);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_is_active(void);
 
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_list_filters(int64_t port_);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_render_preview_rgba(int64_t port_,
+                                                                                            struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                            uint32_t max_dimension);
+
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset(int64_t port_);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset_for_filter(int64_t port_,
+                                                                                         struct wire_cst_list_prim_u_8_strict *filter_key);
 
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits(int64_t port_,
                                                                                          struct wire_cst_list_prim_u_8_strict *file_path);
 
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter(int64_t port_,
+                                                                                                    struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                                    struct wire_cst_list_prim_u_8_strict *file_path);
+
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start(int64_t port_,
                                                                               struct wire_cst_list_prim_u_8_strict *reference_image_path,
                                                                               struct wire_cst_api_live_stacking_config *config);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_for_filter(int64_t port_,
+                                                                                         struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                         struct wire_cst_list_prim_u_8_strict *reference_image_path,
+                                                                                         struct wire_cst_api_live_stacking_config *config);
 
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data(int64_t port_,
                                                                                         uint32_t width,
@@ -3623,7 +3720,22 @@ void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_fr
                                                                                         double pedestal,
                                                                                         struct wire_cst_api_live_stacking_config *config);
 
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter(int64_t port_,
+                                                                                                   struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                                   uint32_t width,
+                                                                                                   uint32_t height,
+                                                                                                   struct wire_cst_list_prim_u_16_loose *data,
+                                                                                                   double pedestal,
+                                                                                                   struct wire_cst_api_live_stacking_config *config);
+
 void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop(int64_t port_);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop_for_filter(int64_t port_,
+                                                                                        struct wire_cst_list_prim_u_8_strict *filter_key);
+
+void frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_update_config(int64_t port_,
+                                                                                      struct wire_cst_list_prim_u_8_strict *filter_key,
+                                                                                      struct wire_cst_api_live_stacking_config *config);
 
 void frbgen_skotiq_bridge_wire__crate__api__polar_alignment__entrypoints__api_start_all_sky_polar_alignment(int64_t port_,
                                                                                                             double exposure_time,
@@ -3766,6 +3878,8 @@ struct wire_cst_api_depth_measurement *frbgen_skotiq_bridge_cst_new_box_autoadd_
 
 struct wire_cst_api_depth_report *frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_report(void);
 
+struct wire_cst_api_live_stack_frame_event *frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stack_frame_event(void);
+
 struct wire_cst_api_live_stacking_config *frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stacking_config(void);
 
 struct wire_cst_api_night_sky *frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky(void);
@@ -3884,6 +3998,10 @@ struct wire_cst_list_api_depth_goal *frbgen_skotiq_bridge_cst_new_list_api_depth
 
 struct wire_cst_list_api_floor_sample *frbgen_skotiq_bridge_cst_new_list_api_floor_sample(int32_t len);
 
+struct wire_cst_list_api_live_stack_filter_summary *frbgen_skotiq_bridge_cst_new_list_api_live_stack_filter_summary(int32_t len);
+
+struct wire_cst_list_api_live_stack_frame_event *frbgen_skotiq_bridge_cst_new_list_api_live_stack_frame_event(int32_t len);
+
 struct wire_cst_list_api_night_score *frbgen_skotiq_bridge_cst_new_list_api_night_score(int32_t len);
 
 struct wire_cst_list_api_night_target *frbgen_skotiq_bridge_cst_new_list_api_night_target(int32_t len);
@@ -3956,6 +4074,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_goal_definition);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_measurement);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_depth_report);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stack_frame_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_live_stacking_config);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_night_sky);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_api_reference_geometry);
@@ -4015,6 +4134,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_depth_curve_point);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_depth_goal);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_floor_sample);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_live_stack_filter_summary);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_live_stack_frame_event);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_night_score);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_night_target);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_list_api_scheduler_target);
@@ -4228,17 +4349,31 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_get_version);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_init);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_init_with_logging);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_auto_stretch_preview_async);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_frame_count);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_events);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_result_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_get_stats_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_is_active);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_list_filters);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_render_preview_rgba);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_reset_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_stop_for_filter);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_update_config);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__mosaic__api_stitch_mosaic);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_acknowledge_fault);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__mount_guard__api_mount_guard_confirm_rehomed);

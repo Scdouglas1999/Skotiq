@@ -97,6 +97,8 @@ pub struct StackProvenance {
     first_unparsed_date_obs: Option<String>,
     /// Whether a stacked frame's output pedestal was taken out.
     pedestal_removed: bool,
+    /// Optical filter name for this stack (e.g. `"L"`, `"Ha"`, `"OIII"`), when known.
+    filter: Option<String>,
 }
 
 impl Default for StackProvenance {
@@ -116,13 +118,37 @@ impl StackProvenance {
             earliest_date_obs: None,
             first_unparsed_date_obs: None,
             pedestal_removed: false,
+            filter: None,
         }
+    }
+
+    /// Record the optical filter name for this stack.
+    pub fn set_filter(&mut self, filter: Option<&str>) {
+        self.filter = filter
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned);
+    }
+
+    /// The optical filter name recorded for this stack, if any.
+    pub fn filter(&self) -> Option<&str> {
+        self.filter.as_deref()
     }
 
     /// Fold one accepted frame's provenance into the running totals.
     pub fn fold(&mut self, frame: &FrameProvenance) {
         self.stacked_frames = self.stacked_frames.saturating_add(1);
         self.pedestal_removed |= frame.pedestal != 0.0;
+        if self.filter.is_none() {
+            if let Some(f) = frame
+                .filter
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
+                self.filter = Some(f.to_string());
+            }
+        }
 
         if let Some(exposure) = frame.exposure_secs {
             if exposure.is_finite() && exposure > 0.0 {
@@ -174,6 +200,9 @@ impl StackProvenance {
         header.set_string("FRAMETYP", "MASTER");
         header.set_string("CALSTAT", "Skotiq live stack");
         header.set_int("NFRAMES", self.stacked_frames as i64);
+        if let Some(ref filter) = self.filter {
+            header.set_string("FILTER", filter);
+        }
 
         header.set_float("EXPTIME", self.total_integration_secs);
         header.set_comment("EXPTIME", &self.exptime_comment());

@@ -273,6 +273,38 @@ void main() {
       );
     });
 
+    test('a Smart Exposure filling the target window counts its planned '
+        'frames', () {
+      // The 2026-11-16 IC 405 run: L/R/G looping until the window closed,
+      // 171 x 180 s planned, ASI294MM 4656x3520 16-bit. Pre-flight said
+      // "~94.0 MiB" (one rotation, three frames); the run needs ~5.5 GB.
+      final smart = SmartExposureNode(
+        id: 'smart',
+        plans: const [
+          FilterPlan(filterName: 'L', count: 57, durationSecs: 180),
+          FilterPlan(filterName: 'R', count: 57, durationSecs: 180),
+          FilterPlan(filterName: 'G', count: 57, durationSecs: 180),
+        ],
+        loopUntilStopped: true,
+      );
+      final sequence = Sequence.create(
+        id: 'seq',
+        name: 'night',
+        nodes: {smart.id: smart},
+        rootNodeId: smart.id,
+      );
+      const asi294 = CameraCapabilities(
+        maxWidth: 4656,
+        maxHeight: 3520,
+        bitDepth: 16,
+      );
+      const frame = 4656 * 3520 * 2 + 65536;
+      expect(
+        DiskSpaceGuardService.projectSequenceBytes(sequence, asi294),
+        171 * frame,
+      );
+    });
+
     test('a disabled container drops its whole subtree', () {
       final exposure = ExposureNode(id: 'e', parentId: 'loop', count: 100);
       final loop = LoopNode(

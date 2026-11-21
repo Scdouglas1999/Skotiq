@@ -41,20 +41,33 @@ class LiveStackLibrarySave {
 /// Saves the live stack and registers its FITS master.
 class LiveStackMasterLibrary {
   final Future<LiveStackingResult> Function() _currentResult;
+  final Future<LiveStackingResult> Function(String filterKey)?
+  _currentResultForFilter;
   final Future<LiveStackingMasterSave> Function(String filePath) _saveMaster;
+  final Future<LiveStackingMasterSave> Function(
+    String filterKey,
+    String filePath,
+  )?
+  _saveMasterForFilter;
   final LiveStackPreviewWriter _writePreview;
   final IntegratedMastersDao _masters;
   final FrameHeaderReader _readHeader;
 
   LiveStackMasterLibrary({
     required Future<LiveStackingResult> Function() currentResult,
+    Future<LiveStackingResult> Function(String filterKey)?
+    currentResultForFilter,
     required Future<LiveStackingMasterSave> Function(String filePath)
     saveMaster,
+    Future<LiveStackingMasterSave> Function(String filterKey, String filePath)?
+    saveMasterForFilter,
     required LiveStackPreviewWriter writePreview,
     required IntegratedMastersDao masters,
     FrameHeaderReader readHeader = readFrameHeader,
   }) : _currentResult = currentResult,
+       _currentResultForFilter = currentResultForFilter,
        _saveMaster = saveMaster,
+       _saveMasterForFilter = saveMasterForFilter,
        _writePreview = writePreview,
        _masters = masters,
        _readHeader = readHeader;
@@ -73,9 +86,27 @@ class LiveStackMasterLibrary {
   Future<LiveStackLibrarySave> save(
     String filePath, {
     String? sourceFramePath,
+    String? filterKey,
   }) async {
-    final result = await _currentResult();
-    final saved = await _saveMaster(filePath);
+    final normalizedFilter = explicitLiveStackFilterKey(filterKey);
+    final LiveStackingResult result;
+    final LiveStackingMasterSave saved;
+    if (normalizedFilter != null) {
+      final read = _currentResultForFilter;
+      final write = _saveMasterForFilter;
+      // The active-slot saver has no filter argument. Using it here would
+      // register [normalizedFilter] on whichever slot happens to be active.
+      if (read == null || write == null) {
+        throw StateError(
+          'Per-filter live stack save is not available for $normalizedFilter.',
+        );
+      }
+      result = await read(normalizedFilter);
+      saved = await write(normalizedFilter, filePath);
+    } else {
+      result = await _currentResult();
+      saved = await _saveMaster(filePath);
+    }
     if (saved.format != LiveStackingMasterFormat.fitsMaster) {
       return LiveStackLibrarySave(
         saved: saved,
@@ -110,7 +141,7 @@ class LiveStackMasterLibrary {
     String? card(String keyword) =>
         headers.map((h) => h.string(keyword)).nonNulls.firstOrNull;
     final target = card('OBJECT');
-    final band = card('FILTER');
+    final band = card('FILTER') ?? normalizedFilter;
     final name = [
       target ?? 'Live stack',
       if (band != null) band,

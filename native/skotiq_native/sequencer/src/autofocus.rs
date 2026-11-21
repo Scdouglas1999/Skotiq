@@ -101,10 +101,11 @@ pub fn screen_defocus_dropouts(
     let mut order: Vec<usize> = (0..points.len()).collect();
     order.sort_by_key(|&i| points[i].position);
 
-    let Some(most_stars) = points.iter().map(|p| p.star_count).max() else {
-        return (points.to_vec(), Vec::new());
-    };
-    let anchor_floor = f64::from(most_stars) * ANCHOR_MIN_STAR_FRACTION;
+    // Second-highest star count anchors the floor so a single spurious wing
+    // spike cannot disqualify the true focus minimum (`points.len() >= 5`).
+    let mut counts: Vec<u32> = points.iter().map(|p| p.star_count).collect();
+    counts.sort_unstable();
+    let anchor_floor = f64::from(counts[counts.len() - 2]) * ANCHOR_MIN_STAR_FRACTION;
     let lowest = |eligible: &dyn Fn(&FocusDataPoint) -> bool| {
         (0..order.len())
             .filter(|&k| eligible(&points[order[k]]))

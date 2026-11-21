@@ -182,14 +182,22 @@ class SecretsStore {
   /// fresh store instance harmlessly re-runs it against a clean keyring.
   Future<void>? _legacyNamespaceMigration;
 
-  Future<void> _ensureLegacyNamespaceMigrated() {
-    return _legacyNamespaceMigration ??= migrateLegacySecretsNamespace(
+  Future<void> _ensureLegacyNamespaceMigrated() async {
+    final future = _legacyNamespaceMigration ??= migrateLegacySecretsNamespace(
       (key) => _store.read(key: key),
       (key, value) => _store.write(key: key, value: value),
       (key) => _store.delete(key: key),
       SecretField.all,
       _secretsKeyPrefix,
     );
+    try {
+      await future;
+    } catch (_) {
+      if (identical(_legacyNamespaceMigration, future)) {
+        _legacyNamespaceMigration = null;
+      }
+      rethrow;
+    }
   }
 
   /// Read a single secret. Returns an empty string when not present so

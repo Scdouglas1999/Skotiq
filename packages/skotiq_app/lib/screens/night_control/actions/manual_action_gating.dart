@@ -17,6 +17,7 @@ class NightActionInputs {
     required this.runState,
     required this.action,
     this.loopActive = false,
+    this.flipInProgress = false,
     this.cameraConnected = false,
     this.mountConnected = false,
     this.focuserConnected = false,
@@ -43,6 +44,9 @@ class NightActionInputs {
 
   /// A manual loop runs (held by this controller).
   final bool loopActive;
+
+  /// A meridian flip owns the mount, sequenced or standalone.
+  final bool flipInProgress;
 
   final bool cameraConnected;
   final bool mountConnected;
@@ -126,6 +130,8 @@ NightText? manualActionDisabledReason(
         ? const NightText('nightActWhyBusy')
         : NightText(manualActionKey('nightActBusy', active));
   }
+
+  if (inputs.flipInProgress) return const NightText('nightActBusyFlip');
 
   // Checked before anything else: without a solver these would expose a
   // frame, or move the mount, and only then fail.

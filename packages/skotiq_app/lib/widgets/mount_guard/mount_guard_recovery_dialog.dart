@@ -35,6 +35,7 @@ class _MountGuardRecoveryDialogState
       await ref
           .read(mountGuardProvider.notifier)
           .confirmRehomed(widget.deviceId);
+      if (!mounted) return;
       setState(() {
         _step = _Step.done;
         _doneText =
@@ -42,6 +43,7 @@ class _MountGuardRecoveryDialogState
             'being at its home position.';
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _error = userFacingError(e));
     }
   }
@@ -54,11 +56,13 @@ class _MountGuardRecoveryDialogState
     try {
       final solve =
           await ref.read(mountGuardProvider.notifier).solve(widget.deviceId);
+      if (!mounted) return;
       setState(() {
         _solve = solve;
         _step = _Step.solved;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _step = _Step.choose;
         _error = userFacingError(e);
@@ -77,6 +81,7 @@ class _MountGuardRecoveryDialogState
       await ref
           .read(mountGuardProvider.notifier)
           .recoverySync(widget.deviceId, solve.raHours, solve.decDegrees);
+      if (!mounted) return;
       setState(() {
         _step = _Step.done;
         _doneText =
@@ -84,6 +89,7 @@ class _MountGuardRecoveryDialogState
             'trusted again.';
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _step = _Step.solved;
         _error = userFacingError(e);

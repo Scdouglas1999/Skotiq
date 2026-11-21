@@ -8,6 +8,64 @@ use super::*;
 /// Where the focuser is, or `None` with no focuser or a driver that will not
 /// answer. Read either side of a sweep so a failure notice can name the focus
 /// the run kept.
+/// Which filter an autofocus run focuses through.
+///
+/// A filter with no offset from the reference is not focused as if it were
+/// the reference. The run focuses through the reference instead, and says
+/// so. With no reference to move to, it refuses.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct AutofocusFilterChoice {
+    /// The filter to move to. `None` leaves the wheel where it is.
+    pub filter: Option<String>,
+    /// Told when the requested filter was not usable.
+    pub note: Option<String>,
+}
+
+pub(crate) fn choose_autofocus_filter(
+    requested: Option<&str>,
+    current: Option<&str>,
+    reference: Option<&str>,
+    offsets: &std::collections::HashMap<String, i32>,
+) -> Result<AutofocusFilterChoice, String> {
+    let clean = |name: Option<&str>| {
+        name.map(str::trim)
+            .filter(|name| !name.is_empty())
+            .map(str::to_string)
+    };
+    let reference = clean(reference);
+    let requested = clean(requested);
+    let target = requested.clone().or_else(|| clean(current));
+    let Some(target) = target else {
+        return Ok(AutofocusFilterChoice {
+            filter: None,
+            note: None,
+        });
+    };
+    let known = crate::instructions::filter::known_filter_offset_from(
+        reference.as_deref(),
+        offsets,
+        &target,
+    )
+    .is_ok();
+    if known {
+        return Ok(AutofocusFilterChoice {
+            filter: requested,
+            note: None,
+        });
+    }
+    if let Some(reference) = reference {
+        return Ok(AutofocusFilterChoice {
+            note: Some(format!(
+                "Autofocus was going to use {target}, which has no focus offset from {reference}. Focusing on {reference} instead"
+            )),
+            filter: Some(reference),
+        });
+    }
+    Err(format!(
+        "Autofocus was going to use {target}, which has no focus offset from the reference filter. Add the offset, or name the reference filter"
+    ))
+}
+
 pub(crate) async fn read_autofocus_position(ctx: &InstructionContext) -> Option<i32> {
     ctx.run
         .device_ops
@@ -90,7 +148,7 @@ pub(crate) static AUTOFOCUS_RUN_ACTIVE: AtomicBool = AtomicBool::new(false);
 /// away). Instruction tests and executor tests that fire a trigger autofocus
 /// both take it.
 #[cfg(test)]
-pub(crate) static AF_GATE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub(crate) static AF_GATE_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 pub struct AutofocusRunGuard;
 
@@ -473,7 +531,21 @@ async fn run_autofocus_admitted(
         .map(|(name, _)| name.as_str())
         .or(ctx.current_filter.as_deref());
     let active_override = active_filter_name
-        .and_then(|name| config.filter_settings.get(name))
+        .and_then(|name| {
+            let mut keys: Vec<&String> = config.filter_settings.keys().collect();
+            keys.sort_unstable();
+            match skotiq_device::match_filter_slot(&keys, name) {
+                skotiq_device::FilterSlotMatch::Slot(slot) => config.filter_settings.get(keys[slot]),
+                skotiq_device::FilterSlotMatch::Ambiguous(_) => {
+                    tracing::warn!(
+                        "Autofocus settings for \"{}\" could be several filters' rows; using the default settings",
+                        name.trim()
+                    );
+                    None
+                }
+                skotiq_device::FilterSlotMatch::Missing => None,
+            }
+        })
         .cloned();
     if let Some(filter_config) = &active_override {
         if let Some(exposure) = filter_config.af_exposure_time {
@@ -492,6 +564,20 @@ async fn run_autofocus_admitted(
         .map(str::trim)
         .filter(|name| !name.is_empty())
         .map(str::to_string);
+    let requested_filter = match choose_autofocus_filter(
+        requested_filter.as_deref(),
+        original_filter.as_ref().map(|(name, _)| name.as_str()),
+        ctx.run.rig.filter_focus_reference.as_deref(),
+        &ctx.run.rig.filter_focus_offsets,
+    ) {
+        Ok(choice) => {
+            if let Some(note) = choice.note {
+                tracing::info!("{note}");
+            }
+            choice.filter
+        }
+        Err(reason) => return InstructionResult::failure(reason),
+    };
 
     if let Err(message) = validate_autofocus_config(&effective_config) {
         return InstructionResult::failure(message);
@@ -530,6 +616,10 @@ async fn run_autofocus_admitted(
     }
 
     let mut filter_restore_required = false;
+    let pre_af_embodied_offset = match &ctx.run.trigger_state {
+        Some(ts) => ts.read().await.latches.last_applied_filter_offset,
+        None => 0,
+    };
     let mut pre_run_error = None;
     if let Some(target_name) = requested_filter.as_deref() {
         match &original_filter {
@@ -544,7 +634,8 @@ async fn run_autofocus_admitted(
                         filter_restore_required = true;
                         let slot_name = filter_names[target_position].clone();
                         if let Err(error) =
-                            move_autofocus_filter(ctx, &slot_name, target_position as i32).await
+                            move_autofocus_filter(ctx, &slot_name, target_position as i32, true)
+                                .await
                         {
                             pre_run_error = Some(
                                 InstructionResult::failure(format!(
@@ -578,7 +669,15 @@ async fn run_autofocus_admitted(
 
     if filter_restore_required {
         if let Some((original_name, original_position)) = &original_filter {
-            if let Err(error) = move_autofocus_filter(ctx, original_name, *original_position).await
+            // On success, AF found a new focus position for the AF filter so
+            // returning to the original filter must apply its configured
+            // offset. On failure or cancellation, AF returned the focuser to
+            // its post-entry position, so restore the wheel without requiring
+            // an offset row and reverse only the offset delta that entry
+            // actually applied (no-op when entry did not shift the focuser).
+            let apply_offset = result.status == NodeStatus::Success;
+            if let Err(error) =
+                move_autofocus_filter(ctx, original_name, *original_position, apply_offset).await
             {
                 result = append_autofocus_cleanup_failure(
                     result,
@@ -588,6 +687,24 @@ async fn run_autofocus_admitted(
                     ),
                 )
                 .caused_by(&error);
+            } else if !apply_offset {
+                if let Err(error) = crate::instructions::filter::apply_focus_offset_value(
+                    original_name,
+                    pre_af_embodied_offset,
+                    ctx,
+                    None,
+                )
+                .await
+                {
+                    result = append_autofocus_cleanup_failure(
+                        result,
+                        format!(
+                            "failed to restore pre-AF focus offset ({}) for filter \"{}\": {}",
+                            pre_af_embodied_offset, original_name, error
+                        ),
+                    )
+                    .caused_by(&error);
+                }
             }
         }
     }
@@ -735,6 +852,7 @@ pub(crate) async fn move_autofocus_filter(
     ctx: &InstructionContext,
     filter_name: &str,
     target_position: i32,
+    apply_offset: bool,
 ) -> Result<(), DeviceError> {
     let filterwheel_id = ctx
         .run
@@ -805,6 +923,9 @@ pub(crate) async fn move_autofocus_filter(
         sleep(Duration::from_millis(200)).await;
     }
 
+    if !apply_offset {
+        return Ok(());
+    }
     apply_filter_focus_offset(filter_name, ctx, None)
         .await
         .map_err(|error| error.context("focus offset failed"))
@@ -2010,7 +2131,13 @@ pub(crate) fn calculate_hfr_with_crops(
     let imaging_data =
         skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data);
 
-    let config = StarDetectionConfig::default();
+    // Autofocus tolerates off-axis coma and mild unguided drift (ecc <= 0.85)
+    // that still tracks focus cleanly, while excluding genuine mount trails.
+    const AF_MAX_ECCENTRICITY: f64 = 0.85;
+    let config = StarDetectionConfig {
+        max_eccentricity: AF_MAX_ECCENTRICITY,
+        ..StarDetectionConfig::default()
+    };
     let result = detect_stars_with_stats(&imaging_data, &config);
 
     let center_x = image.width as f64 / 2.0;
@@ -2020,11 +2147,9 @@ pub(crate) fn calculate_hfr_with_crops(
     let inner_half_width = image.width as f64 * inner_crop_ratio / 2.0;
     let inner_half_height = image.height as f64 * inner_crop_ratio / 2.0;
 
-    // detect_stars returns brightness-ranked stars. Preserve that order so a
-    // non-zero brightest-N setting is deterministic before calculating the
-    // median HFR.
+    // `sources` preserves brightness order at the caller's eccentricity ceiling.
     let mut eligible_stars: Vec<_> = result
-        .stars
+        .sources
         .into_iter()
         .filter(|star| {
             let dx = (star.x - center_x).abs();

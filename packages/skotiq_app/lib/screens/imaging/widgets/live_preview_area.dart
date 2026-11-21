@@ -789,9 +789,7 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                                   // ended up at `_cal.fits`, so an uncalibrated
                                   // frame never wears the badge.
                                   _CalibratedBadge(colors: colors),
-                                  SubQualityVerdict(
-                                    eccentricity: frameEccentricity,
-                                  ),
+                                  const SubQualityVerdict(),
                                 ],
                               ),
                             ),

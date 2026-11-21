@@ -61,8 +61,9 @@ pub struct GuardConfig {
     /// or hand controller.
     pub min_altitude_deg: f64,
     /// When a run is held by a mount fault, take a frame, plate solve it,
-    /// sync and resume without waiting for the operator. Off by default: the
-    /// first recovery is the operator's call.
+    /// sync and resume without waiting for the operator. On by default: the
+    /// app recovers on its own (owner, 2026-11-17). The mount is never moved
+    /// while its position is unknown.
     pub auto_sync_resume: bool,
     /// A sync further than this from the reported position is refused and
     /// marks the position unknown.
@@ -74,7 +75,7 @@ impl Default for GuardConfig {
         Self {
             enabled: true,
             min_altitude_deg: 0.0,
-            auto_sync_resume: false,
+            auto_sync_resume: true,
             solve_mismatch_deg: DEFAULT_SOLVE_MISMATCH_DEG,
         }
     }

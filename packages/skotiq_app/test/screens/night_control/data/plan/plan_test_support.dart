@@ -30,15 +30,27 @@ DateTime bostonTime(int year, int month, int day,
         [int hour = 0, int minute = 0, int second = 0]) =>
     DateTime.utc(year, month, day, hour + 4, minute, second).toLocal();
 
-/// The night of 2026-10-19 into the 20th, on the host's clock.
-TonightNight bostonNight() => TonightNight(
-      sunset: DateTime(2026, 10, 19, 18, 18),
-      astroDark: DateTime(2026, 10, 19, 19, 48),
-      astroDawn: DateTime(2026, 10, 20, 5, 44),
-      sunrise: DateTime(2026, 10, 20, 7, 10),
-      moonSet: DateTime(2026, 10, 19, 23, 9),
-      moonIlluminationPercent: 44,
-    );
+/// [hour]:[minute] in Boston as a fixed EDT clock renders it
+/// ([FixedOffsetClock] shifts the fields and tags them as this machine's
+/// local time), for a test that runs on Boston's clock.
+DateTime bostonClockTime(int year, int month, int day,
+        [int hour = 0, int minute = 0, int second = 0]) =>
+    DateTime(year, month, day, hour, minute, second);
+
+/// The night of 2026-10-19 into the 20th in Boston, on [clock] (the times
+/// the app holds are the operator's clock renderings).
+TonightNight bostonNight([Clock clock = const SystemClock()]) {
+  DateTime at(int day, int hour, int minute) =>
+      clock.toNightClock(bostonTime(2026, 10, day, hour, minute));
+  return TonightNight(
+    sunset: at(19, 18, 18),
+    astroDark: at(19, 19, 48),
+    astroDawn: at(20, 5, 44),
+    sunrise: at(20, 7, 10),
+    moonSet: at(19, 23, 9),
+    moonIlluminationPercent: 44,
+  );
+}
 
 /// A plan with two targets and a closing step:
 ///   M74:     L 3 × 60 s, dither every frame
@@ -199,7 +211,7 @@ ProviderContainer planContainer({
       clockProvider.overrideWithValue(clock),
       nightNowProvider.overrideWithValue(now.toUtc()),
       tonightNightProvider.overrideWithValue(
-        site ? (night ?? bostonNight()) : null,
+        site ? (night ?? bostonNight(clock)) : null,
       ),
       appObserverLocationProvider.overrideWithValue(site ? boston : null),
       altitudeFloorProvider.overrideWithValue(floor),

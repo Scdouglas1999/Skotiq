@@ -1,25 +1,20 @@
 part of '../stacking_panel.dart';
 
 /// Displays the u16 stacked preview image, converting it to an 8-bit
-/// displayable format on the fly.
+/// displayable format off the UI thread.
 ///
-/// The conversion is the app's shared auto-stretch ([stretch], normally
-/// `LiveStackingService.autoStretchPreview` → the Rust MAD-based STF), so the
-/// preview shows the same star field the viewer shows. It is deliberately NOT
-/// a linear min/max map: on a real stacked light the max is a saturated star
-/// and the min is the sky floor, which renders the whole frame black.
-///
-/// [channels] selects how [previewData] is interpreted:
-///   * `1` — a single luminance plane (`width * height` samples).
-///   * `3` — an interleaved RGB16 buffer (`width * height * 3` samples, the
-///     layout an OSC session produces), stretched per channel so a colour
-///     stack previews in colour rather than as a scrambled mono plane.
+/// The conversion is the app's shared auto-stretch ([stretchAsync], normally
+/// `LiveStackingService.renderStackPreviewRgba` / `autoStretchPreviewAsync` →
+/// the Rust progressive EAA STF with parallel area downsampling), so the
+/// preview shows the star field and reveals faint signal as frames stack
+/// without blocking the Flutter UI isolate.
 class _StackedPreview extends StatefulWidget {
   final Uint16List previewData;
   final int width;
   final int height;
   final int channels;
-  final StackedPreviewStretch stretch;
+  final StackedPreviewStretchAsync stretchAsync;
+  final String? filterKey;
   final SkotiqColors colors;
 
   const _StackedPreview({
@@ -27,9 +22,12 @@ class _StackedPreview extends StatefulWidget {
     required this.width,
     required this.height,
     required this.channels,
-    required this.stretch,
+    required this.stretchAsync,
+    this.filterKey,
     required this.colors,
   });
+
+  static const int _thumbnailMaxDimension = 640;
 
   @override
   State<_StackedPreview> createState() => _StackedPreviewState();
@@ -38,11 +36,13 @@ class _StackedPreview extends StatefulWidget {
 class _StackedPreviewState extends State<_StackedPreview> {
   ui.Image? _displayImage;
   bool _isDecoding = false;
+  bool _pendingRebuild = false;
+  int _generation = 0;
 
   @override
   void initState() {
     super.initState();
-    _buildDisplayImage();
+    _scheduleBuild();
   }
 
   @override
@@ -52,20 +52,32 @@ class _StackedPreviewState extends State<_StackedPreview> {
         widget.width != oldWidget.width ||
         widget.height != oldWidget.height ||
         widget.channels != oldWidget.channels ||
-        widget.stretch != oldWidget.stretch) {
-      _buildDisplayImage();
+        widget.filterKey != oldWidget.filterKey ||
+        widget.stretchAsync != oldWidget.stretchAsync) {
+      _scheduleBuild();
     }
   }
 
   @override
   void dispose() {
+    _generation++;
     _displayImage?.dispose();
     super.dispose();
   }
 
+  void _scheduleBuild() {
+    _generation++;
+    if (_isDecoding) {
+      _pendingRebuild = true;
+      return;
+    }
+    unawaited(_buildDisplayImage());
+  }
+
   Future<void> _buildDisplayImage() async {
-    if (_isDecoding) return;
     _isDecoding = true;
+    _pendingRebuild = false;
+    final gen = _generation;
 
     final data = widget.previewData;
     final w = widget.width;
@@ -85,56 +97,50 @@ class _StackedPreviewState extends State<_StackedPreview> {
       return;
     }
 
-    final Uint8List rgba;
     try {
-      rgba = widget.stretch(
+      final StretchedPreviewFrame stretched = await widget.stretchAsync(
         width: w,
         height: h,
         data: data,
         channels: samplesPerPixel,
+        maxDimension: _StackedPreview._thumbnailMaxDimension,
+        filterKey: widget.filterKey,
       );
-    } catch (e) {
-      Log.warning(
-        '[StackingPanel] Error stretching preview: $e',
-        source: 'StackingPanel',
-        error: e,
-      );
-      _isDecoding = false;
-      return;
-    }
-    if (rgba.length < pixelCount * 4) {
-      Log.warning(
-        '[StackingPanel] Stretched preview is ${rgba.length} bytes, '
-        'expected ${pixelCount * 4}',
-        source: 'StackingPanel',
-      );
-      _isDecoding = false;
-      return;
-    }
+      if (!mounted || gen != _generation) return;
 
-    try {
-      final buffer = await ui.ImmutableBuffer.fromUint8List(rgba);
+      final outW = stretched.width;
+      final outH = stretched.height;
+      final expectedBytes = outW * outH * 4;
+      if (outW <= 0 || outH <= 0 || stretched.rgba.length < expectedBytes) {
+        Log.warning(
+          '[StackingPanel] Stretched preview is ${stretched.rgba.length} '
+          'bytes, expected $expectedBytes',
+          source: 'StackingPanel',
+        );
+        return;
+      }
+
+      final buffer = await ui.ImmutableBuffer.fromUint8List(stretched.rgba);
       final descriptor = ui.ImageDescriptor.raw(
         buffer,
-        width: w,
-        height: h,
+        width: outW,
+        height: outH,
         pixelFormat: ui.PixelFormat.rgba8888,
       );
       final codec = await descriptor.instantiateCodec();
       final frame = await codec.getNextFrame();
-
-      if (mounted) {
-        setState(() {
-          _displayImage?.dispose();
-          _displayImage = frame.image;
-        });
-      } else {
-        frame.image.dispose();
-      }
-
       codec.dispose();
       descriptor.dispose();
       buffer.dispose();
+
+      if (!mounted || gen != _generation) {
+        frame.image.dispose();
+        return;
+      }
+      setState(() {
+        _displayImage?.dispose();
+        _displayImage = frame.image;
+      });
     } catch (e) {
       Log.warning(
         '[StackingPanel] Error building preview image: $e',
@@ -143,6 +149,10 @@ class _StackedPreviewState extends State<_StackedPreview> {
       );
     } finally {
       _isDecoding = false;
+      if (mounted && _pendingRebuild) {
+        _pendingRebuild = false;
+        unawaited(_buildDisplayImage());
+      }
     }
   }
 
@@ -162,27 +172,31 @@ class _StackedPreviewState extends State<_StackedPreview> {
               const SizedBox(
                 width: 20,
                 height: 20,
-                child: const SkotiqMark(
-                    motion: SkotiqMarkMotion.loading, size: 20),
+                child: SkotiqMark(motion: SkotiqMarkMotion.loading, size: 20),
               ),
               const SizedBox(height: 8),
-              Text('Rendering preview...',
-                  style: SkotiqTypography.caption
-                      .copyWith(color: widget.colors.textMuted)),
+              Text(
+                'Rendering preview...',
+                style: SkotiqTypography.caption.copyWith(
+                  color: widget.colors.textMuted,
+                ),
+              ),
             ],
           ),
         ),
       );
     }
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-      child: AspectRatio(
-        aspectRatio: widget.width / widget.height,
-        child: RawImage(
-          image: _displayImage,
-          fit: BoxFit.contain,
-          filterQuality: FilterQuality.medium,
+    return RepaintBoundary(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+        child: AspectRatio(
+          aspectRatio: widget.width / widget.height,
+          child: RawImage(
+            image: _displayImage,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
+          ),
         ),
       ),
     );
@@ -191,11 +205,10 @@ class _StackedPreviewState extends State<_StackedPreview> {
 
 /// Renders a u16 stacked buffer to display-ready RGBA8.
 ///
-/// `channels` is `1` (luminance plane) or `3` (interleaved RGB16). The
-/// production implementation is the app's shared MAD-based STF auto-stretch
-/// (`LiveStackingService.autoStretchPreview`), which lives in Rust so exactly
-/// one stretch curve exists across the viewer, Stack-and-Share and this
-/// preview.
+/// `channels` is `1` (luminance plane) or `3` (interleaved RGB16). Kept for
+/// test overrides and callers that expect a synchronous signature; production
+/// rendering goes through [stackedPreviewStretchAsyncProvider] so stretching
+/// and downscaling run off the Flutter UI thread in Rust.
 typedef StackedPreviewStretch = Uint8List Function({
   required int width,
   required int height,
@@ -203,8 +216,107 @@ typedef StackedPreviewStretch = Uint8List Function({
   required int channels,
 });
 
+/// Async, off-UI-thread preview stretcher with optional native downscaling.
+typedef StackedPreviewStretchAsync = Future<StretchedPreviewFrame> Function({
+  required int width,
+  required int height,
+  required Uint16List data,
+  required int channels,
+  int maxDimension,
+  String? filterKey,
+});
+
+final _defaultSyncPreviewStretchProvider = Provider<StackedPreviewStretch>(
+  (ref) {
+    final service = ref.watch(liveStackingServiceProvider);
+    return ({
+      required int width,
+      required int height,
+      required List<int> data,
+      required int channels,
+    }) =>
+        service.autoStretchPreview(
+          width: width,
+          height: height,
+          data: data,
+          channels: channels,
+        );
+  },
+);
+
 /// Injection point for [StackedPreviewStretch]; overridden in tests so the
 /// preview can be exercised without the native library.
 final stackedPreviewStretchProvider = Provider<StackedPreviewStretch>(
-  (ref) => ref.watch(liveStackingServiceProvider).autoStretchPreview,
+  (ref) => ref.watch(_defaultSyncPreviewStretchProvider),
+);
+
+/// Production off-UI-thread stretcher for live stack canvases and previews.
+///
+/// When [stackedPreviewStretchProvider] has not been overridden (production),
+/// this runs entirely off the Flutter UI isolate on the Rust worker thread pool
+/// with Rayon parallel area downscaling (and zero-u16-copy cached native
+/// F32 progressive rendering when a local [filterKey] stack slot is available).
+/// When a widget test overrides [stackedPreviewStretchProvider], this seamlessly
+/// delegates to that test override.
+final stackedPreviewStretchAsyncProvider = Provider<StackedPreviewStretchAsync>(
+  (ref) {
+    final syncStretch = ref.watch(stackedPreviewStretchProvider);
+    final defaultSyncStretch = ref.watch(_defaultSyncPreviewStretchProvider);
+    if (!identical(syncStretch, defaultSyncStretch)) {
+      return ({
+        required int width,
+        required int height,
+        required Uint16List data,
+        required int channels,
+        int maxDimension = 2048,
+        String? filterKey,
+      }) async {
+        final rgba = syncStretch(
+          width: width,
+          height: height,
+          data: data,
+          channels: channels,
+        );
+        return StretchedPreviewFrame(
+          width: width,
+          height: height,
+          channels: channels,
+          rgba: rgba,
+        );
+      };
+    }
+
+    final service = ref.watch(liveStackingServiceProvider);
+    final isRemote = ref.watch(isRemoteModeProvider);
+    return ({
+      required int width,
+      required int height,
+      required Uint16List data,
+      required int channels,
+      int maxDimension = 2048,
+      String? filterKey,
+    }) async {
+      if (!isRemote && filterKey != null && filterKey.isNotEmpty) {
+        try {
+          return await service.renderStackPreviewRgba(
+            filterKey: filterKey,
+            maxDimension: maxDimension,
+          );
+        } catch (error) {
+          Log.debug(
+            'Native live stack RGBA preview fell back to buffer stretch for '
+            '$filterKey: $error',
+            source: 'StackedPreview',
+          );
+        }
+      }
+      return service.autoStretchPreviewAsync(
+        width: width,
+        height: height,
+        data: data,
+        channels: channels,
+        maxDimension: maxDimension,
+      );
+    };
+  },
 );

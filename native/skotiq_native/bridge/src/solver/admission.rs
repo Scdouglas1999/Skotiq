@@ -3,9 +3,9 @@
 use crate::error::SkotiqError;
 use skotiq_imaging::PlateSolveResult;
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Weak};
 use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use tokio::sync::{watch, Mutex};
 
 /// Process-wide admission gate shared by UI, headless HTTP, sequencer, and
 /// recovery callers. External solvers write sibling `.ini`/`.wcs` artifacts;
@@ -24,11 +24,10 @@ fn plate_solve_gate() -> &'static Mutex<()> {
 /// second caller waits for the first caller's result instead of launching a
 /// solver of its own.
 type SolveOutcome = Result<PlateSolveResult, String>;
-type SolveBroadcast = tokio::sync::broadcast::Sender<Arc<SolveOutcome>>;
-static IN_FLIGHT_SOLVES: OnceLock<std::sync::Mutex<HashMap<String, SolveBroadcast>>> =
-    OnceLock::new();
+type SolveRegistry = std::sync::Mutex<HashMap<String, Weak<FrameSolve>>>;
+static IN_FLIGHT_SOLVES: OnceLock<SolveRegistry> = OnceLock::new();
 
-fn in_flight_solves() -> &'static std::sync::Mutex<HashMap<String, SolveBroadcast>> {
+fn in_flight_solves() -> &'static SolveRegistry {
     IN_FLIGHT_SOLVES.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
 }
 
@@ -56,24 +55,53 @@ pub(super) enum SolvePreference {
 /// avoids; a blind solve that really is alone pays it once and is otherwise
 /// unaffected.
 const BLIND_YIELD_WINDOW: Duration = Duration::from_millis(150);
-const BLIND_YIELD_POLL: Duration = Duration::from_millis(5);
 
-fn solve_in_flight(key: &str) -> bool {
-    in_flight_solves()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .contains_key(key)
+/// Each caller retains its frame's answer, including a blind caller waiting
+/// to offer the lead. The registry itself never keeps an abandoned frame alive.
+struct FrameSolve {
+    key: String,
+    leader: Mutex<()>,
+    answer: watch::Sender<Option<SolveOutcome>>,
+    yield_until: Option<tokio::time::Instant>,
 }
 
-/// Removes the in-flight entry even if the solve future is dropped or panics,
-/// so one abandoned solve cannot wedge every later solve of that frame.
-struct InFlightGuard(String);
-
-impl Drop for InFlightGuard {
-    fn drop(&mut self) {
-        if let Ok(mut map) = in_flight_solves().lock() {
-            map.remove(&self.0);
+impl FrameSolve {
+    fn join(key: String, preference: SolvePreference) -> Arc<Self> {
+        let mut map = in_flight_solves()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(active) = map.get(&key).and_then(Weak::upgrade) {
+            return active;
         }
+        let (answer, _) = watch::channel(None);
+        let active = Arc::new(Self {
+            key: key.clone(),
+            leader: Mutex::new(()),
+            answer,
+            yield_until: (preference == SolvePreference::Blind)
+                .then(|| tokio::time::Instant::now() + BLIND_YIELD_WINDOW),
+        });
+        map.insert(key, Arc::downgrade(&active));
+        active
+    }
+
+    fn retire(&self) {
+        let mut map = in_flight_solves()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // A slow follower can drop after a fresh solve has claimed the same path.
+        if map
+            .get(&self.key)
+            .is_some_and(|flight| std::ptr::eq(flight.as_ptr(), self))
+        {
+            map.remove(&self.key);
+        }
+    }
+}
+
+impl Drop for FrameSolve {
+    fn drop(&mut self) {
+        self.retire();
     }
 }
 
@@ -100,66 +128,39 @@ where
         .map(|p| p.to_string_lossy().into_owned())
         .unwrap_or_else(|_| file_path.to_string());
 
-    // A blind caller offers the lead to a hinted caller for the same frame
-    // before claiming it. Nothing is skipped either way: whoever leads,
-    // exactly one solver runs and both callers get its answer.
-    if preference == SolvePreference::Blind && !solve_in_flight(&key) {
-        let deadline = Instant::now() + BLIND_YIELD_WINDOW;
-        let mut yielded = false;
-        while Instant::now() < deadline {
-            tokio::time::sleep(BLIND_YIELD_POLL).await;
-            if solve_in_flight(&key) {
-                yielded = true;
-                break;
-            }
-        }
-        if yielded {
-            tracing::info!(
-                "Plate solve ({label}): a hinted solve of {key} took the lead; \
-                 waiting for it rather than solving blind"
-            );
+    let frame = FrameSolve::join(key, preference);
+    if let (SolvePreference::Blind, Some(deadline)) = (preference, frame.yield_until) {
+        let mut answer = frame.answer.subscribe();
+        // A fast hinted solve may finish before this caller is scheduled
+        // again. The retained answer ends the offer early in that case.
+        // Both publication and expiry proceed to the election below, where the
+        // answer is checked under the same lock used to choose a replacement.
+        let wait = tokio::time::timeout_at(deadline, answer.wait_for(Option::is_some)).await;
+        if let Ok(Err(error)) = wait {
+            return Err(SkotiqError::OperationFailed(format!(
+                "Plate-solve result channel closed for {}: {error}",
+                frame.key
+            )));
         }
     }
 
-    let (leader_tx, follower_rx) = {
-        let mut map = in_flight_solves()
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        match map.get(&key) {
-            Some(tx) => (None, Some(tx.subscribe())),
-            None => {
-                let (tx, _rx) = tokio::sync::broadcast::channel(1);
-                map.insert(key.clone(), tx.clone());
-                (Some(tx), None)
-            }
-        }
-    };
-
-    if let Some(mut rx) = follower_rx {
+    // Dropping an interrupted leader releases this lock. Exactly one waiter
+    // can replace it, and every waiter checks for a completed answer first.
+    let _leader = frame.leader.lock().await;
+    if let Some(outcome) = frame.answer.borrow().as_ref() {
         tracing::info!(
-            "Plate solve ({label}): {key} is already being solved; waiting for that \
-             result instead of starting a second solver process"
+            "Plate solve ({label}): using the shared answer for {}",
+            frame.key
         );
-        match rx.recv().await {
-            Ok(outcome) => return (*outcome).clone().map_err(SkotiqError::OperationFailed),
-            Err(e) => {
-                tracing::warn!(
-                    "Plate solve ({label}): the solve of {key} we were waiting on ended \
-                     without publishing a result ({e}); solving it here instead"
-                );
-                return solve().await;
-            }
-        }
+        return outcome.clone().map_err(SkotiqError::OperationFailed);
     }
-
-    let _guard = InFlightGuard(key);
     let result = solve().await;
-    if let Some(tx) = leader_tx {
-        // Publish before the guard removes the entry: a follower that is
-        // already subscribed gets the answer, and any caller arriving after
-        // this starts a fresh solve.
-        let _ = tx.send(Arc::new(result.clone().map_err(|e| e.to_string())));
-    }
+    frame
+        .answer
+        .send_replace(Some(result.clone().map_err(|error| error.to_string())));
+    // A later, independent call must solve again, even when an earlier caller
+    // has not yet resumed to collect its copy of this answer.
+    frame.retire();
     result
 }
 
@@ -208,28 +209,33 @@ mod tests {
     /// caller now waits for the first caller's answer.
     #[tokio::test]
     async fn two_callers_on_one_frame_run_one_solver() {
-        let runs = Arc::new(AtomicUsize::new(0));
+        let runs = AtomicUsize::new(0);
+        let finish = tokio::sync::Notify::new();
         let path = "/tmp/skotiq-coalesce-one-frame.fits";
-
-        let solve = |runs: Arc<AtomicUsize>| async move {
+        let solve = || async {
             runs.fetch_add(1, Ordering::SeqCst);
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            Ok::<_, SkotiqError>(result_at(42.0))
+            finish.notified().await;
+            Ok(result_at(42.0))
         };
-
-        let (first, second) = tokio::join!(
-            coalesced_solve(path, "near", SolvePreference::Hinted, || solve(
-                runs.clone()
-            )),
-            async {
-                // The follower arrives while the leader is still solving.
-                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-                coalesced_solve(path, "blind", SolvePreference::Blind, || {
-                    solve(runs.clone())
-                })
-                .await
-            }
-        );
+        let mut first = Box::pin(coalesced_solve(
+            path,
+            "near",
+            SolvePreference::Hinted,
+            solve,
+        ));
+        let mut second = Box::pin(coalesced_solve(
+            path,
+            "blind",
+            SolvePreference::Blind,
+            || async {
+                runs.fetch_add(1, Ordering::SeqCst);
+                Ok(result_at(1.0))
+            },
+        ));
+        assert!(futures::poll!(&mut first).is_pending());
+        assert!(futures::poll!(&mut second).is_pending());
+        finish.notify_waiters();
+        let (first, second) = tokio::join!(first, second);
 
         assert_eq!(runs.load(Ordering::SeqCst), 1, "a second solver ran");
         assert_eq!(first.unwrap().ra, 42.0);
@@ -245,30 +251,32 @@ mod tests {
     /// position hint and runs the slow, mis-lockable blind path instead.
     #[tokio::test]
     async fn a_hinted_caller_leads_even_when_the_blind_one_arrives_first() {
-        let runs = Arc::new(AtomicUsize::new(0));
+        let runs = AtomicUsize::new(0);
+        let finish = tokio::sync::Notify::new();
         let path = "/tmp/skotiq-coalesce-hint-wins.fits";
-
-        // Each closure reports WHICH caller ran the solver, via the RA.
-        let solve = |runs: Arc<AtomicUsize>, ra: f64| async move {
-            runs.fetch_add(1, Ordering::SeqCst);
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            Ok::<_, SkotiqError>(result_at(ra))
-        };
-
-        let (blind, hinted) = tokio::join!(
-            coalesced_solve(path, "blind", SolvePreference::Blind, || solve(
-                runs.clone(),
-                1.0
-            )),
-            async {
-                // The live pair arrived 4-11 ms apart.
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                coalesced_solve(path, "near", SolvePreference::Hinted, || {
-                    solve(runs.clone(), 2.0)
-                })
-                .await
-            }
-        );
+        let mut blind = Box::pin(coalesced_solve(
+            path,
+            "blind",
+            SolvePreference::Blind,
+            || async {
+                runs.fetch_add(1, Ordering::SeqCst);
+                Ok(result_at(1.0))
+            },
+        ));
+        let mut hinted = Box::pin(coalesced_solve(
+            path,
+            "near",
+            SolvePreference::Hinted,
+            || async {
+                runs.fetch_add(1, Ordering::SeqCst);
+                finish.notified().await;
+                Ok(result_at(2.0))
+            },
+        ));
+        assert!(futures::poll!(&mut blind).is_pending());
+        assert!(futures::poll!(&mut hinted).is_pending());
+        finish.notify_waiters();
+        let (blind, hinted) = tokio::join!(blind, hinted);
 
         assert_eq!(runs.load(Ordering::SeqCst), 1, "two solvers ran");
         assert_eq!(
@@ -333,6 +341,124 @@ mod tests {
         .await;
 
         assert_eq!(runs.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn a_fast_hinted_solve_reaches_a_blind_caller_still_in_its_yield_window() {
+        let key = "skotiq-coalesce-fast-hint.fits";
+        let mut blind = Box::pin(coalesced_solve(
+            key,
+            "blind",
+            SolvePreference::Blind,
+            || async {
+                panic!("the blind caller missed the hinted result during its yield window");
+            },
+        ));
+        assert!(futures::poll!(&mut blind).is_pending());
+        let hinted = coalesced_solve(key, "near", SolvePreference::Hinted, || async {
+            Ok(result_at(42.0))
+        })
+        .await
+        .unwrap();
+
+        // This later request began after the hinted solve returned. The blind
+        // caller still belongs to the earlier solve, even across this new one.
+        let finish = tokio::sync::Notify::new();
+        let mut fresh = Box::pin(coalesced_solve(
+            key,
+            "later",
+            SolvePreference::Hinted,
+            || async {
+                finish.notified().await;
+                Ok(result_at(7.0))
+            },
+        ));
+        assert!(futures::poll!(&mut fresh).is_pending());
+        assert_eq!(hinted.ra, 42.0);
+        assert_eq!(blind.await.unwrap().ra, 42.0);
+        // Dropping the last caller of the old solve must leave the new one registered.
+        let mut follower = Box::pin(coalesced_solve(
+            key,
+            "later follower",
+            SolvePreference::Hinted,
+            || async {
+                panic!("the earlier solve removed the new registration");
+            },
+        ));
+        assert!(futures::poll!(&mut follower).is_pending());
+        finish.notify_waiters();
+        let (fresh, follower) = tokio::join!(fresh, follower);
+        assert_eq!(fresh.unwrap().ra, 7.0);
+        assert_eq!(follower.unwrap().ra, 7.0);
+    }
+
+    #[tokio::test]
+    async fn a_follower_arriving_during_publication_gets_the_finished_result() {
+        let key = "skotiq-coalesce-published.fits";
+        let frame = super::FrameSolve::join(key.into(), SolvePreference::Hinted);
+        // Freeze publication just before the leader retires the entry.
+        frame.answer.send_replace(Some(Ok(result_at(42.0))));
+        let mut follower = Box::pin(coalesced_solve(
+            key,
+            "follower",
+            SolvePreference::Hinted,
+            || async {
+                panic!("a published solve is still available");
+            },
+        ));
+        let std::task::Poll::Ready(result) = futures::poll!(&mut follower) else {
+            panic!("a late subscriber missed the published answer");
+        };
+        assert_eq!(result.unwrap().ra, 42.0);
+    }
+
+    #[tokio::test]
+    async fn interrupted_leader_is_replaced_once_for_all_waiting_callers() {
+        let path = "skotiq-coalesce-interrupted.fits";
+        let mut interrupted = Box::pin(coalesced_solve(
+            path,
+            "interrupted",
+            SolvePreference::Hinted,
+            std::future::pending,
+        ));
+        assert!(futures::poll!(&mut interrupted).is_pending());
+
+        let runs = AtomicUsize::new(0);
+        let finish = tokio::sync::Notify::new();
+        let wait = || {
+            coalesced_solve(path, "waiting", SolvePreference::Hinted, || async {
+                runs.fetch_add(1, Ordering::SeqCst);
+                finish.notified().await;
+                Ok(result_at(7.0))
+            })
+        };
+        let mut first = Box::pin(wait());
+        let mut second = Box::pin(wait());
+        assert!(futures::poll!(&mut first).is_pending());
+        assert!(futures::poll!(&mut second).is_pending());
+        drop(interrupted);
+        assert!(futures::poll!(&mut first).is_pending());
+        assert!(futures::poll!(&mut second).is_pending());
+        finish.notify_waiters();
+        let (first, second) = tokio::join!(first, second);
+        assert_eq!(runs.load(Ordering::SeqCst), 1);
+        assert_eq!(first.unwrap().ra, 7.0);
+        assert_eq!(second.unwrap().ra, 7.0);
+    }
+
+    #[tokio::test]
+    async fn cancelling_the_only_blind_caller_retires_its_pending_frame() {
+        let key = "skotiq-coalesce-pending-blind.fits";
+        let mut blind = Box::pin(coalesced_solve(
+            key,
+            "blind",
+            SolvePreference::Blind,
+            std::future::pending,
+        ));
+        assert!(futures::poll!(&mut blind).is_pending());
+        assert!(super::in_flight_solves().lock().unwrap().contains_key(key));
+        drop(blind);
+        assert!(!super::in_flight_solves().lock().unwrap().contains_key(key));
     }
 
     /// A finished solve must release its frame, or the first solve of a file

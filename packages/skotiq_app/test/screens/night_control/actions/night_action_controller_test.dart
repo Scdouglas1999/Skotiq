@@ -428,6 +428,22 @@ void main() {
       expect(center.sub, const NightText.literal('M74'));
     });
 
+    test('a meridian flip disables every manual action', () {
+      final h = actionHarness();
+      addTearDown(h.container.dispose);
+      h.container.read(flipExecutionStateProvider.notifier).state =
+          FlipExecutionState.executing;
+      final inputs = h.container.read(nightActionInputsProvider);
+      for (final id in ManualActionId.values) {
+        final reason = manualActionDisabledReason(inputs, id);
+        expect(reason, const NightText('nightActBusyFlip'), reason: id.name);
+      }
+      expect(
+        SkotiqLocalizations.debugLocalizedValues['en']!['nightActBusyFlip'],
+        'A meridian flip is running',
+      );
+    });
+
     test('a stopping run disables every action', () {
       final h = actionHarness(runState: SequenceExecutionState.stopping);
       addTearDown(h.container.dispose);

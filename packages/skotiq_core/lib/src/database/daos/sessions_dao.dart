@@ -114,26 +114,28 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   /// is `active`. Only call it having established that no session is live —
   /// [SessionService] does that from `_currentSessionId`, which is set for the
   /// whole life of a session it owns.
-  Future<List<int>> closeOrphanedSessions({required String cause}) async {
-    final orphans = await customSelect(
-      kSelectOrphanedSessionsSql,
-      readsFrom: {imagingSessions},
-    ).get();
-    if (orphans.isEmpty) return const <int>[];
+  Future<List<int>> closeOrphanedSessions({required String cause}) {
+    return transaction(() async {
+      final orphans = await customSelect(
+        kSelectOrphanedSessionsSql,
+        readsFrom: {imagingSessions},
+      ).get();
+      if (orphans.isEmpty) return const <int>[];
 
-    final found = DateTime.now();
-    final note = interruptedSessionNote(cause: cause, found: found);
-    await customUpdate(
-      kCloseOrphanedSessionsSql,
-      variables: [
-        Variable<int>(found.toUtc().millisecondsSinceEpoch ~/ 1000),
-        Variable<String>(note),
-        Variable<String>(note),
-      ],
-      updates: {imagingSessions},
-      updateKind: UpdateKind.update,
-    );
-    return [for (final row in orphans) row.data['id'] as int];
+      final found = DateTime.now();
+      final note = interruptedSessionNote(cause: cause, found: found);
+      await customUpdate(
+        kCloseOrphanedSessionsSql,
+        variables: [
+          Variable<int>(found.toUtc().millisecondsSinceEpoch ~/ 1000),
+          Variable<String>(note),
+          Variable<String>(note),
+        ],
+        updates: {imagingSessions},
+        updateKind: UpdateKind.update,
+      );
+      return [for (final row in orphans) row.data['id'] as int];
+    });
   }
 
   /// Re-open a session the sweep closed, so a recovery resumes the night it

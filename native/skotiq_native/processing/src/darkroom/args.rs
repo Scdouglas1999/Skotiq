@@ -34,8 +34,12 @@ pub(crate) struct CatalogStarArgs {
 #[serde(default, rename_all = "camelCase")]
 pub(crate) struct DarkroomContextArgs {
     /// Path to the linear master the recipe renders over. Empty for a
-    /// validation that touches no pixels.
+    /// validation that touches no pixels, or when `liveStackKey` is supplied.
     pub(crate) master_path: String,
+    /// Optional active live-stack filter key (e.g. `"L"`, `"Ha"`, `"active"`).
+    /// When present and non-empty, Darkroom renders directly over that live
+    /// stack's in-memory F32 running means with zero disk I/O.
+    pub(crate) live_stack_key: Option<String>,
     /// Explicit pyramid level; `0` is full resolution. Takes precedence over
     /// `maxDimension`.
     pub(crate) level: Option<u32>,
@@ -116,6 +120,9 @@ pub(crate) struct DarkroomRegistryArgs {
     /// A linear master to measure auto-parameters and a first-draft recipe
     /// from. Empty returns the operation catalogue alone.
     pub(crate) master_path: String,
+    /// Optional active live-stack filter key to measure a first-draft recipe
+    /// directly from in-memory live stack pixels.
+    pub(crate) live_stack_key: Option<String>,
     /// Identity the drafted recipe carries as its `baseMasterRef`. Empty uses
     /// `masterPath`.
     pub(crate) base_master_ref: String,

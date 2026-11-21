@@ -53,6 +53,8 @@ mod render;
 mod schema;
 mod state;
 
+pub use state::{register_live_stack_resolver, LiveStackIdentityFn, LiveStackOpImageFn};
+
 #[cfg(test)]
 mod tests;
 

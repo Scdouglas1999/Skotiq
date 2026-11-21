@@ -25,7 +25,8 @@ import 'async_scope.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;
 import 'guiding_provider.dart' show guidingStopReasonProvider;
-import 'imaging_provider.dart' show exposureSettingsProvider;
+import 'imaging_provider.dart'
+    show exposureSettingsProvider, lastImageStatsProvider;
 import 'observing_list_provider.dart'
     show listedCatalogIdsProvider, observingListsProvider;
 import 'profiles_provider.dart';
@@ -152,6 +153,17 @@ void _rereadImagesAfter(ProviderContainer container, SkotiqEvent event) {
 /// [hint] describes the frame the host announced; when the fetched frame has
 /// its dimensions, it takes the host's saved path, target and capture settings,
 /// which the last-frame endpoint does not carry.
+/// The host took the frame off its screen. Drop the one shown here, and
+/// do not let a download that already started put it back.
+void clearHostCurrentFrame(ProviderContainer container) {
+  final fetchState = container.read(_remoteFrameFetchStateProvider);
+  fetchState.generation++;
+  fetchState.pendingBackend = null;
+  fetchState.hint = null;
+  container.read(currentImageProvider.notifier).state = null;
+  container.read(lastImageStatsProvider.notifier).state = null;
+}
+
 void requestHostCurrentFrame(
   ProviderContainer container,
   SkotiqBackend backend, {

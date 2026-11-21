@@ -557,13 +557,47 @@ final secondaryRigControllerProvider = Provider<SecondaryRigController>((ref) {
 /// Polls host-authoritative secondary-rig status. Transport errors remain
 /// errors so the UI cannot mistake an unreachable rig for an idle one.
 final secondaryRigStatusProvider =
-    StreamProvider.autoDispose<SecondaryRigStatus?>((ref) async* {
+    StreamProvider.autoDispose<SecondaryRigStatus?>((ref) {
       ref.watch(backendProvider);
-      while (true) {
-        final status = await ref
-            .read(secondaryRigControllerProvider)
-            .getStatus();
-        yield status.armed ? status : null;
-        await Future<void>.delayed(const Duration(seconds: 2));
+      final controller = StreamController<SecondaryRigStatus?>();
+      Timer? timer;
+      var closed = false;
+      var inFlight = false;
+
+      void stop() {
+        if (closed) return;
+        closed = true;
+        timer?.cancel();
+        timer = null;
+        if (!controller.isClosed) {
+          unawaited(controller.close());
+        }
       }
+
+      Future<void> tick() async {
+        if (closed || inFlight) return;
+        inFlight = true;
+        try {
+          final status = await ref
+              .read(secondaryRigControllerProvider)
+              .getStatus();
+          if (!closed && !controller.isClosed) {
+            controller.add(status.armed ? status : null);
+          }
+        } catch (e, st) {
+          if (!closed && !controller.isClosed) {
+            controller.addError(e, st);
+          }
+        } finally {
+          inFlight = false;
+          if (!closed) {
+            timer = Timer(const Duration(seconds: 2), () => unawaited(tick()));
+          }
+        }
+      }
+
+      controller.onListen = () => unawaited(tick());
+      controller.onCancel = stop;
+      ref.onDispose(stop);
+      return controller.stream;
     });

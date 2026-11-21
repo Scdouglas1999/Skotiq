@@ -20,9 +20,7 @@ Widget _harness({
       scienceProcessingStatusTrackerProvider.overrideWith((_) => tracker),
     ],
     child: MaterialApp(
-      theme: ThemeData(
-        extensions: const [SkotiqColors.dark],
-      ),
+      theme: ThemeData(extensions: const [SkotiqColors.dark]),
       home: Scaffold(body: child),
     ),
   );
@@ -35,109 +33,139 @@ void main() {
     final tracker = ScienceProcessingStatusTracker();
     addTearDown(tracker.dispose);
 
-    await tester.pumpWidget(_harness(
-      tracker: tracker,
-      child: const ScienceStatusBanner(hideWhenIdle: true),
-    ));
+    await tester.pumpWidget(
+      _harness(
+        tracker: tracker,
+        child: const ScienceStatusBanner(hideWhenIdle: true),
+      ),
+    );
     await tester.pump();
 
     expect(find.byType(ScienceStatusBanner), findsOneWidget);
     expect(find.text('Science idle'), findsNothing);
-    expect(find.byType(Container), findsNothing,
-        reason:
-            'Banner should collapse to SizedBox.shrink when idle + hide flag.');
+    expect(
+      find.byType(Container),
+      findsNothing,
+      reason:
+          'Banner should collapse to SizedBox.shrink when idle + hide flag.',
+    );
   });
 
-  testWidgets('renders the idle line when there is no work in flight',
-      (tester) async {
+  testWidgets('renders the idle line when there is no work in flight', (
+    tester,
+  ) async {
     final tracker = ScienceProcessingStatusTracker();
     addTearDown(tracker.dispose);
 
-    await tester.pumpWidget(_harness(
-      tracker: tracker,
-      child: const ScienceStatusBanner(),
-    ));
+    await tester.pumpWidget(
+      _harness(tracker: tracker, child: const ScienceStatusBanner()),
+    );
     await tester.pump();
 
     expect(find.text('Science idle'), findsOneWidget);
     expect(find.text('Waiting for the first captured frame'), findsOneWidget);
   });
 
-  testWidgets('renders a busy state with the running stage label',
-      (tester) async {
+  testWidgets('renders a busy state with the running stage label', (
+    tester,
+  ) async {
     final tracker = ScienceProcessingStatusTracker();
     addTearDown(tracker.dispose);
 
     tracker.beginFrame(imagePath: '/tmp/img.fits');
     tracker.beginStage(ScienceStage.plateSolve);
 
-    await tester.pumpWidget(_harness(
-      tracker: tracker,
-      child: const ScienceStatusBanner(),
-    ));
+    await tester.pumpWidget(
+      _harness(tracker: tracker, child: const ScienceStatusBanner()),
+    );
     await tester.pump();
 
     expect(find.textContaining('Plate solve'), findsWidgets);
     expect(find.byType(SkotiqSpinner), findsOneWidget);
   });
 
-  testWidgets('surfaces a recent failure with the truncated note',
-      (tester) async {
+  testWidgets('surfaces a recent failure with the truncated note', (
+    tester,
+  ) async {
     final tracker = ScienceProcessingStatusTracker();
     addTearDown(tracker.dispose);
 
     tracker.beginFrame(imagePath: '/tmp/img.fits');
     tracker.beginStage(ScienceStage.calibration);
-    tracker.endStage(ScienceStage.calibration, ScienceStageOutcome.failed,
-        note: 'no WCS available');
+    tracker.endStage(
+      ScienceStage.calibration,
+      ScienceStageOutcome.failed,
+      note: 'no WCS available',
+    );
     tracker.endFrame();
 
-    await tester.pumpWidget(_harness(
-      tracker: tracker,
-      child: const ScienceStatusBanner(),
-    ));
+    await tester.pumpWidget(
+      _harness(tracker: tracker, child: const ScienceStatusBanner()),
+    );
     await tester.pump();
 
     expect(find.textContaining('failed'), findsWidgets);
     expect(find.textContaining('no WCS'), findsOneWidget);
   });
 
-  testWidgets('provider failure remains visible and retryable when idle hides',
-      (tester) async {
-    var attempts = 0;
+  testWidgets(
+    'provider failure remains visible and retryable when idle hides',
+    (tester) async {
+      var attempts = 0;
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          inMemoryDatabaseOverride(),
-          scienceProcessingStatusProvider.overrideWith((ref) {
-            attempts++;
-            return Stream<ScienceProcessingStatusSnapshot>.error(
-              StateError('status stream unavailable'),
-            );
-          }),
-        ],
-        child: MaterialApp(
-          theme: ThemeData(
-            extensions: const [SkotiqColors.dark],
-          ),
-          home: const Scaffold(
-            body: ScienceStatusBanner(hideWhenIdle: true),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            inMemoryDatabaseOverride(),
+            scienceProcessingStatusProvider.overrideWith((ref) {
+              attempts++;
+              return Stream<ScienceProcessingStatusSnapshot>.error(
+                StateError('status stream unavailable'),
+              );
+            }),
+          ],
+          child: MaterialApp(
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            home: const Scaffold(body: ScienceStatusBanner(hideWhenIdle: true)),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Science status unavailable'), findsOneWidget);
-    expect(
-      find.textContaining('Bad state: status stream unavailable'),
-      findsOneWidget,
-    );
-    expect(attempts, 1);
+      expect(find.text('Science status unavailable'), findsOneWidget);
+      expect(find.textContaining('status stream unavailable'), findsOneWidget);
+      expect(find.textContaining('Bad state:'), findsNothing);
+      expect(attempts, 1);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Retry'));
-    await tester.pumpAndSettle();
-    expect(attempts, 2);
-  });
+      await tester.tap(find.widgetWithText(TextButton, 'Retry'));
+      await tester.pumpAndSettle();
+      expect(attempts, 2);
+    },
+  );
+
+  testWidgets(
+    'an error stream shows the message without the Exception prefix',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            scienceProcessingStatusProvider.overrideWith(
+              (ref) => Stream<ScienceProcessingStatusSnapshot>.error(
+                Exception('Photometry worker offline'),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            theme: ThemeData(extensions: const [SkotiqColors.dark]),
+            home: const Scaffold(body: ScienceStatusBanner()),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Science status unavailable'), findsOneWidget);
+      expect(find.text('Photometry worker offline'), findsOneWidget);
+      expect(find.textContaining('Exception:'), findsNothing);
+    },
+  );
 }

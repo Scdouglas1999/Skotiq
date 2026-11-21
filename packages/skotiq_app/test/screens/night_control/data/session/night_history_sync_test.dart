@@ -155,6 +155,66 @@ void main() {
     expect(samples.first.t, _run.add(const Duration(minutes: 5)));
   });
 
+  test('a reconnect merges the gap and keeps a step that arrived first', () {
+    final client = _client(_link(null));
+    final guide = client.read(nightGuideSamplesProvider.notifier);
+    final start = DateTime.utc(2026, 11, 21, 2);
+    NightGuideSample sample(int n) => NightGuideSample(
+          start.add(Duration(seconds: n)),
+          n.toDouble(),
+          -1,
+        );
+
+    for (var n = 1; n <= 450; n++) {
+      guide.add(sample(n));
+    }
+    expect(client.read(nightGuideSamplesProvider), hasLength(450));
+
+    // The viewer was away while the host recorded 451..460, and 460 arrives
+    // on the live stream before the history body. The body is delivered twice.
+    guide.add(sample(460));
+    final history = <NightGuideSample>[
+      NightGuideSample(start.subtract(const Duration(hours: 17)), -17, -1),
+      for (var n = 1; n <= 460; n++) sample(n),
+    ];
+    guide.mergeHostHistory(history);
+    guide.mergeHostHistory(history);
+
+    final shown = client.read(nightGuideSamplesProvider);
+    expect(shown, hasLength(460));
+    expect(shown.map((s) => s.raPx),
+        [for (var n = 1; n <= 460; n++) n.toDouble()]);
+    expect(
+      shown.any((s) => s.raPx == -17),
+      isFalse,
+    );
+  });
+
+  test('guide samples older than 16 hours or past 60000 are dropped', () {
+    final client = _client(_link(null));
+    final guide = client.read(nightGuideSamplesProvider.notifier);
+    final newest = DateTime.utc(2026, 11, 21, 18);
+    final samples = <NightGuideSample>[
+      NightGuideSample(
+        newest.subtract(const Duration(hours: 17)),
+        -1,
+        0,
+      ),
+      for (var n = 0; n < 60010; n++)
+        NightGuideSample(
+          newest.subtract(Duration(milliseconds: (60009 - n) * 500)),
+          n.toDouble(),
+          0,
+        ),
+    ];
+    guide.mergeHostHistory(samples);
+    final shown = client.read(nightGuideSamplesProvider);
+    expect(shown, hasLength(60000));
+    expect(shown.first.raPx, 10);
+    expect(shown.last.raPx, 60009);
+    expect(shown.any((s) => s.raPx == -1), isFalse);
+  });
+
   test('a host that does not answer leaves the charts to live events',
       () async {
     final client = _client(_link(null));

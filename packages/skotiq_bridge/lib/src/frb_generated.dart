@@ -122,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -1685998195;
+  int get rustContentHash => -857581642;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -152,6 +152,14 @@ abstract class RustLibApi extends BaseApi {
     required int width,
     required int height,
     required List<int> data,
+  });
+
+  Future<ApiStretchedPreview> crateApiLiveStackingApiAutoStretchPreviewAsync({
+    required int width,
+    required int height,
+    required int channels,
+    required List<int> data,
+    required int maxDimension,
   });
 
   void crateApiSequencerMosaicApiBroadcastDeactivate();
@@ -1167,7 +1175,22 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingAddFrameForFilter({
+    String? filterKey,
+    required String imagePath,
+  });
+
+  Future<ApiLiveStackingResult>
   crateApiLiveStackingApiStackingAddFrameFromData({
+    required int width,
+    required int height,
+    required List<int> data,
+    required double pedestal,
+  });
+
+  Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingAddFrameFromDataForFilter({
+    String? filterKey,
     required int width,
     required int height,
     required List<int> data,
@@ -1176,19 +1199,52 @@ abstract class RustLibApi extends BaseApi {
 
   int crateApiLiveStackingApiStackingFrameCount();
 
+  Future<List<ApiLiveStackFrameEvent>>
+  crateApiLiveStackingApiStackingGetEvents({String? filterKey});
+
   Future<ApiLiveStackingResult> crateApiLiveStackingApiStackingGetResult();
+
+  Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingGetResultForFilter({String? filterKey});
 
   Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingGetStats();
 
+  Future<ApiLiveStackingStats>
+  crateApiLiveStackingApiStackingGetStatsForFilter({String? filterKey});
+
   bool crateApiLiveStackingApiStackingIsActive();
 
+  Future<List<ApiLiveStackFilterSummary>>
+  crateApiLiveStackingApiStackingListFilters();
+
+  Future<ApiStretchedPreview> crateApiLiveStackingApiStackingRenderPreviewRgba({
+    String? filterKey,
+    required int maxDimension,
+  });
+
   Future<void> crateApiLiveStackingApiStackingReset();
+
+  Future<void> crateApiLiveStackingApiStackingResetForFilter({
+    String? filterKey,
+  });
 
   Future<ApiLiveStackingMaster> crateApiLiveStackingApiStackingSaveMasterFits({
     required String filePath,
   });
 
+  Future<ApiLiveStackingMaster>
+  crateApiLiveStackingApiStackingSaveMasterFitsForFilter({
+    String? filterKey,
+    required String filePath,
+  });
+
   Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStart({
+    required String referenceImagePath,
+    required ApiLiveStackingConfig config,
+  });
+
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStartForFilter({
+    String? filterKey,
     required String referenceImagePath,
     required ApiLiveStackingConfig config,
   });
@@ -1201,7 +1257,26 @@ abstract class RustLibApi extends BaseApi {
     required ApiLiveStackingConfig config,
   });
 
+  Future<ApiLiveStackingStats>
+  crateApiLiveStackingApiStackingStartFromDataForFilter({
+    String? filterKey,
+    required int width,
+    required int height,
+    required List<int> data,
+    required double pedestal,
+    required ApiLiveStackingConfig config,
+  });
+
   Future<void> crateApiLiveStackingApiStackingStop();
+
+  Future<void> crateApiLiveStackingApiStackingStopForFilter({
+    required String filterKey,
+  });
+
+  Future<void> crateApiLiveStackingApiStackingUpdateConfig({
+    String? filterKey,
+    required ApiLiveStackingConfig config,
+  });
 
   Future<void> crateApiPolarAlignmentEntrypointsApiStartAllSkyPolarAlignment({
     required double exposureTime,
@@ -1489,6 +1564,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_auto_stretch_image",
         argNames: ["width", "height", "data"],
+      );
+
+  @override
+  Future<ApiStretchedPreview> crateApiLiveStackingApiAutoStretchPreviewAsync({
+    required int width,
+    required int height,
+    required int channels,
+    required List<int> data,
+    required int maxDimension,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_u_32(width);
+          var arg1 = cst_encode_u_32(height);
+          var arg2 = cst_encode_u_32(channels);
+          var arg3 = cst_encode_list_prim_u_16_loose(data);
+          var arg4 = cst_encode_u_32(maxDimension);
+          return wire
+              .wire__crate__api__live_stacking__api_auto_stretch_preview_async(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_stretched_preview,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiAutoStretchPreviewAsyncConstMeta,
+        argValues: [width, height, channels, data, maxDimension],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiAutoStretchPreviewAsyncConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_auto_stretch_preview_async",
+        argNames: ["width", "height", "channels", "data", "maxDimension"],
       );
 
   @override
@@ -9380,6 +9498,42 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @override
   Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingAddFrameForFilter({
+    String? filterKey,
+    required String imagePath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_String(imagePath);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_add_frame_for_filter(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_result,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingAddFrameForFilterConstMeta,
+        argValues: [filterKey, imagePath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingAddFrameForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_add_frame_for_filter",
+        argNames: ["filterKey", "imagePath"],
+      );
+
+  @override
+  Future<ApiLiveStackingResult>
   crateApiLiveStackingApiStackingAddFrameFromData({
     required int width,
     required int height,
@@ -9420,6 +9574,52 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingAddFrameFromDataForFilter({
+    String? filterKey,
+    required int width,
+    required int height,
+    required List<int> data,
+    required double pedestal,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_u_32(width);
+          var arg2 = cst_encode_u_32(height);
+          var arg3 = cst_encode_list_prim_u_16_loose(data);
+          var arg4 = cst_encode_f_64(pedestal);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_add_frame_from_data_for_filter(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_result,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiLiveStackingApiStackingAddFrameFromDataForFilterConstMeta,
+        argValues: [filterKey, width, height, data, pedestal],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingAddFrameFromDataForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_add_frame_from_data_for_filter",
+        argNames: ["filterKey", "width", "height", "data", "pedestal"],
+      );
+
+  @override
   int crateApiLiveStackingApiStackingFrameCount() {
     return handler.executeSync(
       SyncTask(
@@ -9440,6 +9640,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLiveStackingApiStackingFrameCountConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_frame_count", argNames: []);
+
+  @override
+  Future<List<ApiLiveStackFrameEvent>>
+  crateApiLiveStackingApiStackingGetEvents({String? filterKey}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          return wire.wire__crate__api__live_stacking__api_stacking_get_events(
+            port_,
+            arg0,
+          );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_api_live_stack_frame_event,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingGetEventsConstMeta,
+        argValues: [filterKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiStackingGetEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_get_events",
+        argNames: ["filterKey"],
+      );
 
   @override
   Future<ApiLiveStackingResult> crateApiLiveStackingApiStackingGetResult() {
@@ -9465,6 +9694,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_stacking_get_result", argNames: []);
 
   @override
+  Future<ApiLiveStackingResult>
+  crateApiLiveStackingApiStackingGetResultForFilter({String? filterKey}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_get_result_for_filter(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_result,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingGetResultForFilterConstMeta,
+        argValues: [filterKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingGetResultForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_get_result_for_filter",
+        argNames: ["filterKey"],
+      );
+
+  @override
   Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingGetStats() {
     return handler.executeNormal(
       NormalTask(
@@ -9488,6 +9748,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_stacking_get_stats", argNames: []);
 
   @override
+  Future<ApiLiveStackingStats>
+  crateApiLiveStackingApiStackingGetStatsForFilter({String? filterKey}) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_get_stats_for_filter(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_stats,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingGetStatsForFilterConstMeta,
+        argValues: [filterKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingGetStatsForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_get_stats_for_filter",
+        argNames: ["filterKey"],
+      );
+
+  @override
   bool crateApiLiveStackingApiStackingIsActive() {
     return handler.executeSync(
       SyncTask(
@@ -9507,6 +9798,66 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLiveStackingApiStackingIsActiveConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_is_active", argNames: []);
+
+  @override
+  Future<List<ApiLiveStackFilterSummary>>
+  crateApiLiveStackingApiStackingListFilters() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_list_filters(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_list_api_live_stack_filter_summary,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingListFiltersConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiStackingListFiltersConstMeta =>
+      const TaskConstMeta(debugName: "api_stacking_list_filters", argNames: []);
+
+  @override
+  Future<ApiStretchedPreview> crateApiLiveStackingApiStackingRenderPreviewRgba({
+    String? filterKey,
+    required int maxDimension,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_u_32(maxDimension);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_render_preview_rgba(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_stretched_preview,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingRenderPreviewRgbaConstMeta,
+        argValues: [filterKey, maxDimension],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingRenderPreviewRgbaConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_render_preview_rgba",
+        argNames: ["filterKey", "maxDimension"],
+      );
 
   @override
   Future<void> crateApiLiveStackingApiStackingReset() {
@@ -9530,6 +9881,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLiveStackingApiStackingResetConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_reset", argNames: []);
+
+  @override
+  Future<void> crateApiLiveStackingApiStackingResetForFilter({
+    String? filterKey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_reset_for_filter(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingResetForFilterConstMeta,
+        argValues: [filterKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiStackingResetForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_reset_for_filter",
+        argNames: ["filterKey"],
+      );
 
   @override
   Future<ApiLiveStackingMaster> crateApiLiveStackingApiStackingSaveMasterFits({
@@ -9563,6 +9945,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ApiLiveStackingMaster>
+  crateApiLiveStackingApiStackingSaveMasterFitsForFilter({
+    String? filterKey,
+    required String filePath,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_String(filePath);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_save_master_fits_for_filter(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_master,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiLiveStackingApiStackingSaveMasterFitsForFilterConstMeta,
+        argValues: [filterKey, filePath],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingSaveMasterFitsForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_save_master_fits_for_filter",
+        argNames: ["filterKey", "filePath"],
+      );
+
+  @override
   Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStart({
     required String referenceImagePath,
     required ApiLiveStackingConfig config,
@@ -9593,6 +10012,43 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_stacking_start",
         argNames: ["referenceImagePath", "config"],
+      );
+
+  @override
+  Future<ApiLiveStackingStats> crateApiLiveStackingApiStackingStartForFilter({
+    String? filterKey,
+    required String referenceImagePath,
+    required ApiLiveStackingConfig config,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_String(referenceImagePath);
+          var arg2 = cst_encode_box_autoadd_api_live_stacking_config(config);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_start_for_filter(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_stats,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingStartForFilterConstMeta,
+        argValues: [filterKey, referenceImagePath, config],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiStackingStartForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_start_for_filter",
+        argNames: ["filterKey", "referenceImagePath", "config"],
       );
 
   @override
@@ -9639,6 +10095,62 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
+  Future<ApiLiveStackingStats>
+  crateApiLiveStackingApiStackingStartFromDataForFilter({
+    String? filterKey,
+    required int width,
+    required int height,
+    required List<int> data,
+    required double pedestal,
+    required ApiLiveStackingConfig config,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_u_32(width);
+          var arg2 = cst_encode_u_32(height);
+          var arg3 = cst_encode_list_prim_u_16_loose(data);
+          var arg4 = cst_encode_f_64(pedestal);
+          var arg5 = cst_encode_box_autoadd_api_live_stacking_config(config);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_start_from_data_for_filter(
+                port_,
+                arg0,
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_api_live_stacking_stats,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiLiveStackingApiStackingStartFromDataForFilterConstMeta,
+        argValues: [filterKey, width, height, data, pedestal, config],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiLiveStackingApiStackingStartFromDataForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_start_from_data_for_filter",
+        argNames: [
+          "filterKey",
+          "width",
+          "height",
+          "data",
+          "pedestal",
+          "config",
+        ],
+      );
+
+  @override
   Future<void> crateApiLiveStackingApiStackingStop() {
     return handler.executeNormal(
       NormalTask(
@@ -9658,6 +10170,71 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiLiveStackingApiStackingStopConstMeta =>
       const TaskConstMeta(debugName: "api_stacking_stop", argNames: []);
+
+  @override
+  Future<void> crateApiLiveStackingApiStackingStopForFilter({
+    required String filterKey,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_String(filterKey);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_stop_for_filter(
+                port_,
+                arg0,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingStopForFilterConstMeta,
+        argValues: [filterKey],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiStackingStopForFilterConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_stop_for_filter",
+        argNames: ["filterKey"],
+      );
+
+  @override
+  Future<void> crateApiLiveStackingApiStackingUpdateConfig({
+    String? filterKey,
+    required ApiLiveStackingConfig config,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          var arg0 = cst_encode_opt_String(filterKey);
+          var arg1 = cst_encode_box_autoadd_api_live_stacking_config(config);
+          return wire
+              .wire__crate__api__live_stacking__api_stacking_update_config(
+                port_,
+                arg0,
+                arg1,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta: kCrateApiLiveStackingApiStackingUpdateConfigConstMeta,
+        argValues: [filterKey, config],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiLiveStackingApiStackingUpdateConfigConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_stacking_update_config",
+        argNames: ["filterKey", "config"],
+      );
 
   @override
   Future<void> crateApiPolarAlignmentEntrypointsApiStartAllSkyPolarAlignment({
@@ -11050,11 +11627,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiLiveStackFilterSummary dco_decode_api_live_stack_filter_summary(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ApiLiveStackFilterSummary(
+      filterKey: dco_decode_String(arr[0]),
+      width: dco_decode_u_32(arr[1]),
+      height: dco_decode_u_32(arr[2]),
+      channels: dco_decode_u_32(arr[3]),
+      referenceImagePath: dco_decode_opt_String(arr[4]),
+      revision: dco_decode_u_64(arr[5]),
+      stats: dco_decode_api_live_stacking_stats(arr[6]),
+    );
+  }
+
+  @protected
+  ApiLiveStackFrameEvent dco_decode_api_live_stack_frame_event(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 15)
+      throw Exception('unexpected arr length: expect 15 but see ${arr.length}');
+    return ApiLiveStackFrameEvent(
+      sequenceIndex: dco_decode_u_32(arr[0]),
+      filterKey: dco_decode_String(arr[1]),
+      sourceLabel: dco_decode_String(arr[2]),
+      accepted: dco_decode_bool(arr[3]),
+      rejectionReason: dco_decode_opt_String(arr[4]),
+      detectedStars: dco_decode_u_32(arr[5]),
+      matchedPairs: dco_decode_u_32(arr[6]),
+      inlierPairs: dco_decode_u_32(arr[7]),
+      alignmentResidualPx: dco_decode_f_64(arr[8]),
+      shiftXPx: dco_decode_f_64(arr[9]),
+      shiftYPx: dco_decode_f_64(arr[10]),
+      rotationDeg: dco_decode_f_64(arr[11]),
+      sigmaRejectedPixels: dco_decode_u_64(arr[12]),
+      exposureSecs: dco_decode_opt_box_autoadd_f_64(arr[13]),
+      timestampMs: dco_decode_i_64(arr[14]),
+    );
+  }
+
+  @protected
   ApiLiveStackingConfig dco_decode_api_live_stacking_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return ApiLiveStackingConfig(
       sigmaClipEnabled: dco_decode_bool(arr[0]),
       sigmaClipThreshold: dco_decode_f_64(arr[1]),
@@ -11062,9 +11683,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       matchRadiusPx: dco_decode_f_64(arr[3]),
       matchFluxTolerance: dco_decode_f_64(arr[4]),
       minMatchedPairs: dco_decode_u_32(arr[5]),
-      sensorMode: dco_decode_String(arr[6]),
-      bayerPattern: dco_decode_opt_String(arr[7]),
-      demosaicQuality: dco_decode_String(arr[8]),
+      maxAlignmentResidualPx: dco_decode_f_64(arr[6]),
+      starDetectionSigma: dco_decode_f_64(arr[7]),
+      starDetectionMinSnr: dco_decode_f_64(arr[8]),
+      sensorMode: dco_decode_String(arr[9]),
+      bayerPattern: dco_decode_opt_String(arr[10]),
+      demosaicQuality: dco_decode_String(arr[11]),
     );
   }
 
@@ -11086,14 +11710,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiLiveStackingResult dco_decode_api_live_stacking_result(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return ApiLiveStackingResult(
       width: dco_decode_u_32(arr[0]),
       height: dco_decode_u_32(arr[1]),
       channels: dco_decode_u_32(arr[2]),
       data: dco_decode_list_prim_u_16_strict(arr[3]),
       stats: dco_decode_api_live_stacking_stats(arr[4]),
+      filterKey: dco_decode_String(arr[5]),
+      revision: dco_decode_u_64(arr[6]),
+      lastEvent: dco_decode_opt_box_autoadd_api_live_stack_frame_event(arr[7]),
     );
   }
 
@@ -11101,8 +11728,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiLiveStackingStats dco_decode_api_live_stacking_stats(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ApiLiveStackingStats(
       stackedFrameCount: dco_decode_u_32(arr[0]),
       totalFramesAttempted: dco_decode_u_32(arr[1]),
@@ -11110,9 +11737,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       avgMatchedPairs: dco_decode_f_64(arr[3]),
       avgAlignmentResidual: dco_decode_f_64(arr[4]),
       totalSigmaRejectedPixels: dco_decode_u_64(arr[5]),
-      otherFilterFrames: dco_decode_u_32(arr[6]),
-      lastOtherFilter: dco_decode_opt_String(arr[7]),
-      filter: dco_decode_opt_String(arr[8]),
+      totalIntegrationSecs: dco_decode_f_64(arr[6]),
+      otherFilterFrames: dco_decode_u_32(arr[7]),
+      lastOtherFilter: dco_decode_opt_String(arr[8]),
+      filter: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -11241,6 +11869,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       widthArcsec: dco_decode_f_64(arr[2]),
       heightArcsec: dco_decode_f_64(arr[3]),
       rotationDeg: dco_decode_f_64(arr[4]),
+    );
+  }
+
+  @protected
+  ApiStretchedPreview dco_decode_api_stretched_preview(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return ApiStretchedPreview(
+      width: dco_decode_u_32(arr[0]),
+      height: dco_decode_u_32(arr[1]),
+      channels: dco_decode_u_32(arr[2]),
+      rgba: dco_decode_list_prim_u_8_strict(arr[3]),
     );
   }
 
@@ -11381,6 +12023,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiDepthReport dco_decode_box_autoadd_api_depth_report(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_api_depth_report(raw);
+  }
+
+  @protected
+  ApiLiveStackFrameEvent dco_decode_box_autoadd_api_live_stack_frame_event(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_api_live_stack_frame_event(raw);
   }
 
   @protected
@@ -12778,7 +13428,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return GuidingEvent_Resumed();
       case 6:
-        return GuidingEvent_Settled(rms: dco_decode_f_64(raw[1]));
+        return GuidingEvent_Settled(
+          rms: dco_decode_opt_box_autoadd_f_64(raw[1]),
+        );
       case 7:
         return GuidingEvent_LostStar();
       case 8:
@@ -12966,6 +13618,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<ApiFloorSample> dco_decode_list_api_floor_sample(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_api_floor_sample).toList();
+  }
+
+  @protected
+  List<ApiLiveStackFilterSummary> dco_decode_list_api_live_stack_filter_summary(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_api_live_stack_filter_summary)
+        .toList();
+  }
+
+  @protected
+  List<ApiLiveStackFrameEvent> dco_decode_list_api_live_stack_frame_event(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return (raw as List<dynamic>)
+        .map(dco_decode_api_live_stack_frame_event)
+        .toList();
   }
 
   @protected
@@ -13443,6 +14115,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiDepthReport? dco_decode_opt_box_autoadd_api_depth_report(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_api_depth_report(raw);
+  }
+
+  @protected
+  ApiLiveStackFrameEvent? dco_decode_opt_box_autoadd_api_live_stack_frame_event(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null
+        ? null
+        : dco_decode_box_autoadd_api_live_stack_frame_event(raw);
   }
 
   @protected
@@ -15310,6 +15992,68 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  ApiLiveStackFilterSummary sse_decode_api_live_stack_filter_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_filterKey = sse_decode_String(deserializer);
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_channels = sse_decode_u_32(deserializer);
+    var var_referenceImagePath = sse_decode_opt_String(deserializer);
+    var var_revision = sse_decode_u_64(deserializer);
+    var var_stats = sse_decode_api_live_stacking_stats(deserializer);
+    return ApiLiveStackFilterSummary(
+      filterKey: var_filterKey,
+      width: var_width,
+      height: var_height,
+      channels: var_channels,
+      referenceImagePath: var_referenceImagePath,
+      revision: var_revision,
+      stats: var_stats,
+    );
+  }
+
+  @protected
+  ApiLiveStackFrameEvent sse_decode_api_live_stack_frame_event(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_sequenceIndex = sse_decode_u_32(deserializer);
+    var var_filterKey = sse_decode_String(deserializer);
+    var var_sourceLabel = sse_decode_String(deserializer);
+    var var_accepted = sse_decode_bool(deserializer);
+    var var_rejectionReason = sse_decode_opt_String(deserializer);
+    var var_detectedStars = sse_decode_u_32(deserializer);
+    var var_matchedPairs = sse_decode_u_32(deserializer);
+    var var_inlierPairs = sse_decode_u_32(deserializer);
+    var var_alignmentResidualPx = sse_decode_f_64(deserializer);
+    var var_shiftXPx = sse_decode_f_64(deserializer);
+    var var_shiftYPx = sse_decode_f_64(deserializer);
+    var var_rotationDeg = sse_decode_f_64(deserializer);
+    var var_sigmaRejectedPixels = sse_decode_u_64(deserializer);
+    var var_exposureSecs = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_timestampMs = sse_decode_i_64(deserializer);
+    return ApiLiveStackFrameEvent(
+      sequenceIndex: var_sequenceIndex,
+      filterKey: var_filterKey,
+      sourceLabel: var_sourceLabel,
+      accepted: var_accepted,
+      rejectionReason: var_rejectionReason,
+      detectedStars: var_detectedStars,
+      matchedPairs: var_matchedPairs,
+      inlierPairs: var_inlierPairs,
+      alignmentResidualPx: var_alignmentResidualPx,
+      shiftXPx: var_shiftXPx,
+      shiftYPx: var_shiftYPx,
+      rotationDeg: var_rotationDeg,
+      sigmaRejectedPixels: var_sigmaRejectedPixels,
+      exposureSecs: var_exposureSecs,
+      timestampMs: var_timestampMs,
+    );
+  }
+
+  @protected
   ApiLiveStackingConfig sse_decode_api_live_stacking_config(
     SseDeserializer deserializer,
   ) {
@@ -15320,6 +16064,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_matchRadiusPx = sse_decode_f_64(deserializer);
     var var_matchFluxTolerance = sse_decode_f_64(deserializer);
     var var_minMatchedPairs = sse_decode_u_32(deserializer);
+    var var_maxAlignmentResidualPx = sse_decode_f_64(deserializer);
+    var var_starDetectionSigma = sse_decode_f_64(deserializer);
+    var var_starDetectionMinSnr = sse_decode_f_64(deserializer);
     var var_sensorMode = sse_decode_String(deserializer);
     var var_bayerPattern = sse_decode_opt_String(deserializer);
     var var_demosaicQuality = sse_decode_String(deserializer);
@@ -15330,6 +16077,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       matchRadiusPx: var_matchRadiusPx,
       matchFluxTolerance: var_matchFluxTolerance,
       minMatchedPairs: var_minMatchedPairs,
+      maxAlignmentResidualPx: var_maxAlignmentResidualPx,
+      starDetectionSigma: var_starDetectionSigma,
+      starDetectionMinSnr: var_starDetectionMinSnr,
       sensorMode: var_sensorMode,
       bayerPattern: var_bayerPattern,
       demosaicQuality: var_demosaicQuality,
@@ -15363,12 +16113,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_channels = sse_decode_u_32(deserializer);
     var var_data = sse_decode_list_prim_u_16_strict(deserializer);
     var var_stats = sse_decode_api_live_stacking_stats(deserializer);
+    var var_filterKey = sse_decode_String(deserializer);
+    var var_revision = sse_decode_u_64(deserializer);
+    var var_lastEvent = sse_decode_opt_box_autoadd_api_live_stack_frame_event(
+      deserializer,
+    );
     return ApiLiveStackingResult(
       width: var_width,
       height: var_height,
       channels: var_channels,
       data: var_data,
       stats: var_stats,
+      filterKey: var_filterKey,
+      revision: var_revision,
+      lastEvent: var_lastEvent,
     );
   }
 
@@ -15383,6 +16141,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_avgMatchedPairs = sse_decode_f_64(deserializer);
     var var_avgAlignmentResidual = sse_decode_f_64(deserializer);
     var var_totalSigmaRejectedPixels = sse_decode_u_64(deserializer);
+    var var_totalIntegrationSecs = sse_decode_f_64(deserializer);
     var var_otherFilterFrames = sse_decode_u_32(deserializer);
     var var_lastOtherFilter = sse_decode_opt_String(deserializer);
     var var_filter = sse_decode_opt_String(deserializer);
@@ -15393,6 +16152,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       avgMatchedPairs: var_avgMatchedPairs,
       avgAlignmentResidual: var_avgAlignmentResidual,
       totalSigmaRejectedPixels: var_totalSigmaRejectedPixels,
+      totalIntegrationSecs: var_totalIntegrationSecs,
       otherFilterFrames: var_otherFilterFrames,
       lastOtherFilter: var_lastOtherFilter,
       filter: var_filter,
@@ -15569,6 +16329,23 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       widthArcsec: var_widthArcsec,
       heightArcsec: var_heightArcsec,
       rotationDeg: var_rotationDeg,
+    );
+  }
+
+  @protected
+  ApiStretchedPreview sse_decode_api_stretched_preview(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_width = sse_decode_u_32(deserializer);
+    var var_height = sse_decode_u_32(deserializer);
+    var var_channels = sse_decode_u_32(deserializer);
+    var var_rgba = sse_decode_list_prim_u_8_strict(deserializer);
+    return ApiStretchedPreview(
+      width: var_width,
+      height: var_height,
+      channels: var_channels,
+      rgba: var_rgba,
     );
   }
 
@@ -15754,6 +16531,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_api_depth_report(deserializer));
+  }
+
+  @protected
+  ApiLiveStackFrameEvent sse_decode_box_autoadd_api_live_stack_frame_event(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_api_live_stack_frame_event(deserializer));
   }
 
   @protected
@@ -17581,7 +18366,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 5:
         return GuidingEvent_Resumed();
       case 6:
-        var var_rms = sse_decode_f_64(deserializer);
+        var var_rms = sse_decode_opt_box_autoadd_f_64(deserializer);
         return GuidingEvent_Settled(rms: var_rms);
       case 7:
         return GuidingEvent_LostStar();
@@ -17836,6 +18621,34 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var ans_ = <ApiFloorSample>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_api_floor_sample(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiLiveStackFilterSummary> sse_decode_list_api_live_stack_filter_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiLiveStackFilterSummary>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_live_stack_filter_summary(deserializer));
+    }
+    return ans_;
+  }
+
+  @protected
+  List<ApiLiveStackFrameEvent> sse_decode_list_api_live_stack_frame_event(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <ApiLiveStackFrameEvent>[];
+    for (var idx_ = 0; idx_ < len_; ++idx_) {
+      ans_.add(sse_decode_api_live_stack_frame_event(deserializer));
     }
     return ans_;
   }
@@ -18594,6 +19407,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
     if (sse_decode_bool(deserializer)) {
       return (sse_decode_box_autoadd_api_depth_report(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
+  ApiLiveStackFrameEvent? sse_decode_opt_box_autoadd_api_live_stack_frame_event(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_api_live_stack_frame_event(deserializer));
     } else {
       return null;
     }
@@ -21124,6 +21950,44 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_api_live_stack_filter_summary(
+    ApiLiveStackFilterSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.filterKey, serializer);
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_u_32(self.channels, serializer);
+    sse_encode_opt_String(self.referenceImagePath, serializer);
+    sse_encode_u_64(self.revision, serializer);
+    sse_encode_api_live_stacking_stats(self.stats, serializer);
+  }
+
+  @protected
+  void sse_encode_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.sequenceIndex, serializer);
+    sse_encode_String(self.filterKey, serializer);
+    sse_encode_String(self.sourceLabel, serializer);
+    sse_encode_bool(self.accepted, serializer);
+    sse_encode_opt_String(self.rejectionReason, serializer);
+    sse_encode_u_32(self.detectedStars, serializer);
+    sse_encode_u_32(self.matchedPairs, serializer);
+    sse_encode_u_32(self.inlierPairs, serializer);
+    sse_encode_f_64(self.alignmentResidualPx, serializer);
+    sse_encode_f_64(self.shiftXPx, serializer);
+    sse_encode_f_64(self.shiftYPx, serializer);
+    sse_encode_f_64(self.rotationDeg, serializer);
+    sse_encode_u_64(self.sigmaRejectedPixels, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.exposureSecs, serializer);
+    sse_encode_i_64(self.timestampMs, serializer);
+  }
+
+  @protected
   void sse_encode_api_live_stacking_config(
     ApiLiveStackingConfig self,
     SseSerializer serializer,
@@ -21135,6 +21999,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.matchRadiusPx, serializer);
     sse_encode_f_64(self.matchFluxTolerance, serializer);
     sse_encode_u_32(self.minMatchedPairs, serializer);
+    sse_encode_f_64(self.maxAlignmentResidualPx, serializer);
+    sse_encode_f_64(self.starDetectionSigma, serializer);
+    sse_encode_f_64(self.starDetectionMinSnr, serializer);
     sse_encode_String(self.sensorMode, serializer);
     sse_encode_opt_String(self.bayerPattern, serializer);
     sse_encode_String(self.demosaicQuality, serializer);
@@ -21163,6 +22030,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_u_32(self.channels, serializer);
     sse_encode_list_prim_u_16_strict(self.data, serializer);
     sse_encode_api_live_stacking_stats(self.stats, serializer);
+    sse_encode_String(self.filterKey, serializer);
+    sse_encode_u_64(self.revision, serializer);
+    sse_encode_opt_box_autoadd_api_live_stack_frame_event(
+      self.lastEvent,
+      serializer,
+    );
   }
 
   @protected
@@ -21177,6 +22050,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.avgMatchedPairs, serializer);
     sse_encode_f_64(self.avgAlignmentResidual, serializer);
     sse_encode_u_64(self.totalSigmaRejectedPixels, serializer);
+    sse_encode_f_64(self.totalIntegrationSecs, serializer);
     sse_encode_u_32(self.otherFilterFrames, serializer);
     sse_encode_opt_String(self.lastOtherFilter, serializer);
     sse_encode_opt_String(self.filter, serializer);
@@ -21291,6 +22165,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.widthArcsec, serializer);
     sse_encode_f_64(self.heightArcsec, serializer);
     sse_encode_f_64(self.rotationDeg, serializer);
+  }
+
+  @protected
+  void sse_encode_api_stretched_preview(
+    ApiStretchedPreview self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_u_32(self.width, serializer);
+    sse_encode_u_32(self.height, serializer);
+    sse_encode_u_32(self.channels, serializer);
+    sse_encode_list_prim_u_8_strict(self.rgba, serializer);
   }
 
   @protected
@@ -21432,6 +22318,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_api_depth_report(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_api_live_stack_frame_event(self, serializer);
   }
 
   @protected
@@ -22955,7 +23850,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(5, serializer);
       case GuidingEvent_Settled(rms: final rms):
         sse_encode_i_32(6, serializer);
-        sse_encode_f_64(rms, serializer);
+        sse_encode_opt_box_autoadd_f_64(rms, serializer);
       case GuidingEvent_LostStar():
         sse_encode_i_32(7, serializer);
       case GuidingEvent_SettleTimedOut(error: final error):
@@ -23189,6 +24084,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.length, serializer);
     for (final item in self) {
       sse_encode_api_floor_sample(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_live_stack_filter_summary(
+    List<ApiLiveStackFilterSummary> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_live_stack_filter_summary(item, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_list_api_live_stack_frame_event(
+    List<ApiLiveStackFrameEvent> self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.length, serializer);
+    for (final item in self) {
+      sse_encode_api_live_stack_frame_event(item, serializer);
     }
   }
 
@@ -23833,6 +24752,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_bool(self != null, serializer);
     if (self != null) {
       sse_encode_box_autoadd_api_depth_report(self, serializer);
+    }
+  }
+
+  @protected
+  void sse_encode_opt_box_autoadd_api_live_stack_frame_event(
+    ApiLiveStackFrameEvent? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_api_live_stack_frame_event(self, serializer);
     }
   }
 

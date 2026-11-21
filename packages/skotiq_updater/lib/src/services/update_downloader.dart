@@ -76,6 +76,7 @@ class UpdateDownloader {
       request.headers['Range'] = 'bytes=$existingBytes-';
     }
 
+    if (cancelToken?.isCancelled == true) throw DownloadCancelledException();
     final streamedResponse = await _client
         .send(request)
         .timeout(
@@ -85,6 +86,24 @@ class UpdateDownloader {
             '${_stallTimeout.inSeconds}s while opening the package download.',
           ),
         );
+
+    Future<File> restartFromZero() async {
+      // This response cannot supply the missing bytes. Waiting for its body
+      // would also put cancellation and the stall deadline on hold.
+      streamedResponse.stream.listen(null).cancel().ignore();
+      if (await destination.exists()) await destination.delete();
+      return download(
+        url,
+        destinationPath,
+        expectedSize: expectedSize,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
+      );
+    }
+
+    if (streamedResponse.statusCode == 416 && existingBytes > 0) {
+      return restartFromZero();
+    }
 
     // Check if server supports range requests
     final isPartialContent = streamedResponse.statusCode == 206;
@@ -105,16 +124,36 @@ class UpdateDownloader {
 
     int totalBytes;
     if (isPartialContent) {
-      // Parse Content-Range header: bytes 1000-2000/3000
+      // Parse Content-Range header: bytes <start>-<end>/<total>
       final contentRange = streamedResponse.headers['content-range'];
       if (contentRange != null) {
-        final match = RegExp(r'bytes \d+-\d+/(\d+)').firstMatch(contentRange);
-        totalBytes = match != null
-            ? int.parse(match.group(1)!)
-            : expectedSize ?? 0;
+        final match = RegExp(
+          r'bytes (\d+)-(\d+)/(\d+|\*)',
+        ).firstMatch(contentRange);
+        if (match == null) {
+          throw DownloadException(
+            'Malformed Content-Range header on 206 response: $contentRange',
+            206,
+          );
+        }
+        final rangeStart = int.parse(match.group(1)!);
+        if (rangeStart != existingBytes) {
+          if (existingBytes > 0) return restartFromZero();
+          throw DownloadException(
+            'Server Content-Range start ($rangeStart) does not match local '
+            'resume offset ($existingBytes)',
+            206,
+          );
+        }
+        final totalGroup = match.group(3)!;
+        totalBytes = totalGroup == '*'
+            ? (expectedSize ?? 0)
+            : int.parse(totalGroup);
       } else {
+        final contentLength = streamedResponse.contentLength;
         totalBytes =
-            expectedSize ?? existingBytes + streamedResponse.contentLength!;
+            expectedSize ??
+            (contentLength != null ? existingBytes + contentLength : 0);
       }
     } else {
       totalBytes = streamedResponse.contentLength ?? expectedSize ?? 0;

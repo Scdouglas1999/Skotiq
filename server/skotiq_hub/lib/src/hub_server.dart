@@ -539,7 +539,7 @@ class HubServer {
         final token = _bearer(request);
         final accountId = token == null
             ? null
-            : _tokens.resolve(token)?.accountId;
+            : _identityForRequest(request, token)?.accountId;
         _audit.record(
           method: request.method,
           path: request.requestedUri.path,
@@ -563,31 +563,112 @@ class HubServer {
     };
   }
 
+  DateTime? _lastRateLimitSweep;
+
   Middleware _rateLimitMiddleware() {
     return (Handler inner) {
       return (Request request) async {
-        _rateLimiter.sweep();
-        final identity = _rateLimitIdentity(request);
-        if (!_rateLimiter.allow(identity)) {
-          final retry = _rateLimiter.retryAfterSeconds(identity);
+        final now = DateTime.now();
+        final lastSweep = _lastRateLimitSweep;
+        if (lastSweep == null ||
+            now.difference(lastSweep) >= const Duration(seconds: 30)) {
+          _lastRateLimitSweep = now;
+          _rateLimiter.sweep();
+        }
+        final decision = _rateLimit(request);
+        if (decision.limited) {
+          final retry = _rateLimiter.retryAfterSeconds(decision.bucket);
           return HubError.rateLimited('too many requests').toResponse(
             requestId: request.context['requestId'] as String?,
             headers: <String, String>{'retry-after': '$retry'},
           );
         }
-        return inner(request);
+        return inner(decision.request);
       };
     };
   }
 
-  String _rateLimitIdentity(Request request) {
-    final token = _bearer(request);
-    if (token != null) return 'tok:${TokenService.hashToken(token)}';
+  /// Anonymous bucket key. Forged bearers share this with requests that send
+  /// no token; a live token is bucketed by its hash instead.
+  String _anonymousRateLimitIdentity(Request request) {
     final conn = request.context['shelf.io.connection_info'];
     if (conn is HttpConnectionInfo) {
       return 'ip:${conn.remoteAddress.address}';
     }
     return 'anon';
+  }
+
+  /// Choose the rate-limit bucket and, when a bearer is present, resolve it
+  /// at most once.
+  ///
+  /// A bearer is not given its own bucket until it resolves to a live account.
+  /// Otherwise a fresh random Bearer on every request would bypass the
+  /// anonymous cap and grow the bucket map. Once that anonymous window is
+  /// already closed, an unremembered bearer is rejected before the token-store
+  /// query. A token this process has already resolved keeps its own bucket, so
+  /// a flood of forgeries does not lock out a known account, and the resolved
+  /// identity is stashed on the request so authorization does not query again.
+  ({bool limited, String bucket, Request request}) _rateLimit(Request request) {
+    final anonymous = _anonymousRateLimitIdentity(request);
+    final token = _bearer(request);
+    if (token == null) {
+      final allowed = _rateLimiter.allow(anonymous);
+      return (limited: !allowed, bucket: anonymous, request: request);
+    }
+
+    final remembered = _tokens.peekRemembered(token);
+    if (remembered != null) {
+      final bucket = 'tok:${remembered.tokenHash}';
+      final allowed = _rateLimiter.allow(bucket);
+      return (
+        limited: !allowed,
+        bucket: bucket,
+        request: _withResolvedIdentity(request, remembered),
+      );
+    }
+
+    if (_rateLimiter.isExhausted(anonymous)) {
+      return (limited: true, bucket: anonymous, request: request);
+    }
+
+    final identity = _tokens.resolve(token);
+    if (identity == null) {
+      final allowed = _rateLimiter.allow(anonymous);
+      return (
+        limited: !allowed,
+        bucket: anonymous,
+        request: _withResolvedIdentity(request, null),
+      );
+    }
+    final bucket = 'tok:${identity.tokenHash}';
+    final allowed = _rateLimiter.allow(bucket);
+    return (
+      limited: !allowed,
+      bucket: bucket,
+      request: _withResolvedIdentity(request, identity),
+    );
+  }
+
+  static const String _tokenResolvedContextKey = 'skotiq.hub.tokenResolved';
+  static const String _authIdentityContextKey = 'skotiq.hub.authIdentity';
+
+  Request _withResolvedIdentity(Request request, AuthIdentity? identity) {
+    final context = <String, Object>{
+      ...request.context,
+      _tokenResolvedContextKey: true,
+    };
+    if (identity != null) context[_authIdentityContextKey] = identity;
+    return request.change(context: context);
+  }
+
+  /// The identity stashed by [_rateLimit], or a fresh [TokenService.resolve]
+  /// when this request did not pass through that middleware.
+  AuthIdentity? _identityForRequest(Request request, String token) {
+    if (request.context[_tokenResolvedContextKey] == true) {
+      final cached = request.context[_authIdentityContextKey];
+      return cached is AuthIdentity ? cached : null;
+    }
+    return _tokens.resolve(token);
   }
 
   String? _bearer(Request request) {
@@ -639,7 +720,7 @@ class HubServer {
         ).toResponse(requestId: requestId),
       );
     }
-    final identity = _tokens.resolve(token);
+    final identity = _identityForRequest(request, token);
     if (identity == null) {
       return (
         identity: null,
@@ -1053,7 +1134,7 @@ class HubServer {
       ).toResponse(requestId: requestId);
     }
 
-    final receipt = _subframes.store(
+    final receipt = await _subframes.storeAsync(
       accountId: identity.accountId,
       tileId: tileId,
       order: order,
@@ -2055,7 +2136,7 @@ class HubServer {
       ).toResponse(requestId: requestId);
     }
     final masterId = const Uuid().v4();
-    final path = _mosaicStore.savePanelMaster(
+    final path = await _mosaicStore.savePanelMasterAsync(
       mosaicId: mosaicId,
       panelIndex: panelIndex,
       masterId: masterId,
@@ -2249,7 +2330,7 @@ class HubServer {
       ).toResponse(requestId: requestId);
     }
     final masterId = const Uuid().v4();
-    final path = _mosaicStore.saveOutput(
+    final path = await _mosaicStore.saveOutputAsync(
       mosaicId: mosaicId,
       masterId: masterId,
       bytes: bytes,

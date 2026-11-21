@@ -48,13 +48,18 @@ final nightGuideSamplesProvider =
 
 class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
   NightGuideSamplesNotifier(this._ref) : super(const <NightGuideSample>[]) {
+    _ref.listen<String>(runtimeHostSessionProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        state = const <NightGuideSample>[];
+      }
+    });
     _bind(_ref.read(backendProvider));
     _ref.listen<SkotiqBackend>(backendProvider, (_, next) => _bind(next));
     _ref.listen<AsyncValue<NightHistory?>>(
       hostNightHistoryProvider,
       (_, next) {
         final history = next.valueOrNull;
-        if (history != null) _addEarlier(history.guideSamples);
+        if (history != null) mergeHostHistory(history.guideSamples);
       },
       fireImmediately: true,
     );
@@ -85,7 +90,14 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
   }
 
   void add(NightGuideSample sample) {
+    if (!sample.raPx.isFinite || !sample.decPx.isFinite) return;
     final current = state;
+    // A step that is not newer than the last one is a replay or a late
+    // history row. Merge it so it cannot land twice or after a newer step.
+    if (current.isNotEmpty && !sample.t.isAfter(current.last.t)) {
+      mergeHostHistory([sample]);
+      return;
+    }
     final cutoff = sample.t.subtract(retention);
     var start = 0;
     while (start < current.length && current[start].t.isBefore(cutoff)) {
@@ -95,19 +107,31 @@ class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
     state = <NightGuideSample>[...current.skip(start), sample];
   }
 
-  /// Put the host's guide steps from before this app's first one in front.
-  void _addEarlier(List<NightGuideSample> host) {
+  /// Merge a host list with samples already received. The same millisecond
+  /// and both residuals are one step. A live step newer than a late response
+  /// stays. The oldest samples past [retention] or [maxSamples] are dropped.
+  void mergeHostHistory(List<NightGuideSample> samples) {
     if (!mounted) return;
-    final earlier = nightHistoryBefore(host, state, (s) => s.t);
-    if (earlier.isEmpty) return;
-    final merged = <NightGuideSample>[...earlier, ...state];
-    final cutoff = merged.last.t.subtract(retention);
-    var start = 0;
-    while (start < merged.length && merged[start].t.isBefore(cutoff)) {
-      start++;
+    final bySample = <String, NightGuideSample>{};
+    String key(NightGuideSample sample) => '${sample.t.millisecondsSinceEpoch}|'
+        '${sample.raPx.toStringAsFixed(6)}|'
+        '${sample.decPx.toStringAsFixed(6)}';
+    for (final sample in [...samples, ...state]) {
+      if (!sample.raPx.isFinite || !sample.decPx.isFinite) continue;
+      // Six decimals: the wire's doubles, so 0.3 * 3 and 0.9 are one step
+      // and two residuals that actually differ are not.
+      bySample[key(sample)] = sample;
     }
-    start = math.max(start, merged.length - maxSamples);
-    state = merged.sublist(start);
+    if (bySample.isEmpty) return;
+    final merged = bySample.values.toList()..sort((a, b) => a.t.compareTo(b.t));
+    final cutoff = merged.last.t.subtract(retention);
+    final retained = <NightGuideSample>[
+      for (final sample in merged)
+        if (!sample.t.isBefore(cutoff)) sample,
+    ];
+    state = retained.length > maxSamples
+        ? retained.sublist(retained.length - maxSamples)
+        : retained;
   }
 
   @override

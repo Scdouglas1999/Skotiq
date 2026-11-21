@@ -17,16 +17,24 @@ mixin HostLiveStack on NetworkBackendTransport {
   /// downloaded preview must be exactly `width * height * channels` u16 samples.
   /// A truncated, oversized, odd-length, or dimension-mismatched buffer throws
   /// rather than being displayed as a valid stack.
-  Future<LiveStackingResult> stackingGetResult() async {
+  Future<LiveStackingResult> stackingGetResult({String? filterKey}) async {
+    final key = explicitLiveStackFilterKey(filterKey);
+    final path = {if (key != null) 'filterKey': key};
     const metaEndpoint = 'GET /api/stacking/result';
     const previewEndpoint = 'GET /api/stacking/preview';
-    final meta = await _get(StackingApi.result);
+    final meta = await _get(
+      key == null ? StackingApi.result : StackingApi.resultFilter,
+      path: path,
+    );
     final width = _requireStackingInt(meta, 'width', metaEndpoint, min: 1);
     final height = _requireStackingInt(meta, 'height', metaEndpoint, min: 1);
     final channels = _requireStackingChannels(meta, metaEndpoint);
     final stats = _requireStackingStats(meta, metaEndpoint);
 
-    final bytes = await _downloadBytes(StackingApi.preview);
+    final bytes = await _downloadBytes(
+      key == null ? StackingApi.preview : StackingApi.previewFilter,
+      path: path,
+    );
     final samples = _decodeStackingPreview(
       bytes,
       width,
@@ -40,6 +48,7 @@ mixin HostLiveStack on NetworkBackendTransport {
       height: height,
       channels: channels,
       data: samples,
+      filterKey: key ?? kDefaultLiveStackFilterKey,
       stats: stats,
     );
   }
@@ -52,13 +61,24 @@ mixin HostLiveStack on NetworkBackendTransport {
   }
 
   /// Clear the accumulation (host stays armed).
-  Future<void> stackingReset() async {
-    await _post(StackingApi.reset, body: const {});
+  ///
+  /// [filterKey] resets that slot only. Omitting it resets the whole host
+  /// stack, which is what a host from before per-filter reset understood.
+  Future<void> stackingReset({String? filterKey}) async {
+    final key = explicitLiveStackFilterKey(filterKey);
+    await _post(
+      key == null ? StackingApi.reset : StackingApi.resetFilter,
+      path: {if (key != null) 'filterKey': key},
+      body: const {},
+    );
   }
 
   /// Start (or arm) live stacking on the host. With [referencePath] (a host
   /// path) the stack starts immediately from that frame; without it the host
   /// arms and the next captured frame becomes the reference.
+  ///
+  /// Named operations use distinct routes so that an older host can refuse
+  /// them without changing its whole stack.
   ///
   /// Both branches return a complete stats object — an armed host reports a
   /// zero-valued (but fully populated) [LiveStackingStats] because nothing has
@@ -66,10 +86,13 @@ mixin HostLiveStack on NetworkBackendTransport {
   /// throws rather than being manufactured as zero.
   Future<LiveStackingStats> stackingStart({
     String? referencePath,
+    String? filterKey,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
+    final key = explicitLiveStackFilterKey(filterKey);
     final response = await _post(
-      StackingApi.start,
+      key == null ? StackingApi.start : StackingApi.startFilter,
+      path: {if (key != null) 'filterKey': key},
       body: {
         'config': _stackingConfigToJson(config),
         if (referencePath != null) 'referencePath': referencePath,
@@ -79,8 +102,16 @@ mixin HostLiveStack on NetworkBackendTransport {
   }
 
   /// Stop the stacker and disarm host auto-feed.
-  Future<void> stackingStop() async {
-    await _post(StackingApi.stop, body: const {});
+  ///
+  /// [filterKey] stops that slot only. Omitting it stops every slot, which is
+  /// what a host from before per-filter stop understood.
+  Future<void> stackingStop({String? filterKey}) async {
+    final key = explicitLiveStackFilterKey(filterKey);
+    await _post(
+      key == null ? StackingApi.stop : StackingApi.stopFilter,
+      path: {if (key != null) 'filterKey': key},
+      body: const {},
+    );
   }
 
   /// Fetch recent durable Stack-and-Share results, newest first.

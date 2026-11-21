@@ -13,7 +13,129 @@ use skotiq_sequencer::{CameraOps, DeviceError, DeviceResult, ExposureRequest, Im
 
 #[async_trait]
 impl CameraOps for UnifiedDeviceOps {
+    /// One frame, through [`UnifiedDeviceOps::expose_once`]. When the camera
+    /// was reopened while the frame failed (its session broke:
+    /// `DeviceManager::reopen_after`), the frame is taken once more on the
+    /// reopened camera. Every exposure the host takes comes through here: the
+    /// run's frames, the motion guard's solve frame, centering, autofocus,
+    /// flats and darks.
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
+        let mgr = get_device_manager();
+        let reopens = mgr.reopen_count(request.camera_id);
+        match self.expose_once(request.clone()).await {
+            Err(error) if mgr.reopen_count(request.camera_id) != reopens => {
+                tracing::warn!(
+                    "[EXPOSURE] {} was reopened after \"{error}\"; taking the frame again",
+                    request.camera_id
+                );
+                self.expose_once(request).await
+            }
+            result => result,
+        }
+    }
+
+    async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()> {
+        tracing::info!("Aborting exposure on camera {}", camera_id);
+
+        mark_camera_exposure_aborted(camera_id).await;
+        get_device_manager()
+            .camera_abort_exposure(camera_id)
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
+    }
+
+    async fn camera_set_cooler(
+        &self,
+        camera_id: &str,
+        enabled: bool,
+        target_temp: f64,
+    ) -> DeviceResult<()> {
+        tracing::info!(
+            "Camera {} cooler: enabled={}, target={}°C",
+            camera_id,
+            enabled,
+            target_temp
+        );
+
+        // `DeviceManager::camera_set_cooler` publishes the cooling event.
+        get_device_manager()
+            .camera_set_cooler(camera_id, enabled, Some(target_temp))
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
+    }
+
+    async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+
+        status
+            .sensor_temp
+            .ok_or_else(|| "Temperature not available".into())
+    }
+
+    async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+
+        status
+            .cooler_power
+            .ok_or_else(|| "Cooler power not available".into())
+    }
+
+    async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+        Ok(status.cooler_on)
+    }
+
+    async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+        Ok(status
+            .target_temp
+            .filter(|_| status.cooler_on == Some(true)))
+    }
+
+    async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
+        let status = get_device_manager()
+            .camera_get_status(camera_id)
+            .await
+            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
+
+        // A driver with nothing to say reports 0.0 here, which is not a pitch —
+        // writing it would tell a solver the sensor has zero-sized pixels.
+        Ok(match (status.pixel_size_x, status.pixel_size_y) {
+            (x, y) if x > 0.0 && y > 0.0 => Some((x, y)),
+            _ => None,
+        })
+    }
+
+    async fn camera_get_model(&self, camera_id: &str) -> DeviceResult<Option<String>> {
+        Ok(connected_camera_label(camera_id).await)
+    }
+
+    async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
+        match crate::device_capabilities::get_device_capabilities(camera_id).await {
+            Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => {
+                Ok(caps.iso_speeds)
+            }
+            Ok(_) => Ok(Vec::new()),
+            Err(e) => Err(format!("Failed to read camera capabilities: {}", e).into()),
+        }
+    }
+}
+
+impl UnifiedDeviceOps {
+    /// [`CameraOps::camera_start_exposure`] once: start, wait, download, validate.
+    async fn expose_once(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
         let ExposureRequest {
             camera_id,
             duration_secs,
@@ -307,104 +429,6 @@ impl CameraOps for UnifiedDeviceOps {
         );
 
         Ok(frame)
-    }
-
-    async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()> {
-        tracing::info!("Aborting exposure on camera {}", camera_id);
-
-        mark_camera_exposure_aborted(camera_id).await;
-        get_device_manager()
-            .camera_abort_exposure(camera_id)
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
-    }
-
-    async fn camera_set_cooler(
-        &self,
-        camera_id: &str,
-        enabled: bool,
-        target_temp: f64,
-    ) -> DeviceResult<()> {
-        tracing::info!(
-            "Camera {} cooler: enabled={}, target={}°C",
-            camera_id,
-            enabled,
-            target_temp
-        );
-
-        // `DeviceManager::camera_set_cooler` publishes the cooling event.
-        get_device_manager()
-            .camera_set_cooler(camera_id, enabled, Some(target_temp))
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))
-    }
-
-    async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = get_device_manager()
-            .camera_get_status(camera_id)
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
-
-        status
-            .sensor_temp
-            .ok_or_else(|| "Temperature not available".into())
-    }
-
-    async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
-        let status = get_device_manager()
-            .camera_get_status(camera_id)
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
-
-        status
-            .cooler_power
-            .ok_or_else(|| "Cooler power not available".into())
-    }
-
-    async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
-        let status = get_device_manager()
-            .camera_get_status(camera_id)
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
-        Ok(status.cooler_on)
-    }
-
-    async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
-        let status = get_device_manager()
-            .camera_get_status(camera_id)
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
-        Ok(status
-            .target_temp
-            .filter(|_| status.cooler_on == Some(true)))
-    }
-
-    async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
-        let status = get_device_manager()
-            .camera_get_status(camera_id)
-            .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Camera))?;
-
-        // A driver with nothing to say reports 0.0 here, which is not a pitch —
-        // writing it would tell a solver the sensor has zero-sized pixels.
-        Ok(match (status.pixel_size_x, status.pixel_size_y) {
-            (x, y) if x > 0.0 && y > 0.0 => Some((x, y)),
-            _ => None,
-        })
-    }
-
-    async fn camera_get_model(&self, camera_id: &str) -> DeviceResult<Option<String>> {
-        Ok(connected_camera_label(camera_id).await)
-    }
-
-    async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
-        match crate::device_capabilities::get_device_capabilities(camera_id).await {
-            Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => {
-                Ok(caps.iso_speeds)
-            }
-            Ok(_) => Ok(Vec::new()),
-            Err(e) => Err(format!("Failed to read camera capabilities: {}", e).into()),
-        }
     }
 }
 

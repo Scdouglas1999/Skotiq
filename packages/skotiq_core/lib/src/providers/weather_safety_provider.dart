@@ -74,6 +74,16 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// missing forecast means "not fetched yet", not "no weather data".
   bool _forecastTried = false;
   bool _evaluationInFlight = false;
+  Completer<void>? _evaluationIdleCompleter;
+
+  void _notifyEvaluationIdle() {
+    final completer = _evaluationIdleCompleter;
+    if (completer != null && !completer.isCompleted) {
+      completer.complete();
+    }
+    _evaluationIdleCompleter = null;
+  }
+
   DateTime? _evaluationStartedAt;
 
   /// The verdict last sent to the sequencer, re-sent on every heartbeat so a
@@ -348,6 +358,8 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       if (_evaluationPending && mounted) {
         _evaluationPending = false;
         _evaluateAllSources();
+      } else if (!_evaluationInFlight) {
+        _notifyEvaluationIdle();
       }
     }
   }
@@ -936,13 +948,16 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
     _evaluateAllSources();
     final deadline = DateTime.now().add(timeout);
     while (mounted && (_evaluationInFlight || _evaluationPending)) {
-      if (!DateTime.now().isBefore(deadline)) return;
-      await Future<void>.delayed(const Duration(milliseconds: 25));
+      final remaining = deadline.difference(DateTime.now());
+      if (remaining <= Duration.zero) return;
+      final waiter = _evaluationIdleCompleter ??= Completer<void>();
+      await waiter.future.timeout(remaining, onTimeout: () {});
     }
   }
 
   @override
   void dispose() {
+    _notifyEvaluationIdle();
     _alertSubscription?.cancel();
     _snoozeTimer?.cancel();
     _periodicEvalTimer?.cancel();

@@ -34,3 +34,7 @@ When the task includes graph maintenance, or changed relationships make a graph
 you are actively using stale, refresh it with `graphify update .` (AST-only).
 An absent or stale graph does not block ordinary source work. Do not rebuild
 the graph for unrelated edits or documentation-only changes.
+
+## PixInsight editing
+
+For astronomical image editing in PixInsight, background/color troubleshooting, or edited-image delivery and AstroBin revisions, read [the PixInsight editing brief](docs/agents/pixinsight-editing.md). It links the accepted NGC 891 recipe, evaluation checks, and desktop execution guidance.

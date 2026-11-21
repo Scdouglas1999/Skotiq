@@ -357,8 +357,9 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
     }
     // The detector's tuned defaults (5σ, 9-pixel minimum area) find stars;
     // a looser threshold masks noise peaks as "stars" and, over a night,
-    // eats the very apertures being measured. Elongated and sharp sources
-    // are masked too rather than culled.
+    // eats the very apertures being measured. Sharp sources are masked.
+    // Elongated ones are masked only when they are bright enough to be a
+    // real trail; a marginal detection is left unmasked below.
     let config = StarDetectionConfig {
         max_sharpness: 1.0,
         max_eccentricity: 1.0,
@@ -367,6 +368,12 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
     for star in detect_stars(light, &config) {
         if ![star.x, star.y, star.fwhm].iter().all(|v| v.is_finite()) || star.fwhm < 0.0 {
             return Err("Star masking returned invalid source geometry".into());
+        }
+        // Elongated sources above the round-star selection ceiling are masked
+        // when they are genuine trails (high SNR), not marginal 5σ noise
+        // percolation clusters sitting on faint target nebulosity.
+        if star.eccentricity > crate::SELECTION_MAX_ECCENTRICITY && star.snr < 8.0 {
+            continue;
         }
         mark_disk(star.x, star.y, (3.0 * star.fwhm).clamp(6.0, 25.0));
     }
@@ -811,4 +818,104 @@ pub fn suggest_floor(
         aperture_pixels,
         source,
     })
+}
+
+#[cfg(test)]
+mod source_mask_tests {
+    use super::*;
+
+    #[test]
+    fn source_mask_masks_stars_without_eating_faint_nebula_box() {
+        let (w, h) = (512usize, 384usize);
+        let mut s: u64 = 7;
+        let mut nf = || {
+            s = s
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((s >> 11) as f64) / ((1u64 << 53) as f64)
+        };
+        let mut stars = Vec::new();
+        while stars.len() < 90 {
+            let x = 20.0 + nf() * (w as f64 - 40.0);
+            let y = 20.0 + nf() * (h as f64 - 40.0);
+            if (150.0..=250.0).contains(&x) && (100.0..=200.0).contains(&y) {
+                continue;
+            }
+            if (250.0..=350.0).contains(&x) && (100.0..=200.0).contains(&y) {
+                continue;
+            }
+            stars.push((x, y, 3_000.0 + nf() * 22_000.0));
+        }
+        let mut masked_frames = 0usize;
+        for index in [1usize, 15, 29, 36, 56, 68] {
+            let mut ns = 1_000u64 + index as u64;
+            let mut nu = || {
+                ns = ns
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                ((ns >> 11) as f64) / ((1u64 << 53) as f64)
+            };
+            let dx = nu() * 12.0 - 6.0;
+            let dy = nu() * 12.0 - 6.0;
+            let mut px = vec![0.0f64; w * h];
+            for y in 0..h {
+                for x in 0..w {
+                    let rx = x as f64 - dx;
+                    let ry = y as f64 - dy;
+                    let inside = (185.0..=215.0).contains(&rx) && (135.0..=165.0).contains(&ry);
+                    px[y * w + x] = 300.0 + if inside { 12.0 } else { 0.0 };
+                }
+            }
+            for &(sx, sy, peak) in &stars {
+                let cx = sx + dx;
+                let cy = sy + dy;
+                for y in
+                    ((cy - 5.0).floor().max(0.0) as usize)..=((cy + 5.0).ceil() as usize).min(h - 1)
+                {
+                    for x in ((cx - 5.0).floor().max(0.0) as usize)
+                        ..=((cx + 5.0).ceil() as usize).min(w - 1)
+                    {
+                        let r2 = (x as f64 - cx).powi(2) + (y as f64 - cy).powi(2);
+                        px[y * w + x] += peak * (-r2 / (2.0 * 1.3 * 1.3)).exp();
+                    }
+                }
+            }
+            let data: Vec<u16> = px
+                .iter()
+                .enumerate()
+                .map(|(i, &sky)| {
+                    let (x, y) = (i % w, i / w);
+                    let vx = x as f64 - w as f64 / 2.0;
+                    let vy = y as f64 - h as f64 / 2.0;
+                    let vig = 1.0 - 0.03 * (vx * vx + vy * vy) / ((w * w + h * h) as f64 / 4.0);
+                    let u = nu().max(1e-12);
+                    let g = (-2.0 * u.ln()).sqrt() * (2.0 * std::f64::consts::PI * nu()).cos();
+                    (sky * vig + 500.0 + 20.0 * g).round().clamp(0.0, 65535.0) as u16
+                })
+                .collect();
+            let img = ImageData::from_u16(w as u32, h as u32, 1, &data);
+            let mask = source_mask(&img).unwrap();
+            // Real stars must still be masked.
+            let (sx0, sy0, _) = stars[0];
+            assert!(
+                mask[(sy0 + dy).round() as usize * w + (sx0 + dx).round() as usize],
+                "frame {index}: bright star must remain masked"
+            );
+            let mut masked_in_box = 0usize;
+            for y in ((140.0 + dy).floor() as usize)..=((160.0 + dy).ceil() as usize) {
+                for x in ((190.0 + dx).floor() as usize)..=((210.0 + dx).ceil() as usize) {
+                    if mask[y * w + x] {
+                        masked_in_box += 1;
+                    }
+                }
+            }
+            if masked_in_box > 0 {
+                masked_frames += 1;
+            }
+        }
+        assert_eq!(
+            masked_frames, 0,
+            "marginal elongated noise ripples must not mask the faint structure box"
+        );
+    }
 }

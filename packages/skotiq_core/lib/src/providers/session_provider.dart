@@ -10,7 +10,8 @@ import 'database_provider.dart';
 import 'equipment/camera_state_provider.dart';
 import 'equipment/filter_wheel_state_provider.dart';
 import 'equipment/focuser_state_provider.dart';
-import 'imaging_provider.dart' show exposureSettingsProvider;
+import 'imaging_provider.dart'
+    show exposureSettingsProvider, sessionImagesProvider;
 import '../services/local_imaging_records.dart';
 import '../services/quick_start_service.dart' show quickStartServiceProvider;
 import '../services/session_service.dart';
@@ -212,6 +213,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       targetDec: targetDec,
       dbSessionId: dbId,
     );
+    // endSession leaves the previous run on the in-memory strip on purpose.
+    // This session has taken nothing yet, so the strip starts empty. The rows
+    // stay in the database.
+    _ref.read(sessionImagesProvider.notifier).clearSession();
   }
 
   /// Refresh the restore preset from the last saved exposure. Per-frame rows

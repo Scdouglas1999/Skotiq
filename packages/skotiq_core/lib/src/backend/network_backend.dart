@@ -137,6 +137,7 @@ part 'network_backend/host_backups.dart';
 part 'network_backend/host_profiles.dart';
 part 'network_backend/host_focus_models.dart';
 part 'network_backend/host_files.dart';
+part 'network_backend/host_flat_wizard.dart';
 part 'network_backend/host_device_control.dart';
 part 'network_backend/host_imaging_records.dart';
 part 'network_backend/host_calibration_tools.dart';
@@ -238,13 +239,25 @@ abstract class NetworkBackendTransport {
   final StreamController<BackendConnectionState> _connectionStateController =
       StreamController<BackendConnectionState>.broadcast();
   int _reconnectAttempt = 0;
+  int _connectGeneration = 0;
   Timer? _reconnectTimer;
   DateTime? _lastWebSocketMessageAt;
   bool _disposed = false;
   bool _disconnecting = false;
   bool _webSocketHeartbeatPausedForLifecycle = false;
   int _requestCounter = 0;
+  final List<void Function()> _disposeCallbacks = [];
   static const int _maxReconnectDelay = 30; // Max 30 seconds
+
+  /// Registers [callback] to run once when this backend is disposed.
+  /// If already disposed, runs immediately.
+  void registerOnDispose(void Function() callback) {
+    if (_disposed) {
+      callback();
+      return;
+    }
+    _disposeCallbacks.add(callback);
+  }
 
   /// In-flight connect/disconnect requests keyed by `<deviceType>:<deviceId>`.
   /// A slow connect can otherwise be re-issued by an impatient UI (or by the
@@ -591,6 +604,7 @@ class NetworkBackend extends NetworkBackendTransport
         HostControlSession,
         HostDeviceControl,
         HostFiles,
+        HostFlatWizard,
         HostFocusModels,
         HostHistory,
         HostImagingRecords,

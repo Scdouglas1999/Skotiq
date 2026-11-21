@@ -44,6 +44,7 @@ pub struct DarkroomPreview {
 /// was asked at all, so an empty `findings` never has to stand in for "no
 /// master was supplied".
 pub fn api_darkroom_validate(recipe_json: String, context_json: String) -> Result<String, String> {
+    crate::api::live_stacking::ensure_darkroom_live_stack_resolver();
     skotiq_processing::darkroom::entrypoints::darkroom_validate(recipe_json, context_json)
 }
 
@@ -64,6 +65,7 @@ pub fn api_darkroom_render_preview(
     recipe_json: String,
     context_json: String,
 ) -> Result<DarkroomPreview, String> {
+    crate::api::live_stacking::ensure_darkroom_live_stack_resolver();
     let preview = skotiq_processing::darkroom::entrypoints::darkroom_render_preview(
         recipe_json,
         context_json,
@@ -107,6 +109,7 @@ pub fn api_darkroom_render_export(
 /// defaults for the operations that need no measurement — so the autopilot and
 /// the editor build a draft from the operations' own numbers.
 pub fn api_darkroom_registry(args_json: String) -> Result<String, String> {
+    crate::api::live_stacking::ensure_darkroom_live_stack_resolver();
     skotiq_processing::darkroom::entrypoints::darkroom_registry(args_json)
 }
 

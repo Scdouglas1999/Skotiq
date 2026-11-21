@@ -437,4 +437,17 @@ void main() {
       expect(stats.warningMessages, isEmpty);
     });
   });
+
+  test('start throws before the backend when a flip is running', () async {
+    final c = buildContainer(settings: const AppSettingsState());
+    c.read(flipExecutionStateProvider.notifier).state =
+        FlipExecutionState.executing;
+    c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
+
+    await expectLater(
+      c.read(sequenceExecutorProvider).start(),
+      throwsA(isA<StateError>()),
+    );
+    verifyNever(() => backend.sequencerStart());
+  });
 }

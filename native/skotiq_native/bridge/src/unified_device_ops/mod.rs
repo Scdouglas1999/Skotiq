@@ -76,6 +76,9 @@ mod focuser;
 #[cfg(test)]
 mod frame_defaults_tests;
 mod frame_store;
+pub(crate) use frame_store::frame_shape;
+#[cfg(test)]
+pub(crate) use frame_store::measure_light_frame;
 #[cfg(test)]
 mod frame_tests;
 mod guider;

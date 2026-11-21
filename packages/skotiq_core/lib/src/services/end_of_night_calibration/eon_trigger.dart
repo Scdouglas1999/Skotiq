@@ -194,21 +194,19 @@ class EndOfNightCalibrationCoordinator {
       if (owner != ActivePlanOwner.calibration) {
         _openNightSession = reason == null ? result.dbSessionId : null;
       }
-      if (reason != null) {
-        final calibrated = await _onNightEnded(
-          result,
-          owner,
-          reason,
-          deferredWarmUp,
-        );
-        if (deferredWarmUp && !calibrated) {
-          await _ref
-              .read(endOfNightCalibrationProvider.notifier)
-              .warmUpDeferredCamera(
-                'End-of-night calibration did not run, so the camera is '
-                'warmed now',
-              );
-        }
+      final calibrated =
+          reason != null &&
+          await _onNightEnded(result, owner, reason, deferredWarmUp);
+      // The run left its Warm camera step to the calibration. When none ran,
+      // for whatever reason the run ended, the warm-up is owed now. After the
+      // operator's own Stop the run puts nothing away, so neither does this.
+      if (deferredWarmUp && !calibrated && stopOrigin != 'operator') {
+        await _ref
+            .read(endOfNightCalibrationProvider.notifier)
+            .warmUpDeferredCamera(
+              'End-of-night calibration did not run, so the camera is '
+              'warmed now',
+            );
       }
     } catch (e, stack) {
       _log.error(
@@ -219,6 +217,23 @@ class EndOfNightCalibrationCoordinator {
       if (!decided.isCompleted) decided.complete(null);
     } finally {
       if (!settled.isCompleted) settled.complete();
+      _pruneCompletedGenerations();
+    }
+  }
+
+  static const _maxRetainedGenerations = 32;
+
+  void _pruneCompletedGenerations() {
+    while (_settled.length > _maxRetainedGenerations) {
+      final oldestKey = _settled.keys.firstWhere(
+        (k) => _settled[k]?.isCompleted == true,
+        orElse: () => -1,
+      );
+      if (oldestKey == -1) break;
+      _settled.remove(oldestKey);
+      if (_decided[oldestKey]?.isCompleted == true) {
+        _decided.remove(oldestKey);
+      }
     }
   }
 

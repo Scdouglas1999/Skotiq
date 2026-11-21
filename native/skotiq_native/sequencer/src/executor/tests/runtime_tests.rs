@@ -1836,13 +1836,10 @@ fn the_sky_state_abstains_without_a_target_or_a_site() {
 ///
 /// The trigger knows what it fired, so the interlude announces itself.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_trigger_fired_autofocus_names_itself_on_the_wire() {
     // Fires a real autofocus through the process-wide gate; see
     // `AF_GATE_TEST_LOCK`.
-    let _serial = crate::AF_GATE_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
     let mut sequence = SequenceDefinition::new("New Sequence".to_string());
     sequence.nodes.push(crate::NodeDefinition {
         id: "wait".to_string(),
@@ -2617,13 +2614,10 @@ async fn wait_for_the_autofocus_gate_to_clear() {
 /// code: under the old default this parked the mount, closed the cover and the
 /// dome, and ended the run.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_failed_trigger_autofocus_never_parks_and_the_run_carries_on() {
     // Fires a real autofocus through the process-wide gate; see
     // `AF_GATE_TEST_LOCK`.
-    let _serial = crate::AF_GATE_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
     for persisted in [
         serde_json::json!({ "failure_action": "AbortAndPark" }),
         serde_json::json!({ "failure_action": "PauseAndAlert" }),
@@ -2750,11 +2744,8 @@ struct FailedAutofocusRun {
     calls: Vec<String>,
 }
 
-#[allow(clippy::await_holding_lock)]
 async fn run_a_failing_autofocus_node(decision_logging: bool) -> FailedAutofocusRun {
-    let _serial = crate::AF_GATE_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
     let mut sequence = SequenceDefinition::new("New Sequence".to_string());
     sequence.nodes.push(crate::NodeDefinition {
         id: "night".to_string(),
@@ -2921,11 +2912,8 @@ impl crate::node::Node for AlwaysFails {
 /// the node protects. It now notifies and goes on to the next attempt on the
 /// previous focus.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
-    let _serial = crate::AF_GATE_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
     let config = crate::RecoveryConfig {
         trigger: None,
         recovery_action: crate::RecoveryAction::Autofocus,
@@ -3007,11 +2995,8 @@ async fn a_failed_recovery_autofocus_notifies_and_the_retries_go_on() {
 // The in-burst refocus runs a fixed 15-point sweep of 3 s exposures; paused
 // time lets the sweep's waits elapse without the test sitting through them.
 #[tokio::test(start_paused = true)]
-#[allow(clippy::await_holding_lock)]
 async fn a_failed_exposure_trigger_autofocus_is_a_notice_not_a_failed_run() {
-    let _serial = crate::AF_GATE_TEST_LOCK
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
+    let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
     let mut context = crate::node::ExecutionContext::new("lights".to_string(), ops.clone());
     context.run.rig.camera_id = Some("sim_camera_1".to_string());

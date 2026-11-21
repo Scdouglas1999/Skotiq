@@ -159,6 +159,26 @@ void main() {
     expect(discarded, isFalse);
   });
 
+  test('resume or discard after a run has started changes nothing', () async {
+    for (final choice in [
+      AppCheckpointRecoveryChoice.resume,
+      AppCheckpointRecoveryChoice.discard,
+    ]) {
+      var resumed = 0;
+      var discarded = 0;
+      final outcome = await runAppCheckpointRecovery(
+        choose: (_) async => choice,
+        resume: () async => resumed++,
+        discard: () async => discarded++,
+        checkpointStillResumable: () async => true,
+        canRecover: () async => false,
+      );
+      expect(outcome, AppStartupCheckpointOutcome.deferred, reason: '$choice');
+      expect(resumed, 0, reason: '$choice');
+      expect(discarded, 0, reason: '$choice');
+    }
+  });
+
   testWidgets('after a failed attempt the operator can leave the modal', (
     tester,
   ) async {

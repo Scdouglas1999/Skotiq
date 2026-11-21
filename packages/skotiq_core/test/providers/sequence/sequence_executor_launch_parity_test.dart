@@ -321,15 +321,13 @@ void main() {
       await executor.stop();
     });
 
-    test('re-attaching over a live run replaces, never doubles', () async {
+    test('a duplicate headless start leaves the live listener alone', () async {
       final c = buildContainer();
       c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
       final executor = c.read(sequenceExecutorProvider);
 
       await executor.start();
-      // The headless route calls this directly; it can land on an executor
-      // that already has a subscription.
-      await executor.startLoadedRun();
+      await expectLater(executor.startLoadedRun(), throwsStateError);
       emitExposureCompleted();
       await pumpEvents();
 

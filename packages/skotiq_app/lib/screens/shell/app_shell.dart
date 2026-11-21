@@ -216,7 +216,19 @@ class _AppShellState extends ConsumerState<AppShell> {
     super.dispose();
   }
 
-  Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded() {
+  /// A companion that has not reached its host has no checkpoint to offer.
+  /// Asking the disconnected backend fails the check, and the local database
+  /// is not the host's run. Leave the check unconsumed until the link exists.
+  bool _checkpointWaitsForHost() =>
+      ref.read(remoteClientLaunchProvider) &&
+      !ref.read(backendProvider).linksToHost;
+
+  Future<AppStartupCheckpointOutcome> _checkCheckpointIfNeeded({
+    bool linked = false,
+  }) {
+    if (!linked && _checkpointWaitsForHost()) {
+      return Future.value(AppStartupCheckpointOutcome.deferred);
+    }
     return _checkpointCheck ??= _performCheckpointCheck().whenComplete(() {
       _startupQueue.pass(StartupSurface.checkpointRecovery);
     }).then((outcome) async {
@@ -258,6 +270,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       // window showed.
       if (await hostRunHoldsCheckpoint(hostControl)) {
         return AppStartupCheckpointOutcome.noRecovery;
+      }
+      if (hostOpenPlanDefersCheckpoint(
+        linkedClient: hostControl != null,
+        hostHasOpenPlan: ref.read(currentSequenceProvider) != null,
+      )) {
+        return AppStartupCheckpointOutcome.deferred;
       }
 
       final hasCheckpoint = await backend.hasCheckpoint();
@@ -321,6 +339,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                   hostRun.close();
                 }
               },
+              canRecover: () async =>
+                  (await backend.sequencerGetStatus()).isIdle &&
+                  ref.read(sequenceExecutionStateProvider).canStart,
               checkpointStillResumable: () async {
                 final current = await backend.getCheckpointInfo();
                 return current?.canResume ?? false;
@@ -397,6 +418,19 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // A companion that deferred recovery starts it once the host link exists.
+    ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
+      if (_checkpointCheck != null) return;
+      if (!ref.read(remoteClientLaunchProvider) || !next.linksToHost) return;
+      // The listen callback can run before this widget's read of the
+      // provider sees the new backend. The check has to run after that.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _checkpointCheck != null) return;
+        if (!_checkpointWaitsForHost()) {
+          unawaited(_checkCheckpointIfNeeded(linked: true));
+        }
+      });
+    });
     final colors = SkotiqColors.of(context);
     // One bool, not the whole settings object: the shell is the root of every
     // routed screen, so watching all of `appSettingsProvider` rebuilt the nav,

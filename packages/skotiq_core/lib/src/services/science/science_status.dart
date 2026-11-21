@@ -33,11 +33,7 @@ enum ScienceStage {
   /// SKHA_VER) back into the captured frame's FITS header so
   /// external pipelines (PixInsight, AstroPixelProcessor, Siril) can read
   /// Skotiq's products without going through the database.
-  fitsWriteback('FITS writeback'),
-
-  /// Evaluates capture-time quality thresholds and may reject the frame in
-  /// the database (never deletes files).
-  autoGrade('Auto grade');
+  fitsWriteback('FITS writeback');
 
   const ScienceStage(this.displayName);
   final String displayName;

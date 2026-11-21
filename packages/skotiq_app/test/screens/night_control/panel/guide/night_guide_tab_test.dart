@@ -36,6 +36,21 @@ class _ScaledGuider extends GuiderStateNotifier {
   }
 }
 
+class _LostGuider extends GuiderStateNotifier {
+  _LostGuider(super.ref) {
+    state = GuiderState(
+      connectionState: DeviceConnectionState.disconnected,
+      deviceId: 'native:builtin_guider:multi_star',
+      deviceName: 'Built-in Guider',
+      lastError: DeviceError(
+        type: DeviceErrorType.connectionFailed,
+        message: 'Camera lost',
+        timestamp: DateTime.utc(2026, 11, 16),
+      ),
+    );
+  }
+}
+
 class _BuiltinGuider extends GuiderStateNotifier {
   _BuiltinGuider(super.ref) {
     state = const GuiderState(
@@ -125,6 +140,26 @@ void main() {
     expect(find.text('Connect guider'), findsOneWidget);
     expect(find.text('Open PHD2'), findsNothing);
     expect(find.textContaining('PHD2'), findsNothing);
+  });
+
+  testWidgets('a failed guider shows its name and the cause', (tester) async {
+    await pumpPanelTab(
+      tester,
+      const NightGuideTab(),
+      overrides: [
+        ...panelOverrides(),
+        guiderStateProvider.overrideWith(_LostGuider.new),
+        profileGuiderProvider.overrideWithValue(
+          const ProfileGuider(
+            kind: ProfileGuiderKind.device,
+            guiderId: 'native:builtin_guider:multi_star',
+          ),
+        ),
+      ],
+    );
+    expect(find.text('Built-in Guider'), findsOneWidget);
+    expect(find.text('Camera lost'), findsOneWidget);
+    expect(find.text('Failed'), findsNothing);
   });
 
   testWidgets('a profile with no guider says so and offers nothing to open',

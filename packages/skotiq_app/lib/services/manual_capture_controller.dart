@@ -357,14 +357,27 @@ class ManualCaptureController extends Notifier<ManualCaptureState> {
     }
   }
 
-  /// Feeds a frame to the live stacker when stacking runs. A remote host
-  /// feeds its own stacker from the frames it saves, so a viewer never does.
+  /// Feeds a light frame to the live stacker when stacking is active or armed
+  /// and auto-feed is enabled. A remote host feeds its own stacker from the
+  /// frames it saves, so a viewer never does.
   void _feedToLiveStacker(CapturedImageData image) {
-    if (!ref.read(liveStackingIsActiveProvider)) return;
+    final stackState = ref.read(liveStackingProvider);
+    if (!stackState.isActiveOrArmed || !stackState.config.autoFeedEnabled) {
+      return;
+    }
     if (ref.read(isRemoteModeProvider)) return;
+    if (image.settings.frameType != FrameType.light) return;
     final filePath = image.filePath;
     if (filePath != null && filePath.isNotEmpty) {
-      ref.read(liveStackingProvider.notifier).addFrameFromFile(filePath);
+      unawaited(
+        ref.read(liveStackingProvider.notifier).addFrameFromFileWithMetadata(
+              filePath,
+              filter: image.settings.filter,
+              exposureSecs: image.settings.exposureTime,
+              hfr: image.stats.hfr,
+              starCount: image.stats.starCount,
+            ),
+      );
     }
   }
 }

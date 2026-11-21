@@ -8,6 +8,19 @@ use crate::state::get_state;
 use crate::unified_device_ops::create_unified_device_ops;
 use skotiq_sequencer::{ExecutorState, SequenceDefinition};
 
+// Keep the standalone flip's admission and a sequence start from both passing.
+// Held for the whole standalone flip, and only while a sequence start is
+// being admitted: once the run is in, the executor state already refuses a flip.
+fn acquire_run_start_guard() -> Result<tokio::sync::MutexGuard<'static, ()>, SkotiqError> {
+    static GATE: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    GATE.try_lock().map_err(|_| {
+        SkotiqError::OperationFailed(
+            "Cannot start: a standalone meridian flip or sequence start is already in progress"
+                .into(),
+        )
+    })
+}
+
 /// Load a sequence from JSON
 pub async fn api_sequencer_load_json(json: String) -> Result<(), SkotiqError> {
     tracing::info!("Loading sequence from JSON");
@@ -62,6 +75,7 @@ pub(crate) async fn seed_executor_site_from_settings(
 
 /// Start the sequence executor
 pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
+    let _start_guard = acquire_run_start_guard()?;
     tracing::info!("Starting sequence execution");
 
     let mut executor = skotiq_sequencer::get_executor().write().await;
@@ -356,6 +370,7 @@ pub async fn api_perform_meridian_flip(
     resume_guiding: bool,
     settle_time_secs: f64,
 ) -> Result<(), SkotiqError> {
+    let _start_guard = acquire_run_start_guard()?;
     {
         let state = skotiq_sequencer::executor_handle().state();
         match state {
@@ -408,8 +423,19 @@ pub async fn api_perform_meridian_flip(
     };
 
     let ops = create_unified_device_ops();
-    let mut flip_executor = skotiq_sequencer::MeridianFlipExecutor::new(config, ops);
-    match flip_executor.execute(&ctx).await {
+    let (progress_tx, mut progress_rx) = tokio::sync::broadcast::channel(64);
+    let state = get_state().clone();
+    let forwarding = tokio::spawn(async move {
+        super::event_bridge::run_sequencer_event_loop(&mut progress_rx, &state).await;
+    });
+    let mut flip_executor = skotiq_sequencer::MeridianFlipExecutor::new(config, ops)
+        .with_progress_event_tx(progress_tx);
+    let result = flip_executor.execute(&ctx).await;
+    drop(flip_executor);
+    if let Err(error) = forwarding.await {
+        tracing::error!("Standalone flip telemetry stopped unexpectedly: {error}");
+    }
+    match result {
         skotiq_sequencer::FlipResult::Success {
             new_pier_side,
             duration_secs,
@@ -459,6 +485,34 @@ mod executor_site_tests {
     use crate::api::sequencer::lifecycle::api_sequencer_start;
     use crate::state::get_state;
     use crate::storage::ObserverLocation;
+
+    #[tokio::test]
+    async fn standalone_flip_ownership_rejects_competing_sequence_and_flip() {
+        let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
+        let guard = super::acquire_run_start_guard().unwrap();
+        let start = api_sequencer_start().await.unwrap_err().to_string();
+        assert!(start.contains("already in progress"), "{start}");
+        let flip = super::api_perform_meridian_flip(
+            "sim_mount_1".into(),
+            None,
+            None,
+            None,
+            "test".into(),
+            5.5,
+            20.0,
+            false,
+            false,
+            false,
+            false,
+            0.0,
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(flip.contains("already in progress"), "{flip}");
+        drop(guard);
+        assert!(super::acquire_run_start_guard().is_ok());
+    }
 
     /// A run must not be able to start without the site the app already knows.
     ///

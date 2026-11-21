@@ -280,3 +280,155 @@ fn smooth_blobs_on_a_starless_frame_are_not_stars() {
         stars.iter().map(|s| (s.x, s.y, s.hfr)).collect::<Vec<_>>()
     );
 }
+
+#[test]
+fn quantized_narrowband_donuts_do_not_hallucinate_sky_noise() {
+    // 12-bit left-shifted (16-ADU step) narrowband frame whose sky mean (324)
+    // sits 4 ADU above the quantized median (320): a wide matched filter that
+    // drops its level or underestimates correlated noise floods empty sky with
+    // hundreds of false detections and drags HFR down.
+    let (w, h) = (1024usize, 1024usize);
+    let mut rng = Rng(0x1600_BEEF);
+    let mut data: Vec<f64> = (0..w * h).map(|_| 324.0 + 30.0 * rng.gauss()).collect();
+
+    let outer = 15.0f64;
+    let inner = 0.5 * outer;
+    let ring_area = std::f64::consts::PI * (outer * outer - inner * inner);
+    let expected_hfr = (0.5 * (outer * outer + inner * inner)).sqrt();
+    let mut truth = Vec::new();
+    for row in 0..3 {
+        for col in 0..4 {
+            let cx = 140.0 + col as f64 * 240.0 + 0.3;
+            let cy = 180.0 + row as f64 * 320.0 + 0.6;
+            truth.push((cx, cy));
+            let flux = 90_000.0 + (row * 4 + col) as f64 * 8_000.0;
+            for y in (cy as i64 - 24)..=(cy as i64 + 24) {
+                for x in (cx as i64 - 24)..=(cx as i64 + 24) {
+                    let dx = x as f64 - cx;
+                    let dy = y as f64 - cy;
+                    let r = dx.hypot(dy);
+                    if (inner..=outer).contains(&r) {
+                        data[y as usize * w + x as usize] += flux / ring_area;
+                    }
+                }
+            }
+        }
+    }
+    let pixels: Vec<u16> = data
+        .iter()
+        .map(|v| ((v / 16.0).round() * 16.0).clamp(0.0, 65535.0) as u16)
+        .collect();
+    let image = ImageData::from_u16(w as u32, h as u32, 1, &pixels);
+    let stars = detect_stars(&image, &config());
+    let result = detect_stars_with_stats(&image, &config());
+
+    assert!(
+        (10..=14).contains(&stars.len()),
+        "expected ~12 real donuts, got {} detections ({} usable)",
+        stars.len(),
+        result.star_count
+    );
+    for s in &stars {
+        assert!(
+            nearest(&truth, s) <= 4.0,
+            "false sky detection at ({:.1}, {:.1}) hfr={:.2}",
+            s.x,
+            s.y,
+            s.hfr
+        );
+    }
+    assert!(
+        (result.median_hfr / expected_hfr - 1.0).abs() < 0.12,
+        "HFR {:.2} against expected {expected_hfr:.2}",
+        result.median_hfr
+    );
+}
+
+#[test]
+fn dim_asymmetric_spider_donuts_measure_whole_not_as_knots() {
+    // Low-SNR narrowband Newtonian donuts with 4 spider shadows, collimation
+    // asymmetry and mild coma ellipticity: a narrow pass alone shatters each
+    // ring into elongated arcs and tiny 2-3 px rim knots.
+    let (w, h) = (1024usize, 1024usize);
+    let mut rng = Rng(0xD040_7777);
+    let mut data: Vec<f64> = (0..w * h).map(|_| 320.0 + 30.0 * rng.gauss()).collect();
+
+    let outer = 14.0f64;
+    let inner = 0.5 * outer;
+    let ellip = 1.25f64;
+    let mut truth = Vec::new();
+    for row in 0..3 {
+        for col in 0..4 {
+            let cx = 140.0 + col as f64 * 240.0 + 0.4;
+            let cy = 180.0 + row as f64 * 320.0 + 0.2;
+            truth.push((cx, cy));
+            let mut weights = Vec::new();
+            let mut sum = 0.0;
+            for y in (cy as i64 - 24)..=(cy as i64 + 24) {
+                for x in (cx as i64 - 24)..=(cx as i64 + 24) {
+                    let dx = x as f64 - cx;
+                    let dy = y as f64 - cy;
+                    let r = (dx / ellip).hypot(dy);
+                    if (inner..=outer).contains(&r) {
+                        let vane = if dx.abs() < 1.3 || dy.abs() < 1.3 {
+                            0.15
+                        } else {
+                            1.0
+                        };
+                        let asym = (1.0 + 0.55 * (dx / (outer * ellip))).max(0.1);
+                        let wt = vane * asym;
+                        weights.push((y as usize * w + x as usize, wt));
+                        sum += wt;
+                    }
+                }
+            }
+            // Dim: peak pixel in the ring sits near the 1.5-px detection edge,
+            // so the narrow pass alone only catches rim arcs/knots.
+            let flux = 13_000.0 + (row * 4 + col) as f64 * 800.0;
+            for (idx, wt) in weights {
+                data[idx] += flux * wt / sum;
+            }
+        }
+    }
+    let pixels: Vec<u16> = data
+        .iter()
+        .map(|v| ((v / 16.0).round() * 16.0).clamp(0.0, 65535.0) as u16)
+        .collect();
+    let image = ImageData::from_u16(w as u32, h as u32, 1, &pixels);
+    let stars = detect_stars(&image, &config());
+
+    assert!(
+        stars.len() >= 8 && stars.len() <= 14,
+        "expected 8..=14 whole donuts, got {}: {:?}",
+        stars.len(),
+        stars
+            .iter()
+            .map(|s| (
+                s.x.round(),
+                s.y.round(),
+                (s.hfr * 10.0).round() / 10.0,
+                (s.snr * 10.0).round() / 10.0
+            ))
+            .collect::<Vec<_>>()
+    );
+    for (i, a) in stars.iter().enumerate() {
+        for b in &stars[i + 1..] {
+            let d = (a.x - b.x).hypot(a.y - b.y);
+            assert!(
+                d >= outer,
+                "donut shattered into detections {d:.1} px apart at ({:.1},{:.1}) and ({:.1},{:.1})",
+                a.x,
+                a.y,
+                b.x,
+                b.y
+            );
+        }
+    }
+    let mut hfrs: Vec<f64> = stars.iter().map(|s| s.hfr).collect();
+    hfrs.sort_by(f64::total_cmp);
+    let median_hfr = hfrs[hfrs.len() / 2];
+    assert!(
+        median_hfr > 9.5 && median_hfr < 14.5,
+        "dim defocused donuts measured HFR {median_hfr:.2}, expected ~11-12 px"
+    );
+}

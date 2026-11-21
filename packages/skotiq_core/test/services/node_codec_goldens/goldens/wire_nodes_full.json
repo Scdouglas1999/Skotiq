@@ -55,7 +55,6 @@
     "id": "n-CenterTarget",
     "name": "Center custom",
     "node_type": {
-      "accuracy_arcsec": 2.5,
       "custom_dec": -5.3,
       "custom_ra": 5.6,
       "exposure_duration": 8.0,

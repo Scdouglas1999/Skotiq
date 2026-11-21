@@ -49,6 +49,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   String? _errorMessage;
   int _bannerGeneration = 0;
   StreamSubscription<String>? _lanPushFailures;
+  Timer? _stagedCheckTimer;
+  Timer? _updateCheckTimer;
+  Timer? _bannerDismissTimer;
   static const _disabledUpdatesLog =
       '[UpdateManager] No update source configured, skipping update checks';
 
@@ -61,10 +64,11 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   void initState() {
     super.initState();
     // An update staged by an earlier run, downloaded or pushed.
-    Future.delayed(const Duration(seconds: 1), _checkForStagedUpdate);
+    _stagedCheckTimer =
+        Timer(const Duration(seconds: 1), _checkForStagedUpdate);
 
     // Check for updates on startup after a short delay
-    Future.delayed(const Duration(seconds: 3), _checkForUpdates);
+    _updateCheckTimer = Timer(const Duration(seconds: 3), _checkForUpdates);
 
     _lanPushFailures =
         ref.read(updateProvider.notifier).lanPushFailures.listen((error) {
@@ -86,6 +90,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     );
     final updateNotifier = ref.read(updateProvider.notifier);
     await updateNotifier.checkStagedUpdate();
+    if (!mounted) return;
 
     final notice = updateNotifier.takePendingNotice();
     if (notice != null) {
@@ -110,6 +115,8 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   void _showReadyBanner(String version, {bool autoDismiss = true}) {
     if (!mounted) return;
     final generation = ++_bannerGeneration;
+    _bannerDismissTimer?.cancel();
+    _bannerDismissTimer = null;
 
     Log.debug(
       'Showing banner for version: $version',
@@ -122,7 +129,7 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
     });
 
     if (autoDismiss) {
-      Future.delayed(const Duration(seconds: 60), () {
+      _bannerDismissTimer = Timer(const Duration(seconds: 60), () {
         if (mounted && _showingBanner && generation == _bannerGeneration) {
           setState(() => _showingBanner = false);
         }
@@ -131,6 +138,8 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   }
 
   void _hideBanner() {
+    _bannerDismissTimer?.cancel();
+    _bannerDismissTimer = null;
     if (mounted) {
       _bannerGeneration++;
       setState(() {
@@ -143,13 +152,14 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
   void _showErrorBanner(String error) {
     if (!mounted) return;
     final generation = ++_bannerGeneration;
+    _bannerDismissTimer?.cancel();
     setState(() {
       _showingBanner = true;
       _errorMessage = error;
     });
 
     // Auto-dismiss after 10 seconds
-    Future.delayed(const Duration(seconds: 10), () {
+    _bannerDismissTimer = Timer(const Duration(seconds: 10), () {
       if (mounted && generation == _bannerGeneration) {
         _hideBanner();
       }
@@ -341,6 +351,9 @@ class _UpdateManagerWidgetState extends ConsumerState<UpdateManagerWidget> {
 
   @override
   void dispose() {
+    _stagedCheckTimer?.cancel();
+    _updateCheckTimer?.cancel();
+    _bannerDismissTimer?.cancel();
     _lanPushFailures?.cancel();
     super.dispose();
   }

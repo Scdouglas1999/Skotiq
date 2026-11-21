@@ -59,8 +59,13 @@ pub struct RunConfig {
     /// Highest Sun altitude at which a light frame may be taken. Read it
     /// through [`RunConfig::max_sun_altitude`], which resolves the default.
     pub max_sun_altitude_degrees: Option<f64>,
-    /// Filter name -> focus offset in steps.
+    /// Filter name -> focus offset in steps, measured from
+    /// [`Self::filter_focus_reference`].
     pub filter_focus_offsets: HashMap<String, i32>,
+    /// The filter the offsets are measured from. It has offset 0 even with
+    /// no row. A filter with no row is not this filter.
+    #[serde(default)]
+    pub filter_focus_reference: Option<String>,
     /// What missing safety data means.
     pub safety_fail_mode: SafetyFailMode,
     /// Cadence of safety and humidity device polls. `0` is the default
@@ -106,7 +111,14 @@ pub struct RunConfig {
     /// flat is taken only with the sensor this close to the cooler's
     /// set-point. `None` holds them to the set-point's read jitter.
     pub calibration_temperature_tolerance_c: Option<f64>,
+    /// How close to the target, in arcseconds, every centering of the run
+    /// counts as centered: the Center step, the recenters of the frame watch
+    /// and the drift trigger, and the recenter after a mount fault.
+    pub centering_tolerance_arcsec: f64,
 }
+
+/// The centering tolerance of a fresh install, in arcseconds.
+pub const DEFAULT_CENTERING_TOLERANCE_ARCSEC: f64 = 5.0;
 
 /// What is saved for a frame from a camera that delivers its own file (a
 /// DSLR's or mirrorless body's raw file). A camera that delivers none (every
@@ -221,6 +233,7 @@ impl Default for RunConfig {
             altitude_floor: None,
             max_sun_altitude_degrees: None,
             filter_focus_offsets: HashMap::new(),
+            filter_focus_reference: None,
             safety_fail_mode: SafetyFailMode::default(),
             safety_check_interval_secs: 0,
             weather_verdict_staleness_secs: 0,
@@ -238,11 +251,33 @@ impl Default for RunConfig {
             camera_file_saving: CameraFileSaving::default(),
             frame_format: FrameFormat::default(),
             calibration_temperature_tolerance_c: None,
+            centering_tolerance_arcsec: DEFAULT_CENTERING_TOLERANCE_ARCSEC,
         }
     }
 }
 
 impl RunConfig {
+    /// The dither a run takes: the operator's dither settings once the app
+    /// has pushed them (non-zero pixels), with the pattern and grid size of
+    /// `step`, which those settings do not carry; `step` itself before then.
+    /// The Dither Interval trigger and a Smart Exposure's own dithers both
+    /// take it, read as each dither starts.
+    pub fn dither_for(&self, step: &crate::DitherConfig) -> crate::DitherConfig {
+        if self.dither.pixels > 0.0 {
+            crate::DitherConfig {
+                pixels: self.dither.pixels,
+                settle_pixels: self.dither.settle_pixels,
+                settle_time: self.dither.settle_time,
+                settle_timeout: self.dither.settle_timeout,
+                ra_only: self.dither.ra_only,
+                pattern: step.pattern,
+                grid_size: step.grid_size,
+            }
+        } else {
+            step.clone()
+        }
+    }
+
     /// The daylight gate's limit: the pushed value, or nautical darkness
     /// when nothing usable was pushed, so the native gate is never weaker
     /// than the app's gate it backstops.
@@ -301,6 +336,12 @@ impl RunConfig {
                 self.recovery.max_duration_secs
             ));
         }
+        if !self.centering_tolerance_arcsec.is_finite() || self.centering_tolerance_arcsec <= 0.0 {
+            problems.push(format!(
+                "the centering tolerance must be more than 0 arcsec (was {})",
+                self.centering_tolerance_arcsec
+            ));
+        }
         if problems.is_empty() {
             Ok(())
         } else {
@@ -312,9 +353,8 @@ impl RunConfig {
     }
 
     /// The value as it is stored: an unset site as `None`, the safety poll
-    /// cadence and the retry counts inside their limits, blank names and
-    /// folders as unset, and a star-count floor arming the star-count drop
-    /// check (both grade the same count, and the drop scales to the field).
+    /// cadence and the retry counts inside their limits, and blank names and
+    /// folders as unset.
     fn sanitized(mut self) -> Self {
         (self.latitude, self.longitude) =
             crate::node::context::normalized_observer_location(self.latitude, self.longitude);
@@ -335,12 +375,6 @@ impl RunConfig {
             &mut profile.telescope_name,
         ] {
             *name = non_blank(name.take());
-        }
-        if let Some(check) = &mut self.default_quality_check {
-            if check.star_count_min.is_some() && check.star_count_drop_percent.is_none() {
-                check.star_count_drop_percent =
-                    Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT);
-            }
         }
         self
     }
@@ -380,10 +414,11 @@ pub(crate) enum Section {
     CameraFileSaving,
     FrameFormat,
     CalibrationTemperatureTolerance,
+    CenteringTolerance,
 }
 
 impl Section {
-    const ALL: [Section; 24] = [
+    const ALL: [Section; 25] = [
         Section::Dither,
         Section::Autofocus,
         Section::AutofocusInterval,
@@ -408,6 +443,7 @@ impl Section {
         Section::CameraFileSaving,
         Section::FrameFormat,
         Section::CalibrationTemperatureTolerance,
+        Section::CenteringTolerance,
     ];
 
     /// The name the change is announced under in
@@ -438,6 +474,7 @@ impl Section {
             Section::CameraFileSaving => "camera_file_saving",
             Section::FrameFormat => "frame_format",
             Section::CalibrationTemperatureTolerance => "calibration_temperature_tolerance",
+            Section::CenteringTolerance => "centering_tolerance",
         }
     }
 }
@@ -454,6 +491,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         altitude_floor,
         max_sun_altitude_degrees,
         filter_focus_offsets,
+        filter_focus_reference,
         safety_fail_mode,
         safety_check_interval_secs,
         weather_verdict_staleness_secs,
@@ -471,6 +509,7 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         camera_file_saving,
         frame_format,
         calibration_temperature_tolerance_c,
+        centering_tolerance_arcsec,
     } = new;
     [
         (Section::Dither, *dither != old.dither),
@@ -493,7 +532,8 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         ),
         (
             Section::FilterOffsets,
-            *filter_focus_offsets != old.filter_focus_offsets,
+            *filter_focus_offsets != old.filter_focus_offsets
+                || *filter_focus_reference != old.filter_focus_reference,
         ),
         (
             Section::SafetyFailMode,
@@ -547,6 +587,10 @@ fn changed_sections(old: &RunConfig, new: &RunConfig) -> Vec<Section> {
         (
             Section::CalibrationTemperatureTolerance,
             *calibration_temperature_tolerance_c != old.calibration_temperature_tolerance_c,
+        ),
+        (
+            Section::CenteringTolerance,
+            *centering_tolerance_arcsec != old.centering_tolerance_arcsec,
         ),
     ]
     .into_iter()
@@ -1199,7 +1243,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn blank_names_are_unset_and_a_star_floor_arms_the_drop_check() {
+    async fn blank_names_are_unset_and_each_grading_check_is_its_own_setting() {
         let rig = rig();
         rig.update(|config| {
             config.reject_folder_path = Some("   ".to_string());
@@ -1209,6 +1253,7 @@ mod tests {
                 hfr_threshold: None,
                 hfr_baseline_percent: None,
                 eccentricity_threshold: None,
+                eccentricity_baseline_percent: None,
                 star_count_min: Some(20),
                 star_count_drop_percent: None,
                 max_consecutive_rejects: 3,
@@ -1222,11 +1267,13 @@ mod tests {
             Some("Ada")
         );
         assert_eq!(config.observer_profile.telescope_name, None);
+        // The relative star-count check is a setting of its own: a floor
+        // the operator set does not turn it on behind their back.
         assert_eq!(
             config
                 .default_quality_check
                 .and_then(|check| check.star_count_drop_percent),
-            Some(crate::quality::DEFAULT_STAR_COUNT_DROP_PERCENT)
+            None
         );
     }
 

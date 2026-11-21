@@ -22,6 +22,8 @@ final class RemoteImagingRecords implements ImagingRecords {
   final Duration _pollInterval;
   final _poll = HostPoll('imaging records');
 
+  void dispose() => _poll.dispose();
+
   @override
   Future<List<db.ImagingSession>> getAllSessions() async {
     final rows = await _host.getAllSessions();
@@ -215,7 +217,17 @@ final class RemoteImagingRecords implements ImagingRecords {
   void notifyGradedFrame(int id) {}
 
   @override
-  Future<StoredWcsDistortion?> getStoredWcsDistortion(int id) async => null;
+  Future<StoredWcsDistortion?> getStoredWcsDistortion(int id) async {
+    final image = await getImageById(id);
+    if (image == null) return null;
+    return (
+      cd1_1: image.solvedCd1_1,
+      cd1_2: image.solvedCd1_2,
+      cd2_1: image.solvedCd2_1,
+      cd2_2: image.solvedCd2_2,
+      sip: image.solvedSip,
+    );
+  }
 
   @override
   Future<void> stampProducingNode({

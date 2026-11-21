@@ -366,4 +366,66 @@ void main() {
     );
     expect(stored, contains('286.2'));
   });
+
+  test('a saved frame and its assessment notify linked viewers', () async {
+    final (container, executor) = build();
+    await container
+        .read(sessionStateProvider.notifier)
+        .startSession(targetName: 'NGC0891');
+    final remote = <bridge_event.SkotiqEvent>[];
+    container.read(hostMutationEventHubProvider).wsBroadcast = remote.add;
+
+    const kept = '/captures/kept.fits';
+    const rejected = '/captures/rejected.fits';
+    executor.handleSequencerEventForTest(
+      _graded(path: kept, secs: 60, accepted: true),
+    );
+    await executor.liveStackingFeedSettledForTest;
+    executor.handleSequencerEventForTest(
+      frameVerdictEvent(
+        accepted: false,
+        nodeId: _nodeId,
+        path: rejected,
+        frame: 2,
+        capture: testCapture(exposureSecs: 60),
+      ),
+    );
+    await executor.liveStackingFeedSettledForTest;
+
+    final images = container.read(imagesDaoProvider);
+    final keptRow = (await images.getImageByFilePath(kept))!;
+    final rejectedRow = (await images.getImageByFilePath(rejected))!;
+    final created = remote
+        .where(
+          (event) =>
+              event.data['entityType'] == HostMutationEntity.capturedImage &&
+              event.data['action'] == HostMutationAction.created,
+        )
+        .toList();
+    expect(created.map((event) => event.data['entityId']), [
+      keptRow.id.toString(),
+      rejectedRow.id.toString(),
+    ]);
+
+    final before = remote.length;
+    executor.handleSequencerEventForTest(
+      _assessed({'save_path': kept, 'background_adu': 1234}),
+    );
+    await executor.liveStackingFeedSettledForTest;
+    final next = remote
+        .skip(before)
+        .where(
+          (event) =>
+              event.data['entityType'] == HostMutationEntity.capturedImage,
+        )
+        .single;
+    expect(next.data['action'], HostMutationAction.updated);
+    expect(next.data['entityId'], keptRow.id.toString());
+    expect(
+      remote.where(
+        (event) => event.data['entityType'] == HostMutationEntity.capturedImage,
+      ),
+      hasLength(3),
+    );
+  });
 }

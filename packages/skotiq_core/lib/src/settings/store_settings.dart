@@ -15,6 +15,7 @@ import '../models/notification/notification_categories.dart'
     show NotificationTransportKind;
 import '../models/sequence/sequence_models.dart'
     show BinningMode, LiveStackingThumbnailSize;
+import '../models/site/learned_obstruction.dart' show ObstructionAction;
 import 'setting.dart';
 import '../models/sync/sync_models.dart';
 
@@ -400,11 +401,23 @@ abstract final class StoreSettings {
     30,
     sync: SettingSync.hostStore,
   );
+
+  /// Obstruction detection guesses from star counts, so it is off until the
+  /// operator turns it on: a false positive must never end a night.
   static const frameWatchObstructionDetection = BoolSetting(
     'frameWatchObstructionDetection',
     'frame_watch_obstruction_detection',
-    true,
-    unreadableIsFallback: true,
+    false,
+    sync: SettingSync.hostStore,
+  );
+
+  /// What a confirmed obstruction does to the run: only tell the operator
+  /// unless they chose to move on.
+  static const frameWatchObstructionAction = EnumSetting<ObstructionAction>(
+    'frameWatchObstructionAction',
+    'frame_watch_obstruction_action',
+    ObstructionAction.notify,
+    ObstructionAction.values,
     sync: SettingSync.hostStore,
   );
 
@@ -730,6 +743,15 @@ abstract final class StoreSettings {
     sync: SettingSync.hostStore,
   );
 
+  /// This database has been through the rule that turned off the absolute
+  /// grading limits a profile held only as the old defaults (2026-11-17).
+  static const gradingRelativeDefaultsMigrated = BoolSetting(
+    'gradingRelativeDefaultsMigrated',
+    'image_grading.relative_defaults_migrated',
+    false,
+    sync: SettingSync.hostStore,
+  );
+
   /// `pending` while the one-time "Your Sky is now off" notice is owed,
   /// `shown` once it is answered.
   static const scienceSkyAtlasOffNotice = OptionalTextSetting(
@@ -814,14 +836,8 @@ abstract final class StoreSettings {
     false,
     sync: SettingSync.hostStore,
   );
-  static const scienceAutoFrameGrading = BoolSetting(
-    'scienceAutoFrameGrading',
-    'science.grading.auto_enabled',
-    false,
-    sync: SettingSync.hostStore,
-  );
 
-  /// The frame grading rules. Not set: the conservative defaults.
+  /// The Image Grader dialog's rules. Not set: suggested from the frames.
   static const scienceFrameGradeRules = OptionalTextSetting(
     'scienceFrameGradeRules',
     'science.grading.rules_json',
@@ -1017,6 +1033,7 @@ abstract final class StoreSettings {
     frameWatchRecenter,
     frameWatchDriftLimit,
     frameWatchObstructionDetection,
+    frameWatchObstructionAction,
     learnedHorizonPoints,
     calibrationAutoCalibrate,
     calibrationAutoDarkFromLibrary,
@@ -1050,6 +1067,7 @@ abstract final class StoreSettings {
     scienceSkyAtlas,
     scienceSkyAtlasLimitGb,
     scienceSkyAtlasOptInMigrated,
+    gradingRelativeDefaultsMigrated,
     scienceSkyAtlasOffNotice,
     scienceManualPurgeOnly,
     scienceFitsHeaderWriteback,
@@ -1063,7 +1081,6 @@ abstract final class StoreSettings {
     scienceTnsDataSourceId,
     scienceTnsReporterName,
     scienceTnsUseSandbox,
-    scienceAutoFrameGrading,
     scienceFrameGradeRules,
     scienceGuideCollapsed,
     scienceOverlayOpacity,

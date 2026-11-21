@@ -109,7 +109,9 @@ List<Override> _readyRig({
         const NightSafetyReading(monitoring: true, safe: true),
       ),
       clockProvider.overrideWithValue(const SystemClock()),
-      nightSessionNowProvider.overrideWithValue(DateTime(2026, 10, 19, 18, 36)),
+      // 18:36 in Boston (EDT), whatever zone this machine runs in.
+      nightSessionNowProvider
+          .overrideWithValue(DateTime.utc(2026, 10, 19, 22, 36)),
     ];
 
 CurrentSky _modelSky(double percent) => CurrentSky(
@@ -492,16 +494,19 @@ void main() {
       final items = await _checklist(h);
       final dawn = _item(items, ChecklistItemId.dawn);
       final expected = nightDawnParkTime(
-        now: DateTime(2026, 10, 19, 18, 36),
+        now: DateTime.utc(2026, 10, 19, 22, 36),
         latitude: 42.36,
         longitude: -71.06,
       )!;
       final dawnUtc = AstronomyCalculations.twilightTimesNear(
-        instant: DateTime(2026, 10, 19, 12),
+        instant: DateTime.utc(2026, 10, 19, 16),
         latitudeDeg: 42.36,
         longitudeDeg: -71.06,
       ).astronomicalDawn!;
-      expect(expected, dawnUtc.subtract(const Duration(minutes: 30)));
+      expect(
+        expected.toUtc(),
+        dawnUtc.toUtc().subtract(const Duration(minutes: 30)),
+      );
       expect(dawn.state, ChecklistItemState.ok);
       expect(dawn.detail!.key, 'nightSessionCheckDawnPark');
       expect(

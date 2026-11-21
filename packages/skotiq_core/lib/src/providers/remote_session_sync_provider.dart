@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
+import '../models/sequence/sequence_models.dart';
+import '../services/imaging_service.dart' show exposureProgressProvider;
+import 'equipment/camera_state_provider.dart';
+import 'sequence/sequence_progress.dart';
 import '../utils/poll_pace.dart';
 import 'backend_provider.dart';
 import 'remote_sync_handler.dart';
@@ -70,6 +74,19 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
       }),
     );
   };
+
+  ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider, (
+    previous,
+    next,
+  ) {
+    if (ref.read(backendProvider).linksToHost &&
+        previous?.isBusy == true &&
+        next.canStart) {
+      // Sequence cleanup can end an exposure without a camera terminal event.
+      ref.read(cameraStateProvider.notifier).setExposing(false);
+      ref.read(exposureProgressProvider.notifier).reset();
+    }
+  });
 
   ref.onDispose(teardown);
 

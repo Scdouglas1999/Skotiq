@@ -1,7 +1,7 @@
 // The Overview tab (Tonight.dc.html): the last frame, the session, the
 // equipment, the conditions and the log. Before a run "Before you start" and
 // the next step take the place of the last frame and the session
-// (TonightReady.dc.html).
+// (TonightReady.dc.html). During a run the current operation leads.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -30,6 +30,7 @@ import '../panel_ops.dart';
 import '../panel_widgets.dart';
 import 'after_run_section.dart';
 import 'next_step_section.dart';
+import 'night_activity_panel.dart';
 import 'overview_sections.dart';
 import 'run_sections.dart';
 import '../../../../router/app_routes.dart';
@@ -66,6 +67,7 @@ class NightOverviewTab extends ConsumerWidget {
           ),
           const NightNextStepSection(),
         ] else ...<Widget>[
+          const NightActivityPanel(),
           NightLastFrameSection(frame: ref.watch(nightLastFrameProvider)),
           NightSessionSection(session: ref.watch(nightSessionStatsProvider)),
           if (phase == NightRunPhase.finished) const NightAfterRunSection(),

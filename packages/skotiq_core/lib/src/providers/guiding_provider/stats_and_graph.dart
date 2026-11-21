@@ -1,9 +1,20 @@
 part of '../guiding_provider.dart';
 
-double _guideAxisPixels(Map<String, dynamic> json, {required bool isRa}) {
+/// A guide-step axis, or null when it is missing or not a finite number.
+/// Those steps are dropped, not drawn at 0.
+double? finiteGuideAxis(Map<String, dynamic> json, {required bool isRa}) {
   final raw = json[isRa ? 'RADistanceRaw' : 'DECDistanceRaw'];
-  return (raw ?? 0).toDouble();
+  if (raw is! num) return null;
+  final value = raw.toDouble();
+  return value.isFinite ? value : null;
 }
+
+/// Enabled only after a host supplies the guiding snapshot. Until then a
+/// client still builds its graph from the events it receives.
+final hostGuidingMirrorActiveProvider = StateProvider<bool>((ref) {
+  ref.watch(backendProvider);
+  return false;
+});
 
 /// Listens to [backendProvider.eventStream] and re-binds when the backend
 /// instance changes (e.g. mobile companion connects via [NetworkBackend]).
@@ -110,7 +121,7 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted) return;
+    if (!mounted || ref.read(hostGuidingMirrorActiveProvider)) return;
     if (event.category == EventCategory.guiding) {
       if (event.eventType == 'GuideStep') {
         _logger.debug('Received GuideStep event', source: 'GuideStatsNotifier');
@@ -138,8 +149,9 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
   }
 
   void _handleGuideStep(Map<String, dynamic> json) {
-    final raDistance = _guideAxisPixels(json, isRa: true);
-    final decDistance = _guideAxisPixels(json, isRa: false);
+    final raDistance = finiteGuideAxis(json, isRa: true);
+    final decDistance = finiteGuideAxis(json, isRa: false);
+    if (raDistance == null || decDistance == null) return;
 
     _rmsRaCalculator.add(raDistance);
     _rmsDecCalculator.add(decDistance);
@@ -197,8 +209,15 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
     );
   }
 
+  void applyHostStats(Phd2GuideStats stats) {
+    _frameCount = stats.frameCount;
+    _loopFrameCount = stats.loopFrameCount;
+    state = stats;
+  }
+
   /// Update just the star data (SNR and star mass) from a separate event
   void updateStarData(double snr, double starMass) {
+    if (ref.read(hostGuidingMirrorActiveProvider)) return;
     state = Phd2GuideStats(
       rmsRa: state.rmsRa,
       rmsDec: state.rmsDec,
@@ -407,30 +426,48 @@ class GuideGraphNotifier extends StateNotifier<List<GuideGraphPoint>> {
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted) return;
+    if (!mounted || ref.read(hostGuidingMirrorActiveProvider)) return;
     if (event.category == EventCategory.guiding &&
         event.eventType == 'GuideStep') {
       final json = event.data;
-      final ra = _guideAxisPixels(json, isRa: true);
-      final dec = _guideAxisPixels(json, isRa: false);
+      final ra = finiteGuideAxis(json, isRa: true);
+      final dec = finiteGuideAxis(json, isRa: false);
+      if (ra == null || dec == null) return;
       _logger.debug(
         'Adding point: RA=$ra, Dec=$dec',
         source: 'GuideGraphNotifier',
       );
-      addPoint(ra, dec);
+      addPoint(
+        ra,
+        dec,
+        at: event.timestamp > 0
+            ? DateTime.fromMillisecondsSinceEpoch(event.timestamp)
+            : DateTime.now(),
+      );
     } else if (event.category == EventCategory.guiding &&
         event.eventType == 'GuidingStopped') {
       clear();
     }
   }
 
-  void addPoint(double ra, double dec) {
-    final point = GuideGraphPoint(ra, dec, DateTime.now());
+  void addPoint(double ra, double dec, {DateTime? at}) {
+    if (!ra.isFinite || !dec.isFinite) return;
+    final point = GuideGraphPoint(ra, dec, at ?? DateTime.now());
     _buffer.add(point);
     if (_buffer.length > maxPoints) {
       _buffer.removeFirst();
     }
     state = _buffer.toList(); // Single list creation instead of two
+  }
+
+  void applyHostHistory(List<GuideGraphPoint> points) {
+    _buffer
+      ..clear()
+      ..addAll(points.where((p) => p.ra.isFinite && p.dec.isFinite));
+    while (_buffer.length > maxPoints) {
+      _buffer.removeFirst();
+    }
+    state = List.unmodifiable(_buffer);
   }
 
   void clear() {

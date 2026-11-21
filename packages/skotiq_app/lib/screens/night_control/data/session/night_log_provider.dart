@@ -30,7 +30,8 @@ import 'package:skotiq_core/providers.dart'
         focuserStateProvider,
         guiderStateProvider,
         mountStateProvider,
-        rotatorStateProvider;
+        rotatorStateProvider,
+        runtimeHostSessionProvider;
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 
 import '../../../../services/run_dashboard_providers.dart'
@@ -79,6 +80,7 @@ final nightLogFeedEventsProvider =
 class NightLogFeedRecorder extends Notifier<List<sk_events.SkotiqEvent>> {
   @override
   List<sk_events.SkotiqEvent> build() {
+    ref.watch(runtimeHostSessionProvider);
     ref.listen<List<sk_events.SkotiqEvent>>(
       eventHistoryProvider,
       (previous, next) => _record(previous ?? const [], next),

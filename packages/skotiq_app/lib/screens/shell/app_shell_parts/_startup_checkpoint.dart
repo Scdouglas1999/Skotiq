@@ -46,6 +46,16 @@ class CheckpointAttemptFailure {
 Future<bool> hostRunHoldsCheckpoint(HostControlSession? hostControl) async =>
     hostControl != null && await hostControl.hostRunInFlight();
 
+/// A linked client leaves a host checkpoint alone when the host already has
+/// a plan open in the editor. An idle host with an empty editor still offers
+/// recovery. This does not resume or discard.
+@visibleForTesting
+bool hostOpenPlanDefersCheckpoint({
+  required bool linkedClient,
+  required bool hostHasOpenPlan,
+}) =>
+    linkedClient && hostHasOpenPlan;
+
 /// Whether launch offers to recover [info]'s run: only a run the app died
 /// under. A run that was stopped, failed or ended early keeps its checkpoint
 /// and is continued from History instead of being raised as an interruption.
@@ -253,6 +263,7 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
   required Future<void> Function() resume,
   required Future<void> Function() discard,
   required Future<bool> Function() checkpointStillResumable,
+  Future<bool> Function()? canRecover,
 }) async {
   CheckpointAttemptFailure? lastFailure;
   while (true) {
@@ -260,6 +271,11 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
     if (choice == null) return AppStartupCheckpointOutcome.failed;
 
     try {
+      if (choice != AppCheckpointRecoveryChoice.later &&
+          canRecover != null &&
+          !await canRecover()) {
+        return AppStartupCheckpointOutcome.deferred;
+      }
       switch (choice) {
         case AppCheckpointRecoveryChoice.resume:
           await resume();

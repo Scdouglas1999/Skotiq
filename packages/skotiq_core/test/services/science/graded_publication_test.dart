@@ -10,26 +10,35 @@ import 'package:skotiq_core/services.dart';
 
 class _Science extends Mock implements ScienceBackend {}
 
+/// Science with image grading on and grading rules saved in the Image
+/// Grader, the settings under which the pipeline graded frames a second time.
 class _Settings extends ScienceSettingsNotifier {
   @override
-  Future<ScienceSettings> build() async => const ScienceSettings(
-    frameQualityMapsEnabled: false,
-    photometricCalibrationEnabled: false,
-    transparencyEnabled: false,
-    psfMapEnabled: false,
-    astrometricResidualsEnabled: false,
-    photometryEnabled: false,
-    fitsHeaderWritebackEnabled: false,
-    autoFrameGradingEnabled: true,
-    frameGradeRulesJson: '{"maxGuidingRms":1.2}',
-  );
+  Future<ScienceSettings> build() async =>
+      ScienceSettings.fromRows(const {
+        'image_grading_enabled': 'true',
+        'science.grading.rules_json': '{"maxGuidingRms":1.2,"maxHfr":3.2}',
+      }).copyWith(
+        frameQualityMapsEnabled: false,
+        photometricCalibrationEnabled: false,
+        transparencyEnabled: false,
+        psfMapEnabled: false,
+        astrometricResidualsEnabled: false,
+        photometryEnabled: false,
+        fitsHeaderWritebackEnabled: false,
+      );
 }
 
 void main() {
   setUpAll(() => registerFallbackValue(const SolveOptions()));
 
+  // IC 405, 2026-11-16: the science pipeline graded frames a second time
+  // against absolute limits and marked frames the run kept as rejected, so
+  // Tonight's strip and the run disagreed. The run's verdict is the only one:
+  // the pipeline publishes what the run kept and leaves every verdict as the
+  // run wrote it.
   test(
-    'the real pipeline grades before publishing and omits rejected frames',
+    'the pipeline keeps the run\'s verdict and publishes only what it kept',
     () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       final science = _Science();
@@ -54,26 +63,40 @@ void main() {
         await db.close();
       });
       const wcs = WcsSolution(
-        raHours: 2.375,
-        decDegrees: 42.35,
+        raHours: 5.27,
+        decDegrees: 34.47,
         pixelScaleArcsecPerPixel: .788,
-        rotationDegrees: -21.3,
+        rotationDegrees: 179,
         fieldWidthDegrees: 1,
         fieldHeightDegrees: 1,
         solverId: 'test',
       );
-      for (final rms in [.67, 1.37]) {
-        final path = '/test/NGC891-$rms.fits';
+      // Kept by the run with guiding and HFR past the old absolute rules
+      // (guiding 1.2", HFR 3.2 px), and one the run rejected.
+      final frames = <({String name, bool kept, String? reason})>[
+        (name: 'IC405_Ha_0001', kept: true, reason: null),
+        (
+          name: 'IC405_Ha_0002',
+          kept: false,
+          reason: 'HFR 4.12 px exceeds baseline 2.80 px + 50% (limit 4.20 px)',
+        ),
+      ];
+      for (final frame in frames) {
+        final path = '/test/${frame.name}.fits';
         final id = await db
             .into(db.capturedImages)
             .insert(
               CapturedImagesCompanion.insert(
                 filePath: path,
-                fileName: 'NGC891-$rms.fits',
-                exposureDuration: 120,
-                capturedAt: DateTime.utc(2026, 10, 27),
-                guidingRmsTotal: Value(rms),
+                fileName: '${frame.name}.fits',
+                exposureDuration: 180,
+                capturedAt: DateTime.utc(2026, 11, 17, 2),
+                guidingRmsTotal: const Value(1.37),
+                hfr: const Value(3.61),
+                starCount: const Value(900),
                 mountAltitude: const Value(50),
+                isAccepted: Value(frame.kept),
+                rejectionReason: Value(frame.reason),
               ),
             );
         when(
@@ -89,8 +112,9 @@ void main() {
         );
         await Future<void>.delayed(const Duration(milliseconds: 10));
         final row = (await repo.getImageById(id))!;
-        expect(row.isAccepted, rms < 1.2);
-        expect(published.contains(id), rms < 1.2);
+        expect(row.isAccepted, frame.kept, reason: frame.name);
+        expect(row.rejectionReason, frame.reason, reason: frame.name);
+        expect(published.contains(id), frame.kept, reason: frame.name);
       }
       expect(published, hasLength(1));
     },

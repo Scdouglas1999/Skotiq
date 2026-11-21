@@ -232,6 +232,61 @@ extension _SequencerLifecycle on SequencerHandlers {
   /// same pre-flight panel the desktop dialog does.
   Future<Response> _handleSequencerStart(Request request) async {
     _logInfo('[API] POST /api/sequencer/start');
+    final payload = await readJsonObjectOrEmpty(request);
+    final ignoreHistory =
+        optionalBool(payload, 'ignoreUnavailableHistory') ?? false;
+    final handoff = <int, SessionHandoffDecision>{};
+    if (payload.containsKey('handoffDecisions')) {
+      final choices = requireObject(payload, 'handoffDecisions');
+      for (final entry in choices.entries) {
+        final targetId = int.tryParse(entry.key);
+        final decision = SessionHandoffDecision.values
+            .where((value) => value.name == entry.value)
+            .firstOrNull;
+        if (targetId == null || targetId <= 0 || decision == null) {
+          throw BadRequestError(
+            field: 'handoffDecisions',
+            expected: 'target_id_to_handoff_decision',
+            message:
+                'Each handoff choice must name a target and a valid decision.',
+          );
+        }
+        handoff[targetId] = decision;
+      }
+    }
+    final execution = container.read(sequenceExecutionStateProvider);
+    if (container.read(sequenceLaunchInFlightProvider) || !execution.canStart) {
+      return jsonConflict({
+        'error': 'sequencer_busy',
+        'message': 'A sequence is already running.',
+      });
+    }
+    if (container.read(flatWizardProvider.notifier).isBusy ||
+        container.read(isFlipInProgressProvider)) {
+      return jsonConflict({
+        'error': 'rig_busy',
+        'message':
+            'Finish or cancel the active flat capture or meridian flip first.',
+      });
+    }
+    final sequenceId = container.read(currentSequenceProvider)?.databaseId;
+    for (final entry in handoff.entries) {
+      container
+              .read(
+                sessionHandoffDecisionProvider((
+                  sequenceId: sequenceId,
+                  targetId: entry.key,
+                )).notifier,
+              )
+              .state =
+          entry.value;
+    }
+    if (ignoreHistory) {
+      container
+              .read(sessionHandoffIgnoreUnavailableOnceProvider.notifier)
+              .state =
+          true;
+    }
     final commandId = commandCorrelator?.beginCommand(
       operation: 'sequencer.start',
     );
@@ -254,24 +309,6 @@ extension _SequencerLifecycle on SequencerHandlers {
           'the natively-loaded sequence (headless load->start path)',
         );
         final backend = container.read(sequencerBackendProvider);
-        // Wire real-hardware device ops onto the native executor before
-        // starting. The Dart-orchestrated start path does this via
-        // sequencerSetSimulationMode(false) (UnifiedDeviceOps); the bare
-        // load->start path otherwise hits "No device operations configured".
-        // Passing `false` is always permitted (only enabling simulation is
-        // gated off in release builds).
-        await backend.sequencerSetSimulationMode(false);
-        // Wire the session's CONNECTED devices into the native executor. The
-        // Dart-orchestrated start path does this from the device-state
-        // providers; this bare path did not, so `executor.camera_id` stayed
-        // null and the first TakeExposure failed "No camera connected" — a
-        // string the executor classifies as a device *disconnect*, which sent
-        // the run into the recovery loop waiting for hardware that was never
-        // assigned: start answers `{"status":"started"}`, the run sits at
-        // `recovering / Device disconnected, progress 0.0` with no frames, and
-        // `GET /api/devices/connected` lists the camera the whole time.
-        await _wireConnectedDevicesIntoNativeExecutor(backend);
-        await _restoreNativeSavePath(backend);
         // The rest is the executor's one launch for a loaded tree: settings
         // into the runtime config, the guider/dome/cover gate (the native
         // pre-flight cannot see those three, so this is the only gate they
@@ -294,6 +331,13 @@ extension _SequencerLifecycle on SequencerHandlers {
                       targetDecDegrees: summary.singleTargetDecDegrees,
                       totalExposures: summary.totalExposures,
                     ),
+              prepare: () async {
+                // Configure the native executor only after acquiring the launch
+                // latch. A competing request must never rewire an active run.
+                await backend.sequencerSetSimulationMode(false);
+                await _wireConnectedDevicesIntoNativeExecutor(backend);
+                await _restoreNativeSavePath(backend);
+              },
               admit: () async {
                 final refusal = await _refuseUnassignableRoles();
                 if (refusal != null) throw _StartRefused(refusal);
@@ -348,6 +392,13 @@ extension _SequencerLifecycle on SequencerHandlers {
         return _nativeStartRefusal(error);
       }
       rethrow;
+    } finally {
+      if (ignoreHistory) {
+        container
+                .read(sessionHandoffIgnoreUnavailableOnceProvider.notifier)
+                .state =
+            false;
+      }
     }
     publishHostMutationFromContainer(
       container,
@@ -595,8 +646,11 @@ extension _SequencerLifecycle on SequencerHandlers {
 
   Future<Response> _handleSequencerReset(Request request) async {
     _logInfo('[API] POST /api/sequencer/reset');
+    // The executor's reset stops a live run, clears a restored checkpoint
+    // and calls sequencerReset. Calling sequencerReset again here would
+    // reset the native executor twice.
+    await container.read(sequenceExecutorProvider).reset();
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerReset();
 
     // Also close a durable session that no run owns any more.
     //
@@ -645,6 +699,7 @@ extension _SequencerLifecycle on SequencerHandlers {
 
     return jsonOk({
       'status': 'reset',
+      'checkpointCleared': true,
       if (abortedSessionId != null) 'closedSessionId': abortedSessionId,
     });
   }

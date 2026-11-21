@@ -467,7 +467,8 @@ class SequenceSerializer {
           // silently ignoring the user's coordinates.
           'custom_ra': n.customRa,
           'custom_dec': n.customDec,
-          'accuracy_arcsec': n.accuracyArcsec,
+          // How close counts as centered is the run's centering tolerance
+          // setting, which the executor reads as the step starts.
           'max_attempts': n.maxAttempts,
           // Emit the node's real solve-exposure duration instead of a hard
           // 3.0s literal so the runtime uses the value the user configured

@@ -354,30 +354,30 @@ void main() {
       },
     );
 
-    test('the second run of the night opens its own row', () async {
-      // The appliance runs all night, one target after another.
-      // `SessionService` refuses to open a second session while one is
-      // active, so without closing the previous one every later target's
-      // frames would be filed under the FIRST target's session — registered,
-      // and registered against the wrong night.
-      when(
-        () => sequencer.sequencerGetStatus(),
-      ).thenAnswer((_) async => _status('completed'));
+    test(
+      'a completed native run with an open session gets a fresh row on the next start',
+      () async {
+        // The process attached after the previous run completed. Its session
+        // is still open, but there is no live run that owns it.
+        when(
+          () => sequencer.sequencerGetStatus(),
+        ).thenAnswer((_) async => _status('completed'));
 
-      await load(_wireSequence(name: 'First Target'));
-      await start();
-      final first = container.read(sessionStateProvider).dbSessionId;
+        await container
+            .read(sessionStateProvider.notifier)
+            .startSession(targetName: 'First Target');
+        final first = container.read(sessionStateProvider).dbSessionId;
+        await load(
+          _wireSequence(name: 'Second Target', raHours: 20.0, decDegrees: 30.0),
+        );
+        expect((await start()).statusCode, 200);
+        final second = container.read(sessionStateProvider);
 
-      await load(
-        _wireSequence(name: 'Second Target', raHours: 20.0, decDegrees: 30.0),
-      );
-      await start();
-      final second = container.read(sessionStateProvider);
-
-      expect(second.dbSessionId, isNotNull);
-      expect(second.dbSessionId, isNot(first));
-      expect(second.targetName, 'Second Target');
-    });
+        expect(second.dbSessionId, isNotNull);
+        expect(second.dbSessionId, isNot(first));
+        expect(second.targetName, 'Second Target');
+      },
+    );
 
     test('a start refused as busy leaves the running session alone', () async {
       // The stale-session close must never fire against a live run. Here the

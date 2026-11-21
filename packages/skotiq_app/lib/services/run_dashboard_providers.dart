@@ -711,7 +711,7 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
     category: _categoryLabel(event.category),
     title: sk_events.skotiqEventDisplayTitle(event),
     message: _nameDepthGoal(
-      _humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
+      humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
       event,
     ),
     isCritical: isCritical,
@@ -725,12 +725,48 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
 /// succeeds clears it.
 const String _meridianFlipFaultKey = 'meridian_flip';
 
+/// The banner key of a camera's failed exposures. A camera that reopens
+/// fails a frame or two and then images on; its newest failure replaces the
+/// older ones, and its next good frame clears them.
+const String _exposureFaultPrefix = 'exposure_failed:';
+
+/// A failure no camera was named on has the bare prefix as its key.
+String _exposureFaultKey(String? deviceId) =>
+    deviceId == null ? _exposureFaultPrefix : '$_exposureFaultPrefix$deviceId';
+
 String? _faultKey(sk_events.SkotiqEvent event) {
   final payload = event.payload;
+  if (payload is sk_events.EventPayload_Imaging) {
+    return switch (payload.field0) {
+      sk_events.ImagingEvent_ExposureFailed() ||
+      sk_events.ImagingEvent_ExposureFailedOld() =>
+        _exposureFaultKey(event.deviceId),
+      _ => null,
+    };
+  }
   if (payload is! sk_events.EventPayload_Sequencer) return null;
   return payload.field0 is sk_events.SequencerEvent_MeridianFlipOutcome
       ? _meridianFlipFaultKey
       : null;
+}
+
+/// True for an event that says a frame came off the camera: the camera
+/// images again, whatever failed before.
+bool _isGoodFrame(sk_events.SkotiqEvent event) {
+  final payload = event.payload;
+  return switch (payload) {
+    sk_events.EventPayload_Imaging(field0: final v) => switch (v) {
+        sk_events.ImagingEvent_ExposureCompleted() ||
+        sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
+        sk_events.ImagingEvent_ImageSaved() =>
+          true,
+        sk_events.ImagingEvent_ExposureComplete(success: final ok) => ok,
+        _ => false,
+      },
+    sk_events.EventPayload_Sequencer(field0: final v) =>
+      v is sk_events.SequencerEvent_ExposureCompleted,
+    _ => false,
+  };
 }
 
 bool _isRunFault(sk_events.SkotiqEvent event) {
@@ -787,7 +823,7 @@ String _nameDepthGoal(String message, sk_events.SkotiqEvent event) {
 /// the built-in guider `Guider · native:builtin_guider:multi_star`. A device id
 /// is a routing key, not something an astrophotographer recognises, and the
 /// same feed is what an operator scans to reconstruct their night.
-String _humanizeDeviceIds(String message, sk_events.SkotiqEvent event) {
+String humanizeDeviceIds(String message, sk_events.SkotiqEvent event) {
   final deviceId = event.deviceId;
   if (deviceId == null || deviceId.isEmpty) return message;
   if (!message.contains(deviceId)) return message;
@@ -909,6 +945,26 @@ class RunDashboardCriticalEventsNotifier
     state = [
       for (final e in state)
         if (!e.isRunFault) e,
+    ];
+  }
+
+  /// Drop the exposure failures a good frame answers: that camera's, and
+  /// those no camera was named on. A good frame named on no camera answers
+  /// them all.
+  void clearExposureFaults(String? deviceId) {
+    if (!mounted) return;
+    bool answered(RunDashboardEvent e) {
+      final key = e.faultKey;
+      if (key == null || !key.startsWith(_exposureFaultPrefix)) return false;
+      return deviceId == null ||
+          key == _exposureFaultKey(null) ||
+          key == _exposureFaultKey(deviceId);
+    }
+
+    if (!state.any(answered)) return;
+    state = [
+      for (final e in state)
+        if (!answered(e)) e,
     ];
   }
 
@@ -1160,6 +1216,11 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
           ref
               .read(runDashboardCriticalEventsProvider.notifier)
               .clearRunFaults();
+        }
+        if (_isGoodFrame(event)) {
+          ref
+              .read(runDashboardCriticalEventsProvider.notifier)
+              .clearExposureFaults(event.deviceId);
         }
         if (_isSuccessfulFlip(event)) {
           ref

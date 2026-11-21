@@ -40,6 +40,8 @@ struct SimConfig {
     star: (f64, f64),
     /// The capture PHD2 is running when the test starts.
     initial: Capture,
+    /// PHD2's camera and mount have dropped when the test starts.
+    equipment_dropped: bool,
 }
 
 impl Default for SimConfig {
@@ -56,6 +58,7 @@ impl Default for SimConfig {
             exposure_ms: Some(10),
             star: (230.0, 750_000.0),
             initial: Capture::Stopped,
+            equipment_dropped: false,
         }
     }
 }
@@ -86,6 +89,8 @@ struct SimState {
     /// `find_star` answered from an image taken before the latest `loop`.
     stale_selections: u32,
     refused_guides: u32,
+    /// What `get_connected` answers; a `set_connected` connects it.
+    equipment_connected: bool,
 }
 
 struct Sim {
@@ -266,6 +271,11 @@ impl Sim {
                 self.settle(status, guiding);
                 Ok(serde_json::json!(0))
             }
+            "get_connected" => Ok(serde_json::json!(state.equipment_connected)),
+            "set_connected" => {
+                state.equipment_connected = true;
+                Ok(serde_json::json!(0))
+            }
             _ => Ok(serde_json::json!(0)),
         }
     }
@@ -281,6 +291,7 @@ async fn connect(config: SimConfig) -> (Arc<Sim>, Arc<AtomicBool>) {
         let (stream, _) = listener.accept().unwrap();
         let reader = BufReader::new(stream.try_clone().unwrap());
         let initial = config.initial;
+        let equipment_dropped = config.equipment_dropped;
         let sim = Arc::new(Sim {
             config,
             state: StdMutex::new(SimState {
@@ -293,6 +304,7 @@ async fn connect(config: SimConfig) -> (Arc<Sim>, Arc<AtomicBool>) {
                 methods: Vec::new(),
                 stale_selections: 0,
                 refused_guides: 0,
+                equipment_connected: !equipment_dropped,
             }),
             writer: StdMutex::new(stream),
         });
@@ -693,13 +705,11 @@ async fn guide_steps_that_send_no_pulse_at_large_errors_raise_one_notice() {
     })
     .await;
     finish(done).await;
-    let notices = guiding_notices(&published);
+    let notices: Vec<_> = guiding_notices(&published)
+        .into_iter()
+        .filter(|n| n.contains("not reaching the mount") && !n.contains("reconnected"))
+        .collect();
     assert_eq!(notices.len(), 1, "{published:?}");
-    assert!(
-        notices[0].contains("not reaching the mount"),
-        "{}",
-        notices[0]
-    );
 }
 
 /// Steady guiding sends no pulse while the star sits inside PHD2's minimum
@@ -722,4 +732,87 @@ async fn guiding_that_corrects_its_errors_raises_no_notice() {
     .await;
     finish(done).await;
     assert!(guiding_notices(&published).is_empty(), "{published:?}");
+}
+
+/// Wait up to 5 s for `method` to have been asked `times` times.
+async fn asked(sim: &Sim, method: &str, times: usize) -> bool {
+    for _ in 0..100 {
+        let count = sim
+            .state
+            .lock()
+            .unwrap()
+            .methods
+            .iter()
+            .filter(|m| m.as_str() == method)
+            .count();
+        if count >= times {
+            return true;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    false
+}
+
+/// The rig, 2026-11-15: PHD2's mount link went stale and every pulse
+/// failed until its equipment was reconnected by hand. The sustained run of
+/// unanswered steps now reconnects PHD2's camera and mount itself.
+#[tokio::test]
+async fn guide_pulses_that_never_reach_the_mount_reconnect_phd2s_equipment() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig::default()).await;
+    sim.event("StartGuiding", serde_json::json!({}));
+    for i in 0..30 {
+        guide_step(&sim, T0 + 4.5 * f64::from(i), 12.0 + f64::from(i), 0, 0);
+    }
+    let reconnected = asked(&sim, "set_connected", 2).await;
+    let stopped_first = {
+        let methods = &sim.state.lock().unwrap().methods;
+        let stop = methods.iter().position(|m| m == "stop_capture");
+        let reconnect = methods.iter().position(|m| m == "set_connected");
+        matches!((stop, reconnect), (Some(s), Some(r)) if s < r)
+    };
+    finish(done).await;
+    assert!(
+        reconnected,
+        "PHD2's equipment is disconnected and connected again"
+    );
+    assert!(
+        stopped_first,
+        "guiding stops before the equipment is reconnected"
+    );
+}
+
+/// After the bus changed, PHD2 saying its equipment is not connected gets it
+/// reconnected; PHD2 whose equipment is connected is left alone.
+#[tokio::test]
+async fn a_bus_change_reconnects_phd2_equipment_that_dropped() {
+    let _slot = sim_singleton_test_lock().lock().await;
+    let (sim, done) = connect(SimConfig {
+        equipment_dropped: true,
+        ..SimConfig::default()
+    })
+    .await;
+    check_equipment_after_bus_change().await;
+    let reconnected = sim.state.lock().unwrap().equipment_connected;
+    let asked_once = sim
+        .state
+        .lock()
+        .unwrap()
+        .methods
+        .iter()
+        .filter(|m| m.as_str() == "set_connected")
+        .count();
+    check_equipment_after_bus_change().await;
+    let asked_again = sim
+        .state
+        .lock()
+        .unwrap()
+        .methods
+        .iter()
+        .filter(|m| m.as_str() == "set_connected")
+        .count();
+    finish(done).await;
+    assert!(reconnected);
+    assert_eq!(asked_once, 2);
+    assert_eq!(asked_again, 2, "connected equipment is left alone");
 }

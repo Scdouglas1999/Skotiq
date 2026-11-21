@@ -107,9 +107,11 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   ImagesDao(super.db);
 
   Future<List<DbCapturedImage>> getAllImages() {
-    return (select(
-      capturedImages,
-    )..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])).get();
+    return (select(capturedImages)..orderBy([
+          (i) => OrderingTerm.desc(i.capturedAt),
+          (i) => OrderingTerm.desc(i.id),
+        ]))
+        .get();
   }
 
   /// Get all images with pagination
@@ -121,7 +123,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     required int offset,
   }) {
     return (select(capturedImages)
-          ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])
+          ..orderBy([
+            (i) => OrderingTerm.desc(i.capturedAt),
+            (i) => OrderingTerm.desc(i.id),
+          ])
           ..limit(limit, offset: offset))
         .get();
   }
@@ -184,9 +189,11 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   }
 
   Stream<List<DbCapturedImage>> watchAllImages() {
-    return (select(
-      capturedImages,
-    )..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])).watch();
+    return (select(capturedImages)..orderBy([
+          (i) => OrderingTerm.desc(i.capturedAt),
+          (i) => OrderingTerm.desc(i.id),
+        ]))
+        .watch();
   }
 
   /// Whether any frame is stored: one EXISTS read on each write to the
@@ -199,7 +206,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   Future<List<DbCapturedImage>> getImagesForSession(int sessionId) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.equals(sessionId))
-          ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]))
+          ..orderBy([
+            (i) => OrderingTerm.asc(i.capturedAt),
+            (i) => OrderingTerm.asc(i.id),
+          ]))
         .get();
   }
 
@@ -214,7 +224,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   }) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.equals(sessionId))
-          ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)])
+          ..orderBy([
+            (i) => OrderingTerm.asc(i.capturedAt),
+            (i) => OrderingTerm.asc(i.id),
+          ])
           ..limit(limit, offset: offset))
         .get();
   }
@@ -222,7 +235,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   Stream<List<DbCapturedImage>> watchImagesForSession(int sessionId) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.equals(sessionId))
-          ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]))
+          ..orderBy([
+            (i) => OrderingTerm.asc(i.capturedAt),
+            (i) => OrderingTerm.asc(i.id),
+          ]))
         .watch();
   }
 
@@ -253,13 +269,19 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
             i.capturedAt.isBiggerOrEqualValue(start) &
             i.capturedAt.isSmallerThanValue(end),
       )
-      ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)]);
+      ..orderBy([
+        (i) => OrderingTerm.asc(i.capturedAt),
+        (i) => OrderingTerm.asc(i.id),
+      ]);
   }
 
   Future<List<DbCapturedImage>> getImagesForTarget(int targetId) {
     return (select(capturedImages)
           ..where((i) => i.targetId.equals(targetId))
-          ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)]))
+          ..orderBy([
+            (i) => OrderingTerm.desc(i.capturedAt),
+            (i) => OrderingTerm.desc(i.id),
+          ]))
         .get();
   }
 
@@ -301,7 +323,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
                 : i.sessionId.equals(sessionId) &
                       i.capturedAt.isSmallerOrEqualValue(atOrBefore),
           )
-          ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])
+          ..orderBy([
+            (i) => OrderingTerm.desc(i.capturedAt),
+            (i) => OrderingTerm.desc(i.id),
+          ])
           ..limit(limit))
         .get();
   }
@@ -416,7 +441,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   Stream<List<DbCapturedImage>> watchStandaloneImages({int limit = 100}) {
     return (select(capturedImages)
           ..where((i) => i.sessionId.isNull())
-          ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)])
+          ..orderBy([
+            (i) => OrderingTerm.desc(i.capturedAt),
+            (i) => OrderingTerm.desc(i.id),
+          ])
           ..limit(limit))
         .watch();
   }
@@ -424,7 +452,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   Future<List<DbCapturedImage>> getImagesByFilter(String filter) {
     return (select(capturedImages)
           ..where((i) => i.filter.equals(filter))
-          ..orderBy([(i) => OrderingTerm.desc(i.capturedAt)]))
+          ..orderBy([
+            (i) => OrderingTerm.desc(i.capturedAt),
+            (i) => OrderingTerm.desc(i.id),
+          ]))
         .get();
   }
 
@@ -997,7 +1028,10 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
   }) {
     return (select(capturedImages)
           ..where((i) => i.producingRunId.equals(producingRunId))
-          ..orderBy([(i) => OrderingTerm.asc(i.capturedAt)])
+          ..orderBy([
+            (i) => OrderingTerm.asc(i.capturedAt),
+            (i) => OrderingTerm.asc(i.id),
+          ])
           ..limit(limit, offset: offset))
         .get();
   }

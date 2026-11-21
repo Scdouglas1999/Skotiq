@@ -6,6 +6,11 @@ use crate::triggers::{FlipBlocked, FlipProgress};
 
 // Center instruction (Plate Solve + Sync + Slew Loop)
 
+/// Where the operator sets how close counts as centered, as a failure names
+/// it.
+pub const CENTERING_TOLERANCE_SETTING: &str =
+    "tolerance: Settings > Plate solving > Centering tolerance";
+
 /// Receives a centering run's progress: the percent done and the step.
 pub type CenterProgressSink<'a> = Option<&'a (dyn Fn(f64, &CenterProgress) + Send + Sync)>;
 
@@ -179,6 +184,9 @@ async fn center(
     ctx: &InstructionContext,
     progress_callback: CenterProgressSink<'_>,
 ) -> InstructionResult {
+    let accuracy_arcsec = config
+        .accuracy_arcsec
+        .unwrap_or_else(|| ctx.run.centering_tolerance_arcsec());
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,
@@ -272,16 +280,11 @@ async fn center(
         "Centering on RA: {:.4}°, Dec: {:.4}° (accuracy: {:.1}\")",
         target_ra_deg,
         target_dec,
-        config.accuracy_arcsec
+        accuracy_arcsec
     );
 
     if let Some(cb) = progress_callback {
-        cb(
-            0.0,
-            &CenterProgress::Starting {
-                accuracy_arcsec: config.accuracy_arcsec,
-            },
-        );
+        cb(0.0, &CenterProgress::Starting { accuracy_arcsec });
     }
 
     for attempt in 1..=config.max_attempts {
@@ -415,7 +418,7 @@ async fn center(
         // fired DriftLimit's own recenter in the middle of this one, which then
         // exposed over this loop's next frame and failed the node with "No
         // exposure is available to download" (found by the simulator soak).
-        if separation_arcsec <= config.accuracy_arcsec {
+        if separation_arcsec <= accuracy_arcsec {
             if let Some(trigger_state_lock) = &ctx.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.update_plate_solve(
@@ -445,7 +448,7 @@ async fn center(
             );
         }
 
-        if separation_arcsec <= config.accuracy_arcsec {
+        if separation_arcsec <= accuracy_arcsec {
             if let Some(cb) = progress_callback {
                 cb(95.0, &CenterProgress::Centered { separation_arcsec });
             }
@@ -560,8 +563,8 @@ async fn center(
 
     InstructionResult::failure_because(
         format!(
-            "Failed to center within {:.1}\" after {} attempts",
-            config.accuracy_arcsec, config.max_attempts
+            "Failed to center within {:.1}\" after {} attempts ({CENTERING_TOLERANCE_SETTING})",
+            accuracy_arcsec, config.max_attempts
         ),
         Setback::CenterNotConverged,
     )

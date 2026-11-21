@@ -1129,43 +1129,12 @@ class _CanvasBarName extends ConsumerWidget {
     WidgetRef ref,
     Sequence current,
   ) {
-    final controller = TextEditingController(text: current.name);
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Rename sequence'),
-        content: ConstrainedBox(
-          constraints: AdaptiveDialogConstraints.hybrid(
-            dialogContext,
-            designMaxWidth: 400,
-          ),
-          child: SkotiqTextField(
-            controller: controller,
-            autofocus: true,
-            hint: 'Sequence name',
-          ),
-        ),
-        actions: [
-          SkotiqButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            label: 'Cancel',
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-          ),
-          SkotiqButton(
-            onPressed: () {
-              final name = controller.text.trim();
-              if (name.isEmpty) {
-                dialogContext.showWarningSnackBar('Name cannot be empty');
-                return;
-              }
-              ref.read(currentSequenceProvider.notifier).setName(name);
-              Navigator.pop(dialogContext);
-            },
-            label: 'Rename',
-            size: ButtonSize.small,
-          ),
-        ],
+      builder: (_) => _RenameSequenceDialog(
+        initialName: current.name,
+        onRename: (name) =>
+            ref.read(currentSequenceProvider.notifier).setName(name),
       ),
     );
   }
@@ -1316,6 +1285,70 @@ class _CanvasBarMeta extends ConsumerWidget {
             tone: ChipTone.warning,
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _RenameSequenceDialog extends StatefulWidget {
+  const _RenameSequenceDialog({
+    required this.initialName,
+    required this.onRename,
+  });
+
+  final String initialName;
+  final ValueChanged<String> onRename;
+
+  @override
+  State<_RenameSequenceDialog> createState() => _RenameSequenceDialogState();
+}
+
+class _RenameSequenceDialogState extends State<_RenameSequenceDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialName,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext dialogContext) {
+    return AlertDialog(
+      title: const Text('Rename sequence'),
+      content: ConstrainedBox(
+        constraints: AdaptiveDialogConstraints.hybrid(
+          dialogContext,
+          designMaxWidth: 400,
+        ),
+        child: SkotiqTextField(
+          controller: _controller,
+          autofocus: true,
+          hint: 'Sequence name',
+        ),
+      ),
+      actions: [
+        SkotiqButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          label: 'Cancel',
+          variant: ButtonVariant.ghost,
+          size: ButtonSize.small,
+        ),
+        SkotiqButton(
+          onPressed: () {
+            final name = _controller.text.trim();
+            if (name.isEmpty) {
+              dialogContext.showWarningSnackBar('Name cannot be empty');
+              return;
+            }
+            widget.onRename(name);
+            Navigator.pop(dialogContext);
+          },
+          label: 'Rename',
+          size: ButtonSize.small,
+        ),
       ],
     );
   }

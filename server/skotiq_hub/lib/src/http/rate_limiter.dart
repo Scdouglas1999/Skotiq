@@ -30,6 +30,17 @@ class RateLimiter {
     return true;
   }
 
+  /// Whether [identity] has already used its window, without consuming a slot.
+  ///
+  /// The hub uses this to reject a rotating-Bearer flood before it pays for
+  /// a token-store lookup. [allow] remains the call that records a request.
+  bool isExhausted(String identity, {DateTime? now}) {
+    final at = now ?? DateTime.now();
+    final bucket = _buckets[identity];
+    if (bucket == null || at.isAfter(bucket.windowEnd)) return false;
+    return bucket.count >= maxRequests;
+  }
+
   /// Seconds until [identity]'s window resets (for a Retry-After header).
   int retryAfterSeconds(String identity, {DateTime? now}) {
     final at = now ?? DateTime.now();

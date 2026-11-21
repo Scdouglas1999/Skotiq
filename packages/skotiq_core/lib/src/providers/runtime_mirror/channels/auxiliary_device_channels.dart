@@ -6,8 +6,12 @@ import '../../../models/equipment/equipment_models.dart';
 import '../../../backend/remote_host.dart';
 import '../../backend_provider.dart';
 import '../../equipment/device_capability_provider.dart';
+import '../../equipment/dome_state_provider.dart';
+import '../../equipment/safety_monitor_state_provider.dart';
 import '../../equipment/switch_state_provider.dart';
+import '../../equipment/weather_state_provider.dart';
 import '../runtime_mirror_channel.dart';
+import 'environment_channel.dart';
 import '../runtime_mirror_codec.dart';
 import '../../device_service_providers.dart';
 
@@ -62,6 +66,11 @@ class SwitchChannelsChannel extends RuntimeMirrorChannel<SwitchState> {
   @override
   get source => switchStateProvider;
 
+  /// A channel list can arrive before this window knows the switch's id.
+  /// The same document is applied again once that id is connected.
+  @override
+  bool get reappliesOnReread => true;
+
   @override
   Map<String, dynamic>? encode(SwitchState value) {
     final deviceId = value.deviceId;
@@ -89,9 +98,17 @@ class SwitchChannelsChannel extends RuntimeMirrorChannel<SwitchState> {
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null) return;
     final state = context.read(switchStateProvider);
-    // Channels belong to one device; a client that shows another (or none)
-    // keeps what it has until its own equipment state catches up.
-    if (state.deviceId != jsonString(value['deviceId'])) return;
+    final deviceId = jsonString(value['deviceId']);
+    // Channels belong to one device. Until this window has that device, keep
+    // the document and apply it when the slot's id becomes it.
+    if (state.deviceId != deviceId) {
+      if (deviceId != null) {
+        context.read(pendingSwitchChannelsProvider.notifier).state =
+            Map<String, dynamic>.from(value);
+      }
+      return;
+    }
+    context.read(pendingSwitchChannelsProvider.notifier).state = null;
     // Every list is written by [encode]; a missing or mistyped entry means
     // the two ends disagree, and the update is dropped.
     List<T> listOf<T>(String key) {
@@ -177,3 +194,44 @@ final switchChannelPollerProvider = Provider<void>((ref) {
 
 const Duration switchChannelPollInterval = Duration(seconds: 2);
 const Duration switchChannelPollBackoff = Duration(seconds: 30);
+
+/// The last switch document whose device was not connected here yet.
+final pendingSwitchChannelsProvider = StateProvider<Map<String, dynamic>?>(
+  (ref) => null,
+);
+
+/// Applies a host reading that arrived before the device id did, once the
+/// slot connects. Nothing on the host changes between the two.
+final deferredSlotReadingsProvider = Provider<void>((ref) {
+  void applySwitch(String? id) {
+    final pending = ref.read(pendingSwitchChannelsProvider);
+    if (pending == null || id == null || id != pending['deviceId']) return;
+    const SwitchChannelsChannel().apply(
+      RuntimeApplyContext(ref.container),
+      pending,
+    );
+  }
+
+  void applyEnvironment() {
+    final pending = ref.read(pendingEnvironmentProvider);
+    if (pending == null) return;
+    const EnvironmentChannel().apply(
+      RuntimeApplyContext(ref.container),
+      pending,
+    );
+  }
+
+  ref.listen<String?>(switchStateProvider.select((s) => s.deviceId), (_, id) {
+    applySwitch(id);
+  });
+  ref.listen<String?>(weatherStateProvider.select((s) => s.deviceId), (_, _) {
+    applyEnvironment();
+  });
+  ref.listen<String?>(domeStateProvider.select((s) => s.deviceId), (_, _) {
+    applyEnvironment();
+  });
+  ref.listen<String?>(
+    safetyMonitorStateProvider.select((s) => s.deviceId),
+    (_, _) => applyEnvironment(),
+  );
+});

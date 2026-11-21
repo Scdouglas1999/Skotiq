@@ -27,10 +27,10 @@ void main() {
     addTearDown(container.dispose);
 
     final timeline = container.read(nightTimelineProvider)!;
-    expect(timeline.sunset, DateTime(2026, 10, 19, 18, 18));
-    expect(timeline.sunrise, DateTime(2026, 10, 20, 7, 10));
-    expect(timeline.astroDark, DateTime(2026, 10, 19, 19, 48));
-    expect(timeline.astroDawn, DateTime(2026, 10, 20, 5, 44));
+    expect(timeline.sunset, bostonTime(2026, 10, 19, 18, 18));
+    expect(timeline.sunrise, bostonTime(2026, 10, 20, 7, 10));
+    expect(timeline.astroDark, bostonTime(2026, 10, 19, 19, 48));
+    expect(timeline.astroDawn, bostonTime(2026, 10, 20, 5, 44));
     expect(timeline.now, evening);
     expect(timeline.windows, isEmpty);
   });
@@ -122,8 +122,8 @@ void main() {
   });
 
   test('a run past midnight keeps the night it started in', () {
-    final sessionStart = DateTime(2026, 10, 19, 23, 30);
-    final now = DateTime(2026, 10, 20, 0, 40);
+    final sessionStart = bostonTime(2026, 10, 19, 23, 30);
+    final now = bostonTime(2026, 10, 20, 0, 40);
     final container = planContainer(
       now: now,
       sequence: TwoTargetPlan().sequence,

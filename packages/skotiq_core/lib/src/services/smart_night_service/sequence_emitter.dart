@@ -726,7 +726,6 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       CenterNode(
         id: SmartNightService._uuid.v4(),
         name: 'Center via plate solve',
-        accuracyArcsec: 5.0,
         maxAttempts: 5,
         useTargetCoords: true,
         parentId: headerId,
@@ -797,12 +796,11 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     }
 
     // 6. Optional meridian flip recovery — only inject when the target
-    // crosses the meridian during its imaging window. The executor's
-    // meridian-flip path is already enabled at the profile level; this
-    // node makes the flip explicit on the timeline so Run Dashboard
-    // shows it. Condition lives in [SmartNightService.willInjectMeridianFlip] so the plan
-    // preview shares the exact same rule.
-    if (SmartNightService.willInjectMeridianFlip(planned)) {
+    // crosses the meridian during its imaging window and the capture does
+    // not already run until that window closes. A fill-window capture is
+    // cut off at the window; the runtime flip policy is what crosses the
+    // meridian during it. A short plan still gets the node.
+    if (!fillWindow && SmartNightService.willInjectMeridianFlip(planned)) {
       children.add(
         MeridianFlipNode(
           id: SmartNightService._uuid.v4(),

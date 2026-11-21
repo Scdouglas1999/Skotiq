@@ -16,8 +16,8 @@ import '../../../models/backend/backend_types.dart';
 import '../../logging_service_provider.dart';
 
 /// Guiding events after which the guider's own status says something new.
-/// Guide steps and star statistics are not among them: a client receives
-/// those itself and derives its graph and RMS from them.
+/// Guide steps are not among them: the graph they build is published with
+/// the status, on its own timer, rather than by re-reading the guider.
 const _statusChangingEvents = <String>{
   'Connected',
   'Disconnected',
@@ -160,11 +160,15 @@ Phd2State? _stateOf(String? status) => switch (status) {
 };
 
 /// The state the host's guider reports: guiding, stopped, calibrating and
-/// the rest, why it is held, and its last RMS.
+/// the rest, why it is held, its RMS, and the guide graph a late joiner
+/// missed.
 ///
 /// A client follows guiding through the host's guiding events. This fills
 /// what the events before it linked said, so a client that joins while the
 /// host guides shows it guiding and not an idle guider with a Start button.
+/// The graph and the totals travel here, throttled, so the client does not
+/// mix a partial event stream into the host's RMS. The all-night trace stays
+/// on `GET /api/runtime/night-history`.
 class GuiderStatusChannel extends RuntimeMirrorChannel<HostGuiderStatus?> {
   const GuiderStatusChannel();
 
@@ -174,10 +178,52 @@ class GuiderStatusChannel extends RuntimeMirrorChannel<HostGuiderStatus?> {
   @override
   get source => hostGuiderStatusProvider;
 
+  /// Status changes publish at once. The graph is large, so a burst of guide
+  /// steps becomes one publish.
+  static const Duration graphInterval = Duration(milliseconds: 250);
+
   @override
-  Map<String, dynamic>? encode(HostGuiderStatus? value) {
+  ProviderSubscription<HostGuiderStatus?> listen(
+    Ref ref,
+    void Function(HostGuiderStatus? value) onChange,
+  ) {
+    Timer? graph;
+    ref.onDispose(() {
+      graph?.cancel();
+    });
+    void scheduleGraph() {
+      graph ??= Timer(graphInterval, () {
+        graph = null;
+        onChange(ref.read(source));
+      });
+    }
+
+    ref.listen(guideGraphProvider, (_, _) => scheduleGraph());
+    ref.listen(guideStatsProvider, (_, _) => scheduleGraph());
+    ref.listen(targetDisplayHistoryProvider, (_, _) => scheduleGraph());
+    ref.listen(calibrationStateProvider, (_, _) => scheduleGraph());
+    ref.listen(lockPositionProvider, (_, _) => scheduleGraph());
+    ref.listen(starLostEventProvider, (_, _) => scheduleGraph());
+    ref.listen(guiderSettleTimeoutProvider, (_, _) => scheduleGraph());
+    ref.listen(
+      guiderStateProvider.select((s) => s.pixelScaleArcsecPerPixel),
+      (_, _) => scheduleGraph(),
+    );
+    return ref.listen<HostGuiderStatus?>(source, (_, next) => onChange(next));
+  }
+
+  @override
+  Map<String, dynamic>? encode(HostGuiderStatus? value) => null;
+
+  @override
+  Map<String, dynamic>? encodeCurrent(ProviderContainer container) {
+    final value = container.read(source);
     if (value == null || !value.status.connected) return null;
     final status = value.status;
+    final stats = container.read(guideStatsProvider);
+    final lock = container.read(lockPositionProvider);
+    final timeout = container.read(guiderSettleTimeoutProvider);
+    final lost = container.read(starLostEventProvider);
     return {
       'deviceId': value.deviceId,
       'state': (value.state ?? _stateOf(status.state))?.name,
@@ -185,6 +231,27 @@ class GuiderStatusChannel extends RuntimeMirrorChannel<HostGuiderStatus?> {
       'rmsRa': finiteOrNull(status.rmsRa),
       'rmsDec': finiteOrNull(status.rmsDec),
       'rmsTotal': finiteOrNull(status.rmsTotal),
+      'stats': stats.toJson(),
+      'graph': [
+        for (final point in container.read(guideGraphProvider))
+          if (point.ra.isFinite && point.dec.isFinite)
+            [point.time.millisecondsSinceEpoch, point.ra, point.dec],
+      ],
+      'target': [
+        for (final point in container.read(targetDisplayHistoryProvider))
+          if (point.raError.isFinite && point.decError.isFinite) point.toJson(),
+      ],
+      'calibration': container.read(calibrationStateProvider).toJson(),
+      'lock': lock == null
+          ? null
+          : {'x': finiteOrNull(lock.x), 'y': finiteOrNull(lock.y)},
+      'pixelScale': finiteOrNull(
+        container.read(guiderStateProvider).pixelScaleArcsecPerPixel,
+      ),
+      'starLostAt': lost?.millisecondsSinceEpoch,
+      'settleTimeout': timeout == null
+          ? null
+          : {'at': timeout.at.millisecondsSinceEpoch, 'error': timeout.error},
     };
   }
 
@@ -214,5 +281,93 @@ class GuiderStatusChannel extends RuntimeMirrorChannel<HostGuiderStatus?> {
         rmsTotal,
       );
     }
+    if (!value.containsKey('graph')) return;
+    // From here the host's totals are the graph. Folding GuideStep events
+    // on top of them would mix a partial stream into the host's RMS.
+    context.read(hostGuidingMirrorActiveProvider.notifier).state = true;
+    final statsRaw = value['stats'];
+    if (statsRaw is Map) {
+      final stats = Phd2GuideStats.fromJson(
+        Map<String, dynamic>.from(statsRaw),
+      );
+      context.read(guideStatsProvider.notifier).applyHostStats(stats);
+      // A status read can name an RMS before any guide step has been
+      // collected. Zero totals from an empty graph must not wipe that.
+      if (stats.frameCount > 0) {
+        guider.updateRms(stats.rmsRa, stats.rmsDec, stats.rmsTotal);
+      }
+    }
+    final graph = <GuideGraphPoint>[];
+    final rawGraph = value['graph'];
+    if (rawGraph is List) {
+      for (final row in rawGraph) {
+        if (row is! List || row.length != 3) continue;
+        final at = row[0];
+        final ra = row[1];
+        final dec = row[2];
+        if (at is! num || ra is! num || dec is! num) continue;
+        final raValue = ra.toDouble();
+        final decValue = dec.toDouble();
+        if (!raValue.isFinite || !decValue.isFinite) continue;
+        graph.add(
+          GuideGraphPoint(
+            raValue,
+            decValue,
+            DateTime.fromMillisecondsSinceEpoch(at.toInt()),
+          ),
+        );
+      }
+    }
+    context.read(guideGraphProvider.notifier).applyHostHistory(graph);
+    final target = <GuideErrorPoint>[];
+    final rawTarget = value['target'];
+    if (rawTarget is List) {
+      for (final row in rawTarget) {
+        if (row is! Map) continue;
+        try {
+          final point = GuideErrorPoint.fromJson(
+            Map<String, dynamic>.from(row),
+          );
+          if (point.raError.isFinite && point.decError.isFinite) {
+            target.add(point);
+          }
+        } on Object {
+          continue;
+        }
+      }
+    }
+    context
+        .read(targetDisplayHistoryProvider.notifier)
+        .applyHostHistory(target);
+    final calibration = value['calibration'];
+    if (calibration is Map) {
+      context
+          .read(calibrationStateProvider.notifier)
+          .applyHostState(
+            Phd2CalibrationData.fromJson(
+              Map<String, dynamic>.from(calibration),
+            ),
+          );
+    }
+    final lock = value['lock'];
+    context
+        .read(lockPositionProvider.notifier)
+        .applyHostPosition(
+          lock is Map && lock['x'] is num && lock['y'] is num
+              ? (
+                  x: (lock['x'] as num).toDouble(),
+                  y: (lock['y'] as num).toDouble(),
+                )
+              : null,
+        );
+    guider.setPixelScale(jsonDouble(value['pixelScale']));
+    context.read(starLostEventProvider.notifier).state = jsonInstant(
+      value['starLostAt'],
+    );
+    final timeout = value['settleTimeout'];
+    final at = timeout is Map ? jsonInstant(timeout['at']) : null;
+    context.read(guiderSettleTimeoutProvider.notifier).state = at == null
+        ? null
+        : (at: at, error: jsonString(timeout['error']) ?? '');
   }
 }

@@ -46,7 +46,23 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
       .where((f) => f.status == FilterCalibrationStatus.failed)
       .toList(growable: false);
   final filterLabel = failed.length == 1 ? '${failed.single.label}: ' : '';
-  final targetPercent = _formatPercent(settings.histogramTarget);
+  final filter = failed.length == 1 ? failed.single : null;
+  final minExposure = filter?.minExposureOverride ?? settings.minExposure;
+  final maxExposure = filter?.maxExposureOverride ?? settings.maxExposure;
+  final targetPercent = _formatPercent(
+    filter?.histogramTargetOverride ?? settings.histogramTarget,
+  );
+  // A pinned exposure cannot ramp, so the ceiling and the stalled-light
+  // sentences would both be false.
+  if (minExposure == maxExposure) {
+    return FlatFailureDiagnosis(
+      reason: '${filterLabel}the fixed ${_formatSeconds(minExposure)} exposure '
+          'measured ${last.adu.round()} ADU without reaching the '
+          '$targetPercent target within tolerance.',
+      nextStep: 'Allow a range of exposure times so calibration can adjust '
+          'the brightness toward the target.',
+    );
+  }
 
   // The light source, not the exposure, is the problem: the solver ramped the
   // exposure hard and the frame barely got brighter. This is the flat-panel-is
@@ -69,9 +85,9 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
   }
 
   // Hit the exposure ceiling still short of the target.
-  if (last.exposure >= settings.maxExposure * 0.999) {
+  if (last.exposure >= maxExposure * 0.999) {
     return FlatFailureDiagnosis(
-      reason: '${filterLabel}at the ${_formatSeconds(settings.maxExposure)} '
+      reason: '${filterLabel}at the ${_formatSeconds(maxExposure)} '
           'maximum exposure the frame only reached ${last.adu.round()} ADU, '
           'short of the $targetPercent target.',
       nextStep: 'Raise the panel brightness or the camera gain, lower the '
@@ -80,10 +96,10 @@ FlatFailureDiagnosis? diagnoseFlatFailure(FlatWizardState state) {
   }
 
   // Hit the exposure floor still over the target: too much light.
-  if (last.exposure <= settings.minExposure * 1.001) {
+  if (last.exposure <= minExposure * 1.001) {
     return FlatFailureDiagnosis(
       reason: '${filterLabel}even at the '
-          '${_formatSeconds(settings.minExposure)} minimum exposure the frame '
+          '${_formatSeconds(minExposure)} minimum exposure the frame '
           'reached ${last.adu.round()} ADU, over the $targetPercent target.',
       nextStep: 'Dim the panel or lower the camera gain, or raise the target '
           'level.',

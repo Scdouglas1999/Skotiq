@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show listEquals, mapEquals;
+import 'package:flutter/foundation.dart'
+    show listEquals, mapEquals, visibleForTesting;
 
 import '../../../database/database.dart'
     show
@@ -30,6 +31,17 @@ final class RemoteScienceProducts implements ScienceProducts {
   final NetworkBackend _host;
   final Duration _interval;
   final _poll = HostPoll('science products');
+  var _disposed = false;
+
+  /// Whether [dispose] has run. The provider drops the poll with the provider.
+  @visibleForTesting
+  bool get isDisposedForTest => _disposed;
+
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _poll.dispose();
+  }
 
   final _sessionBundles = <int, SharedLatest<RemoteScienceBundle>>{};
 

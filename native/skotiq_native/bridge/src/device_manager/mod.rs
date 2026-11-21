@@ -6,8 +6,8 @@
 //! `crate::dispatch`.
 
 pub(crate) mod accessory;
-pub(crate) mod camera_reopen;
 pub(crate) mod connection;
+pub(crate) mod device_reopen;
 pub(crate) mod epoch;
 pub(crate) mod handle;
 pub(crate) mod heartbeat;
@@ -89,6 +89,10 @@ pub struct HeldCameraState {
     pub cooler_power: Option<f64>,
     pub gain: Option<i32>,
     pub offset: Option<i32>,
+    /// When the cooler was last switched off, and the cooler it ran before:
+    /// a disconnect that follows within moments switched it off for the
+    /// disconnect, and the camera's next connect restores the cooler it ran.
+    pub cooler_off: Option<(std::time::Instant, (bool, Option<f64>))>,
 }
 
 /// State of a managed device

@@ -25,8 +25,6 @@ import 'host_role.dart';
 import 'database_provider.dart';
 import '../database/stores/science_products.dart';
 import 'session_provider.dart';
-import 'settings_provider.dart';
-import '../settings/app_settings_state.g.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
 import 'science/science_camera_auto_config_provider.dart';

@@ -2,8 +2,8 @@ use crate::builtin_guider::config::{
     guiding_failure_reason, GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX,
 };
 use crate::builtin_guider::loop_runner::{
-    capture_and_store_loop_frame, capture_guide_frame, ensure_connected, ensure_frame_available,
-    resolve_devices, resolve_unbinned_guide_pixel_scale, run_guiding_loop,
+    capture_and_store_loop_frame, ensure_connected, ensure_frame_available, resolve_devices,
+    resolve_unbinned_guide_pixel_scale, run_guiding_loop,
 };
 use crate::builtin_guider::metrics::{
     choose_lock_star, nearest_star, select_reference_stars, update_snapshot_from_frame, PulseDebt,
@@ -414,25 +414,12 @@ pub async fn get_lock_position() -> Result<(f64, f64), SkotiqError> {
 }
 
 pub async fn get_star_image(size: u32) -> Result<GuideStarImage, SkotiqError> {
-    // If there is no snapshot yet we must capture a fresh guide frame. That
-    // capture MUST happen without holding the state lock: capture_guide_frame
-    // re-acquires state().read(), and a tokio RwLock is not reentrant, so
-    // holding the write lock across it self-deadlocks and permanently wedges
-    // the guider (status/stop/disconnect all then block on the same lock).
-    let need_capture = { state().read().await.last_snapshot.is_none() };
-    let fresh_frame = if need_capture {
-        Some(capture_guide_frame().await?)
-    } else {
-        None
-    };
-
+    // Idle preview captures through [ensure_frame_available], which refuses
+    // while the loop already owns the camera. The capture itself is not done
+    // under the state lock: that lock is not reentrant.
+    let frame = ensure_frame_available().await?;
     let mut guard = state().write().await;
-    if let Some(frame) = fresh_frame {
-        update_snapshot_from_frame(&mut guard, &frame, size);
-        guard.last_frame = Some(frame);
-    } else if let Some(frame) = guard.last_frame.clone() {
-        update_snapshot_from_frame(&mut guard, &frame, size);
-    }
+    update_snapshot_from_frame(&mut guard, &frame, size);
 
     let snapshot = guard
         .last_snapshot

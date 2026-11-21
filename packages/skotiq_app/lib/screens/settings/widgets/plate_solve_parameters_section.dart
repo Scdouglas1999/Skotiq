@@ -126,6 +126,28 @@ class _PlateSolveParametersSectionState
                       .setCenteringSyncMount(value);
                 },
               ),
+            ),
+            SettingRow(
+              icon: LucideIcons.target,
+              title: 'Centering tolerance',
+              subtitle: 'Default: 5 arcseconds. How close to the target a '
+                  'centering must land. The Center step, the recenters during '
+                  'a run and centering started by hand all use it; the solve '
+                  'exposure is the equipment profile\'s centering exposure.',
+              trailing: SettingsNumberInput(
+                key: const ValueKey('centering-tolerance'),
+                authoritativeValue: settings.centeringToleranceArcsec,
+                authorityKey: authority,
+                suffix: 'arcsec',
+                min: 1,
+                max: 600,
+                decimals: 1,
+                onChanged: (value) {
+                  return ref
+                      .read(appSettingsProvider.notifier)
+                      .setCenteringToleranceArcsec(value);
+                },
+              ),
               isLast: true,
             ),
           ],

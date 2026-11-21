@@ -73,14 +73,10 @@ class ScienceSettings {
   /// production. Production submits create real, public AT records.
   final bool tnsUseSandbox;
 
-  /// When true, each captured light frame is evaluated against
-  /// [frameGradeRulesJson] (or [FrameGradeRules.conservativeDefaults] when
-  /// unset) and rejected in the database when it fails — same semantics as
-  /// the Image Grader dialog, but automatic on every capture.
-  final bool autoFrameGradingEnabled;
-
-  /// JSON blob persisted via [FrameGradeRules.toJsonString]. Null uses
-  /// conservative defaults while auto-grading is enabled.
+  /// The Image Grader dialog's thresholds, persisted via
+  /// [FrameGradeRules.toJsonString]. A frame's verdict during a run is the
+  /// run's grader's alone; these apply only when the operator grades frames
+  /// in the dialog.
   final String? frameGradeRulesJson;
 
   final bool scienceGuideCollapsed;
@@ -111,7 +107,6 @@ class ScienceSettings {
     this.tnsDataSourceId = 0,
     this.tnsReporterName = '',
     this.tnsUseSandbox = false,
-    this.autoFrameGradingEnabled = false,
     this.frameGradeRulesJson,
     this.scienceGuideCollapsed = false,
   });
@@ -155,23 +150,15 @@ class ScienceSettings {
       tnsDataSourceId: read(StoreSettings.scienceTnsDataSourceId),
       tnsReporterName: read(StoreSettings.scienceTnsReporterName),
       tnsUseSandbox: read(StoreSettings.scienceTnsUseSandbox),
-      // Frame grading was first a switch of the application settings; either
-      // one being on grades frames.
-      autoFrameGradingEnabled:
-          read(StoreSettings.scienceAutoFrameGrading) ||
-          read(AppSettingDefs.enableImageGrading),
       frameGradeRulesJson: read(StoreSettings.scienceFrameGradeRules),
       scienceGuideCollapsed: read(StoreSettings.scienceGuideCollapsed),
     );
   }
 
-  /// Rules applied by [FrameAutoGrader] and shown in the Image Grader UI.
-  FrameGradeRules resolvedFrameGradeRules() {
-    final parsed = FrameGradeRules.fromJsonString(frameGradeRulesJson);
-    if (parsed != null && !parsed.isEmpty) return parsed;
-    if (autoFrameGradingEnabled) return FrameGradeRules.conservativeDefaults;
-    return const FrameGradeRules();
-  }
+  /// The rules last applied in the Image Grader dialog.
+  FrameGradeRules resolvedFrameGradeRules() =>
+      FrameGradeRules.fromJsonString(frameGradeRulesJson) ??
+      const FrameGradeRules();
 
   ScienceSettings copyWith({
     bool? advancedModeEnabled,
@@ -199,7 +186,6 @@ class ScienceSettings {
     int? tnsDataSourceId,
     String? tnsReporterName,
     bool? tnsUseSandbox,
-    bool? autoFrameGradingEnabled,
     String? frameGradeRulesJson,
     bool clearFrameGradeRulesJson = false,
     bool? scienceGuideCollapsed,
@@ -236,8 +222,6 @@ class ScienceSettings {
       tnsDataSourceId: tnsDataSourceId ?? this.tnsDataSourceId,
       tnsReporterName: tnsReporterName ?? this.tnsReporterName,
       tnsUseSandbox: tnsUseSandbox ?? this.tnsUseSandbox,
-      autoFrameGradingEnabled:
-          autoFrameGradingEnabled ?? this.autoFrameGradingEnabled,
       frameGradeRulesJson: clearFrameGradeRulesJson
           ? null
           : (frameGradeRulesJson ?? this.frameGradeRulesJson),
@@ -418,20 +402,6 @@ class ScienceSettingsNotifier extends AsyncNotifier<ScienceSettings> {
     enabled,
     (current) => current.copyWith(fitsHeaderWritebackEnabled: enabled),
   );
-
-  Future<void> setAutoFrameGradingEnabled(bool enabled) {
-    return _serialized((current) async {
-      await ref.read(appSettingsProvider.future);
-      await ref
-          .read(appSettingsProvider.notifier)
-          .setEnableImageGrading(enabled);
-      await _writeScienceSettings(
-        ref,
-        StoreSettings.scienceAutoFrameGrading.toRows(enabled),
-      );
-      state = AsyncData(current.copyWith(autoFrameGradingEnabled: enabled));
-    });
-  }
 
   Future<void> setScienceGuideCollapsed(bool collapsed) => _update(
     StoreSettings.scienceGuideCollapsed,

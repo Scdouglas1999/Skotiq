@@ -249,6 +249,20 @@ void main() {
 
       for (final table in db.allTables) {
         final rows = await db.select(table).get();
+        if (table.actualTableName == 'app_settings') {
+          // Upgrades and one-shot migrations seed new default settings (e.g.
+          // centering_tolerance_arcsec, grading_relative_defaults_migrated)
+          // when opening the v64 fixture; verify Drift reads every row now on
+          // disk without losing any pre-upgrade row.
+          final afterOpen = _withRaw(file, dumpRowCounts)['app_settings'] ?? 0;
+          expect(rows.length, afterOpen, reason: table.actualTableName);
+          expect(
+            rows.length,
+            greaterThanOrEqualTo(onDisk['app_settings'] ?? 0),
+            reason: table.actualTableName,
+          );
+          continue;
+        }
         expect(
           rows,
           hasLength(onDisk[table.actualTableName] ?? 0),

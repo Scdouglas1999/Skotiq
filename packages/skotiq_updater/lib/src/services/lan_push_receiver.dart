@@ -9,6 +9,7 @@ import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
 import 'archive_extraction.dart';
+import 'lan_push_frame_reader.dart';
 import 'update_compatibility.dart';
 import 'update_service.dart' show persistStagedManifest;
 import 'update_verifier.dart';
@@ -28,6 +29,15 @@ class LanPushReceiver {
   /// Maximum time to wait for the authentication message before closing the connection
   static const Duration _authTimeout = Duration(seconds: 10);
 
+  /// How long a push may go without delivering any bytes before it is aborted.
+  ///
+  /// This is an idle deadline, re-armed on every chunk. A slow transfer that
+  /// keeps moving is not cut off (hashing and extraction are not on this
+  /// clock). [Future.timeout] is not used: it leaves the original read running,
+  /// so a timed-out push could still extract, write ready.json, and call
+  /// [onUpdateReceived] after the receive slot had been released.
+  static const Duration defaultIdleTimeout = Duration(seconds: 60);
+
   /// Hard cap on the total package bytes accepted over a single LAN push
   /// connection, independent of what the manifest claims. A malicious or
   /// mis-signed manifest can declare a giant `compressedSize` and fill the
@@ -44,6 +54,7 @@ class LanPushReceiver {
   final int _serverPort;
   final String _currentPlatform;
   final String _currentArch;
+  final Duration _idleTimeout;
 
   /// Pre-shared key required from push clients for authentication.
   /// Must be set before starting the server. Generate with [generatePushSecret].
@@ -68,6 +79,7 @@ class LanPushReceiver {
     int serverPort = pushPort,
     String? currentPlatform,
     String? currentArch,
+    Duration idleTimeout = defaultIdleTimeout,
   }) : _currentVersion = currentVersion,
        _currentBuildNumber = currentBuildNumber,
        _dataDirectory = dataDirectory,
@@ -79,6 +91,7 @@ class LanPushReceiver {
        _currentArch = normalizeUpdateArchitecture(
          currentArch ?? currentUpdateArchitecture(),
        ),
+       _idleTimeout = idleTimeout,
        _verifier = verifier ?? UpdateVerifier();
 
   /// Set the pre-shared push secret. Must be called before [startServer].
@@ -177,7 +190,7 @@ class LanPushReceiver {
       return;
     }
 
-    final reader = _SocketFrameReader(socket);
+    final reader = LanPushFrameReader(socket, idleTimeout: _idleTimeout);
     try {
       // Authentication phase
       final authenticated = await _authenticateClient(
@@ -227,29 +240,20 @@ class LanPushReceiver {
   /// Protocol: client sends [4-byte big-endian length][JSON {"secret":"..."}].
   /// Returns true if authenticated, false otherwise (socket is closed on failure).
   Future<bool> _authenticateClient(
-    _SocketFrameReader reader,
+    LanPushFrameReader reader,
     Socket socket,
     String remoteAddress,
   ) async {
     try {
-      final header = await reader
-          .readExactly(4)
-          .timeout(_authTimeout, onTimeout: () => null);
-      if (header == null) {
-        socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
-        return false;
-      }
-      final authLen = ByteData.sublistView(header).getInt32(0, Endian.big);
-      if (authLen <= 0 || authLen > 4096) {
+      final Uint8List? payload;
+      try {
+        payload = await reader.readAuthFrame(_authTimeout);
+      } on FormatException {
         socket.write(
           jsonEncode({'auth': 'rejected', 'reason': 'invalid frame'}),
         );
         return false;
       }
-
-      final payload = await reader
-          .readExactly(authLen)
-          .timeout(_authTimeout, onTimeout: () => null);
       if (payload == null) {
         socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
         return false;
@@ -277,6 +281,9 @@ class LanPushReceiver {
       socket.write(jsonEncode({'auth': 'ok'}));
       await socket.flush();
       return true;
+    } on TimeoutException {
+      socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
+      return false;
     } catch (e) {
       developer.log(
         'Failed to authenticate $remoteAddress: $e',
@@ -299,7 +306,7 @@ class LanPushReceiver {
   }
 
   /// Receive update data from socket
-  Future<void> _receiveUpdate(_SocketFrameReader reader, Socket socket) async {
+  Future<void> _receiveUpdate(LanPushFrameReader reader, Socket socket) async {
     // Protocol:
     // 1. Receive manifest length (4 bytes, big-endian)
     // 2. Receive manifest JSON
@@ -532,37 +539,3 @@ class LanPushReceiver {
 }
 
 enum _ReceiveState { idle, authenticating, receiving }
-
-/// One subscription shared by authentication and update transfer. TCP can
-/// coalesce both protocol frames into one chunk, so leftover bytes must remain
-/// available when the authentication phase hands off to the manifest phase.
-class _SocketFrameReader {
-  final StreamIterator<Uint8List> _chunks;
-  List<int> _buffer = const [];
-
-  _SocketFrameReader(Stream<Uint8List> stream)
-    : _chunks = StreamIterator<Uint8List>(stream);
-
-  Future<Uint8List?> readExactly(int length) async {
-    while (_buffer.length < length) {
-      if (!await _chunks.moveNext()) return null;
-      _buffer = [..._buffer, ..._chunks.current];
-    }
-    final result = Uint8List.fromList(_buffer.sublist(0, length));
-    _buffer = _buffer.sublist(length);
-    return result;
-  }
-
-  Future<Uint8List?> readAtMost(int maxLength) async {
-    if (_buffer.isEmpty) {
-      if (!await _chunks.moveNext()) return null;
-      _buffer = _chunks.current;
-    }
-    final length = _buffer.length < maxLength ? _buffer.length : maxLength;
-    final result = Uint8List.fromList(_buffer.sublist(0, length));
-    _buffer = _buffer.sublist(length);
-    return result;
-  }
-
-  Future<void> cancel() => _chunks.cancel();
-}

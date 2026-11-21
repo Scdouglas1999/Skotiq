@@ -287,7 +287,7 @@ impl ScriptedDeviceOps {
     }
 
     /// Fail the next exposures with these errors, one each.
-    fn fail_next_exposures(&self, errors: &[&str]) {
+    pub(crate) fn fail_next_exposures(&self, errors: &[&str]) {
         self.camera_failures
             .lock()
             .unwrap()
@@ -321,7 +321,7 @@ impl ScriptedDeviceOps {
         }
     }
 
-    fn set_connected(&self, id: &str, connected: bool) {
+    pub(crate) fn set_connected(&self, id: &str, connected: bool) {
         let mut set = self.connected.lock().unwrap();
         if connected {
             set.insert(id.to_string());

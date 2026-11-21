@@ -19,14 +19,17 @@ import 'package:window_manager/window_manager.dart';
 import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
 import 'desktop_shutdown_safing.dart';
+import 'desktop_instance.dart';
 import 'desktop_logging_init.dart';
 import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
+import 'host/accepted_quit.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
 import 'launch_arguments.dart';
 import 'main_headless.dart' as headless;
 import 'startup_timeline.dart';
+import 'window_placement.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// A remote rig the desktop GUI should drive as a thin client instead of
@@ -165,33 +168,15 @@ void main(List<String> args) async {
     });
   }
 
-  final bootPaths = await initialiseDesktopLogging();
+  // Hold the database before logging opens native stores. A probe here used
+  // to take the lock and drop it; the second process could then pass and
+  // open SQLite, and SQLITE_BUSY was read as corruption. The claim stays
+  // for the process. The database open shares it. exit(75) is EX_TEMPFAIL,
+  // and it has to be exit() — returning leaves the process alive.
+  await claimDesktopInstance();
+  startupTimeline.mark('single-instance claim');
 
-  // Single-instance invariant, checked before any window or database work.
-  // The GUI and the headless service resolve the SAME default database path,
-  // so launching twice would point two SQLite writers at one file — and the
-  // second opener's SQLITE_BUSY reads as corruption, which quarantines the
-  // operator's real database and replaces it with an empty one. Refuse here,
-  // in the same shape as the --serve/--remote-host conflict above, so the
-  // operator gets a sentence instead of a data-loss incident.
-  //
-  // Advisory: the authoritative claim is taken when the database is actually
-  // opened, so a launch that races past this still fails safely.
-  final databaseFile = await resolveDefaultDatabaseFile();
-  final contended = await SingleInstanceLock.probe(databaseFile);
-  final heldBy = contended;
-  if (heldBy != null) {
-    stderr.writeln('Skotiq: ${heldBy.message}');
-    Log.error(heldBy.message, source: 'desktop.main', error: heldBy);
-    // exit(), not `exitCode = …; return;`: the native bridge has already
-    // started its hot-plug poll watcher and USB hotplug listener by the time
-    // main() runs, and those keep the Dart isolate alive forever. Returning
-    // here leaves a windowless process running against the other instance's
-    // rig — verified on Linux, where the refused launch sat at 0% CPU
-    // indefinitely instead of exiting.
-    exit(75); // EX_TEMPFAIL — try again once the other instance exits.
-  }
-  startupTimeline.mark('single-instance probe');
+  final bootPaths = await initialiseDesktopLogging();
 
   // The role, decided once for the life of this process. Flags and variables
   // win; without them, the rig the connect flow remembered makes this a linked
@@ -228,13 +213,19 @@ void main(List<String> args) async {
   final initialSize = initialWindowSize(
     ui.PlatformDispatcher.instance.displays,
   );
+  // Where the operator left the window, when that is still on a screen.
+  final placementStore = await WindowPlacementStore.open();
+  final savedPlacement = await placementStore.read();
+  final placement = savedPlacement == null
+      ? null
+      : placementOnScreens(savedPlacement, await attachedScreens());
   final windowOptions = WindowOptions(
-    size: initialSize,
+    size: placement?.bounds.size ?? initialSize,
     minimumSize: Size(
       math.min(1200, initialSize.width),
       math.min(700, initialSize.height),
     ),
-    center: true,
+    center: placement == null,
     // Opaque theme background — Colors.transparent + TitleBarStyle.hidden
     // composites to an undraggable black hole on Linux/Wayland when the first
     // Flutter frame is delayed. Match SkotiqColors.dark.background.
@@ -389,10 +380,24 @@ void main(List<String> args) async {
   // engine teardown after window_manager's WM_QUIT and AppKit's terminate
   // after the last window closes shut the VM down the same way, and neither
   // waits for the hand-back.
-  ShellExit.registerEnd(() async {
-    await lastGasp.handOffDarkroomWork();
-    exit(0);
-  });
+  final placementRecorder = WindowPlacementRecorder.forWindow(
+    store: placementStore,
+    initial:
+        placement ??
+        WindowPlacement(bounds: Offset.zero & initialSize, maximized: false),
+    onError: (e) => logger.warning(
+      'Window placement not saved: $e',
+      source: 'desktop.main',
+    ),
+  );
+  ShellExit.registerEnd(
+    () => AcceptedDesktopQuit.run(
+      flushPlacement: placementRecorder.flush,
+      handOffDarkroomWork: lastGasp.handOffDarkroomWork,
+      closeDatabase: () => container.read(databaseProvider).close(),
+      exitProcess: exit,
+    ),
+  );
   startupTimeline.mark('last-session record');
 
   // The window is prepared while the host start-up's core steps run, so
@@ -403,7 +408,9 @@ void main(List<String> args) async {
   // reason.
   final windowReady = windowManager.waitUntilReadyToShow(
     windowOptions,
-    () async {},
+    () async {
+      if (placement != null) await windowManager.setBounds(placement.bounds);
+    },
   );
 
   // A host runs the shared host start-up; a linked client owns no hardware
@@ -488,12 +495,16 @@ void main(List<String> args) async {
   // frame so the custom title bar (drag target) and scaffold are present.
   WidgetsBinding.instance.addPostFrameCallback((_) async {
     startupTimeline.mark('first frame built');
+    if (placement != null && placement.maximized) {
+      await windowManager.maximize();
+    }
     await windowManager.show();
     startupTimeline.mark('window shown');
     await windowManager.focus();
     if (shouldMinimize) {
       await windowManager.minimize();
     }
+    windowManager.addListener(placementRecorder);
   });
 }
 

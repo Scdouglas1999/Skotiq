@@ -9,7 +9,7 @@ use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::state::get_state;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
@@ -19,10 +19,11 @@ mod watch;
 /// The event for PHD2's SettleDone. A failed settle (non-zero status) must
 /// not masquerade as a clean "Settled" event, and it is not a lost star
 /// either: PHD2 reports a settle that ran out of time while it still holds
-/// the star.
+/// the star. PHD2's SettleDone carries no RMS, so the event states none
+/// (it read "Guiding settled · RMS 0.00" right after guiding started).
 fn settle_done_event(status: i32, error: &str) -> GuidingEvent {
     if status == 0 {
-        return GuidingEvent::Settled { rms: 0.0 };
+        return GuidingEvent::Settled { rms: None };
     }
     GuidingEvent::SettleTimedOut {
         error: if error.is_empty() {
@@ -45,6 +46,85 @@ fn publish_guiding_notice(message: String) {
             explicit_transports: None,
         }),
     ));
+}
+
+/// Whether a PHD2 alert says its camera or mount dropped.
+fn alert_says_equipment_dropped(message: &str) -> bool {
+    let message = message.to_ascii_lowercase();
+    message.contains("disconnect")
+}
+
+/// A PHD2 equipment reconnect is running.
+static RECONNECTING_EQUIPMENT: AtomicBool = AtomicBool::new(false);
+
+/// [`reconnect_equipment`] on the bridge runtime, for PHD2's event thread.
+fn reconnect_equipment_in_background(reason: &'static str) {
+    match crate::get_runtime() {
+        Ok(runtime) => {
+            runtime.spawn(async move {
+                if let Err(e) = reconnect_equipment(reason).await {
+                    tracing::warn!("[GUIDING] Reconnecting PHD2's equipment failed: {e}");
+                }
+            });
+        }
+        Err(e) => tracing::warn!("[GUIDING] Could not reconnect PHD2's equipment: {e}"),
+    }
+}
+
+/// Disconnect and reconnect PHD2's camera and mount, the way the operator
+/// does in PHD2's Connect Equipment dialog. PHD2 keeps a link that went
+/// stale when the hub or power box behind it dropped (rig, 2026-11-15:
+/// every guide pulse failed until the equipment was reconnected). Guiding
+/// stops for it; a run that was guiding sees its guiding stop and its
+/// guide-star recovery starts guiding again on a fresh star and settles
+/// before the next frame. One reconnect runs at a time.
+pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError> {
+    if RECONNECTING_EQUIPMENT.swap(true, Ordering::SeqCst) {
+        return Ok(());
+    }
+    let result = async {
+        tracing::warn!("[GUIDING] Reconnecting PHD2's camera and mount: {reason}");
+        stop_guiding().await?;
+        {
+            let mut client = phd2_client().await?;
+            client.set_connected(false).map_err(|e| {
+                SkotiqError::OperationFailed(format!("PHD2 did not disconnect its equipment: {e}"))
+            })?;
+            client.set_connected(true).map_err(|e| {
+                SkotiqError::OperationFailed(format!("PHD2 did not reconnect its equipment: {e}"))
+            })?;
+        }
+        let connected = phd2_client()
+            .await?
+            .get_connected()
+            .map_err(SkotiqError::OperationFailed)?;
+        if !connected {
+            return Err(SkotiqError::OperationFailed(
+                "PHD2 says its equipment is still not connected".to_string(),
+            ));
+        }
+        publish_guiding_notice(format!(
+            "PHD2's camera and mount were reconnected because {reason}."
+        ));
+        Ok(())
+    }
+    .await;
+    RECONNECTING_EQUIPMENT.store(false, Ordering::SeqCst);
+    result
+}
+
+/// After a device came or went on the bus: when PHD2 is connected and says
+/// its equipment is not, reconnect it.
+pub(crate) async fn check_equipment_after_bus_change() {
+    let connected = match phd2_client().await {
+        Ok(mut client) => client.get_connected(),
+        Err(_) => return,
+    };
+    if connected == Ok(false) {
+        if let Err(e) = reconnect_equipment("its equipment dropped off the bus").await {
+            tracing::warn!("[GUIDING] Reconnecting PHD2's equipment failed: {e}");
+        }
+    }
 }
 
 /// Turn PHD2's `get_pixel_scale` answer into a scale the UI can convert with.
@@ -90,6 +170,112 @@ async fn phd2_client(
         .map_err(|_| SkotiqError::NotConnected("PHD2".to_string()))
 }
 
+/// Bumped by every connect and disconnect the app asks for. A reconnect
+/// started for one link stops when it changes: the user disconnected, or
+/// connected again on their own.
+static LINK_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Where the last connect reached PHD2.
+static ENDPOINT: std::sync::Mutex<Option<(String, u16)>> = std::sync::Mutex::new(None);
+
+/// Numbers each client [`connect_endpoint`] opens, so a lost connection is
+/// recovered once however many times its loss is reported.
+static CLIENT_EPOCH: AtomicU64 = AtomicU64::new(0);
+
+/// The client whose lost connection a reconnect is recovering.
+static RECOVERING_EPOCH: AtomicU64 = AtomicU64::new(0);
+
+/// Waits between attempts to reach a PHD2 whose socket closed. Short first
+/// (PHD2 restarting), then once a minute for as long as it takes: a PHD2
+/// someone restarts by hand, or one waiting on its own equipment, can be
+/// minutes away, and nobody may be watching.
+const RECONNECT_DELAYS: [Duration; 6] = [
+    Duration::from_secs(2),
+    Duration::from_secs(5),
+    Duration::from_secs(10),
+    Duration::from_secs(20),
+    Duration::from_secs(30),
+    Duration::from_secs(60),
+];
+
+fn reconnect_delay(attempt: usize) -> Duration {
+    RECONNECT_DELAYS[attempt.min(RECONNECT_DELAYS.len() - 1)]
+}
+
+/// [`reconnect_server`] on the bridge runtime, for PHD2's reader thread.
+fn reconnect_server_in_background(client_epoch: u64) {
+    match crate::get_runtime() {
+        Ok(runtime) => {
+            runtime.spawn(reconnect_server(client_epoch));
+        }
+        Err(e) => tracing::warn!("[GUIDING] Could not reconnect to PHD2: {e}"),
+    }
+}
+
+/// PHD2's socket closed without the app asking (PHD2 quit, crashed or was
+/// restarted): stop listing it as the connected guider, then connect to it
+/// again, with backoff, until it answers or the app connects or disconnects
+/// PHD2 itself. This is the guider's share of the rule every device follows
+/// (`device_manager::device_reopen`): it comes back without anyone touching
+/// it. A run that was guiding sees guiding stop, and its guide-star recovery
+/// starts guiding again once PHD2 answers.
+async fn reconnect_server(client_epoch: u64) {
+    // Only the current client's loss, and only once.
+    if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
+        || RECOVERING_EPOCH.swap(client_epoch, Ordering::SeqCst) == client_epoch
+    {
+        return;
+    }
+    let link_generation = LINK_GENERATION.load(Ordering::SeqCst);
+    let endpoint = ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let Some((host, port)) = endpoint else {
+        return;
+    };
+    tracing::warn!("[GUIDING] PHD2 at {host}:{port} closed its connection; connecting to it again");
+    {
+        let mut storage = client_slot().write().await;
+        // The app connected or disconnected PHD2 since the loss: that is
+        // the link now, and nothing here may touch it.
+        if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
+            || LINK_GENERATION.load(Ordering::SeqCst) != link_generation
+        {
+            return;
+        }
+        if let Some(mut dead) = storage.take() {
+            dead.disconnect();
+        }
+    }
+    get_device_manager().unregister_device(DEVICE_ID).await;
+
+    let mut attempt = 0;
+    loop {
+        tokio::time::sleep(reconnect_delay(attempt)).await;
+        if LINK_GENERATION.load(Ordering::SeqCst) != link_generation {
+            break;
+        }
+        attempt += 1;
+        match connect_endpoint(host.clone(), port).await {
+            Ok(()) => {
+                tracing::info!("[GUIDING] Reconnected to PHD2 after {attempt} attempt(s)");
+                publish_guiding_notice(
+                    "PHD2 closed its connection and was connected again.".to_string(),
+                );
+                break;
+            }
+            Err(e) => {
+                tracing::debug!("[GUIDING] PHD2 reconnect attempt {attempt} failed: {e}");
+                if attempt == RECONNECT_DELAYS.len() {
+                    tracing::warn!(
+                        "[GUIDING] PHD2 still does not answer at {host}:{port}; trying again \
+                         every {} s",
+                        reconnect_delay(attempt).as_secs()
+                    );
+                }
+            }
+        }
+    }
+}
+
 /// Connect to PHD2 and list it as the connected guider.
 pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(), SkotiqError> {
     // Why: localhost + PHD2 default port 4400 are the
@@ -99,7 +285,16 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         skotiq_phd2::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
     let port = port.unwrap_or(skotiq_phd2::PHD2_DEFAULT_PORT);
 
+    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
+    connect_endpoint(host, port).await
+}
+
+/// Open the socket to PHD2 at `host`:`port` and list it as the connected
+/// guider. A loss of the socket this opens starts [`reconnect_server`].
+async fn connect_endpoint(host: String, port: u16) -> Result<(), SkotiqError> {
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
+    let client_epoch = CLIENT_EPOCH.fetch_add(1, Ordering::SeqCst) + 1;
+    *ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()) = Some((host.clone(), port));
 
     {
         let mut storage = client_slot().write().await;
@@ -163,6 +358,9 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 if let Some(message) = watch.observe_step(frame, at) {
                     tracing::warn!("[GUIDING] {}", message);
                     publish_guiding_notice(message);
+                    reconnect_equipment_in_background(
+                        "its guide pulses were not reaching the mount",
+                    );
                 }
                 return;
             }
@@ -230,6 +428,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
             }
             skotiq_phd2::Phd2Event::Disconnected => {
                 watch.observe_state(&skotiq_phd2::Phd2State::Disconnected);
+                reconnect_server_in_background(client_epoch);
                 GuidingEvent::Disconnected
             }
             skotiq_phd2::Phd2Event::Alert {
@@ -237,6 +436,9 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
                 alert_type,
             } => {
                 tracing::warn!("PHD2 Alert [{}]: {}", alert_type, message);
+                if alert_says_equipment_dropped(&message) {
+                    reconnect_equipment_in_background("it reported its equipment disconnected");
+                }
                 return; // Alerts are not forwarded as GuidingEvent
             }
             skotiq_phd2::Phd2Event::Error(msg) => {
@@ -298,6 +500,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
 }
 
 pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
+    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
     PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
     let mut storage = client_slot().write().await;
     if let Some(mut client) = storage.take() {
@@ -577,7 +780,7 @@ pub(crate) async fn dither(
         .await
         .map_err(|e| e.into_error("Dither did not settle"))?;
 
-    get_state().publish_guiding_event(GuidingEvent::Settled { rms: 0.0 }, EventSeverity::Info);
+    get_state().publish_guiding_event(GuidingEvent::Settled { rms: None }, EventSeverity::Info);
 
     Ok(())
 }
@@ -1445,6 +1648,16 @@ mod settle_event_tests {
         assert!(matches!(
             settle_done_event(0, ""),
             GuidingEvent::Settled { .. }
+        ));
+    }
+
+    /// PHD2's SettleDone carries no RMS. Tonight's log read "Guiding settled
+    /// · RMS 0.00" right after guiding started.
+    #[test]
+    fn a_phd2_settle_states_no_rms() {
+        assert!(matches!(
+            settle_done_event(0, ""),
+            GuidingEvent::Settled { rms: None }
         ));
     }
 }

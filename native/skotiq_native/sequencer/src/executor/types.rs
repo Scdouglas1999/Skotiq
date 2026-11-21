@@ -389,6 +389,11 @@ pub enum ExecutorEvent {
     RunHeld {
         message: String,
     },
+    /// Detailed flip telemetry, shared by sequenced and standalone flips.
+    /// This is not a verdict and must not be counted as another flip.
+    MeridianFlipProgress {
+        detail_json: String,
+    },
     /// A meridian flip finished — successfully, degraded (it needed retries),
     /// aborted, or failed outright. This is what carries the flip verdict, a
     /// failed post-flip recenter included, into the run vitals.

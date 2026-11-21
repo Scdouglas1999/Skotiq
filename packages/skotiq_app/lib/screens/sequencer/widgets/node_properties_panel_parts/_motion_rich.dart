@@ -84,20 +84,13 @@ class _CenterProperties extends ConsumerWidget {
           label: 'Accuracy',
           helpText:
               'How close the plate-solve center must land to the target before '
-              'centering is considered done. Smaller = tighter framing but more '
-              'solve/slew iterations.',
-          child: NodeNumberInput(
-            colors: colors,
-            value: node.accuracyArcsec,
-            suffix: '"',
-            min: 0.1,
-            max: 60,
-            decimals: 1,
-            onChanged: (value) {
-              ref.read(currentSequenceProvider.notifier).updateNode(
-                    node.copyWith(accuracyArcsec: value),
-                  );
-            },
+              'centering is done. One setting for every centering: Settings > '
+              'Plate solving > Centering tolerance.',
+          child: Text(
+            '${QuantityFormat.trimmed((ref.watch(appSettingsProvider).valueOrNull ?? const AppSettingsState()).centeringToleranceArcsec)}" '
+            '(Settings > Plate solving)',
+            key: const ValueKey('center-node-tolerance'),
+            style: TextStyle(color: colors.textSecondary),
           ),
         ),
         NodePropertyField(

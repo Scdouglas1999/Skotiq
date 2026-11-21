@@ -102,6 +102,7 @@ void _hostRecord(
         imagingRun: imagingRun,
         lastEnded: lastEnded,
         lastEndedPlanLoaded: lastEnded != null && lastEndedPlanLoaded,
+        restoredCheckpoint: null,
         stopEvidence: stopEvidence,
         runStartedAt: runStartedAt,
         stats: null,
@@ -137,12 +138,12 @@ SequenceRunStats _stats(int frames, int rejected) {
 }
 
 void main() {
-  final evening = DateTime(2026, 10, 19, 20, 10);
+  final evening = bostonTime(2026, 10, 19, 20, 10);
 
   test('SY-01: a client that joins after the run shows the finished night',
       () async {
     final plan = TwoTargetPlan();
-    final runStart = DateTime(2026, 10, 19, 19, 50);
+    final runStart = bostonTime(2026, 10, 19, 19, 50);
     final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(500 + i, 113, runStart.add(Duration(minutes: 2 + i))),
@@ -233,7 +234,7 @@ void main() {
 
     LastEndedRun ended() => LastEndedRun(
           sequenceId: _hostPlanId,
-          endedAt: DateTime(2026, 10, 19, 20, 5),
+          endedAt: bostonTime(2026, 10, 19, 20, 5),
         );
     _hostRecord(client, backend, lastEnded: ended());
     expect(client.read(nightRunPhaseProvider), NightRunPhase.finished);
@@ -258,7 +259,7 @@ void main() {
   test('SY-25: a client restarted during a paused run counts the run frames',
       () async {
     final plan = TwoTargetPlan();
-    final runStart = DateTime(2026, 10, 19, 19, 50);
+    final runStart = bostonTime(2026, 10, 19, 19, 50);
     // The client came back 75 minutes into the run, after a failed flip.
     final now = runStart.add(const Duration(minutes: 75));
     final rows = <db.DbCapturedImage>[
@@ -308,7 +309,7 @@ void main() {
 
   test('SY-37: at the run end the frame views keep the run', () async {
     final plan = TwoTargetPlan();
-    final runStart = DateTime(2026, 10, 19, 19, 50);
+    final runStart = bostonTime(2026, 10, 19, 19, 50);
     final rows = <db.DbCapturedImage>[
       for (var i = 0; i < 3; i++)
         _row(700 + i, 130, runStart.add(Duration(minutes: 2 + i)),

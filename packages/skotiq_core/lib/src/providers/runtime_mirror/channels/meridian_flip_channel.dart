@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../models/meridian_flip_event.dart' show FlipStep;
 import '../../meridian_flip_provider.dart';
+import '../../meridian_flip_telemetry.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
 
@@ -13,15 +14,16 @@ typedef MeridianFlipRunState = ({
   String? error,
 });
 
-final _meridianFlipProgressProvider = Provider<MeridianFlipRunState>(
-  (ref) => (
+final _meridianFlipProgressProvider = Provider<MeridianFlipRunState>((ref) {
+  ref.watch(meridianFlipTelemetryProvider);
+  return (
     state: ref.watch(flipExecutionStateProvider),
     attempt: ref.watch(flipCurrentAttemptProvider),
     step: ref.watch(flipCurrentStepProvider),
     progress: ref.watch(flipProgressProvider),
     error: ref.watch(flipLastErrorProvider),
-  ),
-);
+  );
+});
 
 /// A meridian flip the host's flip monitor is performing outside a sequence.
 ///

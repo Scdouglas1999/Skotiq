@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -17,6 +18,7 @@ import '../../../widgets/accessible_dropdown.dart';
 import '../../stack_result/recent_stacks_panel.dart';
 import '../../stack_result/stack_and_share_dialog.dart';
 import '../../../widgets/osc_stacking_controls.dart';
+import 'live_stack/live_stack_formatters.dart';
 import 'panel_widgets.dart';
 import 'session_stack_plan.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -218,7 +220,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   /// silently: the operator is asked, and can write the master out first.
   Future<void> _stopStacking() async {
     if (_isStopping || _isEndingStack) return;
-    final frames = ref.read(liveStackingProvider).stats.stackedFrameCount;
+    final stackState = ref.read(liveStackingProvider);
+    final frames = stackState.totalFramesAcrossFilters;
     if (frames <= 0) {
       await _releaseStack();
       return;
@@ -227,13 +230,45 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     setState(() => _isEndingStack = true);
     try {
       final decision = await _askBeforeDiscardingStack(frames);
-      if (!mounted || decision != _StopDecision.saveMaster) {
+      if (!mounted) return;
+      if (decision != _StopDecision.saveMaster) {
         if (decision == _StopDecision.discard) await _releaseStack();
         return;
       }
-      // Keep the stack running until the master is safely on disk: a cancelled
-      // picker or a failed write must not cost the operator the integration.
-      if (!await _saveStackedMaster(frames)) return;
+      // Keep the stack running until every non-empty filter's master is safely
+      // on disk: a cancelled picker or a failed write must not cost the
+      // operator any filter's integration.
+      final latestState = ref.read(liveStackingProvider);
+      final nonEmptyFilters = <String>[
+        for (final key in latestState.availableFilters)
+          if ((latestState.filterStacks[key]?.stats.stackedFrameCount ?? 0) > 0)
+            key,
+      ];
+      if (nonEmptyFilters.length > 1) {
+        for (final key in nonEmptyFilters) {
+          final snap = ref.read(liveStackingProvider).filterStacks[key];
+          final filterFrames = snap?.stats.stackedFrameCount ?? 0;
+          if (filterFrames <= 0) continue;
+          if (!await _saveStackedMaster(filterFrames, filterKey: key)) {
+            return;
+          }
+          if (!mounted) return;
+        }
+      } else if (nonEmptyFilters.length == 1) {
+        final key = nonEmptyFilters.first;
+        final filterFrames =
+            latestState.filterStacks[key]?.stats.stackedFrameCount ?? frames;
+        if (!await _saveStackedMaster(filterFrames, filterKey: key)) {
+          return;
+        }
+      } else {
+        if (!await _saveStackedMaster(
+          frames,
+          filterKey: latestState.selectedFilterKey,
+        )) {
+          return;
+        }
+      }
       if (!mounted) return;
       await _releaseStack();
     } finally {
@@ -290,32 +325,49 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
 
   /// Writes the accumulated master out. Returns true only when a file was
   /// actually written (so the caller knows it is safe to release the stack).
-  Future<bool> _saveStackedMaster(int frames) async {
+  Future<bool> _saveStackedMaster(int frames, {String? filterKey}) async {
     final stamp = DateTime.now()
         .toUtc()
         .toIso8601String()
         .replaceAll(':', '-')
         .split('.')
         .first;
+    final filterPart = filterKey != null &&
+            filterKey.isNotEmpty &&
+            filterKey != kDefaultLiveStackFilterKey
+        ? '${filterKey.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')}_'
+        : '';
     final destination = await ref.read(
       stackingMasterDestinationPickerProvider,
-    )('live_stack_${stamp}Z_${frames}frames.fits');
+    )('live_stack_$filterPart${stamp}Z_${frames}frames.fits');
     if (!mounted || destination == null || destination.trim().isEmpty) {
       return false;
     }
 
     try {
+      final stackState = ref.read(liveStackingProvider);
+      final useExplicitFilter = filterKey != null &&
+          stackState.filterStacks.containsKey(filterKey) &&
+          stackState.filterStacks.length > 1;
+      final sourceFramePath = (filterKey != null
+              ? stackState.filterStacks[filterKey]?.referenceImagePath
+              : null) ??
+          stackState.referenceImagePath;
+
       // A FITS master is registered in the master library as it is written,
       // so the Darkroom lists it under its target and opens it in the editor.
       final library = await ref.read(liveStackMasterLibraryProvider).save(
             destination,
-            sourceFramePath: ref.read(liveStackingProvider).referenceImagePath,
+            sourceFramePath: sourceFramePath,
+            filterKey: useExplicitFilter ? filterKey : null,
           );
       final saved = library.saved;
       if (!mounted) return true;
       final integration = saved.totalIntegrationSecs;
+      final label =
+          useExplicitFilter ? '$filterKey stacked master' : 'Stacked master';
       context.showInfoSnackBar(
-        'Stacked master (${saved.stackedFrameCount} frames'
+        '$label (${saved.stackedFrameCount} frames'
         '${integration != null && integration > 0 ? ', '
             '${integration.toStringAsFixed(0)} s integration' : ''}) '
         'saved to ${saved.filePath}'
@@ -700,6 +752,18 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                                     ? () => _stackSessionFrames(plan)
                                     : _stackFromChosenFile,
                       ),
+                    if (!isRunning && !isRemoteMode)
+                      SkotiqButton(
+                        key: const ValueKey('stacking_panel_arm_btn'),
+                        label: 'Arm auto-stack',
+                        icon: SkotiqIcons.play,
+                        variant: ButtonVariant.secondary,
+                        onPressed: !_isStarting
+                            ? () => ref
+                                .read(liveStackingProvider.notifier)
+                                .arm(config: config)
+                            : null,
+                      ),
                     if (!isRemoteMode && plan != null && !isRunning)
                       SkotiqButton(
                         label: 'Choose a file…',
@@ -716,6 +780,17 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                             ? _stopStacking
                             : null,
                       ),
+                    if (isRunning && stats.stackedFrameCount > 0)
+                      SkotiqButton(
+                        key: const ValueKey('stacking_panel_save_master_btn'),
+                        label: 'Export master',
+                        icon: SkotiqIcons.save,
+                        variant: ButtonVariant.ghost,
+                        onPressed: () => _saveStackedMaster(
+                          stats.stackedFrameCount,
+                          filterKey: stackState.selectedFilterKey,
+                        ),
+                      ),
                     if (isRunning)
                       SkotiqButton(
                         label: _isResetting ? 'Resetting...' : 'Reset stack',
@@ -728,6 +803,20 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
               ],
             ),
           ),
+
+          if (stackState.filterStacks.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _PerFilterStacksPanel(
+              stackState: stackState,
+              colors: widget.colors,
+              onSelect: (key) =>
+                  ref.read(liveStackingProvider.notifier).selectFilter(key),
+              onSave: (key, frames) =>
+                  _saveStackedMaster(frames, filterKey: key),
+              onReset: (key) =>
+                  ref.read(liveStackingProvider.notifier).resetFilter(key),
+            ),
+          ],
           const SizedBox(height: 20),
 
           if (isRunning && stats.otherFilterNote != null)
@@ -842,7 +931,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
                 width: stackState.previewWidth,
                 height: stackState.previewHeight,
                 channels: _previewChannels(stackState),
-                stretch: ref.watch(stackedPreviewStretchProvider),
+                stretchAsync: ref.watch(stackedPreviewStretchAsyncProvider),
+                filterKey: stackState.selectedFilterKey,
                 colors: widget.colors,
               ),
             ),
@@ -1040,3 +1130,144 @@ const double _rejectionWarningThreshold = 0.05;
 /// and show the alert banner. Above ~15% the frame is contributing far more
 /// noise than signal -- typically a stale or fundamentally unusable frame.
 const double _rejectionErrorThreshold = 0.15;
+
+/// Lists every active per-filter live stack with its frame count, total
+/// integration, residual, and quick switch / save / reset actions.
+class _PerFilterStacksPanel extends StatelessWidget {
+  const _PerFilterStacksPanel({
+    required this.stackState,
+    required this.colors,
+    required this.onSelect,
+    required this.onSave,
+    required this.onReset,
+  });
+
+  final LiveStackingState stackState;
+  final SkotiqColors colors;
+  final ValueChanged<String> onSelect;
+  final void Function(String filterKey, int frames) onSave;
+  final ValueChanged<String> onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final filters = stackState.availableFilters;
+    return SkotiqPanel(
+      head: PanelHead(
+        label: 'Filter stacks (${filters.length})',
+      ),
+      child: Column(
+        children: <Widget>[
+          for (var i = 0; i < filters.length; i++) ...<Widget>[
+            if (i > 0) const SizedBox(height: SkotiqTokens.spaceXs + 2),
+            _PerFilterRow(
+              filterKey: filters[i],
+              snapshot: stackState.filterStacks[filters[i]]!,
+              selected: filters[i] == stackState.selectedFilterKey,
+              colors: colors,
+              onSelect: () => onSelect(filters[i]),
+              onSave: () => onSave(
+                filters[i],
+                stackState.filterStacks[filters[i]]!.stats.stackedFrameCount,
+              ),
+              onReset: () => onReset(filters[i]),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PerFilterRow extends StatelessWidget {
+  const _PerFilterRow({
+    required this.filterKey,
+    required this.snapshot,
+    required this.selected,
+    required this.colors,
+    required this.onSelect,
+    required this.onSave,
+    required this.onReset,
+  });
+
+  final String filterKey;
+  final FilterStackSnapshot snapshot;
+  final bool selected;
+  final SkotiqColors colors;
+  final VoidCallback onSelect;
+  final VoidCallback onSave;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final dotColor = liveStackFilterDotColor(filterKey, colors);
+    final label = liveStackFilterDisplayName(filterKey);
+    final frames = snapshot.stats.stackedFrameCount;
+    final integration = formatLiveIntegration(snapshot.totalIntegrationSecs);
+    final res = frames > 1
+        ? '${snapshot.stats.avgAlignmentResidual.toStringAsFixed(2)} px'
+        : '—';
+
+    return InkWell(
+      onTap: onSelect,
+      borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              selected ? colors.primary.withValues(alpha: 0.14) : colors.well,
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
+          border: Border.all(
+            color: selected
+                ? colors.primary.withValues(alpha: 0.65)
+                : colors.border,
+          ),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    label,
+                    style: SkotiqTypography.labelStrongSm.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$frames frames · $integration · $res',
+                    style: SkotiqTypography.monoCaption.copyWith(
+                      color: colors.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SkotiqIconButton(
+              icon: SkotiqIcons.save,
+              tooltip: 'Save $label master',
+              size: IconButtonSize.sm,
+              onPressed: frames > 0 ? onSave : null,
+            ),
+            SkotiqIconButton(
+              icon: SkotiqIcons.refresh,
+              tooltip: 'Reset $label stack',
+              size: IconButtonSize.sm,
+              onPressed: onReset,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

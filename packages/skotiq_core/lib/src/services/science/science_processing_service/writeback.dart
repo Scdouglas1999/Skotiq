@@ -1,59 +1,6 @@
 part of '../science_processing_service.dart';
 
 extension _ScienceProcessingWriteback on ScienceProcessingService {
-  /// False means grading failed, so the frame must not enter the atlas.
-  Future<bool> _runAutoGrade({required int capturedImageId}) async {
-    final settings = await _ref.read(scienceSettingsProvider.future);
-    if (!settings.autoFrameGradingEnabled) {
-      _status.skipStage(
-        ScienceStage.autoGrade,
-        note: 'Auto frame grading disabled in settings',
-      );
-      return true;
-    }
-
-    final sw = _status.beginStage(ScienceStage.autoGrade);
-    try {
-      final fresh = await _imagesRepo.getImageById(capturedImageId);
-      if (fresh == null) {
-        _status.skipStage(
-          ScienceStage.autoGrade,
-          note: 'Captured image row not found',
-        );
-        return false;
-      }
-      final rejected = await _ref
-          .read(frameAutoGraderProvider)
-          .gradeCapturedFrame(image: fresh);
-      if (rejected == null) {
-        _status.skipStage(ScienceStage.autoGrade, note: 'Not a light frame');
-      } else if (rejected) {
-        _status.endStage(
-          ScienceStage.autoGrade,
-          ScienceStageOutcome.ok,
-          stopwatch: sw,
-          note: 'Frame rejected by quality thresholds',
-        );
-      } else {
-        _status.endStage(
-          ScienceStage.autoGrade,
-          ScienceStageOutcome.ok,
-          stopwatch: sw,
-          note: 'Frame passed quality thresholds',
-        );
-      }
-      return true;
-    } catch (error) {
-      _status.endStage(
-        ScienceStage.autoGrade,
-        ScienceStageOutcome.failed,
-        stopwatch: sw,
-        note: error.toString(),
-      );
-      return false;
-    }
-  }
-
   /// Stamp the science measurements gathered for this frame back into the
   /// captured FITS file's header so external pipelines can use them. This
   /// is a no-op when:

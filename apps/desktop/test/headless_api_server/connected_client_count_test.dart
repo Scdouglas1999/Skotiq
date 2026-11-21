@@ -7,6 +7,7 @@
 // This asserts the server publishes the thing the GUI actually asks about: the
 // socket registry.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -92,6 +93,38 @@ void main() {
 
     expect(server.connectedClientCount, 0);
     expect(counts.last, 0, reason: 'the chip must go dark again');
+  });
+
+  test('stop then start still pushes collaboration updates', () async {
+    await server.stop();
+    await server.start();
+    final socket = await WebSocket.connect(
+      'ws://127.0.0.1:${server.actualPort}'
+      '/events?token=admin-token&version=6.0.0',
+    );
+    addTearDown(() async => socket.close());
+    final messages = StreamIterator<dynamic>(socket);
+    addTearDown(messages.cancel);
+    expect(
+      await messages.moveNext().timeout(const Duration(seconds: 2)),
+      isTrue,
+    );
+    expect(
+      (jsonDecode(messages.current as String) as Map)['type'],
+      'collaboration_state',
+    );
+
+    final next = messages.moveNext().timeout(const Duration(seconds: 2));
+    server.collaborationManager.upsertViewer('viewer-1', 'Phone');
+    expect(await next, isTrue);
+    final decoded =
+        jsonDecode(messages.current as String) as Map<String, dynamic>;
+    expect(decoded['type'], 'collaboration_state');
+    final viewers = (decoded['state'] as Map)['viewers'] as List;
+    expect(
+      viewers.map((viewer) => (viewer as Map)['viewerId']),
+      contains('viewer-1'),
+    );
   });
 }
 

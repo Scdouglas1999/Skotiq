@@ -38,10 +38,6 @@
       "reason": "Headless appliance layer: catches bridge_error.SkotiqError to distinguish an empty capture buffer from a real camera fault when shaping the live-preview HTTP response. Same reviewed exception already granted to device_handlers.dart, guiding_handlers.dart and validation.dart; the typed match replaced string-sniffing the error text, which the fail-closed handlers_e_tostring rule forbids."
     },
     {
-      "id": "science_handlers",
-      "reason": "Headless appliance layer: apiReadFitsFile on the local hardware owner."
-    },
-    {
       "id": "sequencer_handlers",
       "reason": "Headless appliance layer: secondary-rig API + SecondaryRigConfigApi on the local hardware owner."
     },

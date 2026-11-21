@@ -79,6 +79,14 @@ class HarnessHandle {
     required this.database,
     required this.container,
   });
+
+  /// Release graph-owned timers before Flutter checks the test's fake clock.
+  /// Drift schedules a zero-delay callback when its last query is cancelled.
+  Future<void> unmount(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+    await tester.pump(Duration.zero);
+  }
 }
 
 /// Pump [screen] inside a ProviderScope + MaterialApp with the standard

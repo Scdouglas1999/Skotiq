@@ -22,211 +22,252 @@ void showSaveAsSnippetDialog(
   final sequence = ref.read(currentSequenceProvider);
   if (sequence == null) return;
 
-  final nameController = TextEditingController(text: node.name);
-  final descController = TextEditingController();
-  SnippetCategory selectedCategory = SnippetCategory.custom;
-
-  showDialog(
+  showDialog<void>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (dialogContext, setDialogState) => AlertDialog(
-        backgroundColor: colors.surfaceOverlay,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+    builder: (_) => _SaveAsSnippetDialog(
+      parentContext: context,
+      ref: ref,
+      node: node,
+      sequence: sequence,
+      colors: colors,
+    ),
+  );
+}
+
+class _SaveAsSnippetDialog extends StatefulWidget {
+  const _SaveAsSnippetDialog({
+    required this.parentContext,
+    required this.ref,
+    required this.node,
+    required this.sequence,
+    required this.colors,
+  });
+
+  final BuildContext parentContext;
+  final WidgetRef ref;
+  final SequenceNode node;
+  final Sequence sequence;
+  final SkotiqColors colors;
+
+  @override
+  State<_SaveAsSnippetDialog> createState() => _SaveAsSnippetDialogState();
+}
+
+class _SaveAsSnippetDialogState extends State<_SaveAsSnippetDialog> {
+  late final TextEditingController _nameController = TextEditingController(
+    text: widget.node.name,
+  );
+  final TextEditingController _descController = TextEditingController();
+  SnippetCategory _selectedCategory = SnippetCategory.custom;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext dialogContext) {
+    final colors = widget.colors;
+    return AlertDialog(
+      backgroundColor: colors.surfaceOverlay,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+      ),
+      title: Row(
+        children: [
+          Icon(LucideIcons.bookmark, size: 20, color: colors.primary),
+          const SizedBox(width: 12),
+          Text(
+            'Save as Template',
+            style: SkotiqTypography.sectionTitle.copyWith(
+              color: colors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: AdaptiveDialogConstraints.hybrid(
+          dialogContext,
+          designMaxWidth: 360,
         ),
-        title: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(LucideIcons.bookmark, size: 20, color: colors.primary),
-            const SizedBox(width: 12),
-            Text(
-              'Save as Template',
-              style: SkotiqTypography.sectionTitle.copyWith(
-                color: colors.textPrimary,
+            Text('Name',
+                style: SkotiqTypography.labelSm
+                    .copyWith(color: colors.textSecondary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _nameController,
+              autofocus: true,
+              style: SkotiqTypography.body.copyWith(color: colors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Template name',
+                hintStyle:
+                    SkotiqTypography.body.copyWith(color: colors.textMuted),
+                filled: true,
+                fillColor: colors.surfaceAlt,
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8),
+                  borderSide: BorderSide(color: colors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8),
+                  borderSide: BorderSide(color: colors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8),
+                  borderSide: BorderSide(color: colors.primary),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('Description',
+                style: SkotiqTypography.labelSm
+                    .copyWith(color: colors.textSecondary)),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _descController,
+              maxLines: 2,
+              style: SkotiqTypography.body.copyWith(color: colors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'What does this template do?',
+                hintStyle:
+                    SkotiqTypography.body.copyWith(color: colors.textMuted),
+                filled: true,
+                fillColor: colors.surfaceAlt,
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8),
+                  borderSide: BorderSide(color: colors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8),
+                  borderSide: BorderSide(color: colors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(SkotiqTokens.radiusInline8),
+                  borderSide: BorderSide(color: colors.primary),
+                ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('Category',
+                style: SkotiqTypography.labelSm
+                    .copyWith(color: colors.textSecondary)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: colors.surfaceAlt,
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+                border: Border.all(color: colors.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: AccessibleDropdown<SnippetCategory>(
+                  value: _selectedCategory,
+                  isExpanded: true,
+                  dropdownColor: colors.surfaceOverlay,
+                  style:
+                      SkotiqTypography.body.copyWith(color: colors.textPrimary),
+                  items: SnippetCategory.values.map((cat) {
+                    return DropdownMenuItem(
+                      value: cat,
+                      child: Text(
+                          cat.name[0].toUpperCase() + cat.name.substring(1)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedCategory = value);
+                    }
+                  },
+                ),
               ),
             ),
           ],
         ),
-        content: ConstrainedBox(
-          constraints: AdaptiveDialogConstraints.hybrid(
-            dialogContext,
-            designMaxWidth: 360,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Name',
-                  style: SkotiqTypography.labelSm
-                      .copyWith(color: colors.textSecondary)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                style:
-                    SkotiqTypography.body.copyWith(color: colors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'Template name',
-                  hintStyle:
-                      SkotiqTypography.body.copyWith(color: colors.textMuted),
-                  filled: true,
-                  fillColor: colors.surfaceAlt,
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    borderSide: BorderSide(color: colors.primary),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text('Description',
-                  style: SkotiqTypography.labelSm
-                      .copyWith(color: colors.textSecondary)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: descController,
-                maxLines: 2,
-                style:
-                    SkotiqTypography.body.copyWith(color: colors.textPrimary),
-                decoration: InputDecoration(
-                  hintText: 'What does this template do?',
-                  hintStyle:
-                      SkotiqTypography.body.copyWith(color: colors.textMuted),
-                  filled: true,
-                  fillColor: colors.surfaceAlt,
-                  border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    borderSide: BorderSide(color: colors.border),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    borderSide: BorderSide(color: colors.primary),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text('Category',
-                  style: SkotiqTypography.labelSm
-                      .copyWith(color: colors.textSecondary)),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: colors.surfaceAlt,
-                  borderRadius:
-                      BorderRadius.circular(SkotiqTokens.radiusInline8),
-                  border: Border.all(color: colors.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: AccessibleDropdown<SnippetCategory>(
-                    value: selectedCategory,
-                    isExpanded: true,
-                    dropdownColor: colors.surfaceOverlay,
-                    style: SkotiqTypography.body
-                        .copyWith(color: colors.textPrimary),
-                    items: SnippetCategory.values.map((cat) {
-                      return DropdownMenuItem(
-                        value: cat,
-                        child: Text(
-                            cat.name[0].toUpperCase() + cat.name.substring(1)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => selectedCategory = value);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          SkotiqButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            label: 'Cancel',
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-          ),
-          SkotiqButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-              if (name.isEmpty) {
-                context.showErrorSnackBar('Please enter a template name');
-                return;
-              }
-
-              final messenger = ScaffoldMessenger.of(context);
-              try {
-                // Capture the full multi-selection when present, else just
-                // this node. createSnippetFromSelection requires the nodes
-                // share a parent / be contiguous; failures land in catch.
-                final multi = ref.read(multiSelectedNodeIdsProvider);
-                final nodeIds = multi.isNotEmpty ? multi.toList() : [node.id];
-                final snippet = createSnippetFromSelection(
-                  name: name,
-                  description: descController.text.trim().isEmpty
-                      ? 'Custom template from ${node.nodeType}'
-                      : descController.text.trim(),
-                  category: selectedCategory,
-                  iconName: node.iconName,
-                  nodeIds: nodeIds,
-                  sequence: sequence,
-                );
-
-                await ref
-                    .read(customSnippetsProvider.notifier)
-                    .addSnippet(snippet);
-
-                if (dialogContext.mounted) {
-                  Navigator.of(dialogContext).pop();
-                }
-
-                if (context.mounted) {
-                  messenger.showSuccessSnackBar(
-                    'Template "$name" created successfully',
-                  );
-                }
-              } catch (e) {
-                if (dialogContext.mounted) {
-                  Navigator.of(dialogContext).pop();
-                }
-                if (context.mounted) {
-                  messenger.showErrorSnackBar(
-                    'Failed to create template: ${userFacingError(e)}',
-                  );
-                }
-              }
-            },
-            label: 'Save',
-            variant: ButtonVariant.primary,
-            size: ButtonSize.small,
-          ),
-        ],
       ),
-    ),
-  );
+      actions: [
+        SkotiqButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          label: 'Cancel',
+          variant: ButtonVariant.ghost,
+          size: ButtonSize.small,
+        ),
+        SkotiqButton(
+          onPressed: () async {
+            final name = _nameController.text.trim();
+            if (name.isEmpty) {
+              if (widget.parentContext.mounted) {
+                widget.parentContext
+                    .showErrorSnackBar('Please enter a template name');
+              }
+              return;
+            }
+
+            final messenger = ScaffoldMessenger.of(widget.parentContext);
+            try {
+              // Capture the full multi-selection when present, else just
+              // this node. createSnippetFromSelection requires the nodes
+              // share a parent / be contiguous; failures land in catch.
+              final multi = widget.ref.read(multiSelectedNodeIdsProvider);
+              final nodeIds =
+                  multi.isNotEmpty ? multi.toList() : [widget.node.id];
+              final snippet = createSnippetFromSelection(
+                name: name,
+                description: _descController.text.trim().isEmpty
+                    ? 'Custom template from ${widget.node.nodeType}'
+                    : _descController.text.trim(),
+                category: _selectedCategory,
+                iconName: widget.node.iconName,
+                nodeIds: nodeIds,
+                sequence: widget.sequence,
+              );
+
+              await widget.ref
+                  .read(customSnippetsProvider.notifier)
+                  .addSnippet(snippet);
+
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+
+              if (widget.parentContext.mounted) {
+                messenger.showSuccessSnackBar(
+                  'Template "$name" created successfully',
+                );
+              }
+            } catch (e) {
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+              if (widget.parentContext.mounted) {
+                messenger.showErrorSnackBar(
+                  'Failed to create template: ${userFacingError(e)}',
+                );
+              }
+            }
+          },
+          label: 'Save',
+          variant: ButtonVariant.primary,
+          size: ButtonSize.small,
+        ),
+      ],
+    );
+  }
 }
 
 /// The one colour a run STATUS is allowed to paint on a row.

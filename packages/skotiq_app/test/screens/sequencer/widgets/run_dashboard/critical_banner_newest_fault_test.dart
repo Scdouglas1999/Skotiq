@@ -250,4 +250,60 @@ void main() {
 
     expect(container.read(runDashboardCriticalEventsProvider), isEmpty);
   });
+
+  // IC 405 night 2026-11-17: "Exposure failed 02:25:21 ... ZWO camera
+  // reported a failed exposure" (+5 more) stayed red over Tonight until
+  // dawn, though the camera reopened and the run kept frames for two hours.
+  sk_events.SkotiqEvent exposureFailed(int timestamp) => _wire(
+        timestamp,
+        'ExposureFailed',
+        {
+          'error': 'Failed to check exposure status: SDK error: ZWO camera '
+              'reported a failed exposure',
+        },
+        severity: EventSeverity.error,
+        category: EventCategory.imaging,
+      );
+
+  test('a good frame after a failed exposure clears the failure', () async {
+    final container = await wiredContainer();
+
+    await emit(container, exposureFailed(_t0));
+    await emit(container, exposureFailed(_t0 + 5000));
+    expect(container.read(runDashboardCriticalEventsProvider), hasLength(1),
+        reason: 'repeats of one camera failure are one banner row');
+
+    await emit(
+      container,
+      _wire(
+        _t0 + 240000,
+        'ExposureCompleted',
+        {'frame': 41, 'total': 171, 'hfr': 2.9, 'stars_detected': 1900},
+        category: EventCategory.imaging,
+      ),
+    );
+
+    expect(container.read(runDashboardCriticalEventsProvider), isEmpty);
+  });
+
+  test('a good frame keeps a critical event that is not about exposures',
+      () async {
+    final container = await wiredContainer();
+
+    await emit(container, exposureFailed(_t0));
+    await emit(container, _flipFailed(_t0 + 1, _pierError));
+    await emit(
+      container,
+      _wire(
+        _t0 + 240000,
+        'ImageSaved',
+        {'file_path': '/data/IC405/Light_0041.fits'},
+        category: EventCategory.imaging,
+      ),
+    );
+
+    final banner = container.read(runDashboardCriticalEventsProvider);
+    expect(banner, hasLength(1));
+    expect(banner.single.message, contains('still West'));
+  });
 }

@@ -553,8 +553,11 @@ class GuidingHandlers implements RouteSource {
   Future<Response> handleBuiltinGuiderSetConfig(Request request) async {
     _logInfo('[API] POST /api/builtin-guider/config');
     final payload = await readJsonObject(request);
-    final backend = container.read(guidingBackendProvider);
-    await backend.builtinGuiderSetConfig(BuiltinGuiderConfig.fromJson(payload));
+    // The same writer the guider panel uses, so the host reloads and the
+    // other windows hear the saved config.
+    await container
+        .read(builtinGuiderConfigProvider.notifier)
+        .updateConfig(BuiltinGuiderConfig.fromJson(payload));
     return jsonOk({"status": "ok"});
   }
 

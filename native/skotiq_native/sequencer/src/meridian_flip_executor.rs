@@ -234,6 +234,9 @@ pub struct MeridianFlipExecutor {
     run_message: Option<RunMessageSink>,
     /// The pier side the flip reached, once verified.
     reached_pier_side: parking_lot::Mutex<Option<PierSide>>,
+    /// Standalone telemetry. A sequenced flip reports on [RunShared::event_tx]
+    /// instead, which is also where its verdict is counted.
+    progress_event_tx: Option<tokio::sync::broadcast::Sender<ExecutorEvent>>,
 }
 
 /// Writes the run's one-line status message.
@@ -260,7 +263,17 @@ impl MeridianFlipExecutor {
             flip_slew_start: parking_lot::Mutex::new(None),
             run_message: None,
             reached_pier_side: parking_lot::Mutex::new(None),
+            progress_event_tx: None,
         }
+    }
+
+    /// Standalone telemetry without attributing an outcome to a sequence run.
+    pub fn with_progress_event_tx(
+        mut self,
+        tx: tokio::sync::broadcast::Sender<ExecutorEvent>,
+    ) -> Self {
+        self.progress_event_tx = Some(tx);
+        self
     }
 
     /// Keep the run's status message current through the flip.
@@ -2292,6 +2305,20 @@ impl MeridianFlipExecutor {
 
     fn emit_event(&self, event: MeridianFlipEvent) {
         self.event_emitter.emit(&event);
+        if let Some(tx) = self
+            .progress_event_tx
+            .as_ref()
+            .or(self.run.event_tx.as_ref())
+        {
+            match serde_json::to_string(&event) {
+                Ok(detail_json) => {
+                    let _ = tx.send(ExecutorEvent::MeridianFlipProgress { detail_json });
+                }
+                Err(error) => {
+                    tracing::error!("Could not encode meridian flip progress: {error}");
+                }
+            }
+        }
 
         // A flip in its retry ladder is the run standing still: a retry
         // ladder that held a run for two and a half minutes showed "Running",
@@ -4407,6 +4434,71 @@ mod tests {
         assert!((back.max_post_settle_rms_pixels - 1.5).abs() < 1e-9);
     }
 
+    /// Sequenced flips publish one verdict. A standalone flip publishes the
+    /// same step JSON and no verdict, so run vitals do not count it.
+    #[tokio::test(start_paused = true)]
+    async fn flip_progress_reaches_the_shared_event_stream() {
+        for standalone in [false, true] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.pier_sides.lock().unwrap().extend([
+                crate::meridian::PierSide::East,
+                crate::meridian::PierSide::West,
+            ]);
+            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+            let config = MeridianFlipConfig {
+                pause_guiding: false,
+                auto_center: false,
+                refocus_after: false,
+                resume_guiding: false,
+                settle_time: 0.0,
+                max_retries: 0,
+                ..Default::default()
+            };
+            let (tx, mut rx) = broadcast::channel(64);
+            let mut executor = if standalone {
+                MeridianFlipExecutor::new(config, ops).with_progress_event_tx(tx)
+            } else {
+                let mut run = RunShared::new(ops);
+                run.event_tx = Some(tx);
+                MeridianFlipExecutor::in_run(config, run)
+            };
+            assert!(matches!(
+                executor.execute(&make_ctx(&state)).await,
+                FlipResult::Success { .. }
+            ));
+            let mut events = Vec::new();
+            let mut outcomes = 0;
+            while let Ok(event) = rx.try_recv() {
+                match event {
+                    ExecutorEvent::MeridianFlipProgress { detail_json } => events.push(detail_json),
+                    ExecutorEvent::MeridianFlipOutcome { outcome, .. }
+                        if outcome != FlipOutcome::PierChanged =>
+                    {
+                        outcomes += 1;
+                    }
+                    _ => {}
+                }
+            }
+            assert_eq!(outcomes, if standalone { 0 } else { 1 });
+            assert!(
+                events.iter().any(|e| e.contains("Starting")),
+                "missing flip start: {events:?}"
+            );
+            assert!(
+                events.iter().any(|e| e.contains("EnablingTracking")),
+                "missing tracking step: {events:?}"
+            );
+            assert!(
+                events.iter().any(|e| e.contains("VerifyingPierSide")),
+                "missing flip steps: {events:?}"
+            );
+            assert!(
+                events.last().is_some_and(|e| e.contains("Completed")),
+                "missing flip completion: {events:?}"
+            );
+        }
+    }
+
     /// A flip in its retry ladder must say so on the run's event stream, the
     /// channel every operator surface listens to; otherwise the screen reports
     /// Running, on-schedule progress and a passing finish time while no frame
@@ -4426,6 +4518,10 @@ mod tests {
             delay_secs: 60.0,
         });
 
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            ExecutorEvent::MeridianFlipProgress { .. }
+        ));
         let event = rx.try_recv().expect("the retry must reach the run stream");
         match event {
             ExecutorEvent::NodeProgress {
@@ -4455,9 +4551,13 @@ mod tests {
             new_pier_side: PierSide::East,
             duration_secs: 12.0,
         });
+        assert!(matches!(
+            rx.try_recv().unwrap(),
+            ExecutorEvent::MeridianFlipProgress { .. }
+        ));
         assert!(
             rx.try_recv().is_err(),
-            "only the mid-ladder notice belongs on the run stream"
+            "telemetry must not duplicate the run verdict"
         );
     }
 
@@ -4467,11 +4567,8 @@ mod tests {
     /// parked the mount and ended the run. The mount is on the new pier side
     /// and tracking; the run now carries on at the previous focus, and says so.
     #[tokio::test(start_paused = true)]
-    #[allow(clippy::await_holding_lock)]
     async fn a_failed_post_flip_refocus_notifies_and_the_flip_completes() {
-        let _serial = crate::AF_GATE_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
             crate::meridian::PierSide::East,

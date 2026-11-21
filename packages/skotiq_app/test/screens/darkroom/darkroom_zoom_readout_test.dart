@@ -75,7 +75,15 @@ class _FixedRender implements DarkroomSeam {
   /// does not leaves nothing to compute one screen pixel per master pixel from.
   final bool statesLevel;
 
-  const _FixedRender({this.refuse = const <int>{}, this.statesLevel = true});
+  final int width;
+  final int height;
+
+  const _FixedRender({
+    this.refuse = const <int>{},
+    this.statesLevel = true,
+    this.width = _previewWidth,
+    this.height = _previewHeight,
+  });
 
   /// The recipe row [recipeJson] describes. The controller writes it as `id`.
   bool _refused(String recipeJson) {
@@ -110,10 +118,10 @@ class _FixedRender implements DarkroomSeam {
       throw const DarkroomSeamException('renderPreview', _refusal, _refusal);
     }
     return DarkroomRenderedPreview(
-      width: _previewWidth,
-      height: _previewHeight,
+      width: width,
+      height: height,
       isColor: false,
-      rgba: Uint8List(_previewWidth * _previewHeight * 4),
+      rgba: Uint8List(width * height * 4),
       report: {
         'encoding': {
           'requested': 'auto',
@@ -200,9 +208,12 @@ void main() {
     int recipeId, {
     Set<int> refuse = const <int>{},
     bool statesLevel = true,
+    int width = _previewWidth,
+    int height = _previewHeight,
+    Size surface = const Size(1400, 900),
   }) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.physicalSize = surface;
     addTearDown(() {
       tester.view.resetPhysicalSize();
       tester.view.resetDevicePixelRatio();
@@ -218,7 +229,12 @@ void main() {
           const AppVersionInfo(version: '0.0.0-test', buildNumber: 0),
         ),
         darkroomSeamProvider.overrideWithValue(
-          _FixedRender(refuse: refuse, statesLevel: statesLevel),
+          _FixedRender(
+            refuse: refuse,
+            statesLevel: statesLevel,
+            width: width,
+            height: height,
+          ),
         ),
         dawnPhotometryResolverProvider.overrideWithValue(_emptyPhotometry()),
       ],
@@ -609,5 +625,54 @@ void main() {
     expect(publishes(tester, 'Zoom relative to the master is unknown'), isTrue);
     await drain(tester);
     handle.dispose();
+  });
+
+  testWidgets('a fitted 506 by 378 frame stays inside the preview surface', (
+    tester,
+  ) async {
+    const frameWidth = 506.0;
+    const frameHeight = 378.0;
+    final root = await seedRecipe();
+    await pump(
+      tester,
+      root,
+      width: frameWidth.toInt(),
+      height: frameHeight.toInt(),
+      surface: const Size(640, 900),
+    );
+    await decodeFrames(tester);
+    await settle(tester);
+
+    final surface = find.byKey(kDarkroomPreviewSurfaceKey);
+    expect(surface, findsOneWidget);
+    final surfaceBox = tester.renderObject<RenderBox>(surface);
+    expect(
+      surfaceBox.size.width < frameWidth ||
+          surfaceBox.size.height < frameHeight,
+      isTrue,
+      reason:
+          'the pane has to be smaller than the frame, was ${surfaceBox.size}',
+    );
+    final allowed =
+        (surfaceBox.localToGlobal(Offset.zero) & surfaceBox.size).inflate(0.1);
+
+    final paints = find.descendant(
+      of: surface,
+      matching: find.byType(CustomPaint),
+    );
+    final painter = paints.evaluate().map((element) {
+      return tester.renderObject<RenderBox>(find.byWidget(element.widget));
+    }).firstWhere(
+      (box) =>
+          (box.size.width - frameWidth).abs() < 0.1 &&
+          (box.size.height - frameHeight).abs() < 0.1,
+    );
+    expect(allowed.contains(painter.localToGlobal(Offset.zero)), isTrue);
+    expect(
+      allowed.contains(
+          painter.localToGlobal(const Offset(frameWidth, frameHeight))),
+      isTrue,
+    );
+    await drain(tester);
   });
 }

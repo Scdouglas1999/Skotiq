@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
 import 'package:skotiq_core/src/database/daos/images_dao.dart';
 import 'package:skotiq_core/src/database/daos/sessions_dao.dart';
@@ -182,6 +184,68 @@ void main() {
       final body = fake.requests.single.body!;
       expect(body, contains('filePath'));
       expect(body, contains('/host/light.fits'));
+    });
+
+    test('a solved host image keeps its CD matrix and SIP', () async {
+      const cd11 = -0.00020379;
+      const cd12 = 0.00007981;
+      const cd21 = -0.00007976;
+      const cd22 = 0.00020386;
+      const sip = '{"a_order":2,"a":[0,1]}';
+      fake.setResponse(
+        '/api/images/9',
+        body: jsonEncode({
+          'image': {
+            ..._imageRow(9),
+            'isPlateSolved': true,
+            'solvedRa': 5.5,
+            'solvedDec': 24.1,
+            'solvedCd1_1': cd11,
+            'solvedCd1_2': cd12,
+            'solvedCd2_1': cd21,
+            'solvedCd2_2': cd22,
+            'solvedSip': sip,
+          },
+        }),
+      );
+      fake.setResponse(
+        '/api/images/10',
+        body: jsonEncode({
+          'image': {..._imageRow(10), 'isPlateSolved': false, 'solvedRa': 1.25},
+        }),
+      );
+      final container = ProviderContainer(
+        overrides: [imagingRecordsProvider.overrideWithValue(repository)],
+      );
+      addTearDown(container.dispose);
+
+      final solved = await container.read(capturedImageWcsProvider(9).future);
+      expect(solved, isNotNull);
+      expect(solved!.cd1_1, cd11);
+      expect(solved.cd1_2, cd12);
+      expect(solved.cd2_1, cd21);
+      expect(solved.cd2_2, cd22);
+      expect(solved.sip, sip);
+      expect(solved.solvedRaHours, 5.5);
+      expect(solved.solvedDecDegrees, 24.1);
+
+      final unsolved = await container.read(
+        capturedImageWcsProvider(10).future,
+      );
+      expect(unsolved, isNotNull);
+      expect(unsolved!.solvedRaHours, 1.25);
+      expect(unsolved.cd1_1, isNull);
+      expect(unsolved.cd1_2, isNull);
+      expect(unsolved.cd2_1, isNull);
+      expect(unsolved.cd2_2, isNull);
+      expect(unsolved.sip, isNull);
+
+      fake.setResponse(
+        '/api/images/11',
+        status: 404,
+        body: '{"error":"missing"}',
+      );
+      expect(await repository.getStoredWcsDistortion(11), isNull);
     });
 
     test('rejectImage patches host row', () async {

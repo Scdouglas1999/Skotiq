@@ -14,6 +14,7 @@ import 'package:skotiq_desktop/headless_api/handlers/stacking_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
@@ -23,11 +24,15 @@ class _FakeStackingService extends LiveStackingService {
   _FakeStackingService(super.ref);
 
   final List<String> started = [];
+  final List<String> startedFilters = [];
   final List<LiveStackingConfig> startedConfigs = [];
   final List<String> added = [];
+  final List<String> resetFilters = [];
+  final List<String> stoppedFilters = [];
   int resets = 0;
   int stops = 0;
   bool _active = false;
+  final Set<String> _slots = {};
   Object? startError;
 
   @override
@@ -38,8 +43,41 @@ class _FakeStackingService extends LiveStackingService {
     if (startError case final error?) throw error;
     started.add(referenceImagePath);
     startedConfigs.add(config);
+    _slots.add('Unfiltered');
     _active = true;
     return LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
+  }
+
+  @override
+  Future<LiveStackingStats> startFromFileForFilter({
+    required String filterKey,
+    required String referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+  }) async {
+    if (startError case final error?) throw error;
+    startedFilters.add(filterKey);
+    startedConfigs.add(config);
+    _slots.add(filterKey);
+    _active = true;
+    return LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
+  }
+
+  @override
+  Future<void> resetForFilter(String filterKey) async {
+    if (!_slots.contains(filterKey)) {
+      throw StateError("Live stacker not initialized for filter '$filterKey'");
+    }
+    resetFilters.add(filterKey);
+  }
+
+  @override
+  Future<void> stopForFilter(String filterKey) async {
+    if (!_slots.contains(filterKey)) {
+      throw StateError("Live stacker not initialized for filter '$filterKey'");
+    }
+    stoppedFilters.add(filterKey);
+    _slots.remove(filterKey);
+    _active = _slots.isNotEmpty;
   }
 
   /// Set to make the next add throw, standing in for the native stacker's
@@ -75,6 +113,7 @@ class _FakeStackingService extends LiveStackingService {
     if (!_active) throw StateError('Live stacker not initialized');
     stops++;
     _active = false;
+    _slots.clear();
   }
 
   @override
@@ -227,6 +266,78 @@ void main() {
             )
             as Map<String, dynamic>;
     expect(status['armed'], false);
+  });
+
+  test('filterKey reset and stop touch that slot only', () async {
+    final ha = await handlers.handleStart(
+      post('/api/stacking/start', {
+        'referencePath': '/host/ha.fits',
+        'filterKey': 'Ha',
+      }),
+    );
+    expect(ha.statusCode, 200);
+    expect(jsonDecode(await ha.readAsString())['status'], 'started');
+    final oiii = await handlers.handleStart(
+      post('/api/stacking/start', {
+        'referencePath': '/host/oiii.fits',
+        'filterKey': 'OIII',
+      }),
+    );
+    expect(oiii.statusCode, 200);
+
+    expect(
+      fake.started,
+      isEmpty,
+      reason: 'a named start is not the whole stack',
+    );
+    expect(fake.startedFilters, ['Ha', 'OIII']);
+    expect(fake.resets, 0, reason: 'starting Ha must not reset OIII');
+
+    final reset = await handlers.handleReset(
+      post('/api/stacking/reset', {'filterKey': 'Ha'}),
+    );
+    expect(reset.statusCode, 200);
+    expect(fake.resetFilters, ['Ha']);
+    expect(fake.resets, 0);
+    expect(fake.stops, 0);
+
+    final stop = await handlers.handleStop(
+      post('/api/stacking/stop', {'filterKey': 'Ha'}),
+    );
+    expect(stop.statusCode, 200);
+    final stopBody = jsonDecode(await stop.readAsString()) as Map;
+    expect(stopBody['filterKey'], 'Ha');
+    expect(fake.stoppedFilters, ['Ha']);
+    expect(fake.stops, 0, reason: 'stopping Ha must not stop OIII');
+
+    // OIII is still the host stack, so a saved frame is still fed.
+    await handlers.onImageSaved('/host/oiii_2.fits');
+    expect(fake.added, ['/host/oiii_2.fits']);
+
+    final dispatch = RouteTable.only(handlers).handler;
+    await dispatch(
+      post('/api/stacking/filters/Ha/start', {
+        'referencePath': '/host/ha.fits',
+      }),
+    );
+    expect(fake._slots, {'Ha', 'OIII'});
+    final resetAll = await dispatch(post('/api/stacking/reset'));
+    expect(resetAll.statusCode, 200);
+    expect(fake._slots, isEmpty);
+    await handlers.onImageSaved('/host/new-run.fits');
+    expect(fake.started.last, '/host/new-run.fits');
+  });
+
+  test('a missing filterKey still stops the whole stack', () async {
+    await handlers.handleStart(
+      post('/api/stacking/start', {'referencePath': '/host/ref.fits'}),
+    );
+    final stop = await handlers.handleStop(post('/api/stacking/stop', {}));
+    expect(stop.statusCode, 200);
+    expect(fake.stops, 1);
+    expect(fake.stoppedFilters, isEmpty);
+    final body = jsonDecode(await stop.readAsString()) as Map;
+    expect(body.containsKey('filterKey'), isFalse);
   });
 
   test('explicit referencePath starts immediately', () async {
@@ -498,6 +609,35 @@ void main() {
           jsonDecode(await response.readAsString()) as Map<String, dynamic>;
       expect(body['code'], 'no_active_stack');
       expect(body['message'], 'Live stacking is not running.');
+    },
+  );
+
+  test(
+    '9.0.2 config tuning fields and totalIntegrationSecs round-trip over JSON',
+    () async {
+      final startResponse = await handlers.handleStart(
+        post('/api/stacking/start', {
+          'referencePath': '/host/ref.fits',
+          'config': {
+            'maxAlignmentResidualPx': 1.2,
+            'starDetectionSigma': 3.5,
+            'starDetectionMinSnr': 6.5,
+          },
+        }),
+      );
+      expect(startResponse.statusCode, HttpStatus.ok);
+      expect(
+        fake.startedConfigs.last.maxAlignmentResidualPx,
+        closeTo(1.2, 1e-9),
+      );
+      expect(fake.startedConfigs.last.starDetectionSigma, closeTo(3.5, 1e-9));
+      expect(fake.startedConfigs.last.starDetectionMinSnr, closeTo(6.5, 1e-9));
+
+      final body =
+          jsonDecode(await startResponse.readAsString())
+              as Map<String, dynamic>;
+      final stats = body['stats'] as Map<String, dynamic>;
+      expect(stats.containsKey('totalIntegrationSecs'), isTrue);
     },
   );
 }

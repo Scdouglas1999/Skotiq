@@ -19,6 +19,7 @@ import '../providers/constellation_provider.dart'
 import '../providers/equipment_provider.dart';
 import '../providers/logging_service_provider.dart';
 import '../providers/smart_notification_service_provider.dart';
+import '../utils/logging_service.dart';
 part 'centering_service/centering_models.dart';
 
 /// Where a centering runs: the sequence's Center step in this process's
@@ -50,9 +51,18 @@ final class HostCenteringRunner implements CenteringRunner {
 
   final HostPointing _host;
   String? _jobId;
+  bool _cancelRequested = false;
 
   @override
-  Stream<ApiCenteringStep> center(ApiCenteringRequest request) async* {
+  Stream<ApiCenteringStep> center(ApiCenteringRequest request) {
+    // The async* body does not run until the first listen. Resetting the flag
+    // there drops a cancel() that arrived after center() returned and before
+    // that listen.
+    _cancelRequested = false;
+    return _center(request);
+  }
+
+  Stream<ApiCenteringStep> _center(ApiCenteringRequest request) async* {
     final jobId = await _host.startCentering(
       raHours: request.raHours,
       decDegrees: request.decDegrees,
@@ -63,6 +73,9 @@ final class HostCenteringRunner implements CenteringRunner {
     );
     _jobId = jobId;
     try {
+      if (_cancelRequested) {
+        await _host.cancelJob(jobId);
+      }
       final job = await _host.awaitJobCompletion(
         jobId,
         timeout: const Duration(minutes: 10),
@@ -100,11 +113,13 @@ final class HostCenteringRunner implements CenteringRunner {
       );
     } finally {
       _jobId = null;
+      _cancelRequested = false;
     }
   }
 
   @override
   Future<void> cancel() async {
+    _cancelRequested = true;
     final jobId = _jobId;
     if (jobId != null) await _host.cancelJob(jobId);
   }
@@ -144,7 +159,17 @@ class CenteringService {
   void retire() {
     if (_retired) return;
     _retired = true;
-    if (_isRunning) unawaited(stop());
+    if (_isRunning) {
+      unawaited(
+        stop().catchError((Object e) {
+          Log.warning(
+            'Centering stop during retire failed: $e',
+            source: 'CenteringService',
+            error: e,
+          );
+        }),
+      );
+    }
   }
 
   /// Center on target coordinates (RA hours, Dec degrees, J2000).
@@ -238,7 +263,15 @@ class CenteringService {
     var timedOut = false;
     final deadline = Timer(config.overallTimeout, () {
       timedOut = true;
-      unawaited(_runner.cancel());
+      unawaited(
+        _runner.cancel().catchError((Object e) {
+          Log.warning(
+            'Centering cancel on timeout failed: $e',
+            source: 'CenteringService',
+            error: e,
+          );
+        }),
+      );
     });
     try {
       await for (final step in steps) {
@@ -312,6 +345,12 @@ class CenteringService {
     if (solved == null || offset == null) {
       return _failure(
         'Centering reported centered without a solve',
+        iterations,
+      );
+    }
+    if (_retired) {
+      return _failure(
+        'Centering cancelled: host connection changed',
         iterations,
       );
     }

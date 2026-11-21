@@ -54,17 +54,21 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         // the ones already sitting at the current version.
         await _pruneRetiredSettings();
         await _migrateSkyAtlasToOptIn();
+        await _migrateGradingToRelative();
 
         // A solved row's scalar rotation must agree with its own CD matrix;
         // rows written before the parser handled mirrored frames do not.
-        final rotationsRepaired = await repairSolvedRotationFromCd(this);
-        if (rotationsRepaired > 0) {
-          // ignore: avoid_print
-          print(
-            '[skotiq_db] Rewrote the solved rotation of $rotationsRepaired '
-            "frame${rotationsRepaired == 1 ? '' : 's'} to match "
-            'the stored CD matrix.',
-          );
+        // Skip on freshly created databases (no rows exist yet).
+        if (!details.wasCreated) {
+          final rotationsRepaired = await repairSolvedRotationFromCd(this);
+          if (rotationsRepaired > 0) {
+            // ignore: avoid_print
+            print(
+              '[skotiq_db] Rewrote the solved rotation of $rotationsRepaired '
+              "frame${rotationsRepaired == 1 ? '' : 's'} to match "
+              'the stored CD matrix.',
+            );
+          }
         }
       },
       onUpgrade: (Migrator m, int from, int to) async {

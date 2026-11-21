@@ -37,13 +37,27 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
   Timer? _timer;
   StreamSubscription<SkotiqEvent>? _events;
   bool _refreshing = false;
+  int _generation = 0;
+  bool _disposed = false;
 
   @override
   List<MountGuardEntry> build() {
     final backend = ref.watch(backendProvider);
+    final gen = ++_generation;
+    _disposed = false;
+    _refreshing = false;
+    _timer?.cancel();
+    _timer = null;
+    _events?.cancel();
+    _events = null;
     ref.onDispose(() {
+      _disposed = true;
+      _generation++;
+      _refreshing = false;
       _timer?.cancel();
+      _timer = null;
       _events?.cancel();
+      _events = null;
     });
     if (backend is! MountGuardBackend) return const [];
     _events = backend.eventStream
@@ -53,37 +67,51 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
               mountGuardEventTypes.contains(e.eventType),
         )
         .listen((_) => refresh());
-    _schedule(_quietPoll);
-    Future.microtask(refresh);
+    _schedule(_quietPoll, gen);
+    Future.microtask(() {
+      if (!_disposed && gen == _generation) {
+        unawaited(refresh());
+      }
+    });
     return const [];
   }
 
   MountGuardBackend? get _guard {
+    if (_disposed) return null;
     final backend = ref.read(backendProvider);
     return backend is MountGuardBackend ? backend as MountGuardBackend : null;
   }
 
-  void _schedule(Duration every) {
+  void _schedule(Duration every, int gen) {
+    if (_disposed || gen != _generation) return;
     _timer?.cancel();
-    _timer = Timer.periodic(every, (_) => refresh());
+    _timer = Timer.periodic(every, (_) {
+      if (_disposed || gen != _generation) return;
+      unawaited(refresh());
+    });
   }
 
   /// Read the guard now.
   Future<void> refresh() async {
     final guard = _guard;
-    if (guard == null || _refreshing) return;
+    final gen = _generation;
+    if (guard == null || _refreshing || _disposed) return;
     _refreshing = true;
     try {
       final entries = await guard.mountGuardState();
+      if (_disposed || gen != _generation) return;
       state = entries;
-      _schedule(entries.isEmpty ? _quietPoll : _openPoll);
+      _schedule(entries.isEmpty ? _quietPoll : _openPoll, gen);
     } catch (error) {
+      if (_disposed || gen != _generation) return;
       _log.fine('Mount guard read failed: $error');
       // A client between connections reads nothing; the next poll or event
       // tries again. The last state stays on screen meanwhile, because an
       // open fault must not vanish just because one read failed.
     } finally {
-      _refreshing = false;
+      if (gen == _generation) {
+        _refreshing = false;
+      }
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -9,10 +11,18 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 import 'package:skotiq_core/utils.dart';
+import '../display_buffer_jpeg.dart';
+import 'filesystem_handlers.dart';
+
+part 'flat_wizard_run_handlers.dart';
 
 class FlatWizardHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
+    FlatWizardApi.run: handleStartRun,
+    FlatWizardApi.cancelRun: handleCancelRun,
+    FlatWizardApi.runState: handleGetRunState,
+    FlatWizardApi.preview: handleGetPreview,
     FlatWizardApi.calibrateFilter: handleCalibrateFilter,
     FlatWizardApi.calibrateMultipleFilters: handleCalibrateMultipleFilters,
     FlatWizardApi.generateSequence: handleGenerateSequence,

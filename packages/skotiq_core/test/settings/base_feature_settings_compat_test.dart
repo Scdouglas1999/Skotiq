@@ -115,7 +115,6 @@ Map<String, Object?> _science(ScienceSettings s) => {
   'tnsDataSourceId': s.tnsDataSourceId,
   'tnsReporterName': s.tnsReporterName,
   'tnsUseSandbox': s.tnsUseSandbox,
-  'autoFrameGradingEnabled': s.autoFrameGradingEnabled,
   'frameGradeRulesJson': s.frameGradeRulesJson,
   'scienceGuideCollapsed': s.scienceGuideCollapsed,
 };
@@ -146,7 +145,6 @@ const _scienceKeys = [
   'science.tns.source_id',
   'science.tns.reporter',
   'science.tns.use_sandbox',
-  'science.grading.auto_enabled',
   'science.grading.rules_json',
   'science.guide.collapsed',
   'image_grading_enabled',
@@ -168,7 +166,6 @@ const _scienceBoolKeys = [
   'science.retention.manual_purge_only',
   'science.writeback.fits_header_enabled',
   'science.tns.use_sandbox',
-  'science.grading.auto_enabled',
   'science.guide.collapsed',
 ];
 
@@ -1160,7 +1157,22 @@ void main() {
     if (update) {
       recorded['install rows'] = rows;
     } else {
-      expect(rows, fixture['install rows']);
+      // Centering tolerance is seeded after the base build. A fresh install
+      // has the row at 5 arcseconds. The migration marker and the defaults
+      // changed on purpose are the other rows a base install did not have.
+      expect(rows['centering_tolerance_arcsec'], '5.0');
+      expect(
+        {
+          for (final entry in rows.entries)
+            if (entry.key != 'centering_tolerance_arcsec')
+              entry.key: entry.value,
+        },
+        {
+          ...(fixture['install rows'] as Map).cast<String, String>(),
+          ..._installRowsChangedOnPurpose,
+          ..._installRowsAddedSinceBase,
+        },
+      );
     }
   });
 
@@ -1172,6 +1184,12 @@ void main() {
     });
   }
 }
+
+/// Rows a new database is seeded with differently from the base build: a run
+/// held by a mount fault recovers on its own (owner, 2026-11-17).
+const Map<String, String> _installRowsChangedOnPurpose = {
+  'mount_guard_auto_sync_resume': 'true',
+};
 
 /// What these settings now read where that differs from the base build.
 ///
@@ -1214,9 +1232,24 @@ const Map<String, Object?> _changedOnPurpose = {
   'decision log': {
     'reads': {'empty': _SameAs('missing')},
   },
+  // The Science switch for a second frame grader is gone: a frame's verdict
+  // is the run's grader's alone (IC 405, 2026-11-16).
   'science settings': {
     'reads': {
-      'empty': {'frameGradeRulesJson': null},
+      'missing': {'autoFrameGradingEnabled': _removed},
+      'all on': {'autoFrameGradingEnabled': _removed},
+      'all off': {'autoFrameGradingEnabled': _removed},
+      'upper case': {'autoFrameGradingEnabled': _removed},
+      'empty': {
+        'frameGradeRulesJson': null,
+        'autoFrameGradingEnabled': _removed,
+      },
+      'unreadable switch': {'autoFrameGradingEnabled': _removed},
+      'unreadable number': {'autoFrameGradingEnabled': _removed},
+      'identity': {'autoFrameGradingEnabled': _removed},
+      'atlas limit': {'autoFrameGradingEnabled': _removed},
+      'atlas limit text': {'autoFrameGradingEnabled': _removed},
+      'grading by the older switch': {'autoFrameGradingEnabled': _removed},
     },
   },
   'notification routing': {
@@ -1252,6 +1285,19 @@ const Map<String, Object?> _changedOnPurpose = {
   },
 };
 
+/// Rows a new database holds that the base build's did not: the marker of the
+/// one-time move of grading to relative checks (2026-11-17).
+const Map<String, String> _installRowsAddedSinceBase = {
+  'image_grading.relative_defaults_migrated': 'true',
+};
+
+/// A value the base build read that no longer exists.
+class _Removed {
+  const _Removed();
+}
+
+const _removed = _Removed();
+
 /// A change to the value the base build read from the rows labeled [label].
 class _SameAs {
   const _SameAs(this.label);
@@ -1271,5 +1317,5 @@ Object? _withChanges(Object? base, Object? changes) {
         _SameAs(:final label) => base[label],
         final value => _withChanges(base[entry.key], value),
       },
-  };
+  }..removeWhere((key, value) => changes[key] is _Removed);
 }

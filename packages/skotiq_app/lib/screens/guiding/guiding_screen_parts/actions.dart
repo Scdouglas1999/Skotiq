@@ -141,7 +141,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
             guideCameraId: ref.read(profileGuiderProvider).guideCameraId,
           );
     } catch (e) {
-      _showActionError('Failed to connect the guider: $e');
+      _showActionError('Failed to connect the guider: ${userFacingError(e)}');
     }
   }
 
@@ -159,7 +159,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
       }
     } catch (e) {
       _showActionError(
-        'Failed to disconnect ${guiderId ?? 'the active guider'}: $e',
+        'Failed to disconnect ${guiderId ?? 'the active guider'}: '
+        '${userFacingError(e)}',
       );
     }
   }
@@ -172,7 +173,8 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     try {
       await ref.read(lockPositionProvider.notifier).setLockPosition(x, y);
     } catch (e) {
-      _showActionError('Could not select the guide star: $e');
+      _showActionError(
+          'Could not select the guide star: ${userFacingError(e)}');
     }
   }
 
@@ -240,7 +242,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     try {
       await ref.read(calibrationStateProvider.notifier).clearCalibration();
     } catch (e) {
-      _showActionError('Failed to clear calibration: $e');
+      _showActionError('Failed to clear calibration: ${userFacingError(e)}');
     }
   }
 
@@ -248,7 +250,7 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
     try {
       await ref.read(calibrationStateProvider.notifier).flipCalibration();
     } catch (e) {
-      _showActionError('Failed to flip calibration: $e');
+      _showActionError('Failed to flip calibration: ${userFacingError(e)}');
     }
   }
 }

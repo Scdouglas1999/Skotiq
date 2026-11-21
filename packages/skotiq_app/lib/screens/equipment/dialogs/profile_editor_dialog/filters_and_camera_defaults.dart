@@ -228,7 +228,8 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
           _EditorRow(
             label: 'Centering exposure',
             help: 'Used for plate-solve centering; adjustable per session in '
-                'the centering dialog.',
+                'the centering dialog. How close counts as centered is '
+                'Settings > Plate solving > Centering tolerance.',
             child: SkotiqTextField(
               controller: _centeringExposureController,
               hint: 'e.g., 5',

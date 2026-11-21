@@ -82,10 +82,14 @@ final depthLockGoalsForFilterProvider =
 /// operator, and rewording it here would lose the only explanation there is.
 class DepthLockGoalsNotifier extends AsyncNotifier<List<DepthLockGoal>> {
   StreamSubscription<core.SkotiqEvent>? _events;
+  int _generation = 0;
+  bool _disposed = false;
 
   @override
   Future<List<DepthLockGoal>> build() async {
     final backend = ref.watch(depthLockBackendProvider);
+    _generation++;
+    _disposed = false;
     _listenForChanges();
     return backend.listDepthLockGoals();
   }
@@ -93,8 +97,12 @@ class DepthLockGoalsNotifier extends AsyncNotifier<List<DepthLockGoal>> {
   /// Re-read the goal list, leaving the current value visible while the read
   /// is in flight so the panel does not blank out on every arriving frame.
   Future<void> refresh() async {
+    if (_disposed) return;
+    final gen = _generation;
     final backend = ref.read(depthLockBackendProvider);
-    state = await AsyncValue.guard(() => backend.listDepthLockGoals());
+    final next = await AsyncValue.guard(() => backend.listDepthLockGoals());
+    if (_disposed || gen != _generation) return;
+    state = next;
   }
 
   Future<DepthLockGoal> createGoal(
@@ -209,6 +217,8 @@ class DepthLockGoalsNotifier extends AsyncNotifier<List<DepthLockGoal>> {
           },
         );
     ref.onDispose(() {
+      _disposed = true;
+      _generation++;
       _events?.cancel();
       _events = null;
     });

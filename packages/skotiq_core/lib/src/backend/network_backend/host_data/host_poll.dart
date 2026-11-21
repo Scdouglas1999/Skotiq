@@ -40,7 +40,18 @@ final class HostPoll {
   );
 
   /// Re-fetches every live [watch] now.
-  void refresh() => _refresh.add(null);
+  void refresh() {
+    if (!_refresh.isClosed) {
+      _refresh.add(null);
+    }
+  }
+
+  /// Closes the internal refresh broadcast controller. Safe to call repeatedly.
+  void dispose() {
+    if (!_refresh.isClosed) {
+      unawaited(_refresh.close());
+    }
+  }
 }
 
 /// One stream shared by every listener, with the last value replayed to

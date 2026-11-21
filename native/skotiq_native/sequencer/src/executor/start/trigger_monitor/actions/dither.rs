@@ -9,7 +9,7 @@ pub(in super::super) async fn run(
     rig: &Rig,
     run: &RunControl,
 ) -> ActionFlow {
-    let config = effective_config(trigger_config, &rig.runtime_config.read());
+    let config = rig.runtime_config.read().dither_for(trigger_config);
     tracing::info!(
         "[DITHER] Trigger '{}' fired - executing dither (pixels={}, settle_pixels={})",
         trigger_name,
@@ -31,26 +31,4 @@ pub(in super::super) async fn run(
         ),
     }
     ActionFlow::Finished
-}
-
-/// The operator's last UpdateDitherConfig wins once it has been pushed
-/// (non-zero pixels); the pattern and grid size, which that command does not
-/// carry, always come from the trigger.
-fn effective_config(
-    trigger_config: &crate::DitherConfig,
-    runtime: &RunConfig,
-) -> crate::DitherConfig {
-    if runtime.dither.pixels > 0.0 {
-        crate::DitherConfig {
-            pixels: runtime.dither.pixels,
-            settle_pixels: runtime.dither.settle_pixels,
-            settle_time: runtime.dither.settle_time,
-            settle_timeout: runtime.dither.settle_timeout,
-            ra_only: runtime.dither.ra_only,
-            pattern: trigger_config.pattern,
-            grid_size: trigger_config.grid_size,
-        }
-    } else {
-        trigger_config.clone()
-    }
 }

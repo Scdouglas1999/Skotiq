@@ -11,8 +11,7 @@
 /// test fails if one is missing.
 library;
 
-import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/wire.dart' show kDefaultHeadlessPort;
 
 import '../models/settings/app_settings.dart'
     show SafetyFailMode, kDefaultAccentColorHex;
@@ -167,12 +166,13 @@ const List<Setting<Object?>> kAppSettingsTable = [
     runConfig: 'stop_on_quality_problems',
   ),
 
-  /// A run held by a mount fault solves, syncs and resumes on its own. Off
-  /// by default: the operator recovers the mount.
+  /// A run held by a mount fault solves, syncs and resumes on its own. On
+  /// by default: the app recovers without anyone watching (owner decision
+  /// 2026-11-17).
   BoolSetting(
     'mountGuardAutoSyncResume',
     'mount_guard_auto_sync_resume',
-    false,
+    true,
     seeded: true,
   ),
 
@@ -317,6 +317,18 @@ const List<Setting<Object?>> kAppSettingsTable = [
   ),
   BoolSetting('blindSolve', 'blind_solve', false, seeded: true),
   BoolSetting('centeringSyncMount', 'centering_sync_mount', true, seeded: true),
+
+  /// How close to the target, in arcseconds, counts as centered: the Center
+  /// step, every recenter of a run and centering started by hand all read it.
+  DoubleSetting(
+    'centeringToleranceArcsec',
+    'centering_tolerance_arcsec',
+    5.0,
+    min: 1,
+    max: 600,
+    seeded: true,
+    runConfig: 'centering_tolerance_arcsec',
+  ),
   TextSetting(
     'phd2Path',
     'phd2_path',
@@ -742,12 +754,19 @@ const List<Setting<Object?>> kAppSettingsTable = [
   /// RuntimeConfig.default_quality_check is set to None at start.
   BoolSetting('enableImageGrading', 'image_grading_enabled', false),
 
+  // Every check is relative to the night by default (owner, 2026-11-16:
+  // "Skotiq should never run off absolutes by default, everything should be
+  // relative"). The absolute limits stay available and ship off; the
+  // relative ones judge a frame against the recent accepted frames of its
+  // own target and filter. `migrateGradingToRelative` turns off the old
+  // absolute defaults on profiles that still hold them.
+
   /// Reject if HFR exceeds this absolute pixel value. `null` => don't
-  /// apply the absolute check.
+  /// apply the absolute check (the default).
   OptionalDoubleSetting(
     'imageGradingHfrThresholdPx',
     'image_grading_hfr_threshold_px',
-    3.5,
+    null,
   ),
 
   /// Reject if HFR exceeds `baseline * (1 + percent / 100)`. `null` =>
@@ -758,18 +777,37 @@ const List<Setting<Object?>> kAppSettingsTable = [
     50.0,
   ),
 
-  /// Reject if star eccentricity exceeds this value. `null` => don't apply.
+  /// Reject if star eccentricity exceeds this absolute value. `null` =>
+  /// don't apply (the default).
   OptionalDoubleSetting(
     'imageGradingEccentricityThreshold',
     'image_grading_eccentricity_threshold',
-    0.8,
+    null,
   ),
 
-  /// Reject if detected star count falls below this. `null` => don't apply.
+  /// Reject if star eccentricity exceeds `baseline * (1 + percent / 100)`.
+  /// `null` => don't apply.
+  OptionalDoubleSetting(
+    'imageGradingEccentricityBaselinePercent',
+    'image_grading_eccentricity_baseline_percent',
+    40.0,
+  ),
+
+  /// Reject if detected star count falls below this absolute floor. `null`
+  /// => don't apply (the default).
   OptionalIntSetting(
     'imageGradingStarCountMin',
     'image_grading_star_count_min',
-    10,
+    null,
+  ),
+
+  /// Reject if the star count falls more than this percent below the
+  /// baseline (50 => fewer than half the baseline's stars). `null` => don't
+  /// apply.
+  OptionalDoubleSetting(
+    'imageGradingStarCountDropPercent',
+    'image_grading_star_count_drop_percent',
+    50.0,
   ),
 
   /// Notify the operator once when this many frames in a row are rejected

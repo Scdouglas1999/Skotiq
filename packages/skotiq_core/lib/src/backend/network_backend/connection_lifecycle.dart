@@ -55,11 +55,29 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   void _updateConnectionState(BackendConnectionState newState) {
     if (_connectionState != newState) {
       _connectionState = newState;
-      _connectionStateController.add(newState);
+      if (!_connectionStateController.isClosed) {
+        _connectionStateController.add(newState);
+      }
       Log.info(
         '[NetworkBackend] Connection state changed to: $newState',
         source: 'NetworkBackend',
       );
+    }
+  }
+
+  bool _isStaleConnect(int generation) =>
+      _disposed || _disconnecting || generation != _connectGeneration;
+
+  void _closeChannelSafely(
+    WebSocketChannel? channel,
+    StreamSubscription<dynamic>? subscription,
+  ) {
+    if (subscription != null) {
+      unawaited(subscription.cancel());
+    }
+    if (channel != null) {
+      unawaited(channel.sink.done.catchError((Object _) {}));
+      unawaited(channel.sink.close());
     }
   }
 
@@ -224,6 +242,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     if (_disposed || _disconnecting) {
       return;
     }
+    final generation = ++_connectGeneration;
     // A latched auth rejection is terminal for these credentials: the
     // host already told us the token is invalid, so every retry just
     // feeds its per-IP failure limiter toward another `429` lockout.
@@ -239,6 +258,8 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     // mint is itself an authenticated request, so its success proves the
     // bearer was accepted moments ago; see the refusal handling below.
     var upgradeUsedTicket = false;
+    WebSocketChannel? attemptChannel;
+    StreamSubscription<dynamic>? attemptSubscription;
     try {
       _stopWebSocketHeartbeat();
       // Distinguish "first-time connect" from "reconnecting after
@@ -255,6 +276,9 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
 
       _connectRefusal = null;
       final mismatch = await _readHostInfo();
+      if (_isStaleConnect(generation)) {
+        return;
+      }
       if (mismatch != null) {
         Log.warning(
           'Connection rejected: ${mismatch.message}',
@@ -273,6 +297,9 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       // request: a dead token fails it, and the failure handling below
       // latches the rejection instead of attempting a doomed upgrade.
       final wsTicket = await _mintWsTicket();
+      if (_isStaleConnect(generation)) {
+        return;
+      }
       if (wsTicket != null) {
         queryParameters['ticket'] = wsTicket;
         upgradeUsedTicket = true;
@@ -288,13 +315,28 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
         queryParameters['since'] = _lastSeenEventSeq!.toString();
         queryParameters['instance'] = _serverInstanceId!;
       }
+
+      // Tear down any superseded socket before opening the next one.
+      final previousChannel = _wsChannel;
+      final previousSubscription = _wsSubscription;
+      _wsChannel = null;
+      _wsSubscription = null;
+      _closeChannelSafely(previousChannel, previousSubscription);
+      if (_isStaleConnect(generation)) {
+        return;
+      }
+
       final wsUri = _wsUri(WebSocketApi.eventsLegacyPath, queryParameters);
-      _wsChannel = IOWebSocketChannel.connect(wsUri);
+      attemptChannel = IOWebSocketChannel.connect(wsUri);
+      _wsChannel = attemptChannel;
       _lastWebSocketMessageAt = DateTime.now();
 
-      await _wsSubscription?.cancel();
-      _wsSubscription = _wsChannel!.stream.listen(
+      attemptSubscription = attemptChannel.stream.listen(
         (message) {
+          if (_isStaleConnect(generation) ||
+              !identical(_wsChannel, attemptChannel)) {
+            return;
+          }
           try {
             _lastWebSocketMessageAt = DateTime.now();
             final json = jsonDecode(message as String) as Map<String, dynamic>;
@@ -334,7 +376,9 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
             }
 
             if (type == 'push_notification') {
-              _pushNotificationController.add(json);
+              if (!_pushNotificationController.isClosed) {
+                _pushNotificationController.add(json);
+              }
               return;
             }
 
@@ -360,30 +404,35 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
                 _serverInstanceId = currentInstance;
                 _previousServerInstanceId = currentInstance;
               }
-              _eventController.add(
-                SkotiqEvent(
-                  timestamp: DateTime.now().millisecondsSinceEpoch,
-                  category: EventCategory.system,
-                  eventType: 'BackendReconnected',
-                  severity: EventSeverity.info,
-                  data: {
-                    'message': 'Server requested resync',
-                    'reason': reason,
-                    if (currentSeq != null) 'currentSeq': currentSeq,
-                    if (currentInstance != null)
-                      'currentInstance': currentInstance,
-                  },
-                ),
-              );
+              if (!_eventController.isClosed) {
+                _eventController.add(
+                  SkotiqEvent(
+                    timestamp: DateTime.now().millisecondsSinceEpoch,
+                    category: EventCategory.system,
+                    eventType: 'BackendReconnected',
+                    severity: EventSeverity.info,
+                    data: {
+                      'message': 'Server requested resync',
+                      'reason': reason,
+                      if (currentSeq != null) 'currentSeq': currentSeq,
+                      if (currentInstance != null)
+                        'currentInstance': currentInstance,
+                    },
+                  ),
+                );
+              }
               return;
             }
 
             final event = _eventFromJson(json);
             _trackEventSeq(event, isReplay: json['replay'] == true);
             _handleEventSideEffects(event);
-            _eventController.add(event);
+            if (!_eventController.isClosed) {
+              _eventController.add(event);
+            }
 
-            if (event.category == EventCategory.polarAlignment) {
+            if (event.category == EventCategory.polarAlignment &&
+                !_polarAlignController.isClosed) {
               _polarAlignController.add(event.data);
             }
           } catch (e) {
@@ -395,19 +444,30 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
           }
         },
         onError: (error) {
+          if (_isStaleConnect(generation) ||
+              !identical(_wsChannel, attemptChannel)) {
+            return;
+          }
           Log.error(
             'WebSocket error: $error',
             source: 'NetworkBackend',
             error: error,
           );
-          _eventController.addError(error);
+          if (!_eventController.isClosed) {
+            _eventController.addError(error);
+          }
           _handleConnectionFailure();
         },
         onDone: () {
+          if (_isStaleConnect(generation) ||
+              !identical(_wsChannel, attemptChannel)) {
+            return;
+          }
           Log.warning('WebSocket connection closed', source: 'NetworkBackend');
           _handleConnectionFailure();
         },
       );
+      _wsSubscription = attemptSubscription;
 
       // `IOWebSocketChannel.connect` returns before the HTTP upgrade
       // completes; `ready` resolves only when the server accepts it and
@@ -417,7 +477,16 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       // connected while the upgrade was still in flight, so a refused
       // upgrade surfaced as a connect → hydration fan-out → disconnect
       // thrash loop on every retry.
-      await _wsChannel!.ready.timeout(requestTimeout);
+      await attemptChannel.ready.timeout(requestTimeout);
+      if (_isStaleConnect(generation) ||
+          !identical(_wsChannel, attemptChannel)) {
+        if (identical(_wsChannel, attemptChannel)) {
+          _wsChannel = null;
+          _wsSubscription = null;
+        }
+        _closeChannelSafely(attemptChannel, attemptSubscription);
+        return;
+      }
 
       _updateConnectionState(BackendConnectionState.connected);
       _hasEverConnected = true;
@@ -437,7 +506,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       // so downstream providers know the connection is back and can refresh
       // their cached state. Events that occurred while disconnected are lost,
       // so UI components watching this stream should re-fetch latest state.
-      if (wasReconnect) {
+      if (wasReconnect && !_eventController.isClosed) {
         _eventController.add(
           SkotiqEvent(
             timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -449,6 +518,9 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
         );
       }
     } on dart_error.ServerIdentityMismatchError catch (e) {
+      if (_isStaleConnect(generation)) {
+        return;
+      }
       // Fail-closed terminal error: the host advertised a fingerprint that does
       // not match the one we pinned (or advertised none). Do NOT schedule a
       // reconnect — spinning on a host whose identity we cannot verify is
@@ -468,6 +540,14 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       _updateConnectionState(BackendConnectionState.error);
       return;
     } catch (e) {
+      if (_isStaleConnect(generation)) {
+        if (identical(_wsChannel, attemptChannel)) {
+          _wsChannel = null;
+          _wsSubscription = null;
+        }
+        _closeChannelSafely(attemptChannel, attemptSubscription);
+        return;
+      }
       // A refused upgrade is different from a dropped socket: 401/403
       // means the auth gate rejected these credentials outright and
       // retrying them cannot succeed — it only deepens the server-side
@@ -496,14 +576,11 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       // it fed events in while the backend said disconnected, stayed open on
       // the host next to the connection that replaced it, and its eventual
       // close reported the live connection as dropped.
-      final abandoned = _wsChannel;
-      _wsChannel = null;
-      unawaited(_wsSubscription?.cancel());
-      _wsSubscription = null;
-      if (abandoned != null) {
-        unawaited(abandoned.sink.done.catchError((Object _) {}));
-        unawaited(abandoned.sink.close());
+      if (identical(_wsChannel, attemptChannel)) {
+        _wsChannel = null;
+        _wsSubscription = null;
       }
+      _closeChannelSafely(attemptChannel, attemptSubscription);
       _handleConnectionFailure();
     }
   }
@@ -730,6 +807,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       return;
     }
     _disconnecting = true;
+    _connectGeneration++;
     try {
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
@@ -825,10 +903,26 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   void _dispose() {
     _disposed = true;
     _disconnecting = true;
+    _connectGeneration++;
     _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _stopWebSocketHeartbeat();
-    _wsSubscription?.cancel();
-    _wsChannel?.sink.close();
+    _closeChannelSafely(_wsChannel, _wsSubscription);
+    _wsSubscription = null;
+    _wsChannel = null;
+    final callbacks = List<void Function()>.of(_disposeCallbacks);
+    _disposeCallbacks.clear();
+    for (final callback in callbacks) {
+      try {
+        callback();
+      } catch (e) {
+        Log.warning(
+          '[NetworkBackend] Dispose callback failed: $e',
+          source: 'NetworkBackend',
+          error: e,
+        );
+      }
+    }
     _httpClient.close(force: true);
     if (_ownsHttpClient) {
       _http.close();

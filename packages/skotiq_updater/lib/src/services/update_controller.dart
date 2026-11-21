@@ -1204,6 +1204,10 @@ class UpdateController {
           'confirms it healthy.',
         );
       }
+      // Rollback relaunches the updater and restarts the process, so it
+      // uses the same host gate as apply. An unwired controller cannot
+      // know whether a sequence is running.
+      await _applySafetyCheck();
 
       _eventsController.add(
         UpdateApplyStartedEvent(jobId: jobId, version: 'rollback'),

@@ -30,6 +30,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/src/services/live_stacking_broadcast_service.dart';
 
 import '../../harness/sequencer_wire.dart';
 import '../../mocks/mock_backend.dart';
@@ -39,6 +40,17 @@ import 'package:skotiq_core/src/models/backend/backend_types.dart'
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
+  }
+
+  void use(SkotiqBackend backend) => state = backend;
+}
+
+class _DeactivateFails extends LiveStackingBroadcastService {
+  _DeactivateFails(super.ref);
+
+  @override
+  void deactivate() {
+    throw StateError('broadcast deactivate failed');
   }
 }
 
@@ -98,6 +110,35 @@ class _FakeLiveStackingService implements LiveStackingService {
     _frames = 1;
     return _stats;
   }
+
+  @override
+  Future<LiveStackingStats> startFromFileForFilter({
+    required String filterKey,
+    required String referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+  }) => startFromFile(referenceImagePath: referenceImagePath, config: config);
+
+  @override
+  Future<LiveStackingResult> addFrameFromFileForFilter(
+    String imagePath, {
+    required String filterKey,
+  }) => addFrameFromFile(imagePath);
+
+  @override
+  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) =>
+      getCurrentResult();
+
+  @override
+  Future<LiveStackingStats> getStatsForFilter(String filterKey) => getStats();
+
+  @override
+  Future<void> updateLiveConfig(
+    LiveStackingConfig config, {
+    String? filterKey,
+  }) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
   Future<LiveStackingStats> startArmed({
@@ -491,4 +532,104 @@ void main() {
     );
     expect(fakeStacker.stopped, isTrue);
   });
+
+  test(
+    'rebuilding the executor leaves an operator-owned broadcast armed',
+    () async {
+      final container = buildContainer();
+      final broadcast = container.read(liveStackingBroadcastServiceProvider);
+      broadcast.activate(
+        LiveStackingNode(
+          id: 'manual',
+          parentId: 'root',
+          stackMethod: LiveStackingMethod.sigma,
+        ),
+      );
+      expect(broadcast.state.active, isTrue);
+      final notifier =
+          container.read(backendProvider.notifier) as _TestBackendNotifier;
+      container.read(sequenceExecutorProvider);
+
+      final replacement = MockBackend();
+      when(
+        () => replacement.eventStream,
+      ).thenAnswer((_) => const Stream.empty());
+      when(
+        () => replacement.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      notifier.use(replacement);
+      for (var i = 0; i < 5; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      expect(broadcast.state.active, isTrue);
+      expect(fakeStacker.stopped, isFalse);
+    },
+  );
+
+  test(
+    'disposing an executor that armed a stack stops it and logs a teardown error',
+    () async {
+      final replacementEvents =
+          StreamController<bridge_event.SkotiqEvent>.broadcast();
+      addTearDown(replacementEvents.close);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWith((ref) {
+            final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+            ref.onDispose(db.close);
+            return db;
+          }),
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+          liveStackingServiceProvider.overrideWithValue(fakeStacker),
+          liveStackingBroadcastServiceProvider.overrideWith((ref) {
+            final svc = _DeactivateFails(ref);
+            ref.onDispose(svc.dispose);
+            return svc;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(
+            _sequenceWith(withLiveStacking: true),
+            discardUnsaved: true,
+          );
+      final executor = container.read(sequenceExecutorProvider);
+      executor.handleSequencerEventForTest(
+        _frameAccepted(savePath: '/captures/m42/L_0001.fits'),
+      );
+      await settle(executor);
+      expect(fakeStacker.startedFrom, ['/captures/m42/L_0001.fits']);
+
+      final replacement = MockBackend();
+      when(
+        () => replacement.eventStream,
+      ).thenAnswer((_) => replacementEvents.stream);
+      when(
+        () => replacement.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      (container.read(backendProvider.notifier) as _TestBackendNotifier).use(
+        replacement,
+      );
+      for (var i = 0; i < 8; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      expect(fakeStacker.stopped, isTrue);
+      expect(
+        container
+            .read(loggingServiceProvider)
+            .getRecentLogs()
+            .map((entry) => entry.message)
+            .any(
+              (message) => message.contains('live stack this sequence armed'),
+            ),
+        isTrue,
+      );
+    },
+  );
 }

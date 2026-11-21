@@ -16,16 +16,8 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
       final settings = await _ref.read(appSettingsProvider.future);
       final requestedHost = host ?? settings.phd2Host;
       final requestedPort = port ?? settings.phd2Port;
-      // PHD2 is launched only on the imaging host, and only when the socket
-      // is local. A linked client asks the host to launch it instead.
       final connectHost = resolvePhd2ConnectHost(requestedHost);
-      if (!_hostOwnsDevices && _phd2Launcher.isLocalHost(requestedHost)) {
-        await _phd2Launcher.ensureRunning(
-          executablePath: settings.phd2Path,
-          host: connectHost,
-          port: requestedPort,
-        );
-      }
+      await _launchLocalPhd2(settings, requestedHost, requestedPort);
       await _backend.phd2Connect(host: connectHost, port: requestedPort);
       await pollPhd2Connected(_backend);
       notifier.setConnected();
@@ -43,6 +35,26 @@ extension _DeviceServiceGuiderRotatorConnections on DeviceService {
       }
       rethrow;
     }
+  }
+
+  Future<void> _ensurePhd2Running() async {
+    final settings = await _ref.read(appSettingsProvider.future);
+    await _launchLocalPhd2(settings, settings.phd2Host, settings.phd2Port);
+  }
+
+  /// PHD2 is launched only on the imaging host, and only when the socket is
+  /// local. A linked client asks the host to launch it instead.
+  Future<void> _launchLocalPhd2(
+    AppSettingsState settings,
+    String host,
+    int port,
+  ) async {
+    if (_hostOwnsDevices || !_phd2Launcher.isLocalHost(host)) return;
+    await _phd2Launcher.ensureRunning(
+      executablePath: settings.phd2Path,
+      host: resolvePhd2ConnectHost(host),
+      port: port,
+    );
   }
 
   /// Connect the camera the built-in guider takes its frames with. The

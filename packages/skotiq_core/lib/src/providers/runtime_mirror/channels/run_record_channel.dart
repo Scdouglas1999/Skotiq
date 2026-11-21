@@ -21,6 +21,7 @@ typedef RunRecordSnapshot = ({
   SequenceStopDecision? stopEvidence,
   DateTime? runStartedAt,
   SequenceRunStats? stats,
+  CheckpointInfo? restoredCheckpoint,
 });
 
 final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>((ref) {
@@ -37,6 +38,7 @@ final _runRecordSnapshotProvider = Provider<RunRecordSnapshot>((ref) {
     stopEvidence: ref.watch(sequenceStopEvidenceProvider),
     runStartedAt: ref.watch(runStartedAtProvider),
     stats: ref.watch(liveSequenceStatsProvider),
+    restoredCheckpoint: ref.watch(restoredCheckpointProvider),
   );
 });
 
@@ -87,6 +89,8 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
       'runStartedAt': value.runStartedAt?.toUtc().millisecondsSinceEpoch,
       // The run's vitals as they stand: the session vitals tile.
       'stats': _encodeStats(value.stats),
+      // Null clears a checkpoint the client was showing.
+      'restoredCheckpoint': value.restoredCheckpoint?.toJson(),
     };
   }
 
@@ -130,6 +134,14 @@ class RunRecordChannel extends RuntimeMirrorChannel<RunRecordSnapshot> {
     );
     run.setStopEvidence(_decodeStop(value['stop']));
     run.setStats(_decodeStats(value['stats']));
+    if (value.containsKey('restoredCheckpoint')) {
+      final raw = value['restoredCheckpoint'];
+      run.setRestoredCheckpoint(
+        raw is Map
+            ? CheckpointInfo.fromJson(Map<String, dynamic>.from(raw))
+            : null,
+      );
+    }
   }
 }
 

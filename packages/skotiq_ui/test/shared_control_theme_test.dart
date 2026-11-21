@@ -69,6 +69,9 @@ void main() {
         colors.textSecondary,
       );
       expect(FilterColors.knownColor('Hardware'), isNull);
+      expect(FilterColors.knownColor('Unfiltered'), isNull);
+      expect(FilterColors.knownColor('Red'), FilterColors.red);
+      expect(FilterColors.knownColor('Luminance'), FilterColors.luminance);
       expect(FilterColors.knownColor('Ha 7nm'), FilterColors.hydrogenAlpha);
     });
     test('$mode Material controls use shared state colors', () {

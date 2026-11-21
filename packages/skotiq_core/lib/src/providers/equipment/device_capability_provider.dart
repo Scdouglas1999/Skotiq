@@ -210,12 +210,13 @@ final liveCoverCalibratorSnapshotsProvider =
 /// the device could not be read.
 Future<CoverCalibratorCapabilitySnapshot?> refreshCoverCalibratorSnapshot(
   ProviderContainer container,
-  String deviceId,
-) async {
+  String deviceId, {
+  bool Function()? isStillCurrent,
+}) async {
   if (deviceId.isEmpty) return null;
   final fetcher = container.read(coverCalibratorCapabilityFetcherProvider);
   final snapshot = await fetcher(deviceId);
-  if (snapshot == null) return null;
+  if (snapshot == null || isStillCurrent?.call() == false) return null;
   final live = container.read(liveCoverCalibratorSnapshotsProvider.notifier);
   if (live.state[deviceId] != snapshot) {
     live.state = {...live.state, deviceId: snapshot};
@@ -230,16 +231,24 @@ Future<CoverCalibratorCapabilitySnapshot?> refreshCoverCalibratorSnapshot(
 final coverCalibratorStatusPollerProvider = Provider<void>((ref) {
   Timer? timer;
   var inFlight = false;
+  var disposed = false;
+  var bindGen = 0;
   void stop() {
     timer?.cancel();
     timer = null;
   }
 
-  ref.onDispose(stop);
+  ref.onDispose(() {
+    disposed = true;
+    bindGen++;
+    stop();
+  });
 
   void bind() {
+    bindGen++;
+    final currentGen = bindGen;
     stop();
-    if (!ref.read(backendProvider).ownsDeviceBridge) return;
+    if (disposed || !ref.read(backendProvider).ownsDeviceBridge) return;
     final state = ref.read(coverCalibratorStateProvider);
     final deviceId = state.deviceId;
     if (deviceId == null ||
@@ -247,10 +256,14 @@ final coverCalibratorStatusPollerProvider = Provider<void>((ref) {
       return;
     }
     timer = Timer.periodic(coverCalibratorPollInterval, (_) async {
-      if (inFlight) return;
+      if (inFlight || disposed || currentGen != bindGen) return;
       inFlight = true;
       try {
-        await refreshCoverCalibratorSnapshot(ref.container, deviceId);
+        await refreshCoverCalibratorSnapshot(
+          ref.container,
+          deviceId,
+          isStillCurrent: () => !disposed && currentGen == bindGen,
+        );
       } on Object {
         // A failed read keeps the last reading; the next tick tries again.
       } finally {

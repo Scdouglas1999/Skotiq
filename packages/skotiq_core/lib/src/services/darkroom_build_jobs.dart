@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
+import '../database/database.dart' show DbCapturedImage;
 import '../models/darkroom/darkroom_links.dart';
 import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
@@ -306,16 +307,29 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   List<int> _currentIds = const [];
   int _finishedLights = 0;
   bool _quiet = false;
+  bool _disposed = false;
+  bool _starting = false;
   Future<void>? _restored;
   Future<void> _saving = Future<void>.value();
+
+  /// Framing edits (exclude, replan, minimum crop) run one at a time. Each
+  /// reads the plan the previous edit committed, so two overlapping light-list
+  /// changes are not last-write-wins on a shared snapshot.
+  Future<void> _edits = Future<void>.value();
   final _finished = StreamController<DarkroomBuildJob>.broadcast();
   final _idleWaiters = <Completer<void>>[];
 
   @override
   DarkroomBuildJob? build() {
+    _disposed = false;
     ref.onDispose(() {
+      _disposed = true;
+      _starting = false;
       _progress?.cancel();
-      _finished.close();
+      if (!_finished.isClosed) {
+        _finished.close();
+      }
+      _releaseIdleWaiters();
     });
     return null;
   }
@@ -325,14 +339,23 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   /// Every build that ends (done, failed or stopped), as it ends.
   Stream<DarkroomBuildJob> get finished => _finished.stream;
 
-  bool get busy => state?.active == true || _service.isRunning;
+  bool get busy => state?.active == true || _starting || _service.isRunning;
 
   /// Completes once no build is running.
   Future<void> whenIdle() {
-    if (!busy) return Future<void>.value();
+    if (!busy || _disposed) return Future<void>.value();
     final waiter = Completer<void>();
     _idleWaiters.add(waiter);
     return waiter.future;
+  }
+
+  void _releaseIdleWaiters() {
+    if (_idleWaiters.isEmpty) return;
+    final waiters = List<Completer<void>>.of(_idleWaiters);
+    _idleWaiters.clear();
+    for (final w in waiters) {
+      if (!w.isCompleted) w.complete();
+    }
   }
 
   /// Read the saved builds back. Safe to call more than once; later calls
@@ -346,9 +369,11 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
           .read(darkroomStateStoreProvider)
           .read(darkroomBuildJobsStateKey);
     } catch (e) {
+      _restored = null;
       Log.debug('Darkroom: saved builds not read: $e', source: 'darkroom');
+      return;
     }
-    if (saved == null) return;
+    if (_disposed || saved == null) return;
     List<DarkroomBuildJob> jobs(String key) => [
       for (final j in saved![key] as List? ?? const [])
         if (_decode(j) case final job?) job,
@@ -365,6 +390,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
       final resumable =
           current.directory != null &&
           await File(p.join(current.directory!, 'plan.json')).exists();
+      if (_disposed || state != null) return;
       state = current.copyWith(
         stage: DarkroomJobStage.stopped,
         message: resumable
@@ -395,6 +421,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   }
 
   void _set(DarkroomBuildJob job) {
+    if (_disposed) return;
     final before = state;
     state = job;
     if (before == null ||
@@ -406,12 +433,11 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         before.filterResults.length != job.filterResults.length) {
       _save();
     }
-    if (job.ended && before?.ended != true) _finished.add(job);
-    if (!busy && _idleWaiters.isNotEmpty) {
-      for (final w in _idleWaiters) {
-        w.complete();
-      }
-      _idleWaiters.clear();
+    if (job.ended && before?.ended != true && !_finished.isClosed) {
+      _finished.add(job);
+    }
+    if (!busy) {
+      _releaseIdleWaiters();
     }
   }
 
@@ -566,6 +592,129 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     _rateBase = base;
   }
 
+  bool _isSameAwaitingReviewJob(DarkroomBuildJob expected) {
+    if (_disposed) return false;
+    final current = state;
+    return current != null &&
+        current.stage == DarkroomJobStage.awaitingReview &&
+        current.target == expected.target &&
+        current.startedAt == expected.startedAt;
+  }
+
+  /// Preserves any processing options changed concurrently via [setProcessing]
+  /// while an asynchronous preview recalculation was in flight.
+  DarkroomBuildPlan _mergeConcurrentProcessing(
+    DarkroomBuildJob original,
+    DarkroomBuildJob current,
+    DarkroomBuildPlan updatedPlan,
+  ) {
+    final currentProcessing = current.plan?.processing;
+    final originalProcessing = original.plan?.processing;
+    if (currentProcessing != null &&
+        originalProcessing != null &&
+        currentProcessing != originalProcessing) {
+      return updatedPlan.withProcessing(currentProcessing);
+    }
+    return updatedPlan;
+  }
+
+  Future<void> _enqueueEdit(Future<void> Function() action) {
+    final run = _edits.then((_) => action());
+    _edits = run.then((_) {}, onError: (Object _, StackTrace _) {});
+    return run;
+  }
+
+  /// [edited] was built from [baseline]. Apply that light-list delta, and any
+  /// framing field [edited] changed, onto [current] so an edit that started
+  /// from an older plan does not put back lights a concurrent edit removed.
+  DarkroomBuildPlan _composeLightEdits({
+    required DarkroomBuildPlan baseline,
+    required DarkroomBuildPlan edited,
+    required DarkroomBuildPlan current,
+  }) {
+    String pathOf(Map<String, dynamic> light) => light['path'] as String;
+    final basePaths = baseline.lights.map(pathOf).toSet();
+    final editedPaths = edited.lights.map(pathOf).toSet();
+    final removed = basePaths.difference(editedPaths);
+    final added = editedPaths.difference(basePaths);
+    final reference = current.referencePath;
+    removed.remove(reference);
+
+    final currentValue = current.toJson();
+    final groups = <Map<String, dynamic>>[];
+    final kept = <String>{};
+    for (final raw in currentValue['groups'] as List) {
+      final group = Map<String, dynamic>.from(raw as Map);
+      final lights = <Map<String, dynamic>>[];
+      for (final rawLight in group['lights'] as List) {
+        final light = Map<String, dynamic>.from(rawLight as Map);
+        final path = pathOf(light);
+        if (removed.contains(path)) continue;
+        lights.add(light);
+        kept.add(path);
+      }
+      if (lights.isNotEmpty) groups.add({...group, 'lights': lights});
+    }
+
+    if (added.isNotEmpty) {
+      for (final raw in edited.toJson()['groups'] as List) {
+        final group = Map<String, dynamic>.from(raw as Map);
+        final extras = <Map<String, dynamic>>[];
+        for (final rawLight in group['lights'] as List) {
+          final light = Map<String, dynamic>.from(rawLight as Map);
+          final path = pathOf(light);
+          if (added.contains(path) && kept.add(path)) extras.add(light);
+        }
+        if (extras.isEmpty) continue;
+        final index = groups.indexWhere(
+          (g) => g['groupId'] == group['groupId'],
+        );
+        if (index >= 0) {
+          groups[index] = {
+            ...groups[index],
+            'lights': [...groups[index]['lights'] as List, ...extras],
+          };
+        } else {
+          groups.add({...group, 'lights': extras});
+        }
+      }
+    }
+
+    final excluded = <Map<String, dynamic>>[];
+    final seenExcluded = <String>{};
+    void takeExcluded(Object? rawList, bool Function(String path) include) {
+      for (final raw in rawList as List? ?? const []) {
+        final item = Map<String, dynamic>.from(raw as Map);
+        final path = item['path'] as String;
+        if (!include(path) || !seenExcluded.add(path)) continue;
+        excluded.add(item);
+      }
+    }
+
+    takeExcluded(currentValue['excluded'], (path) => !added.contains(path));
+    takeExcluded(edited.toJson()['excluded'], removed.contains);
+
+    final baselineValue = baseline.toJson();
+    final editedValue = edited.toJson();
+    final merged = Map<String, dynamic>.from(currentValue);
+    for (final key in const [
+      'minRetainedArea',
+      'minOverlap',
+      'maxEccentricity',
+      'referencePath',
+    ]) {
+      if (editedValue[key] != baselineValue[key]) {
+        merged[key] = editedValue[key];
+      }
+    }
+    merged['groups'] = groups;
+    merged['excluded'] = excluded;
+    merged['processing'] = currentValue['processing'];
+    return DarkroomBuildPlan.fromJson(merged);
+  }
+
+  static bool _isStoppedError(Object e) => '$e'.contains('Stopped');
+
   /// Run the registration pre-pass for [plan]. The job then waits for the
   /// crop to be accepted.
   Future<void> checkFraming({
@@ -587,8 +736,10 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     _listen();
     try {
       final preview = await _service.previewRegistration(plan);
+      final current = _disposed ? null : state;
+      if (current == null) return;
       _set(
-        state!.copyWith(
+        current.copyWith(
           stage: DarkroomJobStage.awaitingReview,
           message: preview.describeLimit(),
           preview: preview,
@@ -597,35 +748,44 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         ),
       );
     } catch (e) {
-      _fail(e);
+      if (_isStoppedError(e)) {
+        _markStopped(e);
+      } else {
+        _fail(e);
+      }
     } finally {
       await _progress?.cancel();
     }
   }
 
   /// Leave lights out and re-evaluate the crop from the known footprints.
-  Future<void> exclude(Map<String, String> reasons) async {
-    final job = state;
-    if (job?.plan == null || job!.stage != DarkroomJobStage.awaitingReview) {
-      return;
-    }
-    try {
-      final plan = job.plan!.withoutLights(reasons);
-      final preview = await _service.previewRegistration(
-        plan,
-        previous: job.preview,
-      );
-      _set(
-        job.copyWith(
-          plan: plan,
-          preview: preview,
-          message: preview.describeLimit(),
-          clearError: true,
-        ),
-      );
-    } catch (e) {
-      _set(job.copyWith(error: '$e'));
-    }
+  Future<void> exclude(Map<String, String> reasons) {
+    return _enqueueEdit(() async {
+      final job = state;
+      if (job?.plan == null || job!.stage != DarkroomJobStage.awaitingReview) {
+        return;
+      }
+      try {
+        final plan = job.plan!.withoutLights(reasons);
+        final preview = await _service.previewRegistration(
+          plan,
+          previous: job.preview,
+        );
+        if (!_isSameAwaitingReviewJob(job)) return;
+        final current = state!;
+        _set(
+          current.copyWith(
+            plan: _mergeConcurrentProcessing(job, current, plan),
+            preview: preview,
+            message: preview.describeLimit(),
+            clearError: true,
+          ),
+        );
+      } catch (e) {
+        if (!_isSameAwaitingReviewJob(job)) return;
+        _set(state!.copyWith(error: '$e'));
+      }
+    });
   }
 
   /// Re-evaluate the crop for [plan], a changed copy of the waiting plan:
@@ -634,25 +794,42 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   Future<void> replan(
     DarkroomBuildPlan plan, {
     DarkroomRegistrationPreview? known,
-  }) async {
-    final job = state;
-    if (job == null || job.stage != DarkroomJobStage.awaitingReview) return;
-    try {
-      final preview = await _service.previewRegistration(
-        plan,
-        previous: known ?? job.preview,
-      );
-      _set(
-        job.copyWith(
-          plan: plan,
-          preview: preview,
-          message: preview.describeLimit(),
-          clearError: true,
-        ),
-      );
-    } catch (e) {
-      _set(job.copyWith(error: '$e'));
-    }
+  }) {
+    final baseline = state?.plan;
+    return _enqueueEdit(() async {
+      final job = state;
+      if (job == null ||
+          job.plan == null ||
+          job.stage != DarkroomJobStage.awaitingReview) {
+        return;
+      }
+      final composed = baseline == null
+          ? plan
+          : _composeLightEdits(
+              baseline: baseline,
+              edited: plan,
+              current: job.plan!,
+            );
+      try {
+        final preview = await _service.previewRegistration(
+          composed,
+          previous: known ?? job.preview,
+        );
+        if (!_isSameAwaitingReviewJob(job)) return;
+        final current = state!;
+        _set(
+          current.copyWith(
+            plan: _mergeConcurrentProcessing(job, current, composed),
+            preview: preview,
+            message: preview.describeLimit(),
+            clearError: true,
+          ),
+        );
+      } catch (e) {
+        if (!_isSameAwaitingReviewJob(job)) return;
+        _set(state!.copyWith(error: '$e'));
+      }
+    });
   }
 
   /// Processing does not change registration footprints. Commit immediately so
@@ -668,27 +845,32 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
   }
 
   /// Change the smallest acceptable crop.
-  Future<void> setMinRetainedArea(double value) async {
-    final job = state;
-    if (job?.plan == null || job!.stage != DarkroomJobStage.awaitingReview) {
-      return;
-    }
-    try {
-      final plan = job.plan!.withMinRetainedArea(value);
-      final preview = await _service.previewRegistration(
-        plan,
-        previous: job.preview,
-      );
-      _set(
-        job.copyWith(
-          plan: plan,
-          preview: preview,
-          message: preview.describeLimit(),
-        ),
-      );
-    } catch (e) {
-      _set(job.copyWith(error: '$e'));
-    }
+  Future<void> setMinRetainedArea(double value) {
+    return _enqueueEdit(() async {
+      final job = state;
+      if (job?.plan == null || job!.stage != DarkroomJobStage.awaitingReview) {
+        return;
+      }
+      try {
+        final plan = job.plan!.withMinRetainedArea(value);
+        final preview = await _service.previewRegistration(
+          plan,
+          previous: job.preview,
+        );
+        if (!_isSameAwaitingReviewJob(job)) return;
+        final current = state!;
+        _set(
+          current.copyWith(
+            plan: _mergeConcurrentProcessing(job, current, plan),
+            preview: preview,
+            message: preview.describeLimit(),
+          ),
+        );
+      } catch (e) {
+        if (!_isSameAwaitingReviewJob(job)) return;
+        _set(state!.copyWith(error: '$e'));
+      }
+    });
   }
 
   /// Accept the crop and build into [directory], or into the folder the
@@ -711,12 +893,23 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
 
   /// Resume the build saved in [folder].
   Future<void> resume(Directory folder) async {
-    final saved =
-        jsonDecode(await File(p.join(folder.path, 'plan.json')).readAsString())
-            as Map;
-    final plan = DarkroomBuildPlan.fromJson(
-      Map<String, dynamic>.from(saved['plan'] as Map),
-    );
+    _guardIdle();
+    _starting = true;
+    DarkroomBuildPlan plan;
+    try {
+      final saved =
+          jsonDecode(
+                await File(p.join(folder.path, 'plan.json')).readAsString(),
+              )
+              as Map;
+      plan = DarkroomBuildPlan.fromJson(
+        Map<String, dynamic>.from(saved['plan'] as Map),
+      );
+    } finally {
+      _starting = false;
+      if (!busy) _releaseIdleWaiters();
+    }
+    if (_disposed) return;
     final previous = state;
     final job = DarkroomBuildJob(
       target: plan.target,
@@ -745,6 +938,10 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     final total = byFilter.values.fold<int>(0, (n, v) => n + v.length);
     _finishedLights = 0;
     _rateStart = null;
+    final directory = job.directory;
+    if (directory == null) {
+      throw StateError('Choose a folder for the masters.');
+    }
     _set(
       job.copyWith(
         stage: DarkroomJobStage.building,
@@ -760,12 +957,14 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     try {
       final report = await _service.run(
         plan,
-        Directory(state!.directory!),
+        Directory(directory),
         accepted: accepted,
         onStep: (step) => _onStep(step, byFilter),
       );
+      final current = _disposed ? null : state;
+      if (current == null) return;
       final failures = (report['failures'] as List? ?? const []);
-      final done = state!.copyWith(
+      final done = current.copyWith(
         stage: DarkroomJobStage.done,
         message: failures.isEmpty
             ? 'Masters ready'
@@ -777,7 +976,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
       );
       _set(done);
       // A night-end build is announced by its night-end run.
-      if (done.nightRunId == null) {
+      if (done.nightRunId == null && !_disposed) {
         await _notify(
           'Masters ready: ${done.target}',
           _summary(report),
@@ -785,15 +984,8 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         );
       }
     } catch (e) {
-      if ('$e'.contains('Stopped')) {
-        _set(
-          state!.copyWith(
-            stage: DarkroomJobStage.stopped,
-            message: '$e',
-            clearEta: true,
-            finishedAt: DateTime.now(),
-          ),
-        );
+      if (_isStoppedError(e)) {
+        _markStopped(e);
       } else {
         _fail(e);
       }
@@ -848,30 +1040,40 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     Map<String, String> selectedFlats = const {},
   }) async {
     _guardIdle();
-    final frames = (await loadDarkroomTargets(
-      ref.read(databaseProvider),
-      await installedDsoDesignations(),
-    ))[target];
-    if (frames == null || frames.isEmpty) {
-      throw StateError('No captured lights for $target.');
+    _starting = true;
+    List<DbCapturedImage>? frames;
+    Directory directory;
+    try {
+      frames = (await loadDarkroomTargets(
+        ref.read(databaseProvider),
+        await installedDsoDesignations(),
+      ))[target];
+      if (frames == null || frames.isEmpty) {
+        throw StateError('No captured lights for $target.');
+      }
+      if (_disposed) {
+        throw StateError('Darkroom build jobs disposed before build started.');
+      }
+      directory = await ref.read(targetMastersFolderProvider(target).future);
+      if (_disposed) {
+        throw StateError('Darkroom build jobs disposed before build started.');
+      }
+    } finally {
+      _starting = false;
+      if (!busy) _releaseIdleWaiters();
     }
-    final directory = await ref.read(
-      targetMastersFolderProvider(target).future,
+    var lastJob = DarkroomBuildJob(
+      target: target,
+      unattended: true,
+      nightRunId: nightRunId,
+      stage: DarkroomJobStage.framing,
+      message: 'Preparing calibration and registering every light',
+      startedAt: DateTime.now(),
+      directory: directory.path,
+      framesTotal: frames.length,
+      overallTotal: frames.length,
     );
-    _begin(
-      DarkroomBuildJob(
-        target: target,
-        unattended: true,
-        nightRunId: nightRunId,
-        stage: DarkroomJobStage.framing,
-        message: 'Preparing calibration and registering every light',
-        startedAt: DateTime.now(),
-        directory: directory.path,
-        framesTotal: frames.length,
-        overallTotal: frames.length,
-      ),
-      quiet: !announce,
-    );
+    _begin(lastJob, quiet: !announce);
     _startRate(0);
     _listen();
     final byFilter = <String, List<int>>{};
@@ -884,37 +1086,39 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         requireCalibration: requireCalibration,
         selectedFlats: selectedFlats,
         onPreview: (preview, plan) {
+          final current = _disposed ? null : state;
+          if (current == null) return;
           byFilter
             ..clear()
             ..addAll(darkroomBuildLightIds(plan, preview));
           _finishedLights = 0;
           _rateStart = null;
-          _set(
-            state!.copyWith(
-              stage: DarkroomJobStage.building,
-              plan: plan,
-              preview: preview,
-              message: preview.describeLimit(),
-              overallTotal: preview.included.length,
-              overallDone: 0,
-              clearEta: true,
-            ),
+          lastJob = current.copyWith(
+            stage: DarkroomJobStage.building,
+            plan: plan,
+            preview: preview,
+            message: preview.describeLimit(),
+            overallTotal: preview.included.length,
+            overallDone: 0,
+            clearEta: true,
           );
+          _set(lastJob);
         },
         onStep: (step) => _onStep(step, byFilter),
       );
+      final current = _disposed ? null : state;
+      if (current == null) return lastJob;
       if (!outcome.built) {
-        _set(
-          state!.copyWith(
-            stage: DarkroomJobStage.awaitingReview,
-            plan: outcome.plan,
-            preview: outcome.preview,
-            message: outcome.preview.describeLimit(),
-            warnings: outcome.warnings,
-            clearEta: true,
-          ),
+        lastJob = current.copyWith(
+          stage: DarkroomJobStage.awaitingReview,
+          plan: outcome.plan,
+          preview: outcome.preview,
+          message: outcome.preview.describeLimit(),
+          warnings: outcome.warnings,
+          clearEta: true,
         );
-        if (!_quiet) {
+        _set(lastJob);
+        if (!_quiet && !_disposed) {
           await _notify(
             'Masters need framing review: $target',
             '${outcome.preview.describeLimit()} Open the framing check to '
@@ -923,18 +1127,17 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
           );
         }
       } else {
-        _set(
-          state!.copyWith(
-            stage: DarkroomJobStage.done,
-            plan: outcome.plan,
-            report: outcome.report,
-            message: 'Masters ready',
-            warnings: outcome.warnings,
-            clearEta: true,
-            finishedAt: DateTime.now(),
-          ),
+        lastJob = current.copyWith(
+          stage: DarkroomJobStage.done,
+          plan: outcome.plan,
+          report: outcome.report,
+          message: 'Masters ready',
+          warnings: outcome.warnings,
+          clearEta: true,
+          finishedAt: DateTime.now(),
         );
-        if (!_quiet) {
+        _set(lastJob);
+        if (!_quiet && !_disposed) {
           await _notify(
             'Masters ready: $target',
             [_summary(outcome.report!), ...outcome.warnings].join(' '),
@@ -943,11 +1146,15 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         }
       }
     } catch (e) {
-      _fail(e);
+      if (_isStoppedError(e)) {
+        lastJob = _markStopped(e) ?? lastJob;
+      } else {
+        lastJob = _fail(e) ?? lastJob;
+      }
     } finally {
       await _progress?.cancel();
     }
-    return state!;
+    return (_disposed ? null : state) ?? lastJob;
   }
 
   Future<void> stop() => _service.stop();
@@ -968,19 +1175,31 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
     }
   }
 
-  void _fail(Object e) {
-    final job = state;
-    if (job == null) return;
-    _set(
-      job.copyWith(
-        stage: DarkroomJobStage.failed,
-        error: '$e',
-        message: 'Build failed',
-        clearEta: true,
-        finishedAt: DateTime.now(),
-      ),
+  DarkroomBuildJob? _markStopped(Object e) {
+    final job = _disposed ? null : state;
+    if (job == null) return null;
+    final stopped = job.copyWith(
+      stage: DarkroomJobStage.stopped,
+      message: '$e',
+      clearEta: true,
+      finishedAt: DateTime.now(),
     );
-    if (!_quiet) {
+    _set(stopped);
+    return stopped;
+  }
+
+  DarkroomBuildJob? _fail(Object e) {
+    final job = _disposed ? null : state;
+    if (job == null) return null;
+    final failed = job.copyWith(
+      stage: DarkroomJobStage.failed,
+      error: '$e',
+      message: 'Build failed',
+      clearEta: true,
+      finishedAt: DateTime.now(),
+    );
+    _set(failed);
+    if (!_quiet && !_disposed) {
       unawaited(
         _notify(
           'Master build failed: ${job.target}',
@@ -989,6 +1208,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         ),
       );
     }
+    return failed;
   }
 
   static String _summary(Map<String, dynamic> report) {

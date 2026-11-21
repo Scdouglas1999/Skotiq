@@ -13,7 +13,7 @@ impl DeviceManager {
         device_id: &str,
     ) -> Result<crate::device::CameraStatus, DeviceOpError> {
         let result = self.camera_get_status_dispatch(device_id).await;
-        self.note_status_read(device_id, &result);
+        self.note_read(device_id, &result).await;
         let status = result?;
         self.hold_camera_state(device_id, |held| {
             held.cooler_on = status.cooler_on.or(held.cooler_on);

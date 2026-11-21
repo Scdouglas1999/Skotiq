@@ -14,28 +14,85 @@ abstract final class FilterColors {
   static const sulfur = Color(0xFFFB923C);
   static const nitrogen = Color(0xFFA855F7);
 
+  static final RegExp _wordSplit = RegExp(r'[\s/\-_+|]+');
+  static final RegExp _notAlphanumeric = RegExp(r'[^A-Za-z0-9]');
+  static final RegExp _bandwidthSuffix = RegExp(r'^[0-9]');
+
+  /// Whole names whose letters include a band letter but are not that band.
+  /// "L-Pro" and "L-eXtreme" would otherwise read as luminance.
+  static const _notASingleBand = {'LPRO', 'LEXTREME', 'LULTIMATE', 'LENHANCE'};
+
+  static const _bandColors = <String, Color>{
+    'L': luminance,
+    'LUM': luminance,
+    'LUMINANCE': luminance,
+    'LUMINOSITY': luminance,
+    'CLEAR': luminance,
+    'R': red,
+    'RED': red,
+    'G': green,
+    'GREEN': green,
+    'B': blue,
+    'BLUE': blue,
+    'HA': hydrogenAlpha,
+    'HALPHA': hydrogenAlpha,
+    'ALPHA': hydrogenAlpha,
+    'HYDROGENALPHA': hydrogenAlpha,
+    'OIII': oxygen,
+    'O3': oxygen,
+    'OXYGEN': oxygen,
+    'OXYGENIII': oxygen,
+    'SII': sulfur,
+    'S2': sulfur,
+    'SULFUR': sulfur,
+    'SULPHUR': sulfur,
+    'SULFURII': sulfur,
+    'SULPHURII': sulfur,
+    'NII': nitrogen,
+    'N2': nitrogen,
+  };
+
+  static String _letters(String text) =>
+      text.replaceAll(_notAlphanumeric, '').toUpperCase();
+
+  /// [token] as a band, or that band with a bandwidth glued on ("Ha7nm").
+  /// A band matches the whole token, never a piece of a longer word, so
+  /// "Unfiltered" is not red.
+  static Color? _colorOfToken(String token) {
+    final exact = _bandColors[token];
+    if (exact != null) return exact;
+    for (final entry in _bandColors.entries) {
+      final band = entry.key;
+      if (token.length <= band.length || !token.startsWith(band)) continue;
+      if (_bandwidthSuffix.hasMatch(token.substring(band.length))) {
+        return entry.value;
+      }
+    }
+    return null;
+  }
+
   static Color? knownColor(String name) {
-    final n = name.toUpperCase().replaceAll(RegExp(r'[\s_\-]'), '');
-    if (n == 'HA' ||
-        RegExp(r'^HA[0-9]').hasMatch(n) ||
-        n.contains('ALPHA') ||
-        n == 'HΑ') {
-      return hydrogenAlpha;
+    final collapsed = name.toUpperCase().replaceAll(RegExp(r'[\s_\-]'), '');
+    // Hα: Greek alpha is not a word separator and is not an ASCII letter.
+    if (collapsed == 'H\u0391') return hydrogenAlpha;
+
+    final whole = _letters(name);
+    if (whole.isEmpty) return null;
+    if (_notASingleBand.contains(whole)) return null;
+    final direct = _colorOfToken(whole);
+    if (direct != null) return direct;
+
+    final words = [
+      for (final word in name.split(_wordSplit))
+        if (_letters(word).isNotEmpty) _letters(word),
+    ];
+    for (var i = 0; i < words.length; i++) {
+      final longest = words.length - i < 3 ? words.length - i : 3;
+      for (var run = longest; run >= 1; run--) {
+        final color = _colorOfToken(words.sublist(i, i + run).join());
+        if (color != null) return color;
+      }
     }
-    if (n == 'R' || n.contains('RED')) return red;
-    if (n == 'G' || n.contains('GREEN')) return green;
-    if (n == 'B' || n.contains('BLUE')) return blue;
-    if (n == 'L' || n.contains('LUM') || n.contains('CLEAR')) return luminance;
-    if (n.contains('OIII') || n.contains('O3') || n.contains('OXYGEN')) {
-      return oxygen;
-    }
-    if (n.contains('SII') ||
-        n.contains('S2') ||
-        n.contains('SULF') ||
-        n.contains('SULPH')) {
-      return sulfur;
-    }
-    if (n.contains('NII') || n.contains('N2')) return nitrogen;
     return null;
   }
 

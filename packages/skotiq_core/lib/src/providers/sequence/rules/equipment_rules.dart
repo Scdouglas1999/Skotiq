@@ -6,6 +6,7 @@ import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 import '../../../utils/device_id.dart';
 import '../../equipment_provider.dart';
+import '../../profiles_provider.dart';
 import '../../settings_provider.dart';
 import '../exposure_dither.dart';
 import '../sequence_validation.dart';
@@ -256,8 +257,10 @@ String _guiderResolutionHint(GuiderState gs) {
       : 'Connect $name in the Equipment panel.';
 }
 
-/// Warns when a target specifies a rotation angle but no rotator is
-/// connected. The rotator command will fail at runtime.
+/// A target's rotation when no rotator turns the camera to it. With a
+/// rotator on the profile that is not connected, the run cannot reach the
+/// angle: a warning. With no rotator on the profile, the angle is the framing
+/// the operator set the camera to by hand: a note, never a warning.
 class RotatorRotationConflictRule implements RefAwareSequenceValidator {
   @override
   String get name => 'RotatorRotationConflict';
@@ -269,6 +272,11 @@ class RotatorRotationConflictRule implements RefAwareSequenceValidator {
     final connected =
         rotatorState.connectionState == DeviceConnectionState.connected;
     if (connected) return const [];
+    final profileRotator = ctx.ref
+        .read(activeEquipmentProfileProvider)
+        ?.rotatorId
+        ?.trim();
+    final hasRotator = profileRotator != null && profileRotator.isNotEmpty;
 
     for (final target in sequence.targetHeaders) {
       final rotation = target.rotation;
@@ -278,17 +286,32 @@ class RotatorRotationConflictRule implements RefAwareSequenceValidator {
       // persistence/serialization defaults; warning on that is noise. Only a
       // genuinely non-zero target angle requires a connected rotator.
       if (rotation == null || rotation.abs() < 0.01) continue;
+      final angle = rotation.toStringAsFixed(1);
       issues.add(
-        ValidationIssue(
-          severity: ValidationSeverity.warning,
-          category: ValidationCategory.equipment,
-          title: 'Rotator Not Connected',
-          description:
-              'Target "${target.targetName}" specifies rotation (${rotation.toStringAsFixed(1)}°) '
-              'but no rotator is connected.',
-          affectedNodeId: target.id,
-          resolutionHint: 'Connect a rotator or remove the rotation setting.',
-        ),
+        hasRotator
+            ? ValidationIssue(
+                severity: ValidationSeverity.warning,
+                category: ValidationCategory.equipment,
+                title: 'Rotator Not Connected',
+                description:
+                    'Target "${target.targetName}" specifies rotation ($angle°) '
+                    "but the profile's rotator is not connected.",
+                affectedNodeId: target.id,
+                resolutionHint:
+                    'Connect the rotator or remove the rotation setting.',
+              )
+            : ValidationIssue(
+                severity: ValidationSeverity.info,
+                category: ValidationCategory.equipment,
+                title: 'Camera angle set by hand',
+                description:
+                    'Target "${target.targetName}" is framed at $angle°. With no '
+                    'rotator on the profile, Skotiq does not turn the camera; '
+                    'set the camera to this angle by hand.',
+                affectedNodeId: target.id,
+                resolutionHint:
+                    'Plate solves report the angle the camera is at.',
+              ),
       );
     }
     return issues;

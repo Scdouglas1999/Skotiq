@@ -53,6 +53,11 @@ const Set<String> _addedSinceBase = {
   'xisf_compression',
   'xisf_checksums',
   'recovery_park_and_close_when_gives_up',
+  // How close a centering must land. Seeded, so a fresh install has the row;
+  // a base store has none and reads the 5 arcsecond default.
+  'centering_tolerance_arcsec',
+  'image_grading_eccentricity_baseline_percent',
+  'image_grading_star_count_drop_percent',
 };
 
 /// Wire fields of settings declared after the base build; the base wire form
@@ -61,26 +66,115 @@ const Set<String> _wireAddedSinceBase = {
   'cameraFileSaving',
   'xisfCompression',
   'xisfChecksums',
+  'imageGradingEccentricityBaselinePercent',
+  'imageGradingStarCountDropPercent',
 };
 
-/// Defaults changed on purpose since the base build, as (stored key, wire
-/// field, new default). A stored row still reads as written; only what a
-/// missing or empty value falls back to differs. Smart Night now chooses each
-/// target's filters unless the user picks one set ('auto').
-const List<(String, String, String)> _defaultsChangedSinceBase = [
-  ('smart_night_default_strategy', 'smartNightDefaultStrategy', 'auto'),
+/// A default changed on purpose since the base build. A stored row still
+/// reads as written; only what a missing value falls back to differs.
+class _ChangedDefault {
+  const _ChangedDefault(
+    this.key,
+    this.wire,
+    this.row,
+    this.wireValue, {
+    this.rowsReadWithoutDefault = false,
+  });
+
+  /// Stored key and wire field.
+  final String key;
+  final String wire;
+
+  /// The new default as a stored row and as a wire value. The wire value is
+  /// null when the check is off.
+  final String row;
+  final Object? wireValue;
+
+  /// Every stored row, malformed ones included, reads without the default
+  /// (a switch reads anything but `true` as off), so a row read back as the
+  /// old default now reads as that same value, which differs from the new
+  /// default.
+  final bool rowsReadWithoutDefault;
+}
+
+/// Smart Night chooses each target's filters unless the user picks one set
+/// ('auto'). A run held by a mount fault recovers on its own (owner,
+/// 2026-11-17).
+const List<_ChangedDefault> _defaultsChangedSinceBase = [
+  _ChangedDefault(
+    'smart_night_default_strategy',
+    'smartNightDefaultStrategy',
+    'auto',
+    'auto',
+  ),
+  _ChangedDefault(
+    'mount_guard_auto_sync_resume',
+    'mountGuardAutoSyncResume',
+    'true',
+    true,
+    rowsReadWithoutDefault: true,
+  ),
+  _ChangedDefault(
+    'image_grading_hfr_threshold_px',
+    'imageGradingHfrThresholdPx',
+    'null',
+    null,
+  ),
+  _ChangedDefault(
+    'image_grading_eccentricity_threshold',
+    'imageGradingEccentricityThreshold',
+    'null',
+    null,
+  ),
+  _ChangedDefault(
+    'image_grading_star_count_min',
+    'imageGradingStarCountMin',
+    'null',
+    null,
+  ),
 ];
+
+final Set<String> _changedDefaultKeys = {
+  for (final changed in _defaultsChangedSinceBase) changed.key,
+};
 
 /// [fixture] with [_defaultsChangedSinceBase] applied to the base build's
 /// defaults.
 Map<String, dynamic> _withChangedDefaults(Map<String, dynamic> fixture) {
-  for (final (key, wire, value) in _defaultsChangedSinceBase) {
-    (fixture['defaults'] as Map)[key] = value;
-    (fixture['fromWireEmpty'] as Map)[key] = value;
-    (fixture['wireDefault'] as Map)[wire] = value;
+  final defaults = fixture['defaults'] as Map;
+  for (final changed in _defaultsChangedSinceBase) {
+    final oldDefault = defaults[changed.key];
+    defaults[changed.key] = changed.row;
+    (fixture['fromWireEmpty'] as Map)[changed.key] = changed.row;
+    (fixture['wireDefault'] as Map)[changed.wire] = changed.wireValue;
+    if (!changed.rowsReadWithoutDefault) continue;
+    final perRaw = (fixture['fullLoad'] as Map)[changed.key] as Map?;
+    perRaw?.updateAll((raw, expected) {
+      final read = (expected as Map)[changed.key] ?? oldDefault;
+      return read == changed.row ? <String, dynamic>{} : {changed.key: read};
+    });
   }
   return fixture;
 }
+
+/// [rows], the rows a base install was seeded with, with the changed
+/// defaults seeded instead.
+Map<String, String> _installRowsWithChangedDefaults(Map<String, String> rows) {
+  for (final changed in _defaultsChangedSinceBase) {
+    if (rows.containsKey(changed.key)) rows[changed.key] = changed.row;
+  }
+  return rows;
+}
+
+/// [changes] without a change to a value that is now the default: the base
+/// build read it as a change from its own default.
+Map<String, dynamic> _withoutNewDefaults(Map<String, dynamic> changes) => {
+  for (final entry in changes.entries)
+    if (!_defaultsChangedSinceBase.any(
+      (changed) => changed.key == entry.key && changed.row == entry.value,
+    ))
+      entry.key: entry.value,
+};
 
 /// [rows] without the settings the base build did not have.
 Map<String, String> _baseOnly(Map<String, String> rows) => {
@@ -135,9 +229,11 @@ void main() {
 
       // Every setting the fixture could move off its default did move, so a
       // setting that silently fell back to its default would show up here.
+      // A changed default can be the value the fixture moved it to.
       final atDefault = [
         for (final setting in kAppSettingsTable)
           if (!_addedSinceBase.contains(setting.key) &&
+              !_changedDefaultKeys.contains(setting.key) &&
               rows[setting.key] == baseDefaults[setting.key])
             setting.key,
       ];
@@ -155,13 +251,15 @@ void main() {
   test(
     'a fresh install is seeded with the rows the base build seeded',
     () async {
-      final expected = Map<String, String>.from(
-        jsonDecode(
-              File(
-                'test/fixtures/settings/base_install_rows.json',
-              ).readAsStringSync(),
-            )
-            as Map,
+      final expected = _installRowsWithChangedDefaults(
+        Map<String, String>.from(
+          jsonDecode(
+                File(
+                  'test/fixtures/settings/base_install_rows.json',
+                ).readAsStringSync(),
+              )
+              as Map,
+        ),
       );
       final database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(database.close);
@@ -173,7 +271,10 @@ void main() {
       expect(
         [
           for (final key in AppSettingsCodec.storedKeys)
-            if (all.containsKey(key) && !expected.containsKey(key)) key,
+            if (all.containsKey(key) &&
+                !expected.containsKey(key) &&
+                !_addedSinceBase.contains(key))
+              key,
         ],
         isEmpty,
         reason: 'rows the base build did not seed',
@@ -220,7 +321,11 @@ void main() {
             AppSettingsCodec.toRows(AppSettingsCodec.fromRows({key: raw})),
           ),
         );
-        expect(got, expected, reason: '$key = ${jsonEncode(raw)}');
+        expect(
+          got,
+          _withoutNewDefaults(expected as Map<String, dynamic>),
+          reason: '$key = ${jsonEncode(raw)}',
+        );
       });
     });
   });

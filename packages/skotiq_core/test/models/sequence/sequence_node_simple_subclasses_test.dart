@@ -165,7 +165,6 @@ void main() {
 
     test('default_values_match_documented_defaults', () {
       final n = CenterNode();
-      expect(n.accuracyArcsec, equals(5.0));
       expect(n.maxAttempts, equals(5));
       expect(n.useTargetCoords, isTrue);
       expect(n.customRa, isNull);
@@ -176,7 +175,6 @@ void main() {
 
     test('copyWith_each_field', () {
       final n = CenterNode();
-      expect(n.copyWith(accuracyArcsec: 2.0).accuracyArcsec, equals(2.0));
       expect(n.copyWith(maxAttempts: 10).maxAttempts, equals(10));
       expect(n.copyWith(useTargetCoords: false).useTargetCoords, isFalse);
       expect(n.copyWith(customRa: 1.0).customRa, equals(1.0));

@@ -31,14 +31,24 @@ class StackingHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
     StackingApi.start: handleStart,
+    StackingApi.startFilter: (Request request, String key) =>
+        handleStart(request, _requiredSlot(key)),
     StackingApi.addFrame: handleAddFrame,
     StackingApi.updateConfig: handleUpdateConfig,
     StackingApi.reset: handleReset,
+    StackingApi.resetFilter: (Request request, String key) =>
+        handleReset(request, _requiredSlot(key)),
     StackingApi.stop: handleStop,
+    StackingApi.stopFilter: (Request request, String key) =>
+        handleStop(request, _requiredSlot(key)),
     StackingApi.status: handleStatus,
     StackingApi.stats: handleStats,
     StackingApi.result: handleResult,
+    StackingApi.resultFilter: (Request request, String key) =>
+        handleResult(request, _requiredSlot(key)),
     StackingApi.preview: handlePreview,
+    StackingApi.previewFilter: (Request request, String key) =>
+        handlePreview(request, _requiredSlot(key)),
     StackingApi.savedResults: handleSavedResults,
     StackingApi.savedResultPreview: handleSavedResultPreview,
     StackingApi.savedResult: handleSavedResult,
@@ -86,9 +96,17 @@ class StackingHandlers implements RouteSource {
 
   Future<LiveStackingStats> _startReference(
     String referencePath,
-    LiveStackingConfig config,
-  ) async {
+    LiveStackingConfig config, {
+    String? filterKey,
+  }) async {
     try {
+      if (filterKey != null) {
+        return await _service.startFromFileForFilter(
+          filterKey: filterKey,
+          referenceImagePath: referencePath,
+          config: config,
+        );
+      }
       return await _service.startFromFile(
         referenceImagePath: referencePath,
         config: config,
@@ -120,6 +138,7 @@ class StackingHandlers implements RouteSource {
   Future<void> onImageSaved(String filePath) async {
     if (!_armed || filePath.isEmpty) return;
     await _enqueue(() async {
+      if (!_armed) return;
       try {
         if (!_started) {
           await _service.startFromFile(
@@ -150,7 +169,7 @@ class StackingHandlers implements RouteSource {
   /// With a referencePath the stack starts immediately from that host frame.
   /// Without one, stacking is "armed": the next saved frame becomes the
   /// reference and subsequent frames are added automatically.
-  Future<Response> handleStart(Request request) async {
+  Future<Response> handleStart(Request request, [String? slot]) async {
     // Arming with defaults needs no body, so tolerate an empty/absent one
     // rather than forcing clients to POST a bare `{}`.
     final payload = await readJsonObjectOrEmpty(request);
@@ -163,13 +182,23 @@ class StackingHandlers implements RouteSource {
       maxLength: 4096,
     );
     final referencePath = rawReferencePath?.trim();
+    // Absent, blank, or the "no filter" dash keeps the pre-filterKey meaning:
+    // start the whole stack. Older clients never send the field.
+    final filterKey = slot ?? _explicitFilterKey(payload);
 
     return _enqueue(() async {
+      if (filterKey != null) {
+        return _startNamedFilter(
+          filterKey,
+          referencePath: referencePath,
+          config: requestedConfig,
+        );
+      }
       // Reset an existing stack before restarting. A fresh armed start has not
       // initialized the native stacker yet, so there is nothing to clear.
-      if (_started || _service.isActive) {
+      if (_service.isActive) {
         try {
-          await _service.reset();
+          await _service.stop();
         } catch (e, stackTrace) {
           throw HandlerFailure(
             code: 'stacking_reset_failed',
@@ -182,12 +211,12 @@ class StackingHandlers implements RouteSource {
       }
       _config = requestedConfig;
       _armed = true;
+      _started = false;
       if (referencePath != null && referencePath.isNotEmpty) {
         final stats = await _startReference(referencePath, _config);
         _started = true;
         return jsonOk({'status': 'started', 'stats': _statsToJson(stats)});
       }
-      _started = false;
       // Armed with no reference frame yet: nothing has stacked, so report a
       // complete zero-valued stats object. The remote client
       // ([NetworkBackend.stackingStart]) treats every start response as a
@@ -327,7 +356,7 @@ class StackingHandlers implements RouteSource {
 
   /// GET /api/stacking/result -> dimensions + stats (the JSON header the client
   /// pairs with /api/stacking/preview to assemble a LiveStackingResult).
-  Future<Response> handleResult(Request request) async {
+  Future<Response> handleResult(Request request, [String? slot]) async {
     if (!_service.isActive) {
       return jsonError(
         code: 'no_active_stack',
@@ -335,7 +364,9 @@ class StackingHandlers implements RouteSource {
         statusCode: 404,
       );
     }
-    final result = await _service.getCurrentResult();
+    final result = slot == null
+        ? await _service.getCurrentResult()
+        : await _service.getCurrentResultForFilter(slot);
     return jsonOk({
       'active': true,
       'width': result.width,
@@ -348,7 +379,7 @@ class StackingHandlers implements RouteSource {
   /// GET /api/stacking/preview -> raw little-endian u16 pixel buffer
   /// (width*height*channels samples). Dimensions/channels are echoed in
   /// response headers so the client can decode without a second round-trip.
-  Future<Response> handlePreview(Request request) async {
+  Future<Response> handlePreview(Request request, [String? slot]) async {
     if (!_service.isActive) {
       return jsonError(
         code: 'no_active_stack',
@@ -356,7 +387,9 @@ class StackingHandlers implements RouteSource {
         statusCode: 404,
       );
     }
-    final result = await _service.getCurrentResult();
+    final result = slot == null
+        ? await _service.getCurrentResult()
+        : await _service.getCurrentResultForFilter(slot);
     final samples = Uint16List.fromList(result.data);
     final bytes = samples.buffer.asUint8List(
       samples.offsetInBytes,
@@ -481,20 +514,30 @@ class StackingHandlers implements RouteSource {
   /// reference frame yet the native stacker isn't initialized, so resetting the
   /// engine would throw "not initialized". There's nothing accumulated to
   /// clear, so we just drop back to the armed-waiting-for-reference state.
-  Future<Response> handleReset(Request request) async {
+  ///
+  /// A `filterKey` resets that slot and leaves the others, and the
+  /// coordinator, alone. No key resets the whole stack.
+  Future<Response> handleReset(Request request, [String? slot]) async {
+    final filterKey =
+        slot ?? _explicitFilterKey(await readJsonObjectOrEmpty(request));
     return _enqueue(() async {
-      try {
-        if (_started || _service.isActive) {
-          await _service.reset();
+      if (filterKey != null) {
+        try {
+          await _service.resetForFilter(filterKey);
+        } catch (e) {
+          if (!_slotWasAbsent(e)) rethrow;
+          _logger.warning(
+            '[stacking] reset of $filterKey on an uninitialized stacker '
+            'ignored: $e',
+            source: 'StackingHandlers',
+          );
         }
-      } catch (e) {
-        _logger.warning(
-          '[stacking] reset on an uninitialized stacker ignored: $e',
-          source: 'StackingHandlers',
-        );
-      } finally {
-        _started = false;
+        return jsonOk({'status': 'reset', 'filterKey': filterKey});
       }
+      // The next saved frame establishes a new reference. Release every old
+      // slot together before arming it; a native reset keeps its reference.
+      if (_service.isActive) await _service.stop();
+      _started = false;
       return jsonOk({'status': 'reset'});
     });
   }
@@ -510,8 +553,13 @@ class StackingHandlers implements RouteSource {
   /// the armed/started/active state is known here, so the response reports
   /// which state was actually torn down rather than claiming a stack was
   /// stopped when none was running.
-  Future<Response> handleStop(Request request) async {
+  Future<Response> handleStop(Request request, [String? slot]) async {
+    final filterKey =
+        slot ?? _explicitFilterKey(await readJsonObjectOrEmpty(request));
     return _enqueue(() async {
+      if (filterKey != null) {
+        return _stopNamedFilter(filterKey);
+      }
       // Captured BEFORE the `finally` clears the flags, so it reflects the
       // state the caller actually found.
       final wasRunning = _armed || _started || _service.isActive;
@@ -534,6 +582,81 @@ class StackingHandlers implements RouteSource {
         if (!wasRunning)
           'message': 'Live stacking was not running; nothing to stop.',
       });
+    });
+  }
+
+  /// A named filter on the wire. Missing, blank, and the "no filter" dash
+  /// mean the whole stack, so a client that predates `filterKey` is unchanged.
+  String? _explicitFilterKey(Map<String, dynamic> payload) {
+    return explicitLiveStackFilterKey(
+      optionalString(payload, 'filterKey', maxLength: 128),
+    );
+  }
+
+  bool _slotWasAbsent(Object error) =>
+      error.toString().contains('Live stacker not initialized');
+
+  String _requiredSlot(String raw) {
+    final key = explicitLiveStackFilterKey(raw);
+    if (key == null || key.length > 128) {
+      throw BadRequestError(
+        field: 'filterKey',
+        expected: 'a filter name of 1 to 128 characters',
+        message: 'Choose a named filter slot.',
+      );
+    }
+    return key;
+  }
+
+  /// Start one filter slot. Does not reset the other slots. No reference
+  /// leaves the coordinator's started flag as it was: the next saved frame
+  /// still follows the whole-stack auto-feed, which has no filter of its own.
+  Future<Response> _startNamedFilter(
+    String filterKey, {
+    required String? referencePath,
+    required LiveStackingConfig config,
+  }) async {
+    _config = config;
+    _armed = true;
+    if (referencePath != null && referencePath.isNotEmpty) {
+      final stats = await _startReference(
+        referencePath,
+        config,
+        filterKey: filterKey,
+      );
+      _started = true;
+      return jsonOk({'status': 'started', 'stats': _statsToJson(stats)});
+    }
+    return jsonOk({
+      'status': 'armed',
+      'message':
+          'Stacking armed; the next captured frame becomes the reference.',
+      'stats': _statsToJson(const LiveStackingStats()),
+    });
+  }
+
+  /// Stop one filter slot. The session stays armed while any other slot is
+  /// still active. A slot that was never started is a successful no-op.
+  Future<Response> _stopNamedFilter(String filterKey) async {
+    var stopped = false;
+    try {
+      await _service.stopForFilter(filterKey);
+      stopped = true;
+    } catch (e) {
+      if (!_slotWasAbsent(e)) rethrow;
+      _logger.warning(
+        '[stacking] stop of $filterKey on an uninitialized stacker ignored: $e',
+        source: 'StackingHandlers',
+      );
+    }
+    if (stopped && !_service.isActive) {
+      _armed = false;
+      _started = false;
+    }
+    return jsonOk({
+      'status': 'stopped',
+      'filterKey': filterKey,
+      kWasRunningField: stopped,
     });
   }
 
@@ -680,6 +803,15 @@ class StackingHandlers implements RouteSource {
           optionalDouble(json, 'matchFluxTolerance', min: 0, max: 1) ??
           defaults.matchFluxTolerance,
       minMatchedPairs: minMatchedPairs,
+      maxAlignmentResidualPx:
+          optionalDouble(json, 'maxAlignmentResidualPx', min: 0.1, max: 50) ??
+          defaults.maxAlignmentResidualPx,
+      starDetectionSigma:
+          optionalDouble(json, 'starDetectionSigma', min: 0.5, max: 50) ??
+          defaults.starDetectionSigma,
+      starDetectionMinSnr:
+          optionalDouble(json, 'starDetectionMinSnr', min: 0.5, max: 500) ??
+          defaults.starDetectionMinSnr,
       sensorMode: sensorMode,
       bayerPattern: bayerPattern,
       demosaicQuality: demosaicQuality,
@@ -693,6 +825,7 @@ class StackingHandlers implements RouteSource {
     'avgMatchedPairs': s.avgMatchedPairs,
     'avgAlignmentResidual': s.avgAlignmentResidual,
     'totalSigmaRejectedPixels': s.totalSigmaRejectedPixels,
+    'totalIntegrationSecs': s.totalIntegrationSecs,
     'filter': s.filter,
     'otherFilterFrames': s.otherFilterFrames,
     'lastOtherFilter': s.lastOtherFilter,

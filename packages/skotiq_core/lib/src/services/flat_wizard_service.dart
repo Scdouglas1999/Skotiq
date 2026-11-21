@@ -667,8 +667,9 @@ class FlatWizardService {
         maxExposure: maxExposure,
       );
 
-      // Check for convergence (exposure not changing significantly)
-      if ((nextExposure - exposure).abs() < 0.001) {
+      // At millisecond exposures a sub-millisecond correction is a real
+      // change. Stop only when the next exposure cannot change.
+      if ((nextExposure - exposure).abs() <= math.max(1e-9, exposure * 1e-6)) {
         Log.info(
           'FlatWizardService: Converged at exposure: ${exposure.toStringAsFixed(3)}s '
           '(ADU: ${adu.toStringAsFixed(0)})',
@@ -678,7 +679,9 @@ class FlatWizardService {
           filter: filter,
           exposure: exposure,
           adu: adu,
-          success: error <= tolerance * 2, // Accept if within 2x tolerance
+          success: false,
+          errorMessage:
+              'Exposure limit reached outside the requested ADU tolerance',
           iterations: iteration,
         );
       }

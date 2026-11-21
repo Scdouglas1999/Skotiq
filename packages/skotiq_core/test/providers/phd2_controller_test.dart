@@ -605,6 +605,9 @@ void main() {
 
           final container = _container(backend);
           _markConnected(container);
+          // With auto-reconnect off, a link loss tells the backend to stop
+          // reconnecting.
+          container.read(guiderStateProvider.notifier).setAutoReconnect(false);
           container.read(phd2ControllerProvider);
           async.flushMicrotasks();
 
@@ -675,7 +678,12 @@ void main() {
       });
     });
 
-    test('a non-user link loss still auto-relaunches (regression guard)', () {
+    // PHD2 restarted (or crashed) on the rig and nothing reconnected it. The
+    // native layer now reconnects to PHD2 on its own, for as long as it
+    // takes; this controller must leave that alone (a disconnect or connect
+    // of its own ends it) and only puts PHD2 back in the guider slot when
+    // the native layer reports it connected again.
+    test('a non-user link loss leaves the reconnect to the native layer', () {
       fakeAsync((async) {
         final events = StreamController<SkotiqEvent>.broadcast();
         final backend = _MockBackend();
@@ -695,23 +703,34 @@ void main() {
         _markConnected(container);
         container.read(guiderStateProvider.notifier).setAutoReconnect(true);
         container.read(phd2ControllerProvider);
-        // Warm the settings provider the relaunch path reads.
         container.read(appSettingsProvider);
         async.flushMicrotasks();
 
-        // PHD2 dies externally (no user Disconnect).
+        // PHD2 dies externally (no user Disconnect), and is away for long
+        // past the relaunch backoff.
         events.add(_guidingEvent('Disconnected'));
         async.flushMicrotasks();
-        // First backoff is 5s; fire it and let the reconnect complete.
-        async.elapse(const Duration(seconds: 6));
+        async.elapse(const Duration(minutes: 5));
         async.flushMicrotasks();
 
-        verify(
+        verifyNever(() => backend.phd2Disconnect());
+        verifyNever(
           () => backend.phd2Connect(
             host: any(named: 'host'),
             port: any(named: 'port'),
           ),
-        ).called(greaterThanOrEqualTo(1));
+        );
+        expect(
+          container.read(guiderStateProvider).connectionState,
+          DeviceConnectionState.disconnected,
+        );
+
+        // The native layer reached PHD2 again.
+        events.add(_guidingEvent('Connected'));
+        async.flushMicrotasks();
+        final state = container.read(guiderStateProvider);
+        expect(state.connectionState, DeviceConnectionState.connected);
+        expect(state.deviceId, kPhd2CanonicalId);
 
         events.close();
         container.dispose();

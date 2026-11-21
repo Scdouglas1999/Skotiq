@@ -55,12 +55,34 @@ class MosaicMasterStore {
     required Uint8List bytes,
   }) => _saveAt(outputPath(mosaicId, masterId), bytes);
 
+  Future<String> savePanelMasterAsync({
+    required String mosaicId,
+    required int panelIndex,
+    required String masterId,
+    required Uint8List bytes,
+  }) => _saveAtAsync(panelPath(mosaicId, panelIndex, masterId), bytes);
+
+  Future<String> saveOutputAsync({
+    required String mosaicId,
+    required String masterId,
+    required Uint8List bytes,
+  }) => _saveAtAsync(outputPath(mosaicId, masterId), bytes);
+
   String _saveAt(String dest, Uint8List bytes) {
     final dir = Directory(p.dirname(dest));
     if (!dir.existsSync()) dir.createSync(recursive: true);
     final tmp = File('$dest.tmp');
     tmp.writeAsBytesSync(bytes, flush: true);
     tmp.renameSync(dest);
+    return dest;
+  }
+
+  Future<String> _saveAtAsync(String dest, Uint8List bytes) async {
+    final dir = Directory(p.dirname(dest));
+    if (!await dir.exists()) await dir.create(recursive: true);
+    final tmp = File('$dest.tmp');
+    await tmp.writeAsBytes(bytes, flush: true);
+    await tmp.rename(dest);
     return dest;
   }
 

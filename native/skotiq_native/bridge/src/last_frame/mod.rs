@@ -82,7 +82,7 @@ pub(crate) fn measure(
     let stats = skotiq_imaging::calculate_stats(&image);
     let stars =
         skotiq_imaging::detect_stars(&image, &skotiq_imaging::StarDetectionConfig::default());
-    let frame_stats = frame_stats_result(&stats, &stars);
+    let frame_stats = frame_stats_result(&stats, &image, &stars);
     tracing::info!(
         "Captured {}x{}: {} stars, median HFR {:?}, median eccentricity {:?}",
         raw.width,
@@ -164,55 +164,36 @@ pub(crate) async fn clear(camera_id: &str) {
     frames().lock().await.pop(camera_id);
 }
 
-/// Stars sampled for the per-frame medians: the brightest half of the
-/// detections, never more than this many. Detection returns stars brightest
-/// first, so the sample is the same set on every run over the same frame.
-const FRAME_METRIC_SAMPLE_CAP: usize = 50;
-
-/// Largest HFR or FWHM, in pixels, that a detection can contribute to a frame
-/// median. A value at or past it is a smear or a detection artefact, not a star
-/// this frame can be measured by.
-const FRAME_METRIC_MAX_PIXELS: f64 = 20.0;
-
-/// Median of the sampled stars' `value`, or `None` when none of them carries a
-/// usable one.
-fn frame_metric_median(
-    stars: &[skotiq_imaging::DetectedStar],
-    value: impl Fn(&skotiq_imaging::DetectedStar) -> f64,
-) -> Option<f64> {
-    let sample = (stars.len() / 2).clamp(1, FRAME_METRIC_SAMPLE_CAP);
-    let mut values: Vec<f64> = stars
-        .iter()
-        .take(sample)
-        .map(&value)
-        .filter(|v| *v > 0.0 && *v < FRAME_METRIC_MAX_PIXELS)
-        .collect();
-    if values.is_empty() {
-        return None;
-    }
-    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    Some(values[values.len() / 2])
-}
+/// FWHM per HFR for the screens' FWHM figure: the app's `kFwhmPerHfr`.
+const FWHM_PER_HFR: f64 = 2.0;
 
 /// The stats block a stored frame publishes, read out of that frame's own
-/// statistics and the stars already detected in it: HFR, FWHM, eccentricity
-/// and the star count all come from one detection.
+/// statistics and the stars already detected in it.
+///
+/// HFR and eccentricity are the run's own measurement of the frame
+/// ([`crate::unified_device_ops::frame_shape`], what the grader judges and
+/// what the frame's record holds), so the HFR a screen shows is the HFR the
+/// reject reason quotes. The screens read a median of the brightest
+/// detections instead, and frame #2 of the IC 405 night showed HFR 4.50
+/// beside "HFR 4.12 px exceeds" (2026-11-16).
 ///
 /// `None` for HFR, FWHM or eccentricity means too few usable stars to measure
 /// this frame — never a fabricated 0.
 pub(crate) fn frame_stats_result(
     stats: &skotiq_imaging::ImageStats,
+    image: &skotiq_imaging::ImageData,
     stars: &[skotiq_imaging::DetectedStar],
 ) -> ImageStatsResult {
+    let shape = crate::unified_device_ops::frame_shape(image, stars);
     ImageStatsResult {
         min: stats.min,
         max: stats.max,
         mean: stats.mean,
         median: stats.median,
         std_dev: stats.std_dev,
-        hfr: frame_metric_median(stars, |s| s.hfr),
-        eccentricity: skotiq_imaging::frame_eccentricity(stars),
-        fwhm: frame_metric_median(stars, |s| s.fwhm),
+        hfr: shape.map(|shape| shape.hfr),
+        eccentricity: shape.map(|shape| shape.eccentricity),
+        fwhm: shape.map(|shape| shape.hfr * FWHM_PER_HFR),
         star_count: stars.len() as u32,
     }
 }

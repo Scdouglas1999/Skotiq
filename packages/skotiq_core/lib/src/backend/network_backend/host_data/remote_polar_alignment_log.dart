@@ -13,6 +13,8 @@ final class RemotePolarAlignmentLog implements PolarAlignmentLog {
   final HostHistory _host;
   final _poll = HostPoll('polar alignment history');
 
+  void dispose() => _poll.dispose();
+
   @override
   Future<List<PolarAlignmentHistoryEntry>> getHistoryForProfile(
     int? profileId, {

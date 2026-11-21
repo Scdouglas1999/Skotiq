@@ -227,14 +227,17 @@ final syncExposureFromProfileProvider = Provider<void>((ref) {
       } catch (_) {
         saved = null;
       }
+      if (disposed) {
+        loadInFlight = false;
+        return;
+      }
       final currentProfile = ref.read(activeEquipmentProfileProvider);
-      if (disposed ||
-          currentProfile == null ||
+      loadInFlight = false;
+      if (currentProfile == null ||
           _exposureProfileKey(currentProfile) != profileKey) {
         return;
       }
       loadedProfileKey = profileKey;
-      loadInFlight = false;
       // A manual edit completed while the DAO was reading. Its value is
       // newer than the stored snapshot and must win the race.
       if (ref.read(_manualExposureRevisionProvider) == revisionAtStart &&
@@ -640,8 +643,7 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
       for (final image in state)
         if (observingNight(image.capturedAt) == night) image.id: image,
     };
-    state = byId.values.toList()
-      ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+    state = byId.values.toList()..sort(_oldestCapturedImage);
   }
 
   void removeImage(String id) {
@@ -653,6 +655,16 @@ class SessionImagesNotifier extends StateNotifier<List<CapturedImage>> {
   }
 
   int get count => state.length;
+
+  /// Equal timestamps keep the lower row id first, matching the database lists.
+  static int _oldestCapturedImage(CapturedImage a, CapturedImage b) {
+    final time = a.capturedAt.compareTo(b.capturedAt);
+    if (time != 0) return time;
+    final aId = int.tryParse(a.id);
+    final bId = int.tryParse(b.id);
+    if (aId != null && bId != null) return aId.compareTo(bId);
+    return a.id.compareTo(b.id);
+  }
 
   Duration get totalExposureTime {
     return state.fold(
@@ -676,9 +688,14 @@ final sessionNightSeedProvider = FutureProvider<void>((ref) async {
   final rows = await ref
       .read(imagesDaoProvider)
       .getImagesCapturedBetween(window.start, window.end);
+  // A session that started while this read was in flight, or a later re-seed,
+  // must not put the previous run back onto the strip this session cleared.
+  final activeSession = ref.read(sessionStateProvider).dbSessionId;
   ref.read(sessionImagesProvider.notifier).seedNight([
     for (final row in rows)
-      if (row.isAccepted) capturedImageFromDbRow(row),
+      if (row.isAccepted &&
+          (activeSession == null || row.sessionId == activeSession))
+        capturedImageFromDbRow(row),
   ], now: now);
 });
 
@@ -742,10 +759,15 @@ final recentSessionFramesProvider = hostRoleProvider<List<CapturedImage>>(
 
     final sessionRows =
         rows.where((row) => row.sessionId == sessionId).toList(growable: false)
-          ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt));
+          ..sort(_oldestDbRow);
     return sessionRows.map(capturedImageFromDbRow).toList(growable: false);
   },
 );
+
+int _oldestDbRow(db.DbCapturedImage a, db.DbCapturedImage b) {
+  final time = a.capturedAt.compareTo(b.capturedAt);
+  return time != 0 ? time : a.id.compareTo(b.id);
+}
 
 /// Map a persisted `captured_images` row onto the in-memory [CapturedImage]
 /// shape the cockpit/strip widgets render.

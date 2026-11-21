@@ -50,7 +50,6 @@
     "orderIndex": 8,
     "parentNodeId": "root",
     "properties": {
-      "accuracyArcsec": 5.0,
       "customDec": null,
       "customRa": null,
       "exposureDuration": 5.0,

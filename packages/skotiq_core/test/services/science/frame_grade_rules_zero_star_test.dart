@@ -1,16 +1,12 @@
-import 'package:drift/native.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart'
     as drift
-    show DbCapturedImage, SkotiqDatabase;
+    show DbCapturedImage;
 
-/// A light row exactly as `FrameAutoGrader.gradeCapturedFrame` hands it to
-/// [FrameGradeRules.gradeFrame] after capture.
+/// A light row as the Image Grader dialog hands it to
+/// [FrameGradeRules.gradeFrame].
 drift.DbCapturedImage _light({int? starCount, double? hfr}) {
   final ts = DateTime(2026, 1, 1);
   return drift.DbCapturedImage(
@@ -98,98 +94,4 @@ void main() {
       );
     });
   });
-
-  // Everything above calls the rule engine directly. These drive the real
-  // production caller — `FrameAutoGrader.gradeCapturedFrame`, which the
-  // science pipeline invokes on every captured light — against a real
-  // database, so the assertion is on what is PERSISTED for the frame rather
-  // than on what a helper returned. Cutting the rule out of
-  // `FrameGradeRules.gradeFrame` has to fail here too, or the wiring was
-  // never covered.
-  group('FrameAutoGrader end-to-end', () {
-    late drift.SkotiqDatabase db;
-    late ImagesDao images;
-    late ProviderContainer container;
-
-    Future<void> boot(ScienceSettings settings) async {
-      db = drift.SkotiqDatabase.forTesting(NativeDatabase.memory());
-      images = ImagesDao(db);
-      container = ProviderContainer(
-        overrides: [
-          databaseProvider.overrideWithValue(db),
-          scienceSettingsProvider.overrideWith(
-            () => _FixedScienceSettings(settings),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
-      addTearDown(db.close);
-    }
-
-    Future<int> insertLight({required int? starCount}) =>
-        images.insertSequenceFrame(
-          filePath: '/captures/m31/L_0001.fits',
-          fileName: 'L_0001.fits',
-          fileFormat: 'fits',
-          exposureDuration: 300,
-          capturedAt: DateTime.utc(2026, 1, 1, 23),
-          isAccepted: true,
-          producingNodeId: 'node-zero-star',
-          filter: 'L',
-          starCount: starCount,
-        );
-
-    test('a starless light is persisted as rejected, not accepted', () async {
-      await boot(
-        const ScienceSettings(
-          autoFrameGradingEnabled: true,
-          frameGradeRulesJson: '{"maxEccentricity":0.8}',
-        ),
-      );
-      final id = await insertLight(starCount: 0);
-
-      final rejected = await container
-          .read(frameAutoGraderProvider)
-          .gradeCapturedFrame(image: (await images.getImageById(id))!);
-
-      expect(rejected, isTrue);
-      final row = await images.getImageById(id);
-      expect(
-        row!.isAccepted,
-        isFalse,
-        reason:
-            'the native grader already filed this frame under Reject/; the '
-            'persisted row must not say it was kept',
-      );
-      expect(row.rejectionReason, contains('no stars detected'));
-    });
-
-    test('an unmeasured star count is left accepted', () async {
-      await boot(
-        const ScienceSettings(
-          autoFrameGradingEnabled: true,
-          frameGradeRulesJson: '{"maxEccentricity":0.8}',
-        ),
-      );
-      final id = await insertLight(starCount: null);
-
-      final rejected = await container
-          .read(frameAutoGraderProvider)
-          .gradeCapturedFrame(image: (await images.getImageById(id))!);
-
-      expect(rejected, isFalse);
-      expect((await images.getImageById(id))!.isAccepted, isTrue);
-    });
-  });
-}
-
-/// Serves fixed [ScienceSettings] so the grader reads real rules without a
-/// settings table behind it.
-class _FixedScienceSettings extends ScienceSettingsNotifier {
-  _FixedScienceSettings(this._settings);
-
-  final ScienceSettings _settings;
-
-  @override
-  Future<ScienceSettings> build() async => _settings;
 }

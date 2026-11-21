@@ -46,9 +46,13 @@ final remoteSciencePollIntervalProvider = Provider<Duration>(
 /// process's database, or the linked host's.
 final scienceProductsProvider = hostRoleProvider<ScienceProducts>(
   here: (ref) => ref.watch(scienceDaoProvider),
-  linked: (ref, host) => host.scienceProducts(
-    pollInterval: ref.watch(remoteSciencePollIntervalProvider),
-  ),
+  linked: (ref, host) {
+    final products = host.scienceProducts(
+      pollInterval: ref.watch(remoteSciencePollIntervalProvider),
+    );
+    ref.onDispose(products.dispose);
+    return products;
+  },
 );
 
 /// The rows the science settings are stored in: the settings table, or the

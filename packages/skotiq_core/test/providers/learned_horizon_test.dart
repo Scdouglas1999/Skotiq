@@ -282,7 +282,9 @@ void main() {
                 as Map<String, dynamic>;
         expect(frameWatch['drift_limit_arcsec'], 90);
         expect(frameWatch['use_first_frame_reference'], isTrue);
-        expect(frameWatch['obstruction_detection'], isTrue);
+        // Off until the operator turns it on; once on, it only notifies.
+        expect(frameWatch['obstruction_detection'], isFalse);
+        expect(frameWatch['obstruction_action'], 'notify');
         expect(frameWatch['learned_horizon'], [
           {'azimuth_deg': 286.2, 'altitude_deg': 64.0},
         ]);

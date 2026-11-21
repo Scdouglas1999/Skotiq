@@ -3,8 +3,44 @@
 use super::*;
 
 #[test]
-fn autofocus_admission_is_atomic_and_released_by_guard() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+fn autofocus_on_a_filter_with_no_offset_uses_the_reference() {
+    let offsets =
+        std::collections::HashMap::from([("OIII".to_string(), 5), ("SII".to_string(), 3)]);
+    let choice = super::super::autofocus::choose_autofocus_filter(
+        Some("L"),
+        Some("L"),
+        Some("Ha"),
+        &offsets,
+    )
+    .expect("the reference is a filter autofocus can use");
+    assert_eq!(choice.filter.as_deref(), Some("Ha"));
+    assert!(
+        choice.note.unwrap().contains("no focus offset from Ha"),
+        "the operator is told why L was not used"
+    );
+}
+
+#[test]
+fn a_filter_with_no_offset_is_not_treated_as_the_reference() {
+    let rig = super::super::context::RunRig {
+        filter_focus_reference: Some("Ha".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([("OIII".to_string(), 5)]),
+        ..Default::default()
+    };
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "Ha").unwrap(),
+        0
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "OIII").unwrap(),
+        5
+    );
+    assert!(super::super::filter::known_filter_offset(&rig, "L").is_err());
+}
+
+#[tokio::test]
+async fn autofocus_admission_is_atomic_and_released_by_guard() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let first = try_admit_autofocus_run().expect("first run must admit");
     assert!(
         try_admit_autofocus_run().is_none(),
@@ -15,13 +51,9 @@ fn autofocus_admission_is_atomic_and_released_by_guard() {
     drop(next);
 }
 
-// Single-threaded (current-thread) tokio runtime, so holding the sync gate
-// lock across awaits cannot deadlock; the lock only serializes vs other
-// gate tests running on separate threads.
 #[tokio::test(start_paused = true)]
-#[allow(clippy::await_holding_lock)]
 async fn node_admission_waits_for_inflight_run_then_times_out_on_stuck_gate() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
 
     // Scenario 1: a trigger-fired run holds the gate; the node waiter must
     // block while it is held rather than fail the run.
@@ -44,7 +76,15 @@ async fn node_admission_waits_for_inflight_run_then_times_out_on_stuck_gate() {
 
     // Scenario 2: a gate that never releases must time out (not hang).
     let _stuck = try_admit_autofocus_run().expect("hold the gate");
-    let result = admit_autofocus_run_waiting(Duration::from_secs(600)).await;
+    let max_wait = Duration::from_secs(600);
+    let started = tokio::time::Instant::now();
+    let result = tokio::time::timeout(
+        max_wait + Duration::from_secs(1),
+        admit_autofocus_run_waiting(max_wait),
+    )
+    .await
+    .expect("admission must finish at its deadline");
+    assert!(started.elapsed() >= max_wait);
     assert!(
         result.is_none(),
         "a gate that never releases must time out, not hang forever"
@@ -91,9 +131,8 @@ async fn autofocus_cleanup_restores_and_verifies_original_position() {
 }
 
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn autofocus_restores_the_filter_but_leaves_guiding_stopped_when_the_run_stops() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guiding(true));
     let ctx = ctx_with_ops(ops.clone()).await;
     ctx.cancellation_token.store(true, Ordering::SeqCst);
@@ -451,6 +490,240 @@ fn autofocus_counts_no_stars_on_a_dark_or_a_starless_frame() {
     }
 }
 
+#[test]
+fn autofocus_hfr_measures_comatic_defocused_field() {
+    // Fast-Newtonian off-axis coma / mild unguided drift during a 3-5 s AF
+    // frame pushes star eccentricity to ~0.75-0.82 (a/b ~ 1.5-1.7). Autofocus
+    // still needs those stars instead of discarding them at the 0.70 guider
+    // ceiling.
+    const SIZE: u32 = 640;
+    const FLUX: f64 = 1.6e5;
+    let mut state = 0x517c_c1b7_2722_0a95u64;
+    let mut noise = move || {
+        let mut acc = 0.0;
+        for _ in 0..4 {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            acc += (state >> 11) as f64 / (1u64 << 53) as f64;
+        }
+        (acc - 2.0) * 1.732
+    };
+    let mut px: Vec<f64> = (0..SIZE * SIZE).map(|_| 320.0 + 30.0 * noise()).collect();
+    let outer = 10.0f64;
+    let inner = 5.0f64;
+    let ellip = 1.65f64; // b/a = 0.61 -> eccentricity ~ 0.79
+    let area = std::f64::consts::PI * ellip * (outer * outer - inner * inner);
+    for row in 0..4 {
+        for col in 0..4 {
+            let cx = 80.0 + col as f64 * 160.0 + 0.3;
+            let cy = 80.0 + row as f64 * 160.0 + 0.7;
+            for y in (cy as i64 - 24)..=(cy as i64 + 24) {
+                for x in (cx as i64 - 28)..=(cx as i64 + 28) {
+                    let d = ((x as f64 - cx) / ellip).hypot(y as f64 - cy);
+                    if (inner..=outer).contains(&d) {
+                        px[(y as u32 * SIZE + x as u32) as usize] += FLUX / area;
+                    }
+                }
+            }
+        }
+    }
+    let image = ImageData {
+        width: SIZE,
+        height: SIZE,
+        data: px
+            .iter()
+            .map(|v| ((v / 16.0).round() * 16.0).clamp(0.0, 65535.0) as u16)
+            .collect(),
+        bits_per_pixel: 16,
+        metadata: skotiq_device::ImageMetadata {
+            exposure_time: 3.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let m = calculate_hfr_with_crops(&image, 1.0, 0.0, 10);
+    assert!(
+        m.star_count >= 12,
+        "comatic defocused stars should count for autofocus, got {} stars",
+        m.star_count
+    );
+    let hfr = m.hfr.expect("HFR measured");
+    assert!(
+        hfr > 8.0 && hfr < 13.0,
+        "expected whole elliptical donut HFR ~10 px, got {hfr:.2}"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn failed_af_restores_original_filter_without_requiring_offset() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
+    // Rig is on L, reference filter is R, and L has no focus offset from R.
+    // AF switches to R and fails (dark frames); cleanup must put the wheel
+    // back on L without failing on the missing offset, because the focuser was
+    // already returned to its pre-AF position.
+    let ops = Arc::new(ScriptedDomeRotatorOps::new());
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.rig.filter_focus_reference = Some("R".to_string());
+    ctx.run.rig.filter_focus_offsets = std::collections::HashMap::from([("OIII".to_string(), 5)]);
+    ops.filterwheel_set_position("efw-1", 0).await.unwrap();
+
+    let config = AutofocusConfig {
+        filter: Some("L".to_string()),
+        number_of_attempts: 1,
+        steps_out: 2,
+        exposure_duration: 0.01,
+        focuser_settle_time_ms: 0,
+        disable_guiding_during_af: false,
+        ..Default::default()
+    };
+    let result = execute_autofocus(&config, &ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Failure);
+    let msg = result.message.as_deref().unwrap_or("");
+    assert!(
+        !msg.contains("CRITICAL CLEANUP FAILURE"),
+        "restoring the pre-AF filter after a failed run must not fail on missing offset: {msg}"
+    );
+    assert_eq!(*ops.filter_moves.lock().unwrap(), vec![0, 1, 0]);
+    assert_eq!(
+        ops.filterwheel_get_position("efw-1").await.unwrap(),
+        0,
+        "filter wheel must be back on original slot 0 (L)"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn failed_af_reverses_entry_filter_focus_offset_delta() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
+    // Rig is mid-run on OIII (offset +40 from L), so the focuser sits at
+    // 5040 with last_applied_filter_offset == 40. AF switches to L (offset 0),
+    // which shifts the focuser 5040 -> 5000, then fails on dark frames and
+    // returns the focuser to 5000 (the post-entry position). Cleanup must move
+    // the wheel back to OIII AND shift the focuser back to 5040 with
+    // last_applied_filter_offset == 40 rather than stranding OIII at L's focus.
+    let mut rig = ScriptedDomeRotatorOps::new().with_focus_model(
+        5040,
+        Box::new(|_| ImageData {
+            width: 64,
+            height: 64,
+            data: vec![100; 64 * 64],
+            bits_per_pixel: 16,
+            ..Default::default()
+        }),
+    );
+    rig.filter_names = ["L", "R", "G", "B", "Ha", "OIII"].map(str::to_owned).into();
+    let ops = Arc::new(rig);
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.rig.filter_focus_reference = Some("L".to_string());
+    ctx.run.rig.filter_focus_offsets = std::collections::HashMap::from([("OIII".to_string(), 40)]);
+    ops.filterwheel_set_position("efw-1", 5).await.unwrap(); // slot 5 = OIII
+    let mut trigger_state = crate::triggers::TriggerState::new();
+    trigger_state.set_last_applied_filter_offset(40);
+    ctx.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(trigger_state)));
+
+    let config = AutofocusConfig {
+        filter: Some("L".to_string()),
+        number_of_attempts: 1,
+        steps_out: 2,
+        exposure_duration: 0.01,
+        focuser_settle_time_ms: 0,
+        disable_guiding_during_af: false,
+        ..Default::default()
+    };
+    let result = execute_autofocus(&config, &ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Failure);
+    let msg = result.message.as_deref().unwrap_or("");
+    assert!(
+        !msg.contains("CRITICAL CLEANUP FAILURE"),
+        "failed AF cleanup must succeed cleanly: {msg}"
+    );
+    assert_eq!(*ops.filter_moves.lock().unwrap(), vec![5, 0, 5]);
+    assert_eq!(
+        ops.filterwheel_get_position("efw-1").await.unwrap(),
+        5,
+        "filter wheel must return to OIII"
+    );
+    assert_eq!(
+        ops.focuser_get_position("foc-1").await.unwrap(),
+        5040,
+        "focuser must return to OIII's pre-AF position (5040), not stay stranded at L (5000)"
+    );
+    let embodied = ctx
+        .run
+        .trigger_state
+        .as_ref()
+        .unwrap()
+        .read()
+        .await
+        .latches
+        .last_applied_filter_offset;
+    assert_eq!(embodied, 40, "embodied offset latch must return to +40");
+}
+
+#[test]
+fn known_filter_offset_resolves_canonical_aliases_and_rejects_ambiguity() {
+    let rig = super::super::context::RunRig {
+        filter_focus_reference: Some("L".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([
+            ("Ha".to_string(), 35),
+            ("OIII".to_string(), -20),
+        ]),
+        ..Default::default()
+    };
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "Luminance").unwrap(),
+        0
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "H-alpha").unwrap(),
+        35
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "oiii").unwrap(),
+        -20
+    );
+
+    let ambiguous_rig = super::super::context::RunRig {
+        filter_focus_reference: Some("L".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([
+            ("Ha 3nm".to_string(), 30),
+            ("Ha 7nm".to_string(), 45),
+        ]),
+        ..Default::default()
+    };
+    let err = super::super::filter::known_filter_offset(&ambiguous_rig, "H-alpha")
+        .expect_err("distinct offsets for the same band must fail instead of guessing");
+    assert!(
+        err.contains("multiple focus offsets"),
+        "unexpected ambiguity error: {err}"
+    );
+}
+
+#[test]
+fn a_reference_of_the_same_band_does_not_hide_another_filters_offset() {
+    let rig = super::super::context::RunRig {
+        filter_focus_reference: Some("Ha 3nm".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([("Ha 7nm".to_string(), 12)]),
+        ..Default::default()
+    };
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "Ha 7nm").unwrap(),
+        12
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "ha 3nm").unwrap(),
+        0
+    );
+    let err = super::super::filter::known_filter_offset(&rig, "H-alpha")
+        .expect_err("\"H-alpha\" could be the reference or the 7nm filter");
+    assert!(err.contains("Ha 3nm") && err.contains("Ha 7nm"), "{err}");
+}
+
 // The guider-resume cleanup failure. Verbatim from the owner's
 // skotiq.log.2026-09-15, 02:58:40:
 //
@@ -754,9 +1027,8 @@ fn the_unguided_hold_message_says_what_happened_and_what_did_not() {
 /// A sweep that left the guider down must not be retried. Its next attempt's
 /// exposures run on an unguided mount and its entry stops the guider again.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_guiderless_sweep_is_not_retried_across_attempts() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(
         // The guider is STOPPED — autofocus stopped it for the sweep — and the
         // resume will be accepted without ever reporting guiding.
@@ -828,9 +1100,8 @@ async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
 /// panel: no call returns its outcome to the UI, so a sweep that ends without
 /// an `AutofocusFinished` leaves the panel reading "running" for the night.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let (tx, mut rx) = tokio::sync::broadcast::channel(64);
 
     // Stopped before the first point.

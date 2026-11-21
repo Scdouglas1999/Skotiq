@@ -170,8 +170,10 @@ jobs:
   test-dart:
     name: Dart Tests
     runs-on: ubuntu-latest
-    # The 8.0 workspace has over 15,000 tests; hosted runners exceeded 45 minutes.
-    timeout-minutes: 60
+    # The serialized 9.1 suite was still completing UI tests at 60 minutes
+    # on a hosted runner. Leave time for the remaining packages, relay and
+    # production migration probe on a slower runner.
+    timeout-minutes: 90
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -197,23 +199,20 @@ jobs:
 
       - name: Name the failed Dart tests
         if: failure()
+        # The console reporter hides a failed setUpAll, tearDownAll or file
+        # load that has no error; this names every failed test in the JSON
+        # records, hidden or not, and any test that never finished.
         run: |
-          python3 - <<'PY'
-          import glob, json
-          for path in glob.glob('**/test-results.json', recursive=True):
-              tests = {}
-              for line in open(path):
-                  try:
-                      event = json.loads(line)
-                  except ValueError:
-                      continue
-                  kind = event.get('type')
-                  if kind == 'testStart':
-                      tests[event['test']['id']] = event['test']['name']
-                  elif kind == 'error':
-                      name = tests.get(event.get('testID'), '?')
-                      print(f"{path}: {name}\n  {event.get('error', '')[:2000]}\n")
-          PY
+          python3 scripts/test_name_failed_dart_tests.py
+          python3 scripts/name_failed_dart_tests.py || true
+
+      - name: Keep the Dart test records
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dart-test-results
+          path: '**/test-results.json'
+          retention-days: 14
 
       # The next two run even when a test above failed, so one red package
       # does not hide the pure-Dart packages or the migration from an old
@@ -482,12 +481,9 @@ jobs:
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    # Coverage re-runs the full instrumented test suite (it roughly duplicates
-    # the Dart Tests job, which alone runs ~15 min), so it needs more headroom
-    # than the uninstrumented jobs. 20 min was too tight and the job was
-    # cancelled on timeout; 40 gives margin without masking a genuine hang.
-    # Raised from 40: the 6.0 suite grew past it and the job was being killed mid-run.
-    timeout-minutes: 75
+    # Coverage instruments the same serialized workspace suite. Hosted runs
+    # reached the old 75-minute limit before producing the merged report.
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v7

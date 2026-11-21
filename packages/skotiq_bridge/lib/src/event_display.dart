@@ -395,7 +395,10 @@ String _guidingDetail(GuidingEvent v) {
     GuidingEvent_GuidingStopped() => '',
     GuidingEvent_Paused() => '',
     GuidingEvent_Resumed() => '',
-    GuidingEvent_Settled(rms: final rms) => 'RMS ${rms.toStringAsFixed(2)}"',
+    // PHD2 reports no RMS with its settle; the built-in guider's is in
+    // guide-camera pixels.
+    GuidingEvent_Settled(rms: final rms) =>
+      rms == null ? '' : 'RMS ${rms.toStringAsFixed(2)} px',
     GuidingEvent_LostStar() => '',
     GuidingEvent_SettleTimedOut(error: final e) => e,
     GuidingEvent_StopReason(reason: final r) => r ?? '',

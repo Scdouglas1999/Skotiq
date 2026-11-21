@@ -24,6 +24,7 @@ class FrameWatchSettings {
     required this.recenterEnabled,
     required this.driftLimitArcsec,
     required this.obstructionDetection,
+    this.obstructionAction = ObstructionAction.notify,
     this.learnedPoints = const [],
   });
 
@@ -32,11 +33,15 @@ class FrameWatchSettings {
     recenterEnabled: StoreSettings.frameWatchRecenter.fallback,
     driftLimitArcsec: StoreSettings.frameWatchDriftLimit.fallback,
     obstructionDetection: StoreSettings.frameWatchObstructionDetection.fallback,
+    obstructionAction: StoreSettings.frameWatchObstructionAction.fallback,
   );
 
   final bool recenterEnabled;
   final double driftLimitArcsec;
   final bool obstructionDetection;
+
+  /// What a confirmed obstruction does to the run.
+  final ObstructionAction obstructionAction;
   final List<LearnedObstructionPoint> learnedPoints;
 
   /// The learned points of the site at [latitude], [longitude]; none when the
@@ -60,6 +65,7 @@ class FrameWatchSettings {
     'drift_limit_arcsec': recenterEnabled ? driftLimitArcsec : 0,
     'use_first_frame_reference': true,
     'obstruction_detection': obstructionDetection,
+    'obstruction_action': obstructionAction.wire,
     'learned_horizon': [
       for (final p in pointsForSite(latitude, longitude))
         {'azimuth_deg': p.azimuthDeg, 'altitude_deg': p.altitudeDeg},
@@ -70,11 +76,13 @@ class FrameWatchSettings {
     bool? recenterEnabled,
     double? driftLimitArcsec,
     bool? obstructionDetection,
+    ObstructionAction? obstructionAction,
     List<LearnedObstructionPoint>? learnedPoints,
   }) => FrameWatchSettings(
     recenterEnabled: recenterEnabled ?? this.recenterEnabled,
     driftLimitArcsec: driftLimitArcsec ?? this.driftLimitArcsec,
     obstructionDetection: obstructionDetection ?? this.obstructionDetection,
+    obstructionAction: obstructionAction ?? this.obstructionAction,
     learnedPoints: learnedPoints ?? this.learnedPoints,
   );
 }
@@ -99,6 +107,9 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
       ),
       obstructionDetection: await dao.read(
         StoreSettings.frameWatchObstructionDetection,
+      ),
+      obstructionAction: await dao.read(
+        StoreSettings.frameWatchObstructionAction,
       ),
       learnedPoints: decodeLearnedObstructionPoints(
         await dao.read(StoreSettings.learnedHorizonPoints),
@@ -136,6 +147,16 @@ class FrameWatchSettingsNotifier extends AsyncNotifier<FrameWatchSettings> {
         .read(settingsDaoProvider)
         .write(StoreSettings.frameWatchObstructionDetection, enabled);
     state = AsyncData(current.copyWith(obstructionDetection: enabled));
+  }
+
+  Future<void> setObstructionAction(ObstructionAction action) async {
+    final current = await _current();
+    await ref
+        .read(settingsDaoProvider)
+        .write(StoreSettings.frameWatchObstructionAction, action);
+    state = AsyncData(
+      (state.valueOrNull ?? current).copyWith(obstructionAction: action),
+    );
   }
 
   /// Add a learned point. A point within a degree of one already learned at

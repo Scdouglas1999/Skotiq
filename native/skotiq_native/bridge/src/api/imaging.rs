@@ -195,6 +195,20 @@ pub async fn api_run_autofocus(
     use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
     use std::time::{SystemTime, UNIX_EPOCH};
 
+    // Map method string to enum before acquiring the AF gate; reject
+    // unrecognized methods rather than silently falling back to VCurve.
+    let method = match config.method.trim().to_ascii_lowercase().as_str() {
+        "" | "vcurve" | "v-curve" | "v_curve" => AutofocusMethod::VCurve,
+        "hyperbolic" => AutofocusMethod::Hyperbolic,
+        "parabolic" | "quadratic" => AutofocusMethod::Quadratic,
+        other => {
+            return Err(SkotiqError::InvalidParameter(format!(
+                "Unknown autofocus method '{}' (expected VCurve, Hyperbolic, or Parabolic)",
+                other
+            )));
+        }
+    };
+
     #[derive(Debug, Deserialize)]
     struct LegacyAutofocusPayload {
         best_position: i32,
@@ -214,13 +228,6 @@ pub async fn api_run_autofocus(
     cancel_token.store(false, Ordering::Relaxed);
 
     let method_str = config.method.clone();
-
-    // Map method string to enum
-    let method = match config.method.as_str() {
-        "Hyperbolic" => AutofocusMethod::Hyperbolic,
-        "Parabolic" => AutofocusMethod::Quadratic,
-        _ => AutofocusMethod::VCurve,
-    };
 
     // Map binning
     let binning = match config.binning {
@@ -2005,3 +2012,39 @@ mod fits_thumbnail_tests;
 
 #[cfg(test)]
 mod detect_stars_in_file_tests;
+
+#[cfg(test)]
+mod autofocus_validation_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn api_run_autofocus_rejects_unknown_method_instead_of_falling_back() {
+        let config = AutofocusConfigApi {
+            exposure_time: 2.0,
+            step_size: 50,
+            steps_out: 4,
+            method: "TypoMethod".to_string(),
+            binning: 1,
+            gain: None,
+            offset: None,
+            number_of_attempts: 1,
+            exposures_per_point: 1,
+            r_squared_threshold: 0.7,
+            outer_crop_ratio: 1.0,
+            inner_crop_ratio: 0.0,
+            use_brightest_n_stars: 0,
+            focuser_settle_time_ms: 0,
+            backlash_comp_method: "Absolute".to_string(),
+            backlash_in: 0,
+            backlash_out: 0,
+            measured_backlash_in: None,
+        };
+        let err = api_run_autofocus("foc-1".to_string(), "cam-1".to_string(), config)
+            .await
+            .expect_err("unknown autofocus method must be rejected");
+        assert!(
+            matches!(err, SkotiqError::InvalidParameter(ref msg) if msg.contains("typomethod")),
+            "expected InvalidParameter mentioning 'typomethod', got {err:?}"
+        );
+    }
+}

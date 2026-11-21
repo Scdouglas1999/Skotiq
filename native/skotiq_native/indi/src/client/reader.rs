@@ -14,6 +14,8 @@ impl IndiClient {
         mut rx: mpsc::Receiver<String>,
         connected: Arc<AtomicBool>,
         event_tx: broadcast::Sender<IndiEvent>,
+        epoch: u64,
+        connection_epoch: Arc<AtomicU64>,
     ) {
         while let Some(cmd) = rx.recv().await {
             let write_result = async {
@@ -23,6 +25,12 @@ impl IndiClient {
             .await;
 
             if let Err(e) = write_result {
+                if connection_epoch.load(Ordering::SeqCst) != epoch {
+                    tracing::debug!(
+                        "Ignoring INDI write error from superseded connection epoch {epoch}: {e}"
+                    );
+                    return;
+                }
                 tracing::error!("INDI write error: {}", e);
                 if connected.swap(false, Ordering::SeqCst) {
                     send_indi_event(
@@ -71,6 +79,8 @@ impl IndiClient {
         reader_task_config: ReaderTaskConfig,
         jitter_rng: JitterRng,
         mut shutdown_rx: oneshot::Receiver<()>,
+        epoch: u64,
+        connection_epoch: Arc<AtomicU64>,
     ) {
         // Run the reader task with panic catching via AssertUnwindSafe
         let result = tokio::select! {
@@ -92,10 +102,20 @@ impl IndiClient {
             }
             _ = &mut shutdown_rx => {
                 tracing::info!("INDI reader task received shutdown signal - graceful stop");
-                reader_consecutive_failures.store(0, Ordering::SeqCst);
+                if connection_epoch.load(Ordering::SeqCst) == epoch {
+                    reader_consecutive_failures.store(0, Ordering::SeqCst);
+                }
                 Ok(())
             }
         };
+
+        // If a newer connect() or disconnect() already advanced the epoch,
+        // this task belongs to a superseded connection and must not clobber
+        // the active connection's status, failure counter, or event stream.
+        if connection_epoch.load(Ordering::SeqCst) != epoch {
+            tracing::debug!("INDI reader task from superseded epoch {epoch} exiting quietly");
+            return;
+        }
 
         match result {
             Ok(_) => {

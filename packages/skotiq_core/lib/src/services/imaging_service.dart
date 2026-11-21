@@ -105,13 +105,16 @@ class ImagingService {
   /// camera's frames are written and recorded by this process.
   ImagingService(
     this._ref, {
+    required bool Function() flatCaptureBusy,
     HostFiles? hostFiles,
     HostImagingRecords? hostRecords,
-  }) : _host = _ref.providerBackendScope(),
+  }) : _flatCaptureBusy = flatCaptureBusy,
+       _host = _ref.providerBackendScope(),
        _logger = _ref.read(loggingServiceProvider),
        _hostFiles = hostFiles,
        _hostRecords = hostRecords;
 
+  final bool Function() _flatCaptureBusy;
   final HostFiles? _hostFiles;
   final HostImagingRecords? _hostRecords;
 

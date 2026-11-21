@@ -7,9 +7,21 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `acquire_stacker`, `color_ingest`, `ingest`, `install`, `not_started`, `parse_bayer_pattern`, `parse_demosaic_quality`, `parse_sensor_mode`, `result`, `save_master_fits`, `stacker_config`
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `ColorIngest`, `StackerSession`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+// These functions are ignored because they are not marked as `pub`: `acquire_registry`, `apply`, `bump_revision`, `color_ingest`, `compute_live_stack_channel_stretch`, `downscale_f32_area`, `ensure_darkroom_live_stack_resolver`, `get_handle`, `ingest`, `install_slot`, `live_mtf_midtone`, `live_mtf`, `live_stack_identity`, `live_stack_op_image`, `lock_preview_cache`, `lock_stacker`, `new`, `normalize_filter_key`, `not_started`, `parse_bayer_pattern`, `parse_demosaic_quality`, `parse_sensor_mode`, `push_event`, `read_meta`, `record_frame_event`, `resolve_key`, `save_master_fits_for_filter`, `sorted_quantile`, `source_label_from_path`, `stacker_config`, `stats_api_from_stacker`, `stretch_live_stack_f32_preview`, `sync_atomic_counters`, `write_meta`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `CachedRgbaPreview`, `ColorIngest`, `LiveStackChannelStretch`, `SlotHandle`, `SlotMeta`, `StackerRegistry`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`
+
+/// Start live stacking for a specific optical filter slot (or auto-resolved
+/// from the FITS `FILTER` header / `"Unfiltered"`).
+Future<ApiLiveStackingStats> apiStackingStartForFilter({
+  String? filterKey,
+  required String referenceImagePath,
+  required ApiLiveStackingConfig config,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingStartForFilter(
+  filterKey: filterKey,
+  referenceImagePath: referenceImagePath,
+  config: config,
+);
 
 /// Start live stacking with a reference image file; every later frame is
 /// aligned to it.
@@ -21,9 +33,26 @@ Future<ApiLiveStackingStats> apiStackingStart({
   config: config,
 );
 
+/// Start live stacking from a single-plane u16 reference frame in memory into a
+/// specific optical filter slot.
+Future<ApiLiveStackingStats> apiStackingStartFromDataForFilter({
+  String? filterKey,
+  required int width,
+  required int height,
+  required List<int> data,
+  required double pedestal,
+  required ApiLiveStackingConfig config,
+}) =>
+    RustLib.instance.api.crateApiLiveStackingApiStackingStartFromDataForFilter(
+      filterKey: filterKey,
+      width: width,
+      height: height,
+      data: data,
+      pedestal: pedestal,
+      config: config,
+    );
+
 /// Start live stacking from a single-plane u16 reference frame in memory.
-/// Such a frame has no header, so a color session needs `bayer_pattern`, and
-/// `pedestal` states the output pedestal its samples carry (ADU, 0 for none).
 Future<ApiLiveStackingStats> apiStackingStartFromData({
   required int width,
   required int height,
@@ -38,15 +67,40 @@ Future<ApiLiveStackingStats> apiStackingStartFromData({
   config: config,
 );
 
-/// Add a frame file to the stack and return the stack as it now stands.
+/// Add a frame file to a specific filter's live stack and return the updated
+/// stack. Debayering runs completely unlocked.
+Future<ApiLiveStackingResult> apiStackingAddFrameForFilter({
+  String? filterKey,
+  required String imagePath,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingAddFrameForFilter(
+  filterKey: filterKey,
+  imagePath: imagePath,
+);
+
+/// Add a frame file to the active stack and return the stack as it now stands.
 Future<ApiLiveStackingResult> apiStackingAddFrame({
   required String imagePath,
 }) => RustLib.instance.api.crateApiLiveStackingApiStackingAddFrame(
   imagePath: imagePath,
 );
 
-/// Add a single-plane u16 frame in memory to the stack; `pedestal` is the
-/// output pedestal its samples carry (ADU, 0 for none).
+/// Add a single-plane u16 frame in memory to a specific filter's live stack.
+Future<ApiLiveStackingResult> apiStackingAddFrameFromDataForFilter({
+  String? filterKey,
+  required int width,
+  required int height,
+  required List<int> data,
+  required double pedestal,
+}) => RustLib.instance.api
+    .crateApiLiveStackingApiStackingAddFrameFromDataForFilter(
+      filterKey: filterKey,
+      width: width,
+      height: height,
+      data: data,
+      pedestal: pedestal,
+    );
+
+/// Add a single-plane u16 frame in memory to the active stack.
 Future<ApiLiveStackingResult> apiStackingAddFrameFromData({
   required int width,
   required int height,
@@ -59,38 +113,244 @@ Future<ApiLiveStackingResult> apiStackingAddFrameFromData({
   pedestal: pedestal,
 );
 
+/// The current stack for a specific filter slot without adding a frame.
+Future<ApiLiveStackingResult> apiStackingGetResultForFilter({
+  String? filterKey,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingGetResultForFilter(
+  filterKey: filterKey,
+);
+
 /// The current stack, without adding a frame.
 Future<ApiLiveStackingResult> apiStackingGetResult() =>
     RustLib.instance.api.crateApiLiveStackingApiStackingGetResult();
 
-/// Save the stack as a FITS master. It is the session's data product, so
-/// it carries the `EXPTIME` and `DATE-OBS` of the frames actually folded in
-/// ([`skotiq_imaging::stack_master`]), the only record of them a stack in
-/// memory has.
+/// Off-UI-thread auto-stretch with optional parallel area downscaling (runs on
+/// FRB worker thread pool, never blocking the Flutter UI isolate).
+Future<ApiStretchedPreview> apiAutoStretchPreviewAsync({
+  required int width,
+  required int height,
+  required int channels,
+  required List<int> data,
+  required int maxDimension,
+}) => RustLib.instance.api.crateApiLiveStackingApiAutoStretchPreviewAsync(
+  width: width,
+  height: height,
+  channels: channels,
+  data: data,
+  maxDimension: maxDimension,
+);
+
+/// Render a stretched, downscaled RGBA8 preview directly from an active native
+/// live stack slot's un-quantized F32 running means on a background worker
+/// thread (cached per `(revision, max_dimension)`).
+Future<ApiStretchedPreview> apiStackingRenderPreviewRgba({
+  String? filterKey,
+  required int maxDimension,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingRenderPreviewRgba(
+  filterKey: filterKey,
+  maxDimension: maxDimension,
+);
+
+/// Save a specific filter's accumulated stack as a FITS master off the async
+/// runtime and outside all stacker locks during disk I/O.
+Future<ApiLiveStackingMaster> apiStackingSaveMasterFitsForFilter({
+  String? filterKey,
+  required String filePath,
+}) =>
+    RustLib.instance.api.crateApiLiveStackingApiStackingSaveMasterFitsForFilter(
+      filterKey: filterKey,
+      filePath: filePath,
+    );
+
+/// Save the active stack as a FITS master.
 Future<ApiLiveStackingMaster> apiStackingSaveMasterFits({
   required String filePath,
 }) => RustLib.instance.api.crateApiLiveStackingApiStackingSaveMasterFits(
   filePath: filePath,
 );
 
+/// Current tally for a specific filter slot (or active slot).
+Future<ApiLiveStackingStats> apiStackingGetStatsForFilter({
+  String? filterKey,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingGetStatsForFilter(
+  filterKey: filterKey,
+);
+
 /// The current tally.
 Future<ApiLiveStackingStats> apiStackingGetStats() =>
     RustLib.instance.api.crateApiLiveStackingApiStackingGetStats();
+
+/// List all active per-filter live stacks in O(1) without touching pixel data.
+Future<List<ApiLiveStackFilterSummary>> apiStackingListFilters() =>
+    RustLib.instance.api.crateApiLiveStackingApiStackingListFilters();
+
+/// Get recent frame evaluation events (newest first) for one filter or across
+/// all active filters.
+Future<List<ApiLiveStackFrameEvent>> apiStackingGetEvents({
+  String? filterKey,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingGetEvents(
+  filterKey: filterKey,
+);
+
+/// Update runtime-mutable stacking parameters on one filter slot or all active
+/// slots without dropping accumulated pixels.
+Future<void> apiStackingUpdateConfig({
+  String? filterKey,
+  required ApiLiveStackingConfig config,
+}) => RustLib.instance.api.crateApiLiveStackingApiStackingUpdateConfig(
+  filterKey: filterKey,
+  config: config,
+);
+
+/// Reset a specific filter's live stacker, clearing accumulated data while
+/// keeping its reference stars.
+Future<void> apiStackingResetForFilter({String? filterKey}) => RustLib
+    .instance
+    .api
+    .crateApiLiveStackingApiStackingResetForFilter(filterKey: filterKey);
 
 /// Clear what has been stacked, keeping the reference frame.
 Future<void> apiStackingReset() =>
     RustLib.instance.api.crateApiLiveStackingApiStackingReset();
 
-/// Stop live stacking and release the stack.
+/// Stop and release a single filter slot.
+Future<void> apiStackingStopForFilter({required String filterKey}) => RustLib
+    .instance
+    .api
+    .crateApiLiveStackingApiStackingStopForFilter(filterKey: filterKey);
+
+/// Stop live stacking and release all filter slots.
 Future<void> apiStackingStop() =>
     RustLib.instance.api.crateApiLiveStackingApiStackingStop();
 
+/// Check if live stacking is currently active (wait-free atomic read).
 bool apiStackingIsActive() =>
     RustLib.instance.api.crateApiLiveStackingApiStackingIsActive();
 
-/// Frames in the stack; 0 when no stack is running.
+/// Frames in the active stack; 0 when no stack is running (wait-free atomic read).
 int apiStackingFrameCount() =>
     RustLib.instance.api.crateApiLiveStackingApiStackingFrameCount();
+
+/// Summary of one active per-filter stack slot.
+class ApiLiveStackFilterSummary {
+  final String filterKey;
+  final int width;
+  final int height;
+  final int channels;
+  final String? referenceImagePath;
+  final BigInt revision;
+  final ApiLiveStackingStats stats;
+
+  const ApiLiveStackFilterSummary({
+    required this.filterKey,
+    required this.width,
+    required this.height,
+    required this.channels,
+    this.referenceImagePath,
+    required this.revision,
+    required this.stats,
+  });
+
+  @override
+  int get hashCode =>
+      filterKey.hashCode ^
+      width.hashCode ^
+      height.hashCode ^
+      channels.hashCode ^
+      referenceImagePath.hashCode ^
+      revision.hashCode ^
+      stats.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApiLiveStackFilterSummary &&
+          runtimeType == other.runtimeType &&
+          filterKey == other.filterKey &&
+          width == other.width &&
+          height == other.height &&
+          channels == other.channels &&
+          referenceImagePath == other.referenceImagePath &&
+          revision == other.revision &&
+          stats == other.stats;
+}
+
+/// One per-frame evaluation record surfaced to the UI so live stacking is
+/// transparent rather than a black box.
+class ApiLiveStackFrameEvent {
+  final int sequenceIndex;
+  final String filterKey;
+  final String sourceLabel;
+  final bool accepted;
+  final String? rejectionReason;
+  final int detectedStars;
+  final int matchedPairs;
+  final int inlierPairs;
+  final double alignmentResidualPx;
+  final double shiftXPx;
+  final double shiftYPx;
+  final double rotationDeg;
+  final BigInt sigmaRejectedPixels;
+  final double? exposureSecs;
+  final PlatformInt64 timestampMs;
+
+  const ApiLiveStackFrameEvent({
+    required this.sequenceIndex,
+    required this.filterKey,
+    required this.sourceLabel,
+    required this.accepted,
+    this.rejectionReason,
+    required this.detectedStars,
+    required this.matchedPairs,
+    required this.inlierPairs,
+    required this.alignmentResidualPx,
+    required this.shiftXPx,
+    required this.shiftYPx,
+    required this.rotationDeg,
+    required this.sigmaRejectedPixels,
+    this.exposureSecs,
+    required this.timestampMs,
+  });
+
+  @override
+  int get hashCode =>
+      sequenceIndex.hashCode ^
+      filterKey.hashCode ^
+      sourceLabel.hashCode ^
+      accepted.hashCode ^
+      rejectionReason.hashCode ^
+      detectedStars.hashCode ^
+      matchedPairs.hashCode ^
+      inlierPairs.hashCode ^
+      alignmentResidualPx.hashCode ^
+      shiftXPx.hashCode ^
+      shiftYPx.hashCode ^
+      rotationDeg.hashCode ^
+      sigmaRejectedPixels.hashCode ^
+      exposureSecs.hashCode ^
+      timestampMs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApiLiveStackFrameEvent &&
+          runtimeType == other.runtimeType &&
+          sequenceIndex == other.sequenceIndex &&
+          filterKey == other.filterKey &&
+          sourceLabel == other.sourceLabel &&
+          accepted == other.accepted &&
+          rejectionReason == other.rejectionReason &&
+          detectedStars == other.detectedStars &&
+          matchedPairs == other.matchedPairs &&
+          inlierPairs == other.inlierPairs &&
+          alignmentResidualPx == other.alignmentResidualPx &&
+          shiftXPx == other.shiftXPx &&
+          shiftYPx == other.shiftYPx &&
+          rotationDeg == other.rotationDeg &&
+          sigmaRejectedPixels == other.sigmaRejectedPixels &&
+          exposureSecs == other.exposureSecs &&
+          timestampMs == other.timestampMs;
+}
 
 /// What the stacker is set up with.
 class ApiLiveStackingConfig {
@@ -101,24 +361,24 @@ class ApiLiveStackingConfig {
   final double matchFluxTolerance;
   final int minMatchedPairs;
 
+  /// Maximum accepted inlier alignment residual in pixels (default 2.0).
+  final double maxAlignmentResidualPx;
+
+  /// Star detection threshold in sky-noise sigmas (default 4.0).
+  final double starDetectionSigma;
+
+  /// Minimum star SNR for alignment detection (default 8.0).
+  final double starDetectionMinSnr;
+
   /// Sensor acquisition mode: `"mono"`, `"osc"`, or `"auto"` (case-insensitive).
-  ///
-  /// - `mono` — frames are single-channel luminance; never debayered.
-  /// - `osc` — frames are a Bayer CFA mosaic that must be debayered to RGB;
-  ///   a pattern that cannot be resolved is an error, never a mono fallback
-  ///   that would scramble the color mosaic.
-  /// - `auto` — debayer only when the frame carries Bayer geometry (or
-  ///   `bayer_pattern` is given); otherwise treat as mono.
   final String sensorMode;
 
   /// Explicit Bayer pattern override (`"RGGB"`/`"BGGR"`/`"GRBG"`/`"GBRG"`,
-  /// case-insensitive). When `None`, OSC/auto sessions use the pattern the
-  /// reference frame declares in its FITS `BAYERPAT` geometry. An
-  /// unrecognized string is an error.
+  /// case-insensitive).
   final String? bayerPattern;
 
   /// Demosaic quality: `"bilinear"`, `"vng"`, or `"superpixel"`
-  /// (case-insensitive). An unrecognized value is an error.
+  /// (case-insensitive).
   final String demosaicQuality;
 
   const ApiLiveStackingConfig({
@@ -128,6 +388,9 @@ class ApiLiveStackingConfig {
     required this.matchRadiusPx,
     required this.matchFluxTolerance,
     required this.minMatchedPairs,
+    required this.maxAlignmentResidualPx,
+    required this.starDetectionSigma,
+    required this.starDetectionMinSnr,
     required this.sensorMode,
     this.bayerPattern,
     required this.demosaicQuality,
@@ -141,6 +404,9 @@ class ApiLiveStackingConfig {
       matchRadiusPx.hashCode ^
       matchFluxTolerance.hashCode ^
       minMatchedPairs.hashCode ^
+      maxAlignmentResidualPx.hashCode ^
+      starDetectionSigma.hashCode ^
+      starDetectionMinSnr.hashCode ^
       sensorMode.hashCode ^
       bayerPattern.hashCode ^
       demosaicQuality.hashCode;
@@ -156,6 +422,9 @@ class ApiLiveStackingConfig {
           matchRadiusPx == other.matchRadiusPx &&
           matchFluxTolerance == other.matchFluxTolerance &&
           minMatchedPairs == other.minMatchedPairs &&
+          maxAlignmentResidualPx == other.maxAlignmentResidualPx &&
+          starDetectionSigma == other.starDetectionSigma &&
+          starDetectionMinSnr == other.starDetectionMinSnr &&
           sensorMode == other.sensorMode &&
           bayerPattern == other.bayerPattern &&
           demosaicQuality == other.demosaicQuality;
@@ -167,8 +436,6 @@ class ApiLiveStackingMaster {
   final int stackedFrameCount;
 
   /// The master's `EXPTIME`: Σ of the exposures the stacked frames reported.
-  /// `0.0` means no frame reported one (an in-memory stack has no headers to
-  /// read); the FITS card comment says so.
   final double totalIntegrationSecs;
 
   /// The master's `DATE-OBS`: the earliest stacked frame's stamp, or the
@@ -210,6 +477,9 @@ class ApiLiveStackingResult {
   final int channels;
   final Uint16List data;
   final ApiLiveStackingStats stats;
+  final String filterKey;
+  final BigInt revision;
+  final ApiLiveStackFrameEvent? lastEvent;
 
   const ApiLiveStackingResult({
     required this.width,
@@ -217,6 +487,9 @@ class ApiLiveStackingResult {
     required this.channels,
     required this.data,
     required this.stats,
+    required this.filterKey,
+    required this.revision,
+    this.lastEvent,
   });
 
   @override
@@ -225,7 +498,10 @@ class ApiLiveStackingResult {
       height.hashCode ^
       channels.hashCode ^
       data.hashCode ^
-      stats.hashCode;
+      stats.hashCode ^
+      filterKey.hashCode ^
+      revision.hashCode ^
+      lastEvent.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -236,7 +512,10 @@ class ApiLiveStackingResult {
           height == other.height &&
           channels == other.channels &&
           data == other.data &&
-          stats == other.stats;
+          stats == other.stats &&
+          filterKey == other.filterKey &&
+          revision == other.revision &&
+          lastEvent == other.lastEvent;
 }
 
 /// The stacker's running tally.
@@ -247,6 +526,7 @@ class ApiLiveStackingStats {
   final double avgMatchedPairs;
   final double avgAlignmentResidual;
   final BigInt totalSigmaRejectedPixels;
+  final double totalIntegrationSecs;
 
   /// Frames left out for being taken through another filter than the stack's.
   final int otherFilterFrames;
@@ -264,6 +544,7 @@ class ApiLiveStackingStats {
     required this.avgMatchedPairs,
     required this.avgAlignmentResidual,
     required this.totalSigmaRejectedPixels,
+    required this.totalIntegrationSecs,
     required this.otherFilterFrames,
     this.lastOtherFilter,
     this.filter,
@@ -277,6 +558,7 @@ class ApiLiveStackingStats {
       avgMatchedPairs.hashCode ^
       avgAlignmentResidual.hashCode ^
       totalSigmaRejectedPixels.hashCode ^
+      totalIntegrationSecs.hashCode ^
       otherFilterFrames.hashCode ^
       lastOtherFilter.hashCode ^
       filter.hashCode;
@@ -292,7 +574,37 @@ class ApiLiveStackingStats {
           avgMatchedPairs == other.avgMatchedPairs &&
           avgAlignmentResidual == other.avgAlignmentResidual &&
           totalSigmaRejectedPixels == other.totalSigmaRejectedPixels &&
+          totalIntegrationSecs == other.totalIntegrationSecs &&
           otherFilterFrames == other.otherFilterFrames &&
           lastOtherFilter == other.lastOtherFilter &&
           filter == other.filter;
+}
+
+/// Stretched RGBA8 preview returned from off-UI-thread worker pool rendering.
+class ApiStretchedPreview {
+  final int width;
+  final int height;
+  final int channels;
+  final Uint8List rgba;
+
+  const ApiStretchedPreview({
+    required this.width,
+    required this.height,
+    required this.channels,
+    required this.rgba,
+  });
+
+  @override
+  int get hashCode =>
+      width.hashCode ^ height.hashCode ^ channels.hashCode ^ rgba.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ApiStretchedPreview &&
+          runtimeType == other.runtimeType &&
+          width == other.width &&
+          height == other.height &&
+          channels == other.channels &&
+          rgba == other.rgba;
 }

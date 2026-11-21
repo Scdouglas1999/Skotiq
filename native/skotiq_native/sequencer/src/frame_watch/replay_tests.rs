@@ -15,7 +15,8 @@ use super::fixture::{
 use super::*;
 use crate::quality::{
     filter_baseline_key, grade_frame_with_baselines, update_hfr_baseline, FilterBaseline,
-    FrameMetrics, ImageQualityCheck, RejectReason, DEFAULT_STAR_COUNT_DROP_PERCENT,
+    FrameBaselines, FrameMetrics, ImageQualityCheck, RejectReason,
+    DEFAULT_ECCENTRICITY_BASELINE_PERCENT, DEFAULT_STAR_COUNT_DROP_PERCENT,
 };
 use std::collections::{BTreeSet, HashMap};
 
@@ -27,7 +28,22 @@ fn rig_check() -> ImageQualityCheck {
         hfr_threshold: Some(3.5),
         hfr_baseline_percent: Some(50.0),
         eccentricity_threshold: Some(0.8),
+        eccentricity_baseline_percent: None,
         star_count_min: Some(10),
+        star_count_drop_percent: Some(DEFAULT_STAR_COUNT_DROP_PERCENT),
+        max_consecutive_rejects: 3,
+    }
+}
+
+/// What the app grades with by default since 2026-11-17: no absolute limit,
+/// every check against the target and filter's own recent frames.
+fn relative_check() -> ImageQualityCheck {
+    ImageQualityCheck {
+        hfr_threshold: None,
+        hfr_baseline_percent: Some(50.0),
+        eccentricity_threshold: None,
+        eccentricity_baseline_percent: Some(DEFAULT_ECCENTRICITY_BASELINE_PERCENT),
+        star_count_min: None,
         star_count_drop_percent: Some(DEFAULT_STAR_COUNT_DROP_PERCENT),
         max_consecutive_rejects: 3,
     }
@@ -35,30 +51,42 @@ fn rig_check() -> ImageQualityCheck {
 
 /// Grade every row the way `expose.rs` does, returning (id, reject reason).
 fn grade_night(rows: &[Row]) -> Vec<(u32, Option<RejectReason>)> {
-    let check = rig_check();
+    grade_night_with(rows, &rig_check())
+}
+
+fn grade_night_with(rows: &[Row], check: &ImageQualityCheck) -> Vec<(u32, Option<RejectReason>)> {
     let mut baselines: HashMap<String, FilterBaseline> = HashMap::new();
     let (mut global_hfr, mut global_samples) = (None, Vec::new());
     rows.iter()
         .map(|row| {
             let key = filter_baseline_key(Some("NGC0891"), Some(&row.filter));
-            let (filter_hfr, stars) = baselines
+            let (filter_hfr, stars, ecc) = baselines
                 .get(&key)
-                .map(|b| (b.hfr(), b.star_count_at(Some(row.alt))))
-                .unwrap_or((None, None));
+                .map(|b| (b.hfr(), b.star_count_at(Some(row.alt)), b.eccentricity()))
+                .unwrap_or((None, None, None));
             let metrics = FrameMetrics {
                 hfr: row.hfr,
                 eccentricity: row.ecc,
                 star_count: row.stars,
                 trail: None,
             };
-            let grade =
-                grade_frame_with_baselines(&check, &metrics, filter_hfr.or(global_hfr), stars);
+            let grade = grade_frame_with_baselines(
+                check,
+                &metrics,
+                &FrameBaselines {
+                    hfr: filter_hfr.or(global_hfr),
+                    star_count: stars,
+                    eccentricity: ecc,
+                },
+            );
             if grade.is_pass() {
                 update_hfr_baseline(&mut global_hfr, &mut global_samples, row.hfr);
-                baselines
-                    .entry(key)
-                    .or_default()
-                    .record(row.stars, row.hfr, Some(row.alt));
+                baselines.entry(key).or_default().record_frame(
+                    row.stars,
+                    row.hfr,
+                    row.ecc,
+                    Some(row.alt),
+                );
             }
             (row.id, grade.reject_reason().copied())
         })
@@ -120,6 +148,45 @@ fn the_grader_rejects_the_untracked_and_trailed_frames_and_no_good_frame() {
     for row in rows.iter().filter(|r| r.id >= 688) {
         assert!(reason(row.id).is_some(), "row {} passed", row.id);
     }
+}
+
+/// The relative checks the app ships by default catch the same night without
+/// any absolute limit: the untracked and trailed frames and the trees, and no
+/// frame the night kept as good.
+#[test]
+fn the_relative_defaults_reject_the_bad_frames_and_no_good_frame() {
+    let rows = rows();
+    let graded = grade_night_with(&rows, &relative_check());
+    let reason = |id: u32| graded.iter().find(|(i, _)| *i == id).unwrap().1;
+
+    assert!(matches!(
+        reason(639),
+        Some(RejectReason::StarCountBelowBaseline { count: 868, .. })
+    ));
+    assert!(matches!(
+        reason(640),
+        Some(RejectReason::HfrAboveBaseline { .. })
+    ));
+    for row in rows.iter().filter(|r| r.id >= 688) {
+        assert!(reason(row.id).is_some(), "row {} passed", row.id);
+    }
+    // Before the trees, anything else rejected is a frame the absolute
+    // eccentricity limit also rejected on the night.
+    let eccentricity_rejects: BTreeSet<u32> = rows
+        .iter()
+        .filter(|r| r.id < 688 && matches!(r.db_reject(), Some(RejectReason::Eccentricity { .. })))
+        .map(|r| r.id)
+        .collect();
+    let others: BTreeSet<u32> = graded
+        .iter()
+        .filter(|(id, r)| *id < 688 && *id != 639 && *id != 640 && r.is_some())
+        .map(|(id, _)| *id)
+        .collect();
+    assert!(
+        others.is_subset(&eccentricity_rejects),
+        "rejected good frames: {:?}",
+        others.difference(&eccentricity_rejects).collect::<Vec<_>>()
+    );
 }
 
 struct Replay {
@@ -209,13 +276,22 @@ fn observation(row: &Row, reason: Option<RejectReason>) -> FrameObservation {
     }
 }
 
+/// The watch with obstruction detection on, as an operator who turned it on
+/// runs it (it is off by default).
+fn detecting() -> FrameWatchConfig {
+    FrameWatchConfig {
+        obstruction_detection: true,
+        ..FrameWatchConfig::default()
+    }
+}
+
 #[test]
 fn the_post_flip_offset_is_caught_on_the_first_solved_frame() {
     // Replay this historical night with its original field-relative threshold.
     let config = FrameWatchConfig {
         drift_limit_arcsec: None,
         use_first_frame_reference: false,
-        ..Default::default()
+        ..detecting()
     };
     let replay = replay(config, 529..=687, true);
     // Before the flip the solved centers sit within about 1 arcmin.
@@ -260,7 +336,7 @@ fn the_trees_are_reported_at_their_altitude_and_azimuth_then_confirmed() {
     let config = FrameWatchConfig {
         drift_limit_arcsec: None,
         use_first_frame_reference: false,
-        ..Default::default()
+        ..detecting()
     };
     let replay = replay(config, 529..=720, true);
     let obstruction_actions: Vec<(u32, WatchAction)> = replay
@@ -319,7 +395,7 @@ fn a_learned_horizon_point_confirms_the_trees_on_the_second_frame_without_a_prob
             azimuth_deg: 286.2,
             altitude_deg: 65.2,
         }],
-        ..FrameWatchConfig::default()
+        ..detecting()
     };
     let replay = replay(config, 600..=720, false);
     let actions: Vec<(u32, WatchAction)> = replay
@@ -338,7 +414,7 @@ fn a_learned_horizon_point_confirms_the_trees_on_the_second_frame_without_a_prob
 
 #[test]
 fn a_probe_that_finds_cloud_does_not_end_the_target_and_backs_off() {
-    let replay = replay(FrameWatchConfig::default(), 529..=720, false);
+    let replay = replay(detecting(), 529..=720, false);
     let actions = replay.actions();
     assert!(!actions
         .iter()
@@ -357,7 +433,7 @@ fn a_probe_that_finds_cloud_does_not_end_the_target_and_backs_off() {
 /// is told and then told the frames recovered; nothing is probed or ended.
 #[test]
 fn cloud_over_a_rising_target_is_reported_and_imaging_carries_on() {
-    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut watch = FrameWatch::new(detecting());
     let frame = |i: u32, stars: u32, solved: bool| FrameObservation {
         save_path: format!("f{i}"),
         target_id: None,
@@ -433,7 +509,7 @@ fn watch_actions(replay: &Replay) -> Vec<(u32, WatchAction)> {
 #[test]
 fn a_partly_blocked_frame_does_not_report_the_stars_back() {
     let rows = rows_from(include_str!("fixtures/ngc891_2026_10_22_trees.csv"));
-    let replay = replay_rows(rows, FrameWatchConfig::default(), 315..=335, true);
+    let replay = replay_rows(rows, detecting(), 315..=335, true);
     let actions = watch_actions(&replay);
     assert!(
         !actions
@@ -460,7 +536,7 @@ fn a_partly_blocked_frame_does_not_report_the_stars_back() {
 #[test]
 fn trails_and_frames_an_hour_apart_are_not_an_obstruction() {
     let rows = rows_from(include_str!("fixtures/ngc891_2026_10_23_untracked.csv"));
-    let replay = replay_rows(rows, FrameWatchConfig::default(), 505..=528, true);
+    let replay = replay_rows(rows, detecting(), 505..=528, true);
     let actions = watch_actions(&replay);
     assert!(actions.is_empty(), "{actions:?}");
     assert!(replay.verdict(525).collapsed);
@@ -479,7 +555,7 @@ fn trails_and_frames_an_hour_apart_are_not_an_obstruction() {
 /// a new run.
 #[test]
 fn a_long_pause_starts_a_new_run_of_collapsed_frames() {
-    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut watch = FrameWatch::new(detecting());
     let frame = |i: u32, start: f64, stars: u32| FrameObservation {
         save_path: format!("f{i}"),
         target_id: None,
@@ -530,7 +606,7 @@ fn a_long_pause_starts_a_new_run_of_collapsed_frames() {
 fn an_obstruction_that_would_end_the_night_is_confirmed_twice() {
     let rows = rows();
     let graded = grade_night(&rows);
-    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut watch = FrameWatch::new(detecting());
     let mut confirmations = Vec::new();
     for row in rows.iter().filter(|r| r.id >= 529) {
         let reason = graded.iter().find(|(i, _)| *i == row.id).unwrap().1;
@@ -592,7 +668,7 @@ fn drift_frame(offset_arcsec: f64) -> FrameObservation {
 
 #[test]
 fn first_solved_frame_is_the_fixed_reference_and_recenter_destination() {
-    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut watch = FrameWatch::new(detecting());
     let mut failed = drift_frame(0.0);
     failed.solve = SolveOutcome::Failed;
     assert_eq!(watch.observe(&failed).offset_arcmin, None);
@@ -641,7 +717,7 @@ fn angular_limit_distinguishes_small_drift_and_respects_disable() {
     ] {
         let config = FrameWatchConfig {
             drift_limit_arcsec: Some(limit_arcsec),
-            ..Default::default()
+            ..detecting()
         };
         let mut watch = FrameWatch::new(config);
         watch.observe(&drift_frame(15.0));
@@ -665,7 +741,7 @@ fn angular_limit_distinguishes_small_drift_and_respects_disable() {
 
 #[test]
 fn references_are_separate_per_target_and_survive_revisiting() {
-    let mut watch = FrameWatch::new(FrameWatchConfig::default());
+    let mut watch = FrameWatch::new(detecting());
     let mut a = drift_frame(0.0);
     a.target_id = Some("panel-a".into());
     watch.observe(&a);
@@ -677,7 +753,7 @@ fn references_are_separate_per_target_and_survive_revisiting() {
     assert!(watch.observe(&returning).off_target);
     assert!(!watch.observe(&b).off_target);
     // A new run gets a fresh reference.
-    let mut next_run = FrameWatch::new(FrameWatchConfig::default());
+    let mut next_run = FrameWatch::new(detecting());
     assert!(!next_run.observe(&returning).off_target);
 }
 
@@ -715,7 +791,7 @@ fn a_frame_rejected_as_trailed_reads_as_trailed_though_its_stars_measure_round()
         axis_ratio: 11.7,
     }));
     assert_eq!(
-        FrameWatch::new(FrameWatchConfig::default())
+        FrameWatch::new(detecting())
             .observe(&trailed)
             .degraded
             .as_deref(),
@@ -725,10 +801,5 @@ fn a_frame_rejected_as_trailed_reads_as_trailed_though_its_stars_measure_round()
         hfr: 4.0,
         limit: 3.0,
     }));
-    assert_eq!(
-        FrameWatch::new(FrameWatchConfig::default())
-            .observe(&soft)
-            .degraded,
-        None
-    );
+    assert_eq!(FrameWatch::new(detecting()).observe(&soft).degraded, None);
 }

@@ -1903,6 +1903,13 @@ void main() {
       return row?.status;
     }
 
+    Future<void> untilStatus(ProviderContainer container, String token) async {
+      for (var i = 0; i < 20; i++) {
+        if (await statusOf(container) == token) return;
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
     test('pausing writes paused, resuming writes running back', () async {
       final container = buildContainer();
       final executor = await startRunning(container);
@@ -1917,6 +1924,45 @@ void main() {
 
       await executor.resume();
       expect(await statusOf(container), 'running');
+
+      _stubConfirmingStop(backend, eventController);
+      await executor.stop();
+    });
+
+    test('a native pause event, not the Pause button, holds the clock '
+        'and the run row', () async {
+      final container = buildContainer();
+      _stubBackendForStart(backend);
+      when(() => backend.sequencerStart()).thenAnswer((_) async {});
+      container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(_buildSequence());
+      final executor = container.read(sequenceExecutorProvider);
+      await executor.start();
+      expect(await statusOf(container), 'running');
+      expect(
+        executor.runPhaseForTest,
+        isA<RunLive>().having((phase) => phase.paused, 'paused', isFalse),
+      );
+
+      executor.handleSequencerEventForTest(_sequencerEvent('Paused'));
+      await untilStatus(container, 'paused');
+      expect(await statusOf(container), 'paused');
+      expect(
+        executor.runPhaseForTest,
+        isA<RunLive>().having((phase) => phase.paused, 'paused', isTrue),
+        reason: 'the elapsed ticker reads this flag and skips while it is set',
+      );
+      verifyNever(() => backend.sequencerPause());
+
+      executor.handleSequencerEventForTest(_sequencerEvent('Resumed'));
+      await untilStatus(container, 'running');
+      expect(await statusOf(container), 'running');
+      expect(
+        executor.runPhaseForTest,
+        isA<RunLive>().having((phase) => phase.paused, 'paused', isFalse),
+      );
+      verifyNever(() => backend.sequencerResume());
 
       _stubConfirmingStop(backend, eventController);
       await executor.stop();
@@ -2251,13 +2297,8 @@ void main() {
         SequenceExecutionState.cleanupFailed,
       );
 
-      // A re-attach must not discard that transaction: the run's hardware
-      // ending was never fully recorded, and a fresh finalization on top would
-      // publish a verdict for a run whose cleanup never finished.
-      await executor.startLoadedRun();
-      eventController.add(_sequencerEvent('Completed'));
-      await pumpEvents();
-      await executor.terminalCleanupSettledForTest;
+      // A new launch must leave the retained finalization for its Stop retry.
+      await expectLater(executor.startLoadedRun(), throwsA(isA<StateError>()));
 
       expect(
         container.read(sequenceExecutionStateProvider),

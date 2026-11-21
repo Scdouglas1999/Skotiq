@@ -167,7 +167,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     }
 
     let token = RENDERS.register(&args.render_id)?;
-    let master = load_pyramid(&args.master_path, &token)?;
+    let master = load_pyramid(&args.master_path, None, &token)?;
     let base = Arc::clone(master.pyramid.base());
     let (ctx, catalog_stars) = build_context(&recipe, &base, 0, &token, &args.catalog_stars)?;
 

@@ -16,6 +16,7 @@ import '../providers/focuser_backlash_provider.dart'
 import '../providers/sequence_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/settings_provider.dart';
+import '../settings/app_settings_state.g.dart' show AppSettingsState;
 import '../providers/ui_notification_provider.dart';
 import '../providers/operation_progress_provider.dart';
 import '../providers/filter_offset_provider.dart';
@@ -450,6 +451,13 @@ class DeviceService {
     String? host,
     int? port,
   }) => _connect(type, deviceId, host: host, port: port);
+
+  /// Start PHD2 when it is configured on this machine and its port is
+  /// closed (see `Phd2Launcher.ensureRunning`); nothing for a PHD2 on
+  /// another machine or one the imaging host runs. Throws when PHD2 cannot
+  /// be started. Connecting to it is the native layer's: it reconnects to a
+  /// PHD2 whose connection dropped on its own.
+  Future<void> ensurePhd2Running() => _ensurePhd2Running();
 
   /// Disconnect the device in [type]'s slot. Throws
   /// [DeviceNotConnectedException] when the slot is empty.

@@ -598,73 +598,9 @@ class CalibrationLibraryPanelState
   }
 
   Future<ContributionConsent?> _collectConsent(CalibrationMasterRecord record) {
-    var license = ContributionLicense.ccBy;
-    final attribution = TextEditingController();
     return showDialog<ContributionConsent>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(
-            'Share ${calibrationTypeLabel(record.type)} #${record.id}',
-          ),
-          content: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Choose a reuse license. Hub members with the same camera '
-                  'and sensor can then pull this master.',
-                ),
-                const SizedBox(height: SkotiqTokens.spaceMd),
-                AccessibleDropdownFormField<ContributionLicense>(
-                  initialValue: license,
-                  decoration: const InputDecoration(
-                    labelText: 'License',
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final l in ContributionLicense.values)
-                      if (l.isShareable)
-                        DropdownMenuItem(value: l, child: Text(l.wireName)),
-                  ],
-                  onChanged: (v) => setDialogState(
-                    () => license = v ?? ContributionLicense.ccBy,
-                  ),
-                ),
-                const SizedBox(height: SkotiqTokens.spaceMd),
-                SkotiqTextField(
-                  controller: attribution,
-                  label: 'Attribution name (optional)',
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(),
-            ),
-            SkotiqButton(
-              label: 'Share',
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(
-                ContributionConsent(
-                  license: license,
-                  attributionName: attribution.text.trim().isEmpty
-                      ? null
-                      : attribution.text.trim(),
-                  consentedAt: DateTime.now(),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => _ContributionConsentDialog(record: record),
     );
   }
 
@@ -916,6 +852,93 @@ class _MaintenanceMenu extends StatelessWidget {
           child: Text('Remove entries whose files are gone'),
         ),
         PopupMenuItem(value: 1, child: Text('Clear the dark and bias library')),
+      ],
+    );
+  }
+}
+
+class _ContributionConsentDialog extends StatefulWidget {
+  const _ContributionConsentDialog({required this.record});
+
+  final CalibrationMasterRecord record;
+
+  @override
+  State<_ContributionConsentDialog> createState() =>
+      _ContributionConsentDialogState();
+}
+
+class _ContributionConsentDialogState
+    extends State<_ContributionConsentDialog> {
+  ContributionLicense _license = ContributionLicense.ccBy;
+  final TextEditingController _attribution = TextEditingController();
+
+  @override
+  void dispose() {
+    _attribution.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(
+        'Share ${calibrationTypeLabel(widget.record.type)} #${widget.record.id}',
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Choose a reuse license. Hub members with the same camera '
+              'and sensor can then pull this master.',
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            AccessibleDropdownFormField<ContributionLicense>(
+              initialValue: _license,
+              decoration: const InputDecoration(
+                labelText: 'License',
+                isDense: true,
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final l in ContributionLicense.values)
+                  if (l.isShareable)
+                    DropdownMenuItem(value: l, child: Text(l.wireName)),
+              ],
+              onChanged: (v) => setState(
+                () => _license = v ?? ContributionLicense.ccBy,
+              ),
+            ),
+            const SizedBox(height: SkotiqTokens.spaceMd),
+            SkotiqTextField(
+              controller: _attribution,
+              label: 'Attribution name (optional)',
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        SkotiqButton(
+          label: 'Cancel',
+          variant: ButtonVariant.ghost,
+          size: ButtonSize.small,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        SkotiqButton(
+          label: 'Share',
+          size: ButtonSize.small,
+          onPressed: () => Navigator.of(context).pop(
+            ContributionConsent(
+              license: _license,
+              attributionName: _attribution.text.trim().isEmpty
+                  ? null
+                  : _attribution.text.trim(),
+              consentedAt: DateTime.now(),
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -3,9 +3,10 @@
 //   * "Failed AF should never park the rig, just notify the user." There is
 //     no autofocus failure action any more, so no stored value can ask the
 //     engine to park, and none is sent.
-//   * "0.7 may be too strict." The eccentricity limit a profile gets when it
-//     never set one is 0.8 (see `DEFAULT_ECCENTRICITY_THRESHOLD` in the native
-//     `quality::image_grading`, which grades the owner's frames against it).
+//   * "0.7 may be too strict." 0.8 became the absolute eccentricity limit;
+//     since 2026-11-16 a fresh profile grades eccentricity against its
+//     filter's baseline instead and the absolute limit ships off ("Skotiq
+//     should never run off absolutes by default").
 //   * "Autofocus star selection should be on." A profile that never set it
 //     measures the brightest 10 stars, and the v60 upgrade moved every stored
 //     0 to 10 once (see migration_v59_to_v60_test.dart).
@@ -68,13 +69,17 @@ void main() {
       expect(const AutofocusSettings().useBrightestNStars, 10);
     });
 
-    test('grades eccentricity against 0.8', () async {
+    test('grades eccentricity against its filter, not an absolute', () async {
       final database = SkotiqDatabase.forTesting(NativeDatabase(dbFile));
       addTearDown(database.close);
       final (_, settings) = await load(database);
 
-      expect(settings.imageGradingEccentricityThreshold, 0.8);
-      expect(const AppSettingsState().imageGradingEccentricityThreshold, 0.8);
+      expect(settings.imageGradingEccentricityThreshold, isNull);
+      expect(settings.imageGradingEccentricityBaselinePercent, 40.0);
+      expect(
+        const AppSettingsState().imageGradingEccentricityThreshold,
+        isNull,
+      );
     });
 
     test('lets quality problems notify rather than stop the run', () async {

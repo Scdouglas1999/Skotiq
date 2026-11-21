@@ -694,26 +694,32 @@ impl Run {
         (result, None)
     }
 
-    /// A run that failed, or that a skip ended early, still puts the rig away
-    /// the way its plan says. A trigger's park sweep already decided the
-    /// rig's end state, and after a Stop the rig is the operator's.
+    /// A run that did not walk through its plan's end steps still runs the
+    /// ones it did not reach ([`night_end::run_owed_end_steps`]), unless the
+    /// operator stopped it. A trigger's park already ran them after its sweep.
     async fn put_rig_away(&self, result: NodeStatus, side_context: &ExecutionContext) {
-        if !matches!(result, NodeStatus::Failure | NodeStatus::Skipped)
-            || self.teardown.parked_by_trigger()
-        {
+        if self.teardown.parked_by_trigger() {
             return;
         }
         let Some(sequence) = self.plan.sequence.as_ref() else {
             return;
         };
+        let label = match result {
+            NodeStatus::Failure => "The run failed",
+            NodeStatus::Cancelled => "The run was stopped",
+            _ => "The run ended early",
+        };
         let state = &self.control.state;
-        let statuses = state.read_progress(|progress| progress.node_statuses.clone());
-        state.set_message("The run ended early: putting the rig away");
-        night_end::run_unreached_shutdown_steps(
+        if result != NodeStatus::Success && !state.stopped_by_operator() {
+            state.set_message("The run ended early: putting the rig away");
+        }
+        night_end::run_owed_end_steps(
+            label,
             sequence,
             side_context,
             &side_context.run.device_ops,
-            &statuses,
+            state,
+            night_end::AlreadySafe::default(),
         )
         .await;
     }
@@ -971,6 +977,57 @@ impl Run {
 mod tests {
     use super::*;
     use crate::executor::scenario_sim_tests::ScriptedDeviceOps;
+
+    /// F41: a Stop after a flip that had failed earlier made the run's
+    /// verdict a failure, and a failed run put the rig away, so that Stop
+    /// parked the mount while other Stops did not. The operator's Stop leaves
+    /// the rig as it is whatever the verdict.
+    #[tokio::test]
+    async fn the_operators_stop_puts_nothing_away_even_when_the_run_failed() {
+        let (event_tx, _events) = broadcast::channel(64);
+        let state = RunCell::starting_in(event_tx, ExecutorState::Running);
+        let ops = Arc::new(ScriptedDeviceOps::new());
+        let mut run = Run::detached(ops.clone(), state.clone());
+        let mut sequence: SequenceDefinition = serde_json::from_value(serde_json::json!({
+            "id": "plan", "name": "Plan", "root_node_id": "root", "metadata": {},
+            "nodes": [
+                {"id": "root", "name": "root", "enabled": true,
+                 "children": ["imaging", "park"],
+                 "node_type": serde_json::to_value(crate::NodeType::Loop(crate::LoopConfig {
+                     iterations: Some(1),
+                     condition: crate::LoopCondition::Count,
+                     ..Default::default()
+                 })).unwrap()},
+                {"id": "imaging", "name": "Imaging", "enabled": true, "children": [],
+                 "node_type": serde_json::to_value(crate::NodeType::Delay(
+                     crate::DelayConfig { seconds: 600.0 })).unwrap()},
+                {"id": "park", "name": "Park mount", "enabled": true, "children": [],
+                 "node_type": serde_json::to_value(crate::NodeType::Park).unwrap()}
+            ]
+        }))
+        .unwrap();
+        sequence.metadata.clear();
+        run.plan.sequence = Some(sequence);
+        run.rig.mount_id = Some("mount-1".into());
+        let (recovery_tx, _recovery_rx) = mpsc::channel(4);
+        let context = run
+            .build_context(std::time::Instant::now(), recovery_tx)
+            .await;
+        run.outside_failures
+            .meridian_flip
+            .latch(|| "the flip left the mount on the west side".into());
+
+        state.begin_operator_stop();
+        let (result, _) = run.verdict(NodeStatus::Cancelled);
+        assert_eq!(result, NodeStatus::Failure);
+        run.put_rig_away(result, &context).await;
+
+        let calls = ops.calls();
+        assert!(
+            !calls.iter().any(|c| c.starts_with("mount_park")),
+            "calls={calls:?}"
+        );
+    }
 
     /// The tree can return (a dawn park cancelled it) while the recovery
     /// driver still sleeps in its retry wait; the driver is then never polled

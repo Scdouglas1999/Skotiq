@@ -18,8 +18,11 @@ class SafetyMonitorStateNotifier
   SafetyMonitorStateNotifier(Ref ref)
     : super(ref, DeviceType.safetyMonitor, const SafetyMonitorState());
 
-  void updateSafetyStatus(bool isSafe) {
-    state = state.copyWith(isSafe: isSafe, lastChecked: DateTime.now());
+  void updateSafetyStatus(bool isSafe, {DateTime? checkedAt}) {
+    state = state.copyWith(
+      isSafe: isSafe,
+      lastChecked: checkedAt ?? DateTime.now(),
+    );
   }
 
   /// A monitor that cannot be read is not known to be safe.

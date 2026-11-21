@@ -436,7 +436,6 @@ final screenshotSequence = () {
     nodes['$k-center'] = CenterNode(
       id: '$k-center',
       name: 'Center',
-      accuracyArcsec: 20,
       exposureDuration: 6,
       filter: 'L',
       parentId: header,

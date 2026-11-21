@@ -72,16 +72,10 @@ class FileSystemHandlers implements RouteSource {
         );
       }
 
+      // Canonicalize and enforce the allow-list BEFORE probing Directory.exists()
+      // so callers cannot use 404 vs 403 responses as an existence oracle for
+      // paths outside the configured browse roots.
       final directory = Directory(requestedPath);
-      final exists = await directory.exists();
-      if (!exists) {
-        return jsonNotFound({'error': 'Directory not found'});
-      }
-
-      // Canonicalize both the requested path and the roots to defeat path
-      // traversal via "..", symlinks, or case-insensitive collisions on
-      // Windows. Reject if the requested path doesn't sit under any allow-
-      // listed root.
       final canonicalRequested = await _canonicalize(directory.path);
       final allowed = _isPathUnderAnyRoot(canonicalRequested, roots);
       if (!allowed) {
@@ -97,6 +91,11 @@ class FileSystemHandlers implements RouteSource {
               .map((r) => {'name': r.label, 'path': r.canonicalPath})
               .toList(),
         });
+      }
+
+      final exists = await directory.exists();
+      if (!exists) {
+        return jsonNotFound({'error': 'Directory not found'});
       }
 
       final entries = await directory
@@ -149,21 +148,24 @@ class FileSystemHandlers implements RouteSource {
     }
   }
 
-  Future<Response> handleValidateDirectory(Request request) async {
-    _logInfo('[API] POST /api/files/validate');
-
-    final payload = await readJsonObject(request);
-    final path = optionalString(payload, 'path', allowEmpty: true) ?? '';
-    final mustExist = optionalBool(payload, 'mustExist') ?? false;
-    final mustBeWritable = optionalBool(payload, 'mustBeWritable') ?? false;
-
+  /// The check `POST /api/files/validate` answers. Other host handlers that
+  /// accept a folder before writing there call this rather than growing a
+  /// second allow-list.
+  Future<({int statusCode, Map<String, dynamic> body})> checkHostDirectory(
+    String path, {
+    required bool mustExist,
+    required bool mustBeWritable,
+  }) async {
     if (path.trim().isEmpty) {
-      return jsonOk({
-        'valid': false,
-        'exists': false,
-        'writable': false,
-        'error': 'Path is required',
-      });
+      return (
+        statusCode: 200,
+        body: {
+          'valid': false,
+          'exists': false,
+          'writable': false,
+          'error': 'Path is required',
+        },
+      );
     }
 
     final directory = Directory(path);
@@ -192,16 +194,19 @@ class FileSystemHandlers implements RouteSource {
       );
       // Unlike browse, the refusal does not list the roots: validate answers
       // about the one folder it was asked about.
-      return jsonForbidden({
-        'error': 'path_not_allowed',
-        'message':
-            'The imaging host lets a linked computer use only folders inside '
-            'its Documents, backup, capture, sequence and log folders, and '
-            'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
-        'valid': false,
-        'exists': false,
-        'writable': false,
-      });
+      return (
+        statusCode: 403,
+        body: {
+          'error': 'path_not_allowed',
+          'message':
+              'The imaging host lets a linked computer use only folders inside '
+              'its Documents, backup, capture, sequence and log folders, and '
+              'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
+          'valid': false,
+          'exists': false,
+          'writable': false,
+        },
+      );
     }
 
     final exists = await directory.exists();
@@ -209,12 +214,31 @@ class FileSystemHandlers implements RouteSource {
         exists && (!mustBeWritable || await _isWritable(directory));
     final valid = (!mustExist || exists) && (!mustBeWritable || writable);
 
-    return jsonOk({
-      'valid': valid,
-      'exists': exists,
-      'writable': writable,
-      'normalizedPath': p.normalize(directory.absolute.path),
-    });
+    return (
+      statusCode: 200,
+      body: {
+        'valid': valid,
+        'exists': exists,
+        'writable': writable,
+        'normalizedPath': canonicalRequested,
+      },
+    );
+  }
+
+  Future<Response> handleValidateDirectory(Request request) async {
+    _logInfo('[API] POST /api/files/validate');
+
+    final payload = await readJsonObject(request);
+    final path = optionalString(payload, 'path', allowEmpty: true) ?? '';
+    final mustExist = optionalBool(payload, 'mustExist') ?? false;
+    final mustBeWritable = optionalBool(payload, 'mustBeWritable') ?? false;
+    final verdict = await checkHostDirectory(
+      path,
+      mustExist: mustExist,
+      mustBeWritable: mustBeWritable,
+    );
+    if (verdict.statusCode == 403) return jsonForbidden(verdict.body);
+    return jsonOk(verdict.body);
   }
 
   /// Allow-listed roots the caller may browse under.

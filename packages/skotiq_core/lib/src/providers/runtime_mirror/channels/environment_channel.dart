@@ -39,6 +39,11 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
   @override
   Duration get minInterval => const Duration(seconds: 2);
 
+  /// A reading can arrive before this window knows which device it belongs
+  /// to. The same document is applied again once that device connects.
+  @override
+  bool get reappliesOnReread => true;
+
   bool _connected(DeviceConnectionState state) =>
       state == DeviceConnectionState.connected;
 
@@ -48,7 +53,7 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
     final d = value.dome;
     final s = value.safety;
     return {
-      if (_connected(w.connectionState))
+      if (_connected(w.connectionState) && w.lastUpdated != null)
         'weather': {
           'deviceId': w.deviceId,
           'temperature': finiteOrNull(w.temperature),
@@ -61,6 +66,7 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
           'skyQuality': finiteOrNull(w.skyQuality),
           'skyTemperature': finiteOrNull(w.skyTemperature),
           'rainRate': finiteOrNull(w.rainRate),
+          'sampledAt': w.lastUpdated!.toUtc().millisecondsSinceEpoch,
         },
       if (_connected(d.connectionState))
         'dome': {
@@ -72,23 +78,48 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
           'atHome': d.isAtHome,
           'slaved': d.isSlaved,
         },
-      if (_connected(s.connectionState))
-        'safety': {'deviceId': s.deviceId, 'safe': s.isSafe},
+      if (_connected(s.connectionState) && s.lastChecked != null)
+        'safety': {
+          'deviceId': s.deviceId,
+          'safe': s.isSafe,
+          'checkedAt': s.lastChecked!.toUtc().millisecondsSinceEpoch,
+        },
     };
   }
 
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null) return;
-    // A reading lands only on the card of the device it was read from; the
-    // card's connection state comes from the device events.
-    bool sameDevice(Object? id, String? current) =>
-        id is String && current != null && id == current;
+    if (!_applyEnvironment(context, value)) {
+      context.read(pendingEnvironmentProvider.notifier).state =
+          Map<String, dynamic>.from(value);
+    } else {
+      context.read(pendingEnvironmentProvider.notifier).state = null;
+    }
+  }
+}
 
-    final weather = value['weather'];
-    final weatherNotifier = context.read(weatherStateProvider.notifier);
-    if (weather is Map &&
-        sameDevice(weather['deviceId'], weatherNotifier.deviceId)) {
+/// The last environment document whose device was not connected here yet.
+final pendingEnvironmentProvider = StateProvider<Map<String, dynamic>?>(
+  (ref) => null,
+);
+
+/// Applies [value]. Returns false when a section named a device this window
+/// does not have yet, so the caller can keep the document.
+bool _applyEnvironment(
+  RuntimeApplyContext context,
+  Map<String, dynamic> value,
+) {
+  // A reading lands only on the card of the device it was read from; the
+  // card's connection state comes from the device events.
+  bool sameDevice(Object? id, String? current) =>
+      id is String && current != null && id == current;
+  var held = false;
+
+  final weather = value['weather'];
+  final weatherNotifier = context.read(weatherStateProvider.notifier);
+  if (weather is Map) {
+    if (sameDevice(weather['deviceId'], weatherNotifier.deviceId)) {
       weatherNotifier.updateConditions(
         temperature: jsonDouble(weather['temperature']),
         humidity: jsonDouble(weather['humidity']),
@@ -100,12 +131,17 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
         skyQuality: jsonDouble(weather['skyQuality']),
         skyTemperature: jsonDouble(weather['skyTemperature']),
         rainRate: jsonDouble(weather['rainRate']),
+        sampledAt: _utcInstant(weather['sampledAt']),
       );
+    } else if (weather['deviceId'] is String) {
+      held = true;
     }
+  }
 
-    final dome = value['dome'];
-    final domeNotifier = context.read(domeStateProvider.notifier);
-    if (dome is Map && sameDevice(dome['deviceId'], domeNotifier.deviceId)) {
+  final dome = value['dome'];
+  final domeNotifier = context.read(domeStateProvider.notifier);
+  if (dome is Map) {
+    if (sameDevice(dome['deviceId'], domeNotifier.deviceId)) {
       domeNotifier.applyStatus(
         azimuth: jsonDouble(dome['azimuth']),
         shutterStatus: ShutterStatus.values.firstWhere(
@@ -117,14 +153,29 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
         isParked: dome['parked'] == true,
         isSlaved: dome['slaved'] == true,
       );
-    }
-
-    final safety = value['safety'];
-    final safetyNotifier = context.read(safetyMonitorStateProvider.notifier);
-    if (safety is Map &&
-        sameDevice(safety['deviceId'], safetyNotifier.deviceId) &&
-        safety['safe'] is bool) {
-      safetyNotifier.updateSafetyStatus(safety['safe'] as bool);
+    } else if (dome['deviceId'] is String) {
+      held = true;
     }
   }
+
+  final safety = value['safety'];
+  final safetyNotifier = context.read(safetyMonitorStateProvider.notifier);
+  if (safety is Map && safety['safe'] is bool) {
+    if (sameDevice(safety['deviceId'], safetyNotifier.deviceId)) {
+      safetyNotifier.updateSafetyStatus(
+        safety['safe'] as bool,
+        checkedAt: _utcInstant(safety['checkedAt']),
+      );
+    } else if (safety['deviceId'] is String) {
+      held = true;
+    }
+  }
+  return !held;
+}
+
+/// The host's sample time, kept in UTC so a viewer compares it to the instant
+/// the host recorded rather than to a clock read while applying.
+DateTime? _utcInstant(Object? value) {
+  if (value is! num) return null;
+  return DateTime.fromMillisecondsSinceEpoch(value.toInt(), isUtc: true);
 }

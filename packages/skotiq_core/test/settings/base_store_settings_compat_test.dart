@@ -365,6 +365,7 @@ final _probes = <_Probe>[
       'frame_watch_recenter_enabled',
       'frame_watch_drift_limit_arcsec',
       'frame_watch_obstruction_detection',
+      'frame_watch_obstruction_action',
       'learned_horizon_points_json',
     ],
     read: (c) async {
@@ -373,6 +374,7 @@ final _probes = <_Probe>[
         'recenterEnabled': s.recenterEnabled,
         'driftLimitArcsec': s.driftLimitArcsec,
         'obstructionDetection': s.obstructionDetection,
+        'obstructionAction': s.obstructionAction.name,
         'learnedPoints': encodeLearnedObstructionPoints(s.learnedPoints),
       };
     },
@@ -381,6 +383,7 @@ final _probes = <_Probe>[
         'frame_watch_recenter_enabled': 'false',
         'frame_watch_drift_limit_arcsec': '45.5',
         'frame_watch_obstruction_detection': 'false',
+        'frame_watch_obstruction_action': 'moveOn',
         'learned_horizon_points_json': encodeLearnedObstructionPoints([
           LearnedObstructionPoint(
             azimuthDeg: 120,
@@ -396,6 +399,7 @@ final _probes = <_Probe>[
         'frame_watch_recenter_enabled': 'no',
         'frame_watch_drift_limit_arcsec': 'abc',
         'frame_watch_obstruction_detection': 'FALSE',
+        'frame_watch_obstruction_action': 'park',
         'learned_horizon_points_json': '[bad',
       },
       'drift below the floor': const {'frame_watch_drift_limit_arcsec': '5'},
@@ -406,6 +410,7 @@ final _probes = <_Probe>[
         'frame_watch_recenter_enabled': '',
         'frame_watch_drift_limit_arcsec': '',
         'frame_watch_obstruction_detection': '',
+        'frame_watch_obstruction_action': '',
         'learned_horizon_points_json': '',
       },
     },
@@ -416,6 +421,7 @@ final _probes = <_Probe>[
         await n.setRecenterEnabled(false);
         await n.setDriftLimitArcsec(2000);
         await n.setObstructionDetection(false);
+        await n.setObstructionAction(ObstructionAction.moveOn);
         await n.addLearnedPoint(
           LearnedObstructionPoint(
             azimuthDeg: 200,
@@ -874,9 +880,29 @@ const Map<String, Object?> _changedOnPurpose = {
       'unreadable values': {'ditherRaOnly': true, 'exposureFilter': null},
     },
   },
+  // Obstruction detection guesses, so it is off unless the operator turns it
+  // on, and a confirmed obstruction only notifies unless they chose Move on
+  // (owner, 2026-11-17).
   'frame watch': {
     'reads': {
-      'unreadable values': {'obstructionDetection': false},
+      'missing': {'obstructionDetection': false, 'obstructionAction': 'notify'},
+      'every value set': {'obstructionAction': 'moveOn'},
+      'unreadable values': {
+        'obstructionDetection': false,
+        'obstructionAction': 'notify',
+      },
+      'drift below the floor': {
+        'obstructionDetection': false,
+        'obstructionAction': 'notify',
+      },
+      'drift above the ceiling': {
+        'obstructionDetection': false,
+        'obstructionAction': 'notify',
+      },
+      'empty': {'obstructionDetection': false, 'obstructionAction': 'notify'},
+    },
+    'writes': {
+      'setters': {'frame_watch_obstruction_action': 'moveOn'},
     },
   },
   'push notifications': {

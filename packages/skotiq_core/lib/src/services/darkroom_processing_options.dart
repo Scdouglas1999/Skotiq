@@ -69,4 +69,14 @@ class DarkroomProcessingOptions {
         ? const DarkroomProcessingOptions()
         : DarkroomProcessingOptions.fromJson(jsonDecode(raw) as Map);
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is DarkroomProcessingOptions &&
+      other.normalization == normalization &&
+      other.drizzleScale == drizzleScale &&
+      other.pixfrac == pixfrac;
+
+  @override
+  int get hashCode => Object.hash(normalization, drizzleScale, pixfrac);
 }

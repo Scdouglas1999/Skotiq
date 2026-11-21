@@ -93,14 +93,29 @@ class NightCoolerSection extends ConsumerStatefulWidget {
 class _NightCoolerSectionState extends ConsumerState<NightCoolerSection> {
   late final TextEditingController _setpoint;
   String? _error;
+  late String _syncedSetpoint;
 
   @override
   void initState() {
     super.initState();
-    final start = widget.vm.defaultSetpoint ?? widget.vm.setpoint;
-    _setpoint = TextEditingController(
-      text: start == null ? '' : nightSetpointText(start),
-    );
+    final start = widget.vm.setpoint ?? widget.vm.defaultSetpoint;
+    _syncedSetpoint = start == null ? '' : nightSetpointText(start);
+    _setpoint = TextEditingController(text: _syncedSetpoint);
+  }
+
+  @override
+  void didUpdateWidget(covariant NightCoolerSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final target = widget.vm.setpoint ?? widget.vm.defaultSetpoint;
+    final text = target == null ? '' : nightSetpointText(target);
+    // Follow the host unless the user has an unsubmitted draft. A matching
+    // host target also acknowledges a submitted draft, restoring live updates.
+    if (_setpoint.text == _syncedSetpoint ||
+        (target != null && nightParseNumber(_setpoint.text) == target)) {
+      _syncedSetpoint = text;
+      if (_setpoint.text != text) _setpoint.text = text;
+      _error = null;
+    }
   }
 
   @override
@@ -454,7 +469,9 @@ class NightReadoutSection extends StatelessWidget {
       gap: SkotiqTokens.spaceXs,
       children: <Widget>[
         NightPanelRow(
-            label: l10n.text('nightPanelSensor'), value: vm.sensorSpecs),
+          label: l10n.text('nightPanelSensor'),
+          value: vm.sensorSpecs,
+        ),
         NightPanelRow(label: l10n.text('nightPanelSavesTo'), value: vm.savesTo),
         NightPanelRow(label: l10n.text('nightPanelDisk'), value: disk),
       ],

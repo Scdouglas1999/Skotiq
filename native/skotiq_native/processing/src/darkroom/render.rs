@@ -37,7 +37,9 @@ use skotiq_imaging::recipe::{
 
 use crate::darkroom::args::{CancelledRender, CatalogStarArgs, FailedStep};
 use crate::darkroom::catalog::SuppliedCatalog;
-use crate::darkroom::state::{base_pyramid, registry, render_cache, LoadedMaster};
+use crate::darkroom::state::{
+    base_pyramid, live_stack_pyramid, registry, render_cache, LoadedMaster,
+};
 use crate::run_cancel::CancelToken;
 
 /// How a render's samples become 8-bit RGBA.
@@ -89,7 +91,21 @@ pub(crate) fn parse_recipe(recipe_json: &str) -> Result<Recipe, String> {
 /// The identity travels back to the caller because the render it is about to
 /// run has to key its step boundaries on the master it actually read, not on the
 /// `baseMasterRef` the recipe was authored with.
-pub(crate) fn load_pyramid(master_path: &str, token: &CancelToken) -> Result<LoadedMaster, String> {
+pub(crate) fn load_pyramid(
+    master_path: &str,
+    live_stack_key: Option<&str>,
+    token: &CancelToken,
+) -> Result<LoadedMaster, String> {
+    if let Some(key) = live_stack_key.map(str::trim).filter(|s| !s.is_empty()) {
+        if token.is_cancelled() {
+            return Err(CancelledRender::err(token.id(), "read"));
+        }
+        let master = live_stack_pyramid(key)?;
+        if token.is_cancelled() {
+            return Err(CancelledRender::err(token.id(), "pyramid"));
+        }
+        return Ok(master);
+    }
     let path = master_path.trim();
     if path.is_empty() {
         return Err("masterPath is required to render".to_string());

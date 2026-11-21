@@ -25,7 +25,7 @@ import '../../harness/harness.dart';
 /// stays in its "single capture in flight" state for the whole test — exactly
 /// the state the abort button exists for.
 class _StalledImagingService extends ImagingService {
-  _StalledImagingService(super.ref);
+  _StalledImagingService(super.ref) : super(flatCaptureBusy: () => false);
 
   final Completer<CapturedImageData?> _pending =
       Completer<CapturedImageData?>();

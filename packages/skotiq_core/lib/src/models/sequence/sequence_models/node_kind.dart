@@ -11,6 +11,9 @@ enum NodeStore {
   document,
 }
 
+/// What the rig is doing while a node of this kind runs.
+enum NodeActivity { center, focus, slew, flip, guide, capture }
+
 /// What one node type is: its names, how it looks and behaves in the tree,
 /// what it captures, and the field table both stores and the version diff
 /// are built from.
@@ -33,6 +36,7 @@ final class NodeKind<N extends SequenceNode> {
     this.isContainer = false,
     this.requiredDevices = const {},
     this.stage = NodeStage.free,
+    this.activity,
     String Function(N node)? autoName,
     List<String?> Function(N node)? filters,
     N Function(N node, String Function(String filter) rename)? renameFilter,
@@ -64,6 +68,8 @@ final class NodeKind<N extends SequenceNode> {
 
   /// Where a step of this type belongs among a target's steps.
   final NodeStage stage;
+
+  final NodeActivity? activity;
 
   /// Every value-carrying field of the type, in stored order.
   final List<NodeField<N, Object?>> fields;

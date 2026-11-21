@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../errors/error_text.dart';
 import '../../models/imaging/imaging_models.dart' show AutofocusSettings;
 import '../../models/sequence/autofocus_run.dart';
 import '../../models/settings/app_settings.dart' show SafetyFailMode;
@@ -11,6 +12,7 @@ import '../../settings/app_settings_table.dart';
 import '../backend_provider.dart';
 import '../dark_library_provider.dart' show darkLibraryMatchTolerancesProvider;
 import '../database_provider.dart' show allSettingsProvider;
+import '../filter_offset_provider.dart' show filterOffsetProvider;
 import '../focuser_backlash_provider.dart' show savedFocuserBacklashProvider;
 import '../meridian_flip_provider.dart';
 import '../profiles_provider.dart';
@@ -145,6 +147,7 @@ class RunConfigSync {
       // one is set, otherwise the minimum altitude.
       'altitude_floor': _ref.read(altitudeFloorProvider).toWire(),
       'filter_focus_offsets': _filterFocusOffsets(settings),
+      'filter_focus_reference': _filterFocusReference(settings),
       // With weather safety off, the native poll would fail closed on a rig
       // with no safety monitor and park the mount within moments of launch.
       'safety_fail_mode': _safetyFailModeWire(
@@ -159,7 +162,11 @@ class RunConfigSync {
               'hfr_baseline_percent': settings.imageGradingHfrBaselinePercent,
               'eccentricity_threshold':
                   settings.imageGradingEccentricityThreshold,
+              'eccentricity_baseline_percent':
+                  settings.imageGradingEccentricityBaselinePercent,
               'star_count_min': settings.imageGradingStarCountMin,
+              'star_count_drop_percent':
+                  settings.imageGradingStarCountDropPercent,
               'max_consecutive_rejects':
                   settings.imageGradingMaxConsecutiveRejects,
             }
@@ -212,6 +219,14 @@ class RunConfigSync {
     return config;
   }
 
+  /// The filter the offsets are measured from, when offsets are on.
+  String? _filterFocusReference(AppSettingsState settings) {
+    if (!settings.useFilterFocusOffsets) return null;
+    final name = _ref.read(filterOffsetProvider).referenceFilter?.trim();
+    if (name == null || name.isEmpty) return null;
+    return name;
+  }
+
   /// The focus offset per filter: the active profile's, overridden by any set
   /// in the per-filter autofocus settings. None when offsets are turned off.
   Map<String, int> _filterFocusOffsets(AppSettingsState settings) {
@@ -253,25 +268,41 @@ class RunConfigSync {
   /// nothing is sent before they have loaded.
   Future<void> _loadSources() async {
     await _ref.read(appSettingsProvider.future);
+    if (_disposed) return;
     await _ref.read(weatherSettingsDataProvider.future);
+    if (_disposed) return;
     await _ref.read(savedFocuserBacklashProvider.future);
+    if (_disposed) return;
     await _ref.read(replayDebugEnabledProvider.future);
+    if (_disposed) return;
     await _ref.read(globalMeridianFlipSettingsProvider.notifier).ensureLoaded();
+    if (_disposed) return;
     await _ref.read(sequencerDefaultsProvider.notifier).ensureLoaded();
+    if (_disposed) return;
+    await _ref.read(filterOffsetProvider.notifier).ensureLoaded();
+    if (_disposed) return;
     // The minimum altitude the altitude floor is made from.
     await _ref.read(schedulerPersistedConfigProvider.future);
+    if (_disposed) return;
     // The dark library's tolerances.
     await _ref.read(allSettingsProvider.future);
   }
 
   void _listenToSources() {
     void changed(Object? _, Object? __) => _scheduleSend();
+    _ref.listen<Object?>(sequencerBackendProvider, (previous, next) {
+      if (!identical(previous, next)) {
+        _lastSent = null;
+        _scheduleSend();
+      }
+    });
     for (final source in <ProviderListenable<Object?>>[
       appSettingsProvider,
       sequencerDefaultsProvider,
       weatherSettingsProvider,
       weatherDecisionPolicyProvider,
       activeEquipmentProfileProvider,
+      filterOffsetProvider,
       savedFocuserBacklashProvider,
       replayDebugEnabledProvider,
       globalMeridianFlipSettingsProvider,
@@ -293,7 +324,9 @@ class RunConfigSync {
       try {
         config = build();
       } catch (e) {
-        _reportSendFailure('The sequencer settings could not be read: $e');
+        _reportSendFailure(
+          'The sequencer settings could not be read: ${userFacingError(e)}',
+        );
         return;
       }
       final json = jsonEncode(config);
@@ -302,7 +335,7 @@ class RunConfigSync {
         _enqueue(config).catchError((Object e) {
           _reportSendFailure(
             'A settings change could not be sent to the sequencer, which keeps '
-            'the previous values: $e',
+            'the previous values: ${userFacingError(e)}',
           );
         }),
       );
@@ -314,9 +347,10 @@ class RunConfigSync {
     final json = jsonEncode(config);
     _queued = json;
     final send = _sending.catchError((Object _) {}).then((_) async {
+      if (_disposed) return;
       try {
         await _ref.read(sequencerBackendProvider).sequencerApplyRunConfig(json);
-        _lastSent = json;
+        if (!_disposed) _lastSent = json;
       } catch (_) {
         _lastSent = null;
         rethrow;

@@ -3,13 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'channels/autofocus_result_channel.dart';
 import 'channels/auxiliary_device_channels.dart';
+import 'channels/builtin_guider_config_channel.dart';
 import 'channels/autofocus_run_channel.dart';
 import 'channels/centering_channels.dart';
 import 'channels/cooler_reading_channel.dart';
 import 'channels/end_of_night_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/device_slot_channel.dart';
-import 'channels/environment_channel.dart';
+import 'channels/environment_forecast_channel.dart';
+import 'channels/flat_wizard_channel.dart';
+import 'channels/focus_baseline_channel.dart';
+import 'channels/host_session_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
 import 'channels/framing_geometry_channel.dart';
@@ -40,6 +44,7 @@ final runtimeMirrorChannelsProvider =
         ...deviceSlotChannels,
         const ExposureChannel(),
         const GuiderStatusChannel(),
+        const BuiltinGuiderConfigChannel(),
         const OpenPlanChannel(),
         const PlateSolveChannel(),
         const PlateSolverSetupChannel(),
@@ -47,9 +52,12 @@ final runtimeMirrorChannelsProvider =
         const CenteringResultChannel(),
         const AutofocusResultChannel(),
         const AutofocusRunChannel(),
+        const FlatWizardChannel(),
         const CurrentFrameChannel(),
         const FrameSolveChannel(),
-        const EnvironmentChannel(),
+        const EnvironmentForecastChannel(),
+        const FocusBaselineChannel(),
+        const HostSessionChannel(),
         const CoolerReadingChannel(),
         const SequenceRunChannel(),
         const RunRecordChannel(),

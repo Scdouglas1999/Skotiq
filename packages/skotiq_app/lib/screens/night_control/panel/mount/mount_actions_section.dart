@@ -25,8 +25,9 @@ import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 /// Where Limits… goes: the sequencer settings, which hold the meridian flip.
-final String kNightMountLimitsRoute =
-    AppRoutes.settings(SettingsSectionId.sequencer);
+final String kNightMountLimitsRoute = AppRoutes.settings(
+  SettingsSectionId.sequencer,
+);
 
 class NightMountActionsSection extends ConsumerStatefulWidget {
   const NightMountActionsSection({super.key});
@@ -99,11 +100,15 @@ class _NightMountActionsSectionState
     }
 
     // During a running run this asks the run's own meridian trigger to flip.
-    final flipReason =
-        manualActionDisabledReason(facts.inputs, ManualActionId.flip)
-            ?.resolve(l10n);
-    final flipInFlight = facts.inputs.action.isBusy &&
-        facts.inputs.action.active == ManualActionId.flip;
+    final flipReason = facts.flipInProgress
+        ? l10n.text('nightActBusyFlip')
+        : manualActionDisabledReason(
+            facts.inputs,
+            ManualActionId.flip,
+          )?.resolve(l10n);
+    final flipInFlight = facts.flipInProgress ||
+        (facts.inputs.action.isBusy &&
+            facts.inputs.action.active == ManualActionId.flip);
 
     return NightPanelSection(
       title: l10n.text('nightScopeMount'),
@@ -259,8 +264,9 @@ String nightFlipSettingsText(
         'nightScopeFlipBeforeLimit',
         params: {'minutes': number(settings.minutesBeforeLimit)},
       ),
-    MeridianTriggerMethod.onTrackingLimitHit =>
-      l10n.text('nightScopeFlipAtLimit'),
+    MeridianTriggerMethod.onTrackingLimitHit => l10n.text(
+        'nightScopeFlipAtLimit',
+      ),
   };
   return [
     trigger,

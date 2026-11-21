@@ -143,7 +143,6 @@ List<SequenceNode> fullNodes() => [
     id: nodeId('CenterTarget'),
     name: 'Center custom',
     comment: 'center note',
-    accuracyArcsec: 2.5,
     maxAttempts: 7,
     useTargetCoords: false,
     customRa: 5.6,

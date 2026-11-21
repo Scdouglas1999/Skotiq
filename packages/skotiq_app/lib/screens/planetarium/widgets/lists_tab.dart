@@ -763,9 +763,10 @@ class _ExportToSequenceButtonState
       if (mounted) {
         final cleanupDetail = rollbackError == null
             ? ''
-            : ' The partial sequence could not be removed: $rollbackError';
+            : ' The partial sequence could not be removed: '
+                '${userFacingError(rollbackError)}';
         context.showErrorSnackBar(
-          'Could not create sequence: $error.$cleanupDetail',
+          'Could not create sequence: ${userFacingError(error)}.$cleanupDetail',
         );
       }
     } finally {

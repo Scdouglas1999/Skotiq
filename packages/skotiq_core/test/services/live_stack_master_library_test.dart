@@ -117,6 +117,95 @@ void main() {
     expect(jsonDecode(row.settingsJson), {'source': 'liveStack'});
   });
 
+  test('a named filter is saved through the per-filter callbacks', () async {
+    final reads = <String>[];
+    final writes = <String>[];
+    final libraryWithFilter = LiveStackMasterLibrary(
+      currentResult: () async => const LiveStackingResult(
+        width: 4,
+        height: 4,
+        data: [],
+        filterKey: 'L',
+        stats: LiveStackingStats(stackedFrameCount: 3),
+      ),
+      currentResultForFilter: (filterKey) async {
+        reads.add(filterKey);
+        return LiveStackingResult(
+          width: 4,
+          height: 4,
+          data: const [],
+          filterKey: filterKey,
+          stats: const LiveStackingStats(stackedFrameCount: 9),
+        );
+      },
+      saveMaster: (path) async {
+        events.add('active:$path');
+        return LiveStackingMasterSave(
+          filePath: path,
+          stackedFrameCount: 3,
+          format: LiveStackingMasterFormat.fitsMaster,
+        );
+      },
+      saveMasterForFilter: (filterKey, path) async {
+        writes.add('$filterKey:$path');
+        return LiveStackingMasterSave(
+          filePath: path,
+          stackedFrameCount: 9,
+          format: LiveStackingMasterFormat.fitsMaster,
+          totalIntegrationSecs: 540,
+        );
+      },
+      writePreview: (path, result) async => previews.add(path),
+      masters: masters,
+      readHeader: (_) async => FrameHeader(const {}),
+    );
+
+    await libraryWithFilter.save('/stacks/ha.fits', filterKey: '  Ha  ');
+
+    expect(reads, ['Ha']);
+    expect(writes, ['Ha:/stacks/ha.fits']);
+    expect(events, isEmpty);
+    final row = (await masters.getAll()).single;
+    expect(row.filter, 'Ha');
+    expect(row.frameCount, 9);
+    expect(row.name, 'Live stack Ha');
+    events.clear();
+    await libraryWithFilter.save(
+      '/stacks/unfiltered.fits',
+      filterKey: 'Unfiltered',
+    );
+    expect(events, isEmpty, reason: 'The active L stack has different pixels.');
+    expect(writes.last, 'Unfiltered:/stacks/unfiltered.fits');
+    expect(reads.last, 'Unfiltered');
+  });
+
+  test(
+    'a named filter without a per-filter saver is an error, not the active slot',
+    () async {
+      await expectLater(
+        library().save('/stacks/ha.fits', filterKey: 'Ha'),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Ha'),
+          ),
+        ),
+      );
+      expect(events, isEmpty);
+      expect(await masters.getAll(), isEmpty);
+    },
+  );
+
+  test('a blank or dash filter key saves the active slot', () async {
+    await library(header: const {}).save('/stacks/live.fits', filterKey: '—');
+
+    expect(events, ['read', 'save']);
+    final row = (await masters.getAll()).single;
+    expect(row.filter, isNull);
+    expect(row.name, 'Live stack');
+  });
+
   test('the target and filter come from the stack\'s reference frame when the '
       'master names none', () async {
     await library(

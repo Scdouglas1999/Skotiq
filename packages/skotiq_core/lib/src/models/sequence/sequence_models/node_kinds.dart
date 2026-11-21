@@ -446,11 +446,6 @@ final _centerDec = NodeField<CenterNode, double?>(
   (n) => n.customDec,
   FieldCodec.optionalReal,
 );
-final _centerAccuracy = NodeField<CenterNode, double>(
-  'accuracyArcsec',
-  (n) => n.accuracyArcsec,
-  FieldCodec.real,
-);
 final _centerAttempts = NodeField<CenterNode, int>(
   'maxAttempts',
   (n) => n.maxAttempts,
@@ -1314,6 +1309,7 @@ abstract final class NodeKinds {
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
     stage: NodeStage.aim,
+    activity: NodeActivity.slew,
     create: SlewNode.new,
     fields: [_slewUseTarget, _slewRa, _slewDec],
     build: (v) => SlewNode(
@@ -1342,12 +1338,12 @@ abstract final class NodeKinds {
         : node.copyWith(filter: rename(node.filter!)),
     requiredDevices: const {DeviceType.mount, DeviceType.camera},
     stage: NodeStage.aim,
+    activity: NodeActivity.center,
     create: CenterNode.new,
     fields: [
       _centerUseTarget,
       _centerRa,
       _centerDec,
-      _centerAccuracy,
       _centerAttempts,
       _centerExposure,
       _centerFilter,
@@ -1356,16 +1352,12 @@ abstract final class NodeKinds {
       useTargetCoords: v(_centerUseTarget),
       customRa: v(_centerRa),
       customDec: v(_centerDec),
-      accuracyArcsec: v(_centerAccuracy),
       maxAttempts: v(_centerAttempts),
       exposureDuration: v(_centerExposure),
       filter: v(_centerFilter),
     ),
-    describe: (n) => 'Center (${n.accuracyArcsec}″)',
-    diff: [
-      NodeDiffLine.of(_centerAccuracy, 'Accuracy (arcsec)'),
-      NodeDiffLine.of(_centerAttempts, 'Max attempts'),
-    ],
+    describe: (n) => 'Center (${n.maxAttempts} attempts)',
+    diff: [NodeDiffLine.of(_centerAttempts, 'Max attempts')],
   );
 
   static final exposure = NodeKind<ExposureNode>(
@@ -1381,6 +1373,7 @@ abstract final class NodeKinds {
     },
     requiredDevices: const {DeviceType.camera},
     stage: NodeStage.capture,
+    activity: NodeActivity.capture,
     create: ExposureNode.new,
     fields: [
       _exposureDuration,
@@ -1466,6 +1459,7 @@ abstract final class NodeKinds {
     ),
     requiredDevices: const {DeviceType.camera, DeviceType.filterWheel},
     stage: NodeStage.capture,
+    activity: NodeActivity.capture,
     create: SmartExposureNode.new,
     fields: [
       _smartPlans,
@@ -1510,6 +1504,7 @@ abstract final class NodeKinds {
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.camera, DeviceType.focuser},
     stage: NodeStage.prepare,
+    activity: NodeActivity.focus,
     create: AutofocusNode.new,
     fields: [
       _focusMethod,
@@ -1543,6 +1538,7 @@ abstract final class NodeKinds {
     icon: 'shuffle',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.guider},
+    activity: NodeActivity.guide,
     create: DitherNode.new,
     fields: [
       _ditherPixels,
@@ -1579,6 +1575,7 @@ abstract final class NodeKinds {
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.guider},
     stage: NodeStage.prepare,
+    activity: NodeActivity.guide,
     create: StartGuidingNode.new,
     fields: [
       _guideSettlePixels,
@@ -1606,6 +1603,7 @@ abstract final class NodeKinds {
     icon: 'x-circle',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.guider},
+    activity: NodeActivity.guide,
     create: StopGuidingNode.new,
     fields: const [],
     build: (v) => StopGuidingNode(),
@@ -1713,6 +1711,7 @@ abstract final class NodeKinds {
     icon: 'parking-circle',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
+    activity: NodeActivity.slew,
     create: ParkNode.new,
     fields: const [],
     build: (v) => ParkNode(),
@@ -1726,6 +1725,7 @@ abstract final class NodeKinds {
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
     stage: NodeStage.aim,
+    activity: NodeActivity.slew,
     create: UnparkNode.new,
     fields: const [],
     build: (v) => UnparkNode(),
@@ -1738,6 +1738,7 @@ abstract final class NodeKinds {
     icon: 'home',
     category: NodeCategory.instruction,
     requiredDevices: const {DeviceType.mount},
+    activity: NodeActivity.slew,
     create: HomeMountNode.new,
     fields: const [],
     build: (v) => HomeMountNode(),
@@ -1836,6 +1837,7 @@ abstract final class NodeKinds {
     icon: 'refresh-cw',
     category: NodeCategory.trigger,
     requiredDevices: const {DeviceType.mount},
+    activity: NodeActivity.flip,
     create: MeridianFlipNode.new,
     fields: [
       _flipTrigger,

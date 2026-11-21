@@ -495,7 +495,9 @@ int requireInt(
   int parsed;
   if (value is int) {
     parsed = value;
-  } else if (value is double && value == value.toInt().toDouble()) {
+  } else if (value is double &&
+      value.isFinite &&
+      value == value.toInt().toDouble()) {
     parsed = value.toInt();
   } else if (value is String) {
     final maybe = int.tryParse(value);

@@ -127,7 +127,7 @@ pub(crate) fn detect(plane: DetectionPlane, config: &StarDetectionConfig) -> Det
         return Detection::empty();
     }
 
-    let (back, noise) = mesh_grids(&raw, width, height, 1.0);
+    let (back, noise) = mesh_grids(&raw, width, height, MESH_CELL, 1.0);
     let mut residual = raw;
     residual
         .par_chunks_mut(width)
@@ -151,7 +151,21 @@ pub(crate) fn detect(plane: DetectionPlane, config: &StarDetectionConfig) -> Det
     };
 
     let first = FilteredPass::new(&frame, BASE_KERNEL_SIGMA, config);
-    let typical_hfr = estimate_star_size(&frame, &first, config);
+    let mut first_labels = vec![0u32; width * height];
+    for (i, c) in first.components.iter().enumerate() {
+        let id = i as u32 + 1;
+        for &p in &c.pixels {
+            first_labels[p as usize] = id;
+        }
+    }
+    let first_hfr = estimate_star_size(&frame, &first, &first_labels, config);
+    // Low-SNR defocused donuts shatter or drop below threshold in the narrow
+    // pass; a 4x4 binned wide probe sees whole donuts in a few milliseconds.
+    let wide_hfr = estimate_wide_star_size(&frame, &first, &first_labels, config);
+    let typical_hfr = match (first_hfr, wide_hfr) {
+        (Some(a), Some(b)) => Some(a.max(b)),
+        (a, b) => a.or(b),
+    };
 
     let kernel = typical_hfr.map_or(BASE_KERNEL_SIGMA, |h| {
         (0.5 * h).clamp(BASE_KERNEL_SIGMA, MAX_KERNEL_SIGMA)
@@ -246,25 +260,60 @@ struct Component {
 
 impl FilteredPass {
     fn new(frame: &Frame, kernel_sigma: f64, config: &StarDetectionConfig) -> Self {
-        let (w, h) = (frame.width, frame.height);
+        let cell = MESH_CELL.max((16.0 * kernel_sigma).ceil() as usize);
+        Self::from_plane(
+            frame.residual,
+            frame.width,
+            frame.height,
+            frame.noise,
+            1,
+            kernel_sigma,
+            cell,
+            config,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_plane(
+        data: &[f32],
+        w: usize,
+        h: usize,
+        raw_noise: &Grid,
+        bin: usize,
+        kernel_sigma: f64,
+        cell: usize,
+        config: &StarDetectionConfig,
+    ) -> Self {
         let kernel: Vec<f32> = gaussian_taps(kernel_sigma)
             .into_iter()
             .map(|v| v as f32)
             .collect();
-        let mut filtered = convolve_separable(frame.residual, w, h, &kernel);
+        let mut filtered = convolve_separable(data, w, h, &kernel);
 
-        // The noise of the filtered frame, measured on the filtered frame, so
-        // correlated and non-Gaussian noise set the threshold rather than a
-        // white-noise assumption. The floor is what 1 ADU of white noise
-        // becomes after filtering, which keeps noiseless synthetic frames
-        // from dividing by zero.
-        let floor = kernel.iter().map(|k| k * k).sum::<f32>();
-        let (_, filtered_noise) = mesh_grids(&filtered, w, h, floor);
+        // Scale mesh cells with the kernel so correlated wide-kernel noise is
+        // not underestimated, subtract any residual sky level, and floor noise
+        // at the propagated white-noise level (`raw_noise * sum(k^2) / bin`).
+        let floor = kernel.iter().map(|k| k * k).sum::<f32>() / bin as f32;
+        let (f_level, f_noise) = mesh_grids(&filtered, w, h, cell, floor);
         filtered.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-            let mut n = vec![0.0f32; w];
-            filtered_noise.sample_row(y, &mut n);
-            for (v, nv) in row.iter_mut().zip(&n) {
-                *v /= nv.max(floor);
+            let mut lv = vec![0.0f32; w];
+            let mut fn_row = vec![0.0f32; w];
+            f_level.sample_row(y, &mut lv);
+            f_noise.sample_row(y, &mut fn_row);
+            if bin == 1 {
+                let mut rn_row = vec![0.0f32; w];
+                raw_noise.sample_row(y, &mut rn_row);
+                for x in 0..w {
+                    let nv = fn_row[x].max(rn_row[x] * floor).max(floor);
+                    row[x] = (row[x] - lv[x]) / nv;
+                }
+            } else {
+                let fy = (y * bin + bin / 2) as f64;
+                for x in 0..w {
+                    let raw_n = raw_noise.at((x * bin + bin / 2) as f64, fy);
+                    let nv = fn_row[x].max(raw_n * floor).max(floor);
+                    row[x] = (row[x] - lv[x]) / nv;
+                }
             }
         });
 
@@ -278,21 +327,17 @@ impl FilteredPass {
     }
 }
 
-/// The frame's typical star half-flux radius, from the brightest whole
-/// footprints of the first pass. `None` when too few stars stand out to say.
-fn estimate_star_size(
-    frame: &Frame,
+fn rank_components(
     pass: &FilteredPass,
-    config: &StarDetectionConfig,
-) -> Option<f64> {
+    min_area: usize,
+    max_area: usize,
+    limit: usize,
+) -> Vec<usize> {
     let mut ranked: Vec<(f32, usize)> = pass
         .components
         .iter()
         .enumerate()
-        .filter(|(_, c)| {
-            c.pixels.len() >= config.min_area.max(MIN_CHILD_AREA) as usize
-                && c.pixels.len() <= config.max_area as usize
-        })
+        .filter(|(_, c)| (min_area..=max_area).contains(&c.pixels.len()))
         .map(|(i, c)| {
             let peak = c
                 .pixels
@@ -303,34 +348,280 @@ fn estimate_star_size(
         })
         .collect();
     ranked.sort_by(|a, b| b.0.total_cmp(&a.0));
-    ranked.truncate(100);
+    ranked.truncate(limit);
+    ranked.into_iter().map(|(_, i)| i).collect()
+}
 
-    let mut labels = vec![0u32; frame.width * frame.height];
-    for (i, c) in pass.components.iter().enumerate() {
-        for &p in &c.pixels {
-            labels[p as usize] = i as u32 + 1;
-        }
-    }
-    let mut hfrs: Vec<f64> = ranked
+fn median_hfr_of(
+    frame: &Frame,
+    labels: &[u32],
+    items: &[(u32, &[u32])],
+    kernel_sigma: f64,
+    config: &StarDetectionConfig,
+    min_stars: usize,
+) -> Option<f64> {
+    let mut hfrs: Vec<f64> = items
         .par_iter()
-        .filter_map(|&(_, i)| {
-            let m = measure(
-                frame,
-                &labels,
-                i as u32 + 1,
-                &pass.components[i].pixels,
-                pass.kernel_sigma,
-                config,
-            )?;
-            (!m.saturated && !m.hot && m.star.eccentricity <= 0.8 && m.star.hfr > 0.0)
+        .filter_map(|&(id, pixels)| {
+            let m = measure(frame, labels, id, pixels, kernel_sigma, config)?;
+            (!m.saturated
+                && !m.hot
+                && !m.touches_edge
+                && !m.diffuse
+                && m.star.eccentricity <= 0.90
+                && m.star.hfr > 0.0)
                 .then_some(m.star.hfr)
         })
         .collect();
-    if hfrs.len() < 5 {
+    if hfrs.len() < min_stars {
         return None;
     }
     hfrs.sort_by(f64::total_cmp);
     Some(hfrs[hfrs.len() / 2])
+}
+
+/// The frame's typical star half-flux radius, from the brightest whole
+/// footprints of the first pass. `None` when too few stars stand out to say.
+fn estimate_star_size(
+    frame: &Frame,
+    pass: &FilteredPass,
+    labels: &[u32],
+    config: &StarDetectionConfig,
+) -> Option<f64> {
+    let ranked = rank_components(
+        pass,
+        config.min_area.max(MIN_CHILD_AREA) as usize,
+        config.max_area as usize,
+        100,
+    );
+    let items: Vec<(u32, &[u32])> = ranked
+        .iter()
+        .map(|&i| (i as u32 + 1, pass.components[i].pixels.as_slice()))
+        .collect();
+    median_hfr_of(frame, labels, &items, pass.kernel_sigma, config, 5)
+}
+
+/// Coarse 4x4 binned matched-filter probe (effective sigma 6 px) for estimating
+/// typical star size when dim defocused donuts vanish or shatter in pass 1.
+///
+/// Crowded in-focus fields can merge neighboring sharp stars into one coarse
+/// footprint. That blend is skipped. A defocused donut is not a blend: the
+/// narrow pass shatters it into compact rim knots, and those knots lie on one
+/// ring around a dark centre, which is kept and measured whole.
+fn estimate_wide_star_size(
+    frame: &Frame,
+    first: &FilteredPass,
+    first_labels: &[u32],
+    config: &StarDetectionConfig,
+) -> Option<f64> {
+    const BIN: usize = 4;
+    let (w, h) = (frame.width, frame.height);
+    if w < 128 || h < 128 {
+        return None;
+    }
+    let (bw, bh) = (w / BIN, h / BIN);
+    let mut binned = vec![0.0f32; bw * bh];
+    binned.par_chunks_mut(bw).enumerate().for_each(|(by, row)| {
+        let y0 = by * BIN;
+        for (bx, dst) in row.iter_mut().enumerate() {
+            let x0 = bx * BIN;
+            let mut sum = 0.0f32;
+            for dy in 0..BIN {
+                let off = (y0 + dy) * w + x0;
+                sum += frame.residual[off]
+                    + frame.residual[off + 1]
+                    + frame.residual[off + 2]
+                    + frame.residual[off + 3];
+            }
+            *dst = sum / (BIN * BIN) as f32;
+        }
+    });
+
+    let coarse = FilteredPass::from_plane(
+        &binned,
+        bw,
+        bh,
+        frame.noise,
+        BIN,
+        BASE_KERNEL_SIGMA,
+        MESH_CELL / 2,
+        config,
+    );
+    let ranked = rank_components(
+        &coarse,
+        2,
+        (config.max_area as usize / (BIN * BIN)).max(64),
+        50,
+    );
+    if ranked.len() < 3 {
+        return None;
+    }
+
+    // Mark every coarse component AND every narrow pass-1 source in `labels` so
+    // unranked neighbors cannot leak flux into a candidate's wide aperture.
+    let mut labels = vec![0u32; w * h];
+    for (idx, comp) in coarse.components.iter().enumerate() {
+        let id = idx as u32 + 1;
+        for &p in &comp.pixels {
+            let (bx, by) = (p as usize % bw, p as usize / bw);
+            for dy in 0..BIN {
+                let row_off = (by * BIN + dy) * w + bx * BIN;
+                for dx in 0..BIN {
+                    labels[row_off + dx] = id;
+                }
+            }
+        }
+    }
+    for (dst, &fl) in labels.iter_mut().zip(first_labels.iter()) {
+        if *dst == 0 && fl != 0 {
+            *dst = u32::MAX;
+        }
+    }
+
+    let mut expanded: Vec<(u32, Vec<u32>)> = Vec::with_capacity(ranked.len());
+    for &idx in &ranked {
+        let id = idx as u32 + 1;
+        let mut full_px = Vec::with_capacity(coarse.components[idx].pixels.len() * BIN * BIN);
+        let mut overlapping_first: Vec<u32> = Vec::new();
+        for &p in &coarse.components[idx].pixels {
+            let (bx, by) = (p as usize % bw, p as usize / bw);
+            for dy in 0..BIN {
+                let row_off = (by * BIN + dy) * w + bx * BIN;
+                for dx in 0..BIN {
+                    let fp = row_off + dx;
+                    full_px.push(fp as u32);
+                    let fl = first_labels[fp];
+                    if fl != 0 && !overlapping_first.contains(&fl) {
+                        overlapping_first.push(fl);
+                    }
+                }
+            }
+        }
+
+        if overlapping_first.len() >= 2 {
+            // A pass-1 source this small and this round is a focused star or a
+            // piece of a shattered rim, not a donut measured whole.
+            let mut compact: Vec<(f64, f64, f64)> = Vec::new();
+            for &fid in &overlapping_first {
+                let px = first.components[(fid - 1) as usize].pixels.as_slice();
+                if let Some(m) = measure(frame, first_labels, fid, px, first.kernel_sigma, config) {
+                    if !m.hot
+                        && !m.diffuse
+                        && m.star.hfr > 0.0
+                        && m.star.hfr <= 3.5
+                        && m.star.eccentricity <= 0.65
+                    {
+                        compact.push((m.star.x, m.star.y, m.star.hfr));
+                    }
+                }
+            }
+            if compact.len() >= 2 && !compact_knots_on_one_ring(frame, &full_px, &compact) {
+                continue;
+            }
+        }
+
+        expanded.push((id, full_px));
+    }
+
+    if expanded.len() < 3 {
+        return None;
+    }
+
+    let items: Vec<(u32, &[u32])> = expanded
+        .iter()
+        .map(|(id, px)| (*id, px.as_slice()))
+        .collect();
+    median_hfr_of(
+        frame,
+        &labels,
+        &items,
+        BASE_KERNEL_SIGMA * BIN as f64,
+        config,
+        3,
+    )
+}
+
+/// The compact pass-1 sources on `footprint` are rim knots of one donut when
+/// they stand on a common circle around a dark centre and encircle it.
+///
+/// Four separate stars cannot: on a circle the largest gap between four
+/// points is at least 90°. A square of in-focus stars is that case. A
+/// shattered ring has five or more knots, a thin spread of radii, and almost
+/// no flux in the hole.
+fn compact_knots_on_one_ring(frame: &Frame, footprint: &[u32], knots: &[(f64, f64, f64)]) -> bool {
+    if knots.len() < 5 {
+        return false;
+    }
+    let w = frame.width;
+    let mut sx = 0.0f64;
+    let mut sy = 0.0f64;
+    let mut sw = 0.0f64;
+    for &p in footprint {
+        let p = p as usize;
+        let v = frame.residual[p] as f64;
+        if v > 0.0 {
+            sx += v * (p % w) as f64;
+            sy += v * (p / w) as f64;
+            sw += v;
+        }
+    }
+    if sw <= 0.0 {
+        return false;
+    }
+    let (cx, cy) = (sx / sw, sy / sw);
+
+    let mut radii = Vec::with_capacity(knots.len());
+    let mut angles = Vec::with_capacity(knots.len());
+    let mut hfrs = Vec::with_capacity(knots.len());
+    for &(x, y, hfr) in knots {
+        let dx = x - cx;
+        let dy = y - cy;
+        let r = dx.hypot(dy);
+        if r < 1.0 {
+            return false;
+        }
+        radii.push(r);
+        angles.push(dy.atan2(dx));
+        hfrs.push(hfr);
+    }
+    let mean_r = radii.iter().copied().sum::<f64>() / radii.len() as f64;
+    let var = radii.iter().map(|r| (r - mean_r).powi(2)).sum::<f64>() / radii.len() as f64;
+    let cv = var.sqrt() / mean_r;
+    hfrs.sort_by(f64::total_cmp);
+    let median_hfr = hfrs[hfrs.len() / 2];
+    // The circle has to be large beside each knot. A clump of focused stars
+    // sits inside a couple of its own half-flux radii.
+    if mean_r < 6.0 || cv > 0.18 || mean_r < 3.0 * median_hfr.max(0.5) {
+        return false;
+    }
+
+    angles.sort_by(f64::total_cmp);
+    let mut max_gap = 0.0f64;
+    for i in 0..angles.len() {
+        let next = if i + 1 == angles.len() {
+            angles[0] + std::f64::consts::TAU
+        } else {
+            angles[i + 1]
+        };
+        max_gap = max_gap.max(next - angles[i]);
+    }
+    if max_gap >= 89.0_f64.to_radians() {
+        return false;
+    }
+
+    let mut inner = 0.0f64;
+    let mut total = 0.0f64;
+    let inner_r = 0.5 * mean_r;
+    for &p in footprint {
+        let p = p as usize;
+        let v = (frame.residual[p] as f64).max(0.0);
+        total += v;
+        let r = ((p % w) as f64 - cx).hypot((p / w) as f64 - cy);
+        if r < inner_r {
+            inner += v;
+        }
+    }
+    total > 0.0 && inner / total < 0.20
 }
 
 struct Measured {
@@ -453,8 +744,7 @@ fn measure(
         }
     }
     let local = if annulus.len() >= 16 {
-        let mid = annulus.len() / 2;
-        *annulus.select_nth_unstable_by(mid, f32::total_cmp).1 as f64
+        clipped_stats(annulus).map_or(0.0, |(level, _)| f64::from(level))
     } else {
         0.0
     };
@@ -503,7 +793,11 @@ fn measure(
 
     let back_here = frame.back.at(cx, cy) as f64 + local;
     let peak_above = frame.residual[peak_idx] as f64 - local;
-    let hot = is_hot_pixel(frame, peak_idx, local);
+    let sharpness = (peak_above / total).clamp(0.0, 1.0);
+    // A hot pixel concentrates a large share of the source's flux in one pixel;
+    // a random noise pixel inside a wide low-surface-brightness donut cannot
+    // make a whole donut a hot pixel.
+    let hot = sharpness >= HOT_PIXEL_NEIGHBOR_RATIO && is_hot_pixel(frame, peak_idx, local);
     let sigma = frame.noise.at(cx, cy) as f64;
     let snr = compute_snr(
         total,
@@ -524,7 +818,7 @@ fn measure(
             snr,
             eccentricity,
             elongation_angle_deg,
-            sharpness: (peak_above / total).clamp(0.0, 1.0),
+            sharpness,
         },
         saturated: peak_raw as f64 > config.saturation_limit as f64,
         hot,
@@ -966,8 +1260,14 @@ impl Grid {
 
 /// Per-cell sigma-clipped level and noise, with cells dominated by sources
 /// filled from their neighbors and both grids 3×3 median filtered.
-fn mesh_grids(data: &[f32], w: usize, h: usize, noise_floor: f32) -> (Grid, Grid) {
-    let cell = MESH_CELL.min(w).min(h).max(1);
+fn mesh_grids(
+    data: &[f32],
+    w: usize,
+    h: usize,
+    cell_size: usize,
+    noise_floor: f32,
+) -> (Grid, Grid) {
+    let cell = cell_size.min(w).min(h).max(1);
     let nx = w.div_ceil(cell);
     let ny = h.div_ceil(cell);
     let stats: Vec<Option<(f32, f32)>> = (0..nx * ny)
@@ -1096,11 +1396,11 @@ fn clipped_stats(mut v: Vec<f32>) -> Option<(f32, f32)> {
             break;
         }
     }
-    let median = median_upper_in_place_f32(&mut v);
+    let mean = (v.iter().map(|&x| f64::from(x)).sum::<f64>() / v.len() as f64) as f32;
     // Standard deviation of the clipped sample, corrected for the ±3σ
     // truncation of a normal distribution.
-    let sd = std_dev(&v, median) / 0.9866;
-    Some((median, if sd > 0.0 { sd } else { sigma }))
+    let sd = std_dev(&v, mean) / 0.9866;
+    Some((mean, if sd > 0.0 { sd } else { sigma }))
 }
 
 fn std_dev(v: &[f32], center: f32) -> f32 {
@@ -1109,4 +1409,242 @@ fn std_dev(v: &[f32], center: f32) -> f32 {
     }
     let ss: f64 = v.iter().map(|&x| ((x - center) as f64).powi(2)).sum();
     (ss / v.len() as f64).sqrt() as f32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn crowded_infocus_star_grid_does_not_trigger_wide_donut_pass() {
+        // Stars spaced 12 px apart (sigma = 1.6 px, HFR ~ 1.9 px) merge under
+        // the 4x4 binned wide probe (effective sigma 6 px). The probe must
+        // recognize multi-star blends of compact round pass-1 stars and stay
+        // on the narrow pass instead of blowing out the field with a wide kernel.
+        let (w, h) = (256usize, 256usize);
+        let mut pixels = vec![200.0f64; w * h];
+        let sigma = 1.6f64;
+        let mut y = 12.0;
+        while y < h as f64 - 12.0 {
+            let mut x = 12.0;
+            while x < w as f64 - 12.0 {
+                let x0 = (x - 6.0).floor().max(0.0) as usize;
+                let x1 = ((x + 6.0).ceil() as usize).min(w - 1);
+                let y0 = (y - 6.0).floor().max(0.0) as usize;
+                let y1 = ((y + 6.0).ceil() as usize).min(h - 1);
+                for yy in y0..=y1 {
+                    for xx in x0..=x1 {
+                        let r2 = (xx as f64 - x).powi(2) + (yy as f64 - y).powi(2);
+                        pixels[yy * w + xx] += 6000.0 * (-r2 / (2.0 * sigma * sigma)).exp();
+                    }
+                }
+                x += 12.0;
+            }
+            y += 12.0;
+        }
+        let mut state: u64 = 0xCAFE_BABE;
+        let samples: Vec<f32> = pixels
+            .iter()
+            .map(|&v| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let u = ((state >> 33) as f64) / (1u64 << 31) as f64 - 0.5;
+                (v + 20.0 * u) as f32
+            })
+            .collect();
+        let cfg = StarDetectionConfig::default();
+        let (back, noise) = mesh_grids(&samples, w, h, MESH_CELL, 1.0);
+        let mut residual = samples.clone();
+        residual
+            .par_chunks_mut(w)
+            .enumerate()
+            .for_each(|(yy, row)| {
+                let mut b = vec![0.0f32; w];
+                back.sample_row(yy, &mut b);
+                for (v, bv) in row.iter_mut().zip(&b) {
+                    *v -= *bv;
+                }
+            });
+        remove_hot_pixels(&mut residual, w, h, &noise);
+        let frame = Frame {
+            width: w,
+            height: h,
+            residual: &residual,
+            back: &back,
+            noise: &noise,
+        };
+        let first = FilteredPass::new(&frame, BASE_KERNEL_SIGMA, &cfg);
+        let mut first_labels = vec![0u32; w * h];
+        for (i, c) in first.components.iter().enumerate() {
+            for &p in &c.pixels {
+                first_labels[p as usize] = i as u32 + 1;
+            }
+        }
+        let first_hfr = estimate_star_size(&frame, &first, &first_labels, &cfg);
+        let wide_hfr = estimate_wide_star_size(&frame, &first, &first_labels, &cfg);
+        assert!(
+            first_hfr.is_some_and(|v| v > 1.2 && v < 2.8),
+            "expected sharp pass-1 HFR, got {first_hfr:?}"
+        );
+        assert!(
+            wide_hfr.is_none_or(|v| v < 3.0),
+            "crowded in-focus stars must not trigger a wide defocused HFR: {wide_hfr:?}"
+        );
+        let det = detect(
+            DetectionPlane {
+                width: w,
+                height: h,
+                samples,
+            },
+            &cfg,
+        );
+        assert!(
+            det.stars.len() >= 150,
+            "expected dense star grid to remain resolved, got only {} stars",
+            det.stars.len()
+        );
+    }
+
+    #[test]
+    fn bright_fragmented_donut_is_measured_as_one_wide_star() {
+        // One defocused star: a thin ring of radius 16 px plus eight compact
+        // knots on it. The knots are far enough apart that a sigma-1.5
+        // matched filter cannot bridge them, and the ring itself is only a
+        // couple of noise sigma, so pass 1 reports the knots. They hold
+        // essentially all of the flux. The half-flux radius below is the
+        // radius at which the noiseless cumulative flux above sky reaches
+        // half — the ring's, not a knot's.
+        let (w, h) = (384usize, 384usize);
+        let sky = 250.0f64;
+        let ring_r = 16.0f64;
+        let centres = [(96.0, 96.0), (288.0, 96.0), (96.0, 288.0), (288.0, 288.0)];
+        let mut clean = vec![sky; w * h];
+        for &(cx, cy) in &centres {
+            paint_donut(&mut clean, w, h, cx, cy, ring_r);
+        }
+        let expected_hfr = half_flux_radius(&clean, w, centres[0].0, centres[0].1, sky, 26.0);
+        assert!(
+            (expected_hfr - ring_r).abs() < 1.5,
+            "geometry HFR {expected_hfr:.2} should sit on the ring radius {ring_r}"
+        );
+
+        let mut state: u64 = 0xD0_0717;
+        let samples: Vec<f32> = clean
+            .iter()
+            .map(|&v| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let u = ((state >> 33) as f64) / (1u64 << 31) as f64 - 0.5;
+                (v + 16.0 * u) as f32
+            })
+            .collect();
+
+        let cfg = StarDetectionConfig::default();
+        let det = detect(
+            DetectionPlane {
+                width: w,
+                height: h,
+                samples,
+            },
+            &cfg,
+        );
+        let summary: Vec<_> = det
+            .stars
+            .iter()
+            .map(|s| {
+                (
+                    (s.x * 10.0).round() / 10.0,
+                    (s.y * 10.0).round() / 10.0,
+                    (s.hfr * 10.0).round() / 10.0,
+                )
+            })
+            .collect();
+        assert_eq!(
+            det.stars.len(),
+            centres.len(),
+            "each donut is one star (geometry HFR {expected_hfr:.2}), got {summary:?}"
+        );
+        for &(cx, cy) in &centres {
+            let star = det
+                .stars
+                .iter()
+                .find(|s| (s.x - cx).hypot(s.y - cy) < ring_r)
+                .unwrap_or_else(|| panic!("no star on the donut at ({cx},{cy}): {summary:?}"));
+            let off = (star.x - cx).hypot(star.y - cy);
+            assert!(
+                off < 2.0,
+                "centroid ({:.1},{:.1}) is {off:.1} px from the ring centre, a rim knot",
+                star.x,
+                star.y
+            );
+            let rel = (star.hfr - expected_hfr).abs() / expected_hfr;
+            assert!(
+                rel < 0.18,
+                "HFR {:.2} vs geometry {:.2} ({:.0}%)",
+                star.hfr,
+                expected_hfr,
+                rel * 100.0
+            );
+        }
+    }
+
+    fn paint_donut(plane: &mut [f64], w: usize, h: usize, cx: f64, cy: f64, ring_r: f64) {
+        let ring_sigma = 1.2f64;
+        let knot_sigma = 1.05f64;
+        let n_knots = 8usize;
+        let reach = (ring_r + 8.0).ceil() as i32;
+        let x0 = (cx as i32 - reach).max(0) as usize;
+        let x1 = ((cx as i32 + reach) as usize).min(w - 1);
+        let y0 = (cy as i32 - reach).max(0) as usize;
+        let y1 = ((cy as i32 + reach) as usize).min(h - 1);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let r = dx.hypot(dy);
+                // Faint continuous ring: below the narrow 5σ threshold between
+                // knots, still a ring in the residual the wide probe bins.
+                let ring = 3.0 * (-(r - ring_r).powi(2) / (2.0 * ring_sigma * ring_sigma)).exp();
+                let mut knots = 0.0;
+                for k in 0..n_knots {
+                    let ka = k as f64 * std::f64::consts::TAU / n_knots as f64;
+                    let kx = cx + ring_r * ka.cos();
+                    let ky = cy + ring_r * ka.sin();
+                    let kr2 = (x as f64 - kx).powi(2) + (y as f64 - ky).powi(2);
+                    knots += 140.0 * (-kr2 / (2.0 * knot_sigma * knot_sigma)).exp();
+                }
+                plane[y * w + x] += ring + knots;
+            }
+        }
+    }
+
+    /// Radius from `(cx, cy)` enclosing half the flux above `sky`, inside
+    /// `window` px. Point-sampled cumulative flux of the synthetic image.
+    fn half_flux_radius(plane: &[f64], w: usize, cx: f64, cy: f64, sky: f64, window: f64) -> f64 {
+        let mut samples = Vec::new();
+        let x0 = (cx - window).floor().max(0.0) as usize;
+        let y0 = (cy - window).floor().max(0.0) as usize;
+        let x1 = ((cx + window).ceil() as usize).min(w - 1);
+        let y1 = ((cy + window).ceil() as usize).min(plane.len() / w - 1);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let flux = plane[y * w + x] - sky;
+                if flux > 0.0 {
+                    samples.push(((x as f64 - cx).hypot(y as f64 - cy), flux));
+                }
+            }
+        }
+        samples.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let total: f64 = samples.iter().map(|s| s.1).sum();
+        let mut acc = 0.0;
+        for (radius, flux) in samples {
+            acc += flux;
+            if acc >= 0.5 * total {
+                return radius;
+            }
+        }
+        0.0
+    }
 }

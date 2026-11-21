@@ -13,6 +13,8 @@ final class RemoteNotesJournal implements NotesJournal {
   final HostNotes _host;
   final _poll = HostPoll('journal notes');
 
+  void dispose() => _poll.dispose();
+
   Stream<List<JournalNote>> _watch({String? targetId, int? runId}) =>
       _poll.watch(() async {
         final page = await _host.fetchJournalNotes(

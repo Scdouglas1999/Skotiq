@@ -160,6 +160,37 @@ void main() {
     await tester.pump(const Duration(seconds: 70));
     await tester.pump();
   });
+
+  testWidgets(
+    'unmounting UpdateManagerWidget cancels startup and banner timers cleanly',
+    (tester) async {
+      final tempDir = Directory.systemTemp.createTempSync(
+        'skotiq-update-manager-dispose-',
+      );
+      addTearDown(() {
+        if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+      });
+      final notifier = _TestUpdateNotifier(tempDir);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [updateProvider.overrideWith((ref) => notifier)],
+          child: const MaterialApp(
+            home: UpdateManagerWidget(child: Scaffold(body: Text('App'))),
+          ),
+        ),
+      );
+
+      // Arm the 10s error auto-dismiss timer while the 1s/3s startup timers
+      // are also pending, then immediately unmount without draining timers.
+      notifier.emitError('Transient failure');
+      await tester.pump();
+      expect(find.text('Transient failure'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    },
+  );
 }
 
 class _TestUpdateNotifier extends UpdateNotifier {

@@ -1301,14 +1301,14 @@ packages:
       path: "../desktop"
       relative: true
     source: path
-    version: "9.0.1+38"
+    version: "9.1.0+39"
   skotiq_mobile:
     dependency: "direct dev"
     description:
       path: "../mobile"
       relative: true
     source: path
-    version: "9.0.1+38"
+    version: "9.1.0+39"
   skotiq_planetarium:
     dependency: "direct overridden"
     description:

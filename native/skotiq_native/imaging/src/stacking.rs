@@ -249,6 +249,20 @@ impl Default for PixelAccumulator {
     }
 }
 
+/// Per-frame alignment & rejection metrics captured for the most recently
+/// evaluated frame (accepted or rejected), enabling live transparency logs.
+#[derive(Debug, Clone, Default)]
+pub struct FrameTelemetry {
+    pub detected_stars: u32,
+    pub matched_pairs: u32,
+    pub inlier_pairs: u32,
+    pub alignment_residual_px: f64,
+    pub shift_x_px: f64,
+    pub shift_y_px: f64,
+    pub rotation_deg: f64,
+    pub sigma_rejected_pixels: u64,
+}
+
 pub struct LiveStacker {
     width: u32,
     height: u32,
@@ -275,6 +289,9 @@ pub struct LiveStacker {
     /// The reference frame's filter. A stack is of one filter: a frame whose
     /// header names another is left out (see [`LiveStacker::filter`]).
     filter: Option<String>,
+
+    /// Telemetry from the most recently evaluated frame (reference, accepted, or rejected).
+    last_frame_telemetry: Option<FrameTelemetry>,
 }
 
 /// Whether two `FILTER` values name the same filter.
@@ -381,6 +398,7 @@ impl LiveStacker {
             })
             .collect();
 
+        let ref_star_count = ref_stars.len() as u32;
         let mut stacker = Self {
             width,
             height,
@@ -392,6 +410,16 @@ impl LiveStacker {
             provenance: StackProvenance::default(),
             ref_centroid,
             filter: reference_provenance.filter.clone(),
+            last_frame_telemetry: Some(FrameTelemetry {
+                detected_stars: ref_star_count,
+                matched_pairs: ref_star_count,
+                inlier_pairs: ref_star_count,
+                alignment_residual_px: 0.0,
+                shift_x_px: 0.0,
+                shift_y_px: 0.0,
+                rotation_deg: 0.0,
+                sigma_rejected_pixels: 0,
+            }),
         };
 
         stacker.stats.total_frames_attempted = 1;
@@ -437,6 +465,7 @@ impl LiveStacker {
         provenance: &FrameProvenance,
     ) -> Result<ImageData, String> {
         if !same_filter(provenance.filter.as_deref(), self.filter.as_deref()) {
+            self.last_frame_telemetry = None;
             self.stats.other_filter_frames += 1;
             self.stats.last_other_filter = provenance.filter.clone();
             return Err(format!(
@@ -454,6 +483,7 @@ impl LiveStacker {
         frame: &ImageData,
         provenance: &FrameProvenance,
     ) -> Result<ImageData, String> {
+        self.last_frame_telemetry = None;
         self.stats.total_frames_attempted += 1;
 
         if frame.width != self.width || frame.height != self.height {
@@ -478,6 +508,11 @@ impl LiveStacker {
         // Step 1: Detect stars on the alignment plane (luminance proxy for
         // RGB, the frame itself for mono — see `detection_plane`).
         let frame_stars = detect_stars(frame, &self.config.star_detection);
+        let detected_stars = frame_stars.len() as u32;
+        self.last_frame_telemetry = Some(FrameTelemetry {
+            detected_stars,
+            ..FrameTelemetry::default()
+        });
         if frame_stars.len() < self.config.min_matched_pairs {
             self.stats.rejected_alignment_failures += 1;
             tracing::warn!(
@@ -500,6 +535,10 @@ impl LiveStacker {
             self.config.match_radius_px,
             self.config.match_flux_tolerance,
         );
+        let matched_pairs = matches.len() as u32;
+        if let Some(t) = self.last_frame_telemetry.as_mut() {
+            t.matched_pairs = matched_pairs;
+        }
 
         if matches.len() < self.config.min_matched_pairs {
             self.stats.rejected_alignment_failures += 1;
@@ -524,6 +563,17 @@ impl LiveStacker {
         // on.
         let (transform, residual, inlier_count) =
             fit_transform_robust(&matches, self.ref_centroid, self.config.min_matched_pairs);
+        let rotation_deg = transform.sin_theta.atan2(transform.cos_theta).to_degrees();
+        self.last_frame_telemetry = Some(FrameTelemetry {
+            detected_stars,
+            matched_pairs,
+            inlier_pairs: inlier_count as u32,
+            alignment_residual_px: if residual.is_finite() { residual } else { 0.0 },
+            shift_x_px: transform.tx,
+            shift_y_px: transform.ty,
+            rotation_deg,
+            sigma_rejected_pixels: 0,
+        });
 
         if inlier_count < self.config.min_matched_pairs {
             self.stats.rejected_alignment_failures += 1;
@@ -589,6 +639,9 @@ impl LiveStacker {
 
         // Step 5: Accumulate with optional sigma clipping
         let sigma_rejected = self.accumulate_pixels(&aligned_pixels);
+        if let Some(t) = self.last_frame_telemetry.as_mut() {
+            t.sigma_rejected_pixels = sigma_rejected;
+        }
 
         self.stats.stacked_frame_count += 1;
         self.provenance.fold(provenance);
@@ -716,15 +769,63 @@ impl LiveStacker {
         ImageData::from_u16(self.width, self.height, self.channels, &result_u16)
     }
 
+    /// The current stack as un-quantized F32 running means (plus automatic
+    /// output pedestal) for zero-quantization progressive preview stretching
+    /// and direct in-memory Darkroom rendering.
+    pub fn get_current_stack_f32(&self) -> (Vec<f32>, u32, u32, u32) {
+        let means = self.means();
+        let pedestal = crate::calibration::automatic_pedestal(&means);
+        let result_f32: Vec<f32> = means
+            .par_iter()
+            .map(|&mean| {
+                if mean.is_finite() {
+                    (mean + pedestal).max(0.0) as f32
+                } else {
+                    0.0_f32
+                }
+            })
+            .collect();
+        (result_f32, self.width, self.height, self.channels)
+    }
+
+    /// Update runtime-mutable stacking parameters without resetting pixels.
+    pub fn update_config(&mut self, next: LiveStackConfig) {
+        self.config.sigma_clip_enabled = next.sigma_clip_enabled;
+        self.config.sigma_clip_threshold = next.sigma_clip_threshold;
+        self.config.max_match_stars = next.max_match_stars;
+        self.config.match_radius_px = next.match_radius_px;
+        self.config.match_flux_tolerance = next.match_flux_tolerance;
+        self.config.min_matched_pairs = next.min_matched_pairs;
+        self.config.max_alignment_residual_px = next.max_alignment_residual_px;
+        self.config.star_detection = next.star_detection;
+    }
+
+    /// Record the optical filter name on this stack's FITS provenance.
+    pub fn set_filter(&mut self, filter: Option<&str>) {
+        self.filter = filter
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned);
+        self.provenance.set_filter(self.filter.as_deref());
+    }
+
+    /// Telemetry from the most recently evaluated frame (accepted or rejected).
+    pub fn last_frame_telemetry(&self) -> Option<&FrameTelemetry> {
+        self.last_frame_telemetry.as_ref()
+    }
+
     /// Reset the stacker, clearing all accumulated data.
     /// The reference frame stars are preserved.
     pub fn reset(&mut self) {
         let pixel_count = (self.width as usize) * (self.height as usize) * (self.channels as usize);
+        let saved_filter = self.filter.clone();
         self.accumulators = vec![PixelAccumulator::default(); pixel_count];
         self.stats = StackingStats::default();
         // The reset drops every accumulated pixel, so the integration those
         // frames contributed goes with them: a new stack starts now.
         self.provenance = StackProvenance::default();
+        self.provenance.set_filter(saved_filter.as_deref());
+        self.last_frame_telemetry = None;
         tracing::info!("Live stacker reset");
     }
 
@@ -2478,6 +2579,16 @@ mod tests {
     }
 
     #[test]
+    fn a_mismatched_live_frame_has_no_alignment_measurement() {
+        let reference = make_test_image(512, 512, &osc_test_field());
+        let mut stacker = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        assert!(stacker.last_frame_telemetry().unwrap().detected_stars > 0);
+        let frame = constant_u16_image(8, 4, 1000);
+        assert!(stacker.add_frame(&frame, 0.0).is_err());
+        assert!(stacker.last_frame_telemetry().is_none());
+    }
+
+    #[test]
     fn mixed_dimensions_returns_err() {
         let f1 = constant_u16_image(4, 4, 1000);
         let f2 = constant_u16_image(8, 4, 1000); // different width
@@ -2678,10 +2789,12 @@ mod tests {
             LiveStacker::new_with_provenance(&reference, osc_test_config(), &through(Some("L")))
                 .expect("reference accepted");
         assert_eq!(stacker.filter(), Some("L"));
+        assert!(stacker.last_frame_telemetry().unwrap().detected_stars > 0);
 
         let refusal = stacker
             .add_frame_with_provenance(&shifted, &through(Some("R")))
             .expect_err("an R frame does not enter an L stack");
+        assert!(stacker.last_frame_telemetry().is_none());
         assert_eq!(
             refusal,
             "Frame of another filter not stacked: the frame was taken through R and this live \
@@ -2997,9 +3110,12 @@ mod tests {
         // both frames contribute the star peak at the reference centroids;
         // the background sample at (10,10) is the two-frame mean of the
         // deterministic-noise background.
+        // Probe (200, 150) moved by 1 ADU (36006 -> 36007) after b2eae8f53
+        // switched star_detect background estimation from median to 3-sigma
+        // clipped mean, shifting registration centroids by sub-millipixel.
         let probes: [(usize, usize, u16); 4] = [
             (100, 100, 40999),
-            (200, 150, 36006),
+            (200, 150, 36007),
             (300, 200, 39013),
             (10, 10, 1009),
         ];
@@ -3134,6 +3250,7 @@ mod tests {
             provenance: StackProvenance::default(),
             ref_centroid: (0.0, 0.0),
             filter: None,
+            last_frame_telemetry: None,
         };
 
         // Three clean frames (counts → 3 per slot) of value 1000 with tiny

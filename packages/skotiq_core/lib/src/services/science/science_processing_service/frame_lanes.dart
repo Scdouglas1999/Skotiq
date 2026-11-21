@@ -715,16 +715,10 @@ extension _ScienceProcessingFrameLanes on ScienceProcessingService {
         transparency: writebackTransparency,
       );
 
-      if (capturedImageId != null) {
-        final graded = await _runAutoGrade(capturedImageId: capturedImageId);
-        if (!graded) {
-          return const ScienceFrameOutcome.failed(
-            'Frame grading failed; atlas publication skipped',
-          );
-        }
-        if (wcs != null) {
-          _imagesRepo.notifyGradedFrame(capturedImageId);
-        }
+      // The run's grader already decided this frame; a frame it rejected
+      // never enters the atlas (see `notifyGradedFrame`).
+      if (capturedImageId != null && wcs != null) {
+        _imagesRepo.notifyGradedFrame(capturedImageId);
       }
       return const ScienceFrameOutcome.processed();
     } catch (error, stack) {

@@ -1,7 +1,12 @@
 /// Writes `lib/src/settings/app_settings_state.g.dart` from the settings
-/// table. Run through the test that checks the file is current:
+/// table. From `packages/skotiq_core`, either of:
 ///
+///     dart run tool/generate_app_settings.dart
 ///     SKOTIQ_REGENERATE=1 flutter test test/settings/app_settings_generated_test.dart
+///
+/// `--check` writes nothing and exits 1 when the file is stale. The table
+/// and everything it imports must compile under plain Dart (no Flutter
+/// library), or `dart run` fails inside the compiler.
 library;
 
 import 'dart:io';
@@ -183,4 +188,18 @@ void writeAppSettingsState() {
   File(kGeneratedPath).writeAsStringSync(
     generateAppSettingsState(File(kTablePath).readAsStringSync()),
   );
+}
+
+void main(List<String> args) {
+  if (args.contains('--check')) {
+    final expected = generateAppSettingsState(
+      File(kTablePath).readAsStringSync(),
+    );
+    if (File(kGeneratedPath).readAsStringSync() != expected) {
+      stderr.writeln('$kGeneratedPath is stale; run without --check.');
+      exitCode = 1;
+    }
+    return;
+  }
+  writeAppSettingsState();
 }

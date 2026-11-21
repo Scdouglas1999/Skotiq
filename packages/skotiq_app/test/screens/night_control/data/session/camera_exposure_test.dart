@@ -159,4 +159,26 @@ void main() {
     );
     expect(h.read(nightCameraExposureProvider), isNull);
   });
+
+  test('a mid-frame join rebuilds the countdown and an idle run clears it',
+      () async {
+    final (h, clock) = await harness();
+    h.container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
+    await deliver(
+      h,
+      _imaging('ExposureProgress', {'progress': 0.6, 'remainingSecs': 36.0}),
+    );
+
+    final exposure = h.read(nightStageExposureProvider)!;
+    expect(exposure.total, 90);
+    expect(exposure.elapsedAt(clock.instant), closeTo(54, 1e-9));
+
+    h.container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.idle);
+    expect(h.read(nightCameraExposureProvider), isNull);
+    expect(h.read(nightStageExposureProvider), isNull);
+  });
 }

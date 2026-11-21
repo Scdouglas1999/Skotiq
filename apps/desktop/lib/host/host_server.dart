@@ -241,7 +241,7 @@ Future<RunningHostServer> startHostServer({
   // operator exposes a rig by accident.
   final securityAdvisories = headlessSecurityAdvisories(
     bindLocalOnly: config.bindLocalOnly,
-    hasAuth: server.effectiveAuthToken != null,
+    hasAuth: server.isAuthRequired,
     tlsEnabled: tls != null,
   );
   for (final advisory in securityAdvisories) {

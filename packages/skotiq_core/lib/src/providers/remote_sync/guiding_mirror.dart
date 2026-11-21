@@ -5,22 +5,23 @@ part of '../remote_sync_handler.dart';
 void _applyGuidingEvent(ProviderContainer container, SkotiqEvent event) {
   switch (event.eventType) {
     case 'Connected':
-      final notifier = readDeviceConnectionNotifier(
-        container,
-        DeviceType.guider,
-      );
-      if (!_isDeviceAlreadyConnected(
-        container,
-        DeviceType.guider,
-        'phd2_guider',
-      )) {
-        notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
-      }
-      notifier.setConnected();
+      _noteGuiderConnected(container);
     case 'Disconnected':
       readDeviceConnectionNotifier(
         container,
         DeviceType.guider,
       ).setDisconnected();
   }
+}
+
+/// A guiding Connected event names PHD2 only when no guider is in the slot.
+/// A built-in guider is already connected under its own id; labeling that
+/// slot `phd2_guider` is what renamed it.
+void _noteGuiderConnected(ProviderContainer container) {
+  final notifier = readDeviceConnectionNotifier(container, DeviceType.guider);
+  final currentId = container.read(guiderStateProvider).deviceId?.trim();
+  if (currentId == null || currentId.isEmpty) {
+    notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
+  }
+  notifier.setConnected();
 }

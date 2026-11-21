@@ -73,7 +73,11 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
       (json['imageGradingHfrBaselinePercent'] as num?)?.toDouble(),
   imageGradingEccentricityThreshold:
       (json['imageGradingEccentricityThreshold'] as num?)?.toDouble(),
+  imageGradingEccentricityBaselinePercent:
+      (json['imageGradingEccentricityBaselinePercent'] as num?)?.toDouble(),
   imageGradingStarCountMin: (json['imageGradingStarCountMin'] as num?)?.toInt(),
+  imageGradingStarCountDropPercent:
+      (json['imageGradingStarCountDropPercent'] as num?)?.toDouble(),
   imageGradingMaxConsecutiveRejects:
       (json['imageGradingMaxConsecutiveRejects'] as num?)?.toInt() ?? 3,
   imageGradingRejectFolderPath: json['imageGradingRejectFolderPath'] as String?,
@@ -119,7 +123,7 @@ _AppSettings _$AppSettingsFromJson(Map<String, dynamic> json) => _AppSettings(
   cameraRetries: (json['cameraRetries'] as num?)?.toInt() ?? 3,
   filterWheelRetries: (json['filterWheelRetries'] as num?)?.toInt() ?? 3,
   stopRunOnQualityProblems: json['stopRunOnQualityProblems'] as bool? ?? false,
-  mountGuardAutoSyncResume: json['mountGuardAutoSyncResume'] as bool? ?? false,
+  mountGuardAutoSyncResume: json['mountGuardAutoSyncResume'] as bool? ?? true,
   enableMeridianFlip: json['enableMeridianFlip'] as bool? ?? true,
   tempCompensation: json['tempCompensation'] as bool? ?? false,
   tempCoefficient: (json['tempCoefficient'] as num?)?.toDouble() ?? -12.0,
@@ -291,7 +295,10 @@ Map<String, dynamic> _$AppSettingsToJson(
   'imageGradingHfrBaselinePercent': instance.imageGradingHfrBaselinePercent,
   'imageGradingEccentricityThreshold':
       instance.imageGradingEccentricityThreshold,
+  'imageGradingEccentricityBaselinePercent':
+      instance.imageGradingEccentricityBaselinePercent,
   'imageGradingStarCountMin': instance.imageGradingStarCountMin,
+  'imageGradingStarCountDropPercent': instance.imageGradingStarCountDropPercent,
   'imageGradingMaxConsecutiveRejects':
       instance.imageGradingMaxConsecutiveRejects,
   'imageGradingRejectFolderPath': instance.imageGradingRejectFolderPath,

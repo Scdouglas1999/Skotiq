@@ -5,17 +5,17 @@ use crate::builtin_guider::config::{
     GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX, GUIDE_MAX_TRACKED_STARS,
 };
 use crate::builtin_guider::control::{
-    begin_loop, calibration_data, connect, disconnect, finish_failed_guiding, set_paused,
-    start_guiding, start_synthetic_loop, stop, stop_locked,
+    begin_loop, calibration_data, connect, disconnect, finish_failed_guiding, get_star_image,
+    set_paused, start_guiding, start_synthetic_loop, stop, stop_locked,
 };
 use crate::builtin_guider::dither::{
     abandon_dither, dither, dither_offset, dither_target_within_jump, DITHER_MATCH_GRACE_FRAMES,
     DITHER_MAX_JUMP_PX, DITHER_PATTERN_POINTS,
 };
 use crate::builtin_guider::loop_runner::{
-    choose_guide_camera, guide_focal_length_mm, next_guiding_frame, pick_guide_camera,
-    publish_star_measurement, retry_guide_frame, GuideFrameAttempt, GUIDE_FRAME_RETRIES,
-    NO_GUIDE_CAMERA,
+    choose_guide_camera, ensure_frame_available, guide_focal_length_mm, next_guiding_frame,
+    pick_guide_camera, publish_star_measurement, retry_guide_frame, GuideFrameAttempt,
+    GUIDE_CAPTURES, GUIDE_FRAME_RETRIES, NO_GUIDE_CAMERA,
 };
 use crate::builtin_guider::metrics::{
     apply_settle_state, axis_rms, compute_pulse_durations, crop_raw_u16_image, measure_offset,
@@ -916,6 +916,42 @@ fn dec_backlash_is_not_re_added_while_the_pulse_is_still_being_carried() {
     );
 }
 
+#[test]
+fn compute_pulse_durations_does_not_panic_on_inverted_or_negative_pulse_bounds() {
+    let calib = realistic_calib_with_backlash(0.0);
+    let offset = Vec2 { x: 2.0, y: -1.5 };
+
+    let inverted = GuiderConfig {
+        min_pulse_ms: 500.0,
+        max_pulse_ms: 100.0,
+        ..GuiderConfig::default()
+    };
+    // Sub-minimum error carries bounded debt without panicking.
+    let small = compute_pulse_durations(calib, offset, &inverted, None, PulseDebt::default());
+    assert!(small.ra_ms.is_none());
+    assert!(small.debt.ra_ms.abs() <= 100.0);
+    // Large error exceeding min_pulse_ms enters the clamp path (which previously
+    // panicked with min > max) and clamps safely to max_pulse_ms.
+    let large = compute_pulse_durations(
+        calib,
+        Vec2 { x: 10.0, y: -10.0 },
+        &inverted,
+        None,
+        PulseDebt::default(),
+    );
+    assert!(large.ra_ms.is_some_and(|ms| ms.abs() <= 100.0));
+    assert!(large.dec_ms.is_some_and(|ms| ms.abs() <= 100.0));
+
+    let negative = GuiderConfig {
+        min_pulse_ms: -50.0,
+        max_pulse_ms: -10.0,
+        ..GuiderConfig::default()
+    };
+    let plan = compute_pulse_durations(calib, offset, &negative, None, PulseDebt::default());
+    assert!(plan.ra_ms.is_none() || plan.ra_ms.is_some_and(|ms| ms.abs() == 0.0));
+    assert!(plan.dec_ms.is_none() || plan.dec_ms.is_some_and(|ms| ms.abs() == 0.0));
+}
+
 fn realistic_calib_with_backlash(backlash_ms: f64) -> GuideCalibration {
     build_calibration(
         Vec2 { x: 1.5, y: 0.0 },
@@ -1792,5 +1828,43 @@ async fn a_paused_or_idle_guider_refuses_with_an_invalid_state() {
         }
         other => panic!("dithering a paused guider: {other:?}"),
     }
+    reset_guider_state().await;
+}
+
+/// The loop has started its exposure and has not stored a frame yet. A star
+/// preview must fail and must not take a second exposure on that camera.
+#[tokio::test]
+async fn preview_during_first_guide_exposure_does_not_start_another_capture() {
+    let _serial = test_serial().lock().await;
+    reset_guider_state().await;
+    {
+        let mut guard = state().write().await;
+        guard.connected = true;
+        guard.guiding = true;
+        guard.calibrating = true;
+    }
+    // The one exposure the loop already started.
+    GUIDE_CAPTURES.store(1, Ordering::Relaxed);
+    let preview = get_star_image(50)
+        .await
+        .expect_err("frame is not ready yet");
+    assert!(
+        preview.to_string().contains("No guide frame available yet"),
+        "{preview}"
+    );
+    let selection = ensure_frame_available()
+        .await
+        .expect_err("frame is not ready yet");
+    assert!(
+        selection
+            .to_string()
+            .contains("No guide frame available yet"),
+        "{selection}"
+    );
+    assert_eq!(
+        GUIDE_CAPTURES.load(Ordering::Relaxed),
+        1,
+        "preview started a second guide exposure"
+    );
     reset_guider_state().await;
 }

@@ -14,6 +14,8 @@ final class RemoteObservationLog implements ObservationLog {
   final NetworkBackend _host;
   final _poll = HostPoll('observation log');
 
+  void dispose() => _poll.dispose();
+
   /// The list the last fetch returned, so the statistics describe the same
   /// entries the list on screen shows without a second round of requests.
   List<ObservationLogEntry>? _latest;

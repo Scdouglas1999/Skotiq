@@ -103,8 +103,15 @@ abstract class AppSettings with _$AppSettings {
     /// Reject if star eccentricity exceeds this value. `null` => don't apply.
     double? imageGradingEccentricityThreshold,
 
+    /// Reject if eccentricity exceeds its filter's baseline by this percent.
+    double? imageGradingEccentricityBaselinePercent,
+
     /// Reject if detected star count falls below this. `null` => don't apply.
     int? imageGradingStarCountMin,
+
+    /// Reject if the star count falls this percent below its filter's
+    /// baseline.
+    double? imageGradingStarCountDropPercent,
 
     /// Notify the operator once when this many frames in a row are rejected
     /// (default 3). The run carries on.
@@ -211,9 +218,9 @@ abstract class AppSettings with _$AppSettings {
 
     /// When a mount fault holds a run (the mount moved on its own or lost
     /// its position), take a frame, plate solve it, sync and resume without
-    /// waiting for the operator. Off: the operator recovers the mount.
-    /// DB key `mount_guard_auto_sync_resume`.
-    @Default(false) bool mountGuardAutoSyncResume,
+    /// waiting for the operator. On by default; off: the operator recovers the
+    /// mount. DB key `mount_guard_auto_sync_resume`.
+    @Default(true) bool mountGuardAutoSyncResume,
     // Meridian flip detail.
     /// Master enable for automatic meridian flips. DB key `enable_meridian_flip`.
     @Default(true) bool enableMeridianFlip,
