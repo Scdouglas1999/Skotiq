@@ -405,9 +405,9 @@ fn estimate_star_size(
 /// typical star size when dim defocused donuts vanish or shatter in pass 1.
 ///
 /// Crowded in-focus fields can merge neighboring sharp stars into one coarse
-/// footprint; any coarse footprint whose flux is already explained by two or
-/// more compact round pass-1 stars is skipped so blends never masquerade as
-/// defocused donuts.
+/// footprint. That blend is skipped. A defocused donut is not a blend: the
+/// narrow pass shatters it into compact rim knots, and those knots lie on one
+/// ring around a dark centre, which is kept and measured whole.
 fn estimate_wide_star_size(
     frame: &Frame,
     first: &FilteredPass,
@@ -483,8 +483,6 @@ fn estimate_wide_star_size(
         let id = idx as u32 + 1;
         let mut full_px = Vec::with_capacity(coarse.components[idx].pixels.len() * BIN * BIN);
         let mut overlapping_first: Vec<u32> = Vec::new();
-        let mut first_flux = 0.0f64;
-        let mut coarse_flux = 0.0f64;
         for &p in &coarse.components[idx].pixels {
             let (bx, by) = (p as usize % bw, p as usize / bw);
             for dy in 0..BIN {
@@ -492,36 +490,32 @@ fn estimate_wide_star_size(
                 for dx in 0..BIN {
                     let fp = row_off + dx;
                     full_px.push(fp as u32);
-                    let v = (frame.residual[fp] as f64).max(0.0);
-                    coarse_flux += v;
                     let fl = first_labels[fp];
-                    if fl != 0 {
-                        first_flux += v;
-                        if !overlapping_first.contains(&fl) {
-                            overlapping_first.push(fl);
-                        }
+                    if fl != 0 && !overlapping_first.contains(&fl) {
+                        overlapping_first.push(fl);
                     }
                 }
             }
         }
 
-        if overlapping_first.len() >= 2 && coarse_flux > 0.0 && first_flux / coarse_flux >= 0.50 {
-            let compact_round = overlapping_first
-                .iter()
-                .filter(|&&fid| {
-                    let px = first.components[(fid - 1) as usize].pixels.as_slice();
-                    measure(frame, first_labels, fid, px, first.kernel_sigma, config).is_some_and(
-                        |m| {
-                            !m.hot
-                                && !m.diffuse
-                                && m.star.hfr > 0.0
-                                && m.star.hfr <= 3.5
-                                && m.star.eccentricity <= 0.65
-                        },
-                    )
-                })
-                .count();
-            if compact_round >= 2 {
+        if overlapping_first.len() >= 2 {
+            // A pass-1 source this small and this round is a focused star or a
+            // piece of a shattered rim, not a donut measured whole.
+            let mut compact: Vec<(f64, f64, f64)> = Vec::new();
+            for &fid in &overlapping_first {
+                let px = first.components[(fid - 1) as usize].pixels.as_slice();
+                if let Some(m) = measure(frame, first_labels, fid, px, first.kernel_sigma, config) {
+                    if !m.hot
+                        && !m.diffuse
+                        && m.star.hfr > 0.0
+                        && m.star.hfr <= 3.5
+                        && m.star.eccentricity <= 0.65
+                    {
+                        compact.push((m.star.x, m.star.y, m.star.hfr));
+                    }
+                }
+            }
+            if compact.len() >= 2 && !compact_knots_on_one_ring(frame, &full_px, &compact) {
                 continue;
             }
         }
@@ -545,6 +539,89 @@ fn estimate_wide_star_size(
         config,
         3,
     )
+}
+
+/// The compact pass-1 sources on `footprint` are rim knots of one donut when
+/// they stand on a common circle around a dark centre and encircle it.
+///
+/// Four separate stars cannot: on a circle the largest gap between four
+/// points is at least 90°. A square of in-focus stars is that case. A
+/// shattered ring has five or more knots, a thin spread of radii, and almost
+/// no flux in the hole.
+fn compact_knots_on_one_ring(frame: &Frame, footprint: &[u32], knots: &[(f64, f64, f64)]) -> bool {
+    if knots.len() < 5 {
+        return false;
+    }
+    let w = frame.width;
+    let mut sx = 0.0f64;
+    let mut sy = 0.0f64;
+    let mut sw = 0.0f64;
+    for &p in footprint {
+        let p = p as usize;
+        let v = frame.residual[p] as f64;
+        if v > 0.0 {
+            sx += v * (p % w) as f64;
+            sy += v * (p / w) as f64;
+            sw += v;
+        }
+    }
+    if sw <= 0.0 {
+        return false;
+    }
+    let (cx, cy) = (sx / sw, sy / sw);
+
+    let mut radii = Vec::with_capacity(knots.len());
+    let mut angles = Vec::with_capacity(knots.len());
+    let mut hfrs = Vec::with_capacity(knots.len());
+    for &(x, y, hfr) in knots {
+        let dx = x - cx;
+        let dy = y - cy;
+        let r = dx.hypot(dy);
+        if r < 1.0 {
+            return false;
+        }
+        radii.push(r);
+        angles.push(dy.atan2(dx));
+        hfrs.push(hfr);
+    }
+    let mean_r = radii.iter().copied().sum::<f64>() / radii.len() as f64;
+    let var = radii.iter().map(|r| (r - mean_r).powi(2)).sum::<f64>() / radii.len() as f64;
+    let cv = var.sqrt() / mean_r;
+    hfrs.sort_by(f64::total_cmp);
+    let median_hfr = hfrs[hfrs.len() / 2];
+    // The circle has to be large beside each knot. A clump of focused stars
+    // sits inside a couple of its own half-flux radii.
+    if mean_r < 6.0 || cv > 0.18 || mean_r < 3.0 * median_hfr.max(0.5) {
+        return false;
+    }
+
+    angles.sort_by(f64::total_cmp);
+    let mut max_gap = 0.0f64;
+    for i in 0..angles.len() {
+        let next = if i + 1 == angles.len() {
+            angles[0] + std::f64::consts::TAU
+        } else {
+            angles[i + 1]
+        };
+        max_gap = max_gap.max(next - angles[i]);
+    }
+    if max_gap >= 89.0_f64.to_radians() {
+        return false;
+    }
+
+    let mut inner = 0.0f64;
+    let mut total = 0.0f64;
+    let inner_r = 0.5 * mean_r;
+    for &p in footprint {
+        let p = p as usize;
+        let v = (frame.residual[p] as f64).max(0.0);
+        total += v;
+        let r = ((p % w) as f64 - cx).hypot((p / w) as f64 - cy);
+        if r < inner_r {
+            inner += v;
+        }
+    }
+    total > 0.0 && inner / total < 0.20
 }
 
 struct Measured {
@@ -1424,5 +1501,159 @@ mod tests {
             "expected dense star grid to remain resolved, got only {} stars",
             det.stars.len()
         );
+    }
+
+    #[test]
+    fn bright_fragmented_donut_is_measured_as_one_wide_star() {
+        // One defocused star: a thin ring of radius 16 px plus eight compact
+        // knots on it. The knots are far enough apart that a sigma-1.5
+        // matched filter cannot bridge them, and the ring itself is only a
+        // couple of noise sigma, so pass 1 reports the knots. They hold
+        // essentially all of the flux. The half-flux radius below is the
+        // radius at which the noiseless cumulative flux above sky reaches
+        // half — the ring's, not a knot's.
+        let (w, h) = (384usize, 384usize);
+        let sky = 250.0f64;
+        let ring_r = 16.0f64;
+        let ring_sigma = 1.2f64;
+        let knot_sigma = 1.05f64;
+        let n_knots = 8usize;
+        let centres = [(96.0, 96.0), (288.0, 96.0), (96.0, 288.0), (288.0, 288.0)];
+        let mut clean = vec![sky; w * h];
+        for &(cx, cy) in &centres {
+            paint_donut(
+                &mut clean, w, h, cx, cy, ring_r, ring_sigma, knot_sigma, n_knots,
+            );
+        }
+        let expected_hfr = half_flux_radius(&clean, w, centres[0].0, centres[0].1, sky, 26.0);
+        assert!(
+            (expected_hfr - ring_r).abs() < 1.5,
+            "geometry HFR {expected_hfr:.2} should sit on the ring radius {ring_r}"
+        );
+
+        let mut state: u64 = 0xD0_0717;
+        let samples: Vec<f32> = clean
+            .iter()
+            .map(|&v| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let u = ((state >> 33) as f64) / (1u64 << 31) as f64 - 0.5;
+                (v + 16.0 * u) as f32
+            })
+            .collect();
+
+        let cfg = StarDetectionConfig::default();
+        let det = detect(
+            DetectionPlane {
+                width: w,
+                height: h,
+                samples,
+            },
+            &cfg,
+        );
+        let summary: Vec<_> = det
+            .stars
+            .iter()
+            .map(|s| {
+                (
+                    (s.x * 10.0).round() / 10.0,
+                    (s.y * 10.0).round() / 10.0,
+                    (s.hfr * 10.0).round() / 10.0,
+                )
+            })
+            .collect();
+        assert_eq!(
+            det.stars.len(),
+            centres.len(),
+            "each donut is one star (geometry HFR {expected_hfr:.2}), got {summary:?}"
+        );
+        for &(cx, cy) in &centres {
+            let star = det
+                .stars
+                .iter()
+                .find(|s| (s.x - cx).hypot(s.y - cy) < ring_r)
+                .unwrap_or_else(|| panic!("no star on the donut at ({cx},{cy}): {summary:?}"));
+            let off = (star.x - cx).hypot(star.y - cy);
+            assert!(
+                off < 2.0,
+                "centroid ({:.1},{:.1}) is {off:.1} px from the ring centre, a rim knot",
+                star.x,
+                star.y
+            );
+            let rel = (star.hfr - expected_hfr).abs() / expected_hfr;
+            assert!(
+                rel < 0.18,
+                "HFR {:.2} vs geometry {:.2} ({:.0}%)",
+                star.hfr,
+                expected_hfr,
+                rel * 100.0
+            );
+        }
+    }
+
+    fn paint_donut(
+        plane: &mut [f64],
+        w: usize,
+        h: usize,
+        cx: f64,
+        cy: f64,
+        ring_r: f64,
+        ring_sigma: f64,
+        knot_sigma: f64,
+        n_knots: usize,
+    ) {
+        let reach = (ring_r + 8.0).ceil() as i32;
+        let x0 = (cx as i32 - reach).max(0) as usize;
+        let x1 = ((cx as i32 + reach) as usize).min(w - 1);
+        let y0 = (cy as i32 - reach).max(0) as usize;
+        let y1 = ((cy as i32 + reach) as usize).min(h - 1);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let dx = x as f64 - cx;
+                let dy = y as f64 - cy;
+                let r = dx.hypot(dy);
+                // Faint continuous ring: below the narrow 5σ threshold between
+                // knots, still a ring in the residual the wide probe bins.
+                let ring = 3.0 * (-(r - ring_r).powi(2) / (2.0 * ring_sigma * ring_sigma)).exp();
+                let mut knots = 0.0;
+                for k in 0..n_knots {
+                    let ka = k as f64 * std::f64::consts::TAU / n_knots as f64;
+                    let kx = cx + ring_r * ka.cos();
+                    let ky = cy + ring_r * ka.sin();
+                    let kr2 = (x as f64 - kx).powi(2) + (y as f64 - ky).powi(2);
+                    knots += 140.0 * (-kr2 / (2.0 * knot_sigma * knot_sigma)).exp();
+                }
+                plane[y * w + x] += ring + knots;
+            }
+        }
+    }
+
+    /// Radius from `(cx, cy)` enclosing half the flux above `sky`, inside
+    /// `window` px. Point-sampled cumulative flux of the synthetic image.
+    fn half_flux_radius(plane: &[f64], w: usize, cx: f64, cy: f64, sky: f64, window: f64) -> f64 {
+        let mut samples = Vec::new();
+        let x0 = (cx - window).floor().max(0.0) as usize;
+        let y0 = (cy - window).floor().max(0.0) as usize;
+        let x1 = ((cx + window).ceil() as usize).min(w - 1);
+        let y1 = ((cy + window).ceil() as usize).min(plane.len() / w - 1);
+        for y in y0..=y1 {
+            for x in x0..=x1 {
+                let flux = plane[y * w + x] - sky;
+                if flux > 0.0 {
+                    samples.push(((x as f64 - cx).hypot(y as f64 - cy), flux));
+                }
+            }
+        }
+        samples.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let total: f64 = samples.iter().map(|s| s.1).sum();
+        let mut acc = 0.0;
+        for (radius, flux) in samples {
+            acc += flux;
+            if acc >= 0.5 * total {
+                return radius;
+            }
+        }
+        0.0
     }
 }
