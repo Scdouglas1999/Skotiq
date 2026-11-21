@@ -1764,6 +1764,7 @@ packages/skotiq_app/lib/screens/imaging/widgets/stretch_controls.dart	build	lite
 packages/skotiq_app/lib/screens/night_control/center/frame_stage.dart	_savedFrameRef	literal_null_coalesce	1	O10-03	hostPath: frame.hostPath ?? '',
 packages/skotiq_app/lib/screens/night_control/data/session/session_stats_provider.dart	_rejectStreak	literal_null_coalesce	1	U2-14	final reason = grading.lastReject?.reason.trim() ?? '';
 packages/skotiq_app/lib/screens/night_control/panel/focus/focus_tab.dart	build	literal_null_coalesce	1	U2-19	: nightDuration(run.duration!.inSeconds.toDouble()) ?? '',
+packages/skotiq_app/lib/screens/night_control/panel/overview/night_activity_panel.dart	build	literal_null_coalesce	1	R91-01	value: vm.progress ?? 0,
 packages/skotiq_app/lib/screens/night_control/panel/overview/run_sections.dart	NightConditionsSwapSection	literal_null_coalesce	1	U2-14	final kind = state.lastDecisionKind?.toLowerCase() ?? '';
 packages/skotiq_app/lib/screens/night_control/panel/overview/run_sections.dart	build	literal_null_coalesce	1	U2-14	params: <String, String>{'url': shown ?? ''},
 packages/skotiq_app/lib/screens/onboarding/onboarding_screen.dart	_skipStep	literal_null_coalesce	1	V0086	if ((draft.guiderId ?? '').isNotEmpty) {
