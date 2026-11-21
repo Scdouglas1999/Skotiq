@@ -102,6 +102,7 @@ void _hostRecord(
         imagingRun: imagingRun,
         lastEnded: lastEnded,
         lastEndedPlanLoaded: lastEnded != null && lastEndedPlanLoaded,
+        restoredCheckpoint: null,
         stopEvidence: stopEvidence,
         runStartedAt: runStartedAt,
         stats: null,
