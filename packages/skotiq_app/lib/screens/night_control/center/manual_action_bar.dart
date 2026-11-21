@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart'
     show
+        isFlipInProgressProvider,
         linkedManualActionProvider,
         liveStackingProvider,
         polarAlignmentStateProvider;
@@ -65,17 +66,17 @@ class ManualActionBar extends ConsumerWidget {
     // neither knows about it; without this the bar said "Nothing is running"
     // through every alignment exposure.
     final polar = polarRunSummary(ref.watch(polarAlignmentStateProvider));
-    final hint = linked != null
+    final hint = ref.watch(isFlipInProgressProvider)
+        ? l10n.text('nightActBusyFlip')
+        : linked != null
         ? '${l10n.text(manualActionKey('nightActBusy', linked))} · '
-            '${l10n.text('nightActOtherWindow')}'
+              '${l10n.text('nightActOtherWindow')}'
         : polar != null
-            ? l10n.text('nightActPolarRunning', params: {'status': polar})
-            // "Nothing is running" must not stand beside a running action.
-            : state.isBusy && state.active != null && !_runLoaded(phase)
-                ? l10n.text(manualActionKey('nightActBusy', state.active!))
-                : l10n.text(
-                    _runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle',
-                  );
+        ? l10n.text('nightActPolarRunning', params: {'status': polar})
+        // "Nothing is running" must not stand beside a running action.
+        : state.isBusy && state.active != null && !_runLoaded(phase)
+        ? l10n.text(manualActionKey('nightActBusy', state.active!))
+        : l10n.text(_runLoaded(phase) ? 'nightActHint' : 'nightCtrHintIdle');
     final error = state.error?.resolve(l10n);
     final keys = <String>[
       for (final (key, what) in kNightShortcutKeys) '$key ${l10n.text(what)}',
@@ -160,9 +161,10 @@ class _ActionButton extends ConsumerWidget {
     // Outlined while its tab is the one open, so a press visibly lands
     // somewhere: the button and the tab light up together.
     final showing = ref.watch(nightPanelTabProvider) == action.id.panelTab;
-    final opens = l10n.text('nightActOpensTab', params: <String, String>{
-      'tab': l10n.text(action.id.panelTab.labelKey),
-    });
+    final opens = l10n.text(
+      'nightActOpensTab',
+      params: <String, String>{'tab': l10n.text(action.id.panelTab.labelKey)},
+    );
     final note = reason == null ? opens : '$reason · $opens';
 
     final Color fill;
@@ -196,12 +198,12 @@ class _ActionButton extends ConsumerWidget {
                   ),
                 )
               : showing
-                  ? BorderSide(
-                      color: colors.primary.withValues(
-                        alpha: SkotiqTokens.opacityEmphasisBorder,
-                      ),
-                    )
-                  : BorderSide.none,
+              ? BorderSide(
+                  color: colors.primary.withValues(
+                    alpha: SkotiqTokens.opacityEmphasisBorder,
+                  ),
+                )
+              : BorderSide.none,
         ),
         child: InkWell(
           onTap: () => _press(ref),
@@ -354,7 +356,8 @@ class _LiveStackActionButton extends ConsumerWidget {
       liveStackingProvider.select((s) => s.totalFramesAcrossFilters),
     );
     final showingStack =
-        activeOrArmed && ref.watch(nightStageModeProvider) == NightStageMode.liveStack;
+        activeOrArmed &&
+        ref.watch(nightStageModeProvider) == NightStageMode.liveStack;
     final label = activeOrArmed && totalFrames > 0
         ? 'Live stack ($totalFrames)'
         : 'Live stack';
@@ -362,17 +365,15 @@ class _LiveStackActionButton extends ConsumerWidget {
     return Tooltip(
       message: activeOrArmed
           ? (showingStack
-              ? 'Switch stage back to single sub view'
-              : 'View active per-filter live stacks')
+                ? 'Switch stage back to single sub view'
+                : 'View active per-filter live stacks')
           : 'Arm live stacking to build per-filter live stacks as exposures arrive',
       child: SkotiqButton(
         key: const ValueKey('night_action_live_stack_btn'),
         label: label,
         icon: SkotiqIcons.layers,
         size: ButtonSize.small,
-        variant: showingStack
-            ? ButtonVariant.secondary
-            : ButtonVariant.ghost,
+        variant: showingStack ? ButtonVariant.secondary : ButtonVariant.ghost,
         onPressed: () {
           if (!activeOrArmed) {
             unawaited(ref.read(liveStackingProvider.notifier).arm());
