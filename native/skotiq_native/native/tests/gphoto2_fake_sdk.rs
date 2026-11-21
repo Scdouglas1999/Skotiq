@@ -12,10 +12,10 @@
 #[path = "fake_sdk_linux/harness.rs"]
 mod harness;
 
-use skotiq_cfa::ColorFilterArray;
 use skotiq_device::{
     CameraDriver, CameraState, DeviceDriver, ExposureParams, FrameType, ImageData,
 };
+use skotiq_frame::ColorFilterArray;
 use skotiq_native::vendor::gphoto2::{detect_gphoto2_cameras, GPhoto2Camera};
 use std::ffi::{c_char, c_int, CStr, CString};
 use std::time::{Duration, Instant};

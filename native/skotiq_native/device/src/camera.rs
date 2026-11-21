@@ -1,7 +1,7 @@
 //! Camera vocabulary.
 
 use serde::{Deserialize, Serialize};
-use skotiq_cfa::ColorFilterArray;
+use skotiq_frame::ColorFilterArray;
 
 /// A gain or offset in [`CameraStatus`] that the camera could not report.
 pub const UNKNOWN_CAMERA_SETTING: i32 = -1;
@@ -405,7 +405,7 @@ pub struct ImageData {
 impl ImageData {
     /// The 2x2 Bayer cell for the previews that demosaic a frame; `None` for
     /// a mono frame and for X-Trans, which they show as luminance.
-    pub fn bayer_cell(&self) -> Option<skotiq_cfa::BayerPattern> {
+    pub fn bayer_cell(&self) -> Option<skotiq_frame::BayerPattern> {
         self.bayer_pattern?.bayer()
     }
 }

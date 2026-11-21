@@ -36,7 +36,6 @@
 use crate::ascom_wrapper::sta_worker::{register_device, PumpOutcome};
 use crate::timeout_ops::Timeouts;
 use skotiq_ascom::AscomCamera;
-use skotiq_cfa::ColorFilterArray;
 use skotiq_device::ascom::camera::{
     cooler_setpoint_to_write, exposes_to_light, readout_mode_name, CameraControl, CameraControls,
     Probe,
@@ -46,6 +45,7 @@ use skotiq_device::{
     DriverError, ExposureParams, ImageData, ReadoutMode, SensorInfo, SubFrame, Vendor,
     VendorFeatures,
 };
+use skotiq_frame::ColorFilterArray;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;

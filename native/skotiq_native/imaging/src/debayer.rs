@@ -1,7 +1,7 @@
 //! Image debayering algorithms for color cameras
 
 use rayon::prelude::*;
-use skotiq_cfa::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
+use skotiq_frame::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DebayerAlgorithm {

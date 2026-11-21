@@ -1,5 +1,5 @@
 [package]
-name = "skotiq_cfa"
+name = "skotiq_frame"
 version.workspace = true
 edition.workspace = true
 license-file.workspace = true

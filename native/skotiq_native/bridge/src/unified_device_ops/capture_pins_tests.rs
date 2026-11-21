@@ -21,7 +21,7 @@ use skotiq_sequencer::ImageData;
 struct FixedFrameCamera {
     id: String,
     frame: Arc<(u32, u32, Vec<u16>)>,
-    bayer_pattern: Option<skotiq_cfa::ColorFilterArray>,
+    bayer_pattern: Option<skotiq_frame::ColorFilterArray>,
 }
 
 #[async_trait::async_trait]
@@ -216,7 +216,7 @@ fn full_sensor_frame() -> (u32, u32, Vec<u16>) {
 async fn connect_fixed_camera(
     device_id: &str,
     frame: Arc<(u32, u32, Vec<u16>)>,
-    bayer_pattern: Option<skotiq_cfa::ColorFilterArray>,
+    bayer_pattern: Option<skotiq_frame::ColorFilterArray>,
 ) {
     let mgr = get_device_manager();
     mgr.register_device(

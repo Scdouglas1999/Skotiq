@@ -12,11 +12,11 @@
 //! do not come from the cached state. A DSLR or mirrorless body fits with ISO
 //! as its gain, offset 0, bin 1 and no cooler.
 
-use skotiq_cfa::{BayerPattern, ColorFilterArray};
 use skotiq_device::camera::{
     CameraCapabilities, CameraState, ImageData, ImageMetadata, SensorInfo, SubFrame,
 };
 use skotiq_device::{DriverError, ExposureAbort};
+use skotiq_frame::{BayerPattern, ColorFilterArray};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 

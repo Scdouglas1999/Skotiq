@@ -9,7 +9,7 @@
 /// same filter when their bands are the same; a name is never matched by a
 /// piece of another ("R" is not "Dark").
 ///
-/// `filter_name.rs` in the native `skotiq_device` crate holds the same rule
+/// `filter_name.rs` in the native `skotiq_frame` crate holds the same rule
 /// for the run's wheel moves; both are tested against
 /// `test/fixtures/filter_matching_cases.json`.
 library;

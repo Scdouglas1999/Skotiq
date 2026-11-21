@@ -16,7 +16,7 @@
 //! Both ASCOM transports carry this same enum, so the mapping lives here,
 //! compiled and tested on every platform.
 
-use skotiq_cfa::BayerPattern;
+use skotiq_frame::BayerPattern;
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
@@ -347,9 +347,9 @@ mod tests {
         for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
             let pattern =
                 bayer_pattern_from_sensor(2, Some(x), Some(y)).expect("offsets name a pattern");
-            let cfa = skotiq_cfa::ColorFilterArray::from(pattern);
+            let cfa = skotiq_frame::ColorFilterArray::from(pattern);
             let name = cfa.letters();
-            let back = skotiq_cfa::ColorFilterArray::parse(&name).unwrap_or_else(|| {
+            let back = skotiq_frame::ColorFilterArray::parse(&name).unwrap_or_else(|| {
                 panic!("offsets ({x}, {y}) produced unmappable BAYERPAT {name}")
             });
             assert_eq!(back, cfa);

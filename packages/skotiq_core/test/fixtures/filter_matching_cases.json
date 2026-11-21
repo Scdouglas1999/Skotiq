@@ -1,5 +1,5 @@
 {
-  "comment": "The filter-name rule, shared by device/src/filter_name.rs (Rust) and models/equipment/filter_names.dart (Dart); both tests read this file. A name is the set of known bands it names; brands, product lines and widths are not bands, and a name with no known band is its whole name. slots: the 0-based slot a request means, index null when none; ambiguous: true when several slots mean it. bands: a name's bands, sorted.",
+  "comment": "The filter-name rule, shared by frame/src/filter_name.rs (Rust) and models/equipment/filter_names.dart (Dart); both tests read this file. A name is the set of known bands it names; brands, product lines and widths are not bands, and a name with no known band is its whole name. slots: the 0-based slot a request means, index null when none; ambiguous: true when several slots mean it. bands: a name's bands, sorted.",
   "slots": [
     {
       "names": [

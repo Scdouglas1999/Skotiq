@@ -82,7 +82,7 @@ pub use raw::*;
 pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
 pub use sample_range::{SampleRange, ADU_FULL_SCALE};
-pub use skotiq_cfa::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
+pub use skotiq_frame::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types
 pub use stats::*;
