@@ -31,11 +31,38 @@ extension FlatWizardRun on FlatWizardNotifier {
   Future<void> runCapture() async {
     // Busy latch FIRST (synchronous, before any await) so a second start is
     // rejected even while the async validation below is in flight.
-    if (_running) {
+    if (_running || _remoteBusy) {
       Log.warning(
         'FlatWizard: runCapture ignored — a run is already active',
         source: 'FlatWizardNotifier',
       );
+      return;
+    }
+    final authority = ref.read(backendProvider);
+    if (authority is NetworkBackend) {
+      // A linked client does not expose. The host runs the draft and keeps
+      // going if this process leaves; commanding the camera here as well
+      // would start a second exposure on the same rig.
+      _cancelToken = null;
+      _running = true;
+      try {
+        final snapshot = await authority.startFlatWizardRun(_linkedHostDraft());
+        if (!mounted) return;
+        applyHostSnapshot(snapshot);
+      } catch (error, stack) {
+        Log.error(
+          'FlatWizard: could not start the host run: $error',
+          source: 'FlatWizardNotifier',
+          error: error,
+          stackTrace: stack,
+        );
+        if (!mounted) return;
+        setErrorMessage(
+          'Could not start flat capture on the imaging host: $error',
+        );
+      } finally {
+        _running = false;
+      }
       return;
     }
     _running = true;
@@ -668,6 +695,9 @@ extension FlatWizardRun on FlatWizardNotifier {
       // transient capture/exposing flags are cleared and the latch released.
       state = state.copyWith(isCapturing: false, isExposing: false);
       _running = false;
+      // The snapshot reads the latch while it builds. The write above ran
+      // while the latch was still held, so publish once more with it down.
+      if (mounted) state = state.copyWith();
       if (!ref.read(flatRunOutputProvider).isEmpty) {
         try {
           unawaited(ref.read(calibrationBacklogProvider.notifier).refresh());

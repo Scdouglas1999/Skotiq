@@ -191,11 +191,23 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
 
 /// NetworkBackend whose flat-history write always FAILS, to prove the failure is
 /// surfaced (warning) rather than silently swallowed.
+class _OfflineMasterHistory extends Mock implements HostCalibrationFrames {}
+
 class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
   final StreamController<SkotiqEvent> _events =
       StreamController<SkotiqEvent>.broadcast();
   final List<String> savedPaths = [];
+  final List<Map<String, dynamic>> startBodies = [];
+  int exposureStarts = 0;
   int _seq = 0;
+
+  @override
+  Future<Map<String, dynamic>> startFlatWizardRun(
+    Map<String, dynamic> draft,
+  ) async {
+    startBodies.add(draft);
+    return {'state': draft, 'busy': false, 'output': {}};
+  }
 
   @override
   void dispose() {
@@ -250,6 +262,7 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
     int? width,
     int? height,
   }) async {
+    exposureStarts++;
     scheduleMicrotask(() {
       if (_events.isClosed) return;
       _events.add(
@@ -310,6 +323,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(FrameType.flat);
+    registerFallbackValue(DateTime.utc(2020));
     registerFallbackValue(
       const FitsWriteHeader(
         frameType: 'FLAT',
@@ -336,6 +350,7 @@ void main() {
     List<String> filterNames = const ['L', 'R'],
     List<String>? profileFilters,
     bool cameraConnected = true,
+    List<Override> extraOverrides = const [],
   }) {
     final container = ProviderContainer(
       overrides: [
@@ -364,6 +379,7 @@ void main() {
         filterWheelStateProvider.overrideWith(
           (ref) => _MutableFilterWheelNotifier(ref, wheel),
         ),
+        ...extraOverrides,
       ],
     );
     addTearDown(container.dispose);
@@ -657,7 +673,31 @@ void main() {
 
   test('a flat-history write failure surfaces a NON-FATAL warning; frames are '
       'still saved', () async {
-    final backend = _ThrowingHistoryBackend();
+    final frames = _OfflineMasterHistory();
+    when(
+      () => frames.listFlats(
+        filter: any(named: 'filter'),
+        equipmentProfileId: any(named: 'equipmentProfileId'),
+        gain: any(named: 'gain'),
+        since: any(named: 'since'),
+        limit: any(named: 'limit'),
+      ),
+    ).thenAnswer((_) async => const []);
+    when(
+      () => frames.recordFlat(
+        filter: any(named: 'filter'),
+        exposureDuration: any(named: 'exposureDuration'),
+        adu: any(named: 'adu'),
+        histogramTarget: any(named: 'histogramTarget'),
+        gain: any(named: 'gain'),
+        binning: any(named: 'binning'),
+        panelBrightness: any(named: 'panelBrightness'),
+        skyAduRate: any(named: 'skyAduRate'),
+        twilightPhase: any(named: 'twilightPhase'),
+        equipmentProfileId: any(named: 'equipmentProfileId'),
+      ),
+    ).thenThrow(StateError('master offline'));
+    final backend = _WorkflowBackend();
     addTearDown(backend.dispose);
     final container = makeContainer(
       backend,
@@ -666,6 +706,9 @@ void main() {
         filterNames: ['L'],
       ),
       filterNames: const ['L'],
+      extraOverrides: [
+        linkedHostCalibrationFramesProvider.overrideWithValue(frames),
+      ],
     );
     final notifier = await primeWizard(container);
 
@@ -673,12 +716,12 @@ void main() {
 
     final state = container.read(flatWizardProvider);
     // The frame landed on disk and the filter is complete…
-    expect(backend.savedPaths, isNotEmpty);
+    expect(backend.saveCount, greaterThan(0));
     expect(state.filterSettings[0].status, FilterCalibrationStatus.complete);
     // …but the library write failure is surfaced, not swallowed.
     expect(state.warningMessage, isNotNull);
     expect(state.warningMessage!.toLowerCase(), contains('did not record'));
-    // A remote session must not have written to the local slave DB either.
+    // The master owns the flat library; the failed post did not land locally.
     final local = await db.flatHistoryDao.getRecentCalibrations(
       filterName: 'L',
     );
@@ -710,19 +753,16 @@ void main() {
 
     await notifier.runCapture();
 
-    expect(backend.savedPaths, isNotEmpty);
-    for (final saved in backend.savedPaths) {
-      expect(saved, startsWith(r'C:\Users\observer\Documents\Flats\'));
-      expect(saved, contains(r'\L\'));
-      expect(saved, isNot(contains('/')));
-    }
-    // Named by the Settings naming pattern, as every kept frame is, and
-    // never twice the same name.
-    expect(
-      backend.savedPaths.map((path) => path.split(r'\').last),
-      everyElement(matches(RegExp(r'^Flat_L_[0-9.]+_\d{4}\.fits$'))),
-    );
-    expect(backend.savedPaths.toSet(), hasLength(backend.savedPaths.length));
+    // The client sends the host path unchanged and does not build the files.
+    // The imaging host joins subfolders in its own path style when it runs.
+    expect(backend.startBodies, hasLength(1));
+    expect(backend.exposureStarts, 0);
+    expect(backend.savedPaths, isEmpty);
+    final settings =
+        backend.startBodies.single['globalSettings'] as Map<String, dynamic>;
+    expect(settings['savePath'], r'C:\Users\observer\Documents\Flats');
+    expect(settings['createDateSubfolder'], isTrue);
+    expect(settings['createFilterSubfolders'], isTrue);
   });
 
   test(
