@@ -12,6 +12,7 @@ import 'package:skotiq_core/models.dart'
     as remote_profile
     show EquipmentProfile;
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
+import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_desktop/host/host_startup.dart';
 import 'package:skotiq_desktop/host/host_steps.dart';
 import 'package:skotiq_core/utils.dart';
@@ -76,6 +77,36 @@ HostStartupStep _step(
 
 void main() {
   group('the host start-up table', () {
+    test('the host keeps the night guide trace without Tonight open', () async {
+      final step = hostStartupSteps.singleWhere(
+        (s) => s.name == 'night guide trace',
+      );
+      final backend = _MockFfiBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      expect(container.exists(nightGuideSamplesProvider), isFalse);
+      final host = HostStartup(
+        kind: HostKind.daemon,
+        container: container,
+        logger: _QuietLogger(),
+        logSource: 'test',
+        appVersion: const AppVersionInfo(version: '0.0.0', buildNumber: 1),
+        args: const [],
+        daemonConfig: HeadlessAuthConfig(),
+      );
+      await step.run(host);
+      expect(container.exists(nightGuideSamplesProvider), isTrue);
+    });
+
     test('names each step once', () {
       final names = hostStartupSteps.map((s) => s.name).toList();
       expect(names.toSet().length, names.length);
