@@ -357,8 +357,9 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
     }
     // The detector's tuned defaults (5σ, 9-pixel minimum area) find stars;
     // a looser threshold masks noise peaks as "stars" and, over a night,
-    // eats the very apertures being measured. Elongated and sharp sources
-    // are masked too rather than culled.
+    // eats the very apertures being measured. Sharp sources are masked.
+    // Elongated ones are masked only when they are bright enough to be a
+    // real trail; a marginal detection is left unmasked below.
     let config = StarDetectionConfig {
         max_sharpness: 1.0,
         max_eccentricity: 1.0,
