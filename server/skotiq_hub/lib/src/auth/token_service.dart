@@ -324,6 +324,36 @@ class TokenService {
   final HubDatabase _db;
   final Random _random;
 
+  /// Live tokens remembered after a database [resolve], keyed by token hash.
+  ///
+  /// Negative results are not stored: an attacker sending a fresh Bearer on
+  /// every request would grow this map the same way the old per-token rate
+  /// bucket did. Revoke and expiry drop entries. Capped so a large but
+  /// legitimate user set cannot grow it without bound.
+  final Map<String, _RememberedToken> _remembered = {};
+  static const int _maxRemembered = 1024;
+
+  /// How many times [resolve] has queried the token store. Tests use this to
+  /// prove a request does not look the token up twice, and that a rate-limited
+  /// forged bearer does not look it up at all.
+  int resolveQueryCount = 0;
+
+  /// A previously resolved live token, or null when this process has not
+  /// remembered [rawToken] (or the remembered entry has expired). Does not
+  /// touch the database.
+  AuthIdentity? peekRemembered(String rawToken) {
+    final hash = hashToken(rawToken);
+    final hit = _remembered.remove(hash);
+    if (hit == null) return null;
+    final expiresAt = hit.expiresAt;
+    if (expiresAt != null && !DateTime.now().toUtc().isBefore(expiresAt)) {
+      return null;
+    }
+    // Reinsert so a hit counts as recently used for the cap.
+    _remembered[hash] = hit;
+    return hit.identity;
+  }
+
   /// Generate a cryptographically secure 32-byte token, hex-encoded (64 chars),
   /// persist its hash for [accountId] with [scope], and return the RAW token to
   /// hand to the caller exactly once.
@@ -374,6 +404,7 @@ class TokenService {
   /// check is the belt-and-braces that holds even for a token minted in the
   /// race window before the revoke ran.
   AuthIdentity? resolve(String rawToken) {
+    resolveQueryCount++;
     final hash = hashToken(rawToken);
     final rows = _db.db.select(
       'SELECT t.account_id AS account_id, t.scope AS scope, '
@@ -382,27 +413,48 @@ class TokenService {
       'WHERE t.token_hash = ?;',
       <Object?>[hash],
     );
-    if (rows.isEmpty) return null;
+    if (rows.isEmpty) {
+      _remembered.remove(hash);
+      return null;
+    }
     final row = rows.first;
     // Fail closed on a suspended account — every token it holds is dead.
-    if (row['suspended_at'] != null) return null;
-    final expiresAt = row['expires_at'] as String?;
-    if (expiresAt != null) {
-      final exp = DateTime.tryParse(expiresAt);
-      if (exp != null && !DateTime.now().toUtc().isBefore(exp)) {
+    if (row['suspended_at'] != null) {
+      _remembered.remove(hash);
+      return null;
+    }
+    final expiresAtRaw = row['expires_at'] as String?;
+    DateTime? expiresAt;
+    if (expiresAtRaw != null) {
+      expiresAt = DateTime.tryParse(expiresAtRaw);
+      if (expiresAt != null && !DateTime.now().toUtc().isBefore(expiresAt)) {
         _db.db.execute('DELETE FROM tokens WHERE token_hash = ?;', <Object?>[
           hash,
         ]);
+        _remembered.remove(hash);
         return null;
       }
     }
     final grant = ScopedGrant.tryParse(row['scope'] as String);
-    if (grant == null) return null;
-    return AuthIdentity(
+    if (grant == null) {
+      _remembered.remove(hash);
+      return null;
+    }
+    final identity = AuthIdentity(
       accountId: row['account_id'] as String,
       grant: grant,
       tokenHash: hash,
     );
+    _remember(hash, identity, expiresAt);
+    return identity;
+  }
+
+  void _remember(String hash, AuthIdentity identity, DateTime? expiresAt) {
+    _remembered.remove(hash);
+    if (_remembered.length >= _maxRemembered) {
+      _remembered.remove(_remembered.keys.first);
+    }
+    _remembered[hash] = _RememberedToken(identity, expiresAt);
   }
 
   /// Revoke every token for [accountId] (used on account suspension).
@@ -410,6 +462,7 @@ class TokenService {
     _db.db.execute('DELETE FROM tokens WHERE account_id = ?;', <Object?>[
       accountId,
     ]);
+    _remembered.removeWhere((_, hit) => hit.identity.accountId == accountId);
   }
 
   /// Revoke a single token by its SHA-256 [tokenHash] (self-revoke / logout).
@@ -418,6 +471,7 @@ class TokenService {
     _db.db.execute('DELETE FROM tokens WHERE token_hash = ?;', <Object?>[
       tokenHash,
     ]);
+    _remembered.remove(tokenHash);
     return _db.db.updatedRows > 0;
   }
 
@@ -434,4 +488,10 @@ class TokenService {
   static String hashToken(String rawToken) {
     return sha256.convert(utf8.encode(rawToken)).toString();
   }
+}
+
+class _RememberedToken {
+  _RememberedToken(this.identity, this.expiresAt);
+  final AuthIdentity identity;
+  final DateTime? expiresAt;
 }
