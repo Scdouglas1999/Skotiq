@@ -76,20 +76,22 @@ void main() {
     const longitude = -75.0;
     const raHours = 0.7123;
     const dec = 41.269;
-    // Wall times at the site: 22:00 on 2026-10-31 through 08:00 the next morning.
-    final start = DateTime(2026, 10, 31, 22);
-    final clockEnd = DateTime(2026, 11, 1, 8);
-    final visibility = AstronomyCalculations.calculateObjectVisibility(
+    // This night in Pennsylvania spans the change from EDT to EST:
+    // October 31 at 22:00 EDT through November 1 at 08:00 EST.
+    final start = DateTime.utc(2026, 11, 1, 2);
+    final clockEnd = DateTime.utc(2026, 11, 1, 13);
+    final visibility = AstronomyCalculations.calculateObjectVisibilityAround(
       raDeg: raHours * 15,
       decDeg: dec,
-      date: start,
+      center: start.add(clockEnd.difference(start) ~/ 2),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       minAltitude: 30,
     );
     final setTime = visibility.setTime;
     expect(setTime, isNotNull);
-    expect(setTime!.isBefore(clockEnd), isTrue);
+    expect(setTime!.isAfter(start), isTrue);
+    expect(setTime.isBefore(clockEnd), isTrue);
 
     final plan = sequence(
       start: start,
