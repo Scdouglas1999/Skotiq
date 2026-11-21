@@ -334,14 +334,13 @@ pub fn darkroom_registry(args_json: String) -> Result<String, String> {
         .is_some_and(|s| !s.trim().is_empty());
     if !args.master_path.trim().is_empty() || has_live_stack {
         let token = RENDERS.register("")?;
-        let master = load_pyramid(
-            &args.master_path,
-            args.live_stack_key.as_deref(),
-            &token,
-        )?;
+        let master = load_pyramid(&args.master_path, args.live_stack_key.as_deref(), &token)?;
         let base_master_ref = if args.base_master_ref.trim().is_empty() {
             if has_live_stack {
-                format!("livestack:{}", args.live_stack_key.as_deref().unwrap_or("active").trim())
+                format!(
+                    "livestack:{}",
+                    args.live_stack_key.as_deref().unwrap_or("active").trim()
+                )
             } else {
                 args.master_path.clone()
             }

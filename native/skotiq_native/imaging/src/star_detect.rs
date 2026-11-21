@@ -1456,13 +1456,16 @@ mod tests {
         let cfg = StarDetectionConfig::default();
         let (back, noise) = mesh_grids(&samples, w, h, MESH_CELL, 1.0);
         let mut residual = samples.clone();
-        residual.par_chunks_mut(w).enumerate().for_each(|(yy, row)| {
-            let mut b = vec![0.0f32; w];
-            back.sample_row(yy, &mut b);
-            for (v, bv) in row.iter_mut().zip(&b) {
-                *v -= *bv;
-            }
-        });
+        residual
+            .par_chunks_mut(w)
+            .enumerate()
+            .for_each(|(yy, row)| {
+                let mut b = vec![0.0f32; w];
+                back.sample_row(yy, &mut b);
+                for (v, bv) in row.iter_mut().zip(&b) {
+                    *v -= *bv;
+                }
+            });
         remove_hot_pixels(&mut residual, w, h, &noise);
         let frame = Frame {
             width: w,

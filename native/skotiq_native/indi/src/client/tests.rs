@@ -1359,15 +1359,7 @@ async fn test_writer_task_marks_disconnected_on_write_error() {
     drop(tx);
 
     let epoch = Arc::new(AtomicU64::new(1));
-    IndiClient::writer_task(
-        FailingWriter,
-        rx,
-        connected.clone(),
-        event_tx,
-        1,
-        epoch,
-    )
-    .await;
+    IndiClient::writer_task(FailingWriter, rx, connected.clone(), event_tx, 1, epoch).await;
 
     assert!(
         !connected.load(Ordering::SeqCst),
@@ -1417,15 +1409,7 @@ async fn test_writer_task_superseded_epoch_does_not_clobber_new_connection() {
 
     // Current epoch is 2 while this writer belongs to stale epoch 1.
     let epoch = Arc::new(AtomicU64::new(2));
-    IndiClient::writer_task(
-        FailingWriter,
-        rx,
-        connected.clone(),
-        event_tx,
-        1,
-        epoch,
-    )
-    .await;
+    IndiClient::writer_task(FailingWriter, rx, connected.clone(), event_tx, 1, epoch).await;
 
     assert!(
         connected.load(Ordering::SeqCst),
@@ -1517,15 +1501,7 @@ async fn test_writer_task_clean_shutdown_leaves_connected_untouched() {
     drop(tx);
 
     let epoch = Arc::new(AtomicU64::new(1));
-    IndiClient::writer_task(
-        tokio::io::sink(),
-        rx,
-        connected.clone(),
-        event_tx,
-        1,
-        epoch,
-    )
-    .await;
+    IndiClient::writer_task(tokio::io::sink(), rx, connected.clone(), event_tx, 1, epoch).await;
 
     assert!(connected.load(Ordering::SeqCst));
     assert!(event_rx.try_recv().is_err());

@@ -654,7 +654,8 @@ fn multi_filter_stacks_darkroom_and_progressive_nebula_reveal() {
                 } else {
                     0.0
                 };
-                plane[y * w + x] = (1000.0 + grad + nebula + next_gauss() * 26.0).clamp(0.0, 65535.0);
+                plane[y * w + x] =
+                    (1000.0 + grad + nebula + next_gauss() * 26.0).clamp(0.0, 65535.0);
             }
         }
         let stars = [

@@ -876,7 +876,10 @@ fn rollback_in_place(install_dir: &Path, log: &RollbackLog) -> Result<()> {
         let dst = match safe_join_under(install_dir, &entry.rel) {
             Ok(p) => p,
             Err(e) => {
-                errors.push(format!("rollback: invalid moved path {:?}: {}", entry.rel, e));
+                errors.push(format!(
+                    "rollback: invalid moved path {:?}: {}",
+                    entry.rel, e
+                ));
                 continue;
             }
         };
@@ -1159,7 +1162,10 @@ fn restore_from_restore_point(
         let dst = match safe_join_under(install_dir, &entry.rel) {
             Ok(p) => p,
             Err(e) => {
-                errors.push(format!("rollback: invalid moved path {:?}: {}", entry.rel, e));
+                errors.push(format!(
+                    "rollback: invalid moved path {:?}: {}",
+                    entry.rel, e
+                ));
                 continue;
             }
         };

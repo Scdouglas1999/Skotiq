@@ -1845,7 +1845,9 @@ async fn preview_during_first_guide_exposure_does_not_start_another_capture() {
     }
     // The one exposure the loop already started.
     GUIDE_CAPTURES.store(1, Ordering::Relaxed);
-    let preview = get_star_image(50).await.expect_err("frame is not ready yet");
+    let preview = get_star_image(50)
+        .await
+        .expect_err("frame is not ready yet");
     assert!(
         preview.to_string().contains("No guide frame available yet"),
         "{preview}"

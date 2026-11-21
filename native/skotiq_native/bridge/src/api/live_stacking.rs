@@ -1149,7 +1149,9 @@ fn compute_live_stack_channel_stretch(
     let sky_ceiling = median + 3.0 * sigma_global.max(1.0);
     let mut sigma_local = 0.0_f64;
     if usable_w > 0 {
-        let row_step = (((height * usable_w) / SAMPLE_BUDGET) as f64).sqrt().floor() as usize;
+        let row_step = (((height * usable_w) / SAMPLE_BUDGET) as f64)
+            .sqrt()
+            .floor() as usize;
         let step = row_step.max(1);
         let mut diffs = Vec::with_capacity(SAMPLE_BUDGET.min(pixel_count));
         let mut y = 0usize;

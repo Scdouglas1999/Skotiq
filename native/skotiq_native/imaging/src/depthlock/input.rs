@@ -869,8 +869,8 @@ mod source_mask_tests {
             for &(sx, sy, peak) in &stars {
                 let cx = sx + dx;
                 let cy = sy + dy;
-                for y in ((cy - 5.0).floor().max(0.0) as usize)
-                    ..=((cy + 5.0).ceil() as usize).min(h - 1)
+                for y in
+                    ((cy - 5.0).floor().max(0.0) as usize)..=((cy + 5.0).ceil() as usize).min(h - 1)
                 {
                     for x in ((cx - 5.0).floor().max(0.0) as usize)
                         ..=((cx + 5.0).ceil() as usize).min(w - 1)

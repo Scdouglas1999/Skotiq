@@ -2,8 +2,8 @@ use crate::builtin_guider::config::{
     guiding_failure_reason, GuiderConfig, Vec2, BUILTIN_GUIDER_ID, GUIDE_MAX_MATCH_DISTANCE_PX,
 };
 use crate::builtin_guider::loop_runner::{
-    capture_and_store_loop_frame, ensure_connected, ensure_frame_available,
-    resolve_devices, resolve_unbinned_guide_pixel_scale, run_guiding_loop,
+    capture_and_store_loop_frame, ensure_connected, ensure_frame_available, resolve_devices,
+    resolve_unbinned_guide_pixel_scale, run_guiding_loop,
 };
 use crate::builtin_guider::metrics::{
     choose_lock_star, nearest_star, select_reference_stars, update_snapshot_from_frame, PulseDebt,

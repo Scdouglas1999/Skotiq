@@ -189,13 +189,7 @@ pub(crate) async fn apply_filter_focus_offset(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Result<(), DeviceError> {
-    if ctx
-        .run
-        .rig
-        .focuser_id
-        .as_deref()
-        .is_none_or(str::is_empty)
-    {
+    if ctx.run.rig.focuser_id.as_deref().is_none_or(str::is_empty) {
         return Ok(());
     }
 

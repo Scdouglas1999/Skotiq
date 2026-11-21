@@ -344,10 +344,7 @@ static LIVE_STACK_RESOLVER: OnceLock<LiveStackResolver> = OnceLock::new();
 /// Register the bridge's in-memory live-stack lookup hooks so Darkroom can
 /// render and draft recipes directly over active live stacks while keeping
 /// `skotiq_processing` decoupled from `skotiq_bridge`.
-pub fn register_live_stack_resolver(
-    identity: LiveStackIdentityFn,
-    op_image: LiveStackOpImageFn,
-) {
+pub fn register_live_stack_resolver(identity: LiveStackIdentityFn, op_image: LiveStackOpImageFn) {
     let _ = LIVE_STACK_RESOLVER.set(LiveStackResolver { identity, op_image });
 }
 

@@ -140,7 +140,12 @@ impl StackProvenance {
         self.stacked_frames = self.stacked_frames.saturating_add(1);
         self.pedestal_removed |= frame.pedestal != 0.0;
         if self.filter.is_none() {
-            if let Some(f) = frame.filter.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+            if let Some(f) = frame
+                .filter
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
                 self.filter = Some(f.to_string());
             }
         }
