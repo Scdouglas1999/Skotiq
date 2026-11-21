@@ -95,7 +95,7 @@ const _dartPackages = <String, _DartPackage>{
         'formatters). Keep it free of Flutter and of other Skotiq packages; '
         'callers pass in what it needs.',
   ),
-  'skotiq_design': _DartPackage({}),
+  'skotiq_design': _DartPackage({'skotiq_astro'}),
   'skotiq_relay': _DartPackage(
     {},
     pureDart: true,

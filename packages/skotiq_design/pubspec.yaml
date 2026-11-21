@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # The filter-name rule (package:skotiq_astro/filters.dart); astro is pure Dart.
+  skotiq_astro:
+    path: ../skotiq_astro
 
 dev_dependencies:
   flutter_test:
