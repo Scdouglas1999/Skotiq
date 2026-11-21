@@ -3,7 +3,7 @@ import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
+import '../backend/remote_host.dart';
 import '../models/meridian_flip_event.dart';
 import 'backend_provider.dart';
 import 'meridian_flip_provider.dart';
@@ -12,7 +12,7 @@ import 'meridian_flip_provider.dart';
 /// on the host only; a viewer's authoritative source is its runtime snapshot.
 final meridianFlipTelemetryProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
-  if (backend is NetworkBackend) return;
+  if (backend.linksToHost) return;
   final subscription = backend.eventStream.listen(
     (event) {
       if (event.eventType != 'InstructionProgress' ||

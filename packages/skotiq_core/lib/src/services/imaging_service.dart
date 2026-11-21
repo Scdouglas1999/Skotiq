@@ -13,7 +13,6 @@ import '../models/imaging/imaging_models.dart';
 import '../models/imaging/naming_pattern.dart';
 import '../providers/clock_provider.dart';
 import '../providers/equipment_provider.dart';
-import '../providers/flat_wizard_provider.dart';
 import '../providers/capability_provider.dart' show cameraSensitivityProvider;
 import '../providers/imaging_provider.dart';
 import '../providers/async_scope.dart';
@@ -106,13 +105,16 @@ class ImagingService {
   /// camera's frames are written and recorded by this process.
   ImagingService(
     this._ref, {
+    required bool Function() flatCaptureBusy,
     HostFiles? hostFiles,
     HostImagingRecords? hostRecords,
-  }) : _host = _ref.providerBackendScope(),
+  }) : _flatCaptureBusy = flatCaptureBusy,
+       _host = _ref.providerBackendScope(),
        _logger = _ref.read(loggingServiceProvider),
        _hostFiles = hostFiles,
        _hostRecords = hostRecords;
 
+  final bool Function() _flatCaptureBusy;
   final HostFiles? _hostFiles;
   final HostImagingRecords? _hostRecords;
 

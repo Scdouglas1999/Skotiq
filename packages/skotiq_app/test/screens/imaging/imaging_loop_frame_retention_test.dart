@@ -23,7 +23,7 @@ import '../../harness/harness.dart';
 import 'package:skotiq_app/services/manual_capture_controller.dart';
 
 class _LoopSpyImagingService extends ImagingService {
-  _LoopSpyImagingService(super.ref);
+  _LoopSpyImagingService(super.ref) : super(flatCaptureBusy: () => false);
 
   final loopStarted = Completer<void>();
   final loopStopped = Completer<void>();
@@ -130,6 +130,7 @@ void main() {
 
     service.cancelExposure();
     await tester.pump();
+    await handle.unmount(tester);
   });
 
   testWidgets('turning the capture-bar toggle on makes Loop keep its frames',
@@ -150,5 +151,6 @@ void main() {
 
     service.cancelExposure();
     await tester.pump();
+    await handle.unmount(tester);
   });
 }

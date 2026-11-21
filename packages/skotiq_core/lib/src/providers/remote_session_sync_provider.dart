@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/network_backend.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/sequence/sequence_models.dart';
@@ -80,7 +79,7 @@ final remoteSessionSyncProvider = Provider<void>((ref) {
     previous,
     next,
   ) {
-    if (ref.read(backendProvider) is NetworkBackend &&
+    if (ref.read(backendProvider).linksToHost &&
         previous?.isBusy == true &&
         next.canStart) {
       // Sequence cleanup can end an exposure without a camera terminal event.

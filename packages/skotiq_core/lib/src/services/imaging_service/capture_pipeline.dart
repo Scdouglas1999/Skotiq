@@ -22,7 +22,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     int? purposeStep,
     int? purposeSteps,
   }) async {
-    if (_ref.read(flatWizardProvider.notifier).isBusy) {
+    if (_flatCaptureBusy()) {
       throw const DeviceBusyException(
         message: 'Flat capture in progress',
         userMessage: 'A flat capture is using the camera',

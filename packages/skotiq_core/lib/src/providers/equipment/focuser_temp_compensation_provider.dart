@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../backend/network_backend.dart';
+import '../../backend/remote_host.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../backend_provider.dart';
@@ -114,7 +114,7 @@ class FocuserTempCompensator {
     AsyncValue<AppSettingsState> next,
   ) {
     // A viewer shows the host's baseline. It does not clear or replace it.
-    if (_ref.read(backendProvider) is NetworkBackend) return;
+    if (_ref.read(backendProvider).linksToHost) return;
     // When the user disables compensation, drop the baseline so a re-enable
     // captures a fresh reference instead of acting on stale data.
     final settings = next.valueOrNull;
@@ -186,7 +186,7 @@ class FocuserTempCompensator {
   void _onFocuserChanged(FocuserState? previous, FocuserState next) {
     // Mirrored focuser telemetry must not move the focuser. Compensation
     // runs on the host.
-    if (_ref.read(backendProvider) is NetworkBackend) return;
+    if (_ref.read(backendProvider).linksToHost) return;
     final settings = _ref.read(appSettingsProvider).valueOrNull;
     if (settings == null || !settings.tempCompensation) {
       return;

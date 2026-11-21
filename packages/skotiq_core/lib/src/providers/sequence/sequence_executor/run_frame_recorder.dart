@@ -5,7 +5,7 @@ import 'package:path/path.dart' as p;
 
 import '../../backend_provider.dart';
 import '../../../backend/frame_capture_metadata.dart';
-import '../../../backend/network_backend.dart' show NetworkBackend;
+import '../../../backend/remote_host.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/backend/host_mutation_event.dart';
 import '../../host_mutation_event_provider.dart';
@@ -348,7 +348,7 @@ class RunFrameRecorder {
   }
 
   void _notifyPersistedFrame(int rowId, String action) {
-    if (_isDisposed() || _backend is NetworkBackend) return;
+    if (_isDisposed() || _backend.linksToHost) return;
     _ref
         .read(hostMutationEventHubProvider)
         .publishRemoteOnly(

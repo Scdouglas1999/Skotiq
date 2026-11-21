@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/imaging/frame_files.dart';
 import 'backend_provider.dart';
+import 'flat_wizard_provider.dart';
 import 'linked_host.dart';
 import '../services/imaging_service.dart';
 
@@ -12,6 +13,7 @@ final imagingServiceProvider = Provider<ImagingService>((ref) {
   ref.watch(backendProvider);
   final service = ImagingService(
     ref,
+    flatCaptureBusy: () => ref.read(flatWizardProvider.notifier).isBusy,
     hostFiles: ref.watch(linkedHostFilesProvider),
     hostRecords: ref.watch(linkedHostImagingRecordsProvider),
   );

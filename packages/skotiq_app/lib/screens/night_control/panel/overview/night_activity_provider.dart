@@ -86,6 +86,7 @@ NightActivityKind resolveNightActivity({
       _ => NightActivityKind.flip,
     };
   }
+  final activity = node?.kind.activity;
   final centeringActive = switch (centering) {
     CenteringState.exposing ||
     CenteringState.solving ||
@@ -95,7 +96,7 @@ NightActivityKind resolveNightActivity({
     _ => false,
   };
   if (centeringActive ||
-      node is CenterNode ||
+      activity == NodeActivity.center ||
       detailKind == 'Center' ||
       manualAction == ManualActionId.center ||
       manualAction == ManualActionId.solve ||
@@ -105,17 +106,13 @@ NightActivityKind resolveNightActivity({
   if (execution == SequenceExecutionState.recovering) {
     return NightActivityKind.recovery;
   }
-  if (detailKind == 'Autofocus' || node is AutofocusNode) {
+  if (detailKind == 'Autofocus' || activity == NodeActivity.focus) {
     return NightActivityKind.focus;
   }
-  if (node is SlewNode ||
-      node is ParkNode ||
-      node is UnparkNode ||
-      node is HomeMountNode ||
-      detailKind == 'Slew') {
+  if (activity == NodeActivity.slew || detailKind == 'Slew') {
     return NightActivityKind.slew;
   }
-  if (node is MeridianFlipNode ||
+  if (activity == NodeActivity.flip ||
       detailKind == 'MeridianFlip' ||
       manualAction == ManualActionId.flip) {
     return NightActivityKind.flip;
@@ -124,14 +121,11 @@ NightActivityKind resolveNightActivity({
   if (settling ||
       detailKind == 'Dither' ||
       detailKind == 'Guiding' ||
-      node is DitherNode ||
-      node is StartGuidingNode ||
-      node is StopGuidingNode ||
+      activity == NodeActivity.guide ||
       manualAction == ManualActionId.dither) {
     return NightActivityKind.guide;
   }
-  if (node is ExposureNode ||
-      node is SmartExposureNode ||
+  if (activity == NodeActivity.capture ||
       detailKind == 'Exposure' ||
       detailKind == 'SmartExposure') {
     return NightActivityKind.capture;
@@ -160,11 +154,7 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
   // A completed sub-operation must not keep its panel when capture resumes.
   final detailKind = percent != null && percent >= 100
       ? null
-      : switch (structured) {
-          ExposureInstructionProgressDetail() => 'Exposure',
-          UnknownInstructionProgressDetail(:final kind) => kind,
-          _ => null,
-        };
+      : structured?.wire.detailKind;
   final camera = ref.watch(cameraStateProvider);
   final mount = ref.watch(mountStateProvider);
   final center = ref.watch(centeringStatusProvider);
@@ -194,9 +184,7 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
       true,
     _ => false,
   };
-  final raw = structured is UnknownInstructionProgressDetail
-      ? structured.rawJson
-      : const <String, Object?>{};
+  final raw = structured?.wire.detailJson ?? const <String, Object?>{};
   double? number(String key) => switch (raw[key]) {
         final num value => value.toDouble(),
         _ => null,

@@ -67,7 +67,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../harness/harness.dart';
 
 class _ControllableImagingService extends ImagingService {
-  _ControllableImagingService(this.ref) : super(ref);
+  _ControllableImagingService(this.ref) : super(ref, flatCaptureBusy: () => false);
 
   final Ref ref;
   final previewPublished = Completer<void>();
@@ -378,7 +378,7 @@ void main() {
   testWidgets('snapshot stays disabled while the visible frame is still saving',
       (tester) async {
     late _ControllableImagingService service;
-    await pumpAppScreen(
+    final handle = await pumpAppScreen(
       tester,
       const ImagingScreen(),
       size: const Size(1600, 900),
@@ -429,6 +429,7 @@ void main() {
       isNotNull,
     );
     expect(tester.takeException(), isNull);
+    await handle.unmount(tester);
   });
 
   testWidgets('leaving the Imaging screen stops an active manual loop',

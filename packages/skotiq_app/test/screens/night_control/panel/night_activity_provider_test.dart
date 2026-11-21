@@ -5,7 +5,9 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provi
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/overview/night_activity_provider.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 void main() {
   test('run lifecycle wins over leftover hardware activity', () {
@@ -107,15 +109,14 @@ void main() {
     final container = ProviderContainer(overrides: [
       activeEquipmentProfileProvider.overrideWithValue(null),
       nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.running),
       nightActiveStepProvider.overrideWithValue(NightPlanEntry(
           node: node, depth: 0, multiplier: 1, openEnded: false)),
     ]);
     addTearDown(container.dispose);
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
     final subscription = container.listen(nightActivityProvider, (_, next) {});
     addTearDown(subscription.close);
-    final progress = container.read(sequenceProgressProvider.notifier);
+    final progress = container.read(runRecordProvider.notifier);
     progress.updateProgress(currentNodeId: node.id, currentTarget: 'M74');
     container.read(cameraStateProvider.notifier).setExposing(true);
     container
@@ -141,8 +142,7 @@ void main() {
         container.read(nightActivityProvider).kind, NightActivityKind.capture);
     container.read(exposureProgressProvider.notifier).startDownload();
     expect(container.read(nightActivityProvider).progress, isNull);
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.recovering;
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.recovering);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.recovery);
   });
@@ -152,8 +152,6 @@ void main() {
     final container = ProviderContainer(overrides: [
       activeEquipmentProfileProvider.overrideWithValue(null),
       nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.running),
       nightActiveStepProvider.overrideWithValue(NightPlanEntry(
           node: CenterNode(id: 'center'),
           depth: 0,
@@ -161,9 +159,10 @@ void main() {
           openEnded: false)),
     ]);
     addTearDown(container.dispose);
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.running);
     final subscription = container.listen(nightActivityProvider, (_, next) {});
     addTearDown(subscription.close);
-    final p = container.read(sequenceProgressProvider.notifier);
+    final p = container.read(runRecordProvider.notifier);
     p.updateProgress(currentNodeId: 'center');
     p.updateNodeStructuredProgress(
         'center',
@@ -205,8 +204,6 @@ void main() {
     final container = ProviderContainer(overrides: [
       activeEquipmentProfileProvider.overrideWithValue(null),
       nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.running),
       nightActiveStepProvider.overrideWithValue(NightPlanEntry(
           node: ExposureNode(id: 'exposure'),
           depth: 0,
@@ -214,7 +211,8 @@ void main() {
           openEnded: true)),
     ]);
     addTearDown(container.dispose);
-    final progress = container.read(sequenceProgressProvider.notifier);
+    final progress = container.read(runRecordProvider.notifier);
+    progress.setLifecycle(SequenceExecutionState.running);
     progress.updateProgress(currentNodeId: 'trigger:flip');
     progress.updateNodeStructuredProgress(
         'trigger:flip',
@@ -237,10 +235,9 @@ void main() {
       activeEquipmentProfileProvider.overrideWithValue(null),
       nightRunPhaseProvider.overrideWith((ref) => ref.watch(phase)),
       nightActiveStepProvider.overrideWithValue(null),
-      sequenceExecutionStateProvider
-          .overrideWith((ref) => SequenceExecutionState.paused),
     ]);
     addTearDown(container.dispose);
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.paused);
     container.read(flipExecutionStateProvider.notifier).state =
         FlipExecutionState.executing;
     container.read(flipCurrentStepProvider.notifier).state =
@@ -249,8 +246,7 @@ void main() {
         container.read(nightActivityProvider).title.key, 'nightActivityPaused');
     expect(container.read(nightActivityProvider).context, isNull);
     container.read(phase.notifier).state = NightRunPhase.stopping;
-    container.read(sequenceExecutionStateProvider.notifier).state =
-        SequenceExecutionState.cleanupFailed;
+    container.read(runRecordProvider.notifier).setLifecycle(SequenceExecutionState.cleanupFailed);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.failed);
     expect(container.read(nightActivityProvider).context, isNull);

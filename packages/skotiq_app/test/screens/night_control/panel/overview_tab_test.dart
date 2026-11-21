@@ -102,7 +102,8 @@ void main() {
     expect(find.text('2.13'), findsOneWidget);
     expect(find.text('Session'), findsOneWidget);
     expect(find.textContaining('87 frames'), findsOneWidget);
-    expect(find.text('Equipment'), findsNothing);
+    expect(find.text('Equipment'), findsOneWidget);
+    expect(find.text('−10.0 °C · 20% · g139 o21 · 1×1'), findsOneWidget);
     expect(find.text('Capturing'), findsWidgets);
     expect(find.text('139'), findsOneWidget);
     expect(find.text('Safe'), findsOneWidget);
@@ -182,7 +183,7 @@ void main() {
     );
 
     expect(find.text('Before you start'), findsOneWidget);
-    expect(find.text('Equipment'), findsNothing);
+    expect(find.text('Equipment'), findsOneWidget);
     expect(find.text('2 to look at'), findsOneWidget);
     expect(find.text('Last frame'), findsNothing);
     expect(find.text('Session'), findsNothing);

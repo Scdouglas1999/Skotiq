@@ -25,7 +25,7 @@ import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart';
 /// Imaging service whose [captureImage] returns a caller-supplied frame, or
 /// throws a caller-supplied error, so each test can drive the exposure stage.
 class _FakeImagingService extends ImagingService {
-  _FakeImagingService(super.ref, {this.result, this.error});
+  _FakeImagingService(super.ref, {this.result, this.error}) : super(flatCaptureBusy: () => false);
 
   final CapturedImageData? result;
   final Object? error;
