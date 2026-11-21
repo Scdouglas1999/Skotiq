@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:shelf/shelf.dart';
 
@@ -112,23 +113,71 @@ class EquipmentHandlers implements RouteSource {
   Future<Response> handleFocuserStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    return jsonOk(
-      await _sharedStatusRead(
-        'focuser|$deviceId',
-        () async => (await backend.getFocuserStatus(deviceId)).toJson(),
-      ),
+    final key = 'focuser|$deviceId';
+    final fresh = !_sharedReadIsCurrent(key);
+    final json = await _sharedStatusRead(
+      key,
+      () async => (await backend.getFocuserStatus(deviceId)).toJson(),
     );
+    if (fresh) _noteFocuserReading(deviceId, json);
+    return jsonOk(json);
   }
 
   Future<Response> handleFilterWheelStatus(Request request) async {
     final deviceId = _requireDeviceId(request);
     final backend = container.read(deviceBackendProvider);
-    return jsonOk(
-      await _sharedStatusRead(
-        'filterWheel|$deviceId',
-        () async => (await backend.getFilterWheelStatus(deviceId)).toJson(),
-      ),
+    final key = 'filterWheel|$deviceId';
+    final fresh = !_sharedReadIsCurrent(key);
+    final json = await _sharedStatusRead(
+      key,
+      () async => (await backend.getFilterWheelStatus(deviceId)).toJson(),
     );
+    if (fresh) _noteFilterWheelReading(deviceId, json);
+    return jsonOk(json);
+  }
+
+  bool _sharedReadIsCurrent(String key) {
+    final recent = _sharedStatus[key];
+    if (recent == null) return false;
+    return _now().difference(recent.startedAt) < statusShareWindow;
+  }
+
+  /// A status read that just hit the driver, for the connected card only.
+  /// A shared read from before a newer command must not move the card
+  /// backwards, and a status read does not mark the device connected.
+  void _noteFocuserReading(String deviceId, Map<String, dynamic> json) {
+    if (json['connected'] != true) return;
+    final position = json['position'];
+    if (position is! int) return;
+    final state = container.read(focuserStateProvider);
+    if (state.deviceId != deviceId ||
+        state.connectionState != DeviceConnectionState.connected) {
+      return;
+    }
+    final notifier = container.read(focuserStateProvider.notifier)
+      ..updatePosition(position)
+      ..setMoving(json['moving'] == true);
+    final temperature = json['temperature'];
+    if (temperature is num) notifier.updateTemperature(temperature.toDouble());
+  }
+
+  void _noteFilterWheelReading(String deviceId, Map<String, dynamic> json) {
+    if (json['connected'] != true) return;
+    final position = json['position'];
+    if (position is! int) return;
+    final state = container.read(filterWheelStateProvider);
+    if (state.deviceId != deviceId ||
+        state.connectionState != DeviceConnectionState.connected) {
+      return;
+    }
+    final notifier = container.read(filterWheelStateProvider.notifier);
+    final names = json['filterNames'];
+    if (names is List && names.isNotEmpty) {
+      notifier.setFilterNames([for (final name in names) '$name']);
+    }
+    notifier
+      ..updatePosition(position)
+      ..setMoving(json['moving'] == true);
   }
 
   Future<Response> handleRotatorStatus(Request request) async {
