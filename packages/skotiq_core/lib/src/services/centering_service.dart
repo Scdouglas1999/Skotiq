@@ -54,8 +54,15 @@ final class HostCenteringRunner implements CenteringRunner {
   bool _cancelRequested = false;
 
   @override
-  Stream<ApiCenteringStep> center(ApiCenteringRequest request) async* {
+  Stream<ApiCenteringStep> center(ApiCenteringRequest request) {
+    // The async* body does not run until the first listen. Resetting the flag
+    // there drops a cancel() that arrived after center() returned and before
+    // that listen.
     _cancelRequested = false;
+    return _center(request);
+  }
+
+  Stream<ApiCenteringStep> _center(ApiCenteringRequest request) async* {
     final jobId = await _host.startCentering(
       raHours: request.raHours,
       decDegrees: request.decDegrees,
@@ -342,7 +349,10 @@ class CenteringService {
       );
     }
     if (_retired) {
-      return _failure('Centering cancelled: host connection changed', iterations);
+      return _failure(
+        'Centering cancelled: host connection changed',
+        iterations,
+      );
     }
     report(
       CenteringState.completed,
