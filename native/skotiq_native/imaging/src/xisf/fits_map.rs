@@ -483,27 +483,19 @@ fn fits_time(time: &str) -> Option<String> {
     Some(dt.format("%Y-%m-%dT%H:%M:%S%.f").to_string())
 }
 
-/// The `imageType` literal for an `IMAGETYP` card, which writers spell many
-/// ways ("Light", "LIGHT", "Light Frame", "Master Dark", "MASTER_LIGHT").
+/// The `imageType` literal for an `IMAGETYP` card, read as
+/// [`skotiq_frame::FrameKind::from_imagetyp`] reads the spellings writers use.
 fn image_type_of(card: &str) -> Option<&'static str> {
-    let t = card.to_ascii_lowercase();
-    let master = t.contains("master");
-    let base = if t.contains("bias") || t.contains("offset") {
-        "Bias"
-    } else if t.contains("dark") {
-        "Dark"
-    } else if t.contains("flat") {
-        "Flat"
-    } else if t.contains("light") || t.contains("science") || t.contains("object") {
-        "Light"
-    } else {
-        return None;
-    };
-    Some(match (master, base) {
-        (false, base) => base,
-        (true, "Bias") => "MasterBias",
-        (true, "Dark") => "MasterDark",
-        (true, "Flat") => "MasterFlat",
+    use skotiq_frame::FrameType;
+    let kind = skotiq_frame::FrameKind::from_imagetyp(card)?;
+    Some(match (kind.master, kind.base) {
+        (false, FrameType::Bias) => "Bias",
+        (false, FrameType::Dark) => "Dark",
+        (false, FrameType::Flat) => "Flat",
+        (false, _) => "Light",
+        (true, FrameType::Bias) => "MasterBias",
+        (true, FrameType::Dark) => "MasterDark",
+        (true, FrameType::Flat) => "MasterFlat",
         (true, _) => "MasterLight",
     })
 }

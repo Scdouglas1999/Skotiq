@@ -830,11 +830,10 @@ fn validate_flat_pedestal(flat: &FitsHeader, pedestal: &FitsHeader) -> Result<()
             }
         }
     }
-    let kind = pedestal
+    let is_bias = pedestal
         .get_string("IMAGETYP")
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    let is_bias = kind.contains("bias") || kind.contains("offset");
+        .and_then(skotiq_imaging::FrameKind::from_imagetyp)
+        .is_some_and(|kind| kind.base == skotiq_imaging::FrameType::Bias);
     if !is_bias {
         if let (Some(a), Some(b)) = (flat.get_float("EXPTIME"), pedestal.get_float("EXPTIME")) {
             // Dark current in a dark-flat of 0.1 s or less is negligible, so it
