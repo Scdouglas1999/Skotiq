@@ -239,7 +239,9 @@ void main() {
           edited,
         );
 
-        previewGate.complete(_previewFor(plan.withoutLights({'/lights/l2.fits': 'cloud'})));
+        previewGate.complete(
+          _previewFor(plan.withoutLights({'/lights/l2.fits': 'cloud'})),
+        );
         await excludeFuture;
 
         final after = container.read(darkroomBuildJobsProvider)!;
@@ -247,7 +249,8 @@ void main() {
         expect(
           after.plan!.processing,
           edited,
-          reason: 'in-flight exclude must not overwrite concurrent setProcessing',
+          reason:
+              'in-flight exclude must not overwrite concurrent setProcessing',
         );
       },
     );
@@ -318,20 +321,21 @@ void main() {
         final tempDir = await Directory.systemTemp.createTemp('dr_jobs_');
         addTearDown(() => tempDir.delete(recursive: true));
         final service = _FakeDarkroomBuildService(
-          onBuildUnattended: ({
-            required target,
-            required frames,
-            required directory,
-            required minRetainedArea,
-            required requireCalibration,
-            required selectedFlats,
-            onPreview,
-            onStep,
-          }) async {
-            throw StateError(
-              'Stopped. Resume this folder to keep completed filters.',
-            );
-          },
+          onBuildUnattended:
+              ({
+                required target,
+                required frames,
+                required directory,
+                required minRetainedArea,
+                required requireCalibration,
+                required selectedFlats,
+                onPreview,
+                onStep,
+              }) async {
+                throw StateError(
+                  'Stopped. Resume this folder to keep completed filters.',
+                );
+              },
         );
         final container = ProviderContainer(
           overrides: [
@@ -405,6 +409,76 @@ void main() {
 
         previewGate.complete(_previewFor(_makePlan()));
         await framing;
+      },
+    );
+
+    test(
+      'an exclude and a replan in flight both keep their light-list edits',
+      () async {
+        final gate = Completer<DarkroomRegistrationPreview>();
+        var calls = 0;
+        final service = _FakeDarkroomBuildService(
+          onPreviewRegistration: (plan, previous) {
+            calls++;
+            if (calls == 1) return Future.value(_previewFor(plan));
+            if (calls == 2) return gate.future;
+            return Future.value(_previewFor(plan));
+          },
+        );
+        final container = ProviderContainer(
+          overrides: [
+            darkroomBuildServiceProvider.overrideWithValue(service),
+            darkroomStateStoreProvider.overrideWithValue(
+              _FlakyDarkroomStateStore(),
+            ),
+            postSessionSeamProvider.overrideWithValue(_FakePostSessionSeam()),
+            notificationServiceProvider.overrideWithValue(
+              _FakeNotificationService(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final jobs = container.read(darkroomBuildJobsProvider.notifier);
+        final plan = DarkroomBuildPlan.fromJson({
+          'version': 1,
+          'target': 'NGC 891',
+          'referencePath': '/lights/l1.fits',
+          'minOverlap': 0.8,
+          'maxEccentricity': 0.7,
+          'minRetainedArea': 0.8,
+          'processing': const DarkroomProcessingOptions().toJson(),
+          'groups': [
+            {
+              'filter': 'L',
+              'label': 'L-1',
+              'calibration': <String, Object?>{},
+              'lights': [
+                {'id': 1, 'path': '/lights/l1.fits', 'exposureSec': 120.0},
+                {'id': 2, 'path': '/lights/l2.fits', 'exposureSec': 120.0},
+                {'id': 3, 'path': '/lights/l3.fits', 'exposureSec': 120.0},
+              ],
+            },
+          ],
+        });
+        await jobs.checkFraming(target: 'NGC 891', plan: plan);
+
+        final excluded = jobs.exclude({'/lights/l2.fits': 'cloud'});
+        final replanned = jobs.replan(
+          plan.withoutLights({'/lights/l3.fits': 'trail'}),
+        );
+        gate.complete(_previewFor(plan));
+        await excluded;
+        await replanned;
+
+        expect(
+          container
+              .read(darkroomBuildJobsProvider)!
+              .plan!
+              .lights
+              .map((light) => light['path']),
+          ['/lights/l1.fits'],
+        );
       },
     );
   });
