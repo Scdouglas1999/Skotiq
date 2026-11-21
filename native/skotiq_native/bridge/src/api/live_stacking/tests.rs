@@ -763,31 +763,43 @@ fn multi_filter_stacks_darkroom_and_progressive_nebula_reveal() {
 }
 
 #[test]
-fn stretch_live_stack_f32_preview_handles_saturated_and_hdr_frames_without_panicking() {
-    // Previously `white_point = ...clamp(black_point + 1e-4, 65535.0)` panicked
-    // when median ≈ 65535 (saturated frame) or when f32 values exceeded 65535.
+fn stretch_above_16bit_ceiling_uses_the_white_point_clamp() {
+    // `white_point.clamp(black_point + 1e-4, 65535)` panics once the sky sits
+    // above that ceiling: black_point ≈ median, so the clamp's lower bound
+    // exceeds 65535. A flat field never gets there — MAD is 0, sigma_eff hits
+    // the `<= 1e-6` early return, and the clamp is not evaluated. The pedestal
+    // below is several ADU of repeating structure so both the global MAD and
+    // the dx=2 local difference are well above that floor (sigma_eff ≈ 21).
+    //
+    // Independent of the stretch code: the sky is the median sample, and a
+    // frame-count of 1 targets that sky at 0.14 (byte ~36). A linear
+    // early-return stretch of this symmetric pedestal lands at byte 128.
     let w = 64u32;
     let h = 64u32;
-    let mut saturated = vec![65535.0_f32; (w * h) as usize];
-    // Introduce slight local variation so sigma_eff > 1e-6 and the clamp path runs.
-    for (i, px) in saturated.iter_mut().enumerate() {
-        if i % 7 == 0 {
-            *px = 65534.5;
+    let mut hdr = vec![0.0f32; (w * h) as usize];
+    for y in 0..h as usize {
+        for x in 0..w as usize {
+            hdr[y * w as usize + x] = 90_000.0 + (x % 5) as f32 * 10.0;
         }
     }
-    let preview = stretch_live_stack_f32_preview(w, h, 1, &saturated, 1, 0)
-        .expect("saturated frame must render without panicking");
+    let preview = stretch_live_stack_f32_preview(w, h, 1, &hdr, 1, 0)
+        .expect("HDR pedestal above 65535 must render");
+    assert_eq!(preview.width, w);
+    assert_eq!(preview.height, h);
     assert_eq!(preview.rgba.len(), (w * h * 4) as usize);
 
-    let mut hdr = vec![80000.0_f32; (w * h) as usize];
-    for (i, px) in hdr.iter_mut().enumerate() {
-        if i % 5 == 0 {
-            *px = 79500.0;
-        }
-    }
-    let preview_hdr = stretch_live_stack_f32_preview(w, h, 1, &hdr, 4, 0)
-        .expect("HDR (>65535) f32 frame must render without panicking");
-    assert_eq!(preview_hdr.rgba.len(), (w * h * 4) as usize);
+    let mut levels: Vec<u8> = preview.rgba.iter().step_by(4).copied().collect();
+    levels.sort_unstable();
+    let mid = levels[levels.len() / 2];
+    assert!(
+        (20..=70).contains(&mid),
+        "sky must map near the 0.14 shadow target, got median byte {mid}"
+    );
+    assert!(
+        levels[levels.len() - 1] >= 250,
+        "the bright end of the pedestal must reach the white point, got {}",
+        levels[levels.len() - 1]
+    );
 }
 
 #[test]

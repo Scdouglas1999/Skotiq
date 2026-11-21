@@ -240,6 +240,7 @@ impl SlotMeta {
     }
 }
 
+/// One filter's stack. Lock order is on [`LIVE_STACKERS`].
 struct SlotHandle {
     meta: RwLock<SlotMeta>,
     stacker: Mutex<LiveStacker>,
@@ -332,6 +333,14 @@ impl StackerRegistry {
     }
 }
 
+/// Lock order, outermost first: `SlotHandle.stacker`, this registry,
+/// `SlotHandle.meta`, `SlotHandle.preview_cache`.
+///
+/// Add and reset hold `stacker` while they bump the registry revision.
+/// Nothing holds the registry and then locks `stacker`: lookups clone the
+/// slot `Arc` and drop the registry guard first. `sync_atomic_counters`
+/// reads `meta` under the registry, which is registry-before-meta. `meta`
+/// and `preview_cache` are not held across a registry or stacker lock.
 static LIVE_STACKERS: OnceLock<Mutex<StackerRegistry>> = OnceLock::new();
 static ACTIVE_SLOT_COUNT: AtomicU32 = AtomicU32::new(0);
 static ACTIVE_FRAME_COUNT: AtomicU32 = AtomicU32::new(0);
