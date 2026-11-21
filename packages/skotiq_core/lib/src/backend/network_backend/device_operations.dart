@@ -396,16 +396,6 @@ mixin _NetworkBackendDeviceOperations on NetworkBackendTransport {
     }
   }
 
-  String? _headerValue(Map<String, String> headers, String name) {
-    final lower = name.toLowerCase();
-    for (final entry in headers.entries) {
-      if (entry.key.toLowerCase() == lower) {
-        return entry.value;
-      }
-    }
-    return null;
-  }
-
   @override
   Future<void> cameraSetCooling({
     required String deviceId,

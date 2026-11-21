@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'flat_wizard_provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // skotiq_backend.dart re-exports every role interface
 // (DeviceBackend / GuidingBackend / ImagingBackend / SequencerBackend /
@@ -309,6 +311,13 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     final oldBackend = state;
     if (identical(oldBackend, newBackend)) {
       return;
+    }
+
+    if (_ref.exists(flatWizardProvider) &&
+        _ref.read(flatWizardProvider.notifier).localRunActive) {
+      throw StateError(
+        'Finish or cancel flat capture before changing the imaging host.',
+      );
     }
 
     final launchInFlight = _ref.read(sequenceLaunchInFlightProvider);

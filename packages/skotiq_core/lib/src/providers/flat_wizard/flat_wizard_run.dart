@@ -31,38 +31,22 @@ extension FlatWizardRun on FlatWizardNotifier {
   Future<void> runCapture() async {
     // Busy latch FIRST (synchronous, before any await) so a second start is
     // rejected even while the async validation below is in flight.
-    if (_running || _remoteBusy) {
+    if (_captureActive) {
       Log.warning(
         'FlatWizard: runCapture ignored — a run is already active',
         source: 'FlatWizardNotifier',
       );
       return;
     }
-    final authority = ref.read(backendProvider);
-    if (authority is NetworkBackend) {
-      // A linked client does not expose. The host runs the draft and keeps
-      // going if this process leaves; commanding the camera here as well
-      // would start a second exposure on the same rig.
-      _cancelToken = null;
-      _running = true;
-      try {
-        final snapshot = await authority.startFlatWizardRun(_linkedHostDraft());
-        if (!mounted) return;
-        applyHostSnapshot(snapshot);
-      } catch (error, stack) {
-        Log.error(
-          'FlatWizard: could not start the host run: $error',
-          source: 'FlatWizardNotifier',
-          error: error,
-          stackTrace: stack,
-        );
-        if (!mounted) return;
-        setErrorMessage(
-          'Could not start flat capture on the imaging host: $error',
-        );
-      } finally {
-        _running = false;
-      }
+    final host = ref.read(linkedHostFlatWizardProvider);
+    if (host != null) {
+      if (_startPromptReserved) return;
+      await _startLinkedRun(host);
+      return;
+    }
+    final conflict = startBlockReason;
+    if (conflict != null) {
+      setErrorMessage(conflict);
       return;
     }
     _running = true;
@@ -105,14 +89,6 @@ extension FlatWizardRun on FlatWizardNotifier {
       }
       final cameraId = cameraState.deviceId!;
 
-      // Global camera/hardware ownership: refuse to start if the camera is
-      // already mid-exposure for another operation (imaging/sequence). Prevents
-      // two owners driving the same camera into a fault.
-      if (cameraState.isExposing) {
-        setErrorMessage('Camera is busy with another exposure');
-        return;
-      }
-
       // Without a chosen folder, flats go to `Flats` in the capture folder.
       // On a host that folder may not exist yet, so the capture folder is
       // what gets checked; the host creates the rest when it writes.
@@ -137,7 +113,7 @@ extension FlatWizardRun on FlatWizardNotifier {
           );
         } catch (error) {
           setErrorMessage(
-            'Flat-frame save path is not usable on the imaging host: $error',
+            'Flat-frame save path is not usable on the imaging host: ${userFacingError(error)}',
           );
           setStatusMessage('Failed: choose a writable host folder.');
           return;
@@ -687,17 +663,14 @@ extension FlatWizardRun on FlatWizardNotifier {
         error: e,
         stackTrace: st,
       );
-      setErrorMessage('Capture failed: $e');
+      setErrorMessage('Capture failed: ${userFacingError(e)}');
       setStatusMessage('Capture failed.');
     } finally {
       // Persist the final status message (do NOT clear it) — the run's outcome
       // stays visible until a deliberate next start or reset. Only the
       // transient capture/exposing flags are cleared and the latch released.
-      state = state.copyWith(isCapturing: false, isExposing: false);
       _running = false;
-      // The snapshot reads the latch while it builds. The write above ran
-      // while the latch was still held, so publish once more with it down.
-      if (mounted) state = state.copyWith();
+      state = state.copyWith(isCapturing: false, isExposing: false);
       if (!ref.read(flatRunOutputProvider).isEmpty) {
         try {
           unawaited(ref.read(calibrationBacklogProvider.notifier).refresh());

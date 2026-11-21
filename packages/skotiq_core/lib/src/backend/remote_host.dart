@@ -33,6 +33,7 @@ export 'network_backend.dart'
         HostControlSession,
         HostDeviceControl,
         HostFiles,
+        HostFlatWizard,
         HostFocusModels,
         HostHistory,
         HostImagingRecords,
@@ -121,6 +122,8 @@ final class RemoteHost {
   HostDeviceControl get devices => _backend;
 
   HostFiles get files => _backend;
+
+  HostFlatWizard get flatWizard => _backend;
 
   HostFocusModels get focusModels => _backend;
 

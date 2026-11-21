@@ -53,6 +53,8 @@ class _FixedBackendNotifier extends BackendNotifier {
   _FixedBackendNotifier(super.ref, SkotiqBackend backend) : super() {
     state = backend;
   }
+
+  void use(SkotiqBackend backend) => state = backend;
 }
 
 class _MutableCameraNotifier extends CameraStateNotifier {
@@ -90,6 +92,7 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
   final StreamController<SkotiqEvent> _events =
       StreamController<SkotiqEvent>.broadcast();
   int saveCount = 0;
+  int exposureStarts = 0;
   final List<int> wheelMoves = [];
   int _seq = 0;
 
@@ -155,6 +158,7 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
     int? width,
     int? height,
   }) async {
+    exposureStarts++;
     if (blockExposure) return; // never completes — the run parks
     scheduleMicrotask(() {
       if (_events.isClosed) return;
@@ -198,6 +202,20 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
       StreamController<SkotiqEvent>.broadcast();
   final List<String> savedPaths = [];
   final List<Map<String, dynamic>> startBodies = [];
+  Completer<Map<String, dynamic>>? pendingStart;
+  final preview = Completer<CapturedImageResult>();
+  int cancels = 0;
+
+  @override
+  Future<CapturedImageResult> getFlatWizardPreview(String key) =>
+      preview.future;
+
+  @override
+  Future<Map<String, dynamic>> cancelFlatWizardRun() async {
+    cancels++;
+    return {};
+  }
+
   int exposureStarts = 0;
   int _seq = 0;
 
@@ -206,6 +224,7 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
     Map<String, dynamic> draft,
   ) async {
     startBodies.add(draft);
+    if (pendingStart != null) return pendingStart!.future;
     return {'state': draft, 'busy': false, 'output': {}};
   }
 
@@ -727,6 +746,136 @@ void main() {
     );
     expect(local, isEmpty);
   });
+
+  test(
+    'flat admission protects the sequence, manual camera and start prompt',
+    () async {
+      final backend = _WorkflowBackend();
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      final draft = container.read(flatWizardProvider);
+      final record = container.read(runRecordProvider.notifier);
+      record.setLaunching(true);
+      expect(wizard.startHostRun(draft), isFalse);
+      await wizard.runCapture();
+      expect(
+        container.read(flatWizardProvider).errorMessage,
+        contains('sequencer'),
+      );
+      record.setLaunching(false);
+      record.setLifecycle(SequenceExecutionState.paused);
+      expect(wizard.startHostRun(draft), isFalse);
+      record.setLifecycle(SequenceExecutionState.completed);
+      container.read(sessionStateProvider.notifier).setCapturing(true);
+      expect(wizard.startHostRun(draft), isFalse);
+      container.read(sessionStateProvider.notifier).setCapturing(false);
+      container.read(cameraStateProvider.notifier).setExposing(true);
+      expect(wizard.startHostRun(draft), isFalse);
+      container.read(cameraStateProvider.notifier).setExposing(false);
+      container.read(rawCameraExposureInFlightProvider.notifier).state = true;
+      expect(wizard.startHostRun(draft), isFalse);
+      container.read(rawCameraExposureInFlightProvider.notifier).state = false;
+      expect(wizard.reserveStartPrompt(), isTrue);
+      expect(wizard.startHostRun(draft), isFalse);
+      wizard.releaseStartPrompt();
+      expect(wizard.startBlockReason, isNull);
+      expect(backend.exposureStarts, 0);
+    },
+  );
+
+  test(
+    'a linked start leaves the default folder to the host and orders cancellation after admission',
+    () async {
+      final host = _ThrowingHistoryBackend()..pendingStart = Completer();
+      addTearDown(host.dispose);
+      final container = makeContainer(host, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      wizard.updateGlobalSettings(
+        container
+            .read(flatWizardProvider)
+            .globalSettings
+            .copyWith(savePath: null),
+      );
+      final started = wizard.runCapture();
+      final body = host.startBodies.single;
+      expect((body['globalSettings'] as Map)['savePath'], isNull);
+      wizard.requestCancel();
+      expect(host.cancels, 0);
+      host.pendingStart!.complete({'state': body, 'busy': true, 'output': {}});
+      await started;
+      expect(host.cancels, 1);
+      expect(host.exposureStarts, 0);
+    },
+  );
+
+  test(
+    'switching hosts drops the old run, preview and pending commands',
+    () async {
+      final oldHost = _ThrowingHistoryBackend()..pendingStart = Completer();
+      final newHost = _ThrowingHistoryBackend();
+      addTearDown(oldHost.dispose);
+      addTearDown(newHost.dispose);
+      final container = makeContainer(oldHost, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      final starting = wizard.runCapture();
+      final old = {
+        'state': oldHost.startBodies.single,
+        'busy': true,
+        'output': {},
+        'previewKey': 'old',
+      };
+      wizard.applyHostSnapshot(old);
+      expect(wizard.isBusy, isTrue);
+      (container.read(backendProvider.notifier) as _FixedBackendNotifier).use(
+        newHost,
+      );
+      wizard.requestCancel();
+      oldHost.pendingStart!.complete(old);
+      oldHost.preview.complete(_image(1000));
+      await starting;
+      await _pump();
+      expect(wizard.isBusy, isFalse);
+      expect(container.read(flatWizardProvider).lastImageData, isNull);
+      expect(
+        container.read(flatWizardProvider).globalSettings.savePath,
+        isNull,
+      );
+      expect(container.read(flatRunOutputProvider).remote, isFalse);
+      expect(oldHost.cancels, 0);
+      expect(newHost.cancels, 0);
+    },
+  );
+
+  test(
+    'the last streamed state wins over a late start reply and keeps the selected tab',
+    () async {
+      final host = _ThrowingHistoryBackend()..pendingStart = Completer();
+      addTearDown(host.dispose);
+      final container = makeContainer(host, wheel: const FilterWheelState());
+      final wizard = await primeWizard(container);
+      wizard.setMode(FlatWizardMode.batch);
+      wizard.toggleAduGraph(false);
+      final start = wizard.runCapture();
+      final state = {
+        ...host.startBodies.single,
+        'mode': 'quick',
+        'showAduGraph': true,
+      };
+      wizard.applyHostSnapshot({
+        'state': {...state, 'statusMessage': 'Completed'},
+        'busy': false,
+        'output': {},
+      });
+      host.pendingStart!.complete({'state': state, 'busy': true, 'output': {}});
+      await start;
+      expect(wizard.isBusy, isFalse);
+      final shown = container.read(flatWizardProvider);
+      expect(shown.mode, FlatWizardMode.batch);
+      expect(shown.showAduGraph, isFalse);
+      expect(shown.statusMessage, 'Completed');
+    },
+  );
 
   test('a linked Windows host gets flat paths in its own path style', () async {
     final backend = _ThrowingHistoryBackend();

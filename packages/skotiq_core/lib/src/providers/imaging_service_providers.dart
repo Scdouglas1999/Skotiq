@@ -7,6 +7,9 @@ import 'flat_wizard_provider.dart';
 import 'linked_host.dart';
 import '../services/imaging_service.dart';
 
+/// The headless camera exposure owns the sensor through readout and download.
+final rawCameraExposureInFlightProvider = StateProvider<bool>((ref) => false);
+
 final imagingServiceProvider = Provider<ImagingService>((ref) {
   // Capture is backend-owned. Rebuild the service when the active host
   // changes so callers can use service identity as an authority boundary.

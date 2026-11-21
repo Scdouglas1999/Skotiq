@@ -24,6 +24,10 @@ final linkedHostImagingRecordsProvider = linkedOnlyProvider(
 
 final linkedHostDevicesProvider = linkedOnlyProvider((host) => host.devices);
 
+final linkedHostFlatWizardProvider = linkedOnlyProvider(
+  (host) => host.flatWizard,
+);
+
 final linkedHostFilesProvider = linkedOnlyProvider((host) => host.files);
 
 final linkedHostFocusModelsProvider = linkedOnlyProvider(

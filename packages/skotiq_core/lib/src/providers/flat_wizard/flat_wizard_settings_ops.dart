@@ -64,7 +64,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   /// file's other fault paths) or once a run or a user edit already owns the
   /// settings (the revision + [_running] guards). A store failure must never
   /// surface to the UI, so it is swallowed after logging.
-  Future<void> _hydrateGlobalSettings() async {
+  Future<void> _hydrateGlobalSettings({bool restoreSavePath = true}) async {
     final revisionAtStart = _settingsRevision;
     try {
       final raw = await ref
@@ -73,7 +73,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       if (raw == null) return;
       // A run in flight or an eager user edit owns the live settings — never
       // clobber it with the stale on-disk value.
-      if (_running || _remoteBusy || _settingsRevision != revisionAtStart) {
+      if (_captureActive || _settingsRevision != revisionAtStart) {
         return;
       }
       final decoded = jsonDecode(raw);
@@ -81,7 +81,9 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       final current = state.globalSettings;
       state = state.copyWith(
         globalSettings: current.copyWith(
-          savePath: decoded['savePath'] as String?,
+          savePath: restoreSavePath
+              ? decoded['savePath'] as String?
+              : current.savePath,
           histogramTarget:
               (decoded['histogramTarget'] as num?)?.toDouble() ??
               current.histogramTarget,
@@ -168,7 +170,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     // 0), and the screen re-invokes it on every init (postFrameCallback); doing
     // so mid-run would wipe the live per-filter bookkeeping the truthful final
     // summary is computed from.
-    if (_running || _remoteBusy) return;
+    if (_captureActive) return;
 
     final fwState = ref.read(filterWheelStateProvider);
     // A camera with no wheel and no profile filters gets one unfiltered row,
@@ -244,8 +246,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
       );
     }
 
-    if (_running ||
-        _remoteBusy ||
+    if (_captureActive ||
         revision != _filterRevision ||
         key != _filterPreferences().key) {
       return;
@@ -313,7 +314,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   /// filter list (with stable original indices) at start, so enabling/disabling
   /// a filter mid-run would desynchronize those indices from the live list.
   void toggleFilter(int index, bool enabled) {
-    if (_running || _remoteBusy) return;
+    if (_captureActive) return;
     if (index < 0 || index >= state.filterSettings.length) return;
 
     final updated = [...state.filterSettings];
@@ -324,7 +325,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
   /// Update per-filter settings. No-op while capturing (see [toggleFilter]).
   void updateFilterSettings(int index, FlatFilterSettings settings) {
-    if (_running || _remoteBusy) return;
+    if (_captureActive) return;
     if (index < 0 || index >= state.filterSettings.length) return;
 
     final updated = [...state.filterSettings];
@@ -376,7 +377,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
   /// Auto-order filters for twilight. No-op while capturing (reorder guard).
   void autoOrderForTwilight() {
-    if (_running || _remoteBusy) return;
+    if (_captureActive) return;
     if (state.filterSettings.isEmpty) return;
 
     // Define filter restrictiveness (higher = more restrictive = less light)
@@ -456,27 +457,15 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   }
 
   void requestCancel() {
-    final backend = ref.read(backendProvider);
-    if (backend is NetworkBackend) {
-      // The exposure token lives on the host. Leaving this screen does not
-      // call here, so the host run continues; a Stop still reaches it.
-      (_cancelToken ??= FlatCancelToken()).cancel();
-      if (_running || _remoteBusy) {
-        state = state.copyWith(statusMessage: 'Canceling...');
+    final host = ref.read(linkedHostFlatWizardProvider);
+    if (host != null) {
+      if ((!_remoteBusy && _pendingHostStart == null) || cancelRequested) {
+        return;
       }
-      unawaited(
-        backend.cancelFlatWizardRun().then(
-          (_) {},
-          onError: (Object error, StackTrace stack) {
-            Log.warning(
-              'FlatWizard: could not cancel the host run: $error',
-              source: 'FlatWizardNotifier',
-              error: error,
-              stackTrace: stack,
-            );
-          },
-        ),
-      );
+      (_cancelToken ??= FlatCancelToken()).cancel();
+      state = state.copyWith(statusMessage: 'Canceling...');
+      // A cancel must reach the host after it has admitted our start.
+      if (_pendingHostStart == null) unawaited(_cancelLinkedRun(host));
       return;
     }
     // Cooperative: flip the active run's token. The run's calibration and
@@ -561,7 +550,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
   /// a user change mid-run would repoint the capture. Mirrors [toggleFilter]'s
   /// guard.
   void selectQuickFilter(int index) {
-    if (_running || _remoteBusy) return;
+    if (_captureActive) return;
     if (index < 0 || index >= state.filterSettings.length) return;
     state = state.copyWith(currentFilterIndex: index);
   }

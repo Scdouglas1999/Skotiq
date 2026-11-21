@@ -8,7 +8,7 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
   /// when a run already holds the latch; the caller answers 409 and does
   /// not start another capture.
   bool startHostRun(FlatWizardState draft) {
-    if (_running) return false;
+    if (startBlockReason != null) return false;
     _settingsRevision++;
     _filterRevision++;
     state = state.copyWith(
@@ -36,7 +36,10 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
     } on Object catch (error) {
       throw FormatException('Flat wizard snapshot state is not usable: $error');
     }
+    final output = _flatRunOutputFromSnapshot(snapshot['output']);
+    _hostSnapshotRevision++;
     _remoteBusy = snapshot['busy'] == true || incoming.isCapturing;
+    if (!_remoteBusy && _pendingHostStart == null) _cancelToken = null;
     _settingsRevision++;
     _filterRevision++;
     final key = snapshot['previewKey'] is String
@@ -57,35 +60,73 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
     );
     ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
       remote: true,
-      filters: _flatRunOutputFromSnapshot(snapshot['output']),
+      filters: output,
     );
     if (key == _remotePreviewKey) return;
     _remotePreviewKey = key;
     final generation = ++_previewGeneration;
-    final backend = ref.read(backendProvider);
-    if (key == null || backend is! NetworkBackend) return;
+    final backend = ref.read(linkedHostFlatWizardProvider);
+    if (key == null || backend == null) return;
     unawaited(_loadHostPreview(backend, key, generation));
   }
 
-  Map<String, dynamic> _linkedHostDraft() {
-    final chosen = state.globalSettings.savePath?.trim();
-    if (chosen != null && chosen.isNotEmpty) {
-      return flatWizardStateWire(state);
+  Future<void> _startLinkedRun(HostFlatWizard host) async {
+    final request = Object();
+    final revision = _hostSnapshotRevision;
+    _pendingHostStart = request;
+    _cancelToken = null;
+    try {
+      final snapshot = await host.startFlatWizardRun(
+        flatWizardStateWire(state),
+      );
+      if (!mounted || !identical(_pendingHostStart, request)) return;
+      if (_hostSnapshotRevision == revision) applyHostSnapshot(snapshot);
+      if (_remoteBusy && cancelRequested) await _cancelLinkedRun(host);
+    } catch (error, stack) {
+      Log.error(
+        'Could not start the host flat run',
+        source: 'FlatWizardNotifier',
+        error: error,
+        stackTrace: stack,
+      );
+      if (mounted && identical(_pendingHostStart, request)) {
+        setErrorMessage(
+          'Could not start flat capture on the imaging host: ${userFacingError(error)}',
+        );
+      }
+    } finally {
+      if (mounted && identical(_pendingHostStart, request)) {
+        _pendingHostStart = null;
+        if (!_remoteBusy) _cancelToken = null;
+      }
     }
-    final capture =
-        (ref.read(appSettingsProvider).valueOrNull?.imageOutputPath ?? '')
-            .trim();
-    final folder = defaultFlatFolder(capture, onHost: true);
-    if (folder == null) return flatWizardStateWire(state);
-    return flatWizardStateWire(
-      state.copyWith(
-        globalSettings: state.globalSettings.copyWith(savePath: folder),
-      ),
-    );
+  }
+
+  Future<void> _cancelLinkedRun(HostFlatWizard host) async {
+    final token = _cancelToken;
+    try {
+      await host.cancelFlatWizardRun();
+    } catch (error, stack) {
+      Log.warning(
+        'Could not cancel the host flat run',
+        source: 'FlatWizardNotifier',
+        error: error,
+        stackTrace: stack,
+      );
+      if (!mounted ||
+          !identical(_cancelToken, token) ||
+          !identical(ref.read(linkedHostFlatWizardProvider), host)) {
+        return;
+      }
+      _cancelToken = null;
+      setErrorMessage(
+        'Could not cancel flat capture on the imaging host: ${userFacingError(error)}',
+      );
+    }
   }
 
   Future<void> _loadHostPreview(
-    NetworkBackend backend,
+    HostFlatWizard backend,
     String key,
     int generation,
   ) async {
@@ -122,17 +163,27 @@ Map<String, FlatRunFilterOutput> _flatRunOutputFromSnapshot(Object? raw) {
     final filter = map['filter'];
     final exposure = map['exposureSeconds'];
     final paths = map['paths'];
-    if (filter is! String || exposure is! num || paths is! List) {
+    final binX = map['binX'];
+    final binY = map['binY'];
+    if (filter is! String ||
+        exposure is! num ||
+        !exposure.isFinite ||
+        paths is! List ||
+        paths.any((path) => path is! String) ||
+        binX is! int ||
+        binX < 1 ||
+        binY is! int ||
+        binY < 1) {
       throw FormatException('Flat run output for $key is incomplete');
     }
     filters[key] = FlatRunFilterOutput(
       filter: filter,
       exposureSeconds: exposure.toDouble(),
-      paths: [for (final path in paths) '$path'],
+      paths: List<String>.from(paths),
       gain: map['gain'] as int?,
       offset: map['offset'] as int?,
-      binX: (map['binX'] as num?)?.toInt() ?? 1,
-      binY: (map['binY'] as num?)?.toInt() ?? 1,
+      binX: binX,
+      binY: binY,
     );
   }
   return filters;

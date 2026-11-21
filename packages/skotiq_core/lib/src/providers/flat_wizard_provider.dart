@@ -11,9 +11,14 @@ import 'linked_host.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../utils/host_paths.dart';
-import '../backend/network_backend.dart';
+import '../errors/error_text.dart';
+import 'host_role.dart';
+import 'sequence/sequence_progress.dart';
+import 'session_provider.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/flat_wizard/flat_capture_config.dart';
+import '../models/sequence/sequence_models.dart'
+    show SequenceExecutionStateCapabilities;
 import '../models/imaging/imaging_models.dart' show ExposureSettings, FrameType;
 import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
@@ -49,23 +54,9 @@ final flatWizardProvider =
       return FlatWizardNotifier(ref);
     });
 
-/// The draft as JSON. Nested wizard objects implement `toJson` but are not
-/// themselves JSON values, so a plain [jsonEncode] of [FlatWizardState.toJson]
-/// cannot carry them.
-Map<String, dynamic> flatWizardStateWire(FlatWizardState state) {
-  return jsonDecode(
-        jsonEncode(state.toJson(), toEncodable: _encodeFlatWizardValue),
-      )
-      as Map<String, dynamic>;
-}
-
-Object? _encodeFlatWizardValue(Object? value) {
-  try {
-    return (value as dynamic).toJson();
-  } on NoSuchMethodError {
-    throw JsonUnsupportedObjectError(value);
-  }
-}
+/// Encode the nested Freezed settings and filters into plain wire maps.
+Map<String, dynamic> flatWizardStateWire(FlatWizardState state) =>
+    jsonDecode(jsonEncode(state)) as Map<String, dynamic>;
 
 /// Run metadata a linked client mirrors. Preview pixels travel separately.
 final flatWizardSnapshotProvider = Provider<Map<String, dynamic>>((ref) {
@@ -135,6 +126,8 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   /// The imaging host's run, mirrored onto this client. Set from a snapshot;
   /// the capture itself is not in this process.
   bool _remoteBusy = false;
+  Object? _pendingHostStart;
+  int _hostSnapshotRevision = 0;
 
   /// Preview key last applied from the host. A decode for an older key, or
   /// one that finishes after dispose, is dropped.
@@ -162,6 +155,29 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
 
   FlatWizardNotifier(this.ref) : super(const FlatWizardState()) {
     unawaited(_hydrateGlobalSettings());
+    ref.listenAcrossHosts((host) => host?.flatWizard, (_) {
+      _pendingHostStart = null;
+      _remoteBusy = false;
+      _remotePreviewKey = null;
+      _previewGeneration++;
+      if (_running) return;
+      _cancelToken = null;
+      _settingsRevision++;
+      _filterRevision++;
+      _loadedFilterKey = null;
+      state = FlatWizardState(
+        mode: state.mode,
+        twilightMode: state.twilightMode,
+        showAduGraph: state.showAduGraph,
+        showExposureTimeline: state.showExposureTimeline,
+        showSkyBrightness: state.showSkyBrightness,
+        showFilterCards: state.showFilterCards,
+        showHistogramOverlay: state.showHistogramOverlay,
+      );
+      ref.read(flatRunOutputProvider.notifier).state = const FlatRunOutput();
+      unawaited(_hydrateGlobalSettings(restoreSavePath: false));
+      unawaited(loadFilters());
+    });
     ref.listen(effectiveFiltersProvider, (previous, next) {
       if (!listEquals(previous, next)) unawaited(loadFilters());
     });
@@ -178,13 +194,35 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
 
   bool _startPromptReserved = false;
 
+  /// The camera is running on this process, so changing backends would orphan it.
+  bool get localRunActive => _running;
+
+  bool get _captureActive =>
+      _running || _remoteBusy || _pendingHostStart != null;
+
   /// Whether capture startup, a local run, or a mirrored host run owns the
   /// wizard.
-  bool get isBusy => _running || _remoteBusy || _startPromptReserved;
+  bool get isBusy => _captureActive || _startPromptReserved;
+
+  /// The host checks this synchronously at the point it admits a draft.
+  String? get startBlockReason {
+    if (isBusy) return 'A flat capture is already in progress';
+    if (ref.read(sequenceLaunchInFlightProvider) ||
+        ref.read(sequenceExecutionStateProvider).ownsHardware) {
+      return 'The sequencer is using the camera';
+    }
+    if (ref.read(rawCameraExposureInFlightProvider) ||
+        ref.read(cameraStateProvider).isExposing ||
+        ref.read(sessionStateProvider).isCapturing ||
+        ref.read(imagingServiceProvider).isCapturing) {
+      return 'Camera is busy with another exposure';
+    }
+    return null;
+  }
 
   void reset() {
     // Refuse to wipe state out from under an active run; cancel it instead.
-    if (_running || _remoteBusy) {
+    if (_captureActive) {
       requestCancel();
       return;
     }

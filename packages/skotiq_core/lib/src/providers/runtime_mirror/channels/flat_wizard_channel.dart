@@ -1,3 +1,4 @@
+import '../../backend_provider.dart';
 import '../../flat_wizard_provider.dart';
 import '../runtime_mirror_channel.dart';
 
@@ -20,7 +21,10 @@ class FlatWizardChannel extends RuntimeMirrorChannel<Map<String, dynamic>> {
 
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
-    if (value == null || context.networkBackend == null) return;
+    if (value == null ||
+        !identical(context.networkBackend, context.read(backendProvider))) {
+      return;
+    }
     context.read(flatWizardProvider.notifier).applyHostSnapshot(value);
   }
 }
