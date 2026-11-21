@@ -14,6 +14,8 @@
 // consumes. The widget test then checks that the banner string and
 // "View changes" link are visible.
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,12 +53,27 @@ class _FakeDiffService implements SequenceDiffService {
 }
 
 class _FakeSequenceRepository implements SequenceRepository {
-  _FakeSequenceRepository(this.sequence);
+  _FakeSequenceRepository(this.sequence, {this.snapshotJson});
 
   final Sequence sequence;
 
+  /// The completed run's stored document. Defaults to [sequence] itself.
+  final String? snapshotJson;
+
   @override
   Future<Sequence?> loadSequence(int sequenceId) async => sequence;
+
+  @override
+  Future<SequenceRunDiffContext> loadRunDiffContext(int runId) async {
+    final json =
+        snapshotJson ??
+        jsonEncode(SequenceFileService().sequenceToMap(sequence));
+    return SequenceRunDiffContext(
+      sequenceId: sequence.databaseId,
+      currentSnapshotJson: json,
+      previousSnapshotJson: null,
+    );
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -233,5 +250,134 @@ void main() {
     expect(find.textContaining('Sequence has changed', findRichText: true),
         findsNothing,
         reason: 'No previous-run diff banner for an unsaved sequence.');
+  });
+
+  Sequence _plan({
+    required String rootId,
+    required String exposureId,
+    required double seconds,
+    int? databaseId,
+  }) {
+    final root = InstructionSetNode(
+      id: rootId,
+      name: 'root',
+      childIds: [exposureId],
+    );
+    final exposure = ExposureNode(
+      id: exposureId,
+      parentId: rootId,
+      durationSecs: seconds,
+      count: 1,
+    );
+    return Sequence.create(
+      name: 'Test',
+      nodes: {root.id: root, exposure.id: exposure},
+      rootNodeId: root.id,
+      databaseId: databaseId,
+    );
+  }
+
+  Future<void> _pumpDiff(
+    WidgetTester tester, {
+    required Sequence editor,
+    required Sequence library,
+    required String snapshotJson,
+  }) async {
+    final completedRun = SequenceRun(
+      id: 7,
+      sequenceId: 42,
+      sequenceName: 'Test',
+      startedAt: DateTime.utc(2026, 1, 1),
+      endedAt: DateTime.utc(2026, 1, 1, 1),
+      status: 'completed',
+      statsJson: '{}',
+    );
+    final container = ProviderContainer(overrides: [
+      inMemoryDatabaseOverride(),
+      currentSequenceProvider.overrideWith(
+        (ref) => _SeedingNotifier(ref, editor),
+      ),
+      sequenceRunsForSequenceProvider.overrideWith(
+        (ref, sequenceId) => Stream.value([completedRun]),
+      ),
+      sequenceRepositoryProvider.overrideWithValue(
+        _FakeSequenceRepository(library, snapshotJson: snapshotJson),
+      ),
+      sequenceValidatorProvider
+          .overrideWith((ref) => _FakeValidator(_emptyResult())),
+      appSettingsProvider.overrideWith(() => _FakeAppSettingsNotifier()),
+    ]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(_wrap(container, const PreFlightValidationDialog()));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets(
+      'a run snapshot that matches the editor shows no banner when the '
+      'library row has new node ids', (tester) async {
+    final files = SequenceFileService();
+    final editor = _plan(
+      rootId: 'editor-root',
+      exposureId: 'editor-exposure',
+      seconds: 60,
+      databaseId: 42,
+    );
+    final library = _plan(
+      rootId: 'library-root',
+      exposureId: 'library-exposure',
+      seconds: 60,
+      databaseId: 42,
+    );
+    final editorMap = files.sequenceToMap(editor);
+    final libraryMap = files.sequenceToMap(library);
+    expect(editorMap, isNot(equals(libraryMap)));
+
+    await _pumpDiff(
+      tester,
+      editor: editor,
+      library: library,
+      snapshotJson: jsonEncode(editorMap),
+    );
+
+    expect(
+      find.textContaining('Sequence has changed', findRichText: true),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+      'a run snapshot whose exposure differs from the editor shows the '
+      'banner even when the library row matches the editor', (tester) async {
+    final files = SequenceFileService();
+    final editor = _plan(
+      rootId: 'same-root',
+      exposureId: 'same-exposure',
+      seconds: 60,
+      databaseId: 42,
+    );
+    final snapshot = _plan(
+      rootId: 'same-root',
+      exposureId: 'same-exposure',
+      seconds: 90,
+      databaseId: 42,
+    );
+    final editorMap = files.sequenceToMap(editor);
+    final snapshotMap = files.sequenceToMap(snapshot);
+    expect(snapshotMap, isNot(equals(editorMap)));
+
+    await _pumpDiff(
+      tester,
+      editor: editor,
+      library: editor,
+      snapshotJson: jsonEncode(snapshotMap),
+    );
+
+    expect(
+      find.textContaining(
+        'Sequence has changed since last successful run',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
   });
 }
