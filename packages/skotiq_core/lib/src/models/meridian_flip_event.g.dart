@@ -50,6 +50,8 @@ Map<String, dynamic> _$MeridianFlipStepStartedToJson(
 
 const _$FlipStepEnumMap = {
   FlipStep.pausingGuider: 'pausingGuider',
+  FlipStep.enablingTracking: 'enablingTracking',
+  FlipStep.confirmingTracking: 'confirmingTracking',
   FlipStep.stoppingTracking: 'stoppingTracking',
   FlipStep.slewingToTarget: 'slewingToTarget',
   FlipStep.verifyingPierSide: 'verifyingPierSide',

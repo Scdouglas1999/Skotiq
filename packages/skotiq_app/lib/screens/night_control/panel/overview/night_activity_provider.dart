@@ -356,6 +356,9 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
         _ => false,
       };
   final stageKey = switch (flipStep) {
+    FlipStep.enablingTracking ||
+    FlipStep.confirmingTracking =>
+      'nightActivityFlip',
     FlipStep.pausingGuider => 'nightActivityFlipPauseGuide',
     FlipStep.stoppingTracking => 'nightActivityFlipStopTracking',
     FlipStep.slewingToTarget => 'nightActivitySlew',
