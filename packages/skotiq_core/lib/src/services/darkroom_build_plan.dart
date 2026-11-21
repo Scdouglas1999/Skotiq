@@ -42,6 +42,8 @@ class DarkroomBuildPlan {
       throw const FormatException('Invalid framing or star-shape limits.');
     }
     final paths = <String>{};
+    final groupIds = <String>{};
+    final identifiedGroups = <Map<String, dynamic>>[];
     for (final group in groups) {
       if (group is! Map ||
           group['filter'] is! String ||
@@ -83,6 +85,13 @@ class DarkroomBuildPlan {
           );
         }
       }
+      // Paths are unique within a plan. Keep the original anchor through
+      // framing edits, even when that light is temporarily excluded.
+      final id = group['groupId'] ?? (group['lights'] as List).first['path'];
+      if (id is! String || id.isEmpty || !groupIds.add(id)) {
+        throw const FormatException('Invalid or duplicate build group ID.');
+      }
+      identifiedGroups.add(Map<String, dynamic>.from(group)..['groupId'] = id);
     }
     if (!paths.contains(value['referencePath'])) {
       throw const FormatException('Reference must be an included light.');
@@ -97,6 +106,7 @@ class DarkroomBuildPlan {
     return DarkroomBuildPlan._(
       jsonEncode({
         ...value,
+        'groups': identifiedGroups,
         'minRetainedArea': retained,
         'processing': processing.toJson(),
       }),

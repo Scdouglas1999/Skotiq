@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' show Offset;
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,9 +14,6 @@ import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/notification_service_provider.dart';
 import 'package:skotiq_core/src/providers/output_locations_provider.dart';
 import 'package:skotiq_core/src/providers/post_session_seam_provider.dart';
-import 'package:skotiq_core/src/services/darkroom_build_jobs.dart';
-import 'package:skotiq_core/src/services/darkroom_build_service.dart';
-import 'package:skotiq_core/src/services/darkroom_state_store.dart';
 
 class _FakePostSessionSeam implements PostSessionSeam {
   @override
@@ -192,6 +188,52 @@ DarkroomRegistrationPreview _previewFor(DarkroomBuildPlan plan) =>
 
 void main() {
   group('DarkroomBuildJobs reliability', () {
+    test(
+      'restoring an excluded light preserves its calibration group',
+      () async {
+        final service = _FakeDarkroomBuildService();
+        final store = _FlakyDarkroomStateStore();
+        final container = ProviderContainer(
+          overrides: [
+            darkroomBuildServiceProvider.overrideWithValue(service),
+            darkroomStateStoreProvider.overrideWithValue(store),
+            postSessionSeamProvider.overrideWithValue(_FakePostSessionSeam()),
+            notificationServiceProvider.overrideWithValue(
+              _FakeNotificationService(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final jobs = container.read(darkroomBuildJobsProvider.notifier);
+
+        final value = _makePlan().toJson();
+        final first = Map<String, dynamic>.from(
+          (value['groups'] as List).single as Map,
+        )..remove('groupId');
+        final lights = first['lights'] as List;
+        value['groups'] = [
+          {
+            ...first,
+            'calibration': {'flat': 'flat-a'},
+            'lights': [lights.first],
+          },
+          {
+            ...first,
+            'calibration': {'flat': 'flat-b'},
+            'lights': [lights.last],
+          },
+        ];
+        final plan = DarkroomBuildPlan.fromJson(value);
+        await jobs.checkFraming(target: 'NGC 891', plan: plan);
+        await jobs.exclude({'/lights/l2.fits': 'cloud'});
+        await jobs.replan(plan);
+        final restored = container.read(darkroomBuildJobsProvider)!.plan!;
+        final groups = restored.toJson()['groups'];
+        expect(groups, plan.toJson()['groups']);
+      },
+    );
+
     test(
       'preserves concurrent setProcessing edits during in-flight exclude',
       () async {

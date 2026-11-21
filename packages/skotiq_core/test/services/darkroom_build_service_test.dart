@@ -613,6 +613,29 @@ void main() {
     );
 
     test(
+      'resume reuses a journal written before group IDs were stored',
+      () async {
+        final output = Directory('${folder.path}/run');
+        await service.run(
+          plan,
+          output,
+          accepted: await service.previewRegistration(plan),
+        );
+        final journal = File('${output.path}/plan.json');
+        final saved = jsonDecode(await journal.readAsString()) as Map;
+        final savedPlan = saved['plan'] as Map<String, dynamic>;
+        for (final group in savedPlan['groups'] as List) {
+          (group as Map).remove('groupId');
+        }
+        await journal.writeAsString(jsonEncode(saved));
+
+        final built = List.of(native.built);
+        await service.run(DarkroomBuildPlan.fromJson(savedPlan), output);
+        expect(native.built, built);
+      },
+    );
+
+    test(
       'the RGB and LRGB composites register as color masters, once',
       () async {
         final groups = [

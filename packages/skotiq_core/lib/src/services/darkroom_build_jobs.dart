@@ -667,7 +667,7 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
         }
         if (extras.isEmpty) continue;
         final index = groups.indexWhere(
-          (g) => g['filter'] == group['filter'] && g['label'] == group['label'],
+          (g) => g['groupId'] == group['groupId'],
         );
         if (index >= 0) {
           groups[index] = {
@@ -703,8 +703,9 @@ class DarkroomBuildJobs extends Notifier<DarkroomBuildJob?> {
       'maxEccentricity',
       'referencePath',
     ]) {
-      if (editedValue[key] != baselineValue[key])
+      if (editedValue[key] != baselineValue[key]) {
         merged[key] = editedValue[key];
+      }
     }
     merged['groups'] = groups;
     merged['excluded'] = excluded;

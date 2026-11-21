@@ -787,7 +787,9 @@ class DarkroomBuildService {
       final journal = File(p.join(directory.path, 'plan.json'));
       if (await journal.exists()) {
         final saved = jsonDecode(await journal.readAsString()) as Map;
-        final savedPlan = saved['plan'] as Map;
+        final savedPlan = DarkroomBuildPlan.fromJson(
+          Map<String, dynamic>.from(saved['plan'] as Map),
+        ).toJson();
         final savedInputs = saved['inputs'] as Map;
         final before = _filterInputs(savedPlan, savedInputs);
         final after = _filterInputs(plan, inputs);
