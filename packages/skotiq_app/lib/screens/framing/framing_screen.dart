@@ -122,9 +122,31 @@ class _FramingViewState extends ConsumerState<FramingView> {
     );
   }
 
+  void _showFramedTarget(FramingTarget target) {
+    // Skip a write that would not change the text: assigning the same
+    // string moves the caret and fights a field the operator is editing.
+    if (_searchController.text != target.name) {
+      _searchController.text = target.name;
+    }
+    if (_raController.text != target.raFormatted) {
+      _raController.text = target.raFormatted;
+    }
+    if (_decController.text != target.decFormatted) {
+      _decController.text = target.decFormatted;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
+    // The target only. Rotation and survey updates must not reset the fields.
+    ref.listen<FramingTarget?>(
+      framingProvider.select((state) => state.target),
+      (previous, target) {
+        if (target == null) return;
+        _showFramedTarget(target);
+      },
+    );
     final framingState = ref.watch(framingProvider);
     final searchState = ref.watch(targetSearchProvider);
     final equipmentResult = ref.watch(framingFOVProvider);

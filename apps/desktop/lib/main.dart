@@ -19,6 +19,7 @@ import 'package:window_manager/window_manager.dart';
 import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
 import 'desktop_shutdown_safing.dart';
+import 'desktop_instance.dart';
 import 'desktop_logging_init.dart';
 import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
@@ -167,33 +168,15 @@ void main(List<String> args) async {
     });
   }
 
-  final bootPaths = await initialiseDesktopLogging();
+  // Hold the database before logging opens native stores. A probe here used
+  // to take the lock and drop it; the second process could then pass and
+  // open SQLite, and SQLITE_BUSY was read as corruption. The claim stays
+  // for the process. The database open shares it. exit(75) is EX_TEMPFAIL,
+  // and it has to be exit() — returning leaves the process alive.
+  await claimDesktopInstance();
+  startupTimeline.mark('single-instance claim');
 
-  // Single-instance invariant, checked before any window or database work.
-  // The GUI and the headless service resolve the SAME default database path,
-  // so launching twice would point two SQLite writers at one file — and the
-  // second opener's SQLITE_BUSY reads as corruption, which quarantines the
-  // operator's real database and replaces it with an empty one. Refuse here,
-  // in the same shape as the --serve/--remote-host conflict above, so the
-  // operator gets a sentence instead of a data-loss incident.
-  //
-  // Advisory: the authoritative claim is taken when the database is actually
-  // opened, so a launch that races past this still fails safely.
-  final databaseFile = await resolveDefaultDatabaseFile();
-  final contended = await SingleInstanceLock.probe(databaseFile);
-  final heldBy = contended;
-  if (heldBy != null) {
-    stderr.writeln('Skotiq: ${heldBy.message}');
-    Log.error(heldBy.message, source: 'desktop.main', error: heldBy);
-    // exit(), not `exitCode = …; return;`: the native bridge has already
-    // started its hot-plug poll watcher and USB hotplug listener by the time
-    // main() runs, and those keep the Dart isolate alive forever. Returning
-    // here leaves a windowless process running against the other instance's
-    // rig — verified on Linux, where the refused launch sat at 0% CPU
-    // indefinitely instead of exiting.
-    exit(75); // EX_TEMPFAIL — try again once the other instance exits.
-  }
-  startupTimeline.mark('single-instance probe');
+  final bootPaths = await initialiseDesktopLogging();
 
   // The role, decided once for the life of this process. Flags and variables
   // win; without them, the rig the connect flow remembered makes this a linked

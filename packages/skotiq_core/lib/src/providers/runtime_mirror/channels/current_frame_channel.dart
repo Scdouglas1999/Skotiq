@@ -4,7 +4,7 @@ import '../../../models/imaging/imaging_models.dart'
     show CapturedImageData, ExposureSettings, FramePurpose, FrameType;
 import '../../../services/imaging_service.dart' show currentImageProvider;
 import '../../remote_sync_handler.dart'
-    show HostFrameHint, requestHostCurrentFrame;
+    show HostFrameHint, clearHostCurrentFrame, requestHostCurrentFrame;
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
 import '../../captured_image_rows.dart';
@@ -51,7 +51,11 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     final backend = context.networkBackend;
-    if (backend == null || value == null) return;
+    if (backend == null) return;
+    if (value == null) {
+      clearHostCurrentFrame(context.container);
+      return;
+    }
     // A frame the host saved: its row (frame number, verdict) is fetched now
     // instead of at the next poll of the host's image table. Live-view frames
     // land on a scratch file that has no row.
@@ -71,11 +75,13 @@ class CurrentFrameChannel extends RuntimeMirrorChannel<CapturedImageData?> {
       final at = jsonInstant(value['capturedAt']);
       final samePath =
           path != null && path.isNotEmpty && shown.filePath == path;
-      if (samePath) return;
       final sameInstant =
           at != null &&
           shown.capturedAt.toUtc().millisecondsSinceEpoch ==
               at.millisecondsSinceEpoch;
+      // The same file at the same instant is the save of the frame already
+      // shown. A later instant on that scratch path is a new frame.
+      if (samePath && sameInstant) return;
       if (sameInstant) {
         // The frame already shown was saved on the host after it was
         // announced: record where, without fetching its pixels again.

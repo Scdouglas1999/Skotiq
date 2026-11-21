@@ -197,5 +197,109 @@ void main() {
       expect(await readPosition(), 24500);
       expect(reads, 2);
     });
+
+    test('a fresh focuser status read updates the connected card', () async {
+      final backend = _MockBackend();
+      when(() => backend.getFocuserStatus('focus')).thenAnswer(
+        (_) async => const FocuserStatus(
+          connected: true,
+          position: 45350,
+          moving: false,
+          temperature: 17.5,
+          maxPosition: 100000,
+          stepSize: 1,
+          isAbsolute: true,
+          hasTemperature: true,
+        ),
+      );
+      container.dispose();
+      container = ProviderContainer(
+        overrides: [deviceBackendProvider.overrideWithValue(backend)],
+      );
+      handlers = EquipmentHandlers(container);
+      final focuser = container.read(focuserStateProvider.notifier);
+      focuser.setConnecting('focus');
+      focuser.setConnected();
+      focuser.updatePosition(45360);
+
+      final response = await handlers.handleFocuserStatus(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/equipment/focuser/status?deviceId=focus',
+          ),
+        ),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      final card = container.read(focuserStateProvider);
+      expect(card.position, 45350);
+      expect(card.temperature, 17.5);
+      expect(card.isMoving, isFalse);
+
+      when(() => backend.getFocuserStatus('other')).thenAnswer(
+        (_) async => const FocuserStatus(
+          connected: true,
+          position: 1,
+          moving: true,
+          maxPosition: 100000,
+          stepSize: 1,
+          isAbsolute: true,
+          hasTemperature: false,
+        ),
+      );
+      await handlers.handleFocuserStatus(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/equipment/focuser/status?deviceId=other',
+          ),
+        ),
+      );
+      expect(container.read(focuserStateProvider).position, 45350);
+
+      focuser.updatePosition(45370);
+      await handlers.handleFocuserStatus(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/equipment/focuser/status?deviceId=focus',
+          ),
+        ),
+      );
+      expect(container.read(focuserStateProvider).position, 45370);
+    });
+
+    test('a fresh filter-wheel status read updates the current filter', () async {
+      final backend = _MockBackend();
+      when(() => backend.getFilterWheelStatus('wheel')).thenAnswer(
+        (_) async => const FilterWheelStatus(
+          connected: true,
+          position: 1,
+          moving: false,
+          filterCount: 3,
+          filterNames: ['L', 'R', 'G'],
+        ),
+      );
+      container.dispose();
+      container = ProviderContainer(
+        overrides: [deviceBackendProvider.overrideWithValue(backend)],
+      );
+      handlers = EquipmentHandlers(container);
+      final wheel = container.read(filterWheelStateProvider.notifier);
+      wheel.setConnecting('wheel');
+      wheel.setConnected();
+      wheel.updatePosition(2);
+
+      final response = await handlers.handleFilterWheelStatus(
+        Request(
+          'GET',
+          Uri.parse(
+            'http://localhost/api/equipment/filter-wheel/status?deviceId=wheel',
+          ),
+        ),
+      );
+      expect(response.statusCode, HttpStatus.ok);
+      expect(container.read(filterWheelStateProvider).currentFilterName, 'R');
+    });
   });
 }

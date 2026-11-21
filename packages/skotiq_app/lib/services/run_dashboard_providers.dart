@@ -711,7 +711,7 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
     category: _categoryLabel(event.category),
     title: sk_events.skotiqEventDisplayTitle(event),
     message: _nameDepthGoal(
-      _humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
+      humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
       event,
     ),
     isCritical: isCritical,
@@ -823,7 +823,7 @@ String _nameDepthGoal(String message, sk_events.SkotiqEvent event) {
 /// the built-in guider `Guider · native:builtin_guider:multi_star`. A device id
 /// is a routing key, not something an astrophotographer recognises, and the
 /// same feed is what an operator scans to reconstruct their night.
-String _humanizeDeviceIds(String message, sk_events.SkotiqEvent event) {
+String humanizeDeviceIds(String message, sk_events.SkotiqEvent event) {
   final deviceId = event.deviceId;
   if (deviceId == null || deviceId.isEmpty) return message;
   if (!message.contains(deviceId)) return message;
