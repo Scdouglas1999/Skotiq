@@ -69,6 +69,7 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
               'outcome': 'applied',
             },
             <String, dynamic>{'opId': 'stretch', 'outcome': 'applied'},
+            <String, dynamic>{'opId': 'missing-outcome'},
           ],
         },
       },
@@ -300,6 +301,13 @@ void main() {
       expect(seam.registryCalls, 1);
       expect(seam.renderCalls, 1);
       expect(seam.renderedLiveKeys, ['L']);
+      final result = ProviderScope.containerOf(
+        tester.element(find.byType(LiveStackDarkroomPanel)),
+      ).read(liveStackDarkroomProvider).renderedByFilter['L']!;
+      expect(result.stepOutcomes.map((step) => step.opId), [
+        'background_extract',
+        'stretch',
+      ]);
       expect(find.text('background_extract · applied'), findsOneWidget);
       expect(find.text('Auto-adapt as frames stack'), findsOneWidget);
     },

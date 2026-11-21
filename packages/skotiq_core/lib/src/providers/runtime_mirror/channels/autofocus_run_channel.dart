@@ -112,6 +112,8 @@ class AutofocusRunChannel extends RuntimeMirrorChannel<AutofocusOverlayState> {
 
 AutofocusOverlayState _overlayFromSnapshot(Map<String, dynamic> value) {
   final range = value['focusRange'];
+  final minPosition = range is Map ? jsonInt(range['min']) : null;
+  final maxPosition = range is Map ? jsonInt(range['max']) : null;
   final result = value['result'];
   final points = <VCurvePoint>[];
   final rawPoints = value['vcurvePoints'];
@@ -182,11 +184,8 @@ AutofocusOverlayState _overlayFromSnapshot(Map<String, dynamic> value) {
     status: jsonString(value['status']) ?? '',
     hasError: value['outcome'] == 'failed',
     result: parsed,
-    focusRange: range is Map
-        ? FocusRange(
-            min: jsonInt(range['min']) ?? 0,
-            max: jsonInt(range['max']) ?? 0,
-          )
+    focusRange: minPosition != null && maxPosition != null
+        ? FocusRange(min: minPosition, max: maxPosition)
         : null,
     vcurvePoints: points,
     starCrops: crops,

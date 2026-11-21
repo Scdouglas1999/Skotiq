@@ -53,7 +53,7 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
     final d = value.dome;
     final s = value.safety;
     return {
-      if (_connected(w.connectionState))
+      if (_connected(w.connectionState) && w.lastUpdated != null)
         'weather': {
           'deviceId': w.deviceId,
           'temperature': finiteOrNull(w.temperature),
@@ -66,8 +66,7 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
           'skyQuality': finiteOrNull(w.skyQuality),
           'skyTemperature': finiteOrNull(w.skyTemperature),
           'rainRate': finiteOrNull(w.rainRate),
-          if (w.lastUpdated != null)
-            'sampledAt': w.lastUpdated!.toUtc().millisecondsSinceEpoch,
+          'sampledAt': w.lastUpdated!.toUtc().millisecondsSinceEpoch,
         },
       if (_connected(d.connectionState))
         'dome': {
@@ -79,12 +78,11 @@ class EnvironmentChannel extends RuntimeMirrorChannel<EnvironmentReadings> {
           'atHome': d.isAtHome,
           'slaved': d.isSlaved,
         },
-      if (_connected(s.connectionState))
+      if (_connected(s.connectionState) && s.lastChecked != null)
         'safety': {
           'deviceId': s.deviceId,
           'safe': s.isSafe,
-          if (s.lastChecked != null)
-            'checkedAt': s.lastChecked!.toUtc().millisecondsSinceEpoch,
+          'checkedAt': s.lastChecked!.toUtc().millisecondsSinceEpoch,
         },
     };
   }

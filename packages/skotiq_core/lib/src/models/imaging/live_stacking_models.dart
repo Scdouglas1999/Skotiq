@@ -364,7 +364,9 @@ class LiveStackFrameEvent {
   final String sourceLabel;
   final bool accepted;
   final String? rejectionReason;
-  final int detectedStars;
+
+  /// Null for a local rejection before a star count was available.
+  final int? detectedStars;
   final int matchedPairs;
   final int inlierPairs;
   final double alignmentResidualPx;
@@ -381,7 +383,7 @@ class LiveStackFrameEvent {
     required this.sourceLabel,
     required this.accepted,
     this.rejectionReason,
-    this.detectedStars = 0,
+    this.detectedStars,
     this.matchedPairs = 0,
     this.inlierPairs = 0,
     this.alignmentResidualPx = 0.0,

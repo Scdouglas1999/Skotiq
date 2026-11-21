@@ -34,6 +34,14 @@ void main() {
         ..setConnected();
     }
 
+    const channel = EnvironmentChannel();
+    final unsampled = channel.encode(_readings(host))!;
+    expect(unsampled.containsKey('safety'), isFalse);
+    expect(unsampled.containsKey('weather'), isFalse);
+    channel.apply(RuntimeApplyContext(viewer), unsampled);
+    expect(viewer.read(safetyMonitorStateProvider).lastChecked, isNull);
+    expect(viewer.read(weatherStateProvider).lastUpdated, isNull);
+
     final t = DateTime.utc(2026, 11, 21, 4, 30);
     final t2 = DateTime.utc(2026, 11, 21, 4, 32);
     host
@@ -43,7 +51,6 @@ void main() {
         .read(weatherStateProvider.notifier)
         .updateConditions(temperature: 8.5, sampledAt: t);
 
-    final channel = const EnvironmentChannel();
     final first = channel.encode(_readings(host))!;
     channel.apply(RuntimeApplyContext(viewer), first);
 

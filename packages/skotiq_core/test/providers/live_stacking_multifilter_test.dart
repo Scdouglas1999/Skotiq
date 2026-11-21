@@ -320,7 +320,6 @@ void main() {
           '/subs/blurry.fits',
           filter: 'L',
           hfr: 4.8,
-          starCount: 40,
         );
         await notifier.addFrameFromFileWithMetadata(
           '/subs/cloudy.fits',
@@ -330,6 +329,18 @@ void main() {
         );
 
         final state = container.read(liveStackingProvider);
+        expect(
+          state.frameLog
+              .firstWhere((e) => e.sourceLabel == 'blurry.fits')
+              .detectedStars,
+          isNull,
+        );
+        expect(
+          state.frameLog
+              .firstWhere((e) => e.sourceLabel == 'cloudy.fits')
+              .detectedStars,
+          6,
+        );
         // Only the sharp frame reached the native stacker.
         expect(fakeService.frameCounts['L'], 1);
         expect(state.frameLog, hasLength(3));

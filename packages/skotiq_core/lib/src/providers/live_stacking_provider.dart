@@ -1036,11 +1036,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       try {
         await body();
       } catch (error) {
-        var rendered = 'Live stack ingest step failed';
-        try {
-          rendered = 'Live stack ingest step failed: $error';
-        } catch (_) {}
-        _logger.error(rendered, source: 'LiveStackingNotifier');
+        _logger.error(
+          'Live stack ingest step failed: ${_stackErrorText(error)}',
+          source: 'LiveStackingNotifier',
+        );
       } finally {
         if (!completer.isCompleted) completer.complete();
       }
@@ -1049,13 +1048,12 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     return completer.future;
   }
 
-  bool _stopFoundNoStack(Object error) {
+  String _stackErrorText(Object error) {
     try {
-      return error.toString().toLowerCase().contains(
-        'live stacker not initialized',
-      );
+      return error.toString();
     } catch (_) {
-      return false;
+      // Driver exceptions may fail while formatting their own details.
+      return Error.safeToString(error);
     }
   }
 
@@ -1128,7 +1126,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         filterKey: targetFilter,
         sourceLabel: p.basename(imagePath),
         reason: reason,
-        detectedStars: starCount ?? 0,
+        detectedStars: starCount,
         exposureSecs: exposureSecs,
       );
       return;
@@ -1307,7 +1305,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     required String filterKey,
     required String sourceLabel,
     required String reason,
-    int detectedStars = 0,
+    int? detectedStars,
     double? exposureSecs,
   }) {
     final existing = state.filterStacks[filterKey];
@@ -1807,27 +1805,20 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       } catch (_) {
         // Ingest errors are owned by their callers.
       }
-      try {
-        if (remote != null) {
-          await remote.stackingStop();
-        } else if (service != null) {
-          await service.stop();
-        }
-      } on Object catch (error) {
-        // Arming does not create a native stacker; Stop before the first
-        // frame asks to release one that was never started.
-        if (!error.toString().contains('Live stacker not initialized')) {
-          rethrow;
-        }
+      if (remote != null) {
+        await remote.stackingStop();
+      } else if (service != null) {
+        await service.stop();
       }
     } catch (e) {
       // An armed session that never received a frame has no native slot.
       // api_stacking_stop reports that as "not initialized". The stop still
       // succeeded: the in-flight start/ingest above was waited out, and
       // nothing was ever started. Any other failure leaves the session up.
-      if (!_stopFoundNoStack(e)) {
+      final message = _stackErrorText(e);
+      if (!message.toLowerCase().contains('live stacker not initialized')) {
         _logger.error(
-          'Failed to stop stacker: $e',
+          'Failed to stop stacker: $message',
           source: 'LiveStackingNotifier',
         );
         if (mounted &&

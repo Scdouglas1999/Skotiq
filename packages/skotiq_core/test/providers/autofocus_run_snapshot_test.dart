@@ -66,6 +66,15 @@ void main() {
     expect(shown.focusRange?.max, 14600);
     expect(shown.isVisible, isTrue);
 
+    final partial = const AutofocusRunChannel().encode(shown)!;
+    partial['focusRange'] = {'min': 13800};
+    const AutofocusRunChannel().apply(
+      RuntimeApplyContext(viewer, networkBackend: _link()),
+      partial,
+    );
+    expect(viewer.read(autofocusOverlayProvider).focusRange, isNull);
+    expect(viewer.read(autofocusOverlayProvider).bestHfr, best);
+
     const AutofocusRunChannel().apply(
       RuntimeApplyContext(viewer, networkBackend: _link()),
       const AutofocusRunChannel().encode(AutofocusOverlayState()),

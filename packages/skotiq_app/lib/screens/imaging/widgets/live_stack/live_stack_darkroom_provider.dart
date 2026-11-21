@@ -214,7 +214,8 @@ class LiveDarkroomRecipeSettings {
         stretchEnabled || (isColor && saturationEnabled) || starReduceEnabled;
     if (needsStretch) {
       final bp = stretchBlackPoint;
-      final wp = stretchWhitePoint > bp + 1e-3 ? stretchWhitePoint : bp + 1000.0;
+      final wp =
+          stretchWhitePoint > bp + 1e-3 ? stretchWhitePoint : bp + 1000.0;
       steps.add(<String, dynamic>{
         'opId': 'stretch',
         'opVersion': 1,
@@ -420,9 +421,10 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
     _inFlightRenderId = null;
     if (_ref.read(isRemoteClientProvider)) return;
     unawaited(
-      _darkroom
-          .cancel(<String, dynamic>{'op': 'cancel', 'renderId': renderId})
-          .catchError((Object _) => const <String, dynamic>{}),
+      _darkroom.cancel(<String, dynamic>{
+        'op': 'cancel',
+        'renderId': renderId
+      }).catchError((Object _) => const <String, dynamic>{}),
     );
   }
 
@@ -640,8 +642,7 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
       // If auto-adapt is active and a newer stack revision arrived, re-measure
       // stretch anchors from the deeper F32 integration before rendering so
       // faint structure continues to emerge automatically.
-      final needsExplicitStretch =
-          settings.stretchEnabled ||
+      final needsExplicitStretch = settings.stretchEnabled ||
           (isColor && settings.saturationEnabled) ||
           settings.starReduceEnabled;
       if (needsExplicitStretch &&
@@ -672,12 +673,17 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
       final report = preview.report['report'];
       if (report is Map && report['steps'] is List) {
         for (final entry in report['steps'] as List) {
-          if (entry is Map) {
+          if (entry
+              case {
+                'opId': final String opId,
+                'outcome': final String outcome,
+              } when opId.isNotEmpty && outcome.isNotEmpty) {
+            final reason = entry['reason'];
             outcomes.add(
               LiveDarkroomStepOutcome(
-                opId: '${entry['opId'] ?? ''}',
-                outcome: '${entry['outcome'] ?? ''}',
-                reason: entry['reason'] as String?,
+                opId: opId,
+                outcome: outcome,
+                reason: reason is String ? reason : null,
               ),
             );
           }
@@ -732,8 +738,8 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
 
 final liveStackDarkroomProvider =
     StateNotifierProvider<LiveStackDarkroomNotifier, LiveStackDarkroomState>(
-      (ref) => LiveStackDarkroomNotifier(ref),
-    );
+  (ref) => LiveStackDarkroomNotifier(ref),
+);
 
 /// Result of promoting an active live stack into the durable Darkroom library.
 class LiveStackDarkroomPromotion {
