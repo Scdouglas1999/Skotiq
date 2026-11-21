@@ -15,16 +15,26 @@ abstract final class FilterColors {
   static const nitrogen = Color(0xFFA855F7);
 
   static Color? knownColor(String name) {
-    final n = name.toUpperCase().replaceAll(RegExp(r'[\s_\-]'), '');
+    final n = name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (n.isEmpty) return null;
     if (n == 'HA' ||
         RegExp(r'^HA[0-9]').hasMatch(n) ||
         n.contains('ALPHA') ||
-        n == 'HΑ') {
+        name.toUpperCase().contains('HΑ')) {
       return hydrogenAlpha;
     }
-    if (n == 'R' || n.contains('RED')) return red;
-    if (n == 'G' || n.contains('GREEN')) return green;
-    if (n == 'B' || n.contains('BLUE')) return blue;
+    // Color words match whole tokens. A substring match paints "Unfiltered"
+    // red, because that word contains "RED".
+    final tokens = name
+        .toUpperCase()
+        .split(RegExp(r'[^A-Z0-9]+'))
+        .where((token) => token.isNotEmpty);
+    bool colorWord(String band) => tokens.any(
+      (token) => token == band || RegExp('^$band[0-9]').hasMatch(token),
+    );
+    if (tokens.contains('R') || colorWord('RED')) return red;
+    if (tokens.contains('G') || colorWord('GREEN')) return green;
+    if (tokens.contains('B') || colorWord('BLUE')) return blue;
     if (n == 'L' || n.contains('LUM') || n.contains('CLEAR')) return luminance;
     if (n.contains('OIII') || n.contains('O3') || n.contains('OXYGEN')) {
       return oxygen;

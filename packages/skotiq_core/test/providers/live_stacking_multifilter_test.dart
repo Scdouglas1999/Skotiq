@@ -16,6 +16,7 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   final List<String> ingestedPaths = [];
   int stopCalls = 0;
   int resetCalls = 0;
+  bool everStarted = false;
   Completer<void>? startGate;
   Uint16List? lastReturnedPixels;
   int inFlightAdds = 0;
@@ -65,6 +66,7 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   }) async {
     final gate = startGate;
     if (gate != null) await gate.future;
+    everStarted = true;
     frameCounts[filterKey] = 1;
     return _makeResult(filterKey, 1).stats;
   }
@@ -95,6 +97,7 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
       if (addDelay > Duration.zero) {
         await Future<void>.delayed(addDelay);
       }
+      everStarted = true;
       ingestedPaths.add(imagePath);
       final next = (frameCounts[filterKey] ?? 0) + 1;
       frameCounts[filterKey] = next;
@@ -145,6 +148,10 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   @override
   Future<void> stop() async {
     stopCalls++;
+    if (!everStarted) {
+      throw StateError('Live stacker not initialized');
+    }
+    everStarted = false;
     frameCounts.clear();
   }
 
@@ -154,182 +161,10 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
 
 void main() {
   group('Multi-filter live stacking, presets, and quality gates', () {
-    test('arm + multi-filter feeds create independent sorted filter stacks',
-        () async {
-      final fakeService = _MultiFilterFakeStackingService();
-      final container = ProviderContainer(
-        overrides: [
-          liveStackingServiceProvider.overrideWithValue(fakeService),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(liveStackingProvider.notifier);
-      await notifier.arm();
-
-      expect(container.read(liveStackingProvider).isArmed, isTrue);
-      expect(
-        container.read(liveStackingProvider).status,
-        LiveStackingStatus.running,
-      );
-
-      // Feed frames across OIII, L, Ha — order of arrival intentionally unsorted.
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/oiii_1.fits',
-        filter: 'OIII',
-        exposureSecs: 300,
-      );
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/l_1.fits',
-        filter: 'L',
-        exposureSecs: 60,
-      );
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/l_2.fits',
-        filter: 'L',
-        exposureSecs: 60,
-      );
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/ha_1.fits',
-        filter: 'Ha',
-        exposureSecs: 300,
-      );
-
-      final state = container.read(liveStackingProvider);
-      // Canonical astrophotography order: L before Ha before OIII.
-      expect(state.availableFilters, ['L', 'Ha', 'OIII']);
-      expect(state.filterStacks['L']!.stats.stackedFrameCount, 2);
-      expect(state.filterStacks['Ha']!.stats.stackedFrameCount, 1);
-      expect(state.filterStacks['OIII']!.stats.stackedFrameCount, 1);
-      expect(state.totalFramesAcrossFilters, 4);
-      expect(state.frameLog, hasLength(4));
-
-      // First filter started was OIII, so it is initially selected.
-      expect(state.selectedFilterKey, 'OIII');
-
-      // Switching to L mirrors L's preview and stats onto top-level state.
-      notifier.selectFilter('L');
-      final switched = container.read(liveStackingProvider);
-      expect(switched.selectedFilterKey, 'L');
-      expect(switched.stats.stackedFrameCount, 2);
-      expect(switched.referenceImagePath, '/subs/l_1.fits');
-    });
-
-    test('HFR and minimum star count gates skip bad frames transparently',
-        () async {
-      final fakeService = _MultiFilterFakeStackingService();
-      final container = ProviderContainer(
-        overrides: [
-          liveStackingServiceProvider.overrideWithValue(fakeService),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(liveStackingProvider.notifier);
-      await notifier.arm(
-        config: const LiveStackingConfig(
-          maxHfrPx: 3.5,
-          minStarCount: 20,
-        ),
-      );
-
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/sharp.fits',
-        filter: 'L',
-        hfr: 2.1,
-        starCount: 45,
-      );
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/blurry.fits',
-        filter: 'L',
-        hfr: 4.8,
-        starCount: 40,
-      );
-      await notifier.addFrameFromFileWithMetadata(
-        '/subs/cloudy.fits',
-        filter: 'L',
-        hfr: 2.4,
-        starCount: 6,
-      );
-
-      final state = container.read(liveStackingProvider);
-      // Only the sharp frame reached the native stacker.
-      expect(fakeService.frameCounts['L'], 1);
-      expect(state.frameLog, hasLength(3));
-      expect(state.frameLog[0].accepted, isFalse);
-      expect(state.frameLog[0].rejectionReason, contains('star-count gate'));
-      expect(state.frameLog[1].accepted, isFalse);
-      expect(state.frameLog[1].rejectionReason, contains('HFR gate'));
-      expect(state.frameLog[2].accepted, isTrue);
-    });
-
-    test('presets preserve OSC/filter routing and updateConfig pushes live',
-        () async {
-      final fakeService = _MultiFilterFakeStackingService();
-      final container = ProviderContainer(
-        overrides: [
-          liveStackingServiceProvider.overrideWithValue(fakeService),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(liveStackingProvider.notifier);
-      const base = LiveStackingConfig(
-        sensorMode: 'osc',
-        bayerPattern: 'RGGB',
-        separateByFilter: false,
-      );
-      final strict = LiveStackingPreset.strictQuality.applyTo(base);
-      expect(strict.sensorMode, 'osc');
-      expect(strict.bayerPattern, 'RGGB');
-      expect(strict.separateByFilter, isFalse);
-      expect(strict.maxAlignmentResidualPx, 1.2);
-      expect(strict.matchedPreset, LiveStackingPreset.strictQuality);
-
-      await notifier.arm(config: base);
-      await notifier.addFrameFromFileWithMetadata('/subs/f1.fits', filter: 'L');
-      notifier.updateConfig(strict);
-      await Future<void>.delayed(Duration.zero);
-
-      expect(fakeService.updatedConfigs, isNotEmpty);
-      expect(fakeService.updatedConfigs.last, contains('1.2'));
-    });
-
-    test('resetFilter and stopFilter isolate a single filter slot', () async {
-      final fakeService = _MultiFilterFakeStackingService();
-      final container = ProviderContainer(
-        overrides: [
-          liveStackingServiceProvider.overrideWithValue(fakeService),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      final notifier = container.read(liveStackingProvider.notifier);
-      await notifier.arm();
-      await notifier.addFrameFromFileWithMetadata('/subs/l1.fits', filter: 'L');
-      await notifier.addFrameFromFileWithMetadata('/subs/h1.fits', filter: 'Ha');
-
-      await notifier.resetFilter('Ha');
-      expect(fakeService.resetFilters, ['Ha']);
-      expect(
-        container.read(liveStackingProvider).filterStacks['L']!.stats.stackedFrameCount,
-        1,
-      );
-      expect(
-        container.read(liveStackingProvider).filterStacks['Ha']!.stats.stackedFrameCount,
-        0,
-      );
-
-      await notifier.stopFilter('Ha');
-      expect(fakeService.stoppedFilters, ['Ha']);
-      expect(container.read(liveStackingProvider).availableFilters, ['L']);
-    });
-
     test(
-      'serializes rapid frame bursts and reuses Uint16List zero-copy',
+      'arm + multi-filter feeds create independent sorted filter stacks',
       () async {
-        final fakeService = _MultiFilterFakeStackingService()
-          ..addDelay = const Duration(milliseconds: 15);
+        final fakeService = _MultiFilterFakeStackingService();
         final container = ProviderContainer(
           overrides: [
             liveStackingServiceProvider.overrideWithValue(fakeService),
@@ -339,29 +174,234 @@ void main() {
 
         final notifier = container.read(liveStackingProvider.notifier);
         await notifier.arm();
-        await notifier.addFrameFromFileWithMetadata(
-          '/subs/l1.fits',
-          filter: 'L',
+
+        expect(container.read(liveStackingProvider).isArmed, isTrue);
+        expect(
+          container.read(liveStackingProvider).status,
+          LiveStackingStatus.running,
         );
 
-        // Fire 3 frames concurrently without awaiting between them.
-        await Future.wait(<Future<void>>[
-          notifier.addFrameFromFileWithMetadata('/subs/l2.fits', filter: 'L'),
-          notifier.addFrameFromFileWithMetadata('/subs/l3.fits', filter: 'L'),
-          notifier.addFrameFromFileWithMetadata('/subs/l4.fits', filter: 'L'),
-        ]);
+        // Feed frames across OIII, L, Ha — order of arrival intentionally unsorted.
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/oiii_1.fits',
+          filter: 'OIII',
+          exposureSecs: 300,
+        );
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/l_1.fits',
+          filter: 'L',
+          exposureSecs: 60,
+        );
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/l_2.fits',
+          filter: 'L',
+          exposureSecs: 60,
+        );
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/ha_1.fits',
+          filter: 'Ha',
+          exposureSecs: 300,
+        );
 
-        // Never overlaps concurrent heavy FITS reads/stacks, preserves exact order.
-        expect(fakeService.maxConcurrentAdds, 1);
-        expect(fakeService.ingestedPaths, [
-          '/subs/l2.fits',
-          '/subs/l3.fits',
-          '/subs/l4.fits',
-        ]);
         final state = container.read(liveStackingProvider);
-        expect(state.stats.stackedFrameCount, 4);
-        // Zero-copy Uint16List handoff (same buffer instance, no UI-thread copy).
-        expect(identical(state.previewData, fakeService.lastReturnedPixels), isTrue);
+        // Canonical astrophotography order: L before Ha before OIII.
+        expect(state.availableFilters, ['L', 'Ha', 'OIII']);
+        expect(state.filterStacks['L']!.stats.stackedFrameCount, 2);
+        expect(state.filterStacks['Ha']!.stats.stackedFrameCount, 1);
+        expect(state.filterStacks['OIII']!.stats.stackedFrameCount, 1);
+        expect(state.totalFramesAcrossFilters, 4);
+        expect(state.frameLog, hasLength(4));
+
+        // First filter started was OIII, so it is initially selected.
+        expect(state.selectedFilterKey, 'OIII');
+
+        // Switching to L mirrors L's preview and stats onto top-level state.
+        notifier.selectFilter('L');
+        final switched = container.read(liveStackingProvider);
+        expect(switched.selectedFilterKey, 'L');
+        expect(switched.stats.stackedFrameCount, 2);
+        expect(switched.referenceImagePath, '/subs/l_1.fits');
+      },
+    );
+
+    test(
+      'HFR and minimum star count gates skip bad frames transparently',
+      () async {
+        final fakeService = _MultiFilterFakeStackingService();
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        await notifier.arm(
+          config: const LiveStackingConfig(maxHfrPx: 3.5, minStarCount: 20),
+        );
+
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/sharp.fits',
+          filter: 'L',
+          hfr: 2.1,
+          starCount: 45,
+        );
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/blurry.fits',
+          filter: 'L',
+          hfr: 4.8,
+          starCount: 40,
+        );
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/cloudy.fits',
+          filter: 'L',
+          hfr: 2.4,
+          starCount: 6,
+        );
+
+        final state = container.read(liveStackingProvider);
+        // Only the sharp frame reached the native stacker.
+        expect(fakeService.frameCounts['L'], 1);
+        expect(state.frameLog, hasLength(3));
+        expect(state.frameLog[0].accepted, isFalse);
+        expect(state.frameLog[0].rejectionReason, contains('star-count gate'));
+        expect(state.frameLog[1].accepted, isFalse);
+        expect(state.frameLog[1].rejectionReason, contains('HFR gate'));
+        expect(state.frameLog[2].accepted, isTrue);
+      },
+    );
+
+    test(
+      'presets preserve OSC/filter routing and updateConfig pushes live',
+      () async {
+        final fakeService = _MultiFilterFakeStackingService();
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        const base = LiveStackingConfig(
+          sensorMode: 'osc',
+          bayerPattern: 'RGGB',
+          separateByFilter: false,
+        );
+        final strict = LiveStackingPreset.strictQuality.applyTo(base);
+        expect(strict.sensorMode, 'osc');
+        expect(strict.bayerPattern, 'RGGB');
+        expect(strict.separateByFilter, isFalse);
+        expect(strict.maxAlignmentResidualPx, 1.2);
+        expect(strict.matchedPreset, LiveStackingPreset.strictQuality);
+
+        await notifier.arm(config: base);
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/f1.fits',
+          filter: 'L',
+        );
+        notifier.updateConfig(strict);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(fakeService.updatedConfigs, isNotEmpty);
+        expect(fakeService.updatedConfigs.last, contains('1.2'));
+      },
+    );
+
+    test('resetFilter and stopFilter isolate a single filter slot', () async {
+      final fakeService = _MultiFilterFakeStackingService();
+      final container = ProviderContainer(
+        overrides: [liveStackingServiceProvider.overrideWithValue(fakeService)],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(liveStackingProvider.notifier);
+      await notifier.arm();
+      await notifier.addFrameFromFileWithMetadata('/subs/l1.fits', filter: 'L');
+      await notifier.addFrameFromFileWithMetadata(
+        '/subs/h1.fits',
+        filter: 'Ha',
+      );
+
+      await notifier.resetFilter('Ha');
+      expect(fakeService.resetFilters, ['Ha']);
+      expect(
+        container
+            .read(liveStackingProvider)
+            .filterStacks['L']!
+            .stats
+            .stackedFrameCount,
+        1,
+      );
+      expect(
+        container
+            .read(liveStackingProvider)
+            .filterStacks['Ha']!
+            .stats
+            .stackedFrameCount,
+        0,
+      );
+
+      await notifier.stopFilter('Ha');
+      expect(fakeService.stoppedFilters, ['Ha']);
+      expect(container.read(liveStackingProvider).availableFilters, ['L']);
+    });
+
+    test('serializes rapid frame bursts and reuses Uint16List zero-copy', () async {
+      final fakeService = _MultiFilterFakeStackingService()
+        ..addDelay = const Duration(milliseconds: 15);
+      final container = ProviderContainer(
+        overrides: [liveStackingServiceProvider.overrideWithValue(fakeService)],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(liveStackingProvider.notifier);
+      await notifier.arm();
+      await notifier.addFrameFromFileWithMetadata('/subs/l1.fits', filter: 'L');
+
+      // Fire 3 frames concurrently without awaiting between them.
+      await Future.wait(<Future<void>>[
+        notifier.addFrameFromFileWithMetadata('/subs/l2.fits', filter: 'L'),
+        notifier.addFrameFromFileWithMetadata('/subs/l3.fits', filter: 'L'),
+        notifier.addFrameFromFileWithMetadata('/subs/l4.fits', filter: 'L'),
+      ]);
+
+      // Never overlaps concurrent heavy FITS reads/stacks, preserves exact order.
+      expect(fakeService.maxConcurrentAdds, 1);
+      expect(fakeService.ingestedPaths, [
+        '/subs/l2.fits',
+        '/subs/l3.fits',
+        '/subs/l4.fits',
+      ]);
+      final state = container.read(liveStackingProvider);
+      expect(state.stats.stackedFrameCount, 4);
+      // Zero-copy Uint16List handoff (same buffer instance, no UI-thread copy).
+      expect(
+        identical(state.previewData, fakeService.lastReturnedPixels),
+        isTrue,
+      );
+    });
+
+    test(
+      'stopping an armed stack before any frame clears the session',
+      () async {
+        final fakeService = _MultiFilterFakeStackingService();
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        await notifier.arm();
+        await notifier.stop();
+
+        final state = container.read(liveStackingProvider);
+        expect(state.status, LiveStackingStatus.idle);
+        expect(state.isArmed, isFalse);
+        expect(state.errorMessage, isNull);
+        expect(fakeService.stopCalls, 1);
       },
     );
 
@@ -412,7 +452,10 @@ void main() {
 
         final notifier = container.read(liveStackingProvider.notifier);
         await notifier.arm();
-        await notifier.addFrameFromFileWithMetadata('/subs/ha1.fits', filter: 'Ha');
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/ha1.fits',
+          filter: 'Ha',
+        );
         await notifier.reset();
 
         expect(fakeService.resetFilters, ['Ha']);
@@ -434,8 +477,14 @@ void main() {
 
         final notifier = container.read(liveStackingProvider.notifier);
         await notifier.arm();
-        await notifier.addFrameFromFileWithMetadata('/subs/l1.fits', filter: 'L');
-        await notifier.addFrameFromFileWithMetadata('/subs/h1.fits', filter: 'Ha');
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/l1.fits',
+          filter: 'L',
+        );
+        await notifier.addFrameFromFileWithMetadata(
+          '/subs/h1.fits',
+          filter: 'Ha',
+        );
 
         // Start ingesting Ha frame 2, then immediately stop Ha with spaces.
         final addFuture = notifier.addFrameFromFileWithMetadata(
@@ -446,7 +495,10 @@ void main() {
         await Future.wait([addFuture, stopFuture]);
 
         expect(fakeService.stoppedFilters, ['Ha']);
-        expect(container.read(liveStackingProvider).filterStacks.containsKey('Ha'), isFalse);
+        expect(
+          container.read(liveStackingProvider).filterStacks.containsKey('Ha'),
+          isFalse,
+        );
         expect(container.read(liveStackingProvider).availableFilters, ['L']);
       },
     );

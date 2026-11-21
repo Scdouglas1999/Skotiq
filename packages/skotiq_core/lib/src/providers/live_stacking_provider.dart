@@ -1045,7 +1045,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (authority == null) return Future<void>.value();
 
     final completer = Completer<void>();
-    _ingestChain = _ingestChain.then((_) async {
+    _ingestChain = _ingestChain.catchError((Object _) {}).then((_) async {
       try {
         if (!_isCurrentSession(generation, authority) ||
             state.status != LiveStackingStatus.running) {
@@ -1171,7 +1171,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         generation,
         authority,
         e,
-        filterKey: (filter != null && state.filterStacks.containsKey(targetFilter))
+        filterKey:
+            (filter != null && state.filterStacks.containsKey(targetFilter))
             ? targetFilter
             : null,
         sourceLabel: p.basename(imagePath),
@@ -1387,7 +1388,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (authority == null) return Future<void>.value();
 
     final completer = Completer<void>();
-    _ingestChain = _ingestChain.then((_) async {
+    _ingestChain = _ingestChain.catchError((Object _) {}).then((_) async {
       try {
         if (!_isCurrentSession(generation, authority) ||
             state.status != LiveStackingStatus.running) {
@@ -1554,7 +1555,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final generation = _sessionGeneration;
 
     final completer = Completer<void>();
-    _ingestChain = _ingestChain.then((_) async {
+    _ingestChain = _ingestChain.catchError((Object _) {}).then((_) async {
       try {
         if (!_isCurrentSession(generation, authority) ||
             state.status != LiveStackingStatus.running) {
@@ -1625,7 +1626,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     var stopWholeSession = false;
 
     final completer = Completer<void>();
-    _ingestChain = _ingestChain.then((_) async {
+    _ingestChain = _ingestChain.catchError((Object _) {}).then((_) async {
       try {
         if (!_isCurrentSession(generation, authority)) return;
         if (!state.filterStacks.containsKey(normalizedKey)) return;
@@ -1784,10 +1785,18 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       } catch (_) {
         // Ingest errors are owned by their callers.
       }
-      if (remote != null) {
-        await remote.stackingStop();
-      } else if (service != null) {
-        await service.stop();
+      try {
+        if (remote != null) {
+          await remote.stackingStop();
+        } else if (service != null) {
+          await service.stop();
+        }
+      } on Object catch (error) {
+        // Arming does not create a native stacker; Stop before the first
+        // frame asks to release one that was never started.
+        if (!error.toString().contains('Live stacker not initialized')) {
+          rethrow;
+        }
       }
     } catch (e) {
       _logger.error(
