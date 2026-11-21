@@ -123,4 +123,27 @@ void main() {
       sub.cancel();
     });
   });
+
+  test('dispose stops refresh from fetching again', () {
+    fakeAsync((async) {
+      final poll = HostPoll('test');
+      var fetches = 0;
+      final sub = poll
+          .watch(
+            () async => ++fetches,
+            (previous, next) => previous == next,
+            interval: const Duration(hours: 1),
+          )
+          .listen((_) {});
+      async.flushMicrotasks();
+      expect(fetches, 1);
+
+      poll.dispose();
+      poll.refresh();
+      async.flushMicrotasks();
+      expect(fetches, 1);
+      poll.dispose();
+      sub.cancel();
+    });
+  });
 }

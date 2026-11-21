@@ -47,6 +47,8 @@ class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
   }
+
+  void use(SkotiqBackend backend) => state = backend;
 }
 
 class _FixedSettingsNotifier extends AppSettingsNotifier {
@@ -354,6 +356,42 @@ void main() {
     expect(at(90), 40);
     expect(at(270), 0, reason: 'a horizon replaces the minimum altitude');
   });
+
+  test(
+    'replacing the sequencer backend sends the current config to the new one',
+    () async {
+      final first = backend;
+      final second = _RecordingBackend();
+      late _TestBackendNotifier notifier;
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          backendProvider.overrideWith(
+            (ref) => notifier = _TestBackendNotifier(ref, first),
+          ),
+          appSettingsProvider.overrideWith(
+            () => _FixedSettingsNotifier(const AppSettingsState()),
+          ),
+          weatherSettingsProvider.overrideWith((ref) => ref.watch(_weather)),
+          isRemoteClientProvider.overrideWithValue(false),
+        ],
+      );
+      container.read(runConfigSyncProvider);
+      await settle();
+      expect(first.runConfigs, hasLength(1));
+
+      notifier.use(second);
+      await settle();
+
+      expect(second.runConfigs, hasLength(1));
+      expect(
+        second.runConfigs.single,
+        first.runConfigs.single,
+        reason:
+            'the new executor has not seen this config, so it is sent again',
+      );
+    },
+  );
 
   test('a linked client sends no run config', () async {
     build(remoteClient: true);
