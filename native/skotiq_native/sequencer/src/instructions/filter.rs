@@ -121,11 +121,12 @@ async fn execute_filter_change_holding_train(
 
 /// The focus offset of [filter_name], in steps from the reference filter.
 ///
-/// Matches exact spelling, case-insensitive spelling, and canonical filter
-/// aliases via [`skotiq_device::same_filter`] so a wheel reporting `"Luminance"`
-/// or `"H-alpha"` resolves against offsets keyed by `"L"` or `"Ha"`. If two
-/// distinct offsets match the same band (e.g. `"Ha 3nm"` and `"Ha 7nm"` with
-/// different offsets), returns an ambiguity error rather than guessing.
+/// The reference and the offset rows are found by the filter-name rule
+/// ([`skotiq_device::match_filter_slot`]), so a wheel reporting `"Luminance"`
+/// or `"H-alpha"` finds offsets keyed by `"L"` or `"Ha"`. The reference is
+/// listed first, so its own spelling is 0 even when it also has a row. A name
+/// that could be several differently named filters (`"Ha"` with `"Ha 3nm"`
+/// and `"Ha 7nm"`) is an error, not a guess.
 pub(crate) fn known_filter_offset_from(
     reference: Option<&str>,
     offsets: &std::collections::HashMap<String, i32>,
@@ -133,35 +134,22 @@ pub(crate) fn known_filter_offset_from(
 ) -> Result<i32, String> {
     let name = filter_name.trim();
     let reference = reference.map(str::trim).filter(|name| !name.is_empty());
-    if reference.is_some_and(|r| {
-        r == name || r.eq_ignore_ascii_case(name) || skotiq_device::same_filter(r, name)
-    }) {
-        return Ok(0);
+    let mut rows: Vec<(&str, i32)> = offsets.iter().map(|(k, &v)| (k.as_str(), v)).collect();
+    rows.sort_unstable();
+    if let Some(reference) = reference {
+        rows.insert(0, (reference, 0));
     }
-    if let Some(offset) = offsets.get(name) {
-        return Ok(*offset);
-    }
-    if let Some((_, offset)) = offsets
-        .iter()
-        .find(|(k, _)| k.trim().eq_ignore_ascii_case(name))
-    {
-        return Ok(*offset);
-    }
-    let alias_matches: Vec<(&str, i32)> = offsets
-        .iter()
-        .filter(|(k, _)| skotiq_device::same_filter(k, name))
-        .map(|(k, &v)| (k.as_str(), v))
-        .collect();
-    if let Some(&(_, first_offset)) = alias_matches.first() {
-        if alias_matches.iter().all(|&(_, v)| v == first_offset) {
-            return Ok(first_offset);
+    let names: Vec<&str> = rows.iter().map(|&(k, _)| k).collect();
+    match skotiq_device::match_filter_slot(&names, name) {
+        skotiq_device::FilterSlotMatch::Slot(row) => return Ok(rows[row].1),
+        skotiq_device::FilterSlotMatch::Ambiguous(matched) => {
+            let matched: Vec<&str> = matched.iter().map(|&row| names[row].trim()).collect();
+            return Err(format!(
+                "filter \"{name}\" matches multiple focus offsets ({}); name the exact filter",
+                matched.join(", ")
+            ));
         }
-        let mut names: Vec<&str> = alias_matches.iter().map(|&(k, _)| k).collect();
-        names.sort_unstable();
-        return Err(format!(
-            "filter \"{name}\" matches multiple focus offsets ({}); name the exact filter",
-            names.join(", ")
-        ));
+        skotiq_device::FilterSlotMatch::Missing => {}
     }
     if offsets.is_empty() && reference.is_none() {
         return Ok(0);

@@ -532,27 +532,18 @@ async fn run_autofocus_admitted(
         .or(ctx.current_filter.as_deref());
     let active_override = active_filter_name
         .and_then(|name| {
-            let trimmed = name.trim();
-            if let Some(entry) = config.filter_settings.get(trimmed) {
-                return Some(entry);
-            }
-            if let Some((_, entry)) = config
-                .filter_settings
-                .iter()
-                .find(|(k, _)| k.trim().eq_ignore_ascii_case(trimmed))
-            {
-                return Some(entry);
-            }
-            let mut alias_matches = config
-                .filter_settings
-                .iter()
-                .filter(|(k, _)| skotiq_device::same_filter(k, trimmed))
-                .map(|(_, entry)| entry);
-            let first = alias_matches.next()?;
-            if alias_matches.next().is_none() {
-                Some(first)
-            } else {
-                None
+            let mut keys: Vec<&String> = config.filter_settings.keys().collect();
+            keys.sort_unstable();
+            match skotiq_device::match_filter_slot(&keys, name) {
+                skotiq_device::FilterSlotMatch::Slot(slot) => config.filter_settings.get(keys[slot]),
+                skotiq_device::FilterSlotMatch::Ambiguous(_) => {
+                    tracing::warn!(
+                        "Autofocus settings for \"{}\" could be several filters' rows; using the default settings",
+                        name.trim()
+                    );
+                    None
+                }
+                skotiq_device::FilterSlotMatch::Missing => None,
             }
         })
         .cloned();

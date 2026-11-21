@@ -106,8 +106,9 @@ pub enum FilterSlotMatch {
 /// The slot of `names` that `requested` means: the first slot with the same
 /// name ignoring case and surrounding space, else the one slot that is
 /// [`same_filter`]. A blank request is [`FilterSlotMatch::Missing`]; a filter
-/// is never guessed.
-pub fn match_filter_slot(names: &[String], requested: &str) -> FilterSlotMatch {
+/// is never guessed. `names` may be any list of filter names, such as the keys
+/// of a per-filter table, so every lookup by filter name follows this rule.
+pub fn match_filter_slot<S: AsRef<str>>(names: &[S], requested: &str) -> FilterSlotMatch {
     let bands = filter_bands(requested);
     if bands.is_empty() {
         return FilterSlotMatch::Missing;
@@ -115,16 +116,16 @@ pub fn match_filter_slot(names: &[String], requested: &str) -> FilterSlotMatch {
     let wanted = requested.trim().to_lowercase();
     if let Some(slot) = names
         .iter()
-        .position(|name| name.trim().to_lowercase() == wanted)
+        .position(|name| name.as_ref().trim().to_lowercase() == wanted)
     {
         return FilterSlotMatch::Slot(slot);
     }
     let candidates: Vec<usize> = (0..names.len())
-        .filter(|&i| filter_bands(&names[i]) == bands)
+        .filter(|&i| filter_bands(names[i].as_ref()) == bands)
         .collect();
     let spellings: BTreeSet<String> = candidates
         .iter()
-        .map(|&i| names[i].trim().to_lowercase())
+        .map(|&i| names[i].as_ref().trim().to_lowercase())
         .collect();
     match candidates.first() {
         None => FilterSlotMatch::Missing,

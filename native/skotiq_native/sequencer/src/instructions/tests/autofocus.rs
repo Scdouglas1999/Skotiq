@@ -695,6 +695,26 @@ fn known_filter_offset_resolves_canonical_aliases_and_rejects_ambiguity() {
     );
 }
 
+#[test]
+fn a_reference_of_the_same_band_does_not_hide_another_filters_offset() {
+    let rig = super::super::context::RunRig {
+        filter_focus_reference: Some("Ha 3nm".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([("Ha 7nm".to_string(), 12)]),
+        ..Default::default()
+    };
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "Ha 7nm").unwrap(),
+        12
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "ha 3nm").unwrap(),
+        0
+    );
+    let err = super::super::filter::known_filter_offset(&rig, "H-alpha")
+        .expect_err("\"H-alpha\" could be the reference or the 7nm filter");
+    assert!(err.contains("Ha 3nm") && err.contains("Ha 7nm"), "{err}");
+}
+
 // The guider-resume cleanup failure. Verbatim from the owner's
 // skotiq.log.2026-09-15, 02:58:40:
 //

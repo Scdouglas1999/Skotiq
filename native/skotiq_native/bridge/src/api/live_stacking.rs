@@ -306,22 +306,10 @@ impl StackerRegistry {
         if self.slots.contains_key(trimmed) {
             return Some(trimmed.to_string());
         }
-        if let Some(key) = self
-            .slots
-            .keys()
-            .find(|k| k.eq_ignore_ascii_case(trimmed))
-        {
-            return Some(key.clone());
-        }
-        let mut alias_matches = self
-            .slots
-            .keys()
-            .filter(|k| skotiq_device::same_filter(k, trimmed));
-        let first = alias_matches.next()?;
-        if alias_matches.next().is_none() {
-            Some(first.clone())
-        } else {
-            None
+        let keys: Vec<&String> = self.slots.keys().collect();
+        match skotiq_device::match_filter_slot(&keys, trimmed) {
+            skotiq_device::FilterSlotMatch::Slot(slot) => Some(keys[slot].clone()),
+            _ => None,
         }
     }
 
