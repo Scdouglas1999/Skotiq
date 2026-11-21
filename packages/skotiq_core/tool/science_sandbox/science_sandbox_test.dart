@@ -18,6 +18,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -365,8 +366,17 @@ Future<void> _run(SandboxConfig cfg) async {
   for (final frame in frames) {
     index++;
     final name = frame.baseName;
-    final jsonPath = '${framesOut.path}/${name.replaceAll('.fits', '')}.json';
-    if (cfg.skipDone && File(jsonPath).existsSync()) {
+    final source = File(frame.path).resolveSymbolicLinksSync();
+    final sourceKey = sha256.convert(utf8.encode(source)).toString();
+    final stem = name.replaceAll('.fits', '');
+    var recordFile = File('${framesOut.path}/$stem.json');
+    if (recordFile.existsSync()) {
+      final previous = jsonDecode(recordFile.readAsStringSync()) as Map;
+      if (previous['file'] != frame.path && previous['file'] != source) {
+        recordFile = File('${framesOut.path}/$sourceKey.json');
+      }
+    }
+    if (cfg.skipDone && recordFile.existsSync()) {
       say('[$index/${frames.length}] $name already done, skipping');
       continue;
     }
@@ -375,11 +385,10 @@ Future<void> _run(SandboxConfig cfg) async {
     final errors = <String>[];
 
     // Work on a copy: the pipeline writes MAGZP/TRANSPAR back into the FITS.
-    final workDir = Directory('${cfg.dbDir}/frames')..createSync();
+    final workDir = Directory('${cfg.dbDir}/frames/$sourceKey')
+      ..createSync(recursive: true);
     final workPath = '${workDir.path}/$name';
-    if (!File(workPath).existsSync()) {
-      await File(frame.path).copy(workPath);
-    }
+    await File(source).copy(workPath);
 
     final rig = _matchRigRow(rigRows[name], frame);
     final maxIds = <String, int>{};
@@ -504,7 +513,9 @@ Future<void> _run(SandboxConfig cfg) async {
     };
     record['logs'] = List.of(logs);
     record['errors'] = errors;
-    File(jsonPath).writeAsStringSync(_json(_jsonSafe(record)));
+    final pending = File('${recordFile.path}.tmp');
+    pending.writeAsStringSync(_json(_jsonSafe(record)));
+    pending.renameSync(recordFile.path);
 
     final bundleCounts = (record['bundle'] as Map).map(
       (k, v) => MapEntry(k, (v as List).length),

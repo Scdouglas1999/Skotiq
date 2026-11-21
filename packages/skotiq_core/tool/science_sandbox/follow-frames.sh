@@ -38,8 +38,8 @@ while true; do
     # Skip files still being written.
     (( $(date +%s) - $(stat -c %Y "$f") < 30 )) && continue
     frames+=("$f")
-    if [[ -z "${seen[$base]:-}" ]]; then seen[$base]=1; new=$((new + 1)); fi
-  done < <(find "$DIR" -type f \( -iname '*.fits' -o -iname '*.fit' \) -print0)
+    if [[ -z "${seen[$f]:-}" ]]; then seen[$f]=1; new=$((new + 1)); fi
+  done < <(find "$DIR" -type f \( -iname '*.fits' -o -iname '*.fit' -o -iname '*.fts' \) -print0)
   if (( new > 0 || retry )); then
     (( new > 0 )) && last_new=$(date +%s)
     echo "$(date -Is) follow: $new new, ${#frames[@]} total matching $MATCH"
