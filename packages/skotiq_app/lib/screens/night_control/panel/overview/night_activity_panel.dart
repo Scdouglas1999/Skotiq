@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../night_control_contracts.dart';
 import '../focus/focus_panel_vm.dart';
 import '../focus/focus_tab.dart';
 import '../panel_widgets.dart';
@@ -61,7 +60,7 @@ class NightActivityPanel extends ConsumerWidget {
               if (vm.detail != null && vm.detail!.isNotEmpty)
                 NightPanelNote(vm.detail!,
                     tone: vm.kind == NightActivityKind.failed
-                        ? MetricTone.bad
+                        ? MetricGridTone.bad
                         : null),
             ],
           );

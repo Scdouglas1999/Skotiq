@@ -1,10 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/skotiq_core.dart';
+import 'package:skotiq_astro/format.dart' show CoordinateFormat;
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
+import '../../../../utils/guide_distance.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/plan/plan_steps_provider.dart';
-import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_format.dart';
 import '../guide/guide_metrics.dart';
 import '../../night_control_contracts.dart';
@@ -252,18 +255,13 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
           mount.connectionState != DeviceConnectionState.connected ||
                   mount.ra == null
               ? null
-              : CoordinateFormat.ra(mount.ra!,
-                  style: SexagesimalStyle.compactLetters,
-                  seconds: SecondsPrecision.integerRounded,
-                  wrapHours: true)),
+              : CoordinateFormat.raDense(mount.ra!)),
       metric(
           'nightScopeDecJNow',
           mount.connectionState != DeviceConnectionState.connected ||
                   mount.dec == null
               ? null
-              : CoordinateFormat.dec(mount.dec!,
-                  style: SexagesimalStyle.compactLetters,
-                  seconds: SecondsPrecision.integerRounded)),
+              : CoordinateFormat.decDense(mount.dec!)),
       metric(
           'nightActivityAltitude',
           fixed(
@@ -319,7 +317,7 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
   } else if (kind == NightActivityKind.guide) {
     titleKey = phd2 == Phd2State.settling ? 'nightActivitySettling' : titleKey;
     final rms = ref.watch(nightGuideRmsProvider);
-    final scale = ref.watch(nightGuideScaleProvider);
+    final scale = ref.watch(guideScaleProvider);
     metrics.addAll([
       metric('nightActivityRaRms', formatGuide(rms.ra, scale)),
       metric('nightActivityDecRms', formatGuide(rms.dec, scale)),
