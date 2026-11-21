@@ -1,3 +1,5 @@
+import 'package:skotiq_astro/filters.dart';
+
 import '../../database/database.dart' show DbCapturedImage;
 import '../../database/rows/frame_type_record.dart';
 
@@ -18,31 +20,19 @@ const lineRatioFramesMissing =
 /// of the three is missing.
 NarrowbandFrames? latestNarrowbandFrames(Iterable<DbCapturedImage> images) {
   final lights = images.where((image) => image.isLight).toList();
-  final hAlpha = _latestNamed(lights, const {
-    'ha',
-    'halpha',
-    'h-alpha',
-    'h alpha',
-  });
-  final oiii = _latestNamed(lights, const {'oiii', 'o3'});
-  final sii = _latestNamed(lights, const {'sii', 's2'});
+  final hAlpha = _latestThrough(lights, 'HA');
+  final oiii = _latestThrough(lights, 'OIII');
+  final sii = _latestThrough(lights, 'SII');
   if (hAlpha == null || oiii == null || sii == null) return null;
   return (hAlpha: hAlpha, oiii: oiii, sii: sii);
 }
 
-DbCapturedImage? _latestNamed(List<DbCapturedImage> images, Set<String> names) {
+/// The newest of [images] taken through the filter of [band] alone, by the
+/// filter-name rule ("Baader Ha 7nm" and "Hydrogen alpha" are Ha).
+DbCapturedImage? _latestThrough(List<DbCapturedImage> images, String band) {
   DbCapturedImage? latest;
   for (final image in images) {
-    final filter = (image.filter ?? '').toLowerCase().trim();
-    // The name alone or as a whole word, so "Shah" is not H-alpha.
-    final named = names.any(
-      (name) =>
-          filter == name ||
-          RegExp(
-            '(?:^|[\\s_-])${RegExp.escape(name)}(?:[\\s_-]|\$)',
-          ).hasMatch(filter),
-    );
-    if (!named) continue;
+    if (filterIdentity(image.filter ?? '') != band) continue;
     if (latest == null || image.capturedAt.isAfter(latest.capturedAt)) {
       latest = image;
     }
