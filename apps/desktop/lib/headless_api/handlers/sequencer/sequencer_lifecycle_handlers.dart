@@ -232,6 +232,61 @@ extension _SequencerLifecycle on SequencerHandlers {
   /// same pre-flight panel the desktop dialog does.
   Future<Response> _handleSequencerStart(Request request) async {
     _logInfo('[API] POST /api/sequencer/start');
+    final payload = await readJsonObjectOrEmpty(request);
+    final ignoreHistory =
+        optionalBool(payload, 'ignoreUnavailableHistory') ?? false;
+    final handoff = <int, SessionHandoffDecision>{};
+    if (payload.containsKey('handoffDecisions')) {
+      final choices = requireObject(payload, 'handoffDecisions');
+      for (final entry in choices.entries) {
+        final targetId = int.tryParse(entry.key);
+        final decision = SessionHandoffDecision.values
+            .where((value) => value.name == entry.value)
+            .firstOrNull;
+        if (targetId == null || targetId <= 0 || decision == null) {
+          throw BadRequestError(
+            field: 'handoffDecisions',
+            expected: 'target_id_to_handoff_decision',
+            message:
+                'Each handoff choice must name a target and a valid decision.',
+          );
+        }
+        handoff[targetId] = decision;
+      }
+    }
+    final execution = container.read(sequenceExecutionStateProvider);
+    if (container.read(sequenceLaunchInFlightProvider) || !execution.canStart) {
+      return jsonConflict({
+        'error': 'sequencer_busy',
+        'message': 'A sequence is already running.',
+      });
+    }
+    if (container.read(flatWizardProvider.notifier).isBusy ||
+        container.read(isFlipInProgressProvider)) {
+      return jsonConflict({
+        'error': 'rig_busy',
+        'message':
+            'Finish or cancel the active flat capture or meridian flip first.',
+      });
+    }
+    final sequenceId = container.read(currentSequenceProvider)?.databaseId;
+    for (final entry in handoff.entries) {
+      container
+              .read(
+                sessionHandoffDecisionProvider((
+                  sequenceId: sequenceId,
+                  targetId: entry.key,
+                )).notifier,
+              )
+              .state =
+          entry.value;
+    }
+    if (ignoreHistory) {
+      container
+              .read(sessionHandoffIgnoreUnavailableOnceProvider.notifier)
+              .state =
+          true;
+    }
     final commandId = commandCorrelator?.beginCommand(
       operation: 'sequencer.start',
     );
@@ -348,6 +403,13 @@ extension _SequencerLifecycle on SequencerHandlers {
         return _nativeStartRefusal(error);
       }
       rethrow;
+    } finally {
+      if (ignoreHistory) {
+        container
+                .read(sessionHandoffIgnoreUnavailableOnceProvider.notifier)
+                .state =
+            false;
+      }
     }
     publishHostMutationFromContainer(
       container,
@@ -595,8 +657,11 @@ extension _SequencerLifecycle on SequencerHandlers {
 
   Future<Response> _handleSequencerReset(Request request) async {
     _logInfo('[API] POST /api/sequencer/reset');
+    // The executor's reset stops a live run, clears a restored checkpoint
+    // and calls sequencerReset. Calling sequencerReset again here would
+    // reset the native executor twice.
+    await container.read(sequenceExecutorProvider).reset();
     final backend = container.read(sequencerBackendProvider);
-    await backend.sequencerReset();
 
     // Also close a durable session that no run owns any more.
     //
