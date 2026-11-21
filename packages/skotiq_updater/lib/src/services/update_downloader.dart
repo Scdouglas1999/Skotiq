@@ -137,6 +137,25 @@ class UpdateDownloader {
         }
         final rangeStart = int.parse(match.group(1)!);
         if (rangeStart != existingBytes) {
+          // A partial whose offset the server will not resume from fails the
+          // same way on every retry if it is left on disk. Drop it and start
+          // once from byte 0, matching the HTTP 416 path above. A mismatch
+          // on a fresh request (no local bytes) is the server's error.
+          if (existingBytes > 0) {
+            await streamedResponse.stream.drain<void>().catchError(
+              (Object _) {},
+            );
+            if (await destination.exists()) {
+              await destination.delete();
+            }
+            return download(
+              url,
+              destinationPath,
+              expectedSize: expectedSize,
+              onProgress: onProgress,
+              cancelToken: cancelToken,
+            );
+          }
           throw DownloadException(
             'Server Content-Range start ($rangeStart) does not match local '
             'resume offset ($existingBytes)',
