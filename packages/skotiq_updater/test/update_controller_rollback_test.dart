@@ -78,6 +78,22 @@ void main() {
     test(
       'rollback refuses when restore point exists but applySafetyCheck is unwired',
       () async {
+        // A restore point is enough for UpdateService.rollbackToPrevious to
+        // launch the external updater. The probe overrides that launch so a
+        // controller that skips the safety check fails this test instead of
+        // starting the real updater binary.
+        final probe = _RollbackProbe(
+          currentVersion: '2.1.0',
+          currentBuildNumber: 42,
+          applicationSupportDirectoryProvider: () async => tempRoot,
+        );
+        final unwired = UpdateController(
+          service: probe,
+          currentVersion: '2.1.0',
+          currentBuildNumber: 42,
+          stateDirectory: () async => tempRoot,
+        );
+        addTearDown(unwired.dispose);
         final log = rollbackLog();
         await log.parent.create(recursive: true);
         await log.writeAsString(
@@ -88,10 +104,34 @@ void main() {
           }),
         );
         expect(
-          () => controller.rollback(jobId: 'job-2'),
-          throwsA(isA<StateError>()),
+          () => unwired.rollback(jobId: 'job-2'),
+          throwsA(
+            isA<StateError>().having(
+              (error) => error.toString(),
+              'message',
+              contains('no host safety check'),
+            ),
+          ),
         );
+        expect(probe.launcherInvocations, 0);
       },
     );
   });
+}
+
+/// Stands in for the external updater so a missing safety check cannot spawn it.
+class _RollbackProbe extends UpdateService {
+  int launcherInvocations = 0;
+
+  _RollbackProbe({
+    required super.currentVersion,
+    required super.currentBuildNumber,
+    required super.applicationSupportDirectoryProvider,
+  });
+
+  @override
+  Future<void> rollbackToPrevious() async {
+    launcherInvocations++;
+    throw StateError('updater launch blocked by test');
+  }
 }
