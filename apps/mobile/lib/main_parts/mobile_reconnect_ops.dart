@@ -454,9 +454,17 @@ mixin _MobileReconnectOps on _MobileConnectionState {
 
         // Persistence is secondary to the already-live session. A disk or
         // keychain failure must not turn a successful connection into a
-        // misleading connection error. Relay sessions must not overwrite
-        // lastServer with their ephemeral 127.0.0.1 loopback tunnel port.
-        if (_activeRelayTunnel == null) {
+        // misleading connection error. The relay tunnel's own loopback
+        // endpoint is ephemeral and must not replace lastServer; a different
+        // host is still saved while a tunnel happens to be open.
+        final tunnel = _activeRelayTunnel;
+        final persistServer = shouldPersistConnectedServer(
+          host: enrichedServer.host,
+          port: enrichedServer.webPort,
+          tunnelHost: tunnel == null ? null : '127.0.0.1',
+          tunnelPort: tunnel?.localPort,
+        );
+        if (persistServer) {
           try {
             await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
           } catch (e, stackTrace) {
@@ -477,7 +485,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         // stable relay identity, not their ephemeral loopback port.
         if (savedServerId != null) {
           await _touchSavedServer(savedServerId);
-        } else if (_activeRelayTunnel == null) {
+        } else if (persistServer) {
           await _upsertSavedServer(enrichedServer);
         }
         if (!_isCurrentConnectionOperation(operationGeneration) ||

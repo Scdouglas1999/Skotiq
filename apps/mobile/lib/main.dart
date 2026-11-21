@@ -25,6 +25,7 @@ import 'package:skotiq_app/widgets/red_night_filter.dart';
 import 'screens/qr_scanner_screen.dart';
 import 'screens/setup/first_run_setup_screen.dart';
 import 'screens/servers/saved_servers_screen.dart';
+import 'services/last_server_persistence.dart';
 import 'services/saved_servers_service.dart';
 import 'services/android_system_ui.dart';
 import 'services/foreground_service.dart';
