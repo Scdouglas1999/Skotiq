@@ -169,6 +169,14 @@ void main() {
     expect(row.filter, 'Ha');
     expect(row.frameCount, 9);
     expect(row.name, 'Live stack Ha');
+    events.clear();
+    await libraryWithFilter.save(
+      '/stacks/unfiltered.fits',
+      filterKey: 'Unfiltered',
+    );
+    expect(events, isEmpty, reason: 'The active L stack has different pixels.');
+    expect(writes.last, 'Unfiltered:/stacks/unfiltered.fits');
+    expect(reads.last, 'Unfiltered');
   });
 
   test(

@@ -14,6 +14,7 @@ import 'package:skotiq_desktop/headless_api/handlers/stacking_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
@@ -313,11 +314,18 @@ void main() {
     await handlers.onImageSaved('/host/oiii_2.fits');
     expect(fake.added, ['/host/oiii_2.fits']);
 
-    // No filterKey keeps the old whole-stack meaning.
-    final resetAll = await handlers.handleReset(post('/api/stacking/reset'));
+    final dispatch = RouteTable.only(handlers).handler;
+    await dispatch(
+      post('/api/stacking/filters/Ha/start', {
+        'referencePath': '/host/ha.fits',
+      }),
+    );
+    expect(fake._slots, {'Ha', 'OIII'});
+    final resetAll = await dispatch(post('/api/stacking/reset'));
     expect(resetAll.statusCode, 200);
-    expect(fake.resets, 1);
-    expect(fake.resetFilters, ['Ha']);
+    expect(fake._slots, isEmpty);
+    await handlers.onImageSaved('/host/new-run.fits');
+    expect(fake.started.last, '/host/new-run.fits');
   });
 
   test('a missing filterKey still stops the whole stack', () async {

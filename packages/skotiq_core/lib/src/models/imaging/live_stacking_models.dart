@@ -5,14 +5,15 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 /// Default filter key when a frame carries no optical filter.
 const String kDefaultLiveStackFilterKey = 'Unfiltered';
 
-/// Normalize a filter name into a stable per-filter live stack slot key.
-String normalizeLiveStackFilterKey(String? raw) {
+/// A requested slot. The literal "Unfiltered" names a real slot, while the
+/// blank or dash selection lets the engine choose the active one.
+String? explicitLiveStackFilterKey(String? raw) {
   final trimmed = raw?.trim();
-  if (trimmed == null || trimmed.isEmpty || trimmed == '—') {
-    return kDefaultLiveStackFilterKey;
-  }
-  return trimmed;
+  return trimmed == null || trimmed.isEmpty || trimmed == '—' ? null : trimmed;
 }
+
+String normalizeLiveStackFilterKey(String? raw) =>
+    explicitLiveStackFilterKey(raw) ?? kDefaultLiveStackFilterKey;
 
 /// Curated live stacking tuning profiles for one-click configuration.
 enum LiveStackingPreset {

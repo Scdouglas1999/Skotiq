@@ -311,7 +311,7 @@ class LiveStackingService {
   Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) async {
     final remote = _remote;
     if (remote != null) {
-      return remote.stackingGetResult();
+      return remote.stackingGetResult(filterKey: filterKey);
     }
     final result = await bridge.apiStackingGetResultForFilter(
       filterKey: filterKey,

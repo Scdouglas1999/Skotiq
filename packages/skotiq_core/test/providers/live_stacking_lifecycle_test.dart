@@ -258,7 +258,9 @@ void main() {
           filterKey: any(named: 'filterKey'),
         ),
       ).thenAnswer((_) async => const LiveStackingStats(stackedFrameCount: 1));
-      when(() => backend.stackingGetResult()).thenAnswer(
+      when(
+        () => backend.stackingGetResult(filterKey: any(named: 'filterKey')),
+      ).thenAnswer(
         (_) async => const LiveStackingResult(
           width: 2,
           height: 2,
@@ -302,6 +304,13 @@ void main() {
       verify(() => backend.stackingStop(filterKey: 'OIII')).called(1);
       verifyNever(() => backend.stackingStop());
       expect(container.read(liveStackingProvider).availableFilters, ['Ha']);
+      await notifier.stopFilter('Ha');
+      verify(() => backend.stackingStop(filterKey: 'Ha')).called(1);
+      verifyNever(() => backend.stackingStop());
+      expect(
+        container.read(liveStackingProvider).status,
+        LiveStackingStatus.idle,
+      );
     },
   );
 }

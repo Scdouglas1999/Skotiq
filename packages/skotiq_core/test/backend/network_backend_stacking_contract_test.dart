@@ -494,9 +494,70 @@ void main() {
     });
   });
 
-  group('filterKey is optional on reset, stop, and start', () {
+  group('named filter operations', () {
+    test(
+      'a host without slot support receives no whole-stack mutation',
+      () async {
+        final fake = FakeNetworkClient()
+          ..setDefaultResponse(status: 404, body: '{"error":"unknown route"}');
+        final backend = _backend(fake);
+        addTearDown(backend.dispose);
+        await expectLater(
+          backend.stackingStart(filterKey: 'Ha'),
+          throwsException,
+        );
+        await expectLater(
+          backend.stackingReset(filterKey: 'Ha'),
+          throwsException,
+        );
+        await expectLater(
+          backend.stackingStop(filterKey: 'Ha'),
+          throwsException,
+        );
+        expect(fake.requests.map((r) => r.path), [
+          '/api/stacking/filters/Ha/start',
+          '/api/stacking/filters/Ha/reset',
+          '/api/stacking/filters/Ha/stop',
+        ]);
+      },
+    );
+
+    test(
+      'an explicit Unfiltered result fetches pixels from that slot',
+      () async {
+        final fake = FakeNetworkClient()
+          ..setResponse(
+            '/api/stacking/filters/Unfiltered/result',
+            body: jsonEncode(_meta()),
+          )
+          ..setBinaryResponse(
+            '/api/stacking/filters/Unfiltered/preview',
+            bodyBytes: _le16([1, 2, 3, 4]),
+          );
+        final backend = _backend(fake);
+        addTearDown(backend.dispose);
+        final result = await backend.stackingGetResult(filterKey: 'Unfiltered');
+        expect(result.data, [1, 2, 3, 4]);
+        expect(result.filterKey, 'Unfiltered');
+      },
+    );
     test('a missing key is omitted and a named key is sent', () async {
       final fake = FakeNetworkClient()
+        ..setResponse(
+          '/api/stacking/filters/Ha/reset',
+          method: 'POST',
+          body: '{}',
+        )
+        ..setResponse(
+          '/api/stacking/filters/OIII/stop',
+          method: 'POST',
+          body: '{}',
+        )
+        ..setResponse(
+          '/api/stacking/filters/SII/start',
+          method: 'POST',
+          body: jsonEncode({'status': 'started', 'stats': _zeroStats()}),
+        )
         ..setResponse('/api/stacking/reset', method: 'POST', body: '{}')
         ..setResponse('/api/stacking/stop', method: 'POST', body: '{}')
         ..setResponse(
@@ -522,7 +583,7 @@ void main() {
           jsonDecode(fake.requests[index].body!) as Map<String, dynamic>;
 
       expect(bodyAt(0).containsKey('filterKey'), isFalse);
-      expect(bodyAt(1)['filterKey'], 'Ha');
+      expect(fake.requests[1].path, '/api/stacking/filters/Ha/reset');
       expect(
         bodyAt(2).containsKey('filterKey'),
         isFalse,
@@ -530,10 +591,10 @@ void main() {
       );
       expect(fake.requests[3].path, '/api/stacking/stop');
       expect(bodyAt(3).containsKey('filterKey'), isFalse);
-      expect(bodyAt(4)['filterKey'], 'OIII');
+      expect(fake.requests[4].path, '/api/stacking/filters/OIII/stop');
       expect(bodyAt(5).containsKey('filterKey'), isFalse);
       expect(bodyAt(5)['referencePath'], '/host/ref.fits');
-      expect(bodyAt(6)['filterKey'], 'SII');
+      expect(fake.requests[6].path, '/api/stacking/filters/SII/start');
       expect(bodyAt(6)['referencePath'], '/host/sii.fits');
     });
   });

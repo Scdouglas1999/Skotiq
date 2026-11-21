@@ -766,7 +766,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
 
       // Surface the reference frame as the initial preview.
       final result = remote != null
-          ? await remote.stackingGetResult()
+          ? await remote.stackingGetResult(filterKey: normalizedFilter)
           : (normalizedFilter != null
                 ? await service!.getCurrentResultForFilter(normalizedFilter)
                 : await service!.getCurrentResult());
@@ -1638,7 +1638,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   Future<void> stopFilter(String filterKey) async {
     final normalizedKey = normalizeLiveStackFilterKey(filterKey);
     if (!state.filterStacks.containsKey(normalizedKey)) return;
-    if (state.filterStacks.length <= 1) {
+    if (_remoteSessionBackend == null && state.filterStacks.length <= 1) {
       await stop();
       return;
     }
@@ -1650,7 +1650,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     await _enqueueIngest(() async {
       if (!_isCurrentSession(generation, authority)) return;
       if (!state.filterStacks.containsKey(normalizedKey)) return;
-      if (state.filterStacks.length <= 1) {
+      if (_remoteSessionBackend == null && state.filterStacks.length <= 1) {
         stopWholeSession = true;
         return;
       }
@@ -1667,7 +1667,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           state.filterStacks,
         )..remove(normalizedKey);
         if (updatedStacks.isEmpty) {
-          stopWholeSession = true;
+          // A linked viewer can know fewer slots than its host. Its final
+          // named stop ends this view without releasing any other host slot.
+          _invalidateSession();
+          state = LiveStackingState(config: state.config);
           return;
         }
         final remainingKeys = updatedStacks.keys.toList()

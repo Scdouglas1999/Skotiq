@@ -88,11 +88,10 @@ class LiveStackMasterLibrary {
     String? sourceFramePath,
     String? filterKey,
   }) async {
-    final normalizedFilter = normalizeLiveStackFilterKey(filterKey);
-    final hasExplicitFilter = normalizedFilter != kDefaultLiveStackFilterKey;
+    final normalizedFilter = explicitLiveStackFilterKey(filterKey);
     final LiveStackingResult result;
     final LiveStackingMasterSave saved;
-    if (hasExplicitFilter) {
+    if (normalizedFilter != null) {
       final read = _currentResultForFilter;
       final write = _saveMasterForFilter;
       // The active-slot saver has no filter argument. Using it here would
@@ -142,8 +141,7 @@ class LiveStackMasterLibrary {
     String? card(String keyword) =>
         headers.map((h) => h.string(keyword)).nonNulls.firstOrNull;
     final target = card('OBJECT');
-    final band =
-        card('FILTER') ?? (hasExplicitFilter ? normalizedFilter : null);
+    final band = card('FILTER') ?? normalizedFilter;
     final name = [
       target ?? 'Live stack',
       if (band != null) band,
