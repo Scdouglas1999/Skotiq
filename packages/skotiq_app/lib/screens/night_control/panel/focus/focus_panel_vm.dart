@@ -15,7 +15,22 @@ import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/session/session_events_provider.dart';
 import '../../night_control_contracts.dart';
 
-enum NightAutofocusStatus { idle, running, done, failed }
+enum NightAutofocusStatus { idle, running, done, failed, cancelled }
+
+/// What the Focus tab calls a run. Cancel is its own outcome: the overlay
+/// records it as the status text, with no error and no result.
+NightAutofocusStatus nightAutofocusStatus({
+  required bool isRunning,
+  required bool hasError,
+  required bool hasResult,
+  required String status,
+}) {
+  if (isRunning) return NightAutofocusStatus.running;
+  if (hasError) return NightAutofocusStatus.failed;
+  if (hasResult) return NightAutofocusStatus.done;
+  if (status == 'Autofocus cancelled') return NightAutofocusStatus.cancelled;
+  return NightAutofocusStatus.idle;
+}
 
 /// The temperature compensation the operator turned on (Equipment →
 /// Settings → Focuser): steps per °C and what moved since its reference.
@@ -123,13 +138,12 @@ final nightFocusPanelProvider = Provider<NightFocusPanelVm>((ref) {
   final connected = focuser.connectionState == DeviceConnectionState.connected;
   final result = overlay.result;
 
-  final status = overlay.isRunning
-      ? NightAutofocusStatus.running
-      : overlay.hasError
-          ? NightAutofocusStatus.failed
-          : result != null
-              ? NightAutofocusStatus.done
-              : NightAutofocusStatus.idle;
+  final status = nightAutofocusStatus(
+    isRunning: overlay.isRunning,
+    hasError: overlay.hasError,
+    hasResult: result != null,
+    status: overlay.status,
+  );
 
   final position = connected ? focuser.position : null;
   final tempComp = settings != null && settings.tempCompensation

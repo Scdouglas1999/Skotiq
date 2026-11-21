@@ -48,9 +48,9 @@ extension RotatorDeviceHandlers on DeviceHandlers {
     }
 
     final backend = container.read(deviceBackendProvider);
-    final angle = await backend.rotatorGetAngle(deviceId);
+    final status = await backend.getRotatorStatus(deviceId);
 
-    return jsonOk({'position': angle});
+    return jsonOk(status.toJson());
   }
 
   Future<Response> handleRotatorHalt(Request request) async {

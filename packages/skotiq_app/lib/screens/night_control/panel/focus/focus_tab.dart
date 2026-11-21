@@ -100,6 +100,10 @@ class NightAutofocusSection extends ConsumerWidget {
           l10n.text('nightPanelAfFailed'),
           MetricGridTone.bad,
         ),
+      NightAutofocusStatus.cancelled => (
+          l10n.text('nightPanelAfCancelled'),
+          MetricGridTone.warning,
+        ),
       NightAutofocusStatus.idle => (null, null),
     };
 

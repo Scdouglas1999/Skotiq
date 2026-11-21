@@ -85,14 +85,7 @@ void _applyGuiderMutationFromHost(
   final notifier = readDeviceConnectionNotifier(container, DeviceType.guider);
   switch (action) {
     case HostMutationAction.connected:
-      if (!_isDeviceAlreadyConnected(
-        container,
-        DeviceType.guider,
-        'phd2_guider',
-      )) {
-        notifier.setConnecting(kPhd2CanonicalId, kPhd2DisplayName);
-      }
-      notifier.setConnected();
+      _noteGuiderConnected(container);
     case HostMutationAction.disconnected:
       notifier.setDisconnected();
     case HostMutationAction.started:
