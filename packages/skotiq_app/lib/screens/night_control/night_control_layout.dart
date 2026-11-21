@@ -136,7 +136,8 @@ class NightControlLayout extends StatefulWidget {
       panelWidth + ((width - 1600).clamp(0.0, 400.0) * 0.25);
   static const double headerHeight = 48;
   static const double compactBodyHeight = 720;
-  static const double actionHintMinWidth = 900;
+  // Leave room for Live stack and Cancel before expanding the trailing hint.
+  static const double actionHintMinWidth = 1000;
   static const double actionSubLabelMinWidth = 820;
   static const double chartRowHeight = 120;
   static const double compactChartRowHeight = 96;

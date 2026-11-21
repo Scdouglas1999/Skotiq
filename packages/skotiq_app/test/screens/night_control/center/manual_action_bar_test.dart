@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' show Tristate;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/models.dart'
     show PolarAlignPhase, PolarAlignmentState;
 import 'package:skotiq_core/providers.dart'
@@ -105,14 +106,23 @@ void main() {
     await pumpCenter(
       tester,
       centerOverrides(board, api: api),
-      child: const ManualActionBar(),
-      size: const Size(1000, ManualActionBar.height),
+      child:
+          const Align(alignment: Alignment.topLeft, child: ManualActionBar()),
+      size: const Size(1000, 80),
+      theme: SkotiqTheme.dark.copyWith(platform: TargetPlatform.android),
     );
     expect(find.text('running'), findsOneWidget);
     expect(find.text('Cancel'), findsOneWidget);
     await tester.ensureVisible(find.text('Cancel'));
     await tester.pump();
-    await tester.tap(find.text('Cancel'));
+    final cancel = find.ancestor(
+      of: find.text('Cancel'),
+      matching: find.byType(InkWell),
+    );
+    final rect = tester.getRect(cancel);
+    expect(
+        rect.shortestSide, greaterThanOrEqualTo(SkotiqTokens.minTouchTarget));
+    await tester.tapAt(rect.bottomCenter - const Offset(0, 1));
     await tester.pump();
     expect(api.cancels, 1);
   });

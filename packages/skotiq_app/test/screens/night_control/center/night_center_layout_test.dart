@@ -72,6 +72,7 @@ void main() {
       tester,
       centerOverrides(NightFixtures.running(), image: testFrame()),
       size: const Size(744, 470),
+      theme: SkotiqTheme.dark.copyWith(platform: TargetPlatform.android),
     );
     expect(tester.takeException(), isNull);
     expect(find.byType(SessionChartsRow), findsNothing);
@@ -79,7 +80,14 @@ void main() {
       tester.getSize(find.byType(FrameStage)).height,
       greaterThanOrEqualTo(NightControlLayout.minFrameHeight),
     );
-    await tester.tap(find.text('Show charts'));
+    final toggle = find.ancestor(
+      of: find.text('Show charts'),
+      matching: find.byType(InkWell),
+    );
+    final rect = tester.getRect(toggle);
+    expect(
+        rect.shortestSide, greaterThanOrEqualTo(SkotiqTokens.minTouchTarget));
+    await tester.tapAt(rect.bottomCenter - const Offset(0, 1));
     await tester.pump();
     expect(find.byType(SessionChartsRow), findsOneWidget);
     expect(find.text('Hide charts'), findsOneWidget);
@@ -130,6 +138,7 @@ void main() {
     await pumpCenter(
       tester,
       centerOverrides(NightFixtures.running(), image: testFrame()),
+      theme: SkotiqTheme.dark.copyWith(platform: TargetPlatform.linux),
     );
     expect(tester.getSize(find.byType(NightCenter)), const Size(744, 758));
     expect(

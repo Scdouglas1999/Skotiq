@@ -50,6 +50,12 @@ class ManualActionBar extends ConsumerWidget {
 
   static const double height = 44;
 
+  /// The top border takes one pixel from the buttons' available height.
+  static double heightFor(BuildContext context) =>
+      SkotiqTouchTarget.isTouch(context)
+          ? SkotiqTokens.minTouchTarget + 1
+          : height;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.skotiqColors;
@@ -89,7 +95,7 @@ class ManualActionBar extends ConsumerWidget {
       explicitChildNodes: true,
       label: l10n.text('nightCtrActionsLabel'),
       child: Container(
-        height: height,
+        height: heightFor(context),
         decoration: BoxDecoration(
           color: colors.surface,
           border: Border(top: BorderSide(color: colors.border)),
@@ -211,7 +217,8 @@ class _ActionButton extends ConsumerWidget {
           onTap: () => _press(ref),
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 30),
+            constraints:
+                SkotiqTouchTarget.constraints(context, desktopExtent: 30),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Row(
@@ -267,7 +274,8 @@ class _CancelButton extends StatelessWidget {
           onTap: onPressed,
           borderRadius: SkotiqTokens.borderRadiusLg,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 30),
+            constraints:
+                SkotiqTouchTarget.constraints(context, desktopExtent: 30),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               child: Center(

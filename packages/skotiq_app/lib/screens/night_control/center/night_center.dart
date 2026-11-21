@@ -46,7 +46,7 @@ class _NightCenterState extends ConsumerState<NightCenter> {
         density?.chartRowHeight ?? NightControlLayout.chartRowHeight;
     return LayoutBuilder(
       builder: (context, constraints) {
-        const fixed = ManualActionBar.height + FrameStrip.height;
+        final fixed = ManualActionBar.heightFor(context) + FrameStrip.height;
         final fits = !constraints.hasBoundedHeight ||
             constraints.maxHeight - fixed - chartHeight >=
                 NightControlLayout.minFrameHeight;
@@ -107,7 +107,8 @@ class _ChartsToggle extends StatelessWidget {
     final label =
         context.l10n.text(open ? 'nightCtrHideCharts' : 'nightCtrShowCharts');
     return Container(
-      height: NightCenter.chartToggleHeight,
+      constraints:
+          const BoxConstraints(minHeight: NightCenter.chartToggleHeight),
       decoration: BoxDecoration(
         color: colors.surface,
         border: Border(top: BorderSide(color: colors.border)),
@@ -121,26 +122,29 @@ class _ChartsToggle extends StatelessWidget {
         onTap: onPressed,
         child: InkWell(
           onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: SkotiqTokens.spaceMd,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(
-                  open ? LucideIcons.chevronDown : LucideIcons.chevronUp,
-                  size: 14,
-                  color: colors.textMuted,
-                ),
-                const SizedBox(width: SkotiqTokens.spaceXs),
-                Text(
-                  label,
-                  style: SkotiqTypography.captionSm.copyWith(
-                    color: colors.textSecondary,
+          child: SkotiqTouchTarget.hitBox(
+            context,
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: SkotiqTokens.spaceMd,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Icon(
+                    open ? LucideIcons.chevronDown : LucideIcons.chevronUp,
+                    size: 14,
+                    color: colors.textMuted,
                   ),
-                ),
-              ],
+                  const SizedBox(width: SkotiqTokens.spaceXs),
+                  Text(
+                    label,
+                    style: SkotiqTypography.captionSm.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
