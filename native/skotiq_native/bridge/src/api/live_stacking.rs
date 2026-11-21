@@ -298,20 +298,47 @@ impl StackerRegistry {
         self.next_revision
     }
 
-    fn resolve_key<'a>(&'a self, filter_key: Option<&'a str>) -> Option<&'a str> {
+    fn resolve_existing_key(&self, raw: &str) -> Option<String> {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() || trimmed == "—" {
+            return None;
+        }
+        if self.slots.contains_key(trimmed) {
+            return Some(trimmed.to_string());
+        }
+        if let Some(key) = self
+            .slots
+            .keys()
+            .find(|k| k.eq_ignore_ascii_case(trimmed))
+        {
+            return Some(key.clone());
+        }
+        let mut alias_matches = self
+            .slots
+            .keys()
+            .filter(|k| skotiq_device::same_filter(k, trimmed));
+        let first = alias_matches.next()?;
+        if alias_matches.next().is_none() {
+            Some(first.clone())
+        } else {
+            None
+        }
+    }
+
+    fn resolve_key(&self, filter_key: Option<&str>) -> Option<String> {
         if let Some(raw) = filter_key {
             let trimmed = raw.trim();
             if !trimmed.is_empty() && trimmed != "—" {
-                return Some(trimmed);
+                return self.resolve_existing_key(trimmed);
             }
         }
         self.active_key
-            .as_deref()
-            .or_else(|| self.slots.keys().next().map(String::as_str))
+            .clone()
+            .or_else(|| self.slots.keys().next().cloned())
     }
 
     fn get_handle(&self, filter_key: Option<&str>) -> Option<(String, Arc<SlotHandle>)> {
-        let key = self.resolve_key(filter_key)?.to_string();
+        let key = self.resolve_key(filter_key)?;
         let handle = self.slots.get(&key).map(Arc::clone)?;
         Some((key, handle))
     }
@@ -337,7 +364,7 @@ fn sync_atomic_counters(registry: &StackerRegistry) {
     ACTIVE_SLOT_COUNT.store(registry.slots.len() as u32, Ordering::Release);
     let active_frames = registry
         .resolve_key(None)
-        .and_then(|key| registry.slots.get(key))
+        .and_then(|key| registry.slots.get(&key))
         .map(|slot| slot.read_meta().stats.stacked_frame_count)
         .unwrap_or(0);
     ACTIVE_FRAME_COUNT.store(active_frames, Ordering::Release);
@@ -608,6 +635,19 @@ pub fn api_stacking_start_from_data_for_filter(
         "OSC declared but no Bayer pattern resolvable (in-memory frames carry no \
          BAYERPAT header — set bayer_pattern in the config)",
     )?;
+    let expected_pixels = (width as usize)
+        .checked_mul(height as usize)
+        .ok_or_else(|| {
+            SkotiqError::ImageError(format!("Image dimensions overflow: {}x{}", width, height))
+        })?;
+    if width == 0 || height == 0 || data.len() != expected_pixels {
+        return Err(SkotiqError::ImageError(format!(
+            "Invalid image dimensions or pixel buffer length: {}x{} (got {} pixels)",
+            width,
+            height,
+            data.len()
+        )));
+    }
     let reference = ingest(ImageData::from_u16(width, height, 1, &data), color)?;
     let img_w = reference.width;
     let img_h = reference.height;
@@ -660,7 +700,7 @@ pub fn api_stacking_add_frame_for_filter(
     );
     let read = read_image(std::path::Path::new(&image_path))
         .map_err(|e| SkotiqError::ImageError(format!("Failed to read frame image: {}", e)))?;
-    let provenance = FrameProvenance::from_header(&read.header);
+    let mut provenance = FrameProvenance::from_header(&read.header);
     let source_label = source_label_from_path(&image_path);
 
     let (target_key, slot) = {
@@ -672,76 +712,93 @@ pub fn api_stacking_add_frame_for_filter(
         })?
     };
 
+    // When the caller explicitly routed this frame to a named filter slot,
+    // allow headerless frames and canonical aliases (e.g. "H-alpha" -> "Ha")
+    // while still rejecting a frame whose header names a different filter.
+    if filter_key.is_some() && target_key != DEFAULT_FILTER_KEY {
+        let header_compatible = match provenance.filter.as_deref() {
+            None => true,
+            Some(header_filter) => skotiq_device::same_filter(header_filter, &target_key),
+        };
+        if header_compatible {
+            provenance.filter = Some(target_key.clone());
+        }
+    }
+
     let color = slot.read_meta().color;
     let frame = ingest(read.image, color)?;
 
-    let (res, stats, telemetry) = {
+    // Hold `slot.stacker` across the revision bump and `slot.meta` update so
+    // Darkroom/preview readers holding `slot.stacker` always observe pixels
+    // and revision atomically in lockstep.
+    let outcome = {
         let mut stacker = slot.lock_stacker();
         let res = stacker.add_frame_with_provenance(&frame, &provenance);
         let stats = stats_api_from_stacker(&stacker);
         let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
-        (res, stats, telemetry)
+        match res {
+            Ok(stacked) => {
+                let revision = {
+                    let mut guard = acquire_registry();
+                    let rev = guard.bump_revision();
+                    guard.active_key = Some(target_key.clone());
+                    rev
+                };
+                let event = {
+                    let mut meta = slot.write_meta();
+                    meta.revision = revision;
+                    meta.width = stacked.width;
+                    meta.height = stacked.height;
+                    meta.channels = stacked.channels;
+                    meta.stats = stats.clone();
+                    meta.record_frame_event(
+                        telemetry,
+                        stats.total_frames_attempted,
+                        source_label,
+                        true,
+                        None,
+                        provenance.exposure_secs,
+                    )
+                };
+                *slot.lock_preview_cache() = None;
+                Ok((stacked, stats, revision, event))
+            }
+            Err(err) => {
+                {
+                    let mut meta = slot.write_meta();
+                    meta.stats = stats.clone();
+                    meta.record_frame_event(
+                        telemetry,
+                        stats.total_frames_attempted,
+                        source_label,
+                        false,
+                        Some(err.clone()),
+                        provenance.exposure_secs,
+                    );
+                }
+                Err(SkotiqError::ImageError(err))
+            }
+        }
     };
 
-    match res {
-        Ok(stacked) => {
-            let revision = {
-                let mut guard = acquire_registry();
-                let rev = guard.bump_revision();
-                guard.active_key = Some(target_key.clone());
-                rev
-            };
-            let event = {
-                let mut meta = slot.write_meta();
-                meta.revision = revision;
-                meta.width = stacked.width;
-                meta.height = stacked.height;
-                meta.channels = stacked.channels;
-                meta.stats = stats.clone();
-                meta.record_frame_event(
-                    telemetry,
-                    stats.total_frames_attempted,
-                    source_label,
-                    true,
-                    None,
-                    provenance.exposure_secs,
-                )
-            };
-            *slot.lock_preview_cache() = None;
-            {
-                let guard = acquire_registry();
-                sync_atomic_counters(&guard);
-            }
-            let data = stacked.as_u16().ok_or_else(|| {
-                SkotiqError::ImageError("Failed to convert stacked result to u16".to_string())
-            })?;
-            Ok(ApiLiveStackingResult {
-                width: stacked.width,
-                height: stacked.height,
-                channels: stacked.channels,
-                data,
-                stats,
-                filter_key: target_key,
-                revision,
-                last_event: Some(event),
-            })
-        }
-        Err(err) => {
-            {
-                let mut meta = slot.write_meta();
-                meta.stats = stats.clone();
-                meta.record_frame_event(
-                    telemetry,
-                    stats.total_frames_attempted,
-                    source_label,
-                    false,
-                    Some(err.clone()),
-                    provenance.exposure_secs,
-                );
-            }
-            Err(SkotiqError::ImageError(err))
-        }
+    let (stacked, stats, revision, event) = outcome?;
+    {
+        let guard = acquire_registry();
+        sync_atomic_counters(&guard);
     }
+    let data = stacked.as_u16().ok_or_else(|| {
+        SkotiqError::ImageError("Failed to convert stacked result to u16".to_string())
+    })?;
+    Ok(ApiLiveStackingResult {
+        width: stacked.width,
+        height: stacked.height,
+        channels: stacked.channels,
+        data,
+        stats,
+        filter_key: target_key,
+        revision,
+        last_event: Some(event),
+    })
 }
 
 /// Add a frame file to the active stack and return the stack as it now stands.
@@ -763,6 +820,23 @@ pub fn api_stacking_add_frame_from_data_for_filter(
         height,
         filter_key
     );
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .ok_or_else(|| {
+            SkotiqError::ImageError(format!(
+                "Invalid frame dimensions (overflow): {}x{}",
+                width, height
+            ))
+        })?;
+    if width == 0 || height == 0 || data.len() != expected {
+        return Err(SkotiqError::ImageError(format!(
+            "Invalid frame dimensions or buffer length: {}x{} (expected {} samples, got {})",
+            width,
+            height,
+            expected,
+            data.len()
+        )));
+    }
     let (target_key, slot) = {
         let guard = acquire_registry();
         guard.get_handle(filter_key.as_deref()).ok_or_else(|| {
@@ -775,73 +849,74 @@ pub fn api_stacking_add_frame_from_data_for_filter(
     let color = slot.read_meta().color;
     let frame = ingest(ImageData::from_u16(width, height, 1, &data), color)?;
 
-    let (res, stats, telemetry) = {
+    let outcome = {
         let mut stacker = slot.lock_stacker();
         let res = stacker.add_frame(&frame, pedestal);
         let stats = stats_api_from_stacker(&stacker);
         let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
-        (res, stats, telemetry)
+        match res {
+            Ok(stacked) => {
+                let revision = {
+                    let mut guard = acquire_registry();
+                    let rev = guard.bump_revision();
+                    guard.active_key = Some(target_key.clone());
+                    rev
+                };
+                let event = {
+                    let mut meta = slot.write_meta();
+                    meta.revision = revision;
+                    meta.width = stacked.width;
+                    meta.height = stacked.height;
+                    meta.channels = stacked.channels;
+                    meta.stats = stats.clone();
+                    meta.record_frame_event(
+                        telemetry,
+                        stats.total_frames_attempted,
+                        "in-memory".to_string(),
+                        true,
+                        None,
+                        None,
+                    )
+                };
+                *slot.lock_preview_cache() = None;
+                Ok((stacked, stats, revision, event))
+            }
+            Err(err) => {
+                {
+                    let mut meta = slot.write_meta();
+                    meta.stats = stats.clone();
+                    meta.record_frame_event(
+                        telemetry,
+                        stats.total_frames_attempted,
+                        "in-memory".to_string(),
+                        false,
+                        Some(err.clone()),
+                        None,
+                    );
+                }
+                Err(SkotiqError::ImageError(err))
+            }
+        }
     };
 
-    match res {
-        Ok(stacked) => {
-            let revision = {
-                let mut guard = acquire_registry();
-                let rev = guard.bump_revision();
-                guard.active_key = Some(target_key.clone());
-                rev
-            };
-            let event = {
-                let mut meta = slot.write_meta();
-                meta.revision = revision;
-                meta.width = stacked.width;
-                meta.height = stacked.height;
-                meta.channels = stacked.channels;
-                meta.stats = stats.clone();
-                meta.record_frame_event(
-                    telemetry,
-                    stats.total_frames_attempted,
-                    "in-memory".to_string(),
-                    true,
-                    None,
-                    None,
-                )
-            };
-            *slot.lock_preview_cache() = None;
-            {
-                let guard = acquire_registry();
-                sync_atomic_counters(&guard);
-            }
-            let out_u16 = stacked.as_u16().ok_or_else(|| {
-                SkotiqError::ImageError("Failed to convert stacked result to u16".to_string())
-            })?;
-            Ok(ApiLiveStackingResult {
-                width: stacked.width,
-                height: stacked.height,
-                channels: stacked.channels,
-                data: out_u16,
-                stats,
-                filter_key: target_key,
-                revision,
-                last_event: Some(event),
-            })
-        }
-        Err(err) => {
-            {
-                let mut meta = slot.write_meta();
-                meta.stats = stats.clone();
-                meta.record_frame_event(
-                    telemetry,
-                    stats.total_frames_attempted,
-                    "in-memory".to_string(),
-                    false,
-                    Some(err.clone()),
-                    None,
-                );
-            }
-            Err(SkotiqError::ImageError(err))
-        }
+    let (stacked, stats, revision, event) = outcome?;
+    {
+        let guard = acquire_registry();
+        sync_atomic_counters(&guard);
     }
+    let out_u16 = stacked.as_u16().ok_or_else(|| {
+        SkotiqError::ImageError("Failed to convert stacked result to u16".to_string())
+    })?;
+    Ok(ApiLiveStackingResult {
+        width: stacked.width,
+        height: stacked.height,
+        channels: stacked.channels,
+        data: out_u16,
+        stats,
+        filter_key: target_key,
+        revision,
+        last_event: Some(event),
+    })
 }
 
 /// Add a single-plane u16 frame in memory to the active stack.
@@ -864,23 +939,30 @@ pub fn api_stacking_get_result_for_filter(
             .get_handle(filter_key.as_deref())
             .ok_or_else(not_started)?
     };
-    let stacked = {
+    let (stacked, stats, resolved_key, revision, last_event) = {
         let stacker = slot.lock_stacker();
-        stacker.get_current_stack()
+        let stacked = stacker.get_current_stack();
+        let meta = slot.read_meta();
+        (
+            stacked,
+            meta.stats.clone(),
+            meta.filter_key.clone(),
+            meta.revision,
+            meta.events.front().cloned(),
+        )
     };
     let data = stacked.as_u16().ok_or_else(|| {
         SkotiqError::ImageError("Failed to convert stacked result to u16".to_string())
     })?;
-    let meta = slot.read_meta();
     Ok(ApiLiveStackingResult {
         width: stacked.width,
         height: stacked.height,
         channels: stacked.channels,
         data,
-        stats: meta.stats.clone(),
-        filter_key: meta.filter_key.clone(),
-        revision: meta.revision,
-        last_event: meta.events.front().cloned(),
+        stats,
+        filter_key: resolved_key,
+        revision,
+        last_event,
     })
 }
 
@@ -900,7 +982,8 @@ pub(crate) fn downscale_f32_area(
     let ch = if channels == 3 { 3usize } else { 1usize };
     let src_w = width as usize;
     let src_h = height as usize;
-    if src_w == 0 || src_h == 0 || data.len() < src_w * src_h * ch {
+    let expected = src_w.checked_mul(src_h).and_then(|p| p.checked_mul(ch));
+    if src_w == 0 || src_h == 0 || expected.is_none_or(|n| data.len() < n) {
         return (width, height, data.to_vec());
     }
     let max_dim = max_dimension as usize;
@@ -1113,10 +1196,11 @@ fn compute_live_stack_channel_stretch(
     let shadow_sigma = 2.8 - 0.55 * progress;
     let target_bg = 0.14 + 0.06 * progress;
 
-    let black_point = (median - shadow_sigma * sigma_eff).max(0.0);
+    let max_bound = max_val.max(65535.0);
+    let black_point = (median - shadow_sigma * sigma_eff).clamp(0.0, (max_bound - 1e-4).max(0.0));
     let white_point = p999
         .max(median + 32.0 * sigma_eff)
-        .clamp(black_point + 1e-4, 65535.0);
+        .clamp(black_point + 1e-4, max_bound);
     let range = white_point - black_point;
     let x_bg = ((median - black_point) / range).clamp(1e-6, 0.999);
     let midtone = live_mtf_midtone(x_bg, target_bg);
@@ -1139,7 +1223,15 @@ pub(crate) fn stretch_live_stack_f32_preview(
     max_dimension: u32,
 ) -> Result<ApiStretchedPreview, String> {
     let ch = if channels == 3 { 3u32 } else { 1u32 };
-    let expected = (width as usize) * (height as usize) * (ch as usize);
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|p| p.checked_mul(ch as usize))
+        .ok_or_else(|| {
+            format!(
+                "Invalid image dimensions (overflow): {}x{}x{}",
+                width, height, ch
+            )
+        })?;
     if width == 0 || height == 0 || data.len() < expected {
         return Err(format!(
             "Invalid image dimensions or buffer length: {}x{}x{} (got {} samples)",
@@ -1180,8 +1272,11 @@ pub(crate) fn stretch_live_stack_f32_preview(
         native_slice
     };
 
-    let pixel_count = (pw as usize) * (ph as usize);
-    let mut rgba = vec![0u8; pixel_count * 4];
+    let rgba_len = (pw as usize)
+        .checked_mul(ph as usize)
+        .and_then(|p| p.checked_mul(4))
+        .ok_or_else(|| format!("Preview dimensions overflow RGBA buffer: {}x{}", pw, ph))?;
+    let mut rgba = vec![0u8; rgba_len];
     if ch == 3 {
         let sr = stretches[0];
         let sg = stretches[1];
@@ -1225,7 +1320,15 @@ pub fn api_auto_stretch_preview_async(
     max_dimension: u32,
 ) -> Result<ApiStretchedPreview, SkotiqError> {
     let ch = if channels == 3 { 3u32 } else { 1u32 };
-    let expected = (width as usize) * (height as usize) * (ch as usize);
+    let expected = (width as usize)
+        .checked_mul(height as usize)
+        .and_then(|p| p.checked_mul(ch as usize))
+        .ok_or_else(|| {
+            SkotiqError::ImageError(format!(
+                "Invalid image dimensions (overflow): {}x{}x{}",
+                width, height, ch
+            ))
+        })?;
     if width == 0 || height == 0 || data.len() < expected {
         return Err(SkotiqError::ImageError(format!(
             "Invalid image dimensions or buffer length: {}x{}x{} (got {} samples)",
@@ -1254,14 +1357,11 @@ pub fn api_stacking_render_preview_rgba(
             .ok_or_else(not_started)?
     };
 
-    let (revision, stacked_frames) = {
-        let meta = slot.read_meta();
-        (meta.revision, meta.stats.stacked_frame_count)
-    };
+    let cached_revision = slot.read_meta().revision;
     {
         let cache = slot.lock_preview_cache();
         if let Some(cached) = cache.as_ref() {
-            if cached.revision == revision && cached.max_dimension == max_dimension {
+            if cached.revision == cached_revision && cached.max_dimension == max_dimension {
                 return Ok(ApiStretchedPreview {
                     width: cached.width,
                     height: cached.height,
@@ -1272,9 +1372,18 @@ pub fn api_stacking_render_preview_rgba(
         }
     }
 
-    let (data_f32, width, height, channels) = {
+    let (data_f32, width, height, channels, revision, stacked_frames) = {
         let stacker = slot.lock_stacker();
-        stacker.get_current_stack_f32()
+        let (data_f32, width, height, channels) = stacker.get_current_stack_f32();
+        let meta = slot.read_meta();
+        (
+            data_f32,
+            width,
+            height,
+            channels,
+            meta.revision,
+            meta.stats.stacked_frame_count,
+        )
     };
     let rendered = stretch_live_stack_f32_preview(
         width,
@@ -1334,14 +1443,14 @@ pub(crate) fn live_stack_op_image(filter_key: &str) -> Result<(OpImage, String),
             .get_handle(resolved)
             .ok_or_else(|| format!("No active live stack for filter '{filter_key}'"))?
     };
-    let (data, width, height, channels, header) = {
+    let (data, width, height, channels, header, identity) = {
         let stacker = slot.lock_stacker();
         let (data, width, height, channels) = stacker.get_current_stack_f32();
         let header = stacker.provenance().to_fits_header();
-        (data, width, height, channels, header)
+        let meta = slot.read_meta();
+        let identity = format!("livestack:{}|rev:{}", meta.filter_key, meta.revision);
+        (data, width, height, channels, header, identity)
     };
-    let meta = slot.read_meta();
-    let identity = format!("livestack:{}|rev:{}", meta.filter_key, meta.revision);
     let image = OpImage::new(width, height, channels, data, header)
         .map_err(|e| format!("Live stack is not renderable in Darkroom: {e}"))?;
     Ok((image, identity))
@@ -1471,7 +1580,9 @@ pub fn api_stacking_get_events(filter_key: Option<String>) -> Vec<ApiLiveStackFr
         if !trimmed.is_empty() {
             let slot = {
                 let guard = acquire_registry();
-                guard.slots.get(trimmed).map(Arc::clone)
+                guard
+                    .resolve_existing_key(trimmed)
+                    .and_then(|resolved| guard.slots.get(&resolved).map(Arc::clone))
             };
             return slot
                 .map(|s| s.read_meta().events.iter().cloned().collect())
@@ -1489,7 +1600,7 @@ pub fn api_stacking_get_events(filter_key: Option<String>) -> Vec<ApiLiveStackFr
             meta.events.iter().cloned().collect::<Vec<_>>()
         })
         .collect();
-    all.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+    all.sort_by_key(|a| std::cmp::Reverse(a.timestamp_ms));
     all.truncate(MAX_FRAME_EVENTS);
     all
 }
@@ -1507,9 +1618,8 @@ pub fn api_stacking_update_config(
             let slot = {
                 let guard = acquire_registry();
                 guard
-                    .slots
-                    .get(trimmed)
-                    .map(Arc::clone)
+                    .resolve_existing_key(trimmed)
+                    .and_then(|resolved| guard.slots.get(&resolved).map(Arc::clone))
                     .ok_or_else(|| {
                         SkotiqError::ImageError(format!(
                             "Live stacker not initialized for filter '{trimmed}'"
@@ -1533,26 +1643,28 @@ pub fn api_stacking_update_config(
 /// Reset a specific filter's live stacker, clearing accumulated data while
 /// keeping its reference stars.
 pub fn api_stacking_reset_for_filter(filter_key: Option<String>) -> Result<(), SkotiqError> {
-    let (resolved_key, slot, revision) = {
-        let mut guard = acquire_registry();
-        let revision = guard.bump_revision();
-        let (key, slot) = guard
+    let (resolved_key, slot) = {
+        let guard = acquire_registry();
+        guard
             .get_handle(filter_key.as_deref())
-            .ok_or_else(not_started)?;
-        (key, slot, revision)
-    };
-    let stats = {
-        let mut stacker = slot.lock_stacker();
-        stacker.reset();
-        stats_api_from_stacker(&stacker)
+            .ok_or_else(not_started)?
     };
     {
-        let mut meta = slot.write_meta();
-        meta.revision = revision;
-        meta.stats = stats;
-        meta.events.clear();
+        let mut stacker = slot.lock_stacker();
+        stacker.reset();
+        let stats = stats_api_from_stacker(&stacker);
+        let revision = {
+            let mut guard = acquire_registry();
+            guard.bump_revision()
+        };
+        {
+            let mut meta = slot.write_meta();
+            meta.revision = revision;
+            meta.stats = stats;
+            meta.events.clear();
+        }
+        *slot.lock_preview_cache() = None;
     }
-    *slot.lock_preview_cache() = None;
     {
         let guard = acquire_registry();
         sync_atomic_counters(&guard);
@@ -1570,16 +1682,17 @@ pub fn api_stacking_reset() -> Result<(), SkotiqError> {
 pub fn api_stacking_stop_for_filter(filter_key: String) -> Result<(), SkotiqError> {
     let mut guard = acquire_registry();
     let trimmed = filter_key.trim();
-    if guard.slots.remove(trimmed).is_none() {
-        return Err(SkotiqError::ImageError(format!(
+    let resolved = guard.resolve_existing_key(trimmed).ok_or_else(|| {
+        SkotiqError::ImageError(format!(
             "Live stacker not initialized for filter '{trimmed}'"
-        )));
-    }
-    if guard.active_key.as_deref() == Some(trimmed) {
+        ))
+    })?;
+    guard.slots.remove(&resolved);
+    if guard.active_key.as_deref() == Some(resolved.as_str()) {
         guard.active_key = guard.slots.keys().next().cloned();
     }
     sync_atomic_counters(&guard);
-    tracing::info!("Live stacker stopped for '{}'", trimmed);
+    tracing::info!("Live stacker stopped for '{}'", resolved);
     Ok(())
 }
 

@@ -151,10 +151,17 @@ pub(crate) fn detect(plane: DetectionPlane, config: &StarDetectionConfig) -> Det
     };
 
     let first = FilteredPass::new(&frame, BASE_KERNEL_SIGMA, config);
-    let first_hfr = estimate_star_size(&frame, &first, config);
+    let mut first_labels = vec![0u32; width * height];
+    for (i, c) in first.components.iter().enumerate() {
+        let id = i as u32 + 1;
+        for &p in &c.pixels {
+            first_labels[p as usize] = id;
+        }
+    }
+    let first_hfr = estimate_star_size(&frame, &first, &first_labels, config);
     // Low-SNR defocused donuts shatter or drop below threshold in the narrow
     // pass; a 4x4 binned wide probe sees whole donuts in a few milliseconds.
-    let wide_hfr = estimate_wide_star_size(&frame, config);
+    let wide_hfr = estimate_wide_star_size(&frame, &first, &first_labels, config);
     let typical_hfr = match (first_hfr, wide_hfr) {
         (Some(a), Some(b)) => Some(a.max(b)),
         (a, b) => a.or(b),
@@ -378,6 +385,7 @@ fn median_hfr_of(
 fn estimate_star_size(
     frame: &Frame,
     pass: &FilteredPass,
+    labels: &[u32],
     config: &StarDetectionConfig,
 ) -> Option<f64> {
     let ranked = rank_components(
@@ -386,22 +394,26 @@ fn estimate_star_size(
         config.max_area as usize,
         100,
     );
-    let mut labels = vec![0u32; frame.width * frame.height];
-    for (i, c) in pass.components.iter().enumerate() {
-        for &p in &c.pixels {
-            labels[p as usize] = i as u32 + 1;
-        }
-    }
     let items: Vec<(u32, &[u32])> = ranked
         .iter()
         .map(|&i| (i as u32 + 1, pass.components[i].pixels.as_slice()))
         .collect();
-    median_hfr_of(frame, &labels, &items, pass.kernel_sigma, config, 5)
+    median_hfr_of(frame, labels, &items, pass.kernel_sigma, config, 5)
 }
 
 /// Coarse 4x4 binned matched-filter probe (effective sigma 6 px) for estimating
 /// typical star size when dim defocused donuts vanish or shatter in pass 1.
-fn estimate_wide_star_size(frame: &Frame, config: &StarDetectionConfig) -> Option<f64> {
+///
+/// Crowded in-focus fields can merge neighboring sharp stars into one coarse
+/// footprint; any coarse footprint whose flux is already explained by two or
+/// more compact round pass-1 stars is skipped so blends never masquerade as
+/// defocused donuts.
+fn estimate_wide_star_size(
+    frame: &Frame,
+    first: &FilteredPass,
+    first_labels: &[u32],
+    config: &StarDetectionConfig,
+) -> Option<f64> {
     const BIN: usize = 4;
     let (w, h) = (frame.width, frame.height);
     if w < 128 || h < 128 {
@@ -445,23 +457,80 @@ fn estimate_wide_star_size(frame: &Frame, config: &StarDetectionConfig) -> Optio
         return None;
     }
 
+    // Mark every coarse component AND every narrow pass-1 source in `labels` so
+    // unranked neighbors cannot leak flux into a candidate's wide aperture.
     let mut labels = vec![0u32; w * h];
+    for (idx, comp) in coarse.components.iter().enumerate() {
+        let id = idx as u32 + 1;
+        for &p in &comp.pixels {
+            let (bx, by) = (p as usize % bw, p as usize / bw);
+            for dy in 0..BIN {
+                let row_off = (by * BIN + dy) * w + bx * BIN;
+                for dx in 0..BIN {
+                    labels[row_off + dx] = id;
+                }
+            }
+        }
+    }
+    for (dst, &fl) in labels.iter_mut().zip(first_labels.iter()) {
+        if *dst == 0 && fl != 0 {
+            *dst = u32::MAX;
+        }
+    }
+
     let mut expanded: Vec<(u32, Vec<u32>)> = Vec::with_capacity(ranked.len());
-    for (slot, &idx) in ranked.iter().enumerate() {
-        let id = slot as u32 + 1;
+    for &idx in &ranked {
+        let id = idx as u32 + 1;
         let mut full_px = Vec::with_capacity(coarse.components[idx].pixels.len() * BIN * BIN);
+        let mut overlapping_first: Vec<u32> = Vec::new();
+        let mut first_flux = 0.0f64;
+        let mut coarse_flux = 0.0f64;
         for &p in &coarse.components[idx].pixels {
             let (bx, by) = (p as usize % bw, p as usize / bw);
             for dy in 0..BIN {
                 let row_off = (by * BIN + dy) * w + bx * BIN;
                 for dx in 0..BIN {
                     let fp = row_off + dx;
-                    labels[fp] = id;
                     full_px.push(fp as u32);
+                    let v = (frame.residual[fp] as f64).max(0.0);
+                    coarse_flux += v;
+                    let fl = first_labels[fp];
+                    if fl != 0 {
+                        first_flux += v;
+                        if !overlapping_first.contains(&fl) {
+                            overlapping_first.push(fl);
+                        }
+                    }
                 }
             }
         }
+
+        if overlapping_first.len() >= 2 && coarse_flux > 0.0 && first_flux / coarse_flux >= 0.50 {
+            let compact_round = overlapping_first
+                .iter()
+                .filter(|&&fid| {
+                    let px = first.components[(fid - 1) as usize].pixels.as_slice();
+                    measure(frame, first_labels, fid, px, first.kernel_sigma, config).is_some_and(
+                        |m| {
+                            !m.hot
+                                && !m.diffuse
+                                && m.star.hfr > 0.0
+                                && m.star.hfr <= 3.5
+                                && m.star.eccentricity <= 0.65
+                        },
+                    )
+                })
+                .count();
+            if compact_round >= 2 {
+                continue;
+            }
+        }
+
         expanded.push((id, full_px));
+    }
+
+    if expanded.len() < 3 {
+        return None;
     }
 
     let items: Vec<(u32, &[u32])> = expanded
@@ -1263,4 +1332,97 @@ fn std_dev(v: &[f32], center: f32) -> f32 {
     }
     let ss: f64 = v.iter().map(|&x| ((x - center) as f64).powi(2)).sum();
     (ss / v.len() as f64).sqrt() as f32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn crowded_infocus_star_grid_does_not_trigger_wide_donut_pass() {
+        // Stars spaced 12 px apart (sigma = 1.6 px, HFR ~ 1.9 px) merge under
+        // the 4x4 binned wide probe (effective sigma 6 px). The probe must
+        // recognize multi-star blends of compact round pass-1 stars and stay
+        // on the narrow pass instead of blowing out the field with a wide kernel.
+        let (w, h) = (256usize, 256usize);
+        let mut pixels = vec![200.0f64; w * h];
+        let sigma = 1.6f64;
+        let mut y = 12.0;
+        while y < h as f64 - 12.0 {
+            let mut x = 12.0;
+            while x < w as f64 - 12.0 {
+                let x0 = (x - 6.0).floor().max(0.0) as usize;
+                let x1 = ((x + 6.0).ceil() as usize).min(w - 1);
+                let y0 = (y - 6.0).floor().max(0.0) as usize;
+                let y1 = ((y + 6.0).ceil() as usize).min(h - 1);
+                for yy in y0..=y1 {
+                    for xx in x0..=x1 {
+                        let r2 = (xx as f64 - x).powi(2) + (yy as f64 - y).powi(2);
+                        pixels[yy * w + xx] += 6000.0 * (-r2 / (2.0 * sigma * sigma)).exp();
+                    }
+                }
+                x += 12.0;
+            }
+            y += 12.0;
+        }
+        let mut state: u64 = 0xCAFE_BABE;
+        let samples: Vec<f32> = pixels
+            .iter()
+            .map(|&v| {
+                state = state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let u = ((state >> 33) as f64) / (1u64 << 31) as f64 - 0.5;
+                (v + 20.0 * u) as f32
+            })
+            .collect();
+        let cfg = StarDetectionConfig::default();
+        let (back, noise) = mesh_grids(&samples, w, h, MESH_CELL, 1.0);
+        let mut residual = samples.clone();
+        residual.par_chunks_mut(w).enumerate().for_each(|(yy, row)| {
+            let mut b = vec![0.0f32; w];
+            back.sample_row(yy, &mut b);
+            for (v, bv) in row.iter_mut().zip(&b) {
+                *v -= *bv;
+            }
+        });
+        remove_hot_pixels(&mut residual, w, h, &noise);
+        let frame = Frame {
+            width: w,
+            height: h,
+            residual: &residual,
+            back: &back,
+            noise: &noise,
+        };
+        let first = FilteredPass::new(&frame, BASE_KERNEL_SIGMA, &cfg);
+        let mut first_labels = vec![0u32; w * h];
+        for (i, c) in first.components.iter().enumerate() {
+            for &p in &c.pixels {
+                first_labels[p as usize] = i as u32 + 1;
+            }
+        }
+        let first_hfr = estimate_star_size(&frame, &first, &first_labels, &cfg);
+        let wide_hfr = estimate_wide_star_size(&frame, &first, &first_labels, &cfg);
+        assert!(
+            first_hfr.is_some_and(|v| v > 1.2 && v < 2.8),
+            "expected sharp pass-1 HFR, got {first_hfr:?}"
+        );
+        assert!(
+            wide_hfr.is_none_or(|v| v < 3.0),
+            "crowded in-focus stars must not trigger a wide defocused HFR: {wide_hfr:?}"
+        );
+        let det = detect(
+            DetectionPlane {
+                width: w,
+                height: h,
+                samples,
+            },
+            &cfg,
+        );
+        assert!(
+            det.stars.len() >= 150,
+            "expected dense star grid to remain resolved, got only {} stars",
+            det.stars.len()
+        );
+    }
 }

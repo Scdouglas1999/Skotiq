@@ -157,7 +157,9 @@ impl Default for PlateSolverConfig {
         // → Plate Solving without any caller needing to pass the config
         // explicitly.
         let (configured_catalog, solver_choice) = {
-            let pref = ACTIVE_SOLVER_PREF.read().expect("solver-pref RwLock");
+            let pref = ACTIVE_SOLVER_PREF
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             (pref.catalog_path.clone(), pref.solver_choice)
         };
 
@@ -217,7 +219,9 @@ pub fn set_solver_preference(
     let to_path =
         |s: Option<&str>| -> Option<PathBuf> { s.filter(|p| !p.is_empty()).map(PathBuf::from) };
     {
-        let mut pref = ACTIVE_SOLVER_PREF.write().expect("solver-pref RwLock");
+        let mut pref = ACTIVE_SOLVER_PREF
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         pref.astap_path = to_path(astap_path);
         pref.astrometry_path = to_path(astrometry_path);
         pref.catalog_path = to_path(catalog_path);
@@ -309,7 +313,9 @@ fn discovered_solvers() -> DiscoveredSolvers {
     }
 
     let (configured_astap, configured_astrometry) = {
-        let pref = ACTIVE_SOLVER_PREF.read().expect("solver-pref RwLock");
+        let pref = ACTIVE_SOLVER_PREF
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         (pref.astap_path.clone(), pref.astrometry_path.clone())
     };
     let discovered = DiscoveredSolvers {
@@ -444,7 +450,9 @@ pub fn detect_astap_catalog(
         // invert that order — the same hazard `set_solver_preference`
         // documents.
         let (pref_exe, pref_catalog) = {
-            let pref = ACTIVE_SOLVER_PREF.read().expect("solver-pref RwLock");
+            let pref = ACTIVE_SOLVER_PREF
+                .read()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             (pref.astap_path.clone(), pref.catalog_path.clone())
         };
         let resolved = catalog_search_fallback(pref_exe, discovered_solvers().astap, pref_catalog);

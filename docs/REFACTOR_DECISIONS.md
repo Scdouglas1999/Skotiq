@@ -18,32 +18,31 @@ Base branch: `rehab/9.0.2-untangle` (worktree `.worktrees/rehab-902`), combining
 ## Prioritized Architectural & Correctness Decisions
 
 ### Batch 0 — Baseline CI Gate Hygiene
-- **Status**: Planned (next)
+- **Status**: Completed (`ce2509016`)
 - **Problems**:
   - `packages/skotiq_app/lib/screens/imaging/widgets/sub_quality_badge.dart:4` and `packages/skotiq_core/lib/src/providers/science_provider.dart:28-29` fail `analyzer_rollup` zero-warning gate due to unused imports.
   - `tools/production/bridge_boundary_whitelist.json` retains a prunable `science_handlers` exception that no longer imports `skotiq_bridge`.
   - `packages/skotiq_app/lib/screens/sequencer/ledger_seconds.dart` is a 1-line empty leftover file.
-- **Correction**: Remove unused imports, prune stale whitelist entry, delete empty leftover file.
-- **Verification**: `analyzer_rollup`, `bridge_boundary_audit`, `architecture_rules_audit`.
+- **Correction**: Removed unused imports, pruned stale whitelist entry, deleted empty leftover file.
+- **Verification**: `analyzer_rollup` (`0 errors, 0 warnings`), `bridge_boundary_audit` (`0 violations, 0 prunable`), `architecture_rules_audit` passed.
 
-### Batch 1 — Rust 9.0.2 Critical Correctness, Concurrency, Panics & Security
-- **Status**: Planned
+### Batch 1 — Rust 9.0.2 Critical Correctness, Concurrency, Panics, Star Detection & Security
+- **Status**: Completed
 - **Problems**:
-  - `sequencer/src/instructions/autofocus.rs:610-667`: failed/cancelled AF restores wheel without re-applying the original filter's focus offset even though entry shifted the focuser to the reference filter.
-  - `sequencer/src/instructions/filter.rs:133-155` & `autofocus.rs:531`: exact case-sensitive filter offset/settings lookup breaks after alias resolution via `skotiq_device::match_filter_slot`.
-  - `bridge/src/api/live_stacking.rs:1116-1119`: `clamp(black_point + 1e-4, 65535.0)` panics when `black_point + 1e-4 > 65535.0` on saturated/clipped F32 frames; unchecked byte-size multiplication and `from_u16` length.
-  - `bridge/src/api/live_stacking.rs:678-714, 1257-1299, 1337-1348, 1535-1560`: split-lock races between `stacker` and `meta` poison Darkroom `BASE_CACHE` and allow `meta.revision` to move backwards on reset.
-  - `bridge/src/api/live_stacking.rs:652-685, 1468-1522` & `imaging/src/stacking.rs:297-303`: `api_stacking_add_frame_for_filter` rejects frames whenever an explicit `filter_key` differs in spelling/alias from FITS `FILTER` (or header is absent); inconsistent `"—"` / case-sensitive slot lookups across endpoints.
-  - `bridge/src/builtin_guider/metrics.rs:390-398, 446-450` and `imaging/src/background_extraction.rs:956`: `.clamp()` runtime panics on invalid `min_pulse_ms > max_pulse_ms` or small `< 30px` ROIs.
-  - `indi/src/client/{mod.rs,reader.rs}`: reconnect orphans prior reader/writer tasks that clobber the new connection's `ReaderStatus::Running` and `connected` flag.
-  - `updater/src/main.rs:1123, 1152, 1166, 1310, 1374-1376`: `install_dir.join(from_posix(rel))` allows absolute-path replacement and `..` traversal outside install root during verify/rollback.
-  - `platesolve/src/lib.rs:160, 220, 312, 447`: `.expect("solver-pref RwLock")` panics on poison; `bridge/src/api/imaging.rs:219-223` silently falls back unknown AF method names to `VCurve`.
-  - `native/src/vendor/lx200/mount_ops.rs:69-75, 156-163`: `sync_to_coordinates` ignores OnStepX `E<n>#` refusal and `is_slewing` ignores `:GU#` homing flag `h` (pinned by two `#[ignore]`d tests in `doc_fake_tests.rs`).
-- **Correction**: Fix each root cause cleanly (single canonical alias-aware filter matching, unified slot lock / atomic metadata updates, checked clamps & containment path helper, connection-generation guard in INDI, poison-safe lock reads, typed AF method rejection), and add fault-detecting regression tests for every fix.
-- **Verification**: `cargo test --release -p skotiq_sequencer -p skotiq_bridge -p skotiq_imaging -p skotiq_indi -p skotiq_native -p skotiq_updater -p skotiq_platesolve`, `cargo clippy --release --all-targets`.
+  - `sequencer/src/instructions/autofocus.rs:610-667`: failed/cancelled AF left the focuser shifted whenever entry switched filters and moved the focuser by an offset delta (e.g., OIII `+40 -> L 0 -> fail -> OIII`), while needing to preserve `b2eae8f53`'s fix not to fail on missing offsets when entry did not shift the focuser.
+  - `sequencer/src/instructions/filter.rs:133-155` & `autofocus.rs:531`: exact case-sensitive filter offset/settings lookup broke after alias resolution via `skotiq_device::match_filter_slot`.
+  - `imaging/src/star_detect.rs` (`b2eae8f53` regression): `estimate_wide_star_size` merged neighboring in-focus stars in crowded fields (`post_session::tests::accumulate_weights_better_night_more_than_worse_night`) into fake defocused blobs and left unranked neighbors unlabeled, triggering pass-2 wide kernels on sharp star fields; `depthlock/input.rs:source_mask` masked marginal 5σ elongated noise ripples (`ecc > 0.70, snr < 8`) sitting on faint target nebulosity (`depthlock_service::tests::a_synthetic_night_reaches_achieved_and_survives_restart`); `b2eae8f53`'s 3-sigma clipped mean background shift also left 3 stale downstream golden pins (`stacking.rs:3101` 1-ADU shift, `capture_pins_tests.rs` star_count `192 -> 189` with identical HFR/FWHM/ecc/digests, and 12 `output_pins.txt` digests affected by the wide-probe fix).
+  - `bridge/src/api/live_stacking.rs`: `clamp(black_point + 1e-4, 65535.0)` panicked on saturated/HDR F32 frames; unchecked buffer lengths/multiplications; split-lock races between `stacker` and `meta` could poison Darkroom `BASE_CACHE`, cache mismatched preview revisions, or move `meta.revision` backwards on reset; `api_stacking_add_frame_for_filter` rejected alias/headerless FITS when targeting an explicit filter slot; `get_events`/`update_config`/`stop_for_filter` used raw case-sensitive map keys.
+  - `bridge/src/builtin_guider/metrics.rs` & `imaging/src/background_extraction.rs`: `.clamp()` runtime panics on inverted/negative pulse bounds or `< 30px` ROIs.
+  - `indi/src/client/{mod.rs,reader.rs}`: reconnect orphaned prior reader/writer tasks that could clobber the new connection's `connected` / `ReaderStatus::Running`.
+  - `updater/src/main.rs`: `install_dir.join(from_posix(rel))` allowed absolute-path replacement and `..` traversal in `rollback_in_place`, `retain_restore_point`, `restore_from_restore_point`, and `verify_against_manifest`.
+  - `platesolve/src/lib.rs`: `.expect("solver-pref RwLock")` panicked on poison; `bridge/src/api/imaging.rs` silently fell back unknown AF method names to `VCurve`.
+  - *Owner-deferred (untouched per code comments)*: the two `#[ignore]`d LX200 OnStepX tests in `native/src/vendor/lx200/doc_fake_tests.rs:650,866` explicitly defer hardware-protocol confirmation to a NYX-101 rig night.
+- **Correction**: Extracted shared `apply_focus_offset_value` in `filter.rs` so failed AF restores the wheel without requiring an unknown offset row and reverses only the delta entry applied; added canonical alias-aware `known_filter_offset_from` (with explicit ambiguity errors); updated `estimate_wide_star_size` to label all neighbors and skip multi-star blends of compact round pass-1 stars; excluded marginal elongated noise ripples (`ecc > SELECTION_MAX_ECCENTRICITY && snr < 8`) in DepthLock `source_mask`; fixed all live-stacking lock ordering, checked dimensions, HDR/saturated stretch clamp, and alias slot resolution; added INDI `connection_epoch` fencing, updater `safe_join_under`, poison-safe `platesolve` locks, checked clamps, and fail-fast AF method validation; added fault-detecting regression tests across all crates.
+- **Verification**: `skotiq_imaging` 962/962 unit + all integration tests (`output_pins`, `star_detection_real_frames`, `frame_trail_real_frames`, etc.), `skotiq_processing` 184/184, `skotiq_sequencer` 1594/1594, `skotiq_bridge` 848/848, `skotiq_indi` 139/139, `skotiq_updater` 33/33, `skotiq_platesolve` passed; `cargo clippy --release --all-targets -- -D warnings` clean.
 
 ### Batch 2 — 9.0.2 Live Stacking & Live Darkroom End-to-End Rehabilitation (`skotiq_core` + `skotiq_app`)
-- **Status**: Planned
+- **Status**: Completed (`eaf4c25ee`)
 - **Problems**:
   - `LiveStackingService` & `NetworkBackend/stacking_operations.dart`: remote multi-filter methods drop `filterKey`, `renderStackPreviewRgba`/`isActive`/`frameCount` call local FFI directly on linked clients, 3 new 9.0.2 config fields and `totalIntegrationSecs` are dropped on the wire, and `_saveFitsMasterTo` bypasses its injectable seam.
   - `LiveStackingNotifier` (`live_stacking_provider.dart`): `stop()` races `startFromFile()` and `_ingestChain` leaking native stackers; failed remote `stackingStop()` cancels poll timer while staying running; `reset()` resets wrong native slot on 1 named filter; `resetFilter`/`stopFilter` race `_ingestChain`; `_startFromData` wipes existing filters; `addFrameFromData` crashes remotely; unnormalized filterKey map lookups; raw `e.toString()` in frame events; plain value types live in provider file; dead unused providers (`liveStackingIsActiveProvider`, `liveStackingIsActiveOrArmedProvider`).

@@ -916,6 +916,42 @@ fn dec_backlash_is_not_re_added_while_the_pulse_is_still_being_carried() {
     );
 }
 
+#[test]
+fn compute_pulse_durations_does_not_panic_on_inverted_or_negative_pulse_bounds() {
+    let calib = realistic_calib_with_backlash(0.0);
+    let offset = Vec2 { x: 2.0, y: -1.5 };
+
+    let inverted = GuiderConfig {
+        min_pulse_ms: 500.0,
+        max_pulse_ms: 100.0,
+        ..GuiderConfig::default()
+    };
+    // Sub-minimum error carries bounded debt without panicking.
+    let small = compute_pulse_durations(calib, offset, &inverted, None, PulseDebt::default());
+    assert!(small.ra_ms.is_none());
+    assert!(small.debt.ra_ms.abs() <= 100.0);
+    // Large error exceeding min_pulse_ms enters the clamp path (which previously
+    // panicked with min > max) and clamps safely to max_pulse_ms.
+    let large = compute_pulse_durations(
+        calib,
+        Vec2 { x: 10.0, y: -10.0 },
+        &inverted,
+        None,
+        PulseDebt::default(),
+    );
+    assert!(large.ra_ms.is_some_and(|ms| ms.abs() <= 100.0));
+    assert!(large.dec_ms.is_some_and(|ms| ms.abs() <= 100.0));
+
+    let negative = GuiderConfig {
+        min_pulse_ms: -50.0,
+        max_pulse_ms: -10.0,
+        ..GuiderConfig::default()
+    };
+    let plan = compute_pulse_durations(calib, offset, &negative, None, PulseDebt::default());
+    assert!(plan.ra_ms.is_none() || plan.ra_ms.is_some_and(|ms| ms.abs() == 0.0));
+    assert!(plan.dec_ms.is_none() || plan.dec_ms.is_some_and(|ms| ms.abs() == 0.0));
+}
+
 fn realistic_calib_with_backlash(backlash_ms: f64) -> GuideCalibration {
     build_calibration(
         Vec2 { x: 1.5, y: 0.0 },

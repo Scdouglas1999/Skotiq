@@ -41,9 +41,12 @@ pub(crate) fn choose_autofocus_filter(
             note: None,
         });
     };
-    let known = reference.as_deref() == Some(target.as_str())
-        || offsets.contains_key(target.as_str())
-        || (offsets.is_empty() && reference.is_none());
+    let known = crate::instructions::filter::known_filter_offset_from(
+        reference.as_deref(),
+        offsets,
+        &target,
+    )
+    .is_ok();
     if known {
         return Ok(AutofocusFilterChoice {
             filter: requested,
@@ -528,7 +531,30 @@ async fn run_autofocus_admitted(
         .map(|(name, _)| name.as_str())
         .or(ctx.current_filter.as_deref());
     let active_override = active_filter_name
-        .and_then(|name| config.filter_settings.get(name))
+        .and_then(|name| {
+            let trimmed = name.trim();
+            if let Some(entry) = config.filter_settings.get(trimmed) {
+                return Some(entry);
+            }
+            if let Some((_, entry)) = config
+                .filter_settings
+                .iter()
+                .find(|(k, _)| k.trim().eq_ignore_ascii_case(trimmed))
+            {
+                return Some(entry);
+            }
+            let mut alias_matches = config
+                .filter_settings
+                .iter()
+                .filter(|(k, _)| skotiq_device::same_filter(k, trimmed))
+                .map(|(_, entry)| entry);
+            let first = alias_matches.next()?;
+            if alias_matches.next().is_none() {
+                Some(first)
+            } else {
+                None
+            }
+        })
         .cloned();
     if let Some(filter_config) = &active_override {
         if let Some(exposure) = filter_config.af_exposure_time {
@@ -599,6 +625,10 @@ async fn run_autofocus_admitted(
     }
 
     let mut filter_restore_required = false;
+    let pre_af_embodied_offset = match &ctx.run.trigger_state {
+        Some(ts) => ts.read().await.latches.last_applied_filter_offset,
+        None => 0,
+    };
     let mut pre_run_error = None;
     if let Some(target_name) = requested_filter.as_deref() {
         match &original_filter {
@@ -648,8 +678,12 @@ async fn run_autofocus_admitted(
 
     if filter_restore_required {
         if let Some((original_name, original_position)) = &original_filter {
-            // A failed or cancelled run already returned the focuser to its
-            // pre-AF position, so only the wheel slot needs restoring then.
+            // On success, AF found a new focus position for the AF filter so
+            // returning to the original filter must apply its configured
+            // offset. On failure or cancellation, AF returned the focuser to
+            // its post-entry position, so restore the wheel without requiring
+            // an offset row and reverse only the offset delta that entry
+            // actually applied (no-op when entry did not shift the focuser).
             let apply_offset = result.status == NodeStatus::Success;
             if let Err(error) =
                 move_autofocus_filter(ctx, original_name, *original_position, apply_offset).await
@@ -662,6 +696,24 @@ async fn run_autofocus_admitted(
                     ),
                 )
                 .caused_by(&error);
+            } else if !apply_offset {
+                if let Err(error) = crate::instructions::filter::apply_focus_offset_value(
+                    original_name,
+                    pre_af_embodied_offset,
+                    ctx,
+                    None,
+                )
+                .await
+                {
+                    result = append_autofocus_cleanup_failure(
+                        result,
+                        format!(
+                            "failed to restore pre-AF focus offset ({}) for filter \"{}\": {}",
+                            pre_af_embodied_offset, original_name, error
+                        ),
+                    )
+                    .caused_by(&error);
+                }
             }
         }
     }

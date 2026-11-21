@@ -3096,9 +3096,12 @@ mod tests {
         // both frames contribute the star peak at the reference centroids;
         // the background sample at (10,10) is the two-frame mean of the
         // deterministic-noise background.
+        // Probe (200, 150) moved by 1 ADU (36006 -> 36007) after b2eae8f53
+        // switched star_detect background estimation from median to 3-sigma
+        // clipped mean, shifting registration centroids by sub-millipixel.
         let probes: [(usize, usize, u16); 4] = [
             (100, 100, 40999),
-            (200, 150, 36006),
+            (200, 150, 36007),
             (300, 200, 39013),
             (10, 10, 1009),
         ];

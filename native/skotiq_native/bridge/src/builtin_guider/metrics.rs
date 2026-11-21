@@ -387,15 +387,14 @@ pub(crate) fn resolve_axis_pulse(
     }
     let demand = pulse_ms + debt_ms;
     let issue = demand + bonus_ms;
+    let max_pulse = config.max_pulse_ms.max(0.0);
+    let min_pulse = config.min_pulse_ms.clamp(0.0, max_pulse);
     if issue.abs() < config.min_pulse_ms {
         // Bound the carry so a pathological config (min_pulse above max_pulse,
         // an axis that can never fire) cannot integrate without limit.
-        return (
-            None,
-            demand.clamp(-config.max_pulse_ms, config.max_pulse_ms),
-        );
+        return (None, demand.clamp(-max_pulse, max_pulse));
     }
-    let clamped = issue.abs().clamp(config.min_pulse_ms, config.max_pulse_ms);
+    let clamped = issue.abs().clamp(min_pulse, max_pulse);
     (Some(if issue >= 0.0 { clamped } else { -clamped }), 0.0)
 }
 
@@ -444,9 +443,9 @@ pub(crate) async fn pulse_axis(
 ) -> Result<(), SkotiqError> {
     let magnitude = pulse_ms.abs();
     let (_, mount_id) = resolve_devices().await?;
-    let duration = magnitude
-        .clamp(config.min_pulse_ms, config.max_pulse_ms)
-        .round() as u32;
+    let max_pulse = config.max_pulse_ms.max(0.0);
+    let min_pulse = config.min_pulse_ms.clamp(0.0, max_pulse);
+    let duration = magnitude.clamp(min_pulse, max_pulse).round() as u32;
     let direction = if pulse_ms >= 0.0 {
         positive_direction
     } else {

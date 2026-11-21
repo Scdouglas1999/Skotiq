@@ -1358,7 +1358,16 @@ async fn test_writer_task_marks_disconnected_on_write_error() {
     tx.send("<getProperties/>".to_string()).await.unwrap();
     drop(tx);
 
-    IndiClient::writer_task(FailingWriter, rx, connected.clone(), event_tx).await;
+    let epoch = Arc::new(AtomicU64::new(1));
+    IndiClient::writer_task(
+        FailingWriter,
+        rx,
+        connected.clone(),
+        event_tx,
+        1,
+        epoch,
+    )
+    .await;
 
     assert!(
         !connected.load(Ordering::SeqCst),
@@ -1377,6 +1386,55 @@ async fn test_writer_task_marks_disconnected_on_write_error() {
 }
 
 #[tokio::test]
+async fn test_writer_task_superseded_epoch_does_not_clobber_new_connection() {
+    use std::io::ErrorKind;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+    use tokio::io::AsyncWrite;
+
+    struct FailingWriter;
+    impl AsyncWrite for FailingWriter {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            _buf: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            Poll::Ready(Err(std::io::Error::new(ErrorKind::BrokenPipe, "closed")))
+        }
+        fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+        fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    let connected = Arc::new(AtomicBool::new(true));
+    let (event_tx, mut event_rx) = broadcast::channel::<IndiEvent>(16);
+    let (tx, rx) = mpsc::channel::<String>(4);
+    tx.send("<getProperties/>".to_string()).await.unwrap();
+    drop(tx);
+
+    // Current epoch is 2 while this writer belongs to stale epoch 1.
+    let epoch = Arc::new(AtomicU64::new(2));
+    IndiClient::writer_task(
+        FailingWriter,
+        rx,
+        connected.clone(),
+        event_tx,
+        1,
+        epoch,
+    )
+    .await;
+
+    assert!(
+        connected.load(Ordering::SeqCst),
+        "superseded writer must not clear the new connection's connected flag"
+    );
+    assert!(event_rx.try_recv().is_err());
+}
+
+#[tokio::test]
 async fn test_writer_task_clean_shutdown_leaves_connected_untouched() {
     // A closed command channel is the ordinary `disconnect()` path; it must
     // not masquerade as a write failure.
@@ -1385,7 +1443,16 @@ async fn test_writer_task_clean_shutdown_leaves_connected_untouched() {
     let (tx, rx) = mpsc::channel::<String>(4);
     drop(tx);
 
-    IndiClient::writer_task(tokio::io::sink(), rx, connected.clone(), event_tx).await;
+    let epoch = Arc::new(AtomicU64::new(1));
+    IndiClient::writer_task(
+        tokio::io::sink(),
+        rx,
+        connected.clone(),
+        event_tx,
+        1,
+        epoch,
+    )
+    .await;
 
     assert!(connected.load(Ordering::SeqCst));
     assert!(event_rx.try_recv().is_err());

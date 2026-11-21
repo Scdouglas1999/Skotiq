@@ -121,6 +121,59 @@ async fn execute_filter_change_holding_train(
 
 /// The focus offset of [filter_name], in steps from the reference filter.
 ///
+/// Matches exact spelling, case-insensitive spelling, and canonical filter
+/// aliases via [`skotiq_device::same_filter`] so a wheel reporting `"Luminance"`
+/// or `"H-alpha"` resolves against offsets keyed by `"L"` or `"Ha"`. If two
+/// distinct offsets match the same band (e.g. `"Ha 3nm"` and `"Ha 7nm"` with
+/// different offsets), returns an ambiguity error rather than guessing.
+pub(crate) fn known_filter_offset_from(
+    reference: Option<&str>,
+    offsets: &std::collections::HashMap<String, i32>,
+    filter_name: &str,
+) -> Result<i32, String> {
+    let name = filter_name.trim();
+    let reference = reference.map(str::trim).filter(|name| !name.is_empty());
+    if reference.is_some_and(|r| {
+        r == name || r.eq_ignore_ascii_case(name) || skotiq_device::same_filter(r, name)
+    }) {
+        return Ok(0);
+    }
+    if let Some(offset) = offsets.get(name) {
+        return Ok(*offset);
+    }
+    if let Some((_, offset)) = offsets
+        .iter()
+        .find(|(k, _)| k.trim().eq_ignore_ascii_case(name))
+    {
+        return Ok(*offset);
+    }
+    let alias_matches: Vec<(&str, i32)> = offsets
+        .iter()
+        .filter(|(k, _)| skotiq_device::same_filter(k, name))
+        .map(|(k, &v)| (k.as_str(), v))
+        .collect();
+    if let Some(&(_, first_offset)) = alias_matches.first() {
+        if alias_matches.iter().all(|&(_, v)| v == first_offset) {
+            return Ok(first_offset);
+        }
+        let mut names: Vec<&str> = alias_matches.iter().map(|&(k, _)| k).collect();
+        names.sort_unstable();
+        return Err(format!(
+            "filter \"{name}\" matches multiple focus offsets ({}); name the exact filter",
+            names.join(", ")
+        ));
+    }
+    if offsets.is_empty() && reference.is_none() {
+        return Ok(0);
+    }
+    let from = reference.unwrap_or("its reference");
+    Err(format!(
+        "filter \"{name}\" has no focus offset from {from}. Add the offset, or autofocus will not treat this filter as the reference"
+    ))
+}
+
+/// The focus offset of [filter_name], in steps from the reference filter.
+///
 /// The reference filter is 0 even when it has no row. A filter with a row
 /// uses that row. A filter with neither, while an offset table or a
 /// reference is configured, is unknown: it is not 0. Treating a missing row
@@ -131,25 +184,11 @@ pub(crate) fn known_filter_offset(
     rig: &crate::instructions::context::RunRig,
     filter_name: &str,
 ) -> Result<i32, String> {
-    let name = filter_name.trim();
-    let reference = rig
-        .filter_focus_reference
-        .as_deref()
-        .map(str::trim)
-        .filter(|name| !name.is_empty());
-    if reference.is_some_and(|reference| reference == name) {
-        return Ok(0);
-    }
-    if let Some(offset) = rig.filter_focus_offsets.get(name) {
-        return Ok(*offset);
-    }
-    if rig.filter_focus_offsets.is_empty() && reference.is_none() {
-        return Ok(0);
-    }
-    let from = reference.unwrap_or("its reference");
-    Err(format!(
-        "filter \"{name}\" has no focus offset from {from}. Add the offset, or autofocus will not treat this filter as the reference"
-    ))
+    known_filter_offset_from(
+        rig.filter_focus_reference.as_deref(),
+        &rig.filter_focus_offsets,
+        filter_name,
+    )
 }
 
 /// Apply the focus offset configured for a given filter after a filter change.
@@ -162,10 +201,15 @@ pub(crate) async fn apply_filter_focus_offset(
     ctx: &InstructionContext,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Result<(), DeviceError> {
-    let focuser_id = match ctx.run.rig.focuser_id.as_deref() {
-        Some(id) if !id.is_empty() => id,
-        _ => return Ok(()),
-    };
+    if ctx
+        .run
+        .rig
+        .focuser_id
+        .as_deref()
+        .is_none_or(str::is_empty)
+    {
+        return Ok(());
+    }
 
     // Offsets are steps from the reference filter. An unknown filter is not
     // the reference: moving it by 0 would leave it at whatever focus the
@@ -173,6 +217,24 @@ pub(crate) async fn apply_filter_focus_offset(
     let offset_new = match known_filter_offset(&ctx.run.rig, filter_name) {
         Ok(offset) => offset,
         Err(reason) => return Err(DeviceError::Failed(reason)),
+    };
+
+    apply_focus_offset_value(filter_name, offset_new, ctx, progress_callback).await
+}
+
+/// Move the focuser from the currently embodied filter offset to `offset_new`,
+/// wait for motion to finish, verify the final position, and record the new
+/// embodied offset in trigger state. No-op when there is no focuser or when
+/// `offset_new` is already embodied.
+pub(crate) async fn apply_focus_offset_value(
+    filter_name: &str,
+    offset_new: i32,
+    ctx: &InstructionContext,
+    progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
+) -> Result<(), DeviceError> {
+    let focuser_id = match ctx.run.rig.focuser_id.as_deref() {
+        Some(id) if !id.is_empty() => id,
+        _ => return Ok(()),
     };
 
     // The focuser already carries the offset applied for the PREVIOUS filter.

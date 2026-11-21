@@ -84,6 +84,9 @@ pub struct IndiClient {
     host: String,
     port: u16,
     connected: Arc<AtomicBool>,
+    /// Monotonically incremented on every connect/disconnect so orphaned reader
+    /// or writer tasks from a previous connection cannot clobber a newer one.
+    connection_epoch: Arc<AtomicU64>,
     devices: Arc<RwLock<HashMap<String, IndiDevice>>>,
     properties: Arc<RwLock<HashMap<(String, String), IndiProperty>>>,
     property_values: Arc<RwLock<PropertyValueMap>>,
@@ -136,6 +139,7 @@ impl IndiClient {
             host: host.to_string(),
             port: resolved_port,
             connected: Arc::new(AtomicBool::new(false)),
+            connection_epoch: Arc::new(AtomicU64::new(0)),
             devices: Arc::new(RwLock::new(HashMap::new())),
             properties: Arc::new(RwLock::new(HashMap::new())),
             property_values: Arc::new(RwLock::new(HashMap::new())),
@@ -198,6 +202,7 @@ impl IndiClient {
             host: host.to_string(),
             port: resolved_port,
             connected: Arc::new(AtomicBool::new(false)),
+            connection_epoch: Arc::new(AtomicU64::new(0)),
             devices: Arc::new(RwLock::new(HashMap::new())),
             properties: Arc::new(RwLock::new(HashMap::new())),
             property_values: Arc::new(RwLock::new(HashMap::new())),
@@ -319,6 +324,12 @@ impl IndiClient {
         let (tx, rx) = mpsc::channel::<String>(100);
         self.tx = Some(tx);
 
+        // Advance the connection epoch before replacing shutdown_tx so any
+        // previous reader/writer task exiting on drop sees a superseded epoch
+        // and cannot overwrite this connection's status or connected flag.
+        let epoch = self.connection_epoch.fetch_add(1, Ordering::SeqCst) + 1;
+        let connection_epoch = self.connection_epoch.clone();
+
         let (shutdown_tx, shutdown_rx) = oneshot::channel();
         self.shutdown_tx = Some(shutdown_tx);
 
@@ -327,6 +338,8 @@ impl IndiClient {
             rx,
             self.connected.clone(),
             self.event_tx.clone(),
+            epoch,
+            connection_epoch.clone(),
         ));
 
         // Reset keepalive state before spawning reader task
@@ -388,6 +401,8 @@ impl IndiClient {
                 reader_task_config,
                 jitter_rng,
                 shutdown_rx,
+                epoch,
+                connection_epoch,
             )
             .await;
         });
@@ -418,6 +433,7 @@ impl IndiClient {
     pub async fn disconnect(&mut self) -> IndiResult<()> {
         tracing::info!("Disconnecting from INDI server {}:{}", self.host, self.port);
 
+        self.connection_epoch.fetch_add(1, Ordering::SeqCst);
         if let Some(tx) = self.shutdown_tx.take() {
             let _ = tx.send(());
         }

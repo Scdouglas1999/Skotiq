@@ -953,7 +953,8 @@ fn detect_star_centres(
             // for a Gaussian PSF, with a sane floor so even tiny detections
             // protect a few pixels. Capped so a bloated saturated detection
             // cannot mask out half the frame.
-            let r = (3.0 * s.hfr).clamp(3.0, (width.min(height) as f64) * 0.1);
+            let max_r = ((width.min(height) as f64) * 0.1).max(3.0);
+            let r = (3.0 * s.hfr).clamp(3.0, max_r);
             StarBox {
                 x: s.x,
                 y: s.y,
@@ -1508,5 +1509,22 @@ mod tests {
             "channel 1 not flattened, std {}",
             std_dev(&ch1)
         );
+    }
+
+    #[test]
+    fn small_roi_under_30px_does_not_panic_during_star_masking() {
+        // Previously `max_r = (width.min(height) as f64) * 0.1` fell below 3.0
+        // for frames smaller than 30 px, causing `.clamp(3.0, max_r)` to panic
+        // whenever a bright pixel existed in the ROI.
+        let (w, h) = (16usize, 16usize);
+        let mut data = vec![1000u16; w * h];
+        data[8 * w + 8] = 60000;
+        let image = ImageData::from_u16(w as u32, h as u32, 1, &data);
+        let cfg = BackgroundConfig {
+            poly_degree: 1,
+            grid: 4,
+            ..BackgroundConfig::default()
+        };
+        let _ = extract_background(&image, &cfg);
     }
 }

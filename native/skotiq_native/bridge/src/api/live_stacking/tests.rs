@@ -761,3 +761,110 @@ fn multi_filter_stacks_darkroom_and_progressive_nebula_reveal() {
     assert!(!api_stacking_is_active());
     assert_eq!(api_stacking_frame_count(), 0);
 }
+
+#[test]
+fn stretch_live_stack_f32_preview_handles_saturated_and_hdr_frames_without_panicking() {
+    // Previously `white_point = ...clamp(black_point + 1e-4, 65535.0)` panicked
+    // when median ≈ 65535 (saturated frame) or when f32 values exceeded 65535.
+    let w = 64u32;
+    let h = 64u32;
+    let mut saturated = vec![65535.0_f32; (w * h) as usize];
+    // Introduce slight local variation so sigma_eff > 1e-6 and the clamp path runs.
+    for (i, px) in saturated.iter_mut().enumerate() {
+        if i % 7 == 0 {
+            *px = 65534.5;
+        }
+    }
+    let preview = stretch_live_stack_f32_preview(w, h, 1, &saturated, 1, 0)
+        .expect("saturated frame must render without panicking");
+    assert_eq!(preview.rgba.len(), (w * h * 4) as usize);
+
+    let mut hdr = vec![80000.0_f32; (w * h) as usize];
+    for (i, px) in hdr.iter_mut().enumerate() {
+        if i % 5 == 0 {
+            *px = 79500.0;
+        }
+    }
+    let preview_hdr = stretch_live_stack_f32_preview(w, h, 1, &hdr, 4, 0)
+        .expect("HDR (>65535) f32 frame must render without panicking");
+    assert_eq!(preview_hdr.rgba.len(), (w * h * 4) as usize);
+}
+
+#[test]
+fn buffer_length_mismatch_and_filter_alias_routing_behave_safely() {
+    let _g = singleton_guard();
+    let _ = api_stacking_stop();
+
+    // Short buffer rejected cleanly instead of panicking inside ingest/from_u16.
+    let err = api_stacking_start_from_data_for_filter(
+        Some("Ha".to_string()),
+        IMG_W,
+        IMG_H,
+        vec![0u16; 10],
+        0.0,
+        base_config(),
+    )
+    .expect_err("short buffer must be rejected on start");
+    assert!(err.to_string().contains("Invalid image dimensions"));
+
+    let dir = std::env::temp_dir().join(format!("sk-livestack-alias-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let plane = make_star_plane(IMG_W, IMG_H);
+    let image = ImageData::from_u16(IMG_W, IMG_H, 1, &plane);
+    let write_with_filter = |name: &str, filter: Option<&str>| {
+        let p = dir.join(name);
+        let mut h = skotiq_imaging::FitsHeader::new();
+        h.set_float("EXPTIME", 60.0);
+        if let Some(f) = filter {
+            h.set_string("FILTER", f);
+        }
+        skotiq_imaging::write_fits(&p, &image, &h).unwrap();
+        p.to_string_lossy().to_string()
+    };
+
+    let ref_ha = write_with_filter("ref_ha.fits", Some("Ha"));
+    let alias_ha = write_with_filter("sub_halpha.fits", Some("H-alpha"));
+    let headerless = write_with_filter("sub_nohdr.fits", None);
+    let wrong_oiii = write_with_filter("sub_oiii.fits", Some("OIII"));
+
+    api_stacking_start_for_filter(Some("Ha".to_string()), ref_ha, base_config())
+        .expect("start Ha slot");
+
+    // Short buffer rejected on add_frame_from_data too.
+    let add_err = api_stacking_add_frame_from_data_for_filter(
+        Some("Ha".to_string()),
+        IMG_W,
+        IMG_H,
+        vec![0u16; 4],
+        0.0,
+    )
+    .expect_err("short buffer must be rejected on add");
+    assert!(add_err.to_string().contains("Invalid frame dimensions"));
+
+    // Alias FITS ("H-alpha") and headerless FITS targeting explicit "Ha" slot succeed.
+    let r2 = api_stacking_add_frame_for_filter(Some("Ha".to_string()), alias_ha)
+        .expect("H-alpha alias must align with Ha slot");
+    assert_eq!(r2.stats.stacked_frame_count, 2);
+
+    let r3 = api_stacking_add_frame_for_filter(Some("Ha".to_string()), headerless)
+        .expect("headerless FITS explicitly routed to Ha slot must stack");
+    assert_eq!(r3.stats.stacked_frame_count, 3);
+
+    // Different band ("OIII") must still be rejected even when explicitly routed to "Ha".
+    let err_oiii = api_stacking_add_frame_for_filter(Some("Ha".to_string()), wrong_oiii)
+        .expect_err("OIII frame must not enter Ha stack");
+    assert!(err_oiii.to_string().contains("OIII"));
+
+    // Case-insensitive and alias lookup works for events, update_config, and stop_for_filter.
+    let events = api_stacking_get_events(Some("h-alpha".to_string()));
+    assert!(!events.is_empty(), "alias lookup must find Ha slot events");
+    api_stacking_update_config(Some("ha".to_string()), base_config())
+        .expect("case-insensitive update_config must succeed");
+    api_stacking_stop_for_filter("H-alpha".to_string())
+        .expect("alias stop_for_filter must stop Ha slot");
+    assert!(!api_stacking_is_active());
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

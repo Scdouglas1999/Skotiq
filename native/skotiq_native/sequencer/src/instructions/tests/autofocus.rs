@@ -590,6 +590,111 @@ async fn failed_af_restores_original_filter_without_requiring_offset() {
     );
 }
 
+#[tokio::test(start_paused = true)]
+async fn failed_af_reverses_entry_filter_focus_offset_delta() {
+    // Rig is mid-run on OIII (offset +40 from L), so the focuser sits at
+    // 5040 with last_applied_filter_offset == 40. AF switches to L (offset 0),
+    // which shifts the focuser 5040 -> 5000, then fails on dark frames and
+    // returns the focuser to 5000 (the post-entry position). Cleanup must move
+    // the wheel back to OIII AND shift the focuser back to 5040 with
+    // last_applied_filter_offset == 40 rather than stranding OIII at L's focus.
+    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_focus_model(
+        5040,
+        Box::new(|_| ImageData {
+            width: 64,
+            height: 64,
+            data: vec![100; 64 * 64],
+            bits_per_pixel: 16,
+            ..Default::default()
+        }),
+    ));
+    let mut ctx = ctx_with_ops(ops.clone()).await;
+    ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
+    ctx.run.rig.focuser_id = Some("foc-1".to_string());
+    ctx.run.rig.filter_focus_reference = Some("L".to_string());
+    ctx.run.rig.filter_focus_offsets = std::collections::HashMap::from([("OIII".to_string(), 40)]);
+    ops.filterwheel_set_position("efw-1", 5).await.unwrap(); // slot 5 = OIII
+    let mut trigger_state = crate::triggers::TriggerState::new();
+    trigger_state.set_last_applied_filter_offset(40);
+    ctx.run.trigger_state = Some(Arc::new(tokio::sync::RwLock::new(trigger_state)));
+
+    let config = AutofocusConfig {
+        filter: Some("L".to_string()),
+        number_of_attempts: 1,
+        steps_out: 2,
+        exposure_duration: 0.01,
+        focuser_settle_time_ms: 0,
+        disable_guiding_during_af: false,
+        ..Default::default()
+    };
+    let result = execute_autofocus(&config, &ctx, None).await;
+    assert_eq!(result.status, NodeStatus::Failure);
+    let msg = result.message.as_deref().unwrap_or("");
+    assert!(
+        !msg.contains("CRITICAL CLEANUP FAILURE"),
+        "failed AF cleanup must succeed cleanly: {msg}"
+    );
+    assert_eq!(
+        ops.filterwheel_get_position("efw-1").await.unwrap(),
+        5,
+        "filter wheel must return to OIII"
+    );
+    assert_eq!(
+        ops.focuser_get_position("foc-1").await.unwrap(),
+        5040,
+        "focuser must return to OIII's pre-AF position (5040), not stay stranded at L (5000)"
+    );
+    let embodied = ctx
+        .run
+        .trigger_state
+        .as_ref()
+        .unwrap()
+        .read()
+        .await
+        .latches
+        .last_applied_filter_offset;
+    assert_eq!(embodied, 40, "embodied offset latch must return to +40");
+}
+
+#[test]
+fn known_filter_offset_resolves_canonical_aliases_and_rejects_ambiguity() {
+    let rig = super::super::context::RunRig {
+        filter_focus_reference: Some("L".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([
+            ("Ha".to_string(), 35),
+            ("OIII".to_string(), -20),
+        ]),
+        ..Default::default()
+    };
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "Luminance").unwrap(),
+        0
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "H-alpha").unwrap(),
+        35
+    );
+    assert_eq!(
+        super::super::filter::known_filter_offset(&rig, "oiii").unwrap(),
+        -20
+    );
+
+    let ambiguous_rig = super::super::context::RunRig {
+        filter_focus_reference: Some("L".to_string()),
+        filter_focus_offsets: std::collections::HashMap::from([
+            ("Ha 3nm".to_string(), 30),
+            ("Ha 7nm".to_string(), 45),
+        ]),
+        ..Default::default()
+    };
+    let err = super::super::filter::known_filter_offset(&ambiguous_rig, "H-alpha")
+        .expect_err("distinct offsets for the same band must fail instead of guessing");
+    assert!(
+        err.contains("multiple focus offsets"),
+        "unexpected ambiguity error: {err}"
+    );
+}
+
 // The guider-resume cleanup failure. Verbatim from the owner's
 // skotiq.log.2026-09-15, 02:58:40:
 //
