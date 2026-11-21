@@ -394,7 +394,7 @@ fn adaptive_eccentricity(
                 let y = f64::from(py + dy);
                 let (ux, uy) = (x - ax, y - ay);
                 let q = ia * ux * ux + 2.0 * ic * ux * uy + ib * uy * uy;
-                let w = (-0.5 * q).exp() * (frame.at(px + dx, py + dy) - background);
+                let w = libm::exp(-0.5 * q) * (frame.at(px + dx, py + dy) - background);
                 sw += w;
                 sx += w * x;
                 sy += w * y;
