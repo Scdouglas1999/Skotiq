@@ -1518,15 +1518,10 @@ mod tests {
         let (w, h) = (384usize, 384usize);
         let sky = 250.0f64;
         let ring_r = 16.0f64;
-        let ring_sigma = 1.2f64;
-        let knot_sigma = 1.05f64;
-        let n_knots = 8usize;
         let centres = [(96.0, 96.0), (288.0, 96.0), (96.0, 288.0), (288.0, 288.0)];
         let mut clean = vec![sky; w * h];
         for &(cx, cy) in &centres {
-            paint_donut(
-                &mut clean, w, h, cx, cy, ring_r, ring_sigma, knot_sigma, n_knots,
-            );
+            paint_donut(&mut clean, w, h, cx, cy, ring_r);
         }
         let expected_hfr = half_flux_radius(&clean, w, centres[0].0, centres[0].1, sky, 26.0);
         assert!(
@@ -1595,17 +1590,10 @@ mod tests {
         }
     }
 
-    fn paint_donut(
-        plane: &mut [f64],
-        w: usize,
-        h: usize,
-        cx: f64,
-        cy: f64,
-        ring_r: f64,
-        ring_sigma: f64,
-        knot_sigma: f64,
-        n_knots: usize,
-    ) {
+    fn paint_donut(plane: &mut [f64], w: usize, h: usize, cx: f64, cy: f64, ring_r: f64) {
+        let ring_sigma = 1.2f64;
+        let knot_sigma = 1.05f64;
+        let n_knots = 8usize;
         let reach = (ring_r + 8.0).ceil() as i32;
         let x0 = (cx as i32 - reach).max(0) as usize;
         let x1 = ((cx as i32 + reach) as usize).min(w - 1);
