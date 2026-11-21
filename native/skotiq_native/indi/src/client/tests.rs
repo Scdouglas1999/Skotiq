@@ -1435,6 +1435,79 @@ async fn test_writer_task_superseded_epoch_does_not_clobber_new_connection() {
 }
 
 #[tokio::test]
+async fn supervised_reader_superseded_epoch_does_not_clobber_new_connection() {
+    // A reader task still unwinding after reconnect belongs to the old epoch.
+    // It must not mark the new connection stopped or disconnected, and must
+    // not emit a health or connection-state event. The socket side never
+    // produces a byte; only the already-dropped shutdown signal completes.
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+    use tokio::io::{AsyncRead, ReadBuf};
+
+    struct IdleReader;
+    impl AsyncRead for IdleReader {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            _cx: &mut Context<'_>,
+            _buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            Poll::Pending
+        }
+    }
+
+    let connected = Arc::new(AtomicBool::new(true));
+    let reader_status = Arc::new(RwLock::new(ReaderStatus::Running));
+    let failures = Arc::new(AtomicU32::new(3));
+    let (event_tx, mut event_rx) = broadcast::channel::<IndiEvent>(16);
+    let (shutdown_tx, shutdown_rx) = oneshot::channel::<()>();
+    drop(shutdown_tx);
+
+    // This task is epoch 1. The live connection is already epoch 2.
+    let connection_epoch = Arc::new(AtomicU64::new(2));
+    IndiClient::supervised_reader_task(
+        IdleReader,
+        Arc::new(RwLock::new(HashMap::new())),
+        Arc::new(RwLock::new(HashMap::new())),
+        Arc::new(RwLock::new(PropertyValueMap::new())),
+        Arc::new(RwLock::new(PropertyUpdateMap::new())),
+        Arc::new(RwLock::new(NumberLimitsMap::new())),
+        Arc::new(RwLock::new(BlobMap::new())),
+        connected.clone(),
+        event_tx,
+        reader_status.clone(),
+        failures.clone(),
+        Arc::new(RwLock::new(Some("1.7".to_string()))),
+        Arc::new(AtomicU64::new(0)),
+        IndiTimeoutConfig::default(),
+        ReaderTaskConfig::default(),
+        make_jitter_rng("127.0.0.1", 7624),
+        shutdown_rx,
+        1,
+        connection_epoch,
+    )
+    .await;
+
+    assert!(
+        connected.load(Ordering::SeqCst),
+        "superseded reader cleared the new connection's connected flag"
+    );
+    assert_eq!(
+        *reader_status.read().await,
+        ReaderStatus::Running,
+        "superseded reader overwrote the new connection's reader status"
+    );
+    assert_eq!(
+        failures.load(Ordering::SeqCst),
+        3,
+        "superseded reader changed the new connection's failure count"
+    );
+    assert!(
+        event_rx.try_recv().is_err(),
+        "superseded reader emitted an event on the new connection"
+    );
+}
+
+#[tokio::test]
 async fn test_writer_task_clean_shutdown_leaves_connected_untouched() {
     // A closed command channel is the ordinary `disconnect()` path; it must
     // not masquerade as a write failure.
