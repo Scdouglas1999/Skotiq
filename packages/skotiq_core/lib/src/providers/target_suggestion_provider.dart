@@ -82,6 +82,15 @@ final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 /// replaces the reader when the file changes, which retires this entry.
 final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
 
+/// The reader [_catalogTargets] was filled from. Replaced on install.
+OpenNgcDsoCatalog? _catalogReader;
+
+/// Fires when a catalog file is installed or removed. Suggestions watch this
+/// so a list scored before the file arrived is dropped.
+final catalogChangeProvider = StreamProvider<SkyCatalog>((ref) {
+  return CatalogManager.instance.changes;
+});
+
 /// The user's own targets and the catalog's, one entry per object. A user
 /// target is the catalog object it designates ([DsoDesignations.ofTarget]: a
 /// run saves "M1" by name, which is NGC1952): it keeps its own progress,
@@ -167,6 +176,8 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       config,
     ) async {
       ref.watch(refreshSuggestionsProvider);
+      // Install and uninstall, not a status refresh: a timer must not re-score.
+      ref.watch(catalogChangeProvider);
 
       // Watch optical config for FOV-aware framing fit scoring
       final opticalConfig = ref.watch(opticalConfigProvider);
@@ -263,6 +274,11 @@ Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   }
 
   final reader = manager.dsos;
+  if (!identical(reader, _catalogReader)) {
+    final previous = _catalogReader;
+    if (previous != null) _catalogTargets[previous] = null;
+    _catalogReader = reader;
+  }
   try {
     return await (_catalogTargets[reader] ??= _readCatalogTargets(
       reader,
