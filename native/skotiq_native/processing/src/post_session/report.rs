@@ -39,3 +39,18 @@ pub(crate) fn report(report: PassReport) {
         listener(report);
     }
 }
+
+/// Test runs share the process listener but observe only their own synchronous
+/// pass. Register from the thread that calls the pipeline entry point.
+#[cfg(test)]
+pub(super) fn report_to_current_test(listener: fn(PassReport)) {
+    thread_local! {
+        static CURRENT: std::cell::Cell<Option<fn(PassReport)>> = const { std::cell::Cell::new(None) };
+    }
+    CURRENT.set(Some(listener));
+    report_to(|event| {
+        if let Some(hear) = CURRENT.get() {
+            hear(event);
+        }
+    });
+}

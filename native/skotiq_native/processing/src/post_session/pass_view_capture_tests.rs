@@ -21,7 +21,7 @@
 use crate::post_session::args::{transform_to_row_major, AlignArgs};
 use crate::post_session::entrypoints::integrate_session;
 use crate::post_session::helpers::build_registration_config;
-use crate::post_session::report::{report_to, PassReport};
+use crate::post_session::report::{report_to_current_test, PassReport};
 use crate::post_session::telemetry::emit_pass_telemetry;
 use skotiq_imaging::registration::solve_registration;
 use skotiq_imaging::{read_frame, read_frame_header, ImageData};
@@ -77,7 +77,7 @@ fn run(
     Vec<serde_json::Value>,
     u128,
 ) {
-    report_to(hear);
+    report_to_current_test(hear);
     take_heard();
     let preview_dir = std::env::var("PASSVIZ_NO_PREVIEW")
         .is_err()
@@ -233,7 +233,7 @@ fn passviz_capture_real_pass() {
         };
         eprintln!("[passviz] align {filter}: {entry}");
         // Reported through the pass helper the way the color stage will.
-        report_to(hear);
+        report_to_current_test(hear);
         take_heard();
         emit_pass_telemetry("passviz", "channel_aligned", entry.clone());
         if let Some((at, _)) = take_heard().first() {

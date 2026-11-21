@@ -1563,10 +1563,10 @@ fn cancelling_a_live_run_stops_it_inside_a_per_frame_loop() {
         light_paths.push(p.to_string_lossy().to_string());
     }
     let master_path = dir.join("master.fits");
-    let run_id = "live-run";
+    const RUN_ID: &str = "live-run";
 
     let args = serde_json::json!({
-        "runId": run_id,
+        "runId": RUN_ID,
         "lightPaths": light_paths,
         "reference": light_paths[0],
         "settings": {
@@ -1577,33 +1577,31 @@ fn cancelling_a_live_run_stops_it_inside_a_per_frame_loop() {
     })
     .to_string();
 
-    let worker = std::thread::spawn(move || integrate_session(args));
-
-    // Wait for the run to claim its id, then cancel it.
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
-    loop {
-        let resp =
-            post_session_cancel(serde_json::json!({ "op": "status", "runId": run_id }).to_string())
-                .expect("status");
-        let status: PostSessionCancelResult = serde_json::from_str(&resp).unwrap();
-        if status.running {
-            break;
+    // Registration precedes the first stage boundary. Wait for the actual
+    // first frame instead, then issue the normal cancel command from another
+    // thread before the pipeline can reach the next frame.
+    crate::post_session::report::report_to_current_test(|report| {
+        if matches!(report, crate::post_session::report::PassReport::Progress {
+            phase, frames_done: Some(1), ..
+        } if phase == "calibrating")
+        {
+            std::thread::spawn(|| {
+                let reply = post_session_cancel(serde_json::json!({ "runId": RUN_ID }).to_string())
+                    .expect("cancel the live run");
+                let status: PostSessionCancelResult = serde_json::from_str(&reply).unwrap();
+                assert!(status.running && status.cancel_requested);
+            })
+            .join()
+            .expect("cancel thread");
         }
-        assert!(
-            std::time::Instant::now() < deadline,
-            "the run never registered its id"
-        );
-        std::thread::yield_now();
-    }
-    post_session_cancel(serde_json::json!({ "runId": run_id }).to_string()).expect("cancel");
+    });
 
-    let err = worker
-        .join()
-        .expect("worker thread")
-        .expect_err("a cancelled run must not report success");
+    let err = integrate_session(args).expect_err("a cancelled run must not report success");
     let outcome = decode_cancelled(&err);
     assert_eq!(outcome.kind, "cancelled");
-    assert_eq!(outcome.run_id, run_id);
+    assert_eq!(outcome.run_id, RUN_ID);
+    assert_eq!(outcome.stage, "calibrating");
+    assert_eq!(outcome.frames_done, Some(1));
     assert_eq!(
         outcome.frames_total,
         Some(light_paths.len() as u32),
