@@ -1140,10 +1140,18 @@ mod fake_sdk_contract {
         let status = camera.get_status().await.expect("SVBONY status");
         assert_eq!(status.gain, 44);
         assert_eq!(status.offset, 7);
-        assert!(camera
-            .is_exposure_complete()
-            .await
-            .expect("SVBONY exposure complete"));
+        // The SDK clamps this zero-second request to its 32 µs minimum.
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !camera
+                .is_exposure_complete()
+                .await
+                .expect("SVBONY exposure status")
+            {
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .expect("SVBONY minimum exposure must finish");
         let image = camera
             .download_image()
             .await
@@ -1151,6 +1159,7 @@ mod fake_sdk_contract {
         assert_eq!((image.width, image.height), (24, 14));
         assert_eq!(image.bits_per_pixel, 14);
         assert_eq!(image.data[0], 1001);
+        assert_eq!(image.metadata.exposure_time, 0.000032);
         assert_eq!(image.metadata.gain, Some(44));
         assert_eq!(image.metadata.offset, Some(7));
         camera.abort_exposure().await.expect("SVBONY abort");
