@@ -4,6 +4,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
 
@@ -47,6 +48,10 @@ void main() {
     expect(container.read(nightLogFeedEventsProvider), hasLength(1));
     expect(container.read(nightSessionEventsProvider).flips, [when]);
     expect(container.read(eventHistoryProvider), hasLength(1));
+    container.read(nightGuideSamplesProvider.notifier).add(
+          NightGuideSample(when, 0.2, -0.3),
+        );
+    expect(container.read(nightGuideSamplesProvider), hasLength(1));
 
     applyHostRuntimeUpdate(
       container,
@@ -73,5 +78,6 @@ void main() {
     expect(container.read(eventHistoryProvider), isEmpty);
     expect(container.read(nightLogFeedEventsProvider), isEmpty);
     expect(container.read(nightSessionEventsProvider).flips, isEmpty);
+    expect(container.read(nightGuideSamplesProvider), isEmpty);
   });
 }
