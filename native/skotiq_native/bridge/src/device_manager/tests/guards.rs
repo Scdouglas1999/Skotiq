@@ -262,22 +262,17 @@ fn disconnect_failure_counts(
     use crate::event::bus::EventPayload;
     use crate::event::equipment::{EquipmentEvent, HeartbeatStatus};
     let mut counts = Vec::new();
-    loop {
-        match rx.try_recv() {
-            Ok(event) => {
-                if let EventPayload::Equipment(EquipmentEvent::HeartbeatStatusChanged {
-                    device_id,
-                    status: HeartbeatStatus::Disconnected,
-                    consecutive_failures,
-                    ..
-                }) = &event.payload
-                {
-                    if device_id == id {
-                        counts.push(*consecutive_failures);
-                    }
-                }
+    while let Ok(event) = rx.try_recv() {
+        if let EventPayload::Equipment(EquipmentEvent::HeartbeatStatusChanged {
+            device_id,
+            status: HeartbeatStatus::Disconnected,
+            consecutive_failures,
+            ..
+        }) = &event.payload
+        {
+            if device_id == id {
+                counts.push(*consecutive_failures);
             }
-            Err(_) => break,
         }
     }
     counts
