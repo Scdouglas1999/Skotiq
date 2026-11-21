@@ -321,6 +321,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                   hostRun.close();
                 }
               },
+              canRecover: () async =>
+                  (await backend.sequencerGetStatus()).isIdle &&
+                  ref.read(sequenceExecutionStateProvider).canStart,
               checkpointStillResumable: () async {
                 final current = await backend.getCheckpointInfo();
                 return current?.canResume ?? false;
