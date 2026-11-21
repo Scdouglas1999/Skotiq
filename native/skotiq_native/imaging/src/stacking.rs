@@ -465,6 +465,7 @@ impl LiveStacker {
         provenance: &FrameProvenance,
     ) -> Result<ImageData, String> {
         if !same_filter(provenance.filter.as_deref(), self.filter.as_deref()) {
+            self.last_frame_telemetry = None;
             self.stats.other_filter_frames += 1;
             self.stats.last_other_filter = provenance.filter.clone();
             return Err(format!(
@@ -482,6 +483,7 @@ impl LiveStacker {
         frame: &ImageData,
         provenance: &FrameProvenance,
     ) -> Result<ImageData, String> {
+        self.last_frame_telemetry = None;
         self.stats.total_frames_attempted += 1;
 
         if frame.width != self.width || frame.height != self.height {
@@ -2577,6 +2579,16 @@ mod tests {
     }
 
     #[test]
+    fn a_mismatched_live_frame_has_no_alignment_measurement() {
+        let reference = make_test_image(512, 512, &osc_test_field());
+        let mut stacker = LiveStacker::new(&reference, osc_test_config()).unwrap();
+        assert!(stacker.last_frame_telemetry().unwrap().detected_stars > 0);
+        let frame = constant_u16_image(8, 4, 1000);
+        assert!(stacker.add_frame(&frame, 0.0).is_err());
+        assert!(stacker.last_frame_telemetry().is_none());
+    }
+
+    #[test]
     fn mixed_dimensions_returns_err() {
         let f1 = constant_u16_image(4, 4, 1000);
         let f2 = constant_u16_image(8, 4, 1000); // different width
@@ -2777,10 +2789,12 @@ mod tests {
             LiveStacker::new_with_provenance(&reference, osc_test_config(), &through(Some("L")))
                 .expect("reference accepted");
         assert_eq!(stacker.filter(), Some("L"));
+        assert!(stacker.last_frame_telemetry().unwrap().detected_stars > 0);
 
         let refusal = stacker
             .add_frame_with_provenance(&shifted, &through(Some("R")))
             .expect_err("an R frame does not enter an L stack");
+        assert!(stacker.last_frame_telemetry().is_none());
         assert_eq!(
             refusal,
             "Frame of another filter not stacked: the frame was taken through R and this live \
