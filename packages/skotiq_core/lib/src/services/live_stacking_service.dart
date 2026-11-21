@@ -98,6 +98,7 @@ class LiveStackingService {
       return remote.stackingStart(
         referencePath: referenceImagePath,
         config: config,
+        filterKey: filterKey,
       );
     }
 
@@ -601,9 +602,7 @@ class LiveStackingService {
   Future<List<LiveStackFilterSummary>> listFilters() async {
     if (_remote != null) return const [];
     final list = await bridge.apiStackingListFilters();
-    return list
-        .map(LiveStackFilterSummary.fromBridge)
-        .toList(growable: false);
+    return list.map(LiveStackFilterSummary.fromBridge).toList(growable: false);
   }
 
   /// Read recent per-frame alignment/rejection events (newest first).
@@ -645,7 +644,7 @@ class LiveStackingService {
     );
     final remote = _remote;
     if (remote != null) {
-      await remote.stackingReset();
+      await remote.stackingReset(filterKey: filterKey);
       return;
     }
     await bridge.apiStackingResetForFilter(filterKey: filterKey);
@@ -670,7 +669,7 @@ class LiveStackingService {
     );
     final remote = _remote;
     if (remote != null) {
-      await remote.stackingStop();
+      await remote.stackingStop(filterKey: filterKey);
       return;
     }
     await bridge.apiStackingStopForFilter(filterKey: filterKey);

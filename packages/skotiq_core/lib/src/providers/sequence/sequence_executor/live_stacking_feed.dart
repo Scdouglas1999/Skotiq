@@ -134,7 +134,11 @@ class LiveStackingFeed {
       }
     }
     _broadcast().deactivate();
-    if (!wasArmed) {
+    // The first frame's start can finish during the drain above and set
+    // [_armed] after [wasArmed] was captured. That stack belongs to this run.
+    final armedByThisRun = wasArmed || _armed;
+    _armed = false;
+    if (!armedByThisRun) {
       // Manual opt-in stacks belong to the operator, not the sequence node, so
       // drain the queued feed chain above without tearing down their session.
       return;

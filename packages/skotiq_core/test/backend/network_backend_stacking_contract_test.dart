@@ -493,6 +493,50 @@ void main() {
       await expectLater(backend.stackingGetResult(), throwsFormatException);
     });
   });
+
+  group('filterKey is optional on reset, stop, and start', () {
+    test('a missing key is omitted and a named key is sent', () async {
+      final fake = FakeNetworkClient()
+        ..setResponse('/api/stacking/reset', method: 'POST', body: '{}')
+        ..setResponse('/api/stacking/stop', method: 'POST', body: '{}')
+        ..setResponse(
+          '/api/stacking/start',
+          method: 'POST',
+          body: jsonEncode({'status': 'started', 'stats': _zeroStats()}),
+        );
+      final backend = _backend(fake);
+      addTearDown(backend.dispose);
+
+      await backend.stackingReset();
+      await backend.stackingReset(filterKey: 'Ha');
+      await backend.stackingReset(filterKey: '  ');
+      await backend.stackingStop();
+      await backend.stackingStop(filterKey: 'OIII');
+      await backend.stackingStart(referencePath: '/host/ref.fits');
+      await backend.stackingStart(
+        referencePath: '/host/sii.fits',
+        filterKey: 'SII',
+      );
+
+      Map<String, dynamic> bodyAt(int index) =>
+          jsonDecode(fake.requests[index].body!) as Map<String, dynamic>;
+
+      expect(bodyAt(0).containsKey('filterKey'), isFalse);
+      expect(bodyAt(1)['filterKey'], 'Ha');
+      expect(
+        bodyAt(2).containsKey('filterKey'),
+        isFalse,
+        reason: 'a blank key keeps the whole-stack request',
+      );
+      expect(fake.requests[3].path, '/api/stacking/stop');
+      expect(bodyAt(3).containsKey('filterKey'), isFalse);
+      expect(bodyAt(4)['filterKey'], 'OIII');
+      expect(bodyAt(5).containsKey('filterKey'), isFalse);
+      expect(bodyAt(5)['referencePath'], '/host/ref.fits');
+      expect(bodyAt(6)['filterKey'], 'SII');
+      expect(bodyAt(6)['referencePath'], '/host/sii.fits');
+    });
+  });
 }
 
 /// A stats body deliberately missing one required field (`totalFramesAttempted`).

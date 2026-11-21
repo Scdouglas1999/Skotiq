@@ -16,7 +16,8 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   final List<String> ingestedPaths = [];
   int stopCalls = 0;
   int resetCalls = 0;
-  bool everStarted = false;
+  Object? stopError;
+  Object? resetError;
   Completer<void>? startGate;
   Uint16List? lastReturnedPixels;
   int inFlightAdds = 0;
@@ -66,7 +67,6 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   }) async {
     final gate = startGate;
     if (gate != null) await gate.future;
-    everStarted = true;
     frameCounts[filterKey] = 1;
     return _makeResult(filterKey, 1).stats;
   }
@@ -97,7 +97,6 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
       if (addDelay > Duration.zero) {
         await Future<void>.delayed(addDelay);
       }
-      everStarted = true;
       ingestedPaths.add(imagePath);
       final next = (frameCounts[filterKey] ?? 0) + 1;
       frameCounts[filterKey] = next;
@@ -129,6 +128,8 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
 
   @override
   Future<void> resetForFilter(String filterKey) async {
+    final error = resetError;
+    if (error != null) throw error;
     resetFilters.add(filterKey);
     frameCounts[filterKey] = 0;
   }
@@ -148,10 +149,12 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   @override
   Future<void> stop() async {
     stopCalls++;
-    if (!everStarted) {
+    final error = stopError;
+    if (error != null) throw error;
+    // The native engine rejects stop when no slot was ever opened.
+    if (frameCounts.isEmpty) {
       throw StateError('Live stacker not initialized');
     }
-    everStarted = false;
     frameCounts.clear();
   }
 
@@ -161,6 +164,73 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
 
 void main() {
   group('Multi-filter live stacking, presets, and quality gates', () {
+    test('arm then stop with zero frames disarms', () async {
+      final fakeService = _MultiFilterFakeStackingService();
+      final container = ProviderContainer(
+        overrides: [liveStackingServiceProvider.overrideWithValue(fakeService)],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(liveStackingProvider.notifier);
+      await notifier.arm();
+      await notifier.stop();
+
+      final state = container.read(liveStackingProvider);
+      expect(fakeService.stopCalls, 1);
+      expect(state.status, LiveStackingStatus.idle);
+      expect(state.isArmed, isFalse);
+      expect(state.errorMessage, isNull);
+    });
+
+    test('a stop failure other than an empty stack stays armed', () async {
+      final fakeService = _MultiFilterFakeStackingService()
+        ..stopError = StateError('disk full');
+      final container = ProviderContainer(
+        overrides: [liveStackingServiceProvider.overrideWithValue(fakeService)],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(liveStackingProvider.notifier);
+      await notifier.arm();
+      await notifier.stop();
+
+      final state = container.read(liveStackingProvider);
+      expect(state.status, LiveStackingStatus.running);
+      expect(state.isArmed, isTrue);
+      expect(state.errorMessage, contains('disk full'));
+    });
+
+    test('a failed ingest step does not strand the next one', () async {
+      final fakeService = _MultiFilterFakeStackingService()
+        ..resetError = _UnrenderableError();
+      final container = ProviderContainer(
+        overrides: [liveStackingServiceProvider.overrideWithValue(fakeService)],
+      );
+      addTearDown(container.dispose);
+
+      final notifier = container.read(liveStackingProvider.notifier);
+      await notifier.arm();
+      await notifier.addFrameFromFileWithMetadata('/subs/l1.fits', filter: 'L');
+      await notifier.addFrameFromFileWithMetadata(
+        '/subs/h1.fits',
+        filter: 'Ha',
+      );
+
+      await notifier.resetFilter('Ha');
+      fakeService.resetError = null;
+      await notifier.resetFilter('L').timeout(const Duration(seconds: 2));
+
+      expect(fakeService.resetFilters, ['L']);
+      expect(
+        container
+            .read(liveStackingProvider)
+            .filterStacks['L']!
+            .stats
+            .stackedFrameCount,
+        0,
+      );
+    });
+
     test(
       'arm + multi-filter feeds create independent sorted filter stacks',
       () async {
@@ -383,29 +453,6 @@ void main() {
     });
 
     test(
-      'stopping an armed stack before any frame clears the session',
-      () async {
-        final fakeService = _MultiFilterFakeStackingService();
-        final container = ProviderContainer(
-          overrides: [
-            liveStackingServiceProvider.overrideWithValue(fakeService),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        final notifier = container.read(liveStackingProvider.notifier);
-        await notifier.arm();
-        await notifier.stop();
-
-        final state = container.read(liveStackingProvider);
-        expect(state.status, LiveStackingStatus.idle);
-        expect(state.isArmed, isFalse);
-        expect(state.errorMessage, isNull);
-        expect(fakeService.stopCalls, 1);
-      },
-    );
-
-    test(
       'stop() racing an in-flight armed frame start still releases the native stacker',
       () async {
         final gate = Completer<void>();
@@ -556,6 +603,13 @@ void main() {
       },
     );
   });
+}
+
+/// Rendering this error throws, which is how a step's own failure report
+/// escapes the step and used to fail the ingest chain.
+class _UnrenderableError implements Exception {
+  @override
+  String toString() => throw StateError('unrenderable');
 }
 
 class _DummyHostLiveStack implements HostLiveStack {

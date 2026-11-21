@@ -86,9 +86,17 @@ class StackingHandlers implements RouteSource {
 
   Future<LiveStackingStats> _startReference(
     String referencePath,
-    LiveStackingConfig config,
-  ) async {
+    LiveStackingConfig config, {
+    String? filterKey,
+  }) async {
     try {
+      if (filterKey != null) {
+        return await _service.startFromFileForFilter(
+          filterKey: filterKey,
+          referenceImagePath: referencePath,
+          config: config,
+        );
+      }
       return await _service.startFromFile(
         referenceImagePath: referencePath,
         config: config,
@@ -163,8 +171,18 @@ class StackingHandlers implements RouteSource {
       maxLength: 4096,
     );
     final referencePath = rawReferencePath?.trim();
+    // Absent, blank, or the "no filter" dash keeps the pre-filterKey meaning:
+    // start the whole stack. Older clients never send the field.
+    final filterKey = _explicitFilterKey(payload);
 
     return _enqueue(() async {
+      if (filterKey != null) {
+        return _startNamedFilter(
+          filterKey,
+          referencePath: referencePath,
+          config: requestedConfig,
+        );
+      }
       // Reset an existing stack before restarting. A fresh armed start has not
       // initialized the native stacker yet, so there is nothing to clear.
       if (_started || _service.isActive) {
@@ -481,8 +499,24 @@ class StackingHandlers implements RouteSource {
   /// reference frame yet the native stacker isn't initialized, so resetting the
   /// engine would throw "not initialized". There's nothing accumulated to
   /// clear, so we just drop back to the armed-waiting-for-reference state.
+  ///
+  /// A `filterKey` resets that slot and leaves the others, and the
+  /// coordinator, alone. No key resets the whole stack.
   Future<Response> handleReset(Request request) async {
+    final filterKey = _explicitFilterKey(await readJsonObjectOrEmpty(request));
     return _enqueue(() async {
+      if (filterKey != null) {
+        try {
+          await _service.resetForFilter(filterKey);
+        } catch (e) {
+          _logger.warning(
+            '[stacking] reset of $filterKey on an uninitialized stacker '
+            'ignored: $e',
+            source: 'StackingHandlers',
+          );
+        }
+        return jsonOk({'status': 'reset', 'filterKey': filterKey});
+      }
       try {
         if (_started || _service.isActive) {
           await _service.reset();
@@ -511,7 +545,11 @@ class StackingHandlers implements RouteSource {
   /// which state was actually torn down rather than claiming a stack was
   /// stopped when none was running.
   Future<Response> handleStop(Request request) async {
+    final filterKey = _explicitFilterKey(await readJsonObjectOrEmpty(request));
     return _enqueue(() async {
+      if (filterKey != null) {
+        return _stopNamedFilter(filterKey);
+      }
       // Captured BEFORE the `finally` clears the flags, so it reflects the
       // state the caller actually found.
       final wasRunning = _armed || _started || _service.isActive;
@@ -534,6 +572,65 @@ class StackingHandlers implements RouteSource {
         if (!wasRunning)
           'message': 'Live stacking was not running; nothing to stop.',
       });
+    });
+  }
+
+  /// A named filter on the wire. Missing, blank, and the "no filter" dash
+  /// mean the whole stack, so a client that predates `filterKey` is unchanged.
+  String? _explicitFilterKey(Map<String, dynamic> payload) {
+    final raw = optionalString(payload, 'filterKey', maxLength: 128)?.trim();
+    if (raw == null || raw.isEmpty || raw == '—') return null;
+    return raw;
+  }
+
+  /// Start one filter slot. Does not reset the other slots. No reference
+  /// leaves the coordinator's started flag as it was: the next saved frame
+  /// still follows the whole-stack auto-feed, which has no filter of its own.
+  Future<Response> _startNamedFilter(
+    String filterKey, {
+    required String? referencePath,
+    required LiveStackingConfig config,
+  }) async {
+    _config = config;
+    _armed = true;
+    if (referencePath != null && referencePath.isNotEmpty) {
+      final stats = await _startReference(
+        referencePath,
+        config,
+        filterKey: filterKey,
+      );
+      _started = true;
+      return jsonOk({'status': 'started', 'stats': _statsToJson(stats)});
+    }
+    return jsonOk({
+      'status': 'armed',
+      'message':
+          'Stacking armed; the next captured frame becomes the reference.',
+      'stats': _statsToJson(const LiveStackingStats()),
+    });
+  }
+
+  /// Stop one filter slot. The session stays armed while any other slot is
+  /// still active. A slot that was never started is a successful no-op.
+  Future<Response> _stopNamedFilter(String filterKey) async {
+    var stopped = false;
+    try {
+      await _service.stopForFilter(filterKey);
+      stopped = true;
+    } catch (e) {
+      _logger.warning(
+        '[stacking] stop of $filterKey on an uninitialized stacker ignored: $e',
+        source: 'StackingHandlers',
+      );
+    }
+    if (!_service.isActive) {
+      _armed = false;
+      _started = false;
+    }
+    return jsonOk({
+      'status': 'stopped',
+      'filterKey': filterKey,
+      kWasRunningField: stopped,
     });
   }
 
