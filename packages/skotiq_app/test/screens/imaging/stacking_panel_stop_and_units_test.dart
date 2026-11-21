@@ -366,4 +366,112 @@ void main() {
     expect(find.text('271.8K px'), findsOneWidget);
     expect(find.text('PIXELS REJECTED BY SIGMA CLIPPING'), findsOneWidget);
   });
+
+  testWidgets(
+    'multi-filter Stop prompts even when selected filter has 0 frames and saves all non-empty filters via library',
+    (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(420, 1600);
+      addTearDown(() {
+        tester.view.resetDevicePixelRatio();
+        tester.view.resetPhysicalSize();
+      });
+      _log.clear();
+
+      final savedFilterKeys = <String?>[];
+      late _RecordingLiveStackingNotifier stacker;
+      final container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          isRemoteModeProvider.overrideWithValue(false),
+          connectedCameraIdProvider.overrideWithValue(null),
+          stackingMasterDestinationPickerProvider.overrideWithValue(
+            (suggestedName) async {
+              _log.add('pick:$suggestedName');
+              return '/tmp/sk-audit/$suggestedName';
+            },
+          ),
+          liveStackingServiceProvider.overrideWith(_FakeLiveStackingService.new),
+          liveStackMasterLibraryProvider.overrideWith((ref) {
+            final service = ref.watch(liveStackingServiceProvider);
+            return LiveStackMasterLibrary(
+              currentResult: service.getCurrentResult,
+              currentResultForFilter: (_) => service.getCurrentResult(),
+              saveMaster: (path) => service.saveMaster(filePath: path),
+              saveMasterForFilter: (filterKey, path) {
+                savedFilterKeys.add(filterKey);
+                return service.saveMaster(filePath: path);
+              },
+              writePreview: (_, __) async {},
+              masters: ref.watch(integratedMastersDaoProvider),
+              readHeader: (_) async => FrameHeader(const {'OBJECT': 'M 31'}),
+            );
+          }),
+          liveStackingProvider.overrideWith((ref) {
+            stacker = _RecordingLiveStackingNotifier(
+              ref,
+              const LiveStackingState(
+                status: LiveStackingStatus.running,
+                // Selected filter OIII is empty (0 frames), while Ha has 5
+                // frames and L has 3 frames — Stop must NOT silently discard!
+                selectedFilterKey: 'OIII',
+                stats: LiveStackingStats(stackedFrameCount: 0),
+                filterStacks: {
+                  'L': FilterStackSnapshot(
+                    filterKey: 'L',
+                    stats: LiveStackingStats(stackedFrameCount: 3),
+                    previewWidth: 2,
+                    previewHeight: 2,
+                  ),
+                  'Ha': FilterStackSnapshot(
+                    filterKey: 'Ha',
+                    stats: LiveStackingStats(stackedFrameCount: 5),
+                    previewWidth: 2,
+                    previewHeight: 2,
+                  ),
+                  'OIII': FilterStackSnapshot(
+                    filterKey: 'OIII',
+                    stats: LiveStackingStats(stackedFrameCount: 0),
+                  ),
+                },
+              ),
+            );
+            return stacker;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: SkotiqTheme.dark,
+            home: const Scaffold(
+              body: SingleChildScrollView(
+                child: StackingPanel(colors: SkotiqColors.dark),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Stop'));
+      await tester.pumpAndSettle();
+
+      // Must prompt for the 8 total stacked frames rather than silently dropping Ha & L.
+      expect(find.text('Keep this stack?'), findsOneWidget);
+      expect(find.textContaining('8 stacked frames'), findsOneWidget);
+      expect(stacker.stopCalls, 0);
+
+      await tester.tap(find.text('Save master'));
+      await tester.pumpAndSettle();
+
+      expect(savedFilterKeys, ['L', 'Ha']);
+      expect(stacker.stopCalls, 1);
+      final masters = await container.read(integratedMastersDaoProvider).getAll();
+      expect(masters, hasLength(2));
+    },
+  );
 }

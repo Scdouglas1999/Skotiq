@@ -122,12 +122,7 @@ class LiveStackingFeed {
   /// feed finishes, so a stopped run cannot keep serving a stale stack.
   /// Idempotent.
   Future<void> teardown() async {
-    if (!_armed) {
-      // The broadcast may have been activated by a reference start that then
-      // failed; deactivating an inactive broadcast is a no-op.
-      _broadcast().deactivate();
-      return;
-    }
+    final wasArmed = _armed;
     _armed = false;
     final chain = _chain;
     _chain = null;
@@ -139,6 +134,11 @@ class LiveStackingFeed {
       }
     }
     _broadcast().deactivate();
+    if (!wasArmed) {
+      // Manual opt-in stacks belong to the operator, not the sequence node, so
+      // drain the queued feed chain above without tearing down their session.
+      return;
+    }
     try {
       await _stacker().stop();
     } catch (e) {
@@ -233,7 +233,7 @@ class LiveStackingFeed {
       } else {
         // 0 means unlimited.
         final cap = node.maxFramesToStack;
-        if (cap > 0 && _stackState().stats.stackedFrameCount >= cap) {
+        if (cap > 0 && _stackState().totalFramesAcrossFilters >= cap) {
           logger.debug(
             'Live-stacking auto-feed: frame cap ($cap) reached; not adding '
             '$savePath to the stack.',

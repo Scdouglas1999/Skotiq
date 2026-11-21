@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_stack/live_stack_darkroom_panel.dart';
+import 'package:skotiq_app/screens/imaging/widgets/live_stack/live_stack_darkroom_provider.dart';
+import 'package:skotiq_app/screens/imaging/widgets/live_stack/live_stack_formatters.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_stack/live_stack_frame_log_panel.dart';
 import 'package:skotiq_app/screens/imaging/widgets/live_stack/live_stack_tuning_panel.dart';
 import 'package:skotiq_app/screens/imaging/widgets/stacking_panel.dart'
@@ -18,12 +21,15 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 class _ScriptedDarkroomSeam implements DarkroomSeam {
   int registryCalls = 0;
   int renderCalls = 0;
+  Completer<void>? registryGate;
   final List<String> renderedLiveKeys = [];
   final List<String> cancelledIds = [];
 
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls++;
+    final gate = registryGate;
+    if (gate != null) await gate.future;
     return <String, dynamic>{
       'draft': <String, dynamic>{
         'steps': <Map<String, dynamic>>[
@@ -324,6 +330,87 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('live_stack_preset_strictQuality')));
       await tester.pump();
       expect(find.textContaining('1.2 px max residual'), findsOneWidget);
+    },
+  );
+
+  test(
+    'liveStackFilterDotColor obeys Red Night theme for all optical filters',
+    () {
+      for (final filter in const ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII']) {
+        final c = liveStackFilterDotColor(filter, SkotiqColors.redNight);
+        expect(
+          c.g,
+          closeTo(0.0, 0.05),
+          reason: '$filter dot must not emit green light in Red Night theme',
+        );
+        expect(
+          c.b,
+          closeTo(0.0, 0.05),
+          reason: '$filter dot must not emit blue light in Red Night theme',
+        );
+      }
+    },
+  );
+
+  test(
+    'LiveStackDarkroomNotifier preserves concurrent slider edits, respects disable mid-measure, and clears anchors on stop',
+    () async {
+      final gate = Completer<void>();
+      final seam = _ScriptedDarkroomSeam()..registryGate = gate;
+      late _TestLiveStackNotifier stackNotifier;
+      final container = ProviderContainer(
+        overrides: [
+          darkroomSeamProvider.overrideWithValue(seam),
+          liveStackingProvider.overrideWith((ref) {
+            stackNotifier = _TestLiveStackNotifier(ref, _twoFilterActiveState());
+            return stackNotifier;
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final darkroom = container.read(liveStackDarkroomProvider.notifier);
+
+      // Trigger measurement (blocked on `gate`) while user edits denoise concurrently.
+      final enableFuture = darkroom.setEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+      await darkroom.updateSettings(
+        'L',
+        const LiveDarkroomRecipeSettings(
+          denoiseEnabled: true,
+          denoiseStrength: 0.72,
+          stretchMeasured: true,
+        ),
+      );
+      gate.complete();
+      await enableFuture;
+
+      final afterMeasure = container.read(liveStackDarkroomProvider).settingsFor('L');
+      expect(afterMeasure.denoiseEnabled, isTrue);
+      expect(afterMeasure.denoiseStrength, closeTo(0.72, 1e-6));
+      expect(afterMeasure.stretchBlackPoint, closeTo(980.0, 1e-6));
+
+      // Stopping the stack clears stretchMeasured so the next target re-measures.
+      stackNotifier.state = const LiveStackingState(
+        status: LiveStackingStatus.idle,
+      );
+      expect(
+        container.read(liveStackDarkroomProvider).settingsFor('L').stretchMeasured,
+        isFalse,
+      );
+
+      // Disabling mid-measurement must not schedule a render once measurement returns.
+      final gate2 = Completer<void>();
+      seam.registryGate = gate2;
+      final rendersBefore = seam.renderCalls;
+      stackNotifier.state = _twoFilterActiveState();
+      await darkroom.setEnabled(false);
+      final enableFuture2 = darkroom.setEnabled(true);
+      await Future<void>.delayed(Duration.zero);
+      await darkroom.setEnabled(false);
+      gate2.complete();
+      await enableFuture2;
+      expect(seam.renderCalls, rendersBefore);
     },
   );
 }

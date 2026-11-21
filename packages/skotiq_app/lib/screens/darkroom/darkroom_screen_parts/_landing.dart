@@ -84,6 +84,11 @@ class _ActiveLiveStacksStripState
 
   Future<void> _promote(String filterKey) async {
     if (_promotingKey != null) return;
+    final refusal = darkroomHostOnlyRefusal(ref);
+    if (refusal != null) {
+      context.showInfoSnackBar(refusal);
+      return;
+    }
     setState(() => _promotingKey = filterKey);
     try {
       final promoted = await promoteLiveStackToDarkroom(
@@ -100,7 +105,9 @@ class _ActiveLiveStacksStripState
       context.go(loc);
     } catch (error) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not open live stack: $error');
+      context.showErrorSnackBar(
+        'Could not open live stack: ${userFacingError(error)}',
+      );
     } finally {
       if (mounted) setState(() => _promotingKey = null);
     }
@@ -108,6 +115,7 @@ class _ActiveLiveStacksStripState
 
   @override
   Widget build(BuildContext context) {
+    if (ref.watch(isRemoteClientProvider)) return const SizedBox.shrink();
     final hasStacks = ref.watch(
       liveStackingProvider.select((s) => s.hasStackedFrames),
     );

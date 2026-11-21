@@ -680,6 +680,15 @@ class StackingHandlers implements RouteSource {
           optionalDouble(json, 'matchFluxTolerance', min: 0, max: 1) ??
           defaults.matchFluxTolerance,
       minMatchedPairs: minMatchedPairs,
+      maxAlignmentResidualPx:
+          optionalDouble(json, 'maxAlignmentResidualPx', min: 0.1, max: 50) ??
+          defaults.maxAlignmentResidualPx,
+      starDetectionSigma:
+          optionalDouble(json, 'starDetectionSigma', min: 0.5, max: 50) ??
+          defaults.starDetectionSigma,
+      starDetectionMinSnr:
+          optionalDouble(json, 'starDetectionMinSnr', min: 0.5, max: 500) ??
+          defaults.starDetectionMinSnr,
       sensorMode: sensorMode,
       bayerPattern: bayerPattern,
       demosaicQuality: demosaicQuality,
@@ -693,6 +702,7 @@ class StackingHandlers implements RouteSource {
     'avgMatchedPairs': s.avgMatchedPairs,
     'avgAlignmentResidual': s.avgAlignmentResidual,
     'totalSigmaRejectedPixels': s.totalSigmaRejectedPixels,
+    'totalIntegrationSecs': s.totalIntegrationSecs,
     'filter': s.filter,
     'otherFilterFrames': s.otherFilterFrames,
     'lastOtherFilter': s.lastOtherFilter,

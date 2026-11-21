@@ -48,6 +48,9 @@ extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
     'matchRadiusPx': c.matchRadiusPx,
     'matchFluxTolerance': c.matchFluxTolerance,
     'minMatchedPairs': c.minMatchedPairs,
+    'maxAlignmentResidualPx': c.maxAlignmentResidualPx,
+    'starDetectionSigma': c.starDetectionSigma,
+    'starDetectionMinSnr': c.starDetectionMinSnr,
     'sensorMode': c.sensorMode,
     if (c.bayerPattern != null) 'bayerPattern': c.bayerPattern,
     'demosaicQuality': c.demosaicQuality,
@@ -270,6 +273,10 @@ extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
         endpoint,
         min: 0,
       ),
+      totalIntegrationSecs: switch (stats['totalIntegrationSecs']) {
+        final num secs when secs.isFinite && secs >= 0 => secs.toDouble(),
+        _ => 0.0,
+      },
       // An unfiltered stack has no filter name.
       filter: _optionalFilterName(stats['filter']),
       otherFilterFrames: switch (stats['otherFilterFrames']) {

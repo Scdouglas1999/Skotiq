@@ -302,9 +302,12 @@ final stackedPreviewStretchAsyncProvider = Provider<StackedPreviewStretchAsync>(
             filterKey: filterKey,
             maxDimension: maxDimension,
           );
-        } catch (_) {
-          // Fall through to async buffer stretch when the native slot is not
-          // present (e.g. restored or synthetic snapshot).
+        } catch (error) {
+          Log.debug(
+            'Native live stack RGBA preview fell back to buffer stretch for '
+            '$filterKey: $error',
+            source: 'StackedPreview',
+          );
         }
       }
       return service.autoStretchPreviewAsync(

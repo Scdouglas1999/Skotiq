@@ -7,9 +7,12 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+
+import '../../../darkroom/edit/darkroom_image_library.dart';
 
 /// Non-destructive Darkroom processing parameters applied in real time over an
 /// active live stack filter via the native Rust Darkroom recipe engine.
@@ -369,8 +372,18 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
     _ref.listen<LiveStackingState>(liveStackingProvider, (previous, next) {
       if (next.status != LiveStackingStatus.running) {
         _renderDebounce?.cancel();
-        if (state.renderedByFilter.isNotEmpty || state.error != null) {
+        _measuredRevisionByFilter.clear();
+        final clearedSettings = state.settingsByFilter.isEmpty
+            ? state.settingsByFilter
+            : Map<String, LiveDarkroomRecipeSettings>.unmodifiable({
+                for (final entry in state.settingsByFilter.entries)
+                  entry.key: entry.value.copyWith(stretchMeasured: false),
+              });
+        if (state.renderedByFilter.isNotEmpty ||
+            state.error != null ||
+            state.settingsByFilter.values.any((s) => s.stretchMeasured)) {
           state = state.copyWith(
+            settingsByFilter: clearedSettings,
             renderedByFilter: const {},
             isRendering: false,
             clearError: true,
@@ -430,6 +443,7 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
     final current = state.settingsFor(active.filterKey);
     if (!current.stretchMeasured) {
       await _measureStretchDefaults(active.filterKey);
+      if (!mounted || !state.enabled) return;
     }
     _scheduleRender(active.filterKey, immediate: true);
   }
@@ -467,12 +481,14 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
         settingsByFilter: Map.unmodifiable(map),
         isAutoDeveloping: false,
       );
-      _scheduleRender(filterKey, immediate: true);
+      if (state.enabled) {
+        _scheduleRender(filterKey, immediate: true);
+      }
     } catch (error) {
       if (!mounted) return;
       state = state.copyWith(
         isAutoDeveloping: false,
-        error: 'Auto-develop failed: $error',
+        error: 'Auto-develop failed: ${userFacingError(error)}',
       );
     }
   }
@@ -509,12 +525,15 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
                 final b = (params['b'] as num?)?.toDouble();
                 final sp = (params['symmetryPoint'] as num?)?.toDouble();
                 if (bp != null && wp != null && wp > bp) {
-                  final updated = existing.copyWith(
+                  // Re-read the latest filter settings after the await so any
+                  // concurrent slider adjustments are preserved.
+                  final latest = state.settingsFor(filterKey);
+                  final updated = latest.copyWith(
                     stretchBlackPoint: bp,
                     stretchWhitePoint: wp,
-                    stretchD: d ?? existing.stretchD,
-                    stretchB: b ?? existing.stretchB,
-                    stretchSymmetryPoint: sp ?? existing.stretchSymmetryPoint,
+                    stretchD: d ?? latest.stretchD,
+                    stretchB: b ?? latest.stretchB,
+                    stretchSymmetryPoint: sp ?? latest.stretchSymmetryPoint,
                     stretchMeasured: true,
                   );
                   final map = Map<String, LiveDarkroomRecipeSettings>.of(
@@ -536,7 +555,7 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
         name: 'LiveStackDarkroom',
       );
     }
-    return existing;
+    return mounted ? state.settingsFor(filterKey) : existing;
   }
 
   /// Update one filter's Darkroom controls and schedule a debounced live render.
@@ -558,6 +577,7 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
             next.saturationEnabled ||
             next.starReduceEnabled)) {
       await _measureStretchDefaults(filterKey);
+      if (!mounted || !state.enabled) return;
     }
     _scheduleRender(filterKey, immediate: false);
   }
@@ -685,7 +705,7 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
       if (!mounted || gen != _renderGeneration) return;
       state = state.copyWith(
         isRendering: false,
-        error: 'Live Darkroom render failed: $error',
+        error: 'Live Darkroom render failed: ${userFacingError(error)}',
       );
     } finally {
       if (_inFlightRenderId == renderId) {
@@ -758,6 +778,12 @@ Future<LiveStackDarkroomPromotion> promoteLiveStackToDarkroom({
       .split('.')
       .first;
 
+  final service = ref.read(liveStackingServiceProvider);
+  final mastersDao = ref.read(integratedMastersDaoProvider);
+  final recipesDao = ref.read(recipesDaoProvider);
+  final darkroomState = ref.read(liveStackDarkroomProvider);
+  final container = ProviderScope.containerOf(ref.context, listen: false);
+
   // Prefer saving alongside the reference sub's parent folder in a `masters`
   // sibling folder, falling back to system temp so promotion always succeeds.
   final refPath = snap?.referenceImagePath ?? stackState.referenceImagePath;
@@ -774,7 +800,6 @@ Future<LiveStackDarkroomPromotion> promoteLiveStackToDarkroom({
     '${safeTarget}_${safeFilter}_${stamp}Z_${frames}f.fits',
   );
 
-  final service = ref.read(liveStackingServiceProvider);
   final saved = stackState.filterStacks.containsKey(filterKey)
       ? await service.saveMasterForFilter(
           filterKey: filterKey,
@@ -802,7 +827,6 @@ Future<LiveStackDarkroomPromotion> promoteLiveStackToDarkroom({
     '($frames frames)',
   ].join(' · ');
 
-  final mastersDao = ref.read(integratedMastersDaoProvider);
   final masterId = await mastersDao.insertMaster(
     name: masterDisplayName,
     masterFitsPath: saved.filePath,
@@ -822,13 +846,11 @@ Future<LiveStackDarkroomPromotion> promoteLiveStackToDarkroom({
 
   // If the operator dialed in live Darkroom steps, carry them straight into a
   // durable DarkroomRecipe row so the full Darkroom opens with their exact edit!
-  final darkroomState = ref.read(liveStackDarkroomProvider);
   final settings = darkroomState.settingsFor(filterKey);
   int? recipeId;
   if (darkroomState.enabled && settings.hasAnyActiveStep) {
     final steps = settings.toRecipeSteps(isColor: channels >= 3);
     if (steps.isNotEmpty) {
-      final recipesDao = ref.read(recipesDaoProvider);
       recipeId = await recipesDao.create(
         masterId: masterId,
         sessionId: sessionState.dbSessionId,
@@ -840,6 +862,8 @@ Future<LiveStackDarkroomPromotion> promoteLiveStackToDarkroom({
       );
     }
   }
+
+  container.invalidate(darkroomImageLibraryProvider);
 
   return LiveStackDarkroomPromotion(
     masterId: masterId,

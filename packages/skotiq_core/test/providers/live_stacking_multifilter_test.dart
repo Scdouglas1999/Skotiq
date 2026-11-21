@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -12,6 +14,9 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   final List<String> resetFilters = [];
   final List<String> stoppedFilters = [];
   final List<String> ingestedPaths = [];
+  int stopCalls = 0;
+  int resetCalls = 0;
+  Completer<void>? startGate;
   Uint16List? lastReturnedPixels;
   int inFlightAdds = 0;
   int maxConcurrentAdds = 0;
@@ -56,6 +61,21 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   Future<LiveStackingStats> startFromFileForFilter({
     required String filterKey,
     required String referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+  }) async {
+    final gate = startGate;
+    if (gate != null) await gate.future;
+    frameCounts[filterKey] = 1;
+    return _makeResult(filterKey, 1).stats;
+  }
+
+  @override
+  Future<LiveStackingStats> startFromDataForFilter({
+    required String filterKey,
+    required int width,
+    required int height,
+    required List<int> data,
+    double pedestal = 0.0,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
     frameCounts[filterKey] = 1;
@@ -117,7 +137,14 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   }
 
   @override
+  Future<void> reset() async {
+    resetCalls++;
+    frameCounts.clear();
+  }
+
+  @override
   Future<void> stop() async {
+    stopCalls++;
     frameCounts.clear();
   }
 
@@ -337,5 +364,149 @@ void main() {
         expect(identical(state.previewData, fakeService.lastReturnedPixels), isTrue);
       },
     );
+
+    test(
+      'stop() racing an in-flight armed frame start still releases the native stacker',
+      () async {
+        final gate = Completer<void>();
+        final fakeService = _MultiFilterFakeStackingService()..startGate = gate;
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        await notifier.arm();
+        final ingestFuture = notifier.addFrameFromFileWithMetadata(
+          '/subs/ha_1.fits',
+          filter: 'Ha',
+        );
+        // Let the ingest enter startFromFileForFilter and block on `gate`.
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        final stopFuture = notifier.stop();
+        gate.complete();
+        await Future.wait([ingestFuture, stopFuture]);
+
+        expect(fakeService.stopCalls, 1);
+        expect(fakeService.frameCounts, isEmpty);
+        expect(
+          container.read(liveStackingProvider).status,
+          LiveStackingStatus.idle,
+        );
+      },
+    );
+
+    test(
+      'reset() on a single named filter calls resetForFilter instead of default reset',
+      () async {
+        final fakeService = _MultiFilterFakeStackingService();
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        await notifier.arm();
+        await notifier.addFrameFromFileWithMetadata('/subs/ha1.fits', filter: 'Ha');
+        await notifier.reset();
+
+        expect(fakeService.resetFilters, ['Ha']);
+        expect(fakeService.resetCalls, 0);
+      },
+    );
+
+    test(
+      'stopFilter serializes after in-flight ingest and normalizes untrimmed filter keys',
+      () async {
+        final fakeService = _MultiFilterFakeStackingService()
+          ..addDelay = const Duration(milliseconds: 25);
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        await notifier.arm();
+        await notifier.addFrameFromFileWithMetadata('/subs/l1.fits', filter: 'L');
+        await notifier.addFrameFromFileWithMetadata('/subs/h1.fits', filter: 'Ha');
+
+        // Start ingesting Ha frame 2, then immediately stop Ha with spaces.
+        final addFuture = notifier.addFrameFromFileWithMetadata(
+          '/subs/h2.fits',
+          filter: 'Ha',
+        );
+        final stopFuture = notifier.stopFilter(' Ha ');
+        await Future.wait([addFuture, stopFuture]);
+
+        expect(fakeService.stoppedFilters, ['Ha']);
+        expect(container.read(liveStackingProvider).filterStacks.containsKey('Ha'), isFalse);
+        expect(container.read(liveStackingProvider).availableFilters, ['L']);
+      },
+    );
+
+    test(
+      'startFromData for a second filter preserves existing filter stacks',
+      () async {
+        final fakeService = _MultiFilterFakeStackingService();
+        final container = ProviderContainer(
+          overrides: [
+            liveStackingServiceProvider.overrideWithValue(fakeService),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final notifier = container.read(liveStackingProvider.notifier);
+        await notifier.startFromData(
+          filterKey: 'Ha',
+          width: 4,
+          height: 4,
+          data: List<int>.filled(16, 1000),
+          pedestal: 0.0,
+        );
+        await notifier.startFromData(
+          filterKey: 'OIII',
+          width: 4,
+          height: 4,
+          data: List<int>.filled(16, 2000),
+          pedestal: 0.0,
+        );
+
+        final state = container.read(liveStackingProvider);
+        expect(state.availableFilters, ['Ha', 'OIII']);
+        expect(state.filterStacks['Ha']!.stats.stackedFrameCount, 1);
+        expect(state.filterStacks['OIII']!.stats.stackedFrameCount, 1);
+      },
+    );
+
+    test(
+      'LiveStackingService does not touch local native stacker when remote',
+      () async {
+        final remote = _DummyHostLiveStack();
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+        final service = container.read(
+          Provider((ref) => LiveStackingService(ref, host: remote)),
+        );
+
+        expect(service.isActive, isFalse);
+        expect(service.frameCount, 0);
+        await expectLater(
+          () => service.renderStackPreviewRgba(filterKey: 'L'),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
   });
+}
+
+class _DummyHostLiveStack implements HostLiveStack {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -220,7 +220,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
   /// silently: the operator is asked, and can write the master out first.
   Future<void> _stopStacking() async {
     if (_isStopping || _isEndingStack) return;
-    final frames = ref.read(liveStackingProvider).stats.stackedFrameCount;
+    final stackState = ref.read(liveStackingProvider);
+    final frames = stackState.totalFramesAcrossFilters;
     if (frames <= 0) {
       await _releaseStack();
       return;
@@ -229,17 +230,44 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
     setState(() => _isEndingStack = true);
     try {
       final decision = await _askBeforeDiscardingStack(frames);
-      if (!mounted || decision != _StopDecision.saveMaster) {
+      if (!mounted) return;
+      if (decision != _StopDecision.saveMaster) {
         if (decision == _StopDecision.discard) await _releaseStack();
         return;
       }
-      // Keep the stack running until the master is safely on disk: a cancelled
-      // picker or a failed write must not cost the operator the integration.
-      if (!await _saveStackedMaster(
-        frames,
-        filterKey: ref.read(liveStackingProvider).selectedFilterKey,
-      )) {
-        return;
+      // Keep the stack running until every non-empty filter's master is safely
+      // on disk: a cancelled picker or a failed write must not cost the
+      // operator any filter's integration.
+      final latestState = ref.read(liveStackingProvider);
+      final nonEmptyFilters = <String>[
+        for (final key in latestState.availableFilters)
+          if ((latestState.filterStacks[key]?.stats.stackedFrameCount ?? 0) > 0)
+            key,
+      ];
+      if (nonEmptyFilters.length > 1) {
+        for (final key in nonEmptyFilters) {
+          final snap = ref.read(liveStackingProvider).filterStacks[key];
+          final filterFrames = snap?.stats.stackedFrameCount ?? 0;
+          if (filterFrames <= 0) continue;
+          if (!await _saveStackedMaster(filterFrames, filterKey: key)) {
+            return;
+          }
+          if (!mounted) return;
+        }
+      } else if (nonEmptyFilters.length == 1) {
+        final key = nonEmptyFilters.first;
+        final filterFrames =
+            latestState.filterStacks[key]?.stats.stackedFrameCount ?? frames;
+        if (!await _saveStackedMaster(filterFrames, filterKey: key)) {
+          return;
+        }
+      } else {
+        if (!await _saveStackedMaster(
+          frames,
+          filterKey: latestState.selectedFilterKey,
+        )) {
+          return;
+        }
       }
       if (!mounted) return;
       await _releaseStack();
@@ -321,32 +349,25 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
       final useExplicitFilter = filterKey != null &&
           stackState.filterStacks.containsKey(filterKey) &&
           stackState.filterStacks.length > 1;
-      if (useExplicitFilter) {
-        final saved = await ref
-            .read(liveStackingServiceProvider)
-            .saveMasterForFilter(filterKey: filterKey, filePath: destination);
-        if (!mounted) return true;
-        final integration = saved.totalIntegrationSecs;
-        context.showInfoSnackBar(
-          '$filterKey stacked master (${saved.stackedFrameCount} frames'
-          '${integration != null && integration > 0 ? ', '
-              '${integration.toStringAsFixed(0)} s integration' : ''}) '
-          'saved to ${saved.filePath}',
-        );
-        return true;
-      }
+      final sourceFramePath = (filterKey != null
+              ? stackState.filterStacks[filterKey]?.referenceImagePath
+              : null) ??
+          stackState.referenceImagePath;
 
       // A FITS master is registered in the master library as it is written,
       // so the Darkroom lists it under its target and opens it in the editor.
       final library = await ref.read(liveStackMasterLibraryProvider).save(
             destination,
-            sourceFramePath: stackState.referenceImagePath,
+            sourceFramePath: sourceFramePath,
+            filterKey: useExplicitFilter ? filterKey : null,
           );
       final saved = library.saved;
       if (!mounted) return true;
       final integration = saved.totalIntegrationSecs;
+      final label =
+          useExplicitFilter ? '$filterKey stacked master' : 'Stacked master';
       context.showInfoSnackBar(
-        'Stacked master (${saved.stackedFrameCount} frames'
+        '$label (${saved.stackedFrameCount} frames'
         '${integration != null && integration > 0 ? ', '
             '${integration.toStringAsFixed(0)} s integration' : ''}) '
         'saved to ${saved.filePath}'

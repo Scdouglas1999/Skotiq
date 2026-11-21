@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -340,7 +341,9 @@ class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
       unawaited(context.push(loc));
     } catch (error) {
       if (!mounted) return;
-      context.showErrorSnackBar('Could not open in Darkroom: $error');
+      context.showErrorSnackBar(
+        'Could not open in Darkroom: ${userFacingError(error)}',
+      );
     } finally {
       if (mounted) setState(() => _isPromoting = false);
     }

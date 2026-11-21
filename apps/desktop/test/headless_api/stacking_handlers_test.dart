@@ -500,4 +500,30 @@ void main() {
       expect(body['message'], 'Live stacking is not running.');
     },
   );
+
+  test(
+    '9.0.2 config tuning fields and totalIntegrationSecs round-trip over JSON',
+    () async {
+      final startResponse = await handlers.handleStart(
+        post('/api/stacking/start', {
+          'referencePath': '/host/ref.fits',
+          'config': {
+            'maxAlignmentResidualPx': 1.2,
+            'starDetectionSigma': 3.5,
+            'starDetectionMinSnr': 6.5,
+          },
+        }),
+      );
+      expect(startResponse.statusCode, HttpStatus.ok);
+      expect(fake.startedConfigs.last.maxAlignmentResidualPx, closeTo(1.2, 1e-9));
+      expect(fake.startedConfigs.last.starDetectionSigma, closeTo(3.5, 1e-9));
+      expect(fake.startedConfigs.last.starDetectionMinSnr, closeTo(6.5, 1e-9));
+
+      final body =
+          jsonDecode(await startResponse.readAsString())
+              as Map<String, dynamic>;
+      final stats = body['stats'] as Map<String, dynamic>;
+      expect(stats.containsKey('totalIntegrationSecs'), isTrue);
+    },
+  );
 }

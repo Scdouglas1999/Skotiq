@@ -401,6 +401,12 @@ class LiveStackingService {
     String? filterKey,
     int maxDimension = 2048,
   }) async {
+    if (_remote != null) {
+      throw StateError(
+        'renderStackPreviewRgba reads the local native stacker and is not '
+        'available on a remote connection.',
+      );
+    }
     final result = await bridge.apiStackingRenderPreviewRgba(
       filterKey: filterKey,
       maxDimension: maxDimension,
@@ -670,7 +676,7 @@ class LiveStackingService {
     await bridge.apiStackingStopForFilter(filterKey: filterKey);
   }
 
-  bool get isActive => bridge.apiStackingIsActive();
+  bool get isActive => _remote == null && bridge.apiStackingIsActive();
 
-  int get frameCount => bridge.apiStackingFrameCount();
+  int get frameCount => _remote == null ? bridge.apiStackingFrameCount() : 0;
 }

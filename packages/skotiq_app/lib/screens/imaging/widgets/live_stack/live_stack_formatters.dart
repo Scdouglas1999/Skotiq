@@ -33,28 +33,10 @@ String liveStackFilterDisplayName(String filterKey) {
 
 /// Chart-palette dot colour for an optical filter (Observatory rule: filters
 /// may use the chart palette in charts, dots, and thumbnails, never on chrome).
+/// Delegates to [FilterColors.forName] so Red Night and light themes stay safe.
 Color liveStackFilterDotColor(String filterKey, SkotiqColors colors) {
-  final lower = filterKey.trim().toLowerCase();
-  if (lower == 'l' || lower == 'lum' || lower == 'luminance') {
-    return colors.textPrimary;
+  if (FilterColors.knownColor(filterKey) == null) {
+    return colors.primary;
   }
-  if (lower == 'r' || lower == 'red') {
-    return const Color(0xFFE06C75);
-  }
-  if (lower == 'g' || lower == 'green') {
-    return const Color(0xFF7EC699);
-  }
-  if (lower == 'b' || lower == 'blue') {
-    return const Color(0xFF61AFEF);
-  }
-  if (lower == 'ha' || lower == 'h-alpha' || lower == 'halpha') {
-    return const Color(0xFFD9534F);
-  }
-  if (lower == 'oiii' || lower == 'o3' || lower == 'o-iii') {
-    return const Color(0xFF4FD1C5);
-  }
-  if (lower == 'sii' || lower == 's2' || lower == 's-ii') {
-    return const Color(0xFFF0AD4E);
-  }
-  return colors.primary;
+  return FilterColors.forName(filterKey, colors: colors);
 }
