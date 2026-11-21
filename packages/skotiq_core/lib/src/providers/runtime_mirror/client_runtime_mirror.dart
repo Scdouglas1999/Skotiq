@@ -9,6 +9,7 @@ import '../../backend/skotiq_backend.dart';
 import '../../models/backend/host_runtime_update.dart';
 import '../async_scope.dart';
 import '../backend_provider.dart';
+import 'channels/auxiliary_device_channels.dart';
 import 'runtime_mirror_channel.dart';
 import 'runtime_mirror_channels.dart';
 import '../logging_service_provider.dart';
@@ -120,6 +121,7 @@ Future<void> hydrateHostRuntimeState(
 /// [RuntimeMirrorChannel.clientReports] channels to the host, so the host GUI
 /// and other clients show a centering run or autofocus result started here.
 final clientRuntimeReporterProvider = Provider<void>((ref) {
+  ref.watch(deferredSlotReadingsProvider);
   final subscriptions = <ProviderSubscription<Object?>>[];
   final timers = <String, Timer>{};
 
