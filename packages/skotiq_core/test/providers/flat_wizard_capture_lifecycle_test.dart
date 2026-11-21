@@ -179,22 +179,26 @@ void main() {
     expect((saved[0] as Map)['currentAdu'], preview.stats.mean);
   });
 
-  test('a failed save leaves the ADU on the last frame that was saved', () async {
-    final backend = _AutoBackend(
-      exposureMean: (count) => count == 1 ? _onTargetAdu : 30000 + count * 100,
-      failSaveAt: (attempt) => attempt == 2,
-    );
-    addTearDown(backend.dispose);
-    final container = makeContainer(backend, filterNames: const ['L']);
-    final notifier = await primeWizard(container, frameCount: 2);
+  test(
+    'a failed save leaves the ADU on the last frame that was saved',
+    () async {
+      final backend = _AutoBackend(
+        exposureMean: (count) =>
+            count == 1 ? _onTargetAdu : 30000 + count * 100,
+        failSaveAt: (attempt) => attempt == 2,
+      );
+      addTearDown(backend.dispose);
+      final container = makeContainer(backend, filterNames: const ['L']);
+      final notifier = await primeWizard(container, frameCount: 2);
 
-    await notifier.runCapture();
+      await notifier.runCapture();
 
-    expect(
-      container.read(flatWizardProvider).filterSettings[0].currentAdu,
-      30200,
-    );
-  });
+      expect(
+        container.read(flatWizardProvider).filterSettings[0].currentAdu,
+        30200,
+      );
+    },
+  );
 
   group('stable per-filter indexing', () {
     test(
