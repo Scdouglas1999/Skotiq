@@ -220,8 +220,10 @@ final nightCameraPanelProvider = Provider<NightCameraPanelVm>((ref) {
   final activeStep = runLive ? ref.watch(nightActiveStepProvider) : null;
   final stepNode = activeStep?.node;
   final projection = ref.watch(nightDiskProjectionProvider);
+  // A live sample is newer than a projection computed earlier. Null means
+  // no sample yet (or no path), and the projection's free bytes stand.
   final free =
-      projection?.freeBytes ?? ref.watch(nightCaptureFreeBytesProvider);
+      ref.watch(nightCaptureFreeBytesProvider) ?? projection?.freeBytes;
   final perNight = projection?.projectedBytes;
   final outputPath =
       ref.watch(appSettingsProvider).valueOrNull?.imageOutputPath;
