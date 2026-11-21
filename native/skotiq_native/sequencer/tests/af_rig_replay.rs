@@ -195,3 +195,76 @@ fn the_2026_09_14_sweep_finds_the_from_below_optimum() {
         assert!(quality > 0.9, "{:?} fit quality {:.3}", method, quality);
     }
 }
+
+#[test]
+fn screen_defocus_dropouts_survives_anomalous_wing_star_spike() {
+    // Verbatim from skotiq.log.2026-11-17 08:54 SII sweep: a single defocused
+    // wing frame (59664) spiked to 197 detections against 49 at true focus
+    // (59889), disqualifying 59889 from anchoring the screen and rejecting 8/9
+    // points.
+    let sweep = vec![
+        FocusDataPoint {
+            position: 59589,
+            hfr: 3.20,
+            fwhm: None,
+            star_count: 8,
+        },
+        FocusDataPoint {
+            position: 59664,
+            hfr: 10.46,
+            fwhm: None,
+            star_count: 197,
+        },
+        FocusDataPoint {
+            position: 59739,
+            hfr: 5.43,
+            fwhm: None,
+            star_count: 12,
+        },
+        FocusDataPoint {
+            position: 59814,
+            hfr: 3.40,
+            fwhm: None,
+            star_count: 26,
+        },
+        FocusDataPoint {
+            position: 59889,
+            hfr: 2.21,
+            fwhm: None,
+            star_count: 49,
+        },
+        FocusDataPoint {
+            position: 59964,
+            hfr: 4.59,
+            fwhm: None,
+            star_count: 20,
+        },
+        FocusDataPoint {
+            position: 60039,
+            hfr: 4.69,
+            fwhm: None,
+            star_count: 14,
+        },
+        FocusDataPoint {
+            position: 60114,
+            hfr: 5.08,
+            fwhm: None,
+            star_count: 11,
+        },
+        FocusDataPoint {
+            position: 60189,
+            hfr: 5.66,
+            fwhm: None,
+            star_count: 10,
+        },
+    ];
+    let (kept, rejected) = skotiq_sequencer::autofocus::screen_defocus_dropouts(&sweep);
+    assert!(
+        rejected.iter().any(|r| r.position == 59589),
+        "false-low wing point 59589 (HFR 3.20) must be screened out, kept={kept:?}"
+    );
+    assert!(
+        kept.iter().any(|p| p.position == 59889),
+        "true focus point 59889 must stay in the fit"
+    );
+}

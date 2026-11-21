@@ -613,7 +613,8 @@ async fn run_autofocus_admitted(
                         filter_restore_required = true;
                         let slot_name = filter_names[target_position].clone();
                         if let Err(error) =
-                            move_autofocus_filter(ctx, &slot_name, target_position as i32).await
+                            move_autofocus_filter(ctx, &slot_name, target_position as i32, true)
+                                .await
                         {
                             pre_run_error = Some(
                                 InstructionResult::failure(format!(
@@ -647,7 +648,11 @@ async fn run_autofocus_admitted(
 
     if filter_restore_required {
         if let Some((original_name, original_position)) = &original_filter {
-            if let Err(error) = move_autofocus_filter(ctx, original_name, *original_position).await
+            // A failed or cancelled run already returned the focuser to its
+            // pre-AF position, so only the wheel slot needs restoring then.
+            let apply_offset = result.status == NodeStatus::Success;
+            if let Err(error) =
+                move_autofocus_filter(ctx, original_name, *original_position, apply_offset).await
             {
                 result = append_autofocus_cleanup_failure(
                     result,
@@ -804,6 +809,7 @@ pub(crate) async fn move_autofocus_filter(
     ctx: &InstructionContext,
     filter_name: &str,
     target_position: i32,
+    apply_offset: bool,
 ) -> Result<(), DeviceError> {
     let filterwheel_id = ctx
         .run
@@ -874,6 +880,9 @@ pub(crate) async fn move_autofocus_filter(
         sleep(Duration::from_millis(200)).await;
     }
 
+    if !apply_offset {
+        return Ok(());
+    }
     apply_filter_focus_offset(filter_name, ctx, None)
         .await
         .map_err(|error| error.context("focus offset failed"))
@@ -2079,7 +2088,13 @@ pub(crate) fn calculate_hfr_with_crops(
     let imaging_data =
         skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data);
 
-    let config = StarDetectionConfig::default();
+    // Autofocus tolerates off-axis coma and mild unguided drift (ecc <= 0.85)
+    // that still tracks focus cleanly, while excluding genuine mount trails.
+    const AF_MAX_ECCENTRICITY: f64 = 0.85;
+    let config = StarDetectionConfig {
+        max_eccentricity: AF_MAX_ECCENTRICITY,
+        ..StarDetectionConfig::default()
+    };
     let result = detect_stars_with_stats(&imaging_data, &config);
 
     let center_x = image.width as f64 / 2.0;
@@ -2089,11 +2104,9 @@ pub(crate) fn calculate_hfr_with_crops(
     let inner_half_width = image.width as f64 * inner_crop_ratio / 2.0;
     let inner_half_height = image.height as f64 * inner_crop_ratio / 2.0;
 
-    // detect_stars returns brightness-ranked stars. Preserve that order so a
-    // non-zero brightest-N setting is deterministic before calculating the
-    // median HFR.
+    // `sources` preserves brightness order at the caller's eccentricity ceiling.
     let mut eligible_stars: Vec<_> = result
-        .stars
+        .sources
         .into_iter()
         .filter(|star| {
             let dx = (star.x - center_x).abs();

@@ -127,7 +127,7 @@ pub(crate) fn detect(plane: DetectionPlane, config: &StarDetectionConfig) -> Det
         return Detection::empty();
     }
 
-    let (back, noise) = mesh_grids(&raw, width, height, 1.0);
+    let (back, noise) = mesh_grids(&raw, width, height, MESH_CELL, 1.0);
     let mut residual = raw;
     residual
         .par_chunks_mut(width)
@@ -151,7 +151,14 @@ pub(crate) fn detect(plane: DetectionPlane, config: &StarDetectionConfig) -> Det
     };
 
     let first = FilteredPass::new(&frame, BASE_KERNEL_SIGMA, config);
-    let typical_hfr = estimate_star_size(&frame, &first, config);
+    let first_hfr = estimate_star_size(&frame, &first, config);
+    // Low-SNR defocused donuts shatter or drop below threshold in the narrow
+    // pass; a 4x4 binned wide probe sees whole donuts in a few milliseconds.
+    let wide_hfr = estimate_wide_star_size(&frame, config);
+    let typical_hfr = match (first_hfr, wide_hfr) {
+        (Some(a), Some(b)) => Some(a.max(b)),
+        (a, b) => a.or(b),
+    };
 
     let kernel = typical_hfr.map_or(BASE_KERNEL_SIGMA, |h| {
         (0.5 * h).clamp(BASE_KERNEL_SIGMA, MAX_KERNEL_SIGMA)
@@ -246,25 +253,60 @@ struct Component {
 
 impl FilteredPass {
     fn new(frame: &Frame, kernel_sigma: f64, config: &StarDetectionConfig) -> Self {
-        let (w, h) = (frame.width, frame.height);
+        let cell = MESH_CELL.max((16.0 * kernel_sigma).ceil() as usize);
+        Self::from_plane(
+            frame.residual,
+            frame.width,
+            frame.height,
+            frame.noise,
+            1,
+            kernel_sigma,
+            cell,
+            config,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn from_plane(
+        data: &[f32],
+        w: usize,
+        h: usize,
+        raw_noise: &Grid,
+        bin: usize,
+        kernel_sigma: f64,
+        cell: usize,
+        config: &StarDetectionConfig,
+    ) -> Self {
         let kernel: Vec<f32> = gaussian_taps(kernel_sigma)
             .into_iter()
             .map(|v| v as f32)
             .collect();
-        let mut filtered = convolve_separable(frame.residual, w, h, &kernel);
+        let mut filtered = convolve_separable(data, w, h, &kernel);
 
-        // The noise of the filtered frame, measured on the filtered frame, so
-        // correlated and non-Gaussian noise set the threshold rather than a
-        // white-noise assumption. The floor is what 1 ADU of white noise
-        // becomes after filtering, which keeps noiseless synthetic frames
-        // from dividing by zero.
-        let floor = kernel.iter().map(|k| k * k).sum::<f32>();
-        let (_, filtered_noise) = mesh_grids(&filtered, w, h, floor);
+        // Scale mesh cells with the kernel so correlated wide-kernel noise is
+        // not underestimated, subtract any residual sky level, and floor noise
+        // at the propagated white-noise level (`raw_noise * sum(k^2) / bin`).
+        let floor = kernel.iter().map(|k| k * k).sum::<f32>() / bin as f32;
+        let (f_level, f_noise) = mesh_grids(&filtered, w, h, cell, floor);
         filtered.par_chunks_mut(w).enumerate().for_each(|(y, row)| {
-            let mut n = vec![0.0f32; w];
-            filtered_noise.sample_row(y, &mut n);
-            for (v, nv) in row.iter_mut().zip(&n) {
-                *v /= nv.max(floor);
+            let mut lv = vec![0.0f32; w];
+            let mut fn_row = vec![0.0f32; w];
+            f_level.sample_row(y, &mut lv);
+            f_noise.sample_row(y, &mut fn_row);
+            if bin == 1 {
+                let mut rn_row = vec![0.0f32; w];
+                raw_noise.sample_row(y, &mut rn_row);
+                for x in 0..w {
+                    let nv = fn_row[x].max(rn_row[x] * floor).max(floor);
+                    row[x] = (row[x] - lv[x]) / nv;
+                }
+            } else {
+                let fy = (y * bin + bin / 2) as f64;
+                for x in 0..w {
+                    let raw_n = raw_noise.at((x * bin + bin / 2) as f64, fy);
+                    let nv = fn_row[x].max(raw_n * floor).max(floor);
+                    row[x] = (row[x] - lv[x]) / nv;
+                }
             }
         });
 
@@ -278,21 +320,17 @@ impl FilteredPass {
     }
 }
 
-/// The frame's typical star half-flux radius, from the brightest whole
-/// footprints of the first pass. `None` when too few stars stand out to say.
-fn estimate_star_size(
-    frame: &Frame,
+fn rank_components(
     pass: &FilteredPass,
-    config: &StarDetectionConfig,
-) -> Option<f64> {
+    min_area: usize,
+    max_area: usize,
+    limit: usize,
+) -> Vec<usize> {
     let mut ranked: Vec<(f32, usize)> = pass
         .components
         .iter()
         .enumerate()
-        .filter(|(_, c)| {
-            c.pixels.len() >= config.min_area.max(MIN_CHILD_AREA) as usize
-                && c.pixels.len() <= config.max_area as usize
-        })
+        .filter(|(_, c)| (min_area..=max_area).contains(&c.pixels.len()))
         .map(|(i, c)| {
             let peak = c
                 .pixels
@@ -303,34 +341,141 @@ fn estimate_star_size(
         })
         .collect();
     ranked.sort_by(|a, b| b.0.total_cmp(&a.0));
-    ranked.truncate(100);
+    ranked.truncate(limit);
+    ranked.into_iter().map(|(_, i)| i).collect()
+}
 
+fn median_hfr_of(
+    frame: &Frame,
+    labels: &[u32],
+    items: &[(u32, &[u32])],
+    kernel_sigma: f64,
+    config: &StarDetectionConfig,
+    min_stars: usize,
+) -> Option<f64> {
+    let mut hfrs: Vec<f64> = items
+        .par_iter()
+        .filter_map(|&(id, pixels)| {
+            let m = measure(frame, labels, id, pixels, kernel_sigma, config)?;
+            (!m.saturated
+                && !m.hot
+                && !m.touches_edge
+                && !m.diffuse
+                && m.star.eccentricity <= 0.90
+                && m.star.hfr > 0.0)
+                .then_some(m.star.hfr)
+        })
+        .collect();
+    if hfrs.len() < min_stars {
+        return None;
+    }
+    hfrs.sort_by(f64::total_cmp);
+    Some(hfrs[hfrs.len() / 2])
+}
+
+/// The frame's typical star half-flux radius, from the brightest whole
+/// footprints of the first pass. `None` when too few stars stand out to say.
+fn estimate_star_size(
+    frame: &Frame,
+    pass: &FilteredPass,
+    config: &StarDetectionConfig,
+) -> Option<f64> {
+    let ranked = rank_components(
+        pass,
+        config.min_area.max(MIN_CHILD_AREA) as usize,
+        config.max_area as usize,
+        100,
+    );
     let mut labels = vec![0u32; frame.width * frame.height];
     for (i, c) in pass.components.iter().enumerate() {
         for &p in &c.pixels {
             labels[p as usize] = i as u32 + 1;
         }
     }
-    let mut hfrs: Vec<f64> = ranked
-        .par_iter()
-        .filter_map(|&(_, i)| {
-            let m = measure(
-                frame,
-                &labels,
-                i as u32 + 1,
-                &pass.components[i].pixels,
-                pass.kernel_sigma,
-                config,
-            )?;
-            (!m.saturated && !m.hot && m.star.eccentricity <= 0.8 && m.star.hfr > 0.0)
-                .then_some(m.star.hfr)
-        })
+    let items: Vec<(u32, &[u32])> = ranked
+        .iter()
+        .map(|&i| (i as u32 + 1, pass.components[i].pixels.as_slice()))
         .collect();
-    if hfrs.len() < 5 {
+    median_hfr_of(frame, &labels, &items, pass.kernel_sigma, config, 5)
+}
+
+/// Coarse 4x4 binned matched-filter probe (effective sigma 6 px) for estimating
+/// typical star size when dim defocused donuts vanish or shatter in pass 1.
+fn estimate_wide_star_size(frame: &Frame, config: &StarDetectionConfig) -> Option<f64> {
+    const BIN: usize = 4;
+    let (w, h) = (frame.width, frame.height);
+    if w < 128 || h < 128 {
         return None;
     }
-    hfrs.sort_by(f64::total_cmp);
-    Some(hfrs[hfrs.len() / 2])
+    let (bw, bh) = (w / BIN, h / BIN);
+    let mut binned = vec![0.0f32; bw * bh];
+    binned.par_chunks_mut(bw).enumerate().for_each(|(by, row)| {
+        let y0 = by * BIN;
+        for (bx, dst) in row.iter_mut().enumerate() {
+            let x0 = bx * BIN;
+            let mut sum = 0.0f32;
+            for dy in 0..BIN {
+                let off = (y0 + dy) * w + x0;
+                sum += frame.residual[off]
+                    + frame.residual[off + 1]
+                    + frame.residual[off + 2]
+                    + frame.residual[off + 3];
+            }
+            *dst = sum / (BIN * BIN) as f32;
+        }
+    });
+
+    let coarse = FilteredPass::from_plane(
+        &binned,
+        bw,
+        bh,
+        frame.noise,
+        BIN,
+        BASE_KERNEL_SIGMA,
+        MESH_CELL / 2,
+        config,
+    );
+    let ranked = rank_components(
+        &coarse,
+        2,
+        (config.max_area as usize / (BIN * BIN)).max(64),
+        50,
+    );
+    if ranked.len() < 3 {
+        return None;
+    }
+
+    let mut labels = vec![0u32; w * h];
+    let mut expanded: Vec<(u32, Vec<u32>)> = Vec::with_capacity(ranked.len());
+    for (slot, &idx) in ranked.iter().enumerate() {
+        let id = slot as u32 + 1;
+        let mut full_px = Vec::with_capacity(coarse.components[idx].pixels.len() * BIN * BIN);
+        for &p in &coarse.components[idx].pixels {
+            let (bx, by) = (p as usize % bw, p as usize / bw);
+            for dy in 0..BIN {
+                let row_off = (by * BIN + dy) * w + bx * BIN;
+                for dx in 0..BIN {
+                    let fp = row_off + dx;
+                    labels[fp] = id;
+                    full_px.push(fp as u32);
+                }
+            }
+        }
+        expanded.push((id, full_px));
+    }
+
+    let items: Vec<(u32, &[u32])> = expanded
+        .iter()
+        .map(|(id, px)| (*id, px.as_slice()))
+        .collect();
+    median_hfr_of(
+        frame,
+        &labels,
+        &items,
+        BASE_KERNEL_SIGMA * BIN as f64,
+        config,
+        3,
+    )
 }
 
 struct Measured {
@@ -453,8 +598,7 @@ fn measure(
         }
     }
     let local = if annulus.len() >= 16 {
-        let mid = annulus.len() / 2;
-        *annulus.select_nth_unstable_by(mid, f32::total_cmp).1 as f64
+        clipped_stats(annulus).map_or(0.0, |(level, _)| f64::from(level))
     } else {
         0.0
     };
@@ -503,7 +647,11 @@ fn measure(
 
     let back_here = frame.back.at(cx, cy) as f64 + local;
     let peak_above = frame.residual[peak_idx] as f64 - local;
-    let hot = is_hot_pixel(frame, peak_idx, local);
+    let sharpness = (peak_above / total).clamp(0.0, 1.0);
+    // A hot pixel concentrates a large share of the source's flux in one pixel;
+    // a random noise pixel inside a wide low-surface-brightness donut cannot
+    // make a whole donut a hot pixel.
+    let hot = sharpness >= HOT_PIXEL_NEIGHBOR_RATIO && is_hot_pixel(frame, peak_idx, local);
     let sigma = frame.noise.at(cx, cy) as f64;
     let snr = compute_snr(
         total,
@@ -524,7 +672,7 @@ fn measure(
             snr,
             eccentricity,
             elongation_angle_deg,
-            sharpness: (peak_above / total).clamp(0.0, 1.0),
+            sharpness,
         },
         saturated: peak_raw as f64 > config.saturation_limit as f64,
         hot,
@@ -966,8 +1114,14 @@ impl Grid {
 
 /// Per-cell sigma-clipped level and noise, with cells dominated by sources
 /// filled from their neighbors and both grids 3×3 median filtered.
-fn mesh_grids(data: &[f32], w: usize, h: usize, noise_floor: f32) -> (Grid, Grid) {
-    let cell = MESH_CELL.min(w).min(h).max(1);
+fn mesh_grids(
+    data: &[f32],
+    w: usize,
+    h: usize,
+    cell_size: usize,
+    noise_floor: f32,
+) -> (Grid, Grid) {
+    let cell = cell_size.min(w).min(h).max(1);
     let nx = w.div_ceil(cell);
     let ny = h.div_ceil(cell);
     let stats: Vec<Option<(f32, f32)>> = (0..nx * ny)
@@ -1096,11 +1250,11 @@ fn clipped_stats(mut v: Vec<f32>) -> Option<(f32, f32)> {
             break;
         }
     }
-    let median = median_upper_in_place_f32(&mut v);
+    let mean = (v.iter().map(|&x| f64::from(x)).sum::<f64>() / v.len() as f64) as f32;
     // Standard deviation of the clipped sample, corrected for the ±3σ
     // truncation of a normal distribution.
-    let sd = std_dev(&v, median) / 0.9866;
-    Some((median, if sd > 0.0 { sd } else { sigma }))
+    let sd = std_dev(&v, mean) / 0.9866;
+    Some((mean, if sd > 0.0 { sd } else { sigma }))
 }
 
 fn std_dev(v: &[f32], center: f32) -> f32 {
