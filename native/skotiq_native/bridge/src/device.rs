@@ -179,14 +179,18 @@ pub enum CameraState {
     Error,
 }
 
-/// Frame type for camera exposures
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FrameType {
+pub use skotiq_frame::FrameType;
+
+/// What a captured frame is (`skotiq_frame::FrameType`). A camera is never
+/// asked for a snapshot; it takes a light.
+#[flutter_rust_bridge::frb(mirror(FrameType))]
+pub enum _FrameType {
     Light,
     Dark,
     Flat,
     Bias,
     DarkFlat,
+    Snapshot,
 }
 
 /// Per-field availability for `MountStatus` so the UI can distinguish

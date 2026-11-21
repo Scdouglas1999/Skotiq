@@ -7867,6 +7867,7 @@ impl CstDecode<crate::device::FrameType> for i32 {
             2 => crate::device::FrameType::Flat,
             3 => crate::device::FrameType::Bias,
             4 => crate::device::FrameType::DarkFlat,
+            5 => crate::device::FrameType::Snapshot,
             _ => unreachable!("Invalid variant for FrameType: {}", self),
         }
     }
@@ -10422,6 +10423,7 @@ impl SseDecode for crate::device::FrameType {
             2 => crate::device::FrameType::Flat,
             3 => crate::device::FrameType::Bias,
             4 => crate::device::FrameType::DarkFlat,
+            5 => crate::device::FrameType::Snapshot,
             _ => unreachable!("Invalid variant for FrameType: {}", inner),
         };
     }
@@ -16271,22 +16273,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameHeaderRead>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::device::FrameType {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::device::FrameType> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Light => 0.into_dart(),
-            Self::Dark => 1.into_dart(),
-            Self::Flat => 2.into_dart(),
-            Self::Bias => 3.into_dart(),
-            Self::DarkFlat => 4.into_dart(),
+        match self.0 {
+            crate::device::FrameType::Light => 0.into_dart(),
+            crate::device::FrameType::Dark => 1.into_dart(),
+            crate::device::FrameType::Flat => 2.into_dart(),
+            crate::device::FrameType::Bias => 3.into_dart(),
+            crate::device::FrameType::DarkFlat => 4.into_dart(),
+            crate::device::FrameType::Snapshot => 5.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::device::FrameType {}
-impl flutter_rust_bridge::IntoIntoDart<crate::device::FrameType> for crate::device::FrameType {
-    fn into_into_dart(self) -> crate::device::FrameType {
-        self
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::device::FrameType>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::device::FrameType>>
+    for crate::device::FrameType
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::device::FrameType> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -20606,6 +20614,7 @@ impl SseEncode for crate::device::FrameType {
                 crate::device::FrameType::Flat => 2,
                 crate::device::FrameType::Bias => 3,
                 crate::device::FrameType::DarkFlat => 4,
+                crate::device::FrameType::Snapshot => 5,
                 _ => {
                     unimplemented!("");
                 }

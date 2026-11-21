@@ -395,13 +395,13 @@ final List<EventPayload> eventWireSamples = [
   EventPayload.imaging(
     ImagingEvent.exposureStarted(
       durationSecs: 163.5,
-      frameType: FrameType.darkFlat,
+      frameType: FrameType.flat,
     ),
   ),
   EventPayload.imaging(
     ImagingEvent.exposureStartedWithFrame(
       durationSecs: 165.5,
-      frameType: FrameType.dark,
+      frameType: FrameType.darkFlat,
       frameNumber: 167,
       totalFrames: 168,
     ),
@@ -453,13 +453,13 @@ final List<EventPayload> eventWireSamples = [
   EventPayload.imaging(
     ImagingEvent.exposureStarted(
       durationSecs: 193.5,
-      frameType: FrameType.darkFlat,
+      frameType: FrameType.flat,
     ),
   ),
   EventPayload.imaging(
     ImagingEvent.exposureStartedWithFrame(
       durationSecs: 195.5,
-      frameType: FrameType.dark,
+      frameType: FrameType.darkFlat,
       frameNumber: 197,
       totalFrames: null,
     ),

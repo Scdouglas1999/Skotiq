@@ -432,8 +432,9 @@ class FocuserStatus {
           hasTemperature == other.hasTemperature;
 }
 
-/// Frame type for camera exposures
-enum FrameType { light, dark, flat, bias, darkFlat }
+/// What a captured frame is (`skotiq_frame::FrameType`). A camera is never
+/// asked for a snapshot; it takes a light.
+enum FrameType { light, dark, flat, bias, darkFlat, snapshot }
 
 /// Current status of a mount.
 ///

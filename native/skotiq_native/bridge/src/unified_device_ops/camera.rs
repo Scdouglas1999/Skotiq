@@ -186,15 +186,7 @@ impl UnifiedDeviceOps {
             &self.app_state,
             ImagingEvent::ExposureStarted {
                 duration_secs,
-                frame_type: match native_frame_type {
-                    skotiq_device::FrameType::Dark => crate::device::FrameType::Dark,
-                    skotiq_device::FrameType::Flat => crate::device::FrameType::Flat,
-                    skotiq_device::FrameType::Bias => crate::device::FrameType::Bias,
-                    skotiq_device::FrameType::DarkFlat => crate::device::FrameType::DarkFlat,
-                    skotiq_device::FrameType::Light | skotiq_device::FrameType::Snapshot => {
-                        crate::device::FrameType::Light
-                    }
-                },
+                frame_type: native_frame_type,
             },
         );
 

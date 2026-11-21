@@ -1753,6 +1753,7 @@ String encodeFrameType(FrameType value) => switch (value) {
   FrameType.flat => 'flat',
   FrameType.bias => 'bias',
   FrameType.darkFlat => 'darkFlat',
+  FrameType.snapshot => 'snapshot',
 };
 
 FrameType? decodeFrameType(Object? raw) => switch (raw) {
@@ -1761,6 +1762,7 @@ FrameType? decodeFrameType(Object? raw) => switch (raw) {
   'flat' => FrameType.flat,
   'bias' => FrameType.bias,
   'darkFlat' => FrameType.darkFlat,
+  'snapshot' => FrameType.snapshot,
   _ => null,
 };
 
