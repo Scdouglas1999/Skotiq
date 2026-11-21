@@ -87,8 +87,11 @@ class PlanningDataHandlers implements RouteSource {
       min: 1,
     );
     final filter = request.url.queryParameters['filter']?.trim();
-    if (filter == null || filter.isEmpty) {
-      return jsonBadRequest({'error': 'Missing targetId or filter'});
+    // Missing is a bad request. An empty filter is the unfiltered goal the
+    // planner stores for a rig with no wheel. Do not treat a missing
+    // parameter as that empty string.
+    if (filter == null) {
+      return jsonBadRequest({'error': 'Missing filter'});
     }
     try {
       final count = await _goalService.capturedFrameCount(
@@ -111,7 +114,7 @@ class PlanningDataHandlers implements RouteSource {
     // then scores with filter "", exposureSeconds 0.0, frameCount 0 and a 1970
     // timestamp. Validate the fields that make a goal meaningful first.
     final targetId = requireInt(body, 'targetId', min: 1);
-    requireString(body, 'filter', maxLength: 64);
+    requireString(body, 'filter', allowEmpty: true, maxLength: 64);
     requireDouble(body, 'exposureSeconds', min: 0.000001);
     requireInt(body, 'frameCount', min: 1);
     // And pre-check the FK the way analytics_handlers does: without this a

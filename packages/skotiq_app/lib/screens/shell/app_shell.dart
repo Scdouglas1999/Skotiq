@@ -271,6 +271,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       if (await hostRunHoldsCheckpoint(hostControl)) {
         return AppStartupCheckpointOutcome.noRecovery;
       }
+      if (hostOpenPlanDefersCheckpoint(
+        linkedClient: hostControl != null,
+        hostHasOpenPlan: ref.read(currentSequenceProvider) != null,
+      )) {
+        return AppStartupCheckpointOutcome.deferred;
+      }
 
       final hasCheckpoint = await backend.hasCheckpoint();
       if (!hasCheckpoint) return AppStartupCheckpointOutcome.noRecovery;

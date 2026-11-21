@@ -93,6 +93,60 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       // the single-pass estimate stands and the warning note says so.
       if (node is LoopNode) {
         final loopNote = _getLoopIterationNote(node);
+        if (node.conditionType == LoopConditionType.untilTime) {
+          final deadline = _minDate(node.repeatUntil, windowEnd);
+          if (deadline != null) {
+            final loopStart = currentTime;
+            if (!deadline.isAfter(loopStart)) return loopStart;
+            final duration = deadline.difference(loopStart);
+            timings.add(
+              NodeTiming(
+                nodeId: node.id,
+                nodeName: node.name,
+                nodeType: node.nodeType,
+                estimatedStart: loopStart,
+                estimatedEnd: deadline,
+                duration: duration,
+                warnings: [loopNote],
+                targetHeaderId: targetId,
+              ),
+            );
+            // One pass is drawn inside the loop. Its time is not added
+            // past the deadline: shutdown and the next step start then.
+            final drawnFrom = timings.length;
+            var cursor = loopStart;
+            for (final child in children) {
+              if (_windowClosed(deadline, cursor)) break;
+              cursor = _processNode(
+                node: child,
+                sequence: sequence,
+                currentTime: cursor,
+                timings: timings,
+                currentTargetHeaderId: targetId,
+                loopIterationNote: loopNote,
+                locationContext: locationContext,
+                windowEnd: deadline,
+              );
+            }
+            for (var i = drawnFrom; i < timings.length; i++) {
+              final timing = timings[i];
+              if (!timing.estimatedEnd.isAfter(deadline)) continue;
+              final clipped = deadline.difference(timing.estimatedStart);
+              timings[i] = NodeTiming(
+                nodeId: timing.nodeId,
+                nodeName: timing.nodeName,
+                nodeType: timing.nodeType,
+                estimatedStart: timing.estimatedStart,
+                estimatedEnd: deadline,
+                duration: clipped.isNegative ? Duration.zero : clipped,
+                warnings: timing.warnings,
+                targetHeaderId: timing.targetHeaderId,
+                openEnded: timing.openEnded,
+              );
+            }
+            return deadline;
+          }
+        }
         final loopStartTime = currentTime;
         for (final child in children) {
           if (_windowClosed(windowEnd, currentTime)) break;

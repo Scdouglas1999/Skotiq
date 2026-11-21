@@ -113,12 +113,21 @@ class RuntimeStateHandlers implements RouteSource {
         statusCode: 400,
       );
     }
+    var malformed = false;
     final applied = applyClientRuntimeReport(
       container,
       channel: channel,
       value: rawValue == null ? null : Map<String, dynamic>.from(rawValue),
       origin: origin,
+      onMalformed: () => malformed = true,
     );
+    if (malformed) {
+      throw HandlerFailure(
+        code: 'invalid_request',
+        message: 'The report for "$channel" could not be read.',
+        statusCode: 400,
+      );
+    }
     if (!applied) {
       throw HandlerFailure(
         code: 'unknown_channel',

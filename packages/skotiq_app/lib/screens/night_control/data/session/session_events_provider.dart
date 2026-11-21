@@ -76,6 +76,10 @@ final nightSessionEventsProvider =
 
 class NightSessionEventsNotifier extends StateNotifier<NightSessionEvents> {
   NightSessionEventsNotifier(this._ref) : super(const NightSessionEvents()) {
+    _ref.listen<String>(runtimeHostSessionProvider, (_, __) {
+      _autofocusStartedAt = null;
+      state = const NightSessionEvents();
+    });
     _bind(_ref.read(backendProvider));
     _ref.listen<SkotiqBackend>(backendProvider, (_, next) => _bind(next));
     _ref.listen<int?>(nightSessionIdProvider, (previous, next) {

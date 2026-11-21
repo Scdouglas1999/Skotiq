@@ -1370,6 +1370,47 @@ void main() {
       },
     );
 
+    test('a full-window capture does not append a meridian flip', () {
+      final end = siteTime(2026, 5, 18, 5);
+      final start = siteTime(2026, 5, 17, 22);
+      final suggestion = fakeSuggestion(id: 1, name: 'M74');
+      for (final filters in [monoProfile.filterNames, <String>[]]) {
+        final result = service.buildSingleTargetSequence(
+          profile: monoProfile,
+          suggestion: suggestion,
+          windowStart: start,
+          windowEnd: end,
+          latitudeDeg: _siteLatitude,
+          longitudeDeg: _siteLongitude,
+          availableFilters: filters,
+          fillWindow: true,
+          includeSessionShutdown: true,
+        );
+        expect(
+          SmartNightService.willInjectMeridianFlip(result.plannedTarget),
+          isTrue,
+        );
+        expect(result.plannedTarget.windowEnd, end);
+        expect(result.sequence.nodes.values.whereType<MeridianFlipNode>(), isEmpty);
+        final warm = result.sequence.nodes.values.whereType<WarmCameraNode>().single;
+        final timings = const SequenceTimeEstimator().estimateSequenceTiming(
+          result.sequence,
+          start,
+        );
+        final warmTiming = timings.firstWhere((timing) => timing.nodeId == warm.id);
+        expect(warmTiming.estimatedStart, end);
+        final capture = timings.where(
+          (timing) =>
+              timing.nodeId ==
+              result.sequence.nodes.values
+                  .where((node) => node is LoopNode || node is SmartExposureNode)
+                  .single
+                  .id,
+        );
+        expect(capture.single.estimatedEnd, end);
+      }
+    });
+
     test('shutdown can be disabled independently of startup', () {
       final result = service.buildSingleTargetSequence(
         profile: monoProfile,

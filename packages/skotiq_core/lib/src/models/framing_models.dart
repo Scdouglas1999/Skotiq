@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import 'target/target_models.dart';
@@ -28,6 +29,13 @@ class FramingTarget {
   });
 
   double get raDegrees => raHours * 15;
+
+  /// The RA field text. The framing screen copies this; it does not format
+  /// the hours itself.
+  String get raFormatted => CoordinateFormat.raReadout(raHours);
+
+  /// The Dec field text. See [raFormatted].
+  String get decFormatted => CoordinateFormat.decReadout(decDegrees);
 
   factory FramingTarget.fromCelestialTarget(CelestialTarget t) {
     return FramingTarget(

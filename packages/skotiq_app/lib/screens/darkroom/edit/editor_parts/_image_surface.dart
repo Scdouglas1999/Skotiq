@@ -247,10 +247,14 @@ class _DarkroomImageSurfaceState extends State<_DarkroomImageSurface> {
 
         return InteractiveViewer(
           transformationController: widget.transform,
+          constrained: false,
+          alignment: Alignment.topLeft,
           minScale: effectiveMin,
           maxScale: widget.maxScale,
           boundaryMargin: const EdgeInsets.all(double.infinity),
-          child: Center(
+          child: SizedBox(
+            width: shown.width.toDouble(),
+            height: shown.height.toDouble(),
             // Image DATA: red night re-emits the master's luminance on the red
             // axis rather than lighting the room with the frame.
             child: RedNightImage(

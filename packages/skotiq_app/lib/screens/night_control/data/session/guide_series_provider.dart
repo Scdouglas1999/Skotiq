@@ -48,6 +48,11 @@ final nightGuideSamplesProvider =
 
 class NightGuideSamplesNotifier extends StateNotifier<List<NightGuideSample>> {
   NightGuideSamplesNotifier(this._ref) : super(const <NightGuideSample>[]) {
+    _ref.listen<String>(runtimeHostSessionProvider, (previous, next) {
+      if (previous != null && previous != next) {
+        state = const <NightGuideSample>[];
+      }
+    });
     _bind(_ref.read(backendProvider));
     _ref.listen<SkotiqBackend>(backendProvider, (_, next) => _bind(next));
     _ref.listen<AsyncValue<NightHistory?>>(

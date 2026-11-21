@@ -170,12 +170,16 @@ final hostRuntimeMirrorProvider = Provider<void>((ref) {
 /// Apply a linked client's report of a [RuntimeMirrorChannel.clientReports]
 /// channel to the host's own providers. The host GUI then shows the client's
 /// result, and the resulting broadcast names [origin] so the reporting client
-/// does not apply it again. Returns false for an unknown or host-only channel.
+/// does not apply it again. Returns false for an unknown or host-only channel,
+/// and for a value the channel refuses ([FormatException]). [onMalformed] runs
+/// for that refusal so the HTTP handler can answer 400 rather than "unknown
+/// channel". The host's providers are left as they were.
 bool applyClientRuntimeReport(
   ProviderContainer container, {
   required String channel,
   required Map<String, dynamic>? value,
   required String origin,
+  void Function()? onMalformed,
 }) {
   final target = runtimeChannelFor(
     container.read(runtimeMirrorChannelsProvider),
@@ -195,6 +199,8 @@ bool applyClientRuntimeReport(
           'Runtime report $channel from $origin dropped: ${e.message}',
           source: _logSource,
         );
+    onMalformed?.call();
+    return false;
   } finally {
     store._reportOrigins.remove(channel);
   }

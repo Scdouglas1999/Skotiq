@@ -10,7 +10,9 @@ import 'channels/cooler_reading_channel.dart';
 import 'channels/end_of_night_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/device_slot_channel.dart';
-import 'channels/environment_channel.dart';
+import 'channels/environment_forecast_channel.dart';
+import 'channels/focus_baseline_channel.dart';
+import 'channels/host_session_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
 import 'channels/framing_geometry_channel.dart';
@@ -51,7 +53,9 @@ final runtimeMirrorChannelsProvider =
         const AutofocusRunChannel(),
         const CurrentFrameChannel(),
         const FrameSolveChannel(),
-        const EnvironmentChannel(),
+        const EnvironmentForecastChannel(),
+        const FocusBaselineChannel(),
+        const HostSessionChannel(),
         const CoolerReadingChannel(),
         const SequenceRunChannel(),
         const RunRecordChannel(),

@@ -61,12 +61,16 @@ bridge.SkotiqEvent? _decode(core.SkotiqEvent event) {
     _reportUndecodable(event, 'no event of that type in this release');
     return null;
   }
+  final rawDeviceId = event.data['device_id'];
   return bridge.SkotiqEvent(
     eventId: BigInt.from(event.timestamp),
     timestamp: event.timestamp,
     severity: severity,
     category: category,
     payload: payload,
+    deviceId: rawDeviceId is String && rawDeviceId.isNotEmpty
+        ? rawDeviceId
+        : null,
   );
 }
 

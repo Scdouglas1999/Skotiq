@@ -261,8 +261,11 @@ class DiskSpaceGuardService {
     required String capturePath,
     required Sequence sequence,
     required CameraCapabilities? capabilities,
+    DiskSpaceInfo? diskSpace,
   }) async {
-    final snapshot = await _diskService.query(capturePath);
+    // A supplied sample is the disk. Do not ask the local machine, which on
+    // a viewer would be a different volume than the host's capture path.
+    final snapshot = diskSpace ?? await _diskService.query(capturePath);
     final projected = projectSequenceBytes(sequence, capabilities);
 
     if (projected == null) {

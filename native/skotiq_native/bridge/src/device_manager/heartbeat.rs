@@ -335,7 +335,7 @@ impl DeviceManager {
     /// Inner heartbeat loop body, factored out of `start_heartbeat_with_config`
     /// so the panic supervisor can re-invoke it on every restart.
     #[allow(clippy::too_many_arguments)]
-    async fn run_heartbeat_loop(
+    pub(super) async fn run_heartbeat_loop(
         device_id_clone: String,
         device_type: DeviceType,
         device_type_str: String,
@@ -402,6 +402,19 @@ impl DeviceManager {
             let health_check_result = manager
                 .perform_health_check(&device_id_clone, &device_type, &driver_type)
                 .await;
+            // A download (or any other blocking operation) may have started
+            // after the pre-poll check, while this probe was already in
+            // flight. That result contended with the transfer and must not
+            // count as a failure or a disconnect. A failure that finished
+            // with no operation in flight is left alone: this does not clear
+            // the counter.
+            if manager.is_operation_active(&device_id_clone) {
+                current_interval = Duration::from_secs(config.base_interval_secs);
+                if consecutive_failures == 0 {
+                    manager.note_heartbeat_deferred(&device_id_clone).await;
+                }
+                continue;
+            }
             // A driver can keep answering the probe while every read the app
             // shows fails (the NYX-101 answered Tracking and failed RA all
             // night). Failing status reads count as a failed poll.

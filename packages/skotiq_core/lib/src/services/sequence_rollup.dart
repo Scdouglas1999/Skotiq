@@ -219,9 +219,11 @@ double _computeRollupSecs(
       // single-iteration when the deadline is in the past matches
       // _estimateNodeIntegration().
       LoopConditionType.untilTime => _untilTimeRollup(
+        sequence,
         node,
         childSum,
         selfOverhead,
+        walked: walk?.leaf[node.id],
       ),
       LoopConditionType.integrationTime => _integrationTimeRollup(
         sequence,
@@ -269,20 +271,47 @@ NodeOpenEnd _openEndOf(Sequence sequence, SequenceNode node) {
   return NodeOpenEnd.stopped;
 }
 
-/// untilTime loop rollup: fit as many child iterations as the deadline
-/// allows (single iteration when the deadline is in the past / unset).
-double _untilTimeRollup(LoopNode node, double childSum, double selfOverhead) {
-  if (node.repeatUntil != null && childSum > 0) {
-    final availableSecs = node.repeatUntil!
+/// untilTime loop rollup: the time until the earlier of the loop's own
+/// deadline and the parent target's end, or the walked length when tonight's
+/// walk already applied that deadline (parent end and altitude included).
+/// One child pass is not the loop's length, and neither is every counted frame.
+double _untilTimeRollup(
+  Sequence sequence,
+  LoopNode node,
+  double childSum,
+  double selfOverhead, {
+  NodeTiming? walked,
+}) {
+  if (walked != null) {
+    return walked.duration.inMilliseconds / 1000.0;
+  }
+  final deadline = _untilTimeDeadline(sequence, node);
+  if (deadline != null) {
+    final availableSecs = deadline
         .difference(DateTime.now())
         .inSeconds
         .toDouble();
-    if (availableSecs > 0) {
-      final iters = (availableSecs / childSum).floor();
-      return selfOverhead + (childSum * iters);
-    }
+    if (availableSecs > 0) return selfOverhead + availableSecs;
   }
   return selfOverhead + childSum;
+}
+
+/// The earlier of the loop's `repeatUntil` and a parent target's `endBefore`.
+/// Altitude is not a clock on the node; tonight's walk folds it into [NodeTiming].
+DateTime? _untilTimeDeadline(Sequence sequence, LoopNode node) {
+  var deadline = node.repeatUntil;
+  var parentId = node.parentId;
+  while (parentId != null) {
+    final parent = sequence.nodes[parentId];
+    if (parent is TargetHeaderNode) {
+      final endBefore = parent.endBefore;
+      if (deadline == null) return endBefore;
+      if (endBefore == null) return deadline;
+      return endBefore.isBefore(deadline) ? endBefore : deadline;
+    }
+    parentId = parent?.parentId;
+  }
+  return deadline;
 }
 
 /// integrationTime loop rollup: iterate until the target integration time is

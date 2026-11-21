@@ -146,6 +146,10 @@ const kRemotePreviewMaxWidth = 2560;
 /// latest frame, but we never stack redundant network round-trips either.
 class _RemoteFrameFetchState {
   bool inFlight = false;
+
+  /// Bumped when the host clears the frame, so a download that started
+  /// before the clear cannot publish after it.
+  int generation = 0;
   SkotiqBackend? pendingBackend;
   HostFrameHint? hint;
 }
@@ -209,6 +213,7 @@ Future<void> _publishRemoteCurrentFrame(
     return;
   }
   fetchState.inFlight = true;
+  final generation = fetchState.generation;
 
   try {
     // The imaging events do not carry a device id; resolve the connected
@@ -227,6 +232,7 @@ Future<void> _publishRemoteCurrentFrame(
       maxWidth: kRemotePreviewMaxWidth,
     );
     if (container.backendScopeOver(backend).isStale) return;
+    if (generation != fetchState.generation) return;
     if (result == null) {
       // No frame cached host-side yet — leave the tile as-is.
       return;
@@ -287,6 +293,7 @@ Future<void> _publishRemoteCurrentFrame(
     // backend, schedules the background raw-pixel load, and writes both
     // `currentImageProvider` and `lastImageStatsProvider`.
     if (container.backendScopeOver(backend).isStale) return;
+    if (generation != fetchState.generation) return;
     // A frame the host announced is the host's to solve; marked before the
     // publish, whose listeners decide whether to solve it here.
     if (hinted) {
