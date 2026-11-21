@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show AstronomyCalculations, CatalogSearchResult;
@@ -27,8 +28,6 @@ import '../../../utils/darkroom_navigation.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../analytics/widgets/campaign_rollup_dialog.dart';
-import '../../darkroom/targets/darkroom_targets_model.dart'
-    show compareDarkroomFilters;
 import '../../discover/mosaic/mosaic_format.dart';
 import '../../discover/mosaic/mosaic_project_controller.dart';
 import '../../discover/mosaic/mosaic_project_screen.dart'

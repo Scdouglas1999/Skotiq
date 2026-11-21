@@ -58,4 +58,13 @@ void main() {
     expect(matchingFilterIndex('Nitrogen', ['L', 'NII']), 1);
     expect(matchingFilterIndex('Nitrogen', ['L', 'Ha']), isNull);
   });
+
+  test('filters sort by band, every spelling with its band', () {
+    final names = ['SII', 'Custom', 'H-alpha', 'b', 'Lum', 'OIII', 'Red', 'G']
+      ..sort(compareFilterNames);
+    expect(names, ['Lum', 'Red', 'G', 'b', 'H-alpha', 'OIII', 'SII', 'Custom']);
+    expect(filterRank('Baader Ha 7nm'), filterRank('Ha'));
+    expect(filterRank('L-eXtreme'), filterRank('Custom'));
+    expect((['beta', 'Alpha']..sort(compareFilterNames)), ['Alpha', 'beta']);
+  });
 }

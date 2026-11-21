@@ -8,6 +8,7 @@ library;
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -21,31 +22,6 @@ const Duration darkroomPauseMinimum = Duration(minutes: 10);
 
 /// Consecutive rejected subs that lost their stars before the run is marked.
 const int darkroomStarLossRun = 3;
-
-/// Filters in the order the Darkroom lists them; others follow by name.
-const List<String> darkroomFilterOrder = [
-  'L',
-  'R',
-  'G',
-  'B',
-  'Ha',
-  'OIII',
-  'SII',
-];
-
-/// Where [filter] sits in [darkroomFilterOrder]; filters it does not name
-/// share the last place.
-int darkroomFilterRank(String filter) {
-  final i = darkroomFilterOrder.indexWhere(
-    (o) => o.toLowerCase() == filter.toLowerCase(),
-  );
-  return i < 0 ? darkroomFilterOrder.length : i;
-}
-
-int compareDarkroomFilters(String a, String b) {
-  final byRank = darkroomFilterRank(a).compareTo(darkroomFilterRank(b));
-  return byRank != 0 ? byRank : a.compareTo(b);
-}
 
 /// The filter a light was taken through, as the build service names it.
 String darkroomFilterOf(DbCapturedImage f) =>
@@ -143,7 +119,7 @@ class DarkroomNight {
 
   /// Filters taken this night, in Darkroom order.
   List<String> get filters =>
-      {for (final s in subs) s.filter}.toList()..sort(compareDarkroomFilters);
+      {for (final s in subs) s.filter}.toList()..sort(compareFilterNames);
 
   bool get isNew => kept > 0 && use == DarkroomNightUse.none;
 
@@ -556,7 +532,7 @@ List<DarkroomTarget> buildDarkroomTargets({
       for (final f in frames) darkroomFilterOf(f),
       ...newestByFilter.keys,
     }.toList()
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
     final channels = [
       for (final filter in filters)
         DarkroomChannel(

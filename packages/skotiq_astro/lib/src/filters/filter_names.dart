@@ -186,3 +186,24 @@ String? filterSetName(Iterable<String> filters) {
   if (distinct.length != bands.length) return null;
   return _namedSets[(distinct.toList()..sort()).join('+')];
 }
+
+/// The filters in the order every list of them follows, by band: L, R, G, B,
+/// Ha, OIII, SII.
+const List<String> _bandOrder = ['L', 'R', 'G', 'B', 'HA', 'OIII', 'SII'];
+
+/// Where [name] sits in the filter order (see [compareFilterNames]); every
+/// filter that is not one of its bands shares the last place.
+int filterRank(String name) {
+  final i = _bandOrder.indexOf(filterIdentity(name));
+  return i < 0 ? _bandOrder.length : i;
+}
+
+/// Filters in the order astrophotographers list them: L, R, G, B, Ha, OIII,
+/// SII by the bands they name ("Lum" with L, "H-alpha" with Ha), then the
+/// others by name.
+int compareFilterNames(String a, String b) {
+  final byRank = filterRank(a).compareTo(filterRank(b));
+  if (byRank != 0) return byRank;
+  final byName = a.toLowerCase().compareTo(b.toLowerCase());
+  return byName != 0 ? byName : a.compareTo(b);
+}

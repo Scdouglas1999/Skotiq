@@ -40,9 +40,8 @@ class _Aside extends ConsumerWidget {
       for (final g in planJson['groups'] as List)
         if ((g as Map)['calibration']?['flat'] == null) g['filter'] as String,
     }.where((f) => !noFlat.contains(f)).toList()
-      ..sort(compareDarkroomFilters);
-    final missingFlats = [...noFlat, ...partialFlat]
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
+    final missingFlats = [...noFlat, ...partialFlat]..sort(compareFilterNames);
     final needsAck = missingFlats.isNotEmpty && !session.withoutFlats;
     final belowMinimum = !preview.meetsMinimum;
     final buildReason = busy

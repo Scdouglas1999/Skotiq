@@ -9,13 +9,13 @@ library;
 
 import 'package:flutter/widgets.dart' show TextStyle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqTypography;
 
 import '../darkroom_previews.dart' show darkroomDraftPreviewRevisionProvider;
-import '../targets/darkroom_targets_model.dart'
-    show darkroomFilterRank, darkroomMasterTargetName;
+import '../targets/darkroom_targets_model.dart' show darkroomMasterTargetName;
 
 /// One registered image and the recipes written over it.
 class DarkroomLibraryImage {
@@ -75,12 +75,12 @@ class DarkroomLibraryTarget {
 }
 
 /// Display order of image kinds within a target: composites first, then the
-/// filters in the Darkroom's order.
+/// filters in their order (`compareFilterNames`).
 int _kindRank(String kind) {
   const composites = ['LRGB', 'RGB', 'Color'];
   final index =
       composites.indexWhere((k) => k.toLowerCase() == kind.toLowerCase());
-  return index >= 0 ? index : composites.length + darkroomFilterRank(kind);
+  return index >= 0 ? index : composites.length + filterRank(kind);
 }
 
 /// The short name of what [master] holds.

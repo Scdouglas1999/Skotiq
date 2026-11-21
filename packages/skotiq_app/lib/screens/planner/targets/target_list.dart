@@ -690,7 +690,7 @@ class _TargetRowTile extends StatelessWidget {
         row.target.groups.map((g) => g.name).join(', '),
       if (progress.filters.isNotEmpty)
         (progress.filters.map((f) => f.filter).toList()
-              ..sort(compareDarkroomFilters))
+              ..sort(compareFilterNames))
             .join(' '),
     ].join(' · ');
 

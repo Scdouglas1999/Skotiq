@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/filters.dart';
 
 import 'linked_host.dart';
 import 'async_scope.dart';
@@ -18,40 +19,13 @@ import 'logging_service_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
 import '../errors/server_error.dart';
 
-/// Canonical display order for astrophotography filters in filter switchers.
-const List<String> kLiveStackFilterSortOrder = <String>[
-  'L',
-  'Lum',
-  'Luminance',
-  'R',
-  'Red',
-  'G',
-  'Green',
-  'B',
-  'Blue',
-  'Ha',
-  'H-alpha',
-  'OIII',
-  'O3',
-  'SII',
-  'S2',
-];
-
-int _filterSortRank(String key) {
-  if (key == kDefaultLiveStackFilterKey) return 10000;
-  final lower = key.toLowerCase();
-  for (var i = 0; i < kLiveStackFilterSortOrder.length; i++) {
-    if (kLiveStackFilterSortOrder[i].toLowerCase() == lower) return i;
-  }
-  return 500;
-}
-
-/// Compare two filter keys into natural astrophotography filter order.
+/// Live-stack filter keys in filter order ([compareFilterNames]), the stack
+/// of unfiltered frames last.
 int compareLiveStackFilters(String a, String b) {
-  final ra = _filterSortRank(a);
-  final rb = _filterSortRank(b);
-  if (ra != rb) return ra.compareTo(rb);
-  return a.toLowerCase().compareTo(b.toLowerCase());
+  final aUnfiltered = a == kDefaultLiveStackFilterKey;
+  final bUnfiltered = b == kDefaultLiveStackFilterKey;
+  if (aUnfiltered != bUnfiltered) return aUnfiltered ? 1 : -1;
+  return compareFilterNames(a, b);
 }
 
 /// Current state of the live stacking session.

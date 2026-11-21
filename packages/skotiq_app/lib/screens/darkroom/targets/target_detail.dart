@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
@@ -580,7 +581,7 @@ class _Legend extends StatelessWidget {
       for (final n in target.nights)
         for (final f in n.filters) f,
     }.toList()
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
     final hasPause = target.nights.any((n) => n.pauses.isNotEmpty);
     final hasDim = target.nights.any((n) => n.rejected > 0 || n.offTarget > 0);
     return Wrap(
@@ -768,7 +769,7 @@ String describeBuiltMasters(DarkroomBuildJob job) {
       if (r['totalIntegrationSec'] case final num s) seconds += s.toDouble();
     }
     final filters = [for (final r in results) '${r['filter']}']
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
     parts.add('${joinWords(filters)} from $subs subs, '
         '${_darkroomSpan(seconds)}.');
   }

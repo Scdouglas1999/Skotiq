@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';
 import 'package:skotiq_app/screens/darkroom/targets/nights_strip.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -221,7 +222,26 @@ void main() {
 
   test('filters keep the Darkroom order', () {
     final list = ['Ha', 'B', 'SII', 'L', 'Custom', 'G', 'R', 'OIII']
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
     expect(list, ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII', 'Custom']);
+  });
+
+  test('every spelling of a filter sorts with its band, as in the live stack',
+      () {
+    final list = [
+      'S2',
+      'Custom',
+      'H-alpha',
+      'Blue',
+      'Lum',
+      'O3',
+      'Red',
+      'Green'
+    ]..sort(compareFilterNames);
+    expect(
+        list, ['Lum', 'Red', 'Green', 'Blue', 'H-alpha', 'O3', 'S2', 'Custom']);
+    final keys = ['Unfiltered', 'Ha', 'Lum', 'Custom']
+      ..sort(compareLiveStackFilters);
+    expect(keys, ['Lum', 'Ha', 'Custom', 'Unfiltered']);
   });
 }
