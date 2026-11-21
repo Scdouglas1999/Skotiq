@@ -55,7 +55,9 @@ void main() {
         cd2_2: row.readNullable<double>('solved_cd2_2'),
         sip: row.readNullable<String>('solved_sip'),
       );
-      if (wcs == null) throw StateError('Image $imageId has no usable stored solve.');
+      if (wcs == null) {
+        throw StateError('Image $imageId has no usable stored solve.');
+      }
       final noCd = SolvedWcs(
         raHours: wcs.raHours,
         decDegrees: wcs.decDegrees,

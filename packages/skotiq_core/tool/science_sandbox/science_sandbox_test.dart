@@ -34,8 +34,10 @@ import 'package:skotiq_core/src/utils/logging_service.dart';
 import 'package:skotiq_core/src/providers/logging_service_provider.dart';
 import 'package:skotiq_core/src/providers/sky_atlas/sky_atlas_seam_provider.dart';
 import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
-import 'package:skotiq_core/src/database/daos/images_dao.dart' show StoredWcsDistortion;
-import 'package:skotiq_core/src/models/imaging/imaging_models.dart' show FrameType;
+import 'package:skotiq_core/src/database/daos/images_dao.dart'
+    show StoredWcsDistortion;
+import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
+    show FrameType;
 import 'package:skotiq_core/src/services/science/narrator/narrator_service.dart';
 import 'package:skotiq_core/src/services/science/science_status.dart';
 import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_models.dart';
@@ -195,9 +197,7 @@ Future<void> _run(SandboxConfig cfg) async {
   final profileDir = Directory('${dataDir.path}/profile')
     ..createSync(recursive: true);
   bridge.apiInitProfileStorage(storagePath: profileDir.path);
-  bridge.apiInitSettingsStorage(
-    storagePath: profileDir.path,
-  );
+  bridge.apiInitSettingsStorage(storagePath: profileDir.path);
   bridge.apiPlatesolveSetConfig(
     config: bridge.PlateSolverConfigPayload(
       astapPath: cfg.astapPath,
@@ -426,9 +426,10 @@ Future<void> _run(SandboxConfig cfg) async {
       focuserTemp: frame.focusTemp,
     );
 
-    final foldWait = atlas!.folds
-        .firstWhere((f) => f.imageId == imageId)
-        .timeout(Duration(seconds: cfg.foldWaitSeconds));
+    final folds = StreamIterator(
+      atlas!.folds.where((f) => f.imageId == imageId),
+    );
+    final nextFold = folds.moveNext();
 
     final procSw = Stopwatch()..start();
     final stages = <ScienceStage, ScienceStageResult>{};
@@ -455,9 +456,12 @@ Future<void> _run(SandboxConfig cfg) async {
         .getSingle();
     Map<String, Object?>? fold;
     final foldSw = Stopwatch()..start();
-    if (solved.read<bool>('is_plate_solved')) {
+    if (cfg.atlasFold && solved.read<bool>('is_plate_solved')) {
       try {
-        final f = await foldWait;
+        if (!await nextFold.timeout(Duration(seconds: cfg.foldWaitSeconds))) {
+          throw StateError('Atlas observation ended before frame $imageId');
+        }
+        final f = folds.current;
         fold = {
           'summary': f.summary == null
               ? null
@@ -467,13 +471,8 @@ Future<void> _run(SandboxConfig cfg) async {
       } on TimeoutException {
         errors.add('atlas fold did not finish within ${cfg.foldWaitSeconds}s');
       }
-    } else {
-      unawaited(
-        foldWait.catchError(
-          (_) => (imageId: imageId, summary: null, error: null),
-        ),
-      );
     }
+    await folds.cancel();
     final foldWaitMs = foldSw.elapsedMilliseconds;
     // Let the narrator's DB-watch streams emit and persist.
     await Future<void>.delayed(Duration(milliseconds: cfg.settleMs));

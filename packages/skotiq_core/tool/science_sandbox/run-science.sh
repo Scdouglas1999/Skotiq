@@ -72,7 +72,7 @@ FRAMES=()
 for in in "${INPUTS[@]}"; do
   [[ -e "$in" ]] || { echo "not found: $in" >&2; exit 2; }
   if [[ -d "$in" ]]; then
-    while IFS= read -r -d '' f; do FRAMES+=("$f"); done < <(find "$in" -maxdepth 1 -type f \( -iname '*.fits' -o -iname '*.fit' -o -iname '*.fts' \) -print0 | sort -z)
+    while IFS= read -r -d '' f; do FRAMES+=("$f"); done < <(find "$(readlink -f "$in")" -maxdepth 1 -type f \( -iname '*.fits' -o -iname '*.fit' -o -iname '*.fts' \) -print0 | sort -z)
   else
     FRAMES+=("$(readlink -f "$in")")
   fi
@@ -89,13 +89,21 @@ fi
 ASTAP="${SKOTIQ_ASTAP:-$SCI/tools/astapx/astap_cli}"
 ASTAPDB="${SKOTIQ_ASTAP_DB:-$SCI/astap}"
 
-# The test loads libskotiq_bridge.so through FRB's default dev path, relative
-# to the package dir.
-LIB="$REPO/native/skotiq_native/bridge/target/release/libskotiq_bridge.so"
-if [[ ! -e "$LIB" ]]; then
-  mkdir -p "$(dirname "$LIB")"
-  ln -sf "${SKOTIQ_BRIDGE_LIB:-$SCI/harness/lib/libskotiq_bridge.so}" "$LIB"
+# Resolve the library before changing to the package directory. Keep the
+# loader override private to this run, including projection comparison runs.
+LIB="${SKOTIQ_BRIDGE_LIB:-}"
+if [[ -z "$LIB" ]]; then
+  for dir in "$REPO/native/skotiq_native/target/release" \
+      "$REPO/native/skotiq_native/bridge/target/release" "$SCI/harness/lib"; do
+    [[ -f "$dir/libskotiq_bridge.so" ]] || continue
+    LIB="$dir/libskotiq_bridge.so"
+    break
+  done
 fi
+[[ -f "$LIB" ]] || { echo "Set SKOTIQ_BRIDGE_LIB to the built native library." >&2; exit 2; }
+LIBDIR="$(mktemp -d "${TMPDIR:-/tmp}/science-bridge.XXXXXX")"
+trap 'rm -f -- "$LIBDIR/libskotiq_bridge.so"; rmdir -- "$LIBDIR"' EXIT
+ln -s "$(realpath "$LIB")" "$LIBDIR/libskotiq_bridge.so"
 
 CFG="$OUT/config.json"
 python3 - "$CFG" "$DB" "$DATA" "$OUT" "$SESSION" "$ASTAP" "$ASTAPDB" "$RIGCOPY" "$MOVING" "$DIFF" "$KEEP" "$SKIPDONE" "$FOLDWAIT" "$ATLAS" "$PERNIGHT" "${#SETS[@]}" "${SETS[@]}" "${FRAMES[@]}" <<'PY'
@@ -125,6 +133,7 @@ mkdir -p "${TMPDIR:-/tmp}"
 echo "science sandbox: ${#FRAMES[@]} frames -> $OUT (db $DB/skotiq.db)"
 cd "$PKG"
 systemd-run --user --scope --quiet -p MemoryMax="$MEM" \
-  env SKOTIQ_SANDBOX_CONFIG="$CFG" SKOTIQ_DATABASE_DIR="$DB" SKOTIQ_DATA_DIR="$DATA" \
+  env FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR="$LIBDIR" \
+  SKOTIQ_SANDBOX_CONFIG="$CFG" SKOTIQ_DATABASE_DIR="$DB" SKOTIQ_DATA_DIR="$DATA" \
   flutter test tool/science_sandbox/science_sandbox_test.dart --no-pub --timeout=none -r expanded \
   2>&1 | tee -a "$OUT/run.log"
