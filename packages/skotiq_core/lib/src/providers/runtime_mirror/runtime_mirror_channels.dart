@@ -11,6 +11,7 @@ import 'channels/end_of_night_channel.dart';
 import 'channels/current_frame_channel.dart';
 import 'channels/device_slot_channel.dart';
 import 'channels/environment_forecast_channel.dart';
+import 'channels/flat_wizard_channel.dart';
 import 'channels/focus_baseline_channel.dart';
 import 'channels/host_session_channel.dart';
 import 'channels/frame_solve_channel.dart';
@@ -51,6 +52,7 @@ final runtimeMirrorChannelsProvider =
         const CenteringResultChannel(),
         const AutofocusResultChannel(),
         const AutofocusRunChannel(),
+        const FlatWizardChannel(),
         const CurrentFrameChannel(),
         const FrameSolveChannel(),
         const EnvironmentForecastChannel(),

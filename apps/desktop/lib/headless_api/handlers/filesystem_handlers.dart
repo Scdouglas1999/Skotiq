@@ -148,21 +148,24 @@ class FileSystemHandlers implements RouteSource {
     }
   }
 
-  Future<Response> handleValidateDirectory(Request request) async {
-    _logInfo('[API] POST /api/files/validate');
-
-    final payload = await readJsonObject(request);
-    final path = optionalString(payload, 'path', allowEmpty: true) ?? '';
-    final mustExist = optionalBool(payload, 'mustExist') ?? false;
-    final mustBeWritable = optionalBool(payload, 'mustBeWritable') ?? false;
-
+  /// The check `POST /api/files/validate` answers. Other host handlers that
+  /// accept a folder before writing there call this rather than growing a
+  /// second allow-list.
+  Future<({int statusCode, Map<String, dynamic> body})> checkHostDirectory(
+    String path, {
+    required bool mustExist,
+    required bool mustBeWritable,
+  }) async {
     if (path.trim().isEmpty) {
-      return jsonOk({
-        'valid': false,
-        'exists': false,
-        'writable': false,
-        'error': 'Path is required',
-      });
+      return (
+        statusCode: 200,
+        body: {
+          'valid': false,
+          'exists': false,
+          'writable': false,
+          'error': 'Path is required',
+        },
+      );
     }
 
     final directory = Directory(path);
@@ -191,16 +194,19 @@ class FileSystemHandlers implements RouteSource {
       );
       // Unlike browse, the refusal does not list the roots: validate answers
       // about the one folder it was asked about.
-      return jsonForbidden({
-        'error': 'path_not_allowed',
-        'message':
-            'The imaging host lets a linked computer use only folders inside '
-            'its Documents, backup, capture, sequence and log folders, and '
-            'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
-        'valid': false,
-        'exists': false,
-        'writable': false,
-      });
+      return (
+        statusCode: 403,
+        body: {
+          'error': 'path_not_allowed',
+          'message':
+              'The imaging host lets a linked computer use only folders inside '
+              'its Documents, backup, capture, sequence and log folders, and '
+              'any its setup adds (SKOTIQ_BROWSE_ROOTS).',
+          'valid': false,
+          'exists': false,
+          'writable': false,
+        },
+      );
     }
 
     final exists = await directory.exists();
@@ -208,12 +214,31 @@ class FileSystemHandlers implements RouteSource {
         exists && (!mustBeWritable || await _isWritable(directory));
     final valid = (!mustExist || exists) && (!mustBeWritable || writable);
 
-    return jsonOk({
-      'valid': valid,
-      'exists': exists,
-      'writable': writable,
-      'normalizedPath': p.normalize(directory.absolute.path),
-    });
+    return (
+      statusCode: 200,
+      body: {
+        'valid': valid,
+        'exists': exists,
+        'writable': writable,
+        'normalizedPath': p.normalize(directory.absolute.path),
+      },
+    );
+  }
+
+  Future<Response> handleValidateDirectory(Request request) async {
+    _logInfo('[API] POST /api/files/validate');
+
+    final payload = await readJsonObject(request);
+    final path = optionalString(payload, 'path', allowEmpty: true) ?? '';
+    final mustExist = optionalBool(payload, 'mustExist') ?? false;
+    final mustBeWritable = optionalBool(payload, 'mustBeWritable') ?? false;
+    final verdict = await checkHostDirectory(
+      path,
+      mustExist: mustExist,
+      mustBeWritable: mustBeWritable,
+    );
+    if (verdict.statusCode == 403) return jsonForbidden(verdict.body);
+    return jsonOk(verdict.body);
   }
 
   /// Allow-listed roots the caller may browse under.
