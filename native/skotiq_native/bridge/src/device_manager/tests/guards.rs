@@ -196,7 +196,9 @@ impl crate::device_manager::rig::camera::Camera for GatedProbe {
         Ok(())
     }
 
-    async fn read_frame(&self) -> Result<skotiq_device::ImageData, crate::dispatch::error::DeviceOpError> {
+    async fn read_frame(
+        &self,
+    ) -> Result<skotiq_device::ImageData, crate::dispatch::error::DeviceOpError> {
         Err(crate::dispatch::error::DeviceOpError::unsupported("unused"))
     }
 
@@ -212,7 +214,8 @@ impl crate::device_manager::rig::camera::Camera for GatedProbe {
 
     async fn recommended_settings(
         &self,
-    ) -> Result<skotiq_device::CameraRecommendedSettings, crate::dispatch::error::DeviceOpError> {
+    ) -> Result<skotiq_device::CameraRecommendedSettings, crate::dispatch::error::DeviceOpError>
+    {
         Err(crate::dispatch::error::DeviceOpError::unsupported("unused"))
     }
 
@@ -227,8 +230,10 @@ impl crate::device_manager::rig::camera::Camera for GatedProbe {
     async fn use_readout_mode(
         &self,
         _name: &str,
-    ) -> Result<crate::device_manager::rig::camera::ReadModeUse, crate::dispatch::error::DeviceOpError>
-    {
+    ) -> Result<
+        crate::device_manager::rig::camera::ReadModeUse,
+        crate::dispatch::error::DeviceOpError,
+    > {
         Ok(crate::device_manager::rig::camera::ReadModeUse::NoModes)
     }
 
@@ -244,7 +249,9 @@ impl crate::device_manager::rig::camera::Camera for GatedProbe {
         &self,
         _device_id: &str,
     ) -> Result<skotiq_device::CameraDescription, crate::error::SkotiqError> {
-        Err(crate::error::SkotiqError::NotConnected("unused".to_string()))
+        Err(crate::error::SkotiqError::NotConnected(
+            "unused".to_string(),
+        ))
     }
 }
 
@@ -422,7 +429,11 @@ async fn alpaca_imagearray_holds_the_operation_guard() {
             } else {
                 r#"{"Value":8,"ClientTransactionID":1,"ServerTransactionID":1,"ErrorNumber":0,"ErrorMessage":""}"#
             };
-            let status = if image { "500 Internal Server Error" } else { "200 OK" };
+            let status = if image {
+                "500 Internal Server Error"
+            } else {
+                "200 OK"
+            };
             let response = format!(
                 "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
                 body.len()
@@ -436,9 +447,8 @@ async fn alpaca_imagearray_holds_the_operation_guard() {
     let driver = skotiq_alpaca::AlpacaCameraDriver::new(skotiq_alpaca::AlpacaCamera::from_server(
         &base_url, 0,
     ));
-    let camera = Arc::new(crate::device_manager::rig::camera::driver::DriverCamera::alpaca(
-        &id, driver,
-    ));
+    let camera =
+        Arc::new(crate::device_manager::rig::camera::driver::DriverCamera::alpaca(&id, driver));
     insert_camera(&manager, &id, camera).await;
 
     let download_manager = manager.clone();
@@ -451,7 +461,9 @@ async fn alpaca_imagearray_holds_the_operation_guard() {
         "imagearray was not requested; saw {:?}",
         seen.lock().expect("seen")
     );
-    started.expect("imagearray started").expect("started channel");
+    started
+        .expect("imagearray started")
+        .expect("started channel");
     assert!(manager.is_operation_active(&id));
     release_tx.send(()).expect("finish imagearray");
     let result = tokio::time::timeout(std::time::Duration::from_secs(5), download)
