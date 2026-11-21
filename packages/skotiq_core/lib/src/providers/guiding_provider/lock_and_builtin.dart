@@ -33,6 +33,10 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
     }
   }
 
+  void applyHostPosition(({double x, double y})? position) {
+    state = position;
+  }
+
   Future<void> setLockPosition(double x, double y, {bool exact = false}) async {
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
@@ -152,11 +156,19 @@ class BuiltinGuiderConfigNotifier
       fetchGeneration == _fetchGeneration &&
       ref.backendScopeOver(backend).isCurrent;
 
+  /// Replace the config from the host without writing it back.
+  void applyHostConfig(BuiltinGuiderConfig config) {
+    _fetchGeneration++;
+    state = AsyncValue.data(config);
+  }
+
   /// Update the full config and push to the backend.
   Future<void> updateConfig(BuiltinGuiderConfig newConfig) async {
     if (!mounted) return;
 
     final previousState = state;
+    // A fetch started before this write must not put the old config back.
+    _fetchGeneration++;
     final backend = ref.read(backendProvider);
     final generation = _backendGeneration;
     state = AsyncValue.data(newConfig);
