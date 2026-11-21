@@ -73,7 +73,7 @@ class _FaultySequencePlugin extends SequencePlugin {
 }
 
 void main() {
-  group('Batch 4 plugin lifecycle and sandbox regressions', () {
+  group('Plugin lifecycle and sandbox', () {
     test(
       'PluginNodeExecutor catches exceptions from createNode and validate',
       () async {
@@ -106,6 +106,29 @@ void main() {
         expect(r2.message, contains('boom in validate'));
       },
     );
+
+    test('SandboxedPluginEventBus.on is a broadcast stream', () async {
+      final inner = StreamPluginEventBus();
+      addTearDown(inner.dispose);
+      final bus = SandboxedPluginEventBus('p1', inner);
+      final first = <Map<String, dynamic>>[];
+      final second = <Map<String, dynamic>>[];
+      final stream = bus.on('sky');
+      final a = stream.listen(first.add);
+      final b = stream.listen(second.add);
+      addTearDown(a.cancel);
+      addTearDown(b.cancel);
+
+      bus.emit('sky', {'n': 1});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(first, [
+        {'n': 1},
+      ]);
+      expect(second, [
+        {'n': 1},
+      ]);
+    });
 
     test(
       'SandboxedPluginEventBus releases subscription quota on cancel',
