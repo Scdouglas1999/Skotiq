@@ -566,7 +566,8 @@ class _TemplateCardState extends ConsumerState<_TemplateCard> {
                             if (!dialogContext.mounted || host.isStale) return;
                             setDialogState(() => isDeleting = false);
                             dialogContext.showErrorSnackBar(
-                                'Failed to delete template: $e');
+                                'Failed to delete template: '
+                                '${userFacingError(e)}');
                           }
                         },
                   label: 'Delete',

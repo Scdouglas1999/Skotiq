@@ -9,7 +9,6 @@
 // connected and keeps its own live events from then on.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../panel/solve/recent_solves_provider.dart';
@@ -187,22 +186,35 @@ class NightHistory {
 /// itself or when the read failed (the charts then start from the first live
 /// event).
 final hostNightHistoryProvider = FutureProvider<NightHistory?>((ref) async {
-  final backend = ref.watch(backendProvider);
-  final linkedHost = backend.remoteHost;
-  if (linkedHost == null) return null;
+  final night = ref.watch(linkedHostNightProvider);
+  if (night == null) return null;
+  var disposed = false;
+  ref.onDispose(() => disposed = true);
+  final scope = ref.backendScope(alive: () => !disposed);
   try {
-    final json = await linkedHost.night.getHostNightHistory();
+    final json = await night.getHostNightHistory();
+    if (scope.isStale) return null;
     final history = NightHistory.fromJson(json);
     // The cooler history lives in the camera poller, which every screen
-    // shares; it takes the host's readings here rather than in a notifier of
-    // its own.
-    ref.read(temperatureHistoryProvider.notifier).addEarlier(history.cooler);
+    // shares; defer the merge onto a microtask so a synchronously-completed
+    // future never mutates another provider during build, and drop it if the
+    // backend swapped or this provider disposed in the meantime.
+    if (history.cooler.isNotEmpty) {
+      Future<void>.microtask(() {
+        if (scope.isStale) return;
+        ref
+            .read(temperatureHistoryProvider.notifier)
+            .addEarlier(history.cooler);
+      });
+    }
     return history;
   } on Object catch (e) {
-    ref.read(loggingServiceProvider).debug(
-          'Night history not read from the host: $e',
-          source: 'NightHistory',
-        );
+    if (!disposed) {
+      ref.read(loggingServiceProvider).debug(
+            'Night history not read from the host: $e',
+            source: 'NightHistory',
+          );
+    }
     return null;
   }
 });

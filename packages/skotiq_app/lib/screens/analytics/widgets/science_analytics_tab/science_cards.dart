@@ -18,7 +18,7 @@ class _AavsoExportButtonState extends ConsumerState<_AavsoExportButton> {
 
   Future<void> _doExport() async {
     final targetName = await _showTargetNameDialog();
-    if (targetName == null || targetName.trim().isEmpty) {
+    if (!mounted || targetName == null || targetName.trim().isEmpty) {
       return;
     }
 

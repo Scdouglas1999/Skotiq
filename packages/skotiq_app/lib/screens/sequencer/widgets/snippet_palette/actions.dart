@@ -7,159 +7,12 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
 
     if (selectedNodeId == null || sequence == null) return;
 
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    SnippetCategory selectedCategory = SnippetCategory.custom;
-    String selectedIconName = 'puzzle';
-
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: widget.colors.surfaceOverlay,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                LucideIcons.bookmark,
-                size: 20,
-                color: widget.colors.primary,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Create template',
-                style: TextStyle(
-                  fontSize: SkotiqTypography.fontSize18,
-                  fontWeight: FontWeight.w600,
-                  color: widget.colors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              context,
-              designMaxWidth: 400,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDialogLabel('Name'),
-                const SizedBox(height: 8),
-                _buildDialogTextField(
-                  controller: nameController,
-                  hintText: 'Enter template name',
-                ),
-                const SizedBox(height: 16),
-                _buildDialogLabel('Description'),
-                const SizedBox(height: 8),
-                _buildDialogTextField(
-                  controller: descriptionController,
-                  hintText: 'Describe what this template does',
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 16),
-                _buildDialogLabel('Category'),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: widget.colors.surfaceAlt,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline8),
-                    border: Border.all(color: widget.colors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: AccessibleDropdown<SnippetCategory>(
-                      value: selectedCategory,
-                      isExpanded: true,
-                      dropdownColor: widget.colors.surfaceOverlay,
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize14,
-                        color: widget.colors.textPrimary,
-                      ),
-                      items: SnippetCategory.values.map((category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Row(
-                            children: [
-                              Icon(
-                                _getCategoryIcon(category),
-                                size: 16,
-                                color: _getCategoryColor(category),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(_getCategoryDisplayName(category)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setDialogState(() => selectedCategory = value);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildDialogLabel('Icon'),
-                const SizedBox(height: 8),
-                _buildIconSelector(
-                  selectedIconName: selectedIconName,
-                  onIconSelected: (iconName) {
-                    setDialogState(() => selectedIconName = iconName);
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            SkotiqButton(
-              onPressed: () => Navigator.of(context).pop(),
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-            ),
-            SkotiqButton(
-              onPressed: () {
-                final name = nameController.text.trim();
-                final description = descriptionController.text.trim();
-
-                if (name.isEmpty) {
-                  context.showErrorSnackBar('Please enter a template name');
-                  return;
-                }
-
-                // Capture the full multi-selection when present, else the
-                // single selected node. createSnippetFromSelection requires
-                // the nodes share a parent / be contiguous; a failure
-                // surfaces via the catch in _createSnippetFromSelection.
-                final multi = ref.read(multiSelectedNodeIdsProvider);
-                final nodeIds =
-                    multi.isNotEmpty ? multi.toList() : [selectedNodeId];
-
-                _createSnippetFromSelection(
-                  name: name,
-                  description:
-                      description.isEmpty ? 'Custom template' : description,
-                  category: selectedCategory,
-                  iconName: selectedIconName,
-                  nodeIds: nodeIds,
-                  sequence: sequence,
-                );
-
-                Navigator.of(context).pop();
-              },
-              label: 'Create',
-              variant: ButtonVariant.primary,
-              size: ButtonSize.small,
-            ),
-          ],
-        ),
+      builder: (_) => _CreateSnippetDialog(
+        owner: this,
+        selectedNodeId: selectedNodeId,
+        sequence: sequence,
       ),
     );
   }
@@ -597,6 +450,185 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CreateSnippetDialog extends StatefulWidget {
+  const _CreateSnippetDialog({
+    required this.owner,
+    required this.selectedNodeId,
+    required this.sequence,
+  });
+
+  final _SnippetPaletteState owner;
+  final String selectedNodeId;
+  final Sequence sequence;
+
+  @override
+  State<_CreateSnippetDialog> createState() => _CreateSnippetDialogState();
+}
+
+class _CreateSnippetDialogState extends State<_CreateSnippetDialog> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  SnippetCategory _selectedCategory = SnippetCategory.custom;
+  String _selectedIconName = 'puzzle';
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final owner = widget.owner;
+    final colors = owner.widget.colors;
+    return AlertDialog(
+      backgroundColor: colors.surfaceOverlay,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+      ),
+      title: Row(
+        children: [
+          Icon(
+            LucideIcons.bookmark,
+            size: 20,
+            color: colors.primary,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Create template',
+            style: TextStyle(
+              fontSize: SkotiqTypography.fontSize18,
+              fontWeight: FontWeight.w600,
+              color: colors.textPrimary,
+            ),
+          ),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: AdaptiveDialogConstraints.hybrid(
+          context,
+          designMaxWidth: 400,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            owner._buildDialogLabel('Name'),
+            const SizedBox(height: 8),
+            owner._buildDialogTextField(
+              controller: _nameController,
+              hintText: 'Enter template name',
+            ),
+            const SizedBox(height: 16),
+            owner._buildDialogLabel('Description'),
+            const SizedBox(height: 8),
+            owner._buildDialogTextField(
+              controller: _descriptionController,
+              hintText: 'Describe what this template does',
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+            owner._buildDialogLabel('Category'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: colors.surfaceAlt,
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline8),
+                border: Border.all(color: colors.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: AccessibleDropdown<SnippetCategory>(
+                  value: _selectedCategory,
+                  isExpanded: true,
+                  dropdownColor: colors.surfaceOverlay,
+                  style: TextStyle(
+                    fontSize: SkotiqTypography.fontSize14,
+                    color: colors.textPrimary,
+                  ),
+                  items: SnippetCategory.values.map((category) {
+                    return DropdownMenuItem(
+                      value: category,
+                      child: Row(
+                        children: [
+                          Icon(
+                            owner._getCategoryIcon(category),
+                            size: 16,
+                            color: owner._getCategoryColor(category),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(owner._getCategoryDisplayName(category)),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _selectedCategory = value);
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            owner._buildDialogLabel('Icon'),
+            const SizedBox(height: 8),
+            owner._buildIconSelector(
+              selectedIconName: _selectedIconName,
+              onIconSelected: (iconName) {
+                setState(() => _selectedIconName = iconName);
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        SkotiqButton(
+          onPressed: () => Navigator.of(context).pop(),
+          label: 'Cancel',
+          variant: ButtonVariant.ghost,
+          size: ButtonSize.small,
+        ),
+        SkotiqButton(
+          onPressed: () {
+            final name = _nameController.text.trim();
+            final description = _descriptionController.text.trim();
+
+            if (name.isEmpty) {
+              context.showErrorSnackBar('Please enter a template name');
+              return;
+            }
+
+            // Capture the full multi-selection when present, else the
+            // single selected node. createSnippetFromSelection requires
+            // the nodes share a parent / be contiguous; a failure
+            // surfaces via the catch in _createSnippetFromSelection.
+            final multi = owner.ref.read(multiSelectedNodeIdsProvider);
+            final nodeIds =
+                multi.isNotEmpty ? multi.toList() : [widget.selectedNodeId];
+
+            owner._createSnippetFromSelection(
+              name: name,
+              description:
+                  description.isEmpty ? 'Custom template' : description,
+              category: _selectedCategory,
+              iconName: _selectedIconName,
+              nodeIds: nodeIds,
+              sequence: widget.sequence,
+            );
+
+            Navigator.of(context).pop();
+          },
+          label: 'Create',
+          variant: ButtonVariant.primary,
+          size: ButtonSize.small,
+        ),
+      ],
     );
   }
 }

@@ -80,6 +80,17 @@ class IntegratedMastersDao extends DatabaseAccessor<SkotiqDatabase>
     return row == null ? null : _mapMaster(row);
   }
 
+  /// Persisted marginal-SNR curve JSON for [masterId], or null when absent.
+  Future<String?> getImprovementCurveJson(int masterId) async {
+    final row =
+        await (selectOnly(integratedMasters)
+              ..addColumns([integratedMasters.improvementCurveJson])
+              ..where(integratedMasters.id.equals(masterId))
+              ..limit(1))
+            .getSingleOrNull();
+    return row?.read(integratedMasters.improvementCurveJson);
+  }
+
   /// All masters, newest first.
   Future<List<IntegratedMaster>> getAll() async {
     final rows = await _newestFirst().get();

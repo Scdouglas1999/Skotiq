@@ -457,6 +457,10 @@ class _NodeNumberInputState extends State<NodeNumberInput> {
                     signed: (widget.min ?? 0) < 0,
                   ),
                   onChanged: _handleChanged,
+                  onSubmitted: (_) => _commitPending(),
+                  onTapOutside: (_) {
+                    if (_focusNode.hasFocus) _commitPending();
+                  },
                   style: SkotiqTypography.inputMono.copyWith(
                     color: widget.isProfileDefault
                         ? widget.colors.textSecondary

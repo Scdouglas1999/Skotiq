@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -93,7 +94,9 @@ class CalibrationWaitingPanel extends ConsumerWidget {
     if (error != null && !state.groups.hasValue) {
       return [
         _ErrorLine(
-          message: 'Could not read the captured calibration frames: $error',
+          message:
+              'Could not read the captured calibration frames: '
+              '${userFacingError(error)}',
           onRetry: notifier.refresh,
         ),
       ];

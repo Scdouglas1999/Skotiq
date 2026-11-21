@@ -57,7 +57,7 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
           .read(mountGuardProvider.notifier)
           .acknowledgeFault(widget.entry.deviceId);
     } catch (e) {
-      setState(() => _error = userFacingError(e));
+      if (mounted) setState(() => _error = userFacingError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

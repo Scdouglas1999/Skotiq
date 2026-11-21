@@ -529,7 +529,6 @@ class _CustomAnnotationDrawingLayerState
     CustomAnnotation annotation, {
     bool required = false,
   }) async {
-    final controller = TextEditingController();
     final title = switch (annotation.type) {
       CustomAnnotationType.circle => 'Circle Label',
       CustomAnnotationType.arrow => 'Arrow Label',
@@ -541,45 +540,16 @@ class _CustomAnnotationDrawingLayerState
     final label = await showDialog<String>(
       context: context,
       barrierDismissible: !required,
-      builder: (ctx) {
-        return SkotiqDialog(
-          title: title,
-          icon: annotation.type == CustomAnnotationType.text
-              ? SkotiqIcons.edit
-              : SkotiqIcons.target,
-          width: 420,
-          showCloseButton: !required,
-          onClose: () => Navigator.of(ctx).pop(null),
-          scrollableBody: false,
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              onPressed: () => Navigator.of(ctx).pop(null),
-            ),
-            SkotiqButton(
-              label: 'Add',
-              variant: ButtonVariant.primary,
-              onPressed: () => Navigator.of(ctx).pop(controller.text),
-            ),
-          ],
-          child: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              context,
-              designMaxWidth: 400,
-            ),
-            child: SkotiqTextField(
-              controller: controller,
-              autofocus: true,
-              hint: required ? 'Enter text…' : 'Optional label…',
-              onSubmitted: (value) => Navigator.of(ctx).pop(value),
-            ),
-          ),
-        );
-      },
+      builder: (_) => _AnnotationLabelDialog(
+        title: title,
+        icon: annotation.type == CustomAnnotationType.text
+            ? SkotiqIcons.edit
+            : SkotiqIcons.target,
+        required: required,
+      ),
     );
 
-    if (label == null) return; // Cancelled
+    if (!mounted || label == null) return; // Unmounted or cancelled
     if (required && label.trim().isEmpty) return; // Text tool needs text
 
     final finalAnnotation = annotation.copyWith(
@@ -873,6 +843,67 @@ class _ToolButtonState extends State<_ToolButton> {
                       : ImageOverlayColors.secondary,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AnnotationLabelDialog extends StatefulWidget {
+  const _AnnotationLabelDialog({
+    required this.title,
+    required this.icon,
+    required this.required,
+  });
+
+  final String title;
+  final IconData icon;
+  final bool required;
+
+  @override
+  State<_AnnotationLabelDialog> createState() => _AnnotationLabelDialogState();
+}
+
+class _AnnotationLabelDialogState extends State<_AnnotationLabelDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SkotiqDialog(
+      title: widget.title,
+      icon: widget.icon,
+      width: 420,
+      showCloseButton: !widget.required,
+      onClose: () => Navigator.of(context).pop(null),
+      scrollableBody: false,
+      actions: [
+        SkotiqButton(
+          label: 'Cancel',
+          variant: ButtonVariant.ghost,
+          onPressed: () => Navigator.of(context).pop(null),
+        ),
+        SkotiqButton(
+          label: 'Add',
+          variant: ButtonVariant.primary,
+          onPressed: () => Navigator.of(context).pop(_controller.text),
+        ),
+      ],
+      child: ConstrainedBox(
+        constraints: AdaptiveDialogConstraints.hybrid(
+          context,
+          designMaxWidth: 400,
+        ),
+        child: SkotiqTextField(
+          controller: _controller,
+          autofocus: true,
+          hint: widget.required ? 'Enter text…' : 'Optional label…',
+          onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
       ),
     );

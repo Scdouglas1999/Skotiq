@@ -300,13 +300,7 @@ extension _SessionReviewControllerHelpers on SessionReviewController {
     int masterId,
   ) async {
     try {
-      final rows = await _ref.read(databaseProvider).customSelect(
-        'SELECT improvement_curve_json FROM integrated_masters '
-        'WHERE id = ? LIMIT 1',
-        variables: [Variable<int>(masterId)],
-      ).get();
-      if (rows.isEmpty) return (null, const <String>[]);
-      final json = rows.first.readNullable<String>('improvement_curve_json');
+      final json = await _mastersDao.getImprovementCurveJson(masterId);
       if (json == null || json.trim().isEmpty) return (null, const <String>[]);
       final decoded = jsonDecode(json);
       if (decoded is Map<String, dynamic>) {

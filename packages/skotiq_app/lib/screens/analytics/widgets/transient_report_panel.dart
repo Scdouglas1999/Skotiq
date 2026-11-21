@@ -557,7 +557,7 @@ class _TransientReportPanelState extends ConsumerState<TransientReportPanel> {
     ScienceSettings settings,
   ) async {
     final confirmed = await _confirmTnsSubmit(settings.tnsUseSandbox);
-    if (confirmed != true) return;
+    if (!mounted || confirmed != true) return;
 
     setState(() => _submitting = true);
     try {
