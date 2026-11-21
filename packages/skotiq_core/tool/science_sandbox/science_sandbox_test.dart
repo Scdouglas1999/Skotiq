@@ -22,7 +22,6 @@ import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_core/src/database/daos/sky_atlas_dao.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/models/science/science_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
@@ -31,12 +30,15 @@ import 'package:skotiq_core/src/providers/narrator_provider.dart';
 import 'package:skotiq_core/src/providers/science_status_provider.dart';
 import 'package:skotiq_core/src/providers/session_provider.dart';
 import 'package:skotiq_core/src/providers/sky_atlas_provider.dart';
-import 'package:skotiq_core/src/services/logging_service.dart';
+import 'package:skotiq_core/src/utils/logging_service.dart';
+import 'package:skotiq_core/src/providers/logging_service_provider.dart';
+import 'package:skotiq_core/src/providers/sky_atlas/sky_atlas_seam_provider.dart';
+import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
+import 'package:skotiq_core/src/database/daos/images_dao.dart' show StoredWcsDistortion;
+import 'package:skotiq_core/src/models/imaging/imaging_models.dart' show FrameType;
 import 'package:skotiq_core/src/services/science/narrator/narrator_service.dart';
-import 'package:skotiq_core/src/services/science/science_processing_service.dart';
 import 'package:skotiq_core/src/services/science/science_status.dart';
 import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_models.dart';
-import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_seam.dart';
 import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_service.dart';
 
 import 'fits_header.dart';
@@ -108,10 +110,10 @@ class _ObservedSkyAtlasService extends SkyAtlasService {
 
   @override
   Future<AtlasFoldSummary?> autoFoldCapturedImage({
-    required db.CapturedImage image,
+    required db.DbCapturedImage image,
     required int imageWidth,
     required int imageHeight,
-    SolvedWcsDistortion distortion = const SolvedWcsDistortion(),
+    StoredWcsDistortion? distortion,
     AtlasInterp interp = AtlasInterp.lanczos3,
   }) async {
     if (!foldEnabled) {
@@ -192,8 +194,8 @@ Future<void> _run(SandboxConfig cfg) async {
   }
   final profileDir = Directory('${dataDir.path}/profile')
     ..createSync(recursive: true);
-  await bridge.NativeBridge.apiInitProfileStorage(storagePath: profileDir.path);
-  await bridge.NativeBridge.apiInitSettingsStorage(
+  bridge.apiInitProfileStorage(storagePath: profileDir.path);
+  bridge.apiInitSettingsStorage(
     storagePath: profileDir.path,
   );
   bridge.apiPlatesolveSetConfig(
@@ -407,7 +409,7 @@ Future<void> _run(SandboxConfig cfg) async {
       sessionId: sessionId,
       targetId: targetId,
       filter: frame.filter,
-      frameType: 'light',
+      frameType: FrameType.light,
       hfr: (rig?['hfr'] as num?)?.toDouble(),
       starCount: rig?['star_count'] as int?,
       eccentricity: (rig?['eccentricity'] as num?)?.toDouble(),

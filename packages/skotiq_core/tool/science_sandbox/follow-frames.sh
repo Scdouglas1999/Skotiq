@@ -52,7 +52,7 @@ while true; do
   fi
   if (( $(date +%s) - last_new > IDLE )); then
     echo "$(date -Is) follow: no new frames for ${IDLE}s, exiting"
-    exit 0
+    exit "$retry"
   fi
   sleep "$INTERVAL"
 done

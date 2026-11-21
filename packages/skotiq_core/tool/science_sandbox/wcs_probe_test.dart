@@ -20,10 +20,10 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/models/science/science_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
-import 'package:skotiq_core/src/services/science/default_science_backend.dart';
-import 'package:skotiq_core/src/services/science/photometric_catalog_service.dart';
-import 'package:skotiq_core/src/services/wcs/gnomonic_projection.dart';
-import 'package:skotiq_core/src/services/wcs/wcs_sip_codec.dart';
+import 'package:skotiq_core/src/providers/science/default_science_backend_provider.dart';
+import 'package:skotiq_core/src/providers/science/photometric_catalog_service_provider.dart';
+import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
+import 'package:skotiq_core/src/services/wcs/plate_solve_data_from_result.dart';
 
 void main() {
   final imageId = int.tryParse(Platform.environment['PROBE_IMAGE_ID'] ?? '');
@@ -42,23 +42,20 @@ void main() {
           .getSingle();
       final path = row.read<String>('file_path');
       final fits = await bridge.apiReadFitsFile(filePath: path);
-      final sip = decodeSolvedSip(row.readNullable<String>('solved_sip'));
-      final wcs = SolvedWcs(
-        raHours: row.read<double>('solved_ra'),
-        decDegrees: row.read<double>('solved_dec'),
-        rotationDeg: row.read<double>('solved_rotation'),
-        pixelScaleArcsec: row.read<double>('solved_pixel_scale'),
+      final wcs = solvedWcsFromStored(
+        raHours: row.readNullable<double>('solved_ra'),
+        decDegrees: row.readNullable<double>('solved_dec'),
+        rotationDeg: row.readNullable<double>('solved_rotation'),
+        pixelScaleArcsec: row.readNullable<double>('solved_pixel_scale'),
         imageWidth: fits.width,
         imageHeight: fits.height,
         cd1_1: row.readNullable<double>('solved_cd1_1'),
         cd1_2: row.readNullable<double>('solved_cd1_2'),
         cd2_1: row.readNullable<double>('solved_cd2_1'),
         cd2_2: row.readNullable<double>('solved_cd2_2'),
-        aOrder: sip?.aOrder ?? 0,
-        bOrder: sip?.bOrder ?? 0,
-        aCoeffs: sip?.aCoeffs ?? const [],
-        bCoeffs: sip?.bCoeffs ?? const [],
+        sip: row.readNullable<String>('solved_sip'),
       );
+      if (wcs == null) throw StateError('Image $imageId has no usable stored solve.');
       final noCd = SolvedWcs(
         raHours: wcs.raHours,
         decDegrees: wcs.decDegrees,
@@ -95,12 +92,12 @@ void main() {
           );
           if (p != null && p.onImage) pts.add((p.pixel.x, p.pixel.y));
         }
-        final W = fits.width.toDouble(), H = fits.height.toDouble();
+        final lastX = fits.width - 1.0, lastY = fits.height - 1.0;
         final variants = <String, (double, double) Function((double, double))>{
           'production': (p) => p,
-          'flipY': (p) => (p.$1, H - p.$2),
-          'flipX': (p) => (W - p.$1, p.$2),
-          'flipXY': (p) => (W - p.$1, H - p.$2),
+          'flipY': (p) => (p.$1, lastY - p.$2),
+          'flipX': (p) => (lastX - p.$1, p.$2),
+          'flipXY': (p) => (lastX - p.$1, lastY - p.$2),
         };
         for (final v in variants.entries) {
           var n = 0;
