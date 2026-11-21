@@ -86,6 +86,24 @@ class UpdateDownloader {
           ),
         );
 
+    // If resuming from a partial file that is no longer valid on the server
+    // (e.g. server replaced the artifact with a smaller file, or the partial
+    // already reached/passed EOF), HTTP 416 would wedge every future retry.
+    // Delete the stale partial and restart once from byte 0.
+    if (streamedResponse.statusCode == 416 && existingBytes > 0) {
+      await streamedResponse.stream.drain<void>().catchError((Object _) {});
+      if (await destination.exists()) {
+        await destination.delete();
+      }
+      return download(
+        url,
+        destinationPath,
+        expectedSize: expectedSize,
+        onProgress: onProgress,
+        cancelToken: cancelToken,
+      );
+    }
+
     // Check if server supports range requests
     final isPartialContent = streamedResponse.statusCode == 206;
     final isFullContent = streamedResponse.statusCode == 200;
@@ -105,16 +123,35 @@ class UpdateDownloader {
 
     int totalBytes;
     if (isPartialContent) {
-      // Parse Content-Range header: bytes 1000-2000/3000
+      // Parse Content-Range header: bytes <start>-<end>/<total>
       final contentRange = streamedResponse.headers['content-range'];
       if (contentRange != null) {
-        final match = RegExp(r'bytes \d+-\d+/(\d+)').firstMatch(contentRange);
-        totalBytes = match != null
-            ? int.parse(match.group(1)!)
-            : expectedSize ?? 0;
+        final match = RegExp(
+          r'bytes (\d+)-(\d+)/(\d+|\*)',
+        ).firstMatch(contentRange);
+        if (match == null) {
+          throw DownloadException(
+            'Malformed Content-Range header on 206 response: $contentRange',
+            206,
+          );
+        }
+        final rangeStart = int.parse(match.group(1)!);
+        if (rangeStart != existingBytes) {
+          throw DownloadException(
+            'Server Content-Range start ($rangeStart) does not match local '
+            'resume offset ($existingBytes)',
+            206,
+          );
+        }
+        final totalGroup = match.group(3)!;
+        totalBytes = totalGroup == '*'
+            ? (expectedSize ?? 0)
+            : int.parse(totalGroup);
       } else {
+        final contentLength = streamedResponse.contentLength;
         totalBytes =
-            expectedSize ?? existingBytes + streamedResponse.contentLength!;
+            expectedSize ??
+            (contentLength != null ? existingBytes + contentLength : 0);
       }
     } else {
       totalBytes = streamedResponse.contentLength ?? expectedSize ?? 0;

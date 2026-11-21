@@ -196,7 +196,7 @@ class HeadlessAuthGrant {
     if (isAdmin) return 'admin';
     final entries = levels.entries.toList()
       ..sort((a, b) => a.key.index.compareTo(b.key.index));
-    if (entries.isEmpty) return 'view';
+    if (entries.isEmpty) return '';
     final everyControl =
         entries.length == ApiResource.values.length &&
         entries.every((e) => e.value == HeadlessAccessLevel.control);

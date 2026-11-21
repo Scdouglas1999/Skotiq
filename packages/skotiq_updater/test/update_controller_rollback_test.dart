@@ -74,5 +74,24 @@ void main() {
         );
       },
     );
+
+    test(
+      'rollback refuses when restore point exists but applySafetyCheck is unwired',
+      () async {
+        final log = rollbackLog();
+        await log.parent.create(recursive: true);
+        await log.writeAsString(
+          jsonEncode({
+            'moved': <Map<String, String>>[],
+            'created': <String>[],
+            'created_dirs': <String>[],
+          }),
+        );
+        expect(
+          () => controller.rollback(jobId: 'job-2'),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
   });
 }

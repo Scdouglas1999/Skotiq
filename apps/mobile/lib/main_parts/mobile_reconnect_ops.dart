@@ -454,16 +454,19 @@ mixin _MobileReconnectOps on _MobileConnectionState {
 
         // Persistence is secondary to the already-live session. A disk or
         // keychain failure must not turn a successful connection into a
-        // misleading connection error.
-        try {
-          await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
-        } catch (e, stackTrace) {
-          Log.error(
-            'Could not cache connected server for startup reconnect: $e',
-            source: 'Discovery',
-            error: e,
-            stackTrace: stackTrace,
-          );
+        // misleading connection error. Relay sessions must not overwrite
+        // lastServer with their ephemeral 127.0.0.1 loopback tunnel port.
+        if (_activeRelayTunnel == null) {
+          try {
+            await EnhancedSkotiqDiscovery.saveLastServer(enrichedServer);
+          } catch (e, stackTrace) {
+            Log.error(
+              'Could not cache connected server for startup reconnect: $e',
+              source: 'Discovery',
+              error: e,
+              stackTrace: stackTrace,
+            );
+          }
         }
         if (!_isCurrentConnectionOperation(operationGeneration) ||
             !backendNotifier.isCurrentBackend(connectedBackend)) {

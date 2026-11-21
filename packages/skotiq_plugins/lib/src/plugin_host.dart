@@ -245,12 +245,6 @@ class PluginHost {
         () => plugin.onLoad(context),
       );
 
-      _plugins[plugin.id] = LoadedPlugin(
-        plugin: plugin,
-        context: context,
-        enabled: enabled,
-      );
-
       if (enabled) {
         await _runLifecycle(plugin, context, 'onEnable', plugin.onEnable);
         // Wire sequence-plugin nodes into the registry as soon as the
@@ -262,8 +256,15 @@ class PluginHost {
         }
       }
 
+      _plugins[plugin.id] = LoadedPlugin(
+        plugin: plugin,
+        context: context,
+        enabled: enabled,
+      );
+
       context.logger.info('Plugin registered successfully');
     } catch (e, stackTrace) {
+      nodeRegistry.unregisterPlugin(plugin.id);
       context.logger.error('Failed to register plugin', e, stackTrace);
 
       _plugins[plugin.id] = LoadedPlugin(
@@ -295,25 +296,38 @@ class PluginHost {
 
     try {
       if (loaded.enabled) {
+        try {
+          await _runLifecycle(
+            loaded.plugin,
+            loaded.context,
+            'onDisable',
+            loaded.plugin.onDisable,
+          );
+        } catch (e, stackTrace) {
+          loaded.context.logger.error(
+            'Error disabling plugin during unregister',
+            e,
+            stackTrace,
+          );
+        }
+      }
+
+      try {
         await _runLifecycle(
           loaded.plugin,
           loaded.context,
-          'onDisable',
-          loaded.plugin.onDisable,
+          'onUnload',
+          loaded.plugin.onUnload,
+        );
+      } catch (e, stackTrace) {
+        loaded.context.logger.error(
+          'Error unloading plugin during unregister',
+          e,
+          stackTrace,
         );
       }
 
-      await _runLifecycle(
-        loaded.plugin,
-        loaded.context,
-        'onUnload',
-        loaded.plugin.onUnload,
-      );
-
       loaded.context.logger.info('Plugin unregistered successfully');
-    } catch (e, stackTrace) {
-      loaded.context.logger.error('Error unregistering plugin', e, stackTrace);
-      // Continue with removal even if unload fails
     } finally {
       _plugins.remove(pluginId);
     }
@@ -361,12 +375,21 @@ class PluginHost {
         // doesn't show ghost entries for a plugin that's halfway through
         // releasing resources.
         nodeRegistry.unregisterPlugin(pluginId);
-        await _runLifecycle(
-          loaded.plugin,
-          loaded.context,
-          'onDisable',
-          loaded.plugin.onDisable,
-        );
+        try {
+          await _runLifecycle(
+            loaded.plugin,
+            loaded.context,
+            'onDisable',
+            loaded.plugin.onDisable,
+          );
+        } catch (_) {
+          // Restore node registrations if disable failed so registry and
+          // enabled flag stay consistent.
+          if (loaded.plugin is SequencePlugin) {
+            nodeRegistry.registerSequencePlugin(loaded.plugin as SequencePlugin);
+          }
+          rethrow;
+        }
         loaded.context.logger.info('Plugin disabled');
       }
 

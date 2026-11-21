@@ -96,11 +96,48 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             // socket as the canonical viewer id.
             final ticketIdentity = _wsTicketManager.consume(queryTicket);
             if (ticketIdentity != null) {
+              // Re-verify the issuing principal is still active (not revoked
+              // between mint and upgrade) and still permitted for this route,
+              // and attach its grant so downstream WS checks see its real
+              // privileges (e.g. admin access).
+              final ticketGrant = ticketIdentity.isEmpty
+                  ? null
+                  : _grantForIdentity(ticketIdentity);
+              if (ticketGrant == null) {
+                _logWarning(
+                  '[AUTH][$requestId] Rejected WS upgrade to $path - '
+                  'ticket principal is no longer active',
+                );
+                return jsonUnauthorized(
+                  {
+                    'error': 'Authentication required',
+                    'message': 'Invalid or expired WebSocket ticket',
+                  },
+                  headers: {HeadlessApiServer._requestIdHeader: requestId},
+                );
+              }
+              if (!HeadlessAuthPolicy.permits(
+                grant: ticketGrant,
+                route: route,
+              )) {
+                _logWarning(
+                  '[AUTH][$requestId] Rejected WS upgrade to $path - '
+                  'insufficient scope for ticket principal',
+                );
+                return jsonForbidden(
+                  HeadlessAuthPolicy.scopeDenialBody(
+                    grant: ticketGrant,
+                    route: route,
+                  ),
+                  headers: {HeadlessApiServer._requestIdHeader: requestId},
+                );
+              }
               return innerHandler(
                 _attachAuthIdentity(
                   request,
                   identity: ticketIdentity,
                   routeClass: route.bucket,
+                  grant: ticketGrant,
                 ),
               );
             }

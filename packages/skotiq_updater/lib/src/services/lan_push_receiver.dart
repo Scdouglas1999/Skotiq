@@ -192,7 +192,12 @@ class LanPushReceiver {
       _receiveState = _ReceiveState.receiving;
       onProgress?.call(0, 0, 0, 'Authenticated connection from $remoteAddress');
 
-      await _receiveUpdate(reader, socket);
+      await _receiveUpdate(reader, socket).timeout(
+        const Duration(minutes: 10),
+        onTimeout: () => throw TimeoutException(
+          'LAN push update transfer timed out after 10 minutes',
+        ),
+      );
     } catch (e) {
       developer.log(
         'Error receiving update: $e',

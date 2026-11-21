@@ -25,6 +25,83 @@ class SubframeService {
   final SubframeStore _store;
   final Uuid _uuid = const Uuid();
 
+  /// Asynchronous variant of [store] for HTTP upload handlers so large FITS
+  /// payloads do not block the hub event loop.
+  Future<SubframeReceipt> storeAsync({
+    required String accountId,
+    required int tileId,
+    required int order,
+    required Uint8List bytes,
+    int? capturedImageId,
+    String? instrument,
+    double? exposureSeconds,
+    String? license,
+    String? consentId,
+  }) async {
+    final contributionId = _uuid.v4();
+    final path = await _store.saveAsync(
+      accountId: accountId,
+      tileId: tileId,
+      order: order,
+      contributionId: contributionId,
+      bytes: bytes,
+    );
+    return _recordStored(
+      contributionId: contributionId,
+      accountId: accountId,
+      tileId: tileId,
+      order: order,
+      path: path,
+      byteCount: bytes.length,
+      capturedImageId: capturedImageId,
+      instrument: instrument,
+      exposureSeconds: exposureSeconds,
+      license: license,
+      consentId: consentId,
+    );
+  }
+
+  SubframeReceipt _recordStored({
+    required String contributionId,
+    required String accountId,
+    required int tileId,
+    required int order,
+    required String path,
+    required int byteCount,
+    int? capturedImageId,
+    String? instrument,
+    double? exposureSeconds,
+    String? license,
+    String? consentId,
+  }) {
+    _db.db.execute(
+      'INSERT INTO raw_subframe_contributions '
+      '(contribution_id, account_id, tile_id, healpix_order, '
+      'captured_image_id, path, bytes, instrument, exposure_seconds, '
+      'license, consent_id, received_at) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+      <Object?>[
+        contributionId,
+        accountId,
+        tileId,
+        order,
+        capturedImageId,
+        path,
+        byteCount,
+        instrument,
+        exposureSeconds,
+        license,
+        consentId,
+        DateTime.now().toUtc().toIso8601String(),
+      ],
+    );
+    return SubframeReceipt(
+      contributionId: contributionId,
+      accepted: true,
+      storedBytes: byteCount,
+    );
+  }
+
   /// Store one raw FITS subframe for [accountId] under [tileId]/[order] and
   /// record its ledger row. Returns the receipt the handler echoes back.
   SubframeReceipt store({
@@ -46,31 +123,18 @@ class SubframeService {
       contributionId: contributionId,
       bytes: bytes,
     );
-    _db.db.execute(
-      'INSERT INTO raw_subframe_contributions '
-      '(contribution_id, account_id, tile_id, healpix_order, '
-      'captured_image_id, path, bytes, instrument, exposure_seconds, '
-      'license, consent_id, received_at) '
-      'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-      <Object?>[
-        contributionId,
-        accountId,
-        tileId,
-        order,
-        capturedImageId,
-        path,
-        bytes.length,
-        instrument,
-        exposureSeconds,
-        license,
-        consentId,
-        DateTime.now().toUtc().toIso8601String(),
-      ],
-    );
-    return SubframeReceipt(
+    return _recordStored(
       contributionId: contributionId,
-      accepted: true,
-      storedBytes: bytes.length,
+      accountId: accountId,
+      tileId: tileId,
+      order: order,
+      path: path,
+      byteCount: bytes.length,
+      capturedImageId: capturedImageId,
+      instrument: instrument,
+      exposureSeconds: exposureSeconds,
+      license: license,
+      consentId: consentId,
     );
   }
 

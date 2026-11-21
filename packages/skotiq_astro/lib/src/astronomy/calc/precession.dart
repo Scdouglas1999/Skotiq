@@ -33,6 +33,57 @@ double _meanObliquity(double jd) {
   return eps0 - (46.8150 * t + 0.00059 * t * t - 0.001813 * t * t * t) / 3600.0;
 }
 
+/// Applies the exact orthogonal 3D nutation rotation
+/// R_x(-(eps0 + dEps)) * R_z(dPsi) * R_x(eps0) when [inverse] is false, or its
+/// exact transpose when [inverse] is true. Working in unit vectors avoids the
+/// tan(dec) singularity at the celestial poles (dec = ±90°).
+(double raRad, double decRad) _applyNutation3D({
+  required double raRad,
+  required double decRad,
+  required double eps0Rad,
+  required double dPsiRad,
+  required double dEpsRad,
+  required bool inverse,
+}) {
+  final cosDec = math.cos(decRad);
+  final x0 = cosDec * math.cos(raRad);
+  final y0 = cosDec * math.sin(raRad);
+  final z0 = math.sin(decRad);
+
+  final epsRad = eps0Rad + dEpsRad;
+  final cosE0 = math.cos(eps0Rad);
+  final sinE0 = math.sin(eps0Rad);
+  final cosE = math.cos(epsRad);
+  final sinE = math.sin(epsRad);
+  final cosP = math.cos(dPsiRad);
+  final sinP = math.sin(dPsiRad);
+
+  final double xOut;
+  final double yOut;
+  final double zOut;
+  if (!inverse) {
+    // Mean equatorial -> mean ecliptic -> true ecliptic -> true equatorial
+    final y1 = y0 * cosE0 + z0 * sinE0;
+    final z1 = -y0 * sinE0 + z0 * cosE0;
+    final x2 = x0 * cosP - y1 * sinP;
+    final y2 = x0 * sinP + y1 * cosP;
+    xOut = x2;
+    yOut = y2 * cosE - z1 * sinE;
+    zOut = y2 * sinE + z1 * cosE;
+  } else {
+    // True equatorial -> true ecliptic -> mean ecliptic -> mean equatorial
+    final y2 = y0 * cosE + z0 * sinE;
+    final z2 = -y0 * sinE + z0 * cosE;
+    final x1 = x0 * cosP + y2 * sinP;
+    final y1 = -x0 * sinP + y2 * cosP;
+    xOut = x1;
+    yOut = y1 * cosE0 - z2 * sinE0;
+    zOut = y1 * sinE0 + z2 * cosE0;
+  }
+
+  return (math.atan2(yOut, xOut), math.asin(zOut.clamp(-1.0, 1.0)));
+}
+
 (double raDeg, double decDeg) _precessFromJ2000ToDate({
   required double raDeg,
   required double decDeg,
@@ -67,29 +118,24 @@ double _meanObliquity(double jd) {
       math.sin(theta) * math.cos(dec0) * math.cos(ra0 + zeta) +
       math.cos(theta) * math.sin(dec0);
 
-  var raDate = math.atan2(a, b) + z;
-  final decDate = math.asin(c.clamp(-1.0, 1.0));
+  final raMean = math.atan2(a, b) + z;
+  final decMean = math.asin(c.clamp(-1.0, 1.0));
 
-  // Apply nutation (rotate by dPsi about the ecliptic pole, working in the
-  // equatorial frame via the standard first-order correction).
   final (dPsi, dEps) = _nutation(jd);
-  final eps = (_meanObliquity(jd) + dEps) * _deg2rad;
-  final dPsiRad = dPsi * _deg2rad;
-  final dEpsRad = dEps * _deg2rad;
+  final (raApp, decApp) = _applyNutation3D(
+    raRad: raMean,
+    decRad: decMean,
+    eps0Rad: _meanObliquity(jd) * _deg2rad,
+    dPsiRad: dPsi * _deg2rad,
+    dEpsRad: dEps * _deg2rad,
+    inverse: false,
+  );
 
-  final dRa =
-      (math.cos(eps) + math.sin(eps) * math.sin(raDate) * math.tan(decDate)) *
-          dPsiRad -
-      (math.cos(raDate) * math.tan(decDate)) * dEpsRad;
-  final dDec =
-      (math.sin(eps) * math.cos(raDate)) * dPsiRad + math.sin(raDate) * dEpsRad;
-
-  raDate += dRa;
-  var raOut = raDate * _rad2deg;
+  var raOut = raApp * _rad2deg;
   raOut = raOut % 360;
   if (raOut < 0) raOut += 360;
 
-  return (raOut, (decDate + dDec) * _rad2deg);
+  return (raOut, decApp * _rad2deg);
 }
 
 (double raDeg, double decDeg) _precessFromDateToJ2000({
@@ -100,32 +146,15 @@ double _meanObliquity(double jd) {
   final jd = _julianDate(dt);
   final t = (jd - _j2000) / 36525;
 
-  // Undo nutation. The forward correction is evaluated at the MEAN place, so
-  // simply subtracting it evaluated at the apparent place leaves a
-  // second-order residual — a few milliarcseconds, amplified by tan(dec) near
-  // the pole. One fixed-point refinement (re-evaluate at the recovered mean
-  // place) drives it below a microarcsecond, which is what makes this the
-  // exact inverse of [precessFromJ2000ToDate] rather than an approximation
-  // that quietly drifts.
   final (dPsi, dEps) = _nutation(jd);
-  final eps = (_meanObliquity(jd) + dEps) * _deg2rad;
-  final dPsiRad = dPsi * _deg2rad;
-  final dEpsRad = dEps * _deg2rad;
-
-  (double, double) nutationOffset(double ra, double dec) => (
-    (math.cos(eps) + math.sin(eps) * math.sin(ra) * math.tan(dec)) * dPsiRad -
-        (math.cos(ra) * math.tan(dec)) * dEpsRad,
-    (math.sin(eps) * math.cos(ra)) * dPsiRad + math.sin(ra) * dEpsRad,
+  final (raDate, decDate) = _applyNutation3D(
+    raRad: raDeg * _deg2rad,
+    decRad: decDeg * _deg2rad,
+    eps0Rad: _meanObliquity(jd) * _deg2rad,
+    dPsiRad: dPsi * _deg2rad,
+    dEpsRad: dEps * _deg2rad,
+    inverse: true,
   );
-
-  final raApp = raDeg * _deg2rad;
-  final decApp = decDeg * _deg2rad;
-
-  var (dRa, dDec) = nutationOffset(raApp, decApp);
-  (dRa, dDec) = nutationOffset(raApp - dRa, decApp - dDec);
-
-  final raDate = raApp - dRa;
-  final decDate = decApp - dDec;
 
   // Same IAU 1976 angles as the forward transform.
   final zeta =

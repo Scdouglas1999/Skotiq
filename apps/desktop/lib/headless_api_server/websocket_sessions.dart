@@ -83,12 +83,19 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     _publishConnectedClientCount();
     _ensureWebSocketHeartbeatTimer();
     _logInfo('New WebSocket connection');
-    socket.sink.add(
-      jsonEncode({
-        'type': 'collaboration_state',
-        'state': _collaborationManager.state.toJson(),
-      }),
-    );
+    try {
+      socket.sink.add(
+        jsonEncode({
+          'type': 'collaboration_state',
+          'state': _collaborationManager.state.toJson(),
+        }),
+      );
+    } catch (e) {
+      _logWarning('Initial WebSocket send failed: $e');
+      _removeWebSocket(socket);
+      unawaited(socket.sink.close());
+      return;
+    }
 
     _socketSubscriptions[socket] = socket.stream.listen(
       (message) {
@@ -136,7 +143,10 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
     _socketAuthIdentities.remove(socket);
     _adminSockets.remove(socket);
     _socketLastSeenAt.remove(socket);
-    _socketSubscriptions.remove(socket);
+    final subscription = _socketSubscriptions.remove(socket);
+    if (subscription != null) {
+      unawaited(subscription.cancel());
+    }
     _sockets.remove(socket);
     _publishConnectedClientCount();
     if (_sockets.isEmpty) {
@@ -173,6 +183,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         } catch (e) {
           _logWarning('WebSocket heartbeat failed: $e');
           _removeWebSocket(socket);
+          unawaited(socket.sink.close());
         }
       }
     });

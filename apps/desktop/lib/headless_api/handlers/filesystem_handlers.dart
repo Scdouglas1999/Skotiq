@@ -72,16 +72,10 @@ class FileSystemHandlers implements RouteSource {
         );
       }
 
+      // Canonicalize and enforce the allow-list BEFORE probing Directory.exists()
+      // so callers cannot use 404 vs 403 responses as an existence oracle for
+      // paths outside the configured browse roots.
       final directory = Directory(requestedPath);
-      final exists = await directory.exists();
-      if (!exists) {
-        return jsonNotFound({'error': 'Directory not found'});
-      }
-
-      // Canonicalize both the requested path and the roots to defeat path
-      // traversal via "..", symlinks, or case-insensitive collisions on
-      // Windows. Reject if the requested path doesn't sit under any allow-
-      // listed root.
       final canonicalRequested = await _canonicalize(directory.path);
       final allowed = _isPathUnderAnyRoot(canonicalRequested, roots);
       if (!allowed) {
@@ -97,6 +91,11 @@ class FileSystemHandlers implements RouteSource {
               .map((r) => {'name': r.label, 'path': r.canonicalPath})
               .toList(),
         });
+      }
+
+      final exists = await directory.exists();
+      if (!exists) {
+        return jsonNotFound({'error': 'Directory not found'});
       }
 
       final entries = await directory

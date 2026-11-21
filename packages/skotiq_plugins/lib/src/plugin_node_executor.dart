@@ -79,29 +79,26 @@ class PluginNodeExecutor {
       );
     }
 
-    // 4. Build the plugin's node instance.
-    final node = registration.definition.createNode(params);
-    if (node == null) {
-      return PluginNodeExecutionResult.failed(
-        'Plugin $pluginId rejected the node parameters '
-        '(createNode returned null). Check the node\'s configuration.',
-      );
-    }
-
-    // 5. Pre-execution validation. Surfaces friendly errors before we
-    // commit to a long-running execute().
-    final validationError = node.validate();
-    if (validationError != null) {
-      return PluginNodeExecutionResult.failed(
-        'Plugin node ${registration.pluginName}/${registration.definition.name} '
-        'failed validation: $validationError',
-      );
-    }
-
-    // 6. Execute the node. We never let plugin exceptions tear down the
-    // executor — every error path becomes a structured failure result.
+    // 4-6. Build, validate, and execute the node inside one error barrier so
+    // a throwing plugin can never crash the sequence executor.
     final effectiveTimeout = timeout ?? defaultTimeout;
     try {
+      final node = registration.definition.createNode(params);
+      if (node == null) {
+        return PluginNodeExecutionResult.failed(
+          'Plugin $pluginId rejected the node parameters '
+          '(createNode returned null). Check the node\'s configuration.',
+        );
+      }
+
+      final validationError = node.validate();
+      if (validationError != null) {
+        return PluginNodeExecutionResult.failed(
+          'Plugin node ${registration.pluginName}/${registration.definition.name} '
+          'failed validation: $validationError',
+        );
+      }
+
       final ok = await node.execute(context).timeout(effectiveTimeout);
       return PluginNodeExecutionResult(
         success: ok,

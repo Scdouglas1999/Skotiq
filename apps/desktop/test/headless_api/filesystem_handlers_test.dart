@@ -126,11 +126,9 @@ void main() {
       },
     );
 
-    test('browse reports missing directory as JSON not found', () async {
-      final missingPath = Directory.systemTemp
-          .createTempSync('skotiq_missing_parent_')
-          .path;
-      await Directory(missingPath).delete(recursive: true);
+    test('browse reports missing directory inside configured root as JSON not found', () async {
+      final missingPath =
+          '${envBrowseRoot.path}${Platform.pathSeparator}skotiq_missing_child';
 
       final response = await translateHandlerErrors(
         handlers.handleBrowseDirectories(
@@ -148,6 +146,31 @@ void main() {
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['error'], 'Directory not found');
     });
+
+    test(
+      'browse rejects missing directories outside configured roots without leaking existence',
+      () async {
+        final missingOutside = Directory.systemTemp
+            .createTempSync('skotiq_missing_outside_')
+            .path;
+        await Directory(missingOutside).delete(recursive: true);
+
+        final response = await translateHandlerErrors(
+          handlers.handleBrowseDirectories(
+            Request(
+              'GET',
+              Uri.parse(
+                'http://localhost/api/files/browse?path=${Uri.encodeQueryComponent(missingOutside)}',
+              ),
+            ),
+          ),
+        );
+
+        expect(response.statusCode, HttpStatus.forbidden);
+        final body = jsonDecode(await response.readAsString()) as Map;
+        expect(body['error'], 'path_not_allowed');
+      },
+    );
 
     test('validate directory reports required path errors as JSON', () async {
       final response = await translateHandlerErrors(

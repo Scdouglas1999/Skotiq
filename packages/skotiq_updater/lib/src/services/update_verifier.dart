@@ -86,10 +86,10 @@ class UpdateVerifier {
   bool get hasTrustedPublicKey =>
       _trustedKeys.any((key) => !_revokedKeyIds.contains(key.keyId));
 
-  /// Calculate SHA256 hash of a file
+  /// Calculate SHA256 hash of a file without buffering the entire archive in RAM.
   Future<String> hashFile(File file) async {
-    final bytes = await file.readAsBytes();
-    return sha256.convert(bytes).toString();
+    final digest = await sha256.bind(file.openRead()).first;
+    return digest.toString();
   }
 
   /// Calculate SHA256 hash of bytes

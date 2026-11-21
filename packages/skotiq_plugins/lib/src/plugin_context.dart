@@ -442,14 +442,43 @@ class SandboxedPluginEventBus implements PluginEventBus {
   @override
   Stream<Map<String, dynamic>> on(String eventName) {
     _validateEventName(eventName);
-    _subscriptionCount++;
-    if (_subscriptionCount > _policy.maxNamedSubscriptions) {
+    if (_subscriptionCount >= _policy.maxNamedSubscriptions) {
       throw PluginException(
         'Plugin $_pluginId exceeded the event subscription limit '
         '(${_policy.maxNamedSubscriptions})',
       );
     }
-    return _inner.on(eventName);
+    _subscriptionCount++;
+    var released = false;
+    void release() {
+      if (released) return;
+      released = true;
+      if (_subscriptionCount > 0) _subscriptionCount--;
+    }
+
+    StreamSubscription<Map<String, dynamic>>? sub;
+    late final StreamController<Map<String, dynamic>> controller;
+    controller = StreamController<Map<String, dynamic>>(
+      onListen: () {
+        sub = _inner.on(eventName).listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: () {
+            release();
+            if (!controller.isClosed) {
+              unawaited(controller.close());
+            }
+          },
+        );
+      },
+      onPause: () => sub?.pause(),
+      onResume: () => sub?.resume(),
+      onCancel: () async {
+        release();
+        await sub?.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   @override

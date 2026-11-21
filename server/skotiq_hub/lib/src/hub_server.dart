@@ -563,10 +563,18 @@ class HubServer {
     };
   }
 
+  DateTime? _lastRateLimitSweep;
+
   Middleware _rateLimitMiddleware() {
     return (Handler inner) {
       return (Request request) async {
-        _rateLimiter.sweep();
+        final now = DateTime.now();
+        final lastSweep = _lastRateLimitSweep;
+        if (lastSweep == null ||
+            now.difference(lastSweep) >= const Duration(seconds: 30)) {
+          _lastRateLimitSweep = now;
+          _rateLimiter.sweep();
+        }
         final identity = _rateLimitIdentity(request);
         if (!_rateLimiter.allow(identity)) {
           final retry = _rateLimiter.retryAfterSeconds(identity);
@@ -582,7 +590,12 @@ class HubServer {
 
   String _rateLimitIdentity(Request request) {
     final token = _bearer(request);
-    if (token != null) return 'tok:${TokenService.hashToken(token)}';
+    // Only bucket by token hash when the token actually resolves to a live
+    // account. Otherwise an attacker sending a fresh random Bearer string on
+    // every request would bypass IP rate limiting and grow the bucket map.
+    if (token != null && _tokens.resolve(token) != null) {
+      return 'tok:${TokenService.hashToken(token)}';
+    }
     final conn = request.context['shelf.io.connection_info'];
     if (conn is HttpConnectionInfo) {
       return 'ip:${conn.remoteAddress.address}';
@@ -1053,7 +1066,7 @@ class HubServer {
       ).toResponse(requestId: requestId);
     }
 
-    final receipt = _subframes.store(
+    final receipt = await _subframes.storeAsync(
       accountId: identity.accountId,
       tileId: tileId,
       order: order,
@@ -2055,7 +2068,7 @@ class HubServer {
       ).toResponse(requestId: requestId);
     }
     final masterId = const Uuid().v4();
-    final path = _mosaicStore.savePanelMaster(
+    final path = await _mosaicStore.savePanelMasterAsync(
       mosaicId: mosaicId,
       panelIndex: panelIndex,
       masterId: masterId,
@@ -2249,7 +2262,7 @@ class HubServer {
       ).toResponse(requestId: requestId);
     }
     final masterId = const Uuid().v4();
-    final path = _mosaicStore.saveOutput(
+    final path = await _mosaicStore.saveOutputAsync(
       mosaicId: mosaicId,
       masterId: masterId,
       bytes: bytes,

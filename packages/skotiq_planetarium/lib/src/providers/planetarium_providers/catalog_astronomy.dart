@@ -16,7 +16,7 @@ final starSpatialIndexProvider = FutureProvider<StarSpatialIndex>((ref) async {
   index.addAllPreSortedByMagnitude(stars);
   // Warm the grid off the critical path so the first zoom past the wide-field
   // threshold (~12 deg) doesn't hitch building the grid mid-gesture.
-  Future.delayed(const Duration(milliseconds: 400), () {
+  final warmTimer = Timer(const Duration(milliseconds: 400), () {
     try {
       index.warmGrid();
     } catch (e) {
@@ -29,6 +29,7 @@ final starSpatialIndexProvider = FutureProvider<StarSpatialIndex>((ref) async {
       );
     }
   });
+  ref.onDispose(warmTimer.cancel);
   return index;
 });
 
@@ -39,7 +40,7 @@ final dsoSpatialIndexProvider = FutureProvider<DsoSpatialIndex>((ref) async {
   // Loader isolate returns DSOs magnitude-sorted; prime to skip a UI-thread sort.
   index.addAllPreSortedByMagnitude(dsos);
   // Warm the grid off the critical path (see starSpatialIndexProvider).
-  Future.delayed(const Duration(milliseconds: 400), () {
+  final warmTimer = Timer(const Duration(milliseconds: 400), () {
     try {
       index.warmGrid();
     } catch (e) {
@@ -52,6 +53,7 @@ final dsoSpatialIndexProvider = FutureProvider<DsoSpatialIndex>((ref) async {
       );
     }
   });
+  ref.onDispose(warmTimer.cancel);
   return index;
 });
 

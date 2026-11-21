@@ -1204,6 +1204,7 @@ class UpdateController {
           'confirms it healthy.',
         );
       }
+      await _applySafetyCheck();
 
       _eventsController.add(
         UpdateApplyStartedEvent(jobId: jobId, version: 'rollback'),

@@ -263,12 +263,13 @@ class BroadcastHandlers implements RouteSource {
   }) {
     const escapeAttr = _htmlAttrEscape;
     const escapeText = _htmlTextEscape;
-    final imgSrc = showImage
-        ? '/api/broadcast/live-stack${hasToken ? '?token=…' : ''}'
-        : '';
-
-    final infoSrc = '/api/broadcast/info${hasToken ? '?token=…' : ''}';
-    final sseSrc = '/api/broadcast/sse${hasToken ? '?token=…' : ''}';
+    final imgBase = showImage ? '/api/broadcast/live-stack' : '';
+    final infoBase = '/api/broadcast/info';
+    final sseBase = '/api/broadcast/sse';
+    // Only set the static <img> src when the broadcast is public; private
+    // broadcasts read `?token=` from window.location.search in JS so the token
+    // is never embedded in the rendered HTML and never truncated to '…'.
+    final initialImgSrc = showImage && !hasToken ? imgBase : '';
 
     final statusBlock = state.active
         ? '<span class="ok">Live</span>'
@@ -429,7 +430,7 @@ class BroadcastHandlers implements RouteSource {
     $offlineBanner
     <div class="stage">
       ${showImage ? '<img id="broadcast-img" alt="Live stack" '
-              'src="${escapeAttr(imgSrc)}">' : '<div class="placeholder">Awaiting first frame…</div>'}
+              '${initialImgSrc.isNotEmpty ? 'src="${escapeAttr(initialImgSrc)}"' : ''}>' : '<div class="placeholder">Awaiting first frame…</div>'}
     </div>
     <div class="telemetry">
       <div class="tile">
@@ -453,21 +454,34 @@ class BroadcastHandlers implements RouteSource {
   </main>
   <footer>Powered by Skotiq · Live stacking refreshes automatically</footer>
   <script>
+    // Carry forward any ?token= from the viewer's URL without baking it into
+    // the rendered HTML body.
+    var urlToken = new URLSearchParams(window.location.search).get('token');
+    function withToken(base) {
+      if (!base) return '';
+      if (!urlToken) return base;
+      var sep = base.indexOf('?') >= 0 ? '&' : '?';
+      return base + sep + 'token=' + encodeURIComponent(urlToken);
+    }
+
     // Auto-refresh the image at 2 s — slow enough to keep up with even
     // 60 s subs without flooding the network on burst captures, and the
     // ?t= query forces the browser to bypass intermediary caches.
     var imgEl = document.getElementById('broadcast-img');
-    var imgSrc = ${jsonEncode(imgSrc)};
+    var imgSrc = withToken(${jsonEncode(imgBase)});
     function refreshImage() {
       if (!imgEl || !imgSrc) return;
       var separator = imgSrc.indexOf('?') >= 0 ? '&' : '?';
       imgEl.src = imgSrc + separator + 't=' + Date.now();
     }
-    if (imgEl) setInterval(refreshImage, 2000);
+    if (imgEl && imgSrc) {
+      if (!imgEl.getAttribute('src')) refreshImage();
+      setInterval(refreshImage, 2000);
+    }
 
     // Telemetry polling via /info. Same 2 s cadence as the image so
     // the displayed frame counter matches what's on the wire.
-    var infoUrl = ${jsonEncode(infoSrc)};
+    var infoUrl = withToken(${jsonEncode(infoBase)});
     function refreshInfo() {
       if (!infoUrl) return;
       fetch(infoUrl, { credentials: 'omit', cache: 'no-store' })
@@ -490,7 +504,7 @@ class BroadcastHandlers implements RouteSource {
     // SSE drives an immediate refresh when a new frame lands, so the
     // 2 s timer above only acts as a safety net for missed events.
     try {
-      var es = new EventSource(${jsonEncode(sseSrc)}, { withCredentials: false });
+      var es = new EventSource(withToken(${jsonEncode(sseBase)}), { withCredentials: false });
       es.addEventListener('frame', function () {
         refreshImage();
         refreshInfo();

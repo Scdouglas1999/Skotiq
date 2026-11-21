@@ -130,7 +130,7 @@ extension _SkyCanvasPainterProjectionAndGlow on SkyCanvasPainter {
         break;
 
       case SkyProjection.azimuthalEquidistant:
-        final c = math.acos(cosc);
+        final c = math.acos(cosc.clamp(-1.0, 1.0));
         if (c < 0.0001) {
           x = 0;
           y = 0;

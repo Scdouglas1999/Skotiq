@@ -330,6 +330,11 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     _stopConnectionMonitor();
     _voiceActionSub?.cancel();
     _pushRegistration?.dispose();
+    final relayTunnel = _activeRelayTunnel;
+    _activeRelayTunnel = null;
+    if (relayTunnel != null) {
+      unawaited(relayTunnel.close());
+    }
     _ipController.dispose();
     _accessTokenController.dispose();
     super.dispose();

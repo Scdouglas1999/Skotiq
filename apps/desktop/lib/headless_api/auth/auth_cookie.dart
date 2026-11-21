@@ -145,6 +145,10 @@ class AuthCookieManager {
       return false;
     }
     final session = _sessions[matchedKey]!;
+    final now = _now();
+    if (now.isAfter(session.csrfExpiresAt)) {
+      return false;
+    }
     // Why compare against the session's CSRF using constant-time as well:
     // a timing leak here would let an attacker who already controls some
     // origin (and can therefore forge POSTs) brute-force the CSRF byte-by-
@@ -152,7 +156,7 @@ class AuthCookieManager {
     if (!constantTimeCompareStrings(session.csrfToken, presented)) {
       return false;
     }
-    session.csrfExpiresAt = _now().add(csrfLifetime);
+    session.csrfExpiresAt = now.add(csrfLifetime);
     return true;
   }
 
