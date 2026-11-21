@@ -167,9 +167,8 @@ async fn a_node_filter_the_wheel_lacks_still_leaves_the_dark_slot() {
 }
 
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn autofocus_on_the_dark_slot_moves_off_it_and_does_not_restore_it() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = wheel_ops(&RIG_WHEEL, 7);
     let mut ctx = ctx_with_ops(ops.clone()).await;
     ctx.target_light_filters = vec![planned("R", Some(1))];

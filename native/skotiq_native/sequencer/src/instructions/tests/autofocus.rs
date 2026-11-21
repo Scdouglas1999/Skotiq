@@ -38,9 +38,9 @@ fn a_filter_with_no_offset_is_not_treated_as_the_reference() {
     assert!(super::super::filter::known_filter_offset(&rig, "L").is_err());
 }
 
-#[test]
-fn autofocus_admission_is_atomic_and_released_by_guard() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+#[tokio::test]
+async fn autofocus_admission_is_atomic_and_released_by_guard() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let first = try_admit_autofocus_run().expect("first run must admit");
     assert!(
         try_admit_autofocus_run().is_none(),
@@ -51,13 +51,9 @@ fn autofocus_admission_is_atomic_and_released_by_guard() {
     drop(next);
 }
 
-// Single-threaded (current-thread) tokio runtime, so holding the sync gate
-// lock across awaits cannot deadlock; the lock only serializes vs other
-// gate tests running on separate threads.
 #[tokio::test(start_paused = true)]
-#[allow(clippy::await_holding_lock)]
 async fn node_admission_waits_for_inflight_run_then_times_out_on_stuck_gate() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
 
     // Scenario 1: a trigger-fired run holds the gate; the node waiter must
     // block while it is held rather than fail the run.
@@ -80,7 +76,15 @@ async fn node_admission_waits_for_inflight_run_then_times_out_on_stuck_gate() {
 
     // Scenario 2: a gate that never releases must time out (not hang).
     let _stuck = try_admit_autofocus_run().expect("hold the gate");
-    let result = admit_autofocus_run_waiting(Duration::from_secs(600)).await;
+    let max_wait = Duration::from_secs(600);
+    let started = tokio::time::Instant::now();
+    let result = tokio::time::timeout(
+        max_wait + Duration::from_secs(1),
+        admit_autofocus_run_waiting(max_wait),
+    )
+    .await
+    .expect("admission must finish at its deadline");
+    assert!(started.elapsed() >= max_wait);
     assert!(
         result.is_none(),
         "a gate that never releases must time out, not hang forever"
@@ -127,9 +131,8 @@ async fn autofocus_cleanup_restores_and_verifies_original_position() {
 }
 
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn autofocus_restores_the_filter_but_leaves_guiding_stopped_when_the_run_stops() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(ScriptedDomeRotatorOps::new().with_guiding(true));
     let ctx = ctx_with_ops(ops.clone()).await;
     ctx.cancellation_token.store(true, Ordering::SeqCst);
@@ -555,6 +558,7 @@ fn autofocus_hfr_measures_comatic_defocused_field() {
 
 #[tokio::test(start_paused = true)]
 async fn failed_af_restores_original_filter_without_requiring_offset() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     // Rig is on L, reference filter is R, and L has no focus offset from R.
     // AF switches to R and fails (dark frames); cleanup must put the wheel
     // back on L without failing on the missing offset, because the focuser was
@@ -583,6 +587,7 @@ async fn failed_af_restores_original_filter_without_requiring_offset() {
         !msg.contains("CRITICAL CLEANUP FAILURE"),
         "restoring the pre-AF filter after a failed run must not fail on missing offset: {msg}"
     );
+    assert_eq!(*ops.filter_moves.lock().unwrap(), vec![0, 1, 0]);
     assert_eq!(
         ops.filterwheel_get_position("efw-1").await.unwrap(),
         0,
@@ -592,13 +597,14 @@ async fn failed_af_restores_original_filter_without_requiring_offset() {
 
 #[tokio::test(start_paused = true)]
 async fn failed_af_reverses_entry_filter_focus_offset_delta() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     // Rig is mid-run on OIII (offset +40 from L), so the focuser sits at
     // 5040 with last_applied_filter_offset == 40. AF switches to L (offset 0),
     // which shifts the focuser 5040 -> 5000, then fails on dark frames and
     // returns the focuser to 5000 (the post-entry position). Cleanup must move
     // the wheel back to OIII AND shift the focuser back to 5040 with
     // last_applied_filter_offset == 40 rather than stranding OIII at L's focus.
-    let ops = Arc::new(ScriptedDomeRotatorOps::new().with_focus_model(
+    let mut rig = ScriptedDomeRotatorOps::new().with_focus_model(
         5040,
         Box::new(|_| ImageData {
             width: 64,
@@ -607,7 +613,9 @@ async fn failed_af_reverses_entry_filter_focus_offset_delta() {
             bits_per_pixel: 16,
             ..Default::default()
         }),
-    ));
+    );
+    rig.filter_names = ["L", "R", "G", "B", "Ha", "OIII"].map(str::to_owned).into();
+    let ops = Arc::new(rig);
     let mut ctx = ctx_with_ops(ops.clone()).await;
     ctx.run.rig.filterwheel_id = Some("efw-1".to_string());
     ctx.run.rig.focuser_id = Some("foc-1".to_string());
@@ -634,6 +642,7 @@ async fn failed_af_reverses_entry_filter_focus_offset_delta() {
         !msg.contains("CRITICAL CLEANUP FAILURE"),
         "failed AF cleanup must succeed cleanly: {msg}"
     );
+    assert_eq!(*ops.filter_moves.lock().unwrap(), vec![5, 0, 5]);
     assert_eq!(
         ops.filterwheel_get_position("efw-1").await.unwrap(),
         5,
@@ -1018,9 +1027,8 @@ fn the_unguided_hold_message_says_what_happened_and_what_did_not() {
 /// A sweep that left the guider down must not be retried. Its next attempt's
 /// exposures run on an unguided mount and its entry stops the guider again.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_guiderless_sweep_is_not_retried_across_attempts() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(
         // The guider is STOPPED — autofocus stopped it for the sweep — and the
         // resume will be accepted without ever reporting guiding.
@@ -1092,9 +1100,8 @@ async fn a_cleanly_failing_sweep_is_retried_exactly_up_to_the_budget() {
 /// panel: no call returns its outcome to the UI, so a sweep that ends without
 /// an `AutofocusFinished` leaves the panel reading "running" for the night.
 #[tokio::test]
-#[allow(clippy::await_holding_lock)]
 async fn a_run_autofocus_reports_how_it_ended_on_the_event_channel() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let (tx, mut rx) = tokio::sync::broadcast::channel(64);
 
     // Stopped before the first point.

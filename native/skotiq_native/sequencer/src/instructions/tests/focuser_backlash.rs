@@ -14,7 +14,6 @@
 //! from above, 105 apart — which is the fact these tests encode.
 // Every test here drives autofocus or backlash calibration through the
 // process-wide admission gate, so each holds `AF_GATE_TEST_LOCK` for its run.
-#![allow(clippy::await_holding_lock)]
 
 use super::*;
 
@@ -326,13 +325,7 @@ async fn calibration_context(ops: Arc<BacklashFocuserOps>) -> InstructionContext
         .await
 }
 
-/// Run a calibration, waiting for the shared camera/focuser gate rather than
-/// failing if something else holds it.
-///
-/// These tests run concurrently with the autofocus tests, which take the same
-/// process-wide gate. Waiting on it through the production waiter serialises
-/// them without a test-only mutex — and a test-only mutex would have to be
-/// held across every await in the run, which is exactly what it must not do.
+/// Run the calibration on the camera/focuser reserved by the calling test.
 async fn run_calibration(
     config: &BacklashCalibrationConfig,
     ctx: &InstructionContext,
@@ -350,7 +343,7 @@ async fn run_calibration(
 /// leaves the wizard's chart empty.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_progress_payload_carries_the_fields_the_wizard_parses() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -433,7 +426,7 @@ async fn the_progress_payload_carries_the_fields_the_wizard_parses() {
 /// its own result. This is the test that makes it fail here instead.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_result_payload_carries_every_field_dart_requires() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -549,7 +542,7 @@ fn the_landing_verification_failure_phrase_is_the_one_dart_matches() {
 /// holds the camera and focuser, rather than driving them underneath it.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_calibration_refuses_to_start_while_autofocus_holds_the_equipment() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let inflight = admit_autofocus_run_waiting(Duration::from_secs(600))
         .await
         .expect("the gate must free up within the test deadline");
@@ -573,7 +566,7 @@ async fn a_calibration_refuses_to_start_while_autofocus_holds_the_equipment() {
 /// backlash, through the whole real pipeline.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_simulated_focuser_with_105_steps_of_backlash_measures_105_steps() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -624,7 +617,7 @@ async fn a_simulated_focuser_with_105_steps_of_backlash_measures_105_steps() {
 /// if the approach is wrong the two fits are measuring the same thing.
 #[tokio::test(flavor = "multi_thread")]
 async fn every_sample_is_approached_from_the_side_its_scan_claims() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -678,7 +671,7 @@ async fn every_sample_is_approached_from_the_side_its_scan_claims() {
 /// thrown away a perfectly good measurement of the owner's focuser.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_run_up_smaller_than_the_backlash_still_measures_it_because_the_scan_accumulates() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -714,7 +707,7 @@ async fn a_run_up_smaller_than_the_backlash_still_measures_it_because_the_scan_a
 /// not as an under-reported figure presented as fact.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_dead_band_wider_than_the_scan_can_take_up_is_refused_not_under_reported() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(1200, STARTING_POSITION));
     let ctx = calibration_context(ops).await;
 
@@ -757,7 +750,7 @@ async fn a_dead_band_wider_than_the_scan_can_take_up_is_refused_not_under_report
 /// figure out of fit noise.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_focuser_with_no_backlash_reports_no_measurable_backlash() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(0, STARTING_POSITION));
     let ctx = calibration_context(ops).await;
 
@@ -796,7 +789,7 @@ fn autofocus_test_config() -> AutofocusConfig {
 /// returned to moving down sits a full dead band away.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_failed_autofocus_puts_the_optics_back_where_it_found_them() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -845,7 +838,7 @@ async fn a_failed_autofocus_puts_the_optics_back_where_it_found_them() {
 /// sweep start already took it up.
 #[tokio::test(flavor = "multi_thread")]
 async fn every_autofocus_sample_is_taken_with_the_dead_band_taken_up() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -886,7 +879,7 @@ async fn every_autofocus_sample_is_taken_with_the_dead_band_taken_up() {
 /// recalibration offer in the app.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_starless_verification_frame_is_not_reported_as_a_bad_landing() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -921,7 +914,7 @@ async fn a_starless_verification_frame_is_not_reported_as_a_bad_landing() {
 /// correctly landed frame fails on noise alone.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_zero_failure_tolerance_does_not_fail_a_correct_landing() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -948,7 +941,7 @@ async fn a_zero_failure_tolerance_does_not_fail_a_correct_landing() {
 /// reports, in this order.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_autofocus_reports_each_step_of_its_sweep() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(
         SIMULATED_BACKLASH,
         STARTING_POSITION,
@@ -1042,7 +1035,7 @@ async fn an_autofocus_reports_each_step_of_its_sweep() {
 /// approach silently not carried out.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_landing_that_did_not_happen_is_caught_by_the_verification_frame() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let config = crate::AutofocusConfig {
         step_size: 30,
         steps_out: 5,
@@ -1147,7 +1140,7 @@ fn rig_fixture(name: &str) -> ImageData {
 /// measured 5.60 px for that landing against 2.94 px with a run-up.
 #[tokio::test(flavor = "multi_thread")]
 async fn the_rig_autofocus_lands_from_below_and_reports_the_frame_it_measured() {
-    let _serial = AF_GATE_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
     let ops = Arc::new(BacklashFocuserOps::new(SIMULATED_BACKLASH, 6550));
     let state = ops.state();
     // The rig's own settings that night (app_settings in its database):

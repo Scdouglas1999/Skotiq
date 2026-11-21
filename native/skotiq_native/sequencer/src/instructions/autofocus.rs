@@ -148,7 +148,7 @@ pub(crate) static AUTOFOCUS_RUN_ACTIVE: AtomicBool = AtomicBool::new(false);
 /// away). Instruction tests and executor tests that fire a trigger autofocus
 /// both take it.
 #[cfg(test)]
-pub(crate) static AF_GATE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub(crate) static AF_GATE_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 pub struct AutofocusRunGuard;
 

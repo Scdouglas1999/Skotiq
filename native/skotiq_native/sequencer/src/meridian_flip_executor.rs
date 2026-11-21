@@ -4567,11 +4567,8 @@ mod tests {
     /// parked the mount and ended the run. The mount is on the new pier side
     /// and tracking; the run now carries on at the previous focus, and says so.
     #[tokio::test(start_paused = true)]
-    #[allow(clippy::await_holding_lock)]
     async fn a_failed_post_flip_refocus_notifies_and_the_flip_completes() {
-        let _serial = crate::AF_GATE_TEST_LOCK
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
+        let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
         let state = Arc::new(MockDeviceOpsState::default());
         state.pier_sides.lock().unwrap().extend([
             crate::meridian::PierSide::East,

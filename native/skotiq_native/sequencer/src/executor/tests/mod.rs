@@ -1210,6 +1210,7 @@ async fn start_refuses_autofocus_pinned_to_a_filter_with_no_filter_wheel() {
 /// sweep still runs, so demanding one here would refuse a run that works.
 #[tokio::test]
 async fn start_allows_autofocus_without_a_filter_when_there_is_no_wheel() {
+    let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
     let dir = std::env::temp_dir().join(format!("sk-af-nofw-{}", uuid::Uuid::new_v4()));
     let mut executor = SequenceExecutor::new();
     executor.set_device_ops(Arc::new(crate::device_ops::NullDeviceOps));
