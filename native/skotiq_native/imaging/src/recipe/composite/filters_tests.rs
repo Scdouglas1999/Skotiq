@@ -377,3 +377,26 @@ fn a_custom_mix_starts_from_the_palette_the_lines_are_known_by() {
         serde_json::json!({"red": {"sii": 1.0}, "green": {"hAlpha": 1.0}, "blue": {"oiii": 1.0}})
     );
 }
+
+/// A name the filter-name rule reads as one band has that band's role, as the
+/// filter wheel and the live stack read it: brands and widths are not bands.
+#[test]
+fn a_name_the_filter_rule_reads_as_one_band_has_its_role() {
+    let table: &[(&str, FilterRole)] = &[
+        ("Baader Ha 7nm", FilterRole::HAlpha),
+        ("Antlia 3nm Ha", FilterRole::HAlpha),
+        ("Hydrogen", FilterRole::HAlpha),
+        ("ZWO R", FilterRole::Red),
+        ("Astronomik G", FilterRole::Green),
+        ("Baader B CCD", FilterRole::Blue),
+        ("Chroma L", FilterRole::Luminance),
+        ("Optolong OIII 6.5nm", FilterRole::Oiii),
+        ("Sulfur II", FilterRole::Sii),
+        ("L-eXtreme", FilterRole::Other("L-eXtreme".to_string())),
+        ("L-Pro", FilterRole::Other("L-Pro".to_string())),
+        ("Ha/OIII", FilterRole::Other("Ha/OIII".to_string())),
+    ];
+    for (name, expected) in table {
+        assert_eq!(classify_filter(Some(name), 1), *expected, "filter {name:?}");
+    }
+}
