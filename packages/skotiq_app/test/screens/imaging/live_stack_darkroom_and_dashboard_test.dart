@@ -68,10 +68,7 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
               'opId': 'background_extract',
               'outcome': 'applied',
             },
-            <String, dynamic>{
-              'opId': 'stretch',
-              'outcome': 'applied',
-            },
+            <String, dynamic>{'opId': 'stretch', 'outcome': 'applied'},
           ],
         },
       },
@@ -89,13 +86,15 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
   Future<Map<String, dynamic>> validate({
     required String recipeJson,
     required Map<String, dynamic> context,
-  }) async => const <String, dynamic>{'valid': true};
+  }) async =>
+      const <String, dynamic>{'valid': true};
 
   @override
   Future<Map<String, dynamic>> renderExport({
     required String recipeJson,
     required Map<String, dynamic> args,
-  }) async => const <String, dynamic>{};
+  }) async =>
+      const <String, dynamic>{};
 }
 
 class _TestLiveStackNotifier extends LiveStackingNotifier {
@@ -197,7 +196,9 @@ Widget _wrap(
           required int height,
           required List<int> data,
           required int channels,
-        }) => Uint8List(width * height * 4)..fillRange(0, width * height * 4, 180),
+        }) =>
+            Uint8List(width * height * 4)
+              ..fillRange(0, width * height * 4, 180),
       ),
       ...overrides,
     ],
@@ -249,11 +250,19 @@ void main() {
       );
       expect(find.text('Live stack (3)'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('night_stage_mode_live_stack')));
+      await tester.tap(
+        find.byKey(const ValueKey('night_stage_mode_live_stack')),
+      );
       await tester.pump(const Duration(milliseconds: 200));
 
-      expect(find.byKey(const ValueKey('live_stack_filter_pill_L')), findsOneWidget);
-      expect(find.byKey(const ValueKey('live_stack_filter_pill_Ha')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('live_stack_filter_pill_L')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live_stack_filter_pill_Ha')),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const ValueKey('live_stack_filter_pill_Ha')));
       await tester.pump(const Duration(milliseconds: 200));
@@ -283,7 +292,9 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.byKey(const ValueKey('live_darkroom_auto_develop')));
+      await tester.tap(
+        find.byKey(const ValueKey('live_darkroom_auto_develop')),
+      );
       await tester.pumpAndSettle();
 
       expect(seam.registryCalls, 1);
@@ -327,9 +338,67 @@ void main() {
       expect(find.text('Alignment residual too high: 4.10px'), findsOneWidget);
       expect(find.text('l_002.fits'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('live_stack_preset_strictQuality')));
+      await tester.tap(
+        find.byKey(const ValueKey('live_stack_preset_strictQuality')),
+      );
       await tester.pump();
       expect(find.textContaining('1.2 px max residual'), findsOneWidget);
+    },
+  );
+
+  test(
+    'Unfiltered is the accent, and real band names keep their own colors',
+    () {
+      // Green primary: a red dot cannot be explained as "fell back to primary".
+      final colors = SkotiqColors.darkWithAccent(const Color(0xFF3DDC97));
+      expect(colors.primary, isNot(FilterColors.red));
+
+      expect(FilterColors.knownColor('Unfiltered'), isNull);
+      expect(FilterColors.knownColor('Filtered'), isNull);
+      expect(FilterColors.knownColor('Infrared'), isNull);
+      expect(liveStackFilterDotColor('Unfiltered', colors), colors.primary);
+      expect(
+        liveStackFilterDotColor('Unfiltered', colors),
+        isNot(FilterColors.forName('Red', colors: colors)),
+      );
+
+      const bands = {
+        'R': FilterColors.red,
+        'Red': FilterColors.red,
+        'G': FilterColors.green,
+        'Green': FilterColors.green,
+        'B': FilterColors.blue,
+        'Blue': FilterColors.blue,
+        'Ha': FilterColors.hydrogenAlpha,
+        'Ha 7nm': FilterColors.hydrogenAlpha,
+        'H-alpha': FilterColors.hydrogenAlpha,
+        'OIII': FilterColors.oxygen,
+        'O3': FilterColors.oxygen,
+        'SII': FilterColors.sulfur,
+        'S2': FilterColors.sulfur,
+        'S-II': FilterColors.sulfur,
+        'O-III': FilterColors.oxygen,
+        'L': FilterColors.luminance,
+        'Lum': FilterColors.luminance,
+        'Luminance': FilterColors.luminance,
+        'Clear': FilterColors.luminance,
+        'NII': FilterColors.nitrogen,
+      };
+      for (final entry in bands.entries) {
+        expect(
+          FilterColors.knownColor(entry.key),
+          entry.value,
+          reason: entry.key,
+        );
+        final dot = liveStackFilterDotColor(entry.key, colors);
+        expect(dot, isNot(colors.primary), reason: entry.key);
+      }
+      expect(
+        liveStackFilterDotColor('Red', colors),
+        FilterColors.forName('Red', colors: colors),
+      );
+      expect(FilterColors.knownColor('L-Pro'), isNull);
+      expect(FilterColors.knownColor('L-eXtreme'), isNull);
     },
   );
 
@@ -362,7 +431,10 @@ void main() {
         overrides: [
           darkroomSeamProvider.overrideWithValue(seam),
           liveStackingProvider.overrideWith((ref) {
-            stackNotifier = _TestLiveStackNotifier(ref, _twoFilterActiveState());
+            stackNotifier = _TestLiveStackNotifier(
+              ref,
+              _twoFilterActiveState(),
+            );
             return stackNotifier;
           }),
         ],
@@ -385,7 +457,8 @@ void main() {
       gate.complete();
       await enableFuture;
 
-      final afterMeasure = container.read(liveStackDarkroomProvider).settingsFor('L');
+      final afterMeasure =
+          container.read(liveStackDarkroomProvider).settingsFor('L');
       expect(afterMeasure.denoiseEnabled, isTrue);
       expect(afterMeasure.denoiseStrength, closeTo(0.72, 1e-6));
       expect(afterMeasure.stretchBlackPoint, closeTo(980.0, 1e-6));
@@ -395,7 +468,10 @@ void main() {
         status: LiveStackingStatus.idle,
       );
       expect(
-        container.read(liveStackDarkroomProvider).settingsFor('L').stretchMeasured,
+        container
+            .read(liveStackDarkroomProvider)
+            .settingsFor('L')
+            .stretchMeasured,
         isFalse,
       );
 
