@@ -95,13 +95,17 @@ class AuthCookieManager {
     return _sessions[matchedKey]!.bearerToken;
   }
 
-  /// Fetch (and refresh) the CSRF token bound to [cookieToken]. Refresh
-  /// semantics: every successful read pushes the CSRF expiry forward, so an
-  /// active operator never sees their CSRF token expire mid-session.
+  /// Fetch the CSRF token bound to [cookieToken].
   ///
-  /// Returns `null` if the cookie is unknown or expired — callers should
-  /// treat that as "the session needs to be re-minted via the cookie
-  /// endpoint with a fresh bearer header."
+  /// While the current token is still inside [csrfLifetime], the same value
+  /// is returned and its expiry is pushed forward, so a dashboard that
+  /// already holds the token keeps working. Once it has expired, a new token
+  /// is issued and the previous value stops validating — extending the old
+  /// token would revive a CSRF secret the idle page may have leaked.
+  ///
+  /// Returns `null` if the cookie is unknown or the cookie itself has
+  /// expired. Callers should treat that as "the session needs to be
+  /// re-minted via the cookie endpoint with a fresh bearer header."
   String? fetchCsrf(String? cookieToken) {
     if (cookieToken == null || cookieToken.isEmpty) {
       return null;
@@ -117,7 +121,11 @@ class AuthCookieManager {
       return null;
     }
     final session = _sessions[matchedKey]!;
-    session.csrfExpiresAt = _now().add(csrfLifetime);
+    final now = _now();
+    if (now.isAfter(session.csrfExpiresAt)) {
+      session.csrfToken = _randomToken(_csrfTokenBytes);
+    }
+    session.csrfExpiresAt = now.add(csrfLifetime);
     return session.csrfToken;
   }
 
@@ -285,7 +293,7 @@ class AuthCookieIssue {
 
 class _CookieSession {
   final String bearerToken;
-  final String csrfToken;
+  String csrfToken;
   final DateTime cookieExpiresAt;
   DateTime csrfExpiresAt;
 

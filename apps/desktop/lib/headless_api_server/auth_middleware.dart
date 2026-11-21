@@ -296,7 +296,17 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         // GET/HEAD/OPTIONS are excluded because CSRF protects state
         // changes; read-only responses do not need it (and pre-flighting
         // every GET would break image/event endpoints).
+        // Logout stays available after the CSRF lifetime. A dashboard tab
+        // that has sat idle past [AuthCookieManager.csrfLifetime] would
+        // otherwise 403 on the only call that can drop the cookie, including
+        // when it no longer has a token to send. SameSite=Strict already
+        // withholds the cookie from cross-site posts; other state changes
+        // still require a live CSRF token.
+        final isLogout =
+            request.method.toUpperCase() == 'POST' &&
+            path == AuthApi.logout.route.path;
         if (tokenFromCookie &&
+            !isLogout &&
             HeadlessApiServer._methodNeedsCsrf(request.method)) {
           final presented =
               request.headers[AuthCookieManager.csrfHeader.toLowerCase()];

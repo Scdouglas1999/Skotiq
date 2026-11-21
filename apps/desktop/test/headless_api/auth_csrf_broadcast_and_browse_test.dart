@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,7 +26,7 @@ class _TestSettings extends AppSettingsNotifier {
 }
 
 void main() {
-  group('Batch 4 security, auth policy, and broadcast regressions', () {
+  group('Auth policy, CSRF, broadcast, and browse', () {
     test('AuthApi routes permit view-scope clients', () {
       expect(AuthApi.wsTicketIssue.route.scope, ApiScope.view);
       expect(AuthApi.cookieIssue.route.scope, ApiScope.view);
@@ -61,6 +62,37 @@ void main() {
           presented: session.csrfToken,
         ),
         isFalse,
+      );
+    });
+
+    test('fetchCsrf keeps a live token and rotates it after expiry', () {
+      var now = DateTime.utc(2026, 11, 21, 12);
+      final manager = AuthCookieManager(now: () => now, random: Random(1));
+      final session = manager.mint('tok-1');
+      expect(manager.fetchCsrf(session.cookieToken), session.csrfToken);
+
+      now = now.add(const Duration(days: 1));
+      expect(manager.fetchCsrf(session.cookieToken), session.csrfToken);
+
+      now = now.add(
+        AuthCookieManager.csrfLifetime + const Duration(seconds: 1),
+      );
+      final rotated = manager.fetchCsrf(session.cookieToken);
+      expect(rotated, isNotNull);
+      expect(rotated, isNot(session.csrfToken));
+      expect(
+        manager.validateCsrf(
+          cookieToken: session.cookieToken,
+          presented: session.csrfToken,
+        ),
+        isFalse,
+      );
+      expect(
+        manager.validateCsrf(
+          cookieToken: session.cookieToken,
+          presented: rotated,
+        ),
+        isTrue,
       );
     });
 
@@ -215,6 +247,62 @@ void main() {
         final upgradeRes = await upgradeReq.close();
         await upgradeRes.drain<void>();
         expect(upgradeRes.statusCode, 401);
+      },
+    );
+
+    test(
+      'cookie logout succeeds without a CSRF token; other posts still require one',
+      () async {
+        final container = createHeadlessTestContainer(
+          overrides: [
+            appSettingsProvider.overrideWith(_TestSettings.new),
+            appVersionProvider.overrideWithValue(
+              const AppVersionInfo(version: '9.0.2', buildNumber: 1),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final server = HeadlessApiServer(
+          container: container,
+          port: 0,
+          bindLocalOnly: true,
+          scopedAuthTokens: const {'viewer-tok': HeadlessTokenScope.view},
+        );
+        await server.start();
+        addTearDown(server.stop);
+        final client = HttpClient();
+        addTearDown(client.close);
+
+        final cookieReq = await client.postUrl(
+          Uri.parse('http://127.0.0.1:${server.actualPort}/api/auth/cookie'),
+        );
+        cookieReq.headers.set('authorization', 'Bearer viewer-tok');
+        cookieReq.headers.set('x-skotiq-version', '9.0.2');
+        final cookieRes = await cookieReq.close();
+        final cookieBody = await cookieRes.transform(utf8.decoder).join();
+        expect(cookieRes.statusCode, 200, reason: cookieBody);
+        final setCookie = cookieRes.headers.value('set-cookie');
+        expect(setCookie, isNotNull);
+        final cookieHeader = setCookie!.split(';').first;
+
+        final blocked = await client.postUrl(
+          Uri.parse('http://127.0.0.1:${server.actualPort}/api/auth/cookie'),
+        );
+        blocked.headers.set('cookie', cookieHeader);
+        blocked.headers.set('x-skotiq-version', '9.0.2');
+        final blockedRes = await blocked.close();
+        final blockedBody = await blockedRes.transform(utf8.decoder).join();
+        expect(blockedRes.statusCode, 403, reason: blockedBody);
+        expect(blockedBody, contains('csrf'));
+
+        final logoutReq = await client.postUrl(
+          Uri.parse('http://127.0.0.1:${server.actualPort}/api/auth/logout'),
+        );
+        logoutReq.headers.set('cookie', cookieHeader);
+        logoutReq.headers.set('x-skotiq-version', '9.0.2');
+        final logoutRes = await logoutReq.close();
+        final logoutBody = await logoutRes.transform(utf8.decoder).join();
+        expect(logoutRes.statusCode, 200, reason: logoutBody);
       },
     );
   });

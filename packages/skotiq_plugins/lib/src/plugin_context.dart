@@ -458,21 +458,24 @@ class SandboxedPluginEventBus implements PluginEventBus {
 
     StreamSubscription<Map<String, dynamic>>? sub;
     late final StreamController<Map<String, dynamic>> controller;
-    controller = StreamController<Map<String, dynamic>>(
+    // Broadcast, matching [StreamPluginEventBus.on]: plugins listen to one
+    // returned stream from more than one place. A single-subscription
+    // controller throws on the second listen.
+    controller = StreamController<Map<String, dynamic>>.broadcast(
       onListen: () {
-        sub = _inner.on(eventName).listen(
-          controller.add,
-          onError: controller.addError,
-          onDone: () {
-            release();
-            if (!controller.isClosed) {
-              unawaited(controller.close());
-            }
-          },
-        );
+        sub = _inner
+            .on(eventName)
+            .listen(
+              controller.add,
+              onError: controller.addError,
+              onDone: () {
+                release();
+                if (!controller.isClosed) {
+                  unawaited(controller.close());
+                }
+              },
+            );
       },
-      onPause: () => sub?.pause(),
-      onResume: () => sub?.resume(),
       onCancel: () async {
         release();
         await sub?.cancel();

@@ -670,7 +670,10 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     _socketLastSeenAt.clear();
     _sockets.clear();
     _publishConnectedClientCount();
-    _collaborationManager.dispose();
+    // The collaboration manager is created once with the server. Closing its
+    // stream here made stop()/start() accept new sockets but drop every later
+    // collaboration update, because nothing reconstructs the controller.
+    // The subscription above is already cancelled; start() listens again.
     // Why close the pairing DB: PairingService owns a Drift connection.
     // Leaving it open across server restarts leaks file handles in tests.
     // Best-effort: if the underlying LazyDatabase never opened (e.g. startup
