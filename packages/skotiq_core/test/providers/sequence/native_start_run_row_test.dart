@@ -112,6 +112,33 @@ void main() {
     return container.read(currentRunIdProvider)!;
   }
 
+  test('two overlapping loaded starts reach the native executor once', () async {
+    final container = buildContainer();
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    var starts = 0;
+    when(() => backend.sequencerStart()).thenAnswer((_) async {
+      starts++;
+      if (!entered.isCompleted) entered.complete();
+      await release.future;
+    });
+    final executor = container.read(sequenceExecutorProvider);
+    final first = executor.startLoadedRun(
+      label: const LoadedRunLabel(name: 'overlap'),
+    );
+    try {
+      await entered.future;
+      final second = executor.startLoadedRun(
+        label: const LoadedRunLabel(name: 'overlap'),
+      );
+      await expectLater(second, throwsA(isA<StateError>()));
+      expect(starts, 1);
+    } finally {
+      if (!release.isCompleted) release.complete();
+      await first;
+    }
+  });
+
   test('a native start opens a run row that the run history can see', () async {
     final container = buildContainer();
     final executor = container.read(sequenceExecutorProvider);

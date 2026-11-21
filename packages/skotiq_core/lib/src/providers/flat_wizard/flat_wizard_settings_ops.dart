@@ -193,6 +193,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
     } else {
       try {
         final raw = await ref.read(settingsDaoProvider).read(row);
+        if (!mounted) return;
         if (raw != null) {
           for (final entry in jsonDecode(raw) as List) {
             final filter = FlatFilterSettings.fromJson(
@@ -207,6 +208,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
           source: 'FlatWizardNotifier',
         );
       }
+      if (!mounted) return;
     }
 
     final filterSettings = <FlatFilterSettings>[];
@@ -231,6 +233,7 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
           equipmentProfileId: profileId,
         );
       }
+      if (!mounted) return;
 
       filterSettings.add(
         (saved['$i:$filterName'] ??

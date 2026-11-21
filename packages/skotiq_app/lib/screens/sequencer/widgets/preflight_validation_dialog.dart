@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -213,18 +215,22 @@ class _PreFlightValidationDialogState
       }
       if (lastCompleted == null) return;
 
-      // We don't yet snapshot the sequence definition inside each run
-      // row (see [SequenceDiffDialog.showForRun] for context), so the
-      // diff against the persisted current sequence is the best we can
-      // do. The diff service is structural by node id; if the user has
-      // genuinely changed nothing, this returns an empty result and
-      // we skip the banner.
+      // The run stored the document it executed. The library row may
+      // have been saved again since, with new node ids, and is not what
+      // changed during this plan.
       final repo = ref.read(sequenceRepositoryProvider);
-      final persisted = await repo.loadSequence(sequenceDbId);
-      if (persisted == null) return;
+      final snapshotJson = (await repo.loadRunDiffContext(
+        lastCompleted.id,
+      )).currentSnapshotJson;
+      if (snapshotJson == null || snapshotJson.trim().isEmpty) return;
+      final decoded = jsonDecode(snapshotJson);
+      if (decoded is! Map) return;
+      final previous = ref
+          .read(sequenceFileServiceProvider)
+          .parseFromMap(Map<String, dynamic>.from(decoded));
       final diffService = ref.read(sequenceDiffServiceProvider);
       final result = diffService.diff(
-        previous: persisted,
+        previous: previous,
         current: sequence,
         sensitivity: ref.read(cameraSensitivityProvider),
       );

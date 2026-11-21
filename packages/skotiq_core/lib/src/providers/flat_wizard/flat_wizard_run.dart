@@ -527,9 +527,6 @@ extension FlatWizardRun on FlatWizardNotifier {
               continue;
             }
             discardedInARow = 0;
-            // The filter card shows the exposure the frames are being taken
-            // at now, not the calibration's.
-            updateFilterCalibration(idx, frameExposure, frameAdu);
           }
 
           // Save the frame. A save failure IS a capture failure: the frame is
@@ -590,7 +587,14 @@ extension FlatWizardRun on FlatWizardNotifier {
           );
           incrementFilterCapturedCount(idx);
           final image = capture.image;
-          if (image != null) setLastImage(filePath, image);
+          if (image != null) {
+            setLastImage(filePath, image);
+            // The card matches the preview that was actually saved. A
+            // save that threw has already continued, leaving the previous
+            // frame's ADU in place. Twilight changes the exposure per
+            // frame, so this is that frame's exposure, not the calibration's.
+            updateFilterCalibration(idx, frameExposure, image.stats.mean);
+          }
         }
 
         // Truthful per-filter status from the real saved count

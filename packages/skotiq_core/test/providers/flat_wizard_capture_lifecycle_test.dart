@@ -159,6 +159,43 @@ void main() {
     return notifier;
   }
 
+  test('the ADU readout matches the latest saved preview', () async {
+    final backend = _AutoBackend(
+      exposureMean: (count) => count == 1 ? _onTargetAdu : 30000 + count * 100,
+    );
+    addTearDown(backend.dispose);
+    final container = makeContainer(backend, filterNames: const ['L']);
+    final notifier = await primeWizard(container, frameCount: 2);
+
+    await notifier.runCapture();
+
+    final state = container.read(flatWizardProvider);
+    final preview = state.lastImageData! as CapturedImageResult;
+    expect(preview.stats.mean, 30300);
+    expect(state.filterSettings[0].currentAdu, preview.stats.mean);
+    expect(state.aduHistory.last.adu, preview.stats.mean);
+    final snapshot = container.read(flatWizardSnapshotProvider);
+    final saved = (snapshot['state'] as Map)['filterSettings'] as List;
+    expect((saved[0] as Map)['currentAdu'], preview.stats.mean);
+  });
+
+  test('a failed save leaves the ADU on the last frame that was saved', () async {
+    final backend = _AutoBackend(
+      exposureMean: (count) => count == 1 ? _onTargetAdu : 30000 + count * 100,
+      failSaveAt: (attempt) => attempt == 2,
+    );
+    addTearDown(backend.dispose);
+    final container = makeContainer(backend, filterNames: const ['L']);
+    final notifier = await primeWizard(container, frameCount: 2);
+
+    await notifier.runCapture();
+
+    expect(
+      container.read(flatWizardProvider).filterSettings[0].currentAdu,
+      30200,
+    );
+  });
+
   group('stable per-filter indexing', () {
     test(
       'quick mode with a nonzero current filter updates the RIGHT row',
@@ -624,7 +661,10 @@ CapturedImageResult _image(double mean) => CapturedImageResult(
 /// frame so calibration converges immediately. `saveFitsFromLastCapture`
 /// records the path and optionally throws per [failSaveAt].
 class _AutoBackend extends Mock implements SkotiqBackend {
-  _AutoBackend({this.failSaveAt});
+  _AutoBackend({this.failSaveAt, this.exposureMean});
+
+  /// Mean ADU for the exposure whose start count is [count], 1-based.
+  final double Function(int count)? exposureMean;
 
   /// Called with the 1-based save attempt number; return true to make that
   /// FITS write throw (modelling a disk/permission failure).
@@ -696,7 +736,7 @@ class _AutoBackend extends Mock implements SkotiqBackend {
   Future<CapturedImageResult?> cameraGetLastImage(
     String deviceId, {
     int? maxWidth,
-  }) async => _image(_onTargetAdu);
+  }) async => _image(exposureMean?.call(startCount) ?? _onTargetAdu);
 
   @override
   Future<String> saveFitsFromLastCapture({

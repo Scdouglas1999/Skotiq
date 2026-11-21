@@ -207,6 +207,35 @@ void main() {
     expect(executor.hasRestoredCheckpoint, isFalse);
   });
 
+  test('reset drops a restored checkpoint so the next start is fresh', () async {
+    final profileId = await EquipmentProfilesDao(
+      db,
+    ).createProfile(EquipmentProfilesCompanion.insert(name: 'Backyard Rig'));
+    final sequenceRowId = await SequencesDao(
+      db,
+    ).createSequence(SequencesCompanion.insert(name: 'M31 LRGB'));
+    final c = buildContainer(profileId: profileId);
+    c
+        .read(currentSequenceProvider.notifier)
+        .loadSequence(_builderSequence(sequenceRowId));
+    final executor = c.read(sequenceExecutorProvider);
+    await executor.restoreFromCheckpoint();
+    expect(executor.hasRestoredCheckpoint, isTrue);
+
+    await executor.reset();
+
+    expect(executor.hasRestoredCheckpoint, isFalse);
+    backend.calls.clear();
+    await executor.start();
+    expect(backend.calls.where((call) => call == #sequencerStart), hasLength(1));
+    expect(backend.calls, isNot(contains(#resumeFromCheckpoint)));
+    expect(
+      backend.calls,
+      contains(#sequencerLoadJson),
+      reason: 'the restored tree was cleared, so Start loads the plan again',
+    );
+  });
+
   test(
     'Start after a restore continues in a session already reopened',
     () async {

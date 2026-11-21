@@ -49,9 +49,9 @@ final class RunLaunching extends RunPhase {
 final class RunLive extends RunPhase {
   const RunLive({this.paused = false});
 
-  /// A pause this executor commanded and the native executor confirmed. It
-  /// stops the elapsed-time ticker; a pause native reports on its own does
-  /// not.
+  /// The elapsed-time ticker holds while this is set. A confirmed Pause
+  /// button and a native Paused event both set it, and only while the run
+  /// is live.
   final bool paused;
 
   @override

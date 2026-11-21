@@ -27,6 +27,21 @@ mixin HostRunState on NetworkBackendTransport {
 
   /// Remote-only: stop the host's run through its own executor, keeping or
   /// discarding its resume point as the operator chose.
+  /// Remote-only: start the host's run, carrying the operator's per-target
+  /// handoff choices. The host applies them before its own seed.
+  Future<void> sequencerStartOnHost({
+    Map<String, String> handoffDecisions = const {},
+    bool ignoreUnavailableHistory = false,
+  }) async {
+    await _post(
+      SequencerApi.start,
+      body: <String, dynamic>{
+        'handoffDecisions': handoffDecisions,
+        'ignoreUnavailableHistory': ignoreUnavailableHistory,
+      },
+    );
+  }
+
   Future<void> sequencerStopOnHost({required bool preserveCheckpoint}) async {
     await _post(
       SequencerApi.stop,

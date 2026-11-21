@@ -27,7 +27,10 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
+import '../flat_wizard_provider.dart';
 import '../meridian_flip_provider.dart';
+import '../session_handoff_provider.dart';
+import '../../services/session_handoff_service.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -270,6 +273,7 @@ class SequenceExecutor {
     logger: () => _logger,
     warn: _surfaceRunWarning,
     setExecutionState: _setExecutionState,
+    onLivePauseChanged: _applyNativePause,
     onTerminal: _onTerminalEvent,
   );
 
@@ -408,9 +412,12 @@ class SequenceExecutor {
 
   Future<void> start() async {
     _ensureBackendAuthority();
-    if (_ref.read(isFlipInProgressProvider)) {
+    // A flat run or a flip already owns the mount and the camera. Refuse
+    // before the launch latch, so this start opens no session and no run.
+    if (_ref.read(flatWizardProvider.notifier).isBusy ||
+        _ref.read(isFlipInProgressProvider)) {
       throw StateError(
-        'Cannot start a sequence while a meridian flip is running.',
+        'Cannot start: a flat capture or a meridian flip is in progress.',
       );
     }
     // A. Start serialization + admissible-state gate.
@@ -547,7 +554,15 @@ class SequenceExecutor {
         isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
       );
     }
-    await backend.sequencerStart();
+    final handoff = await _clientHandoffForHost();
+    if (handoff.decisions.isEmpty && !handoff.ignoreUnavailableHistory) {
+      await backend.sequencerStart();
+    } else {
+      await host.sequencerStartOnHost(
+        handoffDecisions: handoff.decisions,
+        ignoreUnavailableHistory: handoff.ignoreUnavailableHistory,
+      );
+    }
     if (_hostRestoreAwaitingStart) {
       _hostRestoreAwaitingStart = false;
       _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
@@ -558,6 +573,39 @@ class SequenceExecutor {
       source: 'SequenceExecutor',
     );
     await _reflectHostRunState(backend);
+  }
+
+  /// The operator's handoff choices on this client. The host seeds from its
+  /// own history after Start, so the choices have to travel with the request.
+  /// A history read that throws is not "no history": without an explicit
+  /// confirmation the start fails and the host is not asked to run.
+  Future<({Map<String, String> decisions, bool ignoreUnavailableHistory})>
+  _clientHandoffForHost() async {
+    final ignore = _ref.read(sessionHandoffIgnoreUnavailableOnceProvider);
+    final sequence = _ref.read(currentSequenceProvider);
+    final decisions = <String, String>{};
+    if (sequence != null && sequence.targetHeaders.isNotEmpty) {
+      List<SessionCarryOver> carry = const [];
+      try {
+        carry = await _ref.read(sessionCarryOverProvider.future);
+      } catch (error, stackTrace) {
+        if (!ignore) {
+          Error.throwWithStackTrace(error, stackTrace);
+        }
+      }
+      for (final entry in carry) {
+        final decision = _ref.read(
+          sessionHandoffDecisionProvider((
+            sequenceId: sequence.databaseId,
+            targetId: entry.targetId,
+          )),
+        );
+        if (decision != null) {
+          decisions['${entry.targetId}'] = decision.name;
+        }
+      }
+    }
+    return (decisions: decisions, ignoreUnavailableHistory: ignore);
   }
 
   /// Stop the run on the imaging host through the host's own executor, which
@@ -757,6 +805,27 @@ class SequenceExecutor {
     Future<void> Function()? admit,
   }) async {
     _ensureBackendAuthority();
+    final admissionState = _ref.read(sequenceExecutionStateProvider);
+    if (_lifecycle.launch.isHeld) {
+      throw StateError(
+        'Cannot start: a sequence start is already in flight or the executor '
+        'is not in an admissible state (state: ${admissionState.name}).',
+      );
+    }
+    // Held across the settings seed and the native start. Releasing it
+    // before sequencerStart returns lets a second headless start through.
+    _acquireLaunchLatch();
+    try {
+      await _startLoadedRunBody(label: label, admit: admit);
+    } finally {
+      _releaseLaunchLatch();
+    }
+  }
+
+  Future<void> _startLoadedRunBody({
+    required LoadedRunLabel? label,
+    required Future<void> Function()? admit,
+  }) async {
     try {
       await _runtimeConfig.seedFromSettings();
     } catch (e, st) {
@@ -1775,6 +1844,18 @@ class SequenceExecutor {
     if (_lifecycle.phase is RunLive) _lifecycle.setPaused(paused);
   }
 
+  /// A native Paused or Resumed event for a live run. A pause that arrives
+  /// after the run has left [RunLive] must not recreate a row status.
+  void _applyNativePause(bool paused) {
+    if (_lifecycle.phase is! RunLive) return;
+    _notePausedByExecutor(paused);
+    unawaited(
+      _persistLiveRunStatus(
+        paused ? SequenceRunStatus.paused : SequenceRunStatus.running,
+      ),
+    );
+  }
+
   /// Publish the run's live state onto its `sequence_runs` row.
   ///
   /// The GUI knew the run was paused; the database did not, and the headless
@@ -2048,6 +2129,12 @@ class SequenceExecutor {
         source: 'SequenceExecutor',
       );
     }
+
+    // A reset starts the next run from the beginning. A restored checkpoint
+    // that survived this would make that start continue the old tree, on
+    // this process and on a client that was waiting to continue the host.
+    _clearRestored();
+    _hostRestoreAwaitingStart = false;
 
     _setExecutionState(SequenceExecutionState.idle);
 
@@ -2392,8 +2479,11 @@ class SequenceExecutor {
   Future<void> _attachToNativeRun() async {
     _ensureBackendAuthority();
     final backend = _backend;
+    // start() has already entered Launching, where this is a no-op. A
+    // loaded run is still Idle or Settled, including while its launch
+    // latch is held, and this is what makes that run live.
     final settled = _lifecycle.phase;
-    if (!_lifecycle.launch.isHeld && _lifecycle.attachNativeRun()) {
+    if (_lifecycle.attachNativeRun()) {
       _logger.info(
         'A new native run is starting on an executor whose previous run '
         'settled as "${(settled as RunSettled).runStatus.token}"; releasing that '

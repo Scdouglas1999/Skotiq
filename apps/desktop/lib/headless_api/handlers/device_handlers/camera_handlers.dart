@@ -185,6 +185,15 @@ extension CameraDeviceHandlers on DeviceHandlers {
 
     final backend = container.read(deviceBackendProvider);
 
+    if (container.read(flatWizardProvider.notifier).isBusy) {
+      throw HandlerFailure(
+        code: 'rig_busy',
+        message:
+            'Finish or cancel the active flat capture before exposing.',
+        statusCode: HttpStatus.conflict,
+      );
+    }
+
     // Refuse to start a second exposure on a camera that is already exposing.
     //
     // The second request reprograms ROI / binning / gain on the sensor
