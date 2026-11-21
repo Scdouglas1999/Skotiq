@@ -26,7 +26,9 @@ class _StatsBar extends StatelessWidget {
       ),
       Readout(
         label: 'Exposure',
-        value: currentFilter?.calibratedExposure?.toStringAsFixed(2),
+        value: currentFilter?.calibratedExposure == null
+            ? null
+            : _exposureSeconds(currentFilter!.calibratedExposure!),
         unit: 's',
         size: ReadoutSize.sm,
       ),

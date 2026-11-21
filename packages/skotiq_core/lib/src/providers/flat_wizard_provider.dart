@@ -48,6 +48,30 @@ final flatWizardProvider =
       return FlatWizardNotifier(ref);
     });
 
+/// Run metadata a linked client mirrors. Preview pixels travel separately.
+final flatWizardSnapshotProvider = Provider<Map<String, dynamic>>((ref) {
+  final state = ref.watch(flatWizardProvider);
+  final output = ref.watch(flatRunOutputProvider);
+  final image = state.lastImageData;
+  return {
+    'state': jsonDecode(jsonEncode(state.toJson())),
+    'busy': ref.read(flatWizardProvider.notifier).isBusy,
+    'previewKey': image is CapturedImageResult ? image.timestamp : null,
+    'output': {
+      for (final entry in output.filters.entries)
+        entry.key: {
+          'filter': entry.value.filter,
+          'exposureSeconds': entry.value.exposureSeconds,
+          'paths': entry.value.paths,
+          'gain': entry.value.gain,
+          'offset': entry.value.offset,
+          'binX': entry.value.binX,
+          'binY': entry.value.binY,
+        },
+    },
+  };
+});
+
 /// The folder flats are saved under: the one the operator chose, else
 /// `Flats` in the capture folder (the host's on a linked client). Null only
 /// when neither is set.
