@@ -5,7 +5,10 @@ import 'package:path/path.dart' as p;
 
 import '../../backend_provider.dart';
 import '../../../backend/frame_capture_metadata.dart';
+import '../../../backend/network_backend.dart' show NetworkBackend;
 import '../../../backend/skotiq_backend.dart';
+import '../../../models/backend/host_mutation_event.dart';
+import '../../host_mutation_event_provider.dart';
 import '../../database_provider.dart' show campaignsDaoProvider;
 import '../../../models/imaging/gain_kind.dart';
 import '../../../models/imaging/imaging_models.dart';
@@ -226,6 +229,7 @@ class RunFrameRecorder {
           pierSide: event.pierSide,
           exclusionReason: exclusion,
         );
+        _notifyPersistedFrame(row.id, HostMutationAction.updated);
         if (exclusion != null && !_isDisposed()) {
           _ref
               .read(sessionImagesProvider.notifier)
@@ -341,6 +345,17 @@ class RunFrameRecorder {
         );
       }
     });
+  }
+
+  void _notifyPersistedFrame(int rowId, String action) {
+    if (_isDisposed() || _backend is NetworkBackend) return;
+    _ref
+        .read(hostMutationEventHubProvider)
+        .publishRemoteOnly(
+          entityType: HostMutationEntity.capturedImage,
+          action: action,
+          entityId: rowId.toString(),
+        );
   }
 
   /// Write [event]'s frame as a `captured_images` row tagged with its
@@ -484,6 +499,7 @@ class RunFrameRecorder {
           qualityScore: qualityScore,
           logger: logger,
         );
+        _notifyPersistedFrame(rowId, HostMutationAction.created);
         // The row is kept whatever happens to its sidecar: a missing one is
         // written on the next thumbnail read.
         if (filePath.isNotEmpty && isAccepted) {
