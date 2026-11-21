@@ -13,7 +13,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -338,8 +337,13 @@ final nightStageSolveProvider = Provider<NightStageSolveVm?>((ref) {
 /// Snapshots and loop frames that are not kept land on one reused scratch
 /// file per camera (`liveview_<camera>.fits`, see ImagingService); a frame
 /// there is shown but never saved.
-bool nightIsScratchFrame(String? filePath) =>
-    filePath != null && p.basename(filePath).startsWith('liveview_');
+bool nightIsScratchFrame(String? filePath) {
+  if (filePath == null || filePath.isEmpty) return false;
+  // The host's path may use Windows separators on a Linux viewer.
+  // `basename` on this process does not treat `\` as a separator.
+  final name = filePath.split(RegExp(r'[\\/]')).last;
+  return name.startsWith('liveview_');
+}
 
 /// The run phases in which nothing has been captured for tonight yet.
 bool nightIsBeforeRun(NightRunPhase phase) =>
