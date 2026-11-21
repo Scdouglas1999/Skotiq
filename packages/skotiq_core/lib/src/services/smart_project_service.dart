@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:drift/drift.dart';
 
 import '../database/database.dart' as db;
-import '../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/scheduler/integration_goal.dart';
 import 'scheduler/integration_goal_service.dart';

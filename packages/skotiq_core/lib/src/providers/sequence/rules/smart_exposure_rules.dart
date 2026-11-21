@@ -1,5 +1,5 @@
 import '../../../models/equipment/equipment_models.dart';
-import '../../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../../../models/sequence/sequence_models.dart';
 import '../../equipment_provider.dart';
 import '../../profiles_provider.dart';

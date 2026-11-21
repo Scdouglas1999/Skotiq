@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 
 /// Explains which exposure ceiling selected the final sub length.
 enum ExposureLimitingFactor { glover, saturation, mount, userCap, floor }

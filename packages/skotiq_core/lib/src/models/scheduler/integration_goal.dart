@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 
 /// User-defined "I want N frames in filter F at exposure E for this target".
 ///

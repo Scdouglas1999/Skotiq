@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/roles/device_backend.dart';
 import '../models/backend/device_types.dart';
 import '../models/equipment/equipment_models.dart';
-import '../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../providers/backend_provider.dart';
 import '../providers/equipment/device_slots.dart';
 import '../providers/equipment/switch_state_provider.dart';

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../../../models/imaging/imaging_models.dart';
 import '../../../models/imaging/naming_pattern.dart';
 import '../../../models/meridian_flip_settings.dart' show TrackingLimitPolicy;

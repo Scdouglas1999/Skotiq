@@ -1,4 +1,4 @@
-import '../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../../models/sequence/sequence_models.dart';
 
 /// The validation issue code of a step naming a filter the wheel or the

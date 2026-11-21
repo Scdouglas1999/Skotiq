@@ -1,4 +1,4 @@
-import '../../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../../../models/imaging/imaging_models.dart' show FrameType;
 import '../../../models/sequence/sequence_models.dart';
 

@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:uuid/uuid.dart';
 
-import '../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../../models/scheduler/integration_goal.dart';
 import '../../models/scheduler/scheduler_decision.dart';
 import '../../models/scheduler/scheduler_status.dart';

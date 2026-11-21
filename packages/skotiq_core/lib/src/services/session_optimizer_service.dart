@@ -3,7 +3,7 @@ import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/session_report.dart';
-import '../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';

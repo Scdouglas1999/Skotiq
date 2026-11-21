@@ -9,9 +9,9 @@
 //! same filter when their bands are the same; a name is never matched by a
 //! piece of another ("R" is not "Dark").
 //!
-//! `models/equipment/filter_names.dart` in the Dart package `skotiq_core`
+//! `filters/filter_names.dart` in the Dart package `skotiq_astro`
 //! holds the same rule for the app. Both are tested against
-//! `packages/skotiq_core/test/fixtures/filter_matching_cases.json`.
+//! `packages/skotiq_astro/test/fixtures/filter_matching_cases.json`.
 
 use std::collections::BTreeSet;
 
@@ -163,7 +163,7 @@ mod tests {
 
     fn fixture() -> serde_json::Value {
         serde_json::from_str(include_str!(
-            "../../../../packages/skotiq_core/test/fixtures/filter_matching_cases.json"
+            "../../../../packages/skotiq_astro/test/fixtures/filter_matching_cases.json"
         ))
         .expect("the shared filter-name fixture is JSON")
     }

@@ -1,7 +1,7 @@
 import '../../database/database.dart';
 import '../../models/calibration/calibration_library_models.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
-import '../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../../models/imaging/integrated_master.dart';
 
 /// The dark chosen for a set of lights, and how far it is from an exact match.

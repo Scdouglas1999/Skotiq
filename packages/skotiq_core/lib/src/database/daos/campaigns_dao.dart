@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../models/campaign.dart';
-import '../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import '../database.dart';
 import '../epoch_seconds.dart';
 
