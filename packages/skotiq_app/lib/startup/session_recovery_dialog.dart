@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -10,10 +11,7 @@ import '../utils/snackbar_helper.dart';
 class SessionRecoveryDialog extends ConsumerStatefulWidget {
   final List<SessionRecoveryInfo> incompleteSessions;
 
-  const SessionRecoveryDialog({
-    super.key,
-    required this.incompleteSessions,
-  });
+  const SessionRecoveryDialog({super.key, required this.incompleteSessions});
 
   @override
   ConsumerState<SessionRecoveryDialog> createState() =>
@@ -41,12 +39,22 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (!ref.watch(sequenceExecutionStateProvider).canStart && !_isBusy) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+          Navigator.of(context).pop();
+        }
+      });
+      return const SizedBox.shrink();
+    }
     final sessionCount = _sessions.length;
     final dialog = AlertDialog(
       title: Row(
         children: [
-          Icon(LucideIcons.alertCircle,
-              color: Theme.of(context).colorScheme.primary),
+          Icon(
+            LucideIcons.alertCircle,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: 12),
           const Text('Incomplete sessions found'),
         ],
@@ -99,8 +107,9 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
           size: ButtonSize.small,
         ),
         SkotiqButton(
-          onPressed:
-              _isBusy || _sessions.isEmpty ? null : _confirmAndDiscardAll,
+          onPressed: _isBusy || _sessions.isEmpty
+              ? null
+              : _confirmAndDiscardAll,
           isLoading: _discardingAll,
           label: 'Discard all',
           variant: ButtonVariant.destructive,
@@ -122,25 +131,19 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
       onRecover: busy
           ? null
           : () async {
-              setState(
-                () => _recoveringSessionIds.add(session.sessionId),
-              );
+              setState(() => _recoveringSessionIds.add(session.sessionId));
               final ok = await _recoverSession(session);
               if (!mounted) return;
               if (ok) {
                 Navigator.of(context).pop();
               } else {
-                setState(
-                  () => _recoveringSessionIds.remove(session.sessionId),
-                );
+                setState(() => _recoveringSessionIds.remove(session.sessionId));
               }
             },
       onDiscard: busy
           ? null
           : () async {
-              setState(
-                () => _discardingSessionIds.add(session.sessionId),
-              );
+              setState(() => _discardingSessionIds.add(session.sessionId));
               final ok = await _discardSession(session);
               if (!mounted) return;
               setState(() {
@@ -188,8 +191,12 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
         ],
       ),
     );
-    if (confirmed != true) return;
-    if (!mounted || _discardingAll) return;
+    if (!mounted) return;
+    if (!ref.read(sequenceExecutionStateProvider).canStart) {
+      Navigator.of(context).pop();
+      return;
+    }
+    if (confirmed != true || _discardingAll) return;
     setState(() => _discardingAll = true);
 
     // Track per-session failures and surface them: a single failed
@@ -226,6 +233,10 @@ class _SessionRecoveryDialogState extends ConsumerState<SessionRecoveryDialog> {
 
   Future<bool> _recoverSession(SessionRecoveryInfo session) async {
     try {
+      if (!ref.read(sequenceExecutionStateProvider).canStart) {
+        if (mounted) Navigator.of(context).pop();
+        return false;
+      }
       final sessionNotifier = ref.read(sessionStateProvider.notifier);
       await sessionNotifier.recoverSession(session);
 
@@ -326,8 +337,10 @@ class _SessionCard extends StatelessWidget {
                 ),
                 _StatChip(
                   icon: LucideIcons.clock,
-                  label: DurationFormat.of(session.duration,
-                      style: DurationStyle.coarse),
+                  label: DurationFormat.of(
+                    session.duration,
+                    style: DurationStyle.coarse,
+                  ),
                 ),
                 _StatChip(
                   icon: LucideIcons.timer,
@@ -377,8 +390,12 @@ class _SessionCard extends StatelessWidget {
       ? '${DurationFormat.seconds(seconds, style: DurationStyle.coarse)} total'
       : 'no integration';
 
-  String _pluralize(int count, String singular,
-      {String? plural, String suffix = ''}) {
+  String _pluralize(
+    int count,
+    String singular, {
+    String? plural,
+    String suffix = '',
+  }) {
     final word = count == 1 ? singular : (plural ?? '${singular}s');
     return '$count $word$suffix';
   }
@@ -389,11 +406,7 @@ class _StatChip extends StatelessWidget {
   final String label;
   final Color? color;
 
-  const _StatChip({
-    required this.icon,
-    required this.label,
-    this.color,
-  });
+  const _StatChip({required this.icon, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {

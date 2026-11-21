@@ -409,6 +409,18 @@ pub(crate) async fn run_sequencer_event_loop(
                     message.clone(),
                     None,
                 )),
+                ExecutorEvent::MeridianFlipProgress { detail_json } => Some(create_event_auto_id(
+                    EventSeverity::Info,
+                    EventCategory::Sequencer,
+                    EventPayload::Sequencer(SequencerEvent::InstructionProgress {
+                        node_id: "__meridian_flip__".to_string(),
+                        instruction: "MeridianFlip".to_string(),
+                        progress_percent: 0.0,
+                        detail: "Meridian flip".to_string(),
+                        detail_kind: "MeridianFlip".to_string(),
+                        detail_json: detail_json.clone(),
+                    }),
+                )),
                 ExecutorEvent::MeridianFlipOutcome {
                     outcome,
                     target_name,

@@ -70,12 +70,20 @@ class NightCameraExposure {
 /// The camera's exposure in flight; null when it is not exposing.
 final nightCameraExposureProvider =
     StateNotifierProvider<NightCameraExposureNotifier, NightCameraExposure?>(
-  NightCameraExposureNotifier.new,
-);
+      NightCameraExposureNotifier.new,
+    );
 
 class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
   NightCameraExposureNotifier(this._ref) : super(null) {
     _bind(_ref.read(backendProvider));
+    _ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider, (
+      previous,
+      next,
+    ) {
+      // A run that becomes startable ended the exposure even when the camera
+      // never sent a terminal event. A pause is still busy, so it stays.
+      if (previous?.isBusy == true && next.canStart) state = null;
+    });
     _ref.listen<SkotiqBackend>(backendProvider, (_, next) {
       state = null;
       _bind(next);
@@ -127,20 +135,42 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
     if (payload is! sk_events.EventPayload_Imaging) return;
     switch (payload.field0) {
       case sk_events.ImagingEvent_ExposureStarted(durationSecs: final total) ||
-            sk_events.ImagingEvent_ExposureStartedWithFrame(
-              durationSecs: final total,
-            ):
+          sk_events.ImagingEvent_ExposureStartedWithFrame(
+            durationSecs: final total,
+          ):
         if (total <= 0) {
           state = null;
           return;
         }
         state = NightCameraExposure(startedAt: _now(), total: total);
       case sk_events.ImagingEvent_ExposureProgress(
-          remainingSecs: final remaining,
-        ):
+        remainingSecs: final remaining,
+        progress: final progress,
+      ):
         final current = state;
-        if (current == null) return;
+        if (!remaining.isFinite || remaining < 0) return;
         final now = _now();
+        if (current == null) {
+          // Tonight can open, or a viewer can join, after ExposureStarted.
+          // The next camera tick still contains the full countdown.
+          if (!progress.isFinite ||
+              progress < 0 ||
+              progress >= 1 ||
+              remaining <= 0) {
+            return;
+          }
+          final total = remaining / (1 - progress);
+          if (!total.isFinite) return;
+          state = NightCameraExposure(
+            startedAt: now.subtract(
+              Duration(milliseconds: ((total - remaining) * 1000).round()),
+            ),
+            total: total,
+            elapsed: total - remaining,
+            reportedAt: now,
+          );
+          return;
+        }
         final last = current.reportedAt ?? current.startedAt;
         if (now.difference(last) < progressResync) return;
         state = NightCameraExposure(
@@ -150,11 +180,11 @@ class NightCameraExposureNotifier extends StateNotifier<NightCameraExposure?> {
           reportedAt: now,
         );
       case sk_events.ImagingEvent_ExposureComplete() ||
-            sk_events.ImagingEvent_ExposureCompleted() ||
-            sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
-            sk_events.ImagingEvent_ExposureCancelled() ||
-            sk_events.ImagingEvent_ExposureFailed() ||
-            sk_events.ImagingEvent_ExposureFailedOld():
+          sk_events.ImagingEvent_ExposureCompleted() ||
+          sk_events.ImagingEvent_ExposureCompletedWithFrame() ||
+          sk_events.ImagingEvent_ExposureCancelled() ||
+          sk_events.ImagingEvent_ExposureFailed() ||
+          sk_events.ImagingEvent_ExposureFailedOld():
         state = null;
       default:
     }

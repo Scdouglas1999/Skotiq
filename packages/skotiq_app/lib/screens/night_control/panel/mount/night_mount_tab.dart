@@ -39,6 +39,7 @@ class NightMountFacts {
     required this.capabilities,
     required this.capabilitiesLoading,
     this.guardBlockReason,
+    this.flipInProgress = false,
   });
 
   final MountState mount;
@@ -51,6 +52,8 @@ class NightMountFacts {
   /// Why the mount guard refuses automatic moves (the mount moved on its own
   /// or its position is unknown), or null.
   final String? guardBlockReason;
+
+  final bool flipInProgress;
 
   bool get connected =>
       mount.connectionState == DeviceConnectionState.connected &&
@@ -72,6 +75,7 @@ class NightMountFacts {
   }) {
     if (!inputs.canCommand) return l10n.text('nightActWhyNoHost');
     if (!connected) return l10n.text('nightActWhyNoMount');
+    if (flipInProgress) return l10n.text('nightActBusyFlip');
     if (!allowWhileGuarded && guardBlockReason != null) {
       return guardBlockReason;
     }
@@ -103,14 +107,16 @@ NightMountFacts watchNightMountFacts(WidgetRef ref, BuildContext context) {
   final mount = ref.watchWhileShown(context, mountStateProvider);
   final deviceId = mount.deviceId;
   // No mount, no capabilities to ask about.
-  final caps =
-      deviceId == null ? null : ref.watch(mountCapabilitiesProvider(deviceId));
+  final caps = deviceId == null
+      ? null
+      : ref.watch(mountCapabilitiesProvider(deviceId));
   return NightMountFacts(
     mount: mount,
     inputs: ref.watch(nightActionInputsProvider),
     capabilities: caps?.valueOrNull,
     capabilitiesLoading: caps?.isLoading == true,
     guardBlockReason: ref.watch(mountGuardEntryProvider(deviceId))?.blockReason,
+    flipInProgress: ref.watch(isFlipInProgressProvider),
   );
 }
 
@@ -159,6 +165,7 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
     final padReason = facts.baseReason(l10n, allowWhileGuarded: true);
     return NightPanelBody(
       children: [
+        const _FlipProgressSection(),
         MountGuardBanner(deviceId: mount.deviceId),
         NightStaleReadingsNote(
           type: DeviceType.mount,
@@ -180,6 +187,56 @@ class _NightMountTabState extends ConsumerState<NightMountTab> {
         ),
         const NightMountGoToSection(),
         const NightMountActionsSection(),
+      ],
+    );
+  }
+}
+
+class _FlipProgressSection extends ConsumerWidget {
+  const _FlipProgressSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(flipExecutionStateProvider);
+    if (state == FlipExecutionState.idle) return const SizedBox.shrink();
+    final l10n = context.l10n;
+    final step = ref.watch(flipCurrentStepProvider);
+    final error = ref.watch(flipLastErrorProvider);
+    final status = switch (state) {
+      FlipExecutionState.executing => 'nightActBusyFlip',
+      FlipExecutionState.retrying => 'nightScopeFlipRetrying',
+      FlipExecutionState.completed => 'statusSequenceCompleted',
+      FlipExecutionState.failed => 'statusSequenceFailed',
+      FlipExecutionState.aborted => 'nightPanelAfCancelled',
+      FlipExecutionState.idle => throw StateError(
+        'idle flip has no progress section',
+      ),
+    };
+    return NightPanelSection(
+      title: l10n.text('nightCtlUpFlip'),
+      trailing: state == FlipExecutionState.executing
+          ? null
+          : l10n.text(status),
+      children: [
+        if (state == FlipExecutionState.executing)
+          NightPanelNote(l10n.text(status)),
+        NightPanelNote(
+          l10n.text(
+            'nightScopeFlipAttempt',
+            params: {
+              'attempt': '${ref.watch(flipCurrentAttemptProvider)}',
+              'progress': '${ref.watch(flipProgressProvider)}',
+            },
+          ),
+        ),
+        if (step != null) NightPanelNote(step.displayName),
+        if (error != null)
+          Text(
+            error,
+            style: SkotiqTypography.captionSm.copyWith(
+              color: context.skotiqColors.error,
+            ),
+          ),
       ],
     );
   }
@@ -227,34 +284,31 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
     final (status, statusTone) = !connected
         ? (l10n.text('nightScopeNotConnected'), null)
         : slewing
-            ? (
-                slew == null
-                    ? l10n.text('nightScopeSlewing')
-                    : l10n.text(
-                        'nightScopeSlewingRemaining',
-                        params: {
-                          'distance': formatSlewDistance(slew.remainingDegrees),
-                        },
-                      ),
-                MetricGridTone.warning,
-              )
-            : mount.isParked
-                ? (l10n.text('nightScopeParked'), null)
-                : mount.isTracking
-                    ? (
-                        switch (mount.trackingRate) {
-                          null => l10n.text('nightScopeTrackingRateUnknown'),
-                          final rate => l10n.text(
-                              'nightScopeTrackingAt',
-                              params: {'rate': l10n.text(_rateKey(rate))},
-                            ),
-                        },
-                        MetricGridTone.good,
-                      )
-                    : (
-                        l10n.text('nightScopeNotTracking'),
-                        MetricGridTone.warning
-                      );
+        ? (
+            slew == null
+                ? l10n.text('nightScopeSlewing')
+                : l10n.text(
+                    'nightScopeSlewingRemaining',
+                    params: {
+                      'distance': formatSlewDistance(slew.remainingDegrees),
+                    },
+                  ),
+            MetricGridTone.warning,
+          )
+        : mount.isParked
+        ? (l10n.text('nightScopeParked'), null)
+        : mount.isTracking
+        ? (
+            switch (mount.trackingRate) {
+              null => l10n.text('nightScopeTrackingRateUnknown'),
+              final rate => l10n.text(
+                'nightScopeTrackingAt',
+                params: {'rate': l10n.text(_rateKey(rate))},
+              ),
+            },
+            MetricGridTone.good,
+          )
+        : (l10n.text('nightScopeNotTracking'), MetricGridTone.warning);
 
     return NightPanelSection(
       title: l10n.text('nightScopePosition'),
@@ -304,10 +358,10 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
               value: countdown.onPostFlipSide && connected
                   ? l10n.text('nightScopeFlipNotNeeded')
                   : toFlip == null
-                      ? null
-                      : toFlip == Duration.zero
-                          ? l10n.text('nightScopeFlipPastDue')
-                          : formatCountdown(toFlip),
+                  ? null
+                  : toFlip == Duration.zero
+                  ? l10n.text('nightScopeFlipPastDue')
+                  : formatCountdown(toFlip),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeSlewingLabel'),
@@ -344,13 +398,15 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
   ) {
     final mount = facts.mount;
     final caps = facts.capabilities;
-    final selected = facts.connected &&
+    final selected =
+        facts.connected &&
         mount.isTracking &&
         !mount.isParked &&
         mount.trackingRate == rate;
     // A mount that does not offer the rate can still be started at it when
     // that is the rate it reports: the button then only starts tracking.
-    final offered = caps != null &&
+    final offered =
+        caps != null &&
         caps.canSetTrackingRate &&
         caps.supportedTrackingRates.contains(rate);
     String? reason = facts.baseReason(l10n);
@@ -396,9 +452,9 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
       onPressed: reason != null || _busy != null
           ? null
           : () => _run(
-                id,
-                () => ref.read(mountCommandServiceProvider).setTracking(false),
-              ),
+              id,
+              () => ref.read(mountCommandServiceProvider).setTracking(false),
+            ),
     );
   }
 
@@ -433,12 +489,12 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
 }
 
 String _rateKey(TrackingRate rate) => switch (rate) {
-      TrackingRate.sidereal => 'nightScopeSidereal',
-      TrackingRate.lunar => 'nightScopeLunar',
-      TrackingRate.solar => 'nightScopeSolar',
-      TrackingRate.king => 'nightScopeKing',
-      TrackingRate.custom => 'nightScopeCustomRate',
-    };
+  TrackingRate.sidereal => 'nightScopeSidereal',
+  TrackingRate.lunar => 'nightScopeLunar',
+  TrackingRate.solar => 'nightScopeSolar',
+  TrackingRate.king => 'nightScopeKing',
+  TrackingRate.custom => 'nightScopeCustomRate',
+};
 
 String? _degrees(double? value) =>
     value == null || !value.isFinite ? null : '${value.toStringAsFixed(1)}°';

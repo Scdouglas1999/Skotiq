@@ -17,6 +17,7 @@ class NightActionInputs {
     required this.runState,
     required this.action,
     this.loopActive = false,
+    this.flipInProgress = false,
     this.cameraConnected = false,
     this.mountConnected = false,
     this.focuserConnected = false,
@@ -43,6 +44,9 @@ class NightActionInputs {
 
   /// A manual loop runs (held by this controller).
   final bool loopActive;
+
+  /// A meridian flip owns the mount, sequenced or standalone.
+  final bool flipInProgress;
 
   final bool cameraConnected;
   final bool mountConnected;
@@ -91,22 +95,22 @@ class NightActionInputs {
 /// while a run is loaded, and Flip only until the run's flip is done.
 List<ManualActionId> visibleManualActions(NightActionInputs inputs) =>
     inputs.runActive
-        ? [
-            ManualActionId.snapshot,
-            ManualActionId.loop,
-            ManualActionId.autofocus,
-            ManualActionId.solveSync,
-            ManualActionId.center,
-            ManualActionId.dither,
-            if (!inputs.flipDone) ManualActionId.flip,
-          ]
-        : const [
-            ManualActionId.snapshot,
-            ManualActionId.loop,
-            ManualActionId.autofocus,
-            ManualActionId.solveSync,
-            ManualActionId.center,
-          ];
+    ? [
+        ManualActionId.snapshot,
+        ManualActionId.loop,
+        ManualActionId.autofocus,
+        ManualActionId.solveSync,
+        ManualActionId.center,
+        ManualActionId.dither,
+        if (!inputs.flipDone) ManualActionId.flip,
+      ]
+    : const [
+        ManualActionId.snapshot,
+        ManualActionId.loop,
+        ManualActionId.autofocus,
+        ManualActionId.solveSync,
+        ManualActionId.center,
+      ];
 
 /// Why [id] cannot run now, or null when it can.
 ///
@@ -126,6 +130,8 @@ NightText? manualActionDisabledReason(
         ? const NightText('nightActWhyBusy')
         : NightText(manualActionKey('nightActBusy', active));
   }
+
+  if (inputs.flipInProgress) return const NightText('nightActBusyFlip');
 
   // Checked before anything else: without a solver these would expose a
   // frame, or move the mount, and only then fail.
@@ -226,33 +232,34 @@ ManualActionVm manualActionVm(NightActionInputs inputs, ManualActionId id) {
 }
 
 NightText _label(NightActionInputs inputs, ManualActionId id) => switch (id) {
-      ManualActionId.snapshot => const NightText('nightActSnapshot'),
-      ManualActionId.loop => inputs.loopActive
-          ? const NightText('nightActStopLoop')
-          : const NightText('nightActLoop'),
-      ManualActionId.autofocus => const NightText('nightActAutofocus'),
-      ManualActionId.solve => const NightText('nightScopeSolveSolve'),
-      ManualActionId.solveSync => const NightText('nightActSolveSync'),
-      ManualActionId.center => const NightText('nightActCenter'),
-      ManualActionId.dither => const NightText('nightActDither'),
-      ManualActionId.flip => const NightText('nightActFlip'),
-      ManualActionId.tracking => inputs.mountTracking
-          ? const NightText('nightActTrackOff')
-          : const NightText('nightActTrack'),
-      ManualActionId.cooler => inputs.cameraCooling
-          ? const NightText('nightActCoolerOff')
-          : const NightText('nightActCooler'),
-    };
+  ManualActionId.snapshot => const NightText('nightActSnapshot'),
+  ManualActionId.loop =>
+    inputs.loopActive
+        ? const NightText('nightActStopLoop')
+        : const NightText('nightActLoop'),
+  ManualActionId.autofocus => const NightText('nightActAutofocus'),
+  ManualActionId.solve => const NightText('nightScopeSolveSolve'),
+  ManualActionId.solveSync => const NightText('nightActSolveSync'),
+  ManualActionId.center => const NightText('nightActCenter'),
+  ManualActionId.dither => const NightText('nightActDither'),
+  ManualActionId.flip => const NightText('nightActFlip'),
+  ManualActionId.tracking =>
+    inputs.mountTracking
+        ? const NightText('nightActTrackOff')
+        : const NightText('nightActTrack'),
+  ManualActionId.cooler =>
+    inputs.cameraCooling
+        ? const NightText('nightActCoolerOff')
+        : const NightText('nightActCooler'),
+};
 
 NightText _inFlightSub(ManualActionState action) => switch (action.phase) {
-      ManualActionPhase.pausingRun ||
-      ManualActionPhase.waitingForFrame =>
-        const NightText('nightActSubWaiting'),
-      ManualActionPhase.resuming => const NightText('nightActSubResuming'),
-      ManualActionPhase.running ||
-      ManualActionPhase.idle =>
-        const NightText('nightActSubRunning'),
-    };
+  ManualActionPhase.pausingRun ||
+  ManualActionPhase.waitingForFrame => const NightText('nightActSubWaiting'),
+  ManualActionPhase.resuming => const NightText('nightActSubResuming'),
+  ManualActionPhase.running ||
+  ManualActionPhase.idle => const NightText('nightActSubRunning'),
+};
 
 NightText? _sub(NightActionInputs inputs, ManualActionId id) {
   switch (id) {

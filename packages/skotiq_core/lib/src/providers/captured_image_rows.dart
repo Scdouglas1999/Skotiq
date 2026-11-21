@@ -179,7 +179,7 @@ class RemoteImageRows implements CapturedImageRows {
     if (_fetched.isEmpty) return polled;
     final byId = {for (final row in polled) row.id: row, ..._fetched};
     return byId.values.toList()
-      ..sort((a, b) => b.capturedAt.compareTo(a.capturedAt));
+      ..sort((a, b) => _byCapturedAtThenId(a, b, newestFirst: true));
   }
 
   @override
@@ -190,7 +190,7 @@ class RemoteImageRows implements CapturedImageRows {
   Stream<List<db.DbCapturedImage>> watchSession(int sessionId) => _watch(
     (rows) =>
         rows.where((row) => row.sessionId == sessionId).toList()
-          ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt)),
+          ..sort(_byCapturedAtThenId),
   );
 
   @override
@@ -374,11 +374,7 @@ class RemoteImageRows implements CapturedImageRows {
     bool Function(db.DbCapturedImage row) keep,
   ) => ref
       .watch(allDbImagesProvider)
-      .whenData(
-        (rows) =>
-            rows.where(keep).toList()
-              ..sort((a, b) => a.capturedAt.compareTo(b.capturedAt)),
-      );
+      .whenData((rows) => rows.where(keep).toList()..sort(_byCapturedAtThenId));
 
   void dispose() {
     _disposed = true;
@@ -395,3 +391,17 @@ class RemoteImageRows implements CapturedImageRows {
 /// the rows it already has.
 typedef _Cut =
     List<db.DbCapturedImage>? Function(List<db.DbCapturedImage> rows);
+
+/// Oldest capture first, then the lower row id. Newest-first lists reverse
+/// both keys, so a tie keeps the later insert first on every list.
+int _byCapturedAtThenId(
+  db.DbCapturedImage a,
+  db.DbCapturedImage b, {
+  bool newestFirst = false,
+}) {
+  final time = a.capturedAt.compareTo(b.capturedAt);
+  final byTime = newestFirst ? -time : time;
+  if (byTime != 0) return byTime;
+  final byId = a.id.compareTo(b.id);
+  return newestFirst ? -byId : byId;
+}

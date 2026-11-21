@@ -24,6 +24,28 @@ RecordingMountCommands _commands(HarnessHandle handle) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('a running flip shows its step and idle hides it', (tester) async {
+    final handle = await pumpPanelTab(
+      tester,
+      const NightMountTab(),
+      overrides: panelOverrides(),
+    );
+    handle.container.read(flipExecutionStateProvider.notifier).state =
+        FlipExecutionState.executing;
+    handle.container.read(flipCurrentStepProvider.notifier).state =
+        FlipStep.enablingTracking;
+    await tester.pump();
+
+    expect(find.text('Turning tracking on'), findsOneWidget);
+    expect(find.text('A meridian flip is running'), findsWidgets);
+
+    handle.container.read(flipExecutionStateProvider.notifier).state =
+        FlipExecutionState.idle;
+    handle.container.read(flipCurrentStepProvider.notifier).state = null;
+    await tester.pump();
+    expect(find.text('Turning tracking on'), findsNothing);
+  });
+
   testWidgets('renders the board sections at 300 x 758', (tester) async {
     await pumpPanelTab(tester, const NightMountTab(),
         overrides: panelOverrides());

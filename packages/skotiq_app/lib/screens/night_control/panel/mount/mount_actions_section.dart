@@ -25,8 +25,9 @@ import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
 
 /// Where Limits… goes: the sequencer settings, which hold the meridian flip.
-final String kNightMountLimitsRoute =
-    AppRoutes.settings(SettingsSectionId.sequencer);
+final String kNightMountLimitsRoute = AppRoutes.settings(
+  SettingsSectionId.sequencer,
+);
 
 class NightMountActionsSection extends ConsumerStatefulWidget {
   const NightMountActionsSection({super.key});
@@ -99,11 +100,16 @@ class _NightMountActionsSectionState
     }
 
     // During a running run this asks the run's own meridian trigger to flip.
-    final flipReason =
-        manualActionDisabledReason(facts.inputs, ManualActionId.flip)
-            ?.resolve(l10n);
-    final flipInFlight = facts.inputs.action.isBusy &&
-        facts.inputs.action.active == ManualActionId.flip;
+    final flipReason = facts.flipInProgress
+        ? l10n.text('nightActBusyFlip')
+        : manualActionDisabledReason(
+            facts.inputs,
+            ManualActionId.flip,
+          )?.resolve(l10n);
+    final flipInFlight =
+        facts.flipInProgress ||
+        (facts.inputs.action.isBusy &&
+            facts.inputs.action.active == ManualActionId.flip);
 
     return NightPanelSection(
       title: l10n.text('nightScopeMount'),
@@ -119,9 +125,9 @@ class _NightMountActionsSectionState
               disabledReason: homeReason,
               onPressed: homeReason == null
                   ? () => _run(
-                        'home',
-                        () => ref.read(mountCommandServiceProvider).findHome(),
-                      )
+                      'home',
+                      () => ref.read(mountCommandServiceProvider).findHome(),
+                    )
                   : null,
             ),
             NightPanelButtonSpec(
@@ -140,9 +146,9 @@ class _NightMountActionsSectionState
               disabledReason: unparkReason,
               onPressed: unparkReason == null
                   ? () => _run(
-                        'unpark',
-                        () => ref.read(mountCommandServiceProvider).unpark(),
-                      )
+                      'unpark',
+                      () => ref.read(mountCommandServiceProvider).unpark(),
+                    )
                   : null,
             ),
             NightPanelButtonSpec(
@@ -248,19 +254,20 @@ String nightFlipSettingsText(
       : value.toStringAsFixed(1);
   final trigger = switch (settings.triggerMethod) {
     MeridianTriggerMethod.minutesPastMeridian => l10n.text(
-        'nightScopeFlipPast',
-        params: {'minutes': number(settings.minutesPastMeridian)},
-      ),
+      'nightScopeFlipPast',
+      params: {'minutes': number(settings.minutesPastMeridian)},
+    ),
     MeridianTriggerMethod.hourAngleThreshold => l10n.text(
-        'nightScopeFlipHourAngle',
-        params: {'hours': number(settings.hourAngleThreshold)},
-      ),
+      'nightScopeFlipHourAngle',
+      params: {'hours': number(settings.hourAngleThreshold)},
+    ),
     MeridianTriggerMethod.minutesBeforeLimit => l10n.text(
-        'nightScopeFlipBeforeLimit',
-        params: {'minutes': number(settings.minutesBeforeLimit)},
-      ),
-    MeridianTriggerMethod.onTrackingLimitHit =>
-      l10n.text('nightScopeFlipAtLimit'),
+      'nightScopeFlipBeforeLimit',
+      params: {'minutes': number(settings.minutesBeforeLimit)},
+    ),
+    MeridianTriggerMethod.onTrackingLimitHit => l10n.text(
+      'nightScopeFlipAtLimit',
+    ),
   };
   return [
     trigger,

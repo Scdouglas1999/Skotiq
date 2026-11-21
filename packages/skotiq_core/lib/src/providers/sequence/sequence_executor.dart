@@ -408,6 +408,11 @@ class SequenceExecutor {
 
   Future<void> start() async {
     _ensureBackendAuthority();
+    if (_ref.read(isFlipInProgressProvider)) {
+      throw StateError(
+        'Cannot start a sequence while a meridian flip is running.',
+      );
+    }
     // A. Start serialization + admissible-state gate.
     // Reject a second concurrent start (latch) or a start while the executor
     // is already busy (running / paused / stopping / recovering). A

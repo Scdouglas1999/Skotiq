@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/startup/session_recovery_dialog.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -101,5 +102,41 @@ void main() {
 
     recovery.complete();
     await tester.pump();
+  });
+
+  testWidgets('confirming discard after a run starts calls no session service',
+      (tester) async {
+    final service = _MockSessionService();
+    when(() => service.markSessionAborted(any())).thenAnswer((_) async {});
+    when(() => service.recoverSession(any())).thenAnswer((_) async {});
+    final container = ProviderContainer(
+      overrides: [sessionServiceProvider.overrideWithValue(service)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Scaffold(
+            body: SessionRecoveryDialog(
+              incompleteSessions: [_session(4, 'Still open')],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard all'));
+    await tester.pumpAndSettle();
+
+    container
+        .read(runRecordProvider.notifier)
+        .setLifecycle(SequenceExecutionState.running);
+    await tester.tap(find.text('Discard').last);
+    await tester.pump();
+
+    verifyNever(() => service.markSessionAborted(any()));
+    verifyNever(() => service.recoverSession(any()));
   });
 }

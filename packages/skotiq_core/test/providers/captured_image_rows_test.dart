@@ -156,4 +156,90 @@ void main() {
     await container.read(allSessionsProvider.future);
     expect(container.read(watchedHostSessionIdProvider), 1);
   });
+
+  test(
+    'equal timestamps keep one id order on the host and the viewer',
+    () async {
+      final at = _night;
+      final host = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
+      addTearDown(host.dispose);
+      final sessionId = await host
+          .read(sessionsDaoProvider)
+          .startSession(name: 'Tied');
+      final images = host.read(imagesDaoProvider);
+      // The later id is stored first. A timestamp-only order that follows
+      // insertion then returns frame 2 before frame 1.
+      for (final id in [2, 1]) {
+        await images.createImage(
+          CapturedImagesCompanion.insert(
+            id: Value(id),
+            filePath: '/frame$id.fits',
+            fileName: 'frame$id.fits',
+            frameType: const Value('light'),
+            exposureDuration: 60,
+            capturedAt: at,
+            sessionId: Value(sessionId),
+          ),
+        );
+      }
+
+      final stored = await images.getImagesForSession(sessionId);
+      expect(stored.map((row) => row.id), [1, 2]);
+      expect(stored.map((row) => row.filePath), [
+        '/frame1.fits',
+        '/frame2.fits',
+      ]);
+
+      final backend = _MockNetworkBackend();
+      when(() => backend.eventStream).thenAnswer((_) => const Stream.empty());
+      when(() => backend.getAllImageRows()).thenAnswer(
+        (_) async => [
+          _tiedRow(2, sessionId: sessionId, at: at),
+          _tiedRow(1, sessionId: sessionId, at: at),
+        ],
+      );
+      final viewer = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(viewer.dispose);
+      final shown = await _settled(viewer, sessionImageRowsProvider(sessionId));
+      expect(shown.map((row) => row.filePath), [
+        '/frame1.fits',
+        '/frame2.fits',
+      ]);
+      expect(_frameNumber(shown, '/frame2.fits'), 2);
+    },
+  );
 }
+
+int? _frameNumber(List<DbCapturedImage> lights, String filePath) {
+  for (var i = lights.length - 1; i >= 0; i--) {
+    if (lights[i].filePath == filePath) return i + 1;
+  }
+  return null;
+}
+
+Map<String, dynamic> _tiedRow(
+  int id, {
+  required int sessionId,
+  required DateTime at,
+}) => {
+  'id': id,
+  'filePath': '/frame$id.fits',
+  'fileName': 'frame$id.fits',
+  'fileFormat': 'fits',
+  'frameType': 'light',
+  'exposureDuration': 60,
+  'binX': 1,
+  'binY': 1,
+  'sessionId': sessionId,
+  'capturedAt': at.millisecondsSinceEpoch,
+  'createdAt': at.millisecondsSinceEpoch,
+  'isAccepted': true,
+  'isPlateSolved': false,
+};

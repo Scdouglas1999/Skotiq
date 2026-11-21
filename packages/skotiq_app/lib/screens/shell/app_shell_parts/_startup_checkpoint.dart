@@ -253,6 +253,7 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
   required Future<void> Function() resume,
   required Future<void> Function() discard,
   required Future<bool> Function() checkpointStillResumable,
+  Future<bool> Function()? canRecover,
 }) async {
   CheckpointAttemptFailure? lastFailure;
   while (true) {
@@ -260,6 +261,11 @@ Future<AppStartupCheckpointOutcome> runAppCheckpointRecovery({
     if (choice == null) return AppStartupCheckpointOutcome.failed;
 
     try {
+      if (choice != AppCheckpointRecoveryChoice.later &&
+          canRecover != null &&
+          !await canRecover()) {
+        return AppStartupCheckpointOutcome.deferred;
+      }
       switch (choice) {
         case AppCheckpointRecoveryChoice.resume:
           await resume();

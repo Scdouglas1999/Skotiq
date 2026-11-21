@@ -84,6 +84,13 @@ final nightHeaderProvider = Provider<NightHeaderVm>((ref) {
               ref, gated(execution.canStart, 'ncPlanStopping'));
   }
 
+  if (ref.watch(isFlipInProgressProvider)) {
+    if (startNow != null) startNow = _off('nightActBusyFlip');
+    if (startAtDark != null && phase != NightRunPhase.armed) {
+      startAtDark = _off('nightActBusyFlip');
+    }
+  }
+
   final live = phase.isRunLive;
   final progress = live ? ref.watch(sequenceProgressProvider) : null;
   final activeStep = ref.watch(nightActiveStepProvider);

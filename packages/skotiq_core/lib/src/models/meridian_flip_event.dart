@@ -6,8 +6,18 @@ part 'meridian_flip_event.g.dart';
 
 // Note: PierSide is imported from device_types.dart to avoid duplication
 
+/// The step name a native `FlipStep` serializes as (`EnablingTracking`),
+/// as the Dart enum (`enablingTracking`).
+FlipStep? flipStepFromNativeName(String stepName) {
+  if (stepName.isEmpty) return null;
+  final camel = '${stepName[0].toLowerCase()}${stepName.substring(1)}';
+  return FlipStep.values.where((step) => step.name == camel).firstOrNull;
+}
+
 enum FlipStep {
   pausingGuider,
+  enablingTracking,
+  confirmingTracking,
   stoppingTracking,
   slewingToTarget,
   verifyingPierSide,
@@ -21,6 +31,10 @@ enum FlipStep {
 extension FlipStepExtension on FlipStep {
   String get displayName {
     switch (this) {
+      case FlipStep.enablingTracking:
+        return 'Turning tracking on';
+      case FlipStep.confirmingTracking:
+        return 'Confirming tracking';
       case FlipStep.pausingGuider:
         return 'Pausing Guider';
       case FlipStep.stoppingTracking:
@@ -44,6 +58,10 @@ extension FlipStepExtension on FlipStep {
 
   String get description {
     switch (this) {
+      case FlipStep.enablingTracking:
+        return 'Turning mount tracking on before slewing';
+      case FlipStep.confirmingTracking:
+        return 'Checking that the mount follows the sky';
       case FlipStep.pausingGuider:
         return 'Pausing autoguiding before the flip';
       case FlipStep.stoppingTracking:

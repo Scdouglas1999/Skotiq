@@ -132,6 +132,7 @@ NightActionInputs readNightActionInputs(
     canCommand: read(backendCanCommandProvider),
     runState: read(sequenceExecutionStateProvider),
     action: action,
+    flipInProgress: read(isFlipInProgressProvider),
     loopActive: action.isBusy && action.active == ManualActionId.loop,
     cameraConnected: camera.connected,
     mountConnected: mount.connected,

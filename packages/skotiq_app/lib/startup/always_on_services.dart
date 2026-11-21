@@ -214,6 +214,12 @@ final List<AlwaysOnService> alwaysOnServices = [
 
   // Meridian flip.
   AlwaysOnService(
+    'meridian flip telemetry',
+    meridianFlipTelemetryProvider,
+    _hosts,
+    'native flip steps on the shared flip state',
+  ),
+  AlwaysOnService(
     'meridian flip disconnect guard',
     meridianFlipDisconnectGuardProvider,
     _everyRole,
