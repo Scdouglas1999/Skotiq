@@ -1,6 +1,7 @@
 import '../../models/imaging/session_status.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,6 +26,7 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // provider (defined in flat_wizard_provider since the tracker is
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
+import '../../services/live_stacking_broadcast_service.dart';
 import '../meridian_flip_provider.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
@@ -166,15 +168,85 @@ class SequenceExecutor {
     logger: () => _logger,
   );
 
+  /// True once this executor's feed has activated a sequence Live Stacking
+  /// node and has not deactivated it. An operator-owned stack never sets it.
+  bool _sequenceLiveStackArmed = false;
+
+  /// Resolved while [_ref] is alive. Dispose uses these and does not read
+  /// providers: the container may already be gone.
+  LiveStackingBroadcastService? _ownedBroadcast;
+  LiveStackingNotifier? _ownedStacker;
+  LoggingService? _cachedLogger;
+
   /// Feeds accepted frames to the live stacker when the sequence asks for it.
   late final LiveStackingFeed _liveStacking = LiveStackingFeed(
-    sequence: () => _ref.read(currentSequenceProvider),
-    progress: () => _ref.read(sequenceProgressProvider),
-    broadcast: () => _ref.read(liveStackingBroadcastServiceProvider),
-    stacker: () => _ref.read(liveStackingProvider.notifier),
-    stackState: () => _ref.read(liveStackingProvider),
+    sequence: () => _disposed ? null : _ref.read(currentSequenceProvider),
+    progress: () => _disposed
+        ? const SequenceProgress()
+        : _ref.read(sequenceProgressProvider),
+    broadcast: _broadcastForFeed,
+    stacker: _stackerForFeed,
+    stackState: _stackStateForFeed,
     logger: () => _logger,
   );
+
+  LoggingService get _logger {
+    final cached = _cachedLogger;
+    if (cached != null) return cached;
+    if (_disposed) {
+      throw StateError('SequenceExecutor logged after dispose');
+    }
+    final logger = _ref.read(loggingServiceProvider);
+    _cachedLogger = logger;
+    return logger;
+  }
+
+  LiveStackingBroadcastService _broadcastForFeed() {
+    final cached = _ownedBroadcast;
+    if (cached != null) return cached;
+    if (_disposed) {
+      throw StateError(
+        'The sequence executor read the live-stack broadcast after dispose',
+      );
+    }
+    final inner = _ref.read(liveStackingBroadcastServiceProvider);
+    final wrapped = _SequenceArmedBroadcast(
+      ref: _ref,
+      inner: inner,
+      onArmed: (armed) => _sequenceLiveStackArmed = armed,
+    );
+    _ownedBroadcast = wrapped;
+    return wrapped;
+  }
+
+  LiveStackingNotifier _stackerForFeed() {
+    final cached = _ownedStacker;
+    if (cached != null) return cached;
+    if (_disposed) {
+      throw StateError(
+        'The sequence executor read the live stacker after dispose',
+      );
+    }
+    final stacker = _ref.read(liveStackingProvider.notifier);
+    _ownedStacker = stacker;
+    return stacker;
+  }
+
+  LiveStackingState _stackStateForFeed() {
+    final stacker = _ownedStacker ?? (_disposed ? null : _stackerForFeed());
+    if (stacker == null) return const LiveStackingState();
+    try {
+      return stacker.state;
+    } catch (e, st) {
+      Log.warning(
+        'Live stack state was read after dispose',
+        source: 'SequenceExecutor',
+        error: e,
+        stackTrace: st,
+      );
+      return const LiveStackingState();
+    }
+  }
 
   /// The run's frame counters, `captured_images` rows and live preview.
   late final RunFrameRecorder _frames = RunFrameRecorder(
@@ -227,8 +299,6 @@ class SequenceExecutor {
     ref: _ref,
     logger: () => _logger,
   );
-
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
 
   SequenceExecutor(this._ref, {SkotiqBackend? backend})
     : _backend = backend ?? _ref.read(backendProvider);
@@ -2368,6 +2438,11 @@ class SequenceExecutor {
   /// Tear down everything the executor owns. A run retained in stopFailed /
   /// cleanupFailed never released its per-run resources, so dispose must
   /// cancel each of them itself.
+  ///
+  /// The live stack is stopped only when this executor armed it. Dispose does
+  /// not read [_ref]: a provider rebuild and a container shutdown both run
+  /// this after the ref is no longer usable, and an operator-owned stack must
+  /// keep its broadcast.
   void dispose() {
     _disposed = true;
     _timers.dispose();
@@ -2375,7 +2450,41 @@ class SequenceExecutor {
     _nativeEventSubscription = null;
     _releaseEventFold();
     _runtimeConfig.dispose();
-    unawaited(_liveStacking.teardown().catchError((Object _) {}));
+    if (!_sequenceLiveStackArmed) return;
+    _sequenceLiveStackArmed = false;
+    final broadcast = _ownedBroadcast;
+    final stacker = _ownedStacker;
+    unawaited(_stopSequenceLiveStack(broadcast, stacker));
+  }
+
+  Future<void> _stopSequenceLiveStack(
+    LiveStackingBroadcastService? broadcast,
+    LiveStackingNotifier? stacker,
+  ) async {
+    Object? failure;
+    StackTrace? failureTrace;
+    try {
+      broadcast?.deactivate();
+    } catch (e, st) {
+      failure = e;
+      failureTrace = st;
+    }
+    try {
+      // A container shutdown may already have disposed the stacker. Its own
+      // dispose owns that case; calling stop() on it throws after the fact.
+      if (stacker != null && stacker.mounted) await stacker.stop();
+    } catch (e, st) {
+      failure ??= e;
+      failureTrace ??= st;
+    }
+    if (failure != null) {
+      Log.warning(
+        'Could not tear down the live stack this sequence armed',
+        source: 'SequenceExecutor',
+        error: failure,
+        stackTrace: failureTrace,
+      );
+    }
   }
 }
 
@@ -2454,4 +2563,48 @@ class _RestoredCheckpoint {
         restored.rootNodeId == current.rootNodeId &&
         mapEquals(restored.nodes, current.nodes);
   }
+}
+
+/// The broadcast the sequence feed sees. [activate] and [deactivate] are the
+/// only signals that this executor, rather than the operator, owns the session.
+final class _SequenceArmedBroadcast extends LiveStackingBroadcastService {
+  _SequenceArmedBroadcast({
+    required Ref ref,
+    required LiveStackingBroadcastService inner,
+    required void Function(bool armed) onArmed,
+  }) : _inner = inner,
+       _onArmed = onArmed,
+       super(ref);
+
+  final LiveStackingBroadcastService _inner;
+  final void Function(bool armed) _onArmed;
+
+  @override
+  void activate(LiveStackingNode node) {
+    _onArmed(true);
+    _inner.activate(node);
+  }
+
+  @override
+  void deactivate() {
+    _onArmed(false);
+    _inner.deactivate();
+  }
+
+  @override
+  void updateCurrentTarget(String? targetName) =>
+      _inner.updateCurrentTarget(targetName);
+
+  @override
+  void publishFrame({
+    required int width,
+    required int height,
+    required Uint16List previewData,
+    required double exposureSecs,
+  }) => _inner.publishFrame(
+    width: width,
+    height: height,
+    previewData: previewData,
+    exposureSecs: exposureSecs,
+  );
 }
