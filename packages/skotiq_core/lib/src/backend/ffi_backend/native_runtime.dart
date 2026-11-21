@@ -69,10 +69,10 @@ final class NativeDiscovery {
       if (running != null) {
         final waitedGen = _generation;
         await running.future;
-        if (waitedGen == _generation && _cachedAt != null) {
-          return List.unmodifiable(_cache[deviceType] ?? const []);
-        }
         if (waitedGen == _generation) {
+          // The sweep this caller waited for, cached or not. A sweep that is
+          // not allowed to be cached still answers the waiters; the next call
+          // misses at the top of the loop because [_cachedAt] is null.
           return List.unmodifiable(_cache[deviceType] ?? const []);
         }
         // forget() invalidated the in-flight sweep; re-enter to start a fresh one.
