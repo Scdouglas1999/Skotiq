@@ -214,13 +214,20 @@ final sequenceDiskProjectionProvider =
       // Look up camera capabilities from the connected camera (if any). Without
       // capabilities the projection still runs but the severity is "info"
       // (size unknown). The guard takes a nullable.
-      // Each recompute asks the OS for free space (a `df`, or a PowerShell
-      // process on Windows). It follows the capture folder's 10 s free-space
-      // sample and the camera's id, not the whole camera state, which changes
-      // with every temperature poll and exposure progress tick.
-      ref.watch(
-        captureDirDiskSpaceProvider.select((s) => s.valueOrNull?.freeBytes),
-      );
+      // The capture folder's free-space sample is the disk. A linked client
+      // must not `df` the host's path. The host, which has no remote sample,
+      // still queries.
+      final sample = ref.watch(captureDirDiskSpaceProvider).valueOrNull;
+      final linked = ref.watch(remoteHostProvider) != null;
+      final usable = sample != null && diskSampleCoversPath(sample, path)
+          ? sample
+          : null;
+      if (linked && usable == null) {
+        return const SequenceDiskProjectionSnapshot(
+          projection: null,
+          capturePathConfigured: true,
+        );
+      }
       final cameraId =
           ref.watch(cameraStateProvider.select((c) => c.deviceId)) ?? '';
       CameraCapabilities? capabilities;
@@ -235,6 +242,7 @@ final sequenceDiskProjectionProvider =
         capturePath: path,
         sequence: sequence,
         capabilities: capabilities,
+        diskSpace: usable,
       );
       return SequenceDiskProjectionSnapshot(
         projection: projection,
@@ -259,10 +267,31 @@ Future<DiskSpaceProjection?> projectCurrentSequence(Ref ref) async {
   if (cameraId.isNotEmpty) {
     capabilities = await ref.read(cameraCapabilitiesProvider(cameraId).future);
   }
+  final sample = ref.read(captureDirDiskSpaceProvider).valueOrNull;
+  final linked = ref.read(remoteHostProvider) != null;
+  final usable = sample != null && diskSampleCoversPath(sample, path)
+      ? sample
+      : null;
+  if (linked && usable == null) return null;
   final guard = ref.read(diskSpaceGuardProvider);
   return guard.projectSequence(
     capturePath: path,
     sequence: sequence,
     capabilities: capabilities,
+    diskSpace: usable,
   );
+}
+
+/// Whether [sample] is the volume that holds [capturePath].
+///
+/// A Windows sample reports the drive root. A sample for another path is
+/// not this capture folder's free space.
+bool diskSampleCoversPath(DiskSpaceInfo sample, String capturePath) {
+  String norm(String value) => value.replaceAll('\\', '/').toLowerCase();
+  final have = norm(sample.path);
+  final want = norm(capturePath);
+  if (have.isEmpty || want.isEmpty) return false;
+  if (have == want) return true;
+  final root = have.endsWith('/') ? have : '$have/';
+  return want.startsWith(root);
 }
