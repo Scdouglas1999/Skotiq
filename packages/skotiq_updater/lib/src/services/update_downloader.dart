@@ -76,6 +76,7 @@ class UpdateDownloader {
       request.headers['Range'] = 'bytes=$existingBytes-';
     }
 
+    if (cancelToken?.isCancelled == true) throw DownloadCancelledException();
     final streamedResponse = await _client
         .send(request)
         .timeout(
@@ -86,15 +87,11 @@ class UpdateDownloader {
           ),
         );
 
-    // If resuming from a partial file that is no longer valid on the server
-    // (e.g. server replaced the artifact with a smaller file, or the partial
-    // already reached/passed EOF), HTTP 416 would wedge every future retry.
-    // Delete the stale partial and restart once from byte 0.
-    if (streamedResponse.statusCode == 416 && existingBytes > 0) {
-      await streamedResponse.stream.drain<void>().catchError((Object _) {});
-      if (await destination.exists()) {
-        await destination.delete();
-      }
+    Future<File> restartFromZero() async {
+      // This response cannot supply the missing bytes. Waiting for its body
+      // would also put cancellation and the stall deadline on hold.
+      streamedResponse.stream.listen(null).cancel().ignore();
+      if (await destination.exists()) await destination.delete();
       return download(
         url,
         destinationPath,
@@ -102,6 +99,10 @@ class UpdateDownloader {
         onProgress: onProgress,
         cancelToken: cancelToken,
       );
+    }
+
+    if (streamedResponse.statusCode == 416 && existingBytes > 0) {
+      return restartFromZero();
     }
 
     // Check if server supports range requests
@@ -137,25 +138,7 @@ class UpdateDownloader {
         }
         final rangeStart = int.parse(match.group(1)!);
         if (rangeStart != existingBytes) {
-          // A partial whose offset the server will not resume from fails the
-          // same way on every retry if it is left on disk. Drop it and start
-          // once from byte 0, matching the HTTP 416 path above. A mismatch
-          // on a fresh request (no local bytes) is the server's error.
-          if (existingBytes > 0) {
-            await streamedResponse.stream.drain<void>().catchError(
-              (Object _) {},
-            );
-            if (await destination.exists()) {
-              await destination.delete();
-            }
-            return download(
-              url,
-              destinationPath,
-              expectedSize: expectedSize,
-              onProgress: onProgress,
-              cancelToken: cancelToken,
-            );
-          }
+          if (existingBytes > 0) return restartFromZero();
           throw DownloadException(
             'Server Content-Range start ($rangeStart) does not match local '
             'resume offset ($existingBytes)',

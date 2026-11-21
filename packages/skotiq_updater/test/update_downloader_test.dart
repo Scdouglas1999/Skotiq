@@ -139,6 +139,73 @@ void main() {
     },
   );
 
+  for (final status in [206, 416]) {
+    test(
+      'HTTP $status discards an unreadable response before restarting',
+      () async {
+        final stale = StreamController<List<int>>();
+        final tempDir = await Directory.systemTemp.createTemp(
+          'skotiq_dl_retry_',
+        );
+        addTearDown(() => tempDir.delete(recursive: true));
+        final destination = File('${tempDir.path}/update.bin');
+        await destination.writeAsBytes([1, 2]);
+        final client = _ScriptedClient([
+          (_) => http.StreamedResponse(
+            stale.stream,
+            status,
+            headers: {'content-range': 'bytes 0-1/2'},
+          ),
+          (_) => _bytes(200, [3, 4]),
+        ]);
+        final downloader = UpdateDownloader(client: client);
+        addTearDown(downloader.dispose);
+        addTearDown(() => unawaited(stale.close()));
+
+        final file = await downloader
+            .download(
+              'https://updates.example.invalid/update.bin',
+              destination.path,
+            )
+            .timeout(const Duration(seconds: 1));
+        expect(stale.hasListener, isFalse);
+        expect(await file.readAsBytes(), [3, 4]);
+        expect(client.requests.last.headers.containsKey('range'), isFalse);
+      },
+    );
+  }
+
+  test(
+    'cancelling a rejected resume prevents the replacement request',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp(
+        'skotiq_dl_cancel_retry_',
+      );
+      addTearDown(() => tempDir.delete(recursive: true));
+      final destination = File('${tempDir.path}/update.bin');
+      await destination.writeAsBytes([1]);
+      final token = CancelToken();
+      final client = _ScriptedClient([
+        (_) {
+          token.cancel();
+          return _bytes(206, [2], headers: {'content-range': 'bytes 0-0/1'});
+        },
+      ]);
+      final downloader = UpdateDownloader(client: client);
+      addTearDown(downloader.dispose);
+      await expectLater(
+        downloader.download(
+          'https://updates.example.invalid/update.bin',
+          destination.path,
+          cancelToken: token,
+        ),
+        throwsA(isA<DownloadCancelledException>()),
+      );
+      expect(client.requests, hasLength(1));
+      expect(await destination.exists(), isFalse);
+    },
+  );
+
   test(
     'a 206 without Content-Range or contentLength still writes the body',
     () async {
