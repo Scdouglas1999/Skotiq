@@ -186,6 +186,17 @@ class SingleInstanceLock {
     }
   }
 
+  /// Claims [dbFile] and keeps the lock, or exits 75 when another process
+  /// already holds it. Does not create or open the database.
+  static Future<SingleInstanceLock> claimOrExit(File dbFile) async {
+    try {
+      return await acquire(dbFile);
+    } on SkotiqAlreadyRunningException catch (error) {
+      stderr.writeln('Skotiq: ${error.message}');
+      exit(75);
+    }
+  }
+
   /// Drops one hold on the claim. The OS lock is released when the last
   /// holder lets go. Safe to call more than once.
   Future<void> release() async {
