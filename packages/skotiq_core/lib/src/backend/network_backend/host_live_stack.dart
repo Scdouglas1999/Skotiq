@@ -52,13 +52,19 @@ mixin HostLiveStack on NetworkBackendTransport {
   }
 
   /// Clear the accumulation (host stays armed).
-  Future<void> stackingReset() async {
-    await _post(StackingApi.reset, body: const {});
+  ///
+  /// [filterKey] resets that slot only. Omitting it resets the whole host
+  /// stack, which is what a host from before per-filter reset understood.
+  Future<void> stackingReset({String? filterKey}) async {
+    await _post(StackingApi.reset, body: _filterKeyBody(filterKey));
   }
 
   /// Start (or arm) live stacking on the host. With [referencePath] (a host
   /// path) the stack starts immediately from that frame; without it the host
   /// arms and the next captured frame becomes the reference.
+  ///
+  /// [filterKey] starts that slot. Omitting it starts the host's whole-stack
+  /// entry point, so an older host that ignores unknown fields still starts.
   ///
   /// Both branches return a complete stats object — an armed host reports a
   /// zero-valued (but fully populated) [LiveStackingStats] because nothing has
@@ -66,21 +72,41 @@ mixin HostLiveStack on NetworkBackendTransport {
   /// throws rather than being manufactured as zero.
   Future<LiveStackingStats> stackingStart({
     String? referencePath,
+    String? filterKey,
     LiveStackingConfig config = const LiveStackingConfig(),
   }) async {
+    final key = _wireFilterKey(filterKey);
     final response = await _post(
       StackingApi.start,
       body: {
         'config': _stackingConfigToJson(config),
         if (referencePath != null) 'referencePath': referencePath,
+        if (key != null) 'filterKey': key,
       },
     );
     return _requireStackingStats(response, 'POST /api/stacking/start');
   }
 
   /// Stop the stacker and disarm host auto-feed.
-  Future<void> stackingStop() async {
-    await _post(StackingApi.stop, body: const {});
+  ///
+  /// [filterKey] stops that slot only. Omitting it stops every slot, which is
+  /// what a host from before per-filter stop understood.
+  Future<void> stackingStop({String? filterKey}) async {
+    await _post(StackingApi.stop, body: _filterKeyBody(filterKey));
+  }
+
+  /// A filter key worth putting on the wire. Blank and the "no filter" dash
+  /// are omitted so the request keeps the old whole-stack meaning.
+  String? _wireFilterKey(String? filterKey) {
+    final trimmed = filterKey?.trim();
+    if (trimmed == null || trimmed.isEmpty || trimmed == '—') return null;
+    return trimmed;
+  }
+
+  Map<String, dynamic> _filterKeyBody(String? filterKey) {
+    final key = _wireFilterKey(filterKey);
+    if (key == null) return const <String, dynamic>{};
+    return <String, dynamic>{'filterKey': key};
   }
 
   /// Fetch recent durable Stack-and-Share results, newest first.

@@ -246,4 +246,62 @@ void main() {
     expect(state.status, LiveStackingStatus.idle);
     verify(backend.stackingStop).called(2);
   });
+
+  test(
+    'remote per-filter start, reset, and stop keep the filter key',
+    () async {
+      final backend = _MockNetworkBackend();
+      when(
+        () => backend.stackingStart(
+          referencePath: any(named: 'referencePath'),
+          config: any(named: 'config'),
+          filterKey: any(named: 'filterKey'),
+        ),
+      ).thenAnswer((_) async => const LiveStackingStats(stackedFrameCount: 1));
+      when(() => backend.stackingGetResult()).thenAnswer(
+        (_) async => const LiveStackingResult(
+          width: 2,
+          height: 2,
+          data: [1, 2, 3, 4],
+          stats: LiveStackingStats(stackedFrameCount: 1),
+        ),
+      );
+      when(
+        () => backend.stackingReset(filterKey: any(named: 'filterKey')),
+      ).thenAnswer((_) async {});
+      when(
+        () => backend.stackingStop(filterKey: any(named: 'filterKey')),
+      ).thenAnswer((_) async {});
+
+      final container = _container(backend);
+      final notifier = container.read(liveStackingProvider.notifier);
+      await notifier.startFromFileForFilter('/subs/ha.fits', filterKey: 'Ha');
+      await notifier.startFromFileForFilter(
+        '/subs/oiii.fits',
+        filterKey: 'OIII',
+      );
+      await notifier.resetFilter('Ha');
+      await notifier.stopFilter('OIII');
+
+      verify(
+        () => backend.stackingStart(
+          referencePath: '/subs/ha.fits',
+          config: any(named: 'config'),
+          filterKey: 'Ha',
+        ),
+      ).called(1);
+      verify(
+        () => backend.stackingStart(
+          referencePath: '/subs/oiii.fits',
+          config: any(named: 'config'),
+          filterKey: 'OIII',
+        ),
+      ).called(1);
+      verify(() => backend.stackingReset(filterKey: 'Ha')).called(1);
+      verifyNever(() => backend.stackingReset());
+      verify(() => backend.stackingStop(filterKey: 'OIII')).called(1);
+      verifyNever(() => backend.stackingStop());
+      expect(container.read(liveStackingProvider).availableFilters, ['Ha']);
+    },
+  );
 }
