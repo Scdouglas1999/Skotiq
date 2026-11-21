@@ -222,6 +222,11 @@ void main() {
     await executor.restoreFromCheckpoint();
     expect(executor.hasRestoredCheckpoint, isTrue);
 
+    when(() => backend.discardCheckpoint()).thenThrow(StateError('disk is read-only'));
+    await expectLater(executor.reset(), throwsStateError);
+    expect(executor.hasRestoredCheckpoint, isTrue);
+
+    when(() => backend.discardCheckpoint()).thenAnswer((_) async {});
     await executor.reset();
 
     expect(executor.hasRestoredCheckpoint, isFalse);

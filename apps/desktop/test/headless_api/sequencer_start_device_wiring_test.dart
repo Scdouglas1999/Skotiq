@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -114,6 +115,26 @@ void main() {
         ),
       ),
     );
+
+    test('a second start is refused while the first is wiring devices', () async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      when(() => sequencer.sequencerSetSimulationMode(false)).thenAnswer((_) async {
+        if (!entered.isCompleted) entered.complete();
+        await release.future;
+      });
+      when(() => devices.getConnectedDevices()).thenAnswer((_) async => []);
+      final first = start();
+      try {
+        await entered.future;
+        expect((await start()).statusCode, 409);
+      } finally {
+        release.complete();
+        expect((await first).statusCode, 200);
+      }
+      verify(() => sequencer.sequencerSetSimulationMode(false)).called(1);
+      verify(() => sequencer.sequencerStart()).called(1);
+    });
 
     test('start pushes the connected camera into the native executor before '
         'starting the run', () async {
@@ -319,7 +340,18 @@ void main() {
             _device('ascom:ASCOM.ASICamera2.Camera', DeviceType.camera),
           ],
         );
-        await start();
+        expect((await start()).statusCode, 200);
+        final executor = container.read(sequenceExecutorProvider);
+        executor.handleSequencerEventForTest(
+          SkotiqEvent(
+            timestamp: DateTime.now().millisecondsSinceEpoch,
+            severity: EventSeverity.info,
+            category: EventCategory.sequencer,
+            eventType: 'Completed',
+            data: const {},
+          ),
+        );
+        await executor.terminalCleanupSettledForTest;
 
         when(() => devices.getConnectedDevices()).thenAnswer((_) async => []);
         await start();

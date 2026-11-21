@@ -10,6 +10,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/in_memory_database.dart';
+import '../../fakes/fake_network_client.dart';
 import 'package:skotiq_core/errors.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -199,6 +200,32 @@ void main() {
     expect(executor.hasRestoredCheckpoint, isFalse);
   });
 
+  for (final clearsCheckpoint in [true, false]) {
+    test('remote reset handles checkpointCleared=$clearsCheckpoint', () async {
+      const reset = '/api/sequencer/reset';
+      const discard = '/api/sequencer/checkpoint/discard';
+      final fake = FakeNetworkClient()
+        ..setResponse(reset, method: 'POST', body: clearsCheckpoint
+            ? '{"status":"reset","checkpointCleared":true}'
+            : '{"status":"reset"}')
+        ..setResponse(discard, method: 'POST', body: '{}');
+      final backend = NetworkBackend(
+        serverHost: 'example.invalid',
+        serverPort: 8080,
+        webSocketPort: 8080,
+        httpClient: fake,
+        autoConnectWebSocket: false,
+      );
+      addTearDown(backend.dispose);
+
+      await backend.sequencerReset();
+      expect(fake.requests.map((request) => request.url.path), [
+        reset,
+        if (!clearsCheckpoint) discard,
+      ]);
+    });
+  }
+
   test('reset forgets a restored host checkpoint, so the next start '
       'sends the open plan', () async {
     when(() => host.resumeFromCheckpoint()).thenAnswer((_) async {});
@@ -213,7 +240,13 @@ void main() {
 
     await executor.restoreFromCheckpoint();
     expect(executor.hasRestoredCheckpoint, isTrue);
+    when(() => host.sequencerReset()).thenThrow(StateError('reset failed'));
+    await expectLater(executor.reset(), throwsStateError);
+    expect(executor.hasRestoredCheckpoint, isTrue);
+
+    when(() => host.sequencerReset()).thenAnswer((_) async {});
     await executor.reset();
+    verifyNever(() => host.discardCheckpoint());
     expect(executor.hasRestoredCheckpoint, isFalse);
 
     clearInteractions(host);
@@ -340,5 +373,6 @@ void main() {
         ignoreUnavailableHistory: true,
       ),
     ).called(1);
+    expect(local.read(sessionHandoffIgnoreUnavailableOnceProvider), isFalse);
   });
 }

@@ -103,19 +103,23 @@ Map<String, dynamic> encodePlateSolveResult(PlateSolveResult r) => {
 };
 
 PlateSolveResult decodePlateSolveResult(Map<String, dynamic> json) {
+  // A coordinate-only solve encodes its unmeasured values as JSON null.
+  double measurement(String key) => json.containsKey(key) && json[key] == null
+      ? double.nan
+      : requireDouble(json, key);
   final cd = json['cd'];
   double cdAt(int i) => cd is List && cd.length > i && cd[i] is num
       ? (cd[i] as num).toDouble()
-      : 0;
+      : double.nan;
   return PlateSolveResult(
     success: json['success'] == true,
     ra: requireDouble(json, 'ra'),
     dec: requireDouble(json, 'dec'),
-    pixelScale: requireDouble(json, 'pixelScale'),
-    rotation: requireDouble(json, 'rotation'),
-    fieldWidth: requireDouble(json, 'fieldWidth'),
-    fieldHeight: requireDouble(json, 'fieldHeight'),
-    solveTimeSecs: requireDouble(json, 'solveTimeSecs'),
+    pixelScale: measurement('pixelScale'),
+    rotation: measurement('rotation'),
+    fieldWidth: measurement('fieldWidth'),
+    fieldHeight: measurement('fieldHeight'),
+    solveTimeSecs: measurement('solveTimeSecs'),
     error: jsonString(json['error']),
     cd11: cdAt(0),
     cd12: cdAt(1),

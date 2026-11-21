@@ -214,7 +214,9 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
 
   @override
   Future<void> sequencerReset() async {
-    await _post(SequencerApi.reset);
+    final result = await _post(SequencerApi.reset);
+    // Older hosts reset the executor and leave its checkpoint on disk.
+    if (result['checkpointCleared'] != true) await discardCheckpoint();
   }
 
   @override

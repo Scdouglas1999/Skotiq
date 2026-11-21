@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
-import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
@@ -78,6 +77,12 @@ void main() {
     expect(centering.currentIteration, 2);
     final solve = container.read(plateSolveStateProvider).lastResult!;
     expect(solve.ra, 5.5 * 15);
+    final mirrored = decodePlateSolveResult(encodePlateSolveResult(solve));
+    expect(mirrored.ra, solve.ra);
+    expect(mirrored.dec, solve.dec);
+    expect(mirrored.pixelScale.isNaN, isTrue);
+    expect(mirrored.cd11.isNaN, isTrue);
+    expect(samePlateSolveOutcome(solve, mirrored), isTrue);
     expect(solve.dec, 24.1);
     expect(solve.cd11, isNot(0));
     expect(solve.cd12.isNaN, isTrue);

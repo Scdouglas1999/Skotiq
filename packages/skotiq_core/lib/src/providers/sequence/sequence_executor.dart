@@ -236,19 +236,9 @@ class SequenceExecutor {
   }
 
   LiveStackingState _stackStateForFeed() {
-    final stacker = _ownedStacker ?? (_disposed ? null : _stackerForFeed());
-    if (stacker == null) return const LiveStackingState();
-    try {
-      return stacker.state;
-    } catch (e, st) {
-      Log.warning(
-        'Live stack state was read after dispose',
-        source: 'SequenceExecutor',
-        error: e,
-        stackTrace: st,
-      );
-      return const LiveStackingState();
-    }
+    return _disposed
+        ? const LiveStackingState()
+        : _ref.read(liveStackingProvider);
   }
 
   /// The run's frame counters, `captured_images` rows and live preview.
@@ -544,6 +534,10 @@ class SequenceExecutor {
   /// host's own pre-flight and records. A plan restored from the host's
   /// checkpoint is already in the host's executor and is started as it is.
   Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
+    final ignoreHistory = _ref.read(sessionHandoffIgnoreUnavailableOnceProvider);
+    if (ignoreHistory) {
+      _ref.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state = false;
+    }
     if (!_hostRestoreAwaitingStart) {
       _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
       final sequence = _ref.read(currentSequenceProvider);
@@ -554,13 +548,13 @@ class SequenceExecutor {
         isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
       );
     }
-    final handoff = await _clientHandoffForHost();
-    if (handoff.decisions.isEmpty && !handoff.ignoreUnavailableHistory) {
+    final decisions = await _clientHandoffForHost(ignoreHistory);
+    if (decisions.isEmpty && !ignoreHistory) {
       await backend.sequencerStart();
     } else {
       await host.sequencerStartOnHost(
-        handoffDecisions: handoff.decisions,
-        ignoreUnavailableHistory: handoff.ignoreUnavailableHistory,
+        handoffDecisions: decisions,
+        ignoreUnavailableHistory: ignoreHistory,
       );
     }
     if (_hostRestoreAwaitingStart) {
@@ -579,9 +573,7 @@ class SequenceExecutor {
   /// own history after Start, so the choices have to travel with the request.
   /// A history read that throws is not "no history": without an explicit
   /// confirmation the start fails and the host is not asked to run.
-  Future<({Map<String, String> decisions, bool ignoreUnavailableHistory})>
-  _clientHandoffForHost() async {
-    final ignore = _ref.read(sessionHandoffIgnoreUnavailableOnceProvider);
+  Future<Map<String, String>> _clientHandoffForHost(bool ignoreHistory) async {
     final sequence = _ref.read(currentSequenceProvider);
     final decisions = <String, String>{};
     if (sequence != null && sequence.targetHeaders.isNotEmpty) {
@@ -589,7 +581,7 @@ class SequenceExecutor {
       try {
         carry = await _ref.read(sessionCarryOverProvider.future);
       } catch (error, stackTrace) {
-        if (!ignore) {
+        if (!ignoreHistory) {
           Error.throwWithStackTrace(error, stackTrace);
         }
       }
@@ -605,7 +597,7 @@ class SequenceExecutor {
         }
       }
     }
-    return (decisions: decisions, ignoreUnavailableHistory: ignore);
+    return decisions;
   }
 
   /// Stop the run on the imaging host through the host's own executor, which
@@ -802,11 +794,14 @@ class SequenceExecutor {
   /// neither row.
   Future<void> startLoadedRun({
     LoadedRunLabel? label,
+    Future<void> Function()? prepare,
     Future<void> Function()? admit,
   }) async {
     _ensureBackendAuthority();
     final admissionState = _ref.read(sequenceExecutionStateProvider);
-    if (_lifecycle.launch.isHeld) {
+    if (_lifecycle.launch.isHeld ||
+        !admissionState.canStart ||
+        _ref.read(currentRunIdProvider) != null) {
       throw StateError(
         'Cannot start: a sequence start is already in flight or the executor '
         'is not in an admissible state (state: ${admissionState.name}).',
@@ -816,6 +811,7 @@ class SequenceExecutor {
     // before sequencerStart returns lets a second headless start through.
     _acquireLaunchLatch();
     try {
+      await prepare?.call();
       await _startLoadedRunBody(label: label, admit: admit);
     } finally {
       _releaseLaunchLatch();
@@ -834,14 +830,11 @@ class SequenceExecutor {
     await admit?.call();
 
     // Clear the previous run's progress, as [_acquireAndStartRun] does: the
-    // integration total and the per-node badges accumulate otherwise. A run
-    // id already set means a run is under way, and its progress stands.
-    if (_ref.read(currentRunIdProvider) == null) {
-      _ref.read(runRecordProvider.notifier)
-        ..resetProgress()
-        ..resetTally()
-        ..setFramesDoneBeforeRun(const {});
-    }
+    // integration total and the per-node badges accumulate otherwise.
+    _ref.read(runRecordProvider.notifier)
+      ..resetProgress()
+      ..resetTally()
+      ..setFramesDoneBeforeRun(const {});
 
     // The session row first: it must exist before the first frame event
     // arrives, or that frame is stamped with no session.
@@ -865,6 +858,12 @@ class SequenceExecutor {
         runId: runId,
       );
       Error.throwWithStackTrace(NativeStartRefused(e), st);
+    }
+    // The native Started event can arrive after the command returns. Keep
+    // that window closed to another launch even when this run has no row.
+    if (_lifecycle.phase is RunLive &&
+        _ref.read(sequenceExecutionStateProvider).canStart) {
+      _setExecutionState(SequenceExecutionState.running);
     }
   }
 
@@ -919,19 +918,7 @@ class SequenceExecutor {
   ///
   /// No snapshot: the column holds the editor's sequence map, and the native
   /// wire JSON is a different document the run diff cannot compare.
-  ///
-  /// A run id already set means a run is under way; it is kept rather than
-  /// orphaned in `running`.
   Future<int?> _openRunRowForLoadedRun(LoadedRunLabel label) async {
-    final existing = _ref.read(currentRunIdProvider);
-    if (existing != null) {
-      _logger.warning(
-        'A native start asked for a run row while run $existing is still '
-        'live; keeping the live run',
-        source: 'SequenceExecutor',
-      );
-      return existing;
-    }
     try {
       return await _openRunRecords(sequenceName: label.name);
     } catch (e) {
@@ -2106,29 +2093,16 @@ class SequenceExecutor {
       await stop();
     }
 
-    _ref.read(runRecordProvider.notifier).resetProgress();
-    _ref.read(runRecordProvider.notifier).resetTally();
-    _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
-
-    final backend = _backend;
-    try {
-      await backend.sequencerReset();
-    } catch (e) {
-      _logger.warning(
-        'Error resetting native sequencer: $e',
-        source: 'SequenceExecutor',
-      );
-      // The Dart-side reset above is the authoritative source of truth.
+    await _backend.sequencerReset();
+    // A linked host's reset endpoint already clears its durable checkpoint.
+    if (!_backend.linksToHost) {
+      await _backend.discardCheckpoint();
     }
 
-    try {
-      await backend.discardCheckpoint();
-    } catch (e) {
-      _logger.warning(
-        'Error clearing checkpoint on reset: $e',
-        source: 'SequenceExecutor',
-      );
-    }
+    _ref.read(runRecordProvider.notifier)
+      ..resetProgress()
+      ..resetTally()
+      ..setFramesDoneBeforeRun(const {});
 
     // A reset starts the next run from the beginning. A restored checkpoint
     // that survived this would make that start continue the old tree, on

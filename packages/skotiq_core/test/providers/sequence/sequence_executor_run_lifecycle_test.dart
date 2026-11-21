@@ -1903,7 +1903,7 @@ void main() {
       return row?.status;
     }
 
-    Future<void> _untilStatus(ProviderContainer container, String token) async {
+    Future<void> untilStatus(ProviderContainer container, String token) async {
       for (var i = 0; i < 20; i++) {
         if (await statusOf(container) == token) return;
         await Future<void>.delayed(Duration.zero);
@@ -1946,7 +1946,7 @@ void main() {
       );
 
       executor.handleSequencerEventForTest(_sequencerEvent('Paused'));
-      await _untilStatus(container, 'paused');
+      await untilStatus(container, 'paused');
       expect(await statusOf(container), 'paused');
       expect(
         executor.runPhaseForTest,
@@ -1956,7 +1956,7 @@ void main() {
       verifyNever(() => backend.sequencerPause());
 
       executor.handleSequencerEventForTest(_sequencerEvent('Resumed'));
-      await _untilStatus(container, 'running');
+      await untilStatus(container, 'running');
       expect(await statusOf(container), 'running');
       expect(
         executor.runPhaseForTest,
@@ -2297,13 +2297,8 @@ void main() {
         SequenceExecutionState.cleanupFailed,
       );
 
-      // A re-attach must not discard that transaction: the run's hardware
-      // ending was never fully recorded, and a fresh finalization on top would
-      // publish a verdict for a run whose cleanup never finished.
-      await executor.startLoadedRun();
-      eventController.add(_sequencerEvent('Completed'));
-      await pumpEvents();
-      await executor.terminalCleanupSettledForTest;
+      // A new launch must leave the retained finalization for its Stop retry.
+      await expectLater(executor.startLoadedRun(), throwsA(isA<StateError>()));
 
       expect(
         container.read(sequenceExecutionStateProvider),
