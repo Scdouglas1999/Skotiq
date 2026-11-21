@@ -14,6 +14,8 @@ import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
+import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+
 import '../desktop_app_bootstrap.dart';
 import '../headless/headless_disk_watchdog_bootstrap.dart';
 import '../headless_api/handlers/pairing_handlers.dart'
@@ -281,6 +283,17 @@ final List<HostStartupStep> hostStartupSteps = [
     needs: ['local backend'],
     waitedFor: {},
     run: _discoverDevicesAtLaunch,
+  ),
+  HostStartupStep(
+    name: 'night guide trace',
+    phase: _services,
+    needs: ['local backend'],
+    // Reading the trace starts its collector. A host that never opens Tonight
+    // and has not yet been asked for night-history would otherwise serve an
+    // empty guide graph.
+    run: (host) async {
+      host.container.read(nightGuideSamplesProvider);
+    },
   ),
 ];
 

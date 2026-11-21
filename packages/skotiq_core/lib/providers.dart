@@ -77,6 +77,7 @@ export 'src/providers/runtime_mirror/client_runtime_mirror.dart';
 export 'src/providers/runtime_mirror/channels/autofocus_result_channel.dart';
 export 'src/providers/runtime_mirror/channels/autofocus_run_channel.dart';
 export 'src/providers/runtime_mirror/channels/auxiliary_device_channels.dart';
+export 'src/providers/runtime_mirror/channels/builtin_guider_config_channel.dart';
 export 'src/providers/runtime_mirror/channels/centering_channels.dart';
 export 'src/providers/runtime_mirror/channels/cooler_reading_channel.dart';
 export 'src/providers/runtime_mirror/channels/end_of_night_channel.dart';

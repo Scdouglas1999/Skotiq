@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'channels/autofocus_result_channel.dart';
 import 'channels/auxiliary_device_channels.dart';
+import 'channels/builtin_guider_config_channel.dart';
 import 'channels/autofocus_run_channel.dart';
 import 'channels/centering_channels.dart';
 import 'channels/cooler_reading_channel.dart';
@@ -40,6 +41,7 @@ final runtimeMirrorChannelsProvider =
         ...deviceSlotChannels,
         const ExposureChannel(),
         const GuiderStatusChannel(),
+        const BuiltinGuiderConfigChannel(),
         const OpenPlanChannel(),
         const PlateSolveChannel(),
         const PlateSolverSetupChannel(),

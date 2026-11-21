@@ -147,7 +147,11 @@ class TargetDisplayHistoryNotifier
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted || event.category != EventCategory.guiding) return;
+    if (!mounted ||
+        ref.read(hostGuidingMirrorActiveProvider) ||
+        event.category != EventCategory.guiding) {
+      return;
+    }
     switch (event.eventType) {
       case 'GuideStep':
         _logger.debug(
@@ -155,9 +159,16 @@ class TargetDisplayHistoryNotifier
           source: 'TargetDisplayHistoryNotifier',
         );
         final json = event.data;
-        final raError = (json['RADistanceRaw'] ?? 0).toDouble();
-        final decError = (json['DECDistanceRaw'] ?? 0).toDouble();
-        _addPoint(raError, decError);
+        final raError = finiteGuideAxis(json, isRa: true);
+        final decError = finiteGuideAxis(json, isRa: false);
+        if (raError == null || decError == null) return;
+        _addPoint(
+          raError,
+          decError,
+          event.timestamp > 0
+              ? DateTime.fromMillisecondsSinceEpoch(event.timestamp)
+              : DateTime.now(),
+        );
         break;
       case 'GuidingStopped':
       case 'GuidingStarted':
@@ -166,18 +177,28 @@ class TargetDisplayHistoryNotifier
     }
   }
 
-  void _addPoint(double raError, double decError) {
-    if (!mounted) return;
+  void _addPoint(double raError, double decError, DateTime at) {
+    if (!mounted || !raError.isFinite || !decError.isFinite) return;
     final point = GuideErrorPoint(
       raError: raError,
       decError: decError,
-      timestamp: DateTime.now(),
+      timestamp: at,
     );
     _buffer.add(point);
     if (_buffer.length > maxTargetHistoryPoints) {
       _buffer.removeFirst();
     }
     state = _buffer.toList();
+  }
+
+  void applyHostHistory(List<GuideErrorPoint> points) {
+    _buffer
+      ..clear()
+      ..addAll(points.where((p) => p.raError.isFinite && p.decError.isFinite));
+    while (_buffer.length > maxTargetHistoryPoints) {
+      _buffer.removeFirst();
+    }
+    state = List.unmodifiable(_buffer);
   }
 
   void clear() {

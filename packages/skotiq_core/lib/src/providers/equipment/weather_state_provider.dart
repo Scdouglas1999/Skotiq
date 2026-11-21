@@ -26,6 +26,7 @@ class WeatherStateNotifier extends DeviceSlotNotifier<WeatherState> {
     double? skyQuality,
     double? skyTemperature,
     double? rainRate,
+    DateTime? sampledAt,
   }) {
     state = state.copyWith(
       temperature: temperature,
@@ -38,7 +39,7 @@ class WeatherStateNotifier extends DeviceSlotNotifier<WeatherState> {
       skyQuality: skyQuality,
       skyTemperature: skyTemperature,
       rainRate: rainRate,
-      lastUpdated: DateTime.now(),
+      lastUpdated: sampledAt ?? DateTime.now(),
     );
   }
 }

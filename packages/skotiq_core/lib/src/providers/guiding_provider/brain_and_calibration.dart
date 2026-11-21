@@ -227,7 +227,16 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
     }
   }
 
+  void applyHostState(Phd2CalibrationData data) {
+    // An in-flight `guiderGetCalibration` belongs to the previous value.
+    // Applying the host's calibration must not start another one.
+    _fetchGeneration++;
+    _hasFetched = true;
+    state = data;
+  }
+
   Future<void> refreshCalibrationData() async {
+    if (ref.read(hostGuidingMirrorActiveProvider)) return;
     final backend = ref.read(backendProvider);
     final backendGeneration = _backendGeneration;
     final fetchGeneration = ++_fetchGeneration;

@@ -22,6 +22,7 @@ import 'desktop_shutdown_safing.dart';
 import 'desktop_logging_init.dart';
 import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
+import 'host/accepted_quit.dart';
 import 'host/host_startup.dart';
 import 'host/host_steps.dart';
 import 'launch_arguments.dart';
@@ -406,11 +407,14 @@ void main(List<String> args) async {
       source: 'desktop.main',
     ),
   );
-  ShellExit.registerEnd(() async {
-    await placementRecorder.flush();
-    await lastGasp.handOffDarkroomWork();
-    exit(0);
-  });
+  ShellExit.registerEnd(
+    () => AcceptedDesktopQuit.run(
+      flushPlacement: placementRecorder.flush,
+      handOffDarkroomWork: lastGasp.handOffDarkroomWork,
+      closeDatabase: () => container.read(databaseProvider).close(),
+      exitProcess: exit,
+    ),
+  );
   startupTimeline.mark('last-session record');
 
   // The window is prepared while the host start-up's core steps run, so

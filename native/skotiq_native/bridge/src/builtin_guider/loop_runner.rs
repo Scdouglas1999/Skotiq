@@ -7,7 +7,7 @@ use crate::builtin_guider::metrics::{
     update_snapshot_from_frame,
 };
 use crate::builtin_guider::state::{
-    binned_guide_pixel_scale, guide_offset_arcsec, guide_pixel_scale_arcsec, state,
+    binned_guide_pixel_scale, guide_offset_arcsec, guide_pixel_scale_arcsec, op_lock, state,
     BuiltinGuiderState, GuideFrame, SettleSpec,
 };
 use crate::device::DeviceType;
@@ -18,9 +18,14 @@ use crate::event::guiding::GuidingEvent;
 use crate::event::system::SystemEvent;
 use crate::state::get_state;
 use skotiq_imaging::{detect_stars_with_stats, DetectedStar, ImageData, StarDetectionConfig};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
+
+/// Guide-camera exposures started by [capture_guide_frame]. Tests use it to
+/// prove a preview did not take a second frame while the loop owns the camera.
+pub(crate) static GUIDE_CAPTURES: AtomicUsize = AtomicUsize::new(0);
 
 pub(crate) async fn ensure_connected() -> Result<(), SkotiqError> {
     let connected = state().read().await.connected;
@@ -178,6 +183,7 @@ pub(crate) async fn resolve_unbinned_guide_pixel_scale(
 }
 
 pub(crate) async fn capture_guide_frame() -> Result<GuideFrame, SkotiqError> {
+    GUIDE_CAPTURES.fetch_add(1, Ordering::Relaxed);
     let (camera_id, _) = resolve_devices().await?;
     let (config, pixel_scale_arcsec) = {
         let guard = state().read().await;
@@ -269,10 +275,41 @@ pub(crate) async fn capture_guide_frame() -> Result<GuideFrame, SkotiqError> {
 }
 
 pub(crate) async fn ensure_frame_available() -> Result<GuideFrame, SkotiqError> {
-    if let Some(frame) = state().read().await.last_frame.clone() {
-        return Ok(frame);
+    // The operation lock is held only long enough to read the stored frame or
+    // to refuse a second exposure. `capture_guide_frame` takes the guider
+    // state itself; holding this lock across that capture deadlocks.
+    enum Decision {
+        Stored(GuideFrame),
+        Busy,
+        Capture,
     }
-    capture_guide_frame().await
+    let decision = {
+        let _op = op_lock().lock().await;
+        let guard = state().read().await;
+        if let Some(frame) = guard.last_frame.clone() {
+            Decision::Stored(frame)
+        } else if guard.guiding || guard.looping || guard.calibrating {
+            Decision::Busy
+        } else {
+            Decision::Capture
+        }
+    };
+    match decision {
+        Decision::Stored(frame) => Ok(frame),
+        Decision::Busy => Err(SkotiqError::OperationFailed(
+            "No guide frame available yet; waiting for the guider exposure".to_string(),
+        )),
+        Decision::Capture => {
+            let frame = capture_guide_frame().await?;
+            let _op = op_lock().lock().await;
+            let mut guard = state().write().await;
+            if let Some(existing) = guard.last_frame.clone() {
+                return Ok(existing);
+            }
+            guard.last_frame = Some(frame.clone());
+            Ok(frame)
+        }
+    }
 }
 
 pub(crate) async fn capture_and_store_loop_frame(
