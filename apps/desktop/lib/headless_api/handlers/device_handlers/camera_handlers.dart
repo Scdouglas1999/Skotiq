@@ -251,6 +251,16 @@ extension CameraDeviceHandlers on DeviceHandlers {
       height: height,
     );
 
+    // Status and capabilities both awaited. Take camera ownership in the same
+    // synchronous turn as the final admission check and hold it until download.
+    if (container.read(flatWizardProvider.notifier).isBusy ||
+        container.read(rawCameraExposureInFlightProvider)) {
+      throw HandlerFailure(
+        code: 'rig_busy',
+        message: 'Another capture owns the camera.',
+        statusCode: HttpStatus.conflict,
+      );
+    }
     // register the command BEFORE kicking off the exposure so a
     // FrameAccepted event that arrives during `await
     // backend.cameraStartExposure` (rare but possible on fast cameras) can
@@ -260,6 +270,8 @@ extension CameraDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
+    final inFlight = container.read(rawCameraExposureInFlightProvider.notifier);
+    inFlight.state = true;
     try {
       await backend.cameraStartExposure(
         deviceId: deviceId,
@@ -298,6 +310,8 @@ extension CameraDeviceHandlers on DeviceHandlers {
         );
       }
       rethrow;
+    } finally {
+      inFlight.state = false;
     }
 
     // `cameraStartExposure` does NOT return at shutter-open: it completes the

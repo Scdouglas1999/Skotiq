@@ -84,10 +84,13 @@ Uint8List _encodeRgbaToJpeg({
 Future<DisplayBufferJpegEncodeResult?> encodeCapturedImageDisplayBufferToJpeg(
   CapturedImageResult image, {
   int maxWidth = 0,
+  int maxHeight = 0,
   int quality = 85,
 }) async {
   final expected = image.width * image.height * 4;
-  if (image.displayData.length != expected) {
+  if (image.width <= 0 ||
+      image.height <= 0 ||
+      image.displayData.length != expected) {
     return null;
   }
 
@@ -105,6 +108,14 @@ Future<DisplayBufferJpegEncodeResult?> encodeCapturedImageDisplayBufferToJpeg(
       1 << 16,
     );
     encodedWidth = maxWidth;
+  }
+
+  if (maxHeight > 0 && encodedHeight > maxHeight) {
+    encodedHeight = maxHeight;
+    encodedWidth = (image.width * maxHeight / image.height).round().clamp(
+      1,
+      encodedWidth,
+    );
   }
 
   // Everything the worker closure reads must be a local: capturing `image`

@@ -220,7 +220,7 @@ class FileSystemHandlers implements RouteSource {
         'valid': valid,
         'exists': exists,
         'writable': writable,
-        'normalizedPath': p.normalize(directory.absolute.path),
+        'normalizedPath': canonicalRequested,
       },
     );
   }

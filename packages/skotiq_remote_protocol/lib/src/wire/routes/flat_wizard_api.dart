@@ -4,22 +4,26 @@ enum FlatWizardApi implements ApiEndpoint {
   run(
     ApiRoute.post(
       '/api/flat-wizard/run',
-      resource: ApiResource.system,
+      resource: ApiResource.camera,
       rate: ApiRateTier.control,
+      sessionOwner: true,
     ),
   ),
   cancelRun(
     ApiRoute.post(
       '/api/flat-wizard/cancel',
-      resource: ApiResource.system,
+      resource: ApiResource.camera,
       rate: ApiRateTier.control,
+      sessionOwner: true,
     ),
   ),
-  runState(ApiRoute.get('/api/flat-wizard/state', resource: ApiResource.system)),
+  runState(
+    ApiRoute.get('/api/flat-wizard/state', resource: ApiResource.camera),
+  ),
   preview(
     ApiRoute.get(
       '/api/flat-wizard/preview',
-      resource: ApiResource.system,
+      resource: ApiResource.camera,
       timeout: ApiTimeout.slowRead,
     ),
   ),
