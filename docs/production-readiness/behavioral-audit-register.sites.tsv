@@ -1760,7 +1760,7 @@ packages/skotiq_app/lib/screens/imaging/widgets/imaging_hud.dart	build	literal_n
 packages/skotiq_app/lib/screens/imaging/widgets/imaging_view_prefs.dart	hydrate	literal_null_coalesce	1	V0898	if ((prefs.getBool(_crosshairKey) ?? false) != state.showCrosshair) {
 packages/skotiq_app/lib/screens/imaging/widgets/imaging_view_prefs.dart	hydrate	literal_null_coalesce	1	V0899	if ((prefs.getBool(_starOverlayKey) ?? false) != state.showStarOverlay) {
 packages/skotiq_app/lib/screens/imaging/widgets/live_preview_area.dart	build	literal_null_coalesce	1	V0002	annotationSettingsObj?.showSolveResiduals ?? false;
-packages/skotiq_app/lib/screens/imaging/widgets/live_stack/live_stack_darkroom_panel.dart	build	literal_null_coalesce	1	R91-08	(activeSnap?.hasPixels ?? false) ||
+packages/skotiq_app/lib/screens/imaging/widgets/live_stack/live_stack_darkroom_panel.dart	build	literal_null_coalesce	1	R91-08	final hasPixels = (activeSnap?.hasPixels ?? false) ||
 packages/skotiq_app/lib/screens/imaging/widgets/live_stack/live_stack_darkroom_provider.dart	promoteLiveStackToDarkroom	literal_null_coalesce	1	R91-09	totalIntegrationSeconds: saved.totalIntegrationSecs ?? 0.0,
 packages/skotiq_app/lib/screens/imaging/widgets/live_stack/live_stack_filter_pills.dart	build	literal_null_coalesce	1	R91-08	final frames = snapshot?.stats.stackedFrameCount ?? 0;
 packages/skotiq_app/lib/screens/imaging/widgets/live_stack/live_stack_filter_pills.dart	build	literal_null_coalesce	1	R91-08	final integration = snapshot?.totalIntegrationSecs ?? 0.0;
