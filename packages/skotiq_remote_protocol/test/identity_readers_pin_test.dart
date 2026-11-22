@@ -1,7 +1,8 @@
 // What each reader of a host's identity makes of the same advertised keys:
 // the /api/info merge, the UDP beacon, the mDNS TXT record and the probe.
 // The rows include keys of the wrong type, which no Skotiq release writes
-// but a foreign service on the LAN can.
+// but a foreign service on the LAN can: each reader takes such a key as
+// missing, where the merge used to throw and the beacon was dropped.
 
 import 'dart:convert';
 import 'dart:io';
@@ -67,13 +68,20 @@ const _merged = <String, String>{
       'name=OBS-PC version=9.1.0 mode=gui auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=null hostMode=null display=OBS-PC',
   'blank computer name':
       'name=OBS-PC version=9.1.0 mode=gui auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=null hostMode=null display=OBS-PC',
-  'name of another type': 'throws TypeError',
-  'version of another type': 'throws TypeError',
-  'mode of another type': 'throws TypeError',
-  'authRequired of another type': 'throws TypeError',
-  'authenticationMode of another type': 'throws TypeError',
-  'pairingSupported of another type': 'throws TypeError',
-  'fingerprint of another type': 'throws TypeError',
+  'name of another type':
+      'name=Skotiq version=9.1.0 mode=gui auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
+  'version of another type':
+      'name=OBS-PC version=null mode=gui auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
+  'mode of another type':
+      'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
+  'authRequired of another type':
+      'name=OBS-PC version=9.1.0 mode=gui auth=false/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
+  'authenticationMode of another type':
+      'name=OBS-PC version=9.1.0 mode=gui auth=true/none pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
+  'pairingSupported of another type':
+      'name=OBS-PC version=9.1.0 mode=gui auth=true/token pairing=false fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
+  'fingerprint of another type':
+      'name=OBS-PC version=9.1.0 mode=gui auth=true/token pairing=true fp=null scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'hostName of another type':
       'name=OBS-PC version=9.1.0 mode=gui auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=null hostMode=gui display=OBS-PC',
   'hostMode of another type':
@@ -86,17 +94,19 @@ const _beacons = <String, String>{
   'older host':
       'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=null hostMode=null display=OBS-PC',
   'blank computer name':
-      'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=   hostMode= display=OBS-PC',
+      'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=null hostMode=null display=OBS-PC',
   'name of another type':
       'name=Skotiq version=9.1.0 mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'version of another type':
       'name=OBS-PC version=null mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'mode of another type':
       'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
-  'authRequired of another type': 'dropped',
+  'authRequired of another type':
+      'name=OBS-PC version=9.1.0 mode=desktop auth=false/token pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'authenticationMode of another type':
       'name=OBS-PC version=9.1.0 mode=desktop auth=true/none pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
-  'pairingSupported of another type': 'dropped',
+  'pairingSupported of another type':
+      'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=false fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'fingerprint of another type':
       'name=OBS-PC version=9.1.0 mode=desktop auth=true/token pairing=true fp=null scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'hostName of another type':
@@ -150,7 +160,7 @@ const _probes = <String, ServerProbeOutcome>{
   'name of another type': ServerProbeOutcome.reachable,
   'version of another type': ServerProbeOutcome.unreachable,
   'mode of another type': ServerProbeOutcome.reachable,
-  'authRequired of another type': ServerProbeOutcome.unreachable,
+  'authRequired of another type': ServerProbeOutcome.reachable,
   'authenticationMode of another type': ServerProbeOutcome.reachable,
   'pairingSupported of another type': ServerProbeOutcome.unreachable,
   'fingerprint of another type': ServerProbeOutcome.reachable,

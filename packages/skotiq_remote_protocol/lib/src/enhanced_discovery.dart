@@ -568,28 +568,33 @@ class EnhancedSkotiqDiscovery {
     DiscoveredServer seed,
     Map<String, dynamic> info,
   ) {
+    final advert = HostAdvertRead.fromJson(info);
+    String? text(String key) => switch (info[key]) {
+      final String value => value,
+      _ => null,
+    };
     return seed.copyWith(
-      name: info['name'] as String? ?? seed.name,
-      version: info['version'] as String? ?? seed.version,
-      mode: info['mode'] as String? ?? seed.mode,
-      authRequired: info['authRequired'] as bool? ?? seed.authRequired,
-      authenticationMode:
-          info['authenticationMode'] as String? ?? seed.authenticationMode,
-      pairingSupported:
-          info['pairingSupported'] as bool? ?? seed.pairingSupported,
-      fingerprint: info['fingerprint'] as String? ?? seed.fingerprint,
-      lanPairing: info['lanPairing'] as bool? ?? seed.lanPairing,
-      scheme: _normalizeTransportScheme(info['scheme'], fallback: seed.scheme),
-      // /api/info now advertises the rig's tailnet address and relay
-      // appliance id when those uplinks are up. Carry them through so the
-      // connect path can persist them into the saved-server row and the
-      // Tailscale/relay setup sheets prefill them on the next reconnect.
-      tailscaleHost: info['tailscaleHost'] as String? ?? seed.tailscaleHost,
-      relayApplianceId:
-          info['relayApplianceId'] as String? ?? seed.relayApplianceId,
-      hostName: _nonEmpty(info['hostName']) ?? seed.hostName,
+      name: advert.name ?? seed.name,
+      version: advert.version ?? seed.version,
+      mode: advert.mode ?? seed.mode,
+      authRequired: advert.authRequired ?? seed.authRequired,
+      authenticationMode: advert.authenticationMode ?? seed.authenticationMode,
+      pairingSupported: advert.pairingSupported ?? seed.pairingSupported,
+      fingerprint: advert.fingerprint ?? seed.fingerprint,
+      lanPairing: switch (info['lanPairing']) {
+        final bool value => value,
+        _ => seed.lanPairing,
+      },
+      scheme: advert.scheme ?? seed.scheme,
+      // /api/info advertises the rig's tailnet address and relay appliance id
+      // when those uplinks are up. Carry them through so the connect path can
+      // persist them into the saved-server row and the Tailscale/relay setup
+      // sheets prefill them on the next reconnect.
+      tailscaleHost: text('tailscaleHost') ?? seed.tailscaleHost,
+      relayApplianceId: text('relayApplianceId') ?? seed.relayApplianceId,
+      hostName: advert.hostName ?? seed.hostName,
       platform: _nonEmpty(info['platform']) ?? seed.platform,
-      hostMode: _nonEmpty(info['hostMode']) ?? seed.hostMode,
+      hostMode: advert.hostMode ?? seed.hostMode,
     );
   }
 
@@ -706,17 +711,14 @@ class EnhancedSkotiqDiscovery {
             : ServerProbeOutcome.unreachable;
       }
       if (read.problem != null) return ServerProbeOutcome.incompatible;
-      final info = read.info;
-
-      final authRequired = info['authRequired'] as bool? ?? false;
-      if (!authRequired) {
+      final advert = HostAdvertRead.fromJson(read.info);
+      if (!(advert.authRequired ?? false)) {
         return ServerProbeOutcome.reachable;
       }
 
       if (authToken == null || authToken.isEmpty) {
         // Host is up; mobile will pair via /api/pairing/* before connecting.
-        final pairingSupported = info['pairingSupported'] as bool? ?? false;
-        return pairingSupported
+        return advert.pairingSupported ?? false
             ? ServerProbeOutcome.reachable
             : ServerProbeOutcome.unreachable;
       }

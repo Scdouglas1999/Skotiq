@@ -546,12 +546,6 @@ class SkotiqDiscovery {
     return servers.isNotEmpty ? servers.first : null;
   }
 
-  static String _validScheme(Object? raw) {
-    if (raw is! String) return 'http';
-    final scheme = raw.toLowerCase();
-    return scheme == 'https' ? 'https' : 'http';
-  }
-
   /// Parse one UDP response packet. Exposed as a pure helper so the wire
   /// contract can be covered without depending on LAN broadcast behaviour in
   /// unit tests.
@@ -565,27 +559,20 @@ class SkotiqDiscovery {
         return null;
       }
 
+      final advert = HostAdvertRead.fromJson(info);
       return DiscoveredServer(
         host: host,
         webPort: info['webPort'] as int,
         signalingPort: info['signalingPort'] as int,
-        name: info['name'] is String ? info['name'] as String : 'Skotiq',
-        version: info['version'] is String ? info['version'] as String : null,
-        scheme: _validScheme(info['scheme']),
-        authRequired: info['authRequired'] as bool? ?? false,
-        authenticationMode: info['authenticationMode'] is String
-            ? info['authenticationMode'] as String
-            : 'none',
-        pairingSupported: info['pairingSupported'] as bool? ?? false,
-        fingerprint: info['fingerprint'] is String
-            ? info['fingerprint'] as String
-            : null,
-        hostName: info['hostName'] is String
-            ? info['hostName'] as String
-            : null,
-        hostMode: info['hostMode'] is String
-            ? info['hostMode'] as String
-            : null,
+        name: advert.name ?? 'Skotiq',
+        version: advert.version,
+        scheme: advert.scheme ?? 'http',
+        authRequired: advert.authRequired ?? false,
+        authenticationMode: advert.authenticationMode ?? 'none',
+        pairingSupported: advert.pairingSupported ?? false,
+        fingerprint: advert.fingerprint,
+        hostName: advert.hostName,
+        hostMode: advert.hostMode,
       );
     } catch (_) {
       return null;
