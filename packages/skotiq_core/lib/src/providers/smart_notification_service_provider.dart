@@ -7,7 +7,7 @@ final smartNotificationServiceProvider = Provider<SmartNotificationService>((
   ref,
 ) {
   return SmartNotificationService(
-    notices: ref.read(uiNotificationProvider.notifier),
+    notices: () => ref.read(uiNotificationProvider.notifier),
     currentScreen: () => ref.read(currentScreenProvider),
   );
 });

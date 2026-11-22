@@ -7,7 +7,7 @@ final photometricCatalogServiceProvider = Provider<PhotometricCatalogService>((
   ref,
 ) {
   final service = PhotometricCatalogService(
-    logger: ref.read(loggingServiceProvider),
+    logger: () => ref.read(loggingServiceProvider),
     settingsDao: () => ref.read(settingsDaoProvider),
   );
   ref.onDispose(service.dispose);

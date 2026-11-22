@@ -10,7 +10,6 @@ import '../models/calibration/dark_library_match_tolerances.dart';
 import '../models/darkroom/master_naming.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
-import '../providers/dark_library_provider.dart';
 import 'calibration/calibration_selection.dart';
 import 'dark_library_service.dart';
 import 'flat_library_service.dart';
@@ -109,7 +108,7 @@ class MasterAccumulationService {
   MasterRestartNotice? _lastRestart;
 
   /// Dark-frame match tolerances, resolved from
-  /// [darkLibraryMatchTolerancesProvider] at the provider boundary so this
+  /// `darkLibraryMatchTolerancesProvider` at the provider boundary so this
   /// post-session accumulation matcher agrees with the coverage UI and the live
   /// calibration path, rather than the code defaults.
   final DarkLibraryMatchTolerances _darkTolerances;

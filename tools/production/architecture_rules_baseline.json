@@ -121,10 +121,6 @@
         "count": 11,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
-      "services/flat_wizard_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/frame_identity.dart": {
         "count": 4,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider. Remains: Other services import it (imaging_service.dart), so it stays in services/; its provider reads become arguments in a later round."
@@ -137,17 +133,13 @@
         "count": 9,
         "reason": "Holds a Riverpod Ref and declares the role provider of its own data set (hostRoleProvider); reads coImagingSessionServiceProvider, imagesDaoProvider, loggingServiceProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider, thumbnailSidecarServiceProvider. Remains: Other services import it (imaging_service.dart, local_imaging_records_solved_frame_hooks.dart, science_processing_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/master_accumulation_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/night_end_runner.dart": {
         "count": 8,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationBacklogProvider, darkroomBuildJobsProvider, darkroomBuildServiceProvider, darkroomRecentBuildsProvider, darkroomStateStoreProvider, databaseProvider, guidedBuildDeliveryProvider, imagesDaoProvider, loggingServiceProvider, notificationServiceProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
       "services/open_plan_service.dart": {
         "count": 5,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentSequenceProvider, sequenceFileServiceProvider, sequenceRepositoryProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
+        "reason": "Declares openPlanRestoreDecidedProvider, and its functions take a provider reader (`read`) to read the open plan, the sequence file service and the remote flag: provider glue. Remains: move it to providers/ (no service imports it) once its callers in app and headless code are updated."
       },
       "services/plate_solve_service.dart": {
         "count": 4,
@@ -159,7 +151,7 @@
       },
       "services/quick_start_service.dart": {
         "count": 4,
-        "reason": "Holds a Riverpod Ref; reads sequenceCheckpointsDaoProvider. Remains: Other services import it (session_handoff_service.dart), so it stays in services/; its provider reads become arguments in a later round."
+        "reason": "Its part file quick_start_service/quick_start_providers.dart declares the Quick Start providers (Ref, DAO providers, sequenceCheckpointsDaoProvider). Remains: move those declarations to providers/ next."
       },
       "services/science_camera_auto_config.dart": {
         "count": 6,
@@ -276,7 +268,7 @@
       },
       "services/open_plan_service.dart": {
         "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentSequenceProvider, sequenceFileServiceProvider, sequenceRepositoryProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
+        "reason": "Declares openPlanRestoreDecidedProvider, and its functions take a provider reader (`read`) to read the open plan, the sequence file service and the remote flag: provider glue. Remains: move it to providers/ (no service imports it) once its callers in app and headless code are updated."
       },
       "services/plate_solve_service.dart": {
         "count": 1,
@@ -288,7 +280,7 @@
       },
       "services/quick_start_service.dart": {
         "count": 1,
-        "reason": "Holds a Riverpod Ref; reads sequenceCheckpointsDaoProvider. Remains: Other services import it (session_handoff_service.dart), so it stays in services/; its provider reads become arguments in a later round."
+        "reason": "Its part file quick_start_service/quick_start_providers.dart declares the Quick Start providers (Ref, DAO providers, sequenceCheckpointsDaoProvider). Remains: move those declarations to providers/ next."
       },
       "services/science_camera_auto_config.dart": {
         "count": 1,

@@ -9,7 +9,7 @@ import 'package:skotiq_core/src/providers/science/photometric_catalog_service_pr
 class _Catalog extends PhotometricCatalogService {
   _Catalog(Ref ref)
     : super(
-        logger: ref.read(loggingServiceProvider),
+        logger: () => ref.read(loggingServiceProvider),
         settingsDao: () => ref.read(settingsDaoProvider),
       );
   final requests = <List<double>>[];

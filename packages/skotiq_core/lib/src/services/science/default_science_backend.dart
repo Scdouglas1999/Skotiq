@@ -39,14 +39,14 @@ const double _residualMatchPx = 10.0;
 class DefaultScienceBackend implements ScienceBackend {
   DefaultScienceBackend({
     required ImagingBackend Function() backend,
-    required LoggingService logger,
+    required LoggingService Function() logger,
     required AppSettingsState? Function() appSettings,
     required PlateSolveService Function() plateSolver,
     required PhotometricCatalogService Function() catalog,
     required ImagesDao Function() imagesDao,
     required SettingsDao Function() settingsDao,
   }) : _readBackend = backend,
-       _logger = logger,
+       _readLogger = logger,
        _appSettings = appSettings,
        _plateSolver = plateSolver,
        _catalog = catalog,
@@ -54,7 +54,7 @@ class DefaultScienceBackend implements ScienceBackend {
        _settingsDao = settingsDao;
 
   final ImagingBackend Function() _readBackend;
-  final LoggingService _logger;
+  final LoggingService Function() _readLogger;
 
   /// The app settings once loaded, null before.
   final AppSettingsState? Function() _appSettings;
@@ -66,6 +66,7 @@ class DefaultScienceBackend implements ScienceBackend {
   final Map<String, MovingObjectFrameDetections> _movingObjectCache = {};
 
   ImagingBackend get _backend => _readBackend();
+  LoggingService get _logger => _readLogger();
 
   @override
   Future<SolverCapabilities> getSolverCapabilities() async {

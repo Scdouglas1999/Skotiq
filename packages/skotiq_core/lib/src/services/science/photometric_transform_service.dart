@@ -26,14 +26,15 @@ import 'photometric_bands.dart';
 class PhotometricTransformService implements PhotometricTransforms {
   PhotometricTransformService({
     required ScienceDao Function() scienceDao,
-    required LoggingService logger,
+    required LoggingService Function() logger,
   }) : _readScienceDao = scienceDao,
-       _logger = logger;
+       _readLogger = logger;
 
   final ScienceDao Function() _readScienceDao;
-  final LoggingService _logger;
+  final LoggingService Function() _readLogger;
 
   ScienceDao get _scienceDao => _readScienceDao();
+  LoggingService get _logger => _readLogger();
 
   /// Why the last [computeTransformCoefficients] call returned null, in
   /// words for the user; null after a successful fit.

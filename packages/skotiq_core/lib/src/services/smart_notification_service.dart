@@ -12,12 +12,14 @@ import 'notification/ui_notices.dart';
 /// But if they're on the Dashboard and a slew completes, they should be notified.
 class SmartNotificationService {
   SmartNotificationService({
-    required UiNotices notices,
+    required UiNotices Function() notices,
     required AppScreen Function() currentScreen,
-  }) : _notifier = notices,
+  }) : _notices = notices,
        _currentScreen = currentScreen;
 
-  final UiNotices _notifier;
+  final UiNotices Function() _notices;
+
+  UiNotices get _notifier => _notices();
 
   /// The screen the operator is looking at now.
   final AppScreen Function() _currentScreen;

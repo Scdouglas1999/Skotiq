@@ -61,7 +61,7 @@ void main() {
     addTearDown(container.dispose);
     final serviceProvider = Provider(
       (ref) => PhotometricCatalogService(
-        logger: ref.read(loggingServiceProvider),
+        logger: () => ref.read(loggingServiceProvider),
         settingsDao: () => ref.read(settingsDaoProvider),
         client: client,
       ),
@@ -99,7 +99,7 @@ void main() {
       addTearDown(container.dispose);
       final provider = Provider(
         (ref) => PhotometricCatalogService(
-          logger: ref.read(loggingServiceProvider),
+          logger: () => ref.read(loggingServiceProvider),
           settingsDao: () => ref.read(settingsDaoProvider),
           client: MockClient((_) async {
             requests++;
@@ -130,7 +130,7 @@ void main() {
       addTearDown(container.dispose);
       final provider = Provider(
         (ref) => PhotometricCatalogService(
-          logger: ref.read(loggingServiceProvider),
+          logger: () => ref.read(loggingServiceProvider),
           settingsDao: () => ref.read(settingsDaoProvider),
           client: MockClient((r) async {
             hosts.add(r.url.host);
@@ -165,7 +165,7 @@ void main() {
       addTearDown(container.dispose);
       final provider = Provider(
         (ref) => PhotometricCatalogService(
-          logger: ref.read(loggingServiceProvider),
+          logger: () => ref.read(loggingServiceProvider),
           settingsDao: () => ref.read(settingsDaoProvider),
           now: () => now,
           client: MockClient((_) async {

@@ -40,7 +40,7 @@ class _MeasuredBackend extends DefaultScienceBackend {
     ],
   }) : super(
          backend: () => ref.read(imagingBackendProvider),
-         logger: ref.read(loggingServiceProvider),
+         logger: () => ref.read(loggingServiceProvider),
          appSettings: () => ref.read(appSettingsProvider).valueOrNull,
          plateSolver: () => ref.read(plateSolveServiceProvider),
          catalog: () => ref.read(photometricCatalogServiceProvider),

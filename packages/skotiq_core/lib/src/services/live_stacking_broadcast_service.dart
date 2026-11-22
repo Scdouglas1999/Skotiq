@@ -266,7 +266,7 @@ class BroadcastUpdate {
 /// Coordinates between the LiveStacking node, the live-stacking
 /// service, and the broadcast HTTP endpoints.
 class LiveStackingBroadcastService {
-  final LoggingService _logger;
+  final LoggingService Function() _readLogger;
   final StreamController<BroadcastUpdate> _updates =
       StreamController<BroadcastUpdate>.broadcast();
   final StreamController<BroadcastSessionState> _changes =
@@ -294,9 +294,11 @@ class LiveStackingBroadcastService {
   final ShareCardRenderer _renderer;
 
   LiveStackingBroadcastService(
-    this._logger, {
+    this._readLogger, {
     ShareCardRenderer renderer = const ShareCardRenderer(),
   }) : _renderer = renderer;
+
+  LoggingService get _logger => _readLogger();
 
   /// Subscribe to broadcast updates. The handler implementation maps
   /// each event onto an SSE message; the dashboard panel can also

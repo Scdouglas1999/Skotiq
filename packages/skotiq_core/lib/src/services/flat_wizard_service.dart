@@ -16,7 +16,6 @@ import '../models/flat_wizard/flat_capture_config.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../models/sequence/sequence_models.dart';
 import '../models/imaging/imaging_models.dart';
-import '../providers/flat_wizard_provider.dart';
 import 'sky_brightness_tracker.dart';
 import '../models/flat_wizard/flat_exposure_calculator.dart';
 import 'flat_exposure_follower.dart';

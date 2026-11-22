@@ -8,7 +8,7 @@ import 'logging_service_provider.dart';
 final liveStackingBroadcastServiceProvider =
     Provider<LiveStackingBroadcastService>((ref) {
       final svc = LiveStackingBroadcastService(
-        ref.read(loggingServiceProvider),
+        () => ref.read(loggingServiceProvider),
       );
       ref.onDispose(svc.dispose);
       return svc;

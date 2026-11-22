@@ -24,14 +24,14 @@ import '../backend/phd2_status_poll.dart';
 /// After spawning, poll the port for [launchTimeout] before giving up.
 class Phd2Launcher {
   Phd2Launcher({
-    required UiNotices notices,
+    required UiNotices Function() notices,
     Duration launchTimeout = const Duration(seconds: 10),
     Duration pollInterval = const Duration(milliseconds: 250),
   }) : _notices = notices,
        _launchTimeout = launchTimeout,
        _pollInterval = pollInterval;
 
-  final UiNotices _notices;
+  final UiNotices Function() _notices;
   final Duration _launchTimeout;
   final Duration _pollInterval;
 
@@ -60,6 +60,7 @@ class Phd2Launcher {
       return;
     }
 
+    final notifications = _notices();
     final configuredPath = executablePath.trim();
     if (configuredPath.isNotEmpty) {
       final exe = File(configuredPath);
@@ -71,7 +72,7 @@ class Phd2Launcher {
         );
       }
 
-      _notices.showInfo(
+      notifications.showInfo(
         'PHD2 not running: launching $configuredPath...',
         title: 'PHD2',
         duration: const Duration(seconds: 5),
@@ -93,7 +94,7 @@ class Phd2Launcher {
         );
       }
     } else {
-      _notices.showInfo(
+      notifications.showInfo(
         'PHD2 not running: searching for installed PHD2...',
         title: 'PHD2',
         duration: const Duration(seconds: 5),

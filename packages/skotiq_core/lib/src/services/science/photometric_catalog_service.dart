@@ -113,7 +113,7 @@ class PhotometricCatalogService {
   /// reaches the ceiling is truncated, so it is used but not cached.
   static const _maxRows = 20000;
 
-  final LoggingService _logger;
+  final LoggingService Function() _readLogger;
   final SettingsDao Function() _settingsDao;
   final http.Client _client;
   final bool _ownsClient;
@@ -126,15 +126,17 @@ class PhotometricCatalogService {
   final Map<String, Future<List<PhotometricCatalogStar>?>> _inflight = {};
 
   PhotometricCatalogService({
-    required LoggingService logger,
+    required LoggingService Function() logger,
     required SettingsDao Function() settingsDao,
     http.Client? client,
     DateTime Function()? now,
-  }) : _logger = logger,
+  }) : _readLogger = logger,
        _settingsDao = settingsDao,
        _client = client ?? http.Client(),
        _ownsClient = client == null,
        _now = now ?? DateTime.now;
+
+  LoggingService get _logger => _readLogger();
 
   void dispose() {
     if (_ownsClient) {

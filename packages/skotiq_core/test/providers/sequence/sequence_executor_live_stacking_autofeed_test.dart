@@ -584,7 +584,9 @@ void main() {
           ),
           liveStackingServiceProvider.overrideWithValue(fakeStacker),
           liveStackingBroadcastServiceProvider.overrideWith((ref) {
-            final svc = _DeactivateFails(ref.read(loggingServiceProvider));
+            final svc = _DeactivateFails(
+              () => ref.read(loggingServiceProvider),
+            );
             ref.onDispose(svc.dispose);
             return svc;
           }),

@@ -11,7 +11,7 @@ import 'photometric_catalog_service_provider.dart';
 final scienceBackendProvider = Provider<ScienceBackend>((ref) {
   return DefaultScienceBackend(
     backend: () => ref.read(imagingBackendProvider),
-    logger: ref.read(loggingServiceProvider),
+    logger: () => ref.read(loggingServiceProvider),
     appSettings: () => ref.read(appSettingsProvider).valueOrNull,
     plateSolver: () => ref.read(plateSolveServiceProvider),
     catalog: () => ref.read(photometricCatalogServiceProvider),

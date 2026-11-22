@@ -10,7 +10,7 @@ final photometricTransformServiceProvider =
     Provider<PhotometricTransformService>((ref) {
       return PhotometricTransformService(
         scienceDao: () => ref.read(scienceDaoProvider),
-        logger: ref.read(loggingServiceProvider),
+        logger: () => ref.read(loggingServiceProvider),
       );
     });
 
