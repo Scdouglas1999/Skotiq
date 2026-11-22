@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
+    show HostAdvert;
 
 const _headlessLogSource = 'HeadlessMain';
 
@@ -26,8 +28,7 @@ const _avahiServiceFileName = 'skotiq.service';
 void refreshAvahiServiceFile({
   required LoggingService logger,
   required int port,
-  required String scheme,
-  required String version,
+  required HostAdvert advert,
 }) {
   try {
     final dir = Directory(_avahiServicesDir);
@@ -40,15 +41,12 @@ void refreshAvahiServiceFile({
       );
       return;
     }
-    final contents = _renderAvahiServiceFile(
-      port: port,
-      scheme: scheme,
-      version: version,
-    );
+    final contents = renderAvahiServiceFile(port: port, advert: advert);
     final file = File('$_avahiServicesDir/$_avahiServiceFileName');
     file.writeAsStringSync(contents, flush: true);
     logger.info(
-      'Refreshed Avahi service file ${file.path}: port=$port scheme=$scheme. '
+      'Refreshed Avahi service file ${file.path}: port=$port '
+      'scheme=${advert.scheme}. '
       'avahi-daemon picks up the change automatically.',
       source: _headlessLogSource,
     );
@@ -63,15 +61,25 @@ void refreshAvahiServiceFile({
   }
 }
 
-/// Render the `_skotiq._tcp` Avahi service-group XML with the live [port],
-/// [scheme] and [version]. Mirrors packaging/appliance/avahi/skotiq.service
-/// (same service type + name/version/scheme/pairingSupported/name TXT records)
-/// but with the runtime values substituted.
-String _renderAvahiServiceFile({
-  required int port,
-  required String scheme,
-  required String version,
-}) {
+/// The `_skotiq._tcp` Avahi service-group XML with the live [port] and the
+/// host's [advert]. Mirrors packaging/appliance/avahi/skotiq.service (same
+/// service type, instance name and `name=Skotiq`), and carries the advert's
+/// other TXT keys (fingerprint, hostName, hostMode) as the in-process mDNS
+/// registration does, so a phone can read them before `/api/info`.
+String renderAvahiServiceFile({required int port, required HostAdvert advert}) {
+  final txt = advert.toTxt();
+  final records = <String, String>{
+    'version': advert.version,
+    'scheme': advert.scheme,
+    'pairingSupported': 'true',
+    'name': 'Skotiq',
+    for (final key in ['fingerprint', 'hostName', 'hostMode'])
+      if (txt[key] case final value? when value.isNotEmpty) key: value,
+  };
+  final lines = [
+    for (final MapEntry(:key, :value) in records.entries)
+      '    <txt-record>${_xml('$key=$value')}</txt-record>',
+  ].join('\n');
   return '''
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
@@ -87,11 +95,13 @@ String _renderAvahiServiceFile({
   <service>
     <type>_skotiq._tcp</type>
     <port>$port</port>
-    <txt-record>version=$version</txt-record>
-    <txt-record>scheme=$scheme</txt-record>
-    <txt-record>pairingSupported=true</txt-record>
-    <txt-record>name=Skotiq</txt-record>
+$lines
   </service>
 </service-group>
 ''';
 }
+
+String _xml(String text) => text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');

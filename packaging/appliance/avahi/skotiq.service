@@ -26,10 +26,10 @@
   SKOTIQ_PORT from headless.env at install time so the seed is correct even
   before the first daemon start. 8080 is the default if neither runs.
 
-  FINGERPRINT: deliberately NOT advertised here — it is per-appliance and
-  generated at runtime. The client treats the TXT fingerprint as an optional
-  pre-HTTP optimization and falls back to fetching it from GET /api/info, so
-  omitting it costs one extra HTTP roundtrip and nothing else.
+  FINGERPRINT: not in this seed — it is per-appliance and generated at
+  runtime. The daemon's rewrite adds it, with hostName and hostMode, from the
+  same advert its other discovery channels send. Until then the client fetches
+  them from GET /api/info, which costs one extra HTTP roundtrip.
 -->
 <service-group>
   <name replace-wildcards="yes">Skotiq on %h</name>

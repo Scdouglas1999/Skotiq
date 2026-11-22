@@ -293,8 +293,7 @@ Future<RunningHostServer> startHostServer({
       refreshAvahiServiceFile(
         logger: logger,
         port: server.actualPort,
-        scheme: scheme,
-        version: appVersion.version,
+        advert: advert,
       );
     }
     try {
