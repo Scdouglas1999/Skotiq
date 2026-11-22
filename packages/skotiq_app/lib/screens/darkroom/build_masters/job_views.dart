@@ -134,11 +134,12 @@ class _FilterResultRow extends StatelessWidget {
         icon: SkotiqIcons.warning,
       );
     }
-    final skipped = build.skippedCount ?? 0;
+    final seconds = build.totalIntegrationSec ?? 0;
+    final skipped = build.skippedCount;
     return DetailRow(
       title:
-          '${build.filter}: ${build.frameCount} frames, ${describeIntegration(build.totalIntegrationSec ?? 0)}',
-      subtitle: skipped == 0
+          '${build.filter}: ${build.frameCount} frames, ${describeIntegration(seconds)}',
+      subtitle: skipped == null || skipped == 0
           ? 'No frames left out'
           : '$skipped left out during processing',
       icon: SkotiqIcons.check,

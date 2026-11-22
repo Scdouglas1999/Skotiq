@@ -769,8 +769,8 @@ String describeBuiltMasters(DarkroomBuildJob job) {
     var subs = 0;
     var seconds = 0.0;
     for (final r in results) {
-      subs += r.frameCount ?? 0;
-      seconds += r.totalIntegrationSec ?? 0;
+      if (r.frameCount case final n?) subs += n;
+      if (r.totalIntegrationSec case final s?) seconds += s;
     }
     final filters = [for (final r in results) r.filter]
       ..sort(compareFilterNames);
