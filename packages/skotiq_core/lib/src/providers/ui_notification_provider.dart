@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/notification/ui_notices.dart';
+
 /// Severity level for UI notifications
 enum UiNotificationLevel { info, success, warning, error }
 
@@ -28,7 +30,8 @@ class UiNotification {
 }
 
 /// Notifier that manages a queue of UI notifications
-class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
+class UiNotificationNotifier extends StateNotifier<List<UiNotification>>
+    implements UiNotices {
   UiNotificationNotifier() : super([]);
 
   /// Hard upper bound on the number of notifications retained in state.
@@ -82,6 +85,7 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
         : appended;
   }
 
+  @override
   void showInfo(
     String message, {
     String? title,
@@ -97,6 +101,7 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
+  @override
   void showSuccess(
     String message, {
     String? title,
@@ -112,6 +117,7 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
+  @override
   void showWarning(
     String message, {
     String? title,
@@ -127,6 +133,7 @@ class UiNotificationNotifier extends StateNotifier<List<UiNotification>> {
     );
   }
 
+  @override
   void showError(
     String message, {
     String? title,

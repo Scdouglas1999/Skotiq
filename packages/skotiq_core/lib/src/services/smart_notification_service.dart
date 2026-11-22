@@ -1,12 +1,9 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../providers/current_screen_provider.dart';
 import '../models/app_screen.dart';
-import '../providers/ui_notification_provider.dart';
+import 'notification/ui_notices.dart';
 
 /// Service for sending screen-aware notifications.
 ///
-/// This service wraps the standard [UiNotificationNotifier] and adds
+/// This service wraps the operator's [UiNotices] and adds
 /// logic to conditionally show notifications only when the user is NOT
 /// viewing the screen where the operation is happening.
 ///
@@ -14,12 +11,16 @@ import '../providers/ui_notification_provider.dart';
 /// they can already see the slew result - no need for a notification.
 /// But if they're on the Dashboard and a slew completes, they should be notified.
 class SmartNotificationService {
-  final Ref _ref;
+  SmartNotificationService({
+    required UiNotices notices,
+    required AppScreen Function() currentScreen,
+  }) : _notifier = notices,
+       _currentScreen = currentScreen;
 
-  SmartNotificationService(this._ref);
+  final UiNotices _notifier;
 
-  UiNotificationNotifier get _notifier =>
-      _ref.read(uiNotificationProvider.notifier);
+  /// The screen the operator is looking at now.
+  final AppScreen Function() _currentScreen;
 
   /// Show a success notification only if the user is NOT on any of the specified screens.
   void showSuccessIfNotOnScreens({
@@ -27,7 +28,7 @@ class SmartNotificationService {
     required List<AppScreen> relevantScreens,
     String? title,
   }) {
-    final currentScreen = _ref.read(currentScreenProvider);
+    final currentScreen = _currentScreen();
     if (!relevantScreens.contains(currentScreen)) {
       _notifier.showSuccess(message, title: title);
     }

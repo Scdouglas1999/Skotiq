@@ -113,6 +113,7 @@ export 'src/services/notification/transports/notification_transport.dart';
 export 'src/services/notification/transports/discord_transport.dart';
 export 'src/services/notification/transports/email_transport.dart';
 export 'src/services/notification/transports/in_app_transport.dart';
+export 'src/services/notification/ui_notices.dart';
 export 'src/services/notification/transports/mqtt_transport.dart';
 export 'src/services/notification/transports/pushover_transport.dart';
 export 'src/services/notification/transports/system_push_transport.dart';
