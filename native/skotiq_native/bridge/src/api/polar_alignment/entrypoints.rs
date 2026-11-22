@@ -1,11 +1,11 @@
-use crate::api::connection::api_get_connected_devices;
 use crate::api::polar_alignment::events::{emit_polar_error, emit_polar_status};
 use crate::api::polar_alignment::run_control::{
     get_polar_align_cancel, get_polar_align_flag, polar_control_lock, polar_generation,
     polar_task_slot, release_polar_run_if_current, store_polar_task, try_admit_polar_run,
     POLAR_STOP_ABORT_GRACE_SECS, POLAR_STOP_CLEAN_GRACE_SECS,
 };
-use crate::device::DeviceType;
+use crate::device_manager::get_device_manager;
+use crate::device_manager::roles::RigRole;
 use crate::error::SkotiqError;
 use crate::event::bus::EventPayload;
 use crate::event::correlation::create_event_auto_id;
@@ -141,20 +141,16 @@ pub async fn api_start_all_sky_polar_alignment(
         is_north
     );
 
-    // Resolve connected devices.
-    let connected = api_get_connected_devices().await;
-    let camera_id = connected
-        .iter()
-        .find(|d| d.device_type == DeviceType::Camera)
-        .map(|d| d.id.clone())
+    let camera_id = get_device_manager()
+        .rig_device(RigRole::PolarCamera, None)
+        .await
         .ok_or_else(|| {
             release_polar_run_if_current(generation);
             SkotiqError::DeviceNotFound("No camera connected".to_string())
         })?;
-    let mount_id = connected
-        .iter()
-        .find(|d| d.device_type == DeviceType::Mount)
-        .map(|d| d.id.clone())
+    let mount_id = get_device_manager()
+        .rig_device(RigRole::PolarMount, None)
+        .await
         .ok_or_else(|| {
             release_polar_run_if_current(generation);
             SkotiqError::DeviceNotFound("No mount connected".to_string())

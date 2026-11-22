@@ -1,4 +1,3 @@
-use crate::api::connection::api_get_connected_devices;
 use crate::api::polar_alignment::events::{
     emit_polar_error, emit_polar_image, emit_polar_status, plate_solve_ra_degrees,
 };
@@ -13,8 +12,9 @@ use crate::api::polar_alignment::solve::{
     polar_solve_downsample, read_polar_solve_hint, solve_polar_frame,
     DEFAULT_POLAR_SOLVE_TIMEOUT_SECS, POLAR_SOLVE_SEARCH_RADIUS_DEG,
 };
-use crate::device::{DeviceType, DriverType};
+use crate::device::DriverType;
 use crate::device_manager::get_device_manager;
+use crate::device_manager::roles::RigRole;
 use crate::error::SkotiqError;
 use crate::solver::{gather_solve_hints_for_camera, SolveHints, SolvePosition};
 use crate::state::get_state;
@@ -56,17 +56,13 @@ pub async fn api_start_polar_alignment(
         exposure_time, step_size, binning, is_north, manual_rotation, rotate_east
     );
 
-    let connected = api_get_connected_devices().await;
+    let camera_id = get_device_manager()
+        .rig_device(RigRole::PolarCamera, None)
+        .await;
 
-    let camera_id = connected
-        .iter()
-        .find(|d| d.device_type == DeviceType::Camera)
-        .map(|d| d.id.clone());
-
-    let mount_id = connected
-        .iter()
-        .find(|d| d.device_type == DeviceType::Mount)
-        .map(|d| d.id.clone());
+    let mount_id = get_device_manager()
+        .rig_device(RigRole::PolarMount, None)
+        .await;
 
     let camera_id = camera_id.ok_or_else(|| {
         release_polar_run_if_current(generation);

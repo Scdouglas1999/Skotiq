@@ -6,6 +6,7 @@
 //! `crate::dispatch`.
 
 pub(crate) mod accessory;
+pub(crate) mod capture;
 pub(crate) mod connection;
 pub(crate) mod device_reopen;
 pub(crate) mod epoch;
@@ -18,6 +19,7 @@ pub(crate) mod ops;
 pub(crate) mod policy;
 pub(crate) mod read_health;
 pub(crate) mod rig;
+pub(crate) mod roles;
 
 use crate::device::{ConnectionState, DeviceInfo, DeviceType};
 use crate::state::SharedAppState;

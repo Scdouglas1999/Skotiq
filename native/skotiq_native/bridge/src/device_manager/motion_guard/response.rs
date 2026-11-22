@@ -542,21 +542,11 @@ pub struct RecoverySolve {
 /// The camera a recovery frame is taken with: the one asked for, the run's,
 /// the profile's, or the only connected camera.
 async fn recovery_camera(camera_id: Option<String>) -> Option<String> {
-    if camera_id.is_some() {
-        return camera_id;
-    }
-    let run_camera = skotiq_sequencer::executor_handle().devices().camera_id;
-    if run_camera.is_some() {
-        return run_camera;
-    }
-    if let Some(id) = crate::state::get_state()
-        .get_profile_device_id(crate::device::DeviceType::Camera)
-        .await
-    {
-        return Some(id);
-    }
     crate::device_manager::get_device_manager()
-        .first_connected_device_id(crate::device::DeviceType::Camera)
+        .rig_device(
+            crate::device_manager::roles::RigRole::RecoveryCamera,
+            camera_id.as_deref(),
+        )
         .await
 }
 
@@ -582,14 +572,9 @@ pub(crate) fn recovery_slot(names: &[String]) -> Option<usize> {
 /// mount; the run's next frame sets its own filter.
 async fn wheel_to_recovery_filter() {
     let manager = crate::device_manager::get_device_manager();
-    let wheel = match skotiq_sequencer::executor_handle().devices().filterwheel_id {
-        Some(id) => Some(id),
-        None => {
-            manager
-                .first_connected_device_id(crate::device::DeviceType::FilterWheel)
-                .await
-        }
-    };
+    let wheel = manager
+        .rig_device(crate::device_manager::roles::RigRole::RecoveryWheel, None)
+        .await;
     let Some(wheel) = wheel else {
         return;
     };
@@ -643,8 +628,8 @@ pub async fn solve_for_recovery(
     wheel_to_recovery_filter().await;
     let ops = crate::unified_device_ops::create_unified_device_ops();
     let exposure = exposure_secs.clamp(0.5, 60.0);
-    let image = ops
-        .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&camera, exposure))
+    let image = crate::device_manager::get_device_manager()
+        .capture(skotiq_sequencer::ExposureRequest::new(&camera, exposure))
         .await
         .map_err(|e| format!("The recovery frame failed: {e}"))?;
     let solved = tokio::time::timeout(

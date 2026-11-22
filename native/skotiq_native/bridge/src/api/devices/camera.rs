@@ -11,7 +11,8 @@ pub async fn get_camera_status(device_id: String) -> Result<CameraStatus, Skotiq
         .map_err(SkotiqError::from)?;
     // Some drivers report Idle once the sensor is done, while its buffer is
     // still owned by the acquisition/download task.
-    if crate::unified_device_ops::exposure_wait::camera_acquisition_in_progress(&device_id).await
+    if crate::device_manager::capture::exposure_wait::camera_acquisition_in_progress(&device_id)
+        .await
         && status.state == CameraState::Idle
     {
         status.state = CameraState::Download;

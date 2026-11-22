@@ -1,4 +1,4 @@
-use super::{device_error, UnifiedDeviceOps};
+use super::{sequencer_error, UnifiedDeviceOps};
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_device::match_filter_slot;
@@ -12,21 +12,21 @@ impl FilterWheelOps for UnifiedDeviceOps {
         let mgr = get_device_manager();
         mgr.with_reopen(fw_id, || mgr.filter_wheel_set_position(fw_id, position))
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::FilterWheel))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::FilterWheel))
     }
 
     async fn filterwheel_get_position(&self, fw_id: &str) -> DeviceResult<i32> {
         get_device_manager()
             .filter_wheel_get_position(fw_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::FilterWheel))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::FilterWheel))
     }
 
     async fn filterwheel_get_names(&self, fw_id: &str) -> DeviceResult<Vec<String>> {
         let (_, names) = get_device_manager()
             .filter_wheel_get_config(fw_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::FilterWheel))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::FilterWheel))?;
         Ok(names)
     }
 

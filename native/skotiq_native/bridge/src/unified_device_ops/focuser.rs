@@ -1,4 +1,4 @@
-use super::{device_error, UnifiedDeviceOps};
+use super::{sequencer_error, UnifiedDeviceOps};
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_sequencer::{DeviceResult, FocuserOps};
@@ -12,34 +12,34 @@ impl FocuserOps for UnifiedDeviceOps {
         let mgr = get_device_manager();
         mgr.with_reopen(focuser_id, || mgr.focuser_move_abs(focuser_id, position))
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Focuser))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Focuser))
     }
 
     async fn focuser_get_position(&self, focuser_id: &str) -> DeviceResult<i32> {
         get_device_manager()
             .focuser_get_position(focuser_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Focuser))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Focuser))
     }
 
     async fn focuser_is_moving(&self, focuser_id: &str) -> DeviceResult<bool> {
         get_device_manager()
             .focuser_is_moving(focuser_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Focuser))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Focuser))
     }
 
     async fn focuser_get_temperature(&self, focuser_id: &str) -> DeviceResult<Option<f64>> {
         get_device_manager()
             .focuser_get_temp(focuser_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Focuser))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Focuser))
     }
 
     async fn focuser_halt(&self, focuser_id: &str) -> DeviceResult<()> {
         get_device_manager()
             .focuser_halt(focuser_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Focuser))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Focuser))
     }
 }

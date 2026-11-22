@@ -1,5 +1,4 @@
-use super::{device_error, UnifiedDeviceOps};
-use crate::device::DeviceType;
+use super::{sequencer_error, UnifiedDeviceOps};
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_sequencer::{DeviceResult, DomeOps};
@@ -7,11 +6,10 @@ use skotiq_sequencer::{DeviceResult, DomeOps};
 #[async_trait]
 impl DomeOps for UnifiedDeviceOps {
     /// The sequencer's dome/cover role slots are never populated (see
-    /// `DomeOps::active_dome_id`), so answer with whatever is connected —
-    /// the same first-connected lookup `resolve_safety_device_id` uses.
+    /// `DomeOps::active_dome_id`), so answer with whatever is connected.
     async fn active_dome_id(&self) -> Option<String> {
         get_device_manager()
-            .first_connected_device_id(DeviceType::Dome)
+            .rig_device(crate::device_manager::roles::RigRole::RunDome, None)
             .await
     }
 
@@ -21,7 +19,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_open_shutter(dome_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Dome))
     }
 
     async fn dome_close(&self, dome_id: &str) -> DeviceResult<()> {
@@ -30,7 +28,7 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_close_shutter(dome_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Dome))
     }
 
     async fn dome_park(&self, dome_id: &str) -> DeviceResult<()> {
@@ -39,14 +37,14 @@ impl DomeOps for UnifiedDeviceOps {
         get_device_manager()
             .dome_park(dome_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Dome))
     }
 
     async fn dome_get_shutter_status(&self, dome_id: &str) -> DeviceResult<String> {
         let status = get_device_manager()
             .dome_get_shutter_status(dome_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Dome))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Dome))?;
 
         // Convert i32 status to string
         // ASCOM ShutterStatus: 0=Open, 1=Closed, 2=Opening, 3=Closing, 4=Error
