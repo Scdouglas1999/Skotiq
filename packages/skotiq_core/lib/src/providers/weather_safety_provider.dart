@@ -167,6 +167,13 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// stand half an hour before dawn without waiting for one.
   final DateTime Function() _clock;
 
+  /// Show the linked host's [verdict], as its runtime channel delivers it.
+  /// Only a linked client takes one; the host keeps its own evaluation.
+  void applyHostVerdict(WeatherSafetyState verdict) {
+    if (!mounted || _ref.read(linkedHostWeatherProvider) == null) return;
+    state = verdict;
+  }
+
   WeatherSafetyNotifier(
     Ref ref, {
     Duration autoResumeDelay = _autoResumeHoldoff,
