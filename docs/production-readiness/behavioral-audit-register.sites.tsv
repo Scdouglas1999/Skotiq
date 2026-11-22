@@ -2826,8 +2826,8 @@ packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_n
 packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_null_coalesce	1	U2-19	ref.watch(savedSequenceSummariesProvider).valueOrNull?.length ?? 0;
 packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_null_coalesce	1	V0121	sessionStateProvider.select((s) => (s.targetName ?? '').trim().isNotEmpty),
 packages/skotiq_core/lib/src/providers/notification_router_provider.dart	-	literal_null_coalesce	1	V0098	ref.watch(pushNotificationConfigProvider).valueOrNull?.enabled ?? false,
+packages/skotiq_core/lib/src/providers/notification_router_provider.dart	-	literal_null_coalesce	1	V0098	secretsOf: (c) => {SecretField.mqttPassword: c.password ?? ''},
 packages/skotiq_core/lib/src/providers/notification_router_provider.dart	_persistConfigWithSecrets	literal_null_coalesce	1	V0098	await secrets.write(field, previousValues[field] ?? '');
-packages/skotiq_core/lib/src/providers/notification_router_provider.dart	save	literal_null_coalesce	1	V0098	secretValues: {SecretField.mqttPassword: config.password ?? ''},
 packages/skotiq_core/lib/src/providers/onboarding_provider.dart	complete	literal_null_coalesce	1	V0098	aperture: draft.apertureMm ?? 0.0,
 packages/skotiq_core/lib/src/providers/onboarding_provider.dart	complete	literal_null_coalesce	1	V0098	name: (draft.profileName ?? '').trim().isNotEmpty
 packages/skotiq_core/lib/src/providers/open_plan_service_provider.dart	persist	literal_null_coalesce	1	U2-08	final document = openPlanJson(ref.read) ?? '';
