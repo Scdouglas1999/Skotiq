@@ -2,13 +2,13 @@ import 'dart:convert';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+import '../backend/bridge_event_codec.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
 import '../backend/network_backend.dart';
-import '../models/backend/backend_types.dart';
 
 /// Injectable seam over the four post-session batch-processing FFI functions
 /// (`apiIntegrateSession`, `apiMasterAccumulate`, `apiBuildMasterFlat`,
@@ -320,18 +320,15 @@ class BridgePostSessionSeam implements PostSessionSeam {
   Stream<({String phase, double fraction})> integrationProgress() {
     final backend = _backend;
     if (backend == null) return const Stream.empty();
-    return backend.eventStream
-        .where(
-          (e) =>
-              e.category == EventCategory.imaging &&
-              e.eventType == 'IntegrationProgress',
-        )
-        .map(
-          (e) => (
-            phase: e.data['phase'] as String? ?? '',
-            fraction: (e.data['fraction'] as num?)?.toDouble() ?? 0.0,
-          ),
-        );
+    return backend.eventStream.expand(
+      (e) => [
+        if (imagingEventOf(e) case bridge.ImagingEvent_IntegrationProgress(
+          :final phase,
+          :final fraction,
+        ))
+          (phase: phase, fraction: fraction),
+      ],
+    );
   }
 
   /// Decode a `{outputPath}` envelope to its path string. Throws a
