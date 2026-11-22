@@ -773,13 +773,13 @@ async function endSessionCookie() {
 // the dashboard's handlePairSubmit mapping.
 function pairingErrorText(data, status) {
   const raw = String((data && (data.error || data.message)) || '');
-  if (raw.includes('invalid_pairing_code')) {
+  if (raw.includes(WIRE_ERROR_CODES.invalidPairingCode)) {
     return 'Pairing code is not recognised. Check it against the rig.';
   }
-  if (raw.includes('pairing_code_expired')) {
+  if (raw.includes(WIRE_ERROR_CODES.pairingCodeExpired)) {
     return 'Pairing code expired. Request a new one.';
   }
-  if (raw.includes('pairing_code_already_used')) {
+  if (raw.includes(WIRE_ERROR_CODES.pairingCodeAlreadyUsed)) {
     return 'That code has already been claimed. Request a new one.';
   }
   if (status === 429 || raw.includes('temporarily locked')) {

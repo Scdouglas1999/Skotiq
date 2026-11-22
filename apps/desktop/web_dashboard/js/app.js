@@ -858,11 +858,11 @@
     } catch (e) {
       // Map the server's error codes to actionable text.
       let msg = e.message || 'Pairing failed';
-      if (msg.includes('invalid_pairing_code')) {
+      if (msg.includes(WIRE_ERROR_CODES.invalidPairingCode)) {
         msg = 'Pairing code is not recognised. Check the code on the desktop console.';
-      } else if (msg.includes('pairing_code_expired')) {
+      } else if (msg.includes(WIRE_ERROR_CODES.pairingCodeExpired)) {
         msg = 'Pairing code expired. Click Pair again to request a new one.';
-      } else if (msg.includes('pairing_code_already_used')) {
+      } else if (msg.includes(WIRE_ERROR_CODES.pairingCodeAlreadyUsed)) {
         msg = 'That code has already been claimed. Click Pair to start over.';
       } else if (e.kind === 'rate_limited' || msg.includes('429') ||
                  msg.includes('temporarily locked')) {
@@ -2705,7 +2705,7 @@
     } catch (e) {
       const body = seqErrorBody(e);
       if (e && e.status === 409 && body &&
-          (body.error === 'sequencer_not_running' ||
+          (body.error === WIRE_ERROR_CODES.sequencerNotRunning ||
            body.wasRunning === false)) {
         addLogEntry('sequencer', verb + ' ignored: no sequence was running');
         showToast(

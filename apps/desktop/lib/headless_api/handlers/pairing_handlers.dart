@@ -717,7 +717,7 @@ class PairingHandlers implements RouteSource {
         _logWarning('[PAIR][$requestId] Invalid pairing code from $clientKey');
         return jsonUnauthorized(
           {
-            'error': 'invalid_pairing_code',
+            'error': ApiErrorCodes.invalidPairingCode,
             'message': 'The pairing code is not recognized.',
             'requestId': requestId,
           },
@@ -728,7 +728,7 @@ class PairingHandlers implements RouteSource {
         _logWarning('[PAIR][$requestId] Expired pairing code from $clientKey');
         return jsonUnauthorized(
           {
-            'error': 'pairing_code_expired',
+            'error': ApiErrorCodes.pairingCodeExpired,
             'message':
                 'The pairing code has expired. Request a new one from the desktop console.',
             'requestId': requestId,
@@ -740,7 +740,7 @@ class PairingHandlers implements RouteSource {
         _logWarning('[PAIR][$requestId] Reused pairing code from $clientKey');
         return jsonUnauthorized(
           {
-            'error': 'pairing_code_already_used',
+            'error': ApiErrorCodes.pairingCodeAlreadyUsed,
             'message':
                 'The pairing code has already been claimed. Request a new one.',
             'requestId': requestId,

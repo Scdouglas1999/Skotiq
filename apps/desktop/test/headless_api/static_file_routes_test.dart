@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
 import 'package:skotiq_desktop/headless_api/route_table.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show ApiErrorCodes;
 import 'package:skotiq_core/utils.dart';
 
 /// D4W-4 — the run-watch SPA must have exactly one address.
@@ -59,6 +60,48 @@ void main() {
       );
     },
   );
+
+  test('both pages read the error codes from the host\'s table', () async {
+    for (final page in ['dashboard', 'run-watch']) {
+      final response = await router(
+        Request('GET', Uri.parse('http://localhost/$page/js/wire-errors.js')),
+      );
+      expect(response.statusCode, HttpStatus.ok, reason: page);
+      expect(
+        response.headers['content-type'],
+        startsWith('application/javascript'),
+      );
+      final script = await response.readAsString();
+      expect(script, ApiErrorCodes.javaScript());
+      for (final MapEntry(:key, :value) in ApiErrorCodes.all.entries) {
+        expect(script, contains('  $key: "$value",'));
+      }
+    }
+  });
+
+  // The pages also have kinds of their own ('version_mismatch' for a refusal
+  // they classified); only a comparison against a body field reads a code.
+  test('the pages compare body codes against the table', () {
+    for (final path in [
+      'web_dashboard/js/api.js',
+      'web_dashboard/js/app.js',
+      'web_run_watch/js/run-watch.js',
+    ]) {
+      final source = File(path).readAsStringSync();
+      for (final code in ApiErrorCodes.all.values) {
+        for (final quote in ["'", '"']) {
+          expect(
+            RegExp(
+              r'(?:(?:\.code|\.error)\s*(?:===|!==)|includes\()\s*'
+              '$quote$code$quote',
+            ).hasMatch(source),
+            isFalse,
+            reason: '$path compares against a spelled-out $code',
+          );
+        }
+      }
+    }
+  });
 
   test('GET /run-watch redirects permanently to the canonical URL', () async {
     final response = await router(

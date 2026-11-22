@@ -2,6 +2,7 @@
 library;
 
 import 'wire/api_error.dart';
+import 'wire/api_error_codes.dart';
 
 /// The Skotiq release this build is. `version.yaml` is the source; the
 /// version-consistency audit fails CI when this differs from it.
@@ -22,11 +23,11 @@ abstract final class LinkVersion {
 
   /// [ApiErrorBody.code] of the host's refusal of a request from another
   /// release.
-  static const mismatchCode = 'version_mismatch';
+  static const mismatchCode = ApiErrorCodes.versionMismatch;
 
   /// [ApiErrorBody.code] of the host's refusal of an API request that does
   /// not say which release sent it.
-  static const releaseRequiredCode = 'release_required';
+  static const releaseRequiredCode = ApiErrorCodes.releaseRequired;
 
   /// The headers of a request to a host: [headers], the bearer [token] when
   /// there is one, and this build's release. Every request a client sends a

@@ -192,8 +192,18 @@ class StaticFileHandlers implements RouteSource {
         headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
       );
     }
+    if (normalized == _errorCodesScript) return _errorCodesResponse();
     return _serveFile(findDashboardDir(), normalized, surface: 'dashboard');
   }
+
+  /// The error codes both pages act on, from [ApiErrorCodes].
+  static const _errorCodesScript = 'js/wire-errors.js';
+
+  Response _errorCodesResponse() => contentResponse(
+    utf8.encode(ApiErrorCodes.javaScript()),
+    contentType: _mimeTypes['.js']!,
+    headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
+  );
 
   /// `GET /run-watch` / `GET /run-watch/` — serve `index.html` for the
   /// phone SPA bootstrap.
@@ -227,6 +237,7 @@ class StaticFileHandlers implements RouteSource {
     if (normalized == null) {
       return jsonForbidden({'error': 'Invalid path'});
     }
+    if (normalized == _errorCodesScript) return _errorCodesResponse();
     return _serveFile(findRunWatchDir(), normalized, surface: 'run-watch');
   }
 

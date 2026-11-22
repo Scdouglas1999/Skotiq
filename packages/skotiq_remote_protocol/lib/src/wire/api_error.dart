@@ -1,6 +1,8 @@
 /// The body of an error response from the host.
 library;
 
+import 'api_error_codes.dart';
+
 /// How an error is laid out on the wire. Four layouts are in service and
 /// clients in the field read each of them, so the host keeps writing the one
 /// a route has always written; a reader accepts all four.
@@ -67,11 +69,11 @@ class ApiErrorBody {
 
   /// The code of the 403 for a token the host does not know: the client has
   /// to pair again.
-  static const String invalidToken = 'invalid_token';
+  static const String invalidToken = ApiErrorCodes.invalidToken;
 
   /// The code of the 403 for a token the host knows whose access level does
   /// not cover the route. The token still works for what it does cover.
-  static const String insufficientScope = 'insufficient_scope';
+  static const String insufficientScope = ApiErrorCodes.insufficientScope;
 
   /// Machine-readable name of the failure.
   final String code;

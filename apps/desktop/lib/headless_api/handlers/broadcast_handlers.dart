@@ -247,7 +247,7 @@ class BroadcastHandlers implements RouteSource {
     final token = request.url.queryParameters['token'];
     if (_service.authorize(token)) return null;
     return jsonUnauthorized({
-      'error': 'invalid_token',
+      'error': ApiErrorCodes.invalidToken,
       'message': 'This broadcast requires a token. Append ?token=… to the URL.',
     }, headers: _jsonHeaders());
   }

@@ -551,7 +551,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     }
     if (!_kNoRunInFlightStates.contains(state)) return;
     throw HandlerFailure(
-      code: 'sequencer_not_running',
+      code: ApiErrorCodes.sequencerNotRunning,
       message: 'No sequence is running; nothing to $verb.',
       statusCode: 409,
       // The did-anything-happen verdict stop already carries, in the same

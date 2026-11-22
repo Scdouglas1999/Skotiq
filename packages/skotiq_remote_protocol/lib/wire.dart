@@ -12,6 +12,7 @@ export 'src/host_advert.dart';
 export 'src/server_identity.dart';
 
 export 'src/wire/api_error.dart';
+export 'src/wire/api_error_codes.dart';
 export 'src/wire/wire_time.dart';
 export 'src/wire/api_route.dart';
 export 'src/wire/api_route_index.dart';
