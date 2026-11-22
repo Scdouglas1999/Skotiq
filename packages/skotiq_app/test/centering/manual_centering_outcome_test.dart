@@ -18,7 +18,7 @@ import 'package:skotiq_core/settings.dart';
 import '../harness/harness.dart';
 import '../screens/night_control/panel/scope_panel_test_support.dart';
 
-enum _Outcome { centered, failed, threw }
+enum _Outcome { centered, failed, threw, busy }
 
 class _Settings extends AppSettingsNotifier {
   @override
@@ -44,6 +44,10 @@ class _ScriptedCentering extends CenteringService {
   _ScriptedCentering(super.ref, this.outcome);
   final _Outcome outcome;
 
+  /// Another centering (a minimized dialog, say) holds the loop.
+  @override
+  bool get isRunning => outcome == _Outcome.busy;
+
   @override
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
@@ -51,8 +55,14 @@ class _ScriptedCentering extends CenteringService {
     CenteringConfig config = const CenteringConfig(),
     void Function(CenteringStatus)? onStatusUpdate,
   }) async {
-    onStatusUpdate?.call(_progress);
+    if (outcome != _Outcome.busy) onStatusUpdate?.call(_progress);
     switch (outcome) {
+      case _Outcome.busy:
+        return CenteringResult.failure(
+          errorMessage: 'Another centering operation is already running',
+          iterations: 0,
+          iterationHistory: const [],
+        );
       case _Outcome.centered:
         return CenteringResult.success(
           finalOffsetArcsec: 4.5,
@@ -97,6 +107,7 @@ List<Override> _common(_Outcome outcome) => [
 /// the site) is listed with `threw`.
 const Map<String, Map<_Outcome, _Left>> expected = {
   'tonight': {
+    _Outcome.busy: (state: CenteringState.idle, message: null, recorded: null),
     _Outcome.centered: (
       state: CenteringState.completed,
       message: 'Centered',
@@ -114,6 +125,7 @@ const Map<String, Map<_Outcome, _Left>> expected = {
     ),
   },
   'mountTab': {
+    _Outcome.busy: (state: CenteringState.idle, message: null, recorded: null),
     _Outcome.centered: (
       state: CenteringState.completed,
       message: 'Centered',
@@ -126,6 +138,7 @@ const Map<String, Map<_Outcome, _Left>> expected = {
     ),
   },
   'dialog': {
+    _Outcome.busy: (state: CenteringState.idle, message: null, recorded: null),
     _Outcome.centered: (
       state: CenteringState.completed,
       message: 'Centered',

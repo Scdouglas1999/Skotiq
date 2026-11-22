@@ -28,7 +28,8 @@ class CenteringRun {
   /// [ManualCentering], the solve exposure [exposureSeconds] or the
   /// profile's. The status ends on the outcome and the result becomes the
   /// last centering result, which the recent-solves list and every linked
-  /// window read. Null when [isCurrent] turns false before the run starts.
+  /// window read. A centering already under way is refused and publishes
+  /// nothing. Null when [isCurrent] turns false before the run starts.
   /// While [isCurrent] is false the run publishes nothing.
   Future<CenteringResult?> center({
     required double raHours,
@@ -43,16 +44,24 @@ class CenteringRun {
       exposureSeconds: exposureSeconds,
     );
     if (!current()) return null;
-    final result = await _ref
-        .read(centeringServiceProvider)
-        .centerOnTarget(
-          targetRa: raHours,
-          targetDec: decDegrees,
-          config: centering.config,
-          onStatusUpdate: (status) {
-            if (current()) _status.state = status;
-          },
-        );
+    final service = _ref.read(centeringServiceProvider);
+    if (service.isRunning) {
+      // The service refuses at once; the status and last result stay those
+      // of the run that holds the loop.
+      return service.centerOnTarget(
+        targetRa: raHours,
+        targetDec: decDegrees,
+        config: centering.config,
+      );
+    }
+    final result = await service.centerOnTarget(
+      targetRa: raHours,
+      targetDec: decDegrees,
+      config: centering.config,
+      onStatusUpdate: (status) {
+        if (current()) _status.state = status;
+      },
+    );
     if (!current()) return result;
     // The loop's last status update is its last move, not its outcome.
     _status.state = _status.state.copyWith(
