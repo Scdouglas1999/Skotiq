@@ -236,9 +236,13 @@ impl IndiCamera {
     pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_TEMPERATURE, CCD_TEMPERATURE_VALUE)
+            .require_number(
+                &self.device_name,
+                CCD_TEMPERATURE,
+                CCD_TEMPERATURE_VALUE,
+                "Temperature not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
     pub async fn set_cooler(&self, enabled: bool) -> IndiResult<()> {
@@ -273,12 +277,11 @@ impl IndiCamera {
     pub async fn get_gain(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_GAIN, GAIN)
+            .require_number(&self.device_name, CCD_GAIN, GAIN, "Gain not available")
             .await
             // Why: INDI wire f64 -> i32. Gain is bounded by sensor (typically
             // 0..600); f64 -> i32 saturates per Rust 1.45 spec on driver bug.
             .map(|g| g as i32)
-            .ok_or_else(|| IndiError::Unavailable("Gain not available".to_string()))
     }
 
     pub async fn set_offset(&self, offset: i32) -> IndiResult<()> {
@@ -291,12 +294,16 @@ impl IndiCamera {
     pub async fn get_offset(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, CCD_OFFSET, OFFSET)
+            .require_number(
+                &self.device_name,
+                CCD_OFFSET,
+                OFFSET,
+                "Offset not available",
+            )
             .await
             // Why: INDI wire f64 -> i32; offset bounded by sensor (typically 0..255).
             // f64 -> i32 saturates per Rust 1.45 spec.
             .map(|o| o as i32)
-            .ok_or_else(|| IndiError::Unavailable("Offset not available".to_string()))
     }
 
     /// Enable BLOB transfer for image data

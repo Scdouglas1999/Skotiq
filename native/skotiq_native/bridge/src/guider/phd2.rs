@@ -200,8 +200,9 @@ fn reconnect_server_in_background(client_epoch: u64) {
 /// again, with backoff, until it answers or the app connects or disconnects
 /// PHD2 itself. This is the guider's share of the rule every device follows
 /// (`device_manager::device_reopen`): it comes back without anyone touching
-/// it. A run that was guiding sees guiding stop, and its guide-star recovery
-/// starts guiding again once PHD2 answers.
+/// it. During a run a local PHD2 that is no longer running is started again
+/// ([`reconnect_launch`]). A run that was guiding sees guiding stop, and its
+/// guide-star recovery starts guiding again once PHD2 answers.
 async fn reconnect_server(client_epoch: u64) {
     // Only the current client's loss, and only once.
     if !LINK.claim_recovery(client_epoch) {
@@ -233,7 +234,8 @@ async fn reconnect_server(client_epoch: u64) {
             break;
         }
         attempt += 1;
-        match bring_back(Launch::Never, Some((host.clone(), port))).await {
+        let launch = reconnect_launch(crate::device_manager::motion_guard::run_is_active(), &host);
+        match bring_back(launch, Some((host.clone(), port))).await {
             Ok(()) => {
                 tracing::info!("[GUIDING] Reconnected to PHD2 after {attempt} attempt(s)");
                 publish_guiding_notice(
@@ -255,6 +257,22 @@ async fn reconnect_server(client_epoch: u64) {
     }
 }
 
+/// Whether the reconnect after PHD2's socket closed may start PHD2 again:
+/// only while a run is active, so a PHD2 that crashed mid-night comes back
+/// and the run's guide-star recovery can guide again, and only when PHD2 runs
+/// on this computer. Outside a run a PHD2 the operator closed stays closed.
+fn reconnect_launch(run_active: bool, host: &str) -> Launch {
+    let local = matches!(
+        skotiq_phd2::normalize_phd2_tcp_host(host).as_str(),
+        "127.0.0.1"
+    );
+    if run_active && local {
+        Launch::IfNotRunning
+    } else {
+        Launch::Never
+    }
+}
+
 /// Whether bringing PHD2 back may start the PHD2 program.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Launch {
@@ -265,7 +283,8 @@ pub(crate) enum Launch {
 /// Bring PHD2 back: start the program when `launch` allows it and it is not
 /// running, wait up to 10 s for it to start, then, given an endpoint,
 /// connect to it and list it as the connected guider. The app's connect
-/// launches; the reconnect after a lost socket does not.
+/// launches; the reconnect after a lost socket launches only during a run
+/// ([`reconnect_launch`]).
 pub(crate) async fn bring_back(
     launch: Launch,
     endpoint: Option<(String, u16)>,
@@ -1277,6 +1296,22 @@ use crate::simulator::sim_singleton_test_lock;
 #[cfg(test)]
 mod client_slot_tests {
     use super::*;
+
+    /// P5-7: the reconnect after PHD2's socket closed starts PHD2 again
+    /// only during a run and only on this computer.
+    #[test]
+    fn the_reconnect_starts_a_local_phd2_again_only_during_a_run() {
+        for host in ["127.0.0.1", "localhost", "", "::1"] {
+            assert_eq!(
+                reconnect_launch(true, host),
+                Launch::IfNotRunning,
+                "{host:?}"
+            );
+            assert_eq!(reconnect_launch(false, host), Launch::Never, "{host:?}");
+        }
+        assert_eq!(reconnect_launch(true, "192.168.1.32"), Launch::Never);
+        assert_eq!(reconnect_launch(false, "192.168.1.32"), Launch::Never);
+    }
 
     #[test]
     fn the_device_id_is_the_one_dart_holds() {

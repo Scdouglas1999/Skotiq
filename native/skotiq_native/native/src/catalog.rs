@@ -58,6 +58,9 @@ pub struct OpenRequest<'a> {
     pub name: &'a str,
     /// The application's observing site, for mounts that keep none.
     pub site: SiteSource,
+    /// The instance's data root, for a driver that keeps a file of its own
+    /// (the LX200 park flag). `None` before the host names one.
+    pub data_root: Option<&'a std::path::Path>,
 }
 
 /// A driver for one device, not yet connected.
@@ -142,6 +145,7 @@ impl Family {
                 address,
                 name: request.name,
                 site: request.site.clone(),
+                data_root: request.data_root,
             }),
             Open::AfterDiscovery(open) => open(address.to_string(), request.name.to_string()).await,
             Open::NotOnThisPlatform(why) => Err(BadAddress(why.to_string())),
@@ -304,7 +308,15 @@ fn port_and_baud(address: &str) -> Result<(String, Option<u32>), BadAddress> {
 fn open_lx200(request: &OpenRequest, flavor: Lx200MountType) -> Result<NativeHandle, BadAddress> {
     let (port, baud) = port_and_baud(request.address)?;
     Ok(NativeHandle::Mount(Box::new(
-        crate::vendor::lx200::Lx200Mount::new(port, flavor, baud),
+        crate::vendor::lx200::Lx200Mount::keeping_park_state_in(
+            port,
+            flavor,
+            baud,
+            crate::vendor::lx200::park_state_file(
+                request.data_root,
+                crate::vendor::lx200::legacy_park_state_file(),
+            ),
+        ),
     )))
 }
 
@@ -1253,6 +1265,7 @@ mod tests {
                     address,
                     name: "EAF",
                     site: std::sync::Arc::new(|| None),
+                    data_root: None,
                 })
                 .await
                 .unwrap();
@@ -1263,6 +1276,7 @@ mod tests {
                 address: "x",
                 name: "EAF",
                 site: std::sync::Arc::new(|| None),
+                data_root: None,
             })
             .await
             .err()

@@ -489,19 +489,19 @@ pub(crate) fn format_dec(dec_degrees: f64, precision: CoordinatePrecision) -> St
 // state. When neither telemetry nor a persisted record exists we surface
 // `NotSupported` rather than fabricate `false`.
 
-/// Returns the path to the park-state JSON file in the user's app-data dir.
-///
-/// The file is intentionally kept outside the Drift database because this
-/// crate does not depend on the Flutter app and must be writable from a
-/// pure-Rust unit test. We resolve the dir in this priority order:
-///   1. `SKOTIQ_HOME` env var (used by tests and headless runs)
+/// The park-state file's name, under the data root or the legacy directory.
+const PARK_STATE_FILE: &str = "lx200_park_state.json";
+
+/// Where the park-state file lived before it followed the instance's data
+/// root, in this priority order:
+///   1. `SKOTIQ_HOME` env var (tests)
 ///   2. `%APPDATA%\Skotiq` on Windows
 ///   3. `$XDG_CONFIG_HOME/skotiq` or `$HOME/.config/skotiq` elsewhere
 ///
-/// On total failure we fall back to a temp-dir path so the binary never
-/// panics on a read-only home dir; persistence is best-effort and the
-/// caller surfaces `NotSupported` if the cache cannot be loaded.
-pub(crate) fn lx200_state_file_path() -> PathBuf {
+/// On total failure it is a temp-dir path so the binary never panics on a
+/// read-only home dir; persistence is best-effort and the caller surfaces
+/// `NotSupported` if the cache cannot be loaded.
+pub(crate) fn legacy_park_state_file() -> PathBuf {
     let base: PathBuf = if let Ok(custom) = std::env::var("SKOTIQ_HOME") {
         PathBuf::from(custom)
     } else if cfg!(windows) {
@@ -516,19 +516,49 @@ pub(crate) fn lx200_state_file_path() -> PathBuf {
         std::env::temp_dir().join("skotiq")
     };
 
-    base.join("lx200_park_state.json")
+    base.join(PARK_STATE_FILE)
+}
+
+/// The park-state file for an instance whose data root is `data_root`:
+/// `<data root>/lx200_park_state.json`, so a second instance or a service
+/// keeps its own. The first time, the file at `legacy` is copied there, so
+/// an install that parked its LX200 before the move still knows it is
+/// parked. With no data root it is the legacy file, as before.
+pub(crate) fn park_state_file(data_root: Option<&Path>, legacy: PathBuf) -> PathBuf {
+    let Some(root) = data_root else {
+        return legacy;
+    };
+    let file = root.join(PARK_STATE_FILE);
+    if !file.exists() && legacy.exists() {
+        let copied = std::fs::create_dir_all(root).and_then(|()| std::fs::copy(&legacy, &file));
+        match copied {
+            Ok(_) => tracing::info!(
+                "LX200 park state copied from {} to {}",
+                legacy.display(),
+                file.display()
+            ),
+            Err(e) => tracing::warn!(
+                "Could not copy the LX200 park state from {} to {}: {e}",
+                legacy.display(),
+                file.display()
+            ),
+        }
+    }
+    file
 }
 
 /// Read the persisted park-state map. `Ok(None)` for that device id means the
 /// file does not exist or contains no entry for this mount; the caller must
 /// then return `NotSupported` rather than guessing.
-pub(crate) fn read_persisted_park_state(device_id: &str) -> Result<Option<bool>, DriverError> {
-    let path = lx200_state_file_path();
+pub(crate) fn read_persisted_park_state(
+    path: &Path,
+    device_id: &str,
+) -> Result<Option<bool>, DriverError> {
     if !path.exists() {
         return Ok(None);
     }
 
-    let raw = std::fs::read_to_string(&path).map_err(|e| {
+    let raw = std::fs::read_to_string(path).map_err(|e| {
         DriverError::Io(std::io::Error::new(
             e.kind(),
             format!("read park state: {}", e),
@@ -544,8 +574,11 @@ pub(crate) fn read_persisted_park_state(device_id: &str) -> Result<Option<bool>,
 /// We re-read the full map, mutate the single entry, then write the whole
 /// file back. The file is small (one bool per mount the user owns) so the
 /// rewrite cost is negligible compared to a serial command round-trip.
-pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Result<(), DriverError> {
-    let path = lx200_state_file_path();
+pub(crate) fn write_persisted_park_state(
+    path: &Path,
+    device_id: &str,
+    parked: bool,
+) -> Result<(), DriverError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| {
             DriverError::Io(std::io::Error::new(
@@ -556,7 +589,7 @@ pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Resul
     }
 
     let mut map: HashMap<String, bool> = if path.exists() {
-        let raw = std::fs::read_to_string(&path).map_err(|e| {
+        let raw = std::fs::read_to_string(path).map_err(|e| {
             DriverError::Io(std::io::Error::new(
                 e.kind(),
                 format!("read park state: {}", e),
@@ -578,7 +611,7 @@ pub(crate) fn write_persisted_park_state(device_id: &str, parked: bool) -> Resul
 
     let serialized = serde_json::to_string_pretty(&map)
         .map_err(|e| DriverError::SdkError(format!("serialize park state: {}", e)))?;
-    std::fs::write(&path, serialized).map_err(|e| {
+    std::fs::write(path, serialized).map_err(|e| {
         DriverError::Io(std::io::Error::new(
             e.kind(),
             format!("write park state: {}", e),

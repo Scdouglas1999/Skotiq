@@ -3,7 +3,7 @@
 //! they are tested on every platform; the SDK calls that use them are in
 //! `camera_ops.rs` (Windows only).
 
-use crate::dslr::{self, IsoRule, Pick, Plan, PlanRules, TimedSpeed};
+use crate::dslr::{self, Pick, Plan, PlanRules, TimedSpeed};
 use std::time::Duration;
 
 /// `XSDK_SHUTTER_BULB` (XAPI.h).
@@ -178,12 +178,12 @@ pub(crate) fn fixed_sensitivities(reported: &[i32]) -> Vec<i32> {
     values
 }
 
-/// The supported ISO nearest to `requested` (ties go to the lower ISO), or
+/// The supported ISO nearest to `requested` by ratio (ties go to the lower ISO), or
 /// `requested` itself when the body reported none. A gain control offers any
 /// whole number between the lowest and highest ISO; the body accepts only its
 /// fixed steps.
 pub(crate) fn nearest_sensitivity(supported: &[i32], requested: i32) -> i32 {
-    dslr::nearest_iso(supported, |&iso| iso, requested, IsoRule::Difference)
+    dslr::nearest_iso(supported, |&iso| iso, requested)
         .copied()
         .unwrap_or(requested)
 }
@@ -416,12 +416,15 @@ mod tests {
         );
     }
 
+    /// P5-4: by ratio, as ISO steps go (the same rule as gPhoto2): between
+    /// 800 and 1600 the midpoint is their geometric mean, 1131.
     #[test]
     fn a_gain_between_iso_steps_selects_the_nearest_iso() {
         let isos = [160, 200, 250, 320, 400, 500, 640, 800, 1600, 3200];
         assert_eq!(nearest_sensitivity(&isos, 850), 800);
-        assert_eq!(nearest_sensitivity(&isos, 1200), 800);
-        assert_eq!(nearest_sensitivity(&isos, 1201), 1600);
+        assert_eq!(nearest_sensitivity(&isos, 1131), 800);
+        assert_eq!(nearest_sensitivity(&isos, 1132), 1600);
+        assert_eq!(nearest_sensitivity(&isos, 1200), 1600);
         assert_eq!(nearest_sensitivity(&isos, 100), 160);
         assert_eq!(nearest_sensitivity(&isos, 6400), 3200);
         assert_eq!(nearest_sensitivity(&[], 850), 850);

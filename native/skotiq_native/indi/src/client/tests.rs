@@ -1606,3 +1606,45 @@ async fn a_focuser_compensation_property_without_a_value_stays_unknown() {
     client.read().await.property_values.write().await.clear();
     assert_eq!(focuser.temp_comp().await, None);
 }
+
+/// P5-6: a value that is missing because the server link dropped or the
+/// device's whole property set vanished reads as a lost device; a property
+/// the device never had stays a plain failure, so it never starts a
+/// reconnect loop.
+#[tokio::test]
+async fn a_value_lost_with_its_device_reads_as_disconnected_and_one_never_offered_does_not() {
+    use skotiq_device::DriverError;
+    let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
+    let focuser = crate::IndiFocuser::new(client.clone(), "Focuser");
+    let kind = |e: IndiError| DriverError::from(e);
+
+    // The server link is down.
+    let lost = focuser.get_position().await.expect_err("no link");
+    assert!(matches!(kind(lost), DriverError::Disconnected));
+
+    // Linked, and the focuser has published nothing (its properties vanished).
+    client.read().await.connected.store(true, Ordering::SeqCst);
+    let vanished = focuser.get_position().await.expect_err("nothing published");
+    assert_eq!(vanished.to_string(), "Position not available");
+    assert!(matches!(kind(vanished), DriverError::Disconnected));
+
+    // Linked, the focuser is there, and it has no temperature property.
+    client.read().await.properties.write().await.insert(
+        ("Focuser".into(), FOCUS_TEMPERATURE_COMP.into()),
+        IndiProperty {
+            device: "Focuser".into(),
+            name: FOCUS_TEMPERATURE_COMP.into(),
+            label: String::new(),
+            group: String::new(),
+            property_type: IndiPropertyType::Switch,
+            state: IndiPropertyState::Ok,
+            perm: IndiPermission::ReadWrite,
+            elements: vec![INDI_ENABLED.into()],
+            element_labels: vec![INDI_ENABLED.into()],
+            switch_rule: None,
+        },
+    );
+    let never = focuser.get_temperature().await.expect_err("no thermometer");
+    assert_eq!(never.to_string(), "Temperature not available");
+    assert!(matches!(kind(never), DriverError::Backend(_)));
+}

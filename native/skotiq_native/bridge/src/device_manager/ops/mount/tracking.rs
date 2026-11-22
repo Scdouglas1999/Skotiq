@@ -18,7 +18,12 @@ impl DeviceManager {
         if result.is_ok() {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
-                dev.desired_tracking = Some(enabled);
+                let held = dev.held_tracking;
+                dev.held_tracking = Some(crate::device_manager::HeldTracking {
+                    tracking: enabled,
+                    rate: held.and_then(|held| held.rate),
+                    at_home: held.and_then(|held| held.at_home),
+                });
             }
             drop(devices);
             // The state change every UI shows (see `state_events`).
@@ -78,6 +83,16 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         let mount = self.mount(device_id).await?;
 
-        mount.set_tracking_rate(rate).await
+        mount.set_tracking_rate(rate).await?;
+        if let Some(rate) = crate::device::TrackingRate::from_wire(rate) {
+            let mut devices = self.devices.write().await;
+            if let Some(held) = devices
+                .get_mut(device_id)
+                .and_then(|dev| dev.held_tracking.as_mut())
+            {
+                held.rate = Some(rate);
+            }
+        }
+        Ok(())
     }
 }

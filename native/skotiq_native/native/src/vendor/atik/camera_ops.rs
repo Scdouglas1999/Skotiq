@@ -454,6 +454,7 @@ impl CameraDriver for AtikCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         Ok(self.core.gain)
     }
 
@@ -467,6 +468,7 @@ impl CameraDriver for AtikCamera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         Ok(self.core.offset)
     }
 

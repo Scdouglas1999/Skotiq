@@ -139,6 +139,7 @@ impl CameraDriver for MoravianCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         Ok(self.core.gain)
     }
 

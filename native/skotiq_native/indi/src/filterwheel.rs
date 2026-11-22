@@ -116,11 +116,15 @@ impl IndiFilterWheel {
             .client
             .read()
             .await
-            .get_number(&self.device_name, FILTER_SLOT, FILTER_SLOT_VALUE)
+            .require_number(
+                &self.device_name,
+                FILTER_SLOT,
+                FILTER_SLOT_VALUE,
+                "Filter slot not available",
+            )
             .await
             // Why: INDI wire f64 -> i32 slot (bounded 1..wheel_size); saturates per Rust 1.45.
-            .map(|s| s as i32)
-            .ok_or_else(|| IndiError::Unavailable("Filter slot not available".to_string()))?;
+            .map(|s| s as i32)?;
         Ok(self.zero_based_from_wire_slot(wire).await)
     }
 

@@ -75,6 +75,9 @@ impl DeviceManager {
     pub async fn mount_get_status(&self, device_id: &str) -> Result<MountStatus, DeviceOpError> {
         let result = self.mount_get_status_dispatch(device_id).await;
         self.note_read(device_id, &result).await;
+        if let Ok(status) = &result {
+            self.hold_mount_tracking(device_id, status).await;
+        }
         if !matches!(result, Err(DeviceOpError::DeviceNotFound(_))) {
             crate::device_manager::motion_guard::observe_status(device_id, &result).await;
         }

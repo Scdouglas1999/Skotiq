@@ -165,19 +165,10 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     return jsonOk({'status': 'halted'});
   }
 
-  bool _isFocuserBusy(Object error) {
-    final message = error is bridge_error.SkotiqError
-        ? error.maybeMap(
-            operationFailed: (failure) => failure.field0,
-            orElse: () => error.toString(),
-          )
-        : error.toString();
-    final normalized = message.toLowerCase();
-    return normalized.contains('move failure') ||
-        normalized.contains('already moving') ||
-        normalized.contains('device busy') ||
-        normalized.contains('focuser is busy');
-  }
+  /// The bridge answers a move the driver refused because the focuser is
+  /// moving as `deviceBusy`.
+  bool _isFocuserBusy(Object error) =>
+      error is bridge_error.SkotiqError_DeviceBusy;
 
   Future<Response> handleAutofocusStart(Request request) async {
     _logInfo('[API] POST /api/focuser/autofocus/start');

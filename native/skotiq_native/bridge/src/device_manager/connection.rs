@@ -217,16 +217,34 @@ impl DeviceManager {
                 );
             }
             Err(e) => {
-                let mut devices = self.devices.write().await;
-                if let Some(dev) = devices.get_mut(device_id) {
-                    dev.reconnect_attempts += 1;
-                    tracing::warn!(
-                        "Reconnection attempt {} failed for {}: {}",
-                        dev.reconnect_attempts,
-                        device_id,
-                        e
-                    );
-                    dev.last_error = Some(e.to_string());
+                let exhausted = {
+                    let mut devices = self.devices.write().await;
+                    match devices.get_mut(device_id) {
+                        Some(dev) => {
+                            dev.reconnect_attempts += 1;
+                            tracing::warn!(
+                                "Reconnection attempt {} failed for {}: {}",
+                                dev.reconnect_attempts,
+                                device_id,
+                                e
+                            );
+                            dev.last_error = Some(e.to_string());
+                            self.reconnect_config.max_attempts > 0
+                                && dev.reconnect_attempts >= self.reconnect_config.max_attempts
+                        }
+                        None => false,
+                    }
+                };
+                // The id answers as another device, the SDK no longer lists
+                // it, or the attempts ran out: it may have come back at
+                // another position on the bus.
+                let moved = matches!(
+                    e,
+                    ConnectError::IdentityConflict(_) | ConnectError::NotEnumerated(_)
+                );
+                if moved || exhausted {
+                    // Boxed: the follow connects a device of its own.
+                    Box::pin(self.follow_moved_device(device_id)).await;
                 }
             }
             Ok(()) => {
@@ -303,7 +321,7 @@ impl DeviceManager {
                 heartbeat_active: false,
                 desired_cooler: None,
                 held_camera_state: None,
-                desired_tracking: None,
+                held_tracking: None,
                 declared_mount_frame: None,
             },
         );
@@ -463,22 +481,16 @@ impl DeviceManager {
             }
         }
 
-        // Update state to connecting. Capture the prior state first: a connect
-        // arriving from `ConnectionState::Error` is an *unplanned reconnect*
-        // (the heartbeat-lost path), and on success we must
-        // re-apply the essential device state the driver loses across a
-        // physical reconnect (camera cooling setpoint, mount tracking). A
-        // fresh user-initiated connect from Disconnected does NOT re-apply —
-        // there is no prior desired state worth restoring and the user is
-        // about to drive the device anyway.
-        let was_error_before_connect = {
+        // What the mount held at its last disconnect, taken before anything
+        // of this connect (a status read, the heartbeat) can record what the
+        // mount reports now.
+        let held_tracking = {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
-                let prior = dev.connection_state == ConnectionState::Error;
                 dev.connection_state = ConnectionState::Connecting;
-                prior
+                dev.held_tracking
             } else {
-                false
+                None
             }
         };
 
@@ -586,9 +598,8 @@ impl DeviceManager {
                 // Before anything else reaches the camera, and before any
                 // wait: a reopened camera's sensor warms from the moment its
                 // cooler stopped.
-                if info.device_type == DeviceType::Camera {
-                    self.restore_camera_state(info).await;
-                }
+                let cooler_restored =
+                    info.device_type == DeviceType::Camera && self.restore_camera_state(info).await;
                 self.restore_commanded_state(info).await;
                 crate::device_capabilities::cache::invalidate_capability_cache_for_device(
                     device_id,
@@ -649,16 +660,15 @@ impl DeviceManager {
                     tracing::info!("Auto-started heartbeat for device {}", device_id);
                 }
 
-                // Reconnect-only: re-apply the mount tracking the driver
-                // drops across a physical reconnect. We deliberately gate on
-                // `was_error_before_connect` so a fresh user connect does not
-                // silently start tracking the user did not ask for. A camera
-                // restores what it held above, on any connect. Failures here are non-fatal — the reconnect
-                // itself succeeded; a re-apply failure is logged + surfaced as
-                // a warning so the operator can intervene, but it does not
-                // turn a recovered device back into an error.
-                if was_error_before_connect {
-                    self.reapply_essential_state_after_reconnect(info).await;
+                // A mount keeps the tracking it had at its last disconnect
+                // (`keep_state`); a camera restores what it held above.
+                if info.device_type == DeviceType::Mount {
+                    self.keep_mount_tracking(info, held_tracking).await;
+                    self.check_mount_after_connect(info);
+                }
+                // A cooler this connect just switched back on has not settled.
+                if info.device_type == DeviceType::Camera && !cooler_restored {
+                    self.check_cooler_at_connect(info).await;
                 }
             }
             Err(e) => {
@@ -1149,62 +1159,6 @@ impl DeviceManager {
             dev.auto_reconnect = true;
         }
         Some(dev.info.clone())
-    }
-
-    /// Re-apply the mount tracking that a physical reconnect drops.
-    ///
-    /// A mount comes back from a USB / serial reconnect in its power-on
-    /// default, not tracking. After an unplanned reconnect the last tracking
-    /// state the user or sequencer commanded (recorded in
-    /// `mount_set_tracking`) is replayed, so an unattended run does not leave
-    /// the mount stationary while the sequence resumes. A camera's cooler,
-    /// gain and offset are restored on every connect by
-    /// [`Self::restore_camera_state`].
-    ///
-    /// Errors are non-fatal: the reconnect already succeeded, so a replay
-    /// failure is surfaced as a `Warning` event for operator visibility but
-    /// does NOT flip the device back into an error state.
-    async fn reapply_essential_state_after_reconnect(&self, info: &DeviceInfo) {
-        let device_id = &info.id;
-        if info.device_type != DeviceType::Mount {
-            return;
-        }
-        let desired_tracking = {
-            let devices = self.devices.read().await;
-            match devices.get(device_id) {
-                Some(dev) => dev.desired_tracking,
-                None => return,
-            }
-        };
-        let Some(enabled) = desired_tracking else {
-            return;
-        };
-        // A parked mount stays parked: tracking it would leave the park.
-        if enabled && matches!(self.mount_get_status(device_id).await, Ok(status) if status.parked)
-        {
-            tracing::info!("Reconnect: mount {device_id} is parked; tracking stays off");
-            return;
-        }
-        tracing::info!(
-            "Reconnect: re-applying mount {} tracking={}",
-            device_id,
-            enabled
-        );
-        if let Err(e) = self.mount_set_tracking(device_id, enabled).await {
-            tracing::warn!(
-                "Reconnect: failed to re-apply mount {} tracking: {}",
-                device_id,
-                e
-            );
-            self.app_state.publish_equipment_event(
-                EquipmentEvent::Error {
-                    device_type: info.device_type.as_str().to_string(),
-                    device_id: device_id.clone(),
-                    message: format!("Reconnected but could not restore mount tracking: {}", e),
-                },
-                EventSeverity::Warning,
-            );
-        }
     }
 
     pub async fn unregister_device(&self, device_id: &str) {

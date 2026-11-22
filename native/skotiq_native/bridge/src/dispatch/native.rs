@@ -22,7 +22,6 @@ impl DeviceManager {
         &self,
         info: &DeviceInfo,
     ) -> Result<(), crate::device_manager::connection::ConnectError> {
-        use crate::device_manager::connection::ConnectError;
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();
         if parts.len() < 3 {
@@ -69,15 +68,32 @@ impl DeviceManager {
                 elevation_m: Some(location.elevation),
             })
         });
+        let data_root = match crate::data_root::root() {
+            Ok(root) => Some(root),
+            Err(e) => {
+                tracing::debug!("{} opens without a data root: {e}", info.id);
+                None
+            }
+        };
         let handle = family
             .open(OpenRequest {
                 address,
                 name: &info.name,
                 site,
+                data_root: data_root.as_deref(),
             })
             .await
             .map_err(|e| e.to_string())?;
+        self.hold_native(info, handle).await
+    }
 
+    /// Connect a driver `connect_native` opened for `info` and hold it.
+    pub(crate) async fn hold_native(
+        &self,
+        info: &DeviceInfo,
+        handle: NativeHandle,
+    ) -> Result<(), crate::device_manager::connection::ConnectError> {
+        use crate::device_manager::connection::ConnectError;
         match (handle, info.device_type) {
             (NativeHandle::Camera(mut camera), DeviceType::Camera) => {
                 // Close the previous instance first: a reconnect after a lost
@@ -152,15 +168,31 @@ impl DeviceManager {
                 tracing::info!("Connected to native mount: {}", info.name);
             }
             // A camera registered as another kind of device (a guide camera
-            // as a guider) is held as a plain device.
-            (NativeHandle::Camera(camera), _) => {
-                let mut device: Box<dyn DeviceDriver> = camera;
-                device.connect().await.map_err(ConnectError::from_driver)?;
-                self.native_devices
-                    .write()
-                    .await
-                    .insert(info.id.clone(), device);
-                tracing::info!("Connected to native device: {}", info.name);
+            // as a guider) is held as a camera, so its heartbeat reads the
+            // camera's status, not the driver's connected flag, which stays
+            // true after the camera is unplugged.
+            (NativeHandle::Camera(mut camera), _) => {
+                if let Some(old) = self.handles.remove(&info.id) {
+                    match old.disconnect().await {
+                        Ok(()) => {
+                            tracing::info!("Closed the previous native camera for {}", info.id)
+                        }
+                        Err(e) => tracing::warn!(
+                            "Closing the previous native camera for {} reported {e}",
+                            info.id
+                        ),
+                    }
+                }
+                camera.connect().await.map_err(ConnectError::from_driver)?;
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Camera(Arc::new(DriverCamera::vendor(&info.id, camera))),
+                );
+                tracing::info!(
+                    "Connected to native camera as a {}: {}",
+                    info.device_type.noun(),
+                    info.name
+                );
             }
         }
         Ok(())
