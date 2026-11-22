@@ -152,9 +152,7 @@ class _SkyMinimapPainter extends CustomPainter {
     );
 
     if (showLabels) {
-      final textStyle = TextStyle(
-        fontFamily: SkotiqTypography.fontFamily,
-        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+      final textStyle = SkotiqTypography.canvas(
         color: ImageOverlayColors.foreground.withValues(alpha: 0.7),
         fontSize: SkotiqTypography.fontSize9,
         fontWeight: FontWeight.bold,

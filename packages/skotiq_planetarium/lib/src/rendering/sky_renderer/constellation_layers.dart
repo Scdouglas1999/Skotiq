@@ -174,9 +174,7 @@ extension _SkyCanvasPainterConstellationLayers on SkyCanvasPainter {
     Offset center,
     double scale,
   ) {
-    final textStyle = TextStyle(
-      fontFamily: SkotiqTypography.fontFamily,
-      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+    final textStyle = SkotiqTypography.canvas(
       color: Colors.white.withValues(alpha: 0.5),
       fontSize: 10,
       fontWeight: FontWeight.w500,
