@@ -72,12 +72,6 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
   );
 });
 
-/// Simple counter provider to trigger suggestion refresh.
-///
-/// UI can call `ref.read(refreshSuggestionsProvider.notifier).state++` to
-/// force a rebuild of the suggestions list.
-final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
-
 /// Catalog targets built from one OpenNGC reader. The catalog manager
 /// replaces the reader when the file changes, which retires the entry.
 class _CatalogTargetsCache {
@@ -152,8 +146,6 @@ final tonightSuggestionsProvider =
     FutureProvider.autoDispose<List<TargetSuggestion>>((ref) async {
       final config = ref.watch(targetSuggestionConfigProvider);
 
-      ref.watch(refreshSuggestionsProvider);
-
       final remote = ref.watch(linkedHostPlanningProvider);
       if (remote != null) {
         final suggestions = await remote.fetchRankedTonightSuggestions(config);
@@ -179,7 +171,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       ref,
       config,
     ) async {
-      ref.watch(refreshSuggestionsProvider);
       // Install and uninstall, not a status refresh: a timer must not re-score.
       ref.watch(catalogChangeProvider);
 

@@ -81,25 +81,6 @@ void main() {
       );
       expect(container.read(deviceHeartbeatHealthProvider), isEmpty);
     });
-
-    test('includeGuider: false leaves the guider chip alone', () {
-      final container = ProviderContainer(
-        overrides: [inMemoryDatabaseOverride()],
-      );
-      addTearDown(container.dispose);
-
-      connectEverything(container);
-      resetAllEquipmentStateNotifiers(container, includeGuider: false);
-
-      expect(
-        container.read(guiderStateProvider).connectionState,
-        DeviceConnectionState.connected,
-      );
-      expect(
-        container.read(switchStateProvider).connectionState,
-        DeviceConnectionState.disconnected,
-      );
-    });
   });
 
   group('slave reconnect hydration', () {

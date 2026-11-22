@@ -187,23 +187,14 @@ DeviceConnectionNotifier readDeviceConnectionNotifier(
   DeviceType deviceType,
 ) => container.read(deviceType.slot.notifier);
 
-/// Put every slot back to disconnected.
+/// Put every slot back to disconnected and forget the heartbeat health.
 ///
-/// Called when the active backend is swapped, and on a linked client before
-/// it re-reads the host's device list, so no card keeps showing a device as
-/// connected against a backend that never opened it. Pass
-/// `includeGuider: false` when the guider is re-read from its own source
-/// (PHD2 is not always in the host's device list).
-void resetAllEquipmentStateNotifiers(
-  ProviderContainer container, {
-  bool includeGuider = true,
-  bool clearHeartbeatHealth = true,
-}) {
+/// Called when the active backend is swapped, so no card keeps showing a
+/// device as connected against a backend that never opened it.
+void resetAllEquipmentStateNotifiers(ProviderContainer container) {
   for (final slot in deviceSlots) {
-    if (slot.type == DeviceType.guider && !includeGuider) continue;
     container.read(slot.notifier).setDisconnected();
   }
-  if (!clearHeartbeatHealth) return;
   try {
     container.read(deviceHeartbeatHealthProvider.notifier).clearAll();
   } on Object {
