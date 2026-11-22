@@ -11,7 +11,8 @@ pub(crate) enum RoleSource {
     Run(DeviceType),
     /// The device of that type the active equipment profile names.
     Profile(DeviceType),
-    /// The first connected device of that type, by id.
+    /// The first connected device of that type, by id. A device a reopen is
+    /// closing and opening counts: it still plays the role.
     Connected(DeviceType),
 }
 
@@ -95,15 +96,32 @@ impl DeviceManager {
                 RoleSource::Profile(device_type) => {
                     self.app_state.get_profile_device_id(device_type).await
                 }
-                RoleSource::Connected(device_type) => {
-                    self.first_connected_device_id(device_type).await
-                }
+                RoleSource::Connected(device_type) => self.first_playing(device_type).await,
             };
             if found.is_some() {
                 return found;
             }
         }
         None
+    }
+}
+
+impl DeviceManager {
+    /// The first device of `device_type` by id that is connected or being
+    /// reopened. For the second a reopen takes its state reads disconnected,
+    /// and the role must not pass to another device (a second safety monitor,
+    /// the guide camera) for it.
+    async fn first_playing(&self, device_type: DeviceType) -> Option<String> {
+        let devices = self.devices.read().await;
+        devices
+            .values()
+            .filter(|d| {
+                d.info.device_type == device_type
+                    && (d.connection_state == crate::device::ConnectionState::Connected
+                        || self.is_reopening(&d.info.id))
+            })
+            .map(|d| d.info.id.clone())
+            .min()
     }
 }
 
@@ -227,6 +245,42 @@ mod tests {
                 .as_deref(),
             Some("aa_guide_camera"),
             "with no profile the first connected camera answers, as before"
+        );
+    }
+
+    /// R1H2-1: while a safety monitor is reopened it still is the run's
+    /// safety source; the check does not pass to another monitor for that
+    /// second.
+    #[tokio::test]
+    async fn a_device_being_reopened_keeps_its_role() {
+        let manager = DeviceManager::without_reconnection(crate::state::AppState::new());
+        for id in ["a_monitor", "b_monitor"] {
+            manager
+                .register_connected_device(connected(id, DeviceType::SafetyMonitor))
+                .await;
+        }
+        manager.mark_reopening("a_monitor", true);
+        manager
+            .devices
+            .write()
+            .await
+            .get_mut("a_monitor")
+            .unwrap()
+            .connection_state = crate::device::ConnectionState::Disconnected;
+        assert_eq!(
+            manager
+                .rig_device(RigRole::RunSafety, None)
+                .await
+                .as_deref(),
+            Some("a_monitor")
+        );
+        manager.mark_reopening("a_monitor", false);
+        assert_eq!(
+            manager
+                .rig_device(RigRole::RunSafety, None)
+                .await
+                .as_deref(),
+            Some("b_monitor")
         );
     }
 }

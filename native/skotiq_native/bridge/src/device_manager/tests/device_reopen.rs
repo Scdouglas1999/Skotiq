@@ -874,3 +874,49 @@ async fn a_safety_monitor_whose_reads_keep_failing_is_reopened_and_its_verdict_i
     assert_eq!(manager.safety_is_safe(id).await.ok(), Some(true));
     let _ = manager.disconnect_device(id).await;
 }
+
+/// R1H2-1, through what a run reads (`SafetyOps::safety_is_safe(None)`):
+/// while the monitor's reads fail the verdict is the same error before,
+/// during and after its reopen, and it names the monitor, so the run's fail
+/// mode decides it as it does today and the check never passes to another
+/// source.
+#[tokio::test]
+async fn a_runs_safety_verdict_is_unchanged_through_a_monitor_reopen() {
+    use crate::simulator::environment::get_sim_safety_monitor;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
+    let manager = crate::device_manager::get_device_manager();
+    let ops = crate::unified_device_ops::create_unified_device_ops();
+    let id = "sim_safety_run_reopen";
+    manager
+        .register_device(build_sim_info(id, DeviceType::SafetyMonitor), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    get_sim_safety_monitor().write().await.status.is_safe = true;
+    faults::arm(
+        "safetymonitor.status",
+        FaultSpec::new(Trigger::Always, Effect::Error("IsSafe read failed".into())),
+    );
+    let names_the_monitor = |verdict: &skotiq_sequencer::DeviceResult<bool>| matches!(verdict, Err(e) if e.to_string().contains(id));
+
+    for _ in 0..crate::device_manager::read_health::STATUS_READ_FAILURE_LIMIT {
+        assert!(names_the_monitor(&ops.safety_is_safe(None).await));
+    }
+    let failing = manager.failing_status_reads(id).expect("the reads count");
+    assert_eq!(manager.reopen_after(id, &failing).await, Ok(true));
+    assert!(names_the_monitor(&ops.safety_is_safe(None).await));
+
+    // Inside a reopen: the monitor is closed and being opened again.
+    manager.mark_reopening(id, true);
+    manager.close_device(id, false).await.expect("close");
+    let during = ops.safety_is_safe(None).await;
+    assert!(names_the_monitor(&during), "during the reopen: {during:?}");
+    manager.connect_device(id).await.expect("connect");
+    manager.mark_reopening(id, false);
+
+    faults::clear_all();
+    assert_eq!(ops.safety_is_safe(None).await.ok(), Some(true));
+    manager.disconnect_device(id).await.expect("disconnect");
+    manager.unregister_device(id).await;
+}

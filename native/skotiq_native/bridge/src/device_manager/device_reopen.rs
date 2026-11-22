@@ -80,6 +80,8 @@ pub(crate) struct DeviceSession {
     reopen_lock: Arc<tokio::sync::Mutex<()>>,
     /// How many times the device has been reopened.
     reopens: u64,
+    /// A reopen is closing and opening it now: it still plays its roles.
+    reopening: bool,
     /// What the app last commanded that a connect restores.
     commanded: Commanded,
 }
@@ -218,6 +220,16 @@ impl DeviceManager {
         self.reopen_device(device_id).await.map(|()| true)
     }
 
+    /// Whether a reopen is closing and opening `device_id` now.
+    pub(crate) fn is_reopening(&self, device_id: &str) -> bool {
+        self.with_session(device_id, |session| session.reopening)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn mark_reopening(&self, device_id: &str, reopening: bool) {
+        self.with_session(device_id, |session| session.reopening = reopening);
+    }
+
     /// How many times `device_id` has been reopened. A caller that sees it
     /// move across a failed operation knows the device behind it is new.
     pub(crate) fn reopen_count(&self, device_id: &str) -> u64 {
@@ -236,12 +248,16 @@ impl DeviceManager {
             .get(device_id)
             .map(|dev| dev.auto_reconnect)
             .ok_or_else(|| format!("Device not found: {device_id}"))?;
+        self.with_session(device_id, |session| session.reopening = true);
         if let Err(e) = self.close_device(device_id, false).await {
             tracing::warn!("Reopen of {device_id}: closing it reported {e}; opening it anyway");
         }
         let connected = self.connect_device(device_id).await;
         self.set_auto_reconnect(device_id, auto_reconnect).await;
-        self.with_session(device_id, |session| session.reopens += 1);
+        self.with_session(device_id, |session| {
+            session.reopens += 1;
+            session.reopening = false;
+        });
         connected
     }
 
