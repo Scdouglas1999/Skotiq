@@ -265,7 +265,7 @@ abstract final class PanelFixtures {
   );
 }
 
-/// The tab body P7 will supply, for the panel tests.
+/// A stand-in tab body for the panel tests.
 class StubTab extends StatelessWidget {
   const StubTab(this.name, {super.key});
 

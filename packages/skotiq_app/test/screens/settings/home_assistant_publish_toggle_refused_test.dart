@@ -1,12 +1,5 @@
 // A refused toggle must not keep drawing itself as ON.
 //
-// Live on the release bundle (2026-08-09): with no MQTT broker host set,
-// tapping "Publish to Home Assistant" left the switch drawn ON and the
-// subtitle still reading "Configure the MQTT broker above first". Pressing
-// "Save Home Assistant config" then reported "Home Assistant config saved".
-// Coming back to the page later, the toggle was OFF again — the app had said
-// it saved something it discarded.
-//
 // The cause is that SettingsSwitch flips optimistically and only re-adopts the
 // parent `value` while a write is in flight; a handler that refuses by simply
 // returning never triggers that re-adoption.

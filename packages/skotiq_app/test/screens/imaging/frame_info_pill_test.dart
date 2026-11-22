@@ -228,8 +228,6 @@ void main() {
     expect(pill.dy - canvas.dy, lessThan(40));
   });
 
-  // The rig on 2026-11-15 at 23:31: the end-of-night calibration's dark read
-  // "Dark · 3.0 s ... 4 stars · REJECT", graded as if it were a light.
   testWidgets('a calibration frame carries no accept or reject verdict',
       (tester) async {
     await pumpAppScreen(
@@ -260,9 +258,6 @@ void main() {
     expect(find.text('ACCEPT'), findsNothing);
   });
 
-  // The rig on 2026-11-15 at 23:31: about 150 star markers of an earlier
-  // light were drawn over a dark while the dark's own detection had not
-  // given an answer.
   testWidgets('the star overlay never draws the previous frame\'s stars',
       (tester) async {
     final pending = Completer<StarDetectionResult>();

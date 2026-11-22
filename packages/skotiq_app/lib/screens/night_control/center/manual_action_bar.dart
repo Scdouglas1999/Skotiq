@@ -1,6 +1,6 @@
 // The manual-action bar under the frame: Snapshot, Loop, Autofocus, Solve &
 // sync, Center, plus Dither and Flip during a run. The buttons and their
-// gating come from the action controller (P2). Every one of them only opens
+// gating come from the action controller. Every one of them only opens
 // its panel tab, where the action itself starts. Each says which tab it
 // opens and is outlined while that tab is open, so none reads as a button
 // that did nothing.

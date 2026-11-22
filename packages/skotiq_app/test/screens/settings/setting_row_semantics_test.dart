@@ -5,17 +5,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A settings toggle must announce WHICH setting it is.
 ///
-/// Two separate defects were measured on the running app, in sequence:
-///   1. The switch exposed no accessibility semantics at all — Settings >
-///      General reported ZERO checkable nodes and only five focusable ones, so
-///      the 664 setting rows were unreachable by keyboard and unreadable by a
-///      screen reader. Fixed in `SkotiqSwitch`.
-///   2. With that fixed, the same screen exposed three toggle buttons reading
-///      "off/ON/ON" with EMPTY NAMES. Assistive technology could say something
-///      was on without being able to say what. The row owns the label, the
-///      switch owns the state, and nothing bound them together.
-///
-/// This pins the second: the row must present as ONE node carrying both.
+/// The row owns the label and the switch owns the state; without a binding a
+/// screen reader can say something is on without being able to say what. The
+/// row must present as ONE node carrying both.
 void main() {
   Widget wrap(Widget child) => MaterialApp(
         theme: SkotiqTheme.dark,

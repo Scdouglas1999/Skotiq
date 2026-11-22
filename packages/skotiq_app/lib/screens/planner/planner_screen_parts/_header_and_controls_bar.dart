@@ -192,8 +192,10 @@ class _PlannerControlsBar extends ConsumerWidget {
                 );
 
                 // Below the desktop breakpoint the three inline chips do not
-                // fit beside a 300 px search field and the sort, and a horizontal
-                // scroll would slice the last one, which reads as a broken layout
+                // fit beside a 300 px search field and the sort, and a
+                // horizontal
+                // scroll would slice the last one, which reads as a broken
+                // layout
                 // rather than as something scrollable.
                 //
                 // So they collapse into the Filters sheet, which already

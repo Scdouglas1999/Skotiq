@@ -1,11 +1,7 @@
 // The shared vocabulary of the Tonight night-control screen.
 //
-// Every package of the rework (docs/design/night-control-plan.md section 3)
-// builds against this file: the data providers (P1a, P1b) produce these view
-// models, the action controller (P2) implements [NightActionApi], and the
-// header, center and panel packages (P4 to P7) render them. Nothing here
-// reads a provider or a device. The view models sit in the part files under
-// `contracts/`; import this file only.
+// Nothing here reads a provider or a device. The view models sit in the part
+// files under `contracts/`; import this file only.
 //
 // Two rules hold for every type below:
 //  * a field the screen cannot honestly know is nullable, and null renders
@@ -20,120 +16,36 @@
 // The widgets read only these, so a widget test overrides each with a plain
 // value from `test/screens/night_control/fixtures/night_fixtures.dart`.
 //
-// | Provider                       | Type                       | Owner |
-// |--------------------------------|----------------------------|-------|
-// | `nightRunPhaseProvider`        | `NightRunPhase`            | P1a   |
-// | `nightHeaderProvider`          | `NightHeaderVm`            | P1a   |
-// | `nightTimelineProvider`        | `NightTimelineVm?`         | P1a   |
-// | `nightTargetProvider`          | `NightTargetVm?`           | P1a   |
-// | `nightPlanProgressProvider`    | `NightPlanVm?`             | P1a   |
-// | `nightPlanStepsProvider`       | `List<PlanStepVm>`         | P1a   |
-// | `nightUpcomingProvider`        | `List<UpcomingItemVm>`     | P1a   |
-// | `nightSessionFramesProvider`   | `List<StripFrameVm>`       | P1b   |
-// | `nightFrameSeriesProvider`     | `NightSeriesVm`  (HFR, stars) | P1b |
-// | `nightTemperatureSeriesProvider` | `NightSeriesVm` (temps, focuser) | P1b |
-// | `nightGuideSeriesProvider`     | `NightSeriesVm`  (RA/Dec, px) | P1b |
-// | `nightLastFrameProvider`       | `NightLastFrameVm?`        | P1b   |
-// | `nightSessionStatsProvider`    | `NightSessionVm`           | P1b   |
-// | `nightEquipmentProvider`       | `List<EquipmentRowVm>`     | P1b   |
-// | `nightConditionsProvider`      | `NightConditionsVm`        | P1b   |
-// | `nightLogProvider`             | `List<NightLogEntryVm>`    | P1b   |
-// | `nightBeforeYouStartProvider`  | `List<ChecklistItemVm>`    | P1b   |
-// | `nightActionApiProvider`       | `NightActionApi`           | P2    |
-// | `nightActionStateProvider`     | `ManualActionState`        | P2    |
-// | `nightManualActionsProvider`   | `List<ManualActionVm>`     | P2    |
-// | `nightPanelTabProvider`        | `NightPanelTab`            | P0 (below) |
+// | Provider                       | Type                       |
+// |--------------------------------|----------------------------|
+// | `nightRunPhaseProvider`        | `NightRunPhase`            |
+// | `nightHeaderProvider`          | `NightHeaderVm`            |
+// | `nightTimelineProvider`        | `NightTimelineVm?`         |
+// | `nightTargetProvider`          | `NightTargetVm?`           |
+// | `nightPlanProgressProvider`    | `NightPlanVm?`             |
+// | `nightPlanStepsProvider`       | `List<PlanStepVm>`         |
+// | `nightUpcomingProvider`        | `List<UpcomingItemVm>`     |
+// | `nightSessionFramesProvider`   | `List<StripFrameVm>`       |
+// | `nightFrameSeriesProvider`     | `NightSeriesVm`  (HFR, stars) |
+// | `nightTemperatureSeriesProvider` | `NightSeriesVm` (temps, focuser) |
+// | `nightGuideSeriesProvider`     | `NightSeriesVm`  (RA/Dec, px) |
+// | `nightLastFrameProvider`       | `NightLastFrameVm?`        |
+// | `nightSessionStatsProvider`    | `NightSessionVm`           |
+// | `nightEquipmentProvider`       | `List<EquipmentRowVm>`     |
+// | `nightConditionsProvider`      | `NightConditionsVm`        |
+// | `nightLogProvider`             | `List<NightLogEntryVm>`    |
+// | `nightBeforeYouStartProvider`  | `List<ChecklistItemVm>`    |
+// | `nightActionApiProvider`       | `NightActionApi`           |
+// | `nightActionStateProvider`     | `ManualActionState`        |
+// | `nightManualActionsProvider`   | `List<ManualActionVm>`     |
+// | `nightPanelTabProvider`        | `NightPanelTab`            |
 //
-// ## skotiq_ui kit widgets (P3)
+// ## skotiq_ui kit widgets
 //
-// skotiq_ui cannot import this app, so the kit widgets take their own plain
-// types and the screen maps the view models onto them. P3 builds exactly
-// these signatures; P4 to P7 call them. Colors resolve inside the widgets
+// skotiq_ui cannot import this app, so the kit widgets (NightTimelineStrip,
+// SeriesChart, MetricGrid, PanelTabStrip) take their own plain types and the
+// screen maps the view models onto them. Colors resolve inside the widgets
 // from `SkotiqColors` / `SkotiqChartColors`, never from the caller.
-//
-// ```dart
-// // 14 px night strip with several windows, a now marker and a labels row.
-// enum NightTimelineSpanState { done, active, planned }
-// class NightTimelineSpan {
-//   const NightTimelineSpan({required DateTime start, required DateTime end,
-//       required NightTimelineSpanState state});
-// }
-// class NightTimelineLabel {
-//   // Laid out left to right, spaced between. Emphasized = the "now" label.
-//   const NightTimelineLabel(String text, {bool emphasized = false});
-// }
-// class NightTimelineStrip extends StatelessWidget {
-//   const NightTimelineStrip({
-//     super.key,
-//     required DateTime start,          // sunset: left edge
-//     required DateTime end,            // sunrise: right edge
-//     DateTime? darkStart,              // astronomical dark band, if any
-//     DateTime? darkEnd,
-//     required DateTime now,            // marker; clamped to the strip
-//     List<NightTimelineSpan> spans = const [],
-//     List<NightTimelineLabel> labels = const [],
-//     required String semanticLabel,    // one sentence, from data
-//     double? width,                    // null = fill the constraints
-//   });
-//   static const double stripHeight = 14;
-// }
-//
-// // Up to three line series against time, null y = gap, vertical markers,
-// // highlighted points, optional second axis, no axis chrome.
-// enum SeriesChartTone { primary, secondary, tertiary, muted, warning, error }
-// enum SeriesChartAxis { left, right }
-// class SeriesChartLine {
-//   const SeriesChartLine({required List<(DateTime, double?)> points,
-//       required SeriesChartTone tone, SeriesChartAxis axis = SeriesChartAxis.left,
-//       bool dashed = false, bool stepped = false,
-//       double? minY, double? maxY});   // fixed range; null = fit the data
-// }
-// class SeriesChartMarker {
-//   const SeriesChartMarker(DateTime at, {SeriesChartTone tone = SeriesChartTone.muted});
-// }
-// class SeriesChartHighlight {
-//   const SeriesChartHighlight(DateTime at, double y,
-//       {SeriesChartAxis axis = SeriesChartAxis.left,
-//       SeriesChartTone tone = SeriesChartTone.error});
-// }
-// class SeriesChart extends StatelessWidget {
-//   const SeriesChart({
-//     super.key,
-//     required List<SeriesChartLine> lines,   // at most 3
-//     List<SeriesChartMarker> markers = const [],
-//     List<SeriesChartHighlight> highlights = const [],
-//     DateTime? from,                   // x range; null = fit the data
-//     DateTime? to,
-//     double? zeroLineY,                // a center line (guide error 0)
-//     double height = 70,
-//     required String semanticLabel,
-//   });
-// }
-//
-// // Dense value / label / delta grid built on Readout.
-// enum MetricGridTone { neutral, good, warning, bad }
-// class MetricGridItem {
-//   const MetricGridItem({required String label, String? value,  // null = "—"
-//       String? delta, MetricGridTone deltaTone = MetricGridTone.neutral,
-//       MetricGridTone valueTone = MetricGridTone.neutral});
-// }
-// class MetricGrid extends StatelessWidget {
-//   const MetricGrid({super.key, required List<MetricGridItem> items,
-//       int columns = 4});
-// }
-//
-// // The six text tabs with a dot badge; arrow keys move the selection.
-// enum PanelTabBadge { none, active, alert }
-// class PanelTabItem {
-//   const PanelTabItem(String label, {PanelTabBadge badge = PanelTabBadge.none});
-// }
-// class PanelTabStrip extends StatelessWidget {
-//   const PanelTabStrip({super.key, required List<PanelTabItem> tabs,
-//       required int selectedIndex, required ValueChanged<int> onSelected,
-//       required String semanticLabel});
-//   static const double height = 36;
-// }
-// ```
 //
 // The app-side tones below ([MetricGridTone], [SeriesChartTone]) carry the same names
 // as the kit's, so the mapping is one switch.

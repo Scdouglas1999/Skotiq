@@ -3,14 +3,9 @@ import 'package:skotiq_app/screens/onboarding/onboarding_screen.dart';
 
 import '../../harness/harness.dart';
 
-/// Confirms at the WIDGET layer what the accessibility tree showed after the
-/// 2026-08-10 fix: an onboarding driver row is one checkbox node carrying its
-/// own label and checked state.
-///
-/// Written because the same drive produced a false lead (G11) from an
-/// accessibility-tree reading that the widget layer contradicted. A fix
-/// verified only through the harness is verified through an instrument that has
-/// already been wrong once, so the ones that matter get a test here too.
+/// Confirms at the WIDGET layer that an onboarding driver row is one checkbox
+/// node carrying its own label and checked state, because an
+/// accessibility-tree reading through the harness can mislead.
 void main() {
   testWidgets('a driver row is a named, checked checkbox', (tester) async {
     await pumpAppScreen(tester, const OnboardingScreen());

@@ -259,12 +259,8 @@ void main() {
   });
 
   // At phone width these rows are the ONLY route into a settings section —
-  // there is no sidebar behind them — and measured on the release bundle
-  // 2026-08-31 every one of them reached AT-SPI as
-  // `panel: 'Delivery' -> ['focusable', 'showing', 'visible']`: no button role,
-  // no enabled state, while the identical desktop entry came back
-  // `button: 'Delivery' -> ['enabled', 'focusable', 'sensitive', 'showing']`
-  // and the leaf row under it ("Delivery destinations") was already correct.
+  // there is no sidebar behind them — so each must reach AT-SPI as a live
+  // button, like the identical desktop entry, not as a bare `panel`.
   testWidgets('every phone settings row publishes a live button', (
     tester,
   ) async {

@@ -1,17 +1,10 @@
 // Settings → Location presented an unset site as a configured one.
 //
-// Live repro (release bundle, empty SKOTIQ_DATABASE_DIR, onboarding
-// skipped): the first launch writes observer_latitude/longitude/elevation = 0.0
-// into `app_settings` and `db/profiles/settings.json` before the user has been
-// asked anything, and this page then rendered
-//
-//     Latitude   0 °     Longitude  0 °     Elevation  0 m
-//
-// in the same numeric type as a site somebody typed, with no "not set" state
-// anywhere on the page. One click away the Dashboard said "Set an observing
-// location for twilight times", Weather said "Location Not Configured" and Plan
-// Tonight said "Location not configured" — so the app contradicted itself, and
-// this page was the surface asserting the fabricated position.
+// The first launch writes observer_latitude/longitude/elevation = 0.0 into
+// `app_settings` and `db/profiles/settings.json` before the user has been
+// asked anything, so this page must not render 0 °/0 °/0 m in the same numeric
+// type as a site somebody typed; the Dashboard, Weather and Plan Tonight all
+// say the location is not configured.
 //
 // The Sequencer solved the same problem for a Target node's 0h/+0° birth
 // coordinates by saying "Not set" over the placeholder instead of printing

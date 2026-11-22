@@ -1,17 +1,11 @@
 // "Check for Updates" must not be offered to an appliance with nowhere to
 // check — and must be offered to one that does have somewhere.
 //
-// Reproduced live against a paired headless appliance: the version card said
-// there was no update server and the button was still enabled. Pressing it
-// produced a GREEN snackbar ("Check request accepted") at the same instant as
-// the status card flipped to "Update failed" with "Last error:
-// UpdateException: Update server URL not configured" — a contradictory pair of
-// answers to one press, and an alarming "Update failed" state manufactured out
-// of a check that never ran.
-//
-// The mirror-image mistake is now possible too: a rig with no update server
-// reads the project's GitHub releases, so gating on the server URL alone would
-// gray out Check on a rig that updates perfectly well.
+// With no update server and no other source, pressing Check would answer a
+// green "Check request accepted" beside an "Update failed" status for a check
+// that never ran. A rig with no update server reads the project's GitHub
+// releases, though, so gating on the server URL alone would gray out Check
+// on a rig that updates perfectly well.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

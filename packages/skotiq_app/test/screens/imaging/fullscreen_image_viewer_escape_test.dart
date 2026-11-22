@@ -1,13 +1,10 @@
 // The fullscreen frame inspector is an OPAQUE full-screen route whose only
 // exit is a 40 px circle in the top-right corner. There is no barrier to click
-// away and, off Android, no system back button — so when Escape did nothing the
-// operator had exactly one 40 px target to find, and a keyboard user had none.
+// away and, off Android, no system back button — so without Escape the
+// operator has exactly one 40 px target to find, and a keyboard user none.
 //
-// Reproduced live on 2026-08-09 at a 420x900 window: tapping the live preview
-// pushed the viewer, Escape was pressed, and a cropped screenshot showed the
-// close button still on screen with the route still up. Every other modal in
-// this app (the pre-flight dialog, the focus-model overflow menu) closes on
-// Escape, so this route quietly broke the habit.
+// Every other modal in this app (the pre-flight dialog, the focus-model
+// overflow menu) closes on Escape.
 //
 // These tests fail if the Escape binding is removed.
 

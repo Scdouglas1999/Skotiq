@@ -257,8 +257,8 @@ void main() {
     );
   });
 
-  // 2026-11-07 on the rig: the bar said "Nothing is running" through every
-  // exposure of a polar alignment, which runs outside the plan.
+  // A polar alignment runs outside the plan; the bar must not say "Nothing is
+  // running" through it.
   testWidgets('a polar alignment run is named in the hint', (tester) async {
     await pumpCenter(
       tester,

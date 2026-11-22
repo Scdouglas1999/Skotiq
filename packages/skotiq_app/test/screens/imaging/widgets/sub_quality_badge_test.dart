@@ -1,7 +1,6 @@
 // The imaging screen's quality badge shows the run's verdict on the frame on
 // screen: the one the frame strip, the frame pill and Tonight's Last frame
-// show. A second grader here used to label frames "Rejected" that the run
-// kept, and the reverse (IC 405, 2026-11-16).
+// show.
 
 import 'dart:typed_data';
 

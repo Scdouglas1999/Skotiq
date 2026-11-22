@@ -60,7 +60,7 @@ class _OnboardingCameraDefaultsStepState
   /// Whether the regulated-cooling section is expanded.
   ///
   /// Seeded from the draft, then owned locally. It cannot be derived from
-  /// `defaultCoolingTempC != null` any more: emptying the set-point field has
+  /// `defaultCoolingTempC != null`: emptying the set-point field has
   /// to null the stored value (otherwise a blank box sits above a profile that
   /// still carries the old set-point), and deriving the toggle from that value
   /// would collapse the field out from under the user mid-edit.

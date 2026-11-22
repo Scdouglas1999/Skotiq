@@ -1,13 +1,11 @@
 // An unset capture directory must not become a starting directory.
 //
 // NamingPattern.baseDir defaults to '.', and the Save Path row already
-// renders that as "Not set — choose a folder". The browse button used to hand
-// the raw '.' to the picker as initialPath, which on a remote client made the
-// host resolve it against the APPLIANCE's process working directory — on a
-// systemd Pi, whatever directory the unit started in — and skipped the
-// curated "Host roots" listing that /api/files/browse serves when no path is
-// supplied. Reproduced live against a paired appliance: the dialog opened in
-// the app bundle's install directory with only Parent-folder to climb out.
+// renders that as "Not set — choose a folder". Handing the raw '.' to the
+// picker as initialPath would make a remote host resolve it against the
+// APPLIANCE's process working directory — on a systemd Pi, whatever directory
+// the unit started in — and skip the curated "Host roots" listing that
+// /api/files/browse serves when no path is supplied.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

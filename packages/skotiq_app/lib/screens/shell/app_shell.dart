@@ -641,7 +641,7 @@ class _AppShellState extends ConsumerState<AppShell> {
                                         // sits at the bottom of the main
                                         // pane — the sidebar runs the full
                                         // window height, so nothing spans
-                                        // the window's foot any more.
+                                        // the window's foot.
                                         if (!keyboardVisible)
                                           RunningSequenceMiniBar(
                                             currentLocation: currentLocation,

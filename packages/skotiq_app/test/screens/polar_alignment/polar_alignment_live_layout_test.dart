@@ -1,10 +1,9 @@
 // A run in progress is the frame.
 //
 // Owner, 2026-11-07: "The actual image is a tiny box and the useless or
-// relatively useless bullseye is huge." On a 1600x900 window the frame was
-// about 370 px wide between the locked settings column and a 440 px bullseye
-// column. These pin the frame as the main element, the bullseye as a compact
-// readout, and both on screen at small windows.
+// relatively useless bullseye is huge." These pin the frame as the main
+// element, the bullseye as a compact readout, and both on screen at small
+// windows.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';

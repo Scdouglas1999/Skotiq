@@ -1,4 +1,4 @@
-// Wave-3 P3 regressions for the Sequencer builder surfaces.
+// Regressions for the Sequencer builder surfaces.
 //
 // Each group pins one thing the app used to get visibly wrong:
 //   * the node palette ranked a DESCRIPTION hit above an exact NAME hit, so

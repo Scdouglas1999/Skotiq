@@ -159,9 +159,12 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
                     label: 'Version',
                     value: status.version!,
                   ),
-                // No "Package" chip: the download tiers were a placebo (all three
-                // downloaded the same bytes) and were retired. Everything the sidecar can
-                // honestly say is already on the card: the dataset name is the title and
+                // No "Package" chip: the download tiers were a placebo (all
+                // three
+                // downloaded the same bytes) and were retired. Everything the
+                // sidecar can
+                // honestly say is already on the card: the dataset name is the
+                // title and
                 // the object count, size, version and install date are chips.
                 if (_magnitudeDepth(catalog) != null)
                   _buildStatusChip(

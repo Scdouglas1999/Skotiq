@@ -54,7 +54,8 @@ class _CullToolbar extends StatelessWidget {
       runSpacing: SkotiqTokens.spaceSm,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // The two numbers the whole screen is about. They belong here, beside the
+        // The two numbers the whole screen is about. They belong here, beside
+        // the
         // controls that change them.
         ReadoutRow(
           gap: SkotiqTokens.spaceLg,

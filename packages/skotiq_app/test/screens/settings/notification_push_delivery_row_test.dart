@@ -1,13 +1,9 @@
 // Renders the REAL notification-settings surface and asserts the
 // "Push critical alerts to mobile" row reports true delivery state.
 //
-// Live-observed on Android (2026-07-25): the row rendered
-//   "Push critical alerts to mobile"
-//   "Forward critical events to paired phones (separate from per-event push
-//    toggles below)"
-// toggled ON, with nothing indicating this device could not receive them —
-// and it could not, because `apps/mobile/android/app/google-services.json`
-// does not exist so the client never registers an FCM token.
+// On Android in a stock build `apps/mobile/android/app/google-services.json`
+// does not exist, so the client never registers an FCM token and the device
+// cannot receive the alerts the row offers.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

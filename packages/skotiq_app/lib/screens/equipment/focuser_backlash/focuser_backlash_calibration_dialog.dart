@@ -15,11 +15,10 @@ import 'focuser_backlash_text.dart';
 /// The focuser backlash calibration wizard.
 ///
 /// A focuser's gear train has a dead band: a move that reverses direction
-/// spends the first N steps taking up slack before the optics move at all. The
-/// app has never been able to MEASURE it, so the compensation setting ships at
-/// 0 — and on 2026-09-14 that produced visibly donut-shaped stars after an
-/// autofocus run whose curve looked near perfect, because the sweep sampled
-/// every point moving UP and the final move arrived DOWNWARD.
+/// spends the first N steps taking up slack before the optics move at all. A
+/// compensation of 0 then leaves visibly donut-shaped stars after an autofocus
+/// whose curve looked near perfect, because the sweep samples every point
+/// moving UP and the final move arrives DOWNWARD.
 ///
 /// The native routine scans focus twice, approaching every point from below and
 /// then from above, fits both, and reports the gap between the two vertices.

@@ -274,11 +274,6 @@ void main() {
     expect(tester.getRect(find.text('Next')), footerBefore);
   });
 
-  // Observed live on the optical-train step: focal length 999999999 was
-  // rejected, the band said "Focal length must be between 1 and 50000 mm.",
-  // and after the field was corrected to 600 the band kept saying it. The
-  // wizard was telling the user to fix something that was already fixed, while
-  // Next would in fact have advanced.
   testWidgets('a validation notice clears itself once the step becomes valid',
       (tester) async {
     final db = _newDb();

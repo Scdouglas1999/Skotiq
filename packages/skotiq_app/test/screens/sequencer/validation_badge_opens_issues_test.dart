@@ -48,7 +48,8 @@ void main() {
 
     final handle = await pumpAppScreen(
       tester,
-      // The counts live in the canvas bar (06 §Sequencer), so the pair is pumped
+      // The counts live in the canvas bar (06 §Sequencer), so the pair is
+      // pumped
       // together — which is also how the builder lays them out.
       Builder(
         builder: (context) => Column(

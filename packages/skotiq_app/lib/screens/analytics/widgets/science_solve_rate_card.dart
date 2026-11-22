@@ -12,10 +12,8 @@ import 'package:skotiq_app/router/app_routes.dart';
 /// success rate for the current session and offers a one-click jump to the
 /// plate-solver settings page when the rate is bad.
 ///
-/// This addresses P0.3: "plate solve is a hard prerequisite for most science
-/// products, but the existing empty state never tells the user that *this*
-/// session is failing — only that data is missing." Surfacing the rate plus
-/// a path-forward closes that loop.
+/// Plate solve is a hard prerequisite for most science products, so the
+/// card says when *this* session is failing to solve, with a path forward.
 class ScienceSolveRateCard extends ConsumerWidget {
   final SkotiqColors colors;
 

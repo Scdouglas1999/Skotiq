@@ -227,7 +227,7 @@ void main() {
     expect(find.textContaining('PHD2'), findsNothing);
   });
 
-  // On 2026-10-25 a watcher read an autofocus guiding stop as a lost star.
+  // An autofocus guiding stop is not a lost star.
   testWidgets('a planned guiding stop says what it is for', (tester) async {
     await pumpPanelTab(
       tester,

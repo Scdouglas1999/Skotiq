@@ -573,11 +573,11 @@ void main() {
     'stranded_older_failures_outrank_a_newer_clean_run, and the page offers '
     'the retry that reaches them',
     (tester) async {
-      // The wave-7 shape, read off the release bundle: `case8-strand` held
-      // four of job 4's drafts `failed` with destinationConflict and four of
-      // job 5's `delivered`. The row read "Delivered 17:55, 4 files, 1.4 MiB."
-      // in green, said nothing about the four, and offered no way to retry
-      // them — while nothing on the rig was ever going to look at them again.
+      // Four drafts of an older job `failed` with destinationConflict beside
+      // four
+      // of a newer job `delivered`: the row must not read green, silent about
+      // the
+      // four, with no way to retry them.
       _swallowKnownOverflows();
       final database = mockDatabase();
       addTearDown(database.close);

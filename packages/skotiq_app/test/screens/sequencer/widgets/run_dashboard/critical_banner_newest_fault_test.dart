@@ -1,7 +1,5 @@
-// SY-32 / SY-26 (sync night 2026-11-03): a linked client's red banner kept
-// the FIRST meridian flip failure ("Pier side did not change ... still West")
-// after the second one (a plate solve, with the mount already on pier east),
-// and kept it after the resume while the run was Running.
+// A linked client's red banner must follow the newest fault: a later meridian
+// flip failure replaces the first, and a resume clears it.
 //
 // The events below are built the way a linked client gets them: the host's
 // wire envelope read back by `typedEventFromWire`, whose `eventId` is the
@@ -251,9 +249,8 @@ void main() {
     expect(container.read(runDashboardCriticalEventsProvider), isEmpty);
   });
 
-  // IC 405 night 2026-11-17: "Exposure failed 02:25:21 ... ZWO camera
-  // reported a failed exposure" (+5 more) stayed red over Tonight until
-  // dawn, though the camera reopened and the run kept frames for two hours.
+  // An exposure failure the camera recovered from must not stay red until
+  // dawn while the run keeps frames.
   sk_events.SkotiqEvent exposureFailed(int timestamp) => _wire(
         timestamp,
         'ExposureFailed',

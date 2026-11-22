@@ -109,10 +109,9 @@ void main() {
     expect(find.text('Backup restored'), findsNothing);
   });
 
-  // The first version of this fix held the notice in the screen's State, so
-  // walking away from Backup & Restore cleared it — i.e. the reminder was
-  // cancelled by exactly the action that makes it matter (you restore, then go
-  // to Imaging to start the run). Only the operator's Dismiss may clear it.
+  // Walking away from Backup & Restore must not clear the reminder: you
+  // restore, then go to Imaging to start the run. Only the operator's Dismiss
+  // may clear it.
   testWidgets('the restart reminder survives leaving and re-entering the page',
       (tester) async {
     final directory = Directory.systemTemp.createTempSync('sk-backup-nav');

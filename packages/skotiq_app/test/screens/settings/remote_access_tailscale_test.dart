@@ -1,5 +1,5 @@
 // Widget tests for the Tailscale reachability panel inside
-// [RemoteAccessSettings] (P4 — "Desktop QR guidance and docs").
+// [RemoteAccessSettings].
 //
 // What these lock in (the behaviour contract a senior reviewer would want
 // pinned, because each is a way the feature can silently regress into either

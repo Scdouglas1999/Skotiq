@@ -105,7 +105,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Quick Capture'), findsOneWidget);
-    // The four summary numbers are Readouts since the Observatory pass. The
+    // The four summary numbers are Readouts. The
     // charts below carry readouts of their own (median / p90 / range / n), so
     // this asserts the four the summary panel owns, by label.
     final labels = tester

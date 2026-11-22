@@ -1,6 +1,6 @@
-// Tonight on a client linked to a host that already has a run (sync night
-// 2026-11-03): SY-01 (joined after the run), SY-25 (restarted during a paused
-// run), SY-37 (the run ended while the client watched). The host is faked by
+// Tonight on a client linked to a host that already has a run: joined after
+// the run, restarted during a paused run, and the run ending while the client
+// watched. The host is faked by
 // its rows and by the run record it publishes through the runtime mirror.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

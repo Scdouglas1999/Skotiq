@@ -505,7 +505,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // Where the backups actually LIVE is a fact, so it is the header's one
+          // Where the backups actually LIVE is a fact, so it is the header's
+          // one
           // muted context line.
           PageHeader(
             icon: LucideIcons.save,

@@ -12,9 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// Surfaces the three quality metrics that matter at the eyepiece while a
 /// sub is on screen (HFR, eccentricity and star count) beside the run's
 /// ACCEPT/REJECT verdict on that frame. The verdict is the run grader's, the
-/// one the frame strip, the frame pill and Tonight's Last frame show: a
-/// second grader here labelled frames "Rejected" that the run kept, and the
-/// reverse (IC 405, 2026-11-16).
+/// one the frame strip, the frame pill and Tonight's Last frame show.
 ///
 /// Why a distinct widget from [ImageStatsOverlay]: that overlay is a generic
 /// raw-stats readout (median/mean/etc.) painted on an ad-hoc black scrim.

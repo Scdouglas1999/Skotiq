@@ -259,10 +259,8 @@ class _DraggableNodeItemCompactState
                           children: [
                             Text(
                               // Sentence case at the point of DRAWING: the
-                              // strings live in skotiq_core, which this
-                              // wave may not touch, and the name a node carries
-                              // once it is in a sequence is the user's data
-                              // (see palette_copy.dart).
+                              // name a node carries once it is in a sequence
+                              // is the user's data (see palette_copy.dart).
                               paletteSentenceCase(widget.item.name),
                               style: SkotiqTypography.bodySm.copyWith(
                                 color: colors.textPrimary,

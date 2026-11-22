@@ -1447,7 +1447,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------
-  // W9-B — the start offer's header is text, not a control's name
+  // The start offer's header is text, not a control's name
   // -------------------------------------------------------------------
 
   testWidgets('the start offer reads its header as text, not as Reload\'s name',

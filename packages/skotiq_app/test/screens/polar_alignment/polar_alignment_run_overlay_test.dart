@@ -1,8 +1,4 @@
 // A polar alignment run shows on every screen, however it was started.
-//
-// 2026-11-07 on the rig: runs started through the API showed on the host as
-// lines in the log and nothing else, because the frame, the step and the
-// error lived on the polar alignment screen alone.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
