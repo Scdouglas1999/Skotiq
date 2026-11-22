@@ -110,6 +110,10 @@ pub struct AutofocusConfigApi {
     /// make that unavoidable move shorter and aimed at a known clearance
     /// instead of running all the way back to the sweep's start.
     pub measured_backlash_in: Option<i32>,
+    /// The operator's `afFailureHfrToleranceRatio`: how far above the
+    /// reference HFR a failed autofocus may leave the frames and still be
+    /// called usable, and the sweep's landing tolerance.
+    pub failure_hfr_tolerance_ratio: f64,
 }
 
 /// A single focus data point (position and HFR)
@@ -178,6 +182,11 @@ fn sequencer_autofocus_config(
             "autofocus settle/backlash settings are out of range".to_string(),
         ));
     }
+    if !config.failure_hfr_tolerance_ratio.is_finite() || config.failure_hfr_tolerance_ratio < 0.0 {
+        return Err(SkotiqError::InvalidParameter(
+            "autofocus failure HFR tolerance must be finite and not negative".to_string(),
+        ));
+    }
     if config.gain.is_some_and(|gain| gain < 0) || config.offset.is_some_and(|offset| offset < 0) {
         return Err(SkotiqError::InvalidParameter(
             "autofocus gain and offset cannot be negative".to_string(),
@@ -236,6 +245,7 @@ fn sequencer_autofocus_config(
             0
         },
         measured_backlash_in: config.measured_backlash_in,
+        failure_hfr_tolerance_ratio: config.failure_hfr_tolerance_ratio,
         ..AutofocusConfig::default()
     })
 }
@@ -2005,6 +2015,7 @@ mod autofocus_validation_tests {
             backlash_in: 0,
             backlash_out: 0,
             measured_backlash_in: None,
+            failure_hfr_tolerance_ratio: 1.6,
         };
         let err = api_run_autofocus("foc-1".to_string(), "cam-1".to_string(), config)
             .await

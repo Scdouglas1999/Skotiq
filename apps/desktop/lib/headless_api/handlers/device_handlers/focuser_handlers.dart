@@ -227,6 +227,10 @@ extension FocuserDeviceHandlers on DeviceHandlers {
         optionalInt(payload, 'backlashIn', min: 0, max: 10000) ?? 0;
     final backlashOut =
         optionalInt(payload, 'backlashOut', min: 0, max: 10000) ?? 0;
+    // A client that predates this key gets the engine's shipped ratio.
+    final failureHfrToleranceRatio =
+        optionalDouble(payload, 'failureHfrToleranceRatio', min: 0, max: 100) ??
+        const AutofocusSettings().failureHfrToleranceRatio;
     // A figure this app measured on the focuser, from a stored calibration.
     // Never overrides `backlashIn`: native applies it only when the operator
     // has left theirs at 0.
@@ -284,6 +288,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
             backlashIn: backlashIn,
             backlashOut: backlashOut,
             measuredBacklashIn: measuredBacklashIn,
+            failureHfrToleranceRatio: failureHfrToleranceRatio,
           ),
         );
         final result = await Future.any<dynamic>([

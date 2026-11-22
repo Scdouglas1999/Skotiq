@@ -122,6 +122,48 @@ void main() {
     await _pumpUntil(() => jobs.get(jobId)?.state != JobState.running);
   });
 
+  for (final (sent, expected) in [(2.4, 2.4), (null, 1.6)]) {
+    test('an autofocus request runs with the failure HFR tolerance it sends '
+        '(sent: $sent)', () async {
+      final backend = _PendingAutofocusBackend();
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+          _memoryDatabase(),
+        ],
+      );
+      addTearDown(container.dispose);
+      final jobs = JobManager(emitEvent: (_) {});
+      addTearDown(jobs.dispose);
+      final handlers = DeviceHandlers(container, jobManager: jobs);
+
+      final response = await handlers.handleAutofocusStart(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/focuser/autofocus/start'),
+          headers: {'content-type': 'application/json'},
+          body: jsonEncode({
+            'deviceId': 'native:focuser:1',
+            'cameraId': 'native:camera:1',
+            'exposureTime': 2.0,
+            'stepSize': 50,
+            'stepsOut': 4,
+            if (sent != null) 'failureHfrToleranceRatio': sent,
+          }),
+        ),
+      );
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final jobId = body['jobId'] as String;
+      await _pumpUntil(() => jobs.get(jobId)?.state == JobState.running);
+      expect(backend.failureHfrToleranceRatio, expected);
+
+      backend.pending.completeError(StateError('test over'));
+      await _pumpUntil(() => jobs.get(jobId)?.state != JobState.running);
+    });
+  }
+
   test('an autofocus a client asks for trains the host focus model', () async {
     final backend = _PendingAutofocusBackend();
     final predictive = _RecordingPredictiveAf();
@@ -317,12 +359,14 @@ class _PendingAutofocusBackend extends DisconnectedBackend {
   int? gain;
   int? offset;
   int? useBrightestNStars;
+  double? failureHfrToleranceRatio;
 
   @override
   Future<AutofocusResult> autofocusStart(AutofocusRequest request) {
     gain = request.gain;
     offset = request.offset;
     useBrightestNStars = request.useBrightestNStars;
+    failureHfrToleranceRatio = request.failureHfrToleranceRatio;
     return pending.future;
   }
 

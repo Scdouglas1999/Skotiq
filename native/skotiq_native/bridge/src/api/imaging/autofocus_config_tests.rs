@@ -23,6 +23,7 @@ fn request() -> AutofocusConfigApi {
         backlash_in: 120,
         backlash_out: 40,
         measured_backlash_in: Some(88),
+        failure_hfr_tolerance_ratio: 2.2,
     }
 }
 
@@ -50,6 +51,7 @@ fn every_request_field_reaches_the_sequencer_config() {
             backlash_compensation: 120,
             backlash_out_compensation: 40,
             measured_backlash_in: Some(88),
+            failure_hfr_tolerance_ratio: 2.2,
             ..AutofocusConfig::default()
         }
     );
@@ -88,4 +90,10 @@ fn an_out_of_range_request_is_refused() {
     let mut request = request();
     request.steps_out = 0;
     assert!(sequencer_autofocus_config(&request).is_err());
+}
+
+#[test]
+fn the_operators_failure_tolerance_reaches_the_sequencer_config() {
+    let config = sequencer_autofocus_config(&request()).expect("valid request");
+    assert_eq!(config.failure_hfr_tolerance_ratio, 2.2);
 }

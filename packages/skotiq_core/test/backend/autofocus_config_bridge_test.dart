@@ -32,6 +32,7 @@ void main() {
       backlashIn: 120,
       backlashOut: 40,
       measuredBacklashIn: 88,
+      failureHfrToleranceRatio: 2.2,
     );
 
     final expected = bridge.AutofocusConfigApi(
@@ -53,6 +54,7 @@ void main() {
       backlashIn: 120,
       backlashOut: 40,
       measuredBacklashIn: 88,
+      failureHfrToleranceRatio: 2.2,
     );
 
     expect(autofocusConfigForBridge(request), expected);
@@ -75,6 +77,7 @@ void main() {
       'backlashIn',
       'backlashOut',
       'measuredBacklashIn',
+      'failureHfrToleranceRatio',
     });
   });
 }

@@ -85,6 +85,7 @@ bridge.AutofocusConfigApi autofocusConfigForBridge(AutofocusRequest request) =>
       backlashIn: request.backlashIn,
       backlashOut: request.backlashOut,
       measuredBacklashIn: request.measuredBacklashIn,
+      failureHfrToleranceRatio: request.failureHfrToleranceRatio,
     );
 
 abstract class _FfiBackendBase implements SkotiqBackend {

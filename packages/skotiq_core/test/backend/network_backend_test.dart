@@ -649,6 +649,7 @@ void main() {
           backlashCompMethod: 'Inward',
           backlashIn: 120,
           backlashOut: 30,
+          failureHfrToleranceRatio: 2.4,
         ),
       );
 
@@ -669,6 +670,7 @@ void main() {
       expect(payload['backlashCompMethod'], 'Inward');
       expect(payload['backlashIn'], 120);
       expect(payload['backlashOut'], 30);
+      expect(payload['failureHfrToleranceRatio'], 2.4);
     });
 
     test('a centering started on the host answers its job', () async {

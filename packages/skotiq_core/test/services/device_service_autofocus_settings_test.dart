@@ -123,6 +123,34 @@ void main() {
     },
   );
 
+  for (final useSettingsDefaults in [true, false]) {
+    test('manual autofocus runs with the operator\'s failure HFR tolerance '
+        '(useSettingsDefaults: $useSettingsDefaults)', () async {
+      final backend = _AutofocusCaptureBackend();
+      final container = _buildContainer(
+        backend,
+        const AppSettingsState(
+          useFilterFocusOffsets: false,
+          afFailureHfrToleranceRatio: 2.4,
+        ),
+      );
+      addTearDown(container.dispose);
+      await container.read(appSettingsProvider.future);
+      _seedConnectedEquipment(container);
+
+      await container
+          .read(deviceServiceProvider)
+          .runAutofocus(
+            exposureTime: 2,
+            stepSize: 50,
+            stepsOut: 4,
+            useSettingsDefaults: useSettingsDefaults,
+          );
+
+      expect(backend.request?.failureHfrToleranceRatio, 2.4);
+    });
+  }
+
   test('moving filter-wheel sentinel has no current filter name', () {
     const state = FilterWheelState(
       currentPosition: -1,
@@ -191,6 +219,7 @@ class _AutofocusCaptureBackend extends DisconnectedBackend {
   int? offset;
   String? curveFitting;
   int? numberOfAttempts;
+  AutofocusRequest? request;
 
   @override
   Future<void> filterWheelSetPosition(String deviceId, int position) async {
@@ -212,6 +241,7 @@ class _AutofocusCaptureBackend extends DisconnectedBackend {
   @override
   Future<AutofocusResult> autofocusStart(AutofocusRequest request) async {
     events.add('autofocus');
+    this.request = request;
     exposureTime = request.exposureTime;
     stepSize = request.stepSize;
     binning = request.binning;

@@ -28,6 +28,7 @@ class AutofocusRequest {
     this.backlashIn = 350,
     this.backlashOut = 0,
     this.measuredBacklashIn,
+    this.failureHfrToleranceRatio = 1.6,
   });
 
   /// The focuser.
@@ -63,6 +64,11 @@ class AutofocusRequest {
   /// [backlashIn]: a figure the operator typed outranks a measured one.
   final int? measuredBacklashIn;
 
+  /// The operator's `afFailureHfrToleranceRatio`: how far above the
+  /// reference HFR a failed autofocus may leave the frames and still be
+  /// called usable, and the sweep's landing tolerance.
+  final double failureHfrToleranceRatio;
+
   /// The body of `POST /api/focuser/autofocus/start`.
   Map<String, Object> toWireJson() => {
     'deviceId': deviceId,
@@ -86,5 +92,6 @@ class AutofocusRequest {
     'backlashIn': backlashIn,
     'backlashOut': backlashOut,
     if (measuredBacklashIn case final measured?) 'measuredBacklashIn': measured,
+    'failureHfrToleranceRatio': failureHfrToleranceRatio,
   };
 }

@@ -4296,6 +4296,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.measured_backlash_in = cst_encode_opt_box_autoadd_i_32(
       apiObj.measuredBacklashIn,
     );
+    wireObj.failure_hfr_tolerance_ratio = cst_encode_f_64(
+      apiObj.failureHfrToleranceRatio,
+    );
   }
 
   @protected
@@ -19737,6 +19740,9 @@ final class wire_cst_autofocus_config_api extends ffi.Struct {
   external int backlash_out;
 
   external ffi.Pointer<ffi.Int32> measured_backlash_in;
+
+  @ffi.Double()
+  external double failure_hfr_tolerance_ratio;
 }
 
 final class wire_cst_fits_write_header extends ffi.Struct {

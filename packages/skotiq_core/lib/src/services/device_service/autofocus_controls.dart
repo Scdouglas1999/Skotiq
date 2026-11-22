@@ -157,6 +157,10 @@ extension _DeviceServiceAutofocusControls on DeviceService {
         }
       }
 
+      final failureHfrToleranceRatio =
+          appSettings?.afFailureHfrToleranceRatio ??
+          const AutofocusSettings().failureHfrToleranceRatio;
+
       // Read for THIS focuser's id rather than through a provider keyed on
       // "the connected focuser": the run is about to drive `focuserDeviceId`,
       // and a figure measured on any other drive train says nothing about it.
@@ -330,6 +334,7 @@ extension _DeviceServiceAutofocusControls on DeviceService {
               backlashIn: effectiveBacklashIn,
               backlashOut: effectiveBacklashOut,
               measuredBacklashIn: measuredBacklashIn,
+              failureHfrToleranceRatio: failureHfrToleranceRatio,
             ),
           );
         } catch (error, stackTrace) {

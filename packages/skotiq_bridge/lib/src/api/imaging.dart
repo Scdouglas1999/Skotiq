@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `detect_stars_in_file_blocking`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `read_fits_file_blocking`, `thumbnail_generation_gate`, `write_rgba`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `detect_stars_in_file_blocking`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `read_fits_file_blocking`, `sequencer_autofocus_config`, `thumbnail_generation_gate`, `write_rgba`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
@@ -476,6 +476,11 @@ class AutofocusConfigApi {
   /// instead of running all the way back to the sweep's start.
   final int? measuredBacklashIn;
 
+  /// The operator's `afFailureHfrToleranceRatio`: how far above the
+  /// reference HFR a failed autofocus may leave the frames and still be
+  /// called usable, and the sweep's landing tolerance.
+  final double failureHfrToleranceRatio;
+
   const AutofocusConfigApi({
     required this.exposureTime,
     required this.stepSize,
@@ -495,6 +500,7 @@ class AutofocusConfigApi {
     required this.backlashIn,
     required this.backlashOut,
     this.measuredBacklashIn,
+    required this.failureHfrToleranceRatio,
   });
 
   @override
@@ -516,7 +522,8 @@ class AutofocusConfigApi {
       backlashCompMethod.hashCode ^
       backlashIn.hashCode ^
       backlashOut.hashCode ^
-      measuredBacklashIn.hashCode;
+      measuredBacklashIn.hashCode ^
+      failureHfrToleranceRatio.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -540,7 +547,8 @@ class AutofocusConfigApi {
           backlashCompMethod == other.backlashCompMethod &&
           backlashIn == other.backlashIn &&
           backlashOut == other.backlashOut &&
-          measuredBacklashIn == other.measuredBacklashIn;
+          measuredBacklashIn == other.measuredBacklashIn &&
+          failureHfrToleranceRatio == other.failureHfrToleranceRatio;
 }
 
 /// Autofocus result containing all data for display and analysis

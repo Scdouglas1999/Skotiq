@@ -273,6 +273,7 @@ typedef struct wire_cst_autofocus_config_api {
   int32_t backlash_in;
   int32_t backlash_out;
   int32_t *measured_backlash_in;
+  double failure_hfr_tolerance_ratio;
 } wire_cst_autofocus_config_api;
 
 typedef struct wire_cst_fits_write_header {
