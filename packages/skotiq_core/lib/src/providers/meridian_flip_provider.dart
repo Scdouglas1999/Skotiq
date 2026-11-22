@@ -32,6 +32,7 @@ import 'notification_service_provider.dart';
 import '../utils/logging_service.dart';
 import '../models/meridian_flip_progress.dart';
 import 'rig_activity.dart';
+import '../models/rig_activity.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].

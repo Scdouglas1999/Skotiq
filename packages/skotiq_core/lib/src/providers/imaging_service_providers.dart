@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/imaging/frame_files.dart';
 import 'backend_provider.dart';
 import 'rig_activity.dart';
+import '../models/rig_activity.dart';
 import 'linked_host.dart';
 import '../services/imaging_service.dart';
 

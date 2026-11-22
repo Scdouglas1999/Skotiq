@@ -12,6 +12,7 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_core/src/models/rig_activity.dart';
 import 'package:skotiq_core/src/providers/rig_activity.dart';
 import 'package:skotiq_core/src/providers/sequence/run_record.dart';
 

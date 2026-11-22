@@ -32,6 +32,7 @@ import 'flat_wizard_output.dart';
 import '../models/flat_wizard/flat_run_snapshot.dart';
 import 'imaging_service_providers.dart';
 import 'rig_activity.dart';
+import '../models/rig_activity.dart';
 import 'profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../database/daos/settings_dao.dart';

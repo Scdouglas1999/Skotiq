@@ -27,6 +27,7 @@ import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
 import '../meridian_flip_provider.dart';
 import '../rig_activity.dart';
+import '../../models/rig_activity.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show

@@ -30,7 +30,7 @@ import '../errors/skotiq_exception.dart'
         ImagingException,
         ValidationException;
 import '../errors/skotiq_error.dart' show SkotiqError;
-import '../providers/rig_activity.dart' show RigActivity, rigHeldBy;
+import '../models/rig_activity.dart';
 import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
 import '../utils/host_paths.dart';
@@ -115,8 +115,7 @@ class ImagingService {
        _hostFiles = hostFiles,
        _hostRecords = hostRecords;
 
-  /// The activity other than a manual capture that holds the rig now
-  /// ([rigHeldBy]).
+  /// The activity other than a manual capture that holds the rig now.
   final RigActivity? Function() _rigHeld;
   final HostFiles? _hostFiles;
   final HostImagingRecords? _hostRecords;
