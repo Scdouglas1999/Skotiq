@@ -79,3 +79,25 @@ fn the_catalog_fixture_matches_the_catalogue() {
         "the catalogue changed; regenerate the fixture and update the app's recipe builders"
     );
 }
+
+/// The Live Darkroom recipes the app wrote at 2e4b3fe02
+/// (`test_fixtures/darkroom_live/base_recipes.json`, held to the app's builder by
+/// `live_darkroom_recipe_contract_test.dart`). Live recipes are saved as recipe
+/// rows, so every one must still read and validate.
+#[test]
+fn every_base_written_live_recipe_still_validates() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/darkroom_live/base_recipes.json"
+    );
+    let recipes: Map<String, Value> =
+        serde_json::from_str(&std::fs::read_to_string(path).expect("fixture")).expect("JSON");
+    assert!(!recipes.is_empty());
+    let registry = super::state::registry().expect("registry");
+    for (name, recipe) in recipes {
+        let recipe = super::render::parse_recipe(&recipe.to_string())
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+        skotiq_imaging::recipe::validate(&recipe, registry)
+            .unwrap_or_else(|e| panic!("{name}: {e}"));
+    }
+}

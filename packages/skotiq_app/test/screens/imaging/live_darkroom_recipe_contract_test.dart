@@ -113,4 +113,41 @@ void main() {
       expect(drift, isEmpty);
     });
   }
+
+  // The recipes this builder wrote before the engine-bound clamps
+  // (test_fixtures/darkroom_live/base_recipes.json, which the engine still
+  // validates). Only the out-of-range settings, which the sliders cannot
+  // reach, now clamp to the engine's wider bounds.
+  test('the recipes in range are written as the base wrote them', () {
+    final base = jsonDecode(
+      File(
+        '../../test_fixtures/darkroom_live/base_recipes.json',
+      ).readAsStringSync(),
+    ) as Map<String, dynamic>;
+    const everyStepOn = LiveDarkroomRecipeSettings(
+      backgroundExtractEnabled: true,
+      denoiseEnabled: true,
+      colorBalanceEnabled: true,
+      stretchEnabled: true,
+      saturationEnabled: true,
+      starReduceEnabled: true,
+    );
+    final settings = {
+      'defaults': const LiveDarkroomRecipeSettings(),
+      'every step on': everyStepOn,
+      'saturation only': const LiveDarkroomRecipeSettings(
+        saturationEnabled: true,
+      ),
+    };
+    for (final MapEntry(key: name, value: s) in settings.entries) {
+      for (final color in [true, false]) {
+        final label = '$name ${color ? 'color' : 'mono'}';
+        expect(
+          jsonDecode(s.toRecipeJson(filterKey: 'L', isColor: color)),
+          base[label],
+          reason: label,
+        );
+      }
+    }
+  });
 }
