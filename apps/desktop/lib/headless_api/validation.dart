@@ -3,7 +3,7 @@ import 'dart:convert';
 // bridge-boundary: headless_validation
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_core/errors.dart' show bridgeErrorTexts;
+import 'package:skotiq_core/errors.dart' show skotiqErrorFromBridge;
 
 import 'response_helpers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
@@ -24,8 +24,8 @@ String describeBackendError(Object error) => error is bridge_error.SkotiqError
 ///
 /// The status lets a remote tablet react ("not supported", "not connected",
 /// "bad request") instead of an opaque 500; genuinely internal or driver
-/// faults stay 500. The sentence is the remote one from core's error table
-/// ([bridgeErrorTexts]), not the freezed `toString()`
+/// faults stay 500. The sentence is the one core's error table gives
+/// ([skotiqErrorFromBridge]), not the freezed `toString()`
 /// (`SkotiqError.operationFailed(field0: <msg>)`), so the wire carries the
 /// text a remote client shows, not the Dart class plumbing.
 ///
@@ -92,7 +92,7 @@ String describeBackendError(Object error) => error is bridge_error.SkotiqError
   // Belt and braces: a variant whose payload string is empty would otherwise
   // put an empty `message` on the wire. Never fall back to `e.toString()` —
   // that is the constructor form this function exists to keep off the wire.
-  final trimmed = bridgeErrorTexts(e).remote.trim();
+  final trimmed = skotiqErrorFromBridge(e).userMessage.trim();
   return (
     status,
     trimmed.isEmpty ? 'The device reported an unspecified error' : trimmed,

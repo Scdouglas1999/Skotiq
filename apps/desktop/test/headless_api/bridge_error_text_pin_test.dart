@@ -187,6 +187,13 @@ void main() {
       }
       expect(row, expected[name]);
     });
+
+    test('$name: the GUI and a remote client read one sentence', () async {
+      final sentence = skotiqErrorFromBridge(error).userMessage.trim();
+      if (sentence.isEmpty) return;
+      final body = (await _host(error))['body'] as Map<String, Object?>;
+      expect(body['message'], sentence);
+    });
   }
 
   tearDownAll(() {

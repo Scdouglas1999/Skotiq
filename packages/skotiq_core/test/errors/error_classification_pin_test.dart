@@ -332,7 +332,7 @@ void main() {
         skotiqErrorFromBridge(const bridge.SkotiqError.notConnected('cam')),
         domain: ErrorDomain.device,
       );
-      expect(text.message, "'cam' is not connected");
+      expect(text.message, 'Device not connected: cam');
       expect(text.suggestion, 'Reconnect the device, then try again.');
       expect(text.isRecoverable, isFalse);
     });
