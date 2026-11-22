@@ -58,7 +58,7 @@ use skotiq_imaging::{FitsHeader, ImageData, PixelType, RasterFormat, DEFAULT_JPE
 use crate::darkroom::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
 use crate::darkroom::render::{
     build_context, level_json, load_pyramid, parse_recipe, quantise_unit, run_render,
-    screen_transfer,
+    screen_transfer, MasterSource,
 };
 use crate::darkroom::state::{registry, RENDERS};
 
@@ -168,7 +168,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     }
 
     let token = RENDERS.register(&args.render_id)?;
-    let master = load_pyramid(&args.master_path, None, &token)?;
+    let master = load_pyramid(&MasterSource::required(&args.master_path, None)?, &token)?;
     let base = Arc::clone(master.pyramid.base());
     let (ctx, catalog_stars) = build_context(&recipe, &base, 0, &token, &args.catalog_stars)?;
 

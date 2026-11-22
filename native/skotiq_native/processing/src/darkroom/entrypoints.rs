@@ -12,7 +12,7 @@ use crate::darkroom::args::{
 use crate::darkroom::export::run_export;
 use crate::darkroom::render::{
     build_context, encode_preview, level_json, load_pyramid, parse_recipe, resolve_level,
-    run_render, PreviewEncoding,
+    run_render, MasterSource, PreviewEncoding,
 };
 use crate::darkroom::schema::{draft_for_master, ops_json};
 use crate::darkroom::state::{
@@ -97,17 +97,11 @@ pub fn darkroom_validate(recipe_json: String, context_json: String) -> Result<St
         "findings": Vec::<Value>::new(),
     });
 
-    let has_live_stack = context
-        .live_stack_key
-        .as_deref()
-        .is_some_and(|s| !s.trim().is_empty());
-    if !context.master_path.trim().is_empty() || has_live_stack {
+    if let Some(source) = MasterSource::of(&context.master_path, context.live_stack_key.as_deref())
+    {
+        let has_live_stack = matches!(source, MasterSource::LiveStack(_));
         let token = RENDERS.register("")?;
-        let master = load_pyramid(
-            &context.master_path,
-            context.live_stack_key.as_deref(),
-            &token,
-        )?;
+        let master = load_pyramid(&source, &token)?;
         let base = master.pyramid.base();
         reply["base"] = json!({
             "path": if has_live_stack {
@@ -208,8 +202,7 @@ pub fn darkroom_render_preview(
 
     let token = RENDERS.register(&context.render_id)?;
     let master = load_pyramid(
-        &context.master_path,
-        context.live_stack_key.as_deref(),
+        &MasterSource::required(&context.master_path, context.live_stack_key.as_deref())?,
         &token,
     )?;
     let level = resolve_level(&master.pyramid, context.level, context.max_dimension)?;
@@ -328,13 +321,10 @@ pub fn darkroom_registry(args_json: String) -> Result<String, String> {
         return serde_json::to_string(&reply).map_err(|e| format!("failed to encode result: {e}"));
     }
 
-    let has_live_stack = args
-        .live_stack_key
-        .as_deref()
-        .is_some_and(|s| !s.trim().is_empty());
-    if !args.master_path.trim().is_empty() || has_live_stack {
+    if let Some(source) = MasterSource::of(&args.master_path, args.live_stack_key.as_deref()) {
+        let has_live_stack = matches!(source, MasterSource::LiveStack(_));
         let token = RENDERS.register("")?;
-        let master = load_pyramid(&args.master_path, args.live_stack_key.as_deref(), &token)?;
+        let master = load_pyramid(&source, &token)?;
         let base_master_ref = if args.base_master_ref.trim().is_empty() {
             if has_live_stack {
                 format!(
