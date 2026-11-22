@@ -36,7 +36,7 @@ enum LaunchOption {
     modes: _desktop,
     fixesRole: true,
   ),
-  remoteHost(
+  remoteHostAddress(
     '--remote-host',
     value: 'host',
     summary: 'Drive the host at this address instead of local equipment.',

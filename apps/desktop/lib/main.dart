@@ -92,7 +92,7 @@ bool _parseServeFlag(List<String> args) {
 }
 
 _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
-  final host = _flagValue(args, LaunchOption.remoteHost);
+  final host = _flagValue(args, LaunchOption.remoteHostAddress);
   if (host == null || host.isEmpty) {
     return null;
   }
