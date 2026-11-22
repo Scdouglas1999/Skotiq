@@ -153,7 +153,6 @@ native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	fu
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	low_background_build	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/master_cards.rs	attach_wcs	highrisk	1	baseline	result.error.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/masters.rs	flat_pedestal_state	highrisk	1	baseline	.unwrap_or_default()
-native/skotiq_native/processing/src/post_session/masters.rs	validate_flat_pedestal	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	calibration.flat.as_deref().unwrap_or_default()
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	first_refusal.clone().unwrap_or_default()

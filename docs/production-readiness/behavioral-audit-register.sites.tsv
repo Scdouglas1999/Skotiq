@@ -651,7 +651,7 @@ native/skotiq_native/device/src/driver.rs	describe	unwrap_or_default	1	R9-036	re
 native/skotiq_native/device/src/driver.rs	describe	unwrap_or_literal	1	R9-036	can_find_home: self.can_find_home().await.unwrap_or(false),
 native/skotiq_native/device/src/driver.rs	describe	unwrap_or_literal	1	R9-036	can_set_park: self.can_set_park().await.unwrap_or(false),
 native/skotiq_native/device/src/driver.rs	describe	unwrap_or_literal	1	R9-036	let can_park = self.can_park().await.unwrap_or(false);
-native/skotiq_native/device/src/filter_name.rs	a_request_finds_the_slot_the_dart_rule_gives	unwrap_or_literal	1	V0779	case["ambiguous"].as_bool().unwrap_or(false),
+native/skotiq_native/frame/src/filter_name.rs	a_request_finds_the_slot_the_dart_rule_gives	unwrap_or_literal	1	V0779	case["ambiguous"].as_bool().unwrap_or(false),
 native/skotiq_native/imaging/src/background_extraction.rs	-	comment_best_effort	1	V0121	/// best-effort plane through contaminated data.
 native/skotiq_native/imaging/src/background_extraction.rs	subtract_background	unwrap_or_literal	1	V0121	model.mean_level.get(ch).copied().unwrap_or(0.0)
 native/skotiq_native/imaging/src/calibration_master_stream.rs	beside	rust_let_underscore	1	O7-01	let _ = std::fs::remove_dir_all(entry.path());
@@ -1124,7 +1124,6 @@ native/skotiq_native/processing/src/post_session/master_cards.rs	attach_wcs	unwr
 native/skotiq_native/processing/src/post_session/masters.rs	forget_open_master	rust_let_underscore	1	V0636	let _ = std::fs::remove_file(journal_path(sidecar));
 native/skotiq_native/processing/src/post_session/masters.rs	save	rust_let_underscore	1	V0635	let _ = std::fs::remove_file(journal_path(&self.sidecar));
 native/skotiq_native/processing/src/post_session/masters.rs	flat_pedestal_state	unwrap_or_default	1	V0638	.unwrap_or_default()
-native/skotiq_native/processing/src/post_session/masters.rs	validate_flat_pedestal	unwrap_or_default	1	V0637	.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/multi_night.rs	check_build_calibration	rust_let_underscore	1	V0644	let _ = calibrated_light(&reference.path, None, &masters).map_err(|(_, e)| e)?;
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	unwrap_or_default	1	V0642	.unwrap_or_default();
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	unwrap_or_default	1	V0639	calibration.flat.as_deref().unwrap_or_default()
@@ -3407,7 +3406,6 @@ packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_ob
 packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_onGuideStats	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_readOr	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_readWeather	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrowband_frames.dart	_latestNamed	literal_null_coalesce	1	R9-117	final filter = (image.filter ?? '').toLowerCase().trim();
 packages/skotiq_core/lib/src/services/science/photometric_bands.dart	normalizeFilterKey	literal_null_coalesce	1	V0877	final raw = (filter ?? '').trim();
 packages/skotiq_core/lib/src/services/science/science_camera_auto_config.dart	_resolveBitDepth	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/science/science_camera_auto_config.dart	_resolveCameraStatus	empty_catch	1	V0121	} catch (_) {
