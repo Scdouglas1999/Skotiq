@@ -2745,7 +2745,6 @@ packages/skotiq_core/lib/src/providers/app_version_provider.dart	-	empty_catch	1
 packages/skotiq_core/lib/src/providers/async_scope.dart	beginLatest	literal_null_coalesce	1	U2-02	final turn = (_latest[slot] ?? 0) + 1;
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	_fetch	empty_catch	1	V0811	} catch (_) {
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	fetchLatestFrame	guessed_now_timestamp	1	V0812	final capturedAt = tryParseUtcTimestamp(result.timestamp) ?? DateTime.now();
-packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	onEvent	literal_null_coalesce	1	V0813	final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;
 packages/skotiq_core/lib/src/providers/autofocus_progress_provider.dart	_sequenceResult	literal_null_coalesce	1	V0810	backlashApplied: json['backlash_applied'] as bool? ?? false,
 packages/skotiq_core/lib/src/providers/autofocus_progress_provider.dart	_sequenceResult	literal_null_coalesce	1	V0810	curveFitQuality: (json['curve_fit_quality'] as num?)?.toDouble() ?? 0,
 packages/skotiq_core/lib/src/providers/autofocus_progress_provider.dart	_sequenceResult	literal_null_coalesce	1	V0810	method: json['method_used']?.toString() ?? '',
