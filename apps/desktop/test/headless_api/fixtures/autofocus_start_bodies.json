@@ -1,0 +1,874 @@
+{
+  "minimal": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "web dashboard": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 3.0,
+      "stepSize": 50,
+      "stepsOut": 5,
+      "method": "VCurve",
+      "binning": 2,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "every field": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 6.5,
+      "stepSize": 75,
+      "stepsOut": 7,
+      "method": "Star HFR",
+      "binning": 2,
+      "gain": 120,
+      "offset": 18,
+      "curveFitting": "Parabolic",
+      "numberOfAttempts": 3,
+      "exposuresPerPoint": 2,
+      "rSquaredThreshold": 0.85,
+      "outerCropRatio": 0.8,
+      "innerCropRatio": 0.2,
+      "useBrightestNStars": 25,
+      "focuserSettleTimeMs": 750,
+      "backlashCompMethod": "Absolute",
+      "backlashIn": 120,
+      "backlashOut": 40,
+      "measuredBacklashIn": 95,
+      "failureHfrToleranceRatio": 2.4
+    }
+  },
+  "every optional field null": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "empty strings read as absent": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "unknown key is ignored": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "numbers as strings": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.5,
+      "stepSize": 60,
+      "stepsOut": 6,
+      "method": "VCurve",
+      "binning": 2,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.5,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "whole doubles for integers": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 60,
+      "stepsOut": 6,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 100,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "integer exposure": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "fractional integer": {
+    "refused": {
+      "error": "stepSize is required",
+      "code": "invalid_request",
+      "field": "stepSize",
+      "expected": "integer"
+    }
+  },
+  "unparsable integer string": {
+    "refused": {
+      "error": "stepSize is required",
+      "code": "invalid_request",
+      "field": "stepSize",
+      "expected": "integer"
+    }
+  },
+  "boolean for an integer": {
+    "refused": {
+      "error": "binning is required",
+      "code": "invalid_request",
+      "field": "binning",
+      "expected": "integer"
+    }
+  },
+  "boolean for a number": {
+    "refused": {
+      "error": "exposureTime is required",
+      "code": "invalid_request",
+      "field": "exposureTime",
+      "expected": "number"
+    }
+  },
+  "unparsable number string": {
+    "refused": {
+      "error": "exposureTime is required",
+      "code": "invalid_request",
+      "field": "exposureTime",
+      "expected": "number"
+    }
+  },
+  "non-finite number string": {
+    "refused": {
+      "error": "Value must be finite",
+      "code": "invalid_request",
+      "field": "exposureTime",
+      "expected": "number",
+      "message": "Value must be finite"
+    }
+  },
+  "NaN number string": {
+    "refused": {
+      "error": "Value must be finite",
+      "code": "invalid_request",
+      "field": "rSquaredThreshold",
+      "expected": "number",
+      "message": "Value must be finite"
+    }
+  },
+  "number for a string": {
+    "refused": {
+      "error": "method is required",
+      "code": "invalid_request",
+      "field": "method",
+      "expected": "string"
+    }
+  },
+  "missing deviceId": {
+    "refused": {
+      "error": "deviceId is required",
+      "code": "invalid_request",
+      "field": "deviceId",
+      "expected": "string"
+    }
+  },
+  "empty deviceId": {
+    "refused": {
+      "error": "Value must not be empty",
+      "code": "invalid_request",
+      "field": "deviceId",
+      "expected": "string",
+      "message": "Value must not be empty"
+    }
+  },
+  "number deviceId": {
+    "refused": {
+      "error": "deviceId is required",
+      "code": "invalid_request",
+      "field": "deviceId",
+      "expected": "string"
+    }
+  },
+  "missing cameraId": {
+    "refused": {
+      "error": "cameraId is required",
+      "code": "invalid_request",
+      "field": "cameraId",
+      "expected": "string"
+    }
+  },
+  "missing exposureTime": {
+    "refused": {
+      "error": "exposureTime is required",
+      "code": "invalid_request",
+      "field": "exposureTime",
+      "expected": "number"
+    }
+  },
+  "missing stepSize": {
+    "refused": {
+      "error": "stepSize is required",
+      "code": "invalid_request",
+      "field": "stepSize",
+      "expected": "integer"
+    }
+  },
+  "missing stepsOut": {
+    "refused": {
+      "error": "stepsOut is required",
+      "code": "invalid_request",
+      "field": "stepsOut",
+      "expected": "integer"
+    }
+  },
+  "exposureTime below range": {
+    "refused": {
+      "error": "Value must be >= 0.1",
+      "code": "invalid_request",
+      "field": "exposureTime",
+      "expected": "number",
+      "message": "Value must be >= 0.1"
+    }
+  },
+  "exposureTime above range": {
+    "refused": {
+      "error": "Value must be <= 300.0",
+      "code": "invalid_request",
+      "field": "exposureTime",
+      "expected": "number",
+      "message": "Value must be <= 300.0"
+    }
+  },
+  "exposureTime at bounds low": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 0.1,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "exposureTime at bounds high": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 300.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "stepSize below range": {
+    "refused": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "stepSize",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    }
+  },
+  "stepSize above range": {
+    "refused": {
+      "error": "Value must be <= 10000.0",
+      "code": "invalid_request",
+      "field": "stepSize",
+      "expected": "number",
+      "message": "Value must be <= 10000.0"
+    }
+  },
+  "stepsOut below range": {
+    "refused": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "stepsOut",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    }
+  },
+  "stepsOut above range": {
+    "refused": {
+      "error": "Value must be <= 50.0",
+      "code": "invalid_request",
+      "field": "stepsOut",
+      "expected": "number",
+      "message": "Value must be <= 50.0"
+    }
+  },
+  "binning below range": {
+    "refused": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "binning",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    }
+  },
+  "binning above range": {
+    "refused": {
+      "error": "Value must be <= 4.0",
+      "code": "invalid_request",
+      "field": "binning",
+      "expected": "number",
+      "message": "Value must be <= 4.0"
+    }
+  },
+  "gain below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "gain",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "gain large": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": 100000,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "offset below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "offset",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "numberOfAttempts below range": {
+    "refused": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "numberOfAttempts",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    }
+  },
+  "numberOfAttempts above range": {
+    "refused": {
+      "error": "Value must be <= 10.0",
+      "code": "invalid_request",
+      "field": "numberOfAttempts",
+      "expected": "number",
+      "message": "Value must be <= 10.0"
+    }
+  },
+  "exposuresPerPoint below range": {
+    "refused": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "exposuresPerPoint",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    }
+  },
+  "exposuresPerPoint above range": {
+    "refused": {
+      "error": "Value must be <= 20.0",
+      "code": "invalid_request",
+      "field": "exposuresPerPoint",
+      "expected": "number",
+      "message": "Value must be <= 20.0"
+    }
+  },
+  "rSquaredThreshold below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "rSquaredThreshold",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "rSquaredThreshold above range": {
+    "refused": {
+      "error": "Value must be <= 1.0",
+      "code": "invalid_request",
+      "field": "rSquaredThreshold",
+      "expected": "number",
+      "message": "Value must be <= 1.0"
+    }
+  },
+  "outerCropRatio below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "outerCropRatio",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "outerCropRatio above range": {
+    "refused": {
+      "error": "Value must be <= 1.0",
+      "code": "invalid_request",
+      "field": "outerCropRatio",
+      "expected": "number",
+      "message": "Value must be <= 1.0"
+    }
+  },
+  "innerCropRatio below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "innerCropRatio",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "innerCropRatio above range": {
+    "refused": {
+      "error": "Value must be <= 1.0",
+      "code": "invalid_request",
+      "field": "innerCropRatio",
+      "expected": "number",
+      "message": "Value must be <= 1.0"
+    }
+  },
+  "outer crop zero": {
+    "refused": {
+      "error": "Crop ratios must satisfy 0 <= inner < outer <= 1",
+      "code": "invalid_request",
+      "field": "innerCropRatio/outerCropRatio",
+      "expected": "0 <= inner < outer <= 1",
+      "message": "Crop ratios must satisfy 0 <= inner < outer <= 1"
+    }
+  },
+  "inner crop equals outer": {
+    "refused": {
+      "error": "Crop ratios must satisfy 0 <= inner < outer <= 1",
+      "code": "invalid_request",
+      "field": "innerCropRatio/outerCropRatio",
+      "expected": "0 <= inner < outer <= 1",
+      "message": "Crop ratios must satisfy 0 <= inner < outer <= 1"
+    }
+  },
+  "inner crop above outer": {
+    "refused": {
+      "error": "Crop ratios must satisfy 0 <= inner < outer <= 1",
+      "code": "invalid_request",
+      "field": "innerCropRatio/outerCropRatio",
+      "expected": "0 <= inner < outer <= 1",
+      "message": "Crop ratios must satisfy 0 <= inner < outer <= 1"
+    }
+  },
+  "inner crop default above sent outer": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 0.0001,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "useBrightestNStars zero": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 0,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": null,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "useBrightestNStars below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "useBrightestNStars",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "useBrightestNStars above range": {
+    "refused": {
+      "error": "Value must be <= 500.0",
+      "code": "invalid_request",
+      "field": "useBrightestNStars",
+      "expected": "number",
+      "message": "Value must be <= 500.0"
+    }
+  },
+  "focuserSettleTimeMs below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "focuserSettleTimeMs",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "focuserSettleTimeMs above range": {
+    "refused": {
+      "error": "Value must be <= 10000.0",
+      "code": "invalid_request",
+      "field": "focuserSettleTimeMs",
+      "expected": "number",
+      "message": "Value must be <= 10000.0"
+    }
+  },
+  "backlashIn below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "backlashIn",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "backlashIn above range": {
+    "refused": {
+      "error": "Value must be <= 10000.0",
+      "code": "invalid_request",
+      "field": "backlashIn",
+      "expected": "number",
+      "message": "Value must be <= 10000.0"
+    }
+  },
+  "backlashOut below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "backlashOut",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "backlashOut above range": {
+    "refused": {
+      "error": "Value must be <= 10000.0",
+      "code": "invalid_request",
+      "field": "backlashOut",
+      "expected": "number",
+      "message": "Value must be <= 10000.0"
+    }
+  },
+  "measuredBacklashIn zero": {
+    "request": {
+      "deviceId": "native:focuser:1",
+      "cameraId": "native:camera:1",
+      "exposureTime": 2.0,
+      "stepSize": 50,
+      "stepsOut": 4,
+      "method": "VCurve",
+      "binning": 1,
+      "gain": null,
+      "offset": null,
+      "curveFitting": "Hyperbolic",
+      "numberOfAttempts": 1,
+      "exposuresPerPoint": 1,
+      "rSquaredThreshold": 0.7,
+      "outerCropRatio": 1.0,
+      "innerCropRatio": 0.0,
+      "useBrightestNStars": 10,
+      "focuserSettleTimeMs": 500,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 0,
+      "backlashOut": 0,
+      "measuredBacklashIn": 0,
+      "failureHfrToleranceRatio": 1.6
+    }
+  },
+  "measuredBacklashIn below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "measuredBacklashIn",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "measuredBacklashIn above range": {
+    "refused": {
+      "error": "Value must be <= 10000.0",
+      "code": "invalid_request",
+      "field": "measuredBacklashIn",
+      "expected": "number",
+      "message": "Value must be <= 10000.0"
+    }
+  },
+  "failureHfrToleranceRatio below range": {
+    "refused": {
+      "error": "Value must be >= 0.0",
+      "code": "invalid_request",
+      "field": "failureHfrToleranceRatio",
+      "expected": "number",
+      "message": "Value must be >= 0.0"
+    }
+  },
+  "failureHfrToleranceRatio above range": {
+    "refused": {
+      "error": "Value must be <= 100.0",
+      "code": "invalid_request",
+      "field": "failureHfrToleranceRatio",
+      "expected": "number",
+      "message": "Value must be <= 100.0"
+    }
+  },
+  "two bad fields name the first": {
+    "refused": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "stepSize",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    }
+  },
+  "missing id before a bad number": {
+    "refused": {
+      "error": "deviceId is required",
+      "code": "invalid_request",
+      "field": "deviceId",
+      "expected": "string"
+    }
+  },
+  "bad crop and bad star count": {
+    "refused": {
+      "error": "Crop ratios must satisfy 0 <= inner < outer <= 1",
+      "code": "invalid_request",
+      "field": "innerCropRatio/outerCropRatio",
+      "expected": "0 <= inner < outer <= 1",
+      "message": "Crop ratios must satisfy 0 <= inner < outer <= 1"
+    }
+  },
+  "bad star count and bad tolerance": {
+    "refused": {
+      "error": "Value must be <= 500.0",
+      "code": "invalid_request",
+      "field": "useBrightestNStars",
+      "expected": "number",
+      "message": "Value must be <= 500.0"
+    }
+  },
+  "bad tolerance and bad measured backlash": {
+    "refused": {
+      "error": "Value must be <= 100.0",
+      "code": "invalid_request",
+      "field": "failureHfrToleranceRatio",
+      "expected": "number",
+      "message": "Value must be <= 100.0"
+    }
+  }
+}
