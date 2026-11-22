@@ -500,16 +500,17 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // it is the wrong word for one the app will refuse to run. The same
     // `TargetHeaderNode.coordinatesUnset` predicate the coordinate row uses decides which
     // of the two this is.
-    final statusLabel = switch (widget.nodeStatus) {
-      NodeStatus.running => currentNodeDetail ?? progress.message ?? 'Running',
-      NodeStatus.success => 'Completed',
-      NodeStatus.failure => 'Failed',
-      NodeStatus.skipped => 'Skipped',
-      NodeStatus.cancelled
+    final presentation = NodeStatusPresentation.of(widget.nodeStatus);
+    final statusLabel = switch (presentation) {
+      NodeStatusPresentation.running => currentNodeDetail ??
+          progress.message ??
+          NodeStatusPresentation.running.word,
+      NodeStatusPresentation.stopped
           when stats.hasPlannedFrames && stats.hasKnownCompletion =>
-        'Stopped · ${stats.completedFrames} of ${stats.totalFrames} frames',
-      NodeStatus.cancelled => 'Stopped',
-      _ => widget.node.coordinatesUnset ? 'Needs coordinates' : 'Ready',
+        '${NodeStatusPresentation.stopped.word} · ${stats.completedFrames} of '
+            '${stats.totalFrames} frames',
+      final shown? => shown.word,
+      null => widget.node.coordinatesUnset ? 'Needs coordinates' : 'Ready',
     };
 
     // Build the plan summary. A loop-until-stopped SmartExposure is
