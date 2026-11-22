@@ -34,7 +34,8 @@ class CenteringRun {
   ///
   /// [config] replaces the manual centering (a client's request names its
   /// own). With [publishes] false the run leaves the status and the last
-  /// result alone.
+  /// result alone: the host's center routes pass it, because the client that
+  /// asked runs its own CenteringRun and reports that run's status here.
   Future<CenteringResult?> center({
     required double raHours,
     required double decDegrees,
