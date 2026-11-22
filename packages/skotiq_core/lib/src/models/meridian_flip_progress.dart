@@ -42,6 +42,22 @@ class FlipMonitorProgress {
   final int percent;
   final String? error;
 
+  /// The flip ended as [outcome] (failed or aborted) with [error]. A flip
+  /// under way keeps the attempt, step and progress it reached; one that
+  /// ended before it started shows none, not the flip before it.
+  FlipMonitorProgress ended(FlipExecutionState outcome, String? error) {
+    final underway =
+        state == FlipExecutionState.executing ||
+        state == FlipExecutionState.retrying;
+    return FlipMonitorProgress(
+      state: outcome,
+      attempt: underway ? attempt : 0,
+      step: underway ? step : null,
+      percent: underway ? percent : 0,
+      error: error,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'state': state.name,
     'attempt': attempt,

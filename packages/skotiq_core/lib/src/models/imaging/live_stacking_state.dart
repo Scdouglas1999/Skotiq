@@ -274,3 +274,110 @@ class LiveStackingState {
     );
   }
 }
+
+/// One filter slot of a host's live stack, without its pixels.
+class LiveStackSlotSummary {
+  const LiveStackSlotSummary({
+    required this.filterKey,
+    required this.stats,
+    required this.width,
+    required this.height,
+    required this.channels,
+    required this.revision,
+  });
+
+  final String filterKey;
+  final LiveStackingStats stats;
+  final int width;
+  final int height;
+  final int channels;
+
+  /// Changes whenever the slot's pixels do.
+  final int revision;
+
+  Map<String, Object?> toJson() => {
+    'filterKey': filterKey,
+    'stats': stats.toJson(),
+    'width': width,
+    'height': height,
+    'channels': channels,
+    'revision': revision,
+  };
+
+  /// Throws [FormatException] for a slot without its key, stats or counts.
+  factory LiveStackSlotSummary.fromJson(Map<String, dynamic> json) {
+    int count(String key) {
+      final value = json[key];
+      if (value is num) return value.toInt();
+      throw FormatException('Live stack slot has no integer "$key"');
+    }
+
+    final key = json['filterKey'];
+    final stats = json['stats'];
+    if (key is! String || stats is! Map<String, dynamic>) {
+      throw const FormatException('Live stack slot has no filter key or stats');
+    }
+    return LiveStackSlotSummary(
+      filterKey: key,
+      stats: LiveStackingStats.fromJson(stats),
+      width: count('width'),
+      height: count('height'),
+      channels: count('channels'),
+      revision: count('revision'),
+    );
+  }
+}
+
+/// A host's running live stack as its runtime channel shares it: whether it
+/// waits for frames and what each filter slot holds. Pixels are fetched per
+/// slot over the stacking routes.
+class LiveStackSummary {
+  const LiveStackSummary({required this.armed, required this.slots});
+
+  /// Null when no stack is running, including one whose start failed.
+  static LiveStackSummary? of(LiveStackingState state) {
+    if (state.status != LiveStackingStatus.running) return null;
+    return LiveStackSummary(
+      armed: state.isArmed,
+      slots: [
+        for (final key in state.availableFilters)
+          if (state.filterStacks[key] case final slot?)
+            LiveStackSlotSummary(
+              filterKey: key,
+              stats: slot.stats,
+              width: slot.previewWidth,
+              height: slot.previewHeight,
+              channels: slot.channels,
+              revision: slot.revision,
+            ),
+      ],
+    );
+  }
+
+  final bool armed;
+  final List<LiveStackSlotSummary> slots;
+
+  Map<String, Object?> toJson() => {
+    'armed': armed,
+    'slots': [for (final slot in slots) slot.toJson()],
+  };
+
+  /// Throws [FormatException] for a value the two ends disagree about.
+  factory LiveStackSummary.fromJson(Map<String, dynamic> json) {
+    final armed = json['armed'];
+    final slots = json['slots'];
+    if (armed is! bool || slots is! List) {
+      throw const FormatException('Live stack summary is incomplete');
+    }
+    return LiveStackSummary(
+      armed: armed,
+      slots: [
+        for (final slot in slots)
+          if (slot is Map<String, dynamic>)
+            LiveStackSlotSummary.fromJson(slot)
+          else
+            throw const FormatException('Live stack slot is not an object'),
+      ],
+    );
+  }
+}

@@ -16,6 +16,7 @@ import 'channels/focus_baseline_channel.dart';
 import 'channels/host_session_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
+import 'channels/live_stack_channel.dart';
 import 'channels/framing_geometry_channel.dart';
 import 'channels/framing_target_channel.dart';
 import 'channels/guider_status_channel.dart';
@@ -72,6 +73,7 @@ final runtimeMirrorChannelsProvider =
         const SwitchChannelsChannel(),
         const NoticeAcknowledgmentsChannel(),
         const LiveBroadcastChannel(),
+        const LiveStackChannel(),
         const ScheduledStartChannel(),
         const EndOfNightChannel(),
         const WeatherSafetyChannel(),

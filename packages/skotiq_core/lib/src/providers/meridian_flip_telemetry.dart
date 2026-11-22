@@ -68,13 +68,9 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
           ref.read(flipProgressProvider.notifier).state = 100;
           ref.read(flipLastErrorProvider.notifier).state = null;
         case MeridianFlipFailed(:final error):
-          ref.read(flipExecutionStateProvider.notifier).state =
-              FlipExecutionState.failed;
-          ref.read(flipLastErrorProvider.notifier).state = error;
+          endFlipMonitorProgress(ref, FlipExecutionState.failed, error);
         case MeridianFlipAborted(:final reason):
-          ref.read(flipExecutionStateProvider.notifier).state =
-              FlipExecutionState.aborted;
-          ref.read(flipLastErrorProvider.notifier).state = reason;
+          endFlipMonitorProgress(ref, FlipExecutionState.aborted, reason);
       }
     },
     onError: (Object error, StackTrace stack) {

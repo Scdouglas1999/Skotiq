@@ -402,6 +402,30 @@ final flipProgressProvider = StateProvider<int>((ref) => 0);
 
 final flipLastErrorProvider = StateProvider<String?>((ref) => null);
 
+/// The flip progress the five providers above hold, as one value.
+FlipMonitorProgress readFlipMonitorProgress(Ref ref) => FlipMonitorProgress(
+  state: ref.read(flipExecutionStateProvider),
+  attempt: ref.read(flipCurrentAttemptProvider),
+  step: ref.read(flipCurrentStepProvider),
+  percent: ref.read(flipProgressProvider),
+  error: ref.read(flipLastErrorProvider),
+);
+
+/// End the flip the providers show as [outcome] with [error]
+/// ([FlipMonitorProgress.ended]).
+void endFlipMonitorProgress(
+  Ref ref,
+  FlipExecutionState outcome,
+  String? error,
+) {
+  final next = readFlipMonitorProgress(ref).ended(outcome, error);
+  ref.read(flipExecutionStateProvider.notifier).state = next.state;
+  ref.read(flipCurrentAttemptProvider.notifier).state = next.attempt;
+  ref.read(flipCurrentStepProvider.notifier).state = next.step;
+  ref.read(flipProgressProvider.notifier).state = next.percent;
+  ref.read(flipLastErrorProvider.notifier).state = next.error;
+}
+
 final isFlipInProgressProvider = Provider<bool>((ref) {
   final state = ref.watch(flipExecutionStateProvider);
   return state == FlipExecutionState.executing ||

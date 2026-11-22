@@ -6,6 +6,8 @@ export 'sequence/last_ended_run.dart';
 export 'sequence/run_record.dart';
 export 'sequence/sequence_editor.dart';
 export 'sequence/sequence_executor.dart';
+export 'sequence/sequence_executor/live_stacking_feed.dart'
+    show LiveStackingFeed;
 export 'sequence/sequence_validation.dart';
 export 'sequence/filter_name_matching.dart';
 export 'sequence/sequencer_defaults.dart';
