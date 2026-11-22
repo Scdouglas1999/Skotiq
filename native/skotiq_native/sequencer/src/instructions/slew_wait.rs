@@ -56,15 +56,16 @@ pub(crate) enum SlewWait<S> {
 }
 
 impl SlewWaitBounds {
-    /// The watch these bounds describe: no target, and the first idle read
-    /// after the start phase ends the slew.
+    /// The watch these bounds describe: no target, and the evidence rule of
+    /// [`crate::slew_arrival`] (two idle reads in a row, and motion seen or
+    /// 2 s gone) after the start phase ends the slew.
     pub(crate) fn timings(&self) -> SlewArrivalTimings {
         SlewArrivalTimings {
             poll_interval: self.poll,
-            start_grace: Duration::ZERO,
+            start_grace: Duration::from_secs(2),
             motion_start_window: self.complete,
             timeout: self.complete,
-            idle_confirm_polls: 1,
+            idle_confirm_polls: 2,
             arrival_tolerance_deg: 0.0,
             max_consecutive_failures: match self.read_errors {
                 SlewReadErrors::Fail => 1,

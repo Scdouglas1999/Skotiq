@@ -15,9 +15,10 @@ async fn centering_waits_for_slew_startup_before_accepting_idle() {
         .await
         .expect("slew should start after the driver's delayed status update and then finish");
 
+    // Two idle reads in a row end the slew once it was seen moving.
     assert_eq!(
         ops.mount_slew_state_calls.load(Ordering::SeqCst),
-        5,
+        6,
         "the initial idle polls must not be mistaken for slew completion"
     );
 }
@@ -54,9 +55,11 @@ async fn a_center_waits_for_a_slew_in_progress_before_its_first_frame() {
 
     let _ = execute_center(&config, &ctx, None).await;
 
+    // The read that found it slewing, two more while it moves, then two
+    // idle reads in a row.
     assert_eq!(
         watch.await.unwrap(),
-        4,
+        5,
         "the first frame waits until the mount reports it has stopped"
     );
 }
@@ -354,7 +357,7 @@ async fn a_center_step_takes_the_centering_tolerance_setting() {
         let ops = Arc::new(
             ScriptedDomeRotatorOps::new()
                 .with_every_solve_off_by_arcsec(6.0)
-                .with_mount_slewing_states(vec![false, true, false, true, false, true, false])
+                .with_mount_slewing_states(vec![false, true, false, false, false, true, false])
                 .with_scripted_mount_coordinates(0.712, 41.27),
         );
         let mut ctx = ctx_with_ops(ops.clone()).await;

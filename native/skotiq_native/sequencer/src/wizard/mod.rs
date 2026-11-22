@@ -233,55 +233,78 @@ impl WizardCheckpointSink for MemoryCheckpointSink {
 /// Shared "wait until mount finishes slewing" helper used by every
 /// wizard that issues a slew. Polls once per second until the mount has
 /// stopped (see [`crate::slew_arrival`]: an idle `Slewing` flag read straight
-/// after the command is not taken as the end of the slew). Errors out on
-/// cancellation or after `timeout_secs`.
-///
-/// A failed `mount_is_slewing` read counts as "not slewing", so a mount that
-/// stops answering ends the wait instead of holding it to the deadline.
+/// after the command is not taken as the end of the slew). A failed read is
+/// no evidence either way and is polled again. On cancellation or after
+/// `timeout_secs` the slew is aborted and the wait errors out.
 pub async fn wait_for_slew_complete(
     ctx: &InstructionContext,
     mount_id: &str,
     timeout_secs: u64,
     timeout_label: &str,
 ) -> Result<(), String> {
-    use crate::slew_arrival::{
-        wait_for_slew_arrival, SlewArrivalTimings, SlewSample, SlewWaitError,
-    };
+    use crate::slew_arrival::{watch_slew, SlewArrivalTimings, SlewEnd, SlewSample};
 
     let timings = SlewArrivalTimings {
         poll_interval: std::time::Duration::from_secs(1),
         ..SlewArrivalTimings::goto(std::time::Duration::from_secs(timeout_secs))
     };
-    let result = wait_for_slew_arrival(
+    let device_ops = &ctx.run.device_ops;
+    let ended = watch_slew(
         None,
         &timings,
-        || async {
-            SlewSample {
-                slewing: Some(
-                    ctx.run
-                        .device_ops
-                        .mount_is_slewing(mount_id)
-                        .await
-                        .unwrap_or(false),
-                ),
-                position: None,
-            }
+        |_| async {
+            device_ops
+                .mount_is_slewing(mount_id)
+                .await
+                .map(|slewing| SlewSample {
+                    slewing: Some(slewing),
+                    position: None,
+                })
         },
         || {
             ctx.cancellation_token
                 .load(std::sync::atomic::Ordering::Relaxed)
+                .then_some(())
         },
+        || device_ops.mount_abort_slew(mount_id),
         |_| {},
     )
     .await;
-    match result {
+    let abort_failed = |abort: &crate::device_ops::DeviceResult<()>| {
+        if let Err(error) = abort {
+            tracing::warn!(
+                "{timeout_label}: abort-slew failed ({error}); the mount may still be moving"
+            );
+        }
+    };
+    match ended {
         Ok(_) => Ok(()),
-        Err(SlewWaitError::Cancelled) => Err("Operation cancelled during slew".to_string()),
-        Err(SlewWaitError::TimedOut(_)) => Err(format!(
-            "{} timed out after {} seconds",
-            timeout_label, timeout_secs
+        Err(SlewEnd::Stopped { abort, .. }) => {
+            abort_failed(&abort);
+            Err("Operation cancelled during slew".to_string())
+        }
+        Err(SlewEnd::TimedOut { abort }) => {
+            abort_failed(&abort);
+            Err(format!(
+                "{} timed out after {} seconds",
+                timeout_label, timeout_secs
+            ))
+        }
+        Err(SlewEnd::NeverStarted { abort }) => {
+            abort_failed(&abort);
+            Err(format!(
+                "{timeout_label}: {}",
+                crate::slew_arrival::SlewWaitError::DidNotMove
+            ))
+        }
+        Err(SlewEnd::DidNotMove) => Err(format!(
+            "{timeout_label}: {}",
+            crate::slew_arrival::SlewWaitError::DidNotMove
         )),
-        Err(other) => Err(format!("{timeout_label}: {other}")),
+        Err(SlewEnd::LostContact { reads, .. }) => Err(format!(
+            "{timeout_label}: {}",
+            crate::slew_arrival::SlewWaitError::LostContact(reads)
+        )),
     }
 }
 
