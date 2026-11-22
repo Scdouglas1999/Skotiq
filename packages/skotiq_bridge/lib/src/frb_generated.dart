@@ -122,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -857581642;
+  int get rustContentHash => -915743585;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -729,9 +729,7 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiInitApiInit();
 
-  void crateApiStorageApiInitProfileStorage({required String storagePath});
-
-  void crateApiStorageApiInitSettingsStorage({required String storagePath});
+  void crateApiInitApiInitHost({required HostPaths paths});
 
   void crateApiInitApiInitWithLogging({String? logDirectory});
 
@@ -5925,56 +5923,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_init", argNames: []);
 
   @override
-  void crateApiStorageApiInitProfileStorage({required String storagePath}) {
+  void crateApiInitApiInitHost({required HostPaths paths}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
-          var arg0 = cst_encode_String(storagePath);
-          return wire.wire__crate__api__storage__api_init_profile_storage(arg0);
+          var arg0 = cst_encode_box_autoadd_host_paths(paths);
+          return wire.wire__crate__api__init__api_init_host(arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiStorageApiInitProfileStorageConstMeta,
-        argValues: [storagePath],
+        constMeta: kCrateApiInitApiInitHostConstMeta,
+        argValues: [paths],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiStorageApiInitProfileStorageConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_init_profile_storage",
-        argNames: ["storagePath"],
-      );
-
-  @override
-  void crateApiStorageApiInitSettingsStorage({required String storagePath}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          var arg0 = cst_encode_String(storagePath);
-          return wire.wire__crate__api__storage__api_init_settings_storage(
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiStorageApiInitSettingsStorageConstMeta,
-        argValues: [storagePath],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiStorageApiInitSettingsStorageConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_init_settings_storage",
-        argNames: ["storagePath"],
-      );
+  TaskConstMeta get kCrateApiInitApiInitHostConstMeta =>
+      const TaskConstMeta(debugName: "api_init_host", argNames: ["paths"]);
 
   @override
   void crateApiInitApiInitWithLogging({String? logDirectory}) {
@@ -12187,6 +12155,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HostPaths dco_decode_box_autoadd_host_paths(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_host_paths(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -13477,6 +13451,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   HeartbeatStatus dco_decode_heartbeat_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return HeartbeatStatus.values[raw as int];
+  }
+
+  @protected
+  HostPaths dco_decode_host_paths(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return HostPaths(
+      dataDirectory: dco_decode_String(arr[0]),
+      logDirectory: dco_decode_String(arr[1]),
+      profileDirectory: dco_decode_String(arr[2]),
+    );
   }
 
   @protected
@@ -16725,6 +16712,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HostPaths sse_decode_box_autoadd_host_paths(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_host_paths(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_32(deserializer));
@@ -18421,6 +18414,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return HeartbeatStatus.values[inner];
+  }
+
+  @protected
+  HostPaths sse_decode_host_paths(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_dataDirectory = sse_decode_String(deserializer);
+    var var_logDirectory = sse_decode_String(deserializer);
+    var var_profileDirectory = sse_decode_String(deserializer);
+    return HostPaths(
+      dataDirectory: var_dataDirectory,
+      logDirectory: var_logDirectory,
+      profileDirectory: var_profileDirectory,
+    );
   }
 
   @protected
@@ -22537,6 +22543,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_host_paths(
+    HostPaths self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_host_paths(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self, serializer);
@@ -23904,6 +23919,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_host_paths(HostPaths self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.dataDirectory, serializer);
+    sse_encode_String(self.logDirectory, serializer);
+    sse_encode_String(self.profileDirectory, serializer);
   }
 
   @protected

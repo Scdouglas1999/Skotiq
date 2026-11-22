@@ -19,7 +19,6 @@ import 'package:window_manager/window_manager.dart';
 import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
 import 'desktop_shutdown_safing.dart';
-import 'desktop_instance.dart';
 import 'desktop_logging_init.dart';
 import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
@@ -152,9 +151,9 @@ void main(List<String> args) async {
 
   if (relaunchedFrom != null) {
     // This start replaces process $relaunchedFrom, which is still closing. It
-    // must be gone before anything here opens a store: logging init already
-    // opens native stores that allow one process, and failed with "already
-    // open" when the restart raced the old window's teardown.
+    // must be gone before anything here opens a store: the native start opens
+    // stores that allow one process, and failed with "already open" when the
+    // restart raced the old window's teardown.
     final databaseFile = await resolveDefaultDatabaseFile();
     await waitForPreviousInstance(() async {
       if (processStillRunning(relaunchedFrom)) return true;
@@ -162,15 +161,7 @@ void main(List<String> args) async {
     });
   }
 
-  // Hold the database before logging opens native stores. A probe here used
-  // to take the lock and drop it; the second process could then pass and
-  // open SQLite, and SQLITE_BUSY was read as corruption. The claim stays
-  // for the process. The database open shares it. exit(75) is EX_TEMPFAIL,
-  // and it has to be exit() — returning leaves the process alive.
-  await claimDesktopInstance();
-  startupTimeline.mark('single-instance claim');
-
-  final bootPaths = await initialiseDesktopLogging();
+  final bootPaths = await startDesktopProcess();
 
   // The role, decided once for the life of this process. Flags and variables
   // win; without them, the rig the connect flow remembered makes this a linked

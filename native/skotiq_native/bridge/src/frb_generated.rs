@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -857581642;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -915743585;
 
 // Section: executor
 
@@ -3586,37 +3586,19 @@ fn wire__crate__api__init__api_init_impl(
         },
     )
 }
-fn wire__crate__api__storage__api_init_profile_storage_impl(
-    storage_path: impl CstDecode<String>,
+fn wire__crate__api__init__api_init_host_impl(
+    paths: impl CstDecode<crate::api::init::HostPaths>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_init_profile_storage",
+            debug_name: "api_init_host",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            let api_storage_path = storage_path.cst_decode();
+            let api_paths = paths.cst_decode();
             transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::storage::api_init_profile_storage(api_storage_path)?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__storage__api_init_settings_storage_impl(
-    storage_path: impl CstDecode<String>,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_init_settings_storage",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let api_storage_path = storage_path.cst_decode();
-            transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::storage::api_init_settings_storage(api_storage_path)?;
+                let output_ok = crate::api::init::api_init_host(api_paths)?;
                 Ok(output_ok)
             })())
         },
@@ -10645,6 +10627,20 @@ impl SseDecode for crate::event::equipment::HeartbeatStatus {
     }
 }
 
+impl SseDecode for crate::api::init::HostPaths {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_dataDirectory = <String>::sse_decode(deserializer);
+        let mut var_logDirectory = <String>::sse_decode(deserializer);
+        let mut var_profileDirectory = <String>::sse_decode(deserializer);
+        return crate::api::init::HostPaths {
+            data_directory: var_dataDirectory,
+            log_directory: var_logDirectory,
+            profile_directory: var_profileDirectory,
+        };
+    }
+}
+
 impl SseDecode for i16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -16505,6 +16501,25 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::equipment::HeartbeatStatus>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::init::HostPaths {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.data_directory.into_into_dart().into_dart(),
+            self.log_directory.into_into_dart().into_dart(),
+            self.profile_directory.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::init::HostPaths {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::init::HostPaths>
+    for crate::api::init::HostPaths
+{
+    fn into_into_dart(self) -> crate::api::init::HostPaths {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::imaging::ImageStatsResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -20794,6 +20809,15 @@ impl SseEncode for crate::event::equipment::HeartbeatStatus {
     }
 }
 
+impl SseEncode for crate::api::init::HostPaths {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.data_directory, serializer);
+        <String>::sse_encode(self.log_directory, serializer);
+        <String>::sse_encode(self.profile_directory, serializer);
+    }
+}
+
 impl SseEncode for i16 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -24239,6 +24263,13 @@ mod io {
             CstDecode::<crate::event::guiding::GuidingEvent>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::init::HostPaths> for *mut wire_cst_host_paths {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::init::HostPaths {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::init::HostPaths>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<i32> for *mut i32 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> i32 {
@@ -25522,6 +25553,16 @@ mod io {
                     }
                 }
                 _ => unreachable!(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::init::HostPaths> for wire_cst_host_paths {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::init::HostPaths {
+            crate::api::init::HostPaths {
+                data_directory: self.data_directory.cst_decode(),
+                log_directory: self.log_directory.cst_decode(),
+                profile_directory: self.profile_directory.cst_decode(),
             }
         }
     }
@@ -28838,6 +28879,20 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_host_paths {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                data_directory: core::ptr::null_mut(),
+                log_directory: core::ptr::null_mut(),
+                profile_directory: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_host_paths {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_image_stats_result {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -31187,17 +31242,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_init_profile_storage(
-        storage_path: *mut wire_cst_list_prim_u_8_strict,
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__init__api_init_host(
+        paths: *mut wire_cst_host_paths,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__storage__api_init_profile_storage_impl(storage_path)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_init_settings_storage(
-        storage_path: *mut wire_cst_list_prim_u_8_strict,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__storage__api_init_settings_storage_impl(storage_path)
+        wire__crate__api__init__api_init_host_impl(paths)
     }
 
     #[unsafe(no_mangle)]
@@ -33033,6 +33081,14 @@ mod io {
     ) -> *mut wire_cst_guiding_event {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_guiding_event::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_host_paths(
+    ) -> *mut wire_cst_host_paths {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_host_paths::new_with_null_ptr(),
         )
     }
 
@@ -35172,6 +35228,13 @@ mod io {
     pub struct wire_cst_GuidingEvent_GuideStats {
         snr: f64,
         star_mass: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_host_paths {
+        data_directory: *mut wire_cst_list_prim_u_8_strict,
+        log_directory: *mut wire_cst_list_prim_u_8_strict,
+        profile_directory: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

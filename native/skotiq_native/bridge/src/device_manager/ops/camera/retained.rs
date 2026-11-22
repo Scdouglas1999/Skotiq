@@ -30,19 +30,9 @@ pub struct RetainedCaptureRecord {
     pub retained_at_ms: i64,
 }
 
-/// Where retrieved and undecodable camera files are saved.
-fn retained_captures_dir() -> PathBuf {
-    // SKOTIQ_DATA_DIR is the application data path the app sets at launch.
-    // Without it (unit tests) the files go to the temp folder.
-    std::env::var_os("SKOTIQ_DATA_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("skotiq"))
-        .join("retained_captures")
-}
-
 /// Save a camera file under a name no earlier file has.
 fn save_camera_file(file: &skotiq_device::CameraFile) -> Result<PathBuf, DeviceOpError> {
-    let dir = retained_captures_dir();
+    let dir = crate::data_root::retained_captures();
     let failed = |what: &str, e: std::io::Error| {
         DeviceOpError::hardware(None, format!("{what} {}: {e}", dir.display()))
     };

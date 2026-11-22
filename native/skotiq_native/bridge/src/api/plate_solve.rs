@@ -273,11 +273,8 @@ pub fn api_platesolve_get_config() -> Result<PlateSolverConfigPayload, SkotiqErr
 /// filesystem with the new paths.
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_platesolve_set_config(config: PlateSolverConfigPayload) -> Result<(), SkotiqError> {
-    // Live before it is saved, so the paths the operator just set are honored
-    // this session even if the storage write fails.
-    let pref = config.into_pref();
-    crate::solver::apply_solver_preference(&pref);
-    crate::state::save_platesolver_preference(&pref).map_err(SkotiqError::OperationFailed)?;
+    crate::solver::save_solver_preference(&config.into_pref())
+        .map_err(SkotiqError::OperationFailed)?;
     skotiq_platesolve::invalidate_solver_availability_cache();
     Ok(())
 }
