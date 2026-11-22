@@ -258,7 +258,7 @@ void main() {
       });
     }
 
-    test('a device card reads them by their text', () {
+    test('a device card reads their type by category, recovery by text', () {
       final notConnected = DeviceError.fromException(
         const ConnectionException(
           message: 'Not connected to server.',
@@ -275,13 +275,37 @@ void main() {
           userMessage: 'The camera device is not available',
         ),
       );
-      expect(unavailable.type, DeviceErrorType.driverError);
+      // Its text says "camera", which read as a driver error.
+      expect(unavailable.type, DeviceErrorType.connectionFailed);
       expect(unavailable.recoverable, isTrue);
+
+      // A run holding the cooler is a busy device, not a driver fault.
+      final busy = DeviceError.fromException(
+        const DeviceBusyException(
+          message: 'A sequence run owns the camera cooler',
+          userMessage: 'The running sequence controls the camera cooler.',
+          deviceId: 'cam',
+        ),
+      );
+      expect(busy.type, DeviceErrorType.busy);
+      expect(busy.userMessage, 'Device is busy. Please wait and try again.');
+      expect(busy.deviceId, 'cam');
+      expect(busy.recoverable, isTrue);
+
+      // Not recoverable by its own flag, recoverable as its text reads.
+      final saveFailed = DeviceError.fromException(
+        const ImagingException(
+          message: 'Failed to write FITS',
+          userMessage: 'The frame could not be saved',
+        ),
+      );
+      expect(saveFailed.type, DeviceErrorType.driverError);
+      expect(saveFailed.recoverable, isTrue);
 
       final notFound = DeviceError.fromException(
         ConnectionException.notFound('cam'),
       );
-      expect(notFound.type, DeviceErrorType.deviceNotFound);
+      expect(notFound.type, DeviceErrorType.connectionFailed);
       expect(notFound.recoverable, isFalse);
     });
 
