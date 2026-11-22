@@ -1624,7 +1624,6 @@ packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog.dart	_in
 packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog.dart	_initializeFromProfile	literal_null_coalesce	1	V0002	_switchNameController.text = profile.switchName ?? '';
 packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog.dart	_initializeFromProfile	literal_null_coalesce	1	V0002	_telescopeNameController.text = profile.telescopeName ?? '';
 packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog.dart	_initializeFromProfile	literal_null_coalesce	1	V0002	final offset = profile.filterFocusOffsets[profile.filterNames[i]] ?? 0;
-packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog/filters_and_camera_defaults.dart	_buildCameraDefaultsSection	literal_null_coalesce	1	V0121	() => _binning = int.tryParse(v ?? '') ?? 1,
 packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog/filters_and_camera_defaults.dart	_buildFiltersSection	literal_null_coalesce	1	V0121	(filterWheelState.deviceId?.isNotEmpty ?? false);
 packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog/optical_and_devices.dart	_usesBuiltinGuider	literal_null_coalesce	1	V0897	_guiderId?.startsWith('native:builtin_guider') ?? false;
 packages/skotiq_app/lib/screens/equipment/dialogs/profile_editor_dialog/profile_data_operations.dart	_buildModel	literal_null_coalesce	1	V0121	isActive: widget.profile?.isActive ?? false,
@@ -1641,7 +1640,6 @@ packages/skotiq_app/lib/screens/equipment/equipment_screen/layout_rail.dart	buil
 packages/skotiq_app/lib/screens/equipment/focuser_backlash/focuser_backlash_calibration_dialog.dart	_optionalCameraField	literal_null_coalesce	1	V0800	authoritativeValue: value?.toString() ?? '',
 packages/skotiq_app/lib/screens/equipment/focuser_backlash/focuser_backlash_calibration_dialog.dart	build	literal_null_coalesce	1	V0800	final parsed = int.tryParse(value ?? '');
 packages/skotiq_app/lib/screens/equipment/tabs/settings_tab.dart	build	literal_null_coalesce	1	V0121	equipmentFocuserCapabilitiesProvider(focuserState.deviceId ?? ''));
-packages/skotiq_app/lib/screens/equipment/utils/driver_error_pretty.dart	PrettyError.format	literal_null_coalesce	1	V0121	final source = (raw ?? '').trim();
 packages/skotiq_app/lib/screens/equipment/widgets/connected_device_card/actions_and_telemetry.dart	_ConnectedDeviceActionsAndTelemetry	literal_null_coalesce	1	V0121	'${snapshot.brightness ?? 0} / '
 packages/skotiq_app/lib/screens/equipment/widgets/connected_device_card/actions_and_telemetry.dart	_ConnectedDeviceActionsAndTelemetry	literal_null_coalesce	1	V0121	equipmentCoverCalibratorCapabilitiesProvider(state.deviceId ?? ''),
 packages/skotiq_app/lib/screens/equipment/widgets/connected_device_card/actions_and_telemetry.dart	_ConnectedDeviceActionsAndTelemetry	literal_null_coalesce	1	R9-090	ref.watch(equipmentCameraCapabilitiesProvider(state.deviceId ?? '')),
@@ -1891,7 +1889,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/session_report_dialog.dart	bui
 packages/skotiq_app/lib/screens/sequencer/widgets/session_report_dialog.dart	build	literal_null_coalesce	1	V0086	analysis?.collimationMeasured ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/session_report_dialog.dart	build	literal_null_coalesce	1	V0086	final currentTiltMeasured = analysis?.tiltMeasured ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/session_report_dialog/target_conditions.dart	build	literal_null_coalesce	1	V0121	allReasons[entry.key] = (allReasons[entry.key] ?? 0) + entry.value;
-packages/skotiq_app/lib/screens/sequencer/widgets/slew_to_target_dialog.dart	showSlewToTargetConfirmation	literal_null_coalesce	1	V0509	return confirmed ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart	NodePropertyField	literal_null_coalesce	1	V0086	value: (plan.gain ?? 0).toDouble(),
 packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart	NodePropertyField	literal_null_coalesce	1	V0086	value: (plan.offset ?? 0).toDouble(),
 packages/skotiq_app/lib/screens/sequencer/widgets/smart_exposure_properties.dart	_apply	literal_null_coalesce	1	V0086	? '#${(plan.filterIndex ?? 0) + 1}'
