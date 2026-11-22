@@ -501,21 +501,19 @@ Future<bool> _loadMosaicNodesIntoEditor({
     ),
   );
 
-  Future<bool> loadReplacing() async {
-    try {
-      final sequence = Sequence.create(
-        name: mosaicName,
-        nodes: nodes,
-        rootNodeId: rootNode.id,
-      );
-      notifier.loadSequence(sequence, discardUnsaved: true);
-      return true;
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) {
-        context.showInfoSnackBar(e.message);
-      }
-      return false;
-    }
+  Future<bool> loadReplacing() {
+    final sequence = Sequence.create(
+      name: mosaicName,
+      nodes: nodes,
+      rootNodeId: rootNode.id,
+    );
+    return openInEditor(
+      context,
+      load: ({required discardUnsaved}) =>
+          notifier.loadSequence(sequence, discardUnsaved: discardUnsaved),
+      prompt: openLoadedSequencePrompt,
+      onLocked: (e) => context.showInfoSnackBar(e.message),
+    );
   }
 
   if (replaceSequence || ref.read(currentSequenceProvider) == null) {
