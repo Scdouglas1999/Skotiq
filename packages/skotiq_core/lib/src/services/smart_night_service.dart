@@ -973,13 +973,24 @@ class SmartNightService {
     pixelSizeUm: exposureContext?.pixelSizeMicrons ?? _pixelSize(profile),
     focalLengthMm: profile.focalLength > 0
         ? profile.focalLength
-        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0),
+        : _firstKnown(
+            exposureContext?.focalLengthMm,
+            profile.telescopeFocalLength,
+          ),
     apertureMm: profile.aperture > 0
         ? profile.aperture
-        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0),
+        : _firstKnown(exposureContext?.apertureMm, profile.telescopeAperture),
     camera: exposureContext?.camera ?? _cameraSpecFromProfile(profile),
     bortleClass: exposureContext?.bortleClass ?? 5,
   );
+
+  /// [first], else [second], else 0: the "unknown" each plan path's
+  /// incomplete-optics guard refuses.
+  static double _firstKnown(double? first, double? second) {
+    if (first != null) return first;
+    if (second != null) return second;
+    return 0;
+  }
 
   /// Resolve the camera pixel size (µm) for [profile] WITHOUT a live
   /// exposure context.

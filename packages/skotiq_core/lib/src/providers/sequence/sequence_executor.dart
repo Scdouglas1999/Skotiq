@@ -2061,7 +2061,7 @@ class SequenceExecutor {
 
   /// Whether a checkpoint restore is waiting for [start].
   bool get hasRestoredCheckpoint =>
-      _restored != null || (_hostRun?.hasRestoredCheckpoint ?? false);
+      _restored != null || _hostRun?.hasRestoredCheckpoint == true;
 
   void _clearRestored() {
     _restored = null;

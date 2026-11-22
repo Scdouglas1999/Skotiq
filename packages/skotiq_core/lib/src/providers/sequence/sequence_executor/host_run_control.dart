@@ -145,11 +145,12 @@ class HostRunControl {
     final before = _ref.read(sequenceExecutionStateProvider);
     if (!before.canStop) return;
     _setExecutionState(SequenceExecutionState.stopping);
+    var stopped = false;
     try {
       await _host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
-    } catch (_) {
-      _setExecutionState(before);
-      rethrow;
+      stopped = true;
+    } finally {
+      if (!stopped) _setExecutionState(before);
     }
     await _reflectHostRunState();
   }
