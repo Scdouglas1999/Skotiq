@@ -289,7 +289,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             let path = Path::new(p);
             ensure_parent_dir(path)?;
             let mut h = FitsHeader::new();
-            h.set_string("IMAGETYP", "COVERAGE_MAP");
+            ProductCards::image_type("COVERAGE_MAP").write_to(&mut h);
             h.add_history("Skotiq drizzle per-pixel coverage (drizzle weight) map");
             write_fits(path, &output.coverage, &h)
                 .map_err(|e| format!("failed to write coverage map: {e:?}"))?;

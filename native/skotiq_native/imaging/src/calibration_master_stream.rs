@@ -619,14 +619,7 @@ fn build_with_free_space(
     };
 
     let mut header = FitsHeader::new();
-    ProductCards {
-        image_type: config.kind.image_type(),
-        frame_type: false,
-        calstat: None,
-        frames: None,
-        combined: None,
-    }
-    .write_to(&mut header);
+    ProductCards::image_type(config.kind.image_type()).write_to(&mut header);
     if let Some(v) = exposure_secs {
         header.set_float("EXPTIME", v);
         header.set_float("EXPOSURE", v);

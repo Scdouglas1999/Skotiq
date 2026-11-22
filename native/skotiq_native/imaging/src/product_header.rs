@@ -27,6 +27,18 @@ pub struct ProductCards<'a> {
 }
 
 impl ProductCards<'_> {
+    /// A file named only by its `IMAGETYP` (a coverage or rejection map, a
+    /// registration reference, a streamed dark or bias master).
+    pub fn image_type(image_type: &str) -> ProductCards<'_> {
+        ProductCards {
+            image_type,
+            frame_type: false,
+            calstat: None,
+            frames: None,
+            combined: None,
+        }
+    }
+
     /// A Skotiq product made from a master (a finishing step, an atlas
     /// cutout): `IMAGETYP` and `CALSTAT`.
     pub fn product<'a>(image_type: &'a str, calstat: &'a str) -> ProductCards<'a> {
@@ -204,14 +216,7 @@ mod tests {
     #[test]
     fn a_streamed_dark_says_integrated_by_its_type_and_count_only() {
         let mut header = FitsHeader::new();
-        ProductCards {
-            image_type: "Master Dark",
-            frame_type: false,
-            calstat: None,
-            frames: None,
-            combined: None,
-        }
-        .write_to(&mut header);
+        ProductCards::image_type("Master Dark").write_to(&mut header);
         let read = MasterProvenance::from_header(&header);
         assert!(!read.frame_type_says_master(CardReading::Exact));
         assert!(read.any_card_says_integrated());

@@ -197,7 +197,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
             let path = Path::new(p);
             ensure_parent_dir(path)?;
             let mut h = FitsHeader::new();
-            h.set_string("IMAGETYP", "COVERAGE_MAP");
+            ProductCards::image_type("COVERAGE_MAP").write_to(&mut h);
             output.wcs.write_to_header(&mut h);
             h.add_history("Skotiq mosaic per-pixel contributing-weight (coverage) plane");
             write_fits(path, &output.coverage, &h)

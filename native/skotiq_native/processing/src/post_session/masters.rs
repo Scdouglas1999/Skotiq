@@ -211,7 +211,7 @@ pub(crate) fn master_create(args_json: &str) -> Result<MasterAccumulateResult, S
     let ref_u16 = ensure_u16(&reference);
     write_fits(&ref_companion, &ref_u16, &{
         let mut h = FitsHeader::new();
-        h.set_string("IMAGETYP", "MASTER_REF");
+        ProductCards::image_type("MASTER_REF").write_to(&mut h);
         h
     })
     .map_err(|e| format!("failed to write reference companion: {e:?}"))?;
