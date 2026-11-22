@@ -35,7 +35,7 @@ fn rig_check() -> ImageQualityCheck {
     }
 }
 
-/// What the app grades with by default since 2026-11-17: no absolute limit,
+/// What the app grades with by default: no absolute limit,
 /// every check against the target and filter's own recent frames.
 fn relative_check() -> ImageQualityCheck {
     ImageQualityCheck {

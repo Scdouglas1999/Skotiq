@@ -521,7 +521,6 @@ pub async fn execute_warm_camera(
             return result;
         }
 
-        // Why: step and steps are u32 bounded by the warming-loop config; lossless to f64.
         let progress_temp = start_temp + (temp_range * f64::from(step) / f64::from(steps));
         let progress_percent = (f64::from(step) / f64::from(steps)) * 100.0;
 

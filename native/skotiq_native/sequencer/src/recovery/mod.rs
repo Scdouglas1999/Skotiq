@@ -227,16 +227,7 @@ pub struct RecoveryRuntimeConfig {
     /// When true, a recovery that cannot fix the problem parks the mount,
     /// closes the cover and closes the dome before failing the run.
     ///
-    /// `false` (the `Default`) is the only safe default, and the reason is not
-    /// a preference. The code this replaces decided the same question by
-    /// inferring whether a human was present, from a `RuntimeConfig` flag that
-    /// had no writer anywhere in the product — no bridge call, no API route, no
-    /// setting — so it read "nobody is here" on every run. On 2026-09-14 that
-    /// inference parked the owner's mount, closed up and declared the night
-    /// abandoned over a reject storm, while he was sitting at the telescope
-    /// with an HTTP client polling the API every 25 s and the desktop UI open on
-    /// his screen.
-    ///
+    /// `false` (the `Default`) is the only safe default.
     /// Nothing available here can tell "unattended" from "attended and
     /// watching", and an app that cannot tell must not take an irreversible
     /// action on the guess. Parking a mount and closing an enclosure is that
@@ -247,7 +238,7 @@ pub struct RecoveryRuntimeConfig {
     /// night in exchange for never leaving the optics open behind a hold. Note
     /// that it is NOT the rig's only protection either way — the safety-class
     /// triggers (weather unsafe, dawn approaching, dome shutter) keep their own
-    /// configured `ParkAndAbort` behaviour, and now keep evaluating while a run
+    /// configured `ParkAndAbort` behaviour, and keep evaluating while a run
     /// is paused.
     pub park_and_close_when_recovery_gives_up: bool,
 }

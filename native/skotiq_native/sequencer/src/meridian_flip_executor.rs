@@ -1877,9 +1877,7 @@ impl MeridianFlipExecutor {
         // guider's old lock position is not where the star is. The star must
         // measure up to the SNR of the one the run was guiding on, so noise is
         // never locked instead. The guide camera sees other stars after a
-        // flip, so the old star's brightness is no measure: on 2026-11-03 the
-        // pre-flip star's mass floor refused every star the flipped field had
-        // (SNR 38-61) and the flip failed over guiding.
+        // flip, so the old star's brightness is no measure.
         let reference = match &ctx.trigger_state {
             Some(state) => state.read().await.target.guide_star_reference,
             None => None,
@@ -3967,7 +3965,6 @@ mod tests {
         let retry_count = crate::default_safety_action_retry_count();
         state
             .park_failures_remaining
-            // Why: safety_action_retry_count default is u32 = 3; lossless to i32.
             .store(retry_count as i32 + 5, Ordering::Relaxed);
         let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
 
@@ -4009,7 +4006,6 @@ mod tests {
         // Park should have been retried `retry_count` times.
         assert_eq!(
             state.park_calls.load(Ordering::Relaxed),
-            // Why: default retry count is u32 = 3; lossless to i32.
             retry_count as i32,
             "Expected exactly {} park retries",
             retry_count
@@ -4538,9 +4534,7 @@ mod tests {
 
     /// Owner decision 2026-10-06: a failed autofocus never parks the rig, and
     /// the post-flip refocus is named in it. A refocus that did not converge
-    /// failed the flip, and the flip's failure action — AbortAndPark here —
-    /// parked the mount and ended the run. The mount is on the new pier side
-    /// and tracking; the run now carries on at the previous focus, and says so.
+    /// The flip completes and the run carries on at the previous focus, and says so.
     #[tokio::test(start_paused = true)]
     async fn a_failed_post_flip_refocus_notifies_and_the_flip_completes() {
         let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
@@ -5184,9 +5178,7 @@ mod tests {
     }
 
     /// The run's status message follows the flip: each step, the attempt it
-    /// is on, a retry and its wait, and the side the mount reached. On
-    /// 2026-11-03 it said "Holding the next 60s exposure for the meridian
-    /// flip, which is 66 min overdue and starting now" for twelve minutes.
+    /// is on, a retry and its wait, and the side the mount reached.
     /// The pier change is announced, and guiding reads as stopped for the
     /// flip, the moment the mount is verified on its new side.
     #[tokio::test(start_paused = true)]

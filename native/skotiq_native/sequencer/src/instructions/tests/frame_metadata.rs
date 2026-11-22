@@ -485,9 +485,7 @@ fn recorded_exposure_secs_keeps_the_command_when_the_report_is_impossible() {
 /// The consecutive-reject limit tells the operator that frames keep failing
 /// grading; it never pauses, stops or parks the run (owner decision
 /// 2026-10-06: "this limit should never stop a sequence or end a night. Again,
-/// just notify users of these issues"). It used to hand the storm to the
-/// recovery driver, which paused the run (or parked it under the opt-in
-/// give-up policy), and repeated an Error banner on every further reject.
+/// just notify users of these issues").
 mod consecutive_reject_limit {
     use super::*;
 

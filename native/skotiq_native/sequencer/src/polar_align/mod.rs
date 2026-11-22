@@ -278,7 +278,6 @@ where
 
         (self.status_callback)(
             format!("Measuring point {}/3...", i + 1),
-            // Why: u8 in 0..3; lossless to f64.
             Some(f64::from(i) / 3.0),
         );
 
@@ -368,7 +367,7 @@ where
                 // measured on the way, a move in both axes. The slew path
                 // takes J2000 and precesses it, so the mount-frame target is
                 // expressed in J2000 first; passing it through unconverted
-                // precessed it twice (2026-11-07).
+                // precessed it twice.
                 let (mount_ra_hours, mount_dec) = match ctx
                     .run
                     .device_ops

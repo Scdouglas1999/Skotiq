@@ -1,7 +1,6 @@
 //! The recovery operations the recovery driver performs: the horizontal →
 //! equatorial transform used by `SlewToGapAndContinue`, guide-star
-//! reacquisition, and the per-cause recovery attempt. Moved verbatim out of
-//! `executor/mod.rs`.
+//! reacquisition, and the per-cause recovery attempt.
 
 use super::*;
 

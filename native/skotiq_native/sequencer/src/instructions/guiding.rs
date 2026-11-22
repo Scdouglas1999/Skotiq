@@ -345,7 +345,7 @@ pub(crate) async fn sample_post_settle_rms<S>(
 /// A mount move the run is making: a slew, a center, a sync or a flip.
 ///
 /// A guider cannot guide through a move. Left guiding, PHD2 chases the star
-/// out of its frame and reports it lost, and on the rig (2026-10-07) that loss
+/// out of its frame and reports it lost, and on the rig that loss
 /// paused the run and the recovery stopped tracking under a running slew. So,
 /// as N.I.N.A. does, the outermost move stops a guider that is guiding first.
 /// Guiding this run had started is picked up again on a fresh star before the

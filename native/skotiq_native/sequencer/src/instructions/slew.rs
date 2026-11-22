@@ -76,7 +76,7 @@ pub async fn execute_slew(
         }
     }
 
-    // W1 native daylight gate (structural). A slew that points the rig at the
+    // Native daylight gate (structural). A slew that points the rig at the
     // active sky/science target (`use_target_coords`) is the on-sky pointing
     // step of a LIGHT-frame run; it never happens while the Sun is up, so a
     // raw sequence started via `api_sequencer_start` (including a mosaic)

@@ -530,13 +530,7 @@ impl Trigger {
                 // A mount that is parked, or that has definitely stopped
                 // tracking, is not following the target — so whatever the
                 // target's altitude is, this trigger's action (skip to the
-                // next target) is not the answer. The case that shipped: a
-                // three-frame DARKS block under a parked simulated mount fired
-                // `NextTarget` 8 ms into the run because its named target, M4,
-                // sat at 16.6° against the default 30° floor. Nothing about a
-                // dark, bias or flat depends on where the tube points, and the
-                // Session Report then reported `Trigger fires 1` for a run in
-                // which no trigger should have had anything to say.
+                // next target) is not the answer.
                 //
                 // Deliberately the same two questions, read the same way, as
                 // the meridian-flip guard above: `Some(_)` is a real reading
@@ -572,7 +566,7 @@ impl Trigger {
                 }
             }
             TriggerType::WeatherUnsafe => {
-                // Defense-in-depth (full-night audit 2026-06-04): the in-sequencer
+                // Defense in depth: the in-sequencer
                 // WeatherUnsafe trigger must abort when EITHER the hardware safety
                 // monitor reports unsafe OR the Dart-side weather-safety verdict
                 // (configured thresholds + API/cloud sources) computed unsafe. A
@@ -627,8 +621,6 @@ impl Trigger {
                 // forcing a recompute on every poll.
                 if let Some(dawn_time) = state.telemetry.dawn_time {
                     let now = chrono::Utc::now().timestamp();
-                    // Why: i64 timestamp difference -> f64 lossless for any
-                    // single-night duration.
                     let time_to_dawn = (dawn_time - now) as f64 / 60.0;
                     // Positive `time_to_dawn` excludes the case where dawn has
                     // already passed (negative value); without it the trigger

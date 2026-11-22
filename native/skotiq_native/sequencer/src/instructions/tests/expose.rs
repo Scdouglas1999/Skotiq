@@ -200,9 +200,6 @@ async fn the_capture_loop_does_not_move_the_wheel_under_a_trigger_claim() {
 
 /// And the reverse direction: while the capture loop holds the train for a
 /// frame, a trigger action cannot take it.
-///
-/// This is the half that the old predicted-deadline claim got wrong once an
-/// exposure overran its estimate.
 #[tokio::test]
 async fn a_trigger_action_cannot_take_the_train_mid_frame() {
     let mut state = crate::triggers::TriggerState::new();

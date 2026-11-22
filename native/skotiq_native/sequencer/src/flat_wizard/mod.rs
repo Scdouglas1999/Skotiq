@@ -316,7 +316,6 @@ impl<'a> FlatWizardRun<'a> {
         let test_exposure = (self.min_exp + self.max_exp) / 2.0;
 
         // Iterations span 30%..85% of overall progress.
-        // Why: iteration and the attempt cap are small u32s; lossless to f64.
         let fraction = 0.30 + (f64::from(iteration) / f64::from(self.max_iterations())) * 0.55;
         progress.report(
             fraction,
@@ -700,7 +699,6 @@ mod tests {
     fn test_median_adu_with_variation() {
         let mut data = Vec::new();
         for i in 0..10000_u16 {
-            // Why: test fixture; 0..10000, so 20000 + i <= 30000 fits in u16.
             data.push(20000 + i);
         }
         let image = make_test_image(100, 100, data);

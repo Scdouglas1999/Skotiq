@@ -1,14 +1,6 @@
 //! Per-target start/end trigger primitives.
 //!
-//! SGP and NINA both support a notion that's missing from Skotiq
-//! pre-"start the target *when an altitude crossing happens*, stop
-//! when another crossing happens." Today [`crate::TargetHeaderConfig`] only
-//! has `start_after` / `end_before` (Unix timestamps) and
-//! `min_altitude` / `max_altitude` (instantaneous checks), which can only
-//! express "wait until 21:00 OR currently above 35°", not "start the first
-//! moment the altitude crosses 35° after 21:00."
-//!
-//! This module introduces [`TargetTrigger`] — a small expression language
+//! [`TargetTrigger`] is a small expression language
 //! the user can attach to a TargetHeader as `start_when` / `end_when`.
 //! Each variant is independently testable: given a `TriggerObserverContext`
 //! (clock + observer location + target RA/Dec), it returns a boolean

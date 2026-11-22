@@ -37,7 +37,7 @@ pub(super) fn build_progress_callback(
             // missing name is honest, a stale one is not.
             prog.current_node_name = node_names.read().get(&update.node_id).cloned();
             prog.current_node_status = Some(update.status);
-            // `legacy_message` synthesises the pre-refactor message
+            // `legacy_message` synthesises the UI's message
             // shape from the structured fields (or returns the raw
             // lifecycle message verbatim), so prog.message preserves
             // its existing UI contract.
@@ -124,16 +124,10 @@ pub(super) fn build_progress_callback(
                 let mut started = started_nodes.write();
                 let was_started = started.remove(&update.node_id);
                 // Announce the node's terminal status, exactly once, and only
-                // for a node we actually announced as started. Without this the
-                // `NodeStarted` above is never answered: `RuntimeNode::execute`
+                // for a node we actually announced as started. `RuntimeNode::execute`
                 // emits the terminal `ProgressUpdate` for every node it ran —
-                // leaf AND container, the root sequence node included — but this
-                // callback used to swallow it, so every node the run touched
-                // stayed `NodeStatus.running` in the UI forever. A finished run
-                // then rendered a tree of nodes still claiming to be executing,
-                // each with a spinning status icon, which on the Linux embedder
-                // (full-window frame per dirty mark) cost ~61 fps and ~43% of a
-                // core indefinitely after the run had ended.
+                // emits the terminal `ProgressUpdate` for every node it ran —
+                // leaf AND container, the root sequence node included.
                 //
                 // `started.remove` returning true is the pairing check: it is
                 // true only for a node that emitted `NodeStarted`, so a loop

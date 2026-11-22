@@ -3,7 +3,7 @@
 //! The simulator night soak lost whole runs to a single failed download and a
 //! single failed wheel move. These pin the retry: a transient fault is retried
 //! under the operator's budget, the frame or filter lands, nothing is written
-//! twice; a fault that cannot clear is not retried; zero retries is the old
+//! twice; a fault that cannot clear is not retried; zero retries is a
 //! single attempt; Stop during the wait between attempts stops at once.
 
 use super::*;
@@ -366,8 +366,7 @@ async fn a_failed_wheel_move_is_retried_and_the_filter_lands() {
     );
 }
 
-/// Autofocus moves to its own filter, and back, through the same retry: one
-/// failed move used to fail the autofocus run before a single frame.
+/// Autofocus moves to its own filter, and back, through the same retry.
 #[tokio::test(start_paused = true)]
 async fn the_autofocus_filter_move_is_retried() {
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_filter_moves(&[WHEEL_ERROR]));

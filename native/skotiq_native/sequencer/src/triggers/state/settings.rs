@@ -22,7 +22,7 @@ state_part! {
             /// frames, the guiding or the pointing — guiding RMS over the limit, a
             /// Center that did not converge, a dither that did not settle, a post-flip
             /// recenter or guiding check that failed — notifies the operator and the
-            /// run keeps imaging. On, each of those stops the run the way it used to.
+            /// run keeps imaging. On, each of those stops the run.
             /// Configuration, not run state: `reset_for_new_run` leaves it alone.
             pub stop_on_quality_problems: bool,
             /// The site's altitude floor by azimuth, as the run's settings hold

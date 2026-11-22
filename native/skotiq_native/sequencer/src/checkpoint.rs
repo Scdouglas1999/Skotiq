@@ -854,8 +854,6 @@ mod tests {
 
     #[test]
     fn test_mark_completed_without_checkpoint_is_an_error() {
-        // A no-op used to return Ok(()), indistinguishable from a real mark.
-        // The caller's "failed to mark completed" log must fire instead.
         let dir = test_dir("mark_completed_no_checkpoint");
         let manager = CheckpointManager::new(&dir);
 
@@ -869,8 +867,6 @@ mod tests {
 
     #[test]
     fn test_mark_completed_propagates_a_corrupt_checkpoint() {
-        // A corrupt checkpoint used to be swallowed the same way: the load
-        // error was discarded inside the `if let Ok` and Ok(()) was returned.
         let dir = test_dir("mark_completed_corrupt");
         let manager = CheckpointManager::new(&dir);
         fs::write(manager.checkpoint_path(), "{not valid json").unwrap();

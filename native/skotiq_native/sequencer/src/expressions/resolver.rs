@@ -16,8 +16,7 @@ use chrono::{DateTime, Utc};
 
 /// Synthetic filter label for rigs with no filter wheel.
 ///
-/// Must match the label used by the non-template filename path in
-/// `instructions.rs`. Deliberately NOT "L": a missing filter on a
+/// Deliberately NOT "L": a missing filter on a
 /// narrowband/RGB capture must not be recorded as luminance.
 pub(crate) const NO_FILTER_LABEL: &str = "nofilter";
 
@@ -239,17 +238,7 @@ pub fn resolve_variable(
         // Filter
         // A rig with no filter wheel (OSC / DSLR) has no filter, and that is
         // NORMAL — not an error. `${filter}` appears in the DEFAULT save-path
-        // template (`${target.name}_${filter}_${frame:04}.fits`), so making it
-        // unresolvable aborted the very first frame of any sequence on such a
-        // rig: "Save-path template render failed … Variable `${filter}` cannot
-        // be resolved: no filter set. Aborting exposure". Reproduced by running
-        // a plain TakeExposure node with no filter against the simulator camera.
-        //
-        // The sibling filename path in `instructions.rs` already handles this
-        // by substituting the synthetic label `nofilter`, with a comment
-        // explaining it must NOT be "L" (that would mis-label narrowband/RGB
-        // frames as luminance). Resolve to the same label here so the two
-        // filename paths agree instead of one aborting the capture.
+        // template (`${target.name}_${filter}_${frame:04}.fits`).
         "filter" => Ok(VariableValue::Str(
             ctx.current_filter
                 .as_deref()

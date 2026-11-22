@@ -1,6 +1,6 @@
 //! A run that loses each of its devices for a moment finishes on its own.
 //!
-//! Rig, 2026-11-16: a power box behind the camera, wheel and focuser dropped
+//! A power box behind the camera, wheel and focuser dropped
 //! and came back, and the run needed a person. The owner: "the app should be
 //! able to recover completely autonomously through any device loss". Each
 //! device here drops once mid-run, answering "not connected" until the

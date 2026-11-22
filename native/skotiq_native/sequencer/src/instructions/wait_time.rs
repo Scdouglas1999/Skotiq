@@ -38,7 +38,6 @@ pub async fn execute_wait_time(
                     return result;
                 }
 
-                // Emit progress every 10 seconds
                 if elapsed % 10 == 0 {
                     // Why: u64 -> f64. Wait durations under ~285k years fit
                     // losslessly in f64's 53-bit mantissa.
@@ -101,7 +100,6 @@ Sequence cannot wait for an unreachable twilight state.",
                     return result;
                 }
 
-                // Emit progress every 30 seconds
                 if elapsed % 30 == 0 {
                     // Why: u64 -> f64. Twilight wait durations (~hours) fit
                     // losslessly in f64's 53-bit mantissa.

@@ -549,7 +549,6 @@ async fn center(
 
         if let Some(cb) = progress_callback {
             cb(
-                // Why: policy.max_attempts is u32; lossless to f64.
                 attempt_progress + 50.0 / f64::from(policy.max_attempts),
                 &CenterProgress::Solved {
                     attempt,
@@ -621,7 +620,6 @@ async fn center(
         tracing::info!("Slewing to correct position...");
         if let Some(cb) = progress_callback {
             cb(
-                // Why: policy.max_attempts is u32; lossless to f64.
                 attempt_progress + 75.0 / f64::from(policy.max_attempts),
                 &CenterProgress::Correcting { attempt },
             );
@@ -767,8 +765,7 @@ pub(crate) async fn apply_center_rotation(
 /// Returns `None` to proceed with the exposure, `Some(cancelled)` when the
 /// sequence was cancelled while holding. Bounded: gives up with a loud
 /// warning after [`MERIDIAN_GATE_MAX_WAIT`] so a failed or disabled flip can
-/// never deadlock the night — the post-crossing trigger remains the backstop
-/// exactly as before this gate existed.
+/// never deadlock the night; the post-crossing trigger remains the backstop.
 ///
 /// With a pre-meridian hold configured, a frame that would still be exposing
 /// when tracking is due to stop holds instead, with tracking off, until the
@@ -968,7 +965,7 @@ async fn wait_for_flip(
         // Overdue is not the same as never firing, though. A trigger that can
         // fire and has not because the run was held (paused, or in a recovery)
         // fires on the first running tick after the hold, and the frame must
-        // not race it: on the rig (2026-10-21) the run resumed 16 minutes past
+        // not race it: on the rig the run resumed 16 minutes past
         // a 5-minute threshold, this hatch let a 90 s frame go, and the night
         // lost its flip. So when the trigger could still fire, it is given its
         // first running evaluation to do so before the hatch lets the frame go.
@@ -1014,20 +1011,6 @@ async fn wait_for_flip(
         // way for the trigger to be unable to fire is for the monitor not to
         // have published a value yet — no target stamped into the trigger
         // state, or no observing site.
-        //
-        // That gap used to be a permanent disagreement rather than a startup
-        // race: the trigger evaluated the MOUNT's hour angle. Live repro
-        // (headless Linux build, sim camera + sim mount, site 40N 42E, target
-        // pinned 12 min west of the meridian, threshold 5 min): the run
-        // reached 1/3 and reported
-        //   Waiting for the meridian flip before the next 2s exposure: the
-        //   flip became due 423s ago (hour angle +0.20h, threshold 5 min past
-        //   meridian) and would interrupt the frame
-        // then sat there, because the mount was never slewed to the target so
-        // its own hour angle never made the trigger fire. The overdue escape
-        // hatch above does not catch this: at 12 minutes past a 5-minute
-        // threshold the flip is only 7 minutes late, well inside
-        // OVERDUE_GRACE_SECS, so every frame paid the full 30-minute bound.
         //
         // Checked at gate ENTRY only (`!announced`) so a hold that began
         // legitimately still runs to MERIDIAN_GATE_MAX_WAIT while a flip is

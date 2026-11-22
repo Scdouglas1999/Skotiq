@@ -572,10 +572,7 @@ async fn run_both_scans(
     if let Some(cb) = progress_callback {
         // `to_string` fails here only if the outcome carries a non-finite
         // float — a NaN out of a degenerate curve fit, which JSON cannot
-        // represent. That is rare but not impossible, and the old
-        // `unwrap_or_default()` turned it into an empty detail string: the
-        // wizard would take a 100 % tick carrying nothing and show the
-        // operator silence at the end of a full calibration run. The run's
+        // represent. That is rare but not impossible. The run's
         // real answer still returns through `Ok(outcome)` below, so the frame
         // is not the only copy — but a frame that cannot be built has to be
         // recorded rather than swallowed.

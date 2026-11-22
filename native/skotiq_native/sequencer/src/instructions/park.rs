@@ -26,7 +26,7 @@ pub async fn execute_park(ctx: &InstructionContext) -> InstructionResult {
 }
 
 /// A parked mount has nothing to guide on. The move above stops a guider
-/// only while it guides, and on the rig (2026-11-03) a run parked with PHD2
+/// only while it guides, and on the rig a run parked with PHD2
 /// still looping after a failed guide-star search, exposing the guide camera
 /// until someone noticed. Parking ends the guider's capture, guiding or
 /// looping, and the run no longer wants guiding.
@@ -140,7 +140,7 @@ pub async fn execute_unpark(ctx: &InstructionContext) -> InstructionResult {
     //
     // A parked-state read that FAILS is not a licence to skip: an unpark on an
     // already-unparked mount is the milder outcome, so fall through and issue
-    // it (this is the pre-decision behaviour).
+    // it.
     match ctx.run.device_ops.mount_is_parked(&mount_id).await {
         Ok(false) => {
             tracing::info!("Unpark: mount already reports unparked; nothing to do");

@@ -1,11 +1,6 @@
 //! Retrying a camera exposure or a filter-wheel move through a transient fault.
 //!
-//! One failed download or one failed wheel move used to end the whole run. The
-//! simulator night soak showed it directly: a single injected download error
-//! (`camera.download=every(40):delaythenerror(30000)`, the INDI BLOB timeout
-//! shape) or a single wheel error (`filterwheel.set_position=every(9):error`)
-//! failed a night that the next attempt would have carried on with. Real gear
-//! produces exactly these one-off faults: a USB stall on a shared hub, a vendor
+//! Real gear produces one-off faults: a USB stall on a shared hub, a vendor
 //! SDK that reports "not ready" once, an ASCOM call that throws and then works.
 //!
 //! The operator sets how many retries each device kind gets ("Camera retries",
@@ -26,8 +21,8 @@
 //! * The wait between attempts honours Stop: it returns as soon as the run is
 //!   cancelled.
 //!
-//! When the retries are used up the failure is reported as it always was, with
-//! the number of retries added to the message.
+//! When the retries are used up the failure is reported with the number of
+//! retries added to the message.
 
 use super::*;
 

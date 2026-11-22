@@ -200,7 +200,7 @@ async fn take_burst(
     // the filter-identity read that follows it, so a trigger-fired action
     // cannot be part-way through its own filter move while this one runs.
     //
-    // Unarbitrated, the two fought and both lost: on 2026-09-14 a trigger
+    // Unarbitrated, the two fought and both lost: a trigger
     // autofocus commanded the wheel to "L" while this burst was cycling
     // Ha/SII/OIII, and autofocus then timed out after 120 s watching a healthy,
     // idle wheel sit at "SII". Ordering matters too — this claim is taken
@@ -247,7 +247,6 @@ async fn take_burst(
     let mut dither_skip_noted = false;
     let mut hfr_values = Vec::new();
 
-    // Image Grading: local bindings for the per-frame grading state.
     // All these are Arc<_> handles shared with ExecutionContext so the
     // dashboard sees consistent totals across instruction boundaries.
     let frame_baseline_handle = ctx.run.grading.hfr_baseline.clone();
@@ -300,11 +299,8 @@ async fn take_burst(
 
             // Operator Pause, honoured BETWEEN frames. The node tree checks
             // `is_paused` at instruction boundaries, but a burst is N frames
-            // inside ONE instruction — so a Pause pressed during frame 2 of 3 used
-            // to show a PAUSED badge, a Resume button and "Paused 33%" while the
-            // camera went on to expose frame 3 and the run then recorded
-            // `completed`. An operator pauses to walk in front of the telescope,
-            // so no NEW exposure may start while paused.
+            // inside ONE instruction. An operator pauses to walk in front of the
+            // telescope, so no NEW exposure may start while paused.
             //
             // The frame already integrating is allowed to finish: aborting it
             // throws away data the operator did not ask to lose, and the shutter

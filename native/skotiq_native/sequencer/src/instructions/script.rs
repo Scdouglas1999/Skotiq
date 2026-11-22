@@ -68,7 +68,6 @@ pub async fn execute_script(
     // An explicit zero stays an error: that is a real contradiction (run the
     // script, but kill it immediately), not a missing value.
     let timeout = match config.timeout_secs {
-        // Why: u32 -> u64 widening is lossless.
         Some(v) if v > 0 => u64::from(v),
         Some(_) => {
             return InstructionResult::failure(

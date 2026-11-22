@@ -1,7 +1,7 @@
 //! Free-standing monitoring helpers the executor's trigger monitor and
 //! recovery driver call: poll bounding, the stall watchdog, mount-tracking
 //! edge detection, recovery escalation, and the weather-verdict staleness
-//! rules. Moved verbatim out of `executor/mod.rs`.
+//! rules.
 
 use super::*;
 
@@ -122,17 +122,8 @@ pub(super) struct TargetSkyState {
 /// target or the observing site is unknown (nothing to compute from, and a
 /// fabricated value would be worse than an inert trigger).
 ///
-/// Both values come from the TARGET's own coordinates. The altitude always
-/// did; the hour angle used to be recomputed from `mount_get_coordinates`
-/// instead, which is a different question with a different answer whenever the
-/// mount is not tracking the target — parked at home, mid-slew, still on the
-/// previous target, or (the case that shipped) sitting at its power-on RA 0h
-/// while the sequence was still changing filters. `MeridianFlip` then fired on
-/// the parked mount's hour angle for a target 1.5h east of the meridian, and
-/// the flip's own banner printed the target's honest `-1.50h` a millisecond
-/// later. One target-derived source ends that disagreement; the exposure gate
-/// in `instructions::center` was already computing the target's own hour angle
-/// precisely because it could not trust this field.
+/// Both values come from the TARGET's own coordinates, not the mount's, which
+/// answer a different question whenever the mount is not tracking the target.
 ///
 /// `now` is a parameter rather than `Utc::now()` so the transit geometry is
 /// testable without waiting for the sky to turn.
@@ -603,14 +594,6 @@ pub enum UnattendedEndPolicy {
     /// DEFAULT. Hold the run for a human: freeze the node tree, restore
     /// tracking, keep safety-class triggers armed (see the trigger monitor's
     /// paused-state gate) and wait. No mount motion, no cover, no dome.
-    ///
-    /// The old code rejected a passive pause on the grounds that it left the
-    /// rig "dome+cover OPEN with safety monitoring OFF until dawn". That was
-    /// true, and it was a separate defect: the monitor returned early on any
-    /// non-`Running` state, so a Paused run had no weather, altitude or dawn
-    /// evaluation at all. Safety-class triggers now keep evaluating while
-    /// paused, so a hold is protected by the same rules an imaging run is, and
-    /// no longer needs a park to be safe.
     #[default]
     HoldForOperator,
     /// Opt-in. Run the park → close cover → close dome sweep and fail the run.
@@ -1100,9 +1083,6 @@ mod fired_label_tests {
         }
     }
 
-    /// The rig's Log (2026-11-03) read "Trigger fired · Meridian Flip →
-    /// MeridianFlip(MeridianFlipConfig { trigger_method: MinutesPastMeridian,
-    /// ... })" and the decision row carried the same dump.
     #[test]
     fn a_meridian_flip_trigger_is_named_and_summarized_in_plain_words() {
         let flip = fired(RecoveryAction::MeridianFlip(crate::MeridianFlipConfig {
