@@ -194,13 +194,7 @@ MosaicCaptureLauncher buildMosaicCaptureLauncher(Ref ref) {
 
     // Reuse the canonical "wrap nodes + load into editor" path so the durable
     // project capture is byte-identical to the wizard/framing sequence shape.
-    final rootNode = nodes.values.firstWhere(
-      (n) => n is InstructionSetNode && n.parentId == null,
-      orElse: () => throw StateError(
-        'MosaicService.createMosaicSequence did not produce a root '
-        'InstructionSetNode — refusing to launch a malformed mosaic.',
-      ),
-    );
+    final rootNode = MosaicService.rootOf(nodes);
     final sequence = Sequence.create(
       name: mosaicName,
       nodes: nodes,

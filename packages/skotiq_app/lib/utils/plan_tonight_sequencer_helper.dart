@@ -490,16 +490,7 @@ Future<bool> _loadMosaicNodesIntoEditor({
 }) async {
   final notifier = ref.read(currentSequenceProvider.notifier);
 
-  // The mosaic node graph has a single InstructionSetNode at its root
-  // whose children are the per-panel TargetHeaderNodes.
-  final rootNode = nodes.values.firstWhere(
-    (n) => n is InstructionSetNode && n.parentId == null,
-    orElse: () => throw StateError(
-      'MosaicService.createMosaicSequence did not produce a root '
-      'InstructionSetNode — refusing to load a malformed mosaic into the '
-      'sequencer.',
-    ),
-  );
+  final rootNode = MosaicService.rootOf(nodes);
 
   Future<bool> loadReplacing() {
     final sequence = Sequence.create(
