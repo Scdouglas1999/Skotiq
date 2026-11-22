@@ -428,6 +428,12 @@ pub fn read_frame_header(path: &Path) -> Result<FitsHeader, FrameIoError> {
     codec_for_file(path)?.read_header(path)
 }
 
+/// A frame file's width and height in pixels from its header alone; `None`
+/// when the header cannot be read or states no positive size.
+pub fn read_frame_size(path: &Path) -> Option<(u32, u32)> {
+    read_frame_header(path).ok()?.image_size()
+}
+
 /// A display-ready 8-bit preview the file stores, when it has one whose
 /// longer side reaches `min_side` (or the image's own size), so a list of
 /// frames need not decode every frame.

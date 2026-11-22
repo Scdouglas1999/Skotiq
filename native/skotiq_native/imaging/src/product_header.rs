@@ -235,4 +235,18 @@ mod tests {
         header.add_history("Calibration with ImageCalibration process");
         assert!(CalibrationMarks::from_header(&header).pixinsight_history);
     }
+
+    #[test]
+    fn the_image_size_needs_two_positive_axes() {
+        let mut header = FitsHeader::new();
+        assert_eq!((header.image_size(), header.planes()), (None, 1));
+        header.set_int("NAXIS1", 4);
+        assert_eq!(header.image_size(), None);
+        header.set_int("NAXIS2", 3);
+        header.set_int("NAXIS3", 0);
+        assert_eq!((header.image_size(), header.planes()), (Some((4, 3)), 1));
+        header.set_int("NAXIS3", 3);
+        header.set_int("NAXIS1", -4);
+        assert_eq!((header.image_size(), header.planes()), (None, 3));
+    }
 }

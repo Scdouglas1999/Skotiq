@@ -228,6 +228,25 @@ impl FitsHeader {
             .map(|s| s.as_str())
     }
 
+    /// Width and height in pixels (`NAXIS1`, `NAXIS2`); `None` unless both
+    /// are positive whole numbers.
+    pub fn image_size(&self) -> Option<(u32, u32)> {
+        let axis = |key: &str| {
+            self.get_int(key)
+                .filter(|n| *n > 0)
+                .and_then(|n| u32::try_from(n).ok())
+        };
+        Some((axis("NAXIS1")?, axis("NAXIS2")?))
+    }
+
+    /// Image planes (`NAXIS3`): 1 when the card is missing or not positive.
+    pub fn planes(&self) -> u32 {
+        self.get_int("NAXIS3")
+            .filter(|n| *n > 0)
+            .and_then(|n| u32::try_from(n).ok())
+            .unwrap_or(1)
+    }
+
     /// Every value card in header order: keyword, value, inline comment.
     pub fn cards(&self) -> impl Iterator<Item = (&str, &FitsValue, Option<&str>)> {
         self.keyword_order.iter().filter_map(|key| {

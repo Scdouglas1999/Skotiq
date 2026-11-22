@@ -318,8 +318,8 @@ fn working_copy_bytes(paths: &[PathBuf]) -> u64 {
         .filter(|path| !matches!(frame_format(path), Ok(ImageFormat::Fits)))
         .map(|path| {
             let from_header = crate::read_frame_header(path).ok().and_then(|header| {
-                let axis = |key: &str| header.get_int(key).filter(|n| *n > 0).map(|n| n as u64);
-                let samples = axis("NAXIS1")? * axis("NAXIS2")? * axis("NAXIS3").unwrap_or(1);
+                let (width, height) = header.image_size()?;
+                let samples = u64::from(width) * u64::from(height) * u64::from(header.planes());
                 let bytes = header.get_int("BITPIX").map_or(2, |b| b.unsigned_abs() / 8);
                 Some(samples * bytes.max(2))
             });

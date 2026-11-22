@@ -620,16 +620,7 @@ fn fits_naxis2(path: &Path) -> Option<f64> {
 /// `.wcs` is a minimal header (`NAXIS = 0`) with no dimensions, so the solved
 /// field size has to come from the frame that was solved.
 fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
-    match fits_header_floats(path, &["NAXIS1", "NAXIS2"]).as_slice() {
-        [Some(w), Some(h)] if *w > 0.0 && *h > 0.0 => Some((*w, *h)),
-        _ => None,
-    }
-}
-
-/// The frame's width and height in whole pixels, from its primary FITS header.
-pub fn fits_frame_size(path: &Path) -> Option<(u32, u32)> {
-    // NAXIS values are integers well inside u32.
-    fits_image_size(path).map(|(w, h)| (w as u32, h as u32))
+    skotiq_imaging::read_frame_size(path).map(|(w, h)| (f64::from(w), f64::from(h)))
 }
 
 /// Read numeric cards off a FITS primary header without decoding pixel data.
