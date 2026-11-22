@@ -289,7 +289,8 @@ pub(crate) async fn save_uncorrected_raw_frame(
 pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
     let (ra_hours, dec) = (ctx.target_ra?, ctx.target_dec?);
     let (lat, lon) = (ctx.run.rig.latitude?, ctx.run.rig.longitude?);
-    let (alt, _) = crate::meridian::calculate_alt_az(ra_hours, dec, lat, lon, chrono::Utc::now());
+    let (alt, _) =
+        crate::meridian::calculate_alt_az(ra_hours, dec, lat, lon, ctx.run.clock.now_utc());
     Some(alt)
 }
 

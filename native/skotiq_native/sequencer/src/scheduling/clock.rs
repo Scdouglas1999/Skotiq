@@ -8,7 +8,7 @@
 //!
 //! Production replaces every load-bearing `Utc::now()` call in the scheduling
 //! module / target header / target scheduler / per-target trigger evaluator
-//! with `ctx.clock.now_utc()`. The default constructor seeds [`WallClock`]
+//! with `ctx.run.clock.now_utc()`. The default constructor seeds [`WallClock`]
 //! so behaviour is unchanged outside tests; tests inject [`MockClock`] to
 //! pin the wall clock to a specific instant.
 //!

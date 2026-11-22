@@ -10,7 +10,7 @@ use crate::device_ops::NullDeviceOps;
 use crate::device_ops::SharedDeviceOps;
 use crate::instructions::{InstructionContext, RunShared};
 use crate::node::progress::ProgressUpdate;
-use crate::scheduling::{default_clock, BudgetRegistry, Clock};
+use crate::scheduling::{BudgetRegistry, Clock};
 use crate::{NodeId, SafetyFailMode};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
@@ -259,13 +259,6 @@ pub struct ExecutionContext {
     /// What the run's exposure triggers did, keyed by node id and trigger
     /// position.
     pub exposure_triggers: Arc<parking_lot::Mutex<ExposureTriggerMemory>>,
-    /// pluggable wall-clock used by scheduling code (target
-    /// header altitude crossings, target scheduler, integration budget
-    /// timeline). Defaults to [`crate::scheduling::WallClock`] in
-    /// production; tests inject a `MockClock` via
-    /// [`ExecutionContext::with_clock`] so time-of-day-dependent assertions
-    /// are deterministic.
-    pub clock: Arc<dyn Clock>,
     /// global default adaptive-exposure config, seeded
     /// from `RunConfig::default_adaptive_exposure` at start time and
     /// kept in sync by the `UpdateDefaultAdaptiveExposure` command. Per-
@@ -493,9 +486,6 @@ impl ExecutionContext {
             set_temp_c: None,
             set_point_settle_by: None,
             exposure_triggers: Arc::default(),
-            // production path uses the real wall clock; tests
-            // override via `with_clock` to pin time.
-            clock: default_clock(),
             default_adaptive_exposure: Arc::new(RwLock::new(None)),
             // empty pending-plugin map; entries are added
             // and removed by `PluginNodeInstruction` + the executor's
@@ -539,7 +529,7 @@ impl ExecutionContext {
     /// this (the default `WallClock` is already wired); test code uses it
     /// to inject a `MockClock`.
     pub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self {
-        self.clock = clock;
+        self.run.clock = clock;
         self
     }
 
@@ -827,7 +817,7 @@ impl ExecutionContext {
             longitude_deg: self.run.rig.longitude.unwrap_or(0.0),
             target_ra_hours: ra,
             target_dec_degrees: dec,
-            now: self.clock.now_utc(),
+            now: self.run.clock.now_utc(),
             altitude_floor: self.altitude_floor(),
         };
         Some(trigger.is_satisfied(&ctx))
@@ -876,7 +866,7 @@ impl ExecutionContext {
             self.target_dec?,
             self.run.rig.latitude?,
             self.run.rig.longitude?,
-            self.clock.now_utc(),
+            self.run.clock.now_utc(),
         ))
     }
 
@@ -888,7 +878,7 @@ impl ExecutionContext {
     /// The angle between the active target and the Moon now, in degrees.
     pub fn calculate_moon_separation(&self) -> Option<f64> {
         let (moon_ra_deg, moon_dec) =
-            crate::scheduling::ephemeris::moon_equatorial(&self.clock.now_utc());
+            crate::scheduling::ephemeris::moon_equatorial(&self.run.clock.now_utc());
         Some(crate::scheduling::astronomy::angular_separation(
             self.target_ra? * 15.0,
             self.target_dec?,
@@ -902,7 +892,7 @@ impl ExecutionContext {
         let lat = self.run.rig.latitude?;
         let lon = self.run.rig.longitude?;
 
-        let sun_alt = crate::solar::sun_altitude_degrees(lat, lon, &self.clock.now_utc());
+        let sun_alt = crate::solar::sun_altitude_degrees(lat, lon, &self.run.clock.now_utc());
 
         // Astronomical twilight ends when the sun is more than 18° below the
         // horizon — the IAU-adopted definition; deep-sky imaging targets this
@@ -940,11 +930,15 @@ impl ExecutionContext {
     }
 }
 
-/// The Sun's altitude now (degrees above the horizon, wall clock) for an
-/// observer at `latitude` / `longitude` (degrees), for the instruction layer's
-/// daylight gate, which has no run clock.
-pub(crate) fn current_sun_altitude_degrees(latitude: f64, longitude: f64) -> f64 {
-    crate::solar::sun_altitude_degrees(latitude, longitude, &chrono::Utc::now())
+/// The Sun's altitude at `now` (degrees above the horizon) for an observer at
+/// `latitude` / `longitude` (degrees), for the instruction layer's daylight
+/// gate.
+pub(crate) fn current_sun_altitude_degrees(
+    latitude: f64,
+    longitude: f64,
+    now: chrono::DateTime<chrono::Utc>,
+) -> f64 {
+    crate::solar::sun_altitude_degrees(latitude, longitude, &now)
 }
 
 /// Normalize an observer location, mapping the Null Island sentinel to "unset".

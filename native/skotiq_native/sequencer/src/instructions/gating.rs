@@ -82,6 +82,7 @@ pub(crate) fn daylight_gate_block_reason(
     longitude: Option<f64>,
     max_sun_altitude_degrees: f64,
     what: &str,
+    now: chrono::DateTime<chrono::Utc>,
 ) -> Option<String> {
     // (0, 0) is the shape an unset site arrives in, not a site in the Gulf of
     // Guinea: quoting a Greenwich Sun altitude refused every light frame of an
@@ -102,7 +103,7 @@ pub(crate) fn daylight_gate_block_reason(
         }
     };
 
-    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon, now);
     let max_alt = if max_sun_altitude_degrees.is_finite() {
         max_sun_altitude_degrees
     } else {
@@ -162,6 +163,7 @@ pub(crate) async fn wait_for_darkness(
         ctx.run.rig.longitude,
         max_sun_alt,
         what,
+        ctx.run.clock.now_utc(),
     )?;
     let (latitude, longitude) = crate::node::context::normalized_observer_location(
         ctx.run.rig.latitude,
@@ -174,9 +176,13 @@ pub(crate) async fn wait_for_darkness(
         tracing::warn!("{reason}");
         Some(InstructionResult::failure_because(reason, Setback::SunUp))
     };
-    let Some(minutes) =
-        minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)
-    else {
+    let Some(minutes) = minutes_until_dark(
+        lat,
+        lon,
+        max_sun_alt,
+        ctx.run.clock.now_utc(),
+        MAX_DARKNESS_WAIT,
+    ) else {
         return refuse(reason);
     };
 
@@ -186,7 +192,8 @@ pub(crate) async fn wait_for_darkness(
              {max_sun_alt:.1}°, in about {minutes} min."
         )
     };
-    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+    let sun_alt =
+        crate::node::context::current_sun_altitude_degrees(lat, lon, ctx.run.clock.now_utc());
     let message = waiting(sun_alt, minutes);
     tracing::info!("{message}");
     if let Err(e) = ctx
@@ -203,7 +210,8 @@ pub(crate) async fn wait_for_darkness(
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
         }
-        let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+        let sun_alt =
+            crate::node::context::current_sun_altitude_degrees(lat, lon, ctx.run.clock.now_utc());
         if sun_alt <= max_sun_alt {
             tracing::info!("Dark: the Sun is at {sun_alt:.1}°; the slew goes ahead");
             return None;
@@ -216,9 +224,14 @@ pub(crate) async fn wait_for_darkness(
             ));
         }
         if let Some(cb) = progress_callback {
-            let left =
-                minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)
-                    .unwrap_or(0);
+            let left = minutes_until_dark(
+                lat,
+                lon,
+                max_sun_alt,
+                ctx.run.clock.now_utc(),
+                MAX_DARKNESS_WAIT,
+            )
+            .unwrap_or(0);
             cb(0.0, waiting(sun_alt, left));
         }
         sleep(DARKNESS_POLL).await;

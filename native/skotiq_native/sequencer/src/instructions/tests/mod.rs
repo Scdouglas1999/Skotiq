@@ -1344,7 +1344,7 @@ const TEST_LAT: f64 = 40.0;
 const TEST_LON: f64 = -74.0;
 
 fn live_sun_alt() -> f64 {
-    crate::node::context::current_sun_altitude_degrees(TEST_LAT, TEST_LON)
+    crate::node::context::current_sun_altitude_degrees(TEST_LAT, TEST_LON, chrono::Utc::now())
 }
 
 fn is_daylight_block(result: &InstructionResult) -> bool {

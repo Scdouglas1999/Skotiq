@@ -92,7 +92,7 @@ pub async fn execute_loop(
                     // condition_value is f64 carrying a Unix timestamp; year
                     // 2038 is ~2.1e9 (< 2^31), still 1000x below f64 precision
                     // limit. f64 -> i64 saturates per Rust 1.45 spec.
-                    context.clock.now_utc().timestamp() < (until as i64)
+                    context.run.clock.now_utc().timestamp() < (until as i64)
                 } else {
                     false
                 }

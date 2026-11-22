@@ -9,7 +9,13 @@ fn daylight_gate_blocks_when_sun_above_max() {
     let sun_alt = live_sun_alt();
     // Threshold 5° BELOW the live Sun altitude => Sun is "up" relative to
     // the configured max => must block.
-    let reason = daylight_gate_block_reason(Some(TEST_LAT), Some(TEST_LON), sun_alt - 5.0, "test");
+    let reason = daylight_gate_block_reason(
+        Some(TEST_LAT),
+        Some(TEST_LON),
+        sun_alt - 5.0,
+        "test",
+        chrono::Utc::now(),
+    );
     assert!(
         reason.is_some(),
         "Sun {sun_alt:.1}° above max {:.1}° must block",
@@ -22,7 +28,13 @@ fn daylight_gate_allows_when_sun_below_max() {
     let sun_alt = live_sun_alt();
     // Threshold 5° ABOVE the live Sun altitude => Sun is "down" relative to
     // the configured max => must allow.
-    let reason = daylight_gate_block_reason(Some(TEST_LAT), Some(TEST_LON), sun_alt + 5.0, "test");
+    let reason = daylight_gate_block_reason(
+        Some(TEST_LAT),
+        Some(TEST_LON),
+        sun_alt + 5.0,
+        "test",
+        chrono::Utc::now(),
+    );
     assert!(
         reason.is_none(),
         "Sun {sun_alt:.1}° below max {:.1}° must NOT block",
@@ -35,9 +47,15 @@ fn daylight_gate_abstains_without_location() {
     // No observer location => cannot compute Sun altitude => abstain
     // (never fabricate a block that would wedge a location-less rig). Even
     // with an absurdly low threshold the gate must NOT block here.
-    assert!(daylight_gate_block_reason(None, Some(TEST_LON), -90.0, "test").is_none());
-    assert!(daylight_gate_block_reason(Some(TEST_LAT), None, -90.0, "test").is_none());
-    assert!(daylight_gate_block_reason(None, None, -90.0, "test").is_none());
+    assert!(
+        daylight_gate_block_reason(None, Some(TEST_LON), -90.0, "test", chrono::Utc::now())
+            .is_none()
+    );
+    assert!(
+        daylight_gate_block_reason(Some(TEST_LAT), None, -90.0, "test", chrono::Utc::now())
+            .is_none()
+    );
+    assert!(daylight_gate_block_reason(None, None, -90.0, "test", chrono::Utc::now()).is_none());
 }
 
 /// An operator who skips the optional site step must not be judged against
@@ -48,7 +66,8 @@ fn daylight_gate_abstains_without_location() {
 #[test]
 fn daylight_gate_treats_null_island_as_no_location() {
     assert!(
-        daylight_gate_block_reason(Some(0.0), Some(0.0), -90.0, "test").is_none(),
+        daylight_gate_block_reason(Some(0.0), Some(0.0), -90.0, "test", chrono::Utc::now())
+            .is_none(),
         "an unset site must abstain, not fabricate a Sun altitude for 0N 0E"
     );
 }
@@ -59,12 +78,19 @@ fn daylight_gate_falls_back_to_default_on_non_finite_max() {
     // DEFAULT_MAX_SUN_ALTITUDE_DEGREES. We can only assert the finite
     // fallback path is taken consistently with the default comparison.
     let sun_alt = live_sun_alt();
-    let nan_reason = daylight_gate_block_reason(Some(TEST_LAT), Some(TEST_LON), f64::NAN, "test");
+    let nan_reason = daylight_gate_block_reason(
+        Some(TEST_LAT),
+        Some(TEST_LON),
+        f64::NAN,
+        "test",
+        chrono::Utc::now(),
+    );
     let default_reason = daylight_gate_block_reason(
         Some(TEST_LAT),
         Some(TEST_LON),
         DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
         "test",
+        chrono::Utc::now(),
     );
     assert_eq!(
             nan_reason.is_some(),
@@ -309,4 +335,25 @@ fn an_afternoon_start_is_beyond_the_wait() {
         MAX_DARKNESS_WAIT,
     );
     assert_eq!(minutes, None);
+}
+
+/// The gate reads the Sun at the run's clock, not the wall clock: the same
+/// site refuses at local noon and lets the slew go at local midnight.
+#[tokio::test(start_paused = true)]
+async fn the_darkness_wait_reads_the_run_clock() {
+    // TEST_LAT/TEST_LON: noon and midnight of the site, by its longitude.
+    let noon_utc = 12.0 - TEST_LON / 15.0;
+    let at = |hours_utc: f64| {
+        let base = chrono::DateTime::parse_from_rfc3339("2026-06-21T00:00:00Z")
+            .unwrap()
+            .with_timezone(&chrono::Utc);
+        base + chrono::Duration::seconds((hours_utc.rem_euclid(24.0) * 3600.0) as i64)
+    };
+    for (when, waits_or_refuses) in [(at(noon_utc), true), (at(noon_utc + 12.0), false)] {
+        let mut ctx = slew_ctx(DEFAULT_MAX_SUN_ALTITUDE_DEGREES).await;
+        ctx.run.clock = crate::scheduling::MockClock::at(&when.to_rfc3339());
+        ctx.cancellation_token.store(true, Ordering::SeqCst);
+        let blocked = wait_for_darkness(&ctx, "test", None).await;
+        assert_eq!(blocked.is_some(), waits_or_refuses, "{when}: {blocked:?}");
+    }
 }

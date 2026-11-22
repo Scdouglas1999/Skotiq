@@ -121,7 +121,7 @@ pub async fn execute_target_scheduler(
         }
 
         // Build TargetInputs from the live children.
-        let now = context.clock.now_utc();
+        let now = context.run.clock.now_utc();
         // A floor the step carries wins over the run's.
         let observer = ObserverContext::at_site(
             lat,

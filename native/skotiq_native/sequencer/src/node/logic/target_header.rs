@@ -145,7 +145,7 @@ async fn run_target_body(
     }
 
     // wait for `start_when` to fire. Polls every `poll_interval`
-    // seconds using `ctx.clock.now_utc()` so MockClock-driven tests can
+    // seconds using `ctx.run.clock.now_utc()` so MockClock-driven tests can
     // advance time deterministically.
     if let Some(start) = &start_when {
         match wait_for_trigger(config, context, node.id(), start, poll_interval).await {
@@ -574,7 +574,7 @@ fn trigger_observer_ctx(
         longitude_deg,
         target_ra_hours: config.ra_hours,
         target_dec_degrees: config.dec_degrees,
-        now: context.clock.now_utc(),
+        now: context.run.clock.now_utc(),
         altitude_floor: context.altitude_floor(),
     })
 }
@@ -1470,7 +1470,7 @@ mod tests {
         advancer.await.unwrap();
         assert_eq!(status, NodeStatus::Success);
         // Verify the clock was actually advanced (sanity check).
-        assert!(ctx.clock.now_utc().timestamp() >= target_ts);
+        assert!(ctx.run.clock.now_utc().timestamp() >= target_ts);
     }
 
     /// `wait_for_trigger` honours cancellation while waiting.
@@ -2003,7 +2003,7 @@ mod tests {
             dec_degrees: 41.27,
             ..TargetHeaderConfig::default()
         };
-        let trigger = TargetTrigger::TimeAfter(ctx.clock.now_utc().timestamp() - 1);
+        let trigger = TargetTrigger::TimeAfter(ctx.run.clock.now_utc().timestamp() - 1);
         let trig_ctx = trigger_observer_ctx(&config, &ctx, &trigger, TriggerRole::EndWhen)
             .expect("a time-only trigger needs no site");
         assert!(trigger.is_satisfied(&trig_ctx));
