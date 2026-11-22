@@ -15,6 +15,7 @@ import 'frame_header.dart';
 import 'disk_space_service.dart';
 import 'calibration/calibration_frame_groups.dart';
 import 'calibration/calibration_selection.dart';
+import 'darkroom_autopilot/darkroom_replies.dart' show DarkroomUniformDelivery;
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
 import '../database/rows/frame_gain.dart';
@@ -879,9 +880,7 @@ class DarkroomBuildService {
         delivery = Map<String, dynamic>.from(
           jsonDecode(await deliveryReceipt.readAsString()) as Map,
         );
-        final saved = [
-          for (final m in delivery['masters'] as List) (m as Map)['filter'],
-        ];
+        final saved = DarkroomUniformDelivery(delivery).filters;
         if (jsonEncode(saved) != jsonEncode(built)) delivery = null;
       }
       final newExport = delivery == null;
@@ -1066,41 +1065,36 @@ class DarkroomBuildService {
         for (final light in group['lights'] as List)
           light['path'] as String: light['id'] as int,
     };
+    final delivered = DarkroomUniformDelivery(delivery);
     for (var i = 0; i < results.length; i++) {
-      final file = (delivery['masters'] as List)[i] as Map;
+      final file = delivered.master(i);
       final filter = results[i]['filter'] as String;
-      if (!await File(file['path'] as String).exists()) {
+      if (!await File(file.path).exists()) {
         throw StateError(
           'Exported $filter master is missing. Restore it before resuming.',
         );
       }
       final existing = library
-          .where((m) => m.masterFitsPath == file['path'])
+          .where((m) => m.masterFitsPath == file.path)
           .firstOrNull;
       if (existing != null) continue;
       final masterId = await masters.insertMaster(
         name: '${plan['target']} $filter',
-        masterFitsPath: file['path'] as String,
-        previewPngPath: file['previewPath'] as String,
+        masterFitsPath: file.path,
+        previewPngPath: file.previewPath,
         filter: filter,
-        channels: file['channels'] as int,
+        channels: file.channels,
         status: IntegratedMasterStatus.finalized,
         accumulationMode: AccumulationMode.runningWeightedMean,
-        width: delivery['width'] as int,
-        height: delivery['height'] as int,
+        width: delivered.width,
+        height: delivered.height,
         frameCount: results[i]['frameCount'] as int,
         totalIntegrationSeconds: (results[i]['totalIntegrationSec'] as num)
             .toDouble(),
         settingsJson: jsonEncode(plan),
         statsJson: jsonEncode(results[i]),
       );
-      await _replaceEarlier(
-        directory,
-        library,
-        filter,
-        masterId,
-        file['path'] as String,
-      );
+      await _replaceEarlier(directory, library, filter, masterId, file.path);
       for (final frame in results[i]['folded'] as List) {
         final id = inputsByPath[frame['path']];
         if (id == null) continue;
@@ -1137,8 +1131,9 @@ class DarkroomBuildService {
     Map<String, dynamic> delivery,
     List<IntegratedMaster> library,
   ) async {
-    final composites = delivery['composites'];
-    if (composites is! Map) return;
+    final delivered = DarkroomUniformDelivery(delivery);
+    final composites = delivered.composites;
+    if (composites == null) return;
     for (final (kind, pathKey, xisfKey, previewKey, roles) in const [
       ('RGB', 'rgbPath', 'rgbXisfPath', 'rgbPreviewPath', {'R', 'G', 'B'}),
       (
@@ -1170,8 +1165,8 @@ class DarkroomBuildService {
         channels: 3,
         status: IntegratedMasterStatus.finalized,
         accumulationMode: AccumulationMode.runningWeightedMean,
-        width: delivery['width'] as int,
-        height: delivery['height'] as int,
+        width: delivered.width,
+        height: delivered.height,
         frameCount: used.fold<int>(0, (n, r) => n + (r['frameCount'] as int)),
         totalIntegrationSeconds: used.fold<double>(
           0,

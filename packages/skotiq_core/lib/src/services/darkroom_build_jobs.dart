@@ -11,6 +11,7 @@ import '../models/notification/notification_categories.dart';
 import '../providers/database_provider.dart';
 import 'catalog_target_types.dart';
 import 'darkroom_target_frames.dart';
+import 'darkroom_autopilot/darkroom_replies.dart' show DarkroomFilterBuild;
 import 'darkroom_build_service.dart';
 import 'notification_service.dart';
 import '../providers/darkroom_build_service_provider.dart';
@@ -229,6 +230,8 @@ class DarkroomBuildJob {
       'coveragePath',
     ])
       if (result.containsKey(key)) key: result[key],
+    if (DarkroomFilterBuild.fromJson(result).skippedCount case final n?)
+      'skippedCount': n,
   };
 
   static Map<String, dynamic> _briefReport(Map<String, dynamic> report) => {

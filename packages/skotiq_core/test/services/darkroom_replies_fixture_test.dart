@@ -115,6 +115,90 @@ void main() {
     expect(build.skippedCount, (reply['skipped'] as List).length);
   });
 
+  // The saved job keeps a brief of each filter's reply. It dropped the list of
+  // subs left out, so after a restart the row read "No frames left out".
+  test('a saved and restored build keeps how many subs it left out', () {
+    final reply = replyFixtureObject('master_build');
+    final skipped = (reply['skipped'] as List).length;
+    DarkroomBuildJob job = DarkroomBuildJob(
+      target: 'M31',
+      stage: DarkroomJobStage.done,
+      message: 'Done',
+      startedAt: DateTime.utc(2026, 11, 21, 6),
+      filterResults: [reply],
+      report: {
+        'results': [reply],
+      },
+    );
+    // Restored twice: the brief is briefed again at the next save.
+    for (var restart = 0; restart < 2; restart++) {
+      job = DarkroomBuildJob.fromJson(
+        jsonDecode(jsonEncode(job.toJson())) as Map<String, dynamic>,
+      );
+      expect(
+        DarkroomFilterBuild.fromJson(job.filterResults.single).skippedCount,
+        skipped,
+      );
+      final results = job.report!['results'] as List;
+      expect(
+        DarkroomFilterBuild.fromJson(results.single as Map).skippedCount,
+        skipped,
+      );
+    }
+  });
+
+  test('a build saved without the count does not claim none were left out', () {
+    final brief = DarkroomFilterBuild.fromJson({
+      'filter': 'Ha',
+      'frameCount': 58,
+      'totalIntegrationSec': 17400.0,
+    });
+    expect(brief.skippedCount, isNull);
+  });
+
+  test("a uniform delivery reads the builder's reply", () {
+    final reply = replyFixtureObject('deliver_uniform');
+    final (read, unread) = decodeRecordingReads(reply, (json) {
+      final delivery = DarkroomUniformDelivery(json);
+      final master = delivery.master(0);
+      return (
+        filters: delivery.filters,
+        path: master.path,
+        preview: master.previewPath,
+        channels: master.channels,
+        width: delivery.width,
+        height: delivery.height,
+        composites: delivery.composites,
+      );
+    });
+    final sample = (reply['masters'] as List).single as Map;
+    expect(read.filters, [sample['filter']]);
+    expect(read.path, sample['path']);
+    expect(read.preview, sample['previewPath']);
+    expect(read.channels, sample['channels']);
+    expect(read.width, reply['width']);
+    expect(read.height, reply['height']);
+    expect(read.composites, reply['composites']);
+    // The composites are read by name when they are registered (the RGB and
+    // LRGB FITS, XISF and preview paths); the crop and scale are kept in the
+    // receipt and read by nothing.
+    const compositeKeys = {
+      'rgbPath',
+      'rgbXisfPath',
+      'rgbPreviewPath',
+      'lrgbPath',
+      'lrgbXisfPath',
+      'lrgbPreviewPath',
+    };
+    expect((reply['composites'] as Map).keys.toSet(), compositeKeys);
+    expect(unread, {
+      for (final key in compositeKeys) 'composites.$key',
+      'crop',
+      'retainedArea',
+      'scale',
+    });
+  });
+
   test('a failed filter reads as its failure', () {
     final failed = DarkroomFilterBuild.fromJson({
       'filter': 'OIII',

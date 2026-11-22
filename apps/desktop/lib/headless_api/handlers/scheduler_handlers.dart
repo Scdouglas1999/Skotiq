@@ -41,7 +41,11 @@ class SchedulerHandlers implements RouteSource {
 
   final ProviderContainer container;
 
-  SchedulerHandlers(this.container);
+  /// The instant the sky answers are measured at when the request names none.
+  final DateTime Function() _now;
+
+  SchedulerHandlers(this.container, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
   LoggingService get _logger => container.read(loggingServiceProvider);
 
@@ -70,7 +74,7 @@ class SchedulerHandlers implements RouteSource {
 
   Future<Map<String, dynamic>> _schedulerState() async {
     final engine = await container.read(schedulerEngineReadyProvider.future);
-    final decision = await engine.previewDecision(DateTime.now());
+    final decision = await engine.previewDecision(_now());
     return {
       'status': engine.status.toJson(),
       'decision': decision.toJson(),
@@ -235,7 +239,7 @@ class SchedulerHandlers implements RouteSource {
         time = parsed;
       }
     } else {
-      time = DateTime.now();
+      time = _now();
     }
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
@@ -314,11 +318,10 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = DateTime.now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDegrees,
-      date: now,
+      date: _nightUnderWay(longitude),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
@@ -372,11 +375,10 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = DateTime.now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDegrees,
-      date: now,
+      date: _nightUnderWay(longitude),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       minAltitude: minAltitude,
@@ -400,6 +402,11 @@ class SchedulerHandlers implements RouteSource {
     });
   }
 
+  /// The night the site is in now (it runs from the site's solar noon to the
+  /// next), which a route that names no date answers for.
+  DateTime _nightUnderWay(double longitude) =>
+      AstronomyCalculations.nightDateOf(_now(), longitudeDeg: longitude);
+
   /// The floor a visibility answer is measured against: the altitude the
   /// caller names, otherwise the site's altitude floor.
   AltitudeFloor _floorFor(double? requestedDeg) => requestedDeg == null
@@ -414,21 +421,17 @@ class SchedulerHandlers implements RouteSource {
     required double latitude,
     required double longitude,
   }) {
-    final now = DateTime.now();
+    final night = _nightUnderWay(longitude);
     if (floor.isFlat) {
       return AstronomyCalculations.calculateObjectVisibility(
         raDeg: raDeg,
         decDeg: decDeg,
-        date: now,
+        date: night,
         latitudeDeg: latitude,
         longitudeDeg: longitude,
         minAltitude: floor.atAzimuth(0),
       );
     }
-    final night = AstronomyCalculations.nightDateOf(
-      now,
-      longitudeDeg: longitude,
-    );
     return floor.visibilityAround(
       raDeg: raDeg,
       decDeg: decDeg,
@@ -569,7 +572,7 @@ class SchedulerHandlers implements RouteSource {
       });
     }
 
-    final now = DateTime.now();
+    final now = _now();
     final targetVisibility = <int, Map<String, dynamic>>{};
 
     for (final target in targets) {
@@ -757,7 +760,7 @@ class SchedulerHandlers implements RouteSource {
       }
       date = parsed;
     } else {
-      date = DateTime.now();
+      date = _now();
     }
 
     final twilight = AstronomyCalculations.calculateTwilightTimes(
@@ -814,7 +817,7 @@ class SchedulerHandlers implements RouteSource {
       }
       date = parsed;
     } else {
-      date = DateTime.now();
+      date = _now();
     }
 
     final (moonRaDeg, moonDecDeg, moonDistance) =

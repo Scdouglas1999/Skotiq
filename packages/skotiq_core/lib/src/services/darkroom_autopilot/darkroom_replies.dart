@@ -171,7 +171,6 @@ class DarkroomFilterBuild {
   });
 
   factory DarkroomFilterBuild.fromJson(Map<dynamic, dynamic> json) {
-    final skipped = json['skipped'];
     final frames = json['frameCount'];
     final seconds = json['totalIntegrationSec'];
     return DarkroomFilterBuild(
@@ -179,7 +178,11 @@ class DarkroomFilterBuild {
       error: json['error'],
       frameCount: frames is num ? frames.toInt() : null,
       totalIntegrationSec: seconds is num ? seconds.toDouble() : null,
-      skippedCount: skipped is List ? skipped.length : null,
+      skippedCount: switch ((json['skipped'], json['skippedCount'])) {
+        (final List list, _) => list.length,
+        (_, final num count) => count.toInt(),
+        _ => null,
+      },
     );
   }
 
@@ -190,7 +193,41 @@ class DarkroomFilterBuild {
   final int? frameCount;
   final double? totalIntegrationSec;
 
-  /// The subs the build left out, or null when the record does not say (the
-  /// brief a saved job keeps has no list).
+  /// How many subs the build left out: the reply's list of them, or the count
+  /// the brief a saved job keeps. Null when the record does not say (a job
+  /// saved before the brief kept the count).
   final int? skippedCount;
+}
+
+/// A `deliverUniform` reply (and the `delivery.json` receipt a build keeps of
+/// it): the per-filter masters cropped to one frame, and the composites.
+///
+/// A view over the map: each value is read, and checked, when asked for, so
+/// a build that registers its masters one by one fails where it did before.
+extension type DarkroomUniformDelivery(Map<String, dynamic> json) {
+  /// The [index]th delivered master, in the order of the masters the build
+  /// sent.
+  DarkroomDeliveredMaster master(int index) =>
+      DarkroomDeliveredMaster((json['masters'] as List)[index] as Map);
+
+  /// The filters of [masters], in order.
+  List<Object?> get filters => [
+    for (final m in json['masters'] as List) (m as Map)['filter'],
+  ];
+
+  int get width => json['width'] as int;
+  int get height => json['height'] as int;
+
+  /// The RGB and LRGB composites, or null when none was made.
+  Map<dynamic, dynamic>? get composites => switch (json['composites']) {
+    final Map composites => composites,
+    _ => null,
+  };
+}
+
+/// One master of a [DarkroomUniformDelivery].
+extension type DarkroomDeliveredMaster(Map<dynamic, dynamic> json) {
+  String get path => json['path'] as String;
+  String get previewPath => json['previewPath'] as String;
+  int get channels => json['channels'] as int;
 }

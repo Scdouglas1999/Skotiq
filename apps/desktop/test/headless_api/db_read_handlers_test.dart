@@ -436,6 +436,40 @@ void main() {
       expect(body['total'], 2);
     });
 
+    // A linked client's plan reads these rows back as its library entries.
+    test('a dark-library row reads back as the entry the host holds', () async {
+      await db.darkLibraryDao.addEntry(
+        DarkLibraryCompanion.insert(
+          filePath: '/tmp/dark1.fits',
+          exposureTime: 60.0,
+          gain: const Value(100),
+          offset: const Value(10),
+          temperature: const Value(-10.0),
+          binX: const Value(2),
+          binY: const Value(2),
+          width: const Value(3124),
+          height: const Value(2088),
+          masterDarkPath: const Value('/tmp/master_dark.fits'),
+          masterFrameCount: const Value(25),
+        ),
+      );
+      final held = (await db.darkLibraryDao.getAllEntries()).single;
+
+      final body = await doGet(
+        handlers.handleListDarkLibrary,
+        'http://localhost/api/db/dark-library?limit=1000&offset=0',
+      );
+      final read = darkLibraryEntryFromHostRow(
+        Map<String, dynamic>.from((body['items'] as List).single as Map),
+      );
+
+      expect(
+        read.toJson()..remove('createdAt'),
+        held.toJson()..remove('createdAt'),
+      );
+      expect(read.createdAt.isAtSameMomentAs(held.createdAt), isTrue);
+    });
+
     test('dark-library respects ?gainMin= filter', () async {
       await db.darkLibraryDao.addEntry(
         DarkLibraryCompanion.insert(

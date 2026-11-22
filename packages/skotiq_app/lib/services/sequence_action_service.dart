@@ -146,7 +146,12 @@ class SequenceActionService {
         editor.releaseOwnership();
         throw const PlanStartCanceled();
       }
-      _ensureStartAdmissible();
+      try {
+        _ensureStartAdmissible();
+      } on Object {
+        editor.releaseOwnership();
+        rethrow;
+      }
     } else {
       // Beside the start, not before it: the run does not wait for the check.
       report = _reportPreflight(sequence);
@@ -180,6 +185,7 @@ class SequenceActionService {
         'is not in an admissible state (state: ${state.name}).',
       );
     }
+    _executor.ensureRigFreeForStart();
   }
 
   /// The pre-flight findings of a plan started without a screen to show them

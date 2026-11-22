@@ -1,19 +1,21 @@
 import '../../database/daos/flat_history_dao.dart';
 import '../../models/calibration/dark_library_match_tolerances.dart';
 import '../../models/equipment_profile_model.dart' show EquipmentProfileModel;
+import '../../database/database.dart' show DarkLibraryEntry;
 import '../dark_library_coverage_service.dart';
-import '../dark_library_service.dart';
 import '../session_optimizer_service.dart' show SmartNightExposureContext;
 import '../smart_night_service.dart';
 
 /// Builds Smart Night dark-library requirements from the filters and
 /// exposure recommendation inputs used by the sequence builder.
 class SmartNightDarkLibraryCoverage {
-  final DarkLibraryService darkLibraryService;
+  /// The imaging host's dark library, or null when it cannot be read; then
+  /// nothing is reported missing.
+  final Future<List<DarkLibraryEntry>?> Function() readEntries;
   final DarkLibraryCoverageService coverageService;
 
   const SmartNightDarkLibraryCoverage({
-    required this.darkLibraryService,
+    required this.readEntries,
     this.coverageService = const DarkLibraryCoverageService(),
   });
 
@@ -54,9 +56,11 @@ class SmartNightDarkLibraryCoverage {
           ),
     };
 
+    final entries = await readEntries();
+    if (entries == null) return const SmartNightDarkLibraryMissing.empty();
     final report = coverageService.evaluate(
       requirements: requirements,
-      entries: await darkLibraryService.getAllEntries(),
+      entries: entries,
       minCoverage: minCoverage,
       tolerances: tolerances,
     );

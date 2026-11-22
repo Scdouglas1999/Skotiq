@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 
+import '../errors/error_text.dart';
 import '../models/sequence/instruction_progress_detail.dart'
     show CenterInstructionProgressDetail;
 import '../services/centering_service.dart';
@@ -63,16 +64,37 @@ class CenteringRun {
         config: centering,
       );
     }
-    final result = await service.centerOnTarget(
-      targetRa: raHours,
-      targetDec: decDegrees,
-      config: centering,
-      onStatusUpdate: (status) {
-        if (current()) _status.state = status;
-      },
-    );
-    if (!current()) return result;
-    // The loop's last status update is its last move, not its outcome.
+    final CenteringResult result;
+    try {
+      result = await service.centerOnTarget(
+        targetRa: raHours,
+        targetDec: decDegrees,
+        config: centering,
+        onStatusUpdate: (status) {
+          if (current()) _status.state = status;
+        },
+      );
+    } catch (error) {
+      // A centering that threw failed: it ends on that failure, not on its
+      // last move. The caller still gets the error.
+      if (current()) {
+        _publishOutcome(
+          CenteringResult.failure(
+            errorMessage: userFacingError(error),
+            iterations: _status.state.currentIteration,
+            iterationHistory: _status.state.iterationHistory,
+          ),
+        );
+      }
+      rethrow;
+    }
+    if (current()) _publishOutcome(result);
+    return result;
+  }
+
+  /// The status ends on [result] and it becomes the last centering result.
+  /// The loop's last status update is its last move, not its outcome.
+  void _publishOutcome(CenteringResult result) {
     _status.state = _status.state.copyWith(
       state: result.success ? CenteringState.completed : CenteringState.error,
       currentIteration: result.iterations,
@@ -81,7 +103,6 @@ class CenteringRun {
       iterationHistory: result.iterationHistory,
     );
     _ref.read(lastCenteringResultProvider.notifier).state = result;
-    return result;
   }
 
   /// Stops the manual run under way, if any.

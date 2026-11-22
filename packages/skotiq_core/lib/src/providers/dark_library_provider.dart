@@ -7,6 +7,7 @@ import '../database/daos/dark_library_dao.dart';
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show parseWireTime;
 import 'package:skotiq_remote_protocol/wire_models.dart';
 import 'linked_host.dart';
 import 'host_role.dart';
@@ -31,6 +32,73 @@ final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
     buildMaster: ref.watch(calibrationMasterBuildProvider),
   );
 });
+
+/// Reads every dark and bias of the imaging host's library once, for a plan's
+/// coverage check; null when the library cannot be read from here.
+final darkLibraryEntriesReadProvider =
+    hostRoleProvider<Future<List<DarkLibraryEntry>?> Function()>(
+      here: (ref) => ref.watch(darkLibraryDaoProvider).getAllEntries,
+      linked: (ref, host) =>
+          () => _readHostDarkLibrary(host.calibrationFrames),
+    );
+
+/// Rows per page of the host's paginated dark-library read (its largest).
+const _hostDarkLibraryPage = 1000;
+
+/// The host's whole library, page by page, or null when a page fails: a
+/// library read in part would report darks the host has as missing.
+Future<List<DarkLibraryEntry>?> _readHostDarkLibrary(
+  HostCalibrationFrames frames,
+) async {
+  final entries = <DarkLibraryEntry>[];
+  try {
+    while (true) {
+      final page = await frames.listDarkLibraryPage(
+        limit: _hostDarkLibraryPage,
+        offset: entries.length,
+      );
+      final items = page['items'];
+      final total = page['total'];
+      if (items is! List || total is! int) {
+        throw const FormatException('dark-library page without items or total');
+      }
+      for (final item in items) {
+        entries.add(
+          darkLibraryEntryFromHostRow(Map<String, dynamic>.from(item as Map)),
+        );
+      }
+      if (items.isEmpty || entries.length >= total) return entries;
+    }
+  } catch (error, stackTrace) {
+    Log.warning(
+      'The imaging host\'s dark library could not be read; '
+      'dark coverage is not checked',
+      source: 'DarkLibraryProvider',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return null;
+  }
+}
+
+/// One row of the host's `GET /api/db/dark-library`.
+DarkLibraryEntry darkLibraryEntryFromHostRow(Map<String, dynamic> row) =>
+    DarkLibraryEntry(
+      id: row['id'] as int,
+      filePath: row['filePath'] as String,
+      exposureTime: (row['exposureTime'] as num).toDouble(),
+      temperature: (row['temperature'] as num?)?.toDouble(),
+      gain: row['gain'] as int?,
+      offset: row['offset'] as int?,
+      binX: row['binX'] as int,
+      binY: row['binY'] as int,
+      frameType: row['frameType'] as String,
+      width: row['width'] as int?,
+      height: row['height'] as int?,
+      masterDarkPath: row['masterDarkPath'] as String?,
+      masterFrameCount: row['masterFrameCount'] as int?,
+      createdAt: parseWireTime(row['createdAt'] as String),
+    );
 
 /// Reactive stream of all dark library entries (newest first).
 ///

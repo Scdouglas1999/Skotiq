@@ -402,6 +402,89 @@ void main() {
       expect(h.executor.startCount, 0);
     });
 
+    // A flip or a flat capture holding the rig refused the start only after
+    // the plan had taken the editor, so the operator's sequence was replaced
+    // by a plan that never ran.
+    test(
+        'a rig another activity holds refuses the plan before it takes the '
+        'editor', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.executor.startError = StateError(
+        'Cannot start: A meridian flip is using the mount.',
+      );
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      h.container
+          .read(flipMonitorProgressProvider.notifier)
+          .set(const FlipMonitorProgress(
+            state: FlipExecutionState.executing,
+            attempt: 1,
+            step: null,
+            percent: 10,
+            error: null,
+          ));
+
+      await expectLater(
+        h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.smartNight),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Cannot start: A meridian flip is using the mount.',
+          ),
+        ),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test(
+        'a flip that starts while the pre-flight is open gives the editor '
+        'back', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.executor.startError = StateError(
+        'Cannot start: A meridian flip is using the mount.',
+      );
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async {
+            h.container.read(flipMonitorProgressProvider.notifier).set(
+                  const FlipMonitorProgress(
+                    state: FlipExecutionState.executing,
+                    attempt: 1,
+                    step: null,
+                    percent: 0,
+                    error: null,
+                  ),
+                );
+            return true;
+          },
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
     test('a start already in flight is not replaced by the plan', () async {
       final h = _harness(state: SequenceExecutionState.idle);
       addTearDown(h.container.dispose);
