@@ -67,9 +67,52 @@ void main() {
         ),
       );
       expect(
+        decode('Filter'),
+        const FilterInstructionProgressDetail(name: 'Ha', position: 4),
+      );
+      expect(
+        decode('SmartExposure'),
+        const SmartExposureInstructionProgressDetail(
+          currentFilter: 'OIII',
+          planIndex: 1,
+          totalPlans: 3,
+          frameInPlan: 7,
+          totalFrames: 20,
+        ),
+      );
+      expect(
         kinds.keys.map(decode),
         everyElement(isNot(isA<UnknownInstructionProgressDetail>())),
       );
+      for (final kind in kinds.keys) {
+        expect(decode(kind).wire.detailJson, kinds[kind], reason: kind);
+      }
+    });
+
+    test('a flip step report reads as the flip event it carries', () {
+      const raw = {
+        'StepStarted': {
+          'step': 'SlewingToTarget',
+          'step_index': 2,
+          'total_steps': 9,
+        },
+      };
+      final detail = InstructionProgressDetail.fromStructuredData(
+        detailKind: kMeridianFlipProgressDetailKind,
+        detailJson: raw,
+      );
+      expect(
+        detail,
+        const MeridianFlipStepProgressDetail(
+          event: MeridianFlipStepStarted(
+            step: FlipStep.slewingToTarget,
+            stepIndex: 2,
+            totalSteps: 9,
+          ),
+          rawJson: raw,
+        ),
+      );
+      expect(detail.wire.detailJson, raw);
     });
 
     test('a host from before a field was added leaves it null', () {

@@ -1,12 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/sequencer_run_events.dart' show decodeStructuredProgressJson;
 import '../models/backend/event_types.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/imaging/imaging_models.dart';
 import '../models/polar_alignment_config.dart' show PolarAlignPhase;
+import '../models/sequence/instruction_progress_detail.dart';
 import '../services/capture_preview_loader.dart';
 import '../services/imaging_service.dart' show currentImageProvider;
 import '../utils/utc_timestamp.dart';
@@ -88,17 +89,23 @@ class AutofocusPreviewFeeder {
         _flipping = true;
       case (EventCategory.sequencer, 'InstructionProgress'):
         _flipping = event.data['instruction'] == 'MeridianFlip';
-        if (event.data['detail_kind'] == 'Center') {
-          final detail = _jsonObject(event.data['detail_json']);
-          final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;
-          final max = (detail?['max_attempts'] as num?)?.toInt();
-          // Attempt 0 is the step starting or finishing, not a frame.
-          _centering = attempt > 0
-              ? (attempt: attempt, maxAttempts: max)
-              : null;
-        } else {
-          _centering = null;
-        }
+        final kind = event.data['detail_kind'];
+        final raw = event.data['detail_json'];
+        final detail = kind is String
+            ? InstructionProgressDetail.fromStructuredData(
+                detailKind: kind,
+                detailJson: raw is String
+                    ? decodeStructuredProgressJson(raw)
+                    : raw,
+              )
+            : null;
+        // Attempt 0 is the step starting or finishing, not a frame.
+        _centering = switch (detail) {
+          CenterInstructionProgressDetail(:final attempt, :final maxAttempts)
+              when attempt > 0 =>
+            (attempt: attempt, maxAttempts: maxAttempts),
+          _ => null,
+        };
       case (EventCategory.sequencer, 'NodeStarted' || 'NodeCompleted'):
         // A flip spans the step it interrupted, so only a Center step ends
         // here.
@@ -165,17 +172,6 @@ class AutofocusPreviewFeeder {
       final pending = _pending;
       _pending = null;
       if (pending != null) unawaited(_fetch(pending));
-    }
-  }
-
-  static Map<String, dynamic>? _jsonObject(Object? raw) {
-    if (raw is Map<String, dynamic>) return raw;
-    if (raw is! String) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      return decoded is Map<String, dynamic> ? decoded : null;
-    } on FormatException {
-      return null;
     }
   }
 }

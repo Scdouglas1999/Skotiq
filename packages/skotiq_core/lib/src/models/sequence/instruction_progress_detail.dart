@@ -1,6 +1,8 @@
 import 'package:equatable/equatable.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart'
-    show wireInt, wireDouble, wireMap, wireOptDouble, wireOptInt;
+    show wireInt, wireDouble, wireMap, wireOptDouble, wireOptInt, wireString;
+
+import '../meridian_flip_event.dart';
 
 /// What a running step reports about itself, as the sequencer's
 /// `ProgressDetail` sends it: the variant's name and its fields.
@@ -11,6 +13,11 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 /// `test/fixtures/progress_detail_kinds.json`, which both sides' tests read.
 /// The kind of a step's free text, which has no fields of its own.
 const String kGenericProgressDetailKind = 'Generic';
+
+/// The kind the bridge sends a meridian flip's step reports under; not a
+/// native `ProgressDetail` but a `MeridianFlipEvent` (see
+/// [MeridianFlipStepProgressDetail]).
+const String kMeridianFlipProgressDetailKind = 'MeridianFlip';
 
 sealed class InstructionProgressDetail extends Equatable {
   const InstructionProgressDetail();
@@ -53,6 +60,24 @@ sealed class InstructionProgressDetail extends Equatable {
             targetTempC: wireOptDouble(json, 'target_temp_c'),
             coolerPowerPercent: wireOptDouble(json, 'cooler_power_percent'),
           );
+        case 'Filter':
+          return FilterInstructionProgressDetail(
+            name: wireString(json, 'name'),
+            position: wireOptInt(json, 'position'),
+          );
+        case 'SmartExposure':
+          return SmartExposureInstructionProgressDetail(
+            currentFilter: wireString(json, 'current_filter'),
+            planIndex: wireInt(json, 'plan_index'),
+            totalPlans: wireInt(json, 'total_plans'),
+            frameInPlan: wireInt(json, 'frame_in_plan'),
+            totalFrames: wireInt(json, 'total_frames'),
+          );
+        case kMeridianFlipProgressDetailKind:
+          final event = MeridianFlipEvent.fromWire(json);
+          if (event != null) {
+            return MeridianFlipStepProgressDetail(event: event, rawJson: json);
+          }
         case 'MeridianFlipRetry':
           return MeridianFlipRetryProgressDetail(
             failedAttempt: wireInt(json, 'failed_attempt'),
@@ -208,6 +233,80 @@ class MeridianFlipRetryProgressDetail extends InstructionProgressDetail {
 
   @override
   List<Object?> get props => [failedAttempt, maxAttempts, retryInSecs];
+}
+
+/// The filter the wheel is on, once a step has put it there.
+class FilterInstructionProgressDetail extends InstructionProgressDetail {
+  final String name;
+  final int? position;
+
+  const FilterInstructionProgressDetail({required this.name, this.position});
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire =>
+      (detailKind: 'Filter', detailJson: {'name': name, 'position': position});
+
+  @override
+  List<Object?> get props => [name, position];
+}
+
+/// A Smart Exposure step. [planIndex] counts from 0; [frameInPlan] is the
+/// frames done of [totalFrames] for [currentFilter].
+class SmartExposureInstructionProgressDetail extends InstructionProgressDetail {
+  final String currentFilter;
+  final int planIndex;
+  final int totalPlans;
+  final int frameInPlan;
+  final int totalFrames;
+
+  const SmartExposureInstructionProgressDetail({
+    required this.currentFilter,
+    required this.planIndex,
+    required this.totalPlans,
+    required this.frameInPlan,
+    required this.totalFrames,
+  });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire => (
+    detailKind: 'SmartExposure',
+    detailJson: {
+      'current_filter': currentFilter,
+      'plan_index': planIndex,
+      'total_plans': totalPlans,
+      'frame_in_plan': frameInPlan,
+      'total_frames': totalFrames,
+    },
+  );
+
+  @override
+  List<Object?> get props => [
+    currentFilter,
+    planIndex,
+    totalPlans,
+    frameInPlan,
+    totalFrames,
+  ];
+}
+
+/// A step of a running meridian flip.
+class MeridianFlipStepProgressDetail extends InstructionProgressDetail {
+  final MeridianFlipEvent event;
+
+  /// The event as the native side tagged it, sent back unchanged.
+  final Map<String, Object?> rawJson;
+
+  const MeridianFlipStepProgressDetail({
+    required this.event,
+    required this.rawJson,
+  });
+
+  @override
+  ({String detailKind, Map<String, Object?> detailJson}) get wire =>
+      (detailKind: kMeridianFlipProgressDetailKind, detailJson: rawJson);
+
+  @override
+  List<Object?> get props => [event];
 }
 
 class UnknownInstructionProgressDetail extends InstructionProgressDetail {

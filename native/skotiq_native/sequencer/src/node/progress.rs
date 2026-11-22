@@ -752,6 +752,17 @@ mod tests {
                 max_attempts: 4,
                 retry_in_secs: 60.0,
             },
+            ProgressDetail::Filter {
+                name: "Ha".to_string(),
+                position: Some(4),
+            },
+            ProgressDetail::SmartExposure {
+                current_filter: "OIII".to_string(),
+                plan_index: 1,
+                total_plans: 3,
+                frame_in_plan: 7,
+                total_frames: 20,
+            },
         ];
         let mut kinds = serde_json::Map::new();
         for detail in &sent {
