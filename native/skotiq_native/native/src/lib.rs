@@ -23,6 +23,7 @@
     clippy::needless_range_loop
 )]
 
+pub mod buffer_pool;
 pub(crate) mod camera_core;
 pub mod catalog;
 pub mod discovery;
