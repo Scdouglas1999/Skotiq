@@ -307,12 +307,8 @@ pub(crate) fn get_sim_camera_for(device_id: &str) -> &'static Arc<RwLock<Simulat
 /// Kept out of [`SimulatedCamera`] on purpose: that struct is mirrored to Dart
 /// by flutter_rust_bridge, and Dart has no use for this.
 ///
-/// `frb(ignore)` enforces that. Living under `api::` is enough for the codegen
-/// to try to bridge it anyway, and it cannot: `frame_type` is
-/// `skotiq_device::FrameType`, which the generator resolves by bare
-/// name to the unrelated `crate::device::FrameType`, emitting a
-/// `frb_generated.rs` that does not compile. The committed generated file
-/// predates this struct and so hid the problem until the next regeneration.
+/// `frb(ignore)` enforces that: living under `api::` is enough for the codegen
+/// to try to bridge it.
 #[flutter_rust_bridge::frb(ignore)]
 #[derive(Debug, Clone)]
 pub(crate) struct SimExposureRequest {
