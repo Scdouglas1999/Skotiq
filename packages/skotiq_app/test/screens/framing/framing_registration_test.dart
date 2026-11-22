@@ -46,6 +46,7 @@ import 'package:skotiq_app/screens/framing/painters/framing_painters.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_canvas.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
 
@@ -210,7 +211,7 @@ void main() {
     ];
   }
 
-  /// Pumps the real [FramingScreen] and returns the measured, sidebar-excluded
+  /// Pumps the framing page and returns the measured, sidebar-excluded
   /// canvas size plus the two painters the canvas built for the survey
   /// background and the equipment FOV reticle.
   Future<
@@ -221,7 +222,7 @@ void main() {
       })> pumpAndExtract(WidgetTester tester, FramingState seed) async {
     await pumpAppScreen(
       tester,
-      const FramingScreen(),
+      _framingPage(),
       size: _surfaceSize,
       // The framing screen hosts ContextualTourPrompt, whose fade/slide
       // AnimationController would make pumpAndSettle wait; fixed-step pumps
@@ -240,7 +241,7 @@ void main() {
     // every painter is handed via CustomPaint(size: Size.infinite).
     final canvasFinder = find.byType(FramingCanvas);
     expect(canvasFinder, findsOneWidget,
-        reason: 'FramingScreen must compose exactly one FramingCanvas.');
+        reason: 'The framing page must compose exactly one FramingCanvas.');
     final canvasSize = tester.getSize(canvasFinder);
 
     final surveyPainter = _findPainter<FramingSurveyImagePainter>(tester);
@@ -310,7 +311,7 @@ void main() {
             'degree from the shared scale at the same canvas size.');
 
     // Layout guard: the canvas region excludes the sidebar.
-    // FramingScreen now places the controls in an AdaptivePanelLayout. On a
+    // The framing view places the controls in an AdaptivePanelLayout. On a
     // desktop surface (1280px) that renders a resizable split: the Expanded
     // canvas, a 10px drag handle, then the 320px secondary panel. Confirm C6's
     // LayoutBuilder is fed the bounded, sidebar-excluded box rather than the
@@ -357,7 +358,7 @@ void main() {
     // order that keeps the reticle co-registered with the imagery.
     await pumpAppScreen(
       tester,
-      const FramingScreen(),
+      _framingPage(),
       size: _surfaceSize,
       settle: false,
       extraOverrides: overridesFor(seededState(rotation: 20)),
@@ -389,3 +390,12 @@ T _findPainter<T extends CustomPainter>(WidgetTester tester) {
           '${matches.length}. The canvas layer composition changed.');
   return matches.single;
 }
+
+/// The standalone framing page as the app showed it: [FramingView] on the
+/// theme background.
+Widget _framingPage() => Builder(
+      builder: (context) => Scaffold(
+        backgroundColor: SkotiqColors.of(context).background,
+        body: const FramingView(),
+      ),
+    );

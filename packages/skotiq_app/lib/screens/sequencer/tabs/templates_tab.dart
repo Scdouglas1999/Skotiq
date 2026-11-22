@@ -8,6 +8,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
+import '../../../router/sequencer_route.dart';
 import '../sequencer_screen.dart';
 import 'package:skotiq_app/utils/authority_bound_dialog.dart';
 import 'package:skotiq_app/utils/open_in_editor.dart';

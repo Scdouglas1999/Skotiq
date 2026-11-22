@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/session_review/image_download_service.dart';
+import 'package:skotiq_app/services/file_download_service.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/utils.dart';
@@ -47,7 +48,7 @@ void main() {
       fileName: 'x.fits',
       temporaryDirectory: () async => tmp,
     );
-    expect(outcome.status, ImageDownloadStatus.failed);
+    expect(outcome.status, FileDownloadStatus.failed);
     verifyNever(() => backend.downloadImage(any(), any(),
         onProgress: any(named: 'onProgress')));
   });
@@ -68,7 +69,7 @@ void main() {
       },
     );
 
-    expect(outcome.status, ImageDownloadStatus.saved);
+    expect(outcome.status, FileDownloadStatus.saved);
     expect(outcome.savedPath, dest.path);
     expect(dest.existsSync(), isTrue);
     expect(dest.readAsBytesSync(), const [9, 8, 7]);
@@ -91,7 +92,7 @@ void main() {
       temporaryDirectory: () async => tmp,
       desktopSavePicker: (_) async => null,
     );
-    expect(outcome.status, ImageDownloadStatus.cancelled);
+    expect(outcome.status, FileDownloadStatus.cancelled);
     final staging = Directory('${tmp.path}/skotiq-dl');
     expect(
       staging.existsSync() ? staging.listSync().isEmpty : true,
@@ -124,7 +125,7 @@ void main() {
           fail('picker must not run after a failed download'),
     );
 
-    expect(outcome.status, ImageDownloadStatus.failed);
+    expect(outcome.status, FileDownloadStatus.failed);
     expect(
       outcome.error,
       'Download failed: The connection dropped mid-download.',

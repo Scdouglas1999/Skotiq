@@ -52,7 +52,9 @@ List<RunDashboardEvent> _dashboardEvents(
   for (final event in history) {
     container.read(eventHistoryProvider.notifier).addEvent(event);
   }
-  return container.read(runDashboardRecentEventsProvider(5));
+  return runDashboardFeedRows(container.read(eventHistoryProvider))
+      .take(5)
+      .toList();
 }
 
 void main() {

@@ -7,19 +7,11 @@
 // plain-language, hardware-aware remediation playbook while preserving that
 // string verbatim in its collapsible "Technical details" section.
 //
-// Two layers of coverage:
-//   1. `DiscoveryPanel.showConnectionTroubleshooter` (the @visibleForTesting
-//      orchestration seam): the correct driver type / raw error are derived
-//      from the backend the user actually tried, the dialog is shown with the
-//      friendly headline for the driver/usb category, and pressing
-//      "Retry connection" resolves the future to `true`.
-//   2. The end-to-end connect path through the real [DiscoveryPanel], which
-//      delegates to the shared [DeviceConnectionMixin.connectDevice]: a failing
-//      `connectCamera` opens the troubleshooter, and pressing "Retry
-//      connection" drives exactly one more (bounded) connect attempt. The
-//      mixin's single-retry contract means the second failure falls back to the
-//      bare snackbar rather than re-opening the dialog — bounded by
-//      construction, no unbounded recursion.
+// Covered end to end through the real [DiscoveryPanel], which delegates to
+// [DeviceConnectionMixin.connectDevice]: a failing `connectCamera` opens the
+// troubleshooter, and pressing "Retry connection" drives exactly one more
+// connect attempt. A second failure falls back to the bare snackbar rather
+// than re-opening the dialog.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,79 +84,6 @@ Finder _iconButton(String tooltip) => find.byWidgetPredicate(
     );
 
 void main() {
-  group('DiscoveryPanel.showConnectionTroubleshooter', () {
-    testWidgets(
-        'shows the troubleshooter with the friendly driver headline for an '
-        'ASCOM class-not-registered failure', (tester) async {
-      late BuildContext capturedContext;
-      Future<bool>? showFuture;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                capturedContext = context;
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-        ),
-      );
-
-      showFuture = DiscoveryPanel.showConnectionTroubleshooter(
-        capturedContext,
-        _ascomCamera(),
-        _ascomClassNotRegistered,
-      );
-      await tester.pumpAndSettle();
-
-      // The dialog is on screen, found by type.
-      expect(find.byType(ConnectionTroubleshooterDialog), findsOneWidget);
-      // The friendly, plain-language headline for the driver category appears.
-      expect(find.text(_driverHeadline), findsOneWidget);
-      // The raw driver string is never thrown away — the troubleshooter keeps
-      // it reachable (collapsed, behind "Technical details").
-      expect(find.text('Technical details'), findsOneWidget);
-
-      // Pressing "Retry connection" resolves the future to true.
-      await tester.tap(find.widgetWithText(SkotiqButton, 'Retry connection'));
-      await tester.pumpAndSettle();
-      expect(await showFuture, isTrue);
-    });
-
-    testWidgets('Close resolves the future to false (no retry)',
-        (tester) async {
-      late BuildContext capturedContext;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: SkotiqTheme.dark,
-          home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                capturedContext = context;
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
-        ),
-      );
-
-      final showFuture = DiscoveryPanel.showConnectionTroubleshooter(
-        capturedContext,
-        _ascomCamera(),
-        _ascomClassNotRegistered,
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.widgetWithText(SkotiqButton, 'Close'));
-      await tester.pumpAndSettle();
-      expect(await showFuture, isFalse);
-    });
-  });
-
   group('DiscoveryPanel connect-failure → troubleshooter → retry', () {
     testWidgets(
         'a failing connect opens the troubleshooter, and Retry drives exactly '

@@ -1,15 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/widgets/run_status/run_status_presentation.dart';
+import 'package:skotiq_core/errors.dart';
 
 void main() {
   test('bridge errors show the reason and preserve normal messages', () {
     expect(
-        runFailureMessage(
+        userFacingError(
             'Failed to start: SkotiqError.operationFailed(field0: No plate solver (ASTAP) configured)'),
         'Failed to start: No plate solver (ASTAP) configured');
-    expect(runFailureMessage('Camera disconnected'), 'Camera disconnected');
+    expect(userFacingError('Camera disconnected'), 'Camera disconnected');
     expect(
-        runFailureMessage(
+        userFacingError(
             'SkotiqError.operationFailed(field0: Line one\nLine two)'),
         'Line one\nLine two');
   });

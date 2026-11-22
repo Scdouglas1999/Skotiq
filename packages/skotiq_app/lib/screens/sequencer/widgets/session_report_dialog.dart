@@ -231,7 +231,7 @@ class _ReportBody extends ConsumerWidget {
                 titleColor: colors.error),
             const SizedBox(height: 8),
             SelectableText(
-              runFailureMessage(_failureCause!),
+              userFacingError(_failureCause!),
               style:
                   SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
             ),
@@ -635,11 +635,11 @@ class _ReportBody extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
-            runFailureMessage(msg),
+            userFacingError(msg),
             style: SkotiqTypography.caption.copyWith(color: colors.error),
           ),
         ),
-      if (_errorMessages.any((msg) => runFailureMessage(msg) != msg))
+      if (_errorMessages.any((msg) => userFacingError(msg) != msg))
         ExpansionTile(
           title: const Text('Technical details'),
           children: [SelectableText(_errorMessages.join('\n'))],

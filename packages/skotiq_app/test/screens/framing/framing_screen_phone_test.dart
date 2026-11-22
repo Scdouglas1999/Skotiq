@@ -5,7 +5,7 @@
 // side-by-side split in landscape) without any RenderFlex overflow, at every
 // supported phone size in BOTH orientations.
 //
-// This test pumps the real FramingScreen (with a seeded, network-free framing
+// This test pumps the framing page (with a seeded, network-free framing
 // state) at the three standard phone sizes — 360x640, 390x844, 430x932 — and
 // each rotated, asserting:
 //   1. No overflow exception is recorded at any size/orientation.
@@ -27,6 +27,7 @@ import 'package:skotiq_app/screens/framing/framing_screen.dart';
 import 'package:skotiq_app/screens/framing/widgets/framing_canvas.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
 
@@ -112,7 +113,7 @@ void main() {
   Future<void> pumpAt(WidgetTester tester, Size size) async {
     await pumpAppScreen(
       tester,
-      const FramingScreen(),
+      _framingPage(),
       size: size,
       settle: false,
       extraOverrides: overrides(),
@@ -189,3 +190,12 @@ void main() {
 void _expectNoOverflow(WidgetTester tester) {
   expect(tester.takeException(), isNull);
 }
+
+/// The standalone framing page as the app showed it: [FramingView] on the
+/// theme background.
+Widget _framingPage() => Builder(
+      builder: (context) => Scaffold(
+        backgroundColor: SkotiqColors.of(context).background,
+        body: const FramingView(),
+      ),
+    );

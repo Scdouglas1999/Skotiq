@@ -166,13 +166,13 @@ class _SubDownloadButtonState extends ConsumerState<_SubDownloadButton> {
       );
       if (!mounted) return;
       switch (outcome.status) {
-        case ImageDownloadStatus.saved:
+        case FileDownloadStatus.saved:
           context.showSuccessSnackBar('Saved to ${outcome.savedPath}');
-        case ImageDownloadStatus.shared:
+        case FileDownloadStatus.shared:
           context.showSuccessSnackBar('Frame ready to share');
-        case ImageDownloadStatus.cancelled:
+        case FileDownloadStatus.cancelled:
           break;
-        case ImageDownloadStatus.failed:
+        case FileDownloadStatus.failed:
           context.showErrorSnackBar(outcome.error ?? 'Download failed');
       }
     } finally {
