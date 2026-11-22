@@ -547,25 +547,12 @@ class _SafetyMonitorPicker extends ConsumerWidget {
 
   void _setMonitor(WidgetRef ref, String? monitorId) {
     final notifier = ref.read(currentSequenceProvider.notifier);
-    if (monitorId == null) {
-      // Rebuild to clear — copyWith can't null the field.
-      notifier.updateNode(
-        ConditionalNode(
-          id: node.id,
-          name: node.name,
-          isEnabled: node.isEnabled,
-          childIds: node.childIds,
-          parentId: node.parentId,
-          orderIndex: node.orderIndex,
-          comment: node.comment,
-          conditionType: node.conditionType,
-          thresholdValue: node.thresholdValue,
-          thresholdTime: node.thresholdTime,
-        ),
-      );
-    } else {
-      notifier.updateNode(node.copyWith(safetyMonitorId: monitorId));
-    }
+    notifier.updateNode(
+      node.copyWith(
+        safetyMonitorId: monitorId,
+        clearSafetyMonitorId: monitorId == null,
+      ),
+    );
   }
 
   @override

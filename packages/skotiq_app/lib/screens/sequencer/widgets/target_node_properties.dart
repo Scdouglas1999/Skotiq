@@ -425,35 +425,12 @@ class TargetGroupProperties extends ConsumerWidget {
   }
 
   /// Clear a legacy Start After / End Before wall-clock constraint back to
-  /// unset. These fields use plain `?? this.startAfter` copyWith semantics, so
-  /// `copyWith(startAfter: null)` keeps the old value — clearing is
-  /// rebuild-explicit, mirroring the integration-budget toggle recipe.
+  /// unset.
   void _clearTimeConstraint(WidgetRef ref, {required bool clearStart}) {
     ref.read(currentSequenceProvider.notifier).updateNode(
-          TargetHeaderNode(
-            id: node.id,
-            name: node.name,
-            isEnabled: node.isEnabled,
-            childIds: node.childIds,
-            parentId: node.parentId,
-            orderIndex: node.orderIndex,
-            comment: node.comment,
-            targetName: node.targetName,
-            raHours: node.raHours,
-            decDegrees: node.decDegrees,
-            rotation: node.rotation,
-            priority: node.priority,
-            minAltitude: node.minAltitude,
-            maxAltitude: node.maxAltitude,
-            startAfter: clearStart ? null : node.startAfter,
-            endBefore: clearStart ? node.endBefore : null,
-            mosaicPanel: node.mosaicPanel,
-            integrationBudget: node.integrationBudget,
-            startWhen: node.startWhen,
-            endWhen: node.endWhen,
-            triggerPollIntervalSecs: node.triggerPollIntervalSecs,
-            brightnessTierHint: node.brightnessTierHint,
-            catalogTargetId: node.catalogTargetId,
+          node.copyWith(
+            clearStartAfter: clearStart,
+            clearEndBefore: !clearStart,
           ),
         );
   }

@@ -162,16 +162,16 @@ class TargetHeaderNode extends SequenceNode {
     DateTime? startAfter,
     DateTime? endBefore,
     MosaicPanelInfo? mosaicPanel,
-    // Keep-or-replace: omitted or null = keep, non-null = replace. Clearing
-    // any of these back to null is rebuild-explicit at the editor — see
-    // _target_node_properties.dart's integration-budget toggle for the
-    // canonical recipe.
     IntegrationBudget? integrationBudget,
     TargetTrigger? startWhen,
     TargetTrigger? endWhen,
     int? triggerPollIntervalSecs,
     BrightnessTier? brightnessTierHint,
     int? catalogTargetId,
+    // A null argument keeps the field; these set it back to null.
+    bool clearStartAfter = false,
+    bool clearEndBefore = false,
+    bool clearIntegrationBudget = false,
   }) {
     return TargetHeaderNode(
       id: id ?? this.id,
@@ -188,10 +188,12 @@ class TargetHeaderNode extends SequenceNode {
       priority: priority ?? this.priority,
       minAltitude: minAltitude ?? this.minAltitude,
       maxAltitude: maxAltitude ?? this.maxAltitude,
-      startAfter: startAfter ?? this.startAfter,
-      endBefore: endBefore ?? this.endBefore,
+      startAfter: clearStartAfter ? null : (startAfter ?? this.startAfter),
+      endBefore: clearEndBefore ? null : (endBefore ?? this.endBefore),
       mosaicPanel: mosaicPanel ?? this.mosaicPanel,
-      integrationBudget: integrationBudget ?? this.integrationBudget,
+      integrationBudget: clearIntegrationBudget
+          ? null
+          : (integrationBudget ?? this.integrationBudget),
       startWhen: startWhen ?? this.startWhen,
       endWhen: endWhen ?? this.endWhen,
       triggerPollIntervalSecs:

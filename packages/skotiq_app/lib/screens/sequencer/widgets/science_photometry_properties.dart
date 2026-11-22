@@ -157,33 +157,9 @@ class _SciencePhotometryPropertiesState
     notifier.updateNode(mutate(widget.node));
   }
 
-  /// `SciencePhotometryNode.copyWith` uses plain `?? this.gain` /
-  /// `?? this.offset` semantics, so a null arg does not clear. Clearing back to
-  /// "use device default" requires rebuilding a fresh node.
   void _clearGainOrOffset({bool clearGain = false, bool clearOffset = false}) {
-    final n = widget.node;
     ref.read(currentSequenceProvider.notifier).updateNode(
-          SciencePhotometryNode(
-            id: n.id,
-            name: n.name,
-            isEnabled: n.isEnabled,
-            childIds: n.childIds,
-            parentId: n.parentId,
-            orderIndex: n.orderIndex,
-            comment: n.comment,
-            targetDesignation: n.targetDesignation,
-            referenceStars: n.referenceStars,
-            maxCadenceGapSecs: n.maxCadenceGapSecs,
-            filter: n.filter,
-            exposureSecs: n.exposureSecs,
-            count: n.count,
-            reduceLive: n.reduceLive,
-            applyDifferential: n.applyDifferential,
-            quality: n.quality,
-            gain: clearGain ? null : n.gain,
-            offset: clearOffset ? null : n.offset,
-            binning: n.binning,
-          ),
+          widget.node.copyWith(clearGain: clearGain, clearOffset: clearOffset),
         );
   }
 
