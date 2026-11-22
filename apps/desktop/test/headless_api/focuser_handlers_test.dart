@@ -319,32 +319,10 @@ class _PendingAutofocusBackend extends DisconnectedBackend {
   int? useBrightestNStars;
 
   @override
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 0,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-    int? measuredBacklashIn,
-  }) {
-    this.gain = gain;
-    this.offset = offset;
-    this.useBrightestNStars = useBrightestNStars;
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request) {
+    gain = request.gain;
+    offset = request.offset;
+    useBrightestNStars = request.useBrightestNStars;
     return pending.future;
   }
 

@@ -10,6 +10,7 @@ import '../models/autofocus_progress.dart';
 import '../models/depthlock/depthlock_models.dart';
 import '../models/equipment/guider_for_move.dart';
 import '../models/equipment_profile.dart';
+import '../models/imaging/autofocus_request.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/mount_guard.dart';
 import '../models/phd2_models.dart';
@@ -59,6 +60,32 @@ String autofocusCurveMethodForNativeBridge(String curveFitting) {
     _ => 'VCurve',
   };
 }
+
+/// The bridge's config for an operator-run autofocus.
+bridge.AutofocusConfigApi autofocusConfigForBridge(AutofocusRequest request) =>
+    bridge.AutofocusConfigApi(
+      exposureTime: request.exposureTime,
+      stepSize: request.stepSize,
+      stepsOut: request.stepsOut,
+      // `AutofocusConfigApi.method` selects the curve-fitting algorithm. The
+      // request's `method` names the star metric and is not a native curve
+      // enum.
+      method: autofocusCurveMethodForNativeBridge(request.curveFitting),
+      binning: request.binning,
+      gain: request.gain,
+      offset: request.offset,
+      numberOfAttempts: request.numberOfAttempts,
+      exposuresPerPoint: request.exposuresPerPoint,
+      rSquaredThreshold: request.rSquaredThreshold,
+      outerCropRatio: request.outerCropRatio,
+      innerCropRatio: request.innerCropRatio,
+      useBrightestNStars: request.useBrightestNStars,
+      focuserSettleTimeMs: BigInt.from(request.focuserSettleTimeMs),
+      backlashCompMethod: request.backlashCompMethod,
+      backlashIn: request.backlashIn,
+      backlashOut: request.backlashOut,
+      measuredBacklashIn: request.measuredBacklashIn,
+    );
 
 abstract class _FfiBackendBase implements SkotiqBackend {
   final _logger = Logger('FfiBackend');

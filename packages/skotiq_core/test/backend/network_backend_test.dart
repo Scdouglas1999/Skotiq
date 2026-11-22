@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/imaging/autofocus_request.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show LinkVersion;
 import 'package:image/image.dart' as img;
@@ -629,24 +630,26 @@ void main() {
       backend = _buildBackend(fake);
 
       final result = await backend.autofocusStart(
-        deviceId: 'focuser-1',
-        cameraId: 'camera-1',
-        exposureTime: 2,
-        stepSize: 50,
-        stepsOut: 4,
-        gain: 123,
-        offset: 17,
-        curveFitting: 'Parabolic',
-        numberOfAttempts: 3,
-        exposuresPerPoint: 2,
-        rSquaredThreshold: 0.91,
-        outerCropRatio: 0.8,
-        innerCropRatio: 0.1,
-        useBrightestNStars: 20,
-        focuserSettleTimeMs: 750,
-        backlashCompMethod: 'Inward',
-        backlashIn: 120,
-        backlashOut: 30,
+        AutofocusRequest(
+          deviceId: 'focuser-1',
+          cameraId: 'camera-1',
+          exposureTime: 2,
+          stepSize: 50,
+          stepsOut: 4,
+          gain: 123,
+          offset: 17,
+          curveFitting: 'Parabolic',
+          numberOfAttempts: 3,
+          exposuresPerPoint: 2,
+          rSquaredThreshold: 0.91,
+          outerCropRatio: 0.8,
+          innerCropRatio: 0.1,
+          useBrightestNStars: 20,
+          focuserSettleTimeMs: 750,
+          backlashCompMethod: 'Inward',
+          backlashIn: 120,
+          backlashOut: 30,
+        ),
       );
 
       expect(result.bestPosition, 12345);
