@@ -5679,14 +5679,6 @@ mod tests {
         assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);
     }
 
-    /// A post-flip centering that did not center.
-    #[derive(Debug)]
-    pub(super) struct CenteringFailure {
-        pub message: String,
-        /// At least one frame solved.
-        pub solved: bool,
-    }
-
     /// The post-flip guider restart counts guiding as locked once the guider
     /// says it guides, even with an empty RMS window (Start Guiding waits for
     /// a measured step).
