@@ -131,16 +131,13 @@ MockClient _only(String source) => MockClient((request) async {
 Future<(String?, List<(String, String)>)> _feed(String source) async {
   final service = LocationCloudForecastService(httpClient: _only(source));
   addTearDown(service.dispose);
-  final result = await service.fetchRadarFrames(
-    latitude: _lat,
-    longitude: _lon,
-  );
+  final result = await service.fetchCloudCover(latitude: _lat, longitude: _lon);
   expect(result.isSuccess, isTrue, reason: result.errorMessage);
   return (
     result.providerName,
     [
-      for (final f in result.frames)
-        (f.timestamp.toIso8601String(), f.opacity.toString()),
+      for (final s in result.samples)
+        (s.time.toIso8601String(), s.fraction.toString()),
     ],
   );
 }
@@ -148,10 +145,7 @@ Future<(String?, List<(String, String)>)> _feed(String source) async {
 Future<String> _night(String source) async {
   final service = LocationCloudForecastService(httpClient: _only(source));
   addTearDown(service.dispose);
-  final result = await service.fetchRadarFrames(
-    latitude: _lat,
-    longitude: _lon,
-  );
+  final result = await service.fetchCloudCover(latitude: _lat, longitude: _lon);
   final week =
       ForecastPlanningService(
         latitudeDegrees: _lat,

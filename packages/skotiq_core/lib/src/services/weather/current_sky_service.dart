@@ -87,21 +87,21 @@ class CurrentSkyService {
       );
     }
 
-    final fallback = await _metNorway.fetchRadarFrames(
+    final fallback = await _metNorway.fetchCloudCover(
       latitude: latitude,
       longitude: longitude,
     );
     CloudCoverForecast? nearest;
     Duration? nearestGap;
     final now = _clock().toUtc();
-    for (final frame in fallback.frames) {
-      final gap = frame.timestamp.difference(now).abs();
+    for (final sample in fallback.samples) {
+      final gap = sample.time.difference(now).abs();
       if (nearestGap == null || gap < nearestGap) {
         nearestGap = gap;
         nearest = CloudCoverForecast(
-          percent: frame.opacity * 100,
+          percent: sample.fraction * 100,
           source: _metNorway.name,
-          validAt: frame.timestamp,
+          validAt: sample.time,
         );
       }
     }

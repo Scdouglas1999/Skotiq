@@ -15,7 +15,7 @@ import '../models/scheduler/integration_goal.dart';
 import '../services/planning/forecast_planning_service.dart';
 import '../services/planning/project_service.dart';
 import '../services/weather/location_cloud_forecast_service.dart';
-import '../services/weather/radar_provider.dart';
+import '../models/weather/cloud_cover_series.dart';
 import '../utils/resilient_poll_stream.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart';
@@ -298,17 +298,17 @@ class ForecastSite {
 /// arriving subs would exhaust the forecast endpoints' rate limits and
 /// leave the strip "unavailable". [weekForecastProvider] does the
 /// capture/goal-driven candidate recompute and re-reads this cached
-/// [RadarFetchResult].
+/// [CloudCoverSeries].
 ///
 /// `autoDispose` so the feed (and its HTTP client) is torn down when the
 /// planner view closes.
 final weekForecastCloudProvider = FutureProvider.autoDispose
-    .family<RadarFetchResult, ForecastSite>((ref, site) async {
+    .family<CloudCoverSeries, ForecastSite>((ref, site) async {
       // The provider owns an http.Client, so dispose it once we have the result to
       // avoid leaking a connection per fetch.
       final cloudProvider = ref.watch(planningCloudProviderFactoryProvider)();
       try {
-        return await cloudProvider.fetchRadarFrames(
+        return await cloudProvider.fetchCloudCover(
           latitude: site.latitude,
           longitude: site.longitude,
         );
@@ -323,7 +323,7 @@ final weekForecastCloudProvider = FutureProvider.autoDispose
 /// An unset observing location (lat == 0 && lng == 0) throws [StateError],
 /// matching the planner screen's `_plannerOptimizationProvider`: a forecast at
 /// (0,0) is meaningless. A network/API failure arrives as an error
-/// [RadarFetchResult] and maps to [WeekForecast.unavailable], never a
+/// [CloudCoverSeries] and maps to [WeekForecast.unavailable], never a
 /// fabricated clear week.
 ///
 /// With no active project the candidate set falls back to every catalog target
