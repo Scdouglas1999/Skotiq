@@ -8,7 +8,7 @@
 //! driver that hands back exactly those samples.
 
 use super::*;
-use crate::device::{DeviceInfo, DriverType};
+use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
 use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver,

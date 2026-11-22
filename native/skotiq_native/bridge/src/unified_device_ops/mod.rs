@@ -54,7 +54,6 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
 use crate::state::SharedAppState;
 use crate::unified_device_ops::pointing::{altitude_degrees, MountPointing};
