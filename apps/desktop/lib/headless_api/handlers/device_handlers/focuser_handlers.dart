@@ -507,7 +507,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       });
     }
 
-    // Legacy/no-job run (or a sweep started by another in-process surface).
+    // A sweep started by another in-process surface, not by a job here.
     final backend = container.read(deviceBackendProvider);
     await backend.autofocusCancel();
 
