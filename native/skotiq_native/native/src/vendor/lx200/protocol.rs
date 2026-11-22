@@ -558,7 +558,7 @@ pub(crate) fn read_persisted_park_state(
         return Ok(None);
     }
 
-    let raw = std::fs::read_to_string(&path).map_err(|e| {
+    let raw = std::fs::read_to_string(path).map_err(|e| {
         DriverError::Io(std::io::Error::new(
             e.kind(),
             format!("read park state: {}", e),
@@ -589,7 +589,7 @@ pub(crate) fn write_persisted_park_state(
     }
 
     let mut map: HashMap<String, bool> = if path.exists() {
-        let raw = std::fs::read_to_string(&path).map_err(|e| {
+        let raw = std::fs::read_to_string(path).map_err(|e| {
             DriverError::Io(std::io::Error::new(
                 e.kind(),
                 format!("read park state: {}", e),
@@ -611,7 +611,7 @@ pub(crate) fn write_persisted_park_state(
 
     let serialized = serde_json::to_string_pretty(&map)
         .map_err(|e| DriverError::SdkError(format!("serialize park state: {}", e)))?;
-    std::fs::write(&path, serialized).map_err(|e| {
+    std::fs::write(path, serialized).map_err(|e| {
         DriverError::Io(std::io::Error::new(
             e.kind(),
             format!("write park state: {}", e),

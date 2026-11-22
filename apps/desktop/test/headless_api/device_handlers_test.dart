@@ -98,18 +98,22 @@ DeviceInfo _registryFocuser(String id) => DeviceInfo(
   driverVersion: '1.0',
 );
 
+/// What the bridge raises for a driver that refuses a move because the
+/// focuser is moving (ASCOM "Move Failure").
 class _BusyFocuserBackend implements DeviceBackend {
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to call method Move: Move Failure',
+    throw bridge.SkotiqError.deviceBusy(
+      deviceId: deviceId,
+      currentOperation: 'Failed to call method Move: Move Failure',
     );
   }
 
   @override
   Future<void> focuserMoveRelative(String deviceId, int delta) async {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to call method Move: Move Failure',
+    throw bridge.SkotiqError.deviceBusy(
+      deviceId: deviceId,
+      currentOperation: 'Failed to call method Move: Move Failure',
     );
   }
 
