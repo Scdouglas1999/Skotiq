@@ -596,8 +596,7 @@ mod executor_site_tests {
     }
 
     /// The run's start names the plan it runs; the app shows "Started
-    /// sequence: <name>" and used to show "Started sequence: Sequence" for
-    /// every plan.
+    /// sequence: <name>".
     #[tokio::test]
     async fn starting_a_run_announces_the_plan_by_name() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;

@@ -490,10 +490,8 @@ mod tests {
     }
 
     /// A not-connected device is a caller precondition, not a server fault.
-    /// The headless API turns `NotConnected` into HTTP 409; while this mapping
-    /// collapsed to `OperationFailed`, every equipment endpoint answered 500
-    /// for a merely-disconnected device (reproduced on the rig against a real
-    /// mount) and remote clients treat 5xx as retryable.
+    /// The headless API turns `NotConnected` into HTTP 409, and remote clients
+    /// treat 5xx as retryable.
     #[test]
     fn ffi_mapping_forwards_not_connected_structurally() {
         let err = DeviceOpError::not_connected(

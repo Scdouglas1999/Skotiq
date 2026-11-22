@@ -107,7 +107,7 @@ fn a_defocused_frame_publishes_a_larger_hfr_than_a_sharp_one() {
 /// Frame #2 of the IC 405 night (2026-11-16) showed HFR 4.50 in the Last
 /// frame tiles and was rejected as "HFR 4.12 px exceeds ...": the screens
 /// published a median of the brightest detections, the grader its own shape
-/// measurement. The screens publish the grader's numbers now.
+/// measurement. The screens publish the grader's numbers.
 #[test]
 fn the_screens_publish_the_hfr_and_shape_the_grader_judges() {
     for sigma in [1.6, 2.4, 3.2] {

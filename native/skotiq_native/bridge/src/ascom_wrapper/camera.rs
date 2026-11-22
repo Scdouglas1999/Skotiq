@@ -273,8 +273,7 @@ impl AscomCameraWrapper {
         let prog_id_clone = prog_id.clone();
 
         // Build the COM object and its command pump on the process-wide STA
-        // apartment. The per-command match arms below are unchanged from the
-        // legacy per-device worker; only the loop shell and teardown differ.
+        // apartment.
         register_device(move || {
             let mut camera: Option<AscomCamera> = None;
 

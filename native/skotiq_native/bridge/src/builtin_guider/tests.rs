@@ -349,8 +349,7 @@ fn crop_raw_image_returns_16bit_payload() {
 //
 // These exercise the pure functions directly with synthetic star fields so
 // the guiding-quality logic is validated without a mount or camera. Honest
-// gap: none of this is a substitute for an on-sky calibration/guiding run,
-// which belongs in the on-sky campaign.
+// gap: none of this is a substitute for an on-sky calibration/guiding run.
 
 /// Build a `DetectedStar` with explicit quality fields for selection tests.
 fn star_q(x: f64, y: f64, flux: f64, snr: f64, peak: f64, ecc: f64) -> DetectedStar {
@@ -930,8 +929,8 @@ fn compute_pulse_durations_does_not_panic_on_inverted_or_negative_pulse_bounds()
     let small = compute_pulse_durations(calib, offset, &inverted, None, PulseDebt::default());
     assert!(small.ra_ms.is_none());
     assert!(small.debt.ra_ms.abs() <= 100.0);
-    // Large error exceeding min_pulse_ms enters the clamp path (which previously
-    // panicked with min > max) and clamps safely to max_pulse_ms.
+    // Large error exceeding min_pulse_ms enters the clamp path and clamps
+    // safely to max_pulse_ms.
     let large = compute_pulse_durations(
         calib,
         Vec2 { x: 10.0, y: -10.0 },
@@ -1211,11 +1210,7 @@ async fn a_dither_opens_a_new_settle_episode() {
 ///
 /// `dither(amount, ra_only, settle_pixels, settle_time, settle_timeout)` is how
 /// the sequencer's Dither instruction states how tightly this dither must
-/// settle. The loop used to judge every settle by the tolerance captured back at
-/// `start_guiding` and discarded the dither's own pair outright, so a sequence
-/// asking to settle inside 0.2px
-/// was told it had settled at 1.5px — with `guider_dither` logging the 0.2px it
-/// never enforced.
+/// settle.
 #[tokio::test]
 async fn a_dither_settles_on_its_own_tolerance_not_the_sessions() {
     let controller = Arc::new(RwLock::new(BuiltinGuiderState {

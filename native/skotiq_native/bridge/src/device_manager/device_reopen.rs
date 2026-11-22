@@ -2,7 +2,7 @@
 //! restores.
 //!
 //! A power box or hub that drops for a few seconds leaves the devices behind
-//! it on broken sessions (rig, 2026-11-16). The ZWO camera kept answering
+//! it on broken sessions. The ZWO camera kept answering
 //! status reads on the old handle while every exposure failed; the ZWO filter
 //! wheel and focuser answered "Device disconnected". Closing and opening each
 //! again brought it back. [`DeviceManager::reopen_after`] owns that rule: the
@@ -131,7 +131,7 @@ impl DeviceManager {
     /// Count an operation that failed because the device is gone or its
     /// session broke toward its health, as a failed status read: a device
     /// can answer every status read while each command fails (the ZWO camera
-    /// on 2026-11-16), and its heartbeat must see that.
+    /// does), and its heartbeat must see that.
     pub(crate) fn note_operation_failure(
         &self,
         device_id: &str,

@@ -16,12 +16,6 @@
 //! ┌─────────────────┐
 //! │ UnifiedDeviceOps│
 //! └────────┬────────┘
-//!          │ calls bridge API
-//!          ▼
-//! ┌─────────────────┐
-//! │   Bridge API    │
-//! │  (api_* funcs)  │
-//! └────────┬────────┘
 //!          │ routes by device ID prefix
 //!          ▼
 //! ┌─────────────────────────────────────────┐
@@ -40,19 +34,6 @@
 //! let ops = create_unified_device_ops();
 //! executor.set_device_ops(ops);
 //! ```
-//!
-//! # `as`-cast policy
-//!
-//! Same pattern groupings as `sequencer_ops.rs` (this file is the unified
-//! replacement and the cast taxonomy is identical):
-//! - **bool → u8** (lines 660, 904): wire encoding.
-//! - **Filter wheel index ±1** (lines 815, 817): bounded by slot count.
-//! - **star_count usize → u32** (line 544): real frames have ≤ tens of
-//!   thousands of stars; saturating cast would catch any pathology.
-//! - **Star-count average f64** (line 1300): exact widening.
-//! - **Julian Day chrono fields**: computed by
-//!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
-//!   lives.
 
 use crate::device_manager::get_device_manager;
 use crate::state::SharedAppState;

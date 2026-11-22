@@ -145,9 +145,7 @@ impl AscomMountWrapper {
         let prog_id_clone = prog_id.clone();
 
         // Build the COM object and its command pump on the process-wide STA
-        // apartment. The pump is polled once per worker-loop iteration; the
-        // per-command match arms are unchanged from the legacy per-device
-        // worker — only the loop shell (and COM teardown ordering) differs.
+        // apartment. The pump is polled once per worker-loop iteration.
         register_device(move || {
             let mut mount: Option<AscomMount> = None;
 

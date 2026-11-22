@@ -27,7 +27,7 @@ pub(crate) const ASTAP_MAX_SEARCH_RADIUS_DEG: f64 = 180.0;
 
 /// Per-frame solve budget when the caller does not specify one.
 ///
-/// 30 s was the old default and it failed on the owner's laptop against a
+/// 30 s failed on the owner's laptop against a
 /// full-resolution blind solve. 90 s covers the hinted rungs, the blind one
 /// behind them, and the margin ASTAP needs to report its own timeout.
 pub(crate) const DEFAULT_POLAR_SOLVE_TIMEOUT_SECS: f64 = 90.0;

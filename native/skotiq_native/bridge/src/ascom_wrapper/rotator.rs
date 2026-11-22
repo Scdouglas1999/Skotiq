@@ -34,7 +34,7 @@ impl AscomRotatorWrapper {
 
         // Build the COM object and its command pump on the shared STA apartment.
         // A construction failure is propagated out of `register_device` so the
-        // caller drops the wrapper, exactly as the legacy init-channel did.
+        // caller drops the wrapper.
         register_device(move || {
             let mut rotator = match AscomRotator::new(&prog_id_clone) {
                 Ok(rotator) => rotator,

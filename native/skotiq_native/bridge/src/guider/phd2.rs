@@ -73,8 +73,8 @@ fn reconnect_equipment_in_background(reason: &'static str) {
 
 /// Disconnect and reconnect PHD2's camera and mount, the way the operator
 /// does in PHD2's Connect Equipment dialog. PHD2 keeps a link that went
-/// stale when the hub or power box behind it dropped (rig, 2026-11-15:
-/// every guide pulse failed until the equipment was reconnected). Guiding
+/// stale when the hub or power box behind it dropped (every guide pulse
+/// failed until the equipment was reconnected). Guiding
 /// stops for it; a run that was guiding sees its guiding stop and its
 /// guide-star recovery starts guiding again on a fresh star and settles
 /// before the next frame. One reconnect runs at a time.
@@ -957,7 +957,6 @@ pub(crate) async fn calibration() -> Result<GuiderCalibration, SkotiqError> {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    // Extract calibration parameters if available
     let (ra_angle, dec_angle, ra_rate, dec_rate) = if is_calibrated {
         let xangle = result.get("xAngle").and_then(|v| v.as_f64());
         let yangle = result.get("yAngle").and_then(|v| v.as_f64());
@@ -1095,8 +1094,7 @@ pub(crate) async fn select_fresh_star(
     let selected = find_fresh_star(exposure, floor).await;
     if selected.is_err() {
         // PHD2 found nothing to guide on; left looping it exposes the guide
-        // camera until someone stops it (rig, 2026-11-03: still looping after
-        // the run parked).
+        // camera until someone stops it.
         let stopped = phd2_client().await.and_then(|mut client| {
             client
                 .stop_capture()
@@ -1494,7 +1492,7 @@ mod fresh_guide_star_tests {
         );
     }
 
-    /// On the rig (2026-11-03) a search that found no star left PHD2 looping,
+    /// A search that found no star left PHD2 looping,
     /// and it was still looping after the run had parked.
     #[tokio::test]
     async fn a_search_that_finds_no_star_stops_the_looping() {

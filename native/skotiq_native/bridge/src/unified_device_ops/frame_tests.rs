@@ -2,9 +2,7 @@
 //!
 //! These drive the real instruction code through the real device layer and the
 //! simulator, so a J2000/of-date mix anywhere between a sequence node and the
-//! mount shows up here the way it shows up under the sky. Before the simulator
-//! was made an of-date mount, the slew-validation defect of 2026-09-14 (every
-//! target slew "missed" by the precession offset) passed every one of them.
+//! mount shows up here the way it shows up under the sky.
 
 use super::*;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
@@ -130,7 +128,7 @@ async fn a_sync_stores_the_same_frame_a_slew_does() {
     );
 }
 
-/// `SKOTIQ_SIM_MOUNT_FRAME=j2000` keeps the old behaviour: what is sent is
+/// `SKOTIQ_SIM_MOUNT_FRAME=j2000` pins J2000: what is sent is
 /// what reads back, and validation still agrees with the send path.
 #[tokio::test]
 async fn the_j2000_pin_round_trips_catalog_numbers() {
@@ -238,11 +236,10 @@ async fn a_light_frame_header_carries_j2000_pointing_from_an_of_date_mount() {
 }
 
 /// A target slew leaves the mount tracking. A mount unparked without tracking
-/// (the ASCOM simulator's behavior, and many drivers') used to be slewed and
-/// then left standing still: on the rig every frame trails, and the meridian
+/// (the ASCOM simulator's behavior, and many drivers') must not be left
+/// standing still: every frame trails, and the meridian
 /// flip trigger, which refuses to flip a mount that is not tracking, never
-/// fires. The simulator soak reached transit that way and held the next
-/// exposure for a flip that could not happen.
+/// fires.
 #[tokio::test]
 async fn a_target_slew_leaves_the_mount_tracking() {
     let _serialized = sim_singleton_test_lock().lock().await;

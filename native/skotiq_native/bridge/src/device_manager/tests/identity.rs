@@ -290,8 +290,6 @@ async fn a_moved_camera_is_still_refused_without_an_expectation() {
     reset_sim_camera_bus();
 }
 
-/// Only a camera's handle used to answer what it is, so two filter wheels (or
-/// focusers, or mounts) trading ids on a replug were never compared.
 #[tokio::test]
 async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
     use crate::device_manager::handle::DeviceHandle;

@@ -116,7 +116,7 @@ impl DeviceManager {
     /// Record how a status read of `device_id` went. A read that says the
     /// device is gone records it lost at once, so the device list, every
     /// status screen and the reconnection loop agree on what the device said
-    /// (rig, 2026-11-17: an EAF answered "Device disconnected" for minutes
+    /// (an EAF answered "Device disconnected" for minutes
     /// while the list still showed it connected and nothing reconnected it).
     pub(crate) async fn note_read<T>(&self, device_id: &str, result: &Result<T, DeviceOpError>) {
         self.note_status_read(device_id, result);

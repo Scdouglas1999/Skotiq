@@ -384,10 +384,8 @@ impl DeviceManager {
     pub fn new(app_state: SharedAppState) -> Arc<Self> {
         let manager = Self::without_reconnection(app_state);
 
-        // Start the reconnection background task
         // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
         let manager_clone = Arc::clone(&manager);
-        // Get the runtime handle and spawn the task
         // We use the crate-level runtime which must be initialized first
         if let Ok(runtime) = crate::ensure_runtime() {
             runtime.handle().spawn(async move {

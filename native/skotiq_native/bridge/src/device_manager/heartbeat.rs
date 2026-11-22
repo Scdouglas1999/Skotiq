@@ -1,7 +1,4 @@
 //! Device heartbeat monitoring loop and lifecycle.
-//!
-//! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature.
 
 use crate::device::{DeviceType, DriverType};
 use crate::device_manager::failure::DeviceFailure;
@@ -27,15 +24,13 @@ pub(crate) enum HeartbeatEventKind {
     /// The device crossed the failure threshold: emit
     /// `HeartbeatStatusChanged { status: Disconnected }` followed by an
     /// `Error` carrying the human-readable reason. These two travel
-    /// together and replace the old (redundant) standalone `Disconnected`
-    /// event so the disconnect surfaces exactly one user-facing toast.
+    /// together so the disconnect surfaces exactly one user-facing toast.
     DisconnectedAndError,
 }
 
 /// Longest a heartbeat holds off in a row for the camera's USB use. A run
 /// exposes nearly all the time, so without a bound a focuser or wheel behind
-/// the camera was never polled, and one that dropped off the bus stayed lost
-/// (rig, 2026-11-17).
+/// the camera was never polled, and one that dropped off the bus stayed lost.
 pub(crate) const MAX_USB_DEFERRAL: Duration = Duration::from_secs(60);
 
 /// Whether a heartbeat holds off this poll for the camera's USB use: only
@@ -80,8 +75,7 @@ pub(crate) fn with_status_reads(
 /// * below threshold + latch set     -> no events, latch stays set;
 /// * at/above threshold + escalate   -> exactly one `DisconnectedAndError`
 ///   (never a standalone Degraded *and* a disconnect on the same poll, and
-///   never a standalone `Disconnected` event — that was the duplicate toast
-///   removed in the polish pass). The latch value is irrelevant past the
+///   never a standalone `Disconnected` event). The latch value is irrelevant past the
 ///   threshold because the loop terminates after a disconnect.
 /// * at/above threshold + NOT escalate -> at most one `Degraded` (latched), and
 ///   NEVER a disconnect. The slow auxiliary devices (focuser/filter wheel/
@@ -142,16 +136,12 @@ impl DeviceManager {
     /// COM round-trip on the process-wide shared STA worker thread, and a slow
     /// driver call ahead of it in the queue times the probe out transiently.
     ///
-    /// Applying the retry ONCE here, above the per-driver dispatch, gives ASCOM,
-    /// Native, INDI and Alpaca identical behavior by construction (the user
-    /// asked for parity across all four). The alternative — duplicating the
+    /// Native, INDI and Alpaca identical behavior by construction; a retry inside
+    /// each driver's mount/focuser/wheel arm would be twelve copies
     /// retry inside each driver's mount/focuser/wheel arm — is twelve copies
     /// that drift out of parity. Camera/etc. poll fast, reliable properties and
     /// are checked once. A genuinely-gone device fails the retry too and is
     /// still escalated by the surrounding loop.
-    ///
-    /// Visibility note: `pub(super)` so the in-module tests in
-    /// `device_manager::tests` (one level up) can call it directly.
     pub(super) async fn perform_health_check(
         &self,
         device_id: &str,
@@ -231,7 +221,6 @@ impl DeviceManager {
         device_id: &str,
         config: HeartbeatConfig,
     ) -> Result<(), String> {
-        // Check if device exists and get its info
         let (device_type, device_type_str, driver_type) = {
             let devices = self.devices.read().await;
             match devices.get(device_id) {
@@ -244,7 +233,6 @@ impl DeviceManager {
             }
         };
 
-        // Stop any existing heartbeat for this device
         self.stop_heartbeat(device_id).await?;
 
         tracing::info!(
@@ -499,7 +487,6 @@ impl DeviceManager {
                         );
                     }
 
-                    // Apply exponential backoff
                     let new_interval = Duration::from_secs_f64(
                         current_interval.as_secs_f64() * config.backoff_multiplier,
                     );
@@ -694,7 +681,7 @@ mod heartbeat_event_tests {
     };
     use std::time::Duration;
 
-    /// Rig, 2026-11-17: through a run the camera exposes nearly all the
+    /// Through a run the camera exposes nearly all the
     /// time, and the EAF's heartbeat held off for it on every poll, so a
     /// focuser that dropped off the bus was never found lost. The hold-off is
     /// bounded, and a device whose reads already fail is polled at once.

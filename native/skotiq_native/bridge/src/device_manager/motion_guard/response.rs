@@ -865,8 +865,7 @@ mod hold_tests {
     use crate::state::get_state;
 
     /// The guard asks the run to pause and the run announces it when its
-    /// state turns Paused. The guard used to publish a Paused of its own as
-    /// well, so one mount fault logged "Sequence paused" twice.
+    /// state turns Paused.
     #[tokio::test]
     async fn a_mount_fault_hold_puts_one_paused_on_the_wire() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
