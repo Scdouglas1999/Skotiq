@@ -22,7 +22,6 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_app/services/site_detection.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// What a desktop with no GPS receiver and a switched-off radio lands: the

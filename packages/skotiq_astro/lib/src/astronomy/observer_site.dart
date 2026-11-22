@@ -11,3 +11,10 @@
 /// it back.
 bool siteLocationIsSet(double latitude, double longitude) =>
     latitude != 0.0 || longitude != 0.0;
+
+/// A site coordinate from a lookup (internet address, Wi-Fi, a place name)
+/// to four decimals of a degree, about 11 m: finer than any lookup places a
+/// site, so the digits past it are noise. A coordinate the user types is kept
+/// as typed.
+double roundSiteEstimate(double degrees) =>
+    double.parse(degrees.toStringAsFixed(4));
