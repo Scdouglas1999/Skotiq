@@ -81,7 +81,6 @@ impl IndiCamera {
             .set_numbers(
                 &self.device_name,
                 CCD_BINNING,
-                // Why: i32 binning values -> f64 (INDI wire format); lossless.
                 &[(HOR_BIN, f64::from(bin_x)), (VER_BIN, f64::from(bin_y))],
             )
             .await
@@ -97,9 +96,9 @@ impl IndiCamera {
     /// * `Err(_)` — reserved for richer future error reporting; current
     ///   implementation never errors.
     ///
-    /// Why: the previous bool-fallback path silently substituted `(1, 1)` for
+    /// Why: substituting `(1, 1)` for
     /// any driver that hadn't sent `defNumberVector` for `CCD_BINNING`,
-    /// producing wrong-but-plausible values.
+    /// would produce wrong-but-plausible values.
     pub async fn try_get_binning(&self) -> Result<Option<(i32, i32)>, IndiError> {
         let client = self.client.read().await;
         let bin_x = client
@@ -147,7 +146,6 @@ impl IndiCamera {
             .set_numbers(
                 &self.device_name,
                 CCD_FRAME,
-                // Why: i32 ROI values -> f64 (INDI wire format); lossless.
                 &[
                     ("X", f64::from(x)),
                     ("Y", f64::from(y)),
@@ -268,7 +266,6 @@ impl IndiCamera {
     pub async fn set_gain(&self, gain: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            // Why: i32 gain -> f64 (INDI wire); lossless.
             .set_number(&self.device_name, CCD_GAIN, GAIN, f64::from(gain))
             .await
     }
@@ -287,7 +284,6 @@ impl IndiCamera {
     pub async fn set_offset(&self, offset: i32) -> IndiResult<()> {
         let mut client = self.client.write().await;
         client
-            // Why: i32 offset -> f64 (INDI wire); lossless.
             .set_number(&self.device_name, CCD_OFFSET, OFFSET, f64::from(offset))
             .await
     }
