@@ -22,7 +22,6 @@ impl DeviceManager {
         &self,
         info: &DeviceInfo,
     ) -> Result<(), crate::device_manager::connection::ConnectError> {
-        use crate::device_manager::connection::ConnectError;
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();
         if parts.len() < 3 {
@@ -77,7 +76,16 @@ impl DeviceManager {
             })
             .await
             .map_err(|e| e.to_string())?;
+        self.hold_native(info, handle).await
+    }
 
+    /// Connect a driver `connect_native` opened for `info` and hold it.
+    pub(crate) async fn hold_native(
+        &self,
+        info: &DeviceInfo,
+        handle: NativeHandle,
+    ) -> Result<(), crate::device_manager::connection::ConnectError> {
+        use crate::device_manager::connection::ConnectError;
         match (handle, info.device_type) {
             (NativeHandle::Camera(mut camera), DeviceType::Camera) => {
                 // Close the previous instance first: a reconnect after a lost
