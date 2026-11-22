@@ -182,8 +182,9 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     }
 
     // Compute factors regardless so the UI can show them even on rejected
-    // candidates.
-    final altitudeFactor = _altitudeFactor(alt, floorDeg);
+    // candidates. The target's floor is the site's with its step horizon.
+    final targetFloor = floor.withTargetHorizon(_stepHorizonOf(c));
+    final altitudeFactor = _altitudeFactor(alt, targetFloor.atAzimuth(az));
     final meridianFactor = _meridianFactor(raHours: c.raHours, now: now);
     final (moonFactor, moonDetail) = _moonFactor(
       raHours: c.raHours,
@@ -194,6 +195,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
       raHours: c.raHours,
       decDegrees: c.decDegrees,
       now: now,
+      floor: targetFloor,
     );
     final filterFactor = _filterCoverageFactor(
       remainingByGoal,
@@ -292,6 +294,19 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
   }
 
+  /// The horizon [c]'s step gives it, when an enabled constraint names a
+  /// loaded one.
+  HorizonProfile? _stepHorizonOf(SchedulerCandidate c) {
+    for (final ct in c.constraints) {
+      if (ct.enabled && ct.kind == TargetConstraintKind.customHorizon) {
+        if (c.horizonProfiles[ct.customHorizonId] case final profile?) {
+          return profile;
+        }
+      }
+    }
+    return null;
+  }
+
   /// The site's altitude floor ([AltitudeFloor]): its horizon when one is
   /// set, otherwise the minimum altitude.
   AltitudeFloor get _floor => AltitudeFloor(
@@ -353,11 +368,13 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     required double raHours,
     required double decDegrees,
     required DateTime now,
+    required AltitudeFloor floor,
   }) {
     final endHorizon = _hoursUntilSettingBelowMin(
       raHours: raHours,
       decDegrees: decDegrees,
       now: now,
+      floor: floor,
     );
     final hours = endHorizon.clamp(0.0, 10.0);
     final factor = hours / 10.0;
@@ -370,8 +387,9 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     required double raHours,
     required double decDegrees,
     required DateTime now,
+    required AltitudeFloor floor,
   }) {
-    final left = _floor.timeUntilBelow(
+    final left = floor.timeUntilBelow(
       raDeg: raHours * 15.0,
       decDeg: decDegrees,
       now: now,

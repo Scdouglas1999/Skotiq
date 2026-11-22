@@ -9,8 +9,8 @@ impl FilterWheelOps for UnifiedDeviceOps {
     async fn filterwheel_set_position(&self, fw_id: &str, position: i32) -> DeviceResult<()> {
         // `DeviceManager::filter_wheel_set_position` publishes `FilterChanging`
         // and `FilterChanged`.
-        let mgr = get_device_manager();
-        mgr.with_reopen(fw_id, || mgr.filter_wheel_set_position(fw_id, position))
+        get_device_manager()
+            .filter_wheel_set_position(fw_id, position)
             .await
             .map_err(sequencer_error(skotiq_sequencer::DeviceKind::FilterWheel))
     }

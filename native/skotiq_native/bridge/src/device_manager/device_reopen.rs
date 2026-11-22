@@ -80,6 +80,8 @@ pub(crate) struct DeviceSession {
     reopen_lock: Arc<tokio::sync::Mutex<()>>,
     /// How many times the device has been reopened.
     reopens: u64,
+    /// A reopen is closing and opening it now: it still plays its roles.
+    reopening: bool,
     /// What the app last commanded that a connect restores.
     commanded: Commanded,
 }
@@ -95,6 +97,18 @@ impl DeviceManager {
             .unwrap_or_else(|p| p.into_inner())
             .entry(device_id.to_string())
             .or_default())
+    }
+
+    /// What `from` holds for its next connect, moved to `to`: the device
+    /// left one id for the other.
+    pub(crate) fn carry_session(&self, from: &str, to: &str) {
+        let mut sessions = self.sessions.lock().unwrap_or_else(|p| p.into_inner());
+        let commanded = sessions
+            .get_mut(from)
+            .map(|session| std::mem::take(&mut session.commanded));
+        if let Some(commanded) = commanded {
+            sessions.entry(to.to_string()).or_default().commanded = commanded;
+        }
     }
 
     /// Record a command the device accepted, for the next connect to restore.
@@ -138,7 +152,7 @@ impl DeviceManager {
         error: &crate::dispatch::error::DeviceOpError,
     ) {
         let failure = DeviceFailure::from(error);
-        if failure.says_gone() || failure.session_lost() {
+        if failure.gone() || failure.session_lost() {
             self.status_reads
                 .record_failure(device_id, failure, std::time::Instant::now());
         }
@@ -150,8 +164,14 @@ impl DeviceManager {
     /// * a camera: its SDK session is broken
     ///   ([`DeviceFailure::session_lost`]), or a device came or went on the
     ///   bus recently;
-    /// * a filter wheel or focuser: its words say it is disconnected, and a
-    ///   device came or went on the bus recently.
+    /// * a filter wheel or focuser: it is gone ([`DeviceFailure::gone`]), and
+    ///   a device came or went on the bus recently;
+    /// * a safety monitor: its `IsSafe` reads have failed
+    ///   [`STATUS_READ_FAILURE_LIMIT`] times in a row. Its policy never puts
+    ///   it in the error state the reconnection loop takes, so this reopen is
+    ///   its only recovery.
+    ///
+    /// [`STATUS_READ_FAILURE_LIMIT`]: crate::device_manager::read_health::STATUS_READ_FAILURE_LIMIT
     pub(crate) async fn wants_reopen(&self, device_id: &str, error: &DeviceFailure) -> bool {
         let Some(device_type) = self
             .devices
@@ -165,7 +185,8 @@ impl DeviceManager {
         let bus_changed = crate::hotplug::bus_changed_within(BUS_CHANGE_SUSPECT_WINDOW);
         match device_type {
             DeviceType::Camera => error.session_lost() || bus_changed,
-            DeviceType::FilterWheel | DeviceType::Focuser => bus_changed && error.says_gone(),
+            DeviceType::FilterWheel | DeviceType::Focuser => bus_changed && error.gone(),
+            DeviceType::SafetyMonitor => self.failing_status_reads(device_id).is_some(),
             _ => false,
         }
     }
@@ -199,6 +220,16 @@ impl DeviceManager {
         self.reopen_device(device_id).await.map(|()| true)
     }
 
+    /// Whether a reopen is closing and opening `device_id` now.
+    pub(crate) fn is_reopening(&self, device_id: &str) -> bool {
+        self.with_session(device_id, |session| session.reopening)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn mark_reopening(&self, device_id: &str, reopening: bool) {
+        self.with_session(device_id, |session| session.reopening = reopening);
+    }
+
     /// How many times `device_id` has been reopened. A caller that sees it
     /// move across a failed operation knows the device behind it is new.
     pub(crate) fn reopen_count(&self, device_id: &str) -> u64 {
@@ -217,12 +248,16 @@ impl DeviceManager {
             .get(device_id)
             .map(|dev| dev.auto_reconnect)
             .ok_or_else(|| format!("Device not found: {device_id}"))?;
+        self.with_session(device_id, |session| session.reopening = true);
         if let Err(e) = self.close_device(device_id, false).await {
             tracing::warn!("Reopen of {device_id}: closing it reported {e}; opening it anyway");
         }
         let connected = self.connect_device(device_id).await;
         self.set_auto_reconnect(device_id, auto_reconnect).await;
-        self.with_session(device_id, |session| session.reopens += 1);
+        self.with_session(device_id, |session| {
+            session.reopens += 1;
+            session.reopening = false;
+        });
         connected
     }
 
@@ -259,24 +294,48 @@ impl DeviceManager {
         }
     }
 
-    /// Read where a wheel, focuser or rotator that was just connected is.
-    /// Only a read: a reconnect never moves one.
+    /// Read where a wheel, focuser or rotator that was just connected is,
+    /// and check it against where Skotiq last recorded it
+    /// ([`DeviceManager::check_position_at_connect`]). Only a read: a
+    /// reconnect never moves one.
     pub(crate) async fn read_position_after_connect(&self, info: &DeviceInfo) {
+        use crate::device_manager::ops::backstop::Reading;
         let id = &info.id;
-        match info.device_type {
+        let reading = match info.device_type {
             DeviceType::Rotator => match self.rotator_get_position(id).await {
-                Ok(angle) => tracing::info!("Rotator {id} connected at {angle:.2} degrees"),
-                Err(e) => tracing::warn!("Rotator {id} connected; its angle read failed: {e}"),
+                Ok(angle) => {
+                    tracing::info!("Rotator {id} connected at {angle:.2} degrees");
+                    Some(Reading::Rotator(angle))
+                }
+                Err(e) => {
+                    tracing::warn!("Rotator {id} connected; its angle read failed: {e}");
+                    None
+                }
             },
             DeviceType::FilterWheel => match self.filter_wheel_get_position(id).await {
-                Ok(slot) => tracing::info!("Filter wheel {id} connected at slot {slot}"),
-                Err(e) => tracing::warn!("Filter wheel {id} connected; its slot read failed: {e}"),
+                Ok(slot) => {
+                    tracing::info!("Filter wheel {id} connected at slot {slot}");
+                    Some(Reading::Filter(slot))
+                }
+                Err(e) => {
+                    tracing::warn!("Filter wheel {id} connected; its slot read failed: {e}");
+                    None
+                }
             },
             DeviceType::Focuser => match self.focuser_get_position(id).await {
-                Ok(position) => tracing::info!("Focuser {id} connected at position {position}"),
-                Err(e) => tracing::warn!("Focuser {id} connected; its position read failed: {e}"),
+                Ok(position) => {
+                    tracing::info!("Focuser {id} connected at position {position}");
+                    Some(Reading::Focuser(position))
+                }
+                Err(e) => {
+                    tracing::warn!("Focuser {id} connected; its position read failed: {e}");
+                    None
+                }
             },
-            _ => {}
+            _ => None,
+        };
+        if let Some(reading) = reading {
+            self.check_position_at_connect(info, reading).await;
         }
     }
 
@@ -352,7 +411,7 @@ impl DeviceManager {
     /// The cooler state commanded through Skotiq wins over the last read:
     /// a camera that lost power can read its cooler off before it is
     /// reopened. A failed restore is reported and does not fail the connect.
-    pub(crate) async fn restore_camera_state(&self, info: &DeviceInfo) {
+    pub(crate) async fn restore_camera_state(&self, info: &DeviceInfo) -> bool {
         let device_id = &info.id;
         let (commanded, held) = {
             let devices = self.devices.read().await;
@@ -361,7 +420,7 @@ impl DeviceManager {
                     dev.desired_cooler,
                     dev.held_camera_state.unwrap_or_default(),
                 ),
-                None => return,
+                None => return false,
             }
         };
         let cooler = match commanded {
@@ -370,6 +429,7 @@ impl DeviceManager {
         };
 
         let mut failures = Vec::new();
+        let cooler_restored = matches!(cooler, Some((true, _)));
         if let Some((true, target)) = cooler {
             tracing::info!(
                 "Restoring camera {device_id} cooler: on, set-point {target:?} C (it ran at {:?} % \
@@ -391,7 +451,7 @@ impl DeviceManager {
             }
         }
         if failures.is_empty() {
-            return;
+            return cooler_restored;
         }
         let message = format!(
             "Reconnected, but could not restore the camera's {}",
@@ -406,5 +466,6 @@ impl DeviceManager {
             },
             EventSeverity::Warning,
         );
+        cooler_restored
     }
 }

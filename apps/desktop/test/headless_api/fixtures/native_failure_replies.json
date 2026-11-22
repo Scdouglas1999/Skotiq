@@ -317,8 +317,17 @@
   "focuser.device_busy_variant": {
     "status": 409,
     "body": {
-      "error": "device_error",
-      "message": "focuser-1 is busy: moving",
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.driver_words_without_a_kind": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "Failed to call method Move: Move Failure",
       "requestId": "test-request-id"
     }
   },

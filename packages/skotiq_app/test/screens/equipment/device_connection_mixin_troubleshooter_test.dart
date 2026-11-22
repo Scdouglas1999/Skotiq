@@ -135,7 +135,8 @@ void main() {
 
       // The troubleshooter dialog is shown with the friendly driver headline.
       expect(find.byType(ConnectionTroubleshooterDialog), findsOneWidget);
-      expect(find.text(_driverHeadline), findsOneWidget);
+      expect(find.textContaining(_driverHeadline, findRichText: true),
+          findsOneWidget);
       // The raw driver string is preserved (collapsed behind Technical details).
       expect(find.text('Technical details'), findsOneWidget);
       // The legacy snackbar is NOT shown for opted-in callers.

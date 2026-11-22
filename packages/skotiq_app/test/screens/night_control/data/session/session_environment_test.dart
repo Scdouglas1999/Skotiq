@@ -586,7 +586,7 @@ void main() {
       final rows = h.read(nightEquipmentProvider);
       final guider = rows.firstWhere((r) => r.kind == EquipmentKind.guider);
       expect(guider.status, EquipmentStatus.attention);
-      expect(guider.details.first.key, 'nightSessionGuiderNotLooping');
+      expect(guider.details.first.key, 'nightScopeGuideStopped');
       final rotator = rows.firstWhere((r) => r.kind == EquipmentKind.rotator);
       expect(rotator.status, EquipmentStatus.absent);
       expect(rotator.details, isEmpty);

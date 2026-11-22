@@ -21,6 +21,8 @@ import '../../../widgets/filter_set_picker.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
 import '../../../router/app_routes.dart';
+import '../../../services/sequence_action_service.dart' show PlanStartCanceled;
+import 'preflight_validation_dialog.dart' show confirmPreflight;
 
 part 'smart_night_dialog/inline_widgets.dart';
 part 'smart_night_dialog/safety_watchdogs.dart';
@@ -396,7 +398,11 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
     if (_settingsSeededFromAppSettings) return;
     _settingsSeededFromAppSettings = true;
 
-    _settings = SmartNightInputs.withWizardDefaults(app, _settings);
+    _settings = SmartNightInputs.forNight(
+      app,
+      ref.read(activeEquipmentProfileProvider),
+      _settings,
+    );
     _strategy = _strategyFromPersistedName(app.smartNightDefaultStrategy);
     final seed = widget.seedTargetIds;
     if (seed == null || seed.isEmpty) {
@@ -481,10 +487,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
 
       final effectiveSettings = _settings.copyWith(
         hasCoverCalibrator: _settings.hasCoverCalibrator ||
-            SmartNightInputs.hasCoverCalibrator(
-              activeProfile,
-              rule: CoverCalibratorRule.anyId,
-            ),
+            SmartNightInputs.hasCoverCalibrator(activeProfile),
       );
       var exposureContext =
           await ref.read(smartNightExposureContextProvider.future);

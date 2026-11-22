@@ -11,7 +11,8 @@ pub(crate) enum RoleSource {
     Run(DeviceType),
     /// The device of that type the active equipment profile names.
     Profile(DeviceType),
-    /// The first connected device of that type, by id.
+    /// The first connected device of that type, by id. A device a reopen is
+    /// closing and opening counts: it still plays the role.
     Connected(DeviceType),
 }
 
@@ -68,7 +69,7 @@ impl RigRole {
                 Profile(SafetyMonitor),
                 Profile(Weather),
             ],
-            Self::FramePointingMount => &[Connected(Mount)],
+            Self::FramePointingMount => &[Profile(Mount), Connected(Mount)],
             Self::SolveDiagnosticsMount => &[Profile(Mount)],
             Self::RecoveryCamera => &[Run(Camera), Profile(Camera), Connected(Camera)],
             Self::RecoveryWheel => &[Run(FilterWheel), Connected(FilterWheel)],
@@ -76,8 +77,8 @@ impl RigRole {
             Self::RunCoverCalibrator => &[Connected(CoverCalibrator)],
             Self::GuiderImagingCamera => &[Profile(Camera), Connected(Camera)],
             Self::GuiderMount => &[Profile(Mount), Connected(Mount)],
-            Self::PolarCamera => &[Connected(Camera)],
-            Self::PolarMount => &[Connected(Mount)],
+            Self::PolarCamera => &[Profile(Camera), Connected(Camera)],
+            Self::PolarMount => &[Profile(Mount), Connected(Mount)],
         }
     }
 }
@@ -121,8 +122,8 @@ fn run_device(device_type: DeviceType) -> Option<String> {
 mod tests {
     use super::*;
 
-    /// Every role and where it looks today. The orders differ: a change of
-    /// rule (the profile first, say) is a change of this table.
+    /// Every role and where it looks. The orders differ: a change of rule is
+    /// a change of this table.
     #[test]
     fn each_role_and_its_order() {
         use DeviceType::*;
@@ -137,7 +138,7 @@ mod tests {
                     Profile(Weather),
                 ],
             ),
-            (FramePointingMount, &[Connected(Mount)]),
+            (FramePointingMount, &[Profile(Mount), Connected(Mount)]),
             (SolveDiagnosticsMount, &[Profile(Mount)]),
             (
                 RecoveryCamera,
@@ -148,12 +149,121 @@ mod tests {
             (RunCoverCalibrator, &[Connected(CoverCalibrator)]),
             (GuiderImagingCamera, &[Profile(Camera), Connected(Camera)]),
             (GuiderMount, &[Profile(Mount), Connected(Mount)]),
-            (PolarCamera, &[Connected(Camera)]),
-            (PolarMount, &[Connected(Mount)]),
+            (PolarCamera, &[Profile(Camera), Connected(Camera)]),
+            (PolarMount, &[Profile(Mount), Connected(Mount)]),
         ];
         assert_eq!(table.map(|row| row.0), RigRole::ALL);
         for (role, order) in table {
             assert_eq!(role.order(), order, "{role:?}");
         }
+    }
+
+    fn connected(id: &str, device_type: DeviceType) -> crate::device::DeviceInfo {
+        crate::device::DeviceInfo {
+            id: id.to_string(),
+            name: id.to_string(),
+            device_type,
+            driver_type: crate::device::DriverType::Simulator,
+            description: String::new(),
+            driver_version: String::new(),
+            serial_number: None,
+            unique_id: None,
+            display_name: id.to_string(),
+        }
+    }
+
+    /// P8-5 (BUG M4): with a guide camera connected whose id sorts first,
+    /// polar alignment took its frames from the guide camera. Polar
+    /// alignment and frame pointing take the profile's device first.
+    #[tokio::test]
+    async fn polar_alignment_and_frame_pointing_take_the_profiles_device_first() {
+        let manager = DeviceManager::without_reconnection(crate::state::AppState::new());
+        for (id, device_type) in [
+            ("aa_guide_camera", DeviceType::Camera),
+            ("zz_imaging_camera", DeviceType::Camera),
+            ("aa_other_mount", DeviceType::Mount),
+            ("zz_rig_mount", DeviceType::Mount),
+        ] {
+            manager
+                .register_connected_device(connected(id, device_type))
+                .await;
+        }
+        manager
+            .app_state
+            .set_profile(Some(crate::state::EquipmentProfile {
+                id: "rig".into(),
+                name: "Rig".into(),
+                camera_id: Some("zz_imaging_camera".into()),
+                mount_id: Some("zz_rig_mount".into()),
+                focuser_id: None,
+                filter_wheel_id: None,
+                guider_id: None,
+                guide_camera_id: Some("aa_guide_camera".into()),
+                guide_focal_length_mm: None,
+                rotator_id: None,
+                dome_id: None,
+                weather_id: None,
+                safety_monitor_id: None,
+                cover_calibrator_id: None,
+                telescope_focal_length: 480.0,
+                telescope_aperture: 80.0,
+            }))
+            .await;
+        for (role, wanted) in [
+            (RigRole::PolarCamera, "zz_imaging_camera"),
+            (RigRole::PolarMount, "zz_rig_mount"),
+            (RigRole::FramePointingMount, "zz_rig_mount"),
+        ] {
+            assert_eq!(
+                manager.rig_device(role, None).await.as_deref(),
+                Some(wanted),
+                "{role:?}"
+            );
+        }
+        manager.app_state.set_profile(None).await;
+        assert_eq!(
+            manager
+                .rig_device(RigRole::PolarCamera, None)
+                .await
+                .as_deref(),
+            Some("aa_guide_camera"),
+            "with no profile the first connected camera answers, as before"
+        );
+    }
+
+    /// R1H2-1: while a safety monitor is reopened it still is the run's
+    /// safety source; the check does not pass to another monitor for that
+    /// second.
+    #[tokio::test]
+    async fn a_device_being_reopened_keeps_its_role() {
+        let manager = DeviceManager::without_reconnection(crate::state::AppState::new());
+        for id in ["a_monitor", "b_monitor"] {
+            manager
+                .register_connected_device(connected(id, DeviceType::SafetyMonitor))
+                .await;
+        }
+        manager.mark_reopening("a_monitor", true);
+        manager
+            .devices
+            .write()
+            .await
+            .get_mut("a_monitor")
+            .unwrap()
+            .connection_state = crate::device::ConnectionState::Disconnected;
+        assert_eq!(
+            manager
+                .rig_device(RigRole::RunSafety, None)
+                .await
+                .as_deref(),
+            Some("a_monitor")
+        );
+        manager.mark_reopening("a_monitor", false);
+        assert_eq!(
+            manager
+                .rig_device(RigRole::RunSafety, None)
+                .await
+                .as_deref(),
+            Some("b_monitor")
+        );
     }
 }

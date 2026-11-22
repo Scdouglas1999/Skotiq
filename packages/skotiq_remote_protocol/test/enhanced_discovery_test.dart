@@ -6,6 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+HostAdvert _advert({required String scheme}) => HostAdvert(
+  hostName: 'OBS-PC',
+  hostMode: SkotiqHostMode.gui,
+  version: '2.6.0',
+  scheme: scheme,
+  fingerprint: 'abcdef1234567890',
+  authRequired: false,
+);
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -366,11 +375,9 @@ void main() {
 
     test('generateQrData embeds and lower-cases the scheme', () {
       final qr = EnhancedSkotiqDiscovery.generateQrData(
+        _advert(scheme: 'HTTPS'),
         host: '100.64.0.5',
         webPort: 8443,
-        version: '2.6.0',
-        fingerprint: 'abcdef1234567890',
-        scheme: 'HTTPS',
       );
       expect(QrConnectionData.parseStrict(qr).scheme, 'https');
     });
@@ -378,11 +385,9 @@ void main() {
     test('generateQrData rejects an invalid scheme', () {
       expect(
         () => EnhancedSkotiqDiscovery.generateQrData(
+          _advert(scheme: 'gopher'),
           host: '100.64.0.5',
           webPort: 8443,
-          version: '2.6.0',
-          fingerprint: 'abcdef1234567890',
-          scheme: 'gopher',
         ),
         throwsArgumentError,
       );

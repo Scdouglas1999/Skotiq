@@ -5,6 +5,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 
+import '../../services/sequence_action_service.dart' show PlanStartCanceled;
+
 /// Where the Image tonight chain is, so its one button can say what it is
 /// doing ("Framing…", "Planning…") instead of spinning.
 enum ImageTonightPhase {
@@ -175,6 +177,8 @@ class ImageTonightController extends ValueNotifier<ImageTonightState> {
       if (current()) {
         _publish(state.copyWith(phase: ImageTonightPhase.running));
       }
+    } on PlanStartCanceled {
+      if (current()) _publish(const ImageTonightState());
     } on SmartNightBuildException catch (e) {
       if (current()) _fail(e.message);
     } on TimeoutException {

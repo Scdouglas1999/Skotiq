@@ -438,13 +438,15 @@ class _LedgerFoldRowState extends ConsumerState<_LedgerFoldRow> {
     required String summary,
     required _FoldRowState state,
   }) {
-    final stateWord = state.isRunning
-        ? 'running'
-        : state.hasFailure
-            ? 'failed'
-            : state.isDone
-                ? 'done'
-                : '';
+    final stateWord = (state.isRunning
+                ? NodeStatusPresentation.running
+                : state.hasFailure
+                    ? NodeStatusPresentation.failed
+                    : state.isDone
+                        ? NodeStatusPresentation.completed
+                        : null)
+            ?.word ??
+        '';
     return <String>[
       widget.group.label,
       widget.group.chipText,

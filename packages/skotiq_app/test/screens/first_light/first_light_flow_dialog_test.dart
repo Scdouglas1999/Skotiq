@@ -450,7 +450,9 @@ void main() {
         ),
       );
 
-      expect(find.text("First light didn't finish"), findsOneWidget);
+      expect(
+          find.textContaining("First light didn't finish", findRichText: true),
+          findsOneWidget);
       final troubleshoot =
           find.widgetWithText(SkotiqButton, 'Troubleshoot connection');
       expect(troubleshoot, findsOneWidget);

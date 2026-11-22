@@ -1,6 +1,6 @@
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
-
-import 'driver_error_pretty.dart';
 
 /// Per-device failure surfaced to snackbars / logs.
 class ConnectAllFailure {
@@ -18,16 +18,32 @@ class ConnectAllFailure {
     String? detail,
   }) : detail = detail ?? message;
 
+  /// The failed device in the device card's words: the troubleshooter's
+  /// headline for the message, with the driver's own text after it in
+  /// [detail].
   factory ConnectAllFailure.fromProgress(DeviceConnectProgress event) {
     final raw =
         event.errorMessage ?? event.error?.toString() ?? 'Connection failed';
-    final pretty = PrettyError.format(raw);
+    final diagnosis = diagnoseConnectionFailure(
+      deviceType: _deviceTypeOf(event.deviceType),
+      driverType: driverTypeFromDeviceId(event.deviceId) ?? DriverType.native,
+      rawError: raw,
+    );
     return ConnectAllFailure(
       deviceType: event.deviceType,
-      message: pretty.short,
-      detail: pretty.full,
+      message: diagnosis.headline,
+      detail: '${diagnosis.headline}: $raw',
     );
   }
+
+  /// The device a sweep label names; the guide camera is a camera.
+  static DeviceType _deviceTypeOf(String label) => label == guideCameraLabel
+      ? DeviceType.camera
+      : deviceSlots
+              .where((slot) => slot.noun == label)
+              .map((slot) => slot.type)
+              .firstOrNull ??
+          DeviceType.camera;
 
   @override
   String toString() => '$deviceType: $message';

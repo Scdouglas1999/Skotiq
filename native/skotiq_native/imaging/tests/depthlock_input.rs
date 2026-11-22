@@ -560,54 +560,82 @@ fn suggested_floor_follows_master_noise_and_aperture() {
     assert!(suggest_floor(&dark, &flat, &light, 0.5).is_err());
 }
 
-/// Which `IMAGETYP` spellings DepthLock measures as a light and which headers
-/// it takes as already calibrated or stacked.
+/// Which `IMAGETYP` spellings DepthLock measures as a light (the shared
+/// frame-kind reader) and which headers it takes as already calibrated (the
+/// shared calibrated reader) or stacked.
 #[test]
-fn a_light_is_read_by_its_exact_type_and_unmarked_header() {
+fn a_light_is_read_by_the_shared_kind_and_calibrated_readers() {
     let with = |key: &str, value: &str| {
         let mut h = light_header();
         h.set_string(key, value);
         light_settings(&h)
     };
-    for card in ["Light", "LIGHT", "light frame", "Light Frame"] {
-        assert!(with("IMAGETYP", card).is_ok(), "{card:?}");
-    }
     for card in [
+        "Light",
+        "LIGHT",
+        "light frame",
+        "Light Frame",
         "Light_Frame",
         "LIGHT_FRAME",
         "Science",
         "Object",
-        "MASTER_LIGHT",
-        "",
     ] {
-        assert!(with("IMAGETYP", card).is_err(), "{card:?}");
+        assert!(with("IMAGETYP", card).is_ok(), "{card:?}");
     }
-    assert!(with("CALSTAT", "").is_err(), "any CALSTAT card");
-    assert!(with("FRAMETYP", "Master").is_err());
+    for card in ["Dark", "Flat", "Dark Flat", "Bias", ""] {
+        assert_eq!(
+            with("IMAGETYP", card).unwrap_err(),
+            format!("Only light exposures may be measured; this file is IMAGETYP {card:?}")
+        );
+    }
+    let stacked = Err(
+        "Only unprocessed lights may be measured; this file is already calibrated or stacked"
+            .to_string(),
+    );
+    assert_eq!(with("IMAGETYP", "MASTER_LIGHT"), stacked);
+    assert_eq!(with("CALSTAT", "BDF"), stacked);
+    assert!(
+        with("CALSTAT", "").is_ok(),
+        "an empty CALSTAT is not a mark"
+    );
+    assert_eq!(with("FRAMETYP", "Master"), stacked);
     assert!(with("FRAMETYP", "MASTERFRAME").is_ok());
     let mut history = light_header();
     history.add_history("Calibration with ImageCalibration process");
-    assert!(
-        light_settings(&history).is_ok(),
-        "PixInsight HISTORY is not read here"
+    assert_eq!(
+        light_settings(&history),
+        stacked,
+        "a light PixInsight calibrated is not calibrated again"
     );
 }
 
-/// What `validate_master` takes as a master of the wanted kind, and the count
-/// it reads.
+/// What `validate_master` takes as a master of the wanted kind (the shared
+/// frame-kind reader), and the count it reads.
 #[test]
-fn a_master_is_read_by_frametyp_word_type_and_nframes() {
+fn a_master_is_read_by_frametyp_its_kind_and_nframes() {
     let goal = light_settings(&light_header()).unwrap();
     let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
     let dark = f32_image(64, 48, 1_000.0);
     let check =
         |header: &FitsHeader| validate_master(MasterKind::Dark, header, &dark, &goal, &geometry);
-    for card in ["DARK", "Master Dark", "MASTER_DARK", " dark ", "Dark Flat"] {
+    for card in ["DARK", "Master Dark", "MASTER_DARK", " dark ", "MasterDark"] {
         assert!(check(&master_header(card, 20)).is_ok(), "{card:?}");
     }
-    for card in ["DarkFlat", "MasterDark", "Light", ""] {
+    for card in ["DarkFlat", "Dark Flat", "Light", ""] {
         assert!(check(&master_header(card, 20)).is_err(), "{card:?}");
     }
+    let flat = f32_image(64, 48, 1.0);
+    assert_eq!(
+        validate_master(
+            MasterKind::Flat,
+            &master_header("Dark Flat", 20),
+            &flat,
+            &goal,
+            &geometry
+        ),
+        Err("Master flat declares IMAGETYP \"Dark Flat\", not a flat".to_string()),
+        "a dark-flat is not a flat"
+    );
     let mut frametyp = master_header("DARK", 20);
     frametyp.set_string("FRAMETYP", "Master");
     assert!(check(&frametyp).is_ok());
@@ -616,8 +644,191 @@ fn a_master_is_read_by_frametyp_word_type_and_nframes() {
     let mut counted = master_header("DARK", 20);
     counted.keywords.remove("NFRAMES");
     counted.set_int("NCOMBINE", 20);
+    assert!(
+        check(&counted).is_ok(),
+        "NCOMBINE counts when NFRAMES is absent"
+    );
+    counted.set_int("NFRAMES", 4);
     assert_eq!(
         check(&counted).unwrap_err(),
-        "Master dark was built from 0 frames; DepthLock needs at least 8"
+        "Master dark was built from 4 frames; DepthLock needs at least 8"
+    );
+    counted.keywords.remove("NFRAMES");
+    counted.keywords.remove("NCOMBINE");
+    assert_eq!(
+        check(&counted).unwrap_err(),
+        "Master dark does not say how many frames it was built from (NFRAMES or NCOMBINE); \
+         DepthLock needs at least 8"
+    );
+    let mut word_only = master_header("Master Dark", 20);
+    word_only.keywords.remove("FRAMETYP");
+    assert!(check(&word_only).is_ok(), "IMAGETYP says master");
+    let mut glued = master_header("MasterDark", 20);
+    glued.keywords.remove("FRAMETYP");
+    assert!(check(&glued).is_ok(), "IMAGETYP says master");
+    let mut unmarked = master_header("DARK", 20);
+    unmarked.keywords.remove("FRAMETYP");
+    assert_eq!(
+        check(&unmarked).unwrap_err(),
+        "Master dark is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)"
+    );
+}
+
+/// A dark-library master already on disk: the cards the streamed builder
+/// wrote before it wrote `FRAMETYP` and `NFRAMES`.
+#[test]
+fn a_dark_library_master_written_by_earlier_releases_is_accepted() {
+    let mut header = FitsHeader::new();
+    header.set_string("IMAGETYP", "Master Dark");
+    header.set_float("EXPTIME", 120.0);
+    header.set_float("EXPOSURE", 120.0);
+    header.set_int("GAIN", 100);
+    header.set_int("OFFSET", 50);
+    header.set_int("XBINNING", 1);
+    header.set_int("YBINNING", 1);
+    header.set_float("CCD-TEMP", -10.0);
+    header.set_float("SET-TEMP", -10.0);
+    header.set_string("INSTRUME", "ZWO ASI2600MM Pro");
+    header.set_string("READOUTM", "Normal");
+    header.set_int("NCOMBINE", 20);
+    let goal = light_settings(&light_header()).unwrap();
+    let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
+    let dark = u16_image(64, 48, 1_000);
+    assert_eq!(
+        validate_master(MasterKind::Dark, &header, &dark, &goal, &geometry),
+        Ok(())
+    );
+}
+
+/// A dark from the dark library is built by the streamed builder; DepthLock
+/// must accept what that builder writes, not a hand-built header.
+#[test]
+fn a_dark_library_master_is_accepted() {
+    use skotiq_imaging::calibration_master_stream::{
+        build_streamed_master, StreamedMasterConfig, StreamedMasterKind,
+    };
+    let dir = std::env::temp_dir().join(format!("skotiq-dl-dark-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut paths = Vec::new();
+    for i in 0..10u32 {
+        let mut header = light_header();
+        header.set_string("IMAGETYP", "Dark");
+        let samples: Vec<u16> = (0..64 * 48u32)
+            .map(|p| 1_000 + ((p.wrapping_mul(2_654_435_761) ^ i) % 7) as u16)
+            .collect();
+        let path = dir.join(format!("dark_{i}.fits"));
+        skotiq_imaging::write_fits(&path, &ImageData::from_u16(64, 48, 1, &samples), &header)
+            .unwrap();
+        paths.push(path);
+    }
+    let output = dir.join("master_dark.fits");
+    build_streamed_master(
+        &paths,
+        &output,
+        &StreamedMasterConfig::new(StreamedMasterKind::Dark),
+    )
+    .unwrap();
+    let (dark, header) = skotiq_imaging::read_fits(&output).unwrap();
+    let goal = light_settings(&light_header()).unwrap();
+    let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
+    let verdict = validate_master(MasterKind::Dark, &header, &dark, &goal, &geometry);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(verdict.is_ok(), "{verdict:?}");
+}
+
+/// What `light_settings` reads from the acquisition cards, edge by edge.
+#[test]
+fn a_light_acquisition_is_read_card_by_card() {
+    let goal = light_settings(&light_header()).unwrap();
+    let read = |change: &dyn Fn(&mut FitsHeader)| {
+        let mut h = light_header();
+        change(&mut h);
+        light_settings(&h)
+    };
+    let with = |change: &dyn Fn(&mut AcquisitionSettings)| {
+        let mut settings = goal.clone();
+        change(&mut settings);
+        Ok(settings)
+    };
+    assert_eq!(
+        read(&|h| h.set_string("INSTRUME", " ZWO ASI2600MM Pro ")),
+        Ok(goal.clone())
+    );
+    assert_eq!(read(&|h| h.set_string("FILTER", " L")), Ok(goal.clone()));
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("INSTRUME");
+        }),
+        Err("Light has no camera identity (INSTRUME)".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_string("INSTRUME", "  ")),
+        Err("Light has no camera identity (INSTRUME)".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("FILTER");
+        }),
+        Err("Light has no filter identity (FILTER)".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_float("GAIN", 100.7)),
+        with(&|s| s.gain = Some(100))
+    );
+    assert_eq!(
+        read(&|h| h.set_int("GAIN", 3_000_000_000)),
+        Err("GAIN is out of range".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_int("OFFSET", -3_000_000_000)),
+        Err("OFFSET is out of range".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("GAIN");
+        }),
+        with(&|s| s.gain = None)
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("XBINNING");
+            h.keywords.remove("YBINNING");
+        }),
+        Ok(goal.clone())
+    );
+    assert_eq!(read(&|h| h.set_int("XBINNING", 2)), with(&|s| s.bin_x = 2));
+    assert_eq!(
+        read(&|h| h.set_float("EXPTIME", 0.0)),
+        Err("Light has a non-positive EXPTIME".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_float("EXPTIME", f64::NAN)),
+        Err("DepthLock requires a finite EXPTIME FITS keyword".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("EXPTIME");
+            h.set_float("EXPOSURE", 120.0);
+        }),
+        Ok(goal.clone()),
+        "EXPOSURE stands in for a missing EXPTIME, as in every other reader"
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("EXPTIME");
+        }),
+        Err("DepthLock requires a finite EXPTIME FITS keyword".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_float("CCD-TEMP", f64::NAN)),
+        with(&|s| s.ccd_temp_c = None)
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("CCD-TEMP");
+            h.set_float("SET-TEMP", -10.0);
+            h.set_string("READOUTM", "High Gain");
+        }),
+        with(&|s| s.ccd_temp_c = None)
     );
 }

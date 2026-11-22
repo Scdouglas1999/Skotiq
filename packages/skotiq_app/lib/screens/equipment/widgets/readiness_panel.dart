@@ -33,7 +33,7 @@ Color readinessLevelColor(ReadinessLevel level, SkotiqColors colors) {
 
 /// Maps a [ReadinessLevel] onto a [BannerTone] for the panel
 /// header banner.
-BannerTone readinessLevelAlertSeverity(ReadinessLevel level) {
+BannerTone readinessLevelBannerTone(ReadinessLevel level) {
   switch (level) {
     case ReadinessLevel.ready:
       return BannerTone.success;
@@ -88,7 +88,7 @@ Future<void> showReadinessDialog(BuildContext context) {
 /// Itemized "ready to image" checklist.
 ///
 /// Renders a [ReadinessReport] as a header banner summarizing the overall
-/// state ([SkotiqAlert] with severity per level) followed by one row per
+/// state ([SkotiqBanner] with a tone per level) followed by one row per
 /// [ReadinessItem]: a [StatusDot] colored by level, the item title + detail,
 /// and — when the item is not [ReadinessLevel.ready] — a trailing **Fix**
 /// button that navigates to [ReadinessItem.fixRoute].
@@ -183,10 +183,10 @@ class ReadinessPanel extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (showHeader) ...[
-          SkotiqAlert(
+          SkotiqBanner(
             title: report.summaryLabel,
             message: _summaryDetail(report, dismissedVisible),
-            severity: readinessLevelAlertSeverity(report.overall),
+            tone: readinessLevelBannerTone(report.overall),
           ),
           const SizedBox(height: SkotiqTokens.spaceLg),
         ],

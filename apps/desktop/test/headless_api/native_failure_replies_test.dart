@@ -134,25 +134,35 @@ final Map<String, Object> _failures = {
   ),
   'depthlock.io': const bridge.SkotiqError.ioError('disk gone'),
   'depthlock.dart_error': StateError('store gone'),
-  // POST /api/focuser/move-to (driver words; no Skotiq producer)
-  'focuser.ascom_move_failure': const bridge.SkotiqError.operationFailed(
-    'Failed to call method Move: Move Failure',
+  // POST /api/focuser/move-to: the bridge's focuser move answers a driver
+  // that refuses because the focuser is moving as deviceBusy, with the
+  // driver's words as the current operation.
+  'focuser.ascom_move_failure': const bridge.SkotiqError.deviceBusy(
+    deviceId: 'focuser-1',
+    currentOperation:
+        'Failed to move ASCOM focuser focuser-1 to position 100: '
+        'Failed to call method Move: Move Failure',
   ),
-  'focuser.already_moving': const bridge.SkotiqError.ascomError(
-    progId: 'ASCOM.Focuser',
-    message: 'Focuser already moving',
-    errorCode: 1035,
+  'focuser.already_moving': const bridge.SkotiqError.deviceBusy(
+    deviceId: 'focuser-1',
+    currentOperation: 'Focuser already moving',
   ),
-  'focuser.device_busy_words': const bridge.SkotiqError.operationFailed(
-    'Device busy, try later',
+  'focuser.device_busy_words': const bridge.SkotiqError.deviceBusy(
+    deviceId: 'focuser-1',
+    currentOperation: 'Device busy, try later',
   ),
-  'focuser.focuser_is_busy': const bridge.SkotiqError.operationFailed(
-    'The focuser is busy',
+  'focuser.focuser_is_busy': const bridge.SkotiqError.deviceBusy(
+    deviceId: 'focuser-1',
+    currentOperation: 'The focuser is busy',
   ),
   'focuser.device_busy_variant': const bridge.SkotiqError.deviceBusy(
     deviceId: 'focuser-1',
     currentOperation: 'moving',
   ),
+  'focuser.driver_words_without_a_kind':
+      const bridge.SkotiqError.operationFailed(
+        'Failed to call method Move: Move Failure',
+      ),
   'focuser.other': const bridge.SkotiqError.operationFailed('sdk blew up'),
   'focuser.dart_busy': StateError('focuser is busy'),
 };

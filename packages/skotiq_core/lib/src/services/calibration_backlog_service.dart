@@ -779,7 +779,7 @@ class CalibrationBacklogService {
     return null;
   }
 
-  /// File name of a built master, in the backlog's style.
+  /// File name of a built master.
   String masterFileName({
     required CalibrationFrameKind kind,
     required double exposureSeconds,
@@ -790,7 +790,6 @@ class CalibrationBacklogService {
     required String? filter,
   }) => calibrationMasterFileName(
     kind: kind.name,
-    style: CalibrationMasterNameStyle.backlog,
     builtAt: _now(),
     exposureSeconds: exposureSeconds,
     gain: gain,

@@ -40,6 +40,7 @@ export 'src/providers/sequence/run_node_times_provider.dart';
 export 'src/providers/sequence/session_report_presentation.dart';
 // The one channel only exposure-shaped progress can write.
 export 'src/providers/sequence/node_exposure_tally.dart';
+export 'src/providers/sequence/exposure_node_frames.dart';
 // Thumbnail — inline frame thumbnails in the sequence tree.
 export 'src/providers/sequence/exposure_node_thumbnails_provider.dart';
 export 'src/providers/plugin_node_dispatcher.dart';
@@ -59,6 +60,7 @@ export 'src/providers/profile_activation_writethrough.dart';
 export 'src/providers/focus_model_profile_data_provider.dart';
 export 'src/providers/guiding_provider.dart';
 export 'src/providers/backend_provider.dart';
+export 'src/providers/host_paths.dart';
 export 'src/providers/host_role.dart';
 export 'src/providers/linked_host.dart';
 export 'src/providers/captured_image_rows.dart';
@@ -203,6 +205,7 @@ export 'src/providers/constellation_provider.dart';
 export 'src/providers/transient_detections_provider.dart';
 export 'src/providers/hardware_presets_provider.dart';
 export 'src/providers/plugin_enablement_provider.dart';
+export 'src/providers/plugin_host_events.dart';
 export 'src/providers/end_of_night_calibration/eon_providers.dart';
 export 'src/providers/annotation_service_provider.dart';
 export 'src/providers/device_service_providers.dart';

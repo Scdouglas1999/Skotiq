@@ -259,6 +259,17 @@ class SiteHorizonProfile {
     return '{${parts.join(',')}}';
   }
 
+  /// Whether a stored horizon blob reads as the JSON it should be. When it
+  /// does not, [SiteHorizonProfile.fromJson] falls back to the compass values
+  /// it can find, or a flat horizon, which lowers every plan's altitude floor.
+  static bool storedJsonIsReadable(String json) {
+    try {
+      return jsonDecode(json) is Map<String, dynamic>;
+    } on FormatException {
+      return false;
+    }
+  }
+
   /// Decode the stored blob. Uses a real JSON parser because the profile now
   /// carries a nested `samples` array; [_parseSimpleJson] only ever handled
   /// flat `string -> number` maps and silently dropped anything else, which

@@ -205,9 +205,33 @@ pub async fn api_mount_pulse_guide(
 /// Move mount axis at specified rate (degrees/second)
 /// axis: 0=RA/Azimuth (primary), 1=Dec/Altitude (secondary)
 /// rate: degrees per second (positive = N/E, negative = S/W), 0 to stop
+///
+/// A nudge stops a guider that is guiding first, as every other move this
+/// API starts does: PHD2 would otherwise pull against it. A guider that does
+/// not answer never holds the nudge back, and stopping the axis (rate 0)
+/// does not ask the guider.
 pub async fn mount_move_axis(device_id: String, axis: i32, rate: f64) -> Result<(), SkotiqError> {
-    let mgr = get_device_manager();
-    mgr.mount_move_axis(&device_id, axis, rate)
+    move_axis(&device_id, axis, rate, || {
+        clear_guider_for("MoveAxis", SilentGuider::Moves)
+    })
+    .await
+}
+
+async fn move_axis<F, Fut>(
+    device_id: &str,
+    axis: i32,
+    rate: f64,
+    clear_guider: F,
+) -> Result<(), SkotiqError>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = MountMoveGuider>,
+{
+    if rate != 0.0 {
+        clear_guider().await;
+    }
+    get_device_manager()
+        .mount_move_axis(device_id, axis, rate)
         .await
         .map_err(SkotiqError::from)
 }
@@ -475,6 +499,30 @@ mod tests {
         assert!(
             err.to_string().contains("direction: widdershins"),
             "expected a direction rejection, got: {err}"
+        );
+    }
+
+    /// P8-8: a nudge asks the guider to stop before the axis moves; the
+    /// stop of the axis does not.
+    #[tokio::test]
+    async fn a_nudge_stops_the_guider_first_and_stopping_the_axis_does_not() {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        let asked = AtomicU32::new(0);
+        let clear = || async {
+            asked.fetch_add(1, Ordering::SeqCst);
+            super::MountMoveGuider::Stopped
+        };
+        assert!(super::move_axis("no_such_mount", 0, 0.5, clear)
+            .await
+            .is_err());
+        assert_eq!(asked.load(Ordering::SeqCst), 1, "a nudge stops the guider");
+        assert!(super::move_axis("no_such_mount", 0, 0.0, clear)
+            .await
+            .is_err());
+        assert_eq!(
+            asked.load(Ordering::SeqCst),
+            1,
+            "stopping the axis leaves the guider alone"
         );
     }
 }

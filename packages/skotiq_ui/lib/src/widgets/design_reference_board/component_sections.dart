@@ -222,25 +222,22 @@ class _StatusAndFeedbackSection extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceLg),
           _SubLabel('Alerts', colors: colors),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          const SkotiqAlert(
+          const SkotiqBanner(
             title: 'Self-test complete',
             message: 'Backend, storage, and route metadata passed.',
-            severity: BannerTone.info,
-            compact: true,
+            tone: BannerTone.info,
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          const SkotiqAlert(
+          const SkotiqBanner(
             title: 'Unsafe weather',
             message: 'Sequence start is blocked until safety clears.',
-            severity: BannerTone.warning,
-            compact: true,
+            tone: BannerTone.warning,
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          const SkotiqAlert(
+          const SkotiqBanner(
             title: 'Restore failed',
             message: 'Backup file is missing a version field.',
-            severity: BannerTone.error,
-            compact: true,
+            tone: BannerTone.error,
           ),
         ],
       ),

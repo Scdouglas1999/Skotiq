@@ -22,6 +22,9 @@ enum ChipTone {
   /// Failed, disconnected, stopped.
   error,
 
+  /// Something to know that needs nothing done: a note, an event.
+  info,
+
   /// Selection and links — never a status.
   primary;
 
@@ -32,6 +35,7 @@ enum ChipTone {
     ChipTone.success => colors.success,
     ChipTone.warning => colors.warning,
     ChipTone.error => colors.error,
+    ChipTone.info => colors.info,
     ChipTone.primary => colors.primary,
   };
 }

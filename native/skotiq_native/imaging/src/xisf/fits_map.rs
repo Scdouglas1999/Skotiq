@@ -490,11 +490,11 @@ fn image_type_of(card: &str) -> Option<&'static str> {
     let kind = skotiq_frame::FrameKind::from_imagetyp(card)?;
     Some(match (kind.master, kind.base) {
         (false, FrameType::Bias) => "Bias",
-        (false, FrameType::Dark) => "Dark",
+        (false, FrameType::Dark | FrameType::DarkFlat) => "Dark",
         (false, FrameType::Flat) => "Flat",
         (false, _) => "Light",
         (true, FrameType::Bias) => "MasterBias",
-        (true, FrameType::Dark) => "MasterDark",
+        (true, FrameType::Dark | FrameType::DarkFlat) => "MasterDark",
         (true, FrameType::Flat) => "MasterFlat",
         (true, _) => "MasterLight",
     })
@@ -698,5 +698,27 @@ fn solution_to_cards(image: &XisfImageHeader, header: &mut FitsHeader) {
     }
     if let Some(equinox) = equinox {
         header.set_float("EQUINOX", equinox);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::image_type_of;
+
+    /// A dark-flat is written to XISF as the dark it is taken as, as before
+    /// the frame vocabulary told it apart.
+    #[test]
+    fn a_dark_flat_card_is_written_as_a_dark() {
+        for (card, image_type) in [
+            ("DarkFlat", Some("Dark")),
+            ("Dark Flat", Some("Dark")),
+            ("Master DarkFlat", Some("MasterDark")),
+            ("Master Dark", Some("MasterDark")),
+            ("FLAT", Some("Flat")),
+            ("Light", Some("Light")),
+            ("MASTER_REF", None),
+        ] {
+            assert_eq!(image_type_of(card), image_type, "{card:?}");
+        }
     }
 }

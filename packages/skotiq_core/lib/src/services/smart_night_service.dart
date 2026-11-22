@@ -26,6 +26,7 @@ import 'smart_night/hardware_specs_service.dart';
 import 'smart_night/unknown_camera_figures.dart';
 import 'smart_night_models.dart';
 import 'target_suggestion_service.dart';
+import 'tonight_dark_window.dart';
 
 // Re-export model classes, enums, exceptions, and pure helpers so the
 // existing `package:skotiq_core/skotiq_core.dart` barrel surface
@@ -42,6 +43,15 @@ bool _profileHasGuider(EquipmentProfileModel profile) {
   final name = profile.guiderName?.trim() ?? '';
   return id.isNotEmpty || name.isNotEmpty;
 }
+
+/// The optics a plan is computed with ([SmartNightService._planningOptics]).
+typedef _PlanningOptics = ({
+  double pixelSizeUm,
+  double focalLengthMm,
+  double apertureMm,
+  CameraExposureSpec camera,
+  int bortleClass,
+});
 
 /// The auto-builder service.
 ///
@@ -167,7 +177,6 @@ class SmartNightService {
       return (start: start, end: end, twilight: night);
     }
 
-    final local = reference.toLocal();
     if (window case NoDarkWindow(polarNight: false)) {
       _logging.warning(
         'No twilight bounds and the Sun does not remain below the horizon at '
@@ -189,9 +198,8 @@ class SmartNightService {
       'using a conservative 21:00 → 05:00 local polar-night window.',
       source: _source,
     );
-    final fallbackStart = DateTime(local.year, local.month, local.day, 21);
-    final fallbackEnd = fallbackStart.add(const Duration(hours: 8));
-    return (start: fallbackStart, end: fallbackEnd, twilight: night);
+    final clock = polarNightClockWindow(reference);
+    return (start: clock.start, end: clock.end, twilight: night);
   }
 
   /// Tonight's dark window as far as it is still ahead: once the night is
@@ -333,21 +341,6 @@ class SmartNightService {
     final recentGuideSamples = context.recentGuideSamples > 0
         ? context.recentGuideSamples
         : (exposureContext?.guideSampleCount ?? 0);
-
-    if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
-      throw SmartNightBuildException(
-        'Equipment profile "${profile.name}" is missing aperture, focal '
-        'length, or pixel size. These are required to compute exposure '
-        'recommendations. Aperture=$aperture mm, '
-        'focal length=$focalLength mm, '
-        'pixel size=$pixelSizeUm µm.'
-        '${pixelSizeUm <= 0 ? ' The camera '
-                  '"${profile.cameraName ?? profile.cameraId ?? "<unknown>"}" is not '
-                  'in the bundled hardware catalog. Connect the camera so its real '
-                  'pixel size is read, or add it to the Smart Night camera '
-                  'overrides. Smart Night will not guess a pixel size.' : ''}',
-      );
-    }
 
     // Schedule targets into the dark window. We use a deep-first
     // chaining strategy: take the highest-scoring target until its
@@ -636,15 +629,16 @@ class SmartNightService {
     final activeFilters = set.filters;
     if (activeFilters.isEmpty) return null;
 
-    final optics = _planningOptics(profile, exposureContext);
+    final _PlanningOptics optics;
+    try {
+      optics = _planningOptics(profile, exposureContext);
+    } on SmartNightBuildException {
+      return null;
+    }
     final pixelSizeUm = optics.pixelSizeUm;
     final focalLength = optics.focalLengthMm;
     final aperture = optics.apertureMm;
     final cameraSpec = optics.camera;
-
-    if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
-      return null;
-    }
 
     final usable = _usableTargetWindow(
       suggestion: suggestion,
@@ -747,14 +741,6 @@ class SmartNightService {
     final focalLength = optics.focalLengthMm;
     final aperture = optics.apertureMm;
     final cameraSpec = optics.camera;
-
-    if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
-      throw SmartNightBuildException(
-        'Equipment profile "${profile.name}" is missing aperture, focal '
-        'length, or pixel size. These are required to compute exposure '
-        'recommendations.',
-      );
-    }
 
     final usable = _usableTargetWindow(
       suggestion: suggestion,
@@ -876,13 +862,6 @@ class SmartNightService {
     final pixelSizeUm = optics.pixelSizeUm;
     final focalLength = optics.focalLengthMm;
     final aperture = optics.apertureMm;
-    if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
-      throw SmartNightBuildException(
-        'Equipment profile "${profile.name}" is missing aperture, focal '
-        'length, or pixel size. These are required to compute exposure '
-        'recommendations.',
-      );
-    }
     final plans = composeSmartNightFilterPlans(
       shares: filterSet.shares,
       activeFilters: filterSet.filters,
@@ -954,42 +933,66 @@ class SmartNightService {
     return maxEnd.isBefore(windowEnd) ? maxEnd : windowEnd;
   }
 
-  /// The optics a plan is computed with. Pixel size and the camera's noise
-  /// figures come from [exposureContext] first, then the profile's camera;
-  /// focal length and aperture come from the profile first, then
-  /// [exposureContext], then the profile's telescope. A sky brightness with
-  /// no context is Bortle 5.
-  ({
-    double pixelSizeUm,
-    double focalLengthMm,
-    double apertureMm,
-    CameraExposureSpec camera,
-    int bortleClass,
-  })
-  _planningOptics(
+  /// The optics a plan is computed with, every field from one source: the
+  /// [exposureContext] when there is one (it already resolves the profile,
+  /// the optical config and the user's own entries), else the profile alone
+  /// (its train, else its telescope; its camera through the sensor-spec
+  /// chain; Bortle 5). Throws a [SmartNightBuildException] naming each
+  /// figure neither knows and the camera when it is the pixel size.
+  /// The sky brightness a plan built from a profile alone assumes.
+  static const int _skyBortleWithoutContext = 5;
+
+  _PlanningOptics _planningOptics(
     EquipmentProfileModel profile,
     SmartNightExposureContext? exposureContext,
-  ) => (
-    pixelSizeUm: exposureContext?.pixelSizeMicrons ?? _pixelSize(profile),
-    focalLengthMm: profile.focalLength > 0
-        ? profile.focalLength
-        : _firstKnown(
-            exposureContext?.focalLengthMm,
-            profile.telescopeFocalLength,
-          ),
-    apertureMm: profile.aperture > 0
-        ? profile.aperture
-        : _firstKnown(exposureContext?.apertureMm, profile.telescopeAperture),
-    camera: exposureContext?.camera ?? _cameraSpecFromProfile(profile),
-    bortleClass: exposureContext?.bortleClass ?? 5,
-  );
-
-  /// [first], else [second], else 0: the "unknown" each plan path's
-  /// incomplete-optics guard refuses.
-  static double _firstKnown(double? first, double? second) {
-    if (first != null) return first;
-    if (second != null) return second;
-    return 0;
+  ) {
+    double? known(double? value) => value != null && value > 0 ? value : null;
+    final context = exposureContext;
+    final pixelSizeUm = known(
+      context == null ? _pixelSize(profile) : context.pixelSizeMicrons,
+    );
+    final focalLengthMm = known(
+      context == null ? profile.effectiveFocalLength : context.focalLengthMm,
+    );
+    final apertureMm = known(
+      context == null ? profile.effectiveAperture : context.apertureMm,
+    );
+    if ((pixelSizeUm, focalLengthMm, apertureMm) case (
+      final pixel?,
+      final focal?,
+      final aperture?,
+    )) {
+      return (
+        pixelSizeUm: pixel,
+        focalLengthMm: focal,
+        apertureMm: aperture,
+        camera: context == null
+            ? _cameraSpecFromProfile(profile)
+            : context.camera,
+        bortleClass: context == null
+            ? _skyBortleWithoutContext
+            : context.bortleClass,
+      );
+    }
+    final missing = [
+      if (focalLengthMm == null) 'focal length',
+      if (apertureMm == null) 'aperture',
+      if (pixelSizeUm == null) 'camera pixel size',
+    ];
+    final named = missing.length == 1
+        ? missing.single
+        : '${missing.sublist(0, missing.length - 1).join(', ')} and '
+              '${missing.last}';
+    final camera = profile.cameraName ?? profile.cameraId ?? '<unknown>';
+    throw SmartNightBuildException(
+      'Smart Night cannot compute exposures for equipment profile '
+      '"${profile.name}": it has no $named.'
+      '${pixelSizeUm == null ? ' No pixel size is known for the camera '
+                '"$camera": it reported none, and none is entered or '
+                'published for it. Connect the camera so its real pixel size '
+                'is read, or enter it in the camera sensor specs. Smart '
+                'Night will not guess a pixel size.' : ''}',
+    );
   }
 
   /// Resolve the camera pixel size (µm) for [profile] WITHOUT a live
@@ -1002,13 +1005,10 @@ class SmartNightService {
   /// container to read them from. The real value normally arrives via
   /// `exposureContext.pixelSizeMicrons`, which does.
   ///
-  /// Returns `0` — a deliberate "unknown" sentinel — when nothing resolves.
-  /// There is no hardcoded fallback pitch: a stand-in figure (3.76µm, say)
-  /// mis-scales the sky-limited exposure math for every camera that does not
-  /// have it, so each caller's `pixelSizeUm <= 0` guard fires loudly instead.
-  /// [build] / [buildSingleTargetSequence] throw a [SmartNightBuildException]
-  /// naming pixel size, and [previewTargetIntegration] returns null.
-  double _pixelSize(EquipmentProfileModel profile) {
+  /// Null when nothing resolves. There is no fallback pitch: a stand-in
+  /// figure mis-scales the sky-limited exposure math for every camera that
+  /// does not have it, so [_planningOptics] refuses instead.
+  double? _pixelSize(EquipmentProfileModel profile) {
     final specs = CameraSensorSpecResolver().resolve(
       CameraSensorSpecInputs(
         cameraName: profile.cameraName,
@@ -1021,7 +1021,7 @@ class SmartNightService {
         ),
       ),
     );
-    return specs.pixelSizeMicrons?.value ?? 0;
+    return specs.pixelSizeMicrons?.value;
   }
 
   /// The filter set for [suggestion] on a rig whose wheel holds

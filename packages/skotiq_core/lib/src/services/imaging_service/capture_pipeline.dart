@@ -602,6 +602,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                 binX: settings.binningX,
                 binY: settings.binningY,
                 sensorTemperature: cameraState.temperature,
+                filter: settings.filter,
               );
               if (!_hasBackendAuthority(backend)) return null;
               _logger.info(

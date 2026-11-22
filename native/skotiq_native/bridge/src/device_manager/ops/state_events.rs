@@ -34,6 +34,10 @@ pub(crate) mod property {
     /// Rotator sky angle after a sync, in degrees.
     pub const ROTATOR_POSITION: &str = "Position";
     pub const ROTATOR_REVERSE: &str = "Reverse";
+    /// Value: the fields (comma-separated) the connect check could not
+    /// verify, whose shown value is the device's own report
+    /// (`connect_check`).
+    pub const UNVERIFIED: &str = "Unverified";
     /// Value `"<ra hours> <dec degrees>"`, the J2000 position synced to.
     pub const MOUNT_SYNCED: &str = "Synced";
     /// Value `"<altitude> <azimuth>"` in degrees: an alt/az slew started.
@@ -106,6 +110,7 @@ impl DeviceManager {
     pub(crate) fn publish_state_event(&self, event: EquipmentEvent) {
         if let Some((device_id, reading)) = super::backstop::Reading::of_event(&event) {
             self.command_activity.record(device_id, reading);
+            self.positions.record(device_id, reading);
         }
         self.app_state
             .publish_equipment_event(event, EventSeverity::Info);

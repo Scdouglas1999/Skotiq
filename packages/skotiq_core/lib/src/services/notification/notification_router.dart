@@ -24,7 +24,9 @@
 
 import 'dart:async';
 
+import '../../backend/bridge_event_codec.dart' show systemEventOf;
 import '../../backend/bridge_events.dart' as typed show SequencerEvent_Started;
+import '../../backend/bridge_events.dart' show SystemEvent_Notification;
 import '../../backend/sequencer_run_events.dart' show sequencerEventOf;
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
@@ -540,20 +542,17 @@ class NotificationRouter {
       return;
     }
 
-    // NotificationNode emits a sequencer event of type
-    // `Notification` whose data carries title/message/level/transports.
-    // It bypasses the auto-classifier because the user's chosen
-    // explicit_transports must override the matrix's `custom` rule.
-    if (event.category == EventCategory.sequencer &&
-        event.eventType == 'Notification') {
-      final title = (event.data['title'] as String?) ?? '';
-      final body = (event.data['message'] as String?) ?? '';
-      final transports = _parseExplicitTransportsFromEvent(event.data);
+    // A sequence Notification node that names its own transports publishes
+    // a system notification carrying them; those transports override the
+    // matrix's `custom` rule. A system notification without its own list
+    // (a node with none, the database health notice) is not routed.
+    if (systemEventOf(event) case final SystemEvent_Notification notification
+        when nodeNotificationTransports(notification) != null) {
       routeNotificationNode(
-        title: title,
-        body: body,
+        title: notification.title,
+        body: notification.message,
         severity: event.severity,
-        explicitTransports: transports,
+        explicitTransports: nodeNotificationTransports(notification),
       );
       return;
     }
@@ -616,24 +615,6 @@ class NotificationRouter {
     if (classified == null) return;
     final context = _buildContext(event, classified.context);
     route(classified.category, context, severity: classified.severity);
-  }
-
-  /// Pull `explicit_transports` out of a NotificationNode Rust event
-  /// payload. Returns null if the field is missing or empty (which means
-  /// "inherit the matrix's `custom` rule transports").
-  List<NotificationTransportKind>? _parseExplicitTransportsFromEvent(
-    Map<String, dynamic> data,
-  ) {
-    final raw = data['explicit_transports'];
-    if (raw is! List) return null;
-    final out = <NotificationTransportKind>[];
-    for (final entry in raw) {
-      if (entry is String) {
-        final t = NotificationTransportKind.fromStorageKey(entry);
-        if (t != null) out.add(t);
-      }
-    }
-    return out.isEmpty ? null : out;
   }
 
   Map<String, String> _buildContext(
@@ -805,4 +786,18 @@ class _RateWindow {
       _hits.removeAt(0);
     }
   }
+}
+
+/// The transports a sequence Notification node named for [notification],
+/// the ones of them this build knows; null when it names none. A
+/// notification that names some is the notification router's to send, on
+/// exactly those transports.
+List<NotificationTransportKind>? nodeNotificationTransports(
+  SystemEvent_Notification notification,
+) {
+  final kinds = [
+    for (final name in notification.explicitTransports ?? const <String>[])
+      if (NotificationTransportKind.fromStorageKey(name) case final kind?) kind,
+  ];
+  return kinds.isEmpty ? null : kinds;
 }

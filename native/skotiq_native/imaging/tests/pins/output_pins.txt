@@ -128,10 +128,10 @@ finishing/psf.focused_L.u16.Moffat cf263d3c5441a329
 finishing/psf.rig_0005.u16.Empirical 2ee1191c38bf2cc4
 finishing/psf.rig_0005.u16.Gaussian 15023c767d36ba84
 finishing/psf.rig_0005.u16.Moffat 991b1905af8449a1
-finishing/star_reduction.mono_f32 bb3d41fb4ee5b9e1
-finishing/star_reduction.mono_u16 bf8948a9ee60b167
-finishing/star_reduction.rgb_f32 14d2eb21171dc8f6
-finishing/star_reduction.rgb_u16 9f38b36bb9b50cf9
+finishing/star_reduction.mono_f32 631af17304bdda0c
+finishing/star_reduction.mono_u16 8e814f89d12e95a4
+finishing/star_reduction.rgb_f32 9000f6633ba4cafc
+finishing/star_reduction.rgb_u16 9b4ff316a75927c5
 focused_L.fits/detect_stars 90d9960814759f6c
 focused_L.fits/detect_stars_for_selection f6d475f6ead0594a
 focused_L.fits/detect_stars_with_stats b962982b776ac2f7

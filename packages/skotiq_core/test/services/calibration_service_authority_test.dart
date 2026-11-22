@@ -107,6 +107,16 @@ void main() {
         (_) async => r'C:\Users\observer\Documents\Darks\master.fits',
       );
       when(
+        () => backend.matchFlatFromLibrary(
+          filter: any(named: 'filter'),
+          gain: any(named: 'gain'),
+          offset: any(named: 'offset'),
+          binX: any(named: 'binX'),
+          binY: any(named: 'binY'),
+          temperature: any(named: 'temperature'),
+        ),
+      ).thenAnswer((_) async => null);
+      when(
         () => backend.calibrateImageFile(
           lightPath: any(named: 'lightPath'),
           darkPath: any(named: 'darkPath'),
@@ -153,6 +163,16 @@ void main() {
 
   test('a camera raw light gets a FITS calibrated copy', () async {
     final backend = _MockNetworkBackend();
+    when(
+      () => backend.matchFlatFromLibrary(
+        filter: any(named: 'filter'),
+        gain: any(named: 'gain'),
+        offset: any(named: 'offset'),
+        binX: any(named: 'binX'),
+        binY: any(named: 'binY'),
+        temperature: any(named: 'temperature'),
+      ),
+    ).thenAnswer((_) async => null);
     when(
       () => backend.calibrateImageFile(
         lightPath: any(named: 'lightPath'),

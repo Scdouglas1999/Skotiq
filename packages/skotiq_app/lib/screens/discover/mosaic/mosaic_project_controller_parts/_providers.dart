@@ -201,8 +201,19 @@ MosaicCaptureLauncher buildMosaicCaptureLauncher(Ref ref) {
       rootNodeId: rootNode.id,
     );
 
-    await ref
-        .read(sequenceActionServiceProvider)
-        .startOwnedPlan(sequence, ActivePlanOwner.mosaic);
+    // Capture is pressed on the project screen, so the pre-flight checks are
+    // shown on the app's window; with no window they run beside the start.
+    final uiContext = ref
+        .read(appRouterProvider)
+        .routerDelegate
+        .navigatorKey
+        .currentState
+        ?.overlay
+        ?.context;
+    await ref.read(sequenceActionServiceProvider).startOwnedPlan(
+          sequence,
+          ActivePlanOwner.mosaic,
+          confirm: uiContext == null ? null : () => confirmPreflight(uiContext),
+        );
   };
 }

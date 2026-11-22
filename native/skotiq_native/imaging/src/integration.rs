@@ -145,24 +145,27 @@ impl Reject {
     /// sigma clipping (4 / 3 sigma) up to 19, and the generalized ESD test
     /// (30% outliers, alpha 0.05, low relaxation 1.5) from 20.
     pub fn pixinsight_auto(frames: usize) -> Self {
+        let defaults = RejectBounds::default();
         if frames < 8 {
-            Reject::PercentileClip {
-                low: 0.2,
-                high: 0.1,
-            }
+            RejectChoice::PercentileClip.resolve(frames, defaults)
         } else if frames < 20 {
-            Reject::WinsorizedSigmaClip {
-                low: 4.0,
-                high: 3.0,
-            }
+            RejectChoice::WinsorizedSigmaClip.resolve(frames, defaults)
         } else {
-            Reject::GeneralizedEsd {
-                outliers: 0.3,
-                alpha: 0.05,
-                low_relaxation: 1.5,
-            }
+            RejectChoice::GeneralizedEsd.resolve(frames, defaults)
         }
     }
+}
+
+/// What a request states for the rejector it names; each `None` takes
+/// PixInsight's ImageIntegration default for that rejector (sigma and
+/// Winsorized sigma 4 / 3, linear fit 5 / 4, percentile 0.2 / 0.1, min/max
+/// one sample each side).
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct RejectBounds {
+    /// Low and high bounds of the sigma, linear-fit and percentile rejectors.
+    pub low_high: Option<(f64, f64)>,
+    /// Samples dropped low and high by min/max clipping.
+    pub min_max: Option<(usize, usize)>,
 }
 
 /// The rejection a request token names, before its parameters are chosen.
@@ -200,6 +203,43 @@ impl RejectChoice {
             "esd" | "generalizedesd" => Self::GeneralizedEsd,
             _ => return None,
         })
+    }
+
+    /// The rejector this choice runs over `frames` subs: `auto` is
+    /// [`Reject::pixinsight_auto`], every other rejector takes the bounds
+    /// `bounds` states or PixInsight's defaults. The generalized ESD test
+    /// always runs with PixInsight's defaults (30% outliers, alpha 0.05, low
+    /// relaxation 1.5).
+    pub fn resolve(self, frames: usize, bounds: RejectBounds) -> Reject {
+        match self {
+            Self::Auto => Reject::pixinsight_auto(frames),
+            Self::None => Reject::None,
+            Self::SigmaClip => {
+                let (low, high) = bounds.low_high.unwrap_or((4.0, 3.0));
+                Reject::SigmaClip { low, high }
+            }
+            Self::WinsorizedSigmaClip => {
+                let (low, high) = bounds.low_high.unwrap_or((4.0, 3.0));
+                Reject::WinsorizedSigmaClip { low, high }
+            }
+            Self::LinearFitClip => {
+                let (low, high) = bounds.low_high.unwrap_or((5.0, 4.0));
+                Reject::LinearFitClip { low, high }
+            }
+            Self::PercentileClip => {
+                let (low, high) = bounds.low_high.unwrap_or((0.2, 0.1));
+                Reject::PercentileClip { low, high }
+            }
+            Self::MinMax => {
+                let (n_low, n_high) = bounds.min_max.unwrap_or((1, 1));
+                Reject::MinMax { n_low, n_high }
+            }
+            Self::GeneralizedEsd => Reject::GeneralizedEsd {
+                outliers: 0.3,
+                alpha: 0.05,
+                low_relaxation: 1.5,
+            },
+        }
     }
 }
 

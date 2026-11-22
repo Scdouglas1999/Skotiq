@@ -151,6 +151,12 @@ class QrConnectionData {
   /// compatibility with pre-2.6 QR payloads that omit the field.
   final String scheme;
 
+  /// The computer's name and `gui`/`headless`, as `/api/info` says them.
+  /// Codes printed before these keys existed carry neither; [serverName] and
+  /// [mode] keep the values every release printed.
+  final String? hostName;
+  final String? hostMode;
+
   QrConnectionData({
     this.service = kQrServiceMarker,
     required this.host,
@@ -166,6 +172,8 @@ class QrConnectionData {
     this.authToken,
     this.pairingCode,
     this.scheme = 'http',
+    this.hostName,
+    this.hostMode,
   });
 
   /// `true` when the QR advertised a TLS endpoint.
@@ -191,6 +199,8 @@ class QrConnectionData {
     if (authToken != null && authToken!.isNotEmpty) 'authToken': authToken,
     if (pairingCode != null && pairingCode!.isNotEmpty)
       'pairingCode': pairingCode,
+    if (hostName != null) 'hostName': hostName,
+    if (hostMode != null) 'hostMode': hostMode,
   };
 
   String toQrString() => jsonEncode(toJson());
@@ -325,6 +335,7 @@ class QrConnectionData {
       );
     }
 
+    final advert = HostAdvertRead.fromJson(decoded);
     return QrConnectionData(
       service: service,
       host: host,
@@ -350,6 +361,8 @@ class QrConnectionData {
       pairingCode: decoded['pairingCode'] is String
           ? decoded['pairingCode'] as String
           : null,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode,
     );
   }
 
@@ -366,6 +379,8 @@ class QrConnectionData {
     authToken: authToken,
     fingerprint: fingerprint,
     scheme: scheme,
+    hostName: hostName,
+    hostMode: hostMode,
   );
 }
 
@@ -568,28 +583,33 @@ class EnhancedSkotiqDiscovery {
     DiscoveredServer seed,
     Map<String, dynamic> info,
   ) {
+    final advert = HostAdvertRead.fromJson(info);
+    String? text(String key) => switch (info[key]) {
+      final String value => value,
+      _ => null,
+    };
     return seed.copyWith(
-      name: info['name'] as String? ?? seed.name,
-      version: info['version'] as String? ?? seed.version,
-      mode: info['mode'] as String? ?? seed.mode,
-      authRequired: info['authRequired'] as bool? ?? seed.authRequired,
-      authenticationMode:
-          info['authenticationMode'] as String? ?? seed.authenticationMode,
-      pairingSupported:
-          info['pairingSupported'] as bool? ?? seed.pairingSupported,
-      fingerprint: info['fingerprint'] as String? ?? seed.fingerprint,
-      lanPairing: info['lanPairing'] as bool? ?? seed.lanPairing,
-      scheme: _normalizeTransportScheme(info['scheme'], fallback: seed.scheme),
-      // /api/info now advertises the rig's tailnet address and relay
-      // appliance id when those uplinks are up. Carry them through so the
-      // connect path can persist them into the saved-server row and the
-      // Tailscale/relay setup sheets prefill them on the next reconnect.
-      tailscaleHost: info['tailscaleHost'] as String? ?? seed.tailscaleHost,
-      relayApplianceId:
-          info['relayApplianceId'] as String? ?? seed.relayApplianceId,
-      hostName: _nonEmpty(info['hostName']) ?? seed.hostName,
+      name: advert.name ?? seed.name,
+      version: advert.version ?? seed.version,
+      mode: advert.mode ?? seed.mode,
+      authRequired: advert.authRequired ?? seed.authRequired,
+      authenticationMode: advert.authenticationMode ?? seed.authenticationMode,
+      pairingSupported: advert.pairingSupported ?? seed.pairingSupported,
+      fingerprint: advert.fingerprint ?? seed.fingerprint,
+      lanPairing: switch (info['lanPairing']) {
+        final bool value => value,
+        _ => seed.lanPairing,
+      },
+      scheme: advert.scheme ?? seed.scheme,
+      // /api/info advertises the rig's tailnet address and relay appliance id
+      // when those uplinks are up. Carry them through so the connect path can
+      // persist them into the saved-server row and the Tailscale/relay setup
+      // sheets prefill them on the next reconnect.
+      tailscaleHost: text('tailscaleHost') ?? seed.tailscaleHost,
+      relayApplianceId: text('relayApplianceId') ?? seed.relayApplianceId,
+      hostName: advert.hostName ?? seed.hostName,
       platform: _nonEmpty(info['platform']) ?? seed.platform,
-      hostMode: _nonEmpty(info['hostMode']) ?? seed.hostMode,
+      hostMode: advert.hostMode ?? seed.hostMode,
     );
   }
 
@@ -706,17 +726,14 @@ class EnhancedSkotiqDiscovery {
             : ServerProbeOutcome.unreachable;
       }
       if (read.problem != null) return ServerProbeOutcome.incompatible;
-      final info = read.info;
-
-      final authRequired = info['authRequired'] as bool? ?? false;
-      if (!authRequired) {
+      final advert = HostAdvertRead.fromJson(read.info);
+      if (advert.authRequired != true) {
         return ServerProbeOutcome.reachable;
       }
 
       if (authToken == null || authToken.isEmpty) {
         // Host is up; mobile will pair via /api/pairing/* before connecting.
-        final pairingSupported = info['pairingSupported'] as bool? ?? false;
-        return pairingSupported
+        return advert.pairingSupported == true
             ? ServerProbeOutcome.reachable
             : ServerProbeOutcome.unreachable;
       }
@@ -924,6 +941,8 @@ class EnhancedSkotiqDiscovery {
       scheme: advert.scheme ?? 'http',
       fingerprint: advert.fingerprint,
       pairingSupported: advert.pairingSupported,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode,
     );
   }
 
@@ -996,43 +1015,44 @@ class EnhancedSkotiqDiscovery {
     return null;
   }
 
-  /// Generate QR code data string for a server.
+  /// The pairing QR of the host that publishes [advert], reached at
+  /// [host]:[webPort]. [pairingCode] enrolls the phone in one scan.
   ///
-  /// `version` and `fingerprint` are mandatory — the mobile scanner refuses
-  /// payloads without them.
-  static String generateQrData({
+  /// `name` and `mode` keep the values every release has printed (`Skotiq`,
+  /// `desktop`), because printed codes and older phones read them; the
+  /// computer's name and `gui`/`headless` are in `hostName` and `hostMode`.
+  static String generateQrData(
+    HostAdvert advert, {
     required String host,
     required int webPort,
-    required String version,
-    required String fingerprint,
     int signalingPort = kDefaultSignalingPort,
-    String? serverName,
-    String mode = 'desktop',
-    bool authRequired = false,
-    String authenticationMode = 'none',
-    bool pairingSupported = false,
     String? authToken,
     String? pairingCode,
-    String scheme = 'http',
   }) {
-    final lowered = scheme.toLowerCase();
-    if (lowered != 'http' && lowered != 'https') {
-      throw ArgumentError.value(scheme, 'scheme', 'must be "http" or "https"');
+    final scheme = advert.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      throw ArgumentError.value(
+        advert.scheme,
+        'advert.scheme',
+        'must be "http" or "https"',
+      );
     }
     final data = QrConnectionData(
       host: host,
       webPort: webPort,
       signalingPort: signalingPort,
-      version: version,
-      fingerprint: fingerprint,
-      serverName: serverName,
-      mode: mode,
-      authRequired: authRequired,
-      authenticationMode: authenticationMode,
-      pairingSupported: pairingSupported,
+      version: advert.version,
+      fingerprint: advert.fingerprint,
+      serverName: 'Skotiq',
+      mode: 'desktop',
+      authRequired: advert.authRequired,
+      authenticationMode: advert.authenticationMode,
+      pairingSupported: advert.pairingSupported,
       authToken: authToken,
       pairingCode: pairingCode,
-      scheme: lowered,
+      scheme: scheme,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode.wire,
     );
     return data.toQrString();
   }

@@ -4,7 +4,10 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:flutter/foundation.dart' show protected, visibleForTesting;
+
 import 'command_action_result.dart';
+import 'goto_altitude_check.dart';
 import 'move_with_silent_guider.dart';
 
 final mountCommandServiceProvider = Provider((ref) {
@@ -27,6 +30,10 @@ class MountCommandService {
   final DeviceBackend _backend;
   final DeviceService _deviceService;
   bool _commandInFlight = false;
+
+  /// A GoTo altitude question is on screen; a second GoTo (the phone's
+  /// gyroscope pointing, a second press) does not stack another.
+  bool _altitudeQuestionOpen = false;
 
   MountCommandService(
     this._ref, {
@@ -183,15 +190,104 @@ class MountCommandService {
   ///
   /// When the guider does not answer the host refuses the GoTo; the operator
   /// is asked once whether to move anyway ([moveWithSilentGuiderAskProvider]).
+  ///
+  /// A target below the horizon or the site's altitude floor is asked about
+  /// once first ([confirmGoToAltitude]); [targetName] names it there. A
+  /// caller that [alwaysConfirms] (a tap on the sky, the toolbar's Slew) asks
+  /// for every GoTo, and that one question carries the warning when there is
+  /// one.
   Future<CommandActionResult> slewTo(
     double ra,
     double dec, {
     bool showFeedback = true,
+    String? targetName,
+    bool alwaysConfirms = false,
   }) async {
     final coordinateError = _equatorialCoordinateError(ra, dec);
     if (coordinateError != null) {
       return CommandActionResult.failure(coordinateError);
     }
+    if (!isConnected) {
+      return const CommandActionResult.failure('No mount connected');
+    }
+    final refused = await confirmGoToAltitude(
+      ra,
+      dec,
+      targetName: targetName,
+      alwaysConfirms: alwaysConfirms,
+    );
+    if (refused != null) return refused;
+    return sendSlew(ra, dec, showFeedback: showFeedback);
+  }
+
+  /// Asks the operator once when a GoTo to [ra]/[dec] points below the
+  /// horizon or the site's altitude floor ([goToAltitudeAskProvider]), or for
+  /// every GoTo when the caller [alwaysConfirms]. Null when the GoTo may go:
+  /// nothing needed asking (the target is above the floor, or no site is set
+  /// so there is no altitude to judge) or the operator said go. Otherwise the
+  /// result to report. Settings that cannot be read refuse the GoTo, since a
+  /// configured site cannot be told apart from none.
+  Future<CommandActionResult?> confirmGoToAltitude(
+    double ra,
+    double dec, {
+    String? targetName,
+    bool alwaysConfirms = false,
+  }) async {
+    try {
+      await _ref.read(appSettingsProvider.future);
+    } catch (error) {
+      _ref.read(loggingServiceProvider).warning(
+            'GoTo refused: the site could not be read to judge the target '
+            'altitude: $error',
+            source: 'MountCommandService',
+          );
+      return const CommandActionResult.failure(
+        'Unable to verify target altitude because settings could not be '
+        'loaded. Slew was not sent.',
+      );
+    }
+    final site = _ref.read(appObserverLocationProvider);
+    final floor = _ref.read(altitudeFloorProvider);
+    final verdict = site == null
+        ? null
+        : judgeGoToAltitude(
+            raHours: ra,
+            decDeg: dec,
+            site: site,
+            floor: floor,
+            atUtc: _ref.read(clockProvider).nowUtc(),
+          );
+    final clear = verdict == null || verdict.kind == GoToAltitudeKind.clear;
+    if (clear && !alwaysConfirms) return null;
+    if (_altitudeQuestionOpen) {
+      return const CommandActionResult.failure(
+        'A GoTo below the horizon is already waiting for an answer',
+        feedbackType: CommandFeedbackType.warning,
+      );
+    }
+    _altitudeQuestionOpen = true;
+    try {
+      final go = await _ref.read(goToAltitudeAskProvider)(
+        GoToAltitudeQuestion(
+          verdict: verdict,
+          floorFollowsHorizon: floor.followsHorizon,
+          targetName: targetName,
+        ),
+      );
+      return go ? null : const CommandActionResult.declined();
+    } finally {
+      _altitudeQuestionOpen = false;
+    }
+  }
+
+  /// Sends the GoTo the operator agreed to and waits for the slew to end.
+  @protected
+  @visibleForTesting
+  Future<CommandActionResult> sendSlew(
+    double ra,
+    double dec, {
+    bool showFeedback = true,
+  }) {
     return _runExclusive((deviceId) async {
       try {
         final capabilities = await _getCapabilities(deviceId);

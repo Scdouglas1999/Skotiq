@@ -58,20 +58,6 @@ extension _DeviceServiceAutofocusControls on DeviceService {
       final int effectiveStepsOut;
       final String effectiveMethod;
       final int effectiveBinning;
-      final int? effectiveGain;
-      final int? effectiveOffset;
-      final String effectiveCurveFitting;
-      final int effectiveNumberOfAttempts;
-      final int effectiveExposuresPerPoint;
-      final double effectiveRSquaredThreshold;
-      final double effectiveOuterCropRatio;
-      final double effectiveInnerCropRatio;
-      final int effectiveUseBrightestNStars;
-      final int effectiveFocuserSettleTimeMs;
-      final String effectiveBacklashCompMethod;
-      final int effectiveBacklashIn;
-      final int effectiveBacklashOut;
-      final bool disableGuidingDuringAf;
       final filterWheelBeforeAutofocus = _ref.read(filterWheelStateProvider);
       final originalFilterPosition = filterWheelBeforeAutofocus.currentPosition;
       final originalFilterName = filterWheelBeforeAutofocus.currentFilterName;
@@ -106,60 +92,31 @@ extension _DeviceServiceAutofocusControls on DeviceService {
         effectiveMethod = appSettings.afMethod;
         effectiveBinning =
             activeFilterSettings?.binning ?? appSettings.afBinning;
-        effectiveGain = activeFilterSettings?.gain;
-        effectiveOffset = activeFilterSettings?.offset;
-        effectiveCurveFitting = appSettings.afCurveFitting;
-        effectiveNumberOfAttempts = appSettings.afNumberOfAttempts;
-        effectiveExposuresPerPoint = appSettings.afExposuresPerPoint;
-        effectiveRSquaredThreshold = appSettings.afRSquaredThreshold;
-        effectiveOuterCropRatio = appSettings.afOuterCropRatio;
-        effectiveInnerCropRatio = appSettings.afInnerCropRatio;
-        effectiveUseBrightestNStars = appSettings.afUseBrightestNStars;
-        effectiveFocuserSettleTimeMs = appSettings.afFocuserSettleTimeMs;
-        effectiveBacklashCompMethod = appSettings.afBacklashCompMethod;
-        effectiveBacklashIn = appSettings.afBacklashIn;
-        effectiveBacklashOut = appSettings.afBacklashOut;
-        disableGuidingDuringAf = appSettings.afDisableGuidingDuringAf;
       } else {
         effectiveExposureTime = exposureTime;
         effectiveStepSize = stepSize;
         effectiveStepsOut = stepsOut;
         effectiveMethod = method;
         effectiveBinning = binning;
-        effectiveGain = activeFilterSettings?.gain;
-        effectiveOffset = activeFilterSettings?.offset;
-        if (appSettings != null) {
-          effectiveCurveFitting = appSettings.afCurveFitting;
-          effectiveNumberOfAttempts = appSettings.afNumberOfAttempts;
-          effectiveExposuresPerPoint = appSettings.afExposuresPerPoint;
-          effectiveRSquaredThreshold = appSettings.afRSquaredThreshold;
-          effectiveOuterCropRatio = appSettings.afOuterCropRatio;
-          effectiveInnerCropRatio = appSettings.afInnerCropRatio;
-          effectiveUseBrightestNStars = appSettings.afUseBrightestNStars;
-          effectiveFocuserSettleTimeMs = appSettings.afFocuserSettleTimeMs;
-          effectiveBacklashCompMethod = appSettings.afBacklashCompMethod;
-          effectiveBacklashIn = appSettings.afBacklashIn;
-          effectiveBacklashOut = appSettings.afBacklashOut;
-          disableGuidingDuringAf = appSettings.afDisableGuidingDuringAf;
-        } else {
-          effectiveCurveFitting = 'Hyperbolic';
-          effectiveNumberOfAttempts = 1;
-          effectiveExposuresPerPoint = 1;
-          effectiveRSquaredThreshold = 0.7;
-          effectiveOuterCropRatio = 1.0;
-          effectiveInnerCropRatio = 0.0;
-          effectiveUseBrightestNStars = 0;
-          effectiveFocuserSettleTimeMs = 500;
-          effectiveBacklashCompMethod = 'Overshoot';
-          effectiveBacklashIn = 350;
-          effectiveBacklashOut = 0;
-          disableGuidingDuringAf = false;
-        }
       }
-
-      final failureHfrToleranceRatio =
-          appSettings?.afFailureHfrToleranceRatio ??
-          const AutofocusSettings().failureHfrToleranceRatio;
+      final effectiveGain = activeFilterSettings?.gain;
+      final effectiveOffset = activeFilterSettings?.offset;
+      // Before the settings are read, an explicit run takes the table's
+      // defaults for everything the panel does not set.
+      final advanced = appSettings ?? const AppSettingsState();
+      final effectiveCurveFitting = advanced.afCurveFitting;
+      final effectiveNumberOfAttempts = advanced.afNumberOfAttempts;
+      final effectiveExposuresPerPoint = advanced.afExposuresPerPoint;
+      final effectiveRSquaredThreshold = advanced.afRSquaredThreshold;
+      final effectiveOuterCropRatio = advanced.afOuterCropRatio;
+      final effectiveInnerCropRatio = advanced.afInnerCropRatio;
+      final effectiveUseBrightestNStars = advanced.afUseBrightestNStars;
+      final effectiveFocuserSettleTimeMs = advanced.afFocuserSettleTimeMs;
+      final effectiveBacklashCompMethod = advanced.afBacklashCompMethod;
+      final effectiveBacklashIn = advanced.afBacklashIn;
+      final effectiveBacklashOut = advanced.afBacklashOut;
+      final disableGuidingDuringAf = advanced.afDisableGuidingDuringAf;
+      final failureHfrToleranceRatio = advanced.afFailureHfrToleranceRatio;
 
       // Read for THIS focuser's id rather than through a provider keyed on
       // "the connected focuser": the run is about to drive `focuserDeviceId`,
@@ -482,47 +439,46 @@ extension _DeviceServiceAutofocusControls on DeviceService {
     required int? gain,
     required int? offset,
   }) {
-    if (!exposureTime.isFinite || exposureTime < 0.1 || exposureTime > 300) {
+    bool outside<T extends num>(T value, ({T min, T max}) range) =>
+        !value.isFinite || value < range.min || value > range.max;
+    if (outside(exposureTime, AutofocusRequest.exposureTimeRange)) {
       return 'exposure time must be between 0.1 and 300 seconds';
     }
-    if (stepSize < 1 || stepSize > 10000) {
+    if (outside(stepSize, AutofocusRequest.stepSizeRange)) {
       return 'step size must be between 1 and 10000';
     }
-    if (stepsOut < 1 || stepsOut > 50) {
+    if (outside(stepsOut, AutofocusRequest.stepsOutRange)) {
       return 'initial offset steps must be between 1 and 50';
     }
-    if (binning < 1 || binning > 4) {
+    if (outside(binning, AutofocusRequest.binningRange)) {
       return 'binning must be between 1 and 4';
     }
-    if (numberOfAttempts < 1 || numberOfAttempts > 10) {
+    if (outside(numberOfAttempts, AutofocusRequest.numberOfAttemptsRange)) {
       return 'number of attempts must be between 1 and 10';
     }
-    if (exposuresPerPoint < 1 || exposuresPerPoint > 20) {
+    if (outside(exposuresPerPoint, AutofocusRequest.exposuresPerPointRange)) {
       return 'exposures per point must be between 1 and 20';
     }
-    if (!rSquaredThreshold.isFinite ||
-        rSquaredThreshold < 0 ||
-        rSquaredThreshold > 1) {
+    if (outside(rSquaredThreshold, AutofocusRequest.ratioRange)) {
       return 'R² threshold must be between 0 and 1';
     }
-    if (!outerCropRatio.isFinite ||
-        !innerCropRatio.isFinite ||
-        outerCropRatio <= 0 ||
-        outerCropRatio > 1 ||
-        innerCropRatio < 0 ||
-        innerCropRatio >= outerCropRatio) {
+    if (!AutofocusRequest.cropRatiosValid(
+      outer: outerCropRatio,
+      inner: innerCropRatio,
+    )) {
       return 'crop ratios must satisfy 0 ≤ inner < outer ≤ 1';
     }
-    if (useBrightestNStars < 0 || useBrightestNStars > 500) {
+    if (outside(useBrightestNStars, AutofocusRequest.useBrightestNStarsRange)) {
       return 'brightest-star count must be between 0 and 500';
     }
-    if (focuserSettleTimeMs < 0 || focuserSettleTimeMs > 10000) {
+    if (outside(
+      focuserSettleTimeMs,
+      AutofocusRequest.focuserSettleTimeMsRange,
+    )) {
       return 'focuser settle time must be between 0 and 10000 ms';
     }
-    if (backlashIn < 0 ||
-        backlashIn > 10000 ||
-        backlashOut < 0 ||
-        backlashOut > 10000) {
+    if (outside(backlashIn, AutofocusRequest.backlashRange) ||
+        outside(backlashOut, AutofocusRequest.backlashRange)) {
       return 'backlash values must be between 0 and 10000';
     }
     if ((gain != null && gain < 0) || (offset != null && offset < 0)) {

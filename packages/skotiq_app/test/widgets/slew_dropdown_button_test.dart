@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
+import 'package:skotiq_app/services/goto_altitude_check.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
 import 'package:skotiq_core/backend.dart';
@@ -83,7 +84,7 @@ class _ControlledMountService extends MountCommandService {
   int calls = 0;
 
   @override
-  Future<CommandActionResult> slewTo(
+  Future<CommandActionResult> sendSlew(
     double ra,
     double dec, {
     bool showFeedback = true,
@@ -386,6 +387,7 @@ void main() {
       double horizonFloorDeg = 0.0,
       double ra = 12,
       Clock? clock,
+      bool canCenter = false,
     }) async {
       final handle = await pumpAppScreen(
         tester,
@@ -394,7 +396,19 @@ void main() {
           child: SlewDropdownButton(ra: ra, dec: dec, targetName: 'NGC 7000'),
         ),
         extraOverrides: [
+          // The app's startup asks on its navigator; here, on the button's.
+          goToAltitudeAskProvider.overrideWithValue(
+            (question) => askGoToAltitudeOn(
+              tester.element(find.byType(SlewDropdownButton)),
+              question,
+            ),
+          ),
           if (clock != null) clockProvider.overrideWithValue(clock),
+          if (canCenter) ...[
+            cameraStateProvider.overrideWith(_ConnectedCameraNotifier.new),
+            activeEquipmentProfileProvider.overrideWithValue(null),
+            plateSolveServiceProvider.overrideWith(_AvailableSolver.new),
+          ],
           appSettingsProvider.overrideWith(
             () => _SiteSettingsNotifier(horizonFloorDeg: horizonFloorDeg),
           ),
@@ -504,7 +518,8 @@ void main() {
 
     testWidgets('Slew & Center is gated too, not just the plain slew',
         (tester) async {
-      final service = await pumpSlew(tester, dec: belowHorizonDec);
+      final service =
+          await pumpSlew(tester, dec: belowHorizonDec, canCenter: true);
 
       await tester.tap(find.byType(PopupMenuButton<SlewMode>));
       await tester.pumpAndSettle();

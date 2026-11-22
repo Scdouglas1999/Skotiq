@@ -264,6 +264,39 @@ void main() {
     );
   });
 
+  testWidgets('the wizard cools to the profile set-point, as Plan tonight does',
+      (tester) async {
+    await _pumpDialog(
+      tester,
+      overrides: [
+        appObserverLocationProvider.overrideWithValue(
+          const LocationSettings(latitude: 40, longitude: -75),
+        ),
+        activeEquipmentProfileProvider.overrideWithValue(
+          const EquipmentProfileModel(
+            name: 'Cooled rig',
+            focalLength: 600,
+            aperture: 120,
+            defaultCoolingTemp: -5,
+            filterNames: ['L'],
+          ),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    final coolTo = find.descendant(
+      of: find.ancestor(
+        of: find.text('Cool to'),
+        matching: find.byType(Row),
+      ),
+      matching: find.byType(SmartNightNumberField),
+    );
+    expect(tester.widget<SmartNightNumberField>(coolTo.first).initial, -5);
+  });
+
   testWidgets('SmartNightDialog blocks equipment step when aperture is missing',
       (tester) async {
     await _pumpDialog(

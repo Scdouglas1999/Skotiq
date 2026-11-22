@@ -4,10 +4,11 @@
 /// long spellings folded onto the short ones ("Luminance" and "Clear" are L,
 /// "Red" is R, "H-alpha" is HA, "Sulfur II" is SII, "L-eXtreme" is HA and
 /// OIII). Every other word, a brand, a product line, "CCD", a bandwidth such
-/// as "7nm", is not a band: "Baader Ha 7nm" is HA, "ZWO R" is R. A name with
-/// no known band is its whole name ("Dark", "UV/IR Pass"). Two names are the
-/// same filter when their bands are the same; a name is never matched by a
-/// piece of another ("R" is not "Dark").
+/// as "7nm", is not a band: "Baader Ha 7nm" is HA, "ZWO R" is R. A band with
+/// its bandwidth glued on is that band ("Ha7nm" is HA). A name with no known
+/// band is its whole name ("Dark", "UV/IR Pass"). Two names are the same
+/// filter when their bands are the same; a name is never matched by a piece
+/// of another ("R" is not "Dark").
 ///
 /// `filter_name.rs` in the native `skotiq_frame` crate holds the same rule
 /// for the run's wheel moves; both are tested against
@@ -74,11 +75,29 @@ final RegExp _notAlphanumeric = RegExp(r'[^A-Za-z0-9]');
 String _letters(String text) =>
     text.replaceAll(_notAlphanumeric, '').toUpperCase();
 
+final RegExp _digits = RegExp(r'^\d+$');
+
+/// The bands of a known spelling, given as [letters], with a bandwidth
+/// ("7NM") glued on or not: "HA7NM" is HA. Of the splits a run of digits
+/// allows, the longest known spelling wins ("O37NM" is O3, OIII).
+List<String>? _bandsOf(String letters) {
+  if (_knownBands[letters] case final bands?) return bands;
+  if (!letters.endsWith('NM')) return null;
+  final spelling = letters.substring(0, letters.length - 2);
+  for (var end = spelling.length - 1; end > 0; end--) {
+    if (!_digits.hasMatch(spelling.substring(end))) break;
+    if (_knownBands[spelling.substring(0, end)] case final bands?) {
+      return bands;
+    }
+  }
+  return null;
+}
+
 /// The bands [name] names (see the library comment); empty for a blank name.
 Set<String> filterBands(String name) {
   final whole = _letters(name);
   if (whole.isEmpty) return const {};
-  if (_knownBands[whole] case final bands?) return bands.toSet();
+  if (_bandsOf(whole) case final bands?) return bands.toSet();
   final words = [
     for (final word in name.split(_separators))
       if (_letters(word).isNotEmpty) _letters(word),
@@ -89,7 +108,7 @@ Set<String> filterBands(String name) {
     var taken = 1;
     for (var run = 3; run >= 1; run--) {
       if (i + run > words.length) continue;
-      if (_knownBands[words.sublist(i, i + run).join()] case final known?) {
+      if (_bandsOf(words.sublist(i, i + run).join()) case final known?) {
         bands.addAll(known);
         taken = run;
         break;

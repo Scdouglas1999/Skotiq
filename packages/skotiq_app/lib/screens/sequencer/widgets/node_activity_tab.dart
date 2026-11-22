@@ -450,31 +450,21 @@ class _ExposureActivitySectionState
         widget.structuredDetail is ExposureInstructionProgressDetail
             ? widget.structuredDetail as ExposureInstructionProgressDetail
             : null;
-    final parsed = parseExposureProgressDetail(widget.detail ?? '');
-    final totalFrames =
-        tally?.planned ?? exposureDetail?.total ?? parsed?.total ?? node.count;
-    final liveFrame = exposureDetail?.frame ?? parsed?.frame ?? 0;
-    final liveFrameIsDone =
-        exposureDetail == null && (parsed?.frameCompleted ?? false);
-
-    final int completed;
-    final int current;
-    if (tally != null) {
-      completed = tally.captured.clamp(0, totalFrames);
-      current = (widget.status == NodeStatus.running && completed < totalFrames)
-          ? completed + 1
-          : 0;
-    } else {
-      final isDone = widget.status == NodeStatus.success ||
-          (liveFrameIsDone && liveFrame >= totalFrames);
-      current = (isDone || liveFrameIsDone) ? 0 : liveFrame;
-      // Clamp like `_ExposureProgressPanel.headerFrames` does: a node that
-      // just entered `running` reports frame 0 with nothing parsed yet, and
-      // `liveFrame - 1` would caption "-1 of 12 done".
-      completed =
-          (isDone ? totalFrames : (liveFrameIsDone ? liveFrame : liveFrame - 1))
-              .clamp(0, totalFrames);
-    }
+    final frames = exposureNodeFrames(
+          tally: tally,
+          typed: widget.structuredDetail,
+          line: widget.detail,
+          status: widget.status,
+          plannedFallback: node.count,
+          rules: const ExposureFramesRules(
+            successMeansAll: true,
+            statusWhenSilent: true,
+          ),
+        ) ??
+        ExposureNodeFrames(captured: 0, planned: node.count);
+    final totalFrames = frames.planned ?? node.count;
+    final completed = frames.captured;
+    final current = frames.inFlight;
     final durationSecs =
         exposureDetail != null && exposureDetail.durationSecs > 0
             ? exposureDetail.durationSecs

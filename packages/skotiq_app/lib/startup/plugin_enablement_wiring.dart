@@ -13,9 +13,9 @@ import 'package:skotiq_plugins/skotiq_plugins.dart'
 /// honour the user's persisted enable/disable choices.
 ///
 /// Without this override [pluginEnablementStoreProvider] resolves to the
-/// default `AllEnabledPluginEnablementStore`, which reports every plugin
-/// enabled — so a plugin the user disabled on the Integrations page silently
-/// comes back ENABLED on the next launch. The settings-backed store makes the
+/// default `DefaultPluginEnablementStore`, which reports each plugin's own
+/// default, so a plugin the user disabled on the Integrations page silently
+/// comes back enabled on the next launch. The settings-backed store makes the
 /// registration-time decision read the persisted `plugin_enablement` map, so a
 /// disabled plugin is registered (loaded) but NOT enabled.
 ///

@@ -2255,11 +2255,12 @@ fn integrate_session_takes_a_light_pedestal_out_before_calibration() {
     );
 }
 
-/// Raw flats agree on camera, filter, gain, offset and binning (within 1e-6);
-/// read mode and set-point are not compared. A bias or dark-flat agrees with
-/// each flat on camera, gain, offset and binning.
+/// Raw flats agree on camera, filter, read mode, gain, offset and binning
+/// (within 1e-6); the set-point is not compared (flats are short and often
+/// uncooled). A bias or dark-flat agrees with each flat on camera, gain,
+/// offset and binning.
 #[test]
-fn flat_agreement_reads_the_cards_it_reads_today() {
+fn flat_agreement_reads_the_cards_it_reads() {
     let dir = temp_dir("flat_agreement");
     let image = ImageData::from_u16(48, 48, 1, &vec![20000; 48 * 48]);
     let pedestal = ImageData::from_u16(48, 48, 1, &vec![100; 48 * 48]);
@@ -2278,12 +2279,23 @@ fn flat_agreement_reads_the_cards_it_reads_today() {
     let out = dir.join("master.fits");
     write_fits(&first, &image, &header).unwrap();
     let mut other = header.clone();
-    other.set_string("READOUTM", "Mode 1");
     other.set_float("SET-TEMP", 0.0);
     write_fits(&second, &image, &other).unwrap();
     let args = serde_json::json!({"flatPaths":[first,second],"outputPath":out});
     build_master_flat(args.to_string()).unwrap();
 
+    other.set_string("READOUTM", "Mode 1");
+    write_fits(&second, &image, &other).unwrap();
+    assert_eq!(
+        build_master_flat(args.to_string()).unwrap_err(),
+        format!(
+            "{} was read out in mode Mode 1 but {} in mode Mode 0",
+            second.display(),
+            first.display()
+        )
+    );
+
+    other.set_string("READOUTM", "Mode 0");
     other.set_float("GAIN", 100.5);
     write_fits(&second, &image, &other).unwrap();
     assert_eq!(
@@ -2294,10 +2306,13 @@ fn flat_agreement_reads_the_cards_it_reads_today() {
     let mut bias_header = header.clone();
     bias_header.set_string("IMAGETYP", "BIAS");
     bias_header.set_float("EXPTIME", 0.001);
-    bias_header.set_float("XBINNING", 2.0);
+    bias_header.set_string("READOUTM", "Mode 1");
     write_fits(&bias, &pedestal, &bias_header).unwrap();
     let with_bias =
         serde_json::json!({"flatPaths":[first,second],"biasOrDarkFlat":bias,"outputPath":out});
+    build_master_flat(with_bias.to_string()).unwrap();
+    bias_header.set_float("XBINNING", 2.0);
+    write_fits(&bias, &pedestal, &bias_header).unwrap();
     assert_eq!(
         build_master_flat(with_bias.to_string()).unwrap_err(),
         "Flat and bias/dark-flat XBINNING differ"
@@ -2352,12 +2367,18 @@ fn flat_pedestal_state_reads_the_cards_it_reads_today() {
 }
 
 /// The rejection tokens one night's integration takes, and what each one runs:
-/// every spelling of the rejectors it runs, not the generalized ESD test.
+/// every rejector, `auto` as PixInsight picks it (the rule the multi-night
+/// master uses), named rejectors with the request's bounds.
 #[test]
 fn integration_rejection_tokens_name_its_rejectors() {
     use crate::post_session::args::IntegrationArgs;
-    use crate::post_session::helpers::{auto_reject, build_integration_config};
+    use crate::post_session::helpers::build_integration_config;
     use skotiq_imaging::integration::Reject;
+    let esd = Reject::GeneralizedEsd {
+        outliers: 0.3,
+        alpha: 0.05,
+        low_relaxation: 1.5,
+    };
     let args = |reject: &str| IntegrationArgs {
         reject: reject.to_string(),
         reject_low: 2.5,
@@ -2368,8 +2389,8 @@ fn integration_rejection_tokens_name_its_rejectors() {
     };
     let (low, high) = (2.5, 3.5);
     for (token, expected) in [
-        ("", auto_reject(9, low, high)),
-        ("Auto", auto_reject(9, low, high)),
+        ("", Reject::pixinsight_auto(9)),
+        ("Auto", Reject::pixinsight_auto(9)),
         ("none", Reject::None),
         ("sigmaClip", Reject::SigmaClip { low, high }),
         ("sigma_clip", Reject::SigmaClip { low, high }),
@@ -2402,6 +2423,8 @@ fn integration_rejection_tokens_name_its_rejectors() {
             },
         ),
         ("winsorized", Reject::WinsorizedSigmaClip { low, high }),
+        ("esd", esd),
+        ("generalizedEsd", esd),
     ] {
         assert_eq!(
             build_integration_config(&args(token), 9).unwrap().reject,
@@ -2409,26 +2432,59 @@ fn integration_rejection_tokens_name_its_rejectors() {
             "{token:?}"
         );
     }
-    for token in ["esd", "generalizedEsd", "bogus"] {
-        assert_eq!(
-            build_integration_config(&args(token), 9).unwrap_err(),
-            format!("unknown reject algorithm '{}'", token.to_ascii_lowercase()),
-            "{token:?}"
-        );
-    }
     assert_eq!(
-        auto_reject(7, low, high),
+        build_integration_config(&args("bogus"), 9).unwrap_err(),
+        "unknown reject algorithm 'bogus'"
+    );
+    let auto = |subs| {
+        build_integration_config(&args("auto"), subs)
+            .unwrap()
+            .reject
+    };
+    assert_eq!(
+        auto(7),
         Reject::PercentileClip {
             low: 0.2,
             high: 0.1
         }
     );
-    assert_eq!(
-        auto_reject(24, low, high),
-        Reject::WinsorizedSigmaClip { low, high }
-    );
-    assert_eq!(
-        auto_reject(25, low, high),
-        Reject::LinearFitClip { low, high }
-    );
+    for subs in [8, 19] {
+        assert_eq!(
+            auto(subs),
+            Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0
+            },
+            "{subs} subs"
+        );
+    }
+    for subs in [20, 24, 25, 60] {
+        assert_eq!(auto(subs), esd, "{subs} subs");
+    }
+}
+
+/// One night's integration runs the generalized ESD test when asked (it was
+/// refused), and `auto` names PixInsight's pick on the master.
+#[test]
+fn integrate_session_runs_esd_and_names_the_auto_pick() {
+    let (_dir, lights, _bias, master) = lights_with_cards("esd_rejection", 400.0, &[], 950);
+    for (reject, label) in [
+        ("esd", "generalizedEsd(0.3,0.05,1.5)"),
+        ("auto", "percentile(0.2,0.1)"),
+    ] {
+        let args = serde_json::json!({
+            "lightPaths": lights,
+            "reference": lights[0],
+            "exposuresSec": [60.0, 60.0, 60.0],
+            "calibration": {"cosmeticCorrection": false},
+            "settings": {
+                "align": synthetic_align(),
+                "integration": { "reject": reject, "outputBitDepth": "f32" }
+            },
+            "output": { "masterFitsPath": master.to_string_lossy() }
+        });
+        integrate_session(args.to_string()).expect(reject);
+        let (_, header) = read_frame(&master).unwrap();
+        assert_eq!(header.get_string("REJECTM"), Some(label), "{reject}");
+    }
 }

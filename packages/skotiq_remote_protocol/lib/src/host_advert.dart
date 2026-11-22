@@ -64,6 +64,74 @@ class HostAdvert {
   };
 }
 
+/// A host's identity keys as one of its JSON documents carried them (its
+/// `/api/info` or its UDP beacon), before a reader applies its defaults. A key
+/// that is missing, or not of its type, reads as null: a foreign service on
+/// the LAN can send anything, and what it sent must not stop discovery.
+class HostAdvertRead {
+  const HostAdvertRead._({
+    this.name,
+    this.hostName,
+    this.hostMode,
+    this.version,
+    this.mode,
+    this.scheme,
+    this.fingerprint,
+    this.authRequired,
+    this.authenticationMode,
+    this.pairingSupported,
+  });
+
+  factory HostAdvertRead.fromJson(Map<String, Object?> json) {
+    String? text(String key) => switch (json[key]) {
+      final String value => value,
+      _ => null,
+    };
+    String? filled(String key) {
+      final value = text(key)?.trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
+    bool? flag(String key) => switch (json[key]) {
+      final bool value => value,
+      _ => null,
+    };
+    final scheme = text('scheme')?.toLowerCase();
+    return HostAdvertRead._(
+      name: text('name'),
+      hostName: filled('hostName'),
+      hostMode: filled('hostMode'),
+      version: text('version'),
+      mode: text('mode'),
+      scheme: scheme == 'http' || scheme == 'https' ? scheme : null,
+      fingerprint: text('fingerprint'),
+      authRequired: flag('authRequired'),
+      authenticationMode: text('authenticationMode'),
+      pairingSupported: flag('pairingSupported'),
+    );
+  }
+
+  final String? name;
+
+  /// The computer's name, trimmed; null when blank.
+  final String? hostName;
+
+  /// `gui` or `headless` on hosts that say (trimmed; null when blank). Kept
+  /// as sent, so a mode a later release adds still reads.
+  final String? hostMode;
+  final String? version;
+
+  /// The older `mode` key.
+  final String? mode;
+
+  /// `http` or `https`; null for anything else.
+  final String? scheme;
+  final String? fingerprint;
+  final bool? authRequired;
+  final String? authenticationMode;
+  final bool? pairingSupported;
+}
+
 /// A `_skotiq._tcp` TXT record as read, before a reader applies its defaults.
 /// Each value is null when the record does not carry it in a usable form.
 class HostTxt {
@@ -85,6 +153,11 @@ class HostTxt {
       return value == null || value.isEmpty ? null : value;
     }
 
+    String? filled(String key) {
+      final value = txt[key]?.trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
     final scheme = txt['scheme']?.toLowerCase();
     final pairing = txt['pairingSupported'];
     final signaling = txt['signaling_port'];
@@ -96,8 +169,8 @@ class HostTxt {
       pairingSupported:
           pairing != null &&
           (pairing.toLowerCase() == 'true' || pairing == '1'),
-      hostName: txt['hostName'],
-      hostMode: txt['hostMode'],
+      hostName: filled('hostName'),
+      hostMode: filled('hostMode'),
       signalingPort: signaling == null ? null : int.tryParse(signaling),
     );
   }
@@ -111,6 +184,8 @@ class HostTxt {
 
   /// False when the record does not say `true`.
   final bool pairingSupported;
+
+  /// The computer's name and `gui`/`headless`, trimmed; null when blank.
   final String? hostName;
   final String? hostMode;
   final int? signalingPort;

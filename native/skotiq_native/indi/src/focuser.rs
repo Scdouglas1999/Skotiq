@@ -194,16 +194,16 @@ impl IndiFocuser {
     pub async fn get_position(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
-            .get_number(
+            .require_number(
                 &self.device_name,
                 ABS_FOCUS_POSITION,
                 FOCUS_ABSOLUTE_POSITION,
+                "Position not available",
             )
             .await
             // Why: INDI wire f64 -> i32 focuser position; bounded by focuser
             // max (typically <2^31). f64 -> i32 saturates per Rust 1.45 spec.
             .map(|p| p as i32)
-            .ok_or_else(|| IndiError::Unavailable("Position not available".to_string()))
     }
 
     pub async fn is_moving(&self) -> bool {
@@ -221,9 +221,13 @@ impl IndiFocuser {
     pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, FOCUS_TEMPERATURE, TEMPERATURE)
+            .require_number(
+                &self.device_name,
+                FOCUS_TEMPERATURE,
+                TEMPERATURE,
+                "Temperature not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
     /// Maximum focuser travel in steps (`FOCUS_MAX` / `FOCUS_MAX_VALUE`).

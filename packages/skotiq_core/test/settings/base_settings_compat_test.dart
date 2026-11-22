@@ -68,6 +68,7 @@ const Set<String> _wireAddedSinceBase = {
   'xisfChecksums',
   'imageGradingEccentricityBaselinePercent',
   'imageGradingStarCountDropPercent',
+  'centeringToleranceArcsec',
 };
 
 /// A default changed on purpose since the base build. A stored row still

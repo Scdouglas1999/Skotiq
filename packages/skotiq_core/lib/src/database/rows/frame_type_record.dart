@@ -11,12 +11,24 @@ extension RecordedFrameType on DbCapturedImage {
   /// Whether this is a light frame: the frames that are stacked, graded,
   /// solved and counted as integration.
   bool get isLight => recordedFrameType == FrameType.light;
+
+  /// Whether this is a light frame the grader kept: the frames a target's
+  /// integration and its goals count.
+  bool get isAcceptedLight => isLight && isAccepted;
 }
 
 /// The same test of `captured_images.frame_type` in a query.
 extension FrameTypeColumn on $CapturedImagesTable {
   Expression<bool> frameTypeIs(FrameType type) => frameType.equals(type.record);
+
+  /// [RecordedFrameType.isAcceptedLight] in a query.
+  Expression<bool> get isAcceptedLightFrame =>
+      frameTypeIs(FrameType.light) & isAccepted.equals(true);
 }
 
 /// The light-frame test for a query written as SQL over `captured_images`.
 const lightFrameSql = "frame_type = 'light'";
+
+/// [RecordedFrameType.isAcceptedLight] for a query written as SQL over
+/// `captured_images`.
+const acceptedLightFrameSql = "$lightFrameSql AND is_accepted = 1";

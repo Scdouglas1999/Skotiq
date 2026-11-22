@@ -54,17 +54,23 @@ impl FrameType {
     }
 
     /// The camera frame a name from the app asks for, ignoring case: "dark",
-    /// "flat", "bias" and "darkflat" (also "dark_flat", "dark flat"). Every
-    /// other name, "Snapshot" too, is a light: the shutter opens and no frame
-    /// is missed.
-    pub fn from_str_lenient(s: &str) -> Self {
+    /// "flat", "bias" and "darkflat" (also "dark_flat", "dark flat"), and a
+    /// light for "light" and "snapshot". `None` for any other name.
+    pub fn from_app_name(s: &str) -> Option<Self> {
         match s.trim().to_ascii_lowercase().as_str() {
-            "dark" => Self::Dark,
-            "flat" => Self::Flat,
-            "bias" => Self::Bias,
-            "darkflat" | "dark_flat" | "dark flat" => Self::DarkFlat,
-            _ => Self::Light,
+            "dark" => Some(Self::Dark),
+            "flat" => Some(Self::Flat),
+            "bias" => Some(Self::Bias),
+            "darkflat" | "dark_flat" | "dark flat" => Some(Self::DarkFlat),
+            "light" | "snapshot" => Some(Self::Light),
+            _ => None,
         }
+    }
+
+    /// [`Self::from_app_name`], with any other name a light: the shutter
+    /// opens and no frame is missed.
+    pub fn from_str_lenient(s: &str) -> Self {
+        Self::from_app_name(s).unwrap_or(Self::Light)
     }
 
     /// The frame a camera is asked for: a snapshot is taken as a light.
@@ -157,6 +163,25 @@ mod tests {
         for name in ["Light", "Snapshot", "Darks", ""] {
             assert_eq!(FrameType::from_str_lenient(name), FrameType::Light);
         }
+    }
+
+    /// F1-4: every frame type name the app sends a capture with (its
+    /// `FrameType.name`, pinned by `camera_frame_type_names_test.dart`) is
+    /// one the capture knows, and asks for the frame it names.
+    #[test]
+    fn every_name_the_app_sends_is_known() {
+        let names: std::collections::BTreeMap<String, String> = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/camera_frame_type_names.json"
+        ))
+        .expect("the fixture is JSON");
+        for (name, frame) in names {
+            assert_eq!(
+                FrameType::from_app_name(&name).map(FrameType::as_str),
+                Some(frame.as_str()),
+                "{name}"
+            );
+        }
+        assert_eq!(FrameType::from_app_name("Darks"), None);
     }
 
     #[test]

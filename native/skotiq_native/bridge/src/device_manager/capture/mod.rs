@@ -278,8 +278,10 @@ impl DeviceManager {
                 .map(|status| status.max_adu)
                 .filter(|&max_adu| max_adu > 0);
 
-            // Use comprehensive validation - bias frames (very short exposures) are allowed to have uniform data
-            let is_bias_frame = duration_secs < 0.1; // Bias frames are typically < 100ms
+            // A bias may be uniform, and so may any frame under 0.1 s (what a
+            // bias usually is).
+            let is_bias_frame =
+                native_frame_type == skotiq_device::FrameType::Bias || duration_secs < 0.1;
             let validation = skotiq_imaging::validate_image_comprehensive(
                 &img_for_validation,
                 skotiq_imaging::ImageValidationOptions {

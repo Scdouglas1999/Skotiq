@@ -337,7 +337,7 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
 
     final result = await ref
         .read(mountCommandServiceProvider)
-        .slewTo(coords.ra, coords.dec);
+        .slewTo(coords.ra, coords.dec, targetName: obj.name);
 
     if (mounted) {
       context.showCommandActionResult(result);
@@ -350,8 +350,12 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       CelestialCoordinate coords, String objectName) async {
     // First slew to approximate position
     final mountService = ref.read(mountCommandServiceProvider);
-    final result =
-        await mountService.slewTo(coords.ra, coords.dec, showFeedback: false);
+    final result = await mountService.slewTo(
+      coords.ra,
+      coords.dec,
+      showFeedback: false,
+      targetName: objectName,
+    );
 
     if (!result.isSuccess) {
       if (mounted) {
@@ -376,8 +380,12 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       CelestialCoordinate coords, String objectName) async {
     // First slew to approximate position
     final mountService = ref.read(mountCommandServiceProvider);
-    final slewResult =
-        await mountService.slewTo(coords.ra, coords.dec, showFeedback: false);
+    final slewResult = await mountService.slewTo(
+      coords.ra,
+      coords.dec,
+      showFeedback: false,
+      targetName: objectName,
+    );
 
     if (!slewResult.isSuccess) {
       if (mounted) {
@@ -426,35 +434,14 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm slew'),
-        content: Text(
-          objectName != null
-              ? 'Slew mount to $objectName?\n\nRA: ${coords.ra.toStringAsFixed(4)}h\nDec: ${coords.dec.toStringAsFixed(4)}\u00b0'
-              : 'Slew mount to coordinates?\n\nRA: ${coords.ra.toStringAsFixed(4)}h\nDec: ${coords.dec.toStringAsFixed(4)}\u00b0',
-        ),
-        actions: [
-          SkotiqButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            label: 'Cancel',
-            variant: ButtonVariant.ghost,
-            size: ButtonSize.small,
-          ),
-          SkotiqButton(
-            label: 'Slew',
-            variant: ButtonVariant.primary,
-            size: ButtonSize.small,
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
-        ],
-      ),
+    // A tap on the sky in slew mode always asks, so a mis-tap moves nothing.
+    final result = await mountService.slewTo(
+      coords.ra,
+      coords.dec,
+      targetName: objectName,
+      alwaysConfirms: true,
     );
-
-    if (confirmed != true) return;
-
-    await mountService.slewTo(coords.ra, coords.dec);
+    if (mounted) context.showCommandActionResult(result);
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {

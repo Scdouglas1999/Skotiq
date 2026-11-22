@@ -389,8 +389,15 @@ void main() {
     for (final caveat in context.caveats) {
       expect(caveat, contains('Acme SkyCam 9000'));
     }
-    // The conservative stand-ins, each announced by its caveat.
-    expect(context.pixelSizeMicrons, 3.76);
+    // No pixel size stands in: the caveat says plans wait for it, and the
+    // context gives no exposure recommendation.
+    expect(context.pixelSizeMicrons, isNull);
+    expect(
+      context.caveats,
+      contains(unknownPixelSizeCaveat(cameraLabel: 'Acme SkyCam 9000')),
+    );
+    expect(context.recommendForFilter('L'), isNull);
+    // The conservative noise-figure stand-ins, each announced by its caveat.
     expect(context.camera.readNoiseE, 3.5);
     expect(context.camera.fullWellE, 18000);
     expect(context.camera.qePeak, 0.65);

@@ -33,6 +33,32 @@ mixin HostCalibrationTools on NetworkBackendTransport {
     return response['matched'] as String?;
   }
 
+  /// Ask the host for the master flat in its library for a light of [filter]
+  /// and these capture parameters (`POST /api/calibration/match-flat`, the
+  /// host's [FlatLibraryService.findLiveFlat]) and return its on-host path,
+  /// for [calibrateImageFile]. Null when no library flat matches.
+  Future<String?> matchFlatFromLibrary({
+    required String? filter,
+    required int? gain,
+    int? offset,
+    int binX = 1,
+    int binY = 1,
+    double? temperature,
+  }) async {
+    final response = await _post(
+      CalibrationApi.matchFlat,
+      body: {
+        'filter': ?filter,
+        'gain': ?gain,
+        'offset': ?offset,
+        'binX': binX,
+        'binY': binY,
+        'temperature': ?temperature,
+      },
+    );
+    return response['matched'] as String?;
+  }
+
   /// Turn the host's correction of a camera's lights with the map stored for
   /// this size and temperature on (with this strategy) or off.
   Future<void> applyDefectMapToSequencer({

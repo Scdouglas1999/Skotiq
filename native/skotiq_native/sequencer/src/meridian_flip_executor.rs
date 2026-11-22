@@ -5168,7 +5168,7 @@ mod tests {
         assert!(executor
             .failed_attempts()
             .iter()
-            .all(|e| e.contains("Pausing guider")));
+            .all(|e| e.contains("Pausing Guider")));
         assert_eq!(state.slew_calls.load(Ordering::Relaxed), 0);
         assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
     }
@@ -5321,7 +5321,7 @@ mod tests {
             "{messages:#?}"
         );
         assert!(
-            has("attempt 1 of 2 failed (Plate solving and centering: Plate solve failed")
+            has("attempt 1 of 2 failed (Plate Solving & Centering: Plate solve failed")
                 && has("the mount is already on the new pier side. Trying again in 30 s."),
             "{messages:#?}"
         );

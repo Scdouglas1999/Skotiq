@@ -23,6 +23,20 @@ void main() {
     );
   });
 
+  test('app_settings_wire.g.dart matches the settings table', () {
+    if (Platform.environment['SKOTIQ_REGENERATE'] == '1') {
+      writeAppSettingsWire();
+    }
+    expect(
+      File(kWireGeneratedPath).readAsStringSync(),
+      generateAppSettingsWire(File(kTablePath).readAsStringSync()),
+      reason:
+          'The settings table changed. Regenerate with '
+          'SKOTIQ_REGENERATE=1 flutter test '
+          'test/settings/app_settings_generated_test.dart',
+    );
+  });
+
   // `dart run tool/generate_app_settings.dart` crashed inside the compiler
   // ("InvalidType is not a subtype of FunctionType") because the table
   // imported the remote-protocol barrel, which pulls in Flutter.

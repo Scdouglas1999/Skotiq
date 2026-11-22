@@ -9,6 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../analytics_providers.dart';
+import 'run_decisions.dart' show decisionCategoryTone;
 
 /// A run's replay data read from the records the imaging host keeps: the run
 /// row, the frames of its session and its logged decisions. Unlike the host's
@@ -55,10 +56,9 @@ class RunRecordsReplaySource implements SessionReplayDataSource {
           RemoteReplayEvent(
             timestamp: decision.timestamp,
             timestampMs: decision.timestamp.millisecondsSinceEpoch,
-            severity: switch (decision.category) {
-              DecisionCategory.frameRejected ||
-              DecisionCategory.recoveryEntered =>
-                'warning',
+            severity: switch (decisionCategoryTone(decision.category)) {
+              ChipTone.error => 'error',
+              ChipTone.warning => 'warning',
               _ => 'info',
             },
             source: decision.category.displayLabel,

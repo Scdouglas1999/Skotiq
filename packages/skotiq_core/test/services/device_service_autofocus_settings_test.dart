@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/imaging/autofocus_request.dart';
@@ -151,6 +153,97 @@ void main() {
     });
   }
 
+  group('the request each kind of run sends', () {
+    const panel = (
+      exposureTime: 2.5,
+      stepSize: 77,
+      stepsOut: 6,
+      method: 'Star HFR',
+      binning: 3,
+    );
+    const ids = {'deviceId': 'focuser-1', 'cameraId': 'camera-1'};
+    const tableAdvanced = {
+      'curveFitting': 'Hyperbolic',
+      'numberOfAttempts': 1,
+      'exposuresPerPoint': 1,
+      'rSquaredThreshold': 0.7,
+      'outerCropRatio': 1.0,
+      'innerCropRatio': 0.0,
+      'useBrightestNStars': 10,
+      'focuserSettleTimeMs': 500,
+      'backlashCompMethod': 'Overshoot',
+      'backlashIn': 0,
+      'backlashOut': 0,
+      'failureHfrToleranceRatio': 1.6,
+    };
+
+    Future<Map<String, Object>> sent({
+      required bool useSettingsDefaults,
+      required bool settingsLoaded,
+    }) async {
+      final backend = _AutofocusCaptureBackend();
+      final container = settingsLoaded
+          ? _buildContainer(
+              backend,
+              const AppSettingsState(useFilterFocusOffsets: false),
+            )
+          : _buildUnloadedContainer(backend);
+      addTearDown(container.dispose);
+      if (settingsLoaded) await container.read(appSettingsProvider.future);
+      _seedConnectedEquipment(container);
+      await container
+          .read(deviceServiceProvider)
+          .runAutofocus(
+            exposureTime: panel.exposureTime,
+            stepSize: panel.stepSize,
+            stepsOut: panel.stepsOut,
+            method: panel.method,
+            binning: panel.binning,
+            useSettingsDefaults: useSettingsDefaults,
+          );
+      return backend.request!.toWireJson();
+    }
+
+    test('from the settings', () async {
+      expect(await sent(useSettingsDefaults: true, settingsLoaded: true), {
+        ...ids,
+        'exposureTime': 4.0,
+        'stepSize': 50,
+        'stepsOut': 4,
+        'method': 'Star HFR',
+        'binning': 1,
+        ...tableAdvanced,
+      });
+    });
+
+    test('from the panel, settings loaded', () async {
+      expect(await sent(useSettingsDefaults: false, settingsLoaded: true), {
+        ...ids,
+        'exposureTime': 2.5,
+        'stepSize': 77,
+        'stepsOut': 6,
+        'method': 'Star HFR',
+        'binning': 3,
+        ...tableAdvanced,
+      });
+    });
+
+    test(
+      'from the panel, settings not loaded yet: the table defaults',
+      () async {
+        expect(await sent(useSettingsDefaults: false, settingsLoaded: false), {
+          ...ids,
+          'exposureTime': 2.5,
+          'stepSize': 77,
+          'stepsOut': 6,
+          'method': 'Star HFR',
+          'binning': 3,
+          ...tableAdvanced,
+        });
+      },
+    );
+  });
+
   test('moving filter-wheel sentinel has no current filter name', () {
     const state = FilterWheelState(
       currentPosition: -1,
@@ -192,6 +285,22 @@ void _seedConnectedEquipment(ProviderContainer container) {
       .read(filterWheelStateProvider.notifier)
       .setConnected(filterNames: ['L', 'R']);
   container.read(filterWheelStateProvider.notifier).updatePosition(1);
+}
+
+ProviderContainer _buildUnloadedContainer(SkotiqBackend backend) {
+  return ProviderContainer(
+    overrides: [
+      backendProvider.overrideWith((ref) => _TestBackendNotifier(ref, backend)),
+      appSettingsProvider.overrideWith(_UnloadedSettingsNotifier.new),
+      activeEquipmentProfileProvider.overrideWithValue(null),
+    ],
+  );
+}
+
+/// Settings that are still being read from the database.
+class _UnloadedSettingsNotifier extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() => Completer<AppSettingsState>().future;
 }
 
 class _FixedSettingsNotifier extends AppSettingsNotifier {

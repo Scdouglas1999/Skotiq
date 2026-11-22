@@ -740,3 +740,183 @@ async fn a_focuser_whose_reads_say_it_is_gone_is_listed_lost_and_reconnected() {
     assert_eq!(manager.focuser_get_position(id).await.ok(), Some(5200));
     let _ = manager.disconnect_device(id).await;
 }
+
+/// A wheel or focuser failure whose kind says it is not connected is gone
+/// whatever its words: after a bus change it is reopened and the move runs
+/// again, and it counts against the device's health.
+#[tokio::test]
+async fn a_not_connected_kind_without_the_words_is_gone_at_every_recovery_site() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let focuser = "sim_focuser_kind";
+    manager
+        .register_device(build_sim_info(focuser, DeviceType::Focuser), false)
+        .await;
+    manager.connect_device(focuser).await.expect("connect");
+    let lost = || crate::dispatch::error::DeviceOpError::not_connected(None, "EAF gone");
+    assert!(!DeviceFailure::from(&lost()).says_gone());
+
+    crate::hotplug::note_bus_change();
+    let tries = std::sync::atomic::AtomicU32::new(0);
+    let moved = manager
+        .with_reopen(focuser, || async {
+            if tries.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                Err(lost())
+            } else {
+                Ok(())
+            }
+        })
+        .await;
+    crate::hotplug::forget_bus_change();
+    assert!(
+        moved.is_ok(),
+        "the move runs again after the reopen: {moved:?}"
+    );
+    assert_eq!(manager.reopen_count(focuser), 1);
+
+    for _ in 0..3 {
+        let _ = manager
+            .with_reopen(focuser, || async { Err::<(), _>(lost()) })
+            .await;
+    }
+    assert!(manager.failing_status_reads(focuser).is_some());
+    let _ = manager.disconnect_device(focuser).await;
+}
+
+/// P8-7: the app's own wheel and focuser moves (the FFI calls the manager
+/// directly) get the reopen the run's moves get after a bus drop.
+#[tokio::test]
+async fn a_manual_wheel_and_focuser_move_after_a_bus_drop_reopens_and_lands() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let wheel = "sim_wheel_manual_reopen";
+    let focuser = "sim_focuser_manual_reopen";
+    for (id, device_type) in [
+        (wheel, DeviceType::FilterWheel),
+        (focuser, DeviceType::Focuser),
+    ] {
+        manager
+            .register_device(build_sim_info(id, device_type), false)
+            .await;
+        manager.connect_device(id).await.expect("connect");
+    }
+
+    crate::hotplug::note_bus_change();
+    get_sim_filterwheel().write().await.status.connected = false;
+    get_sim_focuser().write().await.status.connected = false;
+    let moved = manager.filter_wheel_set_position(wheel, 3).await;
+    let focused = manager.focuser_move_abs(focuser, 5300).await;
+    crate::hotplug::forget_bus_change();
+
+    assert!(moved.is_ok(), "the manual wheel move lands: {moved:?}");
+    assert!(
+        focused.is_ok(),
+        "the manual focuser move lands: {focused:?}"
+    );
+    assert_eq!(manager.filter_wheel_get_position(wheel).await.ok(), Some(3));
+    assert_eq!(manager.focuser_get_position(focuser).await.ok(), Some(5300));
+    assert_eq!(manager.reopen_count(wheel), 1);
+    assert_eq!(manager.reopen_count(focuser), 1);
+    for id in [wheel, focuser] {
+        let _ = manager.disconnect_device(id).await;
+    }
+}
+
+/// R1H2-1: a safety monitor whose IsSafe reads keep failing is reopened, and
+/// never put in the error state (its policy does not escalate). The verdict
+/// stays what failing reads give today, an error, before, during and after
+/// the reopen while the reads still fail; only reads that answer again give
+/// a verdict. So nothing parks sooner than it does today.
+#[tokio::test]
+async fn a_safety_monitor_whose_reads_keep_failing_is_reopened_and_its_verdict_is_unchanged() {
+    use crate::simulator::environment::get_sim_safety_monitor;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
+    let manager = build_device_manager();
+    let id = "sim_safety_reopen";
+    manager
+        .register_device(build_sim_info(id, DeviceType::SafetyMonitor), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    get_sim_safety_monitor().write().await.status.is_safe = true;
+
+    faults::arm(
+        "safetymonitor.status",
+        FaultSpec::new(Trigger::Always, Effect::Error("IsSafe read failed".into())),
+    );
+    let one = DeviceFailure::words("IsSafe read failed");
+    assert!(manager.safety_is_safe(id).await.is_err());
+    assert!(
+        !manager.wants_reopen(id, &one).await,
+        "one failed read does not reopen the monitor"
+    );
+    for _ in 1..crate::device_manager::read_health::STATUS_READ_FAILURE_LIMIT {
+        assert!(manager.safety_is_safe(id).await.is_err());
+    }
+    let failing = manager
+        .failing_status_reads(id)
+        .expect("failing IsSafe reads count against the monitor");
+    assert_eq!(manager.reopen_after(id, &failing).await, Ok(true));
+    assert_eq!(manager.reopen_count(id), 1);
+
+    // Still failing after the reopen: the same verdict, and still connected.
+    assert!(manager.safety_is_safe(id).await.is_err());
+    let state = manager.devices.read().await[id].connection_state;
+    assert_eq!(state, ConnectionState::Connected);
+
+    // During a reopen the monitor is closed: an error, as failing reads are.
+    manager.close_device(id, false).await.expect("close");
+    assert!(manager.safety_is_safe(id).await.is_err());
+    manager.connect_device(id).await.expect("connect");
+
+    faults::clear_all();
+    assert_eq!(manager.safety_is_safe(id).await.ok(), Some(true));
+    let _ = manager.disconnect_device(id).await;
+}
+
+/// R1H2-1, through what a run reads (`SafetyOps::safety_is_safe(None)`):
+/// while the monitor's reads fail the verdict is the same error before,
+/// during and after its reopen, and it names the monitor, so the run's fail
+/// mode decides it as it does today and the check never passes to another
+/// source.
+#[tokio::test]
+async fn a_runs_safety_verdict_is_unchanged_through_a_monitor_reopen() {
+    use crate::simulator::environment::get_sim_safety_monitor;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
+    let manager = crate::device_manager::get_device_manager();
+    let ops = crate::unified_device_ops::create_unified_device_ops();
+    let id = "sim_safety_run_reopen";
+    manager
+        .register_device(build_sim_info(id, DeviceType::SafetyMonitor), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    get_sim_safety_monitor().write().await.status.is_safe = true;
+    faults::arm(
+        "safetymonitor.status",
+        FaultSpec::new(Trigger::Always, Effect::Error("IsSafe read failed".into())),
+    );
+    let names_the_monitor = |verdict: &skotiq_sequencer::DeviceResult<bool>| matches!(verdict, Err(e) if e.to_string().contains(id));
+
+    for _ in 0..crate::device_manager::read_health::STATUS_READ_FAILURE_LIMIT {
+        assert!(names_the_monitor(&ops.safety_is_safe(None).await));
+    }
+    let failing = manager.failing_status_reads(id).expect("the reads count");
+    assert_eq!(manager.reopen_after(id, &failing).await, Ok(true));
+    assert!(names_the_monitor(&ops.safety_is_safe(None).await));
+
+    // Inside a reopen: the monitor is closed and being opened again.
+    manager.mark_reopening(id, true);
+    manager.close_device(id, false).await.expect("close");
+    let during = ops.safety_is_safe(None).await;
+    assert!(names_the_monitor(&during), "during the reopen: {during:?}");
+    manager.connect_device(id).await.expect("connect");
+    manager.mark_reopening(id, false);
+
+    faults::clear_all();
+    assert_eq!(ops.safety_is_safe(None).await.ok(), Some(true));
+    manager.disconnect_device(id).await.expect("disconnect");
+    manager.unregister_device(id).await;
+}

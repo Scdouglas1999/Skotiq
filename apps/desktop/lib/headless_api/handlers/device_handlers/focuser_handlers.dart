@@ -165,81 +165,25 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     return jsonOk({'status': 'halted'});
   }
 
-  bool _isFocuserBusy(Object error) {
-    final message = error is bridge_error.SkotiqError
-        ? error.maybeMap(
-            operationFailed: (failure) => failure.field0,
-            orElse: () => error.toString(),
-          )
-        : error.toString();
-    final normalized = message.toLowerCase();
-    return normalized.contains('move failure') ||
-        normalized.contains('already moving') ||
-        normalized.contains('device busy') ||
-        normalized.contains('focuser is busy');
-  }
+  /// The bridge answers a move the driver refused because the focuser is
+  /// moving as `deviceBusy`.
+  bool _isFocuserBusy(Object error) =>
+      error is bridge_error.SkotiqError_DeviceBusy;
 
   Future<Response> handleAutofocusStart(Request request) async {
     _logInfo('[API] POST /api/focuser/autofocus/start');
     final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
-    final cameraId = requireString(payload, 'cameraId');
-    final exposureTime = requireDouble(
-      payload,
-      'exposureTime',
-      min: 0.1,
-      max: 300,
-    );
-    final stepSize = requireInt(payload, 'stepSize', min: 1, max: 10000);
-    final stepsOut = requireInt(payload, 'stepsOut', min: 1, max: 50);
-    final method = optionalString(payload, 'method') ?? 'VCurve';
-    final binning = optionalInt(payload, 'binning', min: 1, max: 4) ?? 1;
-    final gain = optionalInt(payload, 'gain', min: 0);
-    final offset = optionalInt(payload, 'offset', min: 0);
-    final curveFitting =
-        optionalString(payload, 'curveFitting') ?? 'Hyperbolic';
-    final numberOfAttempts =
-        optionalInt(payload, 'numberOfAttempts', min: 1, max: 10) ?? 1;
-    final exposuresPerPoint =
-        optionalInt(payload, 'exposuresPerPoint', min: 1, max: 20) ?? 1;
-    final rSquaredThreshold =
-        optionalDouble(payload, 'rSquaredThreshold', min: 0, max: 1) ?? 0.7;
-    final outerCropRatio =
-        optionalDouble(payload, 'outerCropRatio', min: 0, max: 1) ?? 1.0;
-    final innerCropRatio =
-        optionalDouble(payload, 'innerCropRatio', min: 0, max: 1) ?? 0.0;
-    if (outerCropRatio == 0 || innerCropRatio >= outerCropRatio) {
+    final AutofocusRequest autofocusRequest;
+    try {
+      autofocusRequest = AutofocusRequest.fromWireJson(payload);
+    } on AutofocusRequestFieldError catch (error) {
       throw BadRequestError(
-        field: 'innerCropRatio/outerCropRatio',
-        expected: '0 <= inner < outer <= 1',
-        message: 'Crop ratios must satisfy 0 <= inner < outer <= 1',
+        field: error.field,
+        expected: error.expected,
+        message: error.message,
       );
     }
-    final useBrightestNStars =
-        optionalInt(payload, 'useBrightestNStars', min: 0, max: 500) ?? 10;
-    final focuserSettleTimeMs =
-        optionalInt(payload, 'focuserSettleTimeMs', min: 0, max: 10000) ?? 500;
-    final backlashCompMethod =
-        optionalString(payload, 'backlashCompMethod') ?? 'Overshoot';
-    // Zero, like every other backlash default: an API caller who omits it
-    // gets no compensation rather than 350 steps of someone else's focuser.
-    final backlashIn =
-        optionalInt(payload, 'backlashIn', min: 0, max: 10000) ?? 0;
-    final backlashOut =
-        optionalInt(payload, 'backlashOut', min: 0, max: 10000) ?? 0;
-    // A client that predates this key gets the engine's shipped ratio.
-    final failureHfrToleranceRatio =
-        optionalDouble(payload, 'failureHfrToleranceRatio', min: 0, max: 100) ??
-        const AutofocusSettings().failureHfrToleranceRatio;
-    // A figure this app measured on the focuser, from a stored calibration.
-    // Never overrides `backlashIn`: native applies it only when the operator
-    // has left theirs at 0.
-    final measuredBacklashIn = optionalInt(
-      payload,
-      'measuredBacklashIn',
-      min: 0,
-      max: 10000,
-    );
+    final deviceId = autofocusRequest.deviceId;
 
     // register the command so any later event with a matching
     // operation kind picks up `correlatingCommandId`. We still register
@@ -253,7 +197,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     // Answers `{jobId, status: queued, commandId}` at once and runs the
     // autofocus in the background. Progress and completion arrive as WS
     // events (category=job).
-    final recordFocusModel = await _focusModelRecorder(method);
+    final recordFocusModel = await _focusModelRecorder(autofocusRequest.method);
     final job = jobManager.start(
       operation: JobOperation.autofocus,
       deviceId: deviceId,
@@ -265,32 +209,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
         // cancels, propagate that request through the backend before marking
         // the job cancelled; otherwise the REST job would disappear while
         // the camera and focuser continued a physical autofocus sweep.
-        final workFuture = backend.autofocusStart(
-          AutofocusRequest(
-            deviceId: deviceId,
-            cameraId: cameraId,
-            exposureTime: exposureTime,
-            stepSize: stepSize,
-            stepsOut: stepsOut,
-            method: method,
-            binning: binning,
-            gain: gain,
-            offset: offset,
-            curveFitting: curveFitting,
-            numberOfAttempts: numberOfAttempts,
-            exposuresPerPoint: exposuresPerPoint,
-            rSquaredThreshold: rSquaredThreshold,
-            outerCropRatio: outerCropRatio,
-            innerCropRatio: innerCropRatio,
-            useBrightestNStars: useBrightestNStars,
-            focuserSettleTimeMs: focuserSettleTimeMs,
-            backlashCompMethod: backlashCompMethod,
-            backlashIn: backlashIn,
-            backlashOut: backlashOut,
-            measuredBacklashIn: measuredBacklashIn,
-            failureHfrToleranceRatio: failureHfrToleranceRatio,
-          ),
-        );
+        final workFuture = backend.autofocusStart(autofocusRequest);
         final result = await Future.any<dynamic>([
           workFuture,
           cancellation.whenCancelled.then((_) => _CancelledMarker.instance),

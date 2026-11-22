@@ -1,5 +1,6 @@
 import 'package:skotiq_astro/skotiq_astro.dart' show observingNightOf;
 
+import '../database/rows/accepted_lights.dart';
 import '../database/rows/frame_type_record.dart';
 import '../database/database.dart' as db;
 import 'package:skotiq_astro/filters.dart';
@@ -13,10 +14,16 @@ class FilterIntegration {
     required this.filter,
     required this.frames,
     required this.seconds,
+    this.noFilter = false,
   });
 
   /// The filter as captured, "Unfiltered" when the frame names none.
   final String filter;
+
+  /// Whether these are the frames filed with no filter (blank), which a goal
+  /// with no filter counts. A frame filed "Unfiltered" is a filter of that
+  /// name, as the scheduler reads it.
+  final bool noFilter;
   final int frames;
   final double seconds;
 }
@@ -25,29 +32,40 @@ class FilterIntegration {
 ///
 /// Filters are matched case-insensitively, as the scheduler matches goals, and
 /// each group is named by its most common spelling (ties alphabetical), so
-/// 'L' and 'l' are one row.
+/// 'L' and 'l' are one row. Frames filed blank are one "Unfiltered" row
+/// ([FilterIntegration.noFilter]), before a filter named "Unfiltered".
 List<FilterIntegration> acceptedLightsByFilter(
   Iterable<db.DbCapturedImage> frames,
 ) {
   final buckets = <String, _FilterBucket>{};
-  for (final frame in frames) {
-    if (!_isAcceptedLight(frame)) continue;
-    final label = (frame.filter == null || frame.filter!.isEmpty)
-        ? _unfiltered
-        : frame.filter!;
-    final bucket = buckets.putIfAbsent(label.toLowerCase(), _FilterBucket.new);
-    bucket.frames++;
-    bucket.seconds += frame.exposureDuration;
-    bucket.labelCounts[label] = (bucket.labelCounts[label] ?? 0) + 1;
+  for (final filed in acceptedLightsAsFiled(frames)) {
+    final none = filed.filter.trim().isEmpty;
+    final label = none ? _unfiltered : filed.filter;
+    final bucket = buckets.putIfAbsent(
+      none ? '' : label.toLowerCase(),
+      _FilterBucket.new,
+    );
+    bucket.frames += filed.frames;
+    bucket.seconds += filed.seconds;
+    bucket.labelCounts.update(
+      label,
+      (n) => n + filed.frames,
+      ifAbsent: () => filed.frames,
+    );
   }
   return [
-    for (final bucket in buckets.values)
+    for (final MapEntry(:key, value: bucket) in buckets.entries)
       FilterIntegration(
         filter: bucket.label,
         frames: bucket.frames,
         seconds: bucket.seconds,
+        noFilter: key.isEmpty,
       ),
-  ]..sort((a, b) => a.filter.toLowerCase().compareTo(b.filter.toLowerCase()));
+  ]..sort((a, b) {
+    final byName = a.filter.toLowerCase().compareTo(b.filter.toLowerCase());
+    if (byName != 0) return byName;
+    return a.noFilter == b.noFilter ? 0 : (a.noFilter ? -1 : 1);
+  });
 }
 
 /// The accepted light integration a goal for [goalFilter] counts: the groups
@@ -73,12 +91,12 @@ List<FilterIntegration> _goalGroups(
   if (goalFilter.trim().isEmpty) {
     return [
       for (final f in accepted)
-        if (f.filter == _unfiltered) f,
+        if (f.noFilter) f,
     ];
   }
   return [
     for (final f in accepted)
-      if (f.filter != _unfiltered && sameFilter(f.filter, goalFilter)) f,
+      if (!f.noFilter && sameFilter(f.filter, goalFilter)) f,
   ];
 }
 
@@ -130,7 +148,9 @@ String _goalKey(List<FilterIntegration> accepted, String goalFilter) {
   final groups = _goalGroups(accepted, goalFilter);
   return groups.isEmpty
       ? 'none:${goalFilter.trim().toLowerCase()}'
-      : [for (final f in groups) f.filter.toLowerCase()].join('|');
+      : [
+          for (final f in groups) f.noFilter ? '' : f.filter.toLowerCase(),
+        ].join('|');
 }
 
 /// The sessions that imaged a target: every session holding one of its light
@@ -223,9 +243,6 @@ class TargetGoal {
 /// a target's night count is the same wherever it is shown.
 int observingNightCount(Iterable<db.DbCapturedImage> frames) =>
     {for (final frame in frames) observingNightOf(frame.capturedAt)}.length;
-
-bool _isAcceptedLight(db.DbCapturedImage frame) =>
-    frame.isLight && frame.isAccepted;
 
 /// Multi-night progress of one target, from its frames and its goals.
 class ProjectProgress {

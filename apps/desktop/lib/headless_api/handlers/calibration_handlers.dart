@@ -69,6 +69,7 @@ class CalibrationHandlers implements RouteSource {
     CalibrationApi.confirmEndOfNightCapped: handleConfirmEndOfNightCapped,
     CalibrationApi.cancelEndOfNight: handleCancelEndOfNight,
     CalibrationApi.matchDark: handleMatchDark,
+    CalibrationApi.matchFlat: handleMatchFlat,
     CalibrationApi.listDarks: handleListDarks,
     CalibrationApi.registerDark: handleRegisterDark,
     CalibrationApi.uploadDark: handleUploadDark,

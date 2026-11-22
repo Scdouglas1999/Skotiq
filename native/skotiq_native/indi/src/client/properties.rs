@@ -54,6 +54,40 @@ impl IndiClient {
         map_get_3(&limits, device, property, element).cloned()
     }
 
+    /// Why `device` has no value for what was asked, in `sentence`:
+    /// [`IndiError::Gone`] when the server link is down or the device has no
+    /// property left (it vanished with a server outage), and
+    /// [`IndiError::Unavailable`] when the device is there and does not
+    /// offer it, so a property it never had never reads as a lost device.
+    pub async fn missing(&self, device: &str, sentence: impl Into<String>) -> IndiError {
+        let sentence = sentence.into();
+        let has_properties = self
+            .properties
+            .read()
+            .await
+            .keys()
+            .any(|(owner, _)| owner == device);
+        if !self.is_connected().await || !has_properties {
+            IndiError::Gone(sentence)
+        } else {
+            IndiError::Unavailable(sentence)
+        }
+    }
+
+    /// [`Self::get_number`], or why it is missing ([`Self::missing`]).
+    pub async fn require_number(
+        &self,
+        device: &str,
+        property: &str,
+        element: &str,
+        sentence: impl Into<String>,
+    ) -> IndiResult<f64> {
+        match self.get_number(device, property, element).await {
+            Some(value) => Ok(value),
+            None => Err(self.missing(device, sentence).await),
+        }
+    }
+
     pub async fn get_number(&self, device: &str, property: &str, element: &str) -> Option<f64> {
         self.get_property_value(device, property, element)
             .await

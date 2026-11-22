@@ -1,4 +1,3 @@
-import '../../models/imaging/imaging_models.dart' show FrameType;
 import '../rows/frame_type_record.dart';
 import 'package:drift/drift.dart';
 
@@ -83,19 +82,16 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
             ]))
           .get();
 
-  /// Accepted light frames on record for a target in a filter. The filter
-  /// name is compared without case, because a goal typed as "Lum" has to
-  /// count frames the wheel reported as "lum".
   /// Accepted light frames of [targetId] by filter as filed, `''` for frames
-  /// that name none.
+  /// that name none: the count `acceptedFramesByFiledFilter` gives over the
+  /// target's rows, made in the database.
   Future<Map<String, int>> acceptedLightFramesByFilter(int targetId) async {
     final count = capturedImages.id.count();
     final query = selectOnly(capturedImages)
       ..addColumns([capturedImages.filter, count])
       ..where(
         capturedImages.targetId.equals(targetId) &
-            capturedImages.frameTypeIs(FrameType.light) &
-            capturedImages.isAccepted.equals(true),
+            capturedImages.isAcceptedLightFrame,
       )
       ..groupBy([capturedImages.filter]);
     final byFilter = <String, int>{};

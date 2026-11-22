@@ -118,7 +118,7 @@ class SmartExposureFilterSets extends ConsumerWidget {
           );
       await ref
           .read(filterSetPreferencesProvider.notifier)
-          .choose(suggestion, set, recommended: choice.recommended);
+          .pick(suggestion, set, choice);
     } on SmartNightBuildException catch (e) {
       if (context.mounted) context.showWarningSnackBar(e.message);
     } catch (e) {

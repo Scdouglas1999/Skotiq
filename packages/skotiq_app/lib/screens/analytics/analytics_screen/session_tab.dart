@@ -44,7 +44,6 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
       sessions: allSessions,
       liveSessionId: sessionState.dbSessionId,
       defaultSessionId: defaultSessionId,
-      newestFallback: false,
     );
     final reviewSession = allSessions
         .cast<ImagingSession?>()

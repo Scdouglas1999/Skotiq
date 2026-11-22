@@ -40,7 +40,6 @@ export 'src/components/skotiq_switch.dart';
 export 'src/components/skotiq_switch_row.dart';
 export 'src/components/skotiq_switch_style.dart';
 export 'src/components/skotiq_progress_bar.dart';
-export 'src/components/skotiq_alert.dart';
 export 'src/components/status_pill.dart';
 export 'src/components/status_dot.dart';
 export 'src/components/adaptive_tab_bar.dart';

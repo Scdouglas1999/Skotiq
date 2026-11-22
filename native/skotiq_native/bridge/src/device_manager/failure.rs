@@ -1,8 +1,8 @@
 //! What a failed operation says about the device behind it.
 //!
-//! Recovery asks three questions of a failure: does its kind say the device
-//! is not connected, do its words say the device is gone, and is the device's
-//! SDK session broken (it answers, but takes no exposure until it is closed
+//! Recovery asks two questions of a failure: is the device gone (its kind
+//! says it is not connected, or its words say so), and is the device's SDK
+//! session broken (it answers, but takes no exposure until it is closed
 //! and opened again). The kind answers where the failure has one. Text that
 //! reached recovery without a kind (a liveness probe's sentence, a protocol
 //! server's message, a helper's `String`) is read by the words recovery has
@@ -50,6 +50,12 @@ impl DeviceFailure {
     pub(crate) fn says_gone(&self) -> bool {
         let message = self.message.to_ascii_lowercase();
         message.contains("disconnected") || message.contains("not connected")
+    }
+
+    /// The device is gone: the failure's kind says it is not connected, or
+    /// its words say so. Every recovery site asks this.
+    pub(crate) fn gone(&self) -> bool {
+        self.not_connected() || self.says_gone()
     }
 
     /// The camera's SDK session is broken and only a reopen brings it back:

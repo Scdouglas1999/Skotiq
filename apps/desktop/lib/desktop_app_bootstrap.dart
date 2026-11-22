@@ -270,6 +270,7 @@ class GuiRemoteAccess {
           requiresAuthentication: true,
           dashboardAvailable: true,
           serverFingerprint: server.serverFingerprint,
+          advert: running.advert,
         );
 
     _collaborationSubscription = server.collaborationManager.stream.listen((

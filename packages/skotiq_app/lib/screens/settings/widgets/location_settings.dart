@@ -437,6 +437,25 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
             SettingsSection(
               title: 'Local horizon mask',
               children: [
+                if (!SiteHorizonProfile.storedJsonIsReadable(
+                  settings.horizonProfileJson,
+                ))
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      SkotiqTokens.spaceLg,
+                      SkotiqTokens.spaceLg,
+                      SkotiqTokens.spaceLg,
+                      0,
+                    ),
+                    child: SkotiqBanner(
+                      tone: BannerTone.warning,
+                      title: 'The stored horizon could not be read',
+                      message: 'Skotiq is using the compass values it could '
+                          'read from it, or a flat horizon, so plans may '
+                          'count on sky your horizon hides. Set the mask '
+                          'below again, or import a horizon.',
+                    ),
+                  ),
                 _AltitudeFloorInForce(floor: ref.watch(altitudeFloorProvider)),
                 Padding(
                   padding:

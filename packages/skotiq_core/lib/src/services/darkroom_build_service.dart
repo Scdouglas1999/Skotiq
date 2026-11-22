@@ -251,7 +251,7 @@ class DarkroomBuildService {
     bool shareFlats = true,
     Map<String, String> selectedFlats = const {},
   }) async {
-    final lights = frames.where((f) => f.isAccepted && f.isLight).toList();
+    final lights = frames.where((f) => f.isAcceptedLight).toList();
     final headers = <int, FrameHeader>{};
     for (final f in lights) {
       headers[f.id] = await _readHeader(f.filePath);

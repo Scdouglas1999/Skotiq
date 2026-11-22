@@ -2184,7 +2184,10 @@ void main() {
           isA<SmartNightBuildException>().having(
             (e) => e.message,
             'message',
-            allOf(contains('pixel size'), contains('not in the bundled')),
+            allOf(
+              contains('camera pixel size'),
+              contains('"Totally Unknown Sensor 9000"'),
+            ),
           ),
         ),
       );

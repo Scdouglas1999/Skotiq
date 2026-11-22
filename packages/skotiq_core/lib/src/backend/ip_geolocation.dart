@@ -36,6 +36,9 @@ class IpGeolocation {
   /// TLS fallback when the primary is unreachable or has no coordinate.
   static final Uri fallbackEndpoint = Uri.parse('https://ipwho.is/');
 
+  /// How long one host gets to answer before the next is tried.
+  static const Duration perHostTimeout = Duration(seconds: 5);
+
   /// Client factory, injectable so a test can assert what goes on the wire.
   @visibleForTesting
   static http.Client Function() clientFactory = http.Client.new;
@@ -66,8 +69,21 @@ class IpGeolocation {
     throw lastError!;
   }
 
-  static Future<LocationSettings> _fetchUri(http.Client client, Uri uri) async {
-    final response = await client.get(uri).timeout(const Duration(seconds: 10));
+  static Future<LocationSettings> _fetchUri(
+    http.Client client,
+    Uri uri,
+  ) async => (await fetchFrom(client, uri)).site;
+
+  /// Ask [uri] alone through [client]: the site it answers and the decoded
+  /// answer (for a caller that also reads the place name). Throws a
+  /// [SkotiqError] for a refusal or an answer without a usable coordinate,
+  /// and the transport's own error (socket, client, [TimeoutException] after
+  /// [perHostTimeout]) when the host cannot be reached.
+  static Future<({LocationSettings site, Map<String, dynamic> body})> fetchFrom(
+    http.Client client,
+    Uri uri,
+  ) async {
+    final response = await client.get(uri).timeout(perHostTimeout);
     if (response.statusCode != 200) {
       throw SkotiqError(
         category: BackendErrorCategory.io,
@@ -78,7 +94,11 @@ class IpGeolocation {
         isRecoverable: true,
       );
     }
-    return parse(response.body);
+    final site = parse(response.body);
+    return (
+      site: site,
+      body: jsonDecode(response.body) as Map<String, dynamic>,
+    );
   }
 
   /// Parse a response body into a site. Separate from [fetch] so the refusal
