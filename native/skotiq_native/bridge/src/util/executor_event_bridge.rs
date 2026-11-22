@@ -30,11 +30,9 @@
 //! `ExecutorEvent::Error` -> `EventSeverity::Error` + `SequencerEvent::Error`.
 //! Every payload published here has kind `Standalone`: there is no run, so
 //! nothing downstream may read it as a run failing or carrying on.
-//! Every other variant is currently re-emitted at `EventSeverity::Info` with a
-//! `SequencerEvent::Error { message: "…" }` payload describing the event —
-//! the one-shot sites don't have a richer payload mapping today and the
-//! existing UI consumer (`SequenceExecutor._handleSequencerEvent`) treats the
-//! `Error` SequencerEvent as the catch-all log line.
+//! Warnings go out at `EventSeverity::Warning`. A run's own events (progress,
+//! node and exposure bookkeeping, triggers, recovery) are not published: a
+//! one-shot operation has no run to report them for.
 
 use crate::event::bus::EventPayload;
 use crate::event::correlation::create_event_auto_id;
@@ -163,8 +161,10 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         // Frame measurements belong to a run's frame record.
         ExecutorEvent::FrameWatch(_) => return,
         // A run's own events: a one-shot operation has no run to report
-        // them for. Listed one by one so a new event is decided here too.
-        other @ (ExecutorEvent::StateChanged(_)
+        // them for, and a step's failure is the operation's result, which
+        // its caller reports. Listed one by one so a new event is decided
+        // here too.
+        ExecutorEvent::StateChanged(_)
         | ExecutorEvent::ProgressUpdated(_)
         | ExecutorEvent::NodeStarted { .. }
         | ExecutorEvent::NodeCompleted { .. }
@@ -185,10 +185,7 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         | ExecutorEvent::RecoveryGaveUp { .. }
         | ExecutorEvent::SequenceCompleted
         | ExecutorEvent::InstructionFailed { .. }
-        | ExecutorEvent::PluginNodeRequested { .. }) => (
-            EventSeverity::Info,
-            format!("[ExecutorEvent] {:?}", std::mem::discriminant(&other)),
-        ),
+        | ExecutorEvent::PluginNodeRequested { .. } => return,
     };
 
     state.publish_event(create_event_auto_id(
@@ -247,5 +244,64 @@ mod tests {
         assert_eq!(value["status"], "Success");
         assert_eq!(value["in_run"], false, "a one-shot sweep is not a run's");
         assert_eq!(value["result"]["best_position"], 45416);
+    }
+
+    /// A standalone centering or autofocus reports its steps on the executor
+    /// channel too. Those reached the app's log as "[ExecutorEvent]
+    /// Discriminant(4)"; only what the operator can read goes out now.
+    #[tokio::test]
+    async fn a_one_shot_operation_logs_only_what_a_person_can_read() {
+        let state = crate::state::AppState::new();
+        let mut events = state.event_bus.subscribe();
+        let tx = spawn_executor_event_bridge(state.clone());
+
+        tx.send(ExecutorEvent::NodeProgress {
+            node_id: "center".to_string(),
+            instruction: "Center".to_string(),
+            progress_percent: 50.0,
+            detail: Box::new(skotiq_sequencer::ProgressDetail::Generic(
+                "Solving".to_string(),
+            )),
+        })
+        .unwrap();
+        tx.send(ExecutorEvent::ExposureStarted {
+            frame: 1,
+            total: 1,
+            filter: None,
+            duration_secs: 5.0,
+        })
+        .unwrap();
+        tx.send(ExecutorEvent::InstructionFailed {
+            node_name: "Center".to_string(),
+            message: "the frame did not solve".to_string(),
+        })
+        .unwrap();
+        tx.send(ExecutorEvent::Warning {
+            message: "done".to_string(),
+        })
+        .unwrap();
+        drop(tx);
+
+        let mut messages = Vec::new();
+        loop {
+            let event = tokio::time::timeout(std::time::Duration::from_secs(5), events.recv())
+                .await
+                .expect("the warning was published")
+                .unwrap();
+            let EventPayload::Sequencer(SequencerEvent::Error { message, .. }) = event.payload
+            else {
+                panic!("unexpected event {:?}", event.payload);
+            };
+            let last = message == "done";
+            messages.push((event.severity, message));
+            if last {
+                break;
+            }
+        }
+        assert_eq!(
+            messages,
+            vec![(EventSeverity::Warning, "done".to_string())],
+            "a step's failure is the operation's result, which its caller reports"
+        );
     }
 }
