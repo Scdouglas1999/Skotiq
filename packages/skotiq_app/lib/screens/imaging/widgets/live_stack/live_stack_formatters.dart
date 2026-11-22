@@ -5,8 +5,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A live stack's total integration ([DurationStyle.short]); an em dash
 /// when nothing is stacked.
-String formatLiveIntegration(double seconds) =>
-    seconds.isFinite && seconds > 0
+String formatLiveIntegration(double seconds) => seconds.isFinite && seconds > 0
     ? DurationFormat.seconds(seconds, style: DurationStyle.short)
     : '—';
 

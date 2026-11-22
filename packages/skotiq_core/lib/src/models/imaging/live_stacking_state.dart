@@ -188,6 +188,13 @@ class LiveStackingState {
     return filterStacks[availableFilters.first];
   }
 
+  /// The filter the live stack views show and act on: the selected one, else
+  /// the first slot, else the unfiltered stack.
+  String get viewedFilterKey =>
+      selectedFilterKey ??
+      activeFilterStack?.filterKey ??
+      kDefaultLiveStackFilterKey;
+
   /// True when live stacking is running or armed for incoming frames.
   bool get isActiveOrArmed => status == LiveStackingStatus.running || isArmed;
 
