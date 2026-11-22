@@ -95,17 +95,22 @@ void main() {
         // Every other bundled plugin defaults to enabled.
         expect(host.isEnabled(_pushoverId), isTrue);
         expect(host.isEnabled('com.skotiq.examples.home_assistant'), isTrue);
-        expect(host.isEnabled('com.skotiq.weatherlogger'), isTrue);
+        // The Weather Logger is opt-in: no stored choice keeps it off.
+        expect(host.isEnabled('com.skotiq.weatherlogger'), isFalse);
       },
     );
 
-    test('no persisted choice registers every plugin enabled', () async {
+    test('no persisted choice registers every plugin at its default', () async {
       // Nothing seeded → fresh-install default: all on.
       await container.read(pluginRegistrationProvider.future);
 
       for (final descriptor in kUserFacingExamplePlugins) {
         expect(host.isLoaded(descriptor.id), isTrue, reason: descriptor.id);
-        expect(host.isEnabled(descriptor.id), isTrue, reason: descriptor.id);
+        expect(
+          host.isEnabled(descriptor.id),
+          descriptor.enabledByDefault,
+          reason: descriptor.id,
+        );
       }
     });
 
