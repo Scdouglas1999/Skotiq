@@ -1,0 +1,9 @@
+{
+  "outputPath": "/out/M31_deconv.fits",
+  "psf": {
+    "beta": 4.5,
+    "fwhm": 2.9,
+    "kind": "moffat",
+    "size": 25
+  }
+}

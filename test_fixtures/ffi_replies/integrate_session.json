@@ -1,0 +1,121 @@
+{
+  "calibration": {
+    "anchorLight": "/subs/M31_L_0001.fits",
+    "anchorUnreadable": false,
+    "cosmeticCorrection": true,
+    "masters": [
+      {
+        "applied": true,
+        "kind": "dark",
+        "mismatches": [
+          {
+            "delta": 0.8,
+            "dimension": "temperature",
+            "light": "-10.0",
+            "master": "-9.2",
+            "tolerance": 2.0,
+            "withinTolerance": true
+          }
+        ],
+        "path": "/masters/dark_300s_g100.fits",
+        "quality": "acceptable",
+        "stale": false,
+        "staleness": {
+          "ageDays": 41.5,
+          "maxAgeDays": 90.0,
+          "maxTemperatureDeltaC": 2.0,
+          "stale": false,
+          "temperatureDeltaC": 0.8
+        },
+        "unverified": [
+          "offset"
+        ]
+      },
+      {
+        "applied": true,
+        "kind": "flat",
+        "mismatches": [],
+        "path": "/masters/flat_L.fits",
+        "quality": "exact",
+        "stale": false,
+        "staleness": {
+          "ageDays": 3.25,
+          "maxAgeDays": 30.0,
+          "maxTemperatureDeltaC": null,
+          "stale": false,
+          "temperatureDeltaC": null
+        },
+        "unverified": []
+      },
+      {
+        "applied": false,
+        "kind": "bias",
+        "mismatches": [],
+        "path": null,
+        "quality": "notRequired",
+        "stale": false,
+        "staleness": {
+          "ageDays": null,
+          "maxAgeDays": 180.0,
+          "maxTemperatureDeltaC": null,
+          "stale": false,
+          "temperatureDeltaC": null
+        },
+        "unverified": []
+      }
+    ]
+  },
+  "channels": 3,
+  "framesIntegrated": 37,
+  "framesRejected": 3,
+  "height": 4176,
+  "masterFitsPath": "/out/M31_L_master.fits",
+  "perFrameStats": [
+    {
+      "accepted": true,
+      "background": 812.0,
+      "eccentricity": 0.38,
+      "fwhm": 2.61,
+      "noise": 12.5,
+      "path": "/subs/M31_L_0001.fits",
+      "reason": "kept",
+      "rmsResidualPx": 0.31,
+      "snr": 41.2,
+      "starCount": 1432,
+      "transform": [
+        1.0,
+        0.002,
+        3.5,
+        -0.002,
+        1.0,
+        -1.25,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "transformKind": "similarity",
+      "weight": 0.87
+    },
+    {
+      "accepted": false,
+      "background": null,
+      "eccentricity": null,
+      "fwhm": null,
+      "noise": null,
+      "path": "/subs/M31_L_0002.fits",
+      "reason": "registration failed",
+      "rmsResidualPx": null,
+      "snr": null,
+      "starCount": null,
+      "transform": null,
+      "transformKind": null,
+      "weight": 0.0
+    }
+  ],
+  "previewPath": "/out/M31_L_master.png",
+  "rejectionMapPath": "/out/M31_L_rejection.fits",
+  "rejectionMapPreviewPath": "/out/M31_L_rejection.png",
+  "rmsResidual": 0.42,
+  "totalIntegrationSec": 11100.0,
+  "width": 6248
+}

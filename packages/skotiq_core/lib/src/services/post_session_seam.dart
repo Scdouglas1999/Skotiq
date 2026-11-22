@@ -335,9 +335,8 @@ class BridgePostSessionSeam implements PostSessionSeam {
   /// [FormatException] when the native call returned a non-object or omitted
   /// the path, mirroring [_decodeObject]'s contract.
   String _decodeOutputPath(String json) {
-    final obj = _decodeObject(json);
-    final path = obj['outputPath'];
-    if (path is String) return path;
+    final path = postSessionOutputPath(_decodeObject(json));
+    if (path != null) return path;
     throw FormatException(
       'post-session native call returned no outputPath',
       json,
@@ -347,8 +346,8 @@ class BridgePostSessionSeam implements PostSessionSeam {
   /// Pull the `outputPath` out of an already-decoded result map (the remote
   /// job-result envelope), mirroring [_decodeOutputPath]'s string contract.
   String _outputPathFromMap(Map<String, dynamic> obj) {
-    final path = obj['outputPath'];
-    if (path is String) return path;
+    final path = postSessionOutputPath(obj);
+    if (path != null) return path;
     throw FormatException(
       'post-session remote call returned no outputPath: $obj',
     );
@@ -362,6 +361,13 @@ class BridgePostSessionSeam implements PostSessionSeam {
       json,
     );
   }
+}
+
+/// The file an enhance step (background extraction, deconvolution, star
+/// reduction) wrote: its reply's `outputPath`, or null when it names none.
+String? postSessionOutputPath(Map<String, dynamic> reply) {
+  final path = reply['outputPath'];
+  return path is String ? path : null;
 }
 
 /// One per-frame record from [IntegrateSessionResult] — what the cull UI shows.

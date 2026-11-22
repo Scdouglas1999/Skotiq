@@ -1,0 +1,10 @@
+{
+  "channelScale": [
+    1.12,
+    1.0,
+    0.87
+  ],
+  "matched": 143,
+  "outputPath": "/out/M31_cc.fits",
+  "residual": 0.034
+}

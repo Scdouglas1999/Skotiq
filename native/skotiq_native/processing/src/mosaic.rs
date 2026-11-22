@@ -515,3 +515,25 @@ mod tests {
         assert_eq!(wcs.crval1, 30.0);
     }
 }
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn stitch_mosaic_reply_fixture() {
+        check_or_write(
+            "stitch_mosaic",
+            &StitchMosaicResult {
+                output_path: "/out/M31_mosaic.fits".to_string(),
+                coverage_path: Some("/out/M31_mosaic_coverage.fits".to_string()),
+                preview_png_path: Some("/out/M31_mosaic.png".to_string()),
+                out_width: 11800,
+                out_height: 7600,
+                overlap_pairs: 3,
+                mean_panel_gain: 1.07,
+            },
+        );
+    }
+}

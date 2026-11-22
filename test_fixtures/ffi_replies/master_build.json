@@ -1,0 +1,123 @@
+{
+  "coveragePath": "/build/M31_Ha_coverage.fits",
+  "drizzleScale": 2,
+  "filter": "Ha",
+  "folded": [
+    {
+      "group": "2026-11-20",
+      "noiseRatio": 1.04,
+      "normalizationWarning": "few stars matched",
+      "path": "/subs/M31_Ha_0001.fits",
+      "rmsPx": 0.22,
+      "rotationDeg": 0.015,
+      "shiftPx": [
+        3.5,
+        -1.25
+      ],
+      "starsMatched": 214,
+      "transparency": 0.88,
+      "weight": 0.93
+    }
+  ],
+  "frameCount": 58,
+  "groups": [
+    {
+      "calibration": {
+        "anchorLight": "/subs/M31_L_0001.fits",
+        "anchorUnreadable": false,
+        "cosmeticCorrection": true,
+        "masters": [
+          {
+            "applied": true,
+            "kind": "dark",
+            "mismatches": [
+              {
+                "delta": 0.8,
+                "dimension": "temperature",
+                "light": "-10.0",
+                "master": "-9.2",
+                "tolerance": 2.0,
+                "withinTolerance": true
+              }
+            ],
+            "path": "/masters/dark_300s_g100.fits",
+            "quality": "acceptable",
+            "stale": false,
+            "staleness": {
+              "ageDays": 41.5,
+              "maxAgeDays": 90.0,
+              "maxTemperatureDeltaC": 2.0,
+              "stale": false,
+              "temperatureDeltaC": 0.8
+            },
+            "unverified": [
+              "offset"
+            ]
+          },
+          {
+            "applied": true,
+            "kind": "flat",
+            "mismatches": [],
+            "path": "/masters/flat_L.fits",
+            "quality": "exact",
+            "stale": false,
+            "staleness": {
+              "ageDays": 3.25,
+              "maxAgeDays": 30.0,
+              "maxTemperatureDeltaC": null,
+              "stale": false,
+              "temperatureDeltaC": null
+            },
+            "unverified": []
+          },
+          {
+            "applied": false,
+            "kind": "bias",
+            "mismatches": [],
+            "path": null,
+            "quality": "notRequired",
+            "stale": false,
+            "staleness": {
+              "ageDays": null,
+              "maxAgeDays": 180.0,
+              "maxTemperatureDeltaC": null,
+              "stale": false,
+              "temperatureDeltaC": null
+            },
+            "unverified": []
+          }
+        ]
+      },
+      "darkScale": 0.98,
+      "folded": 58,
+      "integrationSec": 17400.0,
+      "label": "2026-11-20",
+      "offered": 60,
+      "skipped": 2
+    }
+  ],
+  "height": 4176,
+  "masterPath": "/build/M31_Ha_master.fits",
+  "medianRmsPx": 0.27,
+  "normalizationFallback": {
+    "reason": "unreadable",
+    "requested": "/subs/M31_Ha_0003.fits",
+    "used": "/subs/M31_Ha_0001.fits"
+  },
+  "normalizationMode": "starSignal",
+  "normalizationReference": "/subs/M31_Ha_0001.fits",
+  "previewPath": "/build/M31_Ha_master.png",
+  "rejected": 12044,
+  "rejection": "winsorizedSigma",
+  "skipped": [
+    {
+      "group": "2026-11-20",
+      "path": "/subs/M31_Ha_0044.fits",
+      "reason": "too few stars",
+      "stage": "registration"
+    }
+  ],
+  "totalIntegrationSec": 17400.0,
+  "wcsSource": "reference",
+  "width": 6248
+}

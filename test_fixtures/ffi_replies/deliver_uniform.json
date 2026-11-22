@@ -1,0 +1,28 @@
+{
+  "composites": {
+    "lrgbPath": "/out/LRGB_linear.fits",
+    "lrgbPreviewPath": "/out/LRGB_linear.png",
+    "lrgbXisfPath": "/out/LRGB_linear.xisf",
+    "rgbPath": "/out/RGB_linear.fits",
+    "rgbPreviewPath": "/out/RGB_linear.png",
+    "rgbXisfPath": "/out/RGB_linear.xisf"
+  },
+  "crop": [
+    12,
+    8,
+    6230,
+    4160
+  ],
+  "height": 4152,
+  "masters": [
+    {
+      "channels": 1,
+      "filter": "Ha",
+      "path": "/out/Ha_master_linear.fits",
+      "previewPath": "/out/Ha_master_linear.png"
+    }
+  ],
+  "retainedArea": 0.93,
+  "scale": "perFilter",
+  "width": 6218
+}
