@@ -307,7 +307,6 @@ pub(super) fn clamp_i64_to_u16(v: i64) -> u16 {
     if v < 0 {
         0
     } else if v > i64::from(u16::MAX) {
-        // Why: u16::MAX (65535) → i64 widening, exact.
         u16::MAX
     } else {
         // Why: the two branches above bound `v` to
