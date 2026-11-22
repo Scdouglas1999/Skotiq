@@ -27,6 +27,8 @@ import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
 import '../utils/logging_service.dart';
 import '../services/notification/event_classifier.dart';
+import '../services/notification/notification_router.dart'
+    show nodeNotificationTransports;
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
@@ -242,6 +244,13 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       if ((event.category == core.EventCategory.sequencer ||
               event.category == core.EventCategory.imaging) &&
           NotificationEventClassifier.classify(event) != null) {
+        return;
+      }
+
+      // A Notification node that names its own transports is sent by the
+      // notification router on exactly those.
+      if (systemEventOf(event) case final SystemEvent_Notification notification
+          when nodeNotificationTransports(notification) != null) {
         return;
       }
 
