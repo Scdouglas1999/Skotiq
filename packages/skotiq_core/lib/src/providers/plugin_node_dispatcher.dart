@@ -7,9 +7,12 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 
+import '../backend/bridge_event_codec.dart';
 import '../errors/error_text.dart';
+import '../models/backend/event_types.dart' as core;
 
 /// Request payload Dart receives when the Rust executor reaches a
 /// plugin node. All fields are stable enough for the dispatcher to look
@@ -47,6 +50,32 @@ class PluginNodeDispatchRequest {
     required this.displayName,
     required this.timeoutSecs,
   });
+}
+
+/// The plugin node [event] asks to run, or null for any other event.
+PluginNodeDispatchRequest? pluginNodeRequestOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.sequencer) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_Sequencer(
+      field0: bridge.SequencerEvent_PluginNodeRequested(
+        :final nodeId,
+        :final pluginId,
+        :final nodeTypeId,
+        :final configJson,
+        :final displayName,
+        :final timeoutSecs,
+      ),
+    ) =>
+      PluginNodeDispatchRequest(
+        nodeId: nodeId,
+        pluginId: pluginId,
+        nodeTypeId: nodeTypeId,
+        configJson: configJson,
+        displayName: displayName,
+        timeoutSecs: timeoutSecs,
+      ),
+    _ => null,
+  };
 }
 
 /// Verdict the dispatcher returns to the executor, with the structured

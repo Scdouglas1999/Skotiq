@@ -480,11 +480,9 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
   }
 
   void _dispatchPluginNodeIfRequested(SkotiqEvent event) {
-    if (!dispatchPluginNodes ||
-        event.category != EventCategory.sequencer ||
-        event.eventType != 'PluginNodeRequested') {
-      return;
-    }
+    if (!dispatchPluginNodes) return;
+    final request = pluginNodeRequestOf(event);
+    if (request == null) return;
 
     final backend = container.read(backendProvider);
     if (!backend.dispatchPluginNodesLocally) {
@@ -495,14 +493,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       return;
     }
 
-    final nodeId = event.data['node_id'] as String? ?? '';
-    final pluginId = event.data['plugin_id'] as String? ?? '';
-    final nodeTypeId = event.data['node_type_id'] as String? ?? '';
-    final configJson = event.data['config_json'] as String? ?? '';
-    final displayName = event.data['display_name'] as String?;
-    final rawTimeout = event.data['timeout_secs'];
-    final timeoutSecs = rawTimeout is num ? rawTimeout.toInt() : 600;
-
+    final PluginNodeDispatchRequest(:nodeId, :pluginId, :nodeTypeId) = request;
     if (nodeId.isEmpty) {
       _logWarning(
         '[plugin-node] PluginNodeRequested event missing node_id '
@@ -524,16 +515,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     unawaited(() async {
       late PluginNodeDispatchResult result;
       try {
-        result = await dispatcher(
-          PluginNodeDispatchRequest(
-            nodeId: nodeId,
-            pluginId: pluginId,
-            nodeTypeId: nodeTypeId,
-            configJson: configJson,
-            displayName: displayName,
-            timeoutSecs: timeoutSecs,
-          ),
-        );
+        result = await dispatcher(request);
       } catch (e, st) {
         _logError(
           '[plugin-node] Dispatcher threw for $pluginId/$nodeTypeId '
