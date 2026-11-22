@@ -3369,7 +3369,6 @@ packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	P
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	acceptedLightsByFilter	literal_null_coalesce	1	U2-20	bucket.labelCounts[label] = (bucket.labelCounts[label] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final aLast = a.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final bLast = b.lastImagedAt?.millisecondsSinceEpoch ?? 0;
-packages/skotiq_core/lib/src/services/scheduler/scheduler_engine.dart	_awaitEvaluationQuiescence	empty_catch	1	V0480	} catch (_) {
 packages/skotiq_core/lib/src/services/scheduler/target_progress_service.dart	_captureAggregatesFromImageList	literal_null_coalesce	1	R9-116	final filter = frame.filter ?? '';
 packages/skotiq_core/lib/src/services/scheduler/target_progress_service.dart	_captureAggregatesFromImageList	literal_null_coalesce	1	R9-116	framesByFilter[filter] = (framesByFilter[filter] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	_recordSolveFailure	empty_catch	1	V0161	} catch (_) {
