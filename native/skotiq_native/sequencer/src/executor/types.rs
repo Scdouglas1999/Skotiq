@@ -250,6 +250,16 @@ mod executor_state_tests {
             .collect();
         assert_eq!(sent, expected);
     }
+
+    /// A checkpoint written before the state had its status words still
+    /// reads back: the checkpoint keeps serde's spelling.
+    #[test]
+    fn a_checkpointed_state_reads_back_in_its_old_spelling() {
+        let written = r#"["Idle","Running","Paused","Stopping","Cancelled","Completed","Failed","Recovering"]"#;
+        let read: Vec<ExecutorState> = serde_json::from_str(written).unwrap();
+        assert_eq!(read, ExecutorState::ALL.to_vec());
+        assert_eq!(serde_json::to_string(&read).unwrap(), written);
+    }
 }
 
 /// Progress information for the sequence
