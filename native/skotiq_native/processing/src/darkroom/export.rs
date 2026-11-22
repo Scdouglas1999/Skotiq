@@ -621,7 +621,15 @@ fn write_atomic(
         ..Replace::DURABLE
     };
     replace_file(path, &temp, how, write).map_err(|e| match e {
-        ReplaceError::Write { error: message, .. } => message,
+        ReplaceError::Write { error, cleanup } => {
+            if let Some(cleanup_error) = cleanup {
+                tracing::warn!(
+                    "Darkroom export could not remove '{}' after a failed write: {cleanup_error}",
+                    temp.display()
+                );
+            }
+            error
+        }
         ReplaceError::Place { error, cleanup } => {
             if let Some(cleanup_error) = cleanup {
                 tracing::warn!(

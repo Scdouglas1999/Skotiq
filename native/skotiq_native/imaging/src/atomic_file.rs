@@ -27,7 +27,9 @@ impl Replace {
     };
 }
 
-/// Why a replacement failed.
+/// Why a replacement failed. A caller that keeps a log reports `cleanup`;
+/// imaging itself has none, so its own callers fold it into their error or
+/// leave it, as their messages did before.
 #[derive(Debug)]
 pub enum ReplaceError<E> {
     /// The writer failed on the staged file. `cleanup` is the error removing
