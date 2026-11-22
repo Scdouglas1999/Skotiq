@@ -1576,7 +1576,7 @@ packages/skotiq_app/lib/screens/connection/remote_connection_indicator.dart	_des
 packages/skotiq_app/lib/screens/connection/remote_connection_indicator.dart	_textFor	literal_null_coalesce	1	V0871	return 'No answer for ${unansweredSeconds ?? 0} s';
 packages/skotiq_app/lib/screens/darkroom/activity/waiting_panel.dart	build	literal_null_coalesce	1	V0844	final limiting = preview?.limiting.length ?? 0;
 packages/skotiq_app/lib/screens/darkroom/build_masters/job_views.dart	build	literal_null_coalesce	1	V0832	: 'Filter ${job.filter ?? ''} (${job.filterIndex + 1} of ${job.filterCount}): '
-packages/skotiq_app/lib/screens/darkroom/build_masters/job_views.dart	build	literal_null_coalesce	1	V0834	final seconds = (result['totalIntegrationSec'] as num?) ?? 0;
+packages/skotiq_app/lib/screens/darkroom/build_masters/job_views.dart	build	literal_null_coalesce	1	V0834	final seconds = build.totalIntegrationSec ?? 0;
 packages/skotiq_app/lib/screens/darkroom/build_masters/job_views.dart	build	literal_null_coalesce	1	V0833	value: overall ?? 0,
 packages/skotiq_app/lib/screens/darkroom/calibration/calibration_library_panel.dart	_download	literal_null_coalesce	1	V0848	final name = (record.filePath ?? '').split(RegExp(r'[/\\]')).last;
 packages/skotiq_app/lib/screens/darkroom/calibration/calibration_library_panel.dart	_editTags	literal_null_coalesce	1	V0847	final notes = TextEditingController(text: record.notes ?? '');
