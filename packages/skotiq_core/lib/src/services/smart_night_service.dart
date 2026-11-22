@@ -26,6 +26,7 @@ import 'smart_night/hardware_specs_service.dart';
 import 'smart_night/unknown_camera_figures.dart';
 import 'smart_night_models.dart';
 import 'target_suggestion_service.dart';
+import 'tonight_dark_window.dart';
 
 // Re-export model classes, enums, exceptions, and pure helpers so the
 // existing `package:skotiq_core/skotiq_core.dart` barrel surface
@@ -167,7 +168,6 @@ class SmartNightService {
       return (start: start, end: end, twilight: night);
     }
 
-    final local = reference.toLocal();
     if (window case NoDarkWindow(polarNight: false)) {
       _logging.warning(
         'No twilight bounds and the Sun does not remain below the horizon at '
@@ -189,9 +189,8 @@ class SmartNightService {
       'using a conservative 21:00 → 05:00 local polar-night window.',
       source: _source,
     );
-    final fallbackStart = DateTime(local.year, local.month, local.day, 21);
-    final fallbackEnd = fallbackStart.add(const Duration(hours: 8));
-    return (start: fallbackStart, end: fallbackEnd, twilight: night);
+    final clock = polarNightClockWindow(reference);
+    return (start: clock.start, end: clock.end, twilight: night);
   }
 
   /// Tonight's dark window as far as it is still ahead: once the night is

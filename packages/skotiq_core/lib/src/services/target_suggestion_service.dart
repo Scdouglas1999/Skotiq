@@ -8,6 +8,7 @@ import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/site/altitude_floor.dart';
 import 'target_scorer.dart';
+import 'tonight_dark_window.dart';
 import '../utils/logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
@@ -132,6 +133,7 @@ class _TonightSuggestionScorer {
     final now = observationTime;
 
     final nightWindow = _calculateNightWindow(now, latitude, longitude);
+    if (nightWindow == null) return const [];
 
     // The Moon at the middle of the night (it moves slowly), in the catalog's
     // J2000 frame like the targets it is measured from.
@@ -425,10 +427,11 @@ class _TonightSuggestionScorer {
 
   /// The night window (astronomical dusk to dawn) at [now]: the night in
   /// progress, or once its dark has ended, the coming one
-  /// ([AstronomyCalculations.nightAt]).
-  /// Falls back to nautical or civil twilight at high latitudes where
-  /// astronomical darkness may not occur.
-  _NightWindow _calculateNightWindow(
+  /// ([AstronomyCalculations.nightAt]), falling back to nautical or civil
+  /// twilight at high latitudes. Polar night takes the planners' clock window
+  /// ([polarNightClockWindow]); under midnight sun there is none, and Smart
+  /// Night refuses the same night.
+  _NightWindow? _calculateNightWindow(
     DateTime now,
     double latitude,
     double longitude,
@@ -438,23 +441,16 @@ class _TonightSuggestionScorer {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
-    if (window case NightDarkWindow(:final start, :final end)) {
-      return _NightWindow(start: start, end: end);
+    switch (window) {
+      case NightDarkWindow(:final start, :final end):
+        return _NightWindow(start: start, end: end);
+      case NoDarkWindow(polarNight: true):
+        final clock = polarNightClockWindow(now);
+        return _NightWindow(start: clock.start, end: clock.end);
+      case NoDarkWindow(polarNight: false):
+        warnings.add(midnightSunNotice);
+        return null;
     }
-
-    // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
-    // Use a reasonable default window: 9 PM to 5 AM local.
-    warnings.add(
-      'No twilight boundaries found - using default 21:00-05:00 window',
-    );
-    final local = now.toLocal();
-    final defaultStart = DateTime(local.year, local.month, local.day, 21);
-    var defaultEnd = DateTime(local.year, local.month, local.day + 1, 5);
-    if (now.isAfter(defaultEnd)) {
-      // If we're past 5 AM, shift to tonight
-      defaultEnd = defaultEnd.add(const Duration(days: 1));
-    }
-    return _NightWindow(start: defaultStart, end: defaultEnd);
   }
 
   /// Extract the best available night bounds from twilight times.
