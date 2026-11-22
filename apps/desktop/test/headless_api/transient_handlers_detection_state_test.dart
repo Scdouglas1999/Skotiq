@@ -101,10 +101,9 @@ Future<Map<String, dynamic>> _getActive(TransientHandlers handlers) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // SY-02 (sync night 2026-11-03): the host's title bar showed a "9+"
-  // transient badge while GET /api/transients served no alerts, so a linked
-  // client showed none. The badge merges the host's own First Light
-  // detections ahead of the external feed; the API served the feed alone.
+  // The host's transient badge merges its own First Light detections ahead of
+  // the external feed, so GET /api/transients serves both, or a linked client
+  // shows none of what the host counts.
   group('First Light detections the host badge counts', () {
     TransientDetectionRow row(int id, {bool dismissed = false}) =>
         TransientDetectionRow(

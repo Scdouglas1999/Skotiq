@@ -355,7 +355,7 @@ List<double> _values(SeriesLineVm? line) => <double>[
           if (point.y case final y?) y,
     ];
 
-/// The legend swatch for a legend entry, by the label key P1b gives it.
+/// The legend swatch for a legend entry, by its label key.
 const Map<String, NightSeriesId> _legendLine = <String, NightSeriesId>{
   'nightSessionHfr': NightSeriesId.hfr,
   'nightSessionStars': NightSeriesId.stars,

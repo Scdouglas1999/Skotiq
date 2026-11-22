@@ -1,7 +1,6 @@
-// SY-11 (sync night 2026-11-03): Analytics > Session opened on the host's last
-// night ("Rig test NGC 7331") on the host and on "Quick captures (no session
-// selected)" on a linked client, because the client had no answer to "the
-// newest session that holds light frames" and fell through to none.
+// A linked client must answer "the newest session that holds light frames"
+// the way the host does, or Analytics > Session opens on "Quick captures (no
+// session selected)" on the client while the host opens on its last night.
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

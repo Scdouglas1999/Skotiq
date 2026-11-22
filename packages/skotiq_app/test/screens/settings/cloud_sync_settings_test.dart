@@ -1,5 +1,4 @@
-// Widget tests for [CloudSyncCard] — the "Backup & Sync" settings card —
-// after S3-compatible support landed alongside WebDAV.
+// Widget tests for [CloudSyncCard] — the "Backup & Sync" settings card.
 //
 // What these lock in (the regressions a reviewer would fear most):
 //

@@ -5,8 +5,7 @@
 //
 //   * MarkdownBody is present in the widget tree when a note has a
 //     non-empty body, and
-//   * the plain `Text(note.body, ...)` from the prior implementation
-//     is no longer there for the body content.
+//   * no plain `Text(note.body, ...)` renders the body content.
 //
 // The actual styling — bold / italics / code fences — is exercised
 // indirectly by the design-token styleSheet plumbing in

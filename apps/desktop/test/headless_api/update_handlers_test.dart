@@ -214,9 +214,9 @@ void main() {
     test(
       'a host reading GitHub releases names that source, not an empty one',
       () async {
-        // A null updateServerUrl used to be the client's only signal, and it
-        // rendered as "No update server configured" — telling the operator
-        // OTA was off on a rig that updates perfectly well.
+        // A null updateServerUrl alone renders as "No update server
+        // configured" —
+        // telling the operator OTA is off on a rig that updates perfectly well.
         controller.serverUrl = null;
         final response = await translateHandlerErrors(
           handlers.handleGetVersion(

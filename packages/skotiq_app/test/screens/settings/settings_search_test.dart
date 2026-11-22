@@ -7,10 +7,8 @@ import 'package:skotiq_app/screens/settings/settings_search_index.g.dart';
 /// Typing a setting's own visible name into the Settings search box must find
 /// the page that setting lives on.
 ///
-/// A hand-written `keywords` index cannot hold that: measured on the running
-/// app, 243 of 496 rendered setting rows (49%) were unfindable by their own
-/// title. The queries below are ones that return "No settings match your search"
-/// while the setting is visibly present on screen.
+/// A hand-written `keywords` index cannot hold that: about half of the
+/// rendered setting rows are not findable by their own title through it.
 ///
 /// Worse than silence is misdirection: "thumbnail" returning only Captured
 /// Images, when the Sequencer page has a "Default thumbnail size" row, sends the

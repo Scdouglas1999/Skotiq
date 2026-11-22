@@ -1,10 +1,8 @@
 // Test helpers for the Sequencer canvas bar's "more" menu.
 //
-// Wave 3 replaced the 20-icon toolbar with a 44 px canvas bar whose secondary
-// actions live behind one overflow menu (06 §Sequencer: "file actions → canvas
-// bar `more`"). Tests that used to reach an action with
-// `find.byTooltip('Plan Mosaic')` now open the menu first and pick the entry by
-// the words it shows.
+// The canvas bar's secondary actions live behind one overflow menu (06
+// §Sequencer: "file actions → canvas bar `more`"), so tests open the menu
+// first and pick the entry by the words it shows.
 //
 // The anchor is a `SkotiqIconButton`, which renders `SkotiqTooltip`
 // rather than Material's `Tooltip`, so `find.byTooltip` does not reach it

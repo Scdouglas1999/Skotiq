@@ -578,16 +578,10 @@ void main() {
     }
   });
 
-  // W13-C / D4-W2: a rig that has never run publishes no progress figure.
-  //
-  // Measured against the release bundle on an EMPTY database dir, one process
-  // answered two questions about the same rig two ways:
-  //   GET /api/sequencer/status    -> {"state":"idle", …, "progress":0.0}
-  //   GET /api/run-watch/snapshot  -> sequencer.progress.progressPercent: null
-  // Every other field on the status payload was null. The web dashboard read
-  // the one figure it was given and asserted "Progress 0%" with
-  // aria-valuenow="0" over a fresh install that had never exposed a frame,
-  // while the phone surface fed by the same process rendered "PROGRESS --".
+  // A rig that has never run publishes no progress figure: `progress: 0.0`
+  // on an idle status makes the web dashboard assert "Progress 0%" over a
+  // fresh install, while the phone surface fed by the same process renders
+  // "PROGRESS --".
   group('SequencerHandlers status progress', () {
     late ProviderContainer container;
     late SequencerHandlers handlers;

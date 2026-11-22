@@ -79,9 +79,7 @@ void main() {
     }
 
     /// The exact composition the audit sampled, pinned so a regression report
-    /// can be compared to it directly rather than re-derived. The step card's
-    /// ground is now the `well` inset; the surface it used to be was #EEF1F4
-    /// and `well` is #EEF1F5, so the measurement is the same one.
+    /// can be compared to it directly rather than re-derived.
     test('the sampled pair (success on the step card) is measured', () {
       final ratio = contrast(colors.success, colors.well);
       expect(

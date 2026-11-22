@@ -193,8 +193,8 @@ void main() {
   testWidgets('a configured site is not what blocks Start', (tester) async {
     await _pumpScreen(tester);
 
-    // Still disabled — no camera or mount in this fixture — but the site is no
-    // longer among the reasons, which proves the new gate is not always on.
+    // Still disabled — no camera or mount in this fixture — but the site is not
+    // among the reasons, which proves the new gate is not always on.
     final message = _startTooltip(tester).message;
     expect(message, contains('Camera and mount not connected'));
     expect(message, isNot(contains('observing location')));

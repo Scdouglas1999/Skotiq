@@ -546,12 +546,10 @@ void main() {
     timeout: const Timeout(Duration(minutes: 5)),
   );
 
-  // Regression for the GUI-mode restart outage: `start()` used to skip
-  // `_hydratePairedSessionTokens` entirely when no PairingService had been
-  // injected, so a host restart evicted every previously paired client —
-  // their next request 403'd, and the client's retry loop drove the auth
-  // limiter into a rolling 429 lockout. The lazy factory stands in for the
-  // default `PairingService()` (which would resolve the real on-disk store).
+  // `start()` hydrates paired session tokens even when no PairingService was
+  // injected; otherwise a host restart evicts every previously paired client.
+  // The lazy factory stands in for the default `PairingService()` (which would
+  // resolve the real on-disk store).
   test(
     'start() hydrates paired tokens through the lazily-created PairingService',
     () async {

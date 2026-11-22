@@ -1,10 +1,7 @@
 // Tonight's sun and moon land on the operator's clock exactly once.
 //
-// The provider used to stamp a "now" from `clock.now()` before the first
-// tick and then move it onto the operator's clock a second time, so under a
-// zone other than the host's the first frame put now hours away from the
-// truth. "Now" is no longer part of these facts; the four instants and the
-// moon are each converted once, from the true instant.
+// Each of the four instants and the moon is converted once, from the true
+// instant; "now" is not part of these facts.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/tonight_night.dart';

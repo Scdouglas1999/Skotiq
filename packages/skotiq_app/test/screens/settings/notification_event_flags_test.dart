@@ -5,12 +5,9 @@
 // `settings.notifyOnSequenceComplete` / `notifyOnError` / `notifyOnMeridianFlip`
 // and `notify()` aborts the entire dispatch on a false — no alert sound, no
 // router forward, no Discord, no Pushover. `notifyOnMeridianFlip` ships as
-// `false`, so out of the box the flip monitor's alerts are dropped. The leaf
-// previously rendered all three DISABLED under "Legacy event flags (not wired
-// up)", which meant the one switch that was actively silencing an event family
-// was also the one the operator could not turn on.
+// `false`, so out of the box the flip monitor's alerts are dropped.
 //
-// These tests pin the two halves of the fix: the switches write through to the
+// These tests pin two halves: the switches write through to the
 // settings store and survive a reload, and the meridian row states its
 // off-by-default status in words instead of just showing a grey toggle.
 

@@ -1,17 +1,9 @@
 // The Sequencer page header must offer the transport the run's real state
 // admits.
 //
-// With a run PAUSED (toolbar chip "Paused 75%", node badge PAUSED, Pause
-// flipped to Resume, no further frames landing) the chip one row above still
-// showed a green dot and the literal text "Sequence Running" — the app's most
-// prominent run indicator contradicting the one beside it about whether the
-// rig was exposing. It was driven by an `isRunning` bool that was true for
-// running AND paused.
-//
-// Wave 3 deleted that chip: the instrument bar is the app's one status
-// surface, and the header carries the ACTION instead. The same lie is
-// available to the new header (offering "Pause" on a paused run, or "Start"
-// while the executor owns the tree), so the guard moves to the buttons.
+// The instrument bar is the app's one status surface, and the header carries
+// the ACTION, so the header must not offer "Pause" on a paused run, or
+// "Start" while the executor owns the tree.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

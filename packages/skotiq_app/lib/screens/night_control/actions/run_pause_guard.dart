@@ -1,8 +1,8 @@
 // Pause the run, let the current frame finish, act, then resume what we
-// paused (plan section 3, P2, "RunPauseGuard").
+// paused.
 //
 // Native pause lets the in-flight instruction finish and the Dart executor
-// reports `paused` before the camera is idle (plan finding 3), so "paused"
+// reports `paused` before the camera is idle, so "paused"
 // alone is not "safe to act". The guard waits for both.
 //
 // The guard never stops a run and never parks. A failed resume leaves the run

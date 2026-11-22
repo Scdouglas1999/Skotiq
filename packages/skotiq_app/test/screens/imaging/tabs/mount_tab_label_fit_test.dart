@@ -2,12 +2,9 @@
 // Imaging side panel actually gives it.
 //
 // The panel is 320px wide including its 44px icon strip, which leaves 244 for
-// the content and 216 inside a section card. The old layout put two
-// fixed-width buttons per row inside a card of its own inside a 24px inset:
-// 80px of the panel went to padding and every label was ellipsised — "U…" for
-// Unpark, "St…" for Start tracking, "Three-Point P…", "RA (H…", "Sl…", "S…".
-// A Row of Expanded children is a perfectly valid layout, so nothing failed
-// and nothing logged; the only thing that noticed was the operator.
+// the content and 216 inside a section card. A Row of Expanded children that
+// ellipsises every label is a perfectly valid layout, so nothing fails and
+// nothing logs; only the operator notices.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';

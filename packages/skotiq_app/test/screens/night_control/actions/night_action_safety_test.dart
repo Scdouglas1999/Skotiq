@@ -1,4 +1,4 @@
-// The safety rules of plan section 4, against the real service wiring
+// The night-action safety rules, against the real service wiring
 // ([ServiceNightRigOps]) with the services mocked: a failed autofocus never
 // parks and never stops the run, and a failed resume leaves the run paused.
 import 'dart:io';

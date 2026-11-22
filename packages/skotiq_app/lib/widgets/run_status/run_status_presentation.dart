@@ -141,8 +141,8 @@ List<String> runErrorMessagesFor(
 /// [terminalCause] is the reason the executor gave on `SequenceFailed`, the
 /// first fault of the failure. The cascade in [errors] keeps everything that
 /// was reported, in order, so its LAST entry is usually a step the teardown
-/// cancelled after the fault ("Change Filter: Operation cancelled" on
-/// 2026-09-14), which is never the reason. The last error stands in only for
+/// cancelled after the fault ("Change Filter: Operation cancelled"), which is
+/// never the reason. The last error stands in only for
 /// runs recorded before the cause was filed separately.
 String? runFailureHeadline({String? terminalCause, List<String>? errors}) {
   final cause = terminalCause?.trim();

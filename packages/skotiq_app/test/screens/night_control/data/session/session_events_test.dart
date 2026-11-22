@@ -79,8 +79,8 @@ void main() {
     );
   });
 
-  // 2026-11-03: the mount reached the east side at 22:38 and the flip's
-  // recovery then failed. The flip is marked when the pier changes, so the
+  // A flip whose recovery fails after the pier change still flipped. The flip
+  // is marked when the pier changes, so the
   // "next flip" displays stop announcing it, and a success after a pier
   // change is the same flip.
   test('a flip is marked when the pier changes, once', () async {

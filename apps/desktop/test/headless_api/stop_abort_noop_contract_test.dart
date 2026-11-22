@@ -15,14 +15,10 @@ import 'package:skotiq_desktop/headless_api/job_manager.dart';
 ///
 /// Every stop/abort endpoint answers 200 whether or not anything was running,
 /// so the ONLY way a client can tell "I stopped something" from "there was
-/// nothing to stop" is the `wasRunning` flag. Observed live before this
-/// existed, with the camera idle:
-///   POST /api/camera/abort -> 200 {"status":"aborted"}
-/// which reads as "the exposure was stopped" when no exposure existed.
+/// nothing to stop" is the `wasRunning` flag.
 ///
-/// The `status` string is deliberately UNCHANGED in both branches: a consumer
-/// audit found no client branching on it, and keeping it stable means no
-/// pinned client can break on this change.
+/// The `status` string is deliberately the same in both branches, so no
+/// pinned client can break on it.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

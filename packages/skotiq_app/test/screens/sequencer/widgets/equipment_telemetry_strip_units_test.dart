@@ -1,11 +1,7 @@
-// SY-21 (sync night 2026-11-03): the Sequencer telemetry strip printed the
-// guider's RMS, which is in guide-camera pixels, with an arcsecond sign
-// ("RMS: 0.45″") while Guiding and Tonight said "0.45 px". The strip now
-// follows Tonight: arcseconds when the guider reports its pixel scale,
-// pixels otherwise.
-//
-// SY-22: the audit tree read "Filter:" with no value. The value was there,
-// as a separate node; each item now reads as one label ("Filter: L").
+// The Sequencer telemetry strip prints the guider's RMS the way Tonight does:
+// arcseconds when the guider reports its pixel scale, pixels otherwise (the
+// RMS is in guide-camera pixels). Each item reads as one label
+// ("Filter: L").
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

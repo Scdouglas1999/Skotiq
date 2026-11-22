@@ -63,7 +63,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
   /// key so that an order change rebuilds all of them rather than only the ones
   /// that moved.
   ///
-  /// Measured on the release bundle 2026-08-31: `ReorderableListView` builds its
+  /// `ReorderableListView` builds its
   /// items through a `SliverChildBuilderDelegate`, which cannot adopt a
   /// locally-keyed element at a new index — so a move re-inflates the cards that
   /// changed position and leaves the ones that did not. Their accessibility
@@ -534,10 +534,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
     // The name goes on the ICON, not on a Semantics wrapper around the button.
     // `IconButton` publishes its own node — role, enabled state, focusability
     // and the tap — and a wrapper that excludes it publishes a NAMED node that
-    // is not the one the keyboard lands on: measured on the release bundle
-    // 2026-08-31, `button: 'Move Denoise up'` carried `enabled` and no
-    // `focusable`, and a Tab walk of one step card stopped on unnamed panels
-    // for both move buttons while only the enable toggle announced itself.
+    // is not the one the keyboard lands on.
     // `Icon.semanticLabel` is a child fragment, so it merges INTO the button's
     // own node and the whole control is one named, focusable, tappable node.
     // The tooltip stays for the pointer; it reaches assistive tech as the
@@ -1054,9 +1051,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
       // outside its own track. The READING is not: the recipe holds whatever
       // was typed into the Exact field, the engine refuses the step for it by
       // name and number, and a slider announcing the clamp reports a value the
-      // engine never received. Measured on the release bundle 2026-08-31: with
-      // `scaleCount` = 500 stored and the card reading "denoise@1: parameter
-      // 'scaleCount' = 500 is outside [1, 6]", the slider announced 6.
+      // engine never received.
       final reading = _darkroomNumberReading(value, isInteger: isInteger);
       final outOfRange = value < min || value > max;
       final announced = outOfRange
@@ -1344,15 +1339,10 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
 ///
 /// Every control on a step card sits beside three identical ones, so its name
 /// has to say which step or which parameter it acts on while the word on screen
-/// stays short. The way that used to be done — `Semantics(label: …,
-/// excludeSemantics: true)` around a [SkotiqButton] — publishes a correctly
-/// named button that is NOT focusable: the focusable flag and the focus action
-/// live on the button's own node, inside the subtree the exclusion drops.
-/// Measured on the release bundle 2026-08-31, `button: 'Remove Denoise'` came
-/// back as `['enabled', 'sensitive', 'showing']` with no `focusable`, and a Tab
-/// walk of one step card stopped on four unnamed panels — reorder, parameters,
-/// remove, use-default — while only the enable toggle, which is built as one
-/// node, announced itself.
+/// stays short. `Semantics(label: …, excludeSemantics: true)` around a
+/// [SkotiqButton] publishes a correctly named button that is NOT focusable:
+/// the focusable flag and the focus action live on the button's own node,
+/// inside the subtree the exclusion drops.
 ///
 /// Dropping the exclusion is not the repair: [SkotiqButton] publishes its
 /// own `label` AND the visible `Text` of that label, so merging announces

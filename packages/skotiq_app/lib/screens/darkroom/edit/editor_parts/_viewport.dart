@@ -462,9 +462,7 @@ class _DarkroomViewportState extends ConsumerState<_DarkroomViewport> {
     if (masterScale != null) _publishDisplayScale(masterScale);
 
     // The picture is the screen (02, rule 1): it runs edge to edge and the
-    // chrome floats over it in glass. It used to be sandwiched between a
-    // bordered control bar above and a bordered encoding strip below, which
-    // took ~72 px off the one thing this screen exists to show.
+    // chrome floats over it in glass.
     //
     // Four glass elements, which is the ceiling 05 §14 sets, in the corners it
     // names: top-left frame stats, top-right the render's status, bottom-left

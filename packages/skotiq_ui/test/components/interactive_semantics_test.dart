@@ -307,9 +307,10 @@ void main() {
         tester,
         find.byType(SkotiqDropdown),
       ).getSemanticsData();
-      // Both halves on ONE node: the hint used to be named on a node with no
-      // tap and operable on a node with no name, which leaves assistive tech
-      // with nothing it can both read out and activate.
+      // Both halves on ONE node: a hint named on a node with no tap and
+      // operable
+      // on a node with no name leaves assistive tech with nothing it can both
+      // read out and activate.
       expect(data.label, 'Choose the step to stop after');
       expect(data.hasFlag(SemanticsFlag.isButton), isTrue);
       expect(data.hasFlag(SemanticsFlag.isEnabled), isTrue);

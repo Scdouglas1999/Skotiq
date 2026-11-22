@@ -1,8 +1,6 @@
-// Tests for the hold-to-confirm Stop button (from the
-// headless-2026-05-24 audit). The widget lives in `skotiq_ui` so it can
-// be reused by the shared MobilePlaybackBar, but the test home is here in
-// `apps/mobile/test/widgets/` to match the audit's deliverable layout and
-// because mobile is the primary consumer.
+// Tests for the hold-to-confirm Stop button. The widget lives in `skotiq_ui`
+// so it can be reused by the shared MobilePlaybackBar; mobile is the primary
+// consumer, so the tests live here.
 //
 // We use real flutter_test gestures (longPress / startGesture) rather than
 // mocking the AnimationController. The widget is its own TickerProvider, so

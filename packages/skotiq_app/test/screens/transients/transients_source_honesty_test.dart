@@ -110,8 +110,8 @@ void main() {
   testWidgets(
     'AAVSO, MPEC and CBAT are never rendered as monitored sources',
     (tester) async {
-      // Even a profile that has all three stored as enabled — the shipped
-      // default until this fix — must not be told they are being watched.
+      // Even a profile that has all three stored as enabled must not be told
+      // they are being watched.
       // AAVSO joins MPEC and CBAT here because VSX's api.list is a positional
       // catalog search: with no cone it returns an empty set every time, and
       // there is no query at that endpoint that selects recent alerts.

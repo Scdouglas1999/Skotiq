@@ -1,20 +1,14 @@
-// Two claims the installed-catalog card printed that were not true of the
-// bytes on disk.
+// Two claims the installed-catalog card must not print, because they are not
+// true of the bytes on disk.
 //
-// 1. "Package Standard". The three download tiers were retired because they
-//    were a placebo — Essential and Standard produced byte-identical files
-//    (same SHA-256, same 119,614 rows). The chip kept reading the retired tier
-//    off the legacy metadata sidecar, so every install wore a grade that could
-//    no longer be chosen and never described anything.
+// 1. A "Package" tier chip. The download tiers were a placebo — Essential and
+//    Standard produced byte-identical files (same SHA-256, same 119,614 rows)
+//    — so a grade read off the legacy metadata sidecar describes nothing.
 //
-// 2. "Update available" beside `Version 4.4` — the NEWEST asset the resolver
-//    can fetch. The predicate was `installed != latestVersion` against a '4.2'
-//    literal typed into the screen, which went stale when HYG rolled to v4.4.
-//    A fresh install of the newest catalog advertised an update to a version
-//    that no longer exists.
+// 2. "Update available" beside the NEWEST asset the resolver can fetch.
 //
 // Rendered against the real screen over a real installed-catalog fixture,
-// because both defects lived in the presentation, not in the model.
+// because both claims live in the presentation, not in the model.
 import 'dart:convert';
 import 'dart:io';
 

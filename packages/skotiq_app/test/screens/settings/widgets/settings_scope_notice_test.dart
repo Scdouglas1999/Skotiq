@@ -92,7 +92,7 @@ void main() {
   });
 
   // Owner 2026-11-11: a link paired the normal way (one tap, control access)
-  // changes the host's app settings, so the notice no longer says the host
+  // changes the host's app settings, so the notice does not say the host
   // refuses them.
   testWidgets('a one-tap link is told where a change is saved, not refused', (
     tester,

@@ -654,8 +654,7 @@ class _RemoteConnectionSheetState
               ),
             ),
           // Sharing the session is an action ON this connection, so it lives
-          // on the control that owns the connection. It used to be a separate
-          // glyph in the status bar, which is now status and only status.
+          // on the control that owns the connection.
           if (ref.watch(webServerStateProvider).isRunning)
             Padding(
               padding: const EdgeInsets.only(top: 8),

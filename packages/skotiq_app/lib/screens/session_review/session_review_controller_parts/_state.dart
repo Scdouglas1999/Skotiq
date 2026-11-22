@@ -44,12 +44,9 @@ class SessionReviewState {
   /// the scope is a target (whose nights were each processed by their own job)
   /// or no pass has ever been queued for it.
   ///
-  /// Read so this screen can state a pass that FAILED or was STOPPED. A dawn
+  /// Read so this screen can state a pass that FAILED or was STOPPED: a dawn
   /// job that failed overnight leaves its state and its sentence on that row
-  /// and nowhere else the operator looks: the toast that reports a pass belongs
-  /// to the button that started it, so a pass nobody was standing at was
-  /// invisible here — this screen showed the night's verdict with no sign that
-  /// the drafting, the report and the delivery for it had not happened.
+  /// and nowhere else the operator looks.
   final DarkroomJob? darkroomJob;
 
   /// The sentence the open-time recovery wrote about a post-session pass a
@@ -59,9 +56,8 @@ class SessionReviewState {
   /// the machine died inside reaches no ending at all — its row is simply
   /// still `running` when the process stops existing — so the recovery in
   /// `beforeOpen` is what discovers it, and what it wrote went to the session's
-  /// notes and a `warning` Night Narrator event. This screen renders neither,
-  /// so the night showed its masters and its score with nothing saying the
-  /// drafting, the night report and the delivery had been cut off mid-run.
+  /// notes and a `warning` Night Narrator event, neither of which this screen
+  /// renders.
   final String? interruptedPassNotice;
 
   /// The Night Doctor's verdict for this scope (score + headline + findings),

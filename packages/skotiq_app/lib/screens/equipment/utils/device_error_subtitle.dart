@@ -1,28 +1,9 @@
-// Shared widget that renders the subtitle line for
-// a device card. When the device is in error state it surfaces a plain-language
-// headline drawn from the connection-troubleshooter knowledge base (the same
-// classifier that powers ConnectionTroubleshooterDialog), with the FULL raw
-// driver message carried through verbatim in a tooltip. Otherwise it renders the
-// descriptive subtitle the card normally shows.
-//
-// Why the troubleshooter KB instead of the older PrettyError pretty-printer:
-// scope item 5 of the Onboarding & First-Light feature requires that the same
-// plain-language classification used in the troubleshooter dialog also drives
-// the inline subtitle, so a first-light user reads consistent guidance whether
-// they glance at the card or open the full troubleshooter. PrettyError is still
-// used by other surfaces (equipment_screen.dart, connect_all_summary.dart) and
-// is intentionally left in place.
-//
-// Errors-are-a-feature: the raw driver string is never discarded. The friendly
-// headline is shown inline; the untouched raw message is always reachable via
-// the tooltip.
-//
-// This is a standalone public widget so equipment device cards can compose it
-// for their subtitle line and the equipment widget tests can construct it
-// directly. Its production consumer is the connected-device card
-// (connected_device_card.dart, `_buildHeader`), which supplies the device's
-// type/driver, its `lastError` message, the `isError` flag, and an `onDiagnose`
-// callback that opens ConnectionTroubleshooterDialog.
+// Renders the subtitle line for a device card. When the device is in error
+// state it surfaces a plain-language headline from the connection-
+// troubleshooter classifier (the one ConnectionTroubleshooterDialog uses), so
+// the card and the dialog give the same guidance, with the FULL raw driver
+// message carried verbatim in a tooltip. Otherwise it renders the card's
+// descriptive subtitle.
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';

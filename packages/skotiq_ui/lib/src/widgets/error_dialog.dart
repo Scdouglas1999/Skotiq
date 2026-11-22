@@ -65,9 +65,8 @@ class _ErrorDialogState extends State<ErrorDialog> {
         actions: [
           Semantics(
             button: true,
-            // Live 2026-08-09: `button: true` without `enabled` publishes no
-            // isEnabled flag, and AT-SPI reads that as disabled — the same
-            // false signal the sequencer tabs carried.
+            // `button: true` without `enabled` publishes no
+            // isEnabled flag, and AT-SPI reads that as disabled.
             enabled: true,
             label: 'Close error dialog',
             child: SkotiqButton(
@@ -80,9 +79,8 @@ class _ErrorDialogState extends State<ErrorDialog> {
           if (widget.onRetry != null)
             Semantics(
               button: true,
-              // Live 2026-08-09: `button: true` without `enabled` publishes no
-              // isEnabled flag, and AT-SPI reads that as disabled — the same
-              // false signal the sequencer tabs carried.
+              // `button: true` without `enabled` publishes no
+              // isEnabled flag, and AT-SPI reads that as disabled.
               enabled: true,
               label: 'Retry the failed operation',
               child: SkotiqButton(
@@ -116,9 +114,8 @@ class _ErrorDialogState extends State<ErrorDialog> {
               const SizedBox(height: SkotiqTokens.spaceLg),
               Semantics(
                 button: true,
-                // Live 2026-08-09: `button: true` without `enabled` publishes no
-                // isEnabled flag, and AT-SPI reads that as disabled — the same
-                // false signal the sequencer tabs carried.
+                // `button: true` without `enabled` publishes no
+                // isEnabled flag, and AT-SPI reads that as disabled.
                 enabled: true,
                 label: _showDetails
                     ? 'Hide technical details'

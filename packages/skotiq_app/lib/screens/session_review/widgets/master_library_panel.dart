@@ -34,9 +34,7 @@ class MasterLibraryPanel extends StatelessWidget {
   /// Why this machine cannot open the Darkroom at all, or null when it can.
   ///
   /// Stated by the OWNER of the screen, before the card is built, because the
-  /// answer is about the machine rather than the master. The button used to be
-  /// drawn live on a remote client and explained itself only after the press —
-  /// so the operator learned the app's enabled state was not to be trusted.
+  /// answer is about the machine rather than the master.
   final String? darkroomRefusal;
 
   final void Function(IntegratedMaster) onAddTonight;

@@ -136,10 +136,8 @@ void main() {
     expect(find.textContaining('Lost connection'), findsNothing);
   });
 
-  // 2026-11-03: the host stopped answering for about two minutes while the
-  // socket stayed open. The title-bar chip now says "No answer for N s", but
-  // the run and device values under it still looked live: no banner, no
-  // dimming, "Running 5%" and "Exposing..." as if confirmed.
+  // The host can stop answering while the socket stays open; then the run and
+  // device values must stop looking live, not only the title-bar chip.
   testWidgets(
       'a connected host that has stopped answering marks the values shown '
       'as the last known', (tester) async {

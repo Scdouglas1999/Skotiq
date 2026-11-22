@@ -149,7 +149,7 @@ void main() {
       //
       // GENERAL, not EQUIPMENT, is the sentinel: the list is a lazy
       // ListView.builder, so on a short phone EQUIPMENT is simply never built
-      // and `findsNothing` passed for the wrong reason — it could not tell
+      // and `findsNothing` would pass for the wrong reason — it could not tell
       // "the list is gone" from "the list is here but that row is below the
       // fold". GENERAL is the first row, so it is built whenever the list is.
       expect(find.text('GENERAL'), findsNothing,
@@ -259,12 +259,8 @@ void main() {
   });
 
   // At phone width these rows are the ONLY route into a settings section —
-  // there is no sidebar behind them — and measured on the release bundle
-  // 2026-08-31 every one of them reached AT-SPI as
-  // `panel: 'Delivery' -> ['focusable', 'showing', 'visible']`: no button role,
-  // no enabled state, while the identical desktop entry came back
-  // `button: 'Delivery' -> ['enabled', 'focusable', 'sensitive', 'showing']`
-  // and the leaf row under it ("Delivery destinations") was already correct.
+  // there is no sidebar behind them — so each must reach AT-SPI as a live
+  // button, like the identical desktop entry, not as a bare `panel`.
   testWidgets('every phone settings row publishes a live button', (
     tester,
   ) async {

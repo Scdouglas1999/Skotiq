@@ -505,10 +505,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // The subtitle is gone with ScreenHeader: "Manage your Skotiq
-          // data backups" under a heading that reads "Backup & restore" said
-          // nothing the title had not. Where the backups actually LIVE is a
-          // fact, so it stays, as the header's one muted context line.
+          // Where the backups actually LIVE is a fact, so it is the header's
+          // one
+          // muted context line.
           PageHeader(
             icon: LucideIcons.save,
             title: 'Backup & restore',

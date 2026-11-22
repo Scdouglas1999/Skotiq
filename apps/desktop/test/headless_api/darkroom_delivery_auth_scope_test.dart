@@ -1,15 +1,6 @@
 // The darkroom peer-delivery surface must not be reachable by a read-only
 // credential, and must be tagged with its own resource rather than `system`.
 //
-// Live defect: the three `/api/darkroom/delivery/**` routes had no entry in
-// `resourcePrefixKeys` and no explicit scope rule, so `resourceKeyForEndpoint`
-// fell through to `system` and the scope fell through to the method default —
-// GET -> view. Reproduced against the release bundle on port 8303: a
-// view-scoped token reached BOTH GET handlers (they answered 404
-// `unknown_delivery_peer` from the handler's own business logic, not a 403
-// naming a capability), meaning a read-only credential could stream every
-// published master byte-for-byte on a rig that had a peer configured.
-//
 // These assertions go over real HTTP through the real auth middleware, so they
 // classify by refusal BODY (which names the missing capability) rather than by
 // status code.

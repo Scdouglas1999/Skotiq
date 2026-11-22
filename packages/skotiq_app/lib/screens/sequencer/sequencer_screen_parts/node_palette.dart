@@ -61,7 +61,6 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
                   ),
           ),
         ),
-
         Expanded(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
@@ -93,9 +92,6 @@ class _NodePaletteContentState extends ConsumerState<_NodePaletteContent> {
                   ),
           ),
         ),
-        // The "drag nodes or double-click to add" tip is gone: the canvas
-        // already says "Drop a node here, or double-click one in the palette"
-        // exactly once, where the drop happens.
       ],
     );
   }
@@ -263,10 +259,8 @@ class _DraggableNodeItemCompactState
                           children: [
                             Text(
                               // Sentence case at the point of DRAWING: the
-                              // strings live in skotiq_core, which this
-                              // wave may not touch, and the name a node carries
-                              // once it is in a sequence is the user's data
-                              // (see palette_copy.dart).
+                              // name a node carries once it is in a sequence
+                              // is the user's data (see palette_copy.dart).
                               paletteSentenceCase(widget.item.name),
                               style: SkotiqTypography.bodySm.copyWith(
                                 color: colors.textPrimary,

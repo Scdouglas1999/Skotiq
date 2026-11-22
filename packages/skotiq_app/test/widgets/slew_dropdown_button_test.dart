@@ -238,8 +238,7 @@ void main() {
   testWidgets('both halves fit the narrow half-row mount_tab gives them',
       (tester) async {
     // mount_tab.dart:431 puts this in one Expanded half of a Row beside Sync;
-    // on a 360dp phone that is ~158dp. The chevron grew when it was split out,
-    // so the primary half has to survive the loss.
+    // on a 360dp phone that is ~158dp, and the primary half has to survive it.
     await tester.pumpWidget(_harness(mountConnected: true, width: 158));
 
     expect(tester.takeException(), isNull);

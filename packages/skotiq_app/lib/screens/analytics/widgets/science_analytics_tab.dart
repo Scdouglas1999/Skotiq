@@ -329,7 +329,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
     }
     if (allEmpty) {
       final nothingCaptured = activeSessionId == null && lightFrames.isEmpty;
-      // P0.2 + P0.3: even when no science products exist yet, show the live
+      // Even when no science products exist yet, show the live
       // pipeline status and the solve-rate card so users can see *why*
       // products are missing (queue idle, plate solver not configured, etc.)
       // and take action.
@@ -414,7 +414,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             isLive: liveSessionId != null && liveSessionId == activeSessionId,
           ),
           const SizedBox(height: 12),
-          // P0.2: always-on pipeline status. Tells the user whether science
+          // Always-on pipeline status. Tells the user whether science
           // is currently running, idle, or failing — instead of inferring
           // from empty cards.
           ScienceStatusBanner(storedFrameCount: lightFrames.length),
@@ -463,7 +463,7 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
             movingCandidateCount: moving.length,
           ),
           const SizedBox(height: 16),
-          // P0.3: solve-rate health card. Always visible — turns a soft
+          // Solve-rate health card. Always visible — turns a soft
           // "no data" failure mode into an actionable diagnosis.
           ScienceSolveRateCard(
             colors: colors,

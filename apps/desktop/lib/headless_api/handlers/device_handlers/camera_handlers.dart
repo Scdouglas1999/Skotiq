@@ -346,10 +346,8 @@ extension CameraDeviceHandlers on DeviceHandlers {
   /// POST /api/camera/abort
   ///
   /// Implements the shared stop/abort no-op contract — see [kWasRunningField].
-  /// Observed live on a real ZWO ASI1600MM-Cool with the camera idle:
-  ///   POST /api/camera/abort -> 200 {"status":"aborted"}
-  /// which reads as "the exposure was stopped" when there was no exposure at
-  /// all. The camera state is already known here, so the response can say so.
+  /// The camera state is already known here, so the response says whether an
+  /// exposure was running rather than reading as "the exposure was stopped".
   Future<Response> handleCameraAbort(Request request) async {
     _logInfo('[API] POST /api/camera/abort');
     final payload = await readJsonObject(request);

@@ -430,7 +430,7 @@ void main() {
   // 06 SS Plan moves the transient-alerts card OFF this tab: it is a feed about
   // the sky, not a planning control, and it lives on Analytics > Science >
   // Transients (reachable from the top bar's alert action). The check is that
-  // the Tonight tab no longer carries a second alerts surface.
+  // the Tonight tab does not carry a second alerts surface.
   testWidgets('Tonight no longer carries the transient-alerts card',
       (tester) async {
     tester.view.devicePixelRatio = 1.0;

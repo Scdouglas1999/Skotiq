@@ -44,8 +44,7 @@ class TargetHeaderCard extends ConsumerStatefulWidget {
 /// The step's icon square and the glyph inside it (06 Sequencer).
 ///
 /// File-level so the spinning form of the glyph is the same size as the still
-/// one: it used to be built at a hard-coded 18, so the target's icon grew by
-/// 4 px the moment the run reached it and shrank again when it moved on.
+/// one.
 const double _iconSquare = 28;
 const double _iconGlyph = 14;
 
@@ -224,10 +223,11 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           // Altitude chart toggle
           // SkotiqIconButton is a fixed 28/32/36 box on every platform: 05 §6
           // gives it no touch behaviour, so on a phone its tappable rect is 20 dp
-          // under Android's 48 dp rule. Until wave 4 grows the component's hit area
-          // (see reports/observatory/w3-sequencer/notes.md), touch platforms keep
-          // the skotiq_ui button that already implements that padding
-          // correctly. Same glyph, same tooltip, legal target.
+          // under Android's 48 dp rule, so touch platforms keep the skotiq_ui
+          // button
+          // that already implements that padding correctly. Same glyph, same
+          // tooltip,
+          // legal target.
           SkotiqIconButton(
             icon: _showAltitudeChart
                 ? LucideIcons.chevronUp
@@ -492,11 +492,9 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
         : null;
 
     // The pre-run label is the node's *execution* status, so everything that
-    // has not run yet lands on the default arm. Saying "Ready" there is a claim
-    // the card has already contradicted two rows above: seen during the GUI
-    // drive 2026-08-09, a target reading `RA Not set  Dec Not set`, carrying the
-    // card's own red blocking-issue dot, and refused by pre-flight with "Target
-    // Coordinates Not Set", still announced itself as **Ready**.
+    // has not run yet lands on the default arm. Saying "Ready" there would
+    // contradict the card two rows above for a target with unset coordinates
+    // that pre-flight refuses.
     //
     // "Ready" is the right word for a target that has not started and could;
     // it is the wrong word for one the app will refuse to run. The same

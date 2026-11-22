@@ -85,7 +85,7 @@ class _FeatureToggle extends StatelessWidget {
   }
 }
 
-/// Contextual one-tap suggestions for the imaging HUD. Implements P3.1.
+/// Contextual one-tap suggestions for the imaging HUD.
 ///
 /// Two rules today:
 ///   * **Moving objects**: when the session has 3+ light frames in the same
@@ -251,7 +251,7 @@ class _OfferTile extends StatelessWidget {
 }
 
 /// Tiny progress indicator that surfaces how many more calibrated frames are
-/// needed before transparency estimates stabilise. Implements P3.2.
+/// needed before transparency estimates stabilise.
 class _TransparencyUnlockProgress extends ConsumerWidget {
   final SkotiqColors colors;
 

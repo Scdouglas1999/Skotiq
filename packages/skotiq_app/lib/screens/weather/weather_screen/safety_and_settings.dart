@@ -3,10 +3,10 @@ part of '../weather_screen.dart';
 /// What the safety status says, given the live verdict AND whether the
 /// operator has weather safety switched on at all.
 ///
-/// Audit 2026-07-29: the provider reports [WeatherSafetyStatus.safe] when
-/// monitoring is OFF, because there is no verdict to act on. Rendering that as
-/// "Conditions safe for imaging" told the operator the sky was being watched
-/// when nothing was checking it, so monitoring-off has its own wording.
+/// The provider reports [WeatherSafetyStatus.safe] when monitoring is OFF,
+/// because there is no verdict to act on; rendering that as "Conditions safe
+/// for imaging" would tell the operator the sky is being watched, so
+/// monitoring-off has its own wording.
 @visibleForTesting
 String weatherSafetyStatusText({
   required WeatherSafetyStatus status,
@@ -75,7 +75,7 @@ String weatherPolicyArmedLabel({
 /// The page header chip: the whole safety verdict in one or two words.
 ///
 /// The long form lives in the conditions HUD; this is the glanceable version,
-/// and it keeps the monitoring-off distinction the 2026-07-29 audit demanded —
+/// and it keeps the monitoring-off distinction —
 /// "Not monitored" is not "Safe".
 @visibleForTesting
 String weatherSafetyChipLabel({

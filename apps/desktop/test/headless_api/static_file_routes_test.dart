@@ -7,14 +7,12 @@ import 'package:shelf/shelf.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show ApiErrorCodes;
 import 'package:skotiq_core/utils.dart';
 
-/// D4W-4 — the run-watch SPA must have exactly one address.
+/// The run-watch SPA must have exactly one address.
 ///
 /// The service worker registers with scope `/run-watch/`, so a document served
-/// at `/run-watch` is outside it and nothing controls the page. Measured
-/// against the release bundle: with the daemon killed, `/run-watch` rendered
-/// Chrome's ERR_CONNECTION_REFUSED interstitial while `/run-watch/` loaded the
-/// cached offline shell in the same browser, the same second. Both spellings
-/// answered 200 and neither redirected.
+/// at `/run-watch` is outside it and nothing controls the page: with the
+/// daemon down, the browser shows its own connection-refused interstitial
+/// instead of the cached offline shell.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -158,21 +156,13 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // D4-02 — the public prefix carries only what the pages need.
+  // The public prefix carries only what the pages need.
   //
   // `/dashboard` and `/run-watch` are whole-subtree exemptions from the bearer
-  // middleware (auth/public_paths.dart), so every file the bundler copied into
-  // the SPA directory was readable with no credential. Measured against the
-  // release bundle:
-  //   curl -o /dev/null -w '%{http_code} %{size_download}'  \
-  //     http://127.0.0.1:8212/dashboard/README.md    ->  200 16038
-  // 16KB of internal developer documentation describing the sessionStorage
-  // bearer path, the `GET /api/auth/csrf` cookie resume, the pairing
-  // endpoints, the bearer-to-HttpOnly-cookie upgrade and its 30-day Max-Age,
-  // the single-use WS ticket and its `?token=` fallback, the bearer-in-a-
-  // query-string SSE log tail, the per-token rate budget, and the
-  // `SKOTIQ_REQUIRE_AUTH=false` escape hatch. The SPA loads index.html,
-  // css/dashboard.css, js/api.js and js/app.js and never asks for the README.
+  // middleware (auth/public_paths.dart), so any other file the bundler copied
+  // into the SPA directory (a README describing the auth paths, for one)
+  // would be readable with no credential. The SPA loads index.html,
+  // css/dashboard.css, js/api.js and js/app.js.
   // -------------------------------------------------------------------------
 
   test('an unauthenticated fetch cannot read the developer README', () async {

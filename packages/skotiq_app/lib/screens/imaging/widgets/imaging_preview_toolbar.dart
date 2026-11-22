@@ -470,12 +470,9 @@ class OverlaysMenuButton extends ConsumerStatefulWidget {
 
 class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
   /// Opens the menu from the button's own `onPressed`, so the control the
-  /// operator sees is the control that acts. The button used to be wrapped in
-  /// an `IgnorePointer` with an empty callback, leaving `PopupMenuButton`'s
-  /// own detector to catch the tap — a button that, read on its own, did
-  /// nothing. Per-instance rather than static: two toolbars alive at once (a
-  /// route transition) would otherwise share one key, and a release build
-  /// silently drops the second widget claiming it.
+  /// operator sees is the control that acts. Per-instance rather than static:
+  /// two toolbars alive at once (a route transition) would otherwise share one
+  /// key, and a release build silently drops the second widget claiming it.
   final GlobalKey<PopupMenuButtonState<int>> _menuKey =
       GlobalKey<PopupMenuButtonState<int>>();
 

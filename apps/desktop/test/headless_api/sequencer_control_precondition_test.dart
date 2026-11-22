@@ -45,20 +45,9 @@ Future<Map<String, Object?>> _bodyOf(Response response) async =>
 /// What the pause / resume / skip contract is measured against.
 ///
 /// Every state the executor can report while a run has ENDED or was never
-/// started. Measured live against the release bundle on the cancelled leg:
-///
-/// ```
-/// POST /api/sequencer/stop   -> {"status":"stopping","wasRunning":true}
-/// GET  /api/sequencer/status -> {"state":"cancelled", ...}
-/// POST /api/sequencer/pause  -> 200 {"status":"paused"}          <- the lie
-/// GET  /api/sequencer/status -> {"state":"cancelled", ...}       <- unchanged
-/// GET  /api/run-watch/snapshot
-///        -> sequencer.state=cancelled, sequencer.progress.state=paused
-/// ```
-///
-/// The pause reached the executor, its `paused` landed in the host's
-/// `SequenceProgress`, and the phone rendered a paused night that survived
-/// every reload. A resume posted the same way made it `running`.
+/// started. A pause admitted on a cancelled run lands `paused` in the host's
+/// `SequenceProgress`, and the phone then renders a paused night that
+/// survives every reload.
 const _endedStates = [
   'idle',
   'completed',

@@ -259,13 +259,11 @@ void _intrinsicHostCases() {
     expect(find.text(_refusalTitle), findsOneWidget);
   });
 
-  // The width overrides above answer an `IntrinsicWidth` host; the HEIGHT
-  // overrides answered zero, and an alert measured for its intrinsic height —
-  // any child of an [IntrinsicHeight], used across ~8 screens for equal-height
-  // card rows — collapsed to that zero and rendered invisibly. A plain banner
-  // (no action) reads none of its own width, so it no longer defers its build
-  // to the LayoutBuilder that cannot answer the query: it is an ordinary Row
-  // that measures its own height, inside an IntrinsicHeight as anywhere else.
+  // The width overrides above answer an `IntrinsicWidth` host. A plain banner
+  // (no action) reads none of its own width, so it does not defer its build
+  // to the LayoutBuilder that cannot answer an intrinsic-height query: it is
+  // an ordinary Row that measures its own height, inside an IntrinsicHeight
+  // (used across ~8 screens for equal-height card rows) as anywhere else.
   testWidgets('a plain banner keeps its height inside an IntrinsicHeight', (
     tester,
   ) async {

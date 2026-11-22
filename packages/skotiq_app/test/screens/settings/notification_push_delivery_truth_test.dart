@@ -1,16 +1,10 @@
 // Regression coverage: the "Push critical alerts to mobile" row must report
 // the REAL delivery state, not restate the toggle's intent.
 //
-// Observed live on Android (2026-07-25): the row rendered
-//   title:    "Push critical alerts to mobile"
-//   subtitle: "Forward critical events to paired phones (separate from
-//              per-event push toggles below)"
-//   toggle:   ON
-// with nothing indicating that this device could not receive them. It could
-// not: `apps/mobile/android/app/google-services.json` does not exist, so the
-// client logs `FCM not configured (no google-services.json); push registration
-// dormant` and never registers a token. The row asserted a capability the
-// system did not have.
+// On Android in a stock build `apps/mobile/android/app/google-services.json`
+// does not exist, so the client logs `FCM not configured (no
+// google-services.json); push registration dormant` and never registers a
+// token. A plain ON toggle would assert a capability the system does not have.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

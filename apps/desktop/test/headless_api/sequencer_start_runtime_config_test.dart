@@ -12,18 +12,8 @@ import 'package:shelf/shelf.dart';
 import 'handler_test_helpers.dart';
 
 /// The headless `load -> start` path must push the operator's runtime config
-/// into the native executor before the run begins — the third piece of
-/// `SequenceExecutor.start()` this branch never mirrored, after the session row
-/// and the run row.
-///
-/// Measured against the release bundle: `image_grading_enabled` = true and
-/// `image_grading_star_count_min` = 100000 persisted AND read back through
-/// `GET /api/settings`, and a sim night driven through load -> start accepted
-/// twelve of twelve 43-star frames, graded them all `pass` and left `Reject/`
-/// empty. The identical thresholds pushed by hand through
-/// `POST /api/sequencer/update-default-quality-check` on the SAME live process
-/// rejected every frame on the next run. The thresholds worked; nothing sent
-/// them. The run configuration now carries them.
+/// (grading thresholds among it) into the native executor before the run
+/// begins, as `SequenceExecutor.start()` does.
 class _MockHostBackend extends Mock implements SkotiqBackend {
   @override
   dynamic noSuchMethod(Invocation invocation) =>

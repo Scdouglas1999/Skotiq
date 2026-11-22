@@ -1,22 +1,10 @@
 // A node icon spins only while the run is actually executing.
 //
-// Two separate defects met here, and both were measured on the running app:
-//
-//  1. The native executor announced `NodeStarted` for every node it entered
-//     and never announced the terminal status, so every node a run touched —
-//     the root container included — stayed `NodeStatus.running` forever. A
-//     finished run therefore drew a tree of nodes claiming to be executing.
-//     (Fixed in `executor/start/progress_callback.rs`; pinned by the Rust
-//     tests in that file.)
-//
-//  2. Even with an honest status, `running` was read as "spin". A PAUSED run
-//     has nothing executing in it, so its nodes kept spinning too: measured at
-//     61 fps and 46% of one core with the app otherwise idle, because the
-//     Flutter Linux embedder submits a full-window frame for every scheduled
-//     frame and a repeating AnimationController schedules one every vsync.
-//
-// This test pins (2), which is also the belt to (1)'s braces: a stale
-// `running` status can no longer animate on a run that is not running.
+// A PAUSED run has nothing executing in it, so its nodes must not spin: the
+// Flutter Linux embedder submits a full-window frame for every scheduled
+// frame and a repeating AnimationController schedules one every vsync
+// (measured at 61 fps and 46% of one core with the app otherwise idle). A
+// stale `running` status cannot animate on a run that is not running.
 //
 // Only the spin is gated. The node's running stripe, highlight and live
 // progress panel still say "this is the node the run is on" while paused,

@@ -1,6 +1,6 @@
-// Tonight's manual actions: the [NightActionApi] implementation (P2).
+// Tonight's manual actions: the [NightActionApi] implementation.
 //
-// Every action runs the same way (plan section 3, P2):
+// Every action runs the same way:
 //  1. one at a time; pressing the action in flight joins it, any other
 //     action is ignored until it finishes;
 //  2. [RunPauseGuard] pauses a running run, waits for the frame in flight,

@@ -1,6 +1,6 @@
 // Analytics > History is the one list of past nights: a session and the run
 // that made it are one row, grouped by observing night, under the lifetime
-// totals that used to be the Equipment tab.
+// totals.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

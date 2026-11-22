@@ -252,7 +252,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                               ],
                             ),
                           ),
-                          // P2.3 science badges: small solve checkmark + optional
+                          // Science badges: small solve checkmark + optional
                           // ZP chip. Sit bottom-right so they don't fight the HFR
                           // and quality badges, and only appear when there is
                           // something meaningful to report.

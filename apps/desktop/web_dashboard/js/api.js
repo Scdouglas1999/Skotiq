@@ -369,14 +369,9 @@ class SkotiqApi {
       );
     }
     // A 2xx carrying nothing is a FAILED exchange wearing a success code.
-    // This used to `return {}`, which handed every caller a well-formed empty
-    // payload: measured against the release bundle, an empty-bodied 200 on
-    // /api/devices/connected made the dashboard state "No devices connected"
-    // over four connected devices — no stale line, no toast, no log entry,
-    // header still reading "Connected" — and the same body on /api/images
-    // produced "No captured images yet." over a night with 12 registered
-    // frames. The sibling client already refuses this shape; this is that
-    // refusal, here.
+    // Returning `{}` would hand every caller a well-formed empty payload, and
+    // the panels would state "No devices connected" / "No captured images yet."
+    // over a live rig.
     if (!text) {
       throw new SkotiqApiError(
         'unusable_answer',
@@ -401,15 +396,7 @@ class SkotiqApi {
     // values `JSON.parse` can produce (`null`, `0`, `false`, `""`), but a list
     // or a bare string/number/boolean, which has no fields to read at all.
     // Both end the same way: the caller falls through to its own defaults and
-    // presents them as the server's. The falsy half used to be the whole
-    // guard, and measured against the release bundle a 200 on `/api/info`
-    // carrying `[1,2,3]` — identically `"hello"`, `42`, `true` — logged
-    // `Connected to undefined vundefined`, left the header pill reading
-    // "Connected", and dropped the Auth chip entirely, because
-    // `info.authRequired` was `undefined` and the needs-credential branch
-    // never fired. The sibling client refuses the whole set already
-    // (`web_run_watch/js/run-watch.js` `applySnapshot`); this is that refusal,
-    // here.
+    // presents them as the server's.
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       throw new SkotiqApiError(
         'unusable_answer',

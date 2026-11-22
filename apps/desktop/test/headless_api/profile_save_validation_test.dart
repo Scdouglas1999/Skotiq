@@ -108,11 +108,9 @@ void main() {
       expect(await db.equipmentProfilesDao.getAllProfiles(), isEmpty);
     });
 
-    // Observed live: this exact payload returns
-    // `{"status":"saved","id":"7"}` / HTTP 200 against a running host and reads
-    // back as f/9999999990000.00. Focal length reaches the FITS FOCALLEN card
-    // and the plate-solve field-of-view estimate, so an implausible value
-    // silently corrupts astrometry for the rig.
+    // Focal length reaches the FITS FOCALLEN card and the plate-solve
+    // field-of-view estimate, so an implausible value silently corrupts
+    // astrometry for the rig.
     test('implausible optics are a 400 and leave the DAO unchanged', () async {
       final response = await save(
         const EquipmentProfile(

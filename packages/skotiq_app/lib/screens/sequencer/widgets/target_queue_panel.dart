@@ -1,9 +1,6 @@
 // The Targets panel: the toolbox tab that answers "what am I pointing at?".
 //
-// Two sections, because the word "queue" was doing two jobs and neither was
-// visible. The tab used to be called Queue and showed ONLY the planetarium's
-// wishlist, so loading the bundled "Mono LRGB M51" starter — a sequence with a
-// target in it — produced the tab saying "Your target queue is empty."
+// Two sections:
 //
 //   * IN THIS SEQUENCE reads `Sequence.targetHeaders`, the same list the
 //     canvas bar counts in its "1 target" chip. One row per target header,
@@ -504,9 +501,9 @@ const EdgeInsets _listPadding =
 
 /// An eyebrow label and the number of rows under it.
 ///
-/// The panel's own title is gone with it: the toolbox's segmented control
-/// already names this pane "Targets", and a second title under it said the
-/// same word twice. What the sections need is the eyebrow that says which of
+/// The toolbox's segmented control already names this pane "Targets", so
+/// the panel carries no title of its own. What the sections need is the
+/// eyebrow that says which of
 /// the two lists you are reading (06: panel and column labels).
 class _SectionHeader extends StatelessWidget {
   final SkotiqColors colors;

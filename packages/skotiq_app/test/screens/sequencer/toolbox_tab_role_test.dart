@@ -1,12 +1,9 @@
 // The Sequencer palette switch must publish a role and a state, not just a
 // label.
 //
-// It used to be a Material `TabBar`, which sets `role: SemanticsRole.tab` on an
-// ANCESTOR node while the node that carries the LABEL — the one an AT-SPI
-// client reads — dumped as `panel: Nodes / Tab 1 of 3`. The screen worked
-// around that with its own `_tabLabel` builder.
-//
-// Wave 3 replaced the strip with `SegmentedControl`, which annotates every
+// A Material `TabBar` sets `role: SemanticsRole.tab` on an ANCESTOR node
+// while the node that carries the LABEL — the one an AT-SPI client reads —
+// dumps as `panel: Nodes / Tab 1 of 3`. `SegmentedControl` annotates every
 // segment with `button` + `enabled` + `selected` + `label` itself (its own
 // tests in `skotiq_ui` pin that). What is left to guard here is that this
 // screen keeps using it, and does not drift back to a bare TabBar with an

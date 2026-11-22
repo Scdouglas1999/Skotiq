@@ -67,11 +67,7 @@ Future<String> resolveDesktopProfileDirectory({
 /// requires a loadable `libskotiq_bridge`.
 ///
 /// The log directory follows the operator's data root rather than the platform
-/// support folder. It did not once: the log directory was hard-coded to the
-/// support folder while only Rust's persistence honoured the env var, so every
-/// instance on the machine appended to one shared `skotiq.log`, and a
-/// diagnostic dump carried other instances' capture paths, target names and
-/// host names to whoever received the bug report.
+/// support folder.
 Future<({String dataRoot, String logDirectory})> prepareDesktopLogDirectory({
   Map<String, String>? environment,
   Future<Directory> Function()? applicationSupportDirectory,

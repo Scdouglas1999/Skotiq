@@ -105,7 +105,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Quick Capture'), findsOneWidget);
-    // The four summary numbers are Readouts since the Observatory pass. The
+    // The four summary numbers are Readouts. The
     // charts below carry readouts of their own (median / p90 / range / n), so
     // this asserts the four the summary panel owns, by label.
     final labels = tester
@@ -123,7 +123,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // No session is under review (no live run, no science session resolved),
-    // so the tab would previously have fabricated the Quick Capture card.
+    // so there is no Quick Capture card to show.
     expect(find.text('Quick Capture'), findsNothing);
     expect(find.text('No quick captures'), findsOneWidget);
     expect(find.text('Choose a session above to review it.'), findsOneWidget);

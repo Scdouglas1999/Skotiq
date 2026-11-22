@@ -245,9 +245,8 @@ void main() {
     ], reason: 'subsequent frames are added, not re-referenced');
   });
 
-  // 2026-11-22 simulator run: a client armed the host stack, the run saved
-  // nine frames and none reached it (status armed, started false): the routes
-  // armed their own flag while the run fed the host's live stack.
+  // The routes arm the host's live stack, the one the run feeds, not a flag of
+  // their own.
   test('a stack a client armed is the one the host run feeds', () async {
     await handlers.handleStart(post('/api/stacking/start'));
     expect(container.read(liveStackingProvider).isActiveOrArmed, isTrue);

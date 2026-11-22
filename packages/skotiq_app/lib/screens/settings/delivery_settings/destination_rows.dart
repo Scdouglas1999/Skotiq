@@ -492,8 +492,7 @@ const String _peerPullAuthSentence =
 /// against `delivery_targets` alone. So an empty pairing list means nobody is
 /// REGISTERED under that name, not that nothing can collect the files: a
 /// desktop holding the rig's token and asking as that peer id completes the
-/// whole pull with the pairing store empty. This line used to say "so nothing
-/// can pull these files", which was the opposite of what the same build does.
+/// whole pull with the pairing store empty.
 class _PeerPairingLine extends ConsumerWidget {
   const _PeerPairingLine({required this.destination});
 

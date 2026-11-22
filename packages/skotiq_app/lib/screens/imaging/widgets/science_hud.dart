@@ -167,7 +167,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
             ),
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          // P0.2: status banner — collapses to a single line when there is
+          // Status banner — collapses to a single line when there is
           // nothing in flight, expands when science is working. Hidden
           // entirely if the pipeline is idle AND empty.
           const ScienceStatusBanner(hideWhenIdle: true),
@@ -212,7 +212,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
               );
             },
           ),
-          // P3.1: contextual suggestions. Watches the current session's
+          // Contextual suggestions. Watches the current session's
           // image list and offers one-tap enable for features the user
           // looks ready for (multi-frame for moving objects, NB filter
           // set for line ratios). Hidden when the feature is already on.
@@ -266,7 +266,7 @@ class _ScienceHudPanelState extends ConsumerState<ScienceHudPanel> {
               ),
             ),
           ),
-          // P3.2: transparency unlock progress — surfaces the
+          // Transparency unlock progress — surfaces the
           // "N more calibrated frames" hint directly in the HUD so the
           // user understands why the transparency reading is blank.
           if (sessionConfigReady && sessionConfig.transparencyEnabled)

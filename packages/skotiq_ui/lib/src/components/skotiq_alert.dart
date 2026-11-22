@@ -12,9 +12,8 @@ import 'skotiq_banner.dart' show BannerTone;
 ///
 /// Superseded by `SkotiqBanner` (05 §11), which is the one banner style:
 /// title and message on ONE line, tone fill at 8%, no outline, and at most one
-/// action. This class keeps its old face so the ~266 call sites in
-/// `skotiq_app` compile unchanged; wave 3 migrates them screen by screen
-/// and wave 4 deletes this.
+/// action. This class keeps its old face so its call sites in `skotiq_app`
+/// compile unchanged.
 @Deprecated('Use SkotiqBanner (05 §11). Removed in wave 4.')
 class SkotiqAlert extends StatelessWidget {
   const SkotiqAlert({

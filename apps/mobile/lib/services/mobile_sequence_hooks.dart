@@ -516,8 +516,7 @@ class MobileSequenceHooks {
 
   /// The phone's battery reached critical. That says nothing about the rig,
   /// so nothing is paused or stopped (owner decision 2026-10-06: only a risk
-  /// to the hardware pauses a run by itself). It used to pause the run, a
-  /// desktop host's run watched over the network included. PowerService has
+  /// to the hardware pauses a run by itself). PowerService has
   /// already shown the low-battery notification.
   Future<void> _handleCriticalBattery() async {
     Log.warning(

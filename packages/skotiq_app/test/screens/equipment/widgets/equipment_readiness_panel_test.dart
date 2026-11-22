@@ -98,8 +98,8 @@ void main() {
   testWidgets('lists every outstanding item and counts the blockers among them',
       (tester) async {
     // Five outstanding items. The side panel scrolls (06 §Equipment), so the
-    // list is no longer capped at three with a "View all" escape hatch — a
-    // blocker the operator cannot see is a blocker they will not fix.
+    // list is not capped — a blocker the operator cannot see is a blocker they
+    // will not fix.
     const manyReport = ReadinessReport(
       items: [
         ReadinessItem(

@@ -12,9 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// Surfaces the three quality metrics that matter at the eyepiece while a
 /// sub is on screen (HFR, eccentricity and star count) beside the run's
 /// ACCEPT/REJECT verdict on that frame. The verdict is the run grader's, the
-/// one the frame strip, the frame pill and Tonight's Last frame show: a
-/// second grader here labelled frames "Rejected" that the run kept, and the
-/// reverse (IC 405, 2026-11-16).
+/// one the frame strip, the frame pill and Tonight's Last frame show.
 ///
 /// Why a distinct widget from [ImageStatsOverlay]: that overlay is a generic
 /// raw-stats readout (median/mean/etc.) painted on an ad-hoc black scrim.
@@ -110,8 +108,7 @@ NightFrameRunVerdict? _runVerdict(WidgetRef ref) {
 
 /// The ACCEPT / REJECT verdict on its own, for the canvas's frame-info pill.
 ///
-/// The verdict used to float in its own glass box in the bottom-left corner of
-/// the image. It qualifies the same frame the pill names, so it rides inside
+/// It qualifies the same frame the pill names, so it rides inside
 /// that pill instead of claiming another corner. Collapses to nothing with no
 /// frame or a frame no run graded.
 class SubQualityVerdict extends ConsumerWidget {

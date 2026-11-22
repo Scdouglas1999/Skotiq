@@ -45,7 +45,7 @@ List<Override> _overrides() {
 
 /// The collapsed pane's reopen affordance.
 ///
-/// `find.byTooltip` no longer reaches it: the control is a
+/// `find.byTooltip` does not reach it: the control is a
 /// [SkotiqIconButton], which renders `SkotiqTooltip` (not Material's
 /// `Tooltip`) and publishes its tooltip as the semantics label. Matching on the
 /// widget keeps the test on the same control it always tested, by the same

@@ -513,7 +513,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstTooltip': 'Local sidereal time at your observing site',
     'statusLstNoSite': 'No observing site set. Sidereal time is unknown. '
         'Set it in Settings > Location.',
-    // Observatory wave 3 — Plan screen.
+    // Plan screen.
     'plannerTitleShort': 'Plan',
     'plannerTabTonight': 'Best tonight',
     'plannerTabYourSky': 'Your sky',
@@ -570,16 +570,13 @@ final Map<String, Map<String, String>> _localizedValues = {
         '{total} candidates were scored and {passed} passed the filters.',
     'plannerNoMatchesAction': 'Reset filters',
     'plannerPlanFailedAction': 'Retry',
-    // Wave 3 Analytics: 06-screens names the tab "Equipment" and the copy
-    // rules require sentence case, so this replaces 'Equipment Stats' at the
-    // call site. The old key stays; other surfaces still read it.
     // The live dot's chip. One word, because the panel head beside it
     // already says which session this is.
     'analyticsLive': 'Live',
     // Tonight night control: the plan column as a drawer at medium widths.
     'nightPlanDrawer': 'Plan',
     'nightPlanDrawerClose': 'Close plan',
-    // Tonight night control (P1a): why a header run control is disabled.
+    // Tonight night control: why a header run control is disabled.
     'ncPlanCannotCommand': 'This app cannot send commands to the rig right now',
     'ncPlanRecovering': 'The run is recovering from a fault',
     'ncPlanStopping': 'The run is stopping',
@@ -593,7 +590,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'ncPlanNoSite': 'Set an observing site to know when it gets dark',
     'ncPlanNoDarkTonight': 'The sky does not get fully dark tonight',
     'ncPlanAlreadyDark': 'It is already dark, so the run can start now',
-    // Tonight night control, manual actions (P2). Labels, sub-labels, the
+    // Tonight night control, manual actions. Labels, sub-labels, the
     // reasons a button is disabled, progress and failures.
     'nightActSnapshot': 'Snapshot',
     'nightActLoop': 'Loop',
@@ -685,7 +682,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'No astronomical dark tonight, or no observing site is set',
     'nightActErrArmAlreadyDark': 'It is already dark. Start the run now.',
     'nightActErrArmStart': 'Start at dark could not start the run: {detail}',
-    // Tonight night control, session data (P1b): the Overview blocks, the
+    // Tonight night control, session data: the Overview blocks, the
     // session charts' legends and the Before you start rows.
     'nightSessionActionAdd': 'Add',
     'nightSessionActionChoose': 'Choose',
@@ -1490,7 +1487,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveRecentCenter': 'center',
     'nightScopeSolveRecentCenterTries': 'center · {count} tries',
     'nightScopeSolveRecentFailed': 'failed',
-    // Tonight night control, center column (P5): the frame stage, the
+    // Tonight night control, center column: the frame stage, the
     // action bar, the frame strip and the chart row.
     'nightCtrNothingYet': 'Nothing captured yet',
     'nightCtrNothingYetBody':
@@ -2188,7 +2185,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstNoSite':
         'No hay lugar de observación definido: la hora sidérea es desconocida. '
             'Defínelo en Ajustes → Ubicación.',
-    // Observatory wave 3 — Plan screen.
+    // Plan screen.
     'plannerTitleShort': 'Planificar',
     'plannerTabTonight': 'Lo mejor de hoy',
     'plannerTabYourSky': 'Tu cielo',
@@ -3187,7 +3184,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveRecentCenter': 'centrado',
     'nightScopeSolveRecentCenterTries': 'centrado · {count} intentos',
     'nightScopeSolveRecentFailed': 'falló',
-    // Tonight night control, center column (P5): the frame stage, the
+    // Tonight night control, center column: the frame stage, the
     // action bar, the frame strip and the chart row.
     'nightCtrNothingYet': 'Aún no hay capturas',
     'nightCtrNothingYetBody':

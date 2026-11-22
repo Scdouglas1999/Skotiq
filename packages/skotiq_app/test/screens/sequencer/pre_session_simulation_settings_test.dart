@@ -135,9 +135,6 @@ void main() {
     );
   });
 
-  // The rig on 2026-11-16 at 03:08 EST: Pre-flight warned that the plan
-  // started "before the dark window starts at 18:18", the next evening's
-  // dusk, in the middle of the night it was imaging.
   test('after midnight the dark window is the night in progress', () async {
     final at = DateTime.utc(2026, 11, 16, 8, 8);
     final container = ProviderContainer(

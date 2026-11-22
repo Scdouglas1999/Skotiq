@@ -93,7 +93,7 @@ class CompactGuidingGraph extends StatelessWidget {
 /// Per-star tracked-star list for the built-in multi-star guider.
 ///
 /// The internal guider tracks up to 8 reference stars; this surfaces each
-/// star's SNR, lock highlight, and per-star residual so the panel is no longer
+/// star's SNR, lock highlight, and per-star residual so the panel is not
 /// empty when the built-in guider is active. Driven by [guideStarsProvider],
 /// which rides the same guiding status path that feeds [CompactGuidingGraph]
 /// above. Renders an honest empty-state (not an error) when no stars are

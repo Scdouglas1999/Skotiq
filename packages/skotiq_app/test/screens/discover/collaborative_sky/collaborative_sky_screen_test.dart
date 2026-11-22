@@ -120,9 +120,9 @@ void main() {
     await tester.pumpWidget(host(configured: true));
     await tester.pumpAndSettle();
 
-    // The view's own ScreenHeader is gone: it is one of three surfaces inside
-    // Plan's "Your sky" tab, and 06 leaves the page ONE header (the Plan page
-    // header, which the tab names). The three sections are what identifies it.
+    // The view is one of three surfaces inside Plan's "Your sky" tab, and 06
+    // leaves the page ONE header (the Plan page header, which the tab names).
+    // The three sections are what identifies it.
     expect(find.text('Collaborative Sky'), findsNothing);
     expect(find.text('Live co-imaging'), findsOneWidget);
     expect(find.text('Collaborative mosaics'), findsOneWidget);

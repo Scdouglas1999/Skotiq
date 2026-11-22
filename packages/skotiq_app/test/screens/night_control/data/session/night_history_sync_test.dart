@@ -1,8 +1,6 @@
-// SY-01 addendum (sync night 2026-11-03): a client that joined after the
-// host's run showed "No guide data yet", "No autofocus run yet this session"
-// and "No solve yet this session" beside a host that had all three. The host
-// serves what its Tonight gathered; the client adds the part from before it
-// connected.
+// A client that joins after the host's run shows the host's guide data,
+// autofocus runs and solves: the host serves what its Tonight gathered, and
+// the client adds the part from before it connected.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

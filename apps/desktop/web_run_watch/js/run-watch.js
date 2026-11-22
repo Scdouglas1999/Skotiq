@@ -73,9 +73,7 @@ let inMemoryTokenAccepted = false;
 /// `bootSession` fires the snapshot, the frame poll and the SSE subscription
 /// together, so a refused credential produces several 401s within a tick. The
 /// first tears the token down; without this guard the ones already in flight
-/// re-decided the sentence from a flag the first had just cleared, and an
-/// accepted-then-revoked pairing ended up described as a token that was never
-/// accepted — measured on the running bundle after a reload.
+/// would re-decide the sentence from a flag the first had just cleared.
 let authRefusalStated = false;
 function effectiveToken() {
   return getToken() || inMemoryToken || adoptedBearer;
@@ -85,13 +83,8 @@ function effectiveToken() {
 // Credentials this browser is already carrying
 //
 // An operator who signs in on /dashboard/ and taps the dashboard's own
-// Run-Watch link is authenticated to this origin already, and used to land on
-// the pairing wall: measured on the release bundle, the dashboard read
-// "Connected", its bearer sat in this tab's sessionStorage, and this page
-// asked for a pairing code from a screen the rig may not even have. Two
-// credential models that never handed off.
-//
-// So this page reads the two the dashboard actually leaves behind, in the
+// Run-Watch link is authenticated to this origin already. So this page reads
+// the two credentials the dashboard actually leaves behind, in the
 // dashboard's own storage and with the dashboard's own lifetime. Neither is
 // copied into this page's localStorage: a bearer the dashboard deliberately
 // keeps in sessionStorage — the operator left "remember me" off — stays there
@@ -403,15 +396,11 @@ async function apiFetch(path, opts) {
     }
     // Tokens can be revoked desktop-side; force re-pair. The reason goes ON
     // THE SCREEN, not only into the thrown error — nothing catches
-    // 'auth_required' to render it, which is how this landed as a silent
-    // logout.
+    // 'auth_required' to render it.
     //
     // WHICH reason depends on where the credential came from, not on whether
-    // one exists. Keying on `token ?` told a device that had never paired —
-    // one whose operator had just mistyped a token into the manual box — that
-    // its pairing "is no longer accepted… revoked… or the profile it belonged
-    // to was replaced", a diagnosis of an event that never happened, and it
-    // sent them to the desktop for a fresh code they did not need.
+    // one exists: a device that has never paired (its operator mistyped a token
+    // into the manual box) must not be told its pairing was revoked.
     if (!authRefusalStated) {
       const reason = credentialRefusalText(
         credentialSource, token, tokenWasEverAccepted());
@@ -620,13 +609,8 @@ function renderLinkState() {
     badge.textContent = 'unknown';
     badge.className = 'badge badge-error';
   }
-  // The percentage is the same assertion in another shape, and it outlived
-  // the badge: measured after a SIGTERM at wire progress 0.05, the badge went
-  // "unknown" and the banner said every value below might be wrong while "5%"
-  // stayed on screen, the bar stayed 5% wide and aria-valuenow kept announcing
-  // 5 for the next 45 s. The dashboard's `paintRunUnknown` settled the stance
-  // for the same loss — "a figure whose source is gone is not a smaller truth
-  // than a state whose source is gone" — and this is that stance, here.
+  // The percentage is the same assertion in another shape. A figure whose
+  // source is gone is not a smaller truth than a state whose source is gone.
   paintProgressUnknown();
   // A control whose precondition nobody can confirm is not offerable either.
   updateRunControls('unknown');
@@ -676,13 +660,6 @@ function stopStaleWatchdog() {
 
 /// Show the pair screen, saying WHY when this device has just lost a pairing
 /// it had.
-///
-/// A device whose token the desktop revoked was dropped here silently: the
-/// screen it landed on was byte-for-byte the one a browser that had never
-/// paired gets (verified — the two screenshots hashed identically), with
-/// `#pair-status` empty and the thrown 'Pairing is no longer accepted' reaching
-/// nothing. From bed that reads as "the app forgot me", and the next move —
-/// walk to the desktop for a fresh code — is the one thing it did not say.
 ///
 /// [reason] is that sentence, and [tone] is `'error'` for something that
 /// happened TO this device and `'info'` for something the operator did. Absent
@@ -892,13 +869,8 @@ async function startPairing(code) {
     });
     const data = await res.json();
     // The field is `token` — that is what `handlePairingVerify` answers with
-    // and what the dashboard's own pair modal reads. Reading `sessionToken`
-    // (the server's INTERNAL name for it, never a wire name) meant a pairing
-    // the server had just completed was reported to the operator as "Pairing
-    // failed." and the minted token thrown away: driven end-to-end against the
-    // release bundle with a code read out of the rig's own pairing-code.txt,
-    // the exchange answered 200 with a control-scoped token and this screen
-    // stayed on the wall.
+    // and what the dashboard's own pair modal reads. `sessionToken` is the
+    // server's INTERNAL name for it, never a wire name.
     const minted = data && typeof data.token === 'string' ? data.token : '';
     if (!res.ok) {
       statusEl.textContent = pairingErrorText(data, res.status);
@@ -994,15 +966,9 @@ function stopPolling() {
 
 /// Fetch one snapshot and render it, and record what the exchange was worth.
 ///
-/// The order is load-bearing. `noteLinkOk()` used to run on the status code,
-/// before the payload had been looked at, so a 200 whose body was `null` reset
-/// the staleness clock and `applySnapshot` then returned on its `if (!data)`
-/// guard having painted nothing: measured against the release bundle, 51 s of
-/// `null` bodies past a 20 s staleness threshold left a green "running" badge,
-/// "30%" and "9 / 30" on screen while the wire read 90% / 27 of 30, with the
-/// connection dot in its connected class and no banner. The link is healthy
-/// only once a well-formed snapshot has been APPLIED, so that is where it is
-/// recorded.
+/// The order is load-bearing. The link is healthy only once a well-formed
+/// snapshot has been APPLIED, so that is where it is recorded: a 200 whose
+/// body is `null` must not reset the staleness clock.
 async function fetchSnapshot() {
   try {
     const data = await apiJson('/api/run-watch/snapshot');
@@ -1041,16 +1007,9 @@ async function fetchSnapshot() {
 // The frame counter, and the feed it sits beside
 //
 // The counter is snapshot data on a 15 s poll; the feed under it is the SSE
-// stream, live. Only sequence-level transitions used to re-poll the snapshot,
-// so a frame event moved the feed and left the counter where it was: measured
-// on the release bundle over one 25-frame run, the page read "22 / 25" with
-// "ExposureCompleted frame: 24" rendered directly beneath it and the wire
-// agreeing with the feed, and nothing on screen distinguished that moment from
-// an agreeing one.
-//
-// So the counter now advances on the same events the feed does, and while it
-// has not yet caught up it says so rather than presenting a figure the page's
-// own feed contradicts.
+// stream, live. So the counter advances on the same events the feed does,
+// and while it has not yet caught up it says so rather than presenting a
+// figure the page's own feed contradicts.
 // ---------------------------------------------------------------------------
 
 /// The frame-bearing events. One of these means a frame has landed, which is
@@ -1137,21 +1096,14 @@ const TERMINAL_WIRE_STATES = new Set(
 /// `progress.state` is the executor's own `SequenceExecutionState`, an enum
 /// with no member for a cancelled run: once a run is stopped it reads `idle`
 /// while `sequencer.state` — the field the same snapshot carries straight from
-/// `/api/sequencer/status` — reads `cancelled`. Reading the executor block
-/// unconditionally told the operator the rig was idle 8% into a night that had
-/// just been cancelled. So: the executor block wins while it is describing a
-/// live run, and the moment it falls back to `idle` the sequencer status —
-/// which is the one that knows how the run ended — is what gets rendered.
+/// `/api/sequencer/status` — reads `cancelled`. So: the executor block wins
+/// while it is describing a live run, and the moment it falls back to `idle`
+/// the sequencer status — which is the one that knows how the run ended — is
+/// what gets rendered.
 ///
 /// A run the wire says has ENDED overrides the executor block outright, even
-/// when that block names a live-looking state. Measured against the release
-/// bundle: `POST /api/sequencer/pause` at a cancelled run left the snapshot
-/// carrying `sequencer.state: cancelled` beside `progress.state: paused`, and
-/// a resume left `progress.state: running` — this page rendered a green
-/// `running` badge, across reloads, for a run that had ended 40 s earlier.
-/// The server no longer admits those commands, and this tie-break means one
-/// stale executor block can no longer outrank the field that knows how the
-/// run finished.
+/// when that block names a live-looking state, so one stale executor block
+/// cannot outrank the field that knows how the run finished.
 function reportedSequencerState(progress, sequencer) {
   const executing = String((progress && progress.state) || '').toLowerCase();
   const reported = String((sequencer && sequencer.state) || '').toLowerCase();
@@ -1165,23 +1117,15 @@ function reportedSequencerState(progress, sequencer) {
 
 /// Enable exactly the run controls the reported state admits.
 ///
-/// Every control used to be tappable at all times: on a rig with nothing
-/// running, Pause / Skip / Resume each fired a request and each drew a green
-/// "accepted" toast, while `/api/sequencer/status` went on reading "idle".
-/// The desktop dashboard already gates the same controls on the executor
-/// state (`updateSequencerButtons` in web_dashboard/js/app.js); this surface
-/// now reads the same rule off the same state word.
-///
 /// Reset stays available in every state on purpose: it is the way out of a
 /// wedged executor, and it does the thing it says on an idle one.
 /// Controls the rig has refused for the credential this device is carrying,
 /// keyed by button id, holding the sentence that refusal produced.
 ///
 /// A read-only pairing renders the same control cluster as a control-scope
-/// one, so before this the buttons stayed live and each press posted a request
-/// the rig had already refused once. A control this credential cannot use is
-/// disabled and carries its reason, so the refusal is on the control rather
-/// than only in a toast that has since faded.
+/// one. A control this credential cannot use is disabled and carries its
+/// reason, so the refusal is on the control rather than only in a toast that
+/// has since faded.
 const refusedControls = new Map();
 
 /// Which control drives which endpoint, so a refusal lands on the button that
@@ -1302,16 +1246,11 @@ function renderSequencerMessages(sequencer, progress, headline) {
 /// same degraded surface a dead daemon produces. Two things earn it:
 ///
 ///  * a payload that is not a snapshot object at all — `null`, `0`, `false`,
-///    `""`, a bare string, an array. The old guard was `if (!data) return;`,
-///    which swallowed exactly these and left the caller believing the exchange
-///    had succeeded.
+///    `""`, a bare string, an array.
 ///
-///  * a render that throws. The formatters below no longer throw on a
-///    wrongly-typed field, but the DOM is not this page's to guarantee, and a
+///  * a render that throws. The DOM is not this page's to guarantee, and a
 ///    throw part-way through leaves the fields above it holding a payload the
-///    ones below never took. That mixture is not a picture of anything, and
-///    nobody was told: the old catch in [fetchSnapshot] inspected `e.kind`
-///    only, so a TypeError was discarded in silence.
+///    ones below never took.
 function applySnapshot(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new ApiError(
@@ -1552,12 +1491,10 @@ function renderSnapshot(data) {
   }
 
   // Recent events. The server's ring is five deep and, mid-exposure, made
-  // almost entirely of progress ticks — measured on the release bundle, 2 of
-  // the 5 rows it answered with were `Progress` while the stream ran 229 ticks
-  // in 327 events. Overwriting the feed with that ring every 15 s is what
-  // erased the frames and node transitions the stream had delivered, so the
-  // ring is MERGED into the feed's own model, oldest first, and each entry is
-  // judged by the same rule a streamed event is.
+  // almost entirely of progress ticks. Overwriting the feed with that ring
+  // every 15 s would erase the frames and node transitions the stream had
+  // delivered, so the ring is MERGED into the feed's own model, oldest first,
+  // and each entry is judged by the same rule a streamed event is.
   if (Array.isArray(data.recentEvents)) {
     for (let i = data.recentEvents.length - 1; i >= 0; i--) {
       const evt = data.recentEvents[i];
@@ -1650,13 +1587,9 @@ function formatEventDetail(evt) {
 //
 // Every figure on this page is drawn with arithmetic — a multiply, a
 // Math.floor, a toFixed — and every one of those fields is typed by a wire
-// this page does not control. A field carrying a string took that arithmetic
-// two ways, both measured against the release bundle: `"abc"` through
-// formatRaDec printed `NaNh NaNm NaNs · -NaN° NaN′ NaN″` on the operator's
-// phone, and `"not-a-number".toFixed(1)` threw a TypeError that aborted the
-// rest of the render.
-//
-// So the guard is the type, not just null: a field that is not a finite number
+// this page does not control: a string through formatRaDec prints
+// `NaNh NaNm NaNs`, and `"x".toFixed(1)` throws and aborts the render. So the
+// guard is the type, not just null: a field that is not a finite number
 // carries no reading, and no reading renders as the same `--` a null does.
 // ---------------------------------------------------------------------------
 
@@ -1841,13 +1774,9 @@ function openSSE() {
   };
   sse.onmessage = (evt) => handleSseMessage(evt);
 
-  // Every frame this server sends carries an `event:` name — measured on the
-  // release bundle: 327 of 327 frames over one live minute — and EventSource
-  // delivers a NAMED frame only to a listener registered for that name.
-  // `onmessage` above therefore never fires here, which is why the feed was
-  // painted solely by the snapshot poll's five-deep `recentEvents` ring, and
-  // why that ring being all progress ticks mid-exposure emptied the panel of
-  // everything that had actually happened.
+  // Every frame this server sends carries an `event:` name, and EventSource
+  // delivers a NAMED frame only to a listener registered for that name, so
+  // `onmessage` above never fires here.
   FEED_EVENT_NAMES.concat(PROGRESS_EVENT_NAMES).forEach(name => {
     sse.addEventListener(name, (evt) => {
       try { noteFeedEvent(JSON.parse(evt.data)); } catch { /* not our shape */ }
@@ -1890,12 +1819,8 @@ const FEED_ROW_CAP = 5;
 
 /// Whether an event is a progress tick rather than something that happened.
 ///
-/// Measured against the release bundle over 60 s of one live sim sequence,
-/// progress ticks were 229 of the 327 events on /api/run-watch/events, about
-/// four a second. Against a five-row feed that cadence
-/// evicts everything else within a second: sampled every 2 s across 50 s of a
-/// live run, 104 of 125 row slots were ticks and not one of the 25 samples
-/// held a FrameAccepted row or a node transition.
+/// Progress ticks arrive about four a second mid-exposure; against a five-row
+/// feed that cadence evicts everything else within a second.
 ///
 /// Matched by name so a family the host adds later (`FooProgress`,
 /// `FooProgressStructured`) is folded on arrival rather than after it has
@@ -2264,12 +2189,7 @@ async function sequencerAction(path, label, body) {
 // the address a phone actually uses to reach an observatory rig — the plain
 // http:// LAN address of the desktop — is not one. Measured on that origin:
 // `'wakeLock' in navigator` is false, the service worker never registers, and
-// Notification.permission is pinned at "denied" before anything is asked. The
-// page's answer to all of that used to be a checkbox that stayed ticked: the
-// wake-lock branch had no `else`, and the push branch only acted on a
-// permission of "default", so at "denied" it returned having done nothing.
-// The feature worked in loopback testing and was dead in deployment, which is
-// exactly why it survived.
+// Notification.permission is pinned at "denied" before anything is asked.
 //
 // The support verdicts below are FEATURE TESTS — what this origin can actually
 // do — never a guess from the user agent.

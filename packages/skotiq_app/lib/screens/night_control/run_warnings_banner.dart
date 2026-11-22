@@ -16,9 +16,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// another.
 ///
 /// What was hidden is shared state ([noticeAcknowledgmentsProvider]), not
-/// this widget's: it used to live in the State, so leaving Tonight and coming
-/// back showed the banner again, and hiding it on the host never reached a
-/// linked client.
+/// this widget's, so it survives leaving Tonight and reaches a linked client.
 class NightRunWarningsBanner extends ConsumerStatefulWidget {
   const NightRunWarningsBanner({super.key});
 

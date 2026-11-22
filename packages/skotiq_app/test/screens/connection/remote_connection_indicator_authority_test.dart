@@ -149,8 +149,8 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  // 2026-11-03: a failing Wi-Fi link stalled the host's answers for about two
-  // minutes while the socket stayed open, and the chip kept saying "Live".
+  // A failing Wi-Fi link can stall the host's answers while the socket stays
+  // open; the chip must not keep saying "Live".
   testWidgets('a connected host that stops answering pings reads as stale',
       (tester) async {
     final backend = _MockNetworkBackend();

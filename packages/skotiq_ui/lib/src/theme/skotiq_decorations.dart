@@ -12,7 +12,7 @@ import 'package:skotiq_design/skotiq_design.dart';
 /// reserved for dividers and focused controls.
 ///
 /// Everything below the Observatory set is the pre-overhaul API, kept so the
-/// screen layer compiles; each is deprecated and deleted in wave 4.
+/// screen layer compiles; each is deprecated.
 abstract final class SkotiqDecorations {
   SkotiqDecorations._();
 
@@ -279,7 +279,7 @@ abstract final class SkotiqDecorations {
   }
 
   // ---------------------------------------------------------------------
-  // Pre-overhaul API — deprecated, deleted in wave 4
+  // Pre-overhaul API — deprecated
   // ---------------------------------------------------------------------
 
   /// The chip fill, expressed from a bare tone so the deprecated badge and
@@ -321,7 +321,7 @@ abstract final class SkotiqDecorations {
     BorderRadius? borderRadius,
   }) {
     // Cannot reach `panel` from a bare Color for the same reason as
-    // [iconChip]; wave 3 rewrites these call sites screen by screen.
+    // [iconChip].
     return BoxDecoration(
       color: color.withValues(alpha: SkotiqTokens.opacitySubtle),
       borderRadius:
@@ -344,7 +344,7 @@ abstract final class SkotiqDecorations {
     BorderRadius? borderRadius,
     bool bordered = true,
   }) {
-    // `bordered` is honoured no longer: a chip has no border in this language,
+    // `bordered` is not honoured: a chip has no border in this language,
     // the fill is its boundary. The parameter stays so the call sites compile.
     return _chipOfTone(color, borderRadius: borderRadius);
   }

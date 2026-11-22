@@ -240,19 +240,8 @@ void main() {
     });
 
     /// The start-time wiring rebuilds all five ids from the connected-device
-    /// list. Reproduced against the Linux appliance (release bundle, headless,
-    /// scratch DB) on 2026-08-09, that silently undid the one endpoint a
-    /// headless-only operator has for assigning hardware:
-    ///
-    /// ```
-    /// POST /api/sequencer/devices {"cameraId":"sim_camera_1"} -> {"status":"ok"}
-    /// POST /api/sequencer/start
-    ///   -> 400 {"error":"preflight_rejected",
-    ///           "message":"... no camera is assigned to the run ..."}
-    /// ```
-    ///
-    /// A camera was assigned; the appliance discarded it and then reported it
-    /// missing.
+    /// list; it must not undo the one endpoint a headless-only operator has for
+    /// assigning hardware.
     group('an explicit POST /api/sequencer/devices assignment survives start', () {
       Future<void> assign(Map<String, dynamic> body) async {
         await handlers.handleSequencerSetDevices(
@@ -379,16 +368,7 @@ void main() {
         when(() => devices.getConnectedDevices()).thenAnswer((_) async => []);
       });
 
-      /// Reproduced against the Linux appliance (release bundle, headless,
-      /// scratch DB, `GET /api/profiles -> {"profiles":[]}`) on 2026-08-09:
-      ///
-      /// ```
-      /// POST /api/sequencer/start -> HTTP 500
-      ///   {"error":"internal_error","message":"Failed to start sequence: This
-      ///    sequence captures frames but no camera is assigned to the run. ..."}
-      /// ```
-      ///
-      /// The words were right and the status was a lie. A 5xx tells an
+      /// A 5xx tells an
       /// unattended controller "the appliance broke, retry" about a condition
       /// no retry can clear.
       test(

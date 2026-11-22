@@ -44,9 +44,8 @@ void main() {
     ];
   }
 
-  /// Everything the header renders, joined. It used to be one subtitle string;
-  /// it is four readouts now, and every assertion below is about the facts, not
-  /// about which widget carries them.
+  /// Everything the header renders, joined. Every assertion below is about the
+  /// facts, not about which widget carries them.
   Future<String> pumpHeaderFacts(
     WidgetTester tester, {
     required MosaicProject mosaicProject,

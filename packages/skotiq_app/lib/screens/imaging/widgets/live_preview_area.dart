@@ -885,12 +885,6 @@ class _LivePreviewAreaState extends ConsumerState<LivePreviewArea> {
                         child: AnnotationMiniChips(colors: colors),
                       ),
 
-                    // The annotation status card and the re-annotate
-                    // suggestion used to float over the top-left of the frame.
-                    // They live in the Annotations section of the side panel
-                    // now: a setup problem gets ONE banner in ONE place (02
-                    // rule 5), and the canvas belongs to the photons.
-
                     // Custom annotation drawing palette — docked bottom-centre
                     // just above the bottom histogram/stats strip, and shown
                     // ONLY while annotate/draw mode is active so it never floats

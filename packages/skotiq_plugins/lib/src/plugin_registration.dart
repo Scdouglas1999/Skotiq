@@ -249,7 +249,6 @@ class PluginActivityTracker {
     }
   }
 
-  /// Cancel all subscriptions and stop emitting snapshots.
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;

@@ -5,8 +5,8 @@
 // recorded: the run's grader, the science pipeline's auto-grader and the
 // operator's own flags. Analytics, History and `/api/sessions` count the same
 // rows. The run's own counters (`liveSequenceStatsProvider`) know only the
-// run's grader, so a night the auto-grader culled read "7 accepted, 1
-// rejected" here and "4 accepted, 4 excluded" in Analytics (rig, 2026-11-03).
+// run's grader, so they would disagree with Analytics on a night the
+// auto-grader culled.
 // They stay the source before the first row lands, and for the frame count,
 // autofocus runs and dithers. A metric with no source is left out of the list.
 

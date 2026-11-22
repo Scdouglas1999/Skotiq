@@ -4,7 +4,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Per-overlay explainer dialog and legend strip.
 ///
-/// Implements P2.2 of the science gap list — every science overlay now has
+/// Every science overlay has
 /// a discoverable explanation of what the colors mean and what action they
 /// suggest. Used by both the Imaging HUD overlay chips and the Analytics
 /// Overlay Composer.

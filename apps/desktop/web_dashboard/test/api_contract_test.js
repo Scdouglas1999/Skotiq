@@ -259,15 +259,7 @@ test('WebSocket heartbeat frames emit activity without becoming app events', asy
 });
 
 // ---------------------------------------------------------------------------
-// D4-01 / D4-02 — a 2xx that carries nothing is a FAILED exchange
-//
-// `if (!text) return {}` handed every caller a well-formed empty payload.
-// Measured against the release bundle with four connected simulator devices
-// and twelve registered frames on the wire: an empty-bodied 200 on
-// /api/devices/connected made the dashboard state "No devices connected" with
-// no stale line, no toast and no log entry, header still reading "Connected";
-// the same body — and a body of `null` — on /api/images produced "No captured
-// images yet." over the twelve. The sibling client already refuses this shape.
+// A 2xx that carries nothing is a FAILED exchange
 // ---------------------------------------------------------------------------
 
 function answeringClient(body, status) {
@@ -332,15 +324,6 @@ test('a refusal message never interpolates the body it refused', async () => {
 
 // ---------------------------------------------------------------------------
 // A 2xx whose body is TRUTHY but is not an object is the same failed exchange.
-//
-// The falsy-only guard let a list or a bare scalar through as a payload.
-// Measured against the release bundle with a single CDP interceptor on
-// /api/info and everything else genuinely live: a 200 carrying `[1,2,3]` —
-// identically `"hello"`, `42` and `true` — logged
-// `SYSTEM  Connected to undefined vundefined` into the operator's Event Log,
-// left the header pill reading "Connected", and dropped the "Auth" chip the
-// control run showed, because `info.authRequired` was `undefined` and the
-// needs-credential branch never fired.
 // ---------------------------------------------------------------------------
 
 test('a 200 whose body is a JSON list is refused, not read as a payload',

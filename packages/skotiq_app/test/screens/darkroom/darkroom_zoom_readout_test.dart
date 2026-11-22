@@ -387,8 +387,7 @@ void main() {
     await tester.pump();
 
     // Four steps of 1.25 off the fit, and every intermediate value is a real
-    // one: the readout used to sit on 100% for the whole run below 1:1 and then
-    // jump straight to 128%.
+    // one.
     expect(readout(tester), (fit * 1.25 * 1.25 * 1.25 * 1.25 * 100).round());
     await drain(tester);
   });

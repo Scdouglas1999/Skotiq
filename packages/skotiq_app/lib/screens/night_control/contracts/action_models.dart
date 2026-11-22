@@ -1,4 +1,4 @@
-// The manual-action contract that P2 implements.
+// The manual-action contract.
 part of '../night_control_contracts.dart';
 
 /// One action-bar button.
@@ -46,7 +46,7 @@ class ManualActionVm {
       Object.hash(id, label, sub, enabled, disabledReason, running);
 }
 
-/// The steps a manual action goes through (plan section 3, RunPauseGuard).
+/// The steps a manual action goes through.
 enum ManualActionPhase {
   idle,
 
@@ -137,7 +137,7 @@ class ManualActionState {
 
 /// What the screen can ask of the rig outside the sequence's own steps.
 ///
-/// P2 implements it (a Riverpod Notifier behind `nightActionApiProvider`).
+/// Implemented by a Riverpod Notifier behind `nightActionApiProvider`.
 /// The contract every implementation keeps:
 ///  * methods never throw to the UI; a failure lands in
 ///    [ManualActionState.error] and the log;

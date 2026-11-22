@@ -124,7 +124,7 @@ class ProfileHandlers implements RouteSource {
     // field, wrong type) becomes a structured 400 instead of letting a
     // TypeError/FormatException collapse into an opaque 500. The underlying
     // error travels in the message — it is a local type error, not sensitive,
-    // and it is the only thing that knows WHICH field was wrong (L9).
+    // and it is the only thing that knows WHICH field was wrong.
     final EquipmentProfile profile;
     try {
       profile = EquipmentProfile.fromJson(profileJson);

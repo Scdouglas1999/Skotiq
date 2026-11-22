@@ -1,6 +1,5 @@
-// UX walk 2, F34: the sensor temperature card read "20.000 °C" for its
-// median, P90 and range, the precision of the axis step rather than of the
-// sensor.
+// A chart's median, P90 and range read to the sensor's precision, not the
+// axis step's: a flat 20.0 °C trace must not read "20.000 °C".
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

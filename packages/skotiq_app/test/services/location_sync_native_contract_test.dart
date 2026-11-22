@@ -2,12 +2,10 @@
 //
 // Its observer location is `Option<ObserverLocation>`; `None` is the only way
 // to say the user never chose one, and every native consumer reads a `Some` as
-// a site the user picked. The sync provider nevertheless pushed the settings
-// triple unconditionally, so a fresh install — which seeds 0/0/0 before the
-// user is asked anything — told the backend the operator observes from the
-// Gulf of Guinea. Live, on the release bundle: the simulated mount then
-// reported a parked altitude of −78.2° and the Dashboard's Equipment panel
-// printed it, beside a status bar that honestly said `LST --:--`.
+// a site the user picked. A fresh install seeds 0/0/0 before the user is
+// asked anything, so pushing the settings triple unconditionally would tell
+// the backend the operator observes from the Gulf of Guinea (and the
+// simulated mount would report a parked altitude of −78°).
 //
 // The backend must get null until there is a site, and the site once there is.
 import 'package:flutter_riverpod/flutter_riverpod.dart';

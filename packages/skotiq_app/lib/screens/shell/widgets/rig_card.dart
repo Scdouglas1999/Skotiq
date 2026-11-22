@@ -349,10 +349,8 @@ class RigCard extends ConsumerWidget {
       _RigRow(
         icon: SkotiqIcons.crosshair,
         dotTone: _connectionTone(guiderState.connectionState),
-        // "Idle" here used to mean "no guider" — the same word the app uses
-        // for a connected, ready guider that simply is not guiding. At a
-        // glance the strip said the guider was present and calm when there
-        // was no guider at all.
+        // "Idle" is the word the app uses for a connected, ready guider that
+        // simply is not guiding, so it never stands for "no guider".
         value: guiderValue,
         semanticLabel: deviceRowSemanticLabel(
           l10n.text('statusGuider'),

@@ -4,7 +4,7 @@
 // Integration is the accepted light frames' exposure per filter, summed the
 // way the run dashboard's filter totals sum it, but from the session's rows
 // as they arrive: the dashboard's per-session total is read once and only
-// re-read on the dashboard's own refresh, so on Tonight it stayed at the
+// re-read on the dashboard's own refresh, so on Tonight it would stay at the
 // value from the run's start.
 // Frame counts are this session's light frames; planned counts come from the
 // plan's exposure steps, loops included.

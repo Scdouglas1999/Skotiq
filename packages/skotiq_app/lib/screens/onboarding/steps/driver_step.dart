@@ -110,24 +110,15 @@ class _DriverTileState extends State<_DriverTile> {
       padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceSm),
       // One accessible node for the whole row, describing what it actually is.
       //
-      // Read off the live accessibility tree (GUI drive 2026-08-09), every
-      // driver row came out as:
-      //
-      //   panel: Native
-      //   Direct SDK connection ... [DISABLED]
-      //
-      // — focusable, no checked state, and announced as not enabled, while the
-      // row was in fact live and checked (clicking it toggled the box). Two
-      // untruths at once: a screen-reader user is told there is nothing to
-      // operate here, and is never told whether the driver is selected.
-      //
-      // The cause is that a bare `InkWell` publishes a tappable, focusable node
-      // that never sets `isEnabled`, and its node shadows the
-      // `SkotiqCheckbox`'s own correct `checked`/`enabled` semantics. The
-      // checkbox is not at fault — it is simply not the node assistive tech
-      // reaches. Declaring the container here, and excluding the now-duplicate
-      // inner node, makes the row announce as "Native, <description>, checkbox,
-      // checked" and leaves the pointer/keyboard behaviour untouched.
+      // A bare `InkWell` publishes a tappable, focusable node that never sets
+      // `isEnabled`, and its node shadows the `SkotiqCheckbox`'s own correct
+      // `checked`/`enabled` semantics, so a screen reader would announce the
+      // row
+      // as disabled and never say whether the driver is selected. Declaring the
+      // container here, and excluding the now-duplicate inner node, makes the
+      // row
+      // announce as "Native, <description>, checkbox, checked" and leaves the
+      // pointer/keyboard behaviour untouched.
       child: Semantics(
         container: true,
         checked: selected,

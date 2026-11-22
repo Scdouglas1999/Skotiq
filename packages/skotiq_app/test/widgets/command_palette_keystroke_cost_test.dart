@@ -1,10 +1,6 @@
 // What one keystroke in the command palette costs with catalogs the size of
 // the installed ones (OpenNGC: about 13,000 objects; HYG to magnitude 12:
 // about 118,000 stars).
-//
-// Every keystroke used to walk both catalogs normalizing each designation
-// with a regular expression and lower-casing each name, and did it twice:
-// once for the key event and once for the rebuild.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

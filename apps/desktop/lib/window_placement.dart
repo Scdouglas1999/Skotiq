@@ -1,6 +1,5 @@
 // The main window comes back where the operator left it: its size, position
-// and maximized state. After a relaunch on the rig (2026-11-17) the window
-// came up centered and not maximized, with PHD2 in front of part of it.
+// and maximized state.
 
 import 'dart:async';
 import 'dart:convert';

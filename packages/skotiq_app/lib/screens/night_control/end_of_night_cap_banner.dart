@@ -1,8 +1,7 @@
 // The end-of-night calibration's request to cap the telescope, on Tonight.
 //
 // A filter wheel without a dark slot needs the telescope capped before the
-// night's darks and bias. The request used to show only in Settings, so an
-// operator watching Tonight never saw the night-end automation stop and wait.
+// night's darks and bias.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';

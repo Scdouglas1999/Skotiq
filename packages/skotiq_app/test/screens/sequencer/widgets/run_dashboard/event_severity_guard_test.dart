@@ -8,21 +8,10 @@ import '../../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 /// An event's declared severity is authoritative — payload-type classification
 /// must never escalate past it.
 ///
-/// Observed live on a completely healthy 10-frame dark run: the top row of the
-/// Recent Events panel read
-///
-///   [!] Sequencer   Sequencer error   x2   13:26:45
-///       Runtime config updated: conditions_score
-///
-/// `conditions_score` is an internal housekeeping tick emitted roughly every 30
-/// seconds with Info severity, but it travelled on the `SequencerEvent.error`
-/// payload, and the dashboard derived criticality from the PAYLOAD type. So a
-/// routine tick rendered as a critical Sequencer error, every 30s, in a
-/// five-row panel — crowding out the events that mattered.
-///
-/// The native side no longer emits that event at all (it is logged instead), and
-/// this guard keeps the class of bug from returning through any other reused
-/// payload.
+/// A payload type is reused across severities (an Info-severity housekeeping
+/// tick can travel on the `SequencerEvent.error` payload), so deriving
+/// criticality from the PAYLOAD type would render routine ticks as critical
+/// Sequencer errors.
 sk_events.SkotiqEvent _event({
   required sk_events.EventSeverity severity,
   String message = 'Runtime config updated: conditions_score',

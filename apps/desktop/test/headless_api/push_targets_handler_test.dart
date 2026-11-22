@@ -1,9 +1,7 @@
 // Regression coverage for `GET /api/push/targets` — the host's answer to
 // "can a critical alert actually reach a phone right now?".
 //
-// Observed live (2026-07-25): Settings -> Notifications rendered "Push
-// critical alerts to mobile" toggled ON with nothing indicating that this
-// device could not receive them. On Android in a stock build none ever can —
+// On Android in a stock build no phone can receive a critical alert —
 // `apps/mobile/android/app/google-services.json` is absent, so the client logs
 // `FCM not configured (no google-services.json); push registration dormant`
 // and never registers a token. This endpoint is what lets the UI say so,

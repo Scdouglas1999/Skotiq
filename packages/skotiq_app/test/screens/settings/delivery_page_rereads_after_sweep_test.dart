@@ -1,17 +1,12 @@
 // Settings > Delivery, left open, must not go on stating a failure the app's
 // own retry sweep has already fixed.
 //
-// What was measured against the release bundle, with the embedded server armed
-// so DeliveryRetrySweeper ran in-process (the normal rig configuration): the
-// page read "destinationUnreachable: <path> is not on the filesystem right now
-// — will retry (1 file owed)" at 04:00:34, the directory was created at
-// 04:00:45, the sweep delivered the row at 04:01:04 and the file appeared on
-// disk at 04:01:05 — and the still-open page read the SAME sentence at 04:01:58
-// and again at 04:02:28 after clicking away to another settings section and
-// back. Only a restart re-read the journal, because the settings shell keeps
-// the section mounted so `autoDispose` never fires on navigation either.
+// The settings shell keeps the section mounted, so `autoDispose` never fires
+// on navigation, and the page has to re-read the journal once the
+// DeliveryRetrySweeper (running in-process, the normal rig configuration)
+// has delivered.
 //
-// This test is shaped like that run: a real journal, a real destination
+// The test uses a real journal, a real destination
 // directory on the filesystem that starts absent and is created mid-test, the
 // real DeliveryRetrySweeper over the real transport factory writing real bytes,
 // and the page never unmounted between the two reads.
@@ -221,13 +216,11 @@ void main() {
   testWidgets(
     'a peer file the RIG lost stops being reported as the desktop\'s to pull',
     (tester) async {
-      // Measured against the release bundle on one launch: the manifest
-      // endpoint answered `sourceMissing` for a published draft deleted from
-      // the rig, the sweep on that same launch logged `peer-desktop: 4
-      // awaiting pull`, and the settings row read "Published 4 files, 671.6 KB
-      // — waiting for office-pc to pull" — 338 KB of which was the file the
-      // rig no longer had. The peer arm counted rows without reading the disk,
-      // so the row never failed and the operator had no control on it either.
+      // The peer arm reads the disk rather than counting rows: a published
+      // draft
+      // deleted from the rig has to fail its row and give the operator a
+      // control
+      // on it.
       _swallowKnownOverflows();
       final database = mockDatabase();
       addTearDown(database.close);
@@ -292,11 +285,10 @@ void main() {
   testWidgets(
     'an empty selection and the sweep state the same thing on one launch',
     (tester) async {
-      // Measured against the release bundle on one launch: the sweep logged
-      // `empty-selection: 1 delivered` and wrote the file into the folder,
-      // while the row's status line LED with "Nothing selected — this
-      // destination receives no files." The selection picks destinations at
-      // job time only; rows already owed are on the sweep's work list and go.
+      // The selection picks destinations at job time only; rows already owed
+      // are
+      // on the sweep's work list and go, so the status line must not lead with
+      // "Nothing selected".
       _swallowKnownOverflows();
       final database = mockDatabase();
       addTearDown(database.close);

@@ -53,7 +53,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
 
     // Paired session tokens load from the pairing database, whose file only
     // opens on the first query. Start that before binding and hold requests
-    // behind it: a request that arrived first used to be judged against an
+    // behind it: a request that arrived first would be judged against an
     // empty map, answered 403 "Invalid authentication token", and a remote
     // client takes that answer as final and asks its operator to re-pair.
     // Hydration swallows its own errors, so a broken database still lets the

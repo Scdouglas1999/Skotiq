@@ -1,7 +1,5 @@
 // The Pier readout in Imaging → Mount says the side of pier the mount reports,
-// and is absent — not a dash — when the mount does not report one. A tracking
-// mount used to show "Pier —" because the poll never copied the reported side
-// into the mount state at all.
+// and is absent — not a dash — when the mount does not report one.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/tabs/mount_tab.dart';

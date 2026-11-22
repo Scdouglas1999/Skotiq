@@ -1,6 +1,5 @@
-// After a relaunch on the rig (2026-11-17) the main window came up centered
-// and not maximized, with PHD2 in front of part of it. The window now comes
-// back with the size, position and maximized state it was left with.
+// The main window comes back with the size, position and maximized state it
+// was left with.
 import 'dart:io';
 import 'dart:ui';
 

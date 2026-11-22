@@ -1,7 +1,6 @@
 // Every "now" a screen shows comes from clockProvider, so a replay, a remote
-// site clock or a test can fix it in one place. These pin two readouts that
-// used to read the wall clock directly: the title-bar clock and the session's
-// running time.
+// site clock or a test can fix it in one place. These pin two readouts: the
+// title-bar clock and the session's running time.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

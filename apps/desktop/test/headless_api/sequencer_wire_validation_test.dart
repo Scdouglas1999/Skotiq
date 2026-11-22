@@ -23,9 +23,9 @@ class _MockSequenceExecutor extends Mock implements SequenceExecutor {}
 /// `serde_json::from_str::<SequenceDefinition>`).
 ///
 /// The field lists below are the producer's, including the keys Rust requires
-/// and the fixture previously omitted — `priority`, `duration_secs`, `count`
+/// — `priority`, `duration_secs`, `count`
 /// and `binning` are all non-defaulted on the Rust side, so a fixture without
-/// them is a document the executor would reject outright (L8). The matching
+/// them is a document the executor would reject outright. The matching
 /// canonical document is pinned on the Rust side by
 /// `native/skotiq_native/sequencer/tests/dart_wire_contract.rs`; keep the
 /// two in sync when the wire schema changes.

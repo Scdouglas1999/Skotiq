@@ -156,8 +156,8 @@ void main() {
       expect(await scaleFor(null), isNull);
     });
 
-    // A watcher read an autofocus guiding stop as a lost star and ended the
-    // night early (2026-10-25): the status says why guiding is stopped.
+    // An autofocus guiding stop is not a lost star: the status says why guiding
+    // is stopped.
     test('status says why the guider is stopped', () async {
       final backend = _MockBackend();
       when(

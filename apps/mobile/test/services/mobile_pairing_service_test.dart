@@ -1,7 +1,8 @@
 // Tests for MobilePairingService scheme + fingerprint-pinning wiring.
 //
 // The service is a thin wrapper over RemotePairingClient that persists a
-// stable device id and forwards the operator's pairing code. P3 must thread
+// stable device id and forwards the operator's pairing code. The service must
+// thread
 // the transport `scheme` (https for a TLS-fronted tailnet rig) and the known
 // server `pinnedFingerprint` (the MITM pre-flight) through to the client — if
 // either is dropped, pairing-over-Tailscale either 400s (wrong scheme) or

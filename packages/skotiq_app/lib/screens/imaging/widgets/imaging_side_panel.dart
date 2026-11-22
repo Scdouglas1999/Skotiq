@@ -18,14 +18,12 @@ import 'rotator_panel.dart';
 
 /// The Imaging screen's right column (06 §Imaging, 05 §15).
 ///
-/// The eight controls that used to live behind a 4 × 2 grid of pill tabs are
-/// now sections on a [SidePanel]'s 44 px icon strip. The bodies are the same
-/// widgets as before; only the way one is chosen changed.
+/// The eight controls are sections on a [SidePanel]'s 44 px icon strip.
 ///
 /// The strip follows `mockups/imaging.html` rather than the sentence in 06 that
 /// calls it "the eight current tabs": 06 promotes the live stacker to a
 /// top-level tab in the same paragraph, so Stack leaves the strip and Filter
-/// wheel — which the deleted bottom banner used to carry — takes the free slot.
+/// wheel takes the free slot.
 class ImagingSidePanel extends ConsumerWidget {
   const ImagingSidePanel({
     super.key,

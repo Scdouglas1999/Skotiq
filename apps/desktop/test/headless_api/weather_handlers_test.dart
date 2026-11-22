@@ -365,10 +365,9 @@ void main() {
     });
   });
 
-  // POST /api/weather/settings used to read only the top level of the body,
-  // so the `{"settings": {...}}` document its own GET answers stored nothing —
-  // and still replied {"status":"updated"}. That is how a rig can be told
-  // weather safety is on and image all night unguarded.
+  // POST /api/weather/settings must read the `{"settings": {...}}` document its
+  // own GET answers; storing nothing while replying {"status":"updated"} tells
+  // a rig weather safety is on while it images all night unguarded.
   group('WeatherHandlers settings round trip', () {
     late ProviderContainer container;
     late WeatherHandlers handlers;

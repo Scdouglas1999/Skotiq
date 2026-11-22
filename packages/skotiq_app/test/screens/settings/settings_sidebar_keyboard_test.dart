@@ -1,14 +1,9 @@
 // The Settings section navigator must be usable without a mouse.
 //
-// Measured on the running app: clicking the Settings search box and pressing
-// Tab 24 times left the sidebar pixel-identical every single time — focus
-// never landed on any of the 7 group headers or 35 section entries, and the
-// accessibility tree reported every entry as "panel: General" while real
-// buttons on the same screen reported "button: Test Connection". Both
-// _GroupHeader and _CategoryItem were a bare GestureDetector inside a
-// MouseRegion: no Focus, no InkWell, no Semantics(button: true). A
-// keyboard-only or screen-reader user could not change settings section at
-// all.
+// A bare GestureDetector inside a MouseRegion has no Focus, no InkWell and no
+// Semantics(button: true), so focus never lands on it and the accessibility
+// tree reports it as a panel: the group headers and section entries need all
+// three.
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -118,16 +113,15 @@ void main() {
         hasFocusAction: true,
         isFocusable: true,
         // A live section has to say it is live. `matchesSemantics` treats every
-        // unlisted flag as an assertion that it is ABSENT, so omitting these
-        // two pinned the pre-2026-08-10 behaviour: `Semantics(button: true)`
-        // without `enabled:` publishes no isEnabled flag at all, and AT-SPI
-        // reads that as insensitive. Measured on the running app, the whole
-        // settings sidebar announced as disabled.
+        // unlisted flag as an assertion that it is ABSENT, and
+        // `Semantics(button: true)` without `enabled:` publishes no isEnabled
+        // flag
+        // at all, which AT-SPI reads as insensitive.
         hasEnabledState: true,
         isEnabled: true,
       ),
     );
-    // The group label is NOT a control any more. The Observatory nav is a flat
+    // The group label is NOT a control. The nav is a flat
     // list under three quiet eyebrows (06 §Settings), so there is nothing to
     // expand and nothing for focus to land on between one section and the next
     // — which is the point: 7 stops removed from a 42-stop tab order. It must

@@ -227,11 +227,6 @@ const double kPolarBullseyeMaxRadius = 300;
 
 /// The bullseye's outer-ring radius in a paint area of [size], leaving room
 /// for the outer ring's label, [labelWidth] wide, beside it.
-///
-/// The radius used to be half the short side less 20px, but the label is
-/// drawn 4px OUTSIDE the ring and is wider than the 16px that left, so in a
-/// square-ish column the outer label — and on a wide one the ring itself —
-/// was cut off at the column edge.
 double polarBullseyeOuterRadius(Size size, double labelWidth) {
   final horizontal = size.width / 2 - kPolarBullseyeLabelGap - labelWidth;
   final vertical = size.height / 2;
