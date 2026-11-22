@@ -40,7 +40,6 @@ import 'api/polar_alignment/run_loop.dart';
 import 'api/post_session/entrypoints.dart';
 import 'api/secondary_rig.dart';
 import 'api/sequencer.dart';
-import 'api/sequencer/event_bridge.dart';
 import 'api/sequencer/lifecycle.dart';
 import 'api/sequencer/mosaic.dart';
 import 'api/sequencer/runtime_config.dart';
@@ -15701,23 +15700,6 @@ class RustLibWire implements BaseWire {
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
-
-  void
-  wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
-    int port_,
-  ) {
-    return _wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
-      port_,
-    );
-  }
-
-  late final _wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_eventsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-        'frbgen_skotiq_bridge_wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events',
-      );
-  late final _wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events =
-      _wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_eventsPtr
-          .asFunction<void Function(int)>();
 
   void
   wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion(

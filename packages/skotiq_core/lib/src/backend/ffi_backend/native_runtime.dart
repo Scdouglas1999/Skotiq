@@ -19,8 +19,6 @@ double sequencerProgressFraction({
 /// Native state that outlives any one [FfiBackend]: the Rust side is one per
 /// process while backends are recreated on every host switch.
 abstract final class _NativeProcessState {
-  static bool sequencerEventsSubscribed = false;
-
   /// Dart-side copy of the flag `sequencerSetSimulationMode` last pushed.
   static bool simulationMode = false;
 

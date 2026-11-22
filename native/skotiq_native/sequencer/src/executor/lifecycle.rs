@@ -73,7 +73,7 @@ impl StopOrigin {
         }
     }
 }
-use crate::{ExecutorState, NodeId};
+use crate::NodeId;
 use std::sync::atomic::Ordering;
 use tokio::sync::{mpsc, watch};
 

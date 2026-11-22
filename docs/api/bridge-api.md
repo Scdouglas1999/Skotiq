@@ -598,14 +598,6 @@ Get the current sequencer state.
 Future<SequencerState> apiSequencerGetState()
 ```
 
-### `apiSequencerSubscribeEvents`
-
-Subscribe to sequencer events and forward them to the main event stream.
-
-```dart
-Future<void> apiSequencerSubscribeEvents()
-```
-
 ## Profile Management
 
 ### `apiInitProfileStorage`

@@ -40,7 +40,6 @@ export 'api/difference_image.dart';
 export 'api/post_session/entrypoints.dart';
 export 'api/secondary_rig.dart';
 export 'api/sequencer.dart';
-export 'api/sequencer/event_bridge.dart';
 export 'api/sequencer/lifecycle.dart';
 export 'api/sequencer/mosaic.dart';
 export 'api/sequencer/runtime_config.dart';
