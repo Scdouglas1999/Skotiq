@@ -1,0 +1,42 @@
+{
+  "values": {
+    "pid": "4242",
+    "staging": "/data/updates/staging/9.1.0",
+    "install": "/opt/skotiq",
+    "backup": "/data/updates/backup",
+    "pending": "/data/updates/pending_install.json",
+    "hashes": "/data/updates/staging/9.1.0/expected_hashes.json",
+    "relaunch": ["--headless", "--port=8080"]
+  },
+  "apply": [
+    "--parent-pid", "{pid}",
+    "--staging-dir", "{staging}",
+    "--install-dir", "{install}",
+    "--backup-dir", "{backup}",
+    "--pending-file", "{pending}",
+    "--expected-hashes", "{hashes}",
+    "--relaunch-arg=--headless",
+    "--relaunch-arg=--port=8080",
+    "--launch-after"
+  ],
+  "rollback": [
+    "--parent-pid", "{pid}",
+    "--staging-dir", "{backup}",
+    "--install-dir", "{install}",
+    "--backup-dir", "{backup}",
+    "--pending-file", "{pending}",
+    "--expected-hashes", "{backup}/expected_hashes.json",
+    "--rollback",
+    "--relaunch-arg=--headless",
+    "--relaunch-arg=--port=8080",
+    "--launch-after"
+  ],
+  "layout": {
+    "expectedHashesFile": "expected_hashes.json",
+    "rollbackLogFile": "rollback_log.json",
+    "restorePointDir": "restore_point",
+    "postInstallHashFile": "post_install_hashes.json",
+    "lockFile": "updates/.updater.lock",
+    "backupSuffix": ".skotiq-bak"
+  }
+}

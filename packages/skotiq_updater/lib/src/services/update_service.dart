@@ -32,6 +32,67 @@ const String _stagedVerifiedMarker = 'staged_verified.marker';
 /// been hash-verified.
 const String _expectedHashesFile = 'expected_hashes.json';
 
+/// The restore point the updater leaves in `--backup-dir` after an apply.
+const String updaterRollbackLogFile = 'rollback_log.json';
+
+/// The updater command line that applies [stagingDir] over [installDir].
+/// The flags are the updater's (`native/skotiq_native/updater/src/main.rs`
+/// `Args`); `test_fixtures/updater_cli/contract.json` pins both sides.
+List<String> updaterApplyArguments({
+  required int parentPid,
+  required String stagingDir,
+  required String installDir,
+  required String backupDir,
+  required String pendingFile,
+  required String expectedHashesFile,
+  required List<String> relaunchFlags,
+}) => [
+  '--parent-pid',
+  parentPid.toString(),
+  '--staging-dir',
+  stagingDir,
+  '--install-dir',
+  installDir,
+  '--backup-dir',
+  backupDir,
+  '--pending-file',
+  pendingFile,
+  '--expected-hashes',
+  expectedHashesFile,
+  ...relaunchFlags,
+  '--launch-after',
+];
+
+/// The updater command line that restores the restore point in [backupDir].
+List<String> updaterRollbackArguments({
+  required int parentPid,
+  required String installDir,
+  required String backupDir,
+  required String pendingFile,
+  required List<String> relaunchFlags,
+}) => [
+  '--parent-pid',
+  parentPid.toString(),
+  // Staging is unused in rollback mode but the arg is required; point it
+  // at the backup dir so the path is valid.
+  '--staging-dir',
+  backupDir,
+  '--install-dir',
+  installDir,
+  '--backup-dir',
+  backupDir,
+  '--pending-file',
+  pendingFile,
+  // expected-hashes is unused in rollback mode but required by the parser;
+  // point it at a path that need not exist (the rollback branch returns
+  // before reading it).
+  '--expected-hashes',
+  path.join(backupDir, _expectedHashesFile),
+  '--rollback',
+  ...relaunchFlags,
+  '--launch-after',
+];
+
 /// Deadline for the two small metadata fetches (`/api/version` and the
 /// manifest), so they stay bounded: the controller has a single operation slot,
 /// and a host that accepts the connection and never answers would hold it until
@@ -1039,22 +1100,15 @@ class UpdateService {
       }),
     );
 
-    final args = <String>[
-      '--parent-pid',
-      pid.toString(),
-      '--staging-dir',
-      staged.extractPath,
-      '--install-dir',
-      installDir.path,
-      '--backup-dir',
-      backupDir.path,
-      '--pending-file',
-      pendingFile.path,
-      '--expected-hashes',
-      expectedHashesFile.path,
-      ...updaterRelaunchFlags(),
-      '--launch-after',
-    ];
+    final args = updaterApplyArguments(
+      parentPid: pid,
+      stagingDir: staged.extractPath,
+      installDir: installDir.path,
+      backupDir: backupDir.path,
+      pendingFile: pendingFile.path,
+      expectedHashesFile: expectedHashesFile.path,
+      relaunchFlags: updaterRelaunchFlags(),
+    );
 
     developer.log(
       'Launching updater: $updaterPath with args: $args',
@@ -1142,7 +1196,7 @@ class UpdateService {
     // read-only probe that must not have side effects.
     final appData = await _applicationSupportDirectoryProvider();
     final logFile = File(
-      path.join(appData.path, 'updates', 'backup', 'rollback_log.json'),
+      path.join(appData.path, 'updates', 'backup', updaterRollbackLogFile),
     );
     return logFile.exists();
   }
@@ -1176,28 +1230,13 @@ class UpdateService {
     final backupDir = await _getBackupDirectory();
     final pendingFile = await _getPendingInstallFile();
 
-    final args = <String>[
-      '--parent-pid',
-      pid.toString(),
-      // Staging is unused in rollback mode but the arg is required; point it
-      // at the backup dir so the path is valid.
-      '--staging-dir',
-      backupDir.path,
-      '--install-dir',
-      installDir.path,
-      '--backup-dir',
-      backupDir.path,
-      '--pending-file',
-      pendingFile.path,
-      // expected-hashes is unused in rollback mode but required by the parser;
-      // point it at a path that need not exist (the rollback branch returns
-      // before reading it).
-      '--expected-hashes',
-      path.join(backupDir.path, 'expected_hashes.json'),
-      '--rollback',
-      ...updaterRelaunchFlags(),
-      '--launch-after',
-    ];
+    final args = updaterRollbackArguments(
+      parentPid: pid,
+      installDir: installDir.path,
+      backupDir: backupDir.path,
+      pendingFile: pendingFile.path,
+      relaunchFlags: updaterRelaunchFlags(),
+    );
 
     developer.log(
       'Launching updater for rollback: $updaterPath with args: $args',
