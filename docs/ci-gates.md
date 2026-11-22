@@ -23,7 +23,7 @@ call `scripts/rust_checks.sh`, which the gate's `rust` stage runs too.
 
 | CI job (check name) | Gate stage |
 |---|---|
-| Analyze | `analyze`: UI token audit and its tests, nebula light tests, the `scripts/test_*.py` release-script tests, dependency hygiene, version consistency and its self-test, analyzer rollup, `dart analyze packages apps tools` |
+| Analyze | `analyze`: UI token audit and its tests, nebula light tests, the `scripts/test_*.py` release-script tests, the live-rig API driver against the route table, dependency hygiene, version consistency and its self-test, analyzer rollup, `dart analyze packages apps tools` |
 | Launch Gate | `audits`: the audit gates below, every audit self-test, and four reports that print counts and do not fail (design tokens, UI consistency, oversized files, narrative comments) |
 | Dart Tests | `dart-tests` |
 | Constellation Hub | `hub` |

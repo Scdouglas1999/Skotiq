@@ -86,6 +86,16 @@ final List<Check> checks = [
     '-p',
     'test_*.py',
   ]),
+  Check('analyze', 'live-rig-driver', [
+    'python3',
+    '-m',
+    'unittest',
+    'discover',
+    '-s',
+    'tools/live_rig',
+    '-p',
+    'test_*.py',
+  ]),
   Check('analyze', 'dependency-hygiene', _tool('dependency_hygiene')),
   Check('analyze', 'version-consistency', _tool('version_consistency_audit')),
   Check(
