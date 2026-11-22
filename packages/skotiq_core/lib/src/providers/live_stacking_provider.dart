@@ -111,6 +111,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     return service != null && service.readsHost;
   }
 
+  /// On a linked client, the pixel revision of each slot of the host's stack
+  /// as the host's runtime channel last described it. Null until the channel
+  /// has described a stack; the poll then reads the host's active slot.
+  Map<String, int>? _hostRevisions;
+
   bool _remotePollInFlight = false;
   Future<void>? _startInFlight;
   Future<void>? _stopInFlight;
@@ -130,6 +135,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   void _invalidateSession() {
+    _hostRevisions = null;
     _sessionGeneration++;
     _remotePollTimer?.cancel();
     _remotePollTimer = null;
@@ -235,15 +241,35 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         state.status != LiveStackingStatus.running) {
       return;
     }
+    // With the host's slots known, fetch the viewed slot's pixels only when
+    // they changed, and nothing before the slot's first frame.
+    final hostRevisions = _hostRevisions;
+    String? slotKey;
+    int? slotRevision;
+    if (hostRevisions != null) {
+      slotKey = state.viewedFilterKey;
+      slotRevision = hostRevisions[slotKey];
+      final shown = state.filterStacks[slotKey];
+      if (slotRevision == null ||
+          (shown != null &&
+              shown.hasPixels &&
+              shown.revision == slotRevision)) {
+        return;
+      }
+    }
     _remotePollInFlight = true;
     try {
-      final result = await service.getCurrentResult();
+      final result = await service.getCurrentResult(filterKey: slotKey);
       if (!_isCurrentSession(generation, backend) ||
           state.status != LiveStackingStatus.running) {
         return;
       }
       _hadRemoteResult = true;
       _consecutivePollFailures = 0;
+      if (slotKey != null && slotRevision != null) {
+        _showHostSlot(slotKey, slotRevision, result);
+        return;
+      }
       state = state.copyWith(
         stats: result.stats,
         previewData: _asUint16List(result.data),
@@ -278,6 +304,98 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     } finally {
       _remotePollInFlight = false;
     }
+  }
+
+  /// The host's live stack as the host's runtime channel describes it, on a
+  /// linked client. A stack the host runs, whoever armed it, is shown here
+  /// and can be reset or stopped from here. When the host's stack ends, this
+  /// client's view of it ends too; nothing is sent back to the host.
+  void applyHostStack(LiveStackSummary? host, SkotiqBackend backend) {
+    final service = _service;
+    if (!service.readsHost) return;
+    _hostRevisions = host == null
+        ? null
+        : {for (final slot in host.slots) slot.filterKey: slot.revision};
+    // This client's own start or stop is settling; the host's next update
+    // describes its outcome.
+    if (_startInFlight != null || _stopInFlight != null) return;
+    final onThisHost =
+        state.status == LiveStackingStatus.running &&
+        _sessionOnHost &&
+        identical(_sessionAuthority, backend);
+    if (host == null) {
+      if (!onThisHost) return;
+      _invalidateSession();
+      state = LiveStackingState(config: state.config);
+      return;
+    }
+    if (!onThisHost) {
+      final generation = ++_sessionGeneration;
+      _sessionAuthority = backend;
+      _sessionService = service;
+      _hadRemoteResult = false;
+      _consecutivePollFailures = 0;
+      state = LiveStackingState(
+        status: LiveStackingStatus.running,
+        isArmed: host.armed,
+        config: state.config,
+      );
+      _startRemotePolling(generation, backend);
+    }
+    final stacks = <String, FilterStackSnapshot>{
+      for (final slot in host.slots)
+        slot.filterKey:
+            (state.filterStacks[slot.filterKey] ??
+                    FilterStackSnapshot(filterKey: slot.filterKey))
+                .copyWith(stats: slot.stats, channels: slot.channels),
+    };
+    final keys = stacks.keys.toList()..sort(compareLiveStackFilters);
+    final selected = stacks.containsKey(state.selectedFilterKey)
+        ? state.selectedFilterKey
+        : keys.firstOrNull;
+    final next = state.copyWith(
+      isArmed: host.armed,
+      filterStacks: Map<String, FilterStackSnapshot>.unmodifiable(stacks),
+      frameLog: state.frameLog
+          .where((e) => stacks.containsKey(e.filterKey))
+          .toList(growable: false),
+    );
+    state = selected == null
+        ? LiveStackingState(
+            status: next.status,
+            isArmed: next.isArmed,
+            config: next.config,
+          )
+        : _mirrorSelectedFilter(next, stacks[selected]!);
+    final authority = _sessionAuthority;
+    if (authority != null) {
+      unawaited(_pollRemoteResult(_sessionGeneration, authority));
+    }
+  }
+
+  /// Show [result], the pixels of the host's [slotKey] at [revision].
+  void _showHostSlot(String slotKey, int revision, LiveStackingResult result) {
+    final known = state.filterStacks[slotKey];
+    if (known == null) return;
+    final snapshot = known.copyWith(
+      stats: result.stats,
+      previewData: _asUint16List(result.data),
+      previewWidth: result.width,
+      previewHeight: result.height,
+      channels: result.channels,
+      lastFrameTotalPixels: result.width * result.height,
+      revision: revision,
+    );
+    final next = state.copyWith(
+      filterStacks: Map<String, FilterStackSnapshot>.unmodifiable({
+        ...state.filterStacks,
+        slotKey: snapshot,
+      }),
+      clearErrorMessage: true,
+    );
+    state = next.viewedFilterKey == slotKey
+        ? _mirrorSelectedFilter(next, snapshot)
+        : next;
   }
 
   /// Retry a failed remote preview poll without restarting the host stack.
@@ -347,6 +465,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       state.copyWith(selectedFilterKey: filterKey),
       snapshot,
     );
+    final authority = _sessionAuthority;
+    if (_sessionOnHost && authority != null) {
+      unawaited(_pollRemoteResult(_sessionGeneration, authority));
+    }
   }
 
   /// Mirror [snapshot] onto the top-level preview/stats fields so legacy
