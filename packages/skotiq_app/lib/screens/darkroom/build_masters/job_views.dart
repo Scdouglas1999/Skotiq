@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../session_review/widgets/sub_cull_rail.dart'
     show subThumbnailProvider;
@@ -169,6 +172,106 @@ class _CurrentFrame extends ConsumerWidget {
               ),
         ),
       );
+}
+
+/// The finished build: masters, counts and where they are.
+class BuildResultPanel extends StatelessWidget {
+  const BuildResultPanel({super.key, required this.job, this.onError});
+  final DarkroomBuildJob job;
+  final ValueChanged<String>? onError;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.skotiqColors;
+    final report = job.report!;
+    final results = (report['results'] as List).cast<Map>();
+    final failures = (report['failures'] as List? ?? const []).cast<Map>();
+    final delivery = report['delivery'] as Map;
+    final masters = (delivery['masters'] as List).cast<Map>();
+    final directory = job.directory;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SkotiqBanner(
+          tone: failures.isEmpty ? BannerTone.success : BannerTone.warning,
+          title:
+              'Masters ready, ${delivery['width']} x ${delivery['height']} px.',
+          message:
+              '${percent((delivery['retainedArea'] as num).toDouble())} of the field kept. '
+              'Linear FITS files open directly in PixInsight; previews are stretched only for display.',
+        ),
+        for (final w in job.warnings) ...[
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          SkotiqBanner(tone: BannerTone.warning, title: 'Note.', message: w),
+        ],
+        const SizedBox(height: SkotiqTokens.spaceMd),
+        for (var i = 0; i < results.length && i < masters.length; i++)
+          DetailRow(
+            title:
+                '${results[i]['filter']}: ${results[i]['frameCount']} frames, ${describeIntegration(results[i]['totalIntegrationSec'] as num)}',
+            subtitle:
+                '${(results[i]['skipped'] as List).length} left out during processing',
+            leading: SizedBox(
+              width: 56,
+              height: 56,
+              child: Image.file(
+                File(masters[i]['previewPath'] as String),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    Icon(SkotiqIcons.imageOff, color: colors.textMuted),
+              ),
+            ),
+            trailingWidget: SkotiqButton(
+              label: 'Open master',
+              size: ButtonSize.small,
+              variant: ButtonVariant.secondary,
+              onPressed: () async {
+                final opened = await launchUrl(
+                  Uri.file(masters[i]['path'] as String),
+                );
+                if (!opened) {
+                  onError?.call(
+                    'Could not open the FITS viewer. Open the output folder instead.',
+                  );
+                }
+              },
+            ),
+          ),
+        for (final f in failures)
+          DetailRow(
+            title: '${f['filter']}: not built',
+            subtitle: '${f['error']}',
+            icon: SkotiqIcons.warning,
+          ),
+        if (directory != null) ...[
+          const SizedBox(height: SkotiqTokens.spaceMd),
+          SelectableText(
+            directory,
+            style: SkotiqTypography.monoCaption.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SkotiqButton(
+              label: 'Open output folder',
+              icon: SkotiqIcons.folderOpen,
+              variant: ButtonVariant.secondary,
+              onPressed: () => launchUrl(Uri.directory(directory)),
+            ),
+          ),
+          const SizedBox(height: SkotiqTokens.spaceSm),
+          Text(
+            'The folder holds the full-size masters, the frame audit, the calibration choices and the crop report. '
+            'Completed masters also appear in the Masters tab.',
+            style:
+                SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 /// A list row with a second line, and optional leading and trailing widgets.
