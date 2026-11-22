@@ -156,6 +156,49 @@ void main() {
     expect(brief.skippedCount, isNull);
   });
 
+  test("a uniform delivery reads the builder's reply", () {
+    final reply = replyFixtureObject('deliver_uniform');
+    final (read, unread) = decodeRecordingReads(reply, (json) {
+      final delivery = DarkroomUniformDelivery(json);
+      final master = delivery.master(0);
+      return (
+        filters: delivery.filters,
+        path: master.path,
+        preview: master.previewPath,
+        channels: master.channels,
+        width: delivery.width,
+        height: delivery.height,
+        composites: delivery.composites,
+      );
+    });
+    final sample = (reply['masters'] as List).single as Map;
+    expect(read.filters, [sample['filter']]);
+    expect(read.path, sample['path']);
+    expect(read.preview, sample['previewPath']);
+    expect(read.channels, sample['channels']);
+    expect(read.width, reply['width']);
+    expect(read.height, reply['height']);
+    expect(read.composites, reply['composites']);
+    // The composites are read by name when they are registered (the RGB and
+    // LRGB FITS, XISF and preview paths); the crop and scale are kept in the
+    // receipt and read by nothing.
+    const compositeKeys = {
+      'rgbPath',
+      'rgbXisfPath',
+      'rgbPreviewPath',
+      'lrgbPath',
+      'lrgbXisfPath',
+      'lrgbPreviewPath',
+    };
+    expect((reply['composites'] as Map).keys.toSet(), compositeKeys);
+    expect(unread, {
+      for (final key in compositeKeys) 'composites.$key',
+      'crop',
+      'retainedArea',
+      'scale',
+    });
+  });
+
   test('a failed filter reads as its failure', () {
     final failed = DarkroomFilterBuild.fromJson({
       'filter': 'OIII',

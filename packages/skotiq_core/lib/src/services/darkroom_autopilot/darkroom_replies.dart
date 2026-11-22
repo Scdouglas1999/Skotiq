@@ -198,3 +198,36 @@ class DarkroomFilterBuild {
   /// saved before the brief kept the count).
   final int? skippedCount;
 }
+
+/// A `deliverUniform` reply (and the `delivery.json` receipt a build keeps of
+/// it): the per-filter masters cropped to one frame, and the composites.
+///
+/// A view over the map: each value is read, and checked, when asked for, so
+/// a build that registers its masters one by one fails where it did before.
+extension type DarkroomUniformDelivery(Map<String, dynamic> json) {
+  /// The [index]th delivered master, in the order of the masters the build
+  /// sent.
+  DarkroomDeliveredMaster master(int index) =>
+      DarkroomDeliveredMaster((json['masters'] as List)[index] as Map);
+
+  /// The filters of [masters], in order.
+  List<Object?> get filters => [
+    for (final m in json['masters'] as List) (m as Map)['filter'],
+  ];
+
+  int get width => json['width'] as int;
+  int get height => json['height'] as int;
+
+  /// The RGB and LRGB composites, or null when none was made.
+  Map<dynamic, dynamic>? get composites => switch (json['composites']) {
+    final Map composites => composites,
+    _ => null,
+  };
+}
+
+/// One master of a [DarkroomUniformDelivery].
+extension type DarkroomDeliveredMaster(Map<dynamic, dynamic> json) {
+  String get path => json['path'] as String;
+  String get previewPath => json['previewPath'] as String;
+  int get channels => json['channels'] as int;
+}
