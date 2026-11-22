@@ -205,13 +205,7 @@ class QuickCaptureNight {
   final DateTime night;
   final List<DbCapturedImage> lights;
 
-  double get integrationSecs => lights.fold(
-        0,
-        (sum, image) =>
-            image.exposureDuration.isFinite && image.exposureDuration > 0
-                ? sum + image.exposureDuration
-                : sum,
-      );
+  double get integrationSecs => exposureSecs(lights);
 }
 
 /// One observing night of History, newest entries first.
@@ -294,13 +288,7 @@ class HistoryTotals {
         images.where((i) => i.isLight && i.isAccepted).toList(growable: false);
     return HistoryTotals(
       exposures: images.length,
-      acceptedIntegrationSecs: acceptedLights.fold(
-        0,
-        (sum, image) =>
-            image.exposureDuration.isFinite && image.exposureDuration > 0
-                ? sum + image.exposureDuration
-                : sum,
-      ),
+      acceptedIntegrationSecs: exposureSecs(acceptedLights),
       meridianFlips: runs == null ? null : _meridianFlips(runs),
       autofocusRuns: sessions?.fold<int>(
         0,

@@ -178,14 +178,9 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
         value: isLive
             ? _formatAnalyticsIntegration(sessionState.totalIntegrationSecs)
             : frameMetric((images) {
-                final seconds = acceptedLights(images).fold<double>(
-                  0,
-                  (sum, image) => image.exposureDuration.isFinite &&
-                          image.exposureDuration > 0
-                      ? sum + image.exposureDuration
-                      : sum,
+                return _formatAnalyticsIntegration(
+                  exposureSecs(acceptedLights(images)),
                 );
-                return _formatAnalyticsIntegration(seconds);
               }),
       ),
       Readout(
