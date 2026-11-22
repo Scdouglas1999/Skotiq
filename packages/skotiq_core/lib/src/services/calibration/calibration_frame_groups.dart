@@ -34,7 +34,7 @@ class CalibrationFrameFacts {
   /// mode (`READOUTM`).
   factory CalibrationFrameFacts.fromHeader(FrameHeader header) =>
       CalibrationFrameFacts(
-        setPointC: header.firstNumber(const ['SET-TEMP', 'SET_TEMP']),
+        setPointC: header.setPointC,
         readMode: header.string('READOUTM'),
       );
 
@@ -226,9 +226,9 @@ List<List<DbCapturedImage>> _temperatureClusters(List<DbCapturedImage> frames) {
 /// recorded is judged by its mean. A master without a set-point (a camera
 /// that does not cool) is never judged.
 String? masterOffSetPoint(FrameHeader header, double toleranceC) {
-  final setPoint = header.firstNumber(const ['SET-TEMP', 'SET_TEMP']);
+  final setPoint = header.setPointC;
   if (setPoint == null) return null;
-  final mean = header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP']);
+  final mean = header.sensorTempC;
   final coldest = header.number('CCDTMIN') ?? mean;
   final warmest = header.number('CCDTMAX') ?? mean;
   if (coldest == null || warmest == null) return null;

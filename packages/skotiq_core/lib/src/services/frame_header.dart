@@ -59,6 +59,17 @@ class FrameHeader {
     return null;
   }
 
+  /// The cooler set-point the frame was taken at (`SET-TEMP`, `SET_TEMP`).
+  double? get setPointC => firstNumber(const ['SET-TEMP', 'SET_TEMP']);
+
+  /// The sensor temperature read during the exposure (`CCD-TEMP`,
+  /// `CCD_TEMP`).
+  double? get sensorTempC => firstNumber(const ['CCD-TEMP', 'CCD_TEMP']);
+
+  /// The temperature a library files the frame under: the sensor reading,
+  /// else the set-point (`SET-TEMP` only).
+  double? get libraryTempC => sensorTempC ?? number('SET-TEMP');
+
   /// Width and height in pixels; null when the header states no positive size.
   ({int width, int height})? get imageSize {
     final width = integer('NAXIS1');

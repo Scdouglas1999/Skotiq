@@ -122,9 +122,7 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
     }
 
     final camera = needsCamera ? header.string('INSTRUME') : record.cameraId;
-    final temperature = needsTemp
-        ? header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP', 'SET-TEMP'])
-        : record.temperature;
+    final temperature = needsTemp ? header.libraryTempC : record.temperature;
     final filterName = needsFilter ? header.string('FILTER') : record.filter;
 
     if (needsCamera && camera != null) {
@@ -144,9 +142,7 @@ extension _CalibrationLibraryLoading on CalibrationLibraryService {
       temperature: temperature,
       filter: filterName,
       readoutMode: judged ? header.string('READOUTM') : null,
-      setPointC: judged
-          ? header.firstNumber(const ['SET-TEMP', 'SET_TEMP'])
-          : null,
+      setPointC: judged ? header.setPointC : null,
       offSetPoint: judged
           ? masterOffSetPoint(
               header,

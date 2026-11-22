@@ -98,9 +98,7 @@ class FlatLibraryService {
       filter: filter ?? header.string('FILTER'),
       equipmentProfileId: equipmentProfileId,
       opticalTrainId: opticalTrainId,
-      temperature:
-          temperature ??
-          header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP', 'SET-TEMP']),
+      temperature: temperature ?? header.libraryTempC,
       // A flat without the cards is from a camera with no such control.
       gain: gain ?? header.integer('GAIN'),
       offset: offset ?? header.integer('OFFSET'),

@@ -449,14 +449,8 @@ class CalibrationBacklogService {
       if (kind == null) continue;
       final night = observingNight(f.capturedAt);
       if (kind == CalibrationFrameKind.flat) {
-        final key = [
-          night,
-          _filterOf(f) ?? '',
-          f.gain,
-          f.offset,
-          f.binX,
-          f.binY,
-        ].join('|');
+        final key =
+            '$night|${flatSetupKey(_filterOf(f), f.gain, f.offset, f.binX, f.binY)}';
         (flats[key] ??= []).add(f);
       } else {
         (darksByNight[night] ??= []).add((
