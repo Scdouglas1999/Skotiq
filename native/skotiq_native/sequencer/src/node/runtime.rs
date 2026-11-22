@@ -436,11 +436,7 @@ impl Node for RuntimeNode {
         // string is not load-bearing); we log and fall back to the raw
         // template so the operator still sees something.
         let display_name = render_node_display_name(self.name(), context);
-        context.send_progress(ProgressUpdate::lifecycle(
-            self.id().clone(),
-            NodeStatus::Running,
-            format!("Executing: {}", display_name),
-        ));
+        context.send_progress(ProgressUpdate::node_entry(self.id().clone(), display_name));
 
         // Cloning is cheap on serde-derived configs; this avoids a mutable
         // borrow of self.definition while we also need &mut self for the

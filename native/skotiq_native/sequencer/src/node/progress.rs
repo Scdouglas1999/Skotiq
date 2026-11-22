@@ -618,6 +618,8 @@ pub struct ProgressUpdate {
     /// crediting the plan is what makes surfaces that sum the rows disagree with
     /// surfaces that multiply.
     pub frame_exposure_secs: Option<f64>,
+    /// The node's display name, on the update a node sends as it starts.
+    pub node_name: Option<String>,
 }
 
 impl ProgressUpdate {
@@ -660,6 +662,18 @@ impl ProgressUpdate {
             total_children: None,
             completed_exposure_secs: None,
             frame_exposure_secs: None,
+            node_name: None,
+        }
+    }
+
+    /// The update a node sends as it starts running: its display name, and
+    /// "Executing: <name>" as its message.
+    pub fn node_entry(node_id: NodeId, name: impl Into<String>) -> Self {
+        let name = name.into();
+        Self {
+            message: Some(format!("Executing: {name}")),
+            node_name: Some(name),
+            ..Self::lifecycle(node_id, NodeStatus::Running, String::new())
         }
     }
 
@@ -683,6 +697,7 @@ impl ProgressUpdate {
             total_children: None,
             completed_exposure_secs: None,
             frame_exposure_secs: None,
+            node_name: None,
         }
     }
 }

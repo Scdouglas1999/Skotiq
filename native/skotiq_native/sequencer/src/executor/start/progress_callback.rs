@@ -51,27 +51,11 @@ pub(super) fn build_progress_callback(
                 let mut started = started_nodes.write();
                 if !started.contains(&update.node_id) {
                     started.insert(update.node_id.clone());
-                    // RuntimeNode emits the "Executing: <name>" lifecycle
-                    // message exactly once at node entry; this is how we
-                    // pull the display name out for NodeStarted. Subsequent
-                    // progress events are structured so this branch is the
-                    // only place we still parse a message.
-                    //
-                    // A message-less update names nothing, and this branch used to
-                    // answer that with the literal "Unknown" — then cache it, so a
-                    // node whose id re-entered this branch mid-run (a Smart
-                    // Exposure between bursts; see `node_names` in `start.rs`)
-                    // reported itself as "Unknown" to every client for the rest of
-                    // the run. The seeded map already holds the authored name, so
-                    // the parse only ever CONFIRMS a name and never replaces a
-                    // known one with a placeholder.
-                    let parsed_name = update.message.as_ref().map(|m| {
-                        if let Some(name) = m.strip_prefix("Executing: ") {
-                            name.to_string()
-                        } else {
-                            m.clone()
-                        }
-                    });
+                    // A node names itself on its entry update. A message-less
+                    // update names nothing: the seeded map holds the authored
+                    // name, so a name is only ever confirmed, never replaced
+                    // by a placeholder.
+                    let parsed_name = update.node_name.clone().or_else(|| update.message.clone());
                     let node_name = {
                         let mut names = node_names.write();
                         match parsed_name {
@@ -413,10 +397,9 @@ mod tests {
     fn terminal_status_emits_node_completed_for_a_started_node() {
         let (cb, mut rx, _started) = callback_with_channel();
 
-        cb(ProgressUpdate::lifecycle(
+        cb(ProgressUpdate::node_entry(
             "node-1".to_string(),
-            NodeStatus::Running,
-            "Executing: Take Exposures",
+            "Take Exposures",
         ));
         cb(ProgressUpdate::lifecycle(
             "node-1".to_string(),
@@ -453,11 +436,7 @@ mod tests {
         let (cb, mut rx, _started) = callback_with_channel();
 
         for id in ["root-container", "leaf"] {
-            cb(ProgressUpdate::lifecycle(
-                id.to_string(),
-                NodeStatus::Running,
-                format!("Executing: {id}"),
-            ));
+            cb(ProgressUpdate::node_entry(id.to_string(), id));
         }
         // Leaves finish before the container that owns them.
         for id in ["leaf", "root-container"] {
@@ -494,11 +473,7 @@ mod tests {
             NodeStatus::Skipped,
         ] {
             let (cb, mut rx, _started) = callback_with_channel();
-            cb(ProgressUpdate::lifecycle(
-                "n".to_string(),
-                NodeStatus::Running,
-                "Executing: n",
-            ));
+            cb(ProgressUpdate::node_entry("n".to_string(), "n"));
             cb(ProgressUpdate::lifecycle(
                 "n".to_string(),
                 status,
@@ -543,11 +518,7 @@ mod tests {
 
         // Two loop iterations: two starts, two completions, in order.
         for _ in 0..2 {
-            cb(ProgressUpdate::lifecycle(
-                "body".to_string(),
-                NodeStatus::Running,
-                "Executing: body",
-            ));
+            cb(ProgressUpdate::node_entry("body".to_string(), "body"));
             cb(ProgressUpdate::lifecycle(
                 "body".to_string(),
                 NodeStatus::Success,
