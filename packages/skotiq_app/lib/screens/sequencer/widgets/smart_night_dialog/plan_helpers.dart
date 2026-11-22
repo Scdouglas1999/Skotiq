@@ -277,6 +277,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
       target,
       filterIndex,
       delta,
+      planTimer: ref.read(planTimerProvider),
     );
 
     setState(() => _preview = patched);

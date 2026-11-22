@@ -1,22 +1,22 @@
 import '../models/imaging/imaging_models.dart' show FrameType;
 import '../models/sequence/sequence_models.dart';
+import 'plan_timer.dart';
 import 'smart_night_models.dart';
 
 /// The preview's frame-count tweak: [plan] with filter row [filterIndex] of
 /// [target] taking [delta] more frames (clamped to 1..999), its totals and
 /// tree to match.
 ///
-/// Wall-clock moves by the capture time added or taken away; the tree's
-/// capture steps are patched in place, matched by target name and filter
-/// name, rather than emitted again.
+/// The tree's capture steps are patched in place, matched by target name
+/// and filter name, rather than emitted again, and the patched tree is timed
+/// again by [planTimer] over the plan's window, as the plan was built.
 SmartNightPlan smartNightPlanWithCountChange(
   SmartNightPlan plan,
   SmartNightPlannedTarget target,
   int filterIndex,
-  int delta,
-) {
-  var wallClockDeltaSecs = 0.0;
-
+  int delta, {
+  required PlanTimer planTimer,
+}) {
   final newPlannedTargets = <SmartNightPlannedTarget>[];
   for (final p in plan.plannedTargets) {
     if (p == target) {
@@ -25,7 +25,6 @@ SmartNightPlan smartNightPlanWithCountChange(
         if (i == filterIndex) {
           final fp = p.filterPlans[i];
           final newCount = (fp.count + delta).clamp(1, 999).toInt();
-          wallClockDeltaSecs += (newCount - fp.count) * fp.durationSecs;
           updatedFilters.add(
             SmartNightFilterPlan(
               filterName: fp.filterName,
@@ -58,15 +57,21 @@ SmartNightPlan smartNightPlanWithCountChange(
     }
   }
 
+  final sequence = _patchSequenceCounts(plan.sequence, newPlannedTargets);
+  final simulation = planTimer.simulate(
+    sequence,
+    start: plan.context.windowStart,
+    darkWindowStart: plan.context.windowStart,
+    darkWindowEnd: plan.context.windowEnd,
+  );
   return SmartNightPlan(
-    sequence: _patchSequenceCounts(plan.sequence, newPlannedTargets),
+    sequence: sequence,
     plannedTargets: newPlannedTargets,
     totalIntegrationSecs: newPlannedTargets.fold<double>(
       0,
       (s, p) => s + p.integrationSecs,
     ),
-    estimatedWallClockSecs: (plan.estimatedWallClockSecs + wallClockDeltaSecs)
-        .clamp(0, double.infinity),
+    estimatedWallClockSecs: simulation.duration.inSeconds.toDouble(),
     warnings: plan.warnings,
     strategy: plan.strategy,
     settings: plan.settings,
