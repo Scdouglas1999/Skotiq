@@ -200,6 +200,42 @@ void main() {
     expect(executor.hasRestoredCheckpoint, isFalse);
   });
 
+  test('the run record shows a restored host checkpoint until the run '
+      'starts or is reset', () async {
+    final info = CheckpointInfo(
+      sequenceName: 'M45',
+      timestamp: DateTime.utc(2026, 11, 22),
+      completedExposures: 4,
+      completedIntegrationSecs: 720.0,
+      canResume: true,
+      ageSeconds: 30,
+    );
+    when(() => host.resumeFromCheckpoint()).thenAnswer((_) async {});
+    when(() => host.getCheckpointInfo()).thenAnswer((_) async => info);
+    when(() => host.sequencerReset()).thenAnswer((_) async {});
+    when(
+      () => host.sequencerGetStatus(),
+    ).thenAnswer((_) async => _status('idle'));
+    container.read(currentSequenceProvider.notifier).loadSequence(_hostPlan());
+    final executor = container.read(sequenceExecutorProvider);
+    CheckpointInfo? shown() =>
+        container.read(runRecordProvider).restoredCheckpoint;
+
+    await executor.restoreFromCheckpoint();
+    expect(shown(), same(info));
+    await executor.reset();
+    expect(shown(), isNull);
+
+    await executor.restoreFromCheckpoint();
+    expect(shown(), same(info));
+    when(
+      () => host.sequencerGetStatus(),
+    ).thenAnswer((_) async => _status('running'));
+    await executor.start();
+    expect(shown(), isNull);
+    expect(executor.hasRestoredCheckpoint, isFalse);
+  });
+
   test(
     'a remote reset is one request; the host clears the checkpoint',
     () async {
