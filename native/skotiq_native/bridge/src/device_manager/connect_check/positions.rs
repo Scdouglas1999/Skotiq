@@ -140,6 +140,9 @@ impl Positions {
     /// Record where `device_id` is now. Written to the file only when it
     /// changed.
     pub(crate) fn record(&self, device_id: &str, reading: Reading) {
+        if matches!(reading, Reading::Filter(slot) if slot < 0) {
+            return;
+        }
         let mut inner = self.lock();
         let Some(key) = inner.key_for(device_id) else {
             return;

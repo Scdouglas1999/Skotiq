@@ -10,13 +10,14 @@
 //! what Skotiq shows stays what the device reports. Checked:
 //!
 //! * mount: tracking against RA over two reads ([`verdicts::RA_SAMPLE_GAP`]
-//!   apart), parked against tracking and RA, pier side against hour angle,
+//!   apart), parked against tracking, pier side against hour angle,
 //!   its clock against this computer's, its site against Skotiq's. No driver
 //!   Skotiq talks to reports its park coordinates, so a parked mount is not
 //!   checked against them. The simulator does not move its RA when it is not
 //!   tracking, so its tracking is not checked;
 //! * focuser, filter wheel, rotator: position against the last one Skotiq
-//!   recorded ([`positions`]). The rotator's last recorded angle includes a
+//!   recorded ([`positions`]); not a wheel that cannot say its slot yet, nor
+//!   a relative focuser. The rotator's last recorded angle includes a
 //!   sync to a plate solve, so a recent solve is checked through it;
 //! * camera: cooler on, power and temperature against its set-point, unless
 //!   this connect just switched the cooler back on (it has not settled yet).
@@ -64,8 +65,24 @@ impl DeviceManager {
     }
 
     /// The position a focuser, wheel or rotator reported at connect,
-    /// checked against the last one Skotiq recorded, and recorded.
+    /// checked against the last one Skotiq recorded, and recorded. A wheel
+    /// that cannot say its slot (-1: moving, or not homed yet after a
+    /// reconnect) and a relative focuser (its position restarts with it)
+    /// are not checked.
     pub(crate) async fn check_position_at_connect(&self, info: &DeviceInfo, reading: Reading) {
+        let unknown = match reading {
+            Reading::Filter(slot) => (slot < 0).then_some("the wheel does not say its slot yet"),
+            Reading::Focuser(_) => match self.focuser_is_absolute(&info.id).await {
+                Ok(true) => None,
+                Ok(false) => Some("a relative focuser's position restarts with it"),
+                Err(_) => Some("the focuser does not say whether it is absolute"),
+            },
+            Reading::Rotator(_) => None,
+        };
+        if let Some(why) = unknown {
+            tracing::debug!("{}: position not checked at connect: {why}", info.id);
+            return;
+        }
         let identity = self.observed_identities.read().await.get(&info.id).cloned();
         self.positions.bind(
             &info.id,

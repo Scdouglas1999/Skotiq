@@ -83,7 +83,7 @@ fn ra_seconds_moved(a: &MountStatus, b: &MountStatus) -> f64 {
 }
 
 /// Whether the RA the mount reported over `elapsed` agrees with its tracking
-/// report (and, for a parked mount, with not tracking). `last_look` is the
+/// report, and a parked mount says it is not tracking. `last_look` is the
 /// second look: a mount that held still then is decided.
 pub(crate) fn tracking(
     first: &MountStatus,
@@ -102,6 +102,11 @@ pub(crate) fn tracking(
             "it reports parked and tracking at once (a parked mount does not track)".to_string(),
         );
     }
+    if second.parked {
+        // Where a parked mount points is its park position, which no driver
+        // reports; its RA proves nothing about the park.
+        return TrackingVerdict::Skip("it is parked");
+    }
     let drift = elapsed.as_secs_f64() * SIDEREAL_RA_PER_SECOND;
     let moved = ra_seconds_moved(first, second).abs();
     if second.tracking {
@@ -118,14 +123,9 @@ pub(crate) fn tracking(
         if !last_look {
             return TrackingVerdict::LookAgain;
         }
-        let state = if second.parked {
-            "parked"
-        } else {
-            "not tracking"
-        };
         return TrackingVerdict::Disagrees(format!(
-            "it reports {state}, but its RA held still for {:.0} s, as a tracking mount's does \
-             (one that is not tracking moves {drift:.0} s)",
+            "it reports not tracking, but its RA held still for {:.0} s, as a tracking mount's \
+             does (one that is not tracking moves {drift:.0} s)",
             elapsed.as_secs_f64()
         ));
     }

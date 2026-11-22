@@ -73,8 +73,9 @@ fn a_mount_that_says_it_does_not_track_while_its_ra_holds_is_looked_at_again_the
     );
 }
 
-/// A fake that lies about park: parked and tracking at once, or parked with
-/// its RA held as a tracking mount's.
+/// A fake that lies about park: parked and tracking at once. A parked mount's
+/// RA is not judged (its park position is what it points at, and no driver
+/// reports it).
 #[test]
 fn a_mount_that_lies_about_park_is_caught() {
     let first = mount_status(5.0, true, true);
@@ -85,7 +86,7 @@ fn a_mount_that_lies_about_park_is_caught() {
     let parked = mount_status(5.0, false, true);
     assert!(matches!(
         verdicts::tracking(&parked, &parked.clone(), Duration::from_secs(10), true),
-        TrackingVerdict::Disagrees(said) if said.contains("reports parked")
+        TrackingVerdict::Skip(_)
     ));
 }
 
@@ -439,4 +440,15 @@ fn a_check_with_nothing_found_says_nothing() {
     };
     manager.report_unverified(&info, &[]);
     assert!(rx.try_recv().is_err());
+}
+
+/// A wheel that cannot say its slot yet (-1) is neither checked nor
+/// recorded.
+#[test]
+fn an_unknown_slot_is_not_recorded() {
+    let positions = positions::Positions::default();
+    positions.bind("wheel", "filter_wheel|wheel".to_string());
+    positions.record("wheel", Reading::Filter(3));
+    positions.record("wheel", Reading::Filter(-1));
+    assert_eq!(positions.last("wheel"), Some(Reading::Filter(3)));
 }
