@@ -22,6 +22,8 @@ class _HostStacker extends LiveStackingService {
   final List<String?> fetched = [];
   Duration download = Duration.zero;
   Duration startTakes = Duration.zero;
+  Duration stopTakes = Duration.zero;
+  bool failStart = false;
   int failNext = 0;
 
   @override
@@ -34,6 +36,7 @@ class _HostStacker extends LiveStackingService {
     String? filterKey,
   }) async {
     await Future<void>.delayed(startTakes);
+    if (failStart) throw StateError('host refused');
     return const LiveStackingStats();
   }
 
@@ -65,7 +68,9 @@ class _HostStacker extends LiveStackingService {
   }
 
   @override
-  Future<void> stop({String? filterKey}) async {}
+  Future<void> stop({String? filterKey}) async {
+    await Future<void>.delayed(stopTakes);
+  }
 }
 
 void main() {
@@ -219,8 +224,56 @@ void main() {
       [
         'host stack running: running | - | L | L | 10 | 1 | - | fetched [L]',
         'host stack ends: idle | - |  | - | - | 0 | - | fetched []',
-        'arm, described before the start returns: running | armed |  | - | - | 0 | - | fetched []',
+        'arm, described before the start returns: running | armed | L | L | 10 | 1 | - | fetched [L]',
         'next L frame: running | armed | L | L | 20 | 2 | - | fetched [L]',
+      ],
+    );
+  });
+
+  test('what the host describes while the client\'s own arm or stop is in '
+      'flight', () {
+    void armSlowly(FakeAsync a, {bool fails = false}) {
+      host
+        ..startTakes = const Duration(seconds: 2)
+        ..failStart = fails;
+      unawaited(notifier().startRemote().catchError((Object _) {}));
+      a.flushMicrotasks();
+    }
+
+    expect(
+      run([
+        (
+          'no stack described before the start returns',
+          (a) {
+            armSlowly(a);
+            describe(a, null);
+          },
+        ),
+        ('host armed', (a) => describe(a, {})),
+        ('first L frame', (a) => describe(a, {'L': 1})),
+        (
+          'stop, an L frame described before it returns',
+          (a) {
+            host.stopTakes = const Duration(seconds: 2);
+            unawaited(notifier().stop());
+            a.flushMicrotasks();
+            describe(a, {'L': 2});
+          },
+        ),
+        (
+          'a refused arm, a stack described before the refusal',
+          (a) {
+            armSlowly(a, fails: true);
+            describe(a, {'L': 3});
+          },
+        ),
+      ]),
+      [
+        'no stack described before the start returns: running | armed |  | - | - | 0 | - | fetched []',
+        'host armed: running | armed |  | - | - | 0 | - | fetched []',
+        'first L frame: running | armed | L | L | 10 | 1 | - | fetched [L]',
+        'stop, an L frame described before it returns: idle | - |  | - | - | 0 | - | fetched []',
+        'a refused arm, a stack described before the refusal: error | armed |  | - | - | 0 | host refused | fetched []',
       ],
     );
   });

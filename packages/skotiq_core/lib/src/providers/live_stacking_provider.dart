@@ -111,6 +111,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   bool _fetchInFlight = false;
   Future<void>? _startInFlight;
   Future<void>? _stopInFlight;
+
+  /// The host's newest description of its stack while this client's own
+  /// start was settling, shown once the start has armed the stack.
+  ({LiveStackSummary summary, SkotiqBackend backend})? _heldHostStack;
   Future<void>? _resetInFlight;
   Future<void> _ingestChain = Future<void>.value();
 
@@ -128,6 +132,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
 
   void _invalidateSession() {
     _hostRevisions = null;
+    _heldHostStack = null;
     _sessionGeneration++;
     _cancelFetchRetry();
     _fetchInFlight = false;
@@ -149,9 +154,26 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     // The caller receives the outcome; this bookkeeping copy must not report
     // a failure a second time as unhandled.
     future.whenComplete(() {
-      if (identical(_startInFlight, future)) _startInFlight = null;
+      if (!identical(_startInFlight, future)) return;
+      _startInFlight = null;
+      _showHeldHostStack();
     }).ignore();
     return future;
+  }
+
+  /// Show what the host described while this client's start settled, when
+  /// the start armed the stack. A description of no stack is not held: it
+  /// predates the arm.
+  void _showHeldHostStack() {
+    final held = _heldHostStack;
+    _heldHostStack = null;
+    if (held == null ||
+        !mounted ||
+        _stopInFlight != null ||
+        state.status != LiveStackingStatus.running) {
+      return;
+    }
+    applyHostStack(held.summary, held.backend);
   }
 
   /// Arm host-side live stacking. The host's runtime channel then describes
@@ -288,8 +310,17 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         ? null
         : {for (final slot in host.slots) slot.filterKey: slot.revision};
     // This client's own start or stop is settling; the host's next update
-    // describes its outcome.
-    if (_startInFlight != null || _stopInFlight != null) return;
+    // describes its outcome. A stack described during the start is shown
+    // once the start has armed it.
+    if (_startInFlight != null || _stopInFlight != null) {
+      if (_stopInFlight == null) {
+        _heldHostStack = host == null
+            ? null
+            : (summary: host, backend: backend);
+      }
+      return;
+    }
+    _heldHostStack = null;
     final onThisHost =
         state.status == LiveStackingStatus.running &&
         _sessionOnHost &&
