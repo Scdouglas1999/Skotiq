@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use skotiq_device::Vendor;
 use skotiq_device::*;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::Notify;
@@ -384,5 +384,57 @@ mod meade_pty_tests {
             );
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
+    }
+}
+
+/// P12-1: the park flag follows the instance's data root.
+#[cfg(test)]
+mod park_state_file_tests {
+    use super::*;
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("skotiq-lx200-park-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_park_flag_moves_under_the_data_root_with_a_copy_of_the_old_file() {
+        let legacy_dir = scratch("legacy");
+        let legacy = legacy_dir.join("lx200_park_state.json");
+        write_persisted_park_state(&legacy, "native:meade:ttyUSB0", true).unwrap();
+        let root = scratch("root").join("data");
+
+        let file = park_state_file(Some(&root), legacy.clone());
+        assert_eq!(file, root.join("lx200_park_state.json"));
+        assert_eq!(
+            read_persisted_park_state(&file, "native:meade:ttyUSB0").unwrap(),
+            Some(true),
+            "a mount parked before the move is still parked"
+        );
+        assert!(legacy.exists(), "the old file is copied, not moved");
+
+        // Copied once: the instance's own file is never overwritten.
+        write_persisted_park_state(&file, "native:meade:ttyUSB0", false).unwrap();
+        let again = park_state_file(Some(&root), legacy.clone());
+        assert_eq!(
+            read_persisted_park_state(&again, "native:meade:ttyUSB0").unwrap(),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn with_neither_file_nothing_is_known_and_without_a_root_the_old_file_is_used() {
+        let legacy = scratch("none").join("lx200_park_state.json");
+        let root = scratch("none-root");
+        let file = park_state_file(Some(&root), legacy.clone());
+        assert!(!file.exists());
+        assert_eq!(
+            read_persisted_park_state(&file, "native:meade:x").unwrap(),
+            None
+        );
+        assert_eq!(park_state_file(None, legacy.clone()), legacy);
     }
 }

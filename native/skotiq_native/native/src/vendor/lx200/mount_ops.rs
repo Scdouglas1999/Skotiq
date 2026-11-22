@@ -101,7 +101,7 @@ impl MountDriver for Lx200Mount {
             .park_state
             .lock()
             .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(true);
-        if let Err(e) = write_persisted_park_state(&self.device_id, true) {
+        if let Err(e) = write_persisted_park_state(&self.park_state_file, &self.device_id, true) {
             // Persistence failure must not silently mask a real park — log
             // loudly and propagate so the operator knows the cache is broken.
             tracing::error!(
@@ -136,7 +136,7 @@ impl MountDriver for Lx200Mount {
             .park_state
             .lock()
             .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(false);
-        if let Err(e) = write_persisted_park_state(&self.device_id, false) {
+        if let Err(e) = write_persisted_park_state(&self.park_state_file, &self.device_id, false) {
             tracing::error!(
                 "Failed to persist LX200 unpark state for {}: {}",
                 self.device_id,
@@ -196,7 +196,9 @@ impl MountDriver for Lx200Mount {
                 .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(is_parked);
             // Best-effort persist: a write failure logs but does not mask
             // a successful telemetry read.
-            if let Err(e) = write_persisted_park_state(&self.device_id, is_parked) {
+            if let Err(e) =
+                write_persisted_park_state(&self.park_state_file, &self.device_id, is_parked)
+            {
                 tracing::warn!(
                     "Persist OnStep park telemetry failed for {}: {}",
                     self.device_id,
@@ -220,7 +222,7 @@ impl MountDriver for Lx200Mount {
                             .lock()
                             .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
                             Some(false);
-                        if let Err(e) = write_persisted_park_state(&self.device_id, false) {
+                        if let Err(e) = write_persisted_park_state(&self.park_state_file, &self.device_id, false) {
                             tracing::warn!(
                                 "Persist Meade park telemetry failed for {}: {}",
                                 self.device_id,

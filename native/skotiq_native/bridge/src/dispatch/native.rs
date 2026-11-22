@@ -68,11 +68,13 @@ impl DeviceManager {
                 elevation_m: Some(location.elevation),
             })
         });
+        let data_root = crate::data_root::root().ok();
         let handle = family
             .open(OpenRequest {
                 address,
                 name: &info.name,
                 site,
+                data_root: data_root.as_deref(),
             })
             .await
             .map_err(|e| e.to_string())?;

@@ -36,6 +36,11 @@ fn get_in(lock: &OnceLock<PathBuf>) -> Result<PathBuf, String> {
     })
 }
 
+/// The host's data root, once `api_init_host` named it.
+pub(crate) fn root() -> Result<PathBuf, String> {
+    get_in(&DATA_ROOT)
+}
+
 pub(crate) fn defect_maps() -> Result<PathBuf, String> {
     Ok(get_in(&DATA_ROOT)?.join("defect_maps"))
 }
