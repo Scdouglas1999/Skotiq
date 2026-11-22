@@ -1,20 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// Format an integration duration in seconds into a concise Observatory readout.
-String formatLiveIntegration(double seconds) {
-  if (!seconds.isFinite || seconds <= 0) return '—';
-  final rounded = seconds.round();
-  if (rounded < 60) return '${rounded}s';
-  final hours = rounded ~/ 3600;
-  final mins = (rounded % 3600) ~/ 60;
-  final secs = rounded % 60;
-  if (hours > 0) {
-    return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
-  }
-  return secs > 0 ? '${mins}m ${secs.toString().padLeft(2, '0')}s' : '${mins}m';
-}
+/// A live stack's total integration ([DurationStyle.short]); an em dash
+/// when nothing is stacked.
+String formatLiveIntegration(double seconds) =>
+    seconds.isFinite && seconds > 0
+    ? DurationFormat.seconds(seconds, style: DurationStyle.short)
+    : '—';
 
 /// Format a pixel count into compact readable units (e.g. `12.4K px`, `1.2M px`).
 String formatPixelCount(int count) {
