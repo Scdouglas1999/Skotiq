@@ -191,14 +191,18 @@ Future<void> _run(SandboxConfig cfg) async {
   // Native bridge + native settings storage, the way the desktop boot does it.
   final dataDir = Directory(cfg.dataDir)..createSync(recursive: true);
   final logDir = Directory('${dataDir.path}/logs')..createSync(recursive: true);
-  await bridge.NativeBridge.init(logDirectory: logDir.path);
+  final profileDir = Directory('${dataDir.path}/profile')
+    ..createSync(recursive: true);
+  await bridge.NativeBridge.init(
+    host: bridge.HostPaths(
+      dataDirectory: dataDir.path,
+      logDirectory: logDir.path,
+      profileDirectory: profileDir.path,
+    ),
+  );
   if (!bridge.NativeBridge.isNativeAvailable) {
     throw StateError('libskotiq_bridge.so did not load');
   }
-  final profileDir = Directory('${dataDir.path}/profile')
-    ..createSync(recursive: true);
-  bridge.apiInitProfileStorage(storagePath: profileDir.path);
-  bridge.apiInitSettingsStorage(storagePath: profileDir.path);
   bridge.apiPlatesolveSetConfig(
     config: bridge.PlateSolverConfigPayload(
       astapPath: cfg.astapPath,

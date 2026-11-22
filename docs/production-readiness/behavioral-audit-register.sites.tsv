@@ -274,9 +274,9 @@ native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	a_calibrated
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	a_light_pedestal_leaves_before_calibration	rust_let_underscore	1	O10-05	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	file_and_memory_calibration_use_a_master_flat_as_it_is	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/bridge/src/api/imaging/calibrate_rule_tests.rs	sky_below_the_bias_is_kept_and_the_pedestal_stated	rust_let_underscore	1	V0779	let _ = std::fs::remove_dir_all(&dir);
-native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0631	let _ = crate::state::save_platesolver_preference(&previous);
+native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0631	let _ = crate::solver::save_solver_preference(&previous);
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	detach_sim_camera	rust_let_underscore	1	V0631	let _ = api_clear_device_image(device_id.to_string()).await;
-native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	rust_let_underscore	1	V0631	let _ = crate::state::save_platesolver_preference(&previous);
+native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	rust_let_underscore	1	V0631	let _ = crate::solver::save_solver_preference(&previous);
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	unwrap_or_default	1	V0631	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	unwrap_or_default	1	V0631	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/init.rs	api_init_with_logging	rust_let_underscore	1	V0048	let _ = get_device_manager();
@@ -537,9 +537,9 @@ native/skotiq_native/bridge/src/device_manager/ops/backstop_tests.rs	a_wheel_mov
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	partially_readable_offsets_leave_the_pattern_unknown	unimplemented_behavior	1	V0779	offset_y: Err("BayerOffsetY not implemented".to_string()),
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	unreadable	unimplemented_behavior	1	V0268	offset_x: Err("BayerOffsetX not implemented".to_string()),
 native/skotiq_native/bridge/src/device_manager/ops/camera/download.rs	unreadable	unimplemented_behavior	1	V0779	offset_y: Err("BayerOffsetY not implemented".to_string()),
-native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_frame_carries_the_catalogue_field	rust_let_underscore	1	V0667	let _ = crate::state::save_platesolver_preference(&previous);
+native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_frame_carries_the_catalogue_field	rust_let_underscore	1	V0667	let _ = crate::solver::save_solver_preference(&previous);
+native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0779	let _ = crate::solver::save_solver_preference(&previous);
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0779	let _ = crate::state::init_platesolver_storage(store.path().to_path_buf());
-native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	rust_let_underscore	1	V0779	let _ = crate::state::save_platesolver_preference(&previous);
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_frame_carries_the_catalogue_field	unwrap_or_default	1	V0666	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	a_downloaded_simulator_frame_solves_at_the_mounts_pointing	unwrap_or_default	1	V0779	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/device_manager/ops/camera/mod.rs	-	unwrap_or_literal	1	V0665	//! carries no setpoint, and substituting one (`target_temp.unwrap_or(-10.0)`)
