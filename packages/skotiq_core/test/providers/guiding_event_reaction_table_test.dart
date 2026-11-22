@@ -367,7 +367,7 @@ const Map<_Start, Map<String, String>> _expected = {
     'ditherCompleted':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'correction':
-        'guiding conn=connected guiding=true rms=0.000 stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.559 loop=0 graph=2 history=2 lock=1.0,1.0 calibrated=false calls= later=',
+        'guiding conn=connected guiding=true rms=0.000 stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.559 loop=0 graph=2 history=2 lock=1.0,1.0 calibrated=false calls= later=',
     'looping':
         'looping conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'settling':
@@ -491,7 +491,7 @@ const Map<_Start, Map<String, String>> _expected = {
     'ditherCompleted':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'correction':
-        'guiding conn=connected guiding=true rms=0.000 stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.559 loop=0 graph=2 history=2 lock=1.0,1.0 calibrated=false calls= later=',
+        'guiding conn=connected guiding=true rms=0.000 stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.559 loop=0 graph=2 history=2 lock=1.0,1.0 calibrated=false calls= later=',
     'looping':
         'looping conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls=guiderGetStatus later=guiderGetStatus',
     'settling':

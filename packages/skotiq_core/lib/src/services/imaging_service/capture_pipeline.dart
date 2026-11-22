@@ -130,20 +130,22 @@ extension _ImagingServiceCapturePipeline on ImagingService {
 
       final eventSubscription = backend.eventStream.listen((event) {
         if (!_hasBackendAuthority(backend)) return;
-        if (event.category == EventCategory.imaging) {
-          if (!ImagingService._eventNamesCamera(event, deviceId)) return;
-          if (event.eventType == 'ExposureProgress') {
-            final progress = event.data['progress'] as double? ?? 0.0;
-            final remainingSecs = event.data['remainingSecs'] as double? ?? 0.0;
+        final imaging = imagingEventOf(event);
+        if (imaging == null) return;
+        if (!ImagingService._eventNamesCamera(event, deviceId)) return;
+        switch (imaging) {
+          case ImagingEvent_ExposureProgress(
+            :final progress,
+            :final remainingSecs,
+          ):
             final elapsed = settings.exposureTime - remainingSecs;
-
             cameraNotifier.setExposing(true, progress: progress);
             progressNotifier.updateProgress(
               elapsed,
               remainingSecs,
               progress * 100,
             );
-          } else if (event.eventType == 'ExposureComplete') {
+          case ImagingEvent_ExposureComplete():
             _logger.debug(
               'ExposureComplete event received',
               source: 'ImagingService',
@@ -151,21 +153,24 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             if (!exposureCompleter.isCompleted) {
               exposureCompleter.complete(true);
             }
-          } else if (event.eventType == 'ExposureCancelled') {
-            // Exposure was cancelled
+          case ImagingEvent_ExposureCancelled():
             if (!exposureCompleter.isCompleted) {
               exposureCompleter.complete(false);
             }
-          } else if (event.eventType == 'ExposureFailed') {
-            // Exposure failed
+          case ImagingEvent_ExposureFailed(:final error):
             if (!exposureCompleter.isCompleted) {
-              final errorMsg =
-                  event.data['error'] as String? ?? 'Unknown error';
               exposureCompleter.completeError(
-                Exception('Exposure failed: $errorMsg'),
+                Exception('Exposure failed: $error'),
               );
             }
-          }
+          case ImagingEvent_ExposureFailedOld():
+            // This form names its cause under `reason`, which was never read.
+            if (!exposureCompleter.isCompleted) {
+              exposureCompleter.completeError(
+                Exception('Exposure failed: Unknown error'),
+              );
+            }
+          default:
         }
       });
 

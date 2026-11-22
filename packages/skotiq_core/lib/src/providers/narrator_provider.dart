@@ -119,8 +119,7 @@ final class _HostNarratorEventLog implements NarratorEventLog {
     backend: _ref.read(backendProvider),
     fetch: fetch,
     decode: narratorEventFromWireJson,
-    shouldRefetch: (event) =>
-        !hostTelemetryEventTypes.contains(event.eventType),
+    shouldRefetch: (event) => !isHostTelemetryEvent(event),
     minInterval: remoteNarratorRefetchMinInterval,
   );
 

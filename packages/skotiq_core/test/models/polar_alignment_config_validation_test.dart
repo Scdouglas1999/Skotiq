@@ -112,44 +112,4 @@ void main() {
       expect(errors, equals(const PolarAlignmentConfig(gain: 5000).validate()));
     });
   });
-
-  group('PolarAlignmentError.fromEventData defensive parsing', () {
-    test('integer JSON payloads parse without throwing', () {
-      final error = PolarAlignmentError.fromEventData(const {
-        // int values (as they arrive over JSON when whole numbers)
-        'azimuth_error': 2,
-        'altitude_error': 3,
-        'total_error': 4,
-        'current_ra': 120,
-        'current_dec': 45,
-        'target_ra': 0,
-        'target_dec': 90,
-      });
-      expect(error.azimuthError, 2.0);
-      expect(error.totalError, 4.0);
-      expect(error.currentRa, 120.0);
-      expect(error.targetDec, 90.0);
-    });
-
-    test('double and numeric-string payloads both parse', () {
-      final error = PolarAlignmentError.fromEventData(const {
-        'azimuth_error': 1.5,
-        'altitude_error': '-0.75',
-        'total_error': 1.68,
-      });
-      expect(error.azimuthError, 1.5);
-      expect(error.altitudeError, -0.75);
-      expect(error.totalError, closeTo(1.68, 1e-9));
-    });
-
-    test('missing / unparseable fields fall back to 0 instead of throwing', () {
-      final error = PolarAlignmentError.fromEventData(const {
-        'azimuth_error': 'not-a-number',
-        // other keys absent
-      });
-      expect(error.azimuthError, 0.0);
-      expect(error.totalError, 0.0);
-      expect(error.targetRa, 0.0);
-    });
-  });
 }

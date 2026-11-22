@@ -177,9 +177,10 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
       rmsTotal: rmsTotal,
       peakRa: peakRa,
       peakDec: peakDec,
-      // A guide step carries no star statistics.
-      snr: 0,
-      starMass: 0,
+      // A guide step carries no star statistics; the GuideStats event sent
+      // with each step does.
+      snr: state.snr,
+      starMass: state.starMass,
       frameCount: _frameCount,
       loopFrameCount: _loopFrameCount,
     );

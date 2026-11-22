@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/bridge_event_codec.dart' show typedEventFromWire;
+import '../backend/bridge_events.dart' as bridge show EventPayload_DepthLock;
 import '../backend/skotiq_backend.dart';
 import '../models/backend/event_types.dart' as core;
 import '../models/depthlock/depthlock_models.dart';
@@ -27,17 +29,10 @@ final depthLockEventStreamProvider = Provider<Stream<core.SkotiqEvent>>((ref) {
   return ref.watch(backendProvider).eventStream;
 });
 
-/// Whether [event] is one of the DepthLock family.
-///
-/// The native side emits these as typed `DepthLockEvent` variants under
-/// `EventPayload::DepthLock`; the FFI and WebSocket mappers collapse the union
-/// to this envelope's `eventType` string. The prefix is matched rather than a
-/// fixed set of names so a variant added later still refreshes the list, and
-/// case-insensitively because the mapper's generic arm derives the name from
-/// the union's own `depthLock` spelling while a named arm would write
-/// `DepthLockGoalUpdated`.
+/// Whether [event] is one of the DepthLock family, a variant added later
+/// included.
 bool isDepthLockEvent(core.SkotiqEvent event) =>
-    event.eventType.toLowerCase().startsWith('depthlock');
+    typedEventFromWire(event)?.payload is bridge.EventPayload_DepthLock;
 
 /// Every persistent DepthLock goal the host holds, newest revision first.
 ///

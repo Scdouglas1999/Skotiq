@@ -1,31 +1,25 @@
 import 'dart:async';
 
+import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_events.dart'
+    show ImagingEvent_IntegrationProgress, ImagingEvent_TemperatureChanged;
 import '../backend/skotiq_backend.dart';
+import '../backend/telemetry_events.dart';
 import '../models/backend/backend_types.dart';
 
 /// Quiet period after a relevant host event before a re-fetch, so a burst of
 /// related events costs one request.
 const Duration remoteSnapshotRefetchDebounce = Duration(milliseconds: 750);
 
-/// Per-tick host telemetry: these events arrive many times a second while
+/// Per-tick host telemetry: events that arrive many times a second while
 /// guiding or exposing and never change a stored list on the host.
-const Set<String> hostTelemetryEventTypes = {
-  'ExposureProgress',
-  'GuideStep',
-  'GuideStats',
-  'MountPositionChanged',
-  'CameraTemperatureChanged',
-  'TemperatureChanged',
-  'FocuserPositionChanged',
-  'FilterWheelPositionChanged',
-  'InstructionProgress',
-  'AutofocusProgress',
-  'IntegrationProgress',
-  'Progress',
-  'ProgressUpdated',
-  'Heartbeat',
-  'HeartbeatOk',
-};
+bool isHostTelemetryEvent(SkotiqEvent event) =>
+    isPerTickTelemetry(event) ||
+    switch (imagingEventOf(event)) {
+      ImagingEvent_TemperatureChanged() ||
+      ImagingEvent_IntegrationProgress() => true,
+      _ => false,
+    };
 
 /// A REST snapshot of a host-owned list, kept current on a companion.
 ///

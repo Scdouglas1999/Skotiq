@@ -26,6 +26,7 @@ export 'src/backend/network_backend/host_data/remote_imaging_records.dart';
 export 'src/backend/roles/host_data/imaging_records.dart';
 export 'src/backend/bridge_event_codec.dart';
 export 'src/backend/sequencer_run_events.dart';
+export 'src/backend/telemetry_events.dart';
 export 'src/backend/roles/host_data/photometric_transforms.dart';
 export 'src/backend/phd2_probe.dart'
     show Phd2ProbeOutcome, Phd2ProbeResult, normalizePhd2ProbeHost, probePhd2;

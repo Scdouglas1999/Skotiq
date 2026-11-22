@@ -2,6 +2,15 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import '../backend/skotiq_backend.dart';
+import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_events.dart'
+    show
+        ImagingEvent_ExposureCancelled,
+        ImagingEvent_ExposureComplete,
+        ImagingEvent_ExposureCompleted,
+        ImagingEvent_ExposureCompletedWithFrame,
+        ImagingEvent_ExposureFailed,
+        ImagingEvent_ExposureFailedOld;
 import '../backend/network_backend.dart';
 import '../models/flat_wizard/flat_capture_config.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
