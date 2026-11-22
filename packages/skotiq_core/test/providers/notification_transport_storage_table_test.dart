@@ -2,8 +2,6 @@
 // the exact JSON written there (secrets blanked), and the keyring fields.
 // Installed hosts hold these values, so they must not move.
 
-import 'dart:convert';
-
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -132,7 +130,10 @@ final _rows = <_Row>[
       password: 'p',
       topic: 'rig/events',
     ),
-    storedJson: '',
+    storedJson:
+        '{"host":"broker.local","port":1883,"username":"u",'
+        '"password":null,"topic":"rig/events","qos":0,"retain":false,'
+        '"useTls":false,"clientId":"skotiq"}',
     secrets: {SecretField.mqttPassword: 'p'},
     read: (c) async => c.read(mqttTransportConfigProvider.future),
     save: (c, v) => c
@@ -162,13 +163,7 @@ void main() {
       await row.save(container, row.config);
 
       final stored = await db.settingsDao.getSetting(row.key);
-      if (row.storedJson.isEmpty) {
-        final decoded = jsonDecode(stored!) as Map<String, dynamic>;
-        expect(decoded['password'], isNull);
-        expect(decoded['host'], 'broker.local');
-      } else {
-        expect(stored, row.storedJson);
-      }
+      expect(stored, row.storedJson);
       final secrets = SecretsStore(keyring);
       for (final entry in row.secrets.entries) {
         expect(await secrets.read(entry.key), entry.value, reason: entry.key);
