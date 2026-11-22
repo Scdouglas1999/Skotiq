@@ -256,7 +256,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final recordFocusModel = await _focusModelRecorder(method);
     if (mgr != null && !preferLegacy) {
       final job = mgr.start(
-        operation: 'focuser.autofocus',
+        operation: JobOperation.autofocus,
         deviceId: deviceId,
         commandId: commandId,
         work: (sink, cancellation) async {
@@ -406,7 +406,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final preferLegacy = requestPrefersLegacyBlocking(request);
     if (mgr != null && !preferLegacy) {
       final job = mgr.start(
-        operation: 'focuser.backlash-calibration',
+        operation: JobOperation.backlashCalibration,
         deviceId: deviceId,
         commandId: commandId,
         work: (sink, cancellation) async {
@@ -472,7 +472,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     );
     final manager = jobManager;
     final activeJobs = manager
-        ?.list(operation: 'focuser.backlash-calibration')
+        ?.list(operation: JobOperation.backlashCalibration.wire)
         .where((job) => !job.state.isTerminal)
         .toList(growable: false);
     if (activeJobs != null && activeJobs.isNotEmpty) {
@@ -546,7 +546,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     );
     final manager = jobManager;
     final activeJobs = manager
-        ?.list(operation: 'focuser.autofocus')
+        ?.list(operation: JobOperation.autofocus.wire)
         .where((job) => !job.state.isTerminal)
         .toList(growable: false);
     if (activeJobs != null && activeJobs.isNotEmpty) {

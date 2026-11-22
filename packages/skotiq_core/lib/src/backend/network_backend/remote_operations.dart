@@ -46,7 +46,7 @@ mixin _NetworkBackendRemoteOperations on NetworkBackendTransport {
     Duration pollInterval = const Duration(seconds: 5),
   }) async {
     final initial = await getJob(jobId);
-    if (_isTerminalRemoteJobState(initial.state)) {
+    if (initial.isTerminal) {
       return initial;
     }
     final completer = Completer<RemoteJob>();
@@ -62,7 +62,7 @@ mixin _NetworkBackendRemoteOperations on NetworkBackendTransport {
     }
 
     sub = watchJob(jobId).listen((snapshot) {
-      if (_isTerminalRemoteJobState(snapshot.state)) {
+      if (snapshot.isTerminal) {
         finish(snapshot);
       }
     });
@@ -81,7 +81,7 @@ mixin _NetworkBackendRemoteOperations on NetworkBackendTransport {
       if (completer.isCompleted) return;
       try {
         final snap = await getJob(jobId);
-        if (_isTerminalRemoteJobState(snap.state)) {
+        if (snap.isTerminal) {
           finish(snap);
         }
       } catch (_) {
@@ -148,10 +148,6 @@ mixin _NetworkBackendRemoteOperations on NetworkBackendTransport {
       );
     }
     return result;
-  }
-
-  static bool _isTerminalRemoteJobState(String state) {
-    return state == 'succeeded' || state == 'failed' || state == 'cancelled';
   }
 
   /// POST /api/session/claim — returns true on success, false when the

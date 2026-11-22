@@ -18,6 +18,7 @@ import 'package:skotiq_desktop/headless_api/handlers/imaging_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:skotiq_desktop/headless_api/request_context.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobState;
 
 import 'handler_test_helpers.dart';
 

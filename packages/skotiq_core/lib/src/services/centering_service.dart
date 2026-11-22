@@ -11,6 +11,8 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         ApiCenteringStep_Solved,
         apiCancelCentering,
         apiCenterOnTarget;
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobState;
+
 import '../backend/remote_host.dart';
 import '../models/app_screen.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
@@ -101,11 +103,11 @@ final class HostCenteringRunner implements CenteringRunner {
         }
       }
       yield ApiCenteringStep.finished(
-        centered: job.state == 'succeeded',
-        cancelled: job.state == 'cancelled',
-        message: switch (job.state) {
-          'succeeded' => 'Centered on the imaging host',
-          'cancelled' => 'Centering stopped',
+        centered: job.knownState == JobState.succeeded,
+        cancelled: job.knownState == JobState.cancelled,
+        message: switch (job.knownState) {
+          JobState.succeeded => 'Centered on the imaging host',
+          JobState.cancelled => 'Centering stopped',
           _ =>
             job.error?['message'] as String? ??
                 'Centering did not reach the target.',

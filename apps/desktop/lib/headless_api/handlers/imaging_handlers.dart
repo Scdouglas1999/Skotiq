@@ -127,7 +127,7 @@ class ImagingHandlers implements RouteSource {
     final preferLegacy = requestPrefersLegacyBlocking(request);
     if (mgr != null && !preferLegacy) {
       final job = mgr.start(
-        operation: 'plate-solve',
+        operation: JobOperation.plateSolve,
         deviceId: null,
         work: (sink, cancellation) async {
           sink.update(null, 'Solving $imagePath');

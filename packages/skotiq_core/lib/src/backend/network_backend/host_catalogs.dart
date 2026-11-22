@@ -7,7 +7,10 @@ mixin HostCatalogs on NetworkBackendTransport {
   /// `catalog`-category events on the WS stream.
   Future<RemoteJob> downloadCatalog(String name) async {
     final response = await _post(CatalogApi.download, body: {'name': name});
-    return RemoteJob.fromJson(response, fallbackOperation: 'catalog.download');
+    return RemoteJob.fromJson(
+      response,
+      fallbackOperation: JobOperation.catalogDownload.wire,
+    );
   }
 
   /// GET /api/catalog/status. Returns the on-disk state of every known

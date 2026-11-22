@@ -235,7 +235,7 @@ extension SessionThumbnailHandlers on SessionHandlers {
       });
     }
     final job = mgr.start(
-      operation: 'image.backfill-thumbnails',
+      operation: JobOperation.backfillThumbnails,
       deviceId: null,
       work: (sink, cancellation) async {
         final database = container.read(databaseProvider);

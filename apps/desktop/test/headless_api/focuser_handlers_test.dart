@@ -13,6 +13,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobState;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

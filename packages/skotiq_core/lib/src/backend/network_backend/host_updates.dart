@@ -26,7 +26,7 @@ mixin HostUpdates on NetworkBackendTransport {
     final response = await _post(UpdateApi.apply);
     return RemoteJob.fromJson(
       response,
-      fallbackOperation: 'system.update.apply',
+      fallbackOperation: JobOperation.updateApply.wire,
     );
   }
 
@@ -38,7 +38,7 @@ mixin HostUpdates on NetworkBackendTransport {
     );
     return RemoteJob.fromJson(
       response,
-      fallbackOperation: 'system.update.check',
+      fallbackOperation: JobOperation.updateCheck.wire,
     );
   }
 
@@ -53,7 +53,7 @@ mixin HostUpdates on NetworkBackendTransport {
     final response = await _post(UpdateApi.download);
     return RemoteJob.fromJson(
       response,
-      fallbackOperation: 'system.update.download',
+      fallbackOperation: JobOperation.updateDownload.wire,
     );
   }
 
@@ -86,7 +86,7 @@ mixin HostUpdates on NetworkBackendTransport {
     final response = await _post(UpdateApi.rollback);
     return RemoteJob.fromJson(
       response,
-      fallbackOperation: 'system.update.rollback',
+      fallbackOperation: JobOperation.updateRollback.wire,
     );
   }
 }

@@ -121,7 +121,7 @@ class FramingHandlers implements RouteSource {
     final preferLegacy = requestPrefersLegacyBlocking(request);
     if (mgr != null && !preferLegacy) {
       final job = mgr.start(
-        operation: 'framing.center-on-target',
+        operation: JobOperation.centerOnTarget,
         deviceId: null,
         work: (sink, cancellation) async {
           sink.update(0.0, 'Centering on RA=$ra DEC=$dec');
