@@ -44,45 +44,63 @@ void _applyFlipStep(Ref ref, String raw) {
   } on FormatException {
     return;
   }
+  final progress = ref.read(flipMonitorProgressProvider.notifier);
   switch (MeridianFlipEvent.fromWire(decoded)) {
     case null:
       return;
     case MeridianFlipStarting():
-      ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.executing;
-      ref.read(flipCurrentAttemptProvider.notifier).state = 1;
-      ref.read(flipCurrentStepProvider.notifier).state = null;
-      ref.read(flipProgressProvider.notifier).state = 0;
-      ref.read(flipLastErrorProvider.notifier).state = null;
+      progress.update(
+        (p) => p.copyWith(
+          state: FlipExecutionState.executing,
+          attempt: 1,
+          clearStep: true,
+          percent: 0,
+          clearError: true,
+        ),
+      );
     case MeridianFlipStepStarted(:final step):
-      ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.executing;
-      ref.read(flipCurrentStepProvider.notifier).state = step;
+      progress.update(
+        (p) => p.copyWith(
+          state: FlipExecutionState.executing,
+          step: step,
+          clearStep: step == null,
+        ),
+      );
     case MeridianFlipStepCompleted():
       break;
     case MeridianFlipStepFailed(:final step, :final error):
-      ref.read(flipCurrentStepProvider.notifier).state = step;
-      ref.read(flipLastErrorProvider.notifier).state = error;
+      progress.update(
+        (p) => p.copyWith(
+          step: step,
+          clearStep: step == null,
+          error: error,
+          clearError: error == null,
+        ),
+      );
     case MeridianFlipProgress(:final percent):
       if (percent != null) {
-        ref.read(flipProgressProvider.notifier).state = percent.clamp(0, 100);
+        progress.update((p) => p.copyWith(percent: percent.clamp(0, 100)));
       }
     case MeridianFlipRetryScheduled(:final attempt):
-      ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.retrying;
-      if (attempt != null) {
-        ref.read(flipCurrentAttemptProvider.notifier).state = attempt + 1;
-      }
-      ref.read(flipProgressProvider.notifier).state = 0;
+      progress.update(
+        (p) => p.copyWith(
+          state: FlipExecutionState.retrying,
+          attempt: attempt == null ? null : attempt + 1,
+          percent: 0,
+        ),
+      );
     case MeridianFlipCompleted():
-      ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.completed;
-      ref.read(flipCurrentStepProvider.notifier).state = null;
-      ref.read(flipProgressProvider.notifier).state = 100;
-      ref.read(flipLastErrorProvider.notifier).state = null;
+      progress.update(
+        (p) => p.copyWith(
+          state: FlipExecutionState.completed,
+          clearStep: true,
+          percent: 100,
+          clearError: true,
+        ),
+      );
     case MeridianFlipFailed(:final error):
-      endFlipMonitorProgress(ref, FlipExecutionState.failed, error);
+      progress.end(FlipExecutionState.failed, error);
     case MeridianFlipAborted(:final reason):
-      endFlipMonitorProgress(ref, FlipExecutionState.aborted, reason);
+      progress.end(FlipExecutionState.aborted, reason);
   }
 }

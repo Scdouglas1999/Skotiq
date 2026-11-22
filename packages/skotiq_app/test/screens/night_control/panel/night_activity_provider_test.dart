@@ -300,10 +300,12 @@ void main() {
     container
         .read(runRecordProvider.notifier)
         .setLifecycle(SequenceExecutionState.paused);
-    container.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
-    container.read(flipCurrentStepProvider.notifier).state =
-        FlipStep.slewingToTarget;
+    container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.executing));
+    container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(step: FlipStep.slewingToTarget));
     expect(
         container.read(nightActivityProvider).title.key, 'nightActivityPaused');
     expect(container.read(nightActivityProvider).context, isNull);

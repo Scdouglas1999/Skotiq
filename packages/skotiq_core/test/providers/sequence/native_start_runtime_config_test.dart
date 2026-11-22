@@ -440,8 +440,9 @@ void main() {
 
   test('start throws before the backend when a flip is running', () async {
     final c = buildContainer(settings: const AppSettingsState());
-    c.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
+    c
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.executing));
     c.read(currentSequenceProvider.notifier).loadSequence(_buildSequence());
 
     await expectLater(

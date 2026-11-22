@@ -7,13 +7,7 @@ import '../runtime_mirror_channel.dart';
 
 final _meridianFlipProgressProvider = Provider<FlipMonitorProgress>((ref) {
   ref.watch(meridianFlipTelemetryProvider);
-  return FlipMonitorProgress(
-    state: ref.watch(flipExecutionStateProvider),
-    attempt: ref.watch(flipCurrentAttemptProvider),
-    step: ref.watch(flipCurrentStepProvider),
-    percent: ref.watch(flipProgressProvider),
-    error: ref.watch(flipLastErrorProvider),
-  );
+  return ref.watch(flipMonitorProgressProvider);
 });
 
 /// A meridian flip the host's flip monitor is performing outside a sequence.
@@ -39,11 +33,8 @@ class MeridianFlipChannel extends RuntimeMirrorChannel<FlipMonitorProgress> {
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    final progress = FlipMonitorProgress.fromJson(value);
-    context.read(flipExecutionStateProvider.notifier).state = progress.state;
-    context.read(flipCurrentAttemptProvider.notifier).state = progress.attempt;
-    context.read(flipCurrentStepProvider.notifier).state = progress.step;
-    context.read(flipProgressProvider.notifier).state = progress.percent;
-    context.read(flipLastErrorProvider.notifier).state = progress.error;
+    context
+        .read(flipMonitorProgressProvider.notifier)
+        .set(FlipMonitorProgress.fromJson(value));
   }
 }
