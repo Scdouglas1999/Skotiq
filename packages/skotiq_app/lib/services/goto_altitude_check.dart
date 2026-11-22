@@ -98,7 +98,7 @@ Future<bool> confirmGoToAltitude(
     decDeg: decDeg,
     site: site,
     floor: floor,
-    atUtc: DateTime.now().toUtc(),
+    atUtc: ref.read(clockProvider).nowUtc(),
   );
   if (verdict.kind == GoToAltitudeKind.clear) return true;
 
