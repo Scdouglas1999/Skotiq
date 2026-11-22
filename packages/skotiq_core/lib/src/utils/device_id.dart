@@ -10,8 +10,9 @@
 /// assigned", canonicalize PHD2 variants, or derive a fallback display name
 /// MUST route through here rather than re-deriving the logic.
 ///
-/// Format conventions (mirrors `native/skotiq_native/bridge/src/device_id.rs`,
-/// the canonical Rust parser — see the canonical device-ID rules):
+/// Format conventions (mirrors `native/skotiq_native/bridge/src/device_id/mod.rs`,
+/// the canonical Rust parser; test_fixtures/device_id/cases.json records
+/// both parsers' answers):
 ///   - `ascom:<prog_id>`                       (Windows ASCOM COM driver)
 ///   - `alpaca:<proto>://<host>:<port>:<type>:<num>` (cross-platform ASCOM HTTP)
 ///   - `indi:<host>:<port>:<device_name>`      (Linux/macOS INDI server)
