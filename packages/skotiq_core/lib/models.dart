@@ -82,6 +82,7 @@ export 'src/models/meridian_flip_event.dart';
 export 'src/models/flat_wizard/flat_capture_config.dart';
 export 'src/models/flat_wizard/flat_wizard_settings.dart';
 export 'src/models/flat_wizard/flat_wizard_state.dart';
+export 'src/models/flat_wizard/flat_run_snapshot.dart';
 export 'src/models/polar_alignment_config.dart';
 export 'src/models/alerts/transient_alert.dart';
 export 'src/models/planning/target_suggestion.dart';
