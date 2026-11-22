@@ -1,27 +1,18 @@
 // The post-session integration-progress wiring.
 //
-// The progress feature spans two contracts that must agree on the exact
-// `eventType` token and `data` keys:
-//
-//   1. The FFI event mapper (`_extractImagingEventInfo` in
-//      ffi_backend/event_mapping.dart) must turn a native
-//      `ImagingEvent::IntegrationProgress` into a SkotiqEvent whose
-//      `category == EventCategory.imaging`, `eventType == 'IntegrationProgress'`,
-//      and whose `data` carries 'phase' and 'fraction'.
-//   2. The production seam (`BridgePostSessionSeam.integrationProgress`) filters
-//      the backend event stream on exactly that category + eventType and reads
-//      exactly those data keys.
-//
-// The mapper half runs over native types and cannot be exercised without the
-// Rust library, but it has only one job: emit the event shape this test feeds
-// in. This test pins the consumer contract (category, eventType, data keys) so
-// that if the mapper ever drifts back to 'UnknownImagingEvent' or renames a
-// key, the seam side that depends on the spelling is caught here.
+// The native `ImagingEvent::IntegrationProgress` reaches the seam through the
+// generated event codec (`wireEventFromTyped`), and the seam
+// (`BridgePostSessionSeam.integrationProgress`) filters the event stream on
+// its category and event type and reads its data keys. The progress events
+// here are built from the typed event and encoded by that codec, so a renamed
+// type or key on either side fails this test.
 
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/src/backend/bridge_event_codec.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
@@ -33,17 +24,21 @@ SkotiqEvent _progressEvent({
   required double fraction,
   int? framesDone,
   int? framesTotal,
-}) => SkotiqEvent(
-  timestamp: 0,
-  severity: EventSeverity.info,
-  category: EventCategory.imaging,
-  eventType: 'IntegrationProgress',
-  data: {
-    'phase': phase,
-    'fraction': fraction,
-    if (framesDone != null) 'frames_done': framesDone,
-    if (framesTotal != null) 'frames_total': framesTotal,
-  },
+}) => wireEventFromTyped(
+  bridge.SkotiqEvent(
+    eventId: BigInt.one,
+    timestamp: 0,
+    severity: bridge.EventSeverity.info,
+    category: bridge.EventCategory.imaging,
+    payload: bridge.EventPayload.imaging(
+      bridge.ImagingEvent.integrationProgress(
+        phase: phase,
+        fraction: fraction,
+        framesDone: framesDone,
+        framesTotal: framesTotal,
+      ),
+    ),
+  ),
 );
 
 void main() {
