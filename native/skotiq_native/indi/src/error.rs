@@ -81,6 +81,10 @@ pub enum IndiError {
     /// The device has not published the value, or has no property that
     /// offers the control. Holds the whole sentence shown to the user.
     Unavailable(String),
+    /// The value is missing because the device is: the server link dropped,
+    /// or every property the device had vanished (a server outage, a
+    /// restarted driver). Holds the whole sentence shown to the user.
+    Gone(String),
     /// An operation the device accepted did not finish: it raised an alert,
     /// ran past its deadline, or the event stream ended. Holds the whole
     /// sentence shown to the user.
@@ -198,7 +202,9 @@ impl fmt::Display for IndiError {
                     value, min, max, device, property, element
                 )
             }
-            IndiError::Unavailable(sentence) | IndiError::Incomplete(sentence) => {
+            IndiError::Unavailable(sentence)
+            | IndiError::Gone(sentence)
+            | IndiError::Incomplete(sentence) => {
                 write!(f, "{}", sentence)
             }
             IndiError::Failed { what, cause } => write!(f, "{} failed: {}", what, cause),
@@ -226,7 +232,9 @@ impl From<IndiError> for skotiq_device::DriverError {
         match &err {
             IndiError::NotConnected => DriverError::NotConnected,
             // The connection to the server is gone, and with it every device on it.
-            IndiError::ChannelClosed(_) | IndiError::ReaderDied(_) => DriverError::Disconnected,
+            IndiError::ChannelClosed(_) | IndiError::ReaderDied(_) | IndiError::Gone(_) => {
+                DriverError::Disconnected
+            }
             IndiError::ConnectionTimeout { .. }
             | IndiError::OperationTimeout { .. }
             | IndiError::MessageParseTimeout { .. }
