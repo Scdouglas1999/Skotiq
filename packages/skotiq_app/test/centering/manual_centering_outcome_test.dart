@@ -1,7 +1,7 @@
 // What each manual "center on coordinates" leaves behind: the centering
 // status every window shows and the last result the recent-solves list and
 // linked windows read, for a run that centers, one that fails and one that
-// throws. The Tonight action, the Mount tab's Slew & center and the
+// throws (it ends as a failure, not on its last move). The Tonight action, the Mount tab's Slew & center and the
 // centering dialog (Framing, the planetarium, catalog cards) each start one.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -119,9 +119,9 @@ const Map<String, Map<_Outcome, _Left>> expected = {
       recorded: false,
     ),
     _Outcome.threw: (
-      state: CenteringState.solving,
-      message: 'Plate solving…',
-      recorded: null,
+      state: CenteringState.error,
+      message: 'camera gone',
+      recorded: false,
     ),
   },
   'mountTab': {
@@ -150,9 +150,9 @@ const Map<String, Map<_Outcome, _Left>> expected = {
       recorded: false,
     ),
     _Outcome.threw: (
-      state: CenteringState.solving,
-      message: 'Plate solving…',
-      recorded: null,
+      state: CenteringState.error,
+      message: 'camera gone',
+      recorded: false,
     ),
   },
 };
