@@ -28,7 +28,7 @@ pub struct ProductCards<'a> {
 
 impl ProductCards<'_> {
     /// A file named only by its `IMAGETYP` (a coverage or rejection map, a
-    /// registration reference, a streamed dark or bias master).
+    /// registration reference).
     pub fn image_type(image_type: &str) -> ProductCards<'_> {
         ProductCards {
             image_type,
@@ -222,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn a_streamed_dark_says_integrated_by_its_type_and_count_only() {
+    fn a_streamed_dark_of_earlier_releases_says_integrated_by_its_type_only() {
         let mut header = FitsHeader::new();
         ProductCards::image_type("Master Dark").write_to(&mut header);
         let read = MasterProvenance::from_header(&header);
