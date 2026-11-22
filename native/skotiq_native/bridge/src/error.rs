@@ -225,12 +225,23 @@ pub enum Refusal {
     DepthLockUnavailable,
     /// Calibration frames brightened during the set: a light leak.
     LightLeak,
+    /// The live stacker left a frame out because it did not align to the
+    /// reference.
+    LiveStackMisaligned,
+    /// The live stacker left a frame out because it was taken through another
+    /// filter than the stack's.
+    LiveStackOtherFilter,
+    /// The frame file handed to the live stacker could not be read.
+    LiveStackUnreadable,
 }
 
 impl Refusal {
     fn display_prefix(self) -> &'static str {
         match self {
             Refusal::LightLeak => "Invalid input: ",
+            Refusal::LiveStackMisaligned
+            | Refusal::LiveStackOtherFilter
+            | Refusal::LiveStackUnreadable => "Image error: ",
             _ => "Operation failed: ",
         }
     }

@@ -511,8 +511,8 @@ fn a_frame_file_of_another_filter_does_not_enter_the_stack() {
 
     let refusal = api_stacking_add_frame(other).expect_err("an R frame is left out");
     assert!(
-        matches!(&refusal, SkotiqError::ImageError(m)
-            if m.starts_with(skotiq_imaging::stacking::OTHER_FILTER_REFUSAL)),
+        matches!(&refusal, SkotiqError::Refused { kind: crate::error::Refusal::LiveStackOtherFilter, message }
+            if message.starts_with(skotiq_imaging::stacking::OTHER_FILTER_REFUSAL)),
         "unexpected refusal: {refusal}"
     );
     let stats = api_stacking_get_stats().expect("stats");
@@ -879,4 +879,62 @@ fn buffer_length_mismatch_and_filter_alias_routing_behave_safely() {
     assert!(!api_stacking_is_active());
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A frame the stacker leaves out is raised by its kind; it reads as the
+/// image error it was raised as before, so logs and the GUI read the same.
+#[test]
+fn a_left_out_frame_is_raised_by_its_kind() {
+    use crate::error::Refusal;
+    use skotiq_imaging::stacking::{FrameRefusal, FrameRefusalKind};
+    let refusal = |kind, message: &str| {
+        frame_refused(FrameRefusal {
+            kind,
+            message: message.to_string(),
+        })
+    };
+    let misaligned = refusal(
+        FrameRefusalKind::Misaligned,
+        "Inconsistent star matches for alignment: 3 of 9 agree on one transform, 5 required",
+    );
+    assert!(matches!(
+        &misaligned,
+        SkotiqError::Refused {
+            kind: Refusal::LiveStackMisaligned,
+            ..
+        }
+    ));
+    assert_eq!(
+        misaligned.to_string(),
+        "Image error: Inconsistent star matches for alignment: 3 of 9 agree on one transform, \
+         5 required"
+    );
+    assert!(matches!(
+        refusal(
+            FrameRefusalKind::OtherFilter,
+            "Frame of another filter not stacked: x"
+        ),
+        SkotiqError::Refused {
+            kind: Refusal::LiveStackOtherFilter,
+            ..
+        }
+    ));
+    assert!(matches!(
+        refusal(FrameRefusalKind::Incompatible, "Frame dimensions 2x2 don't match"),
+        SkotiqError::ImageError(m) if m == "Frame dimensions 2x2 don't match"
+    ));
+}
+
+#[test]
+fn a_frame_file_that_cannot_be_read_is_raised_as_unreadable() {
+    let error = api_stacking_add_frame("/nonexistent/skotiq/frame.fits".to_string())
+        .expect_err("no such file");
+    assert!(
+        matches!(&error, SkotiqError::Refused { kind: crate::error::Refusal::LiveStackUnreadable, message }
+            if message.starts_with("Failed to read frame image: ")),
+        "{error:?}"
+    );
+    assert!(error
+        .to_string()
+        .starts_with("Image error: Failed to read frame image: "));
 }

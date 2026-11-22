@@ -596,8 +596,14 @@ void main() {
       await handlers.handleStart(post('/api/stacking/start'));
       await saved('/host/ref.fits');
 
-      fake.addError = Exception(
-        'Alignment residual too high: 24.34px (max 10.00px)',
+      const sentence = 'Alignment residual too high: 24.34px (max 10.00px)';
+      fake.addError = LiveStackingFrameRejected(
+        reason: LiveStackRefusal(
+          LiveStackRefusalKind.misaligned,
+          sentence,
+        ).legacyText,
+        stats: LiveStackingStats(),
+        refusal: LiveStackRefusal(LiveStackRefusalKind.misaligned, sentence),
       );
       final response = await translateHandlerErrors(
         handlers.handleAddFrame(
@@ -620,9 +626,16 @@ void main() {
       await handlers.handleStart(post('/api/stacking/start'));
       await saved('/host/ref.fits');
 
-      fake.addError = Exception(
-        'Frame of another filter not stacked: the frame was taken through R '
-        'and this live stack is of frames taken through L.',
+      const sentence =
+          'Frame of another filter not stacked: the frame was taken through R '
+          'and this live stack is of frames taken through L.';
+      fake.addError = LiveStackingFrameRejected(
+        reason: LiveStackRefusal(
+          LiveStackRefusalKind.otherFilter,
+          sentence,
+        ).legacyText,
+        stats: LiveStackingStats(),
+        refusal: LiveStackRefusal(LiveStackRefusalKind.otherFilter, sentence),
       );
       final response = await translateHandlerErrors(
         handlers.handleAddFrame(
@@ -633,11 +646,10 @@ void main() {
       expect(response.statusCode, HttpStatus.unprocessableEntity);
       final body = jsonDecode(await response.readAsString()) as Map;
       expect(body['error'], 'frame_other_filter');
-      expect(
-        body['message'],
-        'Frame of another filter not stacked: the frame was taken through R '
-        'and this live stack is of frames taken through L.',
-      );
+      // The text the native refusal had before it had a kind, as a host
+      // sends it: the sentence closed by the freezed form's ")".
+      expect(body['message'], '$sentence)');
+      expect(body['sentence'], sentence);
     },
   );
 
@@ -645,8 +657,15 @@ void main() {
     await handlers.handleStart(post('/api/stacking/start'));
     await saved('/host/ref.fits');
 
-    fake.addError = Exception(
-      'Failed to read frame image: IO error: No such file or directory (os error 2)',
+    const sentence =
+        'Failed to read frame image: IO error: No such file or directory (os error 2)';
+    fake.addError = LiveStackingFrameRejected(
+      reason: LiveStackRefusal(
+        LiveStackRefusalKind.unreadable,
+        sentence,
+      ).legacyText,
+      stats: LiveStackingStats(),
+      refusal: LiveStackRefusal(LiveStackRefusalKind.unreadable, sentence),
     );
     final response = await translateHandlerErrors(
       handlers.handleAddFrame(
@@ -797,6 +816,79 @@ void main() {
       expect(stats.containsKey('totalIntegrationSecs'), isTrue);
     },
   );
+
+  /// What the host answers for each frame the engine leaves out, recorded in
+  /// `fixtures/live_stack_refusal_replies.json` (`SKOTIQ_RECORD_REPLIES=1`
+  /// rewrites it). The service raises what the native stacker's refusal
+  /// becomes: a counted [LiveStackingFrameRejected].
+  group('add-frame answers each native refusal as recorded', () {
+    final fixture = File(
+      'test/headless_api/fixtures/live_stack_refusal_replies.json',
+    );
+    final record = Platform.environment['SKOTIQ_RECORD_REPLIES'] == '1';
+    final recorded = <String, Object?>{};
+    final expected = record
+        ? const <String, Object?>{}
+        : jsonDecode(fixture.readAsStringSync()) as Map<String, Object?>;
+    tearDownAll(() {
+      if (!record) return;
+      fixture.writeAsStringSync(
+        '${const JsonEncoder.withIndent('  ').convert(recorded)}\n',
+      );
+    });
+    final rows = <String, (LiveStackRefusalKind, String)>{
+      'misaligned.residual': (
+        LiveStackRefusalKind.misaligned,
+        'Alignment residual too high: 24.34px (max 10.00px)',
+      ),
+      'misaligned.stars': (
+        LiveStackRefusalKind.misaligned,
+        'Insufficient stars for alignment: 2 detected, 6 required',
+      ),
+      'misaligned.matches': (
+        LiveStackRefusalKind.misaligned,
+        'Insufficient star matches for alignment: 3 matched, 6 required',
+      ),
+      'misaligned.inconsistent': (
+        LiveStackRefusalKind.misaligned,
+        'Inconsistent star matches for alignment: 3 of 9 agree on one '
+            'transform, 6 required',
+      ),
+      'other_filter': (
+        LiveStackRefusalKind.otherFilter,
+        'Frame of another filter not stacked: the frame was taken through R '
+            'and this live stack is of frames taken through L.',
+      ),
+      'unreadable': (
+        LiveStackRefusalKind.unreadable,
+        'Failed to read frame image: IO error: No such file or directory '
+            '(os error 2)',
+      ),
+    };
+    for (final MapEntry(key: name, value: (kind, message)) in rows.entries) {
+      test(name, () async {
+        await handlers.handleStart(post('/api/stacking/start'));
+        await saved('/host/ref.fits');
+        final refusal = LiveStackRefusal(kind, message);
+        fake.addError = LiveStackingFrameRejected(
+          reason: refusal.legacyText,
+          stats: LiveStackingStats(totalFramesAttempted: 2),
+          refusal: refusal,
+        );
+        final response = await translateHandlerErrors(
+          handlers.handleAddFrame(
+            post('/api/stacking/add-frame', {'imagePath': '/host/$name.fits'}),
+          ),
+        );
+        final reply = {
+          'status': response.statusCode,
+          'body': jsonDecode(await response.readAsString()),
+        };
+        recorded[name] = reply;
+        if (!record) expect(reply, expected[name]);
+      });
+    }
+  });
 }
 
 Future<Map<String, dynamic>> _json(Future<Response> response) async =>

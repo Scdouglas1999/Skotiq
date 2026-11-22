@@ -7708,6 +7708,9 @@ impl CstDecode<crate::error::Refusal> for i32 {
             6 => crate::error::Refusal::DepthLockStaleRevision,
             7 => crate::error::Refusal::DepthLockUnavailable,
             8 => crate::error::Refusal::LightLeak,
+            9 => crate::error::Refusal::LiveStackMisaligned,
+            10 => crate::error::Refusal::LiveStackOtherFilter,
+            11 => crate::error::Refusal::LiveStackUnreadable,
             _ => unreachable!("Invalid variant for Refusal: {}", self),
         }
     }
@@ -12188,6 +12191,9 @@ impl SseDecode for crate::error::Refusal {
             6 => crate::error::Refusal::DepthLockStaleRevision,
             7 => crate::error::Refusal::DepthLockUnavailable,
             8 => crate::error::Refusal::LightLeak,
+            9 => crate::error::Refusal::LiveStackMisaligned,
+            10 => crate::error::Refusal::LiveStackOtherFilter,
+            11 => crate::error::Refusal::LiveStackUnreadable,
             _ => unreachable!("Invalid variant for Refusal: {}", inner),
         };
     }
@@ -17322,6 +17328,9 @@ impl flutter_rust_bridge::IntoDart for crate::error::Refusal {
             Self::DepthLockStaleRevision => 6.into_dart(),
             Self::DepthLockUnavailable => 7.into_dart(),
             Self::LightLeak => 8.into_dart(),
+            Self::LiveStackMisaligned => 9.into_dart(),
+            Self::LiveStackOtherFilter => 10.into_dart(),
+            Self::LiveStackUnreadable => 11.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -22141,6 +22150,9 @@ impl SseEncode for crate::error::Refusal {
                 crate::error::Refusal::DepthLockStaleRevision => 6,
                 crate::error::Refusal::DepthLockUnavailable => 7,
                 crate::error::Refusal::LightLeak => 8,
+                crate::error::Refusal::LiveStackMisaligned => 9,
+                crate::error::Refusal::LiveStackOtherFilter => 10,
+                crate::error::Refusal::LiveStackUnreadable => 11,
                 _ => {
                     unimplemented!("");
                 }

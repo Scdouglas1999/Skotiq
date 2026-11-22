@@ -1,0 +1,73 @@
+{
+  "misaligned.residual": {
+    "status": 422,
+    "body": {
+      "error": "frame_rejected",
+      "code": "frame_rejected",
+      "message": "Frame did not align to the reference and was not stacked. The accumulation is unchanged; check tracking, focus and cloud.",
+      "requestId": "test-request",
+      "imagePath": "/host/misaligned.residual.fits",
+      "reason": "SkotiqError.imageError(field0: Alignment residual too high: 24.34px (max 10.00px))",
+      "sentence": "Alignment residual too high: 24.34px (max 10.00px)"
+    }
+  },
+  "misaligned.stars": {
+    "status": 422,
+    "body": {
+      "error": "frame_rejected",
+      "code": "frame_rejected",
+      "message": "Frame did not align to the reference and was not stacked. The accumulation is unchanged; check tracking, focus and cloud.",
+      "requestId": "test-request",
+      "imagePath": "/host/misaligned.stars.fits",
+      "reason": "SkotiqError.imageError(field0: Insufficient stars for alignment: 2 detected, 6 required)",
+      "sentence": "Insufficient stars for alignment: 2 detected, 6 required"
+    }
+  },
+  "misaligned.matches": {
+    "status": 422,
+    "body": {
+      "error": "frame_rejected",
+      "code": "frame_rejected",
+      "message": "Frame did not align to the reference and was not stacked. The accumulation is unchanged; check tracking, focus and cloud.",
+      "requestId": "test-request",
+      "imagePath": "/host/misaligned.matches.fits",
+      "reason": "SkotiqError.imageError(field0: Insufficient star matches for alignment: 3 matched, 6 required)",
+      "sentence": "Insufficient star matches for alignment: 3 matched, 6 required"
+    }
+  },
+  "misaligned.inconsistent": {
+    "status": 422,
+    "body": {
+      "error": "frame_rejected",
+      "code": "frame_rejected",
+      "message": "Frame did not align to the reference and was not stacked. The accumulation is unchanged; check tracking, focus and cloud.",
+      "requestId": "test-request",
+      "imagePath": "/host/misaligned.inconsistent.fits",
+      "reason": "SkotiqError.imageError(field0: Inconsistent star matches for alignment: 3 of 9 agree on one transform, 6 required)",
+      "sentence": "Inconsistent star matches for alignment: 3 of 9 agree on one transform, 6 required"
+    }
+  },
+  "other_filter": {
+    "status": 422,
+    "body": {
+      "error": "frame_other_filter",
+      "code": "frame_other_filter",
+      "message": "Frame of another filter not stacked: the frame was taken through R and this live stack is of frames taken through L.)",
+      "requestId": "test-request",
+      "imagePath": "/host/other_filter.fits",
+      "sentence": "Frame of another filter not stacked: the frame was taken through R and this live stack is of frames taken through L."
+    }
+  },
+  "unreadable": {
+    "status": 404,
+    "body": {
+      "error": "frame_unreadable",
+      "code": "frame_unreadable",
+      "message": "Could not read the frame at the supplied path.",
+      "requestId": "test-request",
+      "imagePath": "/host/unreadable.fits",
+      "reason": "SkotiqError.imageError(field0: Failed to read frame image: IO error: No such file or directory (os error 2))",
+      "sentence": "Failed to read frame image: IO error: No such file or directory (os error 2)"
+    }
+  }
+}

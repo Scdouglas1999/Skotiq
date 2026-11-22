@@ -244,60 +244,56 @@ class StackingHandlers implements RouteSource {
   /// Translate an add-frame failure into something a client can branch on.
   ///
   /// A frame the stacker declines is ORDINARY in live stacking — cloud, wind, a
-  /// satellite trail, a bumped focuser. The native layer raises these as
-  /// unstructured failures that the error translator turns into
+  /// satellite trail, a bumped focuser. The native stacker says which by
+  /// kind. Left to the error translator they would answer
   /// `500 internal_error`, which tells a remote client the host broke and
-  /// invites a retry storm; worse, it is indistinguishable from the stacker
-  /// actually being broken, so a client cannot tell "skip this frame and carry
-  /// on" from "stop and tell the operator". Mirrors the `guide_star_not_found`
-  /// treatment in the guiding handlers.
+  /// invites a retry storm, indistinguishable from the stacker actually being
+  /// broken. Anything else stays the error it was.
   Object _classifyAddFrameFailure(Object error, String imagePath) {
-    final text = error.toString().toLowerCase();
-
-    // Rejected for not matching the reference. Counted in
-    // `rejectedAlignmentFailures`; the accumulation is untouched.
-    if (text.contains('alignment residual too high') ||
-        text.contains('alignment failed') ||
-        text.contains('insufficient') && text.contains('star')) {
-      return HandlerFailure(
+    final refusal = liveStackRefusalOf(error);
+    if (refusal == null) return error;
+    // Bodies keep the text the refusal had before it had a kind, and add the
+    // engine's sentence.
+    final legacy = refusal.legacyText;
+    return switch (refusal.kind) {
+      // Rejected for not matching the reference. Counted in
+      // `rejectedAlignmentFailures`; the accumulation is untouched.
+      LiveStackRefusalKind.misaligned => HandlerFailure(
         code: 'frame_rejected',
         message:
             'Frame did not align to the reference and was not stacked. The '
             'accumulation is unchanged; check tracking, focus and cloud.',
         statusCode: 422,
-        details: {'imagePath': imagePath, 'reason': error.toString()},
+        details: {
+          'imagePath': imagePath,
+          'reason': legacy,
+          'sentence': refusal.message,
+        },
         cause: error,
-      );
-    }
-
-    // Taken through another filter than the stack's: left out before any
-    // alignment and counted in `otherFilterFrames`. The engine's sentence
-    // names both filters.
-    final otherFilter = text.indexOf('frame of another filter not stacked');
-    if (otherFilter >= 0) {
-      return HandlerFailure(
+      ),
+      // Taken through another filter than the stack's: left out before any
+      // alignment and counted in `otherFilterFrames`. The engine's sentence
+      // names both filters.
+      LiveStackRefusalKind.otherFilter => HandlerFailure(
         code: 'frame_other_filter',
-        message: error.toString().substring(otherFilter),
+        message: legacy.substring(legacy.indexOf(refusal.message)),
         statusCode: 422,
-        details: {'imagePath': imagePath},
+        details: {'imagePath': imagePath, 'sentence': refusal.message},
         cause: error,
-      );
-    }
-
-    // A path the caller got wrong is the caller's error, not a host fault.
-    if (text.contains('no such file') ||
-        text.contains('failed to read frame') ||
-        text.contains('not found')) {
-      return HandlerFailure(
+      ),
+      // A path the caller got wrong is the caller's error, not a host fault.
+      LiveStackRefusalKind.unreadable => HandlerFailure(
         code: 'frame_unreadable',
         message: 'Could not read the frame at the supplied path.',
         statusCode: 404,
-        details: {'imagePath': imagePath, 'reason': error.toString()},
+        details: {
+          'imagePath': imagePath,
+          'reason': legacy,
+          'sentence': refusal.message,
+        },
         cause: error,
-      );
-    }
-
-    return error;
+      ),
+    };
   }
 
   /// GET /api/stacking/status -> liveness + counters (cheap, no pixels).

@@ -390,7 +390,7 @@ fn pin_live_stack(pins: &mut Pins) {
             &format!("live_stack/mono.add{i}"),
             match &outcome {
                 Ok(image) => image_digest(image),
-                Err(e) => fnv(e.as_bytes()),
+                Err(e) => fnv(e.message.as_bytes()),
             },
         );
     }
@@ -409,7 +409,7 @@ fn pin_live_stack(pins: &mut Pins) {
             &format!("live_stack/rgb.add{i}"),
             match &outcome {
                 Ok(image) => image_digest(image),
-                Err(e) => fnv(e.as_bytes()),
+                Err(e) => fnv(e.message.as_bytes()),
             },
         );
     }
