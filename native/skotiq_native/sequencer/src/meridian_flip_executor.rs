@@ -1177,7 +1177,9 @@ impl MeridianFlipExecutor {
         self.run.emit_decision(decision);
         self.say(line.message.clone());
         if let Some(tx) = &self.run.event_tx {
-            let _ = tx.send(line.into_event());
+            if tx.send(line.into_event()).is_err() {
+                tracing::debug!("[MERIDIAN] No one follows the run's feed for this notice");
+            }
         }
     }
 

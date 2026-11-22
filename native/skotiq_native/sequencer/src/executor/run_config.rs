@@ -706,7 +706,7 @@ impl RunConfigStore {
     /// Whether the run's own recenters sync the mount: as the sequence's
     /// first enabled Center step does, and without one, yes.
     pub(crate) fn recenter_syncs_mount(&self) -> bool {
-        self.inner.sequence_center_sync.read().unwrap_or(true)
+        *self.inner.sequence_center_sync.read() != Some(false)
     }
 
     /// Record the starting sequence's Center sync choice.
