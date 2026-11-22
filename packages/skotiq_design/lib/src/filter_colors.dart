@@ -30,18 +30,30 @@ abstract final class FilterColors {
   static final RegExp _notAlphanumeric = RegExp(r'[^A-Za-z0-9]');
   static final RegExp _bandwidthSuffix = RegExp(r'^[0-9]');
 
-  /// The color of the one band [name] names by the filter-name rule
+  /// The color of the band [name] names by the filter-name rule
   /// (`package:skotiq_astro/filters.dart`), the rule the run moves the wheel
-  /// by. A name of several bands ("L-eXtreme", "Ha/OIII") or of none has no
-  /// color.
+  /// by. A name that spells its bands as separate words ("Ha/OIII",
+  /// "Ha+OIII") takes the first one's color; a product of several bands
+  /// ("L-eXtreme") or a name of none has no color.
   static Color? knownColor(String name) {
     final bands = filterBands(name);
-    if (bands.length > 1) return null;
+    if (bands.length > 1) return _firstBandWordColor(name, bands);
     if (bands.length == 1) {
       final color = _bandColors[bands.single];
       if (color != null) return color;
     }
     return _gluedBandwidthColor(name);
+  }
+
+  /// The color of the first word of [name] that is by itself one of [bands].
+  static Color? _firstBandWordColor(String name, Set<String> bands) {
+    for (final word in name.split(_wordSplit)) {
+      final wordBands = filterBands(word);
+      if (wordBands.length == 1 && bands.contains(wordBands.single)) {
+        return _bandColors[wordBands.single];
+      }
+    }
+    return null;
   }
 
   /// A band word with its bandwidth glued on ("Ha7nm", "OIII6.5nm"), which
