@@ -1,9 +1,6 @@
 // Android applies an update by handing a verified APK to the OS, which is a
 // different shape from every other platform: nothing is extracted, no helper
-// binary runs, and this process stays alive afterwards. The callers used to
-// read "applyUpdate returned" as "the handoff failed", because on desktop it
-// exits inside the call — which turned a successful Android install into an
-// on-screen error.
+// binary runs, and this process stays alive afterwards.
 
 import 'dart:convert';
 import 'dart:io';

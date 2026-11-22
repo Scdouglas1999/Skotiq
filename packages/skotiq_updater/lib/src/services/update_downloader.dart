@@ -64,7 +64,6 @@ class UpdateDownloader {
       await parent.create(recursive: true);
     }
 
-    // Check for partial download (for resume support)
     int existingBytes = 0;
     if (await destination.exists()) {
       existingBytes = await destination.length();
@@ -105,7 +104,6 @@ class UpdateDownloader {
       return restartFromZero();
     }
 
-    // Check if server supports range requests
     final isPartialContent = streamedResponse.statusCode == 206;
     final isFullContent = streamedResponse.statusCode == 200;
 
@@ -159,7 +157,6 @@ class UpdateDownloader {
       totalBytes = streamedResponse.contentLength ?? expectedSize ?? 0;
     }
 
-    // Open file for writing (append if resuming)
     final sink = destination.openWrite(
       mode: isPartialContent ? FileMode.append : FileMode.write,
     );

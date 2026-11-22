@@ -71,9 +71,7 @@ abstract class UpdateState with _$UpdateState {
 
     /// Whether any update source is configured (an update server, or the
     /// project's GitHub Releases). Separate from [updateServerUrl] because a
-    /// GitHub source has no server URL to show, and a null URL used to be the
-    /// signal for "OTA is off" — which would switch the whole feature off for
-    /// every build that reads releases instead.
+    /// GitHub source has no server URL to show.
     @Default(false) bool sourceConfigured,
 
     /// Release notes for [availableUpdate], in markdown.

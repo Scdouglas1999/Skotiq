@@ -74,8 +74,7 @@ class UpdatePromptStore {
   ///
   /// Callers fire some of these without awaiting them, so writes are queued
   /// behind one another (the last call wins) and each is written to a
-  /// side file that is then renamed over the record. Two overlapping writes
-  /// used to open the same file twice and interleave into unreadable JSON.
+  /// side file that is then renamed over the record.
   Future<void> write(UpdatePromptState state) {
     final next = _lastWrite.then((_) => _writeNow(state));
     _lastWrite = next;
