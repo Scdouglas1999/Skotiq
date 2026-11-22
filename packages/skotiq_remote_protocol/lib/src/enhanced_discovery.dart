@@ -919,7 +919,7 @@ class EnhancedSkotiqDiscovery {
       webPort: port,
       signalingPort: advert.signalingPort ?? 45678,
       name: advert.name ?? serviceName ?? 'Skotiq',
-      version: advert.version ?? '2.0.0',
+      version: advert.version,
       scheme: advert.scheme ?? 'http',
       fingerprint: advert.fingerprint,
       pairingSupported: advert.pairingSupported ?? false,
