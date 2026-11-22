@@ -160,10 +160,11 @@ void main() {
     coordinatorContainer
         .read(runRecordProvider.notifier)
         .setStopEvidence(
-          const SequenceStopDecision(
-            SequenceStopAuthor.system,
-            origin: 'dawn_approaching',
-            parked: true,
+          sequenceStopTriggerDecision(
+            triggerId: 'dawn_approaching',
+            triggerName: 'Dawn Approaching',
+            action: SequencerTriggerAction.parkAndAbort,
+            nightEnd: SequencerNightEnd.dawn,
           ),
         );
     coordinatorContainer
@@ -188,10 +189,11 @@ void main() {
     coordinatorContainer
         .read(runRecordProvider.notifier)
         .setStopEvidence(
-          const SequenceStopDecision(
-            SequenceStopAuthor.system,
-            origin: 'obstruction',
-            parked: true,
+          sequenceStopTriggerDecision(
+            triggerId: 'obstruction',
+            triggerName: 'Obstruction',
+            action: SequencerTriggerAction.parkAndAbort,
+            nightEnd: SequencerNightEnd.obstruction,
           ),
         );
     coordinatorContainer
