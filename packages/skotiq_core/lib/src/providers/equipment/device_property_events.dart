@@ -10,6 +10,7 @@ import 'focuser_state_provider.dart';
 import 'mount_state_provider.dart';
 import 'rotator_state_provider.dart';
 import 'switch_state_provider.dart';
+import '../../backend/bridge_events.dart' as ev;
 import '../../models/backend/device_types.dart';
 
 /// Apply a device setting change the host published as an Equipment
@@ -151,85 +152,87 @@ bool applyDevicePropertyChange(
 /// Returns whether the event was one of these and was applied.
 bool applyDeviceStateEvent(
   ProviderContainer container,
-  String eventType,
-  Map<String, dynamic> data,
+  ev.EquipmentEvent event,
 ) {
   T read<T>(ProviderListenable<T> provider) => container.read(provider);
-  bool inSlot(DeviceType type) {
-    final id = data['device_id'];
-    if (id is! String || id.isEmpty) return true;
-    return readDeviceSlot(container, type).deviceId == id;
-  }
+  bool inSlot(DeviceType type, String id) =>
+      id.isEmpty || readDeviceSlot(container, type).deviceId == id;
 
-  int? intField(String key) => (data[key] as num?)?.toInt();
-  double? doubleField(String key) => (data[key] as num?)?.toDouble();
-
-  switch (eventType) {
-    case 'FocuserMoveStarted':
-      if (!inSlot(DeviceType.focuser)) return false;
+  switch (event) {
+    case ev.EquipmentEvent_FocuserMoveStarted(:final deviceId):
+      if (!inSlot(DeviceType.focuser, deviceId)) return false;
       read(focuserStateProvider.notifier).setMoving(true);
       return true;
-    case 'FocuserMoveCompleted':
-      if (!inSlot(DeviceType.focuser)) return false;
-      final focuser = read(focuserStateProvider.notifier)..setMoving(false);
-      final position = intField('position');
-      if (position != null) focuser.updatePosition(position);
+    case ev.EquipmentEvent_FocuserMoveCompleted(
+      :final deviceId,
+      :final position,
+    ):
+      if (!inSlot(DeviceType.focuser, deviceId)) return false;
+      read(focuserStateProvider.notifier)
+        ..setMoving(false)
+        ..updatePosition(position);
       return true;
 
-    case 'FilterChanging':
-      if (!inSlot(DeviceType.filterWheel)) return false;
+    case ev.EquipmentEvent_FilterChanging(:final deviceId):
+      if (!inSlot(DeviceType.filterWheel, deviceId)) return false;
       read(filterWheelStateProvider.notifier).setMoving(true);
       return true;
-    case 'FilterChanged':
-      if (!inSlot(DeviceType.filterWheel)) return false;
-      final wheel = read(filterWheelStateProvider.notifier)..setMoving(false);
-      final position = intField('position');
-      if (position != null) wheel.updatePosition(position);
+    case ev.EquipmentEvent_FilterChanged(:final deviceId, :final position):
+      if (!inSlot(DeviceType.filterWheel, deviceId)) return false;
+      read(filterWheelStateProvider.notifier)
+        ..setMoving(false)
+        ..updatePosition(position);
       return true;
 
-    case 'RotatorMoveStarted':
-      if (!inSlot(DeviceType.rotator)) return false;
+    case ev.EquipmentEvent_RotatorMoveStarted(:final deviceId):
+      if (!inSlot(DeviceType.rotator, deviceId)) return false;
       read(rotatorStateProvider.notifier).setMoving(true);
       return true;
-    case 'RotatorMoveCompleted':
-      if (!inSlot(DeviceType.rotator)) return false;
-      final rotator = read(rotatorStateProvider.notifier)..setMoving(false);
-      final angle = doubleField('angle');
-      if (angle != null) rotator.updatePosition(angle);
+    case ev.EquipmentEvent_RotatorMoveCompleted(:final deviceId, :final angle):
+      if (!inSlot(DeviceType.rotator, deviceId)) return false;
+      read(rotatorStateProvider.notifier)
+        ..setMoving(false)
+        ..updatePosition(angle);
       return true;
 
-    case 'CameraCoolingStarted':
-      if (!inSlot(DeviceType.camera)) return false;
-      final camera = read(cameraStateProvider.notifier)..setCooling(true);
-      final target = doubleField('target_temp');
-      if (target != null) camera.setTargetTemp(target);
+    case ev.EquipmentEvent_CameraCoolingStarted(
+      :final deviceId,
+      :final targetTemp,
+    ):
+      if (!inSlot(DeviceType.camera, deviceId)) return false;
+      read(cameraStateProvider.notifier)
+        ..setCooling(true)
+        ..setTargetTemp(targetTemp);
       return true;
-    case 'CameraCoolingReached':
-      if (!inSlot(DeviceType.camera)) return false;
-      final temperature = doubleField('temperature');
-      if (temperature != null) {
-        read(cameraStateProvider.notifier).updateTemperature(temperature, 0.0);
-      }
+    case ev.EquipmentEvent_CameraCoolingReached(
+      :final deviceId,
+      :final temperature,
+    ):
+      if (!inSlot(DeviceType.camera, deviceId)) return false;
+      read(cameraStateProvider.notifier).updateTemperature(temperature, 0.0);
       return true;
-    case 'CameraWarmingStarted':
-      if (!inSlot(DeviceType.camera)) return false;
+    case ev.EquipmentEvent_CameraWarmingStarted(:final deviceId):
+      if (!inSlot(DeviceType.camera, deviceId)) return false;
       read(cameraStateProvider.notifier).setCooling(false);
       return true;
-    case 'CameraWarmingCompleted':
-      return inSlot(DeviceType.camera);
-    case 'CameraTemperatureChanged':
-      if (!inSlot(DeviceType.camera)) return false;
-      final temperature = doubleField('temperature');
-      if (temperature == null) return false;
-      // Null-aware on purpose: `updateTemperature` clears the cached power
-      // when this is null, so a reading without power leaves the cards
-      // saying "unknown" rather than claiming a real 0 %.
+    case ev.EquipmentEvent_CameraWarmingCompleted(:final deviceId):
+      return inSlot(DeviceType.camera, deviceId);
+    case ev.EquipmentEvent_CameraTemperatureChanged(
+      :final deviceId,
+      :final temperature,
+      :final coolerPower,
+    ):
+      if (!inSlot(DeviceType.camera, deviceId)) return false;
+      // `updateTemperature` clears the cached power when this is null, so a
+      // reading without power leaves the cards saying "unknown" rather than
+      // claiming a real 0 %.
       read(
         cameraStateProvider.notifier,
-      ).updateTemperature(temperature, doubleField('coolerPower'));
+      ).updateTemperature(temperature, coolerPower);
       return true;
+    default:
+      return false;
   }
-  return false;
 }
 
 /// Apply a `CameraSettingsChanged` event: the camera's full gain, offset

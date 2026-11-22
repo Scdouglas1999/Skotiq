@@ -199,9 +199,9 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted || event.category != EventCategory.guiding) return;
-    switch (event.eventType) {
-      case 'CalibrationComplete':
+    if (!mounted) return;
+    switch (guidingEventOf(event)) {
+      case GuidingEvent_CalibrationComplete():
         _logger.info('Guider calibration complete', source: 'Guiding');
         state = state.copyWith(
           isCalibrated: true,
@@ -209,20 +209,13 @@ class CalibrationStateNotifier extends StateNotifier<Phd2CalibrationData> {
         );
         unawaited(refreshCalibrationData());
         break;
-      case 'CalibrationFailed':
-        _logger.warning('Guider calibration failed', source: 'Guiding');
-        state = state.copyWith(isCalibrated: false);
-        break;
-      case 'CalibrationDataFlipped':
-        _logger.info('Calibration data flipped', source: 'Guiding');
-        unawaited(refreshCalibrationData());
-        break;
       // A calibration can change between guiding sessions without a
       // calibration event reaching here (restored, adjusted or redone in
       // PHD2). A value read once at connect went stale for the whole night.
-      case 'GuidingStarted':
-      case 'GuidingStopped':
+      case GuidingEvent_GuidingStarted() || GuidingEvent_GuidingStopped():
         if (_hasFetched) unawaited(refreshCalibrationData());
+        break;
+      case _:
         break;
     }
   }

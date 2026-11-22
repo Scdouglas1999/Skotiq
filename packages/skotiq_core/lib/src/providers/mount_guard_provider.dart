@@ -3,6 +3,12 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/roles/mount_guard_backend.dart';
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart'
+    show
+        SafetyEvent_MountGuardCleared,
+        SafetyEvent_MountMotionFault,
+        SafetyEvent_MountPositionUnknown;
 import '../models/backend/event_types.dart';
 import '../models/mount_guard.dart';
 import '../utils/logging_service.dart';
@@ -10,11 +16,12 @@ import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'settings_provider.dart';
 
-/// The safety events the host's mount guard publishes.
-const mountGuardEventTypes = {
-  'MountMotionFault',
-  'MountPositionUnknown',
-  'MountGuardCleared',
+/// Whether [event] is one the host's mount guard publishes.
+bool isMountGuardEvent(SkotiqEvent event) => switch (safetyEventOf(event)) {
+  SafetyEvent_MountMotionFault() ||
+  SafetyEvent_MountPositionUnknown() ||
+  SafetyEvent_MountGuardCleared() => true,
+  _ => false,
 };
 
 /// How often the guard is read while a fault is open: the stop attempts and
@@ -59,11 +66,7 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
     });
     if (backend is! MountGuardBackend) return const [];
     _events = backend.eventStream
-        .where(
-          (e) =>
-              e.category == EventCategory.safety &&
-              mountGuardEventTypes.contains(e.eventType),
-        )
+        .where(isMountGuardEvent)
         .listen((_) => refresh());
     _schedule(_quietPoll, gen);
     Future.microtask(() {

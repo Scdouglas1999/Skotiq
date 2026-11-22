@@ -137,28 +137,23 @@ extension _DeviceServiceEventHandling on DeviceService {
   }
 
   void _handleEquipmentEvent(SkotiqEvent event) {
+    final equipment = equipmentEventOf(event);
+    if (equipment == null) return;
     final data = event.data;
-    switch (event.eventType) {
+    switch (equipment) {
       // Connection events
-      case 'Connecting':
-        final deviceType = data['device_type'] as String?;
-        final deviceId = data['device_id'] as String?;
-        if (deviceType != null && deviceId != null) {
-          _applyDeviceConnecting(deviceType, deviceId);
-        }
+      case bridge.EquipmentEvent_Connecting(:final deviceType, :final deviceId):
+        _applyDeviceConnecting(deviceType, deviceId);
         break;
 
-      case 'Connected':
-        final deviceType = data['device_type'] as String?;
-        final deviceId = data['device_id'] as String?;
-        if (deviceType != null && deviceId != null) {
-          _applyDeviceConnected(deviceType, deviceId);
-        }
+      case bridge.EquipmentEvent_Connected(:final deviceType, :final deviceId):
+        _applyDeviceConnected(deviceType, deviceId);
         break;
 
-      case 'Disconnected':
-        final deviceType = data['device_type'] as String?;
-        final deviceId = data['device_id'] as String?;
+      case bridge.EquipmentEvent_Disconnected(
+        :final deviceType,
+        :final deviceId,
+      ):
         _handleDeviceDisconnected(deviceType, deviceId);
         break;
 
@@ -167,26 +162,32 @@ extension _DeviceServiceEventHandling on DeviceService {
       // structured errorService (which also pushes a UI notification) AND sets
       // the matching device state to error, so the equipment card subtitle
       // renders the actual driver message.
-      case 'Error':
+      case bridge.EquipmentEvent_Error(
+        :final deviceType,
+        :final deviceId,
+        :final message,
+      ):
         _handleDeviceError(
-          deviceType: data['device_type'] as String?,
-          deviceId: data['device_id'] as String?,
-          message: data['message'] as String?,
+          deviceType: deviceType,
+          deviceId: deviceId,
+          message: message,
           errorCode:
               data['error_code']?.toString() ?? data['errorCode']?.toString(),
           severity: event.severity,
         );
         break;
 
-      case 'CameraSettingsChanged':
+      case bridge.EquipmentEvent_CameraSettingsChanged():
         applyCameraSettings(_ref.container, data);
         break;
 
-      case 'CameraRetainedCapturesChanged':
+      case bridge.EquipmentEvent_CameraRetainedCapturesChanged():
         _ref.read(retainedCapturesRevisionProvider.notifier).state++;
         break;
 
-      case 'PropertyChanged':
+      // AutofocusProgress and FocuserBacklashCalibrationProgress arrive as
+      // property changes too; no device setting has their names.
+      case bridge.EquipmentEvent_PropertyChanged():
         // Gain, offset, binning, slot names and the other settings the native
         // DeviceManager publishes whoever changed them.
         applyDevicePropertyChange(_ref.container, data);
@@ -196,28 +197,28 @@ extension _DeviceServiceEventHandling on DeviceService {
       // status reads (CameraTemperatureChanged), and the cooler, focuser,
       // filter wheel and rotator events: one applier shared with the slave's
       // mirror, which ignores events for a device not in the slot.
-      case 'CameraTemperatureChanged':
-      case 'FilterChanging':
-      case 'FilterChanged':
-      case 'RotatorMoveStarted':
-      case 'RotatorMoveCompleted':
-      case 'CameraCoolingStarted':
-      case 'CameraCoolingReached':
-      case 'CameraWarmingStarted':
-      case 'CameraWarmingCompleted':
-        applyDeviceStateEvent(_ref.container, event.eventType, data);
+      case bridge.EquipmentEvent_CameraTemperatureChanged() ||
+          bridge.EquipmentEvent_FilterChanging() ||
+          bridge.EquipmentEvent_FilterChanged() ||
+          bridge.EquipmentEvent_RotatorMoveStarted() ||
+          bridge.EquipmentEvent_RotatorMoveCompleted() ||
+          bridge.EquipmentEvent_CameraCoolingStarted() ||
+          bridge.EquipmentEvent_CameraCoolingReached() ||
+          bridge.EquipmentEvent_CameraWarmingStarted() ||
+          bridge.EquipmentEvent_CameraWarmingCompleted():
+        applyDeviceStateEvent(_ref.container, equipment);
         break;
 
       // Mount Slew Events
-      case 'MountSlewStarted':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountSlewStarted(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(true);
         break;
 
       // Sent once the mount has arrived. It carries the commanded target, not
       // a reading, so the position stays whatever the mount last reported.
-      case 'MountSlewCompleted':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountSlewCompleted(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         // Smart notification - only show if not on imaging/planetarium screens
         _ref
@@ -234,24 +235,24 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Mount Tracking Events
-      case 'MountTrackingStarted':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountTrackingStarted(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setTracking(true);
         break;
 
-      case 'MountTrackingStopped':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountTrackingStopped(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setTracking(false);
         break;
 
       // Mount Park Events
-      case 'MountParkStarted':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountParkStarted(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(true);
         break;
 
-      case 'MountParkCompleted':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountParkCompleted(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setSlewing(false);
         _ref.read(mountStateProvider.notifier).setParked(true);
         _ref.read(mountStateProvider.notifier).setTracking(false);
@@ -264,8 +265,8 @@ extension _DeviceServiceEventHandling on DeviceService {
             );
         break;
 
-      case 'MountUnparked':
-        if (!_isSlotMount(data)) break;
+      case bridge.EquipmentEvent_MountUnparked(:final deviceId):
+        if (!_isSlotMount(deviceId)) break;
         _ref.read(mountStateProvider.notifier).setParked(false);
         _ref
             .read(smartNotificationServiceProvider)
@@ -277,14 +278,14 @@ extension _DeviceServiceEventHandling on DeviceService {
         break;
 
       // Focuser Events
-      case 'FocuserMoveStarted':
-        if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
+      case bridge.EquipmentEvent_FocuserMoveStarted():
+        if (applyDeviceStateEvent(_ref.container, equipment)) {
           _watchFocuserMoveSettle();
         }
         break;
 
-      case 'FocuserMoveCompleted':
-        if (applyDeviceStateEvent(_ref.container, event.eventType, data)) {
+      case bridge.EquipmentEvent_FocuserMoveCompleted():
+        if (applyDeviceStateEvent(_ref.container, equipment)) {
           _focuserMoveSettleWatch?.cancel();
           _focuserMoveSettleWatch = null;
         }
@@ -306,11 +307,11 @@ extension _DeviceServiceEventHandling on DeviceService {
       // a backend swap) and we never want a heartbeat-routing failure
       // to mask the higher-priority connection events that share this
       // method.
-      case 'HeartbeatStarted':
+      case bridge.EquipmentEvent_HeartbeatStarted():
         _heartbeat.onHeartbeatStarted(data['device_id'] as String?);
         break;
 
-      case 'HeartbeatStatusChanged':
+      case bridge.EquipmentEvent_HeartbeatStatusChanged():
         final hbStatus = data['status'] as String?;
         _heartbeat.onStatusChanged(
           deviceId: data['device_id'] as String?,
@@ -336,7 +337,7 @@ extension _DeviceServiceEventHandling on DeviceService {
         }
         break;
 
-      case 'HeartbeatReconnecting':
+      case bridge.EquipmentEvent_HeartbeatReconnecting():
         _heartbeat.onReconnecting(
           deviceId: data['device_id'] as String?,
           attempt: (data['attempt'] as num?)?.toInt(),
@@ -344,14 +345,14 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
-      case 'HeartbeatReconnected':
+      case bridge.EquipmentEvent_HeartbeatReconnected():
         _heartbeat.onReconnected(
           deviceId: data['device_id'] as String?,
           afterAttempts: (data['after_attempts'] as num?)?.toInt(),
         );
         break;
 
-      case 'HeartbeatStopped':
+      case bridge.EquipmentEvent_HeartbeatStopped():
         // Heartbeat monitoring intentionally stopped (e.g. user
         // disconnected the device through the UI). Clear the entry so
         // the indicator returns to the gray "unknown" baseline. The
@@ -363,6 +364,10 @@ extension _DeviceServiceEventHandling on DeviceService {
           _heartbeat.clearDevice(stoppedId);
         }
         break;
+
+      case bridge.EquipmentEvent_DeviceDiscovered() ||
+          bridge.EquipmentEvent_DeviceLost():
+        break;
     }
   }
 
@@ -370,11 +375,9 @@ extension _DeviceServiceEventHandling on DeviceService {
   /// camera, which has no slot of its own and must not take the camera's.
   /// Whether a mount event is about the mount in the app's slot. An event
   /// without an id (a host older than the id on mount events) is.
-  bool _isSlotMount(Map<String, dynamic> data) {
-    final id = data['device_id'];
-    if (id is! String || id.isEmpty) return true;
-    return readDeviceSlot(_ref.container, DeviceType.mount).deviceId == id;
-  }
+  bool _isSlotMount(String deviceId) =>
+      deviceId.isEmpty ||
+      readDeviceSlot(_ref.container, DeviceType.mount).deviceId == deviceId;
 
   bool _isGuideCameraEvent(String? deviceType, String? deviceId) {
     if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||

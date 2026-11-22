@@ -144,32 +144,27 @@ class TargetDisplayHistoryNotifier
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted ||
-        ref.read(hostGuidingMirrorActiveProvider) ||
-        event.category != EventCategory.guiding) {
-      return;
-    }
-    switch (event.eventType) {
-      case 'GuideStep':
+    if (!mounted || ref.read(hostGuidingMirrorActiveProvider)) return;
+    switch (guidingEventOf(event)) {
+      case final GuidingEvent_Correction step:
         _logger.debug(
           'Received GuideStep event',
           source: 'TargetDisplayHistoryNotifier',
         );
-        final json = event.data;
-        final raError = finiteGuideAxis(json, isRa: true);
-        final decError = finiteGuideAxis(json, isRa: false);
-        if (raError == null || decError == null) return;
+        final residuals = finiteGuideResiduals(step);
+        if (residuals == null) return;
         _addPoint(
-          raError,
-          decError,
+          residuals.ra,
+          residuals.dec,
           event.timestamp > 0
               ? DateTime.fromMillisecondsSinceEpoch(event.timestamp)
               : DateTime.now(),
         );
         break;
-      case 'GuidingStopped':
-      case 'GuidingStarted':
+      case GuidingEvent_GuidingStopped() || GuidingEvent_GuidingStarted():
         clear();
+        break;
+      case _:
         break;
     }
   }

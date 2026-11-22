@@ -2,12 +2,12 @@ part of '../guiding_provider.dart';
 
 /// A guide-step axis, or null when it is missing or not a finite number.
 /// Those steps are dropped, not drawn at 0.
-double? finiteGuideAxis(Map<String, dynamic> json, {required bool isRa}) {
-  final raw = json[isRa ? 'RADistanceRaw' : 'DECDistanceRaw'];
-  if (raw is! num) return null;
-  final value = raw.toDouble();
-  return value.isFinite ? value : null;
-}
+/// The raw RA and Dec residuals of a guide step, or null when either is not
+/// a finite number.
+({double ra, double dec})? finiteGuideResiduals(GuidingEvent_Correction step) =>
+    step.raRaw.isFinite && step.decRaw.isFinite
+    ? (ra: step.raRaw, dec: step.decRaw)
+    : null;
 
 /// Enabled only after a host supplies the guiding snapshot. Until then a
 /// client still builds its graph from the events it receives.
@@ -122,13 +122,11 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
 
   void _onBackendEvent(SkotiqEvent event) {
     if (!mounted || ref.read(hostGuidingMirrorActiveProvider)) return;
-    if (event.category == EventCategory.guiding) {
-      if (event.eventType == 'GuideStep') {
+    switch (guidingEventOf(event)) {
+      case final GuidingEvent_Correction step:
         _logger.debug('Received GuideStep event', source: 'GuideStatsNotifier');
-        _handleGuideStep(event.data);
-      } else if (event.eventType == 'GuideStats') {
-        final snr = (event.data['SNR'] ?? 0).toDouble();
-        final starMass = (event.data['StarMass'] ?? 0).toDouble();
+        _handleGuideStep(step);
+      case GuidingEvent_GuideStats(:final snr, :final starMass):
         _logger.debug(
           'Received GuideStats: SNR=$snr, StarMass=$starMass',
           source: 'GuideStatsNotifier',
@@ -141,17 +139,19 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
           _loopFrameCount++;
         }
         updateStarData(snr, starMass);
-      } else if (event.eventType == 'GuidingStopped') {
+      case GuidingEvent_GuidingStopped():
         _logger.debug('Received GuidingStopped', source: 'GuideStatsNotifier');
         reset();
-      }
+      case _:
+        break;
     }
   }
 
-  void _handleGuideStep(Map<String, dynamic> json) {
-    final raDistance = finiteGuideAxis(json, isRa: true);
-    final decDistance = finiteGuideAxis(json, isRa: false);
-    if (raDistance == null || decDistance == null) return;
+  void _handleGuideStep(GuidingEvent_Correction step) {
+    final residuals = finiteGuideResiduals(step);
+    if (residuals == null) return;
+    final raDistance = residuals.ra;
+    final decDistance = residuals.dec;
 
     _rmsRaCalculator.add(raDistance);
     _rmsDecCalculator.add(decDistance);
@@ -169,16 +169,7 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
     final peakDec = _rmsDecCalculator.peak;
 
     // Total RMS is pythagorean combination of RA and Dec RMS
-    var rmsTotal = math.sqrt(rmsRa * rmsRa + rmsDec * rmsDec);
-
-    // PHD2 also sends cumulative RMS in AvgDist - prefer our calculation
-    // but fall back to PHD2's value if our window is small
-    if (_rmsRaCalculator.count < 10) {
-      final avgDist = json['AvgDist'];
-      if (avgDist != null) {
-        rmsTotal = avgDist.toDouble();
-      }
-    }
+    final rmsTotal = math.sqrt(rmsRa * rmsRa + rmsDec * rmsDec);
 
     state = Phd2GuideStats(
       rmsRa: rmsRa,
@@ -186,8 +177,9 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
       rmsTotal: rmsTotal,
       peakRa: peakRa,
       peakDec: peakDec,
-      snr: (json['SNR'] ?? 0).toDouble(),
-      starMass: (json['StarMass'] ?? 0).toDouble(),
+      // A guide step carries no star statistics.
+      snr: 0,
+      starMass: 0,
       frameCount: _frameCount,
       loopFrameCount: _loopFrameCount,
     );
@@ -423,12 +415,11 @@ class GuideGraphNotifier extends StateNotifier<List<GuideGraphPoint>> {
 
   void _onBackendEvent(SkotiqEvent event) {
     if (!mounted || ref.read(hostGuidingMirrorActiveProvider)) return;
-    if (event.category == EventCategory.guiding &&
-        event.eventType == 'GuideStep') {
-      final json = event.data;
-      final ra = finiteGuideAxis(json, isRa: true);
-      final dec = finiteGuideAxis(json, isRa: false);
-      if (ra == null || dec == null) return;
+    final guiding = guidingEventOf(event);
+    if (guiding is GuidingEvent_Correction) {
+      final residuals = finiteGuideResiduals(guiding);
+      if (residuals == null) return;
+      final (:ra, :dec) = residuals;
       _logger.debug(
         'Adding point: RA=$ra, Dec=$dec',
         source: 'GuideGraphNotifier',
@@ -440,8 +431,7 @@ class GuideGraphNotifier extends StateNotifier<List<GuideGraphPoint>> {
             ? DateTime.fromMillisecondsSinceEpoch(event.timestamp)
             : DateTime.now(),
       );
-    } else if (event.category == EventCategory.guiding &&
-        event.eventType == 'GuidingStopped') {
+    } else if (guiding is GuidingEvent_GuidingStopped) {
       clear();
     }
   }

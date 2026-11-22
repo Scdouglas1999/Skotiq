@@ -7,6 +7,8 @@ import '../backend/skotiq_backend.dart';
 import '../models/autofocus_progress.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/focuser_backlash_progress.dart';
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart' show EquipmentEvent_PropertyChanged;
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'focuser_backlash_provider.dart';
@@ -147,11 +149,12 @@ class FocuserBacklashCalibrationNotifier
     _eventSubscription = backend.eventStream.listen((event) {
       if (!mounted) return;
       if (generation != _backendGeneration) return;
-      if (event.category != EventCategory.equipment) return;
-      if (event.eventType != 'FocuserBacklashCalibrationProgress') return;
-      final detail = event.data['detail'] as String?;
-      if (detail == null) return;
-      _handleFrame(detail);
+      if (equipmentEventOf(event) case EquipmentEvent_PropertyChanged(
+        property: 'FocuserBacklashCalibrationProgress',
+        value: final detail,
+      )) {
+        _handleFrame(detail);
+      }
     });
   }
 

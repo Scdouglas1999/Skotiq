@@ -2,9 +2,9 @@ part of '../network_backend.dart';
 
 extension _NetworkBackendEventTracking on NetworkBackendTransport {
   void _handleEventSideEffects(SkotiqEvent event) {
-    if (event.category == EventCategory.equipment &&
-        event.eventType == 'PropertyChanged' &&
-        event.data['property'] == 'device_change') {
+    if (equipmentEventOf(event) case bridge.EquipmentEvent_PropertyChanged(
+      property: 'device_change',
+    )) {
       Log.info(
         '[NetworkBackend] Device-change event invalidating discovery cache',
         source: 'NetworkBackend',

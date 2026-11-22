@@ -24,6 +24,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
 import '../services/usb_disconnect_log.dart';
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart' show EquipmentEvent_Error;
 import 'backend_provider.dart';
 import 'logging_service_provider.dart';
 import '../utils/logging_service.dart';
@@ -48,8 +50,7 @@ final usbDisconnectEventBridgeProvider = Provider<void>((ref) {
   StreamSubscription<core_events.SkotiqEvent>? subscription;
   subscription = backend.eventStream.listen(
     (event) {
-      if (event.category != core_events.EventCategory.equipment) return;
-      if (event.eventType != 'Error') return;
+      if (equipmentEventOf(event) is! EquipmentEvent_Error) return;
       // Severity >= warning, so info-level "device returned ASCOM error"
       // chatter doesn't pollute the count (some drivers raise low-severity
       // errors during a clean shutdown).

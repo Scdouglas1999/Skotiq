@@ -41,6 +41,52 @@ core.SkotiqEvent wireEventFromTyped(bridge.SkotiqEvent event) {
 bridge.SkotiqEvent? typedEventFromWire(core.SkotiqEvent event) =>
     (_typedOf[event] ??= _Typed(_decode(event))).event;
 
+/// The equipment event [event] carries; null for any other event.
+bridge.EquipmentEvent? equipmentEventOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.equipment) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_Equipment(:final field0) => field0,
+    _ => null,
+  };
+}
+
+/// The imaging event [event] carries; null for any other event, a DepthLock
+/// event included.
+bridge.ImagingEvent? imagingEventOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.imaging) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_Imaging(:final field0) => field0,
+    _ => null,
+  };
+}
+
+/// The guiding event [event] carries; null for any other event.
+bridge.GuidingEvent? guidingEventOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.guiding) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_Guiding(:final field0) => field0,
+    _ => null,
+  };
+}
+
+/// The safety event [event] carries; null for any other event.
+bridge.SafetyEvent? safetyEventOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.safety) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_Safety(:final field0) => field0,
+    _ => null,
+  };
+}
+
+/// The system event [event] carries; null for any other event.
+bridge.SystemEvent? systemEventOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.system) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_System(:final field0) => field0,
+    _ => null,
+  };
+}
+
 bridge.SkotiqEvent? _decode(core.SkotiqEvent event) {
   if (isHostSyncEnvelope(event) || core.isHostMadeEvent(event)) return null;
   final category = _typedCategory(event.category);
