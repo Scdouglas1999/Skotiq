@@ -142,9 +142,11 @@ class _FilterResultRow extends StatelessWidget {
     return DetailRow(
       title:
           '${build.filter}: ${build.frameCount} frames, ${describeIntegration(seconds)}',
-      subtitle: skipped == null || skipped == 0
-          ? 'No frames left out'
-          : '$skipped left out during processing',
+      subtitle: switch (skipped) {
+        null => null,
+        0 => 'No frames left out',
+        _ => '$skipped left out during processing',
+      },
       icon: SkotiqIcons.check,
     );
   }

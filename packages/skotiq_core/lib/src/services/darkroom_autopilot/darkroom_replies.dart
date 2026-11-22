@@ -171,7 +171,6 @@ class DarkroomFilterBuild {
   });
 
   factory DarkroomFilterBuild.fromJson(Map<dynamic, dynamic> json) {
-    final skipped = json['skipped'];
     final frames = json['frameCount'];
     final seconds = json['totalIntegrationSec'];
     return DarkroomFilterBuild(
@@ -179,7 +178,11 @@ class DarkroomFilterBuild {
       error: json['error'],
       frameCount: frames is num ? frames.toInt() : null,
       totalIntegrationSec: seconds is num ? seconds.toDouble() : null,
-      skippedCount: skipped is List ? skipped.length : null,
+      skippedCount: switch ((json['skipped'], json['skippedCount'])) {
+        (final List list, _) => list.length,
+        (_, final num count) => count.toInt(),
+        _ => null,
+      },
     );
   }
 
@@ -190,7 +193,8 @@ class DarkroomFilterBuild {
   final int? frameCount;
   final double? totalIntegrationSec;
 
-  /// The subs the build left out, or null when the record does not say (the
-  /// brief a saved job keeps has no list).
+  /// How many subs the build left out: the reply's list of them, or the count
+  /// the brief a saved job keeps. Null when the record does not say (a job
+  /// saved before the brief kept the count).
   final int? skippedCount;
 }

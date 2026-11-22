@@ -115,6 +115,47 @@ void main() {
     expect(build.skippedCount, (reply['skipped'] as List).length);
   });
 
+  // The saved job keeps a brief of each filter's reply. It dropped the list of
+  // subs left out, so after a restart the row read "No frames left out".
+  test('a saved and restored build keeps how many subs it left out', () {
+    final reply = replyFixtureObject('master_build');
+    final skipped = (reply['skipped'] as List).length;
+    DarkroomBuildJob job = DarkroomBuildJob(
+      target: 'M31',
+      stage: DarkroomJobStage.done,
+      message: 'Done',
+      startedAt: DateTime.utc(2026, 11, 21, 6),
+      filterResults: [reply],
+      report: {
+        'results': [reply],
+      },
+    );
+    // Restored twice: the brief is briefed again at the next save.
+    for (var restart = 0; restart < 2; restart++) {
+      job = DarkroomBuildJob.fromJson(
+        jsonDecode(jsonEncode(job.toJson())) as Map<String, dynamic>,
+      );
+      expect(
+        DarkroomFilterBuild.fromJson(job.filterResults.single).skippedCount,
+        skipped,
+      );
+      final results = job.report!['results'] as List;
+      expect(
+        DarkroomFilterBuild.fromJson(results.single as Map).skippedCount,
+        skipped,
+      );
+    }
+  });
+
+  test('a build saved without the count does not claim none were left out', () {
+    final brief = DarkroomFilterBuild.fromJson({
+      'filter': 'Ha',
+      'frameCount': 58,
+      'totalIntegrationSec': 17400.0,
+    });
+    expect(brief.skippedCount, isNull);
+  });
+
   test('a failed filter reads as its failure', () {
     final failed = DarkroomFilterBuild.fromJson({
       'filter': 'OIII',
