@@ -13,14 +13,17 @@ pub struct FrameKind {
 
 impl FrameKind {
     /// Read a card the many ways writers spell it ("Light", "LIGHT", "Light
-    /// Frame", "Master Dark", "MASTER_LIGHT", "Offset"), ignoring case: a
-    /// card naming a bias or offset is a bias, else one naming a dark is a
-    /// dark, then a flat, then a light (also "science" and "object"). "master"
-    /// anywhere makes it a master. `None` for a card naming none of these.
+    /// Frame", "Master Dark", "MASTER_LIGHT", "Offset", "DARKFLAT"), ignoring
+    /// case: a card naming a bias or offset is a bias, else one naming both a
+    /// dark and a flat is a dark-flat, then a dark, a flat, a light (also
+    /// "science" and "object"). "master" anywhere makes it a master. `None`
+    /// for a card naming none of these.
     pub fn from_imagetyp(card: &str) -> Option<Self> {
         let t = card.to_ascii_lowercase();
         let base = if t.contains("bias") || t.contains("offset") {
             FrameType::Bias
+        } else if t.contains("dark") && t.contains("flat") {
+            FrameType::DarkFlat
         } else if t.contains("dark") {
             FrameType::Dark
         } else if t.contains("flat") {
@@ -100,7 +103,10 @@ mod tests {
             ("Master Bias", kind(FrameType::Bias, true)),
             ("Offset", kind(FrameType::Bias, false)),
             ("FLAT", kind(FrameType::Flat, false)),
-            ("Dark Flat", kind(FrameType::Dark, false)),
+            ("Dark Flat", kind(FrameType::DarkFlat, false)),
+            ("DARKFLAT", kind(FrameType::DarkFlat, false)),
+            ("FlatDark", kind(FrameType::DarkFlat, false)),
+            ("Master DarkFlat", kind(FrameType::DarkFlat, true)),
             ("MASTER_REF", None),
             ("REJECTION_MAP", None),
             ("", None),
@@ -119,7 +125,8 @@ mod tests {
             ("Science", FrameType::Light, true, false, false),
             ("MASTER_LIGHT", FrameType::Light, true, true, false),
             ("Master Dark", FrameType::Dark, true, true, false),
-            ("DarkFlat", FrameType::Dark, true, false, false),
+            ("DarkFlat", FrameType::Dark, false, false, false),
+            ("DarkFlat", FrameType::DarkFlat, true, true, true),
             ("Dark Flat", FrameType::Flat, false, true, false),
             ("Offset", FrameType::Bias, true, false, false),
             ("", FrameType::Light, false, false, false),
