@@ -1,0 +1,11 @@
+{
+  "PausingGuider": "Pausing Guider",
+  "EnablingTracking": "Turning tracking on",
+  "SlewingToTarget": "Slewing to Target",
+  "VerifyingPierSide": "Verifying Pier Side",
+  "ConfirmingTracking": "Confirming tracking",
+  "PlateSolvingAndCentering": "Plate Solving & Centering",
+  "Refocusing": "Refocusing",
+  "ResumingGuider": "Resuming Guider",
+  "Settling": "Settling"
+}

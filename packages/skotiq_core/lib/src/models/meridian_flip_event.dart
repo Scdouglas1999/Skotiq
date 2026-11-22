@@ -14,10 +14,8 @@ enum FlipStep {
   pausingGuider,
   enablingTracking,
   confirmingTracking,
-  stoppingTracking,
   slewingToTarget,
   verifyingPierSide,
-  resumingTracking,
   plateSolvingAndCentering,
   refocusing,
   resumingGuider,
@@ -25,6 +23,8 @@ enum FlipStep {
 }
 
 extension FlipStepExtension on FlipStep {
+  /// The step's words, the native executor's words for it too
+  /// (`test/fixtures/flip_step_words.json`).
   String get displayName {
     switch (this) {
       case FlipStep.enablingTracking:
@@ -33,14 +33,10 @@ extension FlipStepExtension on FlipStep {
         return 'Confirming tracking';
       case FlipStep.pausingGuider:
         return 'Pausing Guider';
-      case FlipStep.stoppingTracking:
-        return 'Stopping Tracking';
       case FlipStep.slewingToTarget:
         return 'Slewing to Target';
       case FlipStep.verifyingPierSide:
         return 'Verifying Pier Side';
-      case FlipStep.resumingTracking:
-        return 'Resuming Tracking';
       case FlipStep.plateSolvingAndCentering:
         return 'Plate Solving & Centering';
       case FlipStep.refocusing:
@@ -60,14 +56,10 @@ extension FlipStepExtension on FlipStep {
         return 'Checking that the mount follows the sky';
       case FlipStep.pausingGuider:
         return 'Pausing autoguiding before the flip';
-      case FlipStep.stoppingTracking:
-        return 'Stopping mount tracking before slewing';
       case FlipStep.slewingToTarget:
         return 'Slewing mount to target on opposite pier side';
       case FlipStep.verifyingPierSide:
         return 'Verifying mount has changed pier side';
-      case FlipStep.resumingTracking:
-        return 'Resuming sidereal tracking';
       case FlipStep.plateSolvingAndCentering:
         return 'Plate solving and centering target';
       case FlipStep.refocusing:

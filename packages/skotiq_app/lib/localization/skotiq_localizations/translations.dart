@@ -853,9 +853,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActivityTotalRms': 'Total RMS',
     'nightActivitySettleThreshold': 'Settle threshold',
     'nightActivityFlipPauseGuide': 'Pausing guider',
-    'nightActivityFlipStopTracking': 'Stopping tracking',
     'nightActivityFlipVerifySide': 'Verifying pier side',
-    'nightActivityFlipResumeTracking': 'Resuming tracking',
 
     'nightPanelBinning': 'Binning',
     'nightPanelCancelAutofocus': 'Cancel',
@@ -2525,9 +2523,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActivityTotalRms': 'RMS total',
     'nightActivitySettleThreshold': 'Umbral de estabilización',
     'nightActivityFlipPauseGuide': 'Pausando guiado',
-    'nightActivityFlipStopTracking': 'Deteniendo seguimiento',
     'nightActivityFlipVerifySide': 'Verificando lado de la montura',
-    'nightActivityFlipResumeTracking': 'Reanudando seguimiento',
 
     'nightPanelBinning': 'Binning',
     'nightPanelCancelAutofocus': 'Cancelar',
