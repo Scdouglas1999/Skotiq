@@ -13,13 +13,11 @@ typedef _Field<T> = SettingField<AppSettingsState, T>;
 AppSettingsNotifier _settings(WidgetRef ref) =>
     ref.read(appSettingsProvider.notifier);
 
-const _ditherScales = ['Small', 'Medium', 'Large'];
-
 final _ditherSize = _Field<String>(
   label: 'Dither size',
-  read: (s) => _ditherScales.contains(s.ditherScale) ? s.ditherScale : 'Medium',
+  read: (s) => ditherScales.contains(s.ditherScale) ? s.ditherScale : 'Medium',
   write: (ref, v) => _settings(ref).setDitherScale(v),
-  choices: _ditherScales,
+  choices: ditherScales,
   choiceLabel: (v) => '$v · ${ditherScalePixels(v).toStringAsFixed(0)} px',
 );
 
