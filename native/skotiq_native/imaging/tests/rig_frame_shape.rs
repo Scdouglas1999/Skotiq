@@ -5,9 +5,13 @@
 //! `test-fixtures/rig-2026-09-14/manifest.json`).
 //!
 //! The committed fixtures are 1024×1024 crops copied pixel-for-pixel from the
-//! frame centers. The full frames are checked too when they are present under
-//! `~/.cache/sk-rig-data/2026-09-14` (or `$SKOTIQ_RIG_DATA/2026-09-14`);
-//! without them those tests say so and return.
+//! frame centers. The full-frame test is ignored by default; with the frames
+//! under `~/.cache/sk-rig-data/2026-09-14` (or `$SKOTIQ_RIG_DATA/2026-09-14`),
+//! run it with:
+//!
+//! ```text
+//! cargo test -p skotiq_imaging --test rig_frame_shape -- --ignored
+//! ```
 
 use skotiq_imaging::{measure_frame_shape, read_fits, FrameShape};
 use std::path::{Path, PathBuf};

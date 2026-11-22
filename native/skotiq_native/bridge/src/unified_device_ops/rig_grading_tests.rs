@@ -15,7 +15,13 @@
 //!
 //! Fixtures are 1024×1024 center crops copied pixel-for-pixel (see
 //! `test-fixtures/rig-2026-09-14/manifest.json`); the full frames are graded
-//! as well when `~/.cache/sk-rig-data/2026-09-14` is present.
+//! as well when `~/.cache/sk-rig-data/2026-09-14` is present. The tests on the
+//! full frames and on the dust-study corpus are ignored by default; with the
+//! data present, run them with:
+//!
+//! ```text
+//! cargo test -p skotiq_bridge --lib rig_grading -- --ignored
+//! ```
 
 use super::UnifiedDeviceOps;
 use skotiq_sequencer::quality::{grade_frame, FrameGrade, FrameMetrics, ImageQualityCheck};
