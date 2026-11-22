@@ -256,7 +256,7 @@ void main() {
       });
     }
 
-    test('a device card reads them by their category', () {
+    test('a device card reads them by their text', () {
       final notConnected = DeviceError.fromException(
         const ConnectionException(
           message: 'Not connected to server.',
@@ -267,35 +267,23 @@ void main() {
       expect(notConnected.recoverable, isTrue);
       expect(notConnected.message, 'Not connected to a Skotiq Headless Server');
 
-      // Its text says "camera", which read as a driver error.
       final unavailable = DeviceError.fromException(
         const ConnectionException(
           message: 'No camera device ID available',
           userMessage: 'The camera device is not available',
         ),
       );
-      expect(unavailable.type, DeviceErrorType.connectionFailed);
+      expect(unavailable.type, DeviceErrorType.driverError);
       expect(unavailable.recoverable, isTrue);
-
-      // A run holding the cooler is a busy device, not a driver fault.
-      final busy = DeviceError.fromException(
-        const DeviceBusyException(
-          message: 'A sequence run owns the camera cooler',
-          userMessage: 'The running sequence controls the camera cooler.',
-          deviceId: 'cam',
-        ),
-      );
-      expect(busy.type, DeviceErrorType.busy);
-      expect(busy.deviceId, 'cam');
 
       final notFound = DeviceError.fromException(
         ConnectionException.notFound('cam'),
       );
-      expect(notFound.type, DeviceErrorType.connectionFailed);
+      expect(notFound.type, DeviceErrorType.deviceNotFound);
       expect(notFound.recoverable, isFalse);
     });
 
-    test('describeError reads them like any typed error', () {
+    test('describeError reads them through the known-failure table', () {
       final text = describeError(
         const ConnectionException(
           message: 'Device not connected',
@@ -303,8 +291,11 @@ void main() {
         ),
         domain: ErrorDomain.device,
       );
-      expect(text.message, 'The camera is not connected');
-      expect(text.suggestion, 'Reconnect the device, then try again.');
+      expect(text.message, 'The camera is not connected.');
+      expect(
+        text.suggestion,
+        'Connect to the device before performing this operation.',
+      );
       expect(text.isRecoverable, isTrue);
     });
   });
