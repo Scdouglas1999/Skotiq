@@ -26,10 +26,26 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
+
 import 'package:skotiq_core/src/models/backend/backend_types.dart'
     as bridge_event;
+
+/// Records the sequence the router is told is active, which picks the
+/// per-sequence notification overrides.
+class _RecordingRouter extends NotificationRouter {
+  _RecordingRouter() : super(transports: const []);
+
+  final activeSequences = <String?>[];
+
+  @override
+  void setActiveSequence(String? sequenceId) {
+    activeSequences.add(sequenceId);
+    super.setActiveSequence(sequenceId);
+  }
+}
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -87,9 +103,12 @@ void main() {
   ProviderContainer buildContainer({
     int dbSessionId = 42,
     List<PsfFieldTileRow> seededPsfTiles = const [],
+    NotificationRouter? router,
   }) {
     final container = ProviderContainer(
       overrides: [
+        if (router != null)
+          notificationRouterProvider.overrideWithValue(router),
         databaseProvider.overrideWithValue(db),
         backendProvider.overrideWith(
           (ref) => _TestBackendNotifier(ref, backend),
@@ -359,15 +378,17 @@ void main() {
       expect(() => executor.captureSessionEndHooksForTest(), returnsNormally);
     });
 
-    test('NotificationRouter.setActiveSequence(null) is called at end', () {
-      final container = buildContainer();
+    test('the notification router follows the run and is cleared once at '
+        'its end', () {
+      final router = _RecordingRouter();
+      final container = buildContainer(router: router);
       final executor = container.read(sequenceExecutorProvider);
 
       executor.captureSessionStartHooksForTest('seq-end-test');
-      // No throw on end:
-      expect(() => executor.captureSessionEndHooksForTest(), returnsNormally);
-      // A second end call must be a clean no-op (early-return guard).
-      expect(() => executor.captureSessionEndHooksForTest(), returnsNormally);
+      executor.captureSessionEndHooksForTest();
+      executor.captureSessionEndHooksForTest();
+
+      expect(router.activeSequences, ['seq-end-test', null]);
     });
   });
 

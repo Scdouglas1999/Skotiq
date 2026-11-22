@@ -612,7 +612,10 @@ void main() {
     );
 
     test('Disconnect event with null device_type is safely ignored', () async {
-      // This should not throw
+      final mountNotifier = container.read(mountStateProvider.notifier);
+      mountNotifier.setConnecting(TestFixtures.mountId, 'Test Mount');
+      mountNotifier.setConnected();
+
       eventStreamController.add(
         SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -624,7 +627,10 @@ void main() {
       );
 
       await Future.delayed(const Duration(milliseconds: 50));
-      // No exception means the null guard works
+      expect(
+        container.read(mountStateProvider).connectionState,
+        DeviceConnectionState.connected,
+      );
     });
 
     test('Filter wheel disconnect event resets filter wheel state', () async {
