@@ -918,12 +918,10 @@ TwilightTimes altitudeChartNight(
   required double latitudeDeg,
   required double longitudeDeg,
 }) {
-  // Which night to plot. `calculateTwilightTimes(date:)` returns a
-  // sunset-tonight → sunrise-tomorrow window, so anchoring purely on the
-  // calendar date describes the NEXT night once the clock passes midnight —
-  // while the user is still imaging the current one. Mirror
-  // `twilightTimesProvider`: keep the previous date's window for as long as
-  // it is still running.
+  // Which night to plot. `calculateTwilightTimes(date:)` returns the window
+  // of the night that opens at the site's solar noon of that calendar day, so
+  // the site's own date picks tonight's; the previous night's window is kept
+  // for as long as it is still running.
   TwilightTimes twilightFor(DateTime date) =>
       AstronomyCalculations.calculateTwilightTimes(
         date: date,
@@ -931,7 +929,12 @@ TwilightTimes altitudeChartNight(
         longitudeDeg: longitudeDeg,
       );
 
-  final todayTwilight = twilightFor(now);
+  // The site's solar calendar day now (its night date is the day 12 h ago).
+  final siteToday = AstronomyCalculations.nightDateOf(
+    now.add(const Duration(hours: 12)),
+    longitudeDeg: longitudeDeg,
+  );
+  final todayTwilight = twilightFor(siteToday);
   final tonightStart = todayTwilight.sunset?.subtract(
     const Duration(hours: 1),
   );
@@ -950,7 +953,9 @@ TwilightTimes altitudeChartNight(
     );
     if (now.isBefore(approximatePreviousEnd)) {
       final previousTwilight = twilightFor(
-        now.subtract(const Duration(days: 1)),
+        siteToday.isUtc
+            ? DateTime.utc(siteToday.year, siteToday.month, siteToday.day - 1)
+            : DateTime(siteToday.year, siteToday.month, siteToday.day - 1),
       );
       final previousEnd = previousTwilight.sunrise?.add(
         const Duration(hours: 1),
