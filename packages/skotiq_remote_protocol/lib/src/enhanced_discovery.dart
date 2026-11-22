@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -839,22 +840,11 @@ class EnhancedSkotiqDiscovery {
               // broadcast) lands on the right scheme and can cross-check the
               // fingerprint against a previously-saved value before sending
               // its bearer token.
-              final txt = HostTxt.parse({
-                for (final record
-                    in (resolvedService.txt ?? const <String, Object?>{})
-                        .entries)
-                  if (_decodeTxtValue(record.value) case final value?)
-                    record.key: value,
-              });
-              final server = DiscoveredServer(
+              final server = serverFromNsd(
                 host: host,
-                webPort: port,
-                signalingPort: txt.signalingPort ?? 45678,
-                name: txt.name ?? resolvedService.name ?? 'Skotiq',
-                version: txt.version ?? '2.0.0',
-                scheme: txt.scheme ?? 'http',
-                fingerprint: txt.fingerprint,
-                pairingSupported: txt.pairingSupported ?? false,
+                port: port,
+                serviceName: resolvedService.name,
+                txt: resolvedService.txt,
               );
 
               // Avoid duplicates
@@ -909,6 +899,31 @@ class EnhancedSkotiqDiscovery {
         }
       }
     }
+  }
+
+  /// The server an nsd-resolved `_skotiq._tcp` service at [host]:[port]
+  /// describes, before its `/api/info` is read.
+  @visibleForTesting
+  static DiscoveredServer serverFromNsd({
+    required String host,
+    required int port,
+    String? serviceName,
+    Map<String, Object?>? txt,
+  }) {
+    final advert = HostTxt.parse({
+      for (final record in (txt ?? const <String, Object?>{}).entries)
+        if (_decodeTxtValue(record.value) case final value?) record.key: value,
+    });
+    return DiscoveredServer(
+      host: host,
+      webPort: port,
+      signalingPort: advert.signalingPort ?? 45678,
+      name: advert.name ?? serviceName ?? 'Skotiq',
+      version: advert.version ?? '2.0.0',
+      scheme: advert.scheme ?? 'http',
+      fingerprint: advert.fingerprint,
+      pairingSupported: advert.pairingSupported ?? false,
+    );
   }
 
   static Future<List<DiscoveredServer>> discoverViaUdp({
