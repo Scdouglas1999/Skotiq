@@ -258,6 +258,10 @@ final runDashboardFilterTotalsProvider =
 
 enum RunDashboardEventSeverity { info, warning, error, critical }
 
+/// What a feed row stands for, as the feed's folds read it: one stop of a
+/// run, one run's completion, or any other event.
+enum RunDashboardRowKind { stop, completion, other }
+
 /// A normalised event entry for the trigger feed.
 class RunDashboardEvent {
   /// Stable identity for de-duplication / banner dismissal. Sourced from
@@ -290,6 +294,8 @@ class RunDashboardEvent {
   /// the pause it caused, or a new run started.
   final bool isRunFault;
 
+  final RunDashboardRowKind kind;
+
   const RunDashboardEvent({
     required this.eventId,
     required this.time,
@@ -301,6 +307,7 @@ class RunDashboardEvent {
     this.repeatCount = 1,
     this.faultKey,
     this.isRunFault = false,
+    this.kind = RunDashboardRowKind.other,
   });
 
   RunDashboardEvent withRepeatCount(int count) => RunDashboardEvent(
@@ -314,6 +321,7 @@ class RunDashboardEvent {
         repeatCount: count,
         faultKey: faultKey,
         isRunFault: isRunFault,
+        kind: kind,
       );
 
   /// Same event, same words: what the banner treats as one entry. The id
@@ -356,12 +364,12 @@ List<RunDashboardEvent> collapseRepeatedEvents(
     final isRepeat = last != null &&
         // A stop row is one press or one abort by construction of the fold
         // above; an xN badge would multiply the operator's action.
-        event.title != 'Sequence stopped' &&
+        event.kind != RunDashboardRowKind.stop &&
         // One completed run reaches the wire twice (the executor's explicit
         // SequenceCompleted AND the state-change arm), so completion rows
         // fold below WITHOUT a badge — "Sequence complete x2" reads as two
         // completions that never happened.
-        event.title != 'Sequence complete' &&
+        event.kind != RunDashboardRowKind.completion &&
         last.category == event.category &&
         last.title == event.title &&
         last.message == event.message &&
@@ -571,9 +579,9 @@ List<RunDashboardEvent> _foldDuplicateCompletions(
 ) {
   final out = <RunDashboardEvent>[];
   for (final row in rows) {
-    if (row.title == 'Sequence complete' &&
+    if (row.kind == RunDashboardRowKind.completion &&
         out.isNotEmpty &&
-        out.last.title == 'Sequence complete' &&
+        out.last.kind == RunDashboardRowKind.completion &&
         out.last.time.difference(row.time).abs() <=
             const Duration(seconds: 10)) {
       continue;
@@ -593,7 +601,7 @@ List<RunDashboardEvent> _foldStopFamilyRows(
         _isOperatorStopEvidence(event) || _isAutopilotStopEvidence(event);
     final family = evidence || _isNeutralStopFamilyEvent(event);
     final row = _toDashboardEvent(event);
-    if (!family && row.title != 'Sequence stopped') {
+    if (!family && row.kind != RunDashboardRowKind.stop) {
       final payload = event.payload;
       if (payload is sk_events.EventPayload_Sequencer &&
           payload.field0 is sk_events.SequencerEvent_Started) {
@@ -656,6 +664,7 @@ List<RunDashboardEvent> _foldStopFamilyRows(
         message: row.message,
         isCritical: kept.isCritical,
         repeatCount: kept.repeatCount,
+        kind: kept.kind,
       );
     }
   }
@@ -690,6 +699,7 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
               ? kSequenceStoppedByAutopilotMessage
               : '',
       isCritical: false,
+      kind: RunDashboardRowKind.stop,
     );
   }
   final severity = _mapSeverity(event.severity);
@@ -700,12 +710,13 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
   // path below already refuses to treat an Info event as critical, and the two
   // must not disagree about the same event.
   final isCritical = sk_events.isCriticalEvent(event) && _isAtLeastError(event);
+  final title = sk_events.skotiqEventDisplayTitle(event);
   return RunDashboardEvent(
     eventId: event.eventId,
     time: DateTime.fromMillisecondsSinceEpoch(ms),
     severity: isCritical ? RunDashboardEventSeverity.critical : severity,
     category: _categoryLabel(event.category),
-    title: sk_events.skotiqEventDisplayTitle(event),
+    title: title,
     message: _nameDepthGoal(
       humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
       event,
@@ -713,8 +724,19 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
     isCritical: isCritical,
     faultKey: _faultKey(event),
     isRunFault: _isRunFault(event),
+    kind: _rowKind(event, title),
   );
 }
+
+RunDashboardRowKind _rowKind(sk_events.SkotiqEvent event, String title) =>
+    switch (_sequencerEvent(event)) {
+      sk_events.SequencerEvent_Completed() => RunDashboardRowKind.completion,
+      _ => switch (title) {
+          'Sequence stopped' => RunDashboardRowKind.stop,
+          'Sequence complete' => RunDashboardRowKind.completion,
+          _ => RunDashboardRowKind.other,
+        },
+    };
 
 /// The banner key of a meridian flip outcome. One flip is one thing to know
 /// about: its newest failure replaces the older one, and a flip that
