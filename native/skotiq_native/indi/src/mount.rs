@@ -226,55 +226,34 @@ impl IndiMount {
         (ra_hours, dec_degrees): (f64, f64),
         timeout: Duration,
     ) -> IndiResult<()> {
-        const AT_TARGET_DEG: f64 = 1.0 / 60.0;
         let prop = coord.as_str();
-        let deadline = tokio::time::Instant::now() + timeout;
-        loop {
-            {
-                let client = self.client.read().await;
-                let updated = client
-                    .get_property_last_update_ms(&self.device_name, prop)
-                    .await;
-                if updated > updated_before {
-                    match client.get_property_state(&self.device_name, prop).await {
-                        Some(crate::IndiPropertyState::Busy) => return Ok(()),
-                        Some(crate::IndiPropertyState::Alert) => {
-                            return Err(IndiError::DeviceAlert(format!(
-                                "{} refused the goto to RA {:.4}h, Dec {:.4} deg ({} went to Alert)",
-                                self.device_name, ra_hours, dec_degrees, prop
-                            )));
-                        }
-                        _ => {
-                            let ra = client.get_number(&self.device_name, prop, RA).await;
-                            let dec = client.get_number(&self.device_name, prop, DEC).await;
-                            if let (Some(ra), Some(dec)) = (ra, dec) {
-                                let mut ra_diff_h = (ra - ra_hours) % 24.0;
-                                if ra_diff_h > 12.0 {
-                                    ra_diff_h -= 24.0;
-                                } else if ra_diff_h < -12.0 {
-                                    ra_diff_h += 24.0;
-                                }
-                                if (ra_diff_h * 15.0).abs() <= AT_TARGET_DEG
-                                    && (dec - dec_degrees).abs() <= AT_TARGET_DEG
-                                {
-                                    return Ok(());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if tokio::time::Instant::now() >= deadline {
-                tracing::warn!(
+        crate::answer::wait_for_answer(
+            &self.client,
+            &self.device_name,
+            crate::answer::Sent {
+                property: prop,
+                updated_before,
+                at_target: crate::answer::AtTarget::Coordinates {
+                    ra_hours,
+                    dec_degrees,
+                },
+            },
+            timeout,
+            || {
+                format!(
+                    "{} refused the goto to RA {:.4}h, Dec {:.4} deg ({} went to Alert)",
+                    self.device_name, ra_hours, dec_degrees, prop
+                )
+            },
+            || {
+                format!(
                     "{} did not answer the goto within {:?}; slew completion may read the old \
                      position",
-                    self.device_name,
-                    timeout
-                );
-                return Ok(());
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+                    self.device_name, timeout
+                )
+            },
+        )
+        .await
     }
 
     /// Slew to coordinates with timeout (RA in hours, Dec in degrees)

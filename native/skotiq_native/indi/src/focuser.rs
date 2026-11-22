@@ -74,51 +74,30 @@ impl IndiFocuser {
         target: Option<i32>,
         timeout: Duration,
     ) -> IndiResult<()> {
-        let deadline = tokio::time::Instant::now() + timeout;
-        loop {
-            {
-                let client = self.client.read().await;
-                let updated = client
-                    .get_property_last_update_ms(&self.device_name, property)
-                    .await;
-                if updated > updated_before {
-                    match client.get_property_state(&self.device_name, property).await {
-                        Some(crate::IndiPropertyState::Busy) => return Ok(()),
-                        Some(crate::IndiPropertyState::Alert) => {
-                            return Err(crate::error::IndiError::DeviceAlert(format!(
-                                "{} refused the focuser move ({} went to Alert)",
-                                self.device_name, property
-                            )));
-                        }
-                        _ => match target {
-                            None => return Ok(()),
-                            Some(target) => {
-                                let position = client
-                                    .get_number(
-                                        &self.device_name,
-                                        ABS_FOCUS_POSITION,
-                                        FOCUS_ABSOLUTE_POSITION,
-                                    )
-                                    .await;
-                                if position.is_some_and(|p| (p - f64::from(target)).abs() < 0.5) {
-                                    return Ok(());
-                                }
-                            }
-                        },
-                    }
-                }
-            }
-            if tokio::time::Instant::now() >= deadline {
-                tracing::warn!(
+        crate::answer::wait_for_answer(
+            &self.client,
+            &self.device_name,
+            crate::answer::Sent {
+                property,
+                updated_before,
+                at_target: crate::answer::AtTarget::FocuserPosition(target),
+            },
+            timeout,
+            || {
+                format!(
+                    "{} refused the focuser move ({} went to Alert)",
+                    self.device_name, property
+                )
+            },
+            || {
+                format!(
                     "{} did not answer the focuser move within {:?}; move completion may read \
                      the old position",
-                    self.device_name,
-                    timeout
-                );
-                return Ok(());
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+                    self.device_name, timeout
+                )
+            },
+        )
+        .await
     }
 
     pub async fn move_to_with_timeout(
