@@ -128,20 +128,21 @@ class _FilterResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final error = result['error'];
+    final build = DarkroomFilterBuild.fromJson(result);
+    final error = build.error;
     if (error != null) {
       return DetailRow(
-        title: '${result['filter']}: not built',
+        title: '${build.filter}: not built',
         subtitle: userFacingError(error),
         icon: SkotiqIcons.warning,
       );
     }
-    final seconds = (result['totalIntegrationSec'] as num?) ?? 0;
-    final skipped = (result['skipped'] as List? ?? const []).length;
+    final seconds = build.totalIntegrationSec ?? 0;
+    final skipped = build.skippedCount;
     return DetailRow(
       title:
-          '${result['filter']}: ${result['frameCount']} frames, ${describeIntegration(seconds)}',
-      subtitle: skipped == 0
+          '${build.filter}: ${build.frameCount} frames, ${describeIntegration(seconds)}',
+      subtitle: skipped == null || skipped == 0
           ? 'No frames left out'
           : '$skipped left out during processing',
       icon: SkotiqIcons.check,

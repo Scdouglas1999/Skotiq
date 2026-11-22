@@ -8,7 +8,7 @@ use crate::device_manager::get_device_manager;
 use crate::error::{Refusal, SkotiqError};
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
-use crate::guider::GuiderState;
+use crate::guider::GuiderActivity;
 use crate::state::get_state;
 use std::sync::Arc;
 use std::time::Duration;
@@ -820,18 +820,17 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
 
     // A state PHD2 names that this build does not know is forwarded as PHD2
     // spells it, so the app can show it rather than pretend all is well.
-    let state_str: String = match state {
-        skotiq_phd2::Phd2State::Disconnected => GuiderState::Disconnected,
-        skotiq_phd2::Phd2State::Connected => GuiderState::Connected,
-        skotiq_phd2::Phd2State::Calibrating => GuiderState::Calibrating,
-        skotiq_phd2::Phd2State::Guiding => GuiderState::Guiding,
-        skotiq_phd2::Phd2State::Looping => GuiderState::Looping,
-        skotiq_phd2::Phd2State::Paused => GuiderState::Paused,
-        skotiq_phd2::Phd2State::Settling => GuiderState::Settling,
-        skotiq_phd2::Phd2State::LostLock => GuiderState::LostLock,
-        skotiq_phd2::Phd2State::Unknown(raw) => GuiderState::Unknown(raw),
-    }
-    .into();
+    let activity = match state {
+        skotiq_phd2::Phd2State::Disconnected => GuiderActivity::Disconnected,
+        skotiq_phd2::Phd2State::Connected => GuiderActivity::Connected,
+        skotiq_phd2::Phd2State::Calibrating => GuiderActivity::Calibrating,
+        skotiq_phd2::Phd2State::Guiding => GuiderActivity::Guiding,
+        skotiq_phd2::Phd2State::Looping => GuiderActivity::Looping,
+        skotiq_phd2::Phd2State::Paused => GuiderActivity::Paused,
+        skotiq_phd2::Phd2State::Settling => GuiderActivity::Settling,
+        skotiq_phd2::Phd2State::LostLock => GuiderActivity::LostLock,
+        skotiq_phd2::Phd2State::Unknown(raw) => GuiderActivity::Unknown(raw),
+    };
 
     // Report the real rolling guide statistics accumulated from the PHD2
     // GuideStep event stream. Returning hardcoded 0.0 here is a silent
@@ -845,7 +844,7 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
     Ok(GuiderStatus {
         device_id: DEVICE_ID.to_string(),
         connected: client.is_connected(),
-        state: state_str,
+        state: activity,
         rms_ra: stats.rms_ra,
         rms_dec: stats.rms_dec,
         rms_total: stats.rms_total,

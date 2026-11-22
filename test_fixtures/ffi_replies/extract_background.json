@@ -1,0 +1,10 @@
+{
+  "channels": 3,
+  "degree": 3,
+  "meanLevel": [
+    0.012,
+    0.011,
+    0.0135
+  ],
+  "outputPath": "/out/M31_bg.fits"
+}

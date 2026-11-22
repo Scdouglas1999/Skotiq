@@ -56,6 +56,8 @@ mod real_frame_harness_tests;
 #[cfg(test)]
 mod reference_choice_tests;
 mod registration_preview;
+#[cfg(test)]
+mod reply_fixture_tests;
 pub mod report;
 mod spool;
 mod telemetry;

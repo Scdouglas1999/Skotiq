@@ -74,7 +74,47 @@ fn rectangle(mask: &[bool], width: usize, height: usize) -> Option<[usize; 4]> {
     best.1
 }
 
-pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
+/// One delivered linear master on the common crop.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct UniformMaster {
+    pub(super) channels: u32,
+    pub(super) filter: String,
+    pub(super) path: std::path::PathBuf,
+    pub(super) preview_path: std::path::PathBuf,
+}
+
+/// The RGB composite of the R, G and B masters, and the LRGB one when an L
+/// master was delivered too.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct UniformComposites {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) lrgb_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) lrgb_preview_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) lrgb_xisf_path: Option<String>,
+    pub(super) rgb_path: String,
+    pub(super) rgb_preview_path: String,
+    pub(super) rgb_xisf_path: String,
+}
+
+/// Response for `op: "deliverUniform"`. Fields are in name order, the order
+/// the reply had when it was built as a JSON value.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct UniformDelivery {
+    pub(super) composites: Option<UniformComposites>,
+    pub(super) crop: [usize; 4],
+    pub(super) height: usize,
+    pub(super) masters: Vec<UniformMaster>,
+    pub(super) retained_area: f64,
+    pub(super) scale: &'static str,
+    pub(super) width: usize,
+}
+
+pub(super) fn deliver(json: &str) -> Result<UniformDelivery, String> {
     let args: Args = serde_json::from_str(json).map_err(|e| e.to_string())?;
     if args.masters.is_empty() || !(0.0..=1.0).contains(&args.min_retained_area) {
         return Err("delivery needs masters and a retained-area fraction between 0 and 1".into());
@@ -211,7 +251,12 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
             .with_range(skotiq_imaging::SampleRange::UNIT);
         write_fits(&path, &image, &header).map_err(|e| e.to_string())?;
         write_preview_png(&image, &preview)?;
-        results.push(serde_json::json!({"filter":input.filter,"path":path,"previewPath":preview,"channels":channels}));
+        results.push(UniformMaster {
+            channels,
+            filter: input.filter.clone(),
+            path,
+            preview_path: preview,
+        });
         if channels == 1 {
             let named = header
                 .get_string("FILTER")
@@ -232,13 +277,17 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
     let composites = if args.composites {
         write_composites(out, &planes, cw as u32, ch as u32, per_filter)?
     } else {
-        serde_json::Value::Null
+        None
     };
-    Ok(serde_json::json!({
-        "masters":results,"crop":crop,"width":cw,"height":ch,"retainedArea":fraction,
-        "scale": if per_filter { "perFilter" } else { "adu" },
-        "composites": composites,
-    }))
+    Ok(UniformDelivery {
+        composites,
+        crop,
+        height: ch,
+        masters: results,
+        retained_area: fraction,
+        scale: if per_filter { "perFilter" } else { "adu" },
+        width: cw,
+    })
 }
 
 /// Header for a composite: the optics, site and WCS of one of its masters.
@@ -299,11 +348,11 @@ fn write_composites(
     width: u32,
     height: u32,
     per_filter: bool,
-) -> Result<serde_json::Value, String> {
+) -> Result<Option<UniformComposites>, String> {
     let (Some((r, rh)), Some((g, _)), Some((b, _))) =
         (planes.get("R"), planes.get("G"), planes.get("B"))
     else {
-        return Ok(serde_json::Value::Null);
+        return Ok(None);
     };
     let n = r.len();
     let mut rgb = Vec::with_capacity(n * 3);
@@ -324,11 +373,14 @@ fn write_composites(
     );
     let (rgb_fits, rgb_xisf, rgb_png) =
         write_rgb(&out.join("RGB_linear"), &rgb, width, height, &header)?;
-    let mut result = serde_json::json!({
-        "rgbPath": rgb_fits,
-        "rgbXisfPath": rgb_xisf,
-        "rgbPreviewPath": rgb_png,
-    });
+    let mut result = UniformComposites {
+        lrgb_path: None,
+        lrgb_preview_path: None,
+        lrgb_xisf_path: None,
+        rgb_path: rgb_fits,
+        rgb_preview_path: rgb_png,
+        rgb_xisf_path: rgb_xisf,
+    };
 
     if let Some((l, lh)) = planes.get("L") {
         let (w, h) = (width as usize, height as usize);
@@ -381,11 +433,11 @@ fn write_composites(
             ],
         );
         let (fits, xisf, png) = write_rgb(&out.join("LRGB_linear"), &lrgb, width, height, &header)?;
-        result["lrgbPath"] = serde_json::json!(fits);
-        result["lrgbXisfPath"] = serde_json::json!(xisf);
-        result["lrgbPreviewPath"] = serde_json::json!(png);
+        result.lrgb_path = Some(fits);
+        result.lrgb_xisf_path = Some(xisf);
+        result.lrgb_preview_path = Some(png);
     }
-    Ok(result)
+    Ok(Some(result))
 }
 
 #[cfg(test)]

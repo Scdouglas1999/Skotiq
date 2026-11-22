@@ -1,0 +1,28 @@
+{
+  "binX": 2,
+  "binY": 2,
+  "ccdTempMean": -10.1,
+  "exposureSecs": 300.0,
+  "frameCount": 30,
+  "frameLevels": [
+    {
+      "level": 503.25,
+      "noise": 9.5,
+      "path": "/darks/dark_0001.fits"
+    }
+  ],
+  "gain": 100,
+  "height": 4176,
+  "kind": "dark",
+  "leakBaseline": 503.0,
+  "leakThreshold": 540.5,
+  "leakingFrames": [
+    "/darks/dark_0029.fits"
+  ],
+  "masterMean": 501.75,
+  "offset": 50,
+  "outputPath": "/masters/dark_300s_g100.fits",
+  "rejectionFraction": 0.0125,
+  "setTemp": -10.0,
+  "width": 6248
+}

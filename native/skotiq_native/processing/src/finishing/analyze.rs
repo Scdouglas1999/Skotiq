@@ -1145,3 +1145,66 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn analyze_reply_fixtures() {
+        check_or_write(
+            "analyze_night",
+            &AnalyzeNightResult {
+                curve: vec![
+                    CurvePointDto {
+                        n: 1,
+                        snr: 12.5,
+                        fwhm: 2.75,
+                        cumulative_integration_s: 300.0,
+                    },
+                    CurvePointDto {
+                        n: 2,
+                        snr: 17.25,
+                        fwhm: 2.8,
+                        cumulative_integration_s: 600.0,
+                    },
+                ],
+                recommendation: RecommendationDto {
+                    keep_n: 2,
+                    kept_indices: vec![0, 3],
+                    predicted_snr_gain_pct: 4.5,
+                    reason: "dropping the hazy subs raises SNR".to_string(),
+                },
+            },
+        );
+        check_or_write(
+            "detect_stars_photometry",
+            &DetectStarsPhotometryResult {
+                width: 6248,
+                height: 4176,
+                channels: 3,
+                stars: vec![StarPhotometryDto {
+                    x: 101.5,
+                    y: 202.25,
+                    flux: 40213.0,
+                    snr: 88.5,
+                    hfr: 1.75,
+                    fwhm: 3.5,
+                    eccentricity: 0.21,
+                    peak: 0.62,
+                    channel_flux: vec![14000.0, 13500.5, 12712.5],
+                }],
+            },
+        );
+        check_or_write(
+            "color_calibrate",
+            &ColorCalibrateResult {
+                output_path: "/out/M31_cc.fits".to_string(),
+                channel_scale: vec![1.12, 1.0, 0.87],
+                matched: 143,
+                residual: 0.034,
+            },
+        );
+    }
+}

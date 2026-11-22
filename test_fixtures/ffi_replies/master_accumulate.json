@@ -1,0 +1,85 @@
+{
+  "calibration": {
+    "anchorLight": "/subs/M31_L_0001.fits",
+    "anchorUnreadable": false,
+    "cosmeticCorrection": true,
+    "masters": [
+      {
+        "applied": true,
+        "kind": "dark",
+        "mismatches": [
+          {
+            "delta": 0.8,
+            "dimension": "temperature",
+            "light": "-10.0",
+            "master": "-9.2",
+            "tolerance": 2.0,
+            "withinTolerance": true
+          }
+        ],
+        "path": "/masters/dark_300s_g100.fits",
+        "quality": "acceptable",
+        "stale": false,
+        "staleness": {
+          "ageDays": 41.5,
+          "maxAgeDays": 90.0,
+          "maxTemperatureDeltaC": 2.0,
+          "stale": false,
+          "temperatureDeltaC": 0.8
+        },
+        "unverified": [
+          "offset"
+        ]
+      },
+      {
+        "applied": true,
+        "kind": "flat",
+        "mismatches": [],
+        "path": "/masters/flat_L.fits",
+        "quality": "exact",
+        "stale": false,
+        "staleness": {
+          "ageDays": 3.25,
+          "maxAgeDays": 30.0,
+          "maxTemperatureDeltaC": null,
+          "stale": false,
+          "temperatureDeltaC": null
+        },
+        "unverified": []
+      },
+      {
+        "applied": false,
+        "kind": "bias",
+        "mismatches": [],
+        "path": null,
+        "quality": "notRequired",
+        "stale": false,
+        "staleness": {
+          "ageDays": null,
+          "maxAgeDays": 180.0,
+          "maxTemperatureDeltaC": null,
+          "stale": false,
+          "temperatureDeltaC": null
+        },
+        "unverified": []
+      }
+    ]
+  },
+  "calibrationLogWarning": "calibration log not writable",
+  "channels": 3,
+  "frameCount": 112,
+  "frameWeights": [
+    0.91,
+    0.84,
+    0.77,
+    0.69
+  ],
+  "framesAdded": 4,
+  "height": 4176,
+  "masterPath": "/masters/M31_L.fits",
+  "previewPath": "/masters/M31_L.png",
+  "rejected": 9021,
+  "sidecarPath": "/masters/M31_L.skmaster",
+  "totalIntegrationSec": 33600.0,
+  "width": 6248
+}

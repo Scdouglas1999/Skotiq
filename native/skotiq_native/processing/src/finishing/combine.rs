@@ -873,3 +873,25 @@ mod tests {
         assert_eq!(master.channels, 3);
     }
 }
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn drizzle_reply_fixture() {
+        check_or_write(
+            "drizzle_integrate",
+            &DrizzleIntegrateResult {
+                output_path: "/out/M31_drizzle.fits".to_string(),
+                coverage_path: Some("/out/M31_drizzle_coverage.fits".to_string()),
+                coverage_png_path: Some("/out/M31_drizzle_coverage.png".to_string()),
+                preview_png_path: Some("/out/M31_drizzle.png".to_string()),
+                out_width: 12496,
+                out_height: 8352,
+                channels: 3,
+            },
+        );
+    }
+}

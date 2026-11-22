@@ -1,8 +1,9 @@
 // The variables a `${...}` placeholder can name, for the variable picker and the
 // notification renderer. The list is the sequencer's
 // (`native/skotiq_native/sequencer/src/expressions/catalog.rs`
-// `variable_catalog`); its test `the_app_offers_every_variable_as_the_sequencer_resolves_it`
-// reads this file and fails when an entry here differs from it.
+// `variable_catalog`), written to `test_fixtures/interpolation_catalog/catalog.json`;
+// `test/models/interpolation_catalog_fixture_test.dart` fails when an entry here
+// differs from that file.
 
 import 'package:flutter/foundation.dart';
 

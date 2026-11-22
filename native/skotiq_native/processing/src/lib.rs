@@ -20,5 +20,7 @@ pub mod finishing;
 pub mod mosaic;
 mod output;
 pub mod post_session;
+#[cfg(test)]
+mod reply_fixtures;
 mod run_cancel;
 pub mod sky_atlas;

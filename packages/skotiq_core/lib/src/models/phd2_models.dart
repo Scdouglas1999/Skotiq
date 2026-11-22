@@ -26,6 +26,22 @@ enum Phd2State {
   unknown,
 }
 
+/// The guider state a guider word names: a word a guider status carries
+/// (`test_fixtures/guider_state/words.json`; an idle PHD2 says `Connected`)
+/// or one of PHD2's own `AppState` words (`Selected`). Null for
+/// `Disconnected` and for a word this build does not know.
+Phd2State? phd2StateFromGuiderWord(String? word) => switch (word) {
+  'Connected' || 'Stopped' => Phd2State.stopped,
+  'Selected' => Phd2State.selected,
+  'Calibrating' => Phd2State.calibrating,
+  'Guiding' => Phd2State.guiding,
+  'LostLock' => Phd2State.lostLock,
+  'Paused' => Phd2State.paused,
+  'Looping' => Phd2State.looping,
+  'Settling' => Phd2State.settling,
+  _ => null,
+};
+
 extension Phd2StateSession on Phd2State {
   /// The guider is in a guide session: calibrating, guiding, settling,
   /// paused, or holding through a lost star. An unknown state counts, since

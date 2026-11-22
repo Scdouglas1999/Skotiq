@@ -1,7 +1,6 @@
 // Tests for the app's variable catalog. Its entries are held to the
-// sequencer's list by the Rust test
-// `the_app_offers_every_variable_as_the_sequencer_resolves_it`
-// (`expressions/catalog.rs`); this file checks that:
+// sequencer's list by `interpolation_catalog_fixture_test.dart`; this file
+// checks that:
 //
 //   1. Every entry has a unique name.
 //   2. Each entry's `placeholder` getter renders the correct `${...}` form.

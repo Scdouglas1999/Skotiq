@@ -30,6 +30,7 @@ use crate::builtin_guider::state::{
 use crate::device::DeviceType;
 use crate::error::SkotiqError;
 use crate::event::guiding::GuidingEvent;
+use crate::guider::GuiderActivity;
 use crate::state::get_state;
 use skotiq_imaging::{DetectedStar, ImageData};
 use std::sync::{Arc, OnceLock};
@@ -1630,12 +1631,15 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
     let mut guiding = false;
     while Instant::now() < deadline {
         let guard = state().read().await;
-        if guard.calibration.is_some() && guard.last_status.state == "Guiding" && !guard.settling {
+        if guard.calibration.is_some()
+            && guard.last_status.state == GuiderActivity::Guiding
+            && !guard.settling
+        {
             guiding = true;
             break;
         }
         assert!(
-            guard.last_status.state != "Stopped" && guard.last_status.state != "Error",
+            guard.last_status.state != GuiderActivity::Stopped,
             "guiding stopped: {:?}",
             guard.last_status
         );
@@ -1682,13 +1686,13 @@ async fn a_failed_guiding_task_leaves_the_guider_connected_and_stopped() {
         guard.guiding = true;
         guard.calibrating = true;
         guard.last_status.connected = true;
-        guard.last_status.state = "Guiding".to_string();
+        guard.last_status.state = GuiderActivity::Guiding;
     }
     finish_failed_guiding(state(), "Guiding stopped: Settle timeout exceeded").await;
     let guard = state().read().await;
     assert!(guard.connected);
     assert!(!guard.guiding && !guard.calibrating);
-    assert_eq!(guard.last_status.state, "Stopped");
+    assert_eq!(guard.last_status.state, GuiderActivity::Stopped);
     assert!(guard.last_status.connected);
     drop(guard);
     reset_guider_state().await;
@@ -1770,7 +1774,7 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
         begin_loop(
             |guard| {
                 guard.guiding = true;
-                guard.last_status.state = "Guiding".to_string();
+                guard.last_status.state = GuiderActivity::Guiding;
             },
             GuidingEvent::Calibrating,
             |controller, stop_flag| async move {
@@ -1779,7 +1783,7 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
                 }
                 // The frame in flight completes after the stop was asked for.
                 tokio::time::sleep(Duration::from_millis(20)).await;
-                controller.write().await.last_status.state = "Guiding".to_string();
+                controller.write().await.last_status.state = GuiderActivity::Guiding;
             },
         )
         .await;
@@ -1788,7 +1792,7 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
     stop().await.expect("stop");
 
     let guard = state().read().await;
-    assert_eq!(guard.last_status.state, "Connected");
+    assert_eq!(guard.last_status.state, GuiderActivity::Connected);
     assert!(!guard.guiding);
     drop(guard);
     reset_guider_state().await;

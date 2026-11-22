@@ -13361,6 +13361,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuiderActivity dco_decode_guider_activity(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return GuiderActivity_Disconnected();
+      case 1:
+        return GuiderActivity_Connected();
+      case 2:
+        return GuiderActivity_Stopped();
+      case 3:
+        return GuiderActivity_Calibrating();
+      case 4:
+        return GuiderActivity_Guiding();
+      case 5:
+        return GuiderActivity_Looping();
+      case 6:
+        return GuiderActivity_Paused();
+      case 7:
+        return GuiderActivity_Settling();
+      case 8:
+        return GuiderActivity_LostLock();
+      case 9:
+        return GuiderActivity_Unknown(dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   GuiderCalibration dco_decode_guider_calibration(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -13384,7 +13413,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return GuiderStatus(
       deviceId: dco_decode_String(arr[0]),
       connected: dco_decode_bool(arr[1]),
-      state: dco_decode_String(arr[2]),
+      state: dco_decode_guider_activity(arr[2]),
       rmsRa: dco_decode_f_64(arr[3]),
       rmsDec: dco_decode_f_64(arr[4]),
       rmsTotal: dco_decode_f_64(arr[5]),
@@ -18341,6 +18370,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuiderActivity sse_decode_guider_activity(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return GuiderActivity_Disconnected();
+      case 1:
+        return GuiderActivity_Connected();
+      case 2:
+        return GuiderActivity_Stopped();
+      case 3:
+        return GuiderActivity_Calibrating();
+      case 4:
+        return GuiderActivity_Guiding();
+      case 5:
+        return GuiderActivity_Looping();
+      case 6:
+        return GuiderActivity_Paused();
+      case 7:
+        return GuiderActivity_Settling();
+      case 8:
+        return GuiderActivity_LostLock();
+      case 9:
+        var var_field0 = sse_decode_String(deserializer);
+        return GuiderActivity_Unknown(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   GuiderCalibration sse_decode_guider_calibration(
     SseDeserializer deserializer,
   ) {
@@ -18364,7 +18425,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deviceId = sse_decode_String(deserializer);
     var var_connected = sse_decode_bool(deserializer);
-    var var_state = sse_decode_String(deserializer);
+    var var_state = sse_decode_guider_activity(deserializer);
     var var_rmsRa = sse_decode_f_64(deserializer);
     var var_rmsDec = sse_decode_f_64(deserializer);
     var var_rmsTotal = sse_decode_f_64(deserializer);
@@ -23930,6 +23991,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_guider_activity(
+    GuiderActivity self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case GuiderActivity_Disconnected():
+        sse_encode_i_32(0, serializer);
+      case GuiderActivity_Connected():
+        sse_encode_i_32(1, serializer);
+      case GuiderActivity_Stopped():
+        sse_encode_i_32(2, serializer);
+      case GuiderActivity_Calibrating():
+        sse_encode_i_32(3, serializer);
+      case GuiderActivity_Guiding():
+        sse_encode_i_32(4, serializer);
+      case GuiderActivity_Looping():
+        sse_encode_i_32(5, serializer);
+      case GuiderActivity_Paused():
+        sse_encode_i_32(6, serializer);
+      case GuiderActivity_Settling():
+        sse_encode_i_32(7, serializer);
+      case GuiderActivity_LostLock():
+        sse_encode_i_32(8, serializer);
+      case GuiderActivity_Unknown(field0: final field0):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(field0, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_guider_calibration(
     GuiderCalibration self,
     SseSerializer serializer,
@@ -23947,7 +24039,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.deviceId, serializer);
     sse_encode_bool(self.connected, serializer);
-    sse_encode_String(self.state, serializer);
+    sse_encode_guider_activity(self.state, serializer);
     sse_encode_f_64(self.rmsRa, serializer);
     sse_encode_f_64(self.rmsDec, serializer);
     sse_encode_f_64(self.rmsTotal, serializer);

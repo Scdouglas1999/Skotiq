@@ -1387,25 +1387,22 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
   }
 
   /// What the reply says was written, in its own numbers.
-  String _describeReply(Map<String, dynamic> reply, String outputPath) {
+  String _describeReply(Map<String, dynamic> json, String outputPath) {
+    final reply = DarkroomExportReply.fromJson(json);
     final lines = <String>[];
-    final outputs = reply['outputs'];
-    if (outputs is List && outputs.isNotEmpty) {
-      for (final entry in outputs) {
-        if (entry is! Map<String, dynamic>) continue;
-        final format = entry['format'];
-        final path = entry['path'];
-        final bytes = entry['bytes'];
-        final width = entry['width'];
-        final height = entry['height'];
-        final clamped = entry['clampedSamples'];
-        final quality = entry['quality'];
+    if (reply.outputs.isNotEmpty) {
+      for (final entry in reply.outputs) {
+        final width = entry.width;
+        final height = entry.height;
+        final bytes = entry.bytes;
+        final quality = entry.quality;
+        final clamped = entry.clampedSamples;
         lines.add(
-          '${format ?? 'file'}: ${path ?? outputPath}'
+          '${entry.format ?? 'file'}: ${entry.path ?? outputPath}'
           '${width != null && height != null ? ': $width×$height' : ''}'
-          '${bytes is int ? ', ${ByteFormat.size(bytes)}' : ''}'
+          '${bytes != null ? ', ${ByteFormat.size(bytes)}' : ''}'
           '${quality != null ? ', quality $quality' : ''}'
-          '${clamped is int && clamped > 0 ? ', $clamped samples clamped' : ''}',
+          '${clamped != null && clamped > 0 ? ', $clamped samples clamped' : ''}',
         );
       }
     } else {
@@ -1415,27 +1412,26 @@ class _DarkroomExportSheetState extends ConsumerState<_DarkroomExportSheet> {
       );
     }
 
-    final sidecar = reply['sidecarPath'];
-    final skipped = reply['sidecarSkippedReason'];
-    if (sidecar is String && sidecar.isNotEmpty) {
+    final sidecar = reply.sidecarPath;
+    final skipped = reply.sidecarSkippedReason;
+    if (sidecar != null && sidecar.isNotEmpty) {
       lines.add('Recipe sidecar: $sidecar');
-    } else if (skipped is String && skipped.isNotEmpty) {
+    } else if (skipped != null && skipped.isNotEmpty) {
       lines.add('No recipe sidecar: $skipped');
     }
 
-    final domain = reply['sourceDomain'];
-    if (domain is String && domain.isNotEmpty) {
+    final domain = reply.sourceDomain;
+    if (domain != null && domain.isNotEmpty) {
       lines.add('Source pixels: $domain');
     }
-    final transfer = reply['screenTransfer'];
     lines.add(
-      transfer == null
-          ? 'No screen transfer was applied.'
-          : 'The engine\'s auto stretch was applied to the 8/16-bit files '
-              'only; the recipe was not changed.',
+      reply.screenTransferApplied
+          ? 'The engine\'s auto stretch was applied to the 8/16-bit files '
+              'only; the recipe was not changed.'
+          : 'No screen transfer was applied.',
     );
-    final fingerprint = reply['recipeFingerprint'];
-    if (fingerprint is String && fingerprint.isNotEmpty) {
+    final fingerprint = reply.recipeFingerprint;
+    if (fingerprint != null && fingerprint.isNotEmpty) {
       lines.add('Recipe fingerprint: $fingerprint');
     }
     return lines.join('\n');

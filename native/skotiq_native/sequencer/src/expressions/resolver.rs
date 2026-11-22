@@ -6,7 +6,8 @@
 //! that the name exists. Adding a new variable means:
 //! 1. Add the [`VariableEntry`] to `catalog::variable_catalog()`.
 //! 2. Add a match arm in [`resolve_variable`].
-//! 3. Copy the entry into the app's catalog (`interpolation_catalog.dart`).
+//! 3. Regenerate `test_fixtures/interpolation_catalog/catalog.json` and copy
+//!    the entry into the app's catalog (`interpolation_catalog.dart`).
 
 use super::catalog::variable_catalog;
 use super::errors::InterpolationError;

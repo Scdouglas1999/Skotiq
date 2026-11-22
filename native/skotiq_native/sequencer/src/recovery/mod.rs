@@ -620,3 +620,107 @@ mod tests {
         assert!(cfg.audible_alert_when_entered);
     }
 }
+
+/// `test_fixtures/ffi_replies/recovery_history.json`: recovery loops as the
+/// bridge hands them to the app (`api_sequencer_get_recovery_history_json`;
+/// the current loop is one entry of the same shape). One entry per phase and
+/// per cause, so a variant added here without the app's decoder fails the
+/// app's test. Regenerate with
+/// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer recovery_history_fixture`.
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/ffi_replies/recovery_history.json"
+    );
+
+    fn every_cause() -> Vec<RecoveryCause> {
+        let causes = vec![
+            RecoveryCause::GuideStarLost,
+            RecoveryCause::SlewFailed,
+            RecoveryCause::PlateSolveFailed,
+            RecoveryCause::WeatherUnsafe,
+            RecoveryCause::MountTrackingLost,
+            RecoveryCause::FocusDriftCritical,
+            RecoveryCause::ConsecutiveRejectsExceeded,
+            RecoveryCause::DeviceDisconnected,
+            RecoveryCause::Custom("dew heater script failed".to_string()),
+        ];
+        for cause in &causes {
+            match cause {
+                RecoveryCause::GuideStarLost
+                | RecoveryCause::SlewFailed
+                | RecoveryCause::PlateSolveFailed
+                | RecoveryCause::WeatherUnsafe
+                | RecoveryCause::MountTrackingLost
+                | RecoveryCause::FocusDriftCritical
+                | RecoveryCause::ConsecutiveRejectsExceeded
+                | RecoveryCause::DeviceDisconnected
+                | RecoveryCause::Custom(_) => {}
+            }
+        }
+        causes
+    }
+
+    fn every_phase() -> Vec<RecoveryPhase> {
+        let phases = vec![
+            RecoveryPhase::Waiting,
+            RecoveryPhase::Attempting,
+            RecoveryPhase::Recovered,
+            RecoveryPhase::GaveUp,
+        ];
+        for phase in &phases {
+            match phase {
+                RecoveryPhase::Waiting
+                | RecoveryPhase::Attempting
+                | RecoveryPhase::Recovered
+                | RecoveryPhase::GaveUp => {}
+            }
+        }
+        phases
+    }
+
+    fn history() -> Vec<RecoveryContext> {
+        let started: DateTime<Utc> = "2026-11-21T03:14:15.250Z".parse().expect("time");
+        let causes = every_cause();
+        let phases = every_phase();
+        let count = causes.len().max(phases.len());
+        (0..count)
+            .map(|i| RecoveryContext {
+                started_at: started + ChronoDuration::minutes(i as i64),
+                cause: causes[i % causes.len()].clone(),
+                last_attempt_at: (i % 2 == 0).then(|| {
+                    started + ChronoDuration::minutes(i as i64) + ChronoDuration::seconds(30)
+                }),
+                attempt_count: 2,
+                max_attempts: 6,
+                retry_interval_secs: 45.0,
+                max_duration_secs: 270.0,
+                phase: phases[i % phases.len()],
+                last_error: (i % 2 == 0).then(|| "slew timed out".to_string()),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn recovery_history_fixture() {
+        let value = serde_json::to_value(history()).expect("serialize");
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            std::fs::create_dir_all(std::path::Path::new(FIXTURE).parent().expect("dir"))
+                .expect("fixture dir");
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(FIXTURE, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "the recovery reply changed; regenerate the fixture and update the app's decoder"
+        );
+    }
+}

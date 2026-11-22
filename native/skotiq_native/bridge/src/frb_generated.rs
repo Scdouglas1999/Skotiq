@@ -10502,6 +10502,49 @@ impl SseDecode for crate::guider::GuideStarImage {
     }
 }
 
+impl SseDecode for crate::guider::GuiderActivity {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::guider::GuiderActivity::Disconnected;
+            }
+            1 => {
+                return crate::guider::GuiderActivity::Connected;
+            }
+            2 => {
+                return crate::guider::GuiderActivity::Stopped;
+            }
+            3 => {
+                return crate::guider::GuiderActivity::Calibrating;
+            }
+            4 => {
+                return crate::guider::GuiderActivity::Guiding;
+            }
+            5 => {
+                return crate::guider::GuiderActivity::Looping;
+            }
+            6 => {
+                return crate::guider::GuiderActivity::Paused;
+            }
+            7 => {
+                return crate::guider::GuiderActivity::Settling;
+            }
+            8 => {
+                return crate::guider::GuiderActivity::LostLock;
+            }
+            9 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::guider::GuiderActivity::Unknown(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::guider::GuiderCalibration {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10525,7 +10568,7 @@ impl SseDecode for crate::guider::GuiderStatus {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_deviceId = <String>::sse_decode(deserializer);
         let mut var_connected = <bool>::sse_decode(deserializer);
-        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_state = <crate::guider::GuiderActivity>::sse_decode(deserializer);
         let mut var_rmsRa = <f64>::sse_decode(deserializer);
         let mut var_rmsDec = <f64>::sse_decode(deserializer);
         let mut var_rmsTotal = <f64>::sse_decode(deserializer);
@@ -16443,6 +16486,36 @@ impl flutter_rust_bridge::IntoIntoDart<crate::guider::GuideStarImage>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::guider::GuiderActivity {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::guider::GuiderActivity::Disconnected => [0.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Connected => [1.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Stopped => [2.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Calibrating => [3.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Guiding => [4.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Looping => [5.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Paused => [6.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Settling => [7.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::LostLock => [8.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Unknown(field0) => {
+                [9.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::guider::GuiderActivity {}
+impl flutter_rust_bridge::IntoIntoDart<crate::guider::GuiderActivity>
+    for crate::guider::GuiderActivity
+{
+    fn into_into_dart(self) -> crate::guider::GuiderActivity {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::guider::GuiderCalibration {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -20820,6 +20893,48 @@ impl SseEncode for crate::guider::GuideStarImage {
     }
 }
 
+impl SseEncode for crate::guider::GuiderActivity {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::guider::GuiderActivity::Disconnected => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::guider::GuiderActivity::Connected => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::guider::GuiderActivity::Stopped => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::guider::GuiderActivity::Calibrating => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::guider::GuiderActivity::Guiding => {
+                <i32>::sse_encode(4, serializer);
+            }
+            crate::guider::GuiderActivity::Looping => {
+                <i32>::sse_encode(5, serializer);
+            }
+            crate::guider::GuiderActivity::Paused => {
+                <i32>::sse_encode(6, serializer);
+            }
+            crate::guider::GuiderActivity::Settling => {
+                <i32>::sse_encode(7, serializer);
+            }
+            crate::guider::GuiderActivity::LostLock => {
+                <i32>::sse_encode(8, serializer);
+            }
+            crate::guider::GuiderActivity::Unknown(field0) => {
+                <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::guider::GuiderCalibration {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20836,7 +20951,7 @@ impl SseEncode for crate::guider::GuiderStatus {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.device_id, serializer);
         <bool>::sse_encode(self.connected, serializer);
-        <String>::sse_encode(self.state, serializer);
+        <crate::guider::GuiderActivity>::sse_encode(self.state, serializer);
         <f64>::sse_encode(self.rms_ra, serializer);
         <f64>::sse_encode(self.rms_dec, serializer);
         <f64>::sse_encode(self.rms_total, serializer);
@@ -25670,6 +25785,27 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::guider::GuiderActivity> for wire_cst_guider_activity {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::guider::GuiderActivity {
+            match self.tag {
+                0 => crate::guider::GuiderActivity::Disconnected,
+                1 => crate::guider::GuiderActivity::Connected,
+                2 => crate::guider::GuiderActivity::Stopped,
+                3 => crate::guider::GuiderActivity::Calibrating,
+                4 => crate::guider::GuiderActivity::Guiding,
+                5 => crate::guider::GuiderActivity::Looping,
+                6 => crate::guider::GuiderActivity::Paused,
+                7 => crate::guider::GuiderActivity::Settling,
+                8 => crate::guider::GuiderActivity::LostLock,
+                9 => {
+                    let ans = unsafe { self.kind.Unknown };
+                    crate::guider::GuiderActivity::Unknown(ans.field0.cst_decode())
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::guider::GuiderCalibration> for wire_cst_guider_calibration {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::guider::GuiderCalibration {
@@ -29055,6 +29191,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_guider_activity {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: GuiderActivityKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_guider_activity {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_guider_calibration {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -29076,7 +29225,7 @@ mod io {
             Self {
                 device_id: core::ptr::null_mut(),
                 connected: Default::default(),
-                state: core::ptr::null_mut(),
+                state: Default::default(),
                 rms_ra: Default::default(),
                 rms_dec: Default::default(),
                 rms_total: Default::default(),
@@ -35379,6 +35528,23 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_guider_activity {
+        tag: i32,
+        kind: GuiderActivityKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union GuiderActivityKind {
+        Unknown: wire_cst_GuiderActivity_Unknown,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_GuiderActivity_Unknown {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_guider_calibration {
         is_calibrated: bool,
         ra_angle: *mut f64,
@@ -35391,7 +35557,7 @@ mod io {
     pub struct wire_cst_guider_status {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         connected: bool,
-        state: *mut wire_cst_list_prim_u_8_strict,
+        state: wire_cst_guider_activity,
         rms_ra: f64,
         rms_dec: f64,
         rms_total: f64,

@@ -949,3 +949,40 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn enhance_reply_fixtures() {
+        check_or_write(
+            "extract_background",
+            &ExtractBackgroundResult {
+                output_path: "/out/M31_bg.fits".to_string(),
+                degree: 3,
+                channels: 3,
+                mean_level: vec![0.012, 0.011, 0.0135],
+            },
+        );
+        check_or_write(
+            "deconvolve_preview",
+            &DeconvolvePreviewResult {
+                output_path: "/out/M31_deconv.fits".to_string(),
+                psf: PsfReport {
+                    kind: "moffat".to_string(),
+                    fwhm: 2.9,
+                    beta: 4.5,
+                    size: 25,
+                },
+            },
+        );
+        check_or_write(
+            "reduce_stars_preview",
+            &ReduceStarsPreviewResult {
+                output_path: "/out/M31_reduced.fits".to_string(),
+            },
+        );
+    }
+}

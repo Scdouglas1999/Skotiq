@@ -1,0 +1,16 @@
+{
+  "channels": 3,
+  "excluded": [
+    {
+      "path": "/flats/flat_L_0007.fits",
+      "reason": "banded"
+    }
+  ],
+  "frameCount": 25,
+  "height": 4176,
+  "inputMean": 21873.5,
+  "outputBitDepth": "u16",
+  "outputMean": 1.0002,
+  "outputPath": "/masters/flat_L.fits",
+  "width": 6248
+}

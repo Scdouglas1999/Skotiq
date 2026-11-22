@@ -16,7 +16,7 @@ use crate::error::{Refusal, SkotiqError};
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::event::system::SystemEvent;
-use crate::guider::GuiderState;
+use crate::guider::GuiderActivity;
 use crate::guider::{GuideStarImage, GuiderCalibration, GuiderStatus};
 use crate::state::get_state;
 use std::sync::Arc;
@@ -57,7 +57,7 @@ pub async fn connect() -> Result<(), SkotiqError> {
     guard.unbinned_pixel_scale = Some(unbinned_pixel_scale);
     guard.last_status = BuiltinGuideStatus {
         connected: true,
-        state: GuiderState::Connected.into(),
+        state: GuiderActivity::Connected,
         pixel_scale,
         ..BuiltinGuideStatus::default()
     };
@@ -92,7 +92,7 @@ pub async fn start_guiding(
             guard.guiding = true;
             guard.looping = false;
             guard.calibrating = true;
-            guard.last_status.state = GuiderState::Calibrating.into();
+            guard.last_status.state = GuiderActivity::Calibrating;
             guard.last_status.connected = true;
         },
         GuidingEvent::Calibrating,
@@ -134,7 +134,7 @@ pub async fn loop_exposures() -> Result<(), SkotiqError> {
             guard.guiding = false;
             guard.looping = true;
             guard.calibrating = false;
-            guard.last_status.state = GuiderState::Looping.into();
+            guard.last_status.state = GuiderActivity::Looping;
             guard.last_status.connected = true;
         },
         GuidingEvent::Looping,
@@ -278,9 +278,9 @@ pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
         guard.last_status.rms_dec = 0.0;
         guard.last_status.rms_total = 0.0;
         guard.last_status.state = if guard.connected {
-            GuiderState::Connected.into()
+            GuiderActivity::Connected
         } else {
-            GuiderState::Disconnected.into()
+            GuiderActivity::Disconnected
         };
     }
 
@@ -475,11 +475,10 @@ pub async fn set_paused(paused: bool) -> Result<(), SkotiqError> {
         guard.paused = paused;
         if !guard.calibrating {
             guard.last_status.state = if paused {
-                GuiderState::Paused
+                GuiderActivity::Paused
             } else {
-                GuiderState::Guiding
-            }
-            .into();
+                GuiderActivity::Guiding
+            };
         }
     }
     get_state().publish_guiding_event(
@@ -539,7 +538,7 @@ pub(crate) async fn finish_failed_guiding(
     guard.looping = false;
     guard.calibrating = false;
     guard.settling = false;
-    guard.last_status.state = GuiderState::Stopped.into();
+    guard.last_status.state = GuiderActivity::Stopped;
     guard.last_status.connected = guard.connected;
     tracing::info!("Built-in guider stopped and stays connected: {}", reason);
 }

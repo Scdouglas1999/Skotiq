@@ -1,0 +1,365 @@
+{
+  "base": {
+    "channels": 1,
+    "height": 80,
+    "level": 0,
+    "levelCount": 1,
+    "scaleFromMaster": 1.0,
+    "width": 96
+  },
+  "cacheBudget": {
+    "baseMasterBytes": 536870912,
+    "renderBytes": 536870912
+  },
+  "channelMixes": [
+    {
+      "mix": {
+        "blue": {
+          "oiii": 1.0
+        },
+        "green": {
+          "hAlpha": 1.0
+        },
+        "red": {
+          "sii": 1.0
+        }
+      },
+      "name": "SHO (Hubble palette)",
+      "palette": "sho"
+    },
+    {
+      "mix": {
+        "blue": {
+          "oiii": 1.0
+        },
+        "green": {
+          "oiii": 1.0
+        },
+        "red": {
+          "hAlpha": 1.0
+        }
+      },
+      "name": "HOO (bicolor)",
+      "palette": "hoo"
+    }
+  ],
+  "draft": {
+    "autoParams": {
+      "cropRect": {
+        "height": 80,
+        "width": 96,
+        "x": 0,
+        "y": 0
+      },
+      "defaults": {
+        "background_extract": {
+          "exclusionPercentile": 0.75,
+          "modelOrder": 2,
+          "sampleSpacing": 64.0
+        },
+        "denoise": {
+          "chromaStrength": 0.5,
+          "scaleCount": 4,
+          "strength": 1.0,
+          "thresholdSigma": 3.0
+        }
+      },
+      "stretch": {
+        "b": 1.0,
+        "blackPoint": 914.3690795898438,
+        "d": 5.28266885273379,
+        "symmetryPoint": 0.0,
+        "whitePoint": 4990.8642578125
+      },
+      "stretchMeasuredAtLevel": 0
+    },
+    "notes": [
+      {
+        "opId": "background_extract",
+        "outcome": "included",
+        "reason": "the background surface stays at its default degree 2: no higher degree removed enough of the sky residual to earn the extra bend (sky residual by degree: degree 2: 2.080, degree 3: 1.585)"
+      },
+      {
+        "opId": "color_calibrate",
+        "outcome": "omitted",
+        "reason": "this master has 1 channel and the color fit needs three, so this draft covers the one channel it was given; the color composite of this target's per-filter masters is drafted separately"
+      }
+    ],
+    "recipe": {
+      "baseMasterRef": "/fixture/M31_L.fits",
+      "createdBy": "autopilot",
+      "id": "draft-1",
+      "schemaVersion": 1,
+      "steps": [
+        {
+          "enabled": true,
+          "opId": "crop",
+          "opVersion": 1,
+          "params": {
+            "height": 80,
+            "width": 96,
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "enabled": true,
+          "opId": "background_extract",
+          "opVersion": 1,
+          "params": {}
+        },
+        {
+          "enabled": true,
+          "opId": "denoise",
+          "opVersion": 1,
+          "params": {}
+        },
+        {
+          "enabled": true,
+          "opId": "stretch",
+          "opVersion": 1,
+          "params": {
+            "b": 1.0,
+            "blackPoint": 914.3690795898438,
+            "d": 5.28266885273379,
+            "symmetryPoint": 0.0,
+            "whitePoint": 4990.8642578125
+          }
+        }
+      ]
+    }
+  },
+  "ops": [
+    {
+      "defaults": {
+        "exclusionPercentile": 0.75,
+        "modelOrder": 2,
+        "sampleSpacing": 64.0
+      },
+      "example": {
+        "exclusionPercentile": 0.75,
+        "modelOrder": 2,
+        "sampleSpacing": 64.0
+      },
+      "id": "background_extract",
+      "params": [
+        {
+          "default": 64.0,
+          "displayName": "Sample spacing (master pixels)",
+          "example": 64.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1024.0,
+          "min": 8.0,
+          "name": "sampleSpacing",
+          "required": false,
+          "summary": "Spacing in master pixels between background sample boxes."
+        },
+        {
+          "default": 0.75,
+          "displayName": "Darkest-sample fraction kept",
+          "example": 0.75,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.05,
+          "name": "exclusionPercentile",
+          "required": false,
+          "summary": "Fraction of the darkest samples kept, so nebulosity does not become background."
+        },
+        {
+          "default": 2,
+          "displayName": "Background polynomial degree",
+          "example": 2,
+          "independent": true,
+          "kind": "integer",
+          "max": 6.0,
+          "min": 0.0,
+          "name": "modelOrder",
+          "required": false,
+          "summary": "Polynomial degree of the background surface."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Fits a smooth background model from a star-rejected sample lattice and subtracts it, keeping the frame's pedestal.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "b": 0.0,
+        "colorMode": "linked",
+        "d": 1.0,
+        "symmetryPoint": 0.0
+      },
+      "example": {
+        "b": 0.0,
+        "blackPoint": 0.0,
+        "colorMode": "linked",
+        "d": 1.0,
+        "symmetryPoint": 0.0,
+        "whitePoint": 1.0
+      },
+      "id": "stretch",
+      "params": [
+        {
+          "displayName": "Black point (ADU)",
+          "example": 0.0,
+          "independent": false,
+          "kind": "number",
+          "max": 1000000000000.0,
+          "min": -1000000000000.0,
+          "name": "blackPoint",
+          "required": true,
+          "summary": "ADU mapped to 0. Must sit below whitePoint."
+        },
+        {
+          "displayName": "White point (ADU)",
+          "example": 1.0,
+          "independent": false,
+          "kind": "number",
+          "max": 1000000000000.0,
+          "min": -1000000000000.0,
+          "name": "whitePoint",
+          "required": true,
+          "summary": "ADU mapped to 1. Must sit above blackPoint."
+        },
+        {
+          "default": 1.0,
+          "displayName": "Stretch intensity",
+          "example": 1.0,
+          "independent": true,
+          "kind": "number",
+          "max": 10000.0,
+          "min": 0.0,
+          "name": "d",
+          "required": false,
+          "summary": "Stretch intensity; 0 is the identity ramp."
+        },
+        {
+          "default": 0.0,
+          "displayName": "Local intensity",
+          "example": 0.0,
+          "independent": true,
+          "kind": "number",
+          "max": 15.0,
+          "min": -5.0,
+          "name": "b",
+          "required": false,
+          "summary": "Local intensity: the generalised-hyperbolic family selector."
+        },
+        {
+          "default": 0.0,
+          "displayName": "Symmetry point (normalised)",
+          "example": 0.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "symmetryPoint",
+          "required": false,
+          "summary": "Normalised position the curve is symmetric about."
+        },
+        {
+          "allowed": [
+            "linked",
+            "luminance"
+          ],
+          "allowedLabels": [
+            "Linked channels",
+            "Luminance (keeps color)"
+          ],
+          "default": "linked",
+          "displayName": "Color handling",
+          "example": "linked",
+          "independent": true,
+          "kind": "enum",
+          "name": "colorMode",
+          "required": false,
+          "summary": "linked applies the curve to each channel, which washes bright color toward white; luminance stretches each pixel's channel mean and keeps its channel ratios, so hue and saturation survive the stretch."
+        }
+      ],
+      "stage": "stretched",
+      "summary": "Applies a generalised hyperbolic stretch, leaving the linear stage.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "x": 0,
+        "y": 0
+      },
+      "example": {
+        "height": 16,
+        "width": 16,
+        "x": 0,
+        "y": 0
+      },
+      "id": "crop",
+      "params": [
+        {
+          "default": 0,
+          "displayName": "Left edge (master pixels)",
+          "example": 0,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 0.0,
+          "name": "x",
+          "required": false,
+          "summary": "Left edge in master pixels."
+        },
+        {
+          "default": 0,
+          "displayName": "Top edge (master pixels)",
+          "example": 0,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 0.0,
+          "name": "y",
+          "required": false,
+          "summary": "Top edge in master pixels."
+        },
+        {
+          "displayName": "Width (master pixels)",
+          "example": 16,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 1.0,
+          "name": "width",
+          "required": true,
+          "summary": "Rectangle width in master pixels."
+        },
+        {
+          "displayName": "Height (master pixels)",
+          "example": 16,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 1.0,
+          "name": "height",
+          "required": true,
+          "summary": "Rectangle height in master pixels."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Cuts a rectangle out of the frame and moves the reference pixel with it.",
+      "version": 1
+    }
+  ],
+  "registered": [
+    {
+      "id": "background_extract",
+      "version": 1
+    },
+    {
+      "id": "channel_combine",
+      "version": 1
+    },
+    {
+      "id": "chroma_denoise",
+      "version": 1
+    }
+  ],
+  "schemaVersion": 1
+}

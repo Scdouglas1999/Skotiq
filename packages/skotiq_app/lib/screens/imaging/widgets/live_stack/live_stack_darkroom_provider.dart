@@ -508,42 +508,30 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
       if (measuredRev != null) {
         _measuredRevisionByFilter[filterKey] = measuredRev;
       }
-      final draft = reply['draft'];
-      if (draft is Map) {
-        final steps = draft['steps'];
-        if (steps is List) {
-          for (final raw in steps) {
-            if (raw is Map && raw['opId'] == 'stretch') {
-              final params = raw['params'];
-              if (params is Map) {
-                final bp = (params['blackPoint'] as num?)?.toDouble();
-                final wp = (params['whitePoint'] as num?)?.toDouble();
-                final d = (params['d'] as num?)?.toDouble();
-                final b = (params['b'] as num?)?.toDouble();
-                final sp = (params['symmetryPoint'] as num?)?.toDouble();
-                if (bp != null && wp != null && wp > bp) {
-                  // Re-read the latest filter settings after the await so any
-                  // concurrent slider adjustments are preserved.
-                  final latest = state.settingsFor(filterKey);
-                  final updated = latest.copyWith(
-                    stretchBlackPoint: bp,
-                    stretchWhitePoint: wp,
-                    stretchD: d ?? latest.stretchD,
-                    stretchB: b ?? latest.stretchB,
-                    stretchSymmetryPoint: sp ?? latest.stretchSymmetryPoint,
-                    stretchMeasured: true,
-                  );
-                  final map = Map<String, LiveDarkroomRecipeSettings>.of(
-                    state.settingsByFilter,
-                  )..[filterKey] = updated;
-                  state = state.copyWith(
-                    settingsByFilter: Map.unmodifiable(map),
-                  );
-                  return updated;
-                }
-              }
-            }
-          }
+      final params = DarkroomRegistryDraft.of(reply)?.paramsOf('stretch');
+      if (params != null) {
+        final bp = (params['blackPoint'] as num?)?.toDouble();
+        final wp = (params['whitePoint'] as num?)?.toDouble();
+        final d = (params['d'] as num?)?.toDouble();
+        final b = (params['b'] as num?)?.toDouble();
+        final sp = (params['symmetryPoint'] as num?)?.toDouble();
+        if (bp != null && wp != null && wp > bp) {
+          // Re-read the latest filter settings after the await so any
+          // concurrent slider adjustments are preserved.
+          final latest = state.settingsFor(filterKey);
+          final updated = latest.copyWith(
+            stretchBlackPoint: bp,
+            stretchWhitePoint: wp,
+            stretchD: d ?? latest.stretchD,
+            stretchB: b ?? latest.stretchB,
+            stretchSymmetryPoint: sp ?? latest.stretchSymmetryPoint,
+            stretchMeasured: true,
+          );
+          final map = Map<String, LiveDarkroomRecipeSettings>.of(
+            state.settingsByFilter,
+          )..[filterKey] = updated;
+          state = state.copyWith(settingsByFilter: Map.unmodifiable(map));
+          return updated;
         }
       }
     } catch (error) {

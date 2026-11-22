@@ -1,13 +1,16 @@
 //! The variables a `${...}` placeholder can name.
 //!
 //! [`variable_catalog`] is the one list: the resolver refuses a name that is
-//! not on it, and the app's variable picker and notification renderer use
-//! `packages/skotiq_core/lib/src/models/sequence/interpolation_catalog.dart`,
-//! which a test here holds to this list entry for entry.
+//! not on it. A test here writes it to
+//! `test_fixtures/interpolation_catalog/catalog.json`, and the app's catalog
+//! (`packages/skotiq_core/lib/src/models/sequence/interpolation_catalog.dart`,
+//! read by the variable picker and the notification renderer) is held to that
+//! file by `interpolation_catalog_fixture_test.dart`.
 //!
 //! Adding a variable: declare it here, add its arm in
-//! [`super::resolver::resolve_variable`], and copy the entry into the Dart
-//! catalog.
+//! [`super::resolver::resolve_variable`], regenerate the fixture with
+//! `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer catalog_fixture`,
+//! and copy the entry into the Dart catalog.
 
 /// Top-level groupings shown in the Dart variable-picker UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -362,85 +365,45 @@ mod tests {
         }
     }
 
-    /// One entry of the app's catalog, as written in its Dart source.
-    #[derive(Debug, PartialEq)]
-    struct AppEntry {
-        name: String,
-        description: String,
-        group: String,
-        example: String,
-        supports_format: bool,
-    }
+    const FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/interpolation_catalog/catalog.json"
+    );
 
-    /// The single-quoted Dart string literals that follow `key:` in `block`,
-    /// joined (Dart concatenates adjacent literals).
-    fn dart_string(block: &str, key: &str) -> String {
-        let start = block
-            .find(&format!("{key}:"))
-            .unwrap_or_else(|| panic!("no `{key}:` in {block}"))
-            + key.len()
-            + 1;
-        let mut chars = block[start..].chars().peekable();
-        let mut value = String::new();
-        loop {
-            while chars.peek().is_some_and(|c| c.is_whitespace()) {
-                chars.next();
-            }
-            if chars.peek() != Some(&'\'') {
-                return value;
-            }
-            chars.next();
-            while let Some(c) = chars.next() {
-                match c {
-                    '\'' => break,
-                    '\\' => value.extend(chars.next()),
-                    other => value.push(other),
-                }
-            }
-        }
-    }
-
-    fn app_catalog() -> Vec<AppEntry> {
-        let source = include_str!(
-            "../../../../../packages/skotiq_core/lib/src/models/sequence/interpolation_catalog.dart"
-        );
-        let list = &source[source
-            .find("const List<InterpolationVariable> interpolationCatalog")
-            .expect("the app's catalog list")..];
-        let list = &list[..list.find("\n];").expect("the end of the list")];
-        list.split("InterpolationVariable(")
-            .skip(1)
-            .map(|block| {
-                let group = block
-                    .split("InterpolationVariableGroup.")
-                    .nth(1)
-                    .and_then(|rest| rest.split(',').next())
-                    .unwrap_or_else(|| panic!("no group in {block}"));
-                AppEntry {
-                    name: dart_string(block, "name"),
-                    description: dart_string(block, "description"),
-                    group: group.trim().to_string(),
-                    example: dart_string(block, "example"),
-                    supports_format: block.contains("supportsFormat: true"),
-                }
-            })
-            .collect()
-    }
-
-    /// The picker offers exactly the variables the resolver knows, with the
-    /// same words, group, example and format support, in the same order.
-    #[test]
-    fn the_app_offers_every_variable_as_the_sequencer_resolves_it() {
-        let ours: Vec<AppEntry> = variable_catalog()
+    fn catalog_contract() -> serde_json::Value {
+        let entries: Vec<serde_json::Value> = variable_catalog()
             .iter()
-            .map(|entry| AppEntry {
-                name: entry.name.to_string(),
-                description: entry.description.to_string(),
-                group: entry.group.label().to_ascii_lowercase(),
-                example: entry.example.to_string(),
-                supports_format: entry.supports_format,
+            .map(|entry| {
+                serde_json::json!({
+                    "name": entry.name,
+                    "description": entry.description,
+                    "group": entry.group.label().to_ascii_lowercase(),
+                    "example": entry.example,
+                    "supportsFormat": entry.supports_format,
+                })
             })
             .collect();
-        assert_eq!(app_catalog(), ours);
+        serde_json::json!({ "variables": entries })
+    }
+
+    /// The fixture the app's catalog is held to is this list: the same names,
+    /// words, groups, examples and format support, in the same order.
+    #[test]
+    fn the_catalog_fixture_matches_the_catalog() {
+        let mut text = serde_json::to_string_pretty(&catalog_contract()).expect("serialize");
+        text.push('\n');
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            std::fs::create_dir_all(std::path::Path::new(FIXTURE).parent().expect("dir"))
+                .expect("fixture dir");
+            std::fs::write(FIXTURE, &text).expect("write fixture");
+            return;
+        }
+        let committed = std::fs::read_to_string(FIXTURE).expect("fixture");
+        let committed: serde_json::Value = serde_json::from_str(&committed).expect("fixture JSON");
+        assert_eq!(
+            committed,
+            catalog_contract(),
+            "the catalog changed; regenerate the fixture and update the app's catalog"
+        );
     }
 }
