@@ -164,8 +164,48 @@ enum DsoType {
   clusterWithEmissionNebula,
 
   /// A cluster in a nebula that only reflects starlight.
-  clusterWithReflectionNebula,
+  clusterWithReflectionNebula;
+
+  /// The type a stored object-type string names: a [DsoTypeExtension.displayName]
+  /// in any case ("Supernova Remnant"), an OpenNGC code ([kOpenNgcTypeCodes])
+  /// or a SIMBAD object-type code ([kSimbadTypeCodes]). Null for anything
+  /// else; free text is not guessed at.
+  static DsoType? parse(String? text) {
+    if (text == null) return null;
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return null;
+    return _byDisplayName[trimmed.toLowerCase()] ??
+        kOpenNgcTypeCodes[trimmed] ??
+        kSimbadTypeCodes[trimmed];
+  }
+
+  static final Map<String, DsoType> _byDisplayName = {
+    for (final type in DsoType.values) type.displayName.toLowerCase(): type,
+  };
 }
+
+/// SIMBAD object-type codes (the `otype` a Sesame lookup returns) for the
+/// kinds [DsoType] names.
+const Map<String, DsoType> kSimbadTypeCodes = {
+  '*': DsoType.star,
+  '**': DsoType.doubleStar,
+  'As*': DsoType.association,
+  'OpC': DsoType.openCluster,
+  'OpCl': DsoType.openCluster,
+  'Cl*': DsoType.openCluster,
+  'GlC': DsoType.globularCluster,
+  'GlCl': DsoType.globularCluster,
+  'G': DsoType.galaxy,
+  'PaG': DsoType.galaxyPair,
+  'GrG': DsoType.galaxyGroup,
+  'CGG': DsoType.galaxyGroup,
+  'PN': DsoType.planetaryNebula,
+  'HII': DsoType.hiiRegion,
+  'DNe': DsoType.darkNebula,
+  'RNe': DsoType.reflectionNebula,
+  'SNR': DsoType.supernova,
+  'No*': DsoType.nova,
+};
 
 /// The OpenNGC `Type` column: every code that names a kind of object.
 ///
@@ -423,4 +463,40 @@ class DeepSkyObject implements CelestialObject {
     }
     return null;
   }
+}
+
+/// Extract optional catalog metadata from any [CelestialObject].
+({
+  String? catalogId,
+  String? objectType,
+  double? sizeArcmin,
+  String? constellation,
+})
+celestialObjectMetadata(CelestialObject object) {
+  if (object is DeepSkyObject) {
+    return (
+      catalogId: object.catalogIds.isNotEmpty
+          ? object.catalogIds.first
+          : object.name,
+      objectType: object.type.displayName,
+      sizeArcmin: object.sizeArcMin,
+      constellation: object.constellation,
+    );
+  }
+  if (object is Star) {
+    return (
+      catalogId: object.catalogIds.isNotEmpty
+          ? object.catalogIds.first
+          : object.name,
+      objectType: 'Star',
+      sizeArcmin: null,
+      constellation: object.constellation,
+    );
+  }
+  return (
+    catalogId: object.name,
+    objectType: null,
+    sizeArcmin: null,
+    constellation: null,
+  );
 }

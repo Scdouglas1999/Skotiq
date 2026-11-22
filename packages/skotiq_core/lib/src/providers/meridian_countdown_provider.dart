@@ -185,7 +185,7 @@ MeridianCountdownState computeMeridianCountdown({
   // default — that would be a spurious countdown.
   final lon = longitude;
   final lat = latitude;
-  if (lon == null || lat == null || (lon == 0.0 && lat == 0.0)) {
+  if (lon == null || lat == null || !siteLocationIsSet(lat, lon)) {
     return notArmed('Set your location in Settings');
   }
 

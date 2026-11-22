@@ -10,6 +10,7 @@ import 'package:shelf/shelf.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 import '../route_table.dart';
 
 class SuggestionHandlers implements RouteSource {
@@ -128,7 +129,7 @@ class SuggestionHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         "error": "No location configured. Set location in settings first.",
       });
@@ -263,7 +264,7 @@ class SuggestionHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({"error": "No location configured"});
     }
 

@@ -7,36 +7,105 @@ part of '../smart_night_models.dart';
 /// review and the Smart Night wizard let the user pick a different one.
 enum SmartNightStrategy {
   /// L, R, G and B. Needs all four on the wheel.
-  autoLrgb,
+  autoLrgb(
+    id: 'auto_lrgb',
+    bands: ['L', 'R', 'G', 'B'],
+    label: 'LRGB',
+    shortLabel: 'LRGB',
+  ),
 
   /// Ha and OIII. Needs both on the wheel.
-  narrowbandHoo,
+  narrowbandHoo(
+    id: 'narrowband_hoo',
+    bands: ['Ha', 'OIII'],
+    label: 'Narrowband HOO',
+    shortLabel: 'HOO',
+  ),
 
   /// Ha, OIII and SII (the Hubble palette). Needs all three on the wheel.
-  narrowbandSho,
+  narrowbandSho(
+    id: 'narrowband_sho',
+    bands: ['Ha', 'OIII', 'SII'],
+    label: 'Narrowband SHO',
+    shortLabel: 'SHO',
+  ),
 
   /// One light filter, or none, with no rotation: a color camera, or a rig
   /// whose wheel names no known band.
-  oscOneShot,
+  oscOneShot(
+    id: 'osc_one_shot',
+    bands: null,
+    label: 'One filter',
+    shortLabel: 'One filter',
+  ),
 
   /// Ha alone. Needs Ha on the wheel.
-  narrowbandHa,
+  narrowbandHa(
+    id: 'narrowband_ha',
+    bands: ['Ha'],
+    label: 'Narrowband Ha',
+    shortLabel: 'Ha',
+  ),
 
   /// L, R, G and B, plus Ha for the emission in the field. Needs all five on
   /// the wheel.
-  haLrgb,
+  haLrgb(
+    id: 'ha_lrgb',
+    bands: ['L', 'R', 'G', 'B', 'Ha'],
+    label: 'LRGB + Ha',
+    shortLabel: 'LRGB + Ha',
+  ),
 
   /// R, G and B. Needs all three on the wheel.
-  rgb,
+  rgb(id: 'rgb', bands: ['R', 'G', 'B'], label: 'RGB', shortLabel: 'RGB'),
 
   /// L alone. Needs L on the wheel.
-  luminance,
+  luminance(id: 'luminance', bands: ['L'], label: 'Luminance', shortLabel: 'L'),
 
   /// OIII alone. Needs OIII on the wheel.
-  narrowbandOiii,
+  narrowbandOiii(
+    id: 'narrowband_oiii',
+    bands: ['OIII'],
+    label: 'Narrowband OIII',
+    shortLabel: 'OIII',
+  ),
 
   /// SII alone. Needs SII on the wheel.
-  narrowbandSii,
+  narrowbandSii(
+    id: 'narrowband_sii',
+    bands: ['SII'],
+    label: 'Narrowband SII',
+    shortLabel: 'SII',
+  );
+
+  const SmartNightStrategy({
+    required this.id,
+    required this.bands,
+    required this.label,
+    required this.shortLabel,
+  });
+
+  /// The id stored in app settings (`smart_night` strategy).
+  final String id;
+
+  /// The bands the set captures, in capture order; null for [oscOneShot],
+  /// which takes one slot by its own rule ([resolveSmartNightFilterSet]).
+  final List<String>? bands;
+
+  /// The set's name as plans and reasons say it.
+  final String label;
+
+  /// What the Filters picker calls the set.
+  final String shortLabel;
+
+  /// The set a stored [id] names; null for `auto` and an id no set has.
+  /// `mono_lrgb` is LRGB with equal time, which every LRGB plan now is.
+  static SmartNightStrategy? fromId(String id) =>
+      id == 'mono_lrgb' ? autoLrgb : _byId[id];
+
+  static final Map<String, SmartNightStrategy> _byId = {
+    for (final strategy in values) strategy.id: strategy,
+  };
 }
 
 /// AF cadence policy.

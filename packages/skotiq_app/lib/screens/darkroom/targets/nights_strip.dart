@@ -20,23 +20,10 @@ const double _pauseInset = 8;
 const double _keptOpacity = .92;
 const double _dimOpacity = .22;
 
-const _months = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', //
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
 const _weekdays = [
   'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', //
   'Sunday',
 ];
-
-/// `Oct 23 to 24`, or `Oct 31 to Nov 1` across a month end.
-String darkroomNightLabel(DateTime evening) {
-  final next = DateTime(evening.year, evening.month, evening.day + 1);
-  final start = '${_months[evening.month - 1]} ${evening.day}';
-  return next.month == evening.month
-      ? '$start to ${next.day}'
-      : '$start to ${_months[next.month - 1]} ${next.day}';
-}
 
 String darkroomWeekday(DateTime day) => _weekdays[day.weekday - 1];
 
@@ -150,7 +137,7 @@ class _NightRow extends StatelessWidget {
     final kept =
         night.use == DarkroomNightUse.all ? 'in masters' : '${night.kept} kept';
     final aria = [
-      darkroomNightLabel(night.evening),
+      ClockFormat.nightOf(night.evening),
       '${night.subs.length} subs from ${ClockFormat.hm(night.first.toLocal())} to '
           '${ClockFormat.hm(night.last.toLocal())}',
       '${night.kept} kept',
@@ -174,7 +161,7 @@ class _NightRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  darkroomNightLabel(night.evening),
+                  ClockFormat.nightOf(night.evening),
                   style: SkotiqTypography.labelStrong.copyWith(
                     color: colors.textPrimary,
                   ),

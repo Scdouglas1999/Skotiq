@@ -310,6 +310,39 @@ class AstronomyCalculations {
     longitudeDeg: longitudeDeg,
   );
 
+  /// Tonight's dark window at a site: the night [nightAt] gives, from its
+  /// darkest dusk to the matching dawn. With no crossing at all the window is
+  /// [NoDarkWindow], which says whether the Sun stays below the horizon on
+  /// the local calendar day of [now] (polar night) or never sets.
+  static DarkWindow darkWindow({
+    required DateTime now,
+    required double latitudeDeg,
+    required double longitudeDeg,
+  }) {
+    final night = nightAt(
+      now: now,
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+    );
+    for (final (dusk, dawn) in [
+      (night.astronomicalDusk, night.astronomicalDawn),
+      (night.nauticalDusk, night.nauticalDawn),
+      (night.civilDusk, night.civilDawn),
+      (night.sunset, night.sunrise),
+    ]) {
+      if (dusk != null && dawn != null) {
+        return NightDarkWindow(start: dusk, end: dawn, twilight: night);
+      }
+    }
+    final local = now.toLocal();
+    final sun = calculateSunVisibility(
+      date: DateTime(local.year, local.month, local.day),
+      latitudeDeg: latitudeDeg,
+      longitudeDeg: longitudeDeg,
+    );
+    return NoDarkWindow(polarNight: sun.neverRises, twilight: night);
+  }
+
   /// The site's night that is not over at [now]: the one in progress, or,
   /// once its dark has ended, the coming one. This is what every screen
   /// means by "tonight".

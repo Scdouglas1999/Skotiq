@@ -7,62 +7,6 @@ part of '../smart_night_models.dart';
 // [resolveSmartNightFilterSet]. Wheel slots are matched by the filter-name
 // rule (`filter_names.dart`), so "Ha 7nm" is Ha and "Dark" is never R.
 
-/// What light a target gives, read from its catalog object type. Nothing
-/// here names an object: the class comes from the type the catalog gives.
-///
-/// The deep-sky catalog types a nebula emission or reflection from published
-/// emission and reflection catalogs (the nebula light table, see
-/// `dsoTypeFromOpenNgcCode`): a nebula OpenNGC files only as "Neb" or
-/// "Cl+N" reads "Reflection Nebula" or "Cluster + Emission Nebula" when one
-/// of those catalogs classifies it.
-enum TargetLight {
-  /// Line emission, imaged through narrowband filters: emission nebulae, HII
-  /// regions, supernova remnants, planetary nebulae, a cluster in an
-  /// emission nebula, and a nebula no catalog classifies further (OpenNGC
-  /// "Neb" or "Cl+N" with no match in the nebula light table).
-  emission,
-
-  /// Starlight, imaged through LRGB: galaxies, reflection and dark nebulae,
-  /// a cluster in a reflection nebula, clusters, stars, and a target whose
-  /// type is not known.
-  broadband,
-}
-
-/// The light [objectType] gives. Reads the app's type names ("Supernova
-/// Remnant", "Cluster + Nebula"), OpenNGC codes ("SNR", "Cl+N") and SIMBAD
-/// codes ("HII", "PN", "RNe"). A type naming emission is emission even when
-/// it names reflection too; a reflection or dark nebula is broadband; any
-/// other nebula is emission.
-TargetLight targetLight(String? objectType) {
-  final type = (objectType ?? '').toLowerCase();
-  final words = type
-      .split(RegExp('[^a-z0-9]+'))
-      .where((w) => w.isNotEmpty)
-      .toSet();
-  final emission =
-      type.contains('emission') ||
-      type.contains('supernova') ||
-      type.contains('planetary') ||
-      type.contains('h ii') ||
-      words.contains('hii') ||
-      words.contains('snr') ||
-      words.contains('pn') ||
-      words.contains('emn');
-  final reflection =
-      type.contains('reflection') ||
-      words.contains('rfn') ||
-      words.contains('rne');
-  final dark =
-      type.contains('dark') || words.contains('drkn') || words.contains('dne');
-  final nebula =
-      type.contains('nebul') || type.contains('cl+n') || words.contains('neb');
-
-  if (emission) return TargetLight.emission;
-  if (reflection || dark) return TargetLight.broadband;
-  if (nebula) return TargetLight.emission;
-  return TargetLight.broadband;
-}
-
 /// The filter set chosen for one target on one rig, and why.
 class SmartNightFilterChoice {
   /// The set chosen.
@@ -234,7 +178,7 @@ SmartNightFilterChoice chooseSmartNightFilters({
               availableFilters: named,
             ),
           );
-    final shown = label ?? smartNightStrategyLabel(set);
+    final shown = label ?? set.label;
     return SmartNightFilterChoice._(
       strategy: set,
       filters: resolveSmartNightFilterSet(
@@ -354,53 +298,18 @@ List<String> resolveSmartNightFilterSet({
     return slots.contains(null) ? const [] : slots.cast<String>();
   }
 
-  switch (strategy) {
-    case SmartNightStrategy.autoLrgb:
-      return all(const ['L', 'R', 'G', 'B']);
-    case SmartNightStrategy.haLrgb:
-      return all(const ['L', 'R', 'G', 'B', 'Ha']);
-    case SmartNightStrategy.rgb:
-      return all(const ['R', 'G', 'B']);
-    case SmartNightStrategy.luminance:
-      return all(const ['L']);
-    case SmartNightStrategy.narrowbandHa:
-      return all(const ['Ha']);
-    case SmartNightStrategy.narrowbandHoo:
-      return all(const ['Ha', 'OIII']);
-    case SmartNightStrategy.narrowbandSho:
-      return all(const ['Ha', 'OIII', 'SII']);
-    case SmartNightStrategy.narrowbandOiii:
-      return all(const ['OIII']);
-    case SmartNightStrategy.narrowbandSii:
-      return all(const ['SII']);
-    case SmartNightStrategy.oscOneShot:
-      final multiBand = named.where(isMultiBandFilter);
-      final light = named.where(
-        (f) => _lightFilterIdentities.contains(filterIdentity(f)),
-      );
-      final preferred = preferMultiBand
-          ? [...multiBand, ...light]
-          : [...light, ...multiBand];
-      if (preferred.isNotEmpty) return [preferred.first];
-      if (named.isNotEmpty) return [named.first];
-      return const [smartNightUnfilteredName];
-  }
+  if (strategy.bands case final bands?) return all(bands);
+  final multiBand = named.where(isMultiBandFilter);
+  final light = named.where(
+    (f) => _lightFilterIdentities.contains(filterIdentity(f)),
+  );
+  final preferred = preferMultiBand
+      ? [...multiBand, ...light]
+      : [...light, ...multiBand];
+  if (preferred.isNotEmpty) return [preferred.first];
+  if (named.isNotEmpty) return [named.first];
+  return const [smartNightUnfilteredName];
 }
-
-/// The name of [strategy] for the user, as plans and reasons say it.
-String smartNightStrategyLabel(SmartNightStrategy strategy) =>
-    switch (strategy) {
-      SmartNightStrategy.autoLrgb => 'LRGB',
-      SmartNightStrategy.haLrgb => 'LRGB + Ha',
-      SmartNightStrategy.rgb => 'RGB',
-      SmartNightStrategy.luminance => 'Luminance',
-      SmartNightStrategy.narrowbandHa => 'Narrowband Ha',
-      SmartNightStrategy.narrowbandHoo => 'Narrowband HOO',
-      SmartNightStrategy.narrowbandSho => 'Narrowband SHO',
-      SmartNightStrategy.narrowbandOiii => 'Narrowband OIII',
-      SmartNightStrategy.narrowbandSii => 'Narrowband SII',
-      SmartNightStrategy.oscOneShot => 'One filter',
-    };
 
 /// Broadband filters a color camera images through.
 const Set<String> _lightFilterIdentities = {'L', 'UVIRCUT', 'LPRO', 'CLS'};

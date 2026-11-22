@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show roundSiteEstimate;
 
 import '../errors/skotiq_error.dart';
 import '../models/site/location_settings.dart' show LocationSettings;
@@ -117,8 +118,8 @@ class IpGeolocation {
     // Four decimals (~11 m) is finer than an IP estimate and stops a
     // seven-decimal city-centroid reply from looking like a surveyed pin.
     return LocationSettings(
-      latitude: _roundIp(coords.$1),
-      longitude: _roundIp(coords.$2),
+      latitude: roundSiteEstimate(coords.$1),
+      longitude: roundSiteEstimate(coords.$2),
       elevation: 0.0,
     );
   }
@@ -148,7 +149,4 @@ class IpGeolocation {
     }
     return (lat, lon);
   }
-
-  static double _roundIp(double value) =>
-      double.parse(value.toStringAsFixed(4));
 }

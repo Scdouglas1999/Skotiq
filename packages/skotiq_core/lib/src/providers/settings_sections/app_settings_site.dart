@@ -59,18 +59,3 @@ extension ObserverSiteOfSettings on AppSettingsState {
         )
       : null;
 }
-
-/// Canonical "is there an observing site?" test.
-///
-/// A fresh profile seeds `observer_latitude` / `observer_longitude` /
-/// `observer_elevation` at 0.0 before the user has been asked anything, so the
-/// stored coordinates always parse to a *valid* position — 0°, 0° is a real
-/// point, in the Gulf of Guinea, about 600 km off Ghana. Nothing observes from
-/// there, so the origin is the app's documented "not set" sentinel, exactly as
-/// `TargetHeaderNode.coordinatesUnset` treats a Target node's 0h/+0° birth coordinates.
-///
-/// The cost is that an operator genuinely at 0°, 0° reads as unset; nudging
-/// either value by a millionth of a degree (the precision the Location editor
-/// already exposes) claims it back.
-bool siteLocationIsSet(double latitude, double longitude) =>
-    latitude != 0.0 || longitude != 0.0;

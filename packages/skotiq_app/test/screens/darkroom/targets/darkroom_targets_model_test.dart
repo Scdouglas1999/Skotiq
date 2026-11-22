@@ -46,7 +46,7 @@ void main() {
     // Subs after midnight belong to the evening they started.
     final oct21 = t.nights.firstWhere((n) => n.key == '2026-10-21');
     expect(oct21.last.day, 22);
-    expect(darkroomNightLabel(oct21.evening), 'Oct 21 to 22');
+    expect(ClockFormat.nightOf(oct21.evening), 'Oct 21 to 22');
     expect(darkroomWeekday(oct21.evening), 'Wednesday');
   });
 

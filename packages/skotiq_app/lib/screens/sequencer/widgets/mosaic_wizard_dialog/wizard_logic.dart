@@ -159,7 +159,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   /// Total exposure seconds imaged per panel across every resolved filter.
   double _exposureSecsPerPanel(MosaicExposureSettings exposure) {
     var total = 0.0;
-    for (final f in exposure.resolvedFilters) {
+    for (final f in exposure.filters) {
       total += f.exposureSeconds * f.exposuresPerPanel;
     }
     return total;
@@ -168,7 +168,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
   /// Total subs captured per panel across every resolved filter.
   int _exposuresPerPanel(MosaicExposureSettings exposure) {
     var total = 0;
-    for (final f in exposure.resolvedFilters) {
+    for (final f in exposure.filters) {
       total += f.exposuresPerPanel;
     }
     return total;

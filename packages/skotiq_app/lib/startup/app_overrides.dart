@@ -3,6 +3,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart' show skyNowProvider;
 
 import '../screens/onboarding/steps/capture_dir_step.dart';
+import 'location_sync_service.dart' show planetariumInputOverrides;
 import 'plugin_enablement_wiring.dart';
 import 'silent_guider_ask_wiring.dart';
 
@@ -25,4 +26,6 @@ List<Override> appProviderOverrides(AppVersionInfo appVersion) => [
         final clock = ref.watch(clockProvider);
         return () => clock.instant;
       }),
+      // The planetarium's site, floor and scorer are the app's.
+      ...planetariumInputOverrides(),
     ];

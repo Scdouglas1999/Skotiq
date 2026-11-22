@@ -23,7 +23,7 @@ import 'package:skotiq_app/widgets/site/place_search.dart';
 import 'package:skotiq_app/services/site_detection.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';

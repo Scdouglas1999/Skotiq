@@ -53,7 +53,7 @@ final catalogEmissionObjectsProvider = FutureProvider<List<DeepSkyObject>>((
   final objects = await manager.dsos.load();
   return [
     for (final object in objects)
-      if (targetLight(object.type.displayName) == TargetLight.emission) object,
+      if (object.type.light == TargetLight.emission) object,
   ];
 });
 
@@ -191,7 +191,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final latitude = observerLocation.latitude;
       final longitude = observerLocation.longitude;
 
-      if (latitude == 0.0 && longitude == 0.0) {
+      if (!siteLocationIsSet(latitude, longitude)) {
         // No location configured, return empty list
         // The UI should prompt user to set location in settings
         return [];

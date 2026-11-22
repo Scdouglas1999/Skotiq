@@ -9,7 +9,8 @@ import '../models/meridian_flip_settings.dart';
 import '../models/meridian_flip_event.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
-import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show AstronomyCalculations, siteLocationIsSet;
 import '../models/backend/event_types.dart';
 import 'linked_host.dart';
 import '../backend/remote_host.dart';
@@ -621,7 +622,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
     final appSettings = _ref.read(appSettingsProvider).valueOrNull;
     if (appSettings == null ||
-        (appSettings.latitude == 0.0 && appSettings.longitude == 0.0)) {
+        !siteLocationIsSet(appSettings.latitude, appSettings.longitude)) {
       // Why: HA computation needs a real longitude. Refuse to alert from a
       // 0,0 default — that would be a spurious notification.
       return MeridianMonitorDecision.inactive;

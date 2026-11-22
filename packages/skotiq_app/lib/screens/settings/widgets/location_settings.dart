@@ -11,7 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/site_angle.dart';

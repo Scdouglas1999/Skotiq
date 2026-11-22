@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show TwilightTimes, siteLocationIsSet;
 
 import 'host_role.dart';
 import 'async_scope.dart';
@@ -433,7 +434,9 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
       if (suggestion == null) return null;
 
       final settings = await ref.watch(appSettingsProvider.future);
-      if (settings.latitude == 0.0 && settings.longitude == 0.0) return null;
+      if (!siteLocationIsSet(settings.latitude, settings.longitude)) {
+        return null;
+      }
 
       // An empty list is a wheel-less rig, not missing data — the service
       // estimates an unfiltered night for it.

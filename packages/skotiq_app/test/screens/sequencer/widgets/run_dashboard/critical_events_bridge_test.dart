@@ -422,15 +422,14 @@ void main() {
   });
 
   group('horizon-aware time-to-set agreement', () {
-    test(
-        'the planetarium receives the site floor by azimuth after its sync '
-        'fires', () async {
+    test('the planetarium reads the site floor by azimuth', () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
       const horizon = 18.0;
       final container = ProviderContainer(
         overrides: [
+          ...planetariumInputOverrides(),
           databaseProvider.overrideWithValue(db),
           appSettingsProvider.overrideWith(
             () => _FakeAppSettingsNotifier(
@@ -448,12 +447,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      // Drain the AsyncNotifier and wire the listener.
       await container.read(appSettingsProvider.future);
-      container.read(planetariumAltitudeFloorSyncProvider);
-
-      // The sync provider schedules Future.microtask updates; flush them.
-      await Future<void>.delayed(const Duration(milliseconds: 10));
 
       final floor = container.read(planetariumAltitudeFloorProvider);
       expect(floor.at(0), horizon);

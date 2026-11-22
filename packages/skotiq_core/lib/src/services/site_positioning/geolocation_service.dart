@@ -6,6 +6,7 @@ import 'dart:io' show Platform, SocketException;
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:geolocator/geolocator.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show roundSiteEstimate;
 
 import 'positioning/positioning_result.dart';
 import 'positioning/positioning_deadline.dart';
@@ -174,8 +175,8 @@ class GeolocationService {
     if (lat == null || lon == null) return null;
 
     return (
-      double.parse(lat.toStringAsFixed(4)),
-      double.parse(lon.toStringAsFixed(4)),
+      roundSiteEstimate(lat),
+      roundSiteEstimate(lon),
       _ipLocationName(decoded),
     );
   }
@@ -277,8 +278,8 @@ class GeolocationService {
       ];
       hits.add(
         PlaceSearchHit(
-          latitude: double.parse(lat.toStringAsFixed(4)),
-          longitude: double.parse(lon.toStringAsFixed(4)),
+          latitude: roundSiteEstimate(lat),
+          longitude: roundSiteEstimate(lon),
           elevation: _coord(data['elevation']),
           label: parts.join(', '),
         ),

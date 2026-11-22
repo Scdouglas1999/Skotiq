@@ -5,6 +5,7 @@ import '../models/planning/target_suggestion.dart';
 import '../models/scheduler/integration_goal.dart';
 import '../models/sequence/sequence_models.dart';
 import 'package:skotiq_astro/filters.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show TargetLight, targetLight;
 import '../models/equipment_profile_model.dart' show EquipmentProfileModel;
 import 'dark_library_coverage_service.dart';
 import '../models/site/horizon_profile.dart';

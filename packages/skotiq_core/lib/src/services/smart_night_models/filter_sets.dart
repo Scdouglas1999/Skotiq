@@ -17,7 +17,7 @@ class FilterSet {
   FilterSet.preset(SmartNightStrategy preset, List<String> filters)
     : this._(
         key: preset.name,
-        label: filterSetPresetLabel(preset),
+        label: preset.shortLabel,
         filters: List.unmodifiable(filters),
         preset: preset,
       );
@@ -116,20 +116,6 @@ bool _sameList(List<String> a, List<String> b) {
   }
   return true;
 }
-
-/// What the Filters picker calls [preset].
-String filterSetPresetLabel(SmartNightStrategy preset) => switch (preset) {
-  SmartNightStrategy.autoLrgb => 'LRGB',
-  SmartNightStrategy.haLrgb => 'LRGB + Ha',
-  SmartNightStrategy.rgb => 'RGB',
-  SmartNightStrategy.luminance => 'L',
-  SmartNightStrategy.narrowbandSho => 'SHO',
-  SmartNightStrategy.narrowbandHoo => 'HOO',
-  SmartNightStrategy.narrowbandHa => 'Ha',
-  SmartNightStrategy.narrowbandOiii => 'OIII',
-  SmartNightStrategy.narrowbandSii => 'SII',
-  SmartNightStrategy.oscOneShot => 'One filter',
-};
 
 /// A combination of filters the user built and named, kept per equipment
 /// profile ([FilterSetPreferences]). [filters] are the wheel names as the

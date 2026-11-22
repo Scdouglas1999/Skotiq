@@ -530,7 +530,7 @@ class _NightsChooser extends StatelessWidget {
           _CheckRow(
             key: ValueKey('darkroom_night_${night.key}'),
             value: paths.any((path) => !session.leftOut.containsKey(path)),
-            label: '${darkroomNightLabel(night.evening)} · '
+            label: '${ClockFormat.nightOf(night.evening)} · '
                 '${paths.length} subs'
                 '${paths.contains(reference) ? ' · holds the reference' : ''}',
             onChanged: busy || paths.contains(reference)

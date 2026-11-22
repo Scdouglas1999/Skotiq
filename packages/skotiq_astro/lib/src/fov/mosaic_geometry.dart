@@ -58,6 +58,83 @@ String mosaicPanelName(int index) => 'Panel ${mosaicPanelNumber(index)}';
 String mosaicPanelTargetName(String mosaicName, int index) =>
     '$mosaicName ${mosaicPanelName(index)}';
 
+/// The shape of a rectangular mosaic: its columns and rows and how much
+/// neighboring panels overlap. One panel's size is given per call, in any
+/// angular or screen unit, and answers come back in that unit.
+class MosaicGrid {
+  final int columns;
+  final int rows;
+
+  /// Overlap between neighboring panels, in percent of a panel.
+  final double overlapPercent;
+
+  const MosaicGrid({
+    required this.columns,
+    required this.rows,
+    required this.overlapPercent,
+  });
+
+  /// The smallest grid whose panels of [panelWidth] x [panelHeight] cover
+  /// [totalWidth] x [totalHeight] (same unit), at most 100 panels a side.
+  factory MosaicGrid.covering({
+    required double totalWidth,
+    required double totalHeight,
+    required double panelWidth,
+    required double panelHeight,
+    double overlapPercent = 15.0,
+  }) {
+    final shape = MosaicGrid(
+      columns: 1,
+      rows: 1,
+      overlapPercent: overlapPercent,
+    );
+    return MosaicGrid(
+      columns: (totalWidth / shape.step(panelWidth)).ceil().clamp(1, 100),
+      rows: (totalHeight / shape.step(panelHeight)).ceil().clamp(1, 100),
+      overlapPercent: overlapPercent,
+    );
+  }
+
+  int get panelCount => columns * rows;
+
+  /// The share of a panel between neighboring panel centers.
+  double get stepFactor => 1.0 - (overlapPercent / 100.0);
+
+  /// Center-to-center spacing of panels of [panelSize].
+  double step(double panelSize) => panelSize * stepFactor;
+
+  /// The area the grid covers with panels of [panelWidth] x [panelHeight]:
+  /// overlapping panels do not add their full size, so a row of N spans
+  /// `panelWidth * (1 + (N - 1) * stepFactor)`.
+  (double width, double height) extent(double panelWidth, double panelHeight) =>
+      (
+        panelWidth * (1 + (columns - 1) * stepFactor),
+        panelHeight * (1 + (rows - 1) * stepFactor),
+      );
+
+  /// Every panel's center and number for panels of [panelWidthDegrees] x
+  /// [panelHeightDegrees] on the sky ([mosaicPanelCenters]).
+  List<MosaicPanel> panelCenters({
+    required double centerRaHours,
+    required double centerDecDegrees,
+    required double panelWidthDegrees,
+    required double panelHeightDegrees,
+    double rotationDegrees = 0.0,
+    MosaicStartCorner startCorner = MosaicStartCorner.topLeft,
+    bool serpentine = true,
+  }) => mosaicPanelCenters(
+    centerRaHours: centerRaHours,
+    centerDecDegrees: centerDecDegrees,
+    stepRaDegrees: step(panelWidthDegrees),
+    stepDecDegrees: step(panelHeightDegrees),
+    columns: columns,
+    rows: rows,
+    rotationDegrees: rotationDegrees,
+    startCorner: startCorner,
+    serpentine: serpentine,
+  );
+}
+
 /// Normalize an RA value in hours into the half-open range [0, 24).
 ///
 /// The final `>= 24` fold is not redundant: for a tiny negative input such as

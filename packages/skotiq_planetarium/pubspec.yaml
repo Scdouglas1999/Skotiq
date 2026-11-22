@@ -18,9 +18,7 @@ dependencies:
   vector_math: ^2.1.4
   collection: ^1.18.0
   crypto: ^3.0.3
-  http: ^1.2.0
   path: ^1.8.3
-  geolocator: ^14.0.2
   lucide_icons: ^0.257.0
   intl: ^0.20.2
 

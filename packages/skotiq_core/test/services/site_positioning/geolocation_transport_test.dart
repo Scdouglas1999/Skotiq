@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:skotiq_planetarium/src/services/geolocation_service.dart';
+import 'package:skotiq_core/src/services/site_positioning/geolocation_service.dart';
 
 /// Drives the device half of `fetchLocationFromGPS` without a GPS receiver:
 /// `Geolocator` delegates straight to `GeolocatorPlatform.instance`, so a

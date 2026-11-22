@@ -8,7 +8,8 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show roundSiteEstimate;
 
 import '../../../services/site_detection.dart';
 import '../../../utils/site_angle.dart';
@@ -205,15 +206,15 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     final estimate = _ipEstimate;
     if (estimate == null) return;
     final (lat, lon, _) = estimate;
-    _latController.text = _trimNumber(_roundLookup(lat));
-    _lonController.text = _trimNumber(_roundLookup(lon));
+    _latController.text = _trimNumber(roundSiteEstimate(lat));
+    _lonController.text = _trimNumber(roundSiteEstimate(lon));
     _onFieldChanged();
   }
 
   /// Put a searched place in the fields, the same way typing it would.
   void _applyPlace(PlaceSearchHit hit) {
-    _latController.text = _trimNumber(_roundLookup(hit.latitude));
-    _lonController.text = _trimNumber(_roundLookup(hit.longitude));
+    _latController.text = _trimNumber(roundSiteEstimate(hit.latitude));
+    _lonController.text = _trimNumber(roundSiteEstimate(hit.longitude));
     final elevation = hit.elevation;
     _elevController.text =
         elevation == null ? '' : elevation.round().toString();
@@ -324,17 +325,6 @@ class _OnboardingSiteStepState extends ConsumerState<OnboardingSiteStep> {
     if (value == value.roundToDouble()) return value.toStringAsFixed(0);
     return value.toString();
   }
-
-  /// Round a looked-up coordinate to the precision the lookup can support.
-  ///
-  /// Both sources behind "Use my current location" are estimates — an IP lookup
-  /// resolves to about 10 km — and the raw reading arrives with seven decimals,
-  /// roughly a centimetre. Printing that invites the user to trust a guess, and
-  /// disagrees with the review step, which already shows four. Four decimals is
-  /// ~11 m: finer than any estimate here and still far finer than an observing
-  /// site needs. A coordinate the user types is left exactly as typed.
-  static double _roundLookup(double value) =>
-      double.parse(value.toStringAsFixed(4));
 
   /// "Use my current location": [detectSite], then the fields show what was
   /// stored.
