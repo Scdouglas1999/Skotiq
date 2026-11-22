@@ -20,7 +20,7 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/session/equipment_summary_provider.dart'
-    show kNightGuideStopReasons;
+    show nightGuideStopReason;
 import '../../data/session/guide_series_provider.dart';
 import '../../data/session/session_events_provider.dart';
 import '../../../../widgets/guide_star_view.dart';
@@ -397,9 +397,8 @@ class NightGuideDitherSection extends ConsumerWidget {
 /// The guide tab's words for why the guider is stopped (see
 /// `guidingStopReasonProvider`).
 String guideStopReasonLabel(SkotiqLocalizations l10n, String reason) {
-  return kNightGuideStopReasons.contains(reason)
-      ? l10n.text('nightScopeGuideHeld_$reason')
-      : l10n.text('nightScopeGuideHeldOther', params: {'reason': reason});
+  final text = nightGuideStopReason(reason);
+  return l10n.text(text.key, params: text.params);
 }
 
 String? _withUnit(String? value, String unit) =>

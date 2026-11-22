@@ -37,23 +37,10 @@ String nightPhd2StateKey(Phd2State state) => switch (state) {
       Phd2State.unknown => 'nightSessionGuiderUnknown',
     };
 
-/// The guider stop reasons the app has words for (`nightScopeGuideHeld_*`),
-/// as the guider status names them.
-const Set<String> kNightGuideStopReasons = <String>{
-  'autofocus',
-  'meridian_flip',
-  'tracking_limit_hold',
-  'mount_move',
-  'pre_meridian_hold',
-  'sequence_step',
-  'dither_settle',
-  'run_stopped',
-  'operator',
-};
-
-/// Why the guider is stopped or held, in the guide tab's words.
+/// Why the guider is stopped or held, in the guide tab's words
+/// (`nightScopeGuideHeld_<wire name>`).
 NightText nightGuideStopReason(String reason) =>
-    kNightGuideStopReasons.contains(reason)
+    GuidingStopReason.fromWire(reason) != null
         ? NightText('nightScopeGuideHeld_$reason')
         : NightText(
             'nightScopeGuideHeldOther',
