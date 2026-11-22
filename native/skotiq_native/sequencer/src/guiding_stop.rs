@@ -64,7 +64,9 @@ impl GuidingStopReason {
     }
 
     pub fn from_wire(wire: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|reason| reason.as_wire() == wire)
+        Self::ALL
+            .into_iter()
+            .find(|reason| reason.as_wire() == wire)
     }
 
     /// Plain words for a status line: "Guiding paused for autofocus".
