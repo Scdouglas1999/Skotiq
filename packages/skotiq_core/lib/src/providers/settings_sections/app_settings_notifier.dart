@@ -471,7 +471,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // not `_saveSetting`: this runs while `build()` is still resolving, so
       // the loaded-state guard and the remote write path do not apply — this
       // is by construction the local store.
-      await ref.read(settingsDaoProvider).setSetting('plate_solver', label);
+      await ref
+          .read(settingsDaoProvider)
+          .setSetting(AppSettingDefs.plateSolver.key, label);
       return stored.copyWith(plateSolver: label);
     } catch (error) {
       Log.debug(
