@@ -30,6 +30,7 @@ import '../errors/skotiq_exception.dart'
         ImagingException,
         ValidationException;
 import '../errors/skotiq_error.dart' show SkotiqError;
+import '../providers/rig_activity.dart' show RigActivity, rigHeldBy;
 import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
 import '../utils/host_paths.dart';
@@ -105,16 +106,18 @@ class ImagingService {
   /// camera's frames are written and recorded by this process.
   ImagingService(
     this._ref, {
-    required bool Function() flatCaptureBusy,
+    required RigActivity? Function() rigHeld,
     HostFiles? hostFiles,
     HostImagingRecords? hostRecords,
-  }) : _flatCaptureBusy = flatCaptureBusy,
+  }) : _rigHeld = rigHeld,
        _host = _ref.providerBackendScope(),
        _logger = _ref.read(loggingServiceProvider),
        _hostFiles = hostFiles,
        _hostRecords = hostRecords;
 
-  final bool Function() _flatCaptureBusy;
+  /// The activity other than a manual capture that holds the rig now
+  /// ([rigHeldBy]).
+  final RigActivity? Function() _rigHeld;
   final HostFiles? _hostFiles;
   final HostImagingRecords? _hostRecords;
 

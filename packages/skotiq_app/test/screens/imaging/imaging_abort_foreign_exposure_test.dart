@@ -23,7 +23,7 @@ import '../../harness/harness.dart';
 /// exposure under test was started by somebody else (the first-light
 /// orchestrator, centering, the sequencer) through this same service.
 class _RecordingImagingService extends ImagingService {
-  _RecordingImagingService(super.ref) : super(flatCaptureBusy: () => false);
+  _RecordingImagingService(super.ref) : super(rigHeld: () => null);
 
   int cancelCalls = 0;
 

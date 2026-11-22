@@ -31,6 +31,7 @@ import 'logging_service_provider.dart';
 import 'notification_service_provider.dart';
 import '../utils/logging_service.dart';
 import '../models/meridian_flip_progress.dart';
+import 'rig_activity.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
@@ -677,6 +678,12 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
       _refuse(
         'The active sequence owns the mount; stop it before flipping manually',
       );
+      return false;
+    }
+
+    final held = rigHeldBy(_ref.read, starting: RigActivity.flip);
+    if (held != null) {
+      _refuse(held.busy);
       return false;
     }
 

@@ -22,11 +22,12 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     int? purposeStep,
     int? purposeSteps,
   }) async {
-    if (_flatCaptureBusy()) {
-      throw const DeviceBusyException(
-        message: 'Flat capture in progress',
-        userMessage: 'A flat capture is using the camera',
-        currentOperation: 'flat capture',
+    final held = _rigHeld();
+    if (held != null) {
+      throw DeviceBusyException(
+        message: 'Rig busy: ${held.operation} in progress',
+        userMessage: held.busy,
+        currentOperation: held.operation,
       );
     }
     if (_isCapturing) {

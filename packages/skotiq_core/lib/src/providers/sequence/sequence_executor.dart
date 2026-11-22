@@ -25,8 +25,8 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
-import '../flat_wizard_provider.dart';
 import '../meridian_flip_provider.dart';
+import '../rig_activity.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -397,14 +397,10 @@ class SequenceExecutor {
 
   Future<void> start() async {
     _ensureBackendAuthority();
-    // A flat run or a flip already owns the mount and the camera. Refuse
-    // before the launch latch, so this start opens no session and no run.
-    if (_ref.read(flatWizardProvider.notifier).isBusy ||
-        _ref.read(isFlipInProgressProvider)) {
-      throw StateError(
-        'Cannot start: a flat capture or a meridian flip is in progress.',
-      );
-    }
+    // Another activity holds the camera or the mount. Refuse before the
+    // launch latch, so this start opens no session and no run.
+    final held = rigHeldBy(_ref.read, starting: RigActivity.sequence);
+    if (held != null) throw StateError('Cannot start: ${held.busy}.');
     // A. Start serialization + admissible-state gate.
     // This gate mutates nothing,
     // so a rejected concurrent caller leaves the in-flight run — and its
