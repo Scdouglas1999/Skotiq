@@ -164,12 +164,13 @@ pub(super) async fn solve_ladder(
     .await
 }
 
-/// The solver gate as one ladder holds it: each rung's worker keeps a share
-/// until it has reaped its child, so a cancelled ladder still keeps other
-/// solvers out until its last process is gone.
+/// The solver gate as one ladder holds it, from before its first rung to
+/// after its last: each rung's worker keeps a share until it has reaped its
+/// child, so a cancelled ladder still keeps other solvers out until its last
+/// process is gone.
 type HeldGate = Arc<MutexGuard<'static, ()>>;
 
-/// The gate for one rung near `position` (or blind).
+/// The gate for a solve near `position` (or blind).
 async fn take_gate(position: Option<SolvePosition>) -> HeldGate {
     let label = if position.is_some() { "near" } else { "blind" };
     Arc::new(acquire_solve_gate(label).await)
@@ -186,6 +187,10 @@ where
     F: FnMut(Option<SolvePosition>, u32, HeldGate) -> Fut,
     Fut: Future<Output = Result<PlateSolveResult, SkotiqError>>,
 {
+    // The budget and the watchdog start once this frame holds the gate: a
+    // solve queued behind another one is not charged for the wait, which the
+    // caller can still cancel by dropping this future.
+    let gate = take_gate(hint).await;
     let budget = split_solve_budget(total, hint.is_some());
     let watchdog = Duration::from_secs_f64(total + SOLVE_WATCHDOG_MARGIN_SECS);
 
@@ -206,8 +211,7 @@ where
                     search_radius_deg: radius,
                     ..hint
                 };
-                let gate = take_gate(Some(position)).await;
-                let result = rung(Some(position), rung_timeout(remaining), gate).await?;
+                let result = rung(Some(position), rung_timeout(remaining), gate.clone()).await?;
                 if result.success {
                     tracing::info!(
                         "Plate solve: solved within {:.0}° of RA {:.2}°, Dec {:.2}° in {:.1}s",
@@ -231,8 +235,7 @@ where
         }
 
         if budget.blind_secs >= MIN_LADDER_RUNG_SECS {
-            let gate = take_gate(None).await;
-            let result = rung(None, rung_timeout(budget.blind_secs), gate).await?;
+            let result = rung(None, rung_timeout(budget.blind_secs), gate.clone()).await?;
             if result.success {
                 tracing::info!(
                     "Plate solve: solved BLIND in {:.1}s after {} hinted attempt(s)",
@@ -435,6 +438,45 @@ mod tests {
             90.0 + SOLVE_WATCHDOG_MARGIN_SECS > f64::from(rung_timeout(budget.blind_secs)),
             "the watchdog must fire after ASTAP's own timeout, not with it"
         );
+    }
+
+    /// A solve queued behind another solve that holds the gate longer than
+    /// this solve's whole timeout still gets that timeout once it runs: the
+    /// first rung starts with the full hinted budget and the watchdog does not
+    /// count the wait.
+    #[tokio::test]
+    async fn a_queued_solve_gets_its_whole_timeout_once_the_gate_is_free() {
+        let held = acquire_solve_gate("master").await;
+        let holder = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_secs_f64(
+                1.0 + SOLVE_WATCHDOG_MARGIN_SECS + 1.0,
+            ))
+            .await;
+            drop(held);
+        });
+        let hint = SolvePosition {
+            ra_degrees: 10.0,
+            dec_degrees: 41.0,
+            search_radius_deg: WIDE_SEARCH_RADIUS_DEG,
+        };
+        let mut rungs = Vec::new();
+        let result = run_ladder(Some(hint), 1.0, |position, rung_secs, _gate| {
+            rungs.push((position.is_some(), rung_secs));
+            async {
+                Ok(PlateSolveResult {
+                    success: true,
+                    ..PlateSolveResult::default()
+                })
+            }
+        })
+        .await;
+        holder.await.unwrap();
+        assert!(
+            result.is_ok_and(|r| r.success),
+            "the queued solve was abandoned"
+        );
+        let budget = split_solve_budget(1.0, true);
+        assert_eq!(rungs, vec![(true, rung_timeout(budget.hinted_secs))]);
     }
 
     #[tokio::test]
