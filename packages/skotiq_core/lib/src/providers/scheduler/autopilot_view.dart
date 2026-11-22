@@ -6,21 +6,43 @@ final class AutopilotView {
   const AutopilotView({
     required SchedulerStatus this.status,
     required this.decision,
-    required SchedulerConfig this.config,
+    required SchedulerConfig config,
     required SchedulerStartReadiness this.readiness,
-  }) : error = null,
+  }) : _config = config,
+       _engine = null,
+       error = null,
+       retry = null;
+
+  /// The engine on this machine: [config] is what it runs on at the moment
+  /// of reading, so an edit put in force shows without a rebuild of this view.
+  const AutopilotView._here({
+    required SchedulerStatus this.status,
+    required this.decision,
+    required SchedulerEngine engine,
+    required SchedulerStartReadiness this.readiness,
+  }) : _config = null,
+       _engine = engine,
+       error = null,
        retry = null;
 
   const AutopilotView.unavailable({this.error, this.retry})
     : status = null,
       decision = null,
-      config = null,
+      _config = null,
+      _engine = null,
       readiness = null;
 
   final SchedulerStatus? status;
   final SchedulerDecision? decision;
-  final SchedulerConfig? config;
+  final SchedulerConfig? _config;
+  final SchedulerEngine? _engine;
   final SchedulerStartReadiness? readiness;
+
+  SchedulerConfig? get config {
+    final engine = _engine;
+    return engine == null ? _config : engine.config;
+  }
+
   final Object? error;
   final void Function()? retry;
 
@@ -66,12 +88,12 @@ final autopilotViewProvider = Provider.autoDispose<AutopilotView>((ref) {
   // The always-on services start this too; watching it here keeps rescoring
   // on data changes running while the autopilot is on screen.
   ref.watch(schedulerAutoReevalProvider);
-  return AutopilotView(
+  return AutopilotView._here(
     status: status,
     decision: status.state == SchedulerState.idle
         ? preview ?? live
         : live ?? preview,
-    config: engine.config,
+    engine: engine,
     readiness: ref.watch(schedulerStartReadinessProvider),
   );
 });
