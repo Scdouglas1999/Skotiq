@@ -168,21 +168,23 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final connected = camera.connectionState == DeviceConnectionState.connected;
   final captureProfile =
       connected ? profile.copyWith(cameraName: camera.deviceName) : profile;
-  final smartNightSettings = SmartNightSettings(
-    gainOverride: options?.gain,
-    offsetOverride: options?.offset,
-    rotateFilters: options?.rotateFilters,
-    useExposurePresets: options != null && !options.useCalculator,
-    defaultFrameDurationSecs: options?.exposures ??
-        const SmartNightSettings().defaultFrameDurationSecs,
-    defaultIntegrationBudgetHours: integrationBudgetHours ??
-        const SmartNightSettings().defaultIntegrationBudgetHours,
-    targetSnr: settings.smartNightTargetSnr,
-    subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
-    subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
-    coolDownTargetC: profile.defaultCoolingTemp ?? -10.0,
-    hasCoverCalibrator: profile.coverCalibratorId != null &&
-        profile.coverCalibratorId!.trim().isNotEmpty,
+  final smartNightSettings = SmartNightInputs.withExposureLimits(
+    settings,
+    SmartNightSettings(
+      gainOverride: options?.gain,
+      offsetOverride: options?.offset,
+      rotateFilters: options?.rotateFilters,
+      useExposurePresets: options != null && !options.useCalculator,
+      defaultFrameDurationSecs: options?.exposures ??
+          const SmartNightSettings().defaultFrameDurationSecs,
+      defaultIntegrationBudgetHours: integrationBudgetHours ??
+          const SmartNightSettings().defaultIntegrationBudgetHours,
+      coolDownTargetC: SmartNightInputs.coolDownTargetC(profile),
+      hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(
+        profile,
+        rule: CoverCalibratorRule.namedId,
+      ),
+    ),
   );
 
   return ref.read(smartNightServiceProvider).buildSingleTargetSequence(

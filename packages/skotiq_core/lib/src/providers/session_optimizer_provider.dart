@@ -10,6 +10,7 @@ import '../models/planning/target_suggestion.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/smart_night/exposure_calculator.dart';
 import '../services/smart_night/hardware_specs_service.dart';
+import '../services/smart_night/smart_night_inputs.dart';
 import '../services/smart_night/unknown_camera_figures.dart';
 import '../services/session_optimizer_service.dart';
 import '../services/smart_night_service.dart';
@@ -456,11 +457,7 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
           .read(integrationGoalServiceProvider)
           .progressForTarget(targetId);
 
-      final smartNightSettings = SmartNightSettings(
-        targetSnr: settings.smartNightTargetSnr,
-        subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
-        subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
-      );
+      final smartNightSettings = SmartNightInputs.withExposureLimits(settings);
       final filterSet = await ref.watch(
         targetFilterSetProvider(suggestion).future,
       );
