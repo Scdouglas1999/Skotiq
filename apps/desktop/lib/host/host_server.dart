@@ -250,21 +250,21 @@ Future<RunningHostServer> startHostServer({
 
   final scheme = server.isTlsActive ? 'https' : 'http';
   final hostName = hostComputerName();
+  final advert = HostAdvert(
+    hostName: hostName,
+    hostMode: config.hostMode,
+    version: appVersion.version,
+    scheme: scheme,
+    fingerprint: server.serverFingerprint,
+    authRequired: server.isAuthRequired,
+  );
 
   if (!config.bindLocalOnly) {
     try {
       final beacons = await SkotiqDiscovery.startBroadcasting(
+        advert: advert,
         webPort: server.actualPort,
         signalingPort: server.actualPort,
-        name: hostName,
-        hostName: hostName,
-        hostMode: config.hostMode.wire,
-        version: appVersion.version,
-        scheme: scheme,
-        fingerprint: server.serverFingerprint,
-        authRequired: server.isAuthRequired,
-        authenticationMode: server.isAuthRequired ? 'token' : 'none',
-        pairingSupported: true,
       );
       stops.add((name: 'discovery socket', action: () async => beacons.stop()));
       logger.info(
@@ -296,15 +296,7 @@ Future<RunningHostServer> startHostServer({
       final registration = MdnsServiceRegistration(
         name: 'Skotiq on $hostName',
         port: server.actualPort,
-        txt: {
-          'version': appVersion.version,
-          'scheme': scheme,
-          'fingerprint': server.serverFingerprint,
-          'pairingSupported': 'true',
-          'name': hostName,
-          'hostName': hostName,
-          'hostMode': config.hostMode.wire,
-        },
+        txt: advert.toTxt(),
         onWarning: (msg) => logger.warning(msg, source: logSource),
       );
       await registration.start();
@@ -314,7 +306,7 @@ Future<RunningHostServer> startHostServer({
           'mDNS advertisement active',
           source: logSource,
           fields: {
-            'service': '_skotiq._tcp',
+            'service': skotiqMdnsServiceType,
             'port': server.actualPort,
             'scheme': scheme,
             'fingerprint': server.serverFingerprint,

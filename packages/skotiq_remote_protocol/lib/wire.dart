@@ -7,6 +7,7 @@ export 'src/network_uri.dart';
 export 'src/ports.dart';
 export 'src/push/push_delivery_targets.dart';
 export 'src/link_version.dart';
+export 'src/host_advert.dart';
 export 'src/server_identity.dart';
 
 export 'src/wire/api_error.dart';

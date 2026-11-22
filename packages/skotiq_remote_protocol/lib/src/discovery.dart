@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:convert';
 
+import 'host_advert.dart';
 import 'link_version.dart';
 import 'network_uri.dart';
 
@@ -339,35 +340,17 @@ class SkotiqDiscovery {
   /// Returned [DiscoveryBroadcaster] owns the socket + timer. Callers MUST
   /// call [DiscoveryBroadcaster.stop] on shutdown.
   static Future<DiscoveryBroadcaster> startBroadcasting({
+    required HostAdvert advert,
     required int webPort,
     required int signalingPort,
-    String name = 'Skotiq',
-    required String version,
-    String scheme = 'http',
-    String? fingerprint,
-    bool authRequired = false,
-    String authenticationMode = 'none',
-    bool pairingSupported = false,
-    String? hostName,
-    String? hostMode,
     Duration interval = const Duration(seconds: 2),
   }) async {
     // Build the announcement once — payload is invariant across the run.
-    final payload = {
-      'protocol': _protocolVersion,
-      'name': name,
-      'version': version,
-      'webPort': webPort,
-      'signalingPort': signalingPort,
-      'scheme': scheme,
-      'authRequired': authRequired,
-      'authenticationMode': authenticationMode,
-      'pairingSupported': pairingSupported,
-      if (fingerprint != null && fingerprint.isNotEmpty)
-        'fingerprint': fingerprint,
-      if (hostName != null && hostName.isNotEmpty) 'hostName': hostName,
-      if (hostMode != null && hostMode.isNotEmpty) 'hostMode': hostMode,
-    };
+    final payload = beaconPayload(
+      advert,
+      webPort: webPort,
+      signalingPort: signalingPort,
+    );
     final messageBytes = utf8.encode('$_responsePrefix${jsonEncode(payload)}');
     final broadcastTargets = await _udpBroadcastTargets();
 
@@ -413,6 +396,26 @@ class SkotiqDiscovery {
 
     return DiscoveryBroadcaster._(lease, timer);
   }
+
+  /// The beacon a host broadcasts and answers probes with, as JSON.
+  static Map<String, Object?> beaconPayload(
+    HostAdvert advert, {
+    required int webPort,
+    required int signalingPort,
+  }) => {
+    'protocol': _protocolVersion,
+    'name': advert.hostName,
+    'version': advert.version,
+    'webPort': webPort,
+    'signalingPort': signalingPort,
+    'scheme': advert.scheme,
+    'authRequired': advert.authRequired,
+    'authenticationMode': advert.authenticationMode,
+    'pairingSupported': advert.pairingSupported,
+    if (advert.fingerprint.isNotEmpty) 'fingerprint': advert.fingerprint,
+    if (advert.hostName.isNotEmpty) 'hostName': advert.hostName,
+    'hostMode': advert.hostMode.wire,
+  };
 
   /// Run [task] and log any thrown exception at error level.
   ///

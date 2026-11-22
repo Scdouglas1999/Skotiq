@@ -8,9 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nsd/nsd.dart';
 
 import 'discovery.dart';
+import 'host_advert.dart';
 import 'host_info.dart';
 import 'network_uri.dart';
 import 'link_version.dart';
+import 'rig_discovery.dart' show skotiqMdnsServiceType;
 import 'tailnet_detector.dart';
 import 'wire/routes/system_api.dart';
 
@@ -813,7 +815,7 @@ class EnhancedSkotiqDiscovery {
     Timer? timeoutTimer;
 
     try {
-      discovery = await startDiscovery('_skotiq._tcp');
+      discovery = await startDiscovery(skotiqMdnsServiceType);
 
       // Collect discovered services
       final completer = Completer<List<DiscoveredServer>>();
@@ -837,59 +839,22 @@ class EnhancedSkotiqDiscovery {
               // broadcast) lands on the right scheme and can cross-check the
               // fingerprint against a previously-saved value before sending
               // its bearer token.
-              String serverName = resolvedService.name ?? 'Skotiq';
-              String version = '2.0.0';
-              int signalingPort = 45678;
-              String scheme = 'http';
-              String? fingerprint;
-              bool pairingSupported = false;
-
-              final txtRecords = resolvedService.txt;
-              if (txtRecords != null && txtRecords.isNotEmpty) {
-                for (final record in txtRecords.entries) {
-                  final key = record.key;
-                  final rawValue = record.value;
-                  final value = _decodeTxtValue(rawValue);
-                  if (value == null) continue;
-
-                  switch (key) {
-                    case 'version':
-                      version = value;
-                      break;
-                    case 'name':
-                      serverName = value;
-                      break;
-                    case 'signaling_port':
-                      signalingPort = int.tryParse(value) ?? signalingPort;
-                      break;
-                    case 'scheme':
-                      final lowered = value.toLowerCase();
-                      if (lowered == 'http' || lowered == 'https') {
-                        scheme = lowered;
-                      }
-                      break;
-                    case 'fingerprint':
-                      if (value.isNotEmpty) {
-                        fingerprint = value;
-                      }
-                      break;
-                    case 'pairingSupported':
-                      pairingSupported =
-                          value.toLowerCase() == 'true' || value == '1';
-                      break;
-                  }
-                }
-              }
-
+              final txt = HostTxt.parse({
+                for (final record
+                    in (resolvedService.txt ?? const <String, Object?>{})
+                        .entries)
+                  if (_decodeTxtValue(record.value) case final value?)
+                    record.key: value,
+              });
               final server = DiscoveredServer(
                 host: host,
                 webPort: port,
-                signalingPort: signalingPort,
-                name: serverName,
-                version: version,
-                scheme: scheme,
-                fingerprint: fingerprint,
-                pairingSupported: pairingSupported,
+                signalingPort: txt.signalingPort ?? 45678,
+                name: txt.name ?? resolvedService.name ?? 'Skotiq',
+                version: txt.version ?? '2.0.0',
+                scheme: txt.scheme ?? 'http',
+                fingerprint: txt.fingerprint,
+                pairingSupported: txt.pairingSupported ?? false,
               );
 
               // Avoid duplicates
