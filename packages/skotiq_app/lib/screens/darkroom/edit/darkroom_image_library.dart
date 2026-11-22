@@ -12,10 +12,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show darkroomMasterTargetName;
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqTypography;
 
 import '../darkroom_previews.dart' show darkroomDraftPreviewRevisionProvider;
-import '../targets/darkroom_targets_model.dart' show darkroomMasterTargetName;
 
 /// One registered image and the recipes written over it.
 class DarkroomLibraryImage {
