@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -10,6 +11,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../services/imaging_service_test.dart' show makeCapturedImageResult;
+import '../harness/event_wire.dart';
+import '../harness/imaging_event_rows.dart';
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/utils.dart';
 
@@ -321,7 +324,7 @@ void main() {
       },
     );
 
-    test('ImageCaptured invalidates target progress providers', () async {
+    test('ImageSaved invalidates target progress providers', () async {
       final backend = _connectedBackend();
       when(
         () => backend.eventStream,
@@ -347,18 +350,103 @@ void main() {
 
       applyHostLocalSyncEvent(
         container,
-        const SkotiqEvent(
-          timestamp: 4,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ImageCaptured',
-          data: {'targetId': 1},
+        ffiWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.imageSaved(filePath: '/frames/m31_L_001.fits'),
+          ),
         ),
       );
 
       await container.read(targetProgressProvider(1).future);
       expect(progressReads, greaterThan(readsBefore));
     });
+
+    // Which imaging-family events re-read the host's captured images and
+    // which fetch its newest frame, on the host's own window and on a
+    // client, over both transports. Pinned on the name compares.
+    test(
+      'the imaging events that re-read images and fetch the frame',
+      () async {
+        Future<String> reaction(SkotiqEvent event) async {
+          final backend = _connectedBackend();
+          when(
+            () => backend.eventStream,
+          ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+          var fetches = 0;
+          when(
+            () => backend.cameraGetLastImage(
+              any(),
+              maxWidth: any(named: 'maxWidth'),
+            ),
+          ).thenAnswer((_) async {
+            fetches++;
+            return null;
+          });
+          var progressReads = 0;
+          final container = ProviderContainer(
+            overrides: [
+              inMemoryDatabaseOverride(),
+              backendProvider.overrideWith(
+                (ref) => _FixedBackendNotifier(ref, backend),
+              ),
+              targetProgressProvider.overrideWith((ref, targetId) async {
+                progressReads++;
+                return null;
+              }),
+            ],
+          );
+          container.read(cameraStateProvider.notifier)
+            ..setConnecting('asi:0', 'ASI Camera')
+            ..setConnected();
+          container.listen(targetProgressProvider(1), (_, _) {});
+          await container.read(targetProgressProvider(1).future);
+          applyHostLocalSyncEvent(container, event);
+          await container.read(targetProgressProvider(1).future);
+          final hostRereads = progressReads - 1;
+          applyHostEventOnClient(container, backend, event);
+          await pumpEventQueue();
+          await container.read(targetProgressProvider(1).future);
+          final clientRereads = progressReads - 1 - hostRereads;
+          container.dispose();
+          return 'host reread=$hostRereads client reread=$clientRereads '
+              'fetch=$fetches';
+        }
+
+        final table = <String, String>{};
+        for (final row in imagingEventRows.entries) {
+          final ffi = await reaction(ffiWireEvent(row.value));
+          final network = await reaction(networkWireEvent(row.value));
+          expect(network, ffi, reason: '${row.key}: the transports disagree');
+          table[row.key] = ffi;
+        }
+        table['wire ImageCaptured'] = await reaction(
+          unsentWireEvent(EventCategory.imaging, 'ImageCaptured'),
+        );
+        expect(table, <String, String>{
+          'exposureStarted': 'host reread=0 client reread=0 fetch=0',
+          'exposureStartedWithFrame': 'host reread=0 client reread=0 fetch=0',
+          'exposureProgress': 'host reread=0 client reread=0 fetch=0',
+          'exposureCompleted': 'host reread=0 client reread=0 fetch=0',
+          'exposureCompletedWithFrame': 'host reread=0 client reread=0 fetch=0',
+          'exposureFailed': 'host reread=0 client reread=0 fetch=0',
+          'exposureFailedOld': 'host reread=0 client reread=0 fetch=0',
+          'exposureCancelled': 'host reread=0 client reread=0 fetch=0',
+          'downloadStarted': 'host reread=0 client reread=0 fetch=0',
+          'downloadCompleted': 'host reread=0 client reread=0 fetch=0',
+          'imageReady': 'host reread=0 client reread=0 fetch=1',
+          'imageSaved': 'host reread=1 client reread=1 fetch=1',
+          'integrationProgress': 'host reread=0 client reread=0 fetch=0',
+          'integrationTelemetry': 'host reread=0 client reread=0 fetch=0',
+          'temperatureChanged': 'host reread=0 client reread=0 fetch=0',
+          'exposureComplete ok': 'host reread=0 client reread=0 fetch=0',
+          'exposureComplete failed': 'host reread=0 client reread=0 fetch=0',
+          'depthLock goalChanged': 'host reread=0 client reread=0 fetch=0',
+          'sequencer ExposureCompleted':
+              'host reread=0 client reread=0 fetch=0',
+          'wire ImageCaptured': 'host reread=1 client reread=1 fetch=1',
+        });
+      },
+    );
 
     test('ImageReady on remote populates currentImageProvider', () async {
       final backend = _connectedBackend();

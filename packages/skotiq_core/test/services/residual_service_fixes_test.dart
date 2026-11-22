@@ -7,6 +7,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart' show SkotiqBackend;
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/database/daos/equipment_profiles_dao.dart';
@@ -42,6 +43,7 @@ import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart'
     as plate_solve;
 import 'package:skotiq_core/src/services/local_sequence_repository.dart';
 import 'package:skotiq_core/models.dart';
+import '../harness/event_wire.dart';
 
 class _MockSessionsDao extends Mock implements SessionsDao {}
 
@@ -117,12 +119,10 @@ class _FlatWizardCaptureBackend extends MockBackend {
     this.binY = binY;
     Timer.run(() {
       _events.add(
-        SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureComplete',
-          data: const {},
+        ffiWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureComplete(success: true),
+          ),
         ),
       );
     });

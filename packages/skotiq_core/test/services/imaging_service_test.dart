@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
@@ -28,6 +29,7 @@ import 'package:skotiq_core/src/utils/host_paths.dart';
 import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
+import '../harness/event_wire.dart';
 
 /// No-op science processor for capture-pipeline tests.
 ///
@@ -566,12 +568,11 @@ void main() {
           ),
         ).thenAnswer((_) async {
           remoteEvents.add(
-            SkotiqEvent(
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
               timestamp: DateTime.now().millisecondsSinceEpoch,
-              severity: EventSeverity.info,
-              category: EventCategory.imaging,
-              eventType: 'ExposureComplete',
-              data: const {},
             ),
           );
         });
@@ -696,12 +697,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         remoteEvents.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: const {},
           ),
         );
       });
@@ -813,12 +813,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         remoteEvents.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: const {},
           ),
         );
       });
@@ -909,12 +908,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         remoteEvents.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: const {},
           ),
         );
       });
@@ -1040,12 +1038,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         remoteEvents.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: const {},
           ),
         );
       });
@@ -1205,12 +1202,11 @@ void main() {
       ).thenAnswer((_) async {
         // Emit ExposureComplete event immediately
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -1307,12 +1303,11 @@ void main() {
           (invocation) async => '/scratch/${invocation.namedArguments[#name]}',
         );
 
-        SkotiqEvent completionFrom(String deviceId) => SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureComplete',
-          data: {'deviceId': deviceId},
+        SkotiqEvent completionFrom(String deviceId) => cameraTaggedWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureComplete(success: true),
+          ),
+          deviceId: deviceId,
         );
 
         final service = container.read(imagingServiceProvider);
@@ -1354,12 +1349,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -1433,12 +1427,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: const {},
           ),
         );
       });
@@ -1506,12 +1499,11 @@ void main() {
         ).thenAnswer((_) async {
           exposureStarts++;
           eventStreamController.add(
-            SkotiqEvent(
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
               timestamp: DateTime.now().millisecondsSinceEpoch,
-              severity: EventSeverity.info,
-              category: EventCategory.imaging,
-              eventType: 'ExposureComplete',
-              data: const {},
             ),
           );
         });
@@ -1571,12 +1563,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -1725,12 +1716,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -1777,12 +1767,11 @@ void main() {
           ),
         ).thenAnswer((_) async {
           eventStreamController.add(
-            SkotiqEvent(
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
               timestamp: DateTime.now().millisecondsSinceEpoch,
-              severity: EventSeverity.info,
-              category: EventCategory.imaging,
-              eventType: 'ExposureComplete',
-              data: {},
             ),
           );
         });
@@ -1885,12 +1874,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -1954,12 +1942,11 @@ void main() {
           ),
         ).thenAnswer((_) async {
           eventStreamController.add(
-            SkotiqEvent(
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
               timestamp: DateTime.now().millisecondsSinceEpoch,
-              severity: EventSeverity.info,
-              category: EventCategory.imaging,
-              eventType: 'ExposureComplete',
-              data: {},
             ),
           );
         });
@@ -2019,12 +2006,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -2219,12 +2205,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });
@@ -2302,12 +2287,11 @@ void main() {
         } else {
           // Other frames succeed
           eventStreamController.add(
-            SkotiqEvent(
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
               timestamp: DateTime.now().millisecondsSinceEpoch,
-              severity: EventSeverity.info,
-              category: EventCategory.imaging,
-              eventType: 'ExposureComplete',
-              data: {},
             ),
           );
         }
@@ -2376,12 +2360,11 @@ void main() {
         ),
       ).thenAnswer((_) async {
         eventStreamController.add(
-          SkotiqEvent(
+          ffiWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureComplete(success: true),
+            ),
             timestamp: DateTime.now().millisecondsSinceEpoch,
-            severity: EventSeverity.info,
-            category: EventCategory.imaging,
-            eventType: 'ExposureComplete',
-            data: {},
           ),
         );
       });

@@ -9,6 +9,7 @@
 
 import 'dart:async';
 
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
@@ -26,6 +27,7 @@ import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
+import '../harness/event_wire.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -119,12 +121,11 @@ void main() {
       ),
     ).thenAnswer((_) async {
       events.add(
-        SkotiqEvent(
+        ffiWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureComplete(success: true),
+          ),
           timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureComplete',
-          data: const {},
         ),
       );
     });

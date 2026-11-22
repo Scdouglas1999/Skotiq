@@ -97,3 +97,20 @@ SkotiqEvent unsentWireEvent(
   eventType: eventType,
   data: data,
 );
+
+/// [payload] as a linked client receives it, with the camera named in its
+/// data under [key]. No producer of this release names the camera there;
+/// the exposure waits' camera guard reads it, so a second camera's event
+/// can never settle another's wait.
+SkotiqEvent cameraTaggedWireEvent(
+  bridge.EventPayload payload, {
+  required String deviceId,
+  String key = 'deviceId',
+  int timestamp = 1,
+}) {
+  final sent = networkWireEvent(payload, timestamp: timestamp);
+  return SkotiqEvent.fromJson({
+    ...sent.toJson(),
+    'data': {...sent.data, key: deviceId},
+  });
+}
