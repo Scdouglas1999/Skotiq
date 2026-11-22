@@ -4451,20 +4451,29 @@ mod tests {
                 }
             }
             assert_eq!(outcomes, if standalone { 0 } else { 1 });
+            let events: Vec<MeridianFlipEvent> = events
+                .iter()
+                .map(|json| serde_json::from_str(json).expect("a flip event"))
+                .collect();
+            let step_started = |wanted: FlipStep| {
+                events.iter().any(
+                    |e| matches!(e, MeridianFlipEvent::StepStarted { step, .. } if *step == wanted),
+                )
+            };
             assert!(
-                events.iter().any(|e| e.contains("Starting")),
+                matches!(events.first(), Some(MeridianFlipEvent::Starting { .. })),
                 "missing flip start: {events:?}"
             );
             assert!(
-                events.iter().any(|e| e.contains("EnablingTracking")),
+                step_started(FlipStep::EnablingTracking),
                 "missing tracking step: {events:?}"
             );
             assert!(
-                events.iter().any(|e| e.contains("VerifyingPierSide")),
+                step_started(FlipStep::VerifyingPierSide),
                 "missing flip steps: {events:?}"
             );
             assert!(
-                events.last().is_some_and(|e| e.contains("Completed")),
+                matches!(events.last(), Some(MeridianFlipEvent::Completed { .. })),
                 "missing flip completion: {events:?}"
             );
         }
