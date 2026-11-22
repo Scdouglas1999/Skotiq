@@ -83,9 +83,7 @@ impl DeviceManager {
 mod tests {
     use super::*;
 
-    /// Every kind of work and what it holds off today. Wheel and rotator
-    /// moves are a `Command` only: their heartbeat is not held off while the
-    /// move call runs, as the focuser's is.
+    /// Every kind of work and what it holds off.
     #[test]
     fn each_kind_of_work_and_what_it_holds_off() {
         let table = [

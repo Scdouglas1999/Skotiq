@@ -52,9 +52,13 @@ impl IndiDome {
     pub async fn get_azimuth(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, ABS_DOME_POSITION, DOME_ABSOLUTE_POSITION)
+            .require_number(
+                &self.device_name,
+                ABS_DOME_POSITION,
+                DOME_ABSOLUTE_POSITION,
+                "Azimuth not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Azimuth not available".to_string()))
     }
 
     pub async fn slew_to_azimuth(&self, azimuth: f64) -> IndiResult<()> {
@@ -351,17 +355,25 @@ impl IndiDome {
     pub async fn get_home_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, DOME_PARAMS, HOME_POSITION)
+            .require_number(
+                &self.device_name,
+                DOME_PARAMS,
+                HOME_POSITION,
+                "Home position not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Home position not available".to_string()))
     }
 
     pub async fn get_park_position(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, DOME_PARAMS, PARK_POSITION)
+            .require_number(
+                &self.device_name,
+                DOME_PARAMS,
+                PARK_POSITION,
+                "Park position not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Park position not available".to_string()))
     }
 }
 

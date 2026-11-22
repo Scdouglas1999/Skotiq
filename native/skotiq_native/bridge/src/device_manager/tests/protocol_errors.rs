@@ -58,7 +58,7 @@ async fn register_alpaca_mount(manager: &DeviceManager, device_id: &str, base_ur
             heartbeat_active: false,
             desired_cooler: None,
             held_camera_state: None,
-            desired_tracking: None,
+            held_tracking: None,
             declared_mount_frame: None,
         },
     );

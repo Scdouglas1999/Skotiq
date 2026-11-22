@@ -20,8 +20,23 @@ impl DeviceManager {
     /// focuser reached, which after backlash or a stall is not the commanded
     /// position. Returns when the focuser has stopped.
     ///
+    /// A move that fails because the focuser's session broke after a bus
+    /// change reopens it and moves again ([`Self::with_reopen`]), for the run
+    /// and the app alike.
+    ///
     /// [`state_events`]: crate::device_manager::ops::state_events
     pub async fn focuser_move_abs(
+        &self,
+        device_id: &str,
+        position: i32,
+    ) -> Result<(), DeviceOpError> {
+        self.with_reopen(device_id, || {
+            self.focuser_move_abs_once(device_id, position)
+        })
+        .await
+    }
+
+    async fn focuser_move_abs_once(
         &self,
         device_id: &str,
         position: i32,
@@ -47,7 +62,8 @@ impl DeviceManager {
 
     /// Move by `steps`, with the same events as [`Self::focuser_move_abs`].
     /// `FocuserMoveStarted` needs a target, so it is published only when the
-    /// starting position can be read.
+    /// starting position can be read. Not repeated after a reopen: a
+    /// focuser lost mid-move may have moved part of the way.
     pub async fn focuser_move_rel(&self, device_id: &str, steps: i32) -> Result<(), DeviceOpError> {
         // An unknown id has nothing to report on; answer before announcing a
         // move that cannot start.

@@ -151,14 +151,22 @@ impl IndiMount {
         let prop = coord.as_str();
 
         let ra = client
-            .get_number(&self.device_name, prop, RA)
-            .await
-            .ok_or_else(|| IndiError::Unavailable(format!("RA not available on {}", prop)))?;
+            .require_number(
+                &self.device_name,
+                prop,
+                RA,
+                format!("RA not available on {}", prop),
+            )
+            .await?;
 
         let dec = client
-            .get_number(&self.device_name, prop, DEC)
-            .await
-            .ok_or_else(|| IndiError::Unavailable(format!("Dec not available on {}", prop)))?;
+            .require_number(
+                &self.device_name,
+                prop,
+                DEC,
+                format!("Dec not available on {}", prop),
+            )
+            .await?;
 
         Ok((ra, dec))
     }
@@ -612,13 +620,21 @@ impl IndiMount {
     pub async fn get_horizontal_coordinates(&self) -> IndiResult<(f64, f64)> {
         let client = self.client.read().await;
         let alt = client
-            .get_number(&self.device_name, HORIZONTAL_COORD, ALT)
-            .await
-            .ok_or_else(|| IndiError::Unavailable("Altitude not available".to_string()))?;
+            .require_number(
+                &self.device_name,
+                HORIZONTAL_COORD,
+                ALT,
+                "Altitude not available",
+            )
+            .await?;
         let az = client
-            .get_number(&self.device_name, HORIZONTAL_COORD, AZ)
-            .await
-            .ok_or_else(|| IndiError::Unavailable("Azimuth not available".to_string()))?;
+            .require_number(
+                &self.device_name,
+                HORIZONTAL_COORD,
+                AZ,
+                "Azimuth not available",
+            )
+            .await?;
         Ok((alt, az))
     }
 }

@@ -16,17 +16,21 @@ use tokio::sync::{Mutex, RwLock};
 mod alpaca_mount;
 mod capabilities;
 mod device_reopen;
+mod focuser_busy;
 mod guards;
+mod guide_camera_heartbeat;
 mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
 mod indi_ids;
 mod indi_release;
+mod keep_state;
 mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
 mod mount_trace;
+mod move_holds;
 mod native_camera_probe;
 mod native_mount_probe;
 mod omnisim;
@@ -83,6 +87,7 @@ fn build_mount_info(id: &str, driver_type: DriverType) -> DeviceInfo {
 }
 
 fn build_device_manager() -> Arc<DeviceManager> {
+    crate::data_root::set_for_tests();
     DeviceManager::without_reconnection(AppState::new())
 }
 

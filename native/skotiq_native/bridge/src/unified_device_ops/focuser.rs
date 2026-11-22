@@ -9,8 +9,8 @@ impl FocuserOps for UnifiedDeviceOps {
         tracing::info!("Moving focuser {} to position {}", focuser_id, position);
 
         // `DeviceManager::focuser_move_abs` publishes the move's start and end.
-        let mgr = get_device_manager();
-        mgr.with_reopen(focuser_id, || mgr.focuser_move_abs(focuser_id, position))
+        get_device_manager()
+            .focuser_move_abs(focuser_id, position)
             .await
             .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Focuser))
     }

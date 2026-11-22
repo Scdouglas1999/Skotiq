@@ -169,8 +169,11 @@ impl DeviceManager {
         device_id: &str,
         position: f64,
     ) -> Result<(), DeviceOpError> {
-        self.rotator(device_id)
-            .await?
+        let rotator = self.rotator(device_id).await?;
+        // The heartbeat waits while the move call runs, as the focuser's
+        // does: an ASCOM driver blocks in it on the STA thread.
+        let _op = self.busy(device_id, Busy::BlockingCall);
+        rotator
             .move_absolute(position)
             .await
             .map_err(|e| device_error(device_id, e))

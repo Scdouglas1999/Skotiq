@@ -3,7 +3,7 @@
 //! made with a body's timed shutter speeds or bulb, and which listed ISO a
 //! gain selects (gain is ISO on these bodies). Each driver hands in its
 //! body's speeds in its own codes and the rules it follows where the two
-//! drivers differ ([`PlanRules`], [`IsoRule`]).
+//! drivers differ ([`PlanRules`]).
 
 /// A timed speed this close to the request, as a fraction of it, is the
 /// request.
@@ -159,39 +159,19 @@ where
     Ok(Plan::Timed(fallback))
 }
 
-/// How a gain picks one of the ISO speeds a body lists.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum IsoRule {
-    /// The smallest difference.
-    Difference,
-    /// The smallest ratio (ISO steps are multiplicative); a request below 1
-    /// counts as 1.
-    Ratio,
-}
-
-/// The listed ISO speed nearest to `requested` by `rule` (`speeds` lowest
-/// first; a tie goes to the lower speed), or `None` when none is listed.
+/// The listed ISO speed nearest to `requested` by ratio, as ISO steps go
+/// (`speeds` lowest first; a tie goes to the lower speed; a request below 1
+/// counts as 1), or `None` when none is listed.
 pub(crate) fn nearest_iso<T>(
     speeds: &[T],
     speed_of: impl Fn(&T) -> i32,
     requested: i32,
-    rule: IsoRule,
 ) -> Option<&T> {
-    match rule {
-        IsoRule::Difference => speeds.iter().min_by_key(|speed| {
-            let speed = speed_of(speed);
-            ((i64::from(speed) - i64::from(requested)).abs(), speed)
-        }),
-        IsoRule::Ratio => {
-            let requested = f64::from(requested.max(1));
-            speeds.iter().min_by(|a, b| {
-                (f64::from(speed_of(a)) / requested)
-                    .ln()
-                    .abs()
-                    .total_cmp(&(f64::from(speed_of(b)) / requested).ln().abs())
-            })
-        }
-    }
+    let requested = f64::from(requested.max(1));
+    let distance = |speed: &T| (f64::from(speed_of(speed)) / requested).ln().abs();
+    speeds
+        .iter()
+        .min_by(|a, b| distance(a).total_cmp(&distance(b)))
 }
 
 #[cfg(test)]
@@ -206,18 +186,12 @@ mod tests {
 
     const FULL_STOPS: [i32; 6] = [100, 200, 400, 800, 1600, 3200];
 
-    /// The two drivers' rules differ between two full stops: 1200 is 400
-    /// from 800 and 400 from 1600, so the difference rule takes the lower,
-    /// and 1200 is nearer 1600 by ratio.
+    /// Between two full stops 1200 is nearer 1600 by ratio.
     #[test]
-    fn a_gain_between_two_iso_steps_follows_the_driver_rule() {
-        let by = |rule| *nearest_iso(&FULL_STOPS, |s| *s, 1200, rule).unwrap();
-        assert_eq!(by(IsoRule::Difference), 800);
-        assert_eq!(by(IsoRule::Ratio), 1600);
-        assert_eq!(
-            nearest_iso(&[] as &[i32], |s| *s, 800, IsoRule::Ratio),
-            None
-        );
+    fn a_gain_between_two_iso_steps_takes_the_nearer_by_ratio() {
+        assert_eq!(*nearest_iso(&FULL_STOPS, |s| *s, 1200).unwrap(), 1600);
+        assert_eq!(*nearest_iso(&FULL_STOPS, |s| *s, 1131).unwrap(), 800);
+        assert_eq!(nearest_iso(&[] as &[i32], |s| *s, 800), None);
     }
 
     #[test]

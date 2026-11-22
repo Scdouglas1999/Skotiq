@@ -1261,6 +1261,7 @@ impl CameraDriver for TouptekCamera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         if !self.core.capabilities.can_set_offset {
             return Ok(0);
         }
