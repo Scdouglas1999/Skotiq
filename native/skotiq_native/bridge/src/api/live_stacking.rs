@@ -684,25 +684,29 @@ pub fn api_stacking_start_from_data(
     api_stacking_start_from_data_for_filter(None, width, height, data, pedestal, config)
 }
 
-/// Add a frame file to a specific filter's live stack and return the updated
-/// stack. Debayering runs completely unlocked.
-pub fn api_stacking_add_frame_for_filter(
-    filter_key: Option<String>,
-    image_path: String,
-) -> Result<ApiLiveStackingResult, SkotiqError> {
-    tracing::info!(
-        "Adding frame to stack: {} (filter={:?})",
-        image_path,
-        filter_key
-    );
-    let read = read_image(std::path::Path::new(&image_path))
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read frame image: {}", e)))?;
-    let mut provenance = FrameProvenance::from_header(&read.header);
-    let source_label = source_label_from_path(&image_path);
+/// How a frame added to a slot is checked against the slot's filter.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Admission {
+    /// A frame file: its header filter must name the slot's filter. A frame
+    /// routed to a named slot may be headerless or name an alias of it, and
+    /// is then filed under the slot's name.
+    ByHeaderFilter,
+    /// An in-memory frame carries no header and is not checked.
+    Unchecked,
+}
 
+/// Add one frame to the slot `filter_key` names (the active one when `None`),
+/// record its event, and return the stack as it now stands.
+fn add_to_slot(
+    filter_key: Option<&str>,
+    raw: ImageData,
+    mut provenance: FrameProvenance,
+    source_label: String,
+    admission: Admission,
+) -> Result<ApiLiveStackingResult, SkotiqError> {
     let (target_key, slot) = {
         let guard = acquire_registry();
-        guard.get_handle(filter_key.as_deref()).ok_or_else(|| {
+        guard.get_handle(filter_key).ok_or_else(|| {
             SkotiqError::ImageError(
                 "Live stacker not initialized. Call stacking_start first.".to_string(),
             )
@@ -712,7 +716,10 @@ pub fn api_stacking_add_frame_for_filter(
     // When the caller explicitly routed this frame to a named filter slot,
     // allow headerless frames and canonical aliases (e.g. "H-alpha" -> "Ha")
     // while still rejecting a frame whose header names a different filter.
-    if filter_key.is_some() && target_key != DEFAULT_FILTER_KEY {
+    if admission == Admission::ByHeaderFilter
+        && filter_key.is_some()
+        && target_key != DEFAULT_FILTER_KEY
+    {
         let header_compatible = match provenance.filter.as_deref() {
             None => true,
             Some(header_filter) => skotiq_device::same_filter(header_filter, &target_key),
@@ -723,14 +730,17 @@ pub fn api_stacking_add_frame_for_filter(
     }
 
     let color = slot.read_meta().color;
-    let frame = ingest(read.image, color)?;
+    let frame = ingest(raw, color)?;
 
     // Hold `slot.stacker` across the revision bump and `slot.meta` update so
     // Darkroom/preview readers holding `slot.stacker` always observe pixels
     // and revision atomically in lockstep.
     let outcome = {
         let mut stacker = slot.lock_stacker();
-        let res = stacker.add_frame_with_provenance(&frame, &provenance);
+        let res = match admission {
+            Admission::ByHeaderFilter => stacker.add_frame_with_provenance(&frame, &provenance),
+            Admission::Unchecked => stacker.add_frame(&frame, provenance.pedestal),
+        };
         let stats = stats_api_from_stacker(&stacker);
         let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
         match res {
@@ -798,6 +808,31 @@ pub fn api_stacking_add_frame_for_filter(
     })
 }
 
+/// Add a frame file to a specific filter's live stack and return the updated
+/// stack. Debayering runs completely unlocked.
+pub fn api_stacking_add_frame_for_filter(
+    filter_key: Option<String>,
+    image_path: String,
+) -> Result<ApiLiveStackingResult, SkotiqError> {
+    tracing::info!(
+        "Adding frame to stack: {} (filter={:?})",
+        image_path,
+        filter_key
+    );
+    let read = read_image(std::path::Path::new(&image_path))
+        .map_err(|e| SkotiqError::ImageError(format!("Failed to read frame image: {}", e)))?;
+    let provenance = FrameProvenance::from_header(&read.header);
+    let source_label = source_label_from_path(&image_path);
+
+    add_to_slot(
+        filter_key.as_deref(),
+        read.image,
+        provenance,
+        source_label,
+        Admission::ByHeaderFilter,
+    )
+}
+
 /// Add a frame file to the active stack and return the stack as it now stands.
 pub fn api_stacking_add_frame(image_path: String) -> Result<ApiLiveStackingResult, SkotiqError> {
     api_stacking_add_frame_for_filter(None, image_path)
@@ -834,86 +869,16 @@ pub fn api_stacking_add_frame_from_data_for_filter(
             data.len()
         )));
     }
-    let (target_key, slot) = {
-        let guard = acquire_registry();
-        guard.get_handle(filter_key.as_deref()).ok_or_else(|| {
-            SkotiqError::ImageError(
-                "Live stacker not initialized. Call stacking_start first.".to_string(),
-            )
-        })?
-    };
-
-    let color = slot.read_meta().color;
-    let frame = ingest(ImageData::from_u16(width, height, 1, &data), color)?;
-
-    let outcome = {
-        let mut stacker = slot.lock_stacker();
-        let res = stacker.add_frame(&frame, pedestal);
-        let stats = stats_api_from_stacker(&stacker);
-        let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
-        match res {
-            Ok(stacked) => {
-                let revision = {
-                    let mut guard = acquire_registry();
-                    let rev = guard.bump_revision();
-                    guard.active_key = Some(target_key.clone());
-                    rev
-                };
-                let event = {
-                    let mut meta = slot.write_meta();
-                    meta.revision = revision;
-                    meta.width = stacked.width;
-                    meta.height = stacked.height;
-                    meta.channels = stacked.channels;
-                    meta.stats = stats.clone();
-                    meta.record_frame_event(
-                        telemetry,
-                        stats.total_frames_attempted,
-                        "in-memory".to_string(),
-                        true,
-                        None,
-                        None,
-                    )
-                };
-                *slot.lock_preview_cache() = None;
-                Ok((stacked, stats, revision, event))
-            }
-            Err(err) => {
-                {
-                    let mut meta = slot.write_meta();
-                    meta.stats = stats.clone();
-                    meta.record_frame_event(
-                        telemetry,
-                        stats.total_frames_attempted,
-                        "in-memory".to_string(),
-                        false,
-                        Some(err.clone()),
-                        None,
-                    );
-                }
-                Err(SkotiqError::ImageError(err))
-            }
-        }
-    };
-
-    let (stacked, stats, revision, event) = outcome?;
-    {
-        let guard = acquire_registry();
-        sync_atomic_counters(&guard);
-    }
-    let out_u16 = stacked.as_u16().ok_or_else(|| {
-        SkotiqError::ImageError("Failed to convert stacked result to u16".to_string())
-    })?;
-    Ok(ApiLiveStackingResult {
-        width: stacked.width,
-        height: stacked.height,
-        channels: stacked.channels,
-        data: out_u16,
-        stats,
-        filter_key: target_key,
-        revision,
-        last_event: Some(event),
-    })
+    add_to_slot(
+        filter_key.as_deref(),
+        ImageData::from_u16(width, height, 1, &data),
+        FrameProvenance {
+            pedestal,
+            ..FrameProvenance::unknown()
+        },
+        "in-memory".to_string(),
+        Admission::Unchecked,
+    )
 }
 
 /// Add a single-plane u16 frame in memory to the active stack.
