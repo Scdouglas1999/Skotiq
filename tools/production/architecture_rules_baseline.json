@@ -41,10 +41,6 @@
         "count": 1,
         "reason": "Translation into the Rust executor's own vocabulary (snake_case keys, settings-resolved values); pinned by the executor-wire goldens (k-nodedesc)."
       },
-      "sequence_serializer.dart::shutdownWarmUpIds": {
-        "count": 1,
-        "reason": "Domain predicate (steps that put the rig away), not type metadata (k-nodedesc)."
-      },
       "sequence_timeline.dart::SequenceTimeline._segmentForTiming": {
         "count": 1,
         "reason": "Timeline segment kind per node type. Candidate NodeKind field."
