@@ -40,7 +40,7 @@ pub use registry::{instruction_for, InstructionNode};
 // Re-export the sequential helper so external callers (tests, the executor's
 // resume path) can poke at execute_children_sequential without having to
 // reach into the logic submodule directly.
-pub use logic::sequential::{execute_children_sequential, wait_until_timestamp_or_cancel};
+pub use logic::sequential::execute_children_sequential;
 
 #[cfg(test)]
 mod tests {
@@ -304,24 +304,6 @@ mod tests {
                 logic::recovery::execute_custom_branch_children(&mut recovery_node, &mut ctx).await;
 
             assert_eq!(result, NodeStatus::Failure);
-        });
-    }
-
-    #[test]
-    fn wait_until_timestamp_or_cancel_stops_on_skip_request() {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        rt.block_on(async {
-            let ctx = ExecutionContext::new_for_test("test_node".to_string());
-            ctx.request_skip_to_next_target();
-
-            let result =
-                wait_until_timestamp_or_cancel(&ctx, chrono::Utc::now().timestamp() + 60).await;
-
-            assert_eq!(result, NodeStatus::Skipped);
         });
     }
 

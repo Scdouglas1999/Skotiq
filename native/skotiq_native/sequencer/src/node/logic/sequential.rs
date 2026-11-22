@@ -130,32 +130,3 @@ pub async fn execute_children_sequential(
 
     NodeStatus::Success
 }
-
-/// Cancellable wait until a target Unix timestamp.
-pub async fn wait_until_timestamp_or_cancel(
-    context: &ExecutionContext,
-    target_timestamp: i64,
-) -> NodeStatus {
-    use std::sync::atomic::Ordering;
-    loop {
-        if context.is_cancelled.load(Ordering::Relaxed) {
-            tracing::info!("Cancelled while waiting for scheduled start time");
-            return NodeStatus::Cancelled;
-        }
-        if context.is_skip_to_next_target_requested() {
-            tracing::info!("Skip requested while waiting for scheduled start time");
-            return NodeStatus::Skipped;
-        }
-
-        let now = chrono::Utc::now().timestamp();
-        if now >= target_timestamp {
-            return NodeStatus::Success;
-        }
-
-        // `.min(1)` clamps to [_, 1] i64; the `now >= target_timestamp`
-        // check above guarantees the difference is positive, so i64 -> u64 is
-        // lossless. The clamp keeps the wait granular for cancellation polling.
-        let sleep_secs = u64::try_from((target_timestamp - now).min(1)).unwrap_or(0);
-        tokio::time::sleep(std::time::Duration::from_secs(sleep_secs.max(1))).await;
-    }
-}

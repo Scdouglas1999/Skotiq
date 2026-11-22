@@ -215,17 +215,6 @@ pub struct ExecutionContext {
     pub completed_integration_secs: Arc<RwLock<f64>>,
     /// Safety fail mode - determines behavior when safety devices fail or are unavailable
     pub safety_fail_mode: Arc<parking_lot::RwLock<SafetyFailMode>>,
-    /// The maximum Sun altitude (degrees above the horizon) at which an on-sky
-    /// LIGHT capture is permitted, mirroring the Dart scheduler's
-    /// `maxSunAltitudeDegrees` so the native gate
-    /// (`instructions::execute_slew` / `execute_exposure`) and the Dart twilight
-    /// gate agree on the threshold. The native gate blocks a slew to a science
-    /// target or a LIGHT exposure while the Sun is above this altitude, and
-    /// deliberately does NOT block flats/darks/bias/park or a parked rig, so
-    /// daytime calibration stays usable. Seeded from
-    /// `RunConfig::max_sun_altitude_degrees` at `start()`; defaults to
-    /// [`crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES`].
-    pub max_sun_altitude_degrees: f64,
     /// in-memory SmartExposure per-node resume state,
     /// keyed by NodeId. Survives pause/resume within a single process run.
     /// Cross-process resume requires the executor to additionally plumb a
@@ -491,10 +480,6 @@ impl ExecutionContext {
             device_locks: Arc::new(DeviceLockRegistry::default()),
             completed_integration_secs: Arc::new(RwLock::new(0.0)),
             safety_fail_mode: Arc::new(parking_lot::RwLock::new(SafetyFailMode::default())),
-            // W1 native daylight gate — default threshold mirrors the Dart
-            // scheduler's `maxSunAltitudeDegrees`; the executor overrides this
-            // from `RunConfig::max_sun_altitude_degrees` at start.
-            max_sun_altitude_degrees: crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES,
             smart_exposure_states: Arc::new(RwLock::new(std::collections::HashMap::new())),
             resume: crate::node::resume::ResumeRecord::default(),
             // No checkpoint manager outside a session: wizard step state
@@ -560,20 +545,6 @@ impl ExecutionContext {
 
     pub fn with_safety_fail_mode(mut self, mode: SafetyFailMode) -> Self {
         self.safety_fail_mode = Arc::new(parking_lot::RwLock::new(mode));
-        self
-    }
-
-    /// W1 native daylight gate — install the maximum permitted Sun altitude
-    /// (degrees) for on-sky LIGHT captures. Builder-style so the executor can
-    /// seed it from `RunConfig::max_sun_altitude_degrees` alongside the
-    /// other `with_*` calls. A non-finite value falls back to the default so a
-    /// misconfiguration can never silently disable the gate.
-    pub fn with_max_sun_altitude(mut self, degrees: f64) -> Self {
-        self.max_sun_altitude_degrees = if degrees.is_finite() {
-            degrees
-        } else {
-            crate::instructions::DEFAULT_MAX_SUN_ALTITUDE_DEGREES
-        };
         self
     }
 
