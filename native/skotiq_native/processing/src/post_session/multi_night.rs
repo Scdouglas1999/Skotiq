@@ -36,11 +36,13 @@ use skotiq_imaging::drizzle::{drizzle_frame_rows, DrizzleConfig, DrizzleFrame, D
 use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQualityConfig, WeightFormula};
 use skotiq_imaging::integration::{
     integrate_frames_with_spatial_weights, Combine, IntegrationConfig, IntegrationFrame, Reject,
+    RejectChoice,
 };
 use skotiq_imaging::normalization::{
     apply_normalization, estimate_normalization, CoverageMask, NormalizationCoeffs,
 };
 use skotiq_imaging::registration::{min_registration_stars, Interpolator, TransformModel};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_image, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -479,36 +481,35 @@ pub(crate) fn calibrate_for_fold(
 }
 
 /// The rejection the build applies, from the request token.
-fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
-    Ok(
-        match token
-            .map(str::trim)
-            .unwrap_or("")
-            .to_ascii_lowercase()
-            .as_str()
-        {
-            "" | "auto" => Reject::pixinsight_auto(frames),
-            "none" => Reject::None,
-            "percentile" => Reject::PercentileClip {
-                low: 0.2,
-                high: 0.1,
-            },
-            "winsorized" | "winsorizedsigma" => Reject::WinsorizedSigmaClip {
-                low: 4.0,
-                high: 3.0,
-            },
-            "linearfit" => Reject::LinearFitClip {
-                low: 5.0,
-                high: 4.0,
-            },
-            "esd" | "generalizedesd" => Reject::GeneralizedEsd {
-                outliers: 0.3,
-                alpha: 0.05,
-                low_relaxation: 1.5,
-            },
-            other => return Err(format!("unknown rejection '{other}'")),
+pub(crate) fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
+    let token = token.unwrap_or("");
+    Ok(match RejectChoice::from_token(token) {
+        Some(RejectChoice::Auto) => Reject::pixinsight_auto(frames),
+        Some(RejectChoice::None) => Reject::None,
+        Some(RejectChoice::PercentileClip) => Reject::PercentileClip {
+            low: 0.2,
+            high: 0.1,
         },
-    )
+        Some(RejectChoice::WinsorizedSigmaClip) => Reject::WinsorizedSigmaClip {
+            low: 4.0,
+            high: 3.0,
+        },
+        Some(RejectChoice::LinearFitClip) => Reject::LinearFitClip {
+            low: 5.0,
+            high: 4.0,
+        },
+        Some(RejectChoice::GeneralizedEsd) => Reject::GeneralizedEsd {
+            outliers: 0.3,
+            alpha: 0.05,
+            low_relaxation: 1.5,
+        },
+        Some(RejectChoice::SigmaClip | RejectChoice::MinMax) | None => {
+            return Err(format!(
+                "unknown rejection '{}'",
+                token.trim().to_ascii_lowercase()
+            ))
+        }
+    })
 }
 
 /// The weighting formula that weighs a sub by the inverse variance of its
@@ -1124,9 +1125,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     if let Some(source) = fits_header_of(&normalization_path) {
         copy_optics_cards(&mut header, &source);
     }
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq multi-night master");
+    ProductCards::master("MASTER_LIGHT", "Skotiq multi-night master").write_to(&mut header);
     header.set_string("GRIDREF", &grid_id);
     header.set_int("NFRAMES", folded.len() as i64);
     header.set_int("NCOMBINE", folded.len() as i64);

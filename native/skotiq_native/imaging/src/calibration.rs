@@ -58,13 +58,8 @@ pub const PEDESTAL_REMOVED_HISTORY: &str =
 /// (written by Skotiq and MaxIm DL) or the HISTORY PixInsight's
 /// ImageCalibration writes. A calibrated frame is never calibrated again.
 pub fn is_calibrated(header: &FitsHeader) -> bool {
-    header
-        .get_string("CALSTAT")
-        .is_some_and(|value| !value.trim().is_empty())
-        || header
-            .history
-            .iter()
-            .any(|line| line.starts_with("Calibration with ImageCalibration"))
+    let marks = crate::CalibrationMarks::from_header(header);
+    marks.calstat_text || marks.pixinsight_history
 }
 
 /// `image` with `pedestal` (ADU) taken out of every sample, as `F32`; the
@@ -467,6 +462,13 @@ mod tests {
         let mut header = FitsHeader::new();
         header.add_history("Calibration with ImageCalibration process");
         assert!(is_calibrated(&header));
+        let mut header = FitsHeader::new();
+        header.set_string("CALSTAT", " ");
+        header.set_string("FRAMETYP", "MASTER");
+        assert!(
+            !is_calibrated(&header),
+            "an empty CALSTAT and a master type are not marks"
+        );
     }
 
     #[test]

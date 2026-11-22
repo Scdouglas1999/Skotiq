@@ -2,6 +2,80 @@ import 'dart:convert';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+/// The fewest frames a calibration master is built from.
+const int calibrationMasterMinFrames = 2;
+
+/// How a calibration master's file name spells what it does not know. The
+/// calibration backlog writes `gx`/`ox` for an unstated gain or offset and
+/// stamps seconds; end-of-night calibration leaves them out, adds the read
+/// mode and stamps minutes.
+class CalibrationMasterNameStyle {
+  const CalibrationMasterNameStyle._({
+    required this.unstatedAsX,
+    required this.stampSeconds,
+  });
+
+  static const backlog = CalibrationMasterNameStyle._(
+    unstatedAsX: true,
+    stampSeconds: true,
+  );
+  static const endOfNight = CalibrationMasterNameStyle._(
+    unstatedAsX: false,
+    stampSeconds: false,
+  );
+
+  final bool unstatedAsX;
+  final bool stampSeconds;
+}
+
+/// A number as a master file name spells it: whole numbers bare, else up to
+/// three decimals with `p` for the point (`0p5`).
+String calibrationMasterNameNumber(double value) =>
+    value == value.roundToDouble()
+    ? value.toStringAsFixed(0)
+    : value
+          .toStringAsFixed(3)
+          .replaceFirst(RegExp(r'0+$'), '')
+          .replaceAll('.', 'p');
+
+/// The file name of a master of [kind] (`dark`, `bias` or `flat`) built at
+/// [builtAt]: `MasterDark_90s_g76_o15_m10C_bin1_20261025-090000.fits`.
+String calibrationMasterFileName({
+  required String kind,
+  required CalibrationMasterNameStyle style,
+  required DateTime builtAt,
+  required double exposureSeconds,
+  required int? gain,
+  required int? offset,
+  required int binX,
+  required double? temperatureC,
+  String? filter,
+  String? readMode,
+}) {
+  final head = switch (kind) {
+    'bias' => 'MasterBias',
+    'flat' =>
+      'MasterFlat_${(filter ?? 'NoFilter').replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}',
+    _ => 'MasterDark_${calibrationMasterNameNumber(exposureSeconds)}s',
+  };
+  String part(String tag, int? value) =>
+      value != null ? '_$tag$value' : (style.unstatedAsX ? '_${tag}x' : '');
+  final rounded = temperatureC?.round();
+  final temp = rounded == null
+      ? 'notemp'
+      : (rounded < 0 ? 'm${-rounded}C' : 'p${rounded}C');
+  final mode = readMode == null
+      ? ''
+      : '_${readMode.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
+  String two(int v) => v.toString().padLeft(2, '0');
+  final t = builtAt;
+  final stamp =
+      '${t.year}${two(t.month)}${two(t.day)}-${two(t.hour)}${two(t.minute)}'
+      '${style.stampSeconds ? two(t.second) : ''}';
+  return '$head${part('g', gain)}${part('o', offset)}_${temp}_bin$binX$mode'
+      '_$stamp.fits';
+}
+
 /// What to build: one dark or bias master from raw frames on disk.
 class CalibrationMasterBuildRequest {
   const CalibrationMasterBuildRequest({

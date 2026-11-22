@@ -131,6 +131,34 @@ pub struct DetectedStar {
     pub sharpness: f64,
 }
 
+/// What a detected source is, read from its shape and signal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceKind {
+    /// Round enough to centroid on ([`SELECTION_MAX_ECCENTRICITY`]).
+    Star,
+    /// Elongated and well above the noise: a trailed star or a satellite.
+    Trail,
+    /// Elongated and marginal: 5σ noise percolating on faint nebulosity.
+    NoiseCluster,
+}
+
+/// SNR below which an elongated source is a noise cluster, not a trail.
+/// An unmeasured (NaN) SNR is not marginal.
+pub const MARGINAL_SOURCE_SNR: f64 = 8.0;
+
+impl DetectedStar {
+    pub fn kind(&self) -> SourceKind {
+        // An unmeasured (NaN) shape is not called elongated.
+        if self.eccentricity.is_nan() || self.eccentricity <= SELECTION_MAX_ECCENTRICITY {
+            SourceKind::Star
+        } else if self.snr < MARGINAL_SOURCE_SNR {
+            SourceKind::NoiseCluster
+        } else {
+            SourceKind::Trail
+        }
+    }
+}
+
 /// Camera-domain inputs for the standard CCD-equation SNR.
 ///
 /// Why: SNR must be computed in the electron domain using
@@ -855,6 +883,28 @@ pub fn extract_top_star_crops(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_source_kind_follows_its_shape_and_signal() {
+        let source = |eccentricity: f64, snr: f64| DetectedStar {
+            x: 1.0,
+            y: 1.0,
+            flux: 1.0,
+            hfr: 1.0,
+            fwhm: 2.0,
+            peak: 1.0,
+            background: 0.0,
+            snr,
+            eccentricity,
+            elongation_angle_deg: 0.0,
+            sharpness: 0.1,
+        };
+        assert_eq!(source(0.7, 3.0).kind(), SourceKind::Star);
+        assert_eq!(source(f64::NAN, 3.0).kind(), SourceKind::Star);
+        assert_eq!(source(0.8, 7.9).kind(), SourceKind::NoiseCluster);
+        assert_eq!(source(0.8, 8.0).kind(), SourceKind::Trail);
+        assert_eq!(source(0.8, f64::NAN).kind(), SourceKind::Trail);
+    }
 
     #[test]
     fn calculate_stats_reports_expected_mad_for_even_sample() {

@@ -270,7 +270,7 @@ impl SolveScale {
     pub(crate) async fn for_frame_file(path: &std::path::Path) -> Self {
         let (mut scale, camera_frame) = gather(None).await;
         scale.learns_from_solve =
-            camera_frame.is_some() && camera_frame == skotiq_platesolve::fits_frame_size(path);
+            camera_frame.is_some() && camera_frame == skotiq_imaging::read_frame_size(path);
         scale
     }
 }

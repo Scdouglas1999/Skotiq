@@ -299,6 +299,15 @@ pub(crate) fn base_pyramid(path: &Path) -> Result<LoadedMaster, String> {
         )
     })?);
 
+    remember_pyramid(key, &pyramid, identity);
+    Ok(LoadedMaster {
+        pyramid,
+        identity: render_identity,
+    })
+}
+
+/// Keep a freshly built base pyramid under `key`, when it fits the cache.
+fn remember_pyramid(key: String, pyramid: &Arc<ImagePyramid>, identity: String) {
     let bytes = pyramid.byte_size();
     let mut cache = base_cache();
     cache.tick = cache.tick.saturating_add(1);
@@ -310,7 +319,7 @@ pub(crate) fn base_pyramid(path: &Path) -> Result<LoadedMaster, String> {
         cache.entries.insert(
             key,
             BaseEntry {
-                pyramid: Arc::clone(&pyramid),
+                pyramid: Arc::clone(pyramid),
                 identity,
                 bytes,
                 last_used: tick,
@@ -319,10 +328,6 @@ pub(crate) fn base_pyramid(path: &Path) -> Result<LoadedMaster, String> {
         cache.used_bytes = cache.used_bytes.saturating_add(bytes);
         cache.evict_to_capacity();
     }
-    Ok(LoadedMaster {
-        pyramid,
-        identity: render_identity,
-    })
 }
 
 /// Callback returning `(canonical_filter_key, revision_identity)` for an active
@@ -388,26 +393,7 @@ pub(crate) fn live_stack_pyramid(filter_key: &str) -> Result<LoadedMaster, Strin
         )
     })?);
 
-    let bytes = pyramid.byte_size();
-    let mut cache = base_cache();
-    cache.tick = cache.tick.saturating_add(1);
-    let tick = cache.tick;
-    if bytes <= BASE_CACHE_CAPACITY_BYTES {
-        if let Some(previous) = cache.entries.remove(&key) {
-            cache.used_bytes = cache.used_bytes.saturating_sub(previous.bytes);
-        }
-        cache.entries.insert(
-            key,
-            BaseEntry {
-                pyramid: Arc::clone(&pyramid),
-                identity: actual_identity.clone(),
-                bytes,
-                last_used: tick,
-            },
-        );
-        cache.used_bytes = cache.used_bytes.saturating_add(bytes);
-        cache.evict_to_capacity();
-    }
+    remember_pyramid(key, &pyramid, actual_identity.clone());
     Ok(LoadedMaster {
         pyramid,
         identity: actual_identity,

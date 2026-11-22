@@ -31,46 +31,6 @@ class FlatLibraryService {
   final FrameHeaderReader _readFrameHeader;
 
   /// Build a master flat from [flatPaths], write it to [outputPath], and
-  /// register it in the library. Returns the new `flat_library` row id.
-  ///
-  /// See [buildMasterFlat] for the arguments.
-  Future<int> createMasterFlat({
-    required List<String> flatPaths,
-    required String outputPath,
-    String? biasOrDarkFlatPath,
-    String? filter,
-    int? equipmentProfileId,
-    String? opticalTrainId,
-    double? temperature,
-    int? gain,
-    int? offset,
-    int? binX,
-    int? binY,
-    String flatKind = 'sky',
-    String method = 'sigmaClip',
-    double sigmaKappa = 3.0,
-    int sigmaIterations = 5,
-    String outputBitDepth = 'f32',
-  }) async => (await buildMasterFlat(
-    flatPaths: flatPaths,
-    outputPath: outputPath,
-    biasOrDarkFlatPath: biasOrDarkFlatPath,
-    filter: filter,
-    equipmentProfileId: equipmentProfileId,
-    opticalTrainId: opticalTrainId,
-    temperature: temperature,
-    gain: gain,
-    offset: offset,
-    binX: binX,
-    binY: binY,
-    flatKind: flatKind,
-    method: method,
-    sigmaKappa: sigmaKappa,
-    sigmaIterations: sigmaIterations,
-    outputBitDepth: outputBitDepth,
-  )).libraryId;
-
-  /// Build a master flat from [flatPaths], write it to [outputPath], and
   /// register it in the library.
   ///
   /// [biasOrDarkFlatPath] is the optional pedestal: a master bias (for short
@@ -138,9 +98,7 @@ class FlatLibraryService {
       filter: filter ?? header.string('FILTER'),
       equipmentProfileId: equipmentProfileId,
       opticalTrainId: opticalTrainId,
-      temperature:
-          temperature ??
-          header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP', 'SET-TEMP']),
+      temperature: temperature ?? header.libraryTempC,
       // A flat without the cards is from a camera with no such control.
       gain: gain ?? header.integer('GAIN'),
       offset: offset ?? header.integer('OFFSET'),

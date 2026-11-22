@@ -18,6 +18,7 @@
 
 use crate::post_session::args::CalibrationArgs;
 use serde::{Deserialize, Serialize};
+use skotiq_imaging::atomic_file::{replace_file, Replace, ReplaceError};
 use skotiq_imaging::{read_frame_header, FitsHeader};
 use std::path::Path;
 
@@ -658,23 +659,36 @@ pub(crate) fn append_fold_calibration(
     let encoded =
         serde_json::to_vec(&log).map_err(|e| format!("failed to encode calibration log: {e}"))?;
     let temp = calibration_log_temp_path(&path);
-    std::fs::write(&temp, encoded)
-        .map_err(|e| format!("failed to write calibration log '{}': {e}", temp.display()))?;
-    match std::fs::rename(&temp, &path) {
-        Ok(()) => Ok(()),
-        Err(rename_error) => {
-            if let Err(cleanup_error) = std::fs::remove_file(&temp) {
+    let how = Replace {
+        sync: false,
+        ..Replace::DURABLE
+    };
+    replace_file(&path, &temp, how, |temp| std::fs::write(temp, encoded)).map_err(|e| match e {
+        ReplaceError::Write { error, cleanup } => {
+            if let Some(cleanup_error) = cleanup {
+                tracing::warn!(
+                    "could not remove '{}' after a failed calibration-log write: {cleanup_error}",
+                    temp.display()
+                );
+            }
+            format!(
+                "failed to write calibration log '{}': {error}",
+                temp.display()
+            )
+        }
+        ReplaceError::Place { error, cleanup } => {
+            if let Some(cleanup_error) = cleanup {
                 tracing::warn!(
                     "could not remove '{}' after a failed calibration-log rename: {cleanup_error}",
                     temp.display()
                 );
             }
-            Err(format!(
-                "failed to place calibration log '{}': {rename_error}",
+            format!(
+                "failed to place calibration log '{}': {error}",
                 path.display()
-            ))
+            )
         }
-    }
+    })
 }
 
 /// The temporary sibling a calibration-log write goes through.

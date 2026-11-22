@@ -1045,7 +1045,7 @@ fn pin_resampling(pins: &mut Pins) {
     for sigma in [0.6, 1.7, 4.2] {
         pins.add(
             &format!("resample/gaussian_blur.{sigma}"),
-            f32_digest(&color_composite::mix::gaussian_blur(
+            f32_digest(&recipe::composite::mix::gaussian_blur(
                 &plane, 400, 400, sigma,
             )),
         );

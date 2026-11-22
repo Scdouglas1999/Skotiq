@@ -7,6 +7,7 @@
 //! first bytes (its extension when they say nothing). Each format is one
 //! [`FrameCodec`]; supporting another format is one more codec in [`CODECS`].
 
+use crate::atomic_file::{Replace, ReplaceError};
 use crate::xisf::{self, XisfError, XisfWriteOptions};
 use crate::{FitsError, FitsHeader, ImageData, Maker};
 use std::io::Read;
@@ -46,7 +47,7 @@ pub enum FrameIoError {
     Io(std::io::Error),
     Fits(FitsError),
     Xisf(XisfError),
-    Raw(String),
+    Raw(crate::RawError),
     /// Neither the content nor the extension names a format the app reads.
     UnknownFormat(String),
     /// The format is read-only in the app.
@@ -87,7 +88,7 @@ impl From<FitsError> for FrameIoError {
 
 impl From<crate::RawError> for FrameIoError {
     fn from(e: crate::RawError) -> Self {
-        FrameIoError::Raw(e.to_string())
+        FrameIoError::Raw(e)
     }
 }
 
@@ -234,20 +235,7 @@ impl FrameCodec for XisfFrames {
         let wanted = u64::from(min_side).min(image.width().max(image.height()));
         match image.thumbnail.as_deref() {
             Some(t) if t.width().max(t.height()) >= wanted => {
-                Ok(unit.read_thumbnail()?.map(|mut preview| {
-                    // Thumbnails may be 16-bit (section 11.12); previews are 8.
-                    if preview.pixel_type == crate::PixelType::U16 {
-                        preview.data = preview
-                            .data
-                            .as_chunks::<2>()
-                            .0
-                            .iter()
-                            .map(|b| b[1])
-                            .collect();
-                        preview.pixel_type = crate::PixelType::U8;
-                    }
-                    preview
-                }))
+                Ok(unit.read_thumbnail()?.map(eight_bit_preview))
             }
             _ => Ok(None),
         }
@@ -427,6 +415,12 @@ pub fn read_frame_header(path: &Path) -> Result<FitsHeader, FrameIoError> {
     codec_for_file(path)?.read_header(path)
 }
 
+/// A frame file's width and height in pixels from its header alone; `None`
+/// when the header cannot be read or states no positive size.
+pub fn read_frame_size(path: &Path) -> Option<(u32, u32)> {
+    read_frame_header(path).ok()?.image_size()
+}
+
 /// A display-ready 8-bit preview the file stores, when it has one whose
 /// longer side reaches `min_side` (or the image's own size), so a list of
 /// frames need not decode every frame.
@@ -530,6 +524,24 @@ impl Drop for FitsCopy {
     }
 }
 
+/// A stored thumbnail as an 8-bit preview: XISF thumbnails may be 16-bit
+/// (section 11.12), and a preview keeps each sample's high byte, with the
+/// 8-bit range.
+fn eight_bit_preview(mut preview: ImageData) -> ImageData {
+    if preview.pixel_type == crate::PixelType::U16 {
+        preview.data = preview
+            .data
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| b[1])
+            .collect();
+        preview.pixel_type = crate::PixelType::U8;
+        preview.range = crate::SampleRange::of(crate::PixelType::U8);
+    }
+    preview
+}
+
 /// Write through a sibling file and move it into place, so no reader sees a
 /// half-written file. The new file is flushed to disk before it takes the
 /// old one's name: the old file is the only copy of the frame.
@@ -539,25 +551,23 @@ fn replace_file(
 ) -> Result<(), FrameIoError> {
     let name = display_name(path);
     let staged = path.with_file_name(format!(".{name}.tmp"));
-    if let Err(e) = write(&staged) {
-        let _ = std::fs::remove_file(&staged);
-        return Err(e);
-    }
-    // Opened for writing: Windows flushes only a handle that may write.
-    std::fs::OpenOptions::new()
-        .write(true)
-        .open(&staged)
-        .and_then(|file| file.sync_all())
-        .and_then(|()| std::fs::rename(&staged, path))
-        .map_err(|e| {
-            let _ = std::fs::remove_file(&staged);
-            FrameIoError::Io(e)
-        })
+    crate::atomic_file::replace_file(path, &staged, Replace::DURABLE, write).map_err(|e| match e {
+        ReplaceError::Write { error: e, .. } => e,
+        ReplaceError::Place { error, .. } => FrameIoError::Io(error),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sixteen_bit_thumbnail_previews_with_the_eight_bit_range() {
+        let preview = eight_bit_preview(ImageData::from_u16(2, 1, 1, &[0x1234, 0xff00]));
+        assert_eq!(preview.pixel_type, crate::PixelType::U8);
+        assert_eq!(preview.data, vec![0x12, 0xff]);
+        assert_eq!(preview.range, crate::SampleRange::of(crate::PixelType::U8));
+    }
     use crate::PixelType;
 
     /// A header read tells a frame's size without decoding it, the same way

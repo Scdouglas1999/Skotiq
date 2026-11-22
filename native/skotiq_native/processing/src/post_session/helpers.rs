@@ -6,11 +6,12 @@ use crate::post_session::integrate::LoadedLight;
 use skotiq_imaging::frame_weighting::{
     analyze_frame_quality, FrameQuality, FrameQualityConfig, WeightFormula,
 };
-use skotiq_imaging::integration::{Combine, IntegrationConfig, Reject};
+use skotiq_imaging::integration::{Combine, IntegrationConfig, Reject, RejectChoice};
 use skotiq_imaging::normalization::{NormMode, NormalizationConfig};
 use skotiq_imaging::registration::{
     min_registration_stars, registrable_star_count, Interpolator, RegistrationConfig, TransformKind,
 };
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_frame_header, read_image, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -366,32 +367,24 @@ pub(crate) fn build_integration_config(
         "median" => Combine::Median,
         other => return Err(format!("unknown combine '{other}'")),
     };
-    let reject = match a.reject.trim().to_ascii_lowercase().as_str() {
-        "auto" | "" => auto_reject(sub_count, a.reject_low, a.reject_high),
-        "none" => Reject::None,
-        "sigmaclip" | "sigma_clip" => Reject::SigmaClip {
-            low: a.reject_low,
-            high: a.reject_high,
-        },
-        "winsorizedsigma" | "winsorized_sigma" | "winsorizedsigmaclip" => {
-            Reject::WinsorizedSigmaClip {
-                low: a.reject_low,
-                high: a.reject_high,
-            }
-        }
-        "linearfit" | "linear_fit" | "linearfitclip" => Reject::LinearFitClip {
-            low: a.reject_low,
-            high: a.reject_high,
-        },
-        "percentile" | "percentileclip" => Reject::PercentileClip {
-            low: a.reject_low,
-            high: a.reject_high,
-        },
-        "minmax" | "min_max" => Reject::MinMax {
+    let (low, high) = (a.reject_low, a.reject_high);
+    let reject = match RejectChoice::from_token(&a.reject) {
+        Some(RejectChoice::Auto) => auto_reject(sub_count, low, high),
+        Some(RejectChoice::None) => Reject::None,
+        Some(RejectChoice::SigmaClip) => Reject::SigmaClip { low, high },
+        Some(RejectChoice::WinsorizedSigmaClip) => Reject::WinsorizedSigmaClip { low, high },
+        Some(RejectChoice::LinearFitClip) => Reject::LinearFitClip { low, high },
+        Some(RejectChoice::PercentileClip) => Reject::PercentileClip { low, high },
+        Some(RejectChoice::MinMax) => Reject::MinMax {
             n_low: a.min_max_low,
             n_high: a.min_max_high,
         },
-        other => return Err(format!("unknown reject algorithm '{other}'")),
+        Some(RejectChoice::GeneralizedEsd) | None => {
+            return Err(format!(
+                "unknown reject algorithm '{}'",
+                a.reject.trim().to_ascii_lowercase()
+            ))
+        }
     };
     let output_type = match a.output_bit_depth.trim().to_ascii_lowercase().as_str() {
         "" | "f32" => PixelType::F32,
@@ -541,10 +534,9 @@ pub(crate) fn build_master_header(
     calibration: &CalibrationReport,
 ) -> FitsHeader {
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq post-session integration");
-    header.set_int("NFRAMES", sub_count as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq post-session integration")
+        .with_frames(sub_count as i64)
+        .write_to(&mut header);
     // FITS keywords are capped at 8 chars (see `fits::is_valid_keyword`).
     header.set_string("COMBMETH", &int_args.combine);
     let reject = reject_label(resolved_reject);

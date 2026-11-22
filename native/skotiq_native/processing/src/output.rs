@@ -56,19 +56,19 @@ pub(crate) fn write_preview_png_with_mode(
 }
 
 /// Convert any master into a U16 image for the auto-stretch preview path.
-/// U16 is passed through; F32 is rescaled from its finite min..max into 0..65535.
+/// U16 is passed through; any other type is rescaled from its finite
+/// min..max into 0..65535.
 pub(crate) fn to_u16_for_preview(master: &ImageData) -> ImageData {
     if master.pixel_type == PixelType::U16 {
         return master.clone();
     }
-    let data = master.as_f32().unwrap_or_default();
+    let data = master.stored_f64();
     if data.is_empty() {
         return ImageData::from_u16(master.width, master.height, master.channels, &[]);
     }
     let mut lo = f64::INFINITY;
     let mut hi = f64::NEG_INFINITY;
     for &v in &data {
-        let v = v as f64;
         if v.is_finite() {
             lo = lo.min(v);
             hi = hi.max(v);
@@ -80,7 +80,7 @@ pub(crate) fn to_u16_for_preview(master: &ImageData) -> ImageData {
         let range = hi - lo;
         data.iter()
             .map(|&v| {
-                let n = ((v as f64 - lo) / range).clamp(0.0, 1.0);
+                let n = ((v - lo) / range).clamp(0.0, 1.0);
                 (n * 65535.0).round() as u16
             })
             .collect()
@@ -97,4 +97,30 @@ pub(crate) fn ensure_parent_dir(path: &Path) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_float64_master_previews_like_its_float32_twin() {
+        let values = [0.0f32, 0.25, 0.5, 1.0];
+        let wide: Vec<u8> = values
+            .iter()
+            .flat_map(|v| f64::from(*v).to_le_bytes())
+            .collect();
+        let f64_master = ImageData {
+            width: 2,
+            height: 2,
+            channels: 1,
+            pixel_type: PixelType::F64,
+            data: wide,
+            range: SampleRange::of(PixelType::F64),
+        };
+        let f32_master = ImageData::from_f32(2, 2, 1, &values);
+        let preview = to_u16_for_preview(&f64_master);
+        assert_eq!(preview.as_u16(), to_u16_for_preview(&f32_master).as_u16());
+        assert_eq!(preview.as_u16().map(|d| d.len()), Some(4));
+    }
 }

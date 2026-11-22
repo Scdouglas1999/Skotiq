@@ -106,18 +106,17 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
         let header = read_frame_header(Path::new(&input.path)).map_err(|e| e.to_string())?;
         let (coverage, coverage_header) =
             read_frame(Path::new(&input.coverage_path)).map_err(|e| e.to_string())?;
-        let size = (
-            header.get_int("NAXIS1").unwrap_or(0) as u32,
-            header.get_int("NAXIS2").unwrap_or(0) as u32,
-            header.get_int("NAXIS3").unwrap_or(1).max(1) as u32,
-        );
+        let stated = header
+            .image_size()
+            .map(|(width, height)| (width, height, header.planes()));
+        let size = (coverage.width, coverage.height, coverage.channels);
         let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
         let count = header.get_int("NFRAMES").unwrap_or(0);
         if count <= 0
             || reference.is_empty()
             || coverage_header.get_int("NFRAMES") != Some(count)
             || coverage_header.get_string("GRIDREF").unwrap_or_default() != reference
-            || (coverage.width, coverage.height, coverage.channels) != size
+            || stated != Some(size)
         {
             return Err(format!(
                 "{} has missing or mismatched geometric coverage",
@@ -218,11 +217,11 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
                 .get_string("FILTER")
                 .map(str::to_string)
                 .unwrap_or_else(|| input.filter.clone());
-            let role = match skotiq_imaging::color_composite::classify_filter(Some(&named), 1) {
-                skotiq_imaging::color_composite::FilterRole::Luminance => Some("L"),
-                skotiq_imaging::color_composite::FilterRole::Red => Some("R"),
-                skotiq_imaging::color_composite::FilterRole::Green => Some("G"),
-                skotiq_imaging::color_composite::FilterRole::Blue => Some("B"),
+            let role = match skotiq_imaging::recipe::composite::classify_filter(Some(&named), 1) {
+                skotiq_imaging::recipe::composite::FilterRole::Luminance => Some("L"),
+                skotiq_imaging::recipe::composite::FilterRole::Red => Some("R"),
+                skotiq_imaging::recipe::composite::FilterRole::Green => Some("G"),
+                skotiq_imaging::recipe::composite::FilterRole::Blue => Some("B"),
                 _ => None,
             };
             if let Some(role) = role.filter(|_| args.composites) {

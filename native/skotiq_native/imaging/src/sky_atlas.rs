@@ -1465,9 +1465,7 @@ impl SkyAtlas {
             std::process::id(),
             STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
         ));
-        std::fs::write(&tmp, tile.serialize_compressed())
-            .map_err(|e| AtlasError::Io(e.to_string()))?;
-        std::fs::rename(&tmp, &path).map_err(|e| AtlasError::Io(e.to_string()))?;
+        write_tile_file(&path, &tmp, &tile.serialize_compressed())?;
         // Migrate on write: the sidecar now lives at its `.skt` path, so a
         // pre-rename `.nst` twin would only duplicate it.
         if self.layer.is_none() {
@@ -1523,8 +1521,7 @@ impl SkyAtlas {
                     std::process::id(),
                     STORE_TILE_NONCE.fetch_add(1, Ordering::Relaxed)
                 ));
-                std::fs::write(&tmp, &compact).map_err(|e| AtlasError::Io(e.to_string()))?;
-                std::fs::rename(&tmp, &path).map_err(|e| AtlasError::Io(e.to_string()))?;
+                write_tile_file(&path, &tmp, &compact)?;
                 stats.compacted += 1;
                 stats.bytes_before += bytes.len() as u64;
                 stats.bytes_after += compact.len() as u64;
@@ -1943,6 +1940,22 @@ fn decompress_payload(
         offset += size * len;
     }
     Ok(out)
+}
+
+/// Put a tile sidecar in place through `staged`.
+fn write_tile_file(path: &Path, staged: &Path, bytes: &[u8]) -> Result<(), AtlasError> {
+    use crate::atomic_file::Replace;
+    let how = Replace {
+        sync: false,
+        ..Replace::DURABLE
+    };
+    crate::atomic_file::replace_file(path, staged, how, |staged| std::fs::write(staged, bytes))
+        .map_err(|e| match e {
+            crate::atomic_file::ReplaceError::Write { error, .. }
+            | crate::atomic_file::ReplaceError::Place { error, .. } => {
+                AtlasError::Io(error.to_string())
+            }
+        })
 }
 
 #[cfg(test)]

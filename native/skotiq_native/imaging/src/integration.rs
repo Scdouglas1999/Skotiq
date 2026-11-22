@@ -165,6 +165,44 @@ impl Reject {
     }
 }
 
+/// The rejection a request token names, before its parameters are chosen.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RejectChoice {
+    /// Chosen by the frame count; each caller names its rule.
+    Auto,
+    None,
+    SigmaClip,
+    WinsorizedSigmaClip,
+    LinearFitClip,
+    PercentileClip,
+    MinMax,
+    GeneralizedEsd,
+}
+
+impl RejectChoice {
+    /// The rejection `token` names, ignoring case, surrounding space and
+    /// underscores; an empty token is [`RejectChoice::Auto`].
+    pub fn from_token(token: &str) -> Option<Self> {
+        let word: String = token
+            .trim()
+            .chars()
+            .filter(|c| *c != '_')
+            .collect::<String>()
+            .to_ascii_lowercase();
+        Some(match word.as_str() {
+            "" | "auto" => Self::Auto,
+            "none" => Self::None,
+            "sigmaclip" => Self::SigmaClip,
+            "winsorized" | "winsorizedsigma" | "winsorizedsigmaclip" => Self::WinsorizedSigmaClip,
+            "linearfit" | "linearfitclip" => Self::LinearFitClip,
+            "percentile" | "percentileclip" => Self::PercentileClip,
+            "minmax" => Self::MinMax,
+            "esd" | "generalizedesd" => Self::GeneralizedEsd,
+            _ => return None,
+        })
+    }
+}
+
 /// Tunables for [`integrate_frames`]. [`Default`] is a quality-first archival
 /// integration: F32 master, weighted mean, Winsorized-σ rejection, all maps on.
 #[derive(Debug, Clone)]

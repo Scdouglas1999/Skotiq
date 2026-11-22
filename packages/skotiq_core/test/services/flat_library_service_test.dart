@@ -31,9 +31,9 @@ void main() {
   });
 
   test(
-    'createMasterFlat invokes the native build and registers a row',
+    'buildMasterFlat invokes the native build and registers a row',
     () async {
-      final id = await service.createMasterFlat(
+      final built = await service.buildMasterFlat(
         flatPaths: ['/flats/a.fits', '/flats/b.fits', '/flats/c.fits'],
         outputPath: '/cal/master_flat_L.fits',
         biasOrDarkFlatPath: '/cal/master_bias.fits',
@@ -43,6 +43,7 @@ void main() {
         binY: 1,
         temperature: -10.0,
       );
+      final id = built.libraryId;
 
       // Native build received the right args.
       expect(seam.flatCalls, hasLength(1));
@@ -63,7 +64,7 @@ void main() {
 
   test('empty flat list is a hard error', () async {
     expect(
-      () => service.createMasterFlat(
+      () => service.buildMasterFlat(
         flatPaths: const [],
         outputPath: '/cal/x.fits',
       ),

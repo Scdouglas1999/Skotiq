@@ -791,14 +791,30 @@ impl LiveStacker {
 
     /// Update runtime-mutable stacking parameters without resetting pixels.
     pub fn update_config(&mut self, next: LiveStackConfig) {
-        self.config.sigma_clip_enabled = next.sigma_clip_enabled;
-        self.config.sigma_clip_threshold = next.sigma_clip_threshold;
-        self.config.max_match_stars = next.max_match_stars;
-        self.config.match_radius_px = next.match_radius_px;
-        self.config.match_flux_tolerance = next.match_flux_tolerance;
-        self.config.min_matched_pairs = next.min_matched_pairs;
-        self.config.max_alignment_residual_px = next.max_alignment_residual_px;
-        self.config.star_detection = next.star_detection;
+        // Every field is named, so a new one has to be sorted into runtime
+        // tunable or fixed at start. The sensor and demosaic settings shaped
+        // the reference already ingested and stay as the stack started.
+        let LiveStackConfig {
+            sigma_clip_threshold,
+            sigma_clip_enabled,
+            max_match_stars,
+            match_radius_px,
+            match_flux_tolerance,
+            min_matched_pairs,
+            max_alignment_residual_px,
+            star_detection,
+            bayer_pattern: _,
+            sensor_mode: _,
+            demosaic_algorithm: _,
+        } = next;
+        self.config.sigma_clip_enabled = sigma_clip_enabled;
+        self.config.sigma_clip_threshold = sigma_clip_threshold;
+        self.config.max_match_stars = max_match_stars;
+        self.config.match_radius_px = match_radius_px;
+        self.config.match_flux_tolerance = match_flux_tolerance;
+        self.config.min_matched_pairs = min_matched_pairs;
+        self.config.max_alignment_residual_px = max_alignment_residual_px;
+        self.config.star_detection = star_detection;
     }
 
     /// Record the optical filter name on this stack's FITS provenance.

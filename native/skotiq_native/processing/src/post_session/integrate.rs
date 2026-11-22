@@ -26,6 +26,7 @@ use skotiq_imaging::frame_weighting::{
 use skotiq_imaging::integration::{integrate_frames, IntegrationFrame};
 use skotiq_imaging::normalization::{apply_normalization, estimate_normalization, CoverageMask};
 use skotiq_imaging::registration::{register_frame, TransformModel};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_image, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -537,7 +538,7 @@ pub(crate) fn run_integration(
             let path = Path::new(p);
             ensure_parent_dir(path)?;
             let mut h = FitsHeader::new();
-            h.set_string("IMAGETYP", "REJECTION_MAP");
+            ProductCards::image_type("REJECTION_MAP").write_to(&mut h);
             h.add_history("Skotiq post-session rejection-count map");
             write_fits(path, map, &h)
                 .map_err(|e| format!("failed to write rejection map: {e:?}"))?;

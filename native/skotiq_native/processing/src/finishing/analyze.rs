@@ -31,6 +31,7 @@ use skotiq_imaging::color_calibration::{
 };
 use skotiq_imaging::frame_weighting::FrameQuality;
 use skotiq_imaging::optimizer::{integration_curve, recommend_subset, OptimizerConfig};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{
     carry_source_header, detect_stars, read_frame, write_fits, FitsHeader, ImageData,
     StarDetectionConfig,
@@ -482,8 +483,8 @@ fn color_calibrate_impl(args: ColorCalibrateArgs) -> Result<ColorCalibrateResult
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq photometric color calibration");
+    ProductCards::product("MASTER_LIGHT", "Skotiq photometric color calibration")
+        .write_to(&mut header);
     // FITS keywords are capped at 8 chars (see `fits::is_valid_keyword`).
     header.set_float("WHITEBV", white_ref_bv);
     header.set_int("CCSTARS", calibration.matched as i64);
