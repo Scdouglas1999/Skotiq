@@ -224,11 +224,11 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize22,
                 fontWeight: FontWeight.bold,
-                color: error.azimuthError.abs() < 30
-                    ? colors.success
-                    : error.azimuthError.abs() < 60
-                        ? colors.warning
-                        : colors.error,
+                color: polarErrorToneColor(
+                  colors,
+                  polarErrorTone(
+                      error.azimuthError, config.autoCompleteThreshold),
+                ),
               ),
             )
           else
@@ -257,11 +257,11 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize22,
                 fontWeight: FontWeight.bold,
-                color: error.altitudeError.abs() < 30
-                    ? colors.success
-                    : error.altitudeError.abs() < 60
-                        ? colors.warning
-                        : colors.error,
+                color: polarErrorToneColor(
+                  colors,
+                  polarErrorTone(
+                      error.altitudeError, config.autoCompleteThreshold),
+                ),
               ),
             )
           else
@@ -303,11 +303,11 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   : 0.0,
               backgroundColor: colors.surfaceAlt,
               color: error != null
-                  ? (error.totalError < 30
-                      ? colors.success
-                      : error.totalError < 60
-                          ? colors.warning
-                          : colors.error)
+                  ? polarErrorToneColor(
+                      colors,
+                      polarErrorTone(
+                          error.totalError, config.autoCompleteThreshold),
+                    )
                   : colors.textMuted,
               minHeight: 6,
             ),

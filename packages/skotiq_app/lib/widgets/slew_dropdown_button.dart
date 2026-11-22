@@ -10,11 +10,11 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../services/goto_altitude_check.dart';
 import '../services/mount_command_service.dart';
+import '../services/rotate_after_centering.dart';
 import 'centering_dialog.dart';
-import '../utils/confirm_dialog.dart';
 import '../utils/snackbar_helper.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 
 enum SlewMode {
   /// Basic slew to coordinates.
@@ -253,7 +253,15 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     // The horizon gate runs before anything is dispatched and before the
     // button latches into its working state, so a refused slew leaves the
     // control exactly as it was.
-    if (!await _confirmHorizon()) return;
+    if (!await confirmGoToAltitude(
+      context,
+      ref,
+      raHours: widget.ra,
+      decDeg: widget.dec,
+      targetName: widget.targetName,
+    )) {
+      return;
+    }
     if (!_isCurrentOperation(revision, backend)) return;
 
     setState(() => _operationInFlight = true);
@@ -348,102 +356,12 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return;
     }
 
-    if (widget.targetRotation != null) {
-      try {
-        final rotatorState = ref.read(rotatorStateProvider);
-        if (rotatorState.connectionState == DeviceConnectionState.connected &&
-            rotatorState.deviceId != null) {
-          final deviceBackend = ref.read(deviceBackendProvider);
-          await deviceBackend.rotatorMoveTo(
-            rotatorState.deviceId!,
-            widget.targetRotation!,
-          );
-          if (mounted &&
-              _isCurrentOperation(revision, backend) &&
-              identical(ref.read(deviceBackendProvider), deviceBackend) &&
-              ref.read(rotatorStateProvider).deviceId ==
-                  rotatorState.deviceId) {
-            context.showSuccessSnackBar(
-              'Rotating to ${widget.targetRotation!.toStringAsFixed(1)}°',
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted && _isCurrentOperation(revision, backend)) {
-          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
-        }
-      }
+    final rotation = widget.targetRotation;
+    if (rotation == null) return;
+    final rotated = await rotateAfterCentering(ref, rotation);
+    if (rotated != null && mounted && _isCurrentOperation(revision, backend)) {
+      context.showCommandActionResult(rotated);
     }
-  }
-
-  /// Confirms a below-horizon GoTo before dispatching it.
-  ///
-  /// No configured site means there is no altitude to judge. A settings-load
-  /// failure blocks the command because it cannot be distinguished from a
-  /// hidden configured site.
-  Future<bool> _confirmHorizon() async {
-    try {
-      await ref.read(appSettingsProvider.future);
-    } catch (error) {
-      if (mounted) {
-        context.showErrorSnackBar(
-          'Unable to verify target altitude because settings could not be '
-          'loaded. Slew was not sent.',
-        );
-      }
-      return false;
-    }
-    if (!mounted) return false;
-
-    // Whether a site exists at all is [appObserverLocationProvider]'s call, not
-    // ours — (0, 0) is a real place and only that provider gets to decide it
-    // means "unset".
-    final site = ref.read(appObserverLocationProvider);
-    if (site == null) return true;
-
-    // Same alt/az model the scheduler uses to decide what is worth imaging, so
-    // the slew gate and the planner never disagree about where a target is.
-    final (altitudeDeg, azimuthDeg) = AstronomyCalculations.objectAltAz(
-      raDeg: widget.ra * 15.0,
-      decDeg: widget.dec,
-      dt: DateTime.now().toUtc(),
-      latitudeDeg: site.latitude,
-      longitudeDeg: site.longitude,
-    );
-
-    // The site's altitude floor toward the target; a site cannot opt out of
-    // the ground.
-    final floorDeg = ref.read(altitudeFloorProvider).atAzimuth(azimuthDeg);
-    if (altitudeDeg >= 0 && altitudeDeg >= floorDeg) return true;
-    if (!mounted) return false;
-
-    final target = widget.targetName ?? 'That target';
-    final where = 'azimuth ${azimuthDeg.toStringAsFixed(0)}°';
-
-    if (altitudeDeg < 0) {
-      return ConfirmDialog.show(
-        context: context,
-        title: 'Target is below the horizon',
-        message: '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
-            'horizon right now ($where): it is under the ground. Slewing '
-            'there can drive the telescope into the pier, a tripod leg or the '
-            'ground. Check the coordinates, and check your site in '
-            'Settings > Location.',
-        confirmLabel: 'Slew anyway',
-        isDestructive: true,
-      );
-    }
-
-    return ConfirmDialog.show(
-      context: context,
-      title: 'Target is below your horizon limit',
-      message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
-          'horizon ($where), under the site\'s ${floorDeg.toStringAsFixed(0)}° '
-          '${ref.read(altitudeFloorProvider).followsHorizon ? 'horizon there (Settings > Location)' : 'minimum altitude'}. '
-          'It may be behind trees or a roof, and it will be looking through '
-          'a lot of air.',
-      confirmLabel: 'Slew anyway',
-    );
   }
 
   Future<bool> _preflightCentering(int revision, SkotiqBackend backend) async {

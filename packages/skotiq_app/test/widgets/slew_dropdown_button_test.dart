@@ -11,6 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/harness.dart';
@@ -50,6 +51,23 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
             '"E":$horizonFloorDeg,"SE":$horizonFloorDeg,"S":$horizonFloorDeg,'
             '"SW":$horizonFloorDeg,"W":$horizonFloorDeg,"NW":$horizonFloorDeg}',
       );
+}
+
+class _FixedClock implements Clock {
+  const _FixedClock(this._at);
+  final DateTime _at;
+
+  @override
+  DateTime now() => _at;
+
+  @override
+  DateTime nowUtc() => _at.toUtc();
+
+  @override
+  Duration get utcOffset => Duration.zero;
+
+  @override
+  DateTime fromUtc(DateTime utc) => utc;
 }
 
 class _FailingSiteSettingsNotifier extends AppSettingsNotifier {
@@ -367,14 +385,17 @@ void main() {
       WidgetTester tester, {
       required double dec,
       double horizonFloorDeg = 0.0,
+      double ra = 12,
+      Clock? clock,
     }) async {
       final handle = await pumpAppScreen(
         tester,
         SizedBox(
           width: 220,
-          child: SlewDropdownButton(ra: 12, dec: dec, targetName: 'NGC 7000'),
+          child: SlewDropdownButton(ra: ra, dec: dec, targetName: 'NGC 7000'),
         ),
         extraOverrides: [
+          if (clock != null) clockProvider.overrideWithValue(clock),
           appSettingsProvider.overrideWith(
             () => _SiteSettingsNotifier(horizonFloorDeg: horizonFloorDeg),
           ),
@@ -431,6 +452,40 @@ void main() {
 
       expect(find.text('Target is below the horizon'), findsNothing);
       expect(find.text('Target is below your horizon limit'), findsNothing);
+      expect(service.calls, 1);
+      service.result.complete(CommandActionResult.ok);
+      await tester.pump();
+    });
+
+    testWidgets('the altitude is judged at the app clock, not the wall clock',
+        (tester) async {
+      // Twelve hours from now a target on the meridian is about 45 degrees
+      // below the horizon at the wall clock.
+      final appNow = DateTime.now().toUtc().add(const Duration(hours: 12));
+      double altitudeAt(double ra, DateTime at) =>
+          AstronomyCalculations.objectAltAz(
+            raDeg: ra * 15,
+            decDeg: 0,
+            dt: at,
+            latitudeDeg: 45,
+            longitudeDeg: 0,
+          ).$1;
+      var ra = 0.0;
+      for (var h = 0.0; h < 24; h += 0.05) {
+        if (altitudeAt(h, appNow) > altitudeAt(ra, appNow)) ra = h;
+      }
+      expect(altitudeAt(ra, appNow), greaterThan(40));
+      expect(altitudeAt(ra, DateTime.now().toUtc()), lessThan(-30));
+
+      final service = await pumpSlew(
+        tester,
+        dec: 0,
+        ra: ra,
+        clock: _FixedClock(appNow),
+      );
+      await chooseSlew(tester);
+
+      expect(find.text('Target is below the horizon'), findsNothing);
       expect(service.calls, 1);
       service.result.complete(CommandActionResult.ok);
       await tester.pump();

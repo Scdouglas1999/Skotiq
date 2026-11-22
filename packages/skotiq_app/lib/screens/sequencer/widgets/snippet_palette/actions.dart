@@ -226,24 +226,6 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
     }
   }
 
-  /// Returns true if the running platform has a native share sheet
-  /// `share_plus` can reach. Desktop platforms (Windows / Linux) have no
-  /// system share sheet — those flow through `_handleExportSnippet`
-  /// instead so the user manually moves the resulting file. macOS does
-  /// have a share sheet, so it's allowed alongside iOS/Android.
-  bool get _platformHasShareSheet {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.iOS:
-      case TargetPlatform.android:
-      case TargetPlatform.macOS:
-        return true;
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return false;
-    }
-  }
-
   Future<void> _handleImportSnippet() async {
     if (!_beginSnippetFileAction()) return;
     try {
@@ -320,7 +302,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
   /// [_handleExportSnippet] — the user gets a save dialog instead and
   /// can attach the resulting file to whatever they like.
   Future<void> _handleShareSnippet(TemplateSnippet snippet) async {
-    if (!_platformHasShareSheet) {
+    if (!platformHasShareSheet(macOS: true)) {
       // Desktop fallback: open the export dialog. Same user-visible
       // result (a file they can attach to anything) without pretending
       // we can drive a system share UI that doesn't exist.

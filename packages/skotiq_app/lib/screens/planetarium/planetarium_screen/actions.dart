@@ -406,24 +406,12 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
     }
 
     // Rotate to the planned camera angle if a rotator is connected.
-    final rotatorState = ref.read(rotatorStateProvider);
-    if (rotatorState.connectionState == DeviceConnectionState.connected &&
-        rotatorState.deviceId != null) {
-      final targetRotation = ref.read(equipmentFOVProvider).rotation;
-      try {
-        await ref
-            .read(deviceBackendProvider)
-            .rotatorMoveTo(rotatorState.deviceId!, targetRotation);
-        if (mounted) {
-          context.showSuccessSnackBar(
-              'Rotating to ${targetRotation.toStringAsFixed(1)}°');
-        }
-      } catch (e) {
-        if (mounted) {
-          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
-        }
-      }
-    } else if (mounted) {
+    final rotated = await rotateAfterCentering(
+        ref, ref.read(equipmentFOVProvider).rotation);
+    if (!mounted) return;
+    if (rotated != null) {
+      context.showCommandActionResult(rotated);
+    } else {
       context.showInfoSnackBar('Centered on $objectName');
     }
   }

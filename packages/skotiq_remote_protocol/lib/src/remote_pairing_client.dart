@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'host_info.dart';
 import 'link_version.dart';
 import 'network_uri.dart';
 import 'wire/routes/pairing_api.dart';
@@ -203,9 +204,11 @@ class RemotePairingClient {
   /// JSON response so a genuinely broken endpoint is not mistaken for "no
   /// fingerprint".
   Future<String?> fetchFingerprint() async {
-    final response = await http
-        .get(_uri(SystemApi.info.route.path), headers: _headers)
-        .timeout(timeout);
+    final response = await getHostInfo(
+      _uri(SystemApi.info.route.path),
+      headers: _headers,
+      timeout: timeout,
+    );
     if (response.statusCode != 200) {
       throw RemotePairingException(
         'Fingerprint pre-flight failed (${response.statusCode}): '

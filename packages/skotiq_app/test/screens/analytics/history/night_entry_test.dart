@@ -170,6 +170,19 @@ void main() {
     });
   });
 
+  test('the quick-capture row counts only the lights the grader kept', () {
+    final at = DateTime(2026, 11, 1, 22);
+    final nights = groupByNight(
+      const [],
+      standaloneLights: [
+        frame(1, at: at, exposure: 60),
+        frame(2, at: at, exposure: 300, accepted: false),
+      ],
+    );
+
+    expect(nights.single.quickCaptures!.integrationSecs, 60);
+  });
+
   group('HistoryTotals', () {
     final at = DateTime(2026, 7, 14);
 

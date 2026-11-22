@@ -1,6 +1,22 @@
 import '../database.dart' show DbCapturedImage;
 import 'frame_type_record.dart';
 
+/// Exposure seconds across [frames]. A duration that is not a positive
+/// number adds nothing.
+double exposureSecs(Iterable<DbCapturedImage> frames) {
+  var sum = 0.0;
+  for (final frame in frames) {
+    final secs = frame.exposureDuration;
+    if (secs.isFinite && secs > 0) sum += secs;
+  }
+  return sum;
+}
+
+/// The integration of [frames]: the exposure seconds of the accepted light
+/// frames among them.
+double acceptedIntegrationSecs(Iterable<DbCapturedImage> frames) =>
+    exposureSecs(frames.where((f) => f.isLight && f.isAccepted));
+
 /// Light-frame integration per filter: what the grader kept and what was
 /// spent. A frame with no filter counts under [unfiltered].
 class IntegrationByFilter {

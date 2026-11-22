@@ -42,6 +42,7 @@ extension _RightPanel on _PolarAlignmentScreenState {
                 child: _PolarErrorVisualization(
                   colors: colors,
                   error: state.currentError,
+                  targetArcsec: config.autoCompleteThreshold,
                   phase: state.phase,
                   pulseAnimation: _pulseController,
                 ),
@@ -122,6 +123,7 @@ extension _RightPanel on _PolarAlignmentScreenState {
                 colors,
                 state.currentError,
                 panelWidth - 2 * SkotiqTokens.spaceLg,
+                targetArcsec: config.autoCompleteThreshold,
               ),
               // All-Sky derives the polar error from the DRIFT between a fixed
               // baseline solve and the current one, so its precision is a function
@@ -235,26 +237,25 @@ extension _RightPanel on _PolarAlignmentScreenState {
   Widget _buildErrorValues(
     SkotiqColors colors,
     PolarAlignmentError? error,
-    double width,
-  ) {
+    double width, {
+    required double targetArcsec,
+  }) {
+    Color toneOf(double arcsec) =>
+        polarErrorToneColor(colors, polarErrorTone(arcsec, targetArcsec));
     final readouts = <Readout>[
       Readout(
         key: const ValueKey('polar-readout-azimuth'),
         label: 'Azimuth',
         value: error == null ? null : formatPolarError(error.azimuthError),
         size: ReadoutSize.sm,
-        valueColor: error == null
-            ? null
-            : _getErrorColor(colors, error.azimuthError.abs()),
+        valueColor: error == null ? null : toneOf(error.azimuthError),
       ),
       Readout(
         key: const ValueKey('polar-readout-altitude'),
         label: 'Altitude',
         value: error == null ? null : formatPolarError(error.altitudeError),
         size: ReadoutSize.sm,
-        valueColor: error == null
-            ? null
-            : _getErrorColor(colors, error.altitudeError.abs()),
+        valueColor: error == null ? null : toneOf(error.altitudeError),
       ),
       // The total is the number the operator is driving to zero, so it is
       // the loud one.
@@ -262,8 +263,7 @@ extension _RightPanel on _PolarAlignmentScreenState {
         key: const ValueKey('polar-readout-total'),
         label: 'Total',
         value: error == null ? null : formatPolarError(error.totalError),
-        valueColor:
-            error == null ? null : _getErrorColor(colors, error.totalError),
+        valueColor: error == null ? null : toneOf(error.totalError),
       ),
     ];
     if (width < _errorValuesRowMinWidth) {
@@ -301,13 +301,6 @@ extension _RightPanel on _PolarAlignmentScreenState {
 
   /// Widest the error row grows: the outer ring's diameter, near enough.
   static const double _errorValuesRowMaxWidth = 560;
-
-  Color _getErrorColor(SkotiqColors colors, double error) {
-    if (error < 30) return colors.success;
-    if (error < 60) return colors.info;
-    if (error < 120) return colors.warning;
-    return colors.error;
-  }
 }
 
 /// Reports [height] as its child's intrinsic height and lays the child out at

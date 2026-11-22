@@ -62,6 +62,7 @@ extension _LivePanel on _PolarAlignmentScreenState {
               : _PolarErrorVisualization(
                   colors: colors,
                   error: state.currentError,
+                  targetArcsec: config.autoCompleteThreshold,
                   phase: state.phase,
                   pulseAnimation: _pulseController,
                 ),
@@ -69,7 +70,12 @@ extension _LivePanel on _PolarAlignmentScreenState {
     Widget readouts(double width) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildErrorValues(colors, state.currentError, width),
+            _buildErrorValues(
+              colors,
+              state.currentError,
+              width,
+              targetArcsec: config.autoCompleteThreshold,
+            ),
             if (isAllSky) ...[
               const SizedBox(height: SkotiqTokens.spaceXs),
               _buildDriftBaselineCaption(colors, state),

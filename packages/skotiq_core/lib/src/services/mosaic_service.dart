@@ -176,6 +176,15 @@ class MosaicValidation {
 class MosaicService {
   const MosaicService();
 
+  /// The [InstructionSetNode] at the root of a graph that
+  /// [createMosaicSequence] or [sequenceForPanels] built.
+  static InstructionSetNode rootOf(Map<String, SequenceNode> nodes) {
+    for (final node in nodes.values) {
+      if (node is InstructionSetNode && node.parentId == null) return node;
+    }
+    throw StateError('The mosaic node graph has no root InstructionSetNode.');
+  }
+
   BinningMode _intToBinningMode(int binning) {
     switch (binning) {
       case 1:

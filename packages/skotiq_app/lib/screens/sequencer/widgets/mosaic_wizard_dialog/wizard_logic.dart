@@ -209,9 +209,7 @@ extension _MosaicWizardLogic on _MosaicWizardDialogState {
       options: options,
     );
 
-    final rootNode = nodes.values.firstWhere(
-      (node) => node is InstructionSetNode && node.parentId == null,
-    );
+    final rootNode = MosaicService.rootOf(nodes);
 
     final disabledChildIds = _disabledTargetSubtreeIds(nodes, rootNode);
     return (

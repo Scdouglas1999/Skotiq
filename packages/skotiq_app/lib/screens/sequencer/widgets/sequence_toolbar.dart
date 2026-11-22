@@ -17,6 +17,7 @@ import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
+import '../../../utils/open_in_editor.dart';
 import '../../settings/widgets/frame_watch_settings_section.dart';
 import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -323,46 +324,15 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
 
           Future<void> createNewSequence() async {
             final editor = ref.read(currentSequenceProvider.notifier);
-            try {
-              editor.createSequence();
-            } on UnsavedChangesException catch (e) {
-              // The editor has unsaved edits; ask the user before
-              // throwing them away to start a new sequence. Matches the
-              // Open / Import flows above so all three "clobber"
-              // entry-points behave identically.
-              if (!context.mounted) return;
-              final discard = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Discard unsaved changes?'),
-                  content: ConstrainedBox(
-                    constraints: AdaptiveDialogConstraints.hybrid(
-                      ctx,
-                      designMaxWidth: 440,
-                    ),
-                    child:
-                        Text('"${e.currentSequenceName}" has unsaved changes. '
-                            'Discard them and start a new sequence?'),
-                  ),
-                  actions: [
-                    SkotiqButton(
-                      label: 'Cancel',
-                      variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                    ),
-                    SkotiqButton(
-                      label: 'Discard',
-                      variant: ButtonVariant.destructive,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                    ),
-                  ],
-                ),
-              );
-              if (discard != true) return;
-              editor.createSequence(discardUnsaved: true);
-            }
+            await openInEditor(
+              context,
+              load: ({required discardUnsaved}) =>
+                  editor.createSequence(discardUnsaved: discardUnsaved),
+              prompt: const DiscardUnsavedPrompt(
+                consequence: 'Discard them and start a new sequence?',
+                confirmLabel: 'Discard',
+              ),
+            );
           }
 
           Future<void> openSequenceFile() async {
@@ -405,54 +375,26 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   return;
                 }
                 final editor = ref.read(currentSequenceProvider.notifier);
-                try {
-                  editor.loadSequence(imported);
-                } on UnsavedChangesException catch (e) {
-                  // The editor has unsaved edits; ask the user before
-                  // clobbering them with the freshly loaded sequence.
-                  if (!context.mounted) return;
-                  final discard = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Discard unsaved changes?'),
-                      content: ConstrainedBox(
-                        constraints: AdaptiveDialogConstraints.hybrid(
-                          ctx,
-                          designMaxWidth: 440,
-                        ),
-                        child: Text(
-                            '"${e.currentSequenceName}" has unsaved changes. '
-                            'Open the loaded sequence anyway?'),
-                      ),
-                      actions: [
-                        SkotiqButton(
-                          label: 'Cancel',
-                          variant: ButtonVariant.ghost,
-                          size: ButtonSize.small,
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                        ),
-                        SkotiqButton(
-                          label: 'Discard and open',
-                          variant: ButtonVariant.primary,
-                          size: ButtonSize.small,
-                          onPressed: () => Navigator.of(ctx).pop(true),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (discard != true) return;
-                  if (!requireCurrentContext() || !requireUnchangedEditor()) {
-                    return;
-                  }
-                  if (!ref.read(canEditSequenceProvider)) {
-                    if (!context.mounted) return;
+                if (!context.mounted) return;
+                final opened = await openInEditor(
+                  context,
+                  load: ({required discardUnsaved}) => editor.loadSequence(
+                    imported,
+                    discardUnsaved: discardUnsaved,
+                  ),
+                  prompt: openLoadedSequencePrompt,
+                  proceed: () {
+                    if (!requireCurrentContext() || !requireUnchangedEditor()) {
+                      return false;
+                    }
+                    if (ref.read(canEditSequenceProvider)) return true;
                     context.showWarningSnackBar(
                       'Stop the active sequence before opening another file.',
                     );
-                    return;
-                  }
-                  editor.loadSequence(imported, discardUnsaved: true);
-                }
+                    return false;
+                  },
+                );
+                if (!opened) return;
                 if (context.mounted) {
                   context.showSuccessSnackBar(
                       'Sequence "${imported.name}" loaded');

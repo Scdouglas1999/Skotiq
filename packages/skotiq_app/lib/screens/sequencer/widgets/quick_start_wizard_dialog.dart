@@ -25,6 +25,7 @@ import 'package:skotiq_astro/skotiq_astro.dart'
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../utils/open_in_editor.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../widgets/accessible_dropdown.dart';
@@ -655,57 +656,28 @@ class _QuickStartWizardDialogState extends ConsumerState<QuickStartWizardDialog>
       // not consent to destroy a different draft that was already open. Use
       // the editor's unsaved-work guard, matching library/template loads.
       final sequenceNotifier = ref.read(currentSequenceProvider.notifier);
-      try {
-        sequenceNotifier.loadSequence(sequence);
-      } on UnsavedChangesException catch (error) {
-        if (host.isStale) return;
-        final discard = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Discard unsaved changes?'),
-            content: ConstrainedBox(
-              constraints: AdaptiveDialogConstraints.hybrid(
-                dialogContext,
-                designMaxWidth: 440,
-              ),
-              child: Text(
-                '"${error.currentSequenceName}" has unsaved changes. '
-                'Creating "$targetName Sequence" will discard them.',
-              ),
-            ),
-            actions: [
-              SkotiqButton(
-                label: 'Cancel',
-                variant: ButtonVariant.ghost,
-                size: ButtonSize.small,
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-              ),
-              SkotiqButton(
-                label: 'Discard and create',
-                variant: ButtonVariant.destructive,
-                size: ButtonSize.small,
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-              ),
-            ],
-          ),
-        );
-        if (host.isStale) return;
-        if (discard != true) {
+      var locked = false;
+      final opened = await openInEditor(
+        context,
+        load: ({required discardUnsaved}) => sequenceNotifier.loadSequence(
+          sequence,
+          discardUnsaved: discardUnsaved,
+        ),
+        prompt: DiscardUnsavedPrompt(
+          consequence: 'Creating "$targetName Sequence" will discard them.',
+          confirmLabel: 'Discard and create',
+        ),
+        proceed: () => !host.isStale,
+        onLocked: (e) {
+          locked = true;
+          if (host.isStale) return;
           setState(() => _finishingAsTemplate = null);
-          return;
-        }
-        try {
-          sequenceNotifier.loadSequence(sequence, discardUnsaved: true);
-        } on SequenceLockedException catch (locked) {
-          if (!mounted) return;
-          setState(() => _finishingAsTemplate = null);
-          context.showErrorSnackBar(locked.message);
-          return;
-        }
-      } on SequenceLockedException catch (locked) {
-        if (host.isStale) return;
-        setState(() => _finishingAsTemplate = null);
-        context.showErrorSnackBar(locked.message);
+          context.showErrorSnackBar(e.message);
+        },
+      );
+      if (host.isStale) return;
+      if (!opened) {
+        if (!locked && mounted) setState(() => _finishingAsTemplate = null);
         return;
       }
       if (host.isStale) return;
