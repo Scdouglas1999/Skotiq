@@ -3,6 +3,8 @@
 // replies over a synthetic master (processing/src/darkroom/tests.rs), the
 // master-build sample is serialized from the builder's reply type.
 
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';
 
@@ -122,5 +124,15 @@ void main() {
     expect(failed.error, 'too few frames');
     expect(failed.frameCount, isNull);
     expect(failed.skippedCount, isNull);
+  });
+
+  test('a cancelled post-session run reads as a cancellation', () {
+    final payload = replyFixtureObject('post_session_cancelled');
+    final outcome = DarkroomCancelledOutcome.tryDecode(
+      'post-session failed: ${jsonEncode(payload)}',
+    )!;
+    expect(outcome.id, payload['runId']);
+    expect(outcome.phase, payload['stage']);
+    expect(outcome.payload, payload);
   });
 }
