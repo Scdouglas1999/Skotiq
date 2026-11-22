@@ -34,6 +34,15 @@ class FlipMonitorProgress {
     required this.error,
   });
 
+  /// No flip.
+  static const none = FlipMonitorProgress(
+    state: FlipExecutionState.idle,
+    attempt: 0,
+    step: null,
+    percent: 0,
+    error: null,
+  );
+
   final FlipExecutionState state;
   final int attempt;
   final FlipStep? step;
@@ -41,6 +50,22 @@ class FlipMonitorProgress {
   /// 0 to 100.
   final int percent;
   final String? error;
+
+  FlipMonitorProgress copyWith({
+    FlipExecutionState? state,
+    int? attempt,
+    FlipStep? step,
+    bool clearStep = false,
+    int? percent,
+    String? error,
+    bool clearError = false,
+  }) => FlipMonitorProgress(
+    state: state ?? this.state,
+    attempt: attempt ?? this.attempt,
+    step: clearStep ? null : step ?? this.step,
+    percent: percent ?? this.percent,
+    error: clearError ? null : error ?? this.error,
+  );
 
   /// The flip ended as [outcome] (failed or aborted) with [error]. A flip
   /// under way keeps the attempt, step and progress it reached; one that
@@ -57,6 +82,18 @@ class FlipMonitorProgress {
       error: error,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is FlipMonitorProgress &&
+      other.state == state &&
+      other.attempt == attempt &&
+      other.step == step &&
+      other.percent == percent &&
+      other.error == error;
+
+  @override
+  int get hashCode => Object.hash(state, attempt, step, percent, error);
 
   Map<String, dynamic> toJson() => {
     'state': state.name,

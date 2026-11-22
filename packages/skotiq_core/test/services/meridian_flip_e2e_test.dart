@@ -116,12 +116,18 @@ void main() {
 
         // Pretend the sequencer has just scheduled a flip and the trigger
         // framework moved into the executing phase.
-        container.read(flipExecutionStateProvider.notifier).state =
-            FlipExecutionState.executing;
-        container.read(flipCurrentStepProvider.notifier).state =
-            FlipStep.slewingToTarget;
-        container.read(flipProgressProvider.notifier).state = 35;
-        container.read(flipCurrentAttemptProvider.notifier).state = 1;
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(state: FlipExecutionState.executing));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(step: FlipStep.slewingToTarget));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(percent: 35));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(attempt: 1));
 
         expect(
           container.read(flipExecutionStateProvider),
@@ -175,11 +181,15 @@ void main() {
         mountNotifier.setConnecting('mount-test');
         mountNotifier.setConnected();
 
-        container.read(flipExecutionStateProvider.notifier).state =
-            FlipExecutionState.retrying;
-        container.read(flipCurrentStepProvider.notifier).state =
-            FlipStep.slewingToTarget;
-        container.read(flipCurrentAttemptProvider.notifier).state = 2;
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(state: FlipExecutionState.retrying));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(step: FlipStep.slewingToTarget));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(attempt: 2));
 
         mountNotifier.setDisconnected();
         await Future<void>.value();

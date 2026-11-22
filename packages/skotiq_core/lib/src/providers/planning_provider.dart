@@ -20,6 +20,7 @@ import '../utils/resilient_poll_stream.dart';
 import 'database_provider.dart';
 import 'scheduler_provider.dart';
 import 'settings_provider.dart';
+import 'host_reread.dart';
 import '../database/daos/settings_dao.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
@@ -199,6 +200,7 @@ class ActiveProjectNotifier extends StateNotifier<int?> {
 /// stream) into a `List<Project>` stream by emitting the current list once up
 /// front and then re-listing on each mutation.
 final projectListProvider = StreamProvider<List<Project>>((ref) {
+  ref.rereadsWithTheHost();
   final service = ref.watch(projectServiceProvider);
   return ref.watch(_projectListFeedProvider)(service);
 });

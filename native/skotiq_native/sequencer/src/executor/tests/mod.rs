@@ -791,7 +791,8 @@ async fn start_refuses_a_capture_sequence_with_no_save_path() {
     let error = executor
         .start()
         .await
-        .expect_err("a capture run with nowhere to write must be refused");
+        .expect_err("a capture run with nowhere to write must be refused")
+        .to_string();
     assert!(
         error.contains("save"),
         "the refusal must name the save path; got: {error}"
@@ -819,7 +820,8 @@ async fn start_refuses_a_save_path_that_cannot_be_written() {
     let error = executor
         .start()
         .await
-        .expect_err("an uncreatable save directory must be refused");
+        .expect_err("an uncreatable save directory must be refused")
+        .to_string();
     assert!(
         error.contains("save"),
         "the refusal must name the save path; got: {error}"
@@ -875,7 +877,8 @@ async fn start_refuses_a_capture_sequence_with_no_camera() {
     let error = executor
         .start()
         .await
-        .expect_err("a capture run with no camera assigned must be refused");
+        .expect_err("a capture run with no camera assigned must be refused")
+        .to_string();
     executor.stop().await.ok();
     let _ = std::fs::remove_dir_all(&dir);
 
@@ -966,7 +969,8 @@ async fn start_refuses_an_absolute_save_to_capture_with_no_camera() {
     let error = executor
         .start()
         .await
-        .expect_err("an absolute save_to does not remove the need for a camera");
+        .expect_err("an absolute save_to does not remove the need for a camera")
+        .to_string();
     executor.stop().await.ok();
     let _ = std::fs::remove_dir_all(&dir);
     assert!(
@@ -1041,7 +1045,7 @@ async fn start_refusal_for(node_type: crate::NodeType, step_name: &str) -> Strin
     let _ = std::fs::remove_dir_all(&dir);
     match outcome {
         Ok(()) => panic!("{step_name} with no device assigned must be refused at start"),
-        Err(error) => error,
+        Err(error) => error.to_string(),
     }
 }
 
@@ -1105,7 +1109,8 @@ async fn start_refuses_an_exposure_that_requests_a_filter_with_no_filter_wheel()
     let error = executor
         .start()
         .await
-        .expect_err("an exposure on filter position 0 with no wheel must be refused");
+        .expect_err("an exposure on filter position 0 with no wheel must be refused")
+        .to_string();
     executor.stop().await.ok();
     let _ = std::fs::remove_dir_all(&dir);
     assert!(
@@ -1148,7 +1153,8 @@ async fn start_refuses_a_smart_exposure_whose_plan_names_no_filter() {
     let error = executor
         .start()
         .await
-        .expect_err("a smart exposure with no wheel must be refused");
+        .expect_err("a smart exposure with no wheel must be refused")
+        .to_string();
     executor.stop().await.ok();
     let _ = std::fs::remove_dir_all(&dir);
     assert!(
@@ -1184,7 +1190,8 @@ async fn start_refuses_autofocus_pinned_to_a_filter_with_no_filter_wheel() {
     let error = executor
         .start()
         .await
-        .expect_err("an autofocus pinned to a filter with no wheel must be refused");
+        .expect_err("an autofocus pinned to a filter with no wheel must be refused")
+        .to_string();
     executor.stop().await.ok();
     let _ = std::fs::remove_dir_all(&dir);
     assert!(

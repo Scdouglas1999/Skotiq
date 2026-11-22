@@ -217,6 +217,9 @@ Future<CalibrationMasterBuildResult> buildCalibrationMasterNative(
     );
   } on bridge.SkotiqError_InvalidInput catch (e) {
     throw CalibrationMasterRefused(e.field0);
+  } on bridge.SkotiqError_Refused catch (e) {
+    if (e.kind != bridge.Refusal.lightLeak) rethrow;
+    throw CalibrationMasterRefused(e.message, lightLeak: true);
   }
   return CalibrationMasterBuildResult.fromJson(
     Map<String, dynamic>.from(jsonDecode(out) as Map),
@@ -226,9 +229,12 @@ Future<CalibrationMasterBuildResult> buildCalibrationMasterNative(
 /// The frames cannot make one master: too few, unreadable, disagreeing on how
 /// they were taken, or leaking light. Nothing was written; [reason] says which.
 class CalibrationMasterRefused implements Exception {
-  const CalibrationMasterRefused(this.reason);
+  const CalibrationMasterRefused(this.reason, {this.lightLeak = false});
 
   final String reason;
+
+  /// The frames brightened during the set.
+  final bool lightLeak;
 
   @override
   String toString() => reason;

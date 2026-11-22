@@ -12,7 +12,7 @@ use crate::builtin_guider::state::{
     binned_guide_pixel_scale, build_tracked_stars, op_lock, state, BuiltinGuideStatus,
     BuiltinGuiderState, GuideCalibration,
 };
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::event::system::SystemEvent;
@@ -302,8 +302,9 @@ pub async fn find_star() -> Result<(f64, f64), SkotiqError> {
             "Auto Select: no usable guide star among {} detections in the guide frame",
             guide_frame.stars.len()
         );
-        return Err(SkotiqError::OperationFailed(
-            "No guide star found".to_string(),
+        return Err(SkotiqError::refused(
+            Refusal::NoGuideStarFound,
+            "No guide star found",
         ));
     };
     tracing::info!(

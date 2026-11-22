@@ -372,32 +372,82 @@ class LiveStackingStats {
     'lastOtherFilter': lastOtherFilter,
   };
 
-  /// Reads [toJson]. Throws [FormatException] when a frame count is missing.
-  factory LiveStackingStats.fromJson(Map<String, dynamic> json) {
+  /// Reads [toJson], from the stacking routes and the liveStack channel
+  /// alike. The four counts must be whole and non-negative and the two
+  /// averages finite and non-negative; a missing or malformed one throws
+  /// [FormatException] naming [source]. The integration time and the filter
+  /// fields are newer than the routes: missing or malformed, they read as
+  /// none.
+  factory LiveStackingStats.fromJson(
+    Map<String, dynamic> json, {
+    String source = 'Live stack stats',
+  }) {
     int count(String key) {
       final value = json[key];
-      if (value is num) return value.toInt();
-      throw FormatException('Live stack stats have no integer "$key"');
+      if (value is int) {
+        if (value < 0) {
+          throw FormatException(
+            '$source field `$key` must be >= 0, got $value',
+          );
+        }
+        return value;
+      }
+      if (value is double) {
+        if (!value.isFinite || value != value.roundToDouble()) {
+          throw FormatException(
+            '$source field `$key` must be an integer, got $value',
+          );
+        }
+        final asInt = value.toInt();
+        if (asInt < 0) {
+          throw FormatException(
+            '$source field `$key` must be >= 0, got $asInt',
+          );
+        }
+        return asInt;
+      }
+      throw FormatException(
+        '$source field `$key` must be an integer, got ${value.runtimeType}',
+      );
     }
 
-    double measure(String key) {
+    double average(String key) {
       final value = json[key];
-      return value is num ? value.toDouble() : 0.0;
+      if (value is! num) {
+        throw FormatException(
+          '$source field `$key` must be a number, got ${value.runtimeType}',
+        );
+      }
+      final asDouble = value.toDouble();
+      if (!asDouble.isFinite || asDouble < 0) {
+        throw FormatException(
+          '$source field `$key` must be a finite, non-negative number, got '
+          '$asDouble',
+        );
+      }
+      return asDouble;
     }
 
-    final filter = json['filter'];
-    final lastOtherFilter = json['lastOtherFilter'];
+    String? filterName(Object? value) =>
+        value is String && value.trim().isNotEmpty ? value : null;
+
     return LiveStackingStats(
       stackedFrameCount: count('stackedFrameCount'),
       totalFramesAttempted: count('totalFramesAttempted'),
       rejectedAlignmentFailures: count('rejectedAlignmentFailures'),
-      avgMatchedPairs: measure('avgMatchedPairs'),
-      avgAlignmentResidual: measure('avgAlignmentResidual'),
+      avgMatchedPairs: average('avgMatchedPairs'),
+      avgAlignmentResidual: average('avgAlignmentResidual'),
       totalSigmaRejectedPixels: count('totalSigmaRejectedPixels'),
-      totalIntegrationSecs: measure('totalIntegrationSecs'),
-      filter: filter is String ? filter : null,
-      otherFilterFrames: count('otherFilterFrames'),
-      lastOtherFilter: lastOtherFilter is String ? lastOtherFilter : null,
+      totalIntegrationSecs: switch (json['totalIntegrationSecs']) {
+        final num secs when secs.isFinite && secs >= 0 => secs.toDouble(),
+        _ => 0.0,
+      },
+      filter: filterName(json['filter']),
+      otherFilterFrames: switch (json['otherFilterFrames']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
+      lastOtherFilter: filterName(json['lastOtherFilter']),
     );
   }
 

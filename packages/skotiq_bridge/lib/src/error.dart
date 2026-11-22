@@ -8,6 +8,38 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'error.freezed.dart';
 
+/// Why a request was refused, for a caller that answers each reason its own
+/// way.
+enum Refusal {
+  /// PHD2 answered `get_lock_position` without a numeric x and y.
+  noLockPosition,
+
+  /// PHD2 has no guide star selected.
+  noStarSelected,
+
+  /// The guide frame holds no star fit to guide on.
+  noGuideStarFound,
+
+  /// The sequencer is running, paused, stopping or recovering.
+  executorNotIdle,
+
+  /// The sequencer has no sequence loaded.
+  noSequenceLoaded,
+
+  /// No DepthLock goal has the id. Named so its rendering holds none of the
+  /// words error text is classified by ("not found", "busy", ...).
+  depthLockNoSuchGoal,
+
+  /// The caller's DepthLock goal revision is not the current one.
+  depthLockStaleRevision,
+
+  /// DepthLock storage is not initialized.
+  depthLockUnavailable,
+
+  /// Calibration frames brightened during the set: a light leak.
+  lightLeak,
+}
+
 @freezed
 sealed class SkotiqError with _$SkotiqError implements FrbException {
   const SkotiqError._();
@@ -81,6 +113,14 @@ sealed class SkotiqError with _$SkotiqError implements FrbException {
     required String deviceId,
     required String currentOperation,
   }) = SkotiqError_DeviceBusy;
+
+  /// A refusal a caller answers by its kind (the host's HTTP status, a
+  /// report's sentence) rather than by its words. It displays as the
+  /// variant these refusals were raised as before they had a kind.
+  const factory SkotiqError.refused({
+    required Refusal kind,
+    required String message,
+  }) = SkotiqError_Refused;
 
   /// The device cannot do this in the state it is in (a dither while
   /// guiding is paused, say). The message is the whole sentence a person

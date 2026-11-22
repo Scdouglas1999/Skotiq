@@ -65,6 +65,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
 
   @override
   Future<EquipmentProfilesState> build() async {
+    ref.rereadsWithTheHost();
     final host = ref.watch(linkedHostProfilesProvider);
     if (host != null) {
       try {

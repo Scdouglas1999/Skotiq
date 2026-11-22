@@ -14575,6 +14575,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Refusal dco_decode_refusal(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Refusal.values[raw as int];
+  }
+
+  @protected
   RetainedCaptureInfo dco_decode_retained_capture_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -15223,71 +15229,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           currentOperation: dco_decode_String(raw[2]),
         );
       case 17:
-        return SkotiqError_InvalidState(dco_decode_String(raw[1]));
+        return SkotiqError_Refused(
+          kind: dco_decode_refusal(raw[1]),
+          message: dco_decode_String(raw[2]),
+        );
       case 18:
-        return SkotiqError_ImageError(dco_decode_String(raw[1]));
+        return SkotiqError_InvalidState(dco_decode_String(raw[1]));
       case 19:
-        return SkotiqError_CameraError(dco_decode_String(raw[1]));
+        return SkotiqError_ImageError(dco_decode_String(raw[1]));
       case 20:
-        return SkotiqError_NoImageAvailable();
+        return SkotiqError_CameraError(dco_decode_String(raw[1]));
       case 21:
-        return SkotiqError_ExposureCancelled();
+        return SkotiqError_NoImageAvailable();
       case 22:
+        return SkotiqError_ExposureCancelled();
+      case 23:
         return SkotiqError_ExposureFailed(
           cameraId: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 23:
+      case 24:
         return SkotiqError_DownloadFailed(
           cameraId: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 24:
-        return SkotiqError_IoError(dco_decode_String(raw[1]));
       case 25:
-        return SkotiqError_SerializationError(dco_decode_String(raw[1]));
+        return SkotiqError_IoError(dco_decode_String(raw[1]));
       case 26:
-        return SkotiqError_PlateSolveError(dco_decode_String(raw[1]));
+        return SkotiqError_SerializationError(dco_decode_String(raw[1]));
       case 27:
-        return SkotiqError_SequenceError(dco_decode_String(raw[1]));
+        return SkotiqError_PlateSolveError(dco_decode_String(raw[1]));
       case 28:
+        return SkotiqError_SequenceError(dco_decode_String(raw[1]));
+      case 29:
         return SkotiqError_AscomError(
           progId: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
           errorCode: dco_decode_i_32(raw[3]),
         );
-      case 29:
+      case 30:
         return SkotiqError_AlpacaError(
           baseUrl: dco_decode_String(raw[1]),
           deviceNumber: dco_decode_u_32(raw[2]),
           message: dco_decode_String(raw[3]),
           errorCode: dco_decode_i_32(raw[4]),
         );
-      case 30:
+      case 31:
         return SkotiqError_IndiError(
           server: dco_decode_String(raw[1]),
           port: dco_decode_u_16(raw[2]),
           deviceName: dco_decode_String(raw[3]),
           message: dco_decode_String(raw[4]),
         );
-      case 31:
+      case 32:
         return SkotiqError_NativeError(
           vendor: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
           errorCode: dco_decode_i_32(raw[3]),
         );
-      case 32:
+      case 33:
         return SkotiqError_ComError(
           message: dco_decode_String(raw[1]),
           hresult: dco_decode_u_32(raw[2]),
         );
-      case 33:
-        return SkotiqError_Internal(dco_decode_String(raw[1]));
       case 34:
-        return SkotiqError_Cancelled();
+        return SkotiqError_Internal(dco_decode_String(raw[1]));
       case 35:
-        return SkotiqError_RuntimeInitFailed(dco_decode_String(raw[1]));
+        return SkotiqError_Cancelled();
       case 36:
+        return SkotiqError_RuntimeInitFailed(dco_decode_String(raw[1]));
+      case 37:
         return SkotiqError_ResourceExhausted(
           resource: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
@@ -20110,6 +20121,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Refusal sse_decode_refusal(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Refusal.values[inner];
+  }
+
+  @protected
   RetainedCaptureInfo sse_decode_retained_capture_info(
     SseDeserializer deserializer,
   ) {
@@ -21093,45 +21111,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           currentOperation: var_currentOperation,
         );
       case 17:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_InvalidState(var_field0);
+        var var_kind = sse_decode_refusal(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SkotiqError_Refused(kind: var_kind, message: var_message);
       case 18:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_ImageError(var_field0);
+        return SkotiqError_InvalidState(var_field0);
       case 19:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_CameraError(var_field0);
+        return SkotiqError_ImageError(var_field0);
       case 20:
-        return SkotiqError_NoImageAvailable();
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_CameraError(var_field0);
       case 21:
-        return SkotiqError_ExposureCancelled();
+        return SkotiqError_NoImageAvailable();
       case 22:
+        return SkotiqError_ExposureCancelled();
+      case 23:
         var var_cameraId = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return SkotiqError_ExposureFailed(
           cameraId: var_cameraId,
           reason: var_reason,
         );
-      case 23:
+      case 24:
         var var_cameraId = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return SkotiqError_DownloadFailed(
           cameraId: var_cameraId,
           reason: var_reason,
         );
-      case 24:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_IoError(var_field0);
       case 25:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_SerializationError(var_field0);
+        return SkotiqError_IoError(var_field0);
       case 26:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_PlateSolveError(var_field0);
+        return SkotiqError_SerializationError(var_field0);
       case 27:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_SequenceError(var_field0);
+        return SkotiqError_PlateSolveError(var_field0);
       case 28:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_SequenceError(var_field0);
+      case 29:
         var var_progId = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         var var_errorCode = sse_decode_i_32(deserializer);
@@ -21140,7 +21162,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
           errorCode: var_errorCode,
         );
-      case 29:
+      case 30:
         var var_baseUrl = sse_decode_String(deserializer);
         var var_deviceNumber = sse_decode_u_32(deserializer);
         var var_message = sse_decode_String(deserializer);
@@ -21151,7 +21173,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
           errorCode: var_errorCode,
         );
-      case 30:
+      case 31:
         var var_server = sse_decode_String(deserializer);
         var var_port = sse_decode_u_16(deserializer);
         var var_deviceName = sse_decode_String(deserializer);
@@ -21162,7 +21184,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceName: var_deviceName,
           message: var_message,
         );
-      case 31:
+      case 32:
         var var_vendor = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         var var_errorCode = sse_decode_i_32(deserializer);
@@ -21171,19 +21193,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
           errorCode: var_errorCode,
         );
-      case 32:
+      case 33:
         var var_message = sse_decode_String(deserializer);
         var var_hresult = sse_decode_u_32(deserializer);
         return SkotiqError_ComError(message: var_message, hresult: var_hresult);
-      case 33:
+      case 34:
         var var_field0 = sse_decode_String(deserializer);
         return SkotiqError_Internal(var_field0);
-      case 34:
-        return SkotiqError_Cancelled();
       case 35:
+        return SkotiqError_Cancelled();
+      case 36:
         var var_field0 = sse_decode_String(deserializer);
         return SkotiqError_RuntimeInitFailed(var_field0);
-      case 36:
+      case 37:
         var var_resource = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         return SkotiqError_ResourceExhausted(
@@ -21594,6 +21616,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_pier_side(PierSide raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_refusal(Refusal raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -25432,6 +25460,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_refusal(Refusal self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_retained_capture_info(
     RetainedCaptureInfo self,
     SseSerializer serializer,
@@ -26287,51 +26321,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(16, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_String(currentOperation, serializer);
-      case SkotiqError_InvalidState(field0: final field0):
+      case SkotiqError_Refused(kind: final kind, message: final message):
         sse_encode_i_32(17, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_ImageError(field0: final field0):
+        sse_encode_refusal(kind, serializer);
+        sse_encode_String(message, serializer);
+      case SkotiqError_InvalidState(field0: final field0):
         sse_encode_i_32(18, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_CameraError(field0: final field0):
+      case SkotiqError_ImageError(field0: final field0):
         sse_encode_i_32(19, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_NoImageAvailable():
+      case SkotiqError_CameraError(field0: final field0):
         sse_encode_i_32(20, serializer);
-      case SkotiqError_ExposureCancelled():
+        sse_encode_String(field0, serializer);
+      case SkotiqError_NoImageAvailable():
         sse_encode_i_32(21, serializer);
-      case SkotiqError_ExposureFailed(
-        cameraId: final cameraId,
-        reason: final reason,
-      ):
+      case SkotiqError_ExposureCancelled():
         sse_encode_i_32(22, serializer);
-        sse_encode_String(cameraId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_DownloadFailed(
+      case SkotiqError_ExposureFailed(
         cameraId: final cameraId,
         reason: final reason,
       ):
         sse_encode_i_32(23, serializer);
         sse_encode_String(cameraId, serializer);
         sse_encode_String(reason, serializer);
-      case SkotiqError_IoError(field0: final field0):
+      case SkotiqError_DownloadFailed(
+        cameraId: final cameraId,
+        reason: final reason,
+      ):
         sse_encode_i_32(24, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_SerializationError(field0: final field0):
+        sse_encode_String(cameraId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_IoError(field0: final field0):
         sse_encode_i_32(25, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_PlateSolveError(field0: final field0):
+      case SkotiqError_SerializationError(field0: final field0):
         sse_encode_i_32(26, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_SequenceError(field0: final field0):
+      case SkotiqError_PlateSolveError(field0: final field0):
         sse_encode_i_32(27, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_SequenceError(field0: final field0):
+        sse_encode_i_32(28, serializer);
         sse_encode_String(field0, serializer);
       case SkotiqError_AscomError(
         progId: final progId,
         message: final message,
         errorCode: final errorCode,
       ):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_String(progId, serializer);
         sse_encode_String(message, serializer);
         sse_encode_i_32(errorCode, serializer);
@@ -26341,7 +26379,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         message: final message,
         errorCode: final errorCode,
       ):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_String(baseUrl, serializer);
         sse_encode_u_32(deviceNumber, serializer);
         sse_encode_String(message, serializer);
@@ -26352,7 +26390,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceName: final deviceName,
         message: final message,
       ):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_String(server, serializer);
         sse_encode_u_16(port, serializer);
         sse_encode_String(deviceName, serializer);
@@ -26362,27 +26400,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         message: final message,
         errorCode: final errorCode,
       ):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(32, serializer);
         sse_encode_String(vendor, serializer);
         sse_encode_String(message, serializer);
         sse_encode_i_32(errorCode, serializer);
       case SkotiqError_ComError(message: final message, hresult: final hresult):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_String(message, serializer);
         sse_encode_u_32(hresult, serializer);
       case SkotiqError_Internal(field0: final field0):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_String(field0, serializer);
       case SkotiqError_Cancelled():
-        sse_encode_i_32(34, serializer);
-      case SkotiqError_RuntimeInitFailed(field0: final field0):
         sse_encode_i_32(35, serializer);
+      case SkotiqError_RuntimeInitFailed(field0: final field0):
+        sse_encode_i_32(36, serializer);
         sse_encode_String(field0, serializer);
       case SkotiqError_ResourceExhausted(
         resource: final resource,
         message: final message,
       ):
-        sse_encode_i_32(36, serializer);
+        sse_encode_i_32(37, serializer);
         sse_encode_String(resource, serializer);
         sse_encode_String(message, serializer);
     }

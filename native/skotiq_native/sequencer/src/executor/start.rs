@@ -47,6 +47,25 @@ fn terminal_verdict_message(result: NodeStatus, root_display_name: &str) -> Stri
     format!("{}: {}", verb, root_display_name)
 }
 
+/// Why a start was refused. Each displays as the sentence the operator reads.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum StartError {
+    /// A run is live: the executor is running, paused, stopping or recovering.
+    #[error("Cannot start: executor is {0:?}")]
+    NotIdle(ExecutorState),
+    #[error("No sequence loaded")]
+    NoSequence,
+    /// Any other precondition, in its own words.
+    #[error("{0}")]
+    Refused(String),
+}
+
+impl From<String> for StartError {
+    fn from(message: String) -> Self {
+        StartError::Refused(message)
+    }
+}
+
 impl SequenceExecutor {
     /// Start executing the sequence.
     ///
@@ -55,7 +74,7 @@ impl SequenceExecutor {
     /// start from there means "run it again", so preflight recycles to `Idle`
     /// and the run proceeds. Busy states (`Running`, `Paused`, `Stopping`,
     /// `Recovering`) are refused: resetting there would abandon a live run.
-    pub async fn start(&mut self) -> Result<(), String> {
+    pub async fn start(&mut self) -> Result<(), StartError> {
         let PreflightOutcome {
             device_ops,
             unreachable_instruction_names,

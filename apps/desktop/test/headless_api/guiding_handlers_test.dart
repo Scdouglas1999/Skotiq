@@ -691,15 +691,18 @@ class _CapturingGuidingBackend extends DisconnectedBackend {
 class _NoPHD2SelectionBackend extends DisconnectedBackend {
   @override
   Future<(double, double)> guiderGetLockPosition() {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to get lock position: get_lock_position: expected array, got null',
+    throw const bridge.SkotiqError.refused(
+      kind: bridge.Refusal.noLockPosition,
+      message:
+          'Failed to get lock position: get_lock_position: expected array, got null',
     );
   }
 
   @override
   Future<Phd2StarImage> guiderGetStarImage({int size = 50}) {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to get star image: PHD2 error: no star selected',
+    throw const bridge.SkotiqError.refused(
+      kind: bridge.Refusal.noStarSelected,
+      message: 'Failed to get star image: PHD2 error: no star selected',
     );
   }
 }

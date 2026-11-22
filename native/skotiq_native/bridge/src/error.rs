@@ -106,6 +106,12 @@ pub enum SkotiqError {
         current_operation: String,
     },
 
+    /// A refusal a caller answers by its kind (the host's HTTP status, a
+    /// report's sentence) rather than by its words. It displays as the
+    /// variant these refusals were raised as before they had a kind.
+    #[error("{}{}", .kind.display_prefix(), .message)]
+    Refused { kind: Refusal, message: String },
+
     /// The device cannot do this in the state it is in (a dither while
     /// guiding is paused, say). The message is the whole sentence a person
     /// reads, including what to do instead.
@@ -196,8 +202,49 @@ pub enum SkotiqError {
     ResourceExhausted { resource: String, message: String },
 }
 
+/// Why a request was refused, for a caller that answers each reason its own
+/// way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    /// PHD2 answered `get_lock_position` without a numeric x and y.
+    NoLockPosition,
+    /// PHD2 has no guide star selected.
+    NoStarSelected,
+    /// The guide frame holds no star fit to guide on.
+    NoGuideStarFound,
+    /// The sequencer is running, paused, stopping or recovering.
+    ExecutorNotIdle,
+    /// The sequencer has no sequence loaded.
+    NoSequenceLoaded,
+    /// No DepthLock goal has the id. Named so its rendering holds none of the
+    /// words error text is classified by ("not found", "busy", ...).
+    DepthLockNoSuchGoal,
+    /// The caller's DepthLock goal revision is not the current one.
+    DepthLockStaleRevision,
+    /// DepthLock storage is not initialized.
+    DepthLockUnavailable,
+    /// Calibration frames brightened during the set: a light leak.
+    LightLeak,
+}
+
+impl Refusal {
+    fn display_prefix(self) -> &'static str {
+        match self {
+            Refusal::LightLeak => "Invalid input: ",
+            _ => "Operation failed: ",
+        }
+    }
+}
+
 impl SkotiqError {
     // Constructor helpers
+
+    pub fn refused(kind: Refusal, message: impl Into<String>) -> Self {
+        SkotiqError::Refused {
+            kind,
+            message: message.into(),
+        }
+    }
 
     /// Create a connection failed error
     pub fn connection_failed(device_id: impl Into<String>, reason: impl Into<String>) -> Self {
@@ -235,234 +282,6 @@ impl SkotiqError {
         SkotiqError::DeviceDisconnected {
             device_id: device_id.into(),
             reason: reason.into(),
-        }
-    }
-
-    // Error classification
-
-    /// Returns true if this error is recoverable by retrying the same operation.
-    ///
-    /// Recoverable errors include:
-    /// - Timeouts (operation may succeed with more time or on retry)
-    /// - Device busy (wait and retry)
-    /// - Connection errors that could be transient
-    ///
-    /// Non-recoverable errors include:
-    /// - Invalid parameters (same input will always fail)
-    /// - Unsupported operations (device doesn't support this)
-    /// - Permanent hardware failures
-    pub fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
-            // Timeout errors - operation may succeed on retry
-            SkotiqError::Timeout(_) |
-            SkotiqError::DeviceTimeout { .. } |
-            SkotiqError::ConnectionTimeout { .. } |
-            // Device busy - wait and retry
-            SkotiqError::DeviceBusy { .. } |
-            // Connection issues - may be transient
-            SkotiqError::ConnectionFailed { .. } |
-            SkotiqError::DeviceDisconnected { .. } |
-            SkotiqError::CommunicationError { .. } |
-            // Some hardware errors may be transient
-            SkotiqError::HardwareError { .. } |
-            // Resource exhausted - may clear up
-            SkotiqError::ResourceExhausted { .. }
-        )
-    }
-
-    /// Returns true if this error is recoverable by retrying
-    /// (Alias for backward compatibility, use `is_recoverable()` for new code)
-    pub fn is_retryable(&self) -> bool {
-        self.is_recoverable()
-    }
-
-    /// Returns true if this error is a timeout
-    ///
-    /// Use this to decide whether to:
-    /// - Increase timeout and retry
-    /// - Prompt user to wait longer
-    /// - Check if device is responsive
-    pub fn is_timeout(&self) -> bool {
-        matches!(
-            self,
-            SkotiqError::Timeout(_)
-                | SkotiqError::DeviceTimeout { .. }
-                | SkotiqError::ConnectionTimeout { .. }
-        )
-    }
-
-    /// Returns true if this error indicates the device needs reconnection
-    ///
-    /// Use this to automatically attempt reconnection before retrying the operation.
-    pub fn needs_reconnect(&self) -> bool {
-        matches!(
-            self,
-            SkotiqError::NotConnected(_)
-                | SkotiqError::DeviceDisconnected { .. }
-                | SkotiqError::CommunicationError { .. }
-                | SkotiqError::ComError { .. }
-        )
-    }
-
-    /// Returns true if we should try to reconnect to the device
-    /// (Alias for `needs_reconnect()` for API clarity)
-    pub fn should_reconnect(&self) -> bool {
-        self.needs_reconnect()
-    }
-
-    /// Get the device ID if this error is device-related
-    pub fn device_id(&self) -> Option<&str> {
-        match self {
-            SkotiqError::DeviceNotFound(id) => Some(id),
-            SkotiqError::ConnectionFailed { device_id, .. } => Some(device_id),
-            SkotiqError::AlreadyConnected(id) => Some(id),
-            SkotiqError::NotConnected(id) => Some(id),
-            SkotiqError::DeviceDisconnected { device_id, .. } => Some(device_id),
-            SkotiqError::HardwareError { device_id, .. } => Some(device_id),
-            SkotiqError::CommunicationError { device_id, .. } => Some(device_id),
-            SkotiqError::DeviceTimeout { device_id, .. } => Some(device_id),
-            SkotiqError::ConnectionTimeout { device_id, .. } => Some(device_id),
-            SkotiqError::InvalidDeviceId { device_id, .. } => Some(device_id),
-            SkotiqError::NotSupported { device_id, .. } => Some(device_id),
-            SkotiqError::DeviceBusy { device_id, .. } => Some(device_id),
-            SkotiqError::ExposureFailed { camera_id, .. } => Some(camera_id),
-            SkotiqError::DownloadFailed { camera_id, .. } => Some(camera_id),
-            _ => None,
-        }
-    }
-
-    /// Get the vendor-specific error code if available
-    ///
-    /// Returns error codes from ASCOM, Alpaca, INDI, native SDKs, etc.
-    pub fn error_code(&self) -> Option<i32> {
-        match self {
-            SkotiqError::HardwareError { error_code, .. } => *error_code,
-            SkotiqError::AscomError { error_code, .. } => Some(*error_code),
-            SkotiqError::AlpacaError { error_code, .. } => Some(*error_code),
-            SkotiqError::NativeError { error_code, .. } => Some(*error_code),
-            // Why: HRESULT is canonically a signed
-            // 32-bit value (Win32 `HRESULT` typedef). We store it as u32
-            // (Windows-crate convention) and reinterpret here — this is
-            // the standard COM error-code idiom; bit pattern is preserved.
-            SkotiqError::ComError { hresult, .. } => Some(*hresult as i32),
-            _ => None,
-        }
-    }
-
-    /// Get a user-friendly error message suitable for display in UI
-    ///
-    /// This provides a shorter, less technical message than the full error.
-    pub fn user_message(&self) -> String {
-        match self {
-            SkotiqError::DeviceNotFound(id) => format!("Device '{}' not found", id),
-            SkotiqError::ConnectionFailed { device_id, .. } => {
-                format!("Could not connect to '{}'", device_id)
-            }
-            SkotiqError::NotConnected(id) => format!("'{}' is not connected", id),
-            SkotiqError::DeviceDisconnected { device_id, .. } => {
-                format!("'{}' disconnected unexpectedly", device_id)
-            }
-            SkotiqError::HardwareError {
-                device_id, message, ..
-            } => {
-                format!("Hardware error on '{}': {}", device_id, message)
-            }
-            SkotiqError::Timeout(msg) | SkotiqError::DeviceTimeout { operation: msg, .. } => {
-                format!("Operation timed out: {}", msg)
-            }
-            SkotiqError::ConnectionTimeout {
-                device_id,
-                timeout_secs,
-            } => {
-                format!(
-                    "Connection to '{}' timed out after {:.0}s",
-                    device_id, timeout_secs
-                )
-            }
-            SkotiqError::NotSupported {
-                device_id,
-                operation,
-            } => {
-                format!("'{}' does not support: {}", device_id, operation)
-            }
-            SkotiqError::InvalidParameter(msg) | SkotiqError::InvalidInput(msg) => {
-                format!("Invalid input: {}", msg)
-            }
-            SkotiqError::ParameterOutOfRange {
-                param_name,
-                value,
-                min,
-                max,
-            } => {
-                format!(
-                    "{} value {} is out of range ({} to {})",
-                    param_name, value, min, max
-                )
-            }
-            SkotiqError::ExposureCancelled | SkotiqError::Cancelled => {
-                "Operation cancelled".to_string()
-            }
-            SkotiqError::DeviceBusy {
-                device_id,
-                current_operation,
-            } => {
-                format!("'{}' is busy: {}", device_id, current_operation)
-            }
-            // For other errors, use the Display implementation
-            other => other.to_string(),
-        }
-    }
-
-    /// Get a classification of the error for telemetry/logging
-    pub fn error_category(&self) -> &'static str {
-        match self {
-            SkotiqError::DeviceNotFound(_)
-            | SkotiqError::ConnectionFailed { .. }
-            | SkotiqError::AlreadyConnected(_)
-            | SkotiqError::NotConnected(_)
-            | SkotiqError::DeviceDisconnected { .. } => "connection",
-
-            SkotiqError::HardwareError { .. } | SkotiqError::CommunicationError { .. } => {
-                "hardware"
-            }
-
-            SkotiqError::Timeout(_)
-            | SkotiqError::DeviceTimeout { .. }
-            | SkotiqError::ConnectionTimeout { .. } => "timeout",
-
-            SkotiqError::InvalidParameter(_)
-            | SkotiqError::InvalidInput(_)
-            | SkotiqError::InvalidDeviceId { .. }
-            | SkotiqError::ParameterOutOfRange { .. } => "validation",
-
-            SkotiqError::NotSupported { .. } => "unsupported",
-
-            SkotiqError::DeviceBusy { .. } | SkotiqError::InvalidState(_) => "busy",
-
-            SkotiqError::ImageError(_)
-            | SkotiqError::CameraError(_)
-            | SkotiqError::NoImageAvailable
-            | SkotiqError::ExposureCancelled
-            | SkotiqError::ExposureFailed { .. }
-            | SkotiqError::DownloadFailed { .. } => "imaging",
-
-            SkotiqError::IoError(_) | SkotiqError::PlateSolveError(_) => "io",
-
-            SkotiqError::SequenceError(_) => "sequence",
-
-            SkotiqError::AscomError { .. }
-            | SkotiqError::AlpacaError { .. }
-            | SkotiqError::IndiError { .. }
-            | SkotiqError::NativeError { .. }
-            | SkotiqError::ComError { .. } => "driver",
-
-            SkotiqError::Internal(_)
-            | SkotiqError::Cancelled
-            | SkotiqError::RuntimeInitFailed(_)
-            | SkotiqError::ResourceExhausted { .. }
-            | SkotiqError::SerializationError(_)
-            | SkotiqError::OperationFailed(_) => "system",
         }
     }
 }
@@ -526,59 +345,19 @@ impl From<&SkotiqError> for String {
     }
 }
 
-// FFI serialization support
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-/// Structured error information for FFI transfer
-///
-/// This struct provides a flat representation of the error that can be
-/// easily serialized and transferred across the FFI boundary to Dart.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ErrorInfo {
-    /// Error category (timeout, connection, hardware, validation, etc.)
-    pub category: String,
-    pub message: String,
-    /// User-friendly message for UI display
-    pub user_message: String,
-    /// Whether the operation can be retried
-    pub is_recoverable: bool,
-    /// Whether reconnection should be attempted
-    pub should_reconnect: bool,
-    pub is_timeout: bool,
-    /// Device ID if error is device-related
-    pub device_id: Option<String>,
-    /// Vendor-specific error code if available
-    pub error_code: Option<i32>,
-}
-
-impl From<&SkotiqError> for ErrorInfo {
-    fn from(e: &SkotiqError) -> Self {
-        ErrorInfo {
-            category: e.error_category().to_string(),
-            message: e.to_string(),
-            user_message: e.user_message(),
-            is_recoverable: e.is_recoverable(),
-            should_reconnect: e.should_reconnect(),
-            is_timeout: e.is_timeout(),
-            device_id: e.device_id().map(|s| s.to_string()),
-            error_code: e.error_code(),
-        }
-    }
-}
-
-impl From<SkotiqError> for ErrorInfo {
-    fn from(e: SkotiqError) -> Self {
-        ErrorInfo::from(&e)
-    }
-}
-
-impl SkotiqError {
-    /// Convert to ErrorInfo for FFI serialization
-    pub fn to_error_info(&self) -> ErrorInfo {
-        ErrorInfo::from(self)
-    }
-
-    /// Serialize the error to JSON for FFI transfer
-    pub fn to_json(&self) -> String {
-        serde_json::to_string(&self.to_error_info()).unwrap_or_else(|_| self.to_string())
+    #[test]
+    fn a_refusal_displays_as_the_variant_it_was_raised_as() {
+        assert_eq!(
+            SkotiqError::refused(Refusal::NoLockPosition, "no lock").to_string(),
+            SkotiqError::OperationFailed("no lock".into()).to_string()
+        );
+        assert_eq!(
+            SkotiqError::refused(Refusal::LightLeak, "light leak: 3 of 9").to_string(),
+            SkotiqError::InvalidInput("light leak: 3 of 9".into()).to_string()
+        );
     }
 }

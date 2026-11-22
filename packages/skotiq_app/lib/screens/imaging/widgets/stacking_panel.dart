@@ -667,9 +667,8 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
               message: stackState.errorMessage!,
               colors: widget.colors,
               onRetry: isRemoteMode && isRunning
-                  ? () => ref
-                      .read(liveStackingProvider.notifier)
-                      .retryRemotePolling()
+                  ? () =>
+                      ref.read(liveStackingProvider.notifier).retryHostFetch()
                   : null,
             ),
 

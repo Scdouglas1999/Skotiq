@@ -636,11 +636,15 @@ void main() {
 
     test('a flip on the host shows on the client', () async {
       final client = await roundTrip((host) {
-        host.read(flipExecutionStateProvider.notifier).state =
-            FlipExecutionState.executing;
-        host.read(flipCurrentStepProvider.notifier).state =
-            FlipStep.slewingToTarget;
-        host.read(flipProgressProvider.notifier).state = 40;
+        host
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(state: FlipExecutionState.executing));
+        host
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(step: FlipStep.slewingToTarget));
+        host
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(percent: 40));
       }, 'meridianFlip');
       expect(
         client.read(flipExecutionStateProvider),

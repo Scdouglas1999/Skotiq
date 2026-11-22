@@ -431,8 +431,9 @@ void main() {
     test('a meridian flip disables every manual action', () {
       final h = actionHarness();
       addTearDown(h.container.dispose);
-      h.container.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.executing;
+      h.container
+          .read(flipMonitorProgressProvider.notifier)
+          .update((p) => p.copyWith(state: FlipExecutionState.executing));
       final inputs = h.container.read(nightActionInputsProvider);
       for (final id in ManualActionId.values) {
         final reason = manualActionDisabledReason(inputs, id);
