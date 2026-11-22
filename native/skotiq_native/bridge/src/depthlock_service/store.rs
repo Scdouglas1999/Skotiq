@@ -305,7 +305,7 @@ impl GoalStore {
                 ));
             }
             Err(e) => {
-                return Err(format!("cannot lock {}: {e}", lock_path.display()).into());
+                return Err(format!("cannot lock {}: {e}", lock_path.display()));
             }
         }
         let mut json_files = Vec::new();
