@@ -787,6 +787,37 @@ mod tests {
             assert_eq!(finished.samples_f32(), step.data(), "{method}");
             assert_ne!(finished.samples_f32(), master.samples_f32(), "{method}");
         }
+
+        let field_u16 = ImageData::from_u16(
+            size,
+            size,
+            1,
+            &field
+                .samples_f64()
+                .iter()
+                .map(|v| v.round().clamp(0.0, 65535.0) as u16)
+                .collect::<Vec<_>>(),
+        );
+        write_master(&in_path, &field_u16);
+        let args = serde_json::json!({
+            "inputFits": in_path.to_string_lossy(),
+            "outputFits": out_path.to_string_lossy(),
+            "config": { "strength": 0.4 }
+        });
+        reduce_stars_preview(args.to_string()).expect("reduce stars");
+        let (finished, _) = read_frame(out_path.as_path()).unwrap();
+        let (master, _) = read_frame(in_path.as_path()).unwrap();
+        let step = StarReduceV1
+            .apply(
+                &OpImage::from_image_data(&master, FitsHeader::new()).unwrap(),
+                &serde_json::json!({ "amount": 0.4, "maskDilatePx": 2.0 }),
+                &OpContext::new(),
+            )
+            .unwrap();
+        let rounded: Vec<u16> = step.data().iter().map(|v| v.round() as u16).collect();
+        assert_eq!(finished.pixel_type, PixelType::U16);
+        assert_eq!(finished.as_u16().unwrap(), rounded);
+        assert_ne!(finished.as_u16(), master.as_u16());
     }
 
     // Error paths
