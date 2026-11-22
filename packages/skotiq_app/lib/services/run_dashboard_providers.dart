@@ -1022,67 +1022,77 @@ EventCategory _bridgeCategoryToCore(sk_events.EventCategory cat) {
   }
 }
 
-/// True when the router's own backend event-stream classifier already routes
-/// this event to systemPush — i.e. the eager-mounted [NotificationRouter] will
-/// push it on its own from the core stream. The dashboard bridge must NOT also
-/// push those, or the operator's phone pages twice for one alert.
+/// The category under which the notification router tells [event] on its
+/// own from the event stream, for the critical events it tells; null for the
+/// ones it has no notice for (a generic system error, a FITS save failure),
+/// which this bridge pages itself.
 ///
-/// This mirrors exactly the `isCriticalEvent` payload variants that the shared
-/// [NotificationEventClassifier] maps to a systemPush-by-default category:
-/// exposure-failed, weather-unsafe / emergency-stop, disk-low, sequencer
-/// error / stop, and recovery-gave-up. The remaining critical events the
-/// dashboard escalates (notably generic system errors / FITS save failures,
-/// which the classifier returns null for) are NOT covered by the router, so
-/// the bridge still forwards those — that is the gap this bridge exists to
-/// fill. The router's content-signature dedup is a backstop; this predicate is
-/// the primary, intent-level guard so the two paths never both page.
-bool _routerClassifierAlreadyPushes(sk_events.SkotiqEvent event) {
-  final payload = event.payload;
-  return switch (payload) {
-    sk_events.EventPayload_Imaging(field0: final v) => switch (v) {
-        sk_events.ImagingEvent_ExposureFailed() => true,
-        sk_events.ImagingEvent_ExposureFailedOld() => true,
-        _ => false,
-      },
-    sk_events.EventPayload_Safety(field0: final v) => switch (v) {
-        sk_events.SafetyEvent_WeatherUnsafe() => true,
-        sk_events.SafetyEvent_EmergencyStop() => true,
-        sk_events.SafetyEvent_MountMotionFault() => true,
-        sk_events.SafetyEvent_MountPositionUnknown() => true,
-        _ => false,
-      },
-    sk_events.EventPayload_System(field0: final v) => switch (v) {
-        // The classifier maps only "disk*" system events to a category; a
-        // generic SystemEvent.error classifies to null, so the bridge must
-        // still push it (that is the gap below).
-        sk_events.SystemEvent_DiskSpaceLow() => true,
-        _ => false,
-      },
-    sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
-        // A failed step is pushed by the router as the run's failure, when
-        // the run does fail. A pause for the operator and a hand-started
-        // operation's error have no router notice that carries the reason,
-        // so this bridge pages them.
-        sk_events.SequencerEvent_Error(kind: final kind) =>
-          kind == sk_events.SequencerErrorKind.stepFailed,
-        // Told once per failed run by the router, with its reason.
-        sk_events.SequencerEvent_Failed() => true,
-        sk_events.SequencerEvent_Stopped() => true,
-        sk_events.SequencerEvent_RecoveryGaveUp() => true,
-        _ => false,
-      },
-    // Guiding / equipment events only reach this bridge as critical when they
-    // carry critical severity (their normal error-severity StarLost /
-    // Disconnected are NOT `isCriticalEvent`, so the classifier alone pushes
-    // those). At critical severity the classifier only pushes the specific
-    // StarLost/Disconnected/Error eventTypes; any OTHER critical guiding/
-    // equipment event would classify to null and get no push. Rather than risk
-    // MISSING such a page (errors-are-a-feature: never drop an operator
-    // alert), we let the bridge forward these and rely on the router's
-    // content-signature dedup to collapse the rare matching-copy overlap. A
-    // possible duplicate is strictly safer than a missed critical page.
-    _ => false,
-  };
+/// A failed step is told by the router as the run's failure, if the run
+/// fails.
+NotificationCategory? _routerCategoryOf(sk_events.SkotiqEvent event) =>
+    switch (event.payload) {
+      sk_events.EventPayload_Imaging(field0: final v) => switch (v) {
+          sk_events.ImagingEvent_ExposureFailed() ||
+          sk_events.ImagingEvent_ExposureFailedOld() =>
+            NotificationCategory.exposureFailed,
+          _ => null,
+        },
+      sk_events.EventPayload_Safety(field0: final v) => switch (v) {
+          sk_events.SafetyEvent_WeatherUnsafe() ||
+          sk_events.SafetyEvent_EmergencyStop() =>
+            NotificationCategory.weatherUnsafe,
+          sk_events.SafetyEvent_MountMotionFault() ||
+          sk_events.SafetyEvent_MountPositionUnknown() =>
+            NotificationCategory.mountFault,
+          _ => null,
+        },
+      sk_events.EventPayload_System(field0: final v) => switch (v) {
+          sk_events.SystemEvent_DiskSpaceLow() =>
+            NotificationCategory.diskSpaceLow,
+          _ => null,
+        },
+      sk_events.EventPayload_Sequencer(field0: final v) => switch (v) {
+          sk_events.SequencerEvent_Error(kind: final kind)
+              when kind == sk_events.SequencerErrorKind.stepFailed =>
+            NotificationCategory.sequenceFailed,
+          sk_events.SequencerEvent_Failed() =>
+            NotificationCategory.sequenceFailed,
+          sk_events.SequencerEvent_Stopped() =>
+            NotificationCategory.sequenceStopped,
+          sk_events.SequencerEvent_RecoveryGaveUp() =>
+            NotificationCategory.recoveryGaveUp,
+          _ => null,
+        },
+      // A critical guiding or equipment event the router tells only for some
+      // event types; the bridge pages it and the router's content dedup
+      // folds a matching copy, since a duplicate page is safer than none.
+      _ => null,
+    };
+
+/// True when the router pages [event] itself, so this bridge must not page
+/// it a second time. The router is asked with the operator's own rules: with
+/// the phone push turned off for the category, the bridge pages instead, so
+/// a critical event is paged by someone.
+///
+/// A stop is always left to the router: only its stop arbiter knows who
+/// stopped the run, and the operator's own stop pages nobody.
+bool _routerPagesItself(
+  NotificationRouter router,
+  sk_events.SkotiqEvent event,
+) {
+  final category = _routerCategoryOf(event);
+  if (category == null) return false;
+  if (category == NotificationCategory.sequenceStopped) return true;
+  // A failed step is told by the run's failure, at that notice's own level.
+  final told = event.payload is sk_events.EventPayload_Sequencer &&
+      (event.payload as sk_events.EventPayload_Sequencer).field0
+          is sk_events.SequencerEvent_Error;
+  return router.wouldPush(
+    category,
+    severity: told
+        ? category.defaultSeverity
+        : EventSeverity.values.byName(event.severity.name),
+  );
 }
 
 /// True for the event that opens a run, which resets the per-run ledger of
@@ -1277,18 +1287,19 @@ final runCriticalAlertSoundProvider = Provider<void>((ref) {
 
 /// Pages paired phones for each critical alert (Settings: push critical
 /// alerts) that the notification router does not already push from the
-/// event stream on its own; see [_routerClassifierAlreadyPushes].
+/// event stream on its own; see [_routerPagesItself].
 final runCriticalAlertPushProvider = Provider<void>((ref) {
   final subscription = ref.watch(runCriticalAlertsProvider).listen((alert) {
     final settings = ref.read(appSettingsProvider).valueOrNull;
     if (!(settings?.pushCriticalAlerts ?? true)) return;
-    if (_routerClassifierAlreadyPushes(alert.event)) return;
-    ref.read(notificationRouterProvider).routeCriticalPush(
-          title: alert.title,
-          body: alert.detail,
-          eventType: sk_events.skotiqEventDisplayTitle(alert.event),
-          eventCategory: _bridgeCategoryToCore(alert.event.category),
-        );
+    final router = ref.read(notificationRouterProvider);
+    if (_routerPagesItself(router, alert.event)) return;
+    router.routeCriticalPush(
+      title: alert.title,
+      body: alert.detail,
+      eventType: sk_events.skotiqEventDisplayTitle(alert.event),
+      eventCategory: _bridgeCategoryToCore(alert.event.category),
+    );
     ref.read(loggingServiceProvider).info(
       'Critical alert sent to the phone push',
       source: 'RunCriticalAlerts',
