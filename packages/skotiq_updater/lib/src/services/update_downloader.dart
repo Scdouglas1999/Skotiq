@@ -69,7 +69,6 @@ class UpdateDownloader {
       existingBytes = await destination.length();
     }
 
-    // Make request with Range header if resuming
     final request = http.Request('GET', Uri.parse(url));
     if (existingBytes > 0) {
       request.headers['Range'] = 'bytes=$existingBytes-';

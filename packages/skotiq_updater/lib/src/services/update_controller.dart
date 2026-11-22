@@ -717,8 +717,6 @@ class UpdateController {
         );
       }
 
-      // No update — reset to idle (or staged if a previously-staged
-      // update still exists).
       if (gen == _opGeneration) {
         _updateStatus(
           UpdateControllerStatus(
