@@ -18,7 +18,7 @@ step exits non-zero, the job fails, the check shows red on the PR, and the
 
 | Gate | Job / Step | What it enforces | Local repro |
 |------|------------|------------------|-------------|
-| Placeholder/stub — no new vs baseline | `launch-gate` → "Runtime Placeholder Gate" | Zero **new** high-risk placeholder/stub markers vs the triaged baseline (`docs/production-readiness/highrisk-baseline.txt`). A marker is matched by its enclosing declaration and line text, so moved files and shifted lines stay covered. High-risk = `UnimplementedError`, `not implemented`, empty `catch (_)`, `.unwrap_or_default()`, `.ok();`. | `melos run audit:placeholders` |
+| Placeholder/stub — no new vs baseline | `launch-gate` → "Runtime Placeholder Gate" | Zero **new** high-risk placeholder/stub markers vs the triaged baseline (`docs/production-readiness/highrisk-baseline.txt`). A marker is matched by its enclosing declaration and line text, so moved files and shifted lines stay covered. High-risk = `UnimplementedError`, `not implemented` and the other stub markers. The silent-fallback shapes (empty `catch (_)`, `.unwrap_or_default()`, `.ok();`) are judged by the behavioral gate in Dart and Rust, so each finding has one register; in other scanned languages they stay high-risk here. | `melos run audit:placeholders` |
 | Fail-closed policy | `launch-gate` → "Fail-Closed Policy Gate" | Each rule in `docs/production-readiness/fail_closed_rules.yaml` must be clean. A rule names a declaration (`declares:`) or a path glob, and covers every `part` file of the Dart library it matches. | `melos run audit:fail-closed` |
 | Behavioral audit | `launch-gate` → "Runtime Behavioral Gate" | Every behavioral marker (literal null-coalesce, empty catch, etc.) must have a closed verdict in `docs/production-readiness/behavioral-audit-register.md`. Unregistered or open markers fail. | `melos run audit:behavioral` |
 | Audit gate self-tests | `launch-gate` → "Audit Gate Self-Tests" | The behavioral, placeholder and fail-closed tools still keep a verdict attached to moved and re-numbered code, fail on new and open findings, and report rows for deleted code as prunable. | `melos run audit:gates:self-test` |
@@ -193,9 +193,9 @@ the committed baselines** — `docs/production-readiness/highrisk-baseline.txt` 
 `docs/production-readiness/behavioral-audit-register.md` (with its
 `.sites.tsv`) — not an absolute-zero
 count. An earlier "fail on any high-risk" (absolute-zero) policy was aspirational
-and never passed, because the triaged baseline holds roughly 160 reviewed entries
-that are mostly fail-loud documentation comments and audited Rust
-`unwrap_or_default()` defaults on optional ASCOM/Alpaca/INDI driver properties.
+and never passed, because the triaged baseline holds reviewed entries that are mostly
+fail-loud documentation comments (the Rust `unwrap_or_default()` defaults on
+optional driver properties are behavioral findings with their own verdicts).
 The enforced policy is therefore baseline-compare (by declaration and line
 text, so moved files and line drift cannot trip it) plus the scope check from
 `audit-scope.yaml`, which catches a glob change accidentally dropping a
