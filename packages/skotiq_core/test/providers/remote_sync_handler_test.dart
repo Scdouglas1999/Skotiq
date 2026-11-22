@@ -444,7 +444,7 @@ void main() {
           'sequencer ExposureCompleted':
               'host reread=0 client reread=0 fetch=0',
           // No producer sends ImageCaptured.
-        'wire ImageCaptured': 'host reread=0 client reread=0 fetch=0',
+          'wire ImageCaptured': 'host reread=0 client reread=0 fetch=0',
         });
       },
     );
