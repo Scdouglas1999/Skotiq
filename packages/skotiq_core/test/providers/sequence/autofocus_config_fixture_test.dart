@@ -70,9 +70,12 @@ AutofocusRun _run(AutofocusSettings settings, Object? spec) {
   );
 }
 
-Map<String, dynamic> configFor(Map<String, dynamic> testCase) {
+Map<String, dynamic> configFor(
+  Map<String, dynamic> testCase, {
+  void Function(String message)? warn,
+}) {
   final serializer = Provider(
-    (ref) => SequenceSerializer(ref: ref, warn: (_) {}),
+    (ref) => SequenceSerializer(ref: ref, warn: warn ?? (_) {}),
   );
   final container = ProviderContainer(
     overrides: [
@@ -104,6 +107,38 @@ void main() {
     const stored = AppSettingsState();
     expect(settings.backlashIn, stored.afBacklashIn);
     expect(settings.backlashOut, stored.afBacklashOut);
+  });
+
+  group('the run warns about a curve fitting it does not know', () {
+    Map<String, dynamic> caseWith(String curveFitting) => {
+      'settings': {'curveFitting': curveFitting},
+      'run': 'settings',
+      'measuredBacklashIn': null,
+    };
+
+    for (final label in [
+      'Hyperbolic',
+      'Parabolic',
+      'Quadratic',
+      'Trend Lines',
+      'V-Curve',
+      'VCurve',
+      '',
+    ]) {
+      test('"$label" is known', () {
+        final warnings = <String>[];
+        configFor(caseWith(label), warn: warnings.add);
+        expect(warnings, isEmpty);
+      });
+    }
+
+    test('an unknown label runs as a V-curve and names the value', () {
+      final warnings = <String>[];
+      final config = configFor(caseWith('Mystery'), warn: warnings.add);
+      expect(config['method'], 'VCurve');
+      expect(warnings, hasLength(1));
+      expect(warnings.single, contains('"Mystery"'));
+    });
   });
 
   for (final testCase in cases) {
