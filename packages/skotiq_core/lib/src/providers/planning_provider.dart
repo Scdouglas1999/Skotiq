@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 
 import 'linked_host.dart';
 import '../backend/remote_host.dart';
@@ -337,7 +338,7 @@ final weekForecastProvider = FutureProvider.autoDispose<WeekForecast>((
   final settings = await ref.watch(appSettingsProvider.future);
   final lat = settings.latitude;
   final lng = settings.longitude;
-  if (lat == 0.0 && lng == 0.0) {
+  if (!siteLocationIsSet(lat, lng)) {
     throw StateError(
       'Observing location is not configured. '
       'Set your latitude and longitude in Settings before using the '

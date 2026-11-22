@@ -14,6 +14,7 @@ import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 
 class ProfileHandlers implements RouteSource {
   @override
@@ -1026,7 +1027,7 @@ class ProfileHandlers implements RouteSource {
       );
     }
 
-    if (requested.latitude == 0.0 && requested.longitude == 0.0) {
+    if (!siteLocationIsSet(requested.latitude, requested.longitude)) {
       return (
         changed: false,
         value: canonical,

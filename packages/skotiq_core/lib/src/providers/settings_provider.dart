@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 import 'linked_host.dart';
 import 'async_scope.dart';
 import '../backend/remote_host.dart';

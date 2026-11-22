@@ -15,10 +15,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/shell/widgets/shell_clock.dart';
-// `siteLocationIsSet` moved from this widget file to the settings model in
-// skotiq_core: a not-set rule living inside a top-band widget invited
-// every other surface to re-derive its own copy, and those copies drifted.
-import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 
 import '../../harness/pump_app_screen.dart';

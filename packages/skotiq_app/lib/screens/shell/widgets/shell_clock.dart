@@ -4,6 +4,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 
 import '../../../localization/skotiq_localizations.dart';
 

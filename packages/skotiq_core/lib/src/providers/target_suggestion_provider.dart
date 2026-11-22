@@ -191,7 +191,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final latitude = observerLocation.latitude;
       final longitude = observerLocation.longitude;
 
-      if (latitude == 0.0 && longitude == 0.0) {
+      if (!siteLocationIsSet(latitude, longitude)) {
         // No location configured, return empty list
         // The UI should prompt user to set location in settings
         return [];

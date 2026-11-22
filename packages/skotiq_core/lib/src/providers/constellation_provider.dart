@@ -206,7 +206,7 @@ final coImagingBatonSchedulerProvider = Provider<CoImagingBatonScheduler>((
       if (app == null) return null;
       final lat = app.latitude;
       final lng = app.longitude;
-      if (lat == 0.0 && lng == 0.0) return null;
+      if (!siteLocationIsSet(lat, lng)) return null;
       return (latitudeDeg: lat, longitudeDeg: lng);
     },
     // One reconciled engine decision per tick (see the policy below): begin

@@ -11,6 +11,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 
 import '../smart_night_plan_launcher.dart';
 import '../../../utils/authority_bound_dialog.dart';
@@ -446,7 +447,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       final activeProfile = profile;
       final location = ref.read(appObserverLocationProvider);
       if (location == null ||
-          (location.latitude == 0.0 && location.longitude == 0.0)) {
+          !siteLocationIsSet(location.latitude, location.longitude)) {
         setState(() => _previewError =
             'No observer location set. Configure latitude / longitude in '
                 'Settings first.');

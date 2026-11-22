@@ -8,6 +8,7 @@ export 'src/coordinate_system.dart';
 export 'src/astronomy/altitude_floor_search.dart';
 export 'src/astronomy/astronomy_calculations.dart';
 export 'src/astronomy/observability.dart';
+export 'src/astronomy/observer_site.dart';
 export 'src/astronomy/planetary_positions.dart';
 export 'src/astronomy/milky_way_data.dart';
 export 'src/astronomy/sgp4.dart';

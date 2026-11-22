@@ -240,7 +240,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
@@ -306,7 +306,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
@@ -364,7 +364,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
@@ -459,7 +459,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
@@ -542,7 +542,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
@@ -735,7 +735,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
@@ -792,7 +792,7 @@ class SchedulerHandlers implements RouteSource {
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
     final longitude = await database.settingsDao.read(AppSettingDefs.longitude);
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (!siteLocationIsSet(latitude, longitude)) {
       return jsonBadRequest({
         'error':
             'No observer location configured. Set location in settings first.',
