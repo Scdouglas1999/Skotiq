@@ -48,34 +48,8 @@ class _IntegrationBudgetSection extends ConsumerWidget {
                               integrationBudget: const IntegrationBudget()),
                         );
                   } else {
-                    // TargetHeaderNode.copyWith uses a plain
-                    // `?? this.integrationBudget`, so clearing back to
-                    // null is rebuild-explicit.
                     ref.read(currentSequenceProvider.notifier).updateNode(
-                          TargetHeaderNode(
-                            id: node.id,
-                            name: node.name,
-                            isEnabled: node.isEnabled,
-                            childIds: node.childIds,
-                            parentId: node.parentId,
-                            orderIndex: node.orderIndex,
-                            comment: node.comment,
-                            targetName: node.targetName,
-                            raHours: node.raHours,
-                            decDegrees: node.decDegrees,
-                            rotation: node.rotation,
-                            priority: node.priority,
-                            minAltitude: node.minAltitude,
-                            maxAltitude: node.maxAltitude,
-                            startAfter: node.startAfter,
-                            endBefore: node.endBefore,
-                            mosaicPanel: node.mosaicPanel,
-                            startWhen: node.startWhen,
-                            endWhen: node.endWhen,
-                            triggerPollIntervalSecs:
-                                node.triggerPollIntervalSecs,
-                            brightnessTierHint: node.brightnessTierHint,
-                          ),
+                          node.copyWith(clearIntegrationBudget: true),
                         );
                   }
                 },
