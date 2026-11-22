@@ -3230,8 +3230,6 @@ packages/skotiq_core/lib/src/services/night_end/night_end_coordinator.dart	descr
 packages/skotiq_core/lib/src/services/night_end/night_end_run.dart	NightEndRun.fromJson	literal_null_coalesce	1	V0842	reason: json['reason'] as String? ?? '',
 packages/skotiq_core/lib/src/services/night_end/night_end_settings.dart	load	literal_null_coalesce	1	V0843	await dao.getSetting(minRetainedAreaKey) ?? '',
 packages/skotiq_core/lib/src/services/notification/notification_router.dart	prune	guessed_now_timestamp	1	V0105	final cutoff = (now ?? DateTime.now()).subtract(maxAge);
-packages/skotiq_core/lib/src/services/notification/notification_router.dart	_onEvent	literal_null_coalesce	1	V0105	final body = (event.data['message'] as String?) ?? '';
-packages/skotiq_core/lib/src/services/notification/notification_router.dart	_onEvent	literal_null_coalesce	1	V0105	final title = (event.data['title'] as String?) ?? '';
 packages/skotiq_core/lib/src/services/notification/notification_router.dart	_routeStopped	literal_null_coalesce	1	V0105	runId: int.tryParse(contextValues[kStopRunIdContextKey] ?? ''),
 packages/skotiq_core/lib/src/services/notification/secrets_store.dart	SecretsStore	comment_best_effort	1	V0106	/// Best-effort: if a single transport's blob is malformed, the
 packages/skotiq_core/lib/src/services/notification/secrets_store.dart	read	literal_null_coalesce	1	V0106	return v ?? '';
@@ -3455,7 +3453,6 @@ packages/skotiq_core/lib/src/services/smart_night_models/strategy_helpers.dart	_
 packages/skotiq_core/lib/src/services/smart_night_models/strategy_helpers.dart	_composeBudgetFilterPlans	literal_null_coalesce	1	V0121	final budgetSecs = perFilterBudget[filterName] ?? 0;
 packages/skotiq_core/lib/src/services/smart_night_models/strategy_helpers.dart	smartNightRotatesFilters	literal_null_coalesce	1	O10-04	profile.filterWheelId?.trim().isNotEmpty ?? false;
 packages/skotiq_core/lib/src/services/smart_night_service.dart	SmartNightService	guessed_now_timestamp	2	V0110	final reference = now ?? DateTime.now();
-packages/skotiq_core/lib/src/services/smart_night_service.dart	_pixelSize	literal_null_coalesce	1	V0110	return specs.pixelSizeMicrons?.value ?? 0;
 packages/skotiq_core/lib/src/services/smart_night_service.dart	_profileHasGuider	literal_null_coalesce	1	V0110	final id = profile.guiderId?.trim() ?? '';
 packages/skotiq_core/lib/src/services/smart_night_service.dart	_profileHasGuider	literal_null_coalesce	1	V0110	final name = profile.guiderName?.trim() ?? '';
 packages/skotiq_core/lib/src/services/smart_night_service.dart	build	literal_null_coalesce	1	V0110	.where((f) => (flatPlan?.perFilter[f]?.exposureSecs ?? 0) <= 0)
