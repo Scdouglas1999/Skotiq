@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
-import 'package:skotiq_core/services.dart';
 
 import 'desktop_logging_init.dart';
 import 'headless/headless_auth_config.dart';

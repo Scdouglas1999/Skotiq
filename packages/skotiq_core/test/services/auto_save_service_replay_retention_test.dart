@@ -8,7 +8,7 @@ import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/sequence_provider.dart';
-import 'package:skotiq_core/src/services/auto_save_service.dart';
+import 'package:skotiq_core/src/providers/auto_save_service.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
 import 'package:skotiq_core/src/services/replay_debug_service.dart';
 import 'package:skotiq_core/src/services/sequence_repository.dart';

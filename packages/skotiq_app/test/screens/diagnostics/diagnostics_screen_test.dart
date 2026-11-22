@@ -39,7 +39,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/diagnostics/diagnostic_dump_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';

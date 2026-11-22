@@ -10,7 +10,7 @@ import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/sequence_run_status.dart';
-import '../../services/safe_rig_service.dart';
+import '../safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../utils/logging_service.dart';
 import '../backend_provider.dart';

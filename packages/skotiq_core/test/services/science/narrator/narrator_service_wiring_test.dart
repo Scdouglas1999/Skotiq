@@ -7,7 +7,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/services/science/narrator/narrator_context.dart';
-import 'package:skotiq_core/src/services/science/narrator/narrator_service.dart';
+import 'package:skotiq_core/src/providers/science/narrator_service.dart';
 
 /// Service-level wiring test: builds a [NarratorService] over a
 /// [ProviderContainer] whose pull-sources are overridden with synthetic data,

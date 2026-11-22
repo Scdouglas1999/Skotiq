@@ -61,10 +61,6 @@
         "count": 6,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentImageProvider, lastImageStatsProvider, loggingServiceProvider."
       },
-      "services/auto_save_service.dart": {
-        "count": 9,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, backupServiceProvider, constellationServiceProvider, currentSequenceProvider, replayDebugRetentionDaysProvider, replayDebugServiceProvider, sequenceRepositoryProvider, settingsDaoProvider, skyAtlasServiceProvider, syncServiceProvider."
-      },
       "services/calibration_backlog_service.dart": {
         "count": 5,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationLibraryProvider, calibrationMasterBuildProvider, darkLibraryServiceProvider, databaseProvider, flatLibraryServiceProvider, settingsDaoProvider."
@@ -121,10 +117,6 @@
         "count": 24,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider."
       },
-      "services/diagnostic_dump_service.dart": {
-        "count": 14,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appVersionProvider, cameraStateProvider, coverCalibratorStateProvider, currentSequenceProvider, domeStateProvider, equipmentProfilesDaoProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider, safetyMonitorStateProvider, tempDirProvider, weatherStateProvider."
-      },
       "services/eon_deferral.dart": {
         "count": 2,
         "reason": "Holds a Riverpod Ref; reads backendProvider, settingsDaoProvider."
@@ -133,10 +125,6 @@
         "count": 11,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider."
       },
-      "services/first_light_orchestrator.dart": {
-        "count": 7,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads annotationServiceProvider, cameraStateProvider, currentAnnotationProvider, currentImageProvider, exposureSettingsProvider, imagingServiceProvider, lastImageStatsProvider, loggingServiceProvider, plateSolveServiceProvider, stretchedImageProvider."
-      },
       "services/flat_wizard_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref."
@@ -144,10 +132,6 @@
       "services/frame_identity.dart": {
         "count": 4,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider."
-      },
-      "services/home_assistant_discovery_service.dart": {
-        "count": 8,
-        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, cameraStateProvider, domeStateProvider, equipmentProfilesProvider, guideStatsProvider, liveSequenceStatsProvider, phd2StateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceProgressProvider, sessionImagesProvider, weatherSafetyProvider, weatherStateProvider."
       },
       "services/imaging_service.dart": {
         "count": 14,
@@ -160,14 +144,6 @@
       "services/master_accumulation_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref."
-      },
-      "services/narrator_service.dart": {
-        "count": 14,
-        "reason": "Holds a Riverpod Ref; reads activePhotometryTargetObjectIdProvider, autofocusOverlayProvider, backendProvider, cloudCoverPercentageProvider, focuserStateProvider, guideStatsProvider, guiderStateProvider, guidingStopReasonProvider, lastImageStatsProvider, loggingServiceProvider, narratorEventsDaoProvider, opticalTrainDiagnosticsProvider, periodAnalysisProvider, phd2StateProvider, scienceProcessingLatestStageProvider, scienceProcessingStatusTrackerProvider, sessionFilterIntegrationProvider, sessionFrameCalibrationsProvider, sessionFrameQualityMetricsProvider, sessionImagesStreamProvider, sessionLightCurveProvider, sessionMovingObjectTrendProvider, sessionTransparencyTrendProvider, weatherSafetyProvider, weatherStateProvider."
-      },
-      "services/night_end_coordinator.dart": {
-        "count": 6,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, endOfNightCalibrationCoordinatorProvider, endOfNightCalibrationProvider, loggingServiceProvider, nightEndRunnerProvider, nightIntegrationRequestProvider, sequenceTerminalRunResultProvider."
       },
       "services/night_end_runner.dart": {
         "count": 8,
@@ -196,10 +172,6 @@
       "services/quick_start_service.dart": {
         "count": 4,
         "reason": "Holds a Riverpod Ref; reads sequenceCheckpointsDaoProvider."
-      },
-      "services/safe_rig_service.dart": {
-        "count": 10,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, cameraStateProvider, coverCalibratorStateProvider, domeStateProvider, equipmentDomeCapabilitiesProvider, mountStateProvider, secondaryRigControllerProvider, sequenceExecutionStateProvider, uiNotificationProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/science_camera_auto_config.dart": {
         "count": 6,
@@ -233,14 +205,6 @@
       "services/annotation_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentImageProvider, lastImageStatsProvider, loggingServiceProvider."
-      },
-      "services/auto_calibration_notice.dart": {
-        "count": 1,
-        "reason": "A StateNotifier kept under services/; it is provider-layer state."
-      },
-      "services/auto_save_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, backupServiceProvider, constellationServiceProvider, currentSequenceProvider, replayDebugRetentionDaysProvider, replayDebugServiceProvider, sequenceRepositoryProvider, settingsDaoProvider, skyAtlasServiceProvider, syncServiceProvider."
       },
       "services/calibration_backlog_service.dart": {
         "count": 1,
@@ -298,10 +262,6 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider."
       },
-      "services/diagnostic_dump_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appVersionProvider, cameraStateProvider, coverCalibratorStateProvider, currentSequenceProvider, domeStateProvider, equipmentProfilesDaoProvider, filterWheelStateProvider, focuserStateProvider, guiderStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider, safetyMonitorStateProvider, tempDirProvider, weatherStateProvider."
-      },
       "services/eon_deferral.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads backendProvider, settingsDaoProvider."
@@ -314,17 +274,9 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider."
       },
-      "services/first_light_orchestrator.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads annotationServiceProvider, cameraStateProvider, currentAnnotationProvider, currentImageProvider, exposureSettingsProvider, imagingServiceProvider, lastImageStatsProvider, loggingServiceProvider, plateSolveServiceProvider, stretchedImageProvider."
-      },
       "services/frame_identity.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider."
-      },
-      "services/home_assistant_discovery_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, cameraStateProvider, domeStateProvider, equipmentProfilesProvider, guideStatsProvider, liveSequenceStatsProvider, phd2StateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceProgressProvider, sessionImagesProvider, weatherSafetyProvider, weatherStateProvider."
       },
       "services/imaging_service.dart": {
         "count": 1,
@@ -333,14 +285,6 @@
       "services/local_imaging_records.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the role provider of its own data set (hostRoleProvider); reads coImagingSessionServiceProvider, imagesDaoProvider, loggingServiceProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider, thumbnailSidecarServiceProvider."
-      },
-      "services/narrator_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads activePhotometryTargetObjectIdProvider, autofocusOverlayProvider, backendProvider, cloudCoverPercentageProvider, focuserStateProvider, guideStatsProvider, guiderStateProvider, guidingStopReasonProvider, lastImageStatsProvider, loggingServiceProvider, narratorEventsDaoProvider, opticalTrainDiagnosticsProvider, periodAnalysisProvider, phd2StateProvider, scienceProcessingLatestStageProvider, scienceProcessingStatusTrackerProvider, sessionFilterIntegrationProvider, sessionFrameCalibrationsProvider, sessionFrameQualityMetricsProvider, sessionImagesStreamProvider, sessionLightCurveProvider, sessionMovingObjectTrendProvider, sessionTransparencyTrendProvider, weatherSafetyProvider, weatherStateProvider."
-      },
-      "services/night_end_coordinator.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, endOfNightCalibrationCoordinatorProvider, endOfNightCalibrationProvider, loggingServiceProvider, nightEndRunnerProvider, nightIntegrationRequestProvider, sequenceTerminalRunResultProvider."
       },
       "services/night_end_runner.dart": {
         "count": 1,
@@ -369,10 +313,6 @@
       "services/quick_start_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads sequenceCheckpointsDaoProvider."
-      },
-      "services/safe_rig_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, cameraStateProvider, coverCalibratorStateProvider, domeStateProvider, equipmentDomeCapabilitiesProvider, mountStateProvider, secondaryRigControllerProvider, sequenceExecutionStateProvider, uiNotificationProvider; scopes host work with AsyncScope (Riverpod)."
       },
       "services/science_camera_auto_config.dart": {
         "count": 1,

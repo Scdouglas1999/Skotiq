@@ -25,7 +25,7 @@
 /// throws on a missing stream or device.
 library;
 
-import '../../../database/rows/frame_type_record.dart';
+import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 import 'dart:collection';
 
@@ -33,47 +33,47 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../database/database.dart' as db;
-import '../../../database/daos/narrator_events_dao.dart';
-import '../../../models/science/science_models.dart'
+import '../../database/database.dart' as db;
+import '../../database/daos/narrator_events_dao.dart';
+import '../../models/science/science_models.dart'
     show LightCurvePoint, MovingObjectCandidate, TransparencyTrendPoint;
-import '../../../providers/autofocus_progress_provider.dart';
-import '../../../providers/backend_provider.dart';
-import '../../../providers/database_provider.dart';
-import '../../../models/equipment/equipment_models.dart'
+import '../autofocus_progress_provider.dart';
+import '../backend_provider.dart';
+import '../database_provider.dart';
+import '../../models/equipment/equipment_models.dart'
     show DeviceConnectionState;
-import '../../../models/imaging/imaging_models.dart' show ImageStats;
-import '../../../models/phd2_models.dart' show Phd2GuideStats, Phd2State;
-import '../../../providers/equipment_provider.dart'
+import '../../models/imaging/imaging_models.dart' show ImageStats;
+import '../../models/phd2_models.dart' show Phd2GuideStats, Phd2State;
+import '../equipment_provider.dart'
     show focuserStateProvider, guiderStateProvider, weatherStateProvider;
-import '../../../providers/guiding_provider.dart'
+import '../guiding_provider.dart'
     show guideStatsProvider, guidingStopReasonProvider, phd2StateProvider;
-import '../../../providers/narrator_provider.dart'
+import '../narrator_provider.dart'
     show sessionFilterIntegrationProvider, sessionImagesStreamProvider;
-import '../../../providers/optical_train_diagnostics_provider.dart';
-import '../../../providers/imaging_provider.dart' show lastImageStatsProvider;
-import '../../../providers/period_analysis_provider.dart';
-import '../../../providers/science_provider.dart';
-import '../../../providers/science_status_provider.dart';
-import '../../../providers/weather_providers.dart'
-    show cloudCoverPercentageProvider;
-import '../../../providers/weather_safety_provider.dart';
-import '../../../utils/logging_service.dart';
-import '../../optical_train_diagnostics_service.dart'
+import '../optical_train_diagnostics_provider.dart';
+import '../imaging_provider.dart' show lastImageStatsProvider;
+import '../period_analysis_provider.dart';
+import '../science_provider.dart';
+import '../science_status_provider.dart';
+import '../weather_providers.dart' show cloudCoverPercentageProvider;
+import '../weather_safety_provider.dart';
+import '../../utils/logging_service.dart';
+import '../../services/optical_train_diagnostics_service.dart'
     show OpticalTrainDiagnostics;
-import '../../transients/transient_candidate.dart' show TransientCandidate;
-import '../science_status.dart'
+import '../../services/transients/transient_candidate.dart'
+    show TransientCandidate;
+import '../../services/science/science_status.dart'
     show
         ScienceProcessingEvent,
         ScienceStage,
         ScienceStageOutcome,
         ScienceStageResult;
-import 'narrator_context.dart';
-import 'narrator_detectors.dart';
-import 'narrator_engine.dart';
-import 'narrator_event.dart';
-import '../../../providers/logging_service_provider.dart';
-import '../../../models/science/period_analysis_models.dart';
+import '../../services/science/narrator/narrator_context.dart';
+import '../../services/science/narrator/narrator_detectors.dart';
+import '../../services/science/narrator/narrator_engine.dart';
+import '../../services/science/narrator/narrator_event.dart';
+import '../logging_service_provider.dart';
+import '../../models/science/period_analysis_models.dart';
 
 /// Caps on the rolling per-input history the service keeps in memory between
 /// context builds. Generous enough for every detector's window; bounded so a

@@ -39,7 +39,6 @@ import 'package:skotiq_app/screens/settings/widgets/autofocus_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/predictive_af_settings.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../harness/harness.dart';

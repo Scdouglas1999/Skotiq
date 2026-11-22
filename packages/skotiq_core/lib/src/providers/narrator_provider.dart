@@ -16,7 +16,7 @@ import '../database/database.dart' show DbCapturedImage, NarratorEventRow;
 import '../services/science/narrator/narrator_context.dart'
     show NarratorFilterIntegration;
 import '../services/science/narrator/narrator_event.dart';
-import '../services/science/narrator/narrator_service.dart';
+import 'science/narrator_service.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_role.dart';

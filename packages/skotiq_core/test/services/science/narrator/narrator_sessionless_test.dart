@@ -6,7 +6,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/database/daos/narrator_events_dao.dart';
-import 'package:skotiq_core/src/services/science/narrator/narrator_service.dart';
+import 'package:skotiq_core/src/providers/science/narrator_service.dart';
 
 /// The sessionless (hand-driven) narrator path.
 ///

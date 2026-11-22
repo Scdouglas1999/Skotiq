@@ -3,17 +3,17 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/remote_host.dart';
-import '../../providers/backend_provider.dart';
-import '../../providers/sequence_stats_provider.dart';
+import '../backend_provider.dart';
+import '../sequence_stats_provider.dart';
 import '../../models/sequence/sequence_run_status.dart';
 import '../../models/sequence/terminal_run_result.dart';
-import '../../providers/end_of_night_calibration/eon_providers.dart';
-import '../end_of_night_calibration/eon_trigger.dart';
-import 'night_end_run.dart';
-import 'night_end_runner.dart';
-import '../../providers/end_of_night_calibration/eon_trigger_provider.dart';
-import '../../providers/logging_service_provider.dart';
-import '../../providers/night_end/night_end_runner_provider.dart';
+import '../end_of_night_calibration/eon_providers.dart';
+import '../../services/end_of_night_calibration/eon_trigger.dart';
+import '../../services/night_end/night_end_run.dart';
+import '../../services/night_end/night_end_runner.dart';
+import '../end_of_night_calibration/eon_trigger_provider.dart';
+import '../logging_service_provider.dart';
+import 'night_end_runner_provider.dart';
 import '../../models/calibration/eon_status.dart';
 
 /// The one-line outcome of a night-end run, for the toast on whatever screen

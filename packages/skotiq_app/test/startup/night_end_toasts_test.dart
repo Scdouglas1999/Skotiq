@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_app/router/app_router.dart';
 import 'package:skotiq_app/startup/night_end_toasts.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   testWidgets('a night-end result toasts over the routed app', (tester) async {

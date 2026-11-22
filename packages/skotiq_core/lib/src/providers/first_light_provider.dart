@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/first_light/first_light_orchestrator.dart';
+import 'first_light/first_light_orchestrator.dart';
 
 /// Controls the one-click first-light flow (expose → stretch → plate-solve →
 /// annotate) and exposes its progress as [FirstLightState].

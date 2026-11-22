@@ -10,22 +10,22 @@ import 'package:path_provider/path_provider.dart';
 import '../database/database.dart' show DbEquipmentProfile;
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
-import '../providers/app_version_provider.dart';
-import '../providers/equipment/camera_state_provider.dart';
-import '../providers/equipment/cover_calibrator_state_provider.dart';
-import '../providers/equipment/dome_state_provider.dart';
-import '../providers/equipment/filter_wheel_state_provider.dart';
-import '../providers/equipment/focuser_state_provider.dart';
-import '../providers/equipment/guider_state_provider.dart';
-import '../providers/equipment/mount_state_provider.dart';
-import '../providers/equipment/rotator_state_provider.dart';
-import '../providers/equipment/safety_monitor_state_provider.dart';
-import '../providers/equipment/weather_state_provider.dart';
-import '../providers/database_provider.dart';
-import '../providers/sequence_provider.dart';
+import 'app_version_provider.dart';
+import 'equipment/camera_state_provider.dart';
+import 'equipment/cover_calibrator_state_provider.dart';
+import 'equipment/dome_state_provider.dart';
+import 'equipment/filter_wheel_state_provider.dart';
+import 'equipment/focuser_state_provider.dart';
+import 'equipment/guider_state_provider.dart';
+import 'equipment/mount_state_provider.dart';
+import 'equipment/rotator_state_provider.dart';
+import 'equipment/safety_monitor_state_provider.dart';
+import 'equipment/weather_state_provider.dart';
+import 'database_provider.dart';
+import 'sequence_provider.dart';
 import '../utils/logging_service.dart';
 import '../utils/skotiq_data_directory.dart';
-import '../providers/logging_service_provider.dart';
+import 'logging_service_provider.dart';
 
 /// Snapshot of one device's contribution to the diagnostic-dump device list.
 ///

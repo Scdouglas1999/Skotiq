@@ -35,7 +35,6 @@ export 'src/services/imaging_service.dart';
 export 'src/services/capture_preview_loader.dart'
     show CapturePreviewPublisher, capturedImageDataFromResult;
 export 'src/services/plate_solve_service.dart';
-export 'src/services/first_light/first_light_orchestrator.dart';
 export 'src/services/centering_service.dart';
 export 'src/services/manual_centering.dart';
 export 'src/services/profile_service.dart';
@@ -86,13 +85,11 @@ export 'src/services/planning/forecast_planning_service.dart';
 export 'src/services/focus_model_service.dart';
 // Predictive autofocus persisted per-filter learning + drift detection.
 export 'src/services/predictive_af_service.dart';
-export 'src/services/diagnostic_dump_service.dart';
 export 'src/services/error_service.dart';
 export 'src/services/flat_wizard_service.dart';
 export 'src/services/sky_brightness_tracker.dart';
 export 'src/services/flat_exposure_follower.dart';
 export 'src/services/backup_service.dart';
-export 'src/services/auto_save_service.dart';
 // Cloud backup/sync — bundle-based push/pull of configuration across
 // machines via WebDAV (Nextcloud / generic). Reuses BackupService bundles.
 export 'src/services/sync/sync_target.dart';
@@ -123,7 +120,6 @@ export 'src/services/notification/transports/webhook_transport.dart';
 //   * Observatory surfaces as one HA device (sensors + binary sensors,
 //     optional pause/abort controls) over the notification transport's
 //     MQTT broker.
-export 'src/services/home_assistant/home_assistant_discovery_service.dart';
 export 'src/services/home_assistant/ha_discovery_payloads.dart';
 export 'src/services/critical_alert_player.dart';
 export 'src/services/session_export_service.dart';
@@ -248,7 +244,6 @@ export 'src/services/file_trash.dart';
 export 'src/services/target_standing_settings.dart';
 export 'src/services/output_locations.dart';
 export 'src/services/darkroom_state_store.dart';
-export 'src/services/night_end/night_end_coordinator.dart';
 export 'src/services/night_end/night_end_run.dart';
 export 'src/services/night_end/night_end_runner.dart';
 export 'src/services/night_end/night_end_settings.dart';
@@ -287,7 +282,6 @@ export 'src/services/darkroom_delivery/darkroom_delivery.dart';
 export 'src/services/darkroom_autopilot/darkroom_autopilot.dart';
 export 'src/services/darkroom_pass/darkroom_pass.dart';
 export 'src/services/project_tracking_service.dart';
-export 'src/services/calibration/auto_calibration_notice.dart';
 export 'src/services/calibration/calibration_selection.dart';
 export 'src/services/calibration/calibration_frame_groups.dart';
 export 'src/services/calibration/calibration_reuse.dart';
@@ -298,7 +292,6 @@ export 'src/services/calibration/shared_calibration_client.dart';
 export 'src/services/calibration/shared_calibration_library.dart';
 export 'src/services/disk_space_service.dart';
 export 'src/services/disk_space_guard.dart';
-export 'src/services/safe_rig_service.dart';
 export 'src/services/safety_config_service.dart';
 export 'src/services/smart_night/camera_capture_defaults.dart';
 export 'src/services/hips/hips_tile_loader.dart';

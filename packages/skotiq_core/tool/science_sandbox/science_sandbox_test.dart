@@ -39,7 +39,7 @@ import 'package:skotiq_core/src/database/daos/images_dao.dart'
     show StoredWcsDistortion;
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart'
     show FrameType;
-import 'package:skotiq_core/src/services/science/narrator/narrator_service.dart';
+import 'package:skotiq_core/src/providers/science/narrator_service.dart';
 import 'package:skotiq_core/src/services/science/science_status.dart';
 import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_models.dart';
 import 'package:skotiq_core/src/services/sky_atlas/sky_atlas_service.dart';
