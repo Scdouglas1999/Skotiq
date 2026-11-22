@@ -140,7 +140,7 @@ impl CameraDriver for ThermometerlessCamera {
 }
 
 async fn manager_with(device_id: &str, camera: ThermometerlessCamera) -> Arc<DeviceManager> {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     manager
         .register_device(
             DeviceInfo {

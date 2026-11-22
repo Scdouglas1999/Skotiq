@@ -23,7 +23,7 @@ use tokio::sync::broadcast::error::TryRecvError;
 #[tokio::test]
 async fn the_cooler_set_point_survives_a_reopen() {
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let id = "sim_camera_reopen";
     manager
         .register_device(build_sim_info(id, DeviceType::Camera), false)
@@ -460,7 +460,7 @@ async fn only_what_the_camera_held_is_restored() {
 #[tokio::test]
 async fn the_cooler_survives_two_reopens_and_then_a_manual_reconnect() {
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let id = "sim_camera_reopen_twice";
     manager
         .register_device(build_sim_info(id, DeviceType::Camera), false)
@@ -510,7 +510,7 @@ async fn the_cooler_survives_two_reopens_and_then_a_manual_reconnect() {
 #[tokio::test]
 async fn a_cooler_switched_off_while_connected_stays_off_after_a_reopen() {
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let id = "sim_camera_reopen_off";
     manager
         .register_device(build_sim_info(id, DeviceType::Camera), false)
@@ -536,7 +536,7 @@ async fn a_reconnected_parked_mount_is_not_set_tracking() {
     use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let id = "sim_mount_parked_reconnect";
     manager
         .register_device(build_sim_info(id, DeviceType::Mount), false)

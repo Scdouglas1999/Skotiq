@@ -82,29 +82,8 @@ fn build_mount_info(id: &str, driver_type: DriverType) -> DeviceInfo {
     }
 }
 
-fn build_device_manager() -> DeviceManager {
-    DeviceManager {
-        app_state: AppState::new(),
-        devices: RwLock::new(HashMap::new()),
-        observed_identities: RwLock::new(HashMap::new()),
-        expected_models: Default::default(),
-        reconnect_config: ReconnectConfig::default(),
-        handles: Default::default(),
-        native_devices: RwLock::new(HashMap::new()),
-        indi_clients: RwLock::new(HashMap::new()),
-        heartbeat_tasks: RwLock::new(HashMap::new()),
-        reconnect_cancel_tokens: RwLock::new(HashMap::new()),
-        active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
-        usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-        command_activity: Default::default(),
-        published_temperatures: Default::default(),
-        status_reads: Default::default(),
-        pixel_size_notices: Default::default(),
-        dim_frame_cameras: Default::default(),
-        retained_captures: Default::default(),
-        stated_frame_defaults: Default::default(),
-        unlisted_read_mode_notices: Default::default(),
-    }
+fn build_device_manager() -> Arc<DeviceManager> {
+    DeviceManager::without_reconnection(AppState::new())
 }
 
 // Device identity: a positional id must not silently re-bind

@@ -293,7 +293,7 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
-    let manager = std::sync::Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_mount_1";
     let info = DeviceInfo {
         id: device_id.to_string(),

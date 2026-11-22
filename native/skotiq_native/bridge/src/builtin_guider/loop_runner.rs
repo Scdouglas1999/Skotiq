@@ -130,7 +130,6 @@ pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     Ok((camera_id, mount_id))
 }
 
-
 /// Focal length the guide camera sees through: the guide scope's when the
 /// profile names one, otherwise the telescope's (an off-axis guider).
 pub(crate) fn guide_focal_length_mm(profile: &crate::state::EquipmentProfile) -> f64 {

@@ -118,7 +118,7 @@ impl MountDriver for SerialMount {
 }
 
 async fn manager_with(device_id: &str, mount: SerialMount) -> Arc<DeviceManager> {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     manager
         .register_device(
             DeviceInfo {

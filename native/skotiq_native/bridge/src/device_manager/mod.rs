@@ -140,6 +140,9 @@ pub struct ManagedDevice {
 
 /// The Device Manager handles all device connections
 pub struct DeviceManager {
+    /// This manager, for the tasks it spawns (a device's heartbeat).
+    me: std::sync::Weak<DeviceManager>,
+
     /// Application state for publishing events
     pub(crate) app_state: SharedAppState,
 
@@ -375,7 +378,28 @@ impl DeviceManager {
 impl DeviceManager {
     /// Create a new device manager
     pub fn new(app_state: SharedAppState) -> Arc<Self> {
-        let manager = Arc::new(Self {
+        let manager = Self::without_reconnection(app_state);
+
+        // Start the reconnection background task
+        // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
+        let manager_clone = Arc::clone(&manager);
+        // Get the runtime handle and spawn the task
+        // We use the crate-level runtime which must be initialized first
+        if let Ok(runtime) = crate::ensure_runtime() {
+            runtime.handle().spawn(async move {
+                manager_clone.reconnection_loop().await;
+            });
+        } else {
+            tracing::error!("Cannot start reconnection loop: runtime initialization failed");
+        }
+
+        manager
+    }
+
+    /// A manager with no reconnection task running.
+    pub(crate) fn without_reconnection(app_state: SharedAppState) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
+            me: me.clone(),
             app_state,
             devices: RwLock::new(HashMap::new()),
             observed_identities: RwLock::new(HashMap::new()),
@@ -396,22 +420,7 @@ impl DeviceManager {
             retained_captures: Default::default(),
             stated_frame_defaults: Default::default(),
             unlisted_read_mode_notices: Default::default(),
-        });
-
-        // Start the reconnection background task
-        // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
-        let manager_clone = Arc::clone(&manager);
-        // Get the runtime handle and spawn the task
-        // We use the crate-level runtime which must be initialized first
-        if let Ok(runtime) = crate::ensure_runtime() {
-            runtime.handle().spawn(async move {
-                manager_clone.reconnection_loop().await;
-            });
-        } else {
-            tracing::error!("Cannot start reconnection loop: runtime initialization failed");
-        }
-
-        manager
+        })
     }
 
     /// Get devices by type, in [`listing_order`].
