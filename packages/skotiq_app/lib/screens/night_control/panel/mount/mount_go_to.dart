@@ -369,10 +369,6 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
     final result = (await ref.read(centeringRunProvider).center(
           raHours: to.ra,
           decDegrees: to.dec,
-          policy: const CenteringRunPolicy(
-            publishOutcome: false,
-            recordResult: false,
-          ),
         ))!;
     if (!result.success) {
       return CommandActionResult.failure(

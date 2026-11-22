@@ -115,25 +115,25 @@ const Map<String, Map<_Outcome, _Left>> expected = {
   },
   'mountTab': {
     _Outcome.centered: (
-      state: CenteringState.solving,
-      message: 'Plate solving…',
-      recorded: null,
+      state: CenteringState.completed,
+      message: 'Centered',
+      recorded: true,
     ),
     _Outcome.failed: (
-      state: CenteringState.solving,
-      message: 'Plate solving…',
-      recorded: null,
+      state: CenteringState.error,
+      message: 'No plate solution',
+      recorded: false,
     ),
   },
   'dialog': {
     _Outcome.centered: (
-      state: CenteringState.solving,
-      message: 'Plate solving…',
+      state: CenteringState.completed,
+      message: 'Centered',
       recorded: true,
     ),
     _Outcome.failed: (
-      state: CenteringState.solving,
-      message: 'Plate solving…',
+      state: CenteringState.error,
+      message: 'No plate solution',
       recorded: false,
     ),
     _Outcome.threw: (

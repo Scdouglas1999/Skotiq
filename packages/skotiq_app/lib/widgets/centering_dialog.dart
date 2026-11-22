@@ -516,10 +516,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
             raHours: widget.targetRa!,
             decDegrees: widget.targetDec!,
             exposureSeconds: exposureTime,
-            policy: const CenteringRunPolicy(
-              publishOutcome: false,
-              recordResult: true,
-            ),
             isCurrent: () => host.isCurrent,
           );
       if (result == null) return;

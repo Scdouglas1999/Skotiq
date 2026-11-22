@@ -226,10 +226,6 @@ class ServiceNightRigOps implements NightRigOps {
     final result = await _ref.read(centeringRunProvider).center(
           raHours: target.raHours,
           decDegrees: target.decDegrees,
-          policy: const CenteringRunPolicy(
-            publishOutcome: true,
-            recordResult: true,
-          ),
         );
     return result!;
   }

@@ -13,20 +13,6 @@ import 'centering_service_providers.dart';
 import 'profiles_provider.dart';
 import 'settings_provider.dart';
 
-/// What a manual centering run publishes besides its progress.
-class CenteringRunPolicy {
-  const CenteringRunPolicy({
-    required this.publishOutcome,
-    required this.recordResult,
-  });
-
-  /// The status ends on the run's outcome instead of its last move.
-  final bool publishOutcome;
-
-  /// The result becomes the last centering result.
-  final bool recordResult;
-}
-
 /// The one writer of the centering status and the last centering result:
 /// a centering the operator starts by hand, a run's Center step, and the
 /// state a linked host or client mirrors in.
@@ -40,12 +26,13 @@ class CenteringRun {
 
   /// Slews to and centers on RA [raHours] / Dec [decDegrees] (J2000) with
   /// [ManualCentering], the solve exposure [exposureSeconds] or the
-  /// profile's. Null when [isCurrent] turns false before the run starts.
+  /// profile's. The status ends on the outcome and the result becomes the
+  /// last centering result, which the recent-solves list and every linked
+  /// window read. Null when [isCurrent] turns false before the run starts.
   /// While [isCurrent] is false the run publishes nothing.
   Future<CenteringResult?> center({
     required double raHours,
     required double decDegrees,
-    required CenteringRunPolicy policy,
     double? exposureSeconds,
     bool Function()? isCurrent,
   }) async {
@@ -67,19 +54,15 @@ class CenteringRun {
           },
         );
     if (!current()) return result;
-    if (policy.publishOutcome) {
-      // The loop's last status update is its last move, not its outcome.
-      _status.state = _status.state.copyWith(
-        state: result.success ? CenteringState.completed : CenteringState.error,
-        currentIteration: result.iterations,
-        currentOffsetArcsec: result.finalOffsetArcsec,
-        message: result.success ? 'Centered' : result.errorMessage,
-        iterationHistory: result.iterationHistory,
-      );
-    }
-    if (policy.recordResult) {
-      _ref.read(lastCenteringResultProvider.notifier).state = result;
-    }
+    // The loop's last status update is its last move, not its outcome.
+    _status.state = _status.state.copyWith(
+      state: result.success ? CenteringState.completed : CenteringState.error,
+      currentIteration: result.iterations,
+      currentOffsetArcsec: result.finalOffsetArcsec,
+      message: result.success ? 'Centered' : result.errorMessage,
+      iterationHistory: result.iterationHistory,
+    );
+    _ref.read(lastCenteringResultProvider.notifier).state = result;
     return result;
   }
 
