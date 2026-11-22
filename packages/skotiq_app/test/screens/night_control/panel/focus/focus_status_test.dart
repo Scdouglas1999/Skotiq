@@ -8,7 +8,7 @@ void main() {
         isRunning: false,
         hasError: false,
         hasResult: false,
-        status: 'Autofocus cancelled',
+        cancelled: true,
       ),
       NightAutofocusStatus.cancelled,
     );
@@ -17,7 +17,7 @@ void main() {
         isRunning: false,
         hasError: true,
         hasResult: false,
-        status: 'Failed: no stars',
+        cancelled: false,
       ),
       NightAutofocusStatus.failed,
     );
@@ -26,7 +26,7 @@ void main() {
         isRunning: false,
         hasError: false,
         hasResult: false,
-        status: '',
+        cancelled: false,
       ),
       NightAutofocusStatus.idle,
     );

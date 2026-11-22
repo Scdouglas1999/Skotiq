@@ -1,4 +1,4 @@
-use skotiq_sequencer::{ExecutorState, SequenceProgress};
+use skotiq_sequencer::SequenceProgress;
 
 pub mod event_bridge;
 pub mod event_translation;
@@ -24,20 +24,7 @@ pub struct SequencerState {
 
 impl From<SequenceProgress> for SequencerState {
     fn from(p: SequenceProgress) -> Self {
-        let state_str = match p.state {
-            ExecutorState::Idle => "idle",
-            ExecutorState::Running => "running",
-            ExecutorState::Paused => "paused",
-            ExecutorState::Stopping => "stopping",
-            ExecutorState::Cancelled => "cancelled",
-            ExecutorState::Completed => "completed",
-            ExecutorState::Failed => "failed",
-            // Recovery Mode — new first-class state. The string
-            // mirror is kept stable so any subscriber that switches on
-            // `state.state == "recovering"` can render the Run Dashboard
-            // LED without a typed enum import.
-            ExecutorState::Recovering => "recovering",
-        };
+        let state_str = p.state.as_wire();
         Self {
             state: state_str.to_string(),
             current_node_id: p.current_node_id,

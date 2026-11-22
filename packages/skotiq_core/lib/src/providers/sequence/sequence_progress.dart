@@ -112,11 +112,13 @@ SequenceStopDecision? runEventStopEvidence(SequencerEvent event) {
       :final triggerId,
       :final triggerName,
       :final action,
+      :final nightEnd,
     ):
       return sequenceStopTriggerDecision(
         triggerId: triggerId,
         triggerName: triggerName,
         action: action,
+        nightEnd: nightEnd,
       );
     // A decision row missing its category or summary names nobody, rather
     // than falling through as a blank category.

@@ -70,10 +70,9 @@ pub(in super::super) async fn run(request: AutofocusRequest<'_>) -> ActionFlow {
     let completed_node_id = progress_node_id.clone();
     // A synthesized node has no tree entry to name it, so it names itself in
     // the shape a tree node uses before it reports progress.
-    progress_context.send_progress(ProgressUpdate::lifecycle(
+    progress_context.send_progress(ProgressUpdate::node_entry(
         progress_node_id.clone(),
-        NodeStatus::Running,
-        format!("Executing: Autofocus ({trigger_name})"),
+        format!("Autofocus ({trigger_name})"),
     ));
     // Admission is taken here so a refocus turned away by another autofocus
     // is told apart from one that ran and failed. It moved nothing, so the

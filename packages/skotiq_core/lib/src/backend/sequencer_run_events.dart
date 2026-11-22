@@ -84,13 +84,10 @@ extension StepReport on SequencerEvent_InstructionProgress {
 
   /// The running filter's name, which only a Change Filter instruction puts
   /// on the wire; null for every other report.
-  String? get changedFilterName {
-    if (detailKind != 'Filter') return null;
-    final json = detailValue;
-    if (json is! Map) return null;
-    final name = json['name'];
-    return name is String && name.isNotEmpty ? name : null;
-  }
+  String? get changedFilterName => switch (report) {
+    FilterInstructionProgressDetail(:final name) when name.isNotEmpty => name,
+    _ => null,
+  };
 }
 
 extension FrameWatchReading on SequencerEvent_FrameWatchReport {

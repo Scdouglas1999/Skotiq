@@ -8,6 +8,7 @@ use crate::device_manager::get_device_manager;
 use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
+use crate::guider::GuiderState;
 use crate::state::get_state;
 use std::sync::Arc;
 use std::time::Duration;
@@ -817,21 +818,20 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
 
     let pixel_scale = known_pixel_scale(client.get_pixel_scale());
 
-    // Why: forward the raw PHD2 state name when unrecognised so the desktop
-    // UI can render "PHD2 says: GuidingPaused" instead of pretending
-    // everything is fine. Known variants stay as &'static str literals;
-    // Unknown owns its String, so we convert to String at the join point.
+    // A state PHD2 names that this build does not know is forwarded as PHD2
+    // spells it, so the app can show it rather than pretend all is well.
     let state_str: String = match state {
-        skotiq_phd2::Phd2State::Disconnected => "Disconnected".to_string(),
-        skotiq_phd2::Phd2State::Connected => "Connected".to_string(),
-        skotiq_phd2::Phd2State::Calibrating => "Calibrating".to_string(),
-        skotiq_phd2::Phd2State::Guiding => "Guiding".to_string(),
-        skotiq_phd2::Phd2State::Looping => "Looping".to_string(),
-        skotiq_phd2::Phd2State::Paused => "Paused".to_string(),
-        skotiq_phd2::Phd2State::Settling => "Settling".to_string(),
-        skotiq_phd2::Phd2State::LostLock => "LostLock".to_string(),
-        skotiq_phd2::Phd2State::Unknown(raw) => raw,
-    };
+        skotiq_phd2::Phd2State::Disconnected => GuiderState::Disconnected,
+        skotiq_phd2::Phd2State::Connected => GuiderState::Connected,
+        skotiq_phd2::Phd2State::Calibrating => GuiderState::Calibrating,
+        skotiq_phd2::Phd2State::Guiding => GuiderState::Guiding,
+        skotiq_phd2::Phd2State::Looping => GuiderState::Looping,
+        skotiq_phd2::Phd2State::Paused => GuiderState::Paused,
+        skotiq_phd2::Phd2State::Settling => GuiderState::Settling,
+        skotiq_phd2::Phd2State::LostLock => GuiderState::LostLock,
+        skotiq_phd2::Phd2State::Unknown(raw) => GuiderState::Unknown(raw),
+    }
+    .into();
 
     // Report the real rolling guide statistics accumulated from the PHD2
     // GuideStep event stream. Returning hardcoded 0.0 here is a silent

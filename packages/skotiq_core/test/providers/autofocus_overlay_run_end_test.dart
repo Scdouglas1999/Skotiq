@@ -259,6 +259,7 @@ void main() {
       expect(state.isRunning, isFalse);
       expect(state.hasError, isFalse);
       expect(state.status, 'Autofocus cancelled');
+      expect(state.cancelled, isTrue);
     });
 
     test('an outcome for no running sweep changes nothing', () async {
@@ -368,6 +369,24 @@ void main() {
       async.elapse(AutofocusOverlayNotifier.resultAutoDismissDelay * 3);
       expect(container.read(autofocusOverlayProvider).isVisible, isTrue);
       expect(container.read(autofocusOverlayProvider).hasError, isTrue);
+      container.dispose();
+    });
+  });
+
+  test('a cancel stays the outcome until the status says something else', () {
+    fakeAsync((async) {
+      final container = fakeAsyncContainer();
+      final notifier = container.read(autofocusOverlayProvider.notifier);
+      notifier.onAutofocusStarted();
+      notifier.onAutofocusCancelled();
+      expect(container.read(autofocusOverlayProvider).cancelled, isTrue);
+      notifier.toggleMinimized();
+      expect(container.read(autofocusOverlayProvider).cancelled, isTrue);
+      notifier.onAutofocusStarted();
+      expect(container.read(autofocusOverlayProvider).cancelled, isFalse);
+      notifier.onAutofocusCancelled();
+      notifier.onAutofocusFailed('no stars');
+      expect(container.read(autofocusOverlayProvider).cancelled, isFalse);
       container.dispose();
     });
   });

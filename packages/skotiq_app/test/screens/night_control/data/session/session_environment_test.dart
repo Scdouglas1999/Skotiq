@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
@@ -783,6 +785,15 @@ void main() {
         guider.details.first.key,
         'nightScopeGuideHeld_tracking_limit_hold',
       );
+    });
+
+    test('every reason the guider names has its own words', () {
+      final l10n = SkotiqLocalizations(const Locale('en'));
+      for (final reason in GuidingStopReason.values) {
+        final text = nightGuideStopReason(reason.wire);
+        expect(text.key, 'nightScopeGuideHeld_${reason.wire}');
+        expect(l10n.text(text.key), reason.text, reason: reason.wire);
+      }
     });
 
     test('a reason the app has no words for is shown as given', () async {

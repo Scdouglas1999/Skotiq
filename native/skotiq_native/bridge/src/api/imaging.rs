@@ -307,14 +307,10 @@ pub async fn api_run_autofocus(
         let Some(sweep) = progress.sweep() else {
             return;
         };
-        get_state().publish_equipment_event(
-            EquipmentEvent::PropertyChanged {
-                device_type: "focuser".to_string(),
-                device_id: progress_focuser_id.clone(),
-                property: "AutofocusProgress".to_string(),
-                value: sweep.to_json(),
-            },
-            EventSeverity::Info,
+        crate::util::executor_event_bridge::publish_autofocus_progress(
+            get_state(),
+            &progress_focuser_id,
+            sweep.to_json(),
         );
     };
 

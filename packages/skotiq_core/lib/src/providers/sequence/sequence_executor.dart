@@ -83,8 +83,7 @@ export 'sequence_executor/stop_confirmation.dart'
     show
         NativeStopConfirmer,
         kNativeStopConfirmationPollInterval,
-        kNativeStopConfirmationTimeout,
-        kNativeTerminalStates;
+        kNativeStopConfirmationTimeout;
 
 /// Sequence executor that manages execution.
 ///
@@ -882,7 +881,7 @@ class SequenceExecutor {
         // a busy executor refuses it, and ending a live run's session on the
         // way to that refusal would corrupt the run still in progress.
         final state = (await _backend.sequencerGetStatus()).state;
-        if (_nativeRunInProgressStates.contains(state)) {
+        if (NativeRunState.parse(state).isUnderWay) {
           _logger.warning(
             'A session is open and the native executor reports "$state"; '
             'leaving the session alone and letting the start be refused',
@@ -1813,10 +1812,10 @@ class SequenceExecutor {
       if (!confirmed) {
         // A pause placed during a recovery that is still under way only
         // withdraws: the run goes back to `recovering`, not `running`.
-        final state = (await backend.sequencerGetStatus()).state.toLowerCase();
-        if (state == 'running') {
+        final state = (await backend.sequencerGetStatus()).runState;
+        if (state == NativeRunState.running) {
           _setExecutionState(SequenceExecutionState.running);
-        } else if (state != 'recovering') {
+        } else if (state != NativeRunState.recovering) {
           throw Exception('Resume operation timed out - state not confirmed');
         }
       }
@@ -2563,12 +2562,6 @@ class SequenceExecutor {
 
 /// Native executor states that mean a run is still under way, as
 /// `api/sequencer.rs` serializes them.
-const _nativeRunInProgressStates = <String>{
-  'running',
-  'paused',
-  'stopping',
-  'recovering',
-};
 
 /// What a run of a tree loaded straight into the native executor is filed
 /// under: the editor holds no plan to take a name, coordinates or a frame

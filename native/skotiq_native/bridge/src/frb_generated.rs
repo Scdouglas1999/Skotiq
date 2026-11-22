@@ -7910,6 +7910,16 @@ impl CstDecode<crate::event::sequencer::SequencerErrorKind> for i32 {
         }
     }
 }
+impl CstDecode<crate::event::sequencer::SequencerNightEnd> for i32 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::event::sequencer::SequencerNightEnd {
+        match self {
+            0 => crate::event::sequencer::SequencerNightEnd::Dawn,
+            1 => crate::event::sequencer::SequencerNightEnd::Obstruction,
+            _ => unreachable!("Invalid variant for SequencerNightEnd: {}", self),
+        }
+    }
+}
 impl CstDecode<crate::event::sequencer::SequencerTriggerAction> for i32 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> crate::event::sequencer::SequencerTriggerAction {
@@ -11853,6 +11863,19 @@ impl SseDecode for Option<crate::device::PierSide> {
     }
 }
 
+impl SseDecode for Option<crate::event::sequencer::SequencerNightEnd> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::event::sequencer::SequencerNightEnd>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::event::sequencer::SequencerNotice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12694,10 +12717,13 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
                 let mut var_triggerName = <String>::sse_decode(deserializer);
                 let mut var_action =
                     <crate::event::sequencer::SequencerTriggerAction>::sse_decode(deserializer);
+                let mut var_nightEnd =
+                    <Option<crate::event::sequencer::SequencerNightEnd>>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::TriggerFired {
                     trigger_id: var_triggerId,
                     trigger_name: var_triggerName,
                     action: var_action,
+                    night_end: var_nightEnd,
                 };
             }
             16 => {
@@ -13090,6 +13116,18 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
     }
 }
 
+impl SseDecode for crate::event::sequencer::SequencerNightEnd {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::event::sequencer::SequencerNightEnd::Dawn,
+            1 => crate::event::sequencer::SequencerNightEnd::Obstruction,
+            _ => unreachable!("Invalid variant for SequencerNightEnd: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::event::sequencer::SequencerNotice {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13172,9 +13210,12 @@ impl SseDecode for crate::event::sequencer::SequencerStop {
             4 => {
                 let mut var_triggerId = <String>::sse_decode(deserializer);
                 let mut var_triggerName = <String>::sse_decode(deserializer);
+                let mut var_nightEnd =
+                    <Option<crate::event::sequencer::SequencerNightEnd>>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerStop::Trigger {
                     trigger_id: var_triggerId,
                     trigger_name: var_triggerName,
+                    night_end: var_nightEnd,
                 };
             }
             _ => {
@@ -17752,11 +17793,13 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
                 trigger_id,
                 trigger_name,
                 action,
+                night_end,
             } => [
                 15.into_dart(),
                 trigger_id.into_into_dart().into_dart(),
                 trigger_name.into_into_dart().into_dart(),
                 action.into_into_dart().into_dart(),
+                night_end.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::sequencer::SequencerEvent::InstructionProgress {
@@ -18167,6 +18210,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerEvent>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerNightEnd {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Dawn => 0.into_dart(),
+            Self::Obstruction => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::event::sequencer::SequencerNightEnd
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerNightEnd>
+    for crate::event::sequencer::SequencerNightEnd
+{
+    fn into_into_dart(self) -> crate::event::sequencer::SequencerNightEnd {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerNotice {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -18248,10 +18312,12 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerStop {
             crate::event::sequencer::SequencerStop::Trigger {
                 trigger_id,
                 trigger_name,
+                night_end,
             } => [
                 4.into_dart(),
                 trigger_id.into_into_dart().into_dart(),
                 trigger_name.into_into_dart().into_dart(),
+                night_end.into_into_dart().into_dart(),
             ]
             .into_dart(),
             _ => {
@@ -21742,6 +21808,16 @@ impl SseEncode for Option<crate::device::PierSide> {
     }
 }
 
+impl SseEncode for Option<crate::event::sequencer::SequencerNightEnd> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::event::sequencer::SequencerNightEnd>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::event::sequencer::SequencerNotice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22352,11 +22428,15 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 trigger_id,
                 trigger_name,
                 action,
+                night_end,
             } => {
                 <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(trigger_id, serializer);
                 <String>::sse_encode(trigger_name, serializer);
                 <crate::event::sequencer::SequencerTriggerAction>::sse_encode(action, serializer);
+                <Option<crate::event::sequencer::SequencerNightEnd>>::sse_encode(
+                    night_end, serializer,
+                );
             }
             crate::event::sequencer::SequencerEvent::InstructionProgress {
                 node_id,
@@ -22738,6 +22818,22 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
     }
 }
 
+impl SseEncode for crate::event::sequencer::SequencerNightEnd {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::event::sequencer::SequencerNightEnd::Dawn => 0,
+                crate::event::sequencer::SequencerNightEnd::Obstruction => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::event::sequencer::SequencerNotice {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22802,10 +22898,14 @@ impl SseEncode for crate::event::sequencer::SequencerStop {
             crate::event::sequencer::SequencerStop::Trigger {
                 trigger_id,
                 trigger_name,
+                night_end,
             } => {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(trigger_id, serializer);
                 <String>::sse_encode(trigger_name, serializer);
+                <Option<crate::event::sequencer::SequencerNightEnd>>::sse_encode(
+                    night_end, serializer,
+                );
             }
             _ => {
                 unimplemented!("");
@@ -24427,6 +24527,13 @@ mod io {
         fn cst_decode(self) -> crate::event::sequencer::SequencerEvent {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::event::sequencer::SequencerEvent>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::event::sequencer::SequencerNightEnd> for *mut i32 {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::event::sequencer::SequencerNightEnd {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::event::sequencer::SequencerNightEnd>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::event::sequencer::SequencerNotice> for *mut wire_cst_sequencer_notice {
@@ -26798,6 +26905,7 @@ mod io {
                         trigger_id: ans.trigger_id.cst_decode(),
                         trigger_name: ans.trigger_name.cst_decode(),
                         action: ans.action.cst_decode(),
+                        night_end: ans.night_end.cst_decode(),
                     }
                 }
                 16 => {
@@ -27109,6 +27217,7 @@ mod io {
                     crate::event::sequencer::SequencerStop::Trigger {
                         trigger_id: ans.trigger_id.cst_decode(),
                         trigger_name: ans.trigger_name.cst_decode(),
+                        night_end: ans.night_end.cst_decode(),
                     }
                 }
                 _ => unreachable!(),
@@ -33236,6 +33345,13 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_night_end(
+        value: i32,
+    ) -> *mut i32 {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(
     ) -> *mut wire_cst_sequencer_notice {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
@@ -36193,6 +36309,7 @@ mod io {
         trigger_id: *mut wire_cst_list_prim_u_8_strict,
         trigger_name: *mut wire_cst_list_prim_u_8_strict,
         action: i32,
+        night_end: *mut i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -36484,6 +36601,7 @@ mod io {
     pub struct wire_cst_SequencerStop_Trigger {
         trigger_id: *mut wire_cst_list_prim_u_8_strict,
         trigger_name: *mut wire_cst_list_prim_u_8_strict,
+        night_end: *mut i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

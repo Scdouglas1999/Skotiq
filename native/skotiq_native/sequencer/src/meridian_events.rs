@@ -275,4 +275,82 @@ mod tests {
         );
         assert_eq!(meridian_offset_phrase(0.0), "0.0 minutes past the meridian");
     }
+
+    /// The app reads the flip's steps by these names and fields; its
+    /// `meridian_flip_event_test.dart` decodes the same file.
+    #[test]
+    fn flip_events_match_the_app() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/meridian_flip_events.json"
+        ))
+        .expect("the fixture is JSON");
+        let steps = [
+            FlipStep::PausingGuider,
+            FlipStep::EnablingTracking,
+            FlipStep::SlewingToTarget,
+            FlipStep::VerifyingPierSide,
+            FlipStep::ConfirmingTracking,
+            FlipStep::PlateSolvingAndCentering,
+            FlipStep::Refocusing,
+            FlipStep::ResumingGuider,
+            FlipStep::Settling,
+        ];
+        // Every step is listed, so a new one fails here until the app has it.
+        for step in steps {
+            match step {
+                FlipStep::PausingGuider
+                | FlipStep::EnablingTracking
+                | FlipStep::SlewingToTarget
+                | FlipStep::VerifyingPierSide
+                | FlipStep::ConfirmingTracking
+                | FlipStep::PlateSolvingAndCentering
+                | FlipStep::Refocusing
+                | FlipStep::ResumingGuider
+                | FlipStep::Settling => {}
+            }
+        }
+        let mut sent = vec![MeridianFlipEvent::Starting {
+            target_name: "M31".to_string(),
+            from_pier_side: PierSide::East,
+            hour_angle: 0.25,
+        }];
+        sent.extend(
+            steps
+                .iter()
+                .enumerate()
+                .map(|(index, step)| MeridianFlipEvent::StepStarted {
+                    step: *step,
+                    step_index: index as u8,
+                    total_steps: steps.len() as u8,
+                }),
+        );
+        sent.extend([
+            MeridianFlipEvent::StepCompleted {
+                step: FlipStep::Settling,
+                duration_secs: Some(12.5),
+            },
+            MeridianFlipEvent::StepFailed {
+                step: FlipStep::SlewingToTarget,
+                error: "slew timed out".to_string(),
+            },
+            MeridianFlipEvent::Progress { percent: 40 },
+            MeridianFlipEvent::RetryScheduled {
+                attempt: 1,
+                max_attempts: 3,
+                delay_secs: 60.0,
+            },
+            MeridianFlipEvent::Completed {
+                new_pier_side: PierSide::West,
+                duration_secs: 185.0,
+            },
+            MeridianFlipEvent::Failed {
+                error: "pier side did not change".to_string(),
+                action_taken: "parked".to_string(),
+            },
+            MeridianFlipEvent::Aborted {
+                reason: "run stopped".to_string(),
+            },
+        ]);
+        assert_eq!(serde_json::to_value(&sent).unwrap(), expected);
+    }
 }

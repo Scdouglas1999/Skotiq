@@ -401,6 +401,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SequencerEvent dco_decode_box_autoadd_sequencer_event(dynamic raw);
 
   @protected
+  SequencerNightEnd dco_decode_box_autoadd_sequencer_night_end(dynamic raw);
+
+  @protected
   SequencerNotice dco_decode_box_autoadd_sequencer_notice(dynamic raw);
 
   @protected
@@ -846,6 +849,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PierSide? dco_decode_opt_box_autoadd_pier_side(dynamic raw);
 
   @protected
+  SequencerNightEnd? dco_decode_opt_box_autoadd_sequencer_night_end(
+    dynamic raw,
+  );
+
+  @protected
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw);
 
   @protected
@@ -967,6 +975,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent dco_decode_sequencer_event(dynamic raw);
+
+  @protected
+  SequencerNightEnd dco_decode_sequencer_night_end(dynamic raw);
 
   @protected
   SequencerNotice dco_decode_sequencer_notice(dynamic raw);
@@ -1465,6 +1476,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent sse_decode_box_autoadd_sequencer_event(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SequencerNightEnd sse_decode_box_autoadd_sequencer_night_end(
     SseDeserializer deserializer,
   );
 
@@ -2016,6 +2032,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PierSide? sse_decode_opt_box_autoadd_pier_side(SseDeserializer deserializer);
 
   @protected
+  SequencerNightEnd? sse_decode_opt_box_autoadd_sequencer_night_end(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   );
@@ -2179,6 +2200,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SequencerEvent sse_decode_sequencer_event(SseDeserializer deserializer);
+
+  @protected
+  SequencerNightEnd sse_decode_sequencer_night_end(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer);
@@ -2819,6 +2845,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     final ptr = wire.cst_new_box_autoadd_sequencer_event();
     cst_api_fill_to_wire_sequencer_event(raw, ptr.ref);
     return ptr;
+  }
+
+  @protected
+  ffi.Pointer<ffi.Int32> cst_encode_box_autoadd_sequencer_night_end(
+    SequencerNightEnd raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return wire.cst_new_box_autoadd_sequencer_night_end(
+      cst_encode_sequencer_night_end(raw),
+    );
   }
 
   @protected
@@ -3554,6 +3590,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_pier_side(PierSide? raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return raw == null ? ffi.nullptr : cst_encode_box_autoadd_pier_side(raw);
+  }
+
+  @protected
+  ffi.Pointer<ffi.Int32> cst_encode_opt_box_autoadd_sequencer_night_end(
+    SequencerNightEnd? raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return raw == null
+        ? ffi.nullptr
+        : cst_encode_box_autoadd_sequencer_night_end(raw);
   }
 
   @protected
@@ -6899,10 +6945,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_trigger_id = cst_encode_String(apiObj.triggerId);
       var pre_trigger_name = cst_encode_String(apiObj.triggerName);
       var pre_action = cst_encode_sequencer_trigger_action(apiObj.action);
+      var pre_night_end = cst_encode_opt_box_autoadd_sequencer_night_end(
+        apiObj.nightEnd,
+      );
       wireObj.tag = 15;
       wireObj.kind.TriggerFired.trigger_id = pre_trigger_id;
       wireObj.kind.TriggerFired.trigger_name = pre_trigger_name;
       wireObj.kind.TriggerFired.action = pre_action;
+      wireObj.kind.TriggerFired.night_end = pre_night_end;
       return;
     }
     if (apiObj is SequencerEvent_InstructionProgress) {
@@ -7423,9 +7473,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SequencerStop_Trigger) {
       var pre_trigger_id = cst_encode_String(apiObj.triggerId);
       var pre_trigger_name = cst_encode_String(apiObj.triggerName);
+      var pre_night_end = cst_encode_opt_box_autoadd_sequencer_night_end(
+        apiObj.nightEnd,
+      );
       wireObj.tag = 4;
       wireObj.kind.Trigger.trigger_id = pre_trigger_id;
       wireObj.kind.Trigger.trigger_name = pre_trigger_name;
+      wireObj.kind.Trigger.night_end = pre_night_end;
       return;
     }
   }
@@ -7964,6 +8018,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
+
+  @protected
+  int cst_encode_sequencer_night_end(SequencerNightEnd raw);
 
   @protected
   int cst_encode_sequencer_trigger_action(SequencerTriggerAction raw);
@@ -8526,6 +8583,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_sequencer_event(
     SequencerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_night_end(
+    SequencerNightEnd self,
     SseSerializer serializer,
   );
 
@@ -9253,6 +9316,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_night_end(
+    SequencerNightEnd? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_sequencer_notice(
     SequencerNotice? self,
     SseSerializer serializer,
@@ -9456,6 +9525,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_sequencer_event(
     SequencerEvent self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sequencer_night_end(
+    SequencerNightEnd self,
     SseSerializer serializer,
   );
 
@@ -18510,6 +18585,18 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_sequencer_eventPtr
           .asFunction<ffi.Pointer<wire_cst_sequencer_event> Function()>();
 
+  ffi.Pointer<ffi.Int32> cst_new_box_autoadd_sequencer_night_end(int value) {
+    return _cst_new_box_autoadd_sequencer_night_end(value);
+  }
+
+  late final _cst_new_box_autoadd_sequencer_night_endPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Int32> Function(ffi.Int32)>>(
+        'frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_night_end',
+      );
+  late final _cst_new_box_autoadd_sequencer_night_end =
+      _cst_new_box_autoadd_sequencer_night_endPtr
+          .asFunction<ffi.Pointer<ffi.Int32> Function(int)>();
+
   ffi.Pointer<wire_cst_sequencer_notice>
   cst_new_box_autoadd_sequencer_notice() {
     return _cst_new_box_autoadd_sequencer_notice();
@@ -21452,6 +21539,8 @@ final class wire_cst_SequencerEvent_TriggerFired extends ffi.Struct {
 
   @ffi.Int32()
   external int action;
+
+  external ffi.Pointer<ffi.Int32> night_end;
 }
 
 final class wire_cst_SequencerEvent_InstructionProgress extends ffi.Struct {
@@ -21860,6 +21949,8 @@ final class wire_cst_SequencerStop_Trigger extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_id;
 
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> trigger_name;
+
+  external ffi.Pointer<ffi.Int32> night_end;
 }
 
 final class SequencerStopKind extends ffi.Union {

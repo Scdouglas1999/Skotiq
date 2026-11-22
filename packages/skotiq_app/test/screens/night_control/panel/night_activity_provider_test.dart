@@ -57,16 +57,26 @@ void main() {
   test('nested focus, centering and flip own their camera exposures', () {
     final exposure = ExposureNode(id: 'capture', durationSecs: 180, count: 60);
     for (final (detail, expected) in [
-      ('Autofocus', NightActivityKind.focus),
-      ('Center', NightActivityKind.center),
-      ('Exposure', NightActivityKind.capture),
+      (
+        const AutofocusInstructionProgressDetail(step: 2, totalSteps: 9),
+        NightActivityKind.focus
+      ),
+      (
+        const CenterInstructionProgressDetail(attempt: 1, maxAttempts: 3),
+        NightActivityKind.center
+      ),
+      (
+        const ExposureInstructionProgressDetail(
+            frame: 1, total: 60, durationSecs: 180),
+        NightActivityKind.capture
+      ),
     ]) {
       expect(
           resolveNightActivity(
               phase: NightRunPhase.running,
               execution: SequenceExecutionState.running,
               node: exposure,
-              detailKind: detail,
+              detail: detail,
               exposing: true),
           expected);
     }
@@ -132,14 +142,14 @@ void main() {
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.capture);
     progress.updateNodeStructuredProgress(node.id, 40,
-        const UnknownInstructionProgressDetail(kind: 'Autofocus', rawJson: {}));
+        const AutofocusInstructionProgressDetail(step: 2, totalSteps: 9));
     expect(container.read(nightActivityProvider).kind, NightActivityKind.focus);
     progress.updateNodeStatus(node.id, NodeStatus.success);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.capture);
     progress.updateNodeStatus(node.id, NodeStatus.running);
     progress.updateNodeStructuredProgress(node.id, 100,
-        const UnknownInstructionProgressDetail(kind: 'Autofocus', rawJson: {}));
+        const AutofocusInstructionProgressDetail(step: 9, totalSteps: 9));
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.capture);
     container.read(exposureProgressProvider.notifier).startDownload();
@@ -149,6 +159,45 @@ void main() {
         .setLifecycle(SequenceExecutionState.recovering);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.recovery);
+  });
+
+  test('a run frame the camera exposes reads as capturing, with progress',
+      () {
+    // A run's frame is taken by the native camera, not the app's capture
+    // service; the host follows it from the camera's own events.
+    final node = ExposureNode(id: 'capture', durationSecs: 180, count: 60);
+    final container = ProviderContainer(overrides: [
+      activeEquipmentProfileProvider.overrideWithValue(null),
+      nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
+      nightActiveStepProvider.overrideWithValue(NightPlanEntry(
+          node: node, depth: 0, multiplier: 1, openEnded: false)),
+    ]);
+    addTearDown(container.dispose);
+    final progress = container.read(runRecordProvider.notifier);
+    progress.setLifecycle(SequenceExecutionState.running);
+    final subscription = container.listen(nightActivityProvider, (_, next) {});
+    addTearDown(subscription.close);
+    progress.updateProgress(currentNodeId: node.id);
+    progress.updateNodeStructuredProgress(
+        node.id,
+        10,
+        const ExposureInstructionProgressDetail(
+            frame: 3, total: 60, durationSecs: 180));
+    SkotiqEvent camera(String type, Map<String, dynamic> data) => SkotiqEvent(
+          timestamp: 0,
+          category: EventCategory.imaging,
+          eventType: type,
+          severity: EventSeverity.info,
+          data: data,
+        );
+    followHostCameraExposure(
+        container, camera('ExposureStarted', {'duration_secs': 180.0, 'frame_type': 'light'}));
+    followHostCameraExposure(container,
+        camera('ExposureProgress', {'progress': 0.25, 'remainingSecs': 135.0}));
+    final vm = container.read(nightActivityProvider);
+    expect(vm.kind, NightActivityKind.capture);
+    expect(vm.title.key, 'nightActivityCapture');
+    expect(vm.progress, closeTo(0.25, 1e-9));
   });
 
   test('centering transitions use current telemetry, never an old solve result',
@@ -173,11 +222,8 @@ void main() {
     p.updateNodeStructuredProgress(
         'center',
         20,
-        const UnknownInstructionProgressDetail(kind: 'Center', rawJson: {
-          'attempt': 2,
-          'max_attempts': 5,
-          'last_separation_arcsec': 35.4,
-        }));
+        const CenterInstructionProgressDetail(
+            attempt: 2, maxAttempts: 5, lastSeparationArcsec: 35.4));
     var vm = container.read(nightActivityProvider);
     expect(vm.kind, NightActivityKind.center);
     expect(vm.metrics.map((m) => m.value), contains('35.4″'));
@@ -224,12 +270,19 @@ void main() {
         'trigger:flip',
         50,
         InstructionProgressDetail.fromStructuredData(
-            detailKind: 'MeridianFlip',
-            detailJson: const {'phase': 'Verifying tracking'}));
+            detailKind: kMeridianFlipProgressDetailKind,
+            detailJson: const {
+              'StepStarted': {
+                'step': 'VerifyingPierSide',
+                'step_index': 3,
+                'total_steps': 9,
+              },
+            }));
+    progress.updateNodeProgress('trigger:flip', 50, 'Meridian flip');
     final vm = container.read(nightActivityProvider);
     expect(vm.kind, NightActivityKind.flip);
     expect(vm.progress, 0.5);
-    expect(vm.detail, 'Verifying tracking');
+    expect(vm.detail, 'Meridian flip');
     progress.updateNodeStatus('trigger:flip', NodeStatus.success);
     expect(
         container.read(nightActivityProvider).kind, NightActivityKind.capture);

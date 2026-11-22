@@ -1,6 +1,8 @@
 import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerNightEnd;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sequence/active_plan_owner.dart';
@@ -70,18 +72,24 @@ bool isNightEnding({
   return now >= eonDawnSunAltitudeDeg && later > now;
 }
 
-/// Stop origins of the native triggers that end the night: the run's stop
-/// origin is the id of the trigger that parked it.
-const eonDawnStopOrigin = 'dawn_approaching';
-const eonObstructionStopOrigin = 'obstruction';
+/// The end-of-night reason a native night end gives.
+EonEndReason? _nightEndReason(SequencerNightEnd? nightEnd) =>
+    switch (nightEnd) {
+      SequencerNightEnd.dawn => EonEndReason.dawn,
+      SequencerNightEnd.obstruction => EonEndReason.obstruction,
+      null => null,
+    };
 
 /// Whether a finished imaging run ended the night, and why. Null when it did
 /// not: an operator stop, a failure, or a weather stop in the middle of the
-/// night leave the night open.
+/// night leave the night open. [nightEnd] is the native trigger table's
+/// answer for the trigger that parked the run; [stopOrigin] is who stopped
+/// it otherwise.
 EonEndReason? classifyRunEnd({
   required SequenceRunStatus runStatus,
   required String? stopOrigin,
   required bool nightEnding,
+  SequencerNightEnd? nightEnd,
   bool parked = false,
 }) {
   if (runStatus == SequenceRunStatus.completed) {
@@ -90,12 +98,12 @@ EonEndReason? classifyRunEnd({
   // A recovered failure cause remains the run's verdict even when dawn
   // subsequently parks it. That verdict must not suppress night-end work.
   if (runStatus == SequenceRunStatus.failed && parked) {
-    if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
-    if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
+    final reason = _nightEndReason(nightEnd);
+    if (reason != null) return reason;
   }
   if (!runStatus.endedByStop) return null;
-  if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
-  if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
+  final reason = _nightEndReason(nightEnd);
+  if (reason != null) return reason;
   final safetyStop =
       stopOrigin == 'weather_unsafe' ||
       stopOrigin == 'safety' ||
@@ -153,7 +161,10 @@ class EndOfNightCalibrationCoordinator {
               ? null
               : _ref.read(sequenceExecutorProvider).lastRunEndOrigin,
       };
-      unawaited(_settle(next, owner, origin));
+      final nightEnd = evidence?.author == SequenceStopAuthor.system
+          ? evidence?.nightEnd
+          : null;
+      unawaited(_settle(next, owner, origin, nightEnd));
     });
   }
 
@@ -183,13 +194,14 @@ class EndOfNightCalibrationCoordinator {
     SequenceTerminalRunResult result,
     ActivePlanOwner owner,
     String? stopOrigin,
+    SequencerNightEnd? nightEnd,
   ) async {
     final decided = _decided[result.generation] ??= Completer();
     final settled = _settled[result.generation] ??= Completer();
     final deferredWarmUp = _ref.read(shutdownWarmUpDeferredProvider);
     _ref.read(shutdownWarmUpDeferredProvider.notifier).state = false;
     try {
-      final reason = await _classify(result, owner, stopOrigin);
+      final reason = await _classify(result, owner, stopOrigin, nightEnd);
       if (!decided.isCompleted) decided.complete(reason);
       if (owner != ActivePlanOwner.calibration) {
         _openNightSession = reason == null ? result.dbSessionId : null;
@@ -241,6 +253,7 @@ class EndOfNightCalibrationCoordinator {
     SequenceTerminalRunResult result,
     ActivePlanOwner owner,
     String? stopOrigin,
+    SequencerNightEnd? nightEnd,
   ) async {
     // A calibration run is the step's own and ends nothing.
     if (owner == ActivePlanOwner.calibration) return null;
@@ -254,9 +267,7 @@ class EndOfNightCalibrationCoordinator {
           longitude: settings.longitude,
         );
     var parked = false;
-    if (result.runStatus == SequenceRunStatus.failed &&
-        (stopOrigin == eonDawnStopOrigin ||
-            stopOrigin == eonObstructionStopOrigin)) {
+    if (result.runStatus == SequenceRunStatus.failed && nightEnd != null) {
       final mountId = _ref.read(mountStateProvider).deviceId;
       if (mountId != null) {
         try {
@@ -282,6 +293,7 @@ class EndOfNightCalibrationCoordinator {
     return classifyRunEnd(
       runStatus: result.runStatus,
       stopOrigin: stopOrigin,
+      nightEnd: nightEnd,
       nightEnding: nightEnding,
       parked: parked,
     );

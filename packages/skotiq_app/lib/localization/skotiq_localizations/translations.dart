@@ -1416,6 +1416,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideHeld_run_stopped':
         'Guiding stopped because the run was stopped',
     'nightScopeGuideHeld_operator': 'Guiding stopped from the guider controls',
+    'nightScopeGuideHeld_mount_fault':
+        'Guiding stopped: the mount moved on its own',
     'nightScopeGuideHeldOther': 'Guiding stopped ({reason})',
     'nightScopeGuideSettleTimedOut':
         'Last settle ran out of time at {time}; not a lost star',
@@ -3110,6 +3112,8 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Guiado detenido porque se detuvo la sesión',
     'nightScopeGuideHeld_operator':
         'Guiado detenido desde los controles del guiador',
+    'nightScopeGuideHeld_mount_fault':
+        'Guiado detenido: la montura se movió por sí sola',
     'nightScopeGuideHeldOther': 'Guiado detenido ({reason})',
     'nightScopeGuideSettleTimedOut':
         'La última estabilización agotó su tiempo a las {time}; no es una estrella perdida',

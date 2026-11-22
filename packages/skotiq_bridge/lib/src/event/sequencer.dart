@@ -313,6 +313,10 @@ sealed class SequencerEvent with _$SequencerEvent {
     /// Human-readable trigger name
     required String triggerName,
     required SequencerTriggerAction action,
+
+    /// Why a park under this trigger ends the night; `None` when it does
+    /// not end the night.
+    SequencerNightEnd? nightEnd,
   }) = SequencerEvent_TriggerFired;
 
   /// A step's progress (cooling, autofocus, slewing, a frame of a burst).
@@ -775,6 +779,10 @@ sealed class SequencerEvent with _$SequencerEvent {
   }) = SequencerEvent_DecisionLogged;
 }
 
+/// Why a trigger that ended the run also ended the night. Mirrors
+/// `skotiq_sequencer::NightEnd`.
+enum SequencerNightEnd { dawn, obstruction }
+
 @freezed
 sealed class SequencerNotice with _$SequencerNotice {
   const SequencerNotice._();
@@ -820,6 +828,10 @@ sealed class SequencerStop with _$SequencerStop {
   const factory SequencerStop.trigger({
     required String triggerId,
     required String triggerName,
+
+    /// Why the run's end is also the night's; `None` when it ends only
+    /// the run.
+    SequencerNightEnd? nightEnd,
   }) = SequencerStop_Trigger;
 }
 

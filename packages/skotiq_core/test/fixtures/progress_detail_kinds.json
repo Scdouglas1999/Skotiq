@@ -9,5 +9,13 @@
   },
   "Autofocus": {"step": 5, "total_steps": 9, "current_hfr": 2.75, "star_count": 41},
   "Thermal": {"current_temp_c": -4.5, "target_temp_c": -10.0, "cooler_power_percent": 62.0},
-  "MeridianFlipRetry": {"failed_attempt": 2, "max_attempts": 4, "retry_in_secs": 60.0}
+  "MeridianFlipRetry": {"failed_attempt": 2, "max_attempts": 4, "retry_in_secs": 60.0},
+  "Filter": {"name": "Ha", "position": 4},
+  "SmartExposure": {
+    "current_filter": "OIII",
+    "plan_index": 1,
+    "total_plans": 3,
+    "frame_in_plan": 7,
+    "total_frames": 20
+  }
 }

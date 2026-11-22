@@ -4,8 +4,51 @@ library;
 import 'package:skotiq_remote_protocol/wire.dart'
     show WireTime, parseWireTime, tryParseWireTime;
 
+/// The native executor's state as its status names it (`ExecutorState` in
+/// the sequencer, spelled by the bridge's `SequencerState`).
+enum NativeRunState {
+  idle,
+  running,
+  paused,
+  stopping,
+  cancelled,
+  completed,
+  failed,
+  recovering,
+
+  /// A word this build does not know.
+  unknown;
+
+  /// The state [wire] names, read case-insensitively.
+  static NativeRunState parse(String wire) {
+    final word = wire.toLowerCase();
+    for (final state in values) {
+      if (state != unknown && state.name == word) return state;
+    }
+    return unknown;
+  }
+
+  /// The run is over and no longer drives the rig. An unknown state is not:
+  /// a state added later keeps a caller waiting rather than tearing down.
+  bool get isTerminal => switch (this) {
+    idle || completed || failed || cancelled => true,
+    _ => false,
+  };
+
+  /// A run may be in flight: anything but a terminal state, an unknown one
+  /// included, so a caller deciding whether to act on the rig errs toward
+  /// leaving a run alone.
+  bool get mayBeInFlight => !isTerminal;
+
+  /// A run is known to be under way (running, paused, stopping, recovering).
+  bool get isUnderWay => switch (this) {
+    running || paused || stopping || recovering => true,
+    _ => false,
+  };
+}
+
 class SequencerStatus {
-  /// Current state (idle, running, paused, stopped, error)
+  /// Current state as the native executor names it; see [runState].
   final String state;
 
   /// ID of the currently executing node
@@ -68,6 +111,8 @@ class SequencerStatus {
     if (runVitals != null) 'runVitals': runVitals!.toJson(),
     'guidingStopReason': guidingStopReason,
   };
+
+  NativeRunState get runState => NativeRunState.parse(state);
 
   bool get isRunning => state == 'running';
 

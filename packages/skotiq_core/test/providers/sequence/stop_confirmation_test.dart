@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/models.dart' show NativeRunState;
 
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/stop_confirmation.dart';
 
@@ -130,12 +131,12 @@ void main() {
   );
 
   test('every terminal state in the allow-list confirms', () async {
-    for (final state in kNativeTerminalStates) {
+    for (final state in NativeRunState.values.where((s) => s.isTerminal)) {
       final target = _Target();
       await confirmer(
-        readNativeState: () async => state.toUpperCase(),
+        readNativeState: () async => state.name.toUpperCase(),
       ).awaitTermination(target, Completer<void>());
-      expect(target.nativeStopConfirmed, isTrue, reason: state);
+      expect(target.nativeStopConfirmed, isTrue, reason: state.name);
     }
   });
 }
