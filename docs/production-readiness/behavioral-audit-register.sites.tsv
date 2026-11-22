@@ -1796,13 +1796,11 @@ packages/skotiq_app/lib/screens/planner/planner_screen_parts/_candidate_observin
 packages/skotiq_app/lib/screens/planner/planner_screen_parts/_primary_target_card.dart	build	literal_null_coalesce	1	U2-19	h / (math.max(field.$2, size ?? 0) * _margin),
 packages/skotiq_app/lib/screens/planner/planner_screen_parts/_primary_target_card.dart	build	literal_null_coalesce	1	U2-19	w / (math.max(field.$1, size ?? 0) * _margin),
 packages/skotiq_app/lib/screens/planner/planner_screen_parts/_range_controls.dart	build	literal_null_coalesce	1	V0734	double seed = value ?? 0.0;
-packages/skotiq_app/lib/screens/planner/targets/autopilot_bar.dart	hasCandidates	literal_null_coalesce	1	O7-06	bool get hasCandidates => decision?.scoredCandidates.isNotEmpty ?? false;
 packages/skotiq_app/lib/screens/planner/targets/autopilot_dialogs.dart	build	literal_null_coalesce	1	O7-06	f.detail ?? '',
 packages/skotiq_app/lib/screens/planner/targets/group_dialogs.dart	_GroupFormDialogState	literal_null_coalesce	1	O7-06	TextEditingController(text: widget.existing?.description ?? '');
 packages/skotiq_app/lib/screens/planner/targets/group_dialogs.dart	_GroupFormDialogState	literal_null_coalesce	1	O7-06	late final _name = TextEditingController(text: widget.existing?.name ?? '');
 packages/skotiq_app/lib/screens/planner/targets/group_dialogs.dart	build	literal_null_coalesce	1	O7-06	if (m.constellation?.isNotEmpty ?? false)
 packages/skotiq_app/lib/screens/planner/targets/group_menu.dart	build	literal_null_coalesce	1	O7-06	final unused = ref.watch(unusedTargetsCountProvider).valueOrNull ?? 0;
-packages/skotiq_app/lib/screens/planner/targets/plan_targets_tab.dart	didChangeAppLifecycleState	literal_null_coalesce	1	O7-06	if (!(_remotePoll?.isActive ?? false)) _startRemotePoll();
 packages/skotiq_app/lib/screens/planner/targets/target_detail.dart	build	literal_null_coalesce	1	O7-06	if (target.constellation?.isNotEmpty ?? false) target.constellation!,
 packages/skotiq_app/lib/screens/planner/targets/target_detail.dart	build	literal_null_coalesce	1	O7-06	if (target.objectType?.isNotEmpty ?? false) target.objectType!,
 packages/skotiq_app/lib/screens/planner/targets/target_list.dart	_nextLine	literal_null_coalesce	1	O7-06	(r.window?.start?.isAfter(now) ?? false))
@@ -2867,6 +2865,7 @@ packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_ch
 packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	stackMethod: jsonString(json['stackMethod']) ?? '',
 packages/skotiq_core/lib/src/providers/runtime_mirror/channels/live_broadcast_channel.dart	fromJson	literal_null_coalesce	1	U2-14	watermark: jsonString(json['watermark']) ?? '',
 packages/skotiq_core/lib/src/providers/saved_frame_provider.dart	_imageFrom	literal_null_coalesce	1	O10-04	exposureTime: decoded.exposureTime ?? 0,
+packages/skotiq_core/lib/src/providers/scheduler/autopilot_view.dart	hasCandidates	literal_null_coalesce	1	O7-06	bool get hasCandidates => decision?.scoredCandidates.isNotEmpty ?? false;
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	_availableFilters	empty_catch	1	V0410	} catch (_) {
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	_loadRemote	literal_null_coalesce	1	V0409	decDegrees: (json['dec'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	_loadRemote	literal_null_coalesce	1	V0408	raHours: (json['ra'] as num?)?.toDouble() ?? 0.0,
