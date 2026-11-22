@@ -70,18 +70,7 @@ class MobilePlaybackBar extends ConsumerWidget {
                 isCompact: isNarrow,
                 onPressed: () async {
                   if (canStart) {
-                    await showDialog<void>(
-                      context: context,
-                      builder: (context) => PreFlightValidationDialog(
-                        onStartSequence: () async {
-                          final result = await ref
-                              .read(sequenceActionServiceProvider)
-                              .start();
-                          if (!context.mounted) return;
-                          context.showCommandActionResult(result);
-                        },
-                      ),
-                    );
+                    await startWithPreflight(context, ref);
                   } else if (canPause) {
                     final result =
                         await ref.read(sequenceActionServiceProvider).pause();
