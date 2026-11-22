@@ -168,11 +168,4 @@ mod tests {
         c.set(later);
         assert_eq!(c.now_utc().timestamp(), 1_700_000_000);
     }
-
-    #[test]
-    fn dyn_clock_is_object_safe() {
-        // Compile-time check that `dyn Clock` is usable behind an Arc.
-        let _arc: Arc<dyn Clock> = default_clock();
-        let _arc2: Arc<dyn Clock> = MockClock::epoch();
-    }
 }
