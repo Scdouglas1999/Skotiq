@@ -43,6 +43,11 @@ final sequenceTemplatesProvider =
   return [...dbTemplates, ..._getBuiltInTemplates()];
 });
 
+/// The hand-built template trees, for the test that checks the bundled
+/// template files against them.
+@visibleForTesting
+List<Sequence> handBuiltTemplates() => _getBuiltInTemplates();
+
 /// Search provider for templates
 // autoDispose: filter input is tab-scoped.
 final templateSearchProvider = StateProvider.autoDispose<String>((ref) => '');

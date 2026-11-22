@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "version": "2.0",
+  "qualityStopsMovedToNotify": true,
+  "name": "Planetary Capture",
+  "description": "High frame rate lucky imaging for planets and moon",
+  "rootNodeId": "planet-root",
+  "isTemplate": true,
+  "nodes": {
+    "planet-root": {
+      "id": "planet-root",
+      "nodeType": "InstructionSet",
+      "name": "Planetary Capture",
+      "parentId": null,
+      "childIds": [
+        "planet-slew",
+        "planet-center",
+        "planet-loop",
+        "planet-park"
+      ],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null
+    },
+    "planet-slew": {
+      "id": "planet-slew",
+      "nodeType": "SlewToTarget",
+      "name": "Slew to Target",
+      "parentId": "planet-root",
+      "childIds": [],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null,
+      "useTargetCoords": true,
+      "customRa": null,
+      "customDec": null
+    },
+    "planet-center": {
+      "id": "planet-center",
+      "nodeType": "CenterTarget",
+      "name": "Center Target",
+      "parentId": "planet-root",
+      "childIds": [],
+      "orderIndex": 1,
+      "isEnabled": true,
+      "comment": null,
+      "useTargetCoords": true,
+      "customRa": null,
+      "customDec": null,
+      "maxAttempts": 5,
+      "exposureDuration": 5.0,
+      "filter": null
+    },
+    "planet-loop": {
+      "id": "planet-loop",
+      "nodeType": "Loop",
+      "name": "Video Capture Loop",
+      "parentId": "planet-root",
+      "childIds": [
+        "planet-exp"
+      ],
+      "orderIndex": 2,
+      "isEnabled": true,
+      "comment": null,
+      "conditionType": "count",
+      "repeatCount": 10,
+      "repeatUntil": null,
+      "repeatUntilAltitude": null,
+      "integrationTimeTarget": null,
+      "maxSafetyIterations": null
+    },
+    "planet-exp": {
+      "id": "planet-exp",
+      "nodeType": "TakeExposure",
+      "name": "Video Capture (30s)",
+      "parentId": "planet-loop",
+      "childIds": [],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null,
+      "durationSecs": 30.0,
+      "count": 1,
+      "frameType": "light",
+      "filter": null,
+      "filterIndex": null,
+      "gain": 300,
+      "offset": null,
+      "readoutMode": null,
+      "binning": "one",
+      "ditherEvery": 3,
+      "triggers": [],
+      "adaptiveExposure": null
+    },
+    "planet-park": {
+      "id": "planet-park",
+      "nodeType": "Park",
+      "name": "Park Mount",
+      "parentId": "planet-root",
+      "childIds": [],
+      "orderIndex": 3,
+      "isEnabled": true,
+      "comment": null
+    }
+  }
+}

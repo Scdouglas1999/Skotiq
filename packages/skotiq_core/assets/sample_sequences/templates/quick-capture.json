@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "version": "2.0",
+  "qualityStopsMovedToNotify": true,
+  "name": "Quick Capture",
+  "description": "Simple sequence for quick test shots",
+  "rootNodeId": "quick-root",
+  "isTemplate": true,
+  "nodes": {
+    "quick-root": {
+      "id": "quick-root",
+      "nodeType": "InstructionSet",
+      "name": "Quick Capture",
+      "parentId": null,
+      "childIds": [
+        "quick-exp"
+      ],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null
+    },
+    "quick-exp": {
+      "id": "quick-exp",
+      "nodeType": "TakeExposure",
+      "name": "Test Shot",
+      "parentId": "quick-root",
+      "childIds": [],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null,
+      "durationSecs": 10.0,
+      "count": 5,
+      "frameType": "light",
+      "filter": "L",
+      "filterIndex": null,
+      "gain": null,
+      "offset": null,
+      "readoutMode": null,
+      "binning": "one",
+      "ditherEvery": 3,
+      "triggers": [],
+      "adaptiveExposure": null
+    }
+  }
+}
