@@ -281,8 +281,7 @@ native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_captu
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	unwrap_or_default	1	V0631	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/init.rs	api_init_with_logging	rust_let_underscore	1	V0048	let _ = get_device_manager();
 native/skotiq_native/bridge/src/api/init.rs	api_init_with_logging	rust_let_underscore	1	V0048	let _ = get_state();
-native/skotiq_native/bridge/src/api/live_stacking.rs	api_stacking_add_frame_for_filter	unwrap_or_default	1	R91-03	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
-native/skotiq_native/bridge/src/api/live_stacking.rs	api_stacking_add_frame_from_data_for_filter	unwrap_or_default	1	R91-03	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
+native/skotiq_native/bridge/src/api/live_stacking.rs	add_to_slot	unwrap_or_default	1	R91-03	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
 native/skotiq_native/bridge/src/api/live_stacking.rs	api_stacking_get_events	unwrap_or_default	1	R91-03	.unwrap_or_default();
 native/skotiq_native/bridge/src/api/live_stacking.rs	install_slot	unwrap_or_default	1	R91-03	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
 native/skotiq_native/bridge/src/api/live_stacking.rs	sync_atomic_counters	unwrap_or_literal	1	R91-03	.unwrap_or(0);
@@ -659,7 +658,6 @@ native/skotiq_native/imaging/src/calibration_master_stream.rs	drop	rust_let_unde
 native/skotiq_native/imaging/src/calibration_master_stream.rs	hidden_entries	unwrap_or_default	1	O7-01	.unwrap_or_default()
 native/skotiq_native/imaging/src/calibration_master_stream.rs	decoded_copies_are_spilled_beside_the_master_not_into_the_system_temp_folder	unwrap_or_literal	1	O7-01	.unwrap_or(false);
 native/skotiq_native/imaging/src/calibration_master_stream.rs	open	unwrap_or_literal	1	V0785	let naxis = header.get_int("NAXIS").unwrap_or(0);
-native/skotiq_native/imaging/src/calibration_master_stream.rs	working_copy_bytes	unwrap_or_literal	1	O7-01	let samples = axis("NAXIS1")? * axis("NAXIS2")? * axis("NAXIS3").unwrap_or(1);
 native/skotiq_native/imaging/src/debayer.rs	debayer_vng	unwrap_or_literal	1	V0054	let min_g = gradients.iter().copied().min().unwrap_or(0);
 native/skotiq_native/imaging/src/debayer.rs	demosaic_xtrans	unwrap_or_literal	1	U2-24	.unwrap_or(0)
 native/skotiq_native/imaging/src/deconvolution.rs	normalized_profile	unwrap_or_literal	1	V0121	let peak = profile.first().copied().unwrap_or(0.0);
@@ -668,7 +666,7 @@ native/skotiq_native/imaging/src/defect_map.rs	file_round_trip	rust_let_undersco
 native/skotiq_native/imaging/src/defect_map.rs	round_trip_build_save_reload_identical_entries	rust_let_underscore	1	V0054	let _ = std::fs::remove_file(&path);
 native/skotiq_native/imaging/src/depthlock/input.rs	light_settings	unwrap_or_literal	1	V0788	bin_x: int_card("XBINNING")?.unwrap_or(1),
 native/skotiq_native/imaging/src/depthlock/input.rs	light_settings	unwrap_or_literal	1	V0788	bin_y: int_card("YBINNING")?.unwrap_or(1),
-native/skotiq_native/imaging/src/depthlock/input.rs	validate_master	unwrap_or_literal	1	V0789	let frames = header.get_int("NFRAMES").unwrap_or(0);
+native/skotiq_native/imaging/src/depthlock/input.rs	validate_master	unwrap_or_literal	1	V0789	let frames = provenance.frames.unwrap_or(0);
 native/skotiq_native/imaging/src/depthlock/mod.rs	progress_curve	unwrap_or_literal	1	V0758	.filter(|f| frame_usable(spec, f).unwrap_or(false))
 native/skotiq_native/imaging/src/difference_image.rs	difference_against_decoded	unwrap_or_literal	1	V0165	let t_ap = aperture_sum(&tmpl_lum, &overlap, tw, th, s.x, s.y, aperture).unwrap_or(0.0);
 native/skotiq_native/imaging/src/difference_image.rs	estimate_psf_sigma	unwrap_or_literal	1	V0165	((vals.last().copied().unwrap_or(0.0) - vals.first().copied().unwrap_or(0.0)).abs() * 1e-3)
@@ -684,17 +682,16 @@ native/skotiq_native/imaging/src/fits.rs	test_write_emits_comment_and_history_wi
 native/skotiq_native/imaging/src/fits.rs	test_write_emits_short_string_padded	rust_let_underscore	1	V0055	let _ = std::fs::remove_file(&path);
 native/skotiq_native/imaging/src/fits.rs	read_color_filter_array	unwrap_or_literal	1	U2-24	let x_offset = header.get_int("XBAYROFF").unwrap_or(0);
 native/skotiq_native/imaging/src/fits.rs	read_color_filter_array	unwrap_or_literal	1	U2-24	let y_offset = header.get_int("YBAYROFF").unwrap_or(0);
-native/skotiq_native/imaging/src/fits.rs	validate_image	unwrap_or_literal	1	V0055	let max_value = pixels.iter().copied().max().unwrap_or(0);
 native/skotiq_native/imaging/src/fits_reader.rs	fits_bytes	rust_let_underscore	1	U2-01	let _ = std::fs::remove_file(&path);
 native/skotiq_native/imaging/src/fits_reader.rs	from_header	unwrap_or_literal	1	U2-01	bscale: header.get_float("BSCALE").unwrap_or(1.0),
 native/skotiq_native/imaging/src/fits_reader.rs	from_header	unwrap_or_literal	1	U2-01	bzero: header.get_float("BZERO").unwrap_or(0.0),
 native/skotiq_native/imaging/src/frame_io.rs	drop	rust_let_underscore	1	R9-037	let _ = std::fs::remove_file(&self.path);
 native/skotiq_native/imaging/src/frame_io.rs	every_format_reports_the_image_size_in_its_header	rust_let_underscore	1	R9-037	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/imaging/src/frame_io.rs	read_preview	rust_let_underscore	1	U2-24	let _ = (path, min_side);
-native/skotiq_native/imaging/src/frame_io.rs	replace_file	rust_let_underscore	2	V0055	let _ = std::fs::remove_file(&staged);
 native/skotiq_native/imaging/src/frame_io.rs	rewrite_header	rust_let_underscore	1	U2-24	let _ = (path, edit);
 native/skotiq_native/imaging/src/frame_io.rs	two_edits_of_one_frame_at_once_both_land	rust_let_underscore	1	R9-037	let _ = std::fs::remove_dir_all(&dir);
 native/skotiq_native/imaging/src/frame_io.rs	write	rust_let_underscore	1	U2-24	let _ = (path, image, header, options);
+native/skotiq_native/imaging/src/frame_validation.rs	validate_image	unwrap_or_literal	1	V0055	let max_value = pixels.iter().copied().max().unwrap_or(0);
 native/skotiq_native/imaging/src/integration.rs	integrate_columns_weighted	unwrap_or_literal	1	V0121	let covered = f.coverage.map(|m| m.is_valid_at(loc)).unwrap_or(true);
 native/skotiq_native/imaging/src/lib.rs	drop	rust_let_underscore	1	V0121	let _ = std::fs::remove_file(&self.path);
 native/skotiq_native/imaging/src/lib.rs	read_image_keeps_the_header_as_written	rust_let_underscore	1	R9-038	let _ = std::fs::remove_dir_all(&dir);
@@ -745,7 +742,6 @@ native/skotiq_native/imaging/src/xisf/mod.rs	width	unwrap_or_literal	1	U2-24	sel
 native/skotiq_native/imaging/src/xisf/property.rs	display_text	unwrap_or_default	1	U2-24	other => other.scalar_text().unwrap_or_default(),
 native/skotiq_native/imaging/src/xisf/tests.rs	malformed_files_give_errors_never_panics	rust_let_underscore	1	U2-24	let _ = read_frame(&target);
 native/skotiq_native/imaging/src/xisf/tests.rs	malformed_files_give_errors_never_panics	rust_let_underscore	1	U2-24	let _ = read_frame_header(&target);
-native/skotiq_native/imaging/src/xisf/write.rs	rewrite_unit_metadata	rust_let_underscore	2	U2-24	let _ = std::fs::remove_file(&staged);
 native/skotiq_native/imaging/src/xisf/write.rs	emit_property	unwrap_or_default	1	U2-24	e.push_attribute(("value", scalar.scalar_text().unwrap_or_default().as_str()));
 native/skotiq_native/indi/src/camera.rs	-	unwrap_or_literal	1	V0058	//! # `unwrap_or(false)` policy
 native/skotiq_native/indi/src/camera.rs	-	unwrap_or_literal	1	V0058	//! Each `get_switch(...).unwrap_or(false)` in this module is reading an
@@ -1098,7 +1094,6 @@ native/skotiq_native/processing/src/finishing/enhance.rs	drop	rust_let_underscor
 native/skotiq_native/processing/src/mosaic.rs	drop	comment_best_effort	1	V0121	// Best-effort: a test asserting on a half-removed tree should fail
 native/skotiq_native/processing/src/mosaic.rs	stitch_mosaic_impl	comment_best_effort	1	V0121	// BEST-EFFORT: the preview is a cosmetic convenience, not a real output. A
 native/skotiq_native/processing/src/mosaic.rs	drop	rust_let_underscore	1	V0121	let _ = std::fs::remove_dir_all(&self.0);
-native/skotiq_native/processing/src/output.rs	to_u16_for_preview	unwrap_or_default	1	V0686	let data = master.as_f32().unwrap_or_default();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_banded_raw_flat_is_left_out_of_the_master	rust_drop_result	1	V0632	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_filter_with_no_usable_sub_reports_a_typed_outcome	rust_drop_result	1	V0632	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_master_flat_combines_auto_exposed_flats	rust_drop_result	1	V0632	std::fs::remove_dir_all(dir).ok();
@@ -1122,7 +1117,6 @@ native/skotiq_native/processing/src/post_session/light_calibration_tests.rs	drop
 native/skotiq_native/processing/src/post_session/master_cards.rs	attach_wcs	unwrap_or_default	1	V0634	result.error.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/masters.rs	forget_open_master	rust_let_underscore	1	V0636	let _ = std::fs::remove_file(journal_path(sidecar));
 native/skotiq_native/processing/src/post_session/masters.rs	save	rust_let_underscore	1	V0635	let _ = std::fs::remove_file(journal_path(&self.sidecar));
-native/skotiq_native/processing/src/post_session/masters.rs	flat_pedestal_state	unwrap_or_default	1	V0638	.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/multi_night.rs	check_build_calibration	rust_let_underscore	1	V0644	let _ = calibrated_light(&reference.path, None, &masters).map_err(|(_, e)| e)?;
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	unwrap_or_default	1	V0642	.unwrap_or_default();
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	unwrap_or_default	1	V0639	calibration.flat.as_deref().unwrap_or_default()
@@ -1143,9 +1137,6 @@ native/skotiq_native/processing/src/post_session/tests.rs	drop	rust_let_undersco
 native/skotiq_native/processing/src/post_session/tests.rs	late_cancels_for_runs_that_never_start_do_not_block_a_new_run	rust_let_underscore	1	R9-075	let _ = post_session_cancel(serde_json::json!({ "op": "clear", "runId": id }).to_string());
 native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	unwrap_or_default	1	V0650	let reference = header.get_string("GRIDREF").unwrap_or_default().to_string();
 native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	unwrap_or_default	1	V0652	|| coverage_header.get_string("GRIDREF").unwrap_or_default() != reference
-native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	unwrap_or_literal	1	V0647	header.get_int("NAXIS1").unwrap_or(0) as u32,
-native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	unwrap_or_literal	1	V0648	header.get_int("NAXIS2").unwrap_or(0) as u32,
-native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	unwrap_or_literal	1	V0649	header.get_int("NAXIS3").unwrap_or(1).max(1) as u32,
 native/skotiq_native/processing/src/post_session/uniform_delivery.rs	deliver	unwrap_or_literal	1	V0651	let count = header.get_int("NFRAMES").unwrap_or(0);
 native/skotiq_native/processing/src/sky_atlas/fold.rs	fold_impl	unwrap_or_literal	1	V0624	coverage_added: a.map(|a| a.coverage).unwrap_or(0.0),
 native/skotiq_native/processing/src/sky_atlas/fold.rs	fold_impl	unwrap_or_literal	1	V0624	frames_added: a.map(|a| a.frames).unwrap_or(0),
@@ -3032,10 +3023,10 @@ packages/skotiq_core/lib/src/services/backup_service.dart	BackupService	comment_
 packages/skotiq_core/lib/src/services/backup_service.dart	getConfiguredBackupDirectory	literal_null_coalesce	1	V0026	final trimmed = value?.trim() ?? '';
 packages/skotiq_core/lib/src/services/backup_service.dart	setBackupDirectory	literal_null_coalesce	1	V0026	final trimmed = directoryPath?.trim() ?? '';
 packages/skotiq_core/lib/src/services/backup_service/sequence_codec.dart	_importTargets	literal_null_coalesce	1	V0121	isFavorite: Value(target['isFavorite'] as bool? ?? false),
+packages/skotiq_core/lib/src/services/calibration/calibration_frame_groups.dart	-	literal_null_coalesce	1	V0887	) => '${filter ?? ''}|$gain|$offset|${binX}x$binY';
 packages/skotiq_core/lib/src/services/calibration/calibration_selection.dart	selectFlat	literal_null_coalesce	1	O7-07	(filter.isEmpty || sameFilter(r.filter ?? '', filter)) &&
 packages/skotiq_core/lib/src/services/calibration/calibration_selection.dart	selectFlat	literal_null_coalesce	1	R9-114	final filter = ctx.filter?.trim() ?? '';
 packages/skotiq_core/lib/src/services/calibration/calibration_selection.dart	selectFlat	literal_null_coalesce	1	R9-114	final train = ctx.opticalTrainId?.trim() ?? '';
-packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	groupFrames	literal_null_coalesce	1	V0858	_filterOf(f) ?? '',
 packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	key	literal_null_coalesce	1	V0856	gain ?? '',
 packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	key	literal_null_coalesce	1	V0855	if (kind == CalibrationFrameKind.flat) filter ?? '',
 packages/skotiq_core/lib/src/services/calibration_backlog_service.dart	key	literal_null_coalesce	1	V0857	offset ?? '',
@@ -3168,7 +3159,6 @@ packages/skotiq_core/lib/src/services/darkroom_autopilot/dawn_autopilot_service.
 packages/skotiq_core/lib/src/services/darkroom_build_jobs.dart	DarkroomBuildJob.fromJson	literal_null_coalesce	1	V0840	message: json['message'] as String? ?? '',
 packages/skotiq_core/lib/src/services/darkroom_build_jobs.dart	DarkroomBuildJob.fromJson	literal_null_coalesce	1	V0841	overallTotal: (json['overallTotal'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/services/darkroom_build_jobs.dart	_onStep	literal_null_coalesce	1	V0839	_finishedLights += byFilter[r['filter']]?.length ?? 0;
-packages/skotiq_core/lib/src/services/darkroom_build_service.dart	-	literal_null_coalesce	1	V0887	) => '${filter ?? ''}|$gain|$offset|${binX}x$binY';
 packages/skotiq_core/lib/src/services/darkroom_build_service.dart	chooseReference	literal_null_coalesce	1	V0862	final lA = (a.filter ?? '').trim().toLowerCase() == 'l';
 packages/skotiq_core/lib/src/services/darkroom_build_service.dart	chooseReference	literal_null_coalesce	1	V0862	final lB = (b.filter ?? '').trim().toLowerCase() == 'l';
 packages/skotiq_core/lib/src/services/darkroom_build_service.dart	chooseReference	literal_null_coalesce	1	V0863	return (b.qualityScore ?? 0).compareTo(a.qualityScore ?? 0);

@@ -30,8 +30,7 @@ native/skotiq_native/ascom/src/windows/connection.rs	scan_registry_path	highrisk
 native/skotiq_native/bridge/src/api/imaging.rs	detect_stars_in_file_blocking	highrisk	1	baseline	let config = config.unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	a_manual_capture_frame_solves_at_the_mounts_pointing	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
 native/skotiq_native/bridge/src/api/imaging/sim_exposure_tests.rs	the_manual_capture_path_renders_the_catalogue_sky	highrisk	1	baseline	let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-native/skotiq_native/bridge/src/api/live_stacking.rs	api_stacking_add_frame_for_filter	highrisk	1	baseline	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
-native/skotiq_native/bridge/src/api/live_stacking.rs	api_stacking_add_frame_from_data_for_filter	highrisk	1	baseline	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
+native/skotiq_native/bridge/src/api/live_stacking.rs	add_to_slot	highrisk	1	baseline	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
 native/skotiq_native/bridge/src/api/live_stacking.rs	api_stacking_get_events	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/bridge/src/api/live_stacking.rs	install_slot	highrisk	1	baseline	let telemetry = stacker.last_frame_telemetry().cloned().unwrap_or_default();
 native/skotiq_native/bridge/src/api/sequencer/event_translation.rs	instruction_progress_event	highrisk	1	baseline	.unwrap_or_default(),
@@ -140,7 +139,6 @@ native/skotiq_native/platesolve/src/lib.rs	timed_out_astap_is_terminated_before_
 native/skotiq_native/processing/src/darkroom/composite_tests.rs	drafted_background	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/processing/src/darkroom/entrypoints.rs	darkroom_validate	highrisk	1	baseline	context.live_stack_key.clone().unwrap_or_default()
 native/skotiq_native/processing/src/darkroom/real_master_harness_tests.rs	darkroom_real_composite	highrisk	1	baseline	let steps = recipe["steps"].as_array().cloned().unwrap_or_default();
-native/skotiq_native/processing/src/output.rs	to_u16_for_preview	highrisk	1	baseline	let data = master.as_f32().unwrap_or_default();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_banded_raw_flat_is_left_out_of_the_master	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_filter_with_no_usable_sub_reports_a_typed_outcome	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	a_master_flat_combines_auto_exposed_flats	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
@@ -152,7 +150,6 @@ native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	fu
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	full_size_build_timing	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/darkroom_regression_tests.rs	low_background_build	highrisk	1	baseline	std::fs::remove_dir_all(dir).ok();
 native/skotiq_native/processing/src/post_session/master_cards.rs	attach_wcs	highrisk	1	baseline	result.error.unwrap_or_default()
-native/skotiq_native/processing/src/post_session/masters.rs	flat_pedestal_state	highrisk	1	baseline	.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	.unwrap_or_default();
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	calibration.flat.as_deref().unwrap_or_default()
 native/skotiq_native/processing/src/post_session/multi_night.rs	master_build_inner	highrisk	1	baseline	first_refusal.clone().unwrap_or_default()
