@@ -410,35 +410,10 @@ pub fn detect_astap_catalog(
     let home = home_dir();
 
     // Fall back to the operator's configured Plate Solving paths when the
-    // caller supplies none. Every other entry point into this module already
-    // consults `ACTIVE_SOLVER_PREF` for exactly this reason ("without any
-    // caller needing to pass the config explicitly"); this one did not, so it
-    // only ever searched the default install locations.
-    //
-    // The visible consequence: on any rig whose ASTAP lives somewhere else,
-    // the sequencer's pre-flight check reported "no ASTAP star database found
-    // ... target centering in this sequence will fail" as a run-level error,
-    // on runs where the catalogs were present and ASTAP was solving to 0.5".
-    // A setup warning that fires while the thing it warns about is working is
-    // worse than no warning: the next real one gets ignored.
-    //
-    // Reading the preference was not enough, and the same warning fired again
-    // on the owner's rig on 2026-09-15: ASTAP sat at
-    // `C:\Program Files\astap\astap.exe` with a `d80_*.1476` catalog beside it
-    // and solved that night's frames to 0.17" of an independent run, while
-    // every sequence logged "no ASTAP star database found ... target centering
-    // in this sequence will fail". `ACTIVE_SOLVER_PREF.astap_path` was empty —
-    // nothing had been configured by hand, because nothing needed to be — so
-    // the fallback produced no exe, the exe's own directory never entered the
-    // candidate list, and `C:\Program Files\astap` is not in
-    // `catalog_dir_candidates`' well-known set either.
-    //
-    // So resolve the executable the way the REST of the module resolves it,
+    // caller supplies none, as every other entry point into this module does.
+    // Resolve the executable the way the REST of the module resolves it,
     // through the same cached `discovered_solvers()` that `PlateSolverConfig`
-    // and `verify_solver` use, before concluding anything is missing. That is
-    // what `api_platesolve_detect` has always done by hand — and why it
-    // reported this rig's catalog correctly while the preflight did not. The
-    // detector and the solver now search from the same executable, so the
+    // and `verify_solver` use, before concluding anything is missing, so the
     // detector cannot contradict a solver that is working.
     let fallback_exe;
     let fallback_catalog;
@@ -2787,7 +2762,6 @@ mod tests {
             None,
             Some("astap"),
         );
-        // Clear by passing empty / None
         set_solver_preference(None, None, None, None);
 
         let config = PlateSolverConfig::default();
