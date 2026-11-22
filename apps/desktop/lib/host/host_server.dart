@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_app/services/app_update.dart'
@@ -470,8 +471,13 @@ Future<RunningHostServer> startHostServer({
 }
 
 /// The LAN address a phone on the same network would use, when there is one.
-Future<String?> firstLanAddress() async {
-  for (final interface in await NetworkInterface.list()) {
+Future<String?> firstLanAddress() async =>
+    pickLanAddress(await NetworkInterface.list());
+
+/// The first IPv4 address of [interfaces] that is not a loopback interface's.
+@visibleForTesting
+String? pickLanAddress(List<NetworkInterface> interfaces) {
+  for (final interface in interfaces) {
     if (interface.name.contains('lo') || interface.name.contains('Loopback')) {
       continue;
     }
