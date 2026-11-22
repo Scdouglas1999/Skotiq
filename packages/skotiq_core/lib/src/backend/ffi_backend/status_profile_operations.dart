@@ -117,7 +117,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       );
       return cameraCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get camera capabilities: $e');
+      Log.warning('Failed to get camera capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -130,7 +130,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       );
       return mountCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get mount capabilities: $e');
+      Log.warning('Failed to get mount capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -143,7 +143,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       );
       return focuserCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get focuser capabilities: $e');
+      Log.warning('Failed to get focuser capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -158,7 +158,10 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       );
       return filterWheelCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get filter wheel capabilities: $e');
+      Log.warning(
+        'Failed to get filter wheel capabilities: $e',
+        source: _logSource,
+      );
       return null;
     }
   }
@@ -172,7 +175,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       }
       return null;
     } catch (e) {
-      _logger.warning('Failed to get rotator capabilities: $e');
+      Log.warning('Failed to get rotator capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -248,8 +251,9 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
   @override
   Future<void> setLocation(models.ObserverLocation? location) async {
     final bridgeLoc = location != null ? _toBridgeLocation(location) : null;
-    _logger.fine(
+    Log.debug(
       'setLocation: ${location != null ? "lat=${location.latitude}, lon=${location.longitude}, elev=${location.elevation}" : "null"}',
+      source: _logSource,
     );
     await _native(
       'apiSetLocation',

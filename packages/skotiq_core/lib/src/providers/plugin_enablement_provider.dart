@@ -11,14 +11,14 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logging/logging.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 import '../database/daos/settings_dao.dart';
 import '../settings/store_settings.dart';
+import '../utils/logging_service.dart';
 import 'database_provider.dart';
 
-final _log = Logger('PluginEnablementProvider');
+const _logSource = 'PluginEnablementProvider';
 
 // [StoreSettings.pluginEnablement] holds a JSON object
 // `{ "<pluginId>": bool }`. Only explicit user choices are recorded; an absent
@@ -57,19 +57,21 @@ Map<String, bool> _decodeEnablementMap(String? raw) {
         // A malformed entry (non-string key or non-bool value) is a corruption
         // signal, not something to paper over silently. Surface it and skip the
         // single bad entry rather than discarding the whole map.
-        _log.warning(
+        Log.warning(
           'Ignoring malformed plugin_enablement entry: '
           '$key=$value (expected String=>bool)',
+          source: _logSource,
         );
       }
     });
     return result;
   } on FormatException catch (error, stackTrace) {
-    _log.warning(
+    Log.warning(
       'Malformed plugin_enablement JSON; defaulting all plugins to enabled. '
       'Raw value: $raw',
-      error,
-      stackTrace,
+      source: _logSource,
+      error: error,
+      stackTrace: stackTrace,
     );
     return const <String, bool>{};
   }
@@ -202,11 +204,12 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
           try {
             await host.setPluginEnabled(pluginId, wasEnabled);
           } catch (rollbackError, rollbackStackTrace) {
-            _log.severe(
+            Log.error(
               'Failed to roll back live plugin $pluginId after its '
               'enablement preference could not be saved.',
-              rollbackError,
-              rollbackStackTrace,
+              source: _logSource,
+              error: rollbackError,
+              stackTrace: rollbackStackTrace,
             );
           }
         }

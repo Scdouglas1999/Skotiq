@@ -112,8 +112,8 @@ extension FlatWizardSettingsOps on FlatWizardNotifier {
 
   /// Persist the six user-facing global-settings fields so they survive an app
   /// restart. Fire-and-forget: a settings-store failure must NEVER block or
-  /// fail the UI, so it is surfaced only to the logs (`developer.log` survives
-  /// release, unlike a stripped `debugPrint`), mirroring [_recordFlatHistory]'s
+  /// fail the UI, so it is surfaced only to the app log, mirroring
+  /// [_recordFlatHistory]'s
   /// non-fatal fault handling. `savePath` is the ACTIVE backend's path;
   /// [runCapture] re-validates a remote path at start, so a stale last-used
   /// value fails closed rather than writing to the wrong host.

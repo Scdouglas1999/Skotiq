@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logging/logging.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart' show LogLevel;
 import 'package:skotiq_core/src/backend/roles/mount_guard_backend.dart';
+
+import '../harness/captured_log.dart';
 
 class _SwappableBackendNotifier extends BackendNotifier {
   _SwappableBackendNotifier(super.ref, SkotiqBackend initial) {
@@ -129,12 +131,35 @@ void main() {
       },
     );
 
+    test('a failed guard read is logged', () async {
+      final appLog = await captureAppLog();
+      final host = _FakeMountGuardBackend(
+        () async => throw StateError('host unreachable'),
+      );
+      addTearDown(host.dispose);
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _SwappableBackendNotifier(ref, host),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(mountGuardProvider);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final lines = logFrom(appLog, 'MountGuard');
+      expect(lines, hasLength(1));
+      expect(lines.single.level, LogLevel.debug);
+      expect(lines.single.message, contains('Mount guard read failed'));
+      expect(lines.single.message, contains('host unreachable'));
+    });
+
     test(
       'a guard read that finishes after dispose is not applied and is not logged as a failed read',
       () async {
-        final records = <LogRecord>[];
-        final subscription = Logger('MountGuard').onRecord.listen(records.add);
-        addTearDown(subscription.cancel);
+        final appLog = await captureAppLog();
 
         final gate = Completer<List<MountGuardEntry>>();
         var reads = 0;
@@ -166,7 +191,10 @@ void main() {
         expect(guard.appliedAfterDispose, isEmpty);
         expect(reads, 1, reason: 'a disposed guard does not poll again');
         expect(
-          records.where((r) => r.message.contains('Mount guard read failed')),
+          logFrom(
+            appLog,
+            'MountGuard',
+          ).where((e) => e.message.contains('Mount guard read failed')),
           isEmpty,
         );
       },

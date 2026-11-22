@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../backend/bridge_events.dart';
@@ -7,6 +5,7 @@ import '../../backend/sequencer_error_kind.dart';
 import '../../backend/sequencer_run_events.dart';
 import '../../models/backend/event_types.dart';
 import '../../models/sequence/sequence_models.dart';
+import '../../utils/logging_service.dart';
 import '../backend_provider.dart';
 import '../equipment/camera_state_provider.dart';
 import 'node_exposure_tally.dart';
@@ -261,10 +260,10 @@ void foldRunEvent(
       // never an error.
       if (kind == SequencerErrorKind.cancelled) {
         final stopped = sequenceStoppedMessage(run.record.stopEvidence);
-        developer.log(
+        Log.debug(
           '[$kStopClassificationLogTag] run event fold: cancellation notice '
           'treated as a stop, not an error ($stopped)',
-          name: 'SequenceProgress',
+          source: 'SequenceProgress',
         );
         run.updateProgress(message: stopped);
         break;

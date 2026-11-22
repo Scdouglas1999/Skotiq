@@ -1,15 +1,13 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
-import 'package:logging/logging.dart';
 
 import '../../models/equipment_profile.dart' as remote_profile;
 import '../../models/equipment_profile_model.dart';
 import '../../utils/json_validation.dart';
+import '../../utils/logging_service.dart';
 import '../database.dart';
 import 'equipment_profile_remote_mapping.dart';
-
-final _log = Logger('ProfilesProvider');
 
 extension EquipmentProfileRowModel on DbEquipmentProfile {
   /// The profile this row stores.
@@ -163,7 +161,10 @@ List<String> _storedFilterNames(
       context: 'equipment_profiles.$column for "$profile"',
     );
   } catch (e) {
-    _log.warning('Failed to parse $field JSON for profile "$profile": $e');
+    Log.warning(
+      'Failed to parse $field JSON for profile "$profile": $e',
+      source: 'ProfilesProvider',
+    );
     return <String>[];
   }
 }
@@ -181,7 +182,10 @@ Map<String, int> _storedFocusOffsets(
       context: 'equipment_profiles.$column for "$profile"',
     );
   } catch (e) {
-    _log.warning('Failed to parse $field JSON for profile "$profile": $e');
+    Log.warning(
+      'Failed to parse $field JSON for profile "$profile": $e',
+      source: 'ProfilesProvider',
+    );
     return <String, int>{};
   }
 }

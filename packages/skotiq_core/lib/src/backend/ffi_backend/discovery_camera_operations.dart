@@ -130,7 +130,12 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
         );
       }
     } catch (e, stackTrace) {
-      _logger.severe('Native connection failed for $deviceId', e, stackTrace);
+      Log.error(
+        'Native connection failed for $deviceId',
+        source: _logSource,
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw DeviceConnectException(deviceId, e, reason: bridgeErrorMessage(e));
     }
   }
@@ -206,7 +211,10 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
         return _NativeProcessState.lastConnectedDevices = await bridge
             .apiGetConnectedDevices();
       } catch (e) {
-        _logger.warning('Failed to read connected devices from native: $e');
+        Log.warning(
+          'Failed to read connected devices from native: $e',
+          source: _logSource,
+        );
       }
     }
     return _NativeProcessState.lastConnectedDevices;
