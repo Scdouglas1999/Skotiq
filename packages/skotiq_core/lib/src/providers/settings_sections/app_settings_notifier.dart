@@ -358,6 +358,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   @override
   Future<AppSettingsState> build() async {
+    ref.rereadsWithTheHost();
     final generation = ++_backendGeneration;
     _remoteFetchSucceeded = false;
     _remoteSettingsSnapshot = null;

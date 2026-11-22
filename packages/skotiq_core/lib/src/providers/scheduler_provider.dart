@@ -36,6 +36,7 @@ import 'clock_provider.dart';
 import 'database_provider.dart';
 import 'disk_space_provider.dart';
 import 'event_provider.dart';
+import 'host_reread.dart';
 import 'readiness_provider.dart';
 import 'equipment/guider_state_provider.dart';
 import 'weather_safety_provider.dart';
@@ -219,6 +220,7 @@ class CurrentSchedulerDecisionNotifier
 /// auto-reeval listeners that poke the engine cover the underlying data edits.
 final schedulerPreviewDecisionProvider =
     FutureProvider.autoDispose<SchedulerDecision>((ref) async {
+      ref.rereadsWithTheHost();
       // On a remote SLAVE the local scheduler engine has no candidate data — the
       // catalog/targets live in the HOST's database, never the slave's — so
       // previewDecision() would always return "nothing eligible". Mirror the

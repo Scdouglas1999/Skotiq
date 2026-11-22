@@ -9,6 +9,7 @@ import '../errors/error_text.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import 'host_reread.dart';
 import '../errors/server_error.dart';
 
 const _observingListNotProvided = Object();
@@ -26,6 +27,7 @@ final observingListsStoreProvider = hostRoleProvider<ObservingListsStore>(
 
 /// Reactive stream of all observing lists.
 final observingListsProvider = StreamProvider<List<ObservingList>>((ref) {
+  ref.rereadsWithTheHost();
   // The selected list id belongs to one host's database namespace. Clear it
   // as soon as this host-aware stream observes a backend switch, even if no
   // mutation notifier has been constructed yet (simply browsing/selecting a
@@ -46,9 +48,10 @@ final observingListItemsProvider =
     );
 
 /// Watch catalog IDs across all observing lists (for planetarium markers).
-final listedCatalogIdsProvider = StreamProvider<Set<String>>(
-  (ref) => ref.watch(observingListsStoreProvider).watchAllListedCatalogIds(),
-);
+final listedCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
+  ref.rereadsWithTheHost();
+  return ref.watch(observingListsStoreProvider).watchAllListedCatalogIds();
+});
 
 /// Watch catalog IDs for the active list only.
 final activeListCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
