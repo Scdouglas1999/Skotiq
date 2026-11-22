@@ -2126,8 +2126,6 @@ packages/skotiq_bridge/lib/src/event/sequencer.freezed.dart	-	nonconvergence_bes
 packages/skotiq_bridge/lib/src/event_display.dart	_filterSlot	literal_null_coalesce	1	V0906	final trimmed = name?.trim() ?? '';
 packages/skotiq_bridge/lib/src/event_display.dart	_guidingDetail	literal_null_coalesce	1	V0872	GuidingEvent_StopReason(reason: final r) => r ?? '',
 packages/skotiq_bridge/lib/src/event_wire/wire_values.dart	wireDouble	literal_null_coalesce	1	R9-100	wireOptDouble(data, key) ?? 0.0;
-packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeMountStatus	literal_null_coalesce	1	V0121	// three carried `?? 0.0`, which turned "this mount cannot say" — what
-packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeMountStatus	literal_null_coalesce	1	V0121	atHome: s.atHome ?? false,
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	elevation: loc?.elevation ?? 0.0,
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	latitude: loc?.latitude ?? 0.0,
 packages/skotiq_core/lib/src/backend/ffi_backend/bridge_model_mappers.dart	_fromBridgeSettings	literal_null_coalesce	1	V0121	longitude: loc?.longitude ?? 0.0,
@@ -2401,6 +2399,7 @@ packages/skotiq_core/lib/src/models/backend/device_status.dart	RotatorStatus.fro
 packages/skotiq_core/lib/src/models/backend/device_status.dart	RotatorStatus.fromJson	literal_null_coalesce	1	V0016	final position = json['position']?.toDouble() ?? 0.0;
 packages/skotiq_core/lib/src/models/backend/device_status.dart	RotatorStatus.fromJson	literal_null_coalesce	1	V0016	isMoving: json['isMoving'] ?? false,
 packages/skotiq_core/lib/src/models/backend/device_status.dart	RotatorStatus.fromJson	literal_null_coalesce	1	V0016	moving: json['moving'] as bool? ?? false,
+packages/skotiq_core/lib/src/models/backend/device_status_bridge.dart	mountStatusFromBridge	literal_null_coalesce	1	V0121	atHome: s.atHome ?? false,
 packages/skotiq_core/lib/src/models/backend/event_types.dart	SkotiqEvent	comment_best_effort	1	V0093	/// best-effort matched against this event. Null on events that have no
 packages/skotiq_core/lib/src/models/backend/image_result.dart	CapturedImageResult.fromJson	literal_null_coalesce	1	V0016	isColor: json['isColor'] as bool? ?? false,
 packages/skotiq_core/lib/src/models/backend/phd2_status.dart	decodeTrackedStars	empty_catch	1	V0016	} catch (_) {
