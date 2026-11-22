@@ -528,6 +528,11 @@ class PluginContextFactory {
        _storageFactory =
            storageFactory ?? ((pluginId) => FilePluginStorage(pluginId));
 
+  /// Publishes [eventName] from the app to every plugin listening on the
+  /// shared bus ("weather.updated", "focuser.moved").
+  void publish(String eventName, Map<String, dynamic> data) =>
+      _eventBus.emit(eventName, data);
+
   PluginContext createContext(String pluginId) {
     return PluginContext(
       logger: ConsolePluginLogger(pluginId),
