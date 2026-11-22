@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shelf/shelf.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -29,6 +30,21 @@ Request _post(Map<String, dynamic> body) => Request(
   Uri.parse('http://localhost/api/runtime/state'),
   body: jsonEncode(body),
   headers: {'content-type': 'application/json'},
+);
+
+/// [payload] as the host's own event stream carries it.
+SkotiqEvent _wire(bridge.EventPayload payload, int at) => wireEventFromTyped(
+  bridge.SkotiqEvent(
+    eventId: BigInt.from(at),
+    timestamp: at,
+    severity: bridge.EventSeverity.info,
+    category: switch (payload) {
+      bridge.EventPayload_Imaging() => bridge.EventCategory.imaging,
+      bridge.EventPayload_Guiding() => bridge.EventCategory.guiding,
+      _ => bridge.EventCategory.sequencer,
+    },
+    payload: payload,
+  ),
 );
 
 void main() {
@@ -121,18 +137,29 @@ void main() {
   });
 
   test('recent events leave out telemetry and sync envelopes', () async {
-    SkotiqEvent event(String type, int at) => SkotiqEvent(
-      timestamp: at,
-      severity: EventSeverity.info,
-      category: EventCategory.sequencer,
-      eventType: type,
-      data: const {},
-    );
     [
-      event('Started', 1),
-      event('ExposureProgress', 2),
+      _wire(
+        const bridge.EventPayload.sequencer(
+          bridge.SequencerEvent.started(sequenceName: 'M31'),
+        ),
+        1,
+      ),
+      _wire(
+        const bridge.EventPayload.imaging(
+          bridge.ImagingEvent.exposureProgress(
+            progress: 0.5,
+            remainingSecs: 30,
+          ),
+        ),
+        2,
+      ),
       const HostRuntimeUpdate(channel: 'plateSolve', revision: 3).toEvent(),
-      event('NodeCompleted', 4),
+      _wire(
+        const bridge.EventPayload.sequencer(
+          bridge.SequencerEvent.nodeCompleted(nodeId: 'n1', status: 'success'),
+        ),
+        4,
+      ),
     ].forEach(nightEvents.append);
 
     final response = await handlers.handleRecentEvents(
@@ -200,12 +227,16 @@ void main() {
     );
     for (var at = 2; at < 20000; at++) {
       nightEvents.append(
-        SkotiqEvent(
-          timestamp: at,
-          severity: EventSeverity.info,
-          category: EventCategory.guiding,
-          eventType: 'GuideStep',
-          data: const {},
+        _wire(
+          const bridge.EventPayload.guiding(
+            bridge.GuidingEvent.correction(
+              ra: 0.2,
+              dec: -0.1,
+              raRaw: 0.2,
+              decRaw: -0.1,
+            ),
+          ),
+          at,
         ),
       );
     }
