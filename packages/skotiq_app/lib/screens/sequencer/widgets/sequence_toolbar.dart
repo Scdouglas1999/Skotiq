@@ -31,7 +31,6 @@ import 'sequence_overview_prefs.dart';
 import 'sequencer_density.dart';
 import 'sequence_step_finder.dart';
 import 'sequence_tree_shortcuts.dart';
-import 'slew_to_target_dialog.dart';
 import 'smart_night_dialog.dart';
 import 'trigger_configuration_dialog.dart';
 import 'visual_timeline.dart';
@@ -489,8 +488,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
           }
 
-          // A slew is a physical action that can point the mount below the
-          // horizon, so it is confirmed before it is commanded.
+          // A target below the horizon or the site's floor is asked about by
+          // the mount service, as every GoTo is.
           Future<void> slewToTarget() async {
             final target = ref.read(runDashboardActiveTargetProvider);
             if (target == null) {
@@ -500,21 +499,6 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               return;
             }
             final logger = ref.read(loggingServiceProvider);
-            final confirmed = await showSlewToTargetConfirmation(
-              context,
-              targetName: target.targetName,
-              raHours: target.raHours,
-              decDegrees: target.decDegrees,
-              altitudeDegrees:
-                  ref.read(runDashboardSkyStatsProvider)?.altitudeDeg,
-            );
-            if (!confirmed) {
-              logger.info(
-                'Slew to ${target.targetName} canceled at the confirmation.',
-                source: 'Sequencer',
-              );
-              return;
-            }
             logger.info(
               'Slewing to ${target.targetName} '
               '(RA ${CoordinateFormat.raReadout(target.raHours)}, '
@@ -525,9 +509,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             if (context.mounted) {
               context.showInfoSnackBar('Slewing to ${target.targetName}…');
             }
-            final result = await ref
-                .read(mountCommandServiceProvider)
-                .slewTo(target.raHours, target.decDegrees, showFeedback: false);
+            final result = await ref.read(mountCommandServiceProvider).slewTo(
+                  target.raHours,
+                  target.decDegrees,
+                  showFeedback: false,
+                  targetName: target.targetName,
+                );
             if (result.isSuccess) {
               logger.info(
                 'Slew to ${target.targetName} commanded.',
@@ -536,6 +523,12 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               if (context.mounted) {
                 context.showInfoSnackBar('Mount is on ${target.targetName}.');
               }
+            } else if (!result.hasMessage) {
+              logger.info(
+                'Slew to ${target.targetName} canceled at the altitude '
+                'question.',
+                source: 'Sequencer',
+              );
             } else {
               logger.error(
                 'Slew to ${target.targetName} failed: ${result.message}',

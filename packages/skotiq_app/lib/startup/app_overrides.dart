@@ -4,6 +4,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart' show skyNowProvider;
 
 import '../screens/onboarding/steps/capture_dir_step.dart';
 import 'location_sync_service.dart' show planetariumInputOverrides;
+import 'go_to_altitude_ask_wiring.dart';
 import 'plugin_enablement_wiring.dart';
 import 'silent_guider_ask_wiring.dart';
 
@@ -18,6 +19,8 @@ List<Override> appProviderOverrides(AppVersionInfo appVersion) => [
       pluginEnablementStoreOverride(),
       // A GoTo with the guider silent asks the operator on the app's window.
       moveWithSilentGuiderAskOverride(),
+      // A GoTo below the horizon or the site's floor asks on the same window.
+      goToAltitudeAskOverride(),
       // First-run setup starts with a capture folder made and checked.
       onboardingDefaultCaptureDirectoryProvider
           .overrideWithValue(prepareDefaultCaptureDirectory),

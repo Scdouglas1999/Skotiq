@@ -395,6 +395,7 @@ class _ActionsRow extends StatelessWidget {
     final result = await mount.slewTo(
       detection.raDeg / 15.0,
       detection.decDeg,
+      targetName: 'The candidate',
     );
     if (!context.mounted) return;
     context.showCommandActionResult(result);

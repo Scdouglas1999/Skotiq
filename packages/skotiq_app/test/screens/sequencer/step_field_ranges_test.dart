@@ -54,7 +54,9 @@ void main() {
   T stored<T extends SequenceNode>(HarnessHandle handle, String id) =>
       handle.container.read(currentSequenceProvider)!.nodes[id]! as T;
 
-  testWidgets('a two-hour delay, which the inline popover takes, is kept by the inspector', (
+  testWidgets(
+      'a two-hour delay, which the inline popover takes, is kept by the inspector',
+      (
     tester,
   ) async {
     final node = DelayNode(seconds: 60);
@@ -66,7 +68,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
   });
 
-  testWidgets('a Dither step takes a zero amount and the Start Guiding '
+  testWidgets(
+      'a Dither step takes a zero amount and the Start Guiding '
       'settle range', (tester) async {
     final node = DitherNode();
     final handle = await pumpNode(tester, node);

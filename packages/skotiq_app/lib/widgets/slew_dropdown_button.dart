@@ -10,7 +10,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../services/goto_altitude_check.dart';
 import '../services/mount_command_service.dart';
 import '../services/rotate_after_centering.dart';
 import 'centering_dialog.dart';
@@ -250,20 +249,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     final revision = ++_operationRevision;
     final backend = ref.read(backendProvider);
 
-    // The horizon gate runs before anything is dispatched and before the
-    // button latches into its working state, so a refused slew leaves the
-    // control exactly as it was.
-    if (!await confirmGoToAltitude(
-      context,
-      ref,
-      raHours: widget.ra,
-      decDeg: widget.dec,
-      targetName: widget.targetName,
-    )) {
-      return;
-    }
-    if (!_isCurrentOperation(revision, backend)) return;
-
     setState(() => _operationInFlight = true);
     try {
       switch (mode) {
@@ -286,7 +271,11 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
   Future<void> _handleSlew(int revision, SkotiqBackend backend) async {
     final mountService = ref.read(mountCommandServiceProvider);
-    final result = await mountService.slewTo(widget.ra, widget.dec);
+    final result = await mountService.slewTo(
+      widget.ra,
+      widget.dec,
+      targetName: widget.targetName,
+    );
     if (!mounted ||
         !_isCurrentOperation(revision, backend) ||
         !identical(ref.read(mountCommandServiceProvider), mountService)) {
@@ -317,6 +306,7 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       widget.ra,
       widget.dec,
       showFeedback: false,
+      targetName: widget.targetName,
     );
 
     if (!mounted ||

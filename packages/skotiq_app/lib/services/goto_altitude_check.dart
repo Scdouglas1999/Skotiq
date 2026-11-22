@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 
 import '../utils/confirm_dialog.dart';
-import '../utils/snackbar_helper.dart';
 
 /// Where a GoTo target sits against the ground and the site's altitude floor.
 enum GoToAltitudeKind { clear, belowHorizon, belowFloor }
@@ -61,48 +59,39 @@ GoToAltitudeVerdict judgeGoToAltitude({
   );
 }
 
-/// Asks the operator before a GoTo to a target under the ground or under the
-/// site's altitude floor. Completes with true when the GoTo may go.
-///
-/// No configured site means there is no altitude to judge. A settings-load
-/// failure blocks the GoTo because it cannot be told apart from a hidden
-/// configured site.
-Future<bool> confirmGoToAltitude(
+/// A GoTo the operator is asked about: where its target sits against the
+/// ground and the site's floor.
+class GoToAltitudeQuestion {
+  final GoToAltitudeVerdict verdict;
+  final String? targetName;
+
+  /// The floor follows the site's horizon mask rather than one minimum
+  /// altitude.
+  final bool floorFollowsHorizon;
+
+  const GoToAltitudeQuestion({
+    required this.verdict,
+    required this.floorFollowsHorizon,
+    this.targetName,
+  });
+}
+
+/// Asks the operator whether a GoTo below the horizon or the site's altitude
+/// floor should go ahead. The app's startup gives it the dialog
+/// ([askGoToAltitudeOn]); a process with no screen to ask on answers no.
+final goToAltitudeAskProvider =
+    Provider<Future<bool> Function(GoToAltitudeQuestion question)>(
+  (ref) => (_) async => false,
+);
+
+/// The question of [goToAltitudeAskProvider], asked on [context]. Completes
+/// with true when the GoTo may go.
+Future<bool> askGoToAltitudeOn(
   BuildContext context,
-  WidgetRef ref, {
-  required double raHours,
-  required double decDeg,
-  String? targetName,
-}) async {
-  try {
-    await ref.read(appSettingsProvider.future);
-  } catch (error) {
-    if (context.mounted) {
-      context.showErrorSnackBar(
-        'Unable to verify target altitude because settings could not be '
-        'loaded. Slew was not sent.',
-      );
-    }
-    return false;
-  }
-  if (!context.mounted) return false;
-
-  // Whether a site exists at all is [appObserverLocationProvider]'s call:
-  // (0, 0) is a real place and only that provider decides it means "unset".
-  final site = ref.read(appObserverLocationProvider);
-  if (site == null) return true;
-
-  final floor = ref.read(altitudeFloorProvider);
-  final verdict = judgeGoToAltitude(
-    raHours: raHours,
-    decDeg: decDeg,
-    site: site,
-    floor: floor,
-    atUtc: ref.read(clockProvider).nowUtc(),
-  );
-  if (verdict.kind == GoToAltitudeKind.clear) return true;
-
-  final target = targetName ?? 'That target';
+  GoToAltitudeQuestion question,
+) {
+  final verdict = question.verdict;
+  final target = question.targetName ?? 'That target';
   final where = 'azimuth ${verdict.azimuthDeg.toStringAsFixed(0)}°';
 
   if (verdict.kind == GoToAltitudeKind.belowHorizon) {
@@ -125,7 +114,7 @@ Future<bool> confirmGoToAltitude(
     message: '$target is only ${verdict.altitudeDeg.toStringAsFixed(1)}° '
         'above the horizon ($where), under the site\'s '
         '${verdict.floorDeg.toStringAsFixed(0)}° '
-        '${floor.followsHorizon ? 'horizon there (Settings > Location)' : 'minimum altitude'}. '
+        '${question.floorFollowsHorizon ? 'horizon there (Settings > Location)' : 'minimum altitude'}. '
         'It may be behind trees or a roof, and it will be looking through '
         'a lot of air.',
     confirmLabel: 'Slew anyway',

@@ -187,7 +187,7 @@ class RecordingMountCommands extends MountCommandService {
       _ok('setTrackingRate:${rate.name}');
   @override
   Future<CommandActionResult> slewTo(double ra, double dec,
-          {bool showFeedback = true}) =>
+          {bool showFeedback = true, String? targetName}) =>
       _ok('slewTo');
   @override
   Future<CommandActionResult> sync(double ra, double dec) => _ok('sync');

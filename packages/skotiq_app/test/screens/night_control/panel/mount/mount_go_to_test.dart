@@ -24,7 +24,7 @@ class _SlewRecorder extends RecordingMountCommands {
 
   @override
   Future<CommandActionResult> slewTo(double ra, double dec,
-      {bool showFeedback = true}) {
+      {bool showFeedback = true, String? targetName}) {
     slews.add((ra, dec));
     return super.slewTo(ra, dec, showFeedback: showFeedback);
   }

@@ -366,6 +366,12 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   /// centering every manual Slew & center uses.
   Future<CommandActionResult> _center(({double ra, double dec}) to) async {
     final l10n = context.l10n;
+    // A centering run slews to the target first; that GoTo is asked about
+    // below the horizon or the site's floor as any GoTo is.
+    final refused = await ref
+        .read(mountCommandServiceProvider)
+        .confirmGoToAltitude(to.ra, to.dec);
+    if (refused != null) return refused;
     final result = (await ref.read(centeringRunProvider).center(
           raHours: to.ra,
           decDegrees: to.dec,
