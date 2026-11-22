@@ -143,19 +143,7 @@ class SequenceExecutor {
 
   /// The run on the imaging host, for a client linked to one; null where the
   /// imaging host is this process.
-  late final HostRunControl? _hostRun = switch (_ref.read(
-    linkedHostRunStateProvider,
-  )) {
-    null => null,
-    final host => HostRunControl(
-      host,
-      ref: _ref,
-      backend: _backend,
-      logger: () => _logger,
-      setExecutionState: _setExecutionState,
-      noSequenceLoaded: _noSequenceLoaded,
-    ),
-  };
+  late final HostRunControl? _hostRun;
   bool _isCalibrationRun = false;
 
   /// Owns the run phases and operation latches.
@@ -298,7 +286,19 @@ class SequenceExecutor {
   );
 
   SequenceExecutor(this._ref, {SkotiqBackend? backend})
-    : _backend = backend ?? _ref.read(backendProvider);
+    : _backend = backend ?? _ref.read(backendProvider) {
+    final host = _ref.read(linkedHostRunStateProvider);
+    _hostRun = host == null
+        ? null
+        : HostRunControl(
+            host,
+            ref: _ref,
+            backend: _backend,
+            logger: () => _logger,
+            setExecutionState: _setExecutionState,
+            noSequenceLoaded: _noSequenceLoaded,
+          );
+  }
 
   void _ensureBackendAuthority() {
     if (_disposed || _ref.backendScopeOver(_backend).isStale) {
