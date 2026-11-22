@@ -609,6 +609,7 @@ abstract class RustLibApi extends BaseApi {
 
   List<QuirkInfo> crateApiDiagnosticsApiGetDeviceQuirks({
     required String deviceId,
+    String? model,
   });
 
   Future<DomeCapabilities> crateApiDiagnosticsApiGetDomeCapabilities({
@@ -4910,13 +4911,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   List<QuirkInfo> crateApiDiagnosticsApiGetDeviceQuirks({
     required String deviceId,
+    String? model,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_opt_String(model);
           return wire.wire__crate__api__diagnostics__api_get_device_quirks(
             arg0,
+            arg1,
           );
         },
         codec: DcoCodec(
@@ -4924,7 +4928,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiDiagnosticsApiGetDeviceQuirksConstMeta,
-        argValues: [deviceId],
+        argValues: [deviceId, model],
         apiImpl: this,
       ),
     );
@@ -4933,7 +4937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDiagnosticsApiGetDeviceQuirksConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_device_quirks",
-        argNames: ["deviceId"],
+        argNames: ["deviceId", "model"],
       );
 
   @override

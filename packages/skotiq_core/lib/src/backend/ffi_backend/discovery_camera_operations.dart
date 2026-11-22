@@ -173,9 +173,9 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     bridge.apiSetQhyDiscoveryEnabled(enabled: enabled);
   }
 
-  /// The quirk table is keyed by the model name for most vendors
-  /// (`native:<vendor>:<model>`, as each driver looks its own quirks up) and
-  /// by the device id for the rest, so both keys are asked.
+  /// The quirk table is keyed by the model name for most rows and by the
+  /// device's family for the rest, so the bridge is given the id and the
+  /// model name the driver reported.
   Future<List<DeviceQuirk>> deviceQuirks(String deviceId) async {
     // Only the native vendor drivers have entries; the table logs a warning
     // for an id it cannot key, such as a simulator's.
@@ -188,20 +188,12 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     for (final device in await _connectedNativeDevices()) {
       if (device.id == deviceId) name = device.name;
     }
-    final keys = [
-      deviceId,
-      if (name != null && id.segments.isNotEmpty)
-        'native:${id.segments.first}:$name',
-    ];
-    final seen = <String>{};
     return [
-      for (final key in keys)
-        for (final quirk in bridge.apiGetDeviceQuirks(deviceId: key))
-          if (seen.add('${quirk.category}\n${quirk.description}'))
-            DeviceQuirk(
-              category: quirk.category,
-              description: quirk.description,
-            ),
+      for (final quirk in bridge.apiGetDeviceQuirks(
+        deviceId: deviceId,
+        model: name,
+      ))
+        DeviceQuirk(category: quirk.category, description: quirk.description),
     ];
   }
 

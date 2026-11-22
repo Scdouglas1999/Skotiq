@@ -3178,7 +3178,8 @@ void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_device_capabili
 void frbgen_skotiq_bridge_wire__crate__api__heartbeat__api_get_device_health(int64_t port_,
                                                                              struct wire_cst_list_prim_u_8_strict *device_id);
 
-WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_device_quirks(struct wire_cst_list_prim_u_8_strict *device_id);
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_device_quirks(struct wire_cst_list_prim_u_8_strict *device_id,
+                                                                                               struct wire_cst_list_prim_u_8_strict *model);
 
 void frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_dome_capabilities(int64_t port_,
                                                                                    struct wire_cst_list_prim_u_8_strict *device_id);

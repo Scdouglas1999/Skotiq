@@ -2724,6 +2724,7 @@ fn wire__crate__api__heartbeat__api_get_device_health_impl(
 }
 fn wire__crate__api__diagnostics__api_get_device_quirks_impl(
     device_id: impl CstDecode<String>,
+    model: impl CstDecode<Option<String>>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -2733,9 +2734,10 @@ fn wire__crate__api__diagnostics__api_get_device_quirks_impl(
         },
         move || {
             let api_device_id = device_id.cst_decode();
+            let api_model = model.cst_decode();
             transform_result_dco::<_, _, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::diagnostics::api_get_device_quirks(api_device_id),
+                    crate::api::diagnostics::api_get_device_quirks(api_device_id, api_model),
                 )?;
                 Ok(output_ok)
             })())
@@ -31076,8 +31078,9 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_device_quirks(
         device_id: *mut wire_cst_list_prim_u_8_strict,
+        model: *mut wire_cst_list_prim_u_8_strict,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__diagnostics__api_get_device_quirks_impl(device_id)
+        wire__crate__api__diagnostics__api_get_device_quirks_impl(device_id, model)
     }
 
     #[unsafe(no_mangle)]

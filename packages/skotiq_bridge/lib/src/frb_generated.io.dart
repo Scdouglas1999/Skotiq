@@ -12683,14 +12683,19 @@ class RustLibWire implements BaseWire {
 
   WireSyncRust2DartDco wire__crate__api__diagnostics__api_get_device_quirks(
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
   ) {
-    return _wire__crate__api__diagnostics__api_get_device_quirks(device_id);
+    return _wire__crate__api__diagnostics__api_get_device_quirks(
+      device_id,
+      model,
+    );
   }
 
   late final _wire__crate__api__diagnostics__api_get_device_quirksPtr =
       _lookup<
         ffi.NativeFunction<
           WireSyncRust2DartDco Function(
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
@@ -12701,6 +12706,7 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__diagnostics__api_get_device_quirksPtr
           .asFunction<
             WireSyncRust2DartDco Function(
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
