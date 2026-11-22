@@ -282,6 +282,13 @@ final List<Check> checks = [
     'dart',
     'test',
   ]),
+  // The web dashboard and run-watch pages' own tests (node's built-in runner).
+  Check(
+    'dart-tests',
+    'dashboard-js-tests',
+    ['node', '--test', 'test/'],
+    workingDirectory: 'apps/desktop/web_dashboard',
+  ),
   Check(
     'dart-tests',
     'manual-migration',

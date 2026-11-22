@@ -315,8 +315,8 @@ test('run-watch pairing accepts the real WORD-WORD-NNNN code format', () => {
 
   // Machine-readable server failures must be translated, not printed raw.
   assert.match(js, /function pairingErrorText\(data, status\)/);
-  assert.match(js, /invalid_pairing_code/);
-  assert.match(js, /pairing_code_expired/);
+  assert.match(js, /WIRE_ERROR_CODES\.invalidPairingCode/);
+  assert.match(js, /WIRE_ERROR_CODES\.pairingCodeExpired/);
   assert.doesNotMatch(
     js,
     /statusEl\.textContent = data\.error \|\| data\.message/,

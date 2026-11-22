@@ -9,6 +9,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+require('./load_wire_errors');
 const vm = require('node:vm');
 
 const { makeDocument } = require('./dom_shim');
@@ -605,6 +606,7 @@ test('a rate-limited but live server says so without going stale', () => {
 
 function loadApi(fetchStub) {
   const context = vm.createContext({
+    WIRE_ERROR_CODES: globalThis.WIRE_ERROR_CODES,
     fetch: fetchStub,
     Headers: globalThis.Headers,
     AbortController: globalThis.AbortController,
@@ -794,6 +796,7 @@ class FakeEventSource {
 
 function apiWithEventSource() {
   const context = vm.createContext({
+    WIRE_ERROR_CODES: globalThis.WIRE_ERROR_CODES,
     fetch: async () => { throw new Error('no fetch in this test'); },
     Headers: globalThis.Headers,
     AbortController: globalThis.AbortController,
@@ -2973,7 +2976,8 @@ test('a park that went ahead with the guider silent shows the host\u2019s notice
 });
 
 test('the client tells a scope refusal from a credential the rig will not take', () => {
-  const context = vm.createContext({ JSON: globalThis.JSON, SKOTIQ_RELEASE: '8.2.1', console });
+  const context = vm.createContext({
+    WIRE_ERROR_CODES: globalThis.WIRE_ERROR_CODES, JSON: globalThis.JSON, SKOTIQ_RELEASE: '8.2.1', console });
   vm.runInContext(API + '\n;globalThis.__cls = SkotiqApi._scopeRefusalFrom;', context);
   const classify = context.__cls;
 
