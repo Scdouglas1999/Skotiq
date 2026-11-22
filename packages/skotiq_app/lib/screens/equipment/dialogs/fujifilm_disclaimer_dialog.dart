@@ -25,7 +25,41 @@ Future<bool> showFujifilmDisclaimerIfNeeded(BuildContext context) async {
 
   if (!context.mounted) return false;
 
-  final result = await showDialog<bool>(
+  final result = await _showNotice(context, afterConnect: false);
+
+  if (result == true) {
+    await prefs.setBool(_prefKey, true);
+    return true;
+  }
+
+  return false;
+}
+
+/// Asks for the consent a camera's family needs before a connect the
+/// operator started: the discovery list, Connect all, a device card's retry.
+/// True when the camera needs none or it was given.
+Future<bool> askCameraConsentBeforeConnect(
+  BuildContext context, {
+  required String deviceId,
+  String deviceName = '',
+}) async {
+  if (!isFujifilmDevice(deviceId, deviceName)) return true;
+  return showFujifilmDisclaimerIfNeeded(context);
+}
+
+/// The notice for a Fujifilm camera a connect nobody was asked for brought up
+/// (auto-connect at launch): it is connected, so the notice says so and asks
+/// nothing. Shown once.
+Future<void> showFujifilmNoticeAfterConnect(BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool(_prefKey) == true || !context.mounted) return;
+  await prefs.setBool(_prefKey, true);
+  if (!context.mounted) return;
+  await _showNotice(context, afterConnect: true);
+}
+
+Future<bool?> _showNotice(BuildContext context, {required bool afterConnect}) {
+  return showDialog<bool>(
     context: context,
     barrierDismissible: false,
     builder: (context) {
@@ -35,11 +69,12 @@ Future<bool> showFujifilmDisclaimerIfNeeded(BuildContext context) async {
         width: SkotiqDialog.widthConfirm,
         showCloseButton: false,
         actions: [
-          SkotiqButton(
-            label: 'Cancel',
-            variant: ButtonVariant.ghost,
-            onPressed: () => Navigator.of(context).pop(false),
-          ),
+          if (!afterConnect)
+            SkotiqButton(
+              label: 'Cancel',
+              variant: ButtonVariant.ghost,
+              onPressed: () => Navigator.of(context).pop(false),
+            ),
           SkotiqButton(
             label: 'I understand',
             variant: ButtonVariant.primary,
@@ -47,9 +82,11 @@ Future<bool> showFujifilmDisclaimerIfNeeded(BuildContext context) async {
           ),
         ],
         child: Text(
+          "${afterConnect ? 'Skotiq connected your Fujifilm camera at startup. ' : ''}"
           "According to Fujifilm's SDK license agreement, using third-party "
           'software to control your Fujifilm camera may void its limited '
-          'product warranty. By proceeding, you accept that risk.\n\n'
+          'product warranty. '
+          '${afterConnect ? '' : 'By proceeding, you accept that risk.'}\n\n'
           'This notice is not shown again.',
           style: SkotiqTypography.bodySm.copyWith(
             color: colors.textSecondary,
@@ -58,11 +95,4 @@ Future<bool> showFujifilmDisclaimerIfNeeded(BuildContext context) async {
       );
     },
   );
-
-  if (result == true) {
-    await prefs.setBool(_prefKey, true);
-    return true;
-  }
-
-  return false;
 }

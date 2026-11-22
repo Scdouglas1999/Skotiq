@@ -1,3 +1,4 @@
+import 'startup/fujifilm_notice_after_connect.dart';
 import 'startup/mount_site_reconciliation_card.dart';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
@@ -199,6 +200,7 @@ class StartupPrompts extends StatelessWidget {
     (child) => EquipmentOnboardingLauncher(child: child),
     (child) => YourSkyOffNoticeChecker(child: child),
     (child) => MountSiteReconciliationListener(child: child),
+    (child) => FujifilmNoticeAfterConnect(child: child),
     (child) => NightEndToasts(child: child),
   ];
 

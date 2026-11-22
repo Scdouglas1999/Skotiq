@@ -28,6 +28,7 @@ import '../utils/session_device_save.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/guide_distance.dart';
 import '../../../utils/guider_state_label.dart';
+import '../dialogs/fujifilm_disclaimer_dialog.dart';
 
 part 'connected_device_card/status_and_display.dart';
 part 'connected_device_card/actions_and_telemetry.dart';
