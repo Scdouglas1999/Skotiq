@@ -180,10 +180,7 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
       defaultIntegrationBudgetHours: integrationBudgetHours ??
           const SmartNightSettings().defaultIntegrationBudgetHours,
       coolDownTargetC: SmartNightInputs.coolDownTargetC(profile),
-      hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(
-        profile,
-        rule: CoverCalibratorRule.namedId,
-      ),
+      hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(profile),
     ),
   );
 

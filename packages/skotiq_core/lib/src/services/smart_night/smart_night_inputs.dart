@@ -2,15 +2,6 @@ import '../../models/equipment_profile_model.dart';
 import '../../settings/app_settings_state.g.dart';
 import '../smart_night_models.dart';
 
-/// How a site decides that the rig has a cover calibrator from the profile.
-enum CoverCalibratorRule {
-  /// Any calibrator id counts, a blank one included (the Smart Night wizard).
-  anyId,
-
-  /// Only an id with text in it counts (Plan tonight and the planners).
-  namedId,
-}
-
 /// The Smart Night inputs that come from the app settings and the active
 /// equipment profile, for every place that plans a night.
 abstract final class SmartNightInputs {
@@ -52,16 +43,8 @@ abstract final class SmartNightInputs {
   static double coolDownTargetC(EquipmentProfileModel profile) =>
       profile.defaultCoolingTemp ?? defaultCoolDownTargetC;
 
-  /// Whether [profile] names a cover calibrator, by [rule].
-  static bool hasCoverCalibrator(
-    EquipmentProfileModel profile, {
-    required CoverCalibratorRule rule,
-  }) {
-    final id = profile.coverCalibratorId;
-    if (id == null) return false;
-    return switch (rule) {
-      CoverCalibratorRule.anyId => true,
-      CoverCalibratorRule.namedId => id.trim().isNotEmpty,
-    };
-  }
+  /// Whether [profile] names a cover calibrator: an id with text in it. A
+  /// blank id is no calibrator.
+  static bool hasCoverCalibrator(EquipmentProfileModel profile) =>
+      profile.coverCalibratorId?.trim().isNotEmpty ?? false;
 }

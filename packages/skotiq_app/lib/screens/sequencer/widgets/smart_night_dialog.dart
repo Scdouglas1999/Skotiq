@@ -481,10 +481,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
 
       final effectiveSettings = _settings.copyWith(
         hasCoverCalibrator: _settings.hasCoverCalibrator ||
-            SmartNightInputs.hasCoverCalibrator(
-              activeProfile,
-              rule: CoverCalibratorRule.anyId,
-            ),
+            SmartNightInputs.hasCoverCalibrator(activeProfile),
       );
       var exposureContext =
           await ref.read(smartNightExposureContextProvider.future);
