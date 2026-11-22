@@ -291,8 +291,7 @@ impl OpenMaster {
         let tmp = self.sidecar.with_extension("saving");
         let how = Replace {
             sync: false,
-            clean_after_write_error: false,
-            clean_after_place_error: false,
+            ..Replace::DURABLE
         };
         replace_file(&self.sidecar, &tmp, how, |tmp| {
             std::fs::write(tmp, self.master.serialize())

@@ -1944,10 +1944,10 @@ fn decompress_payload(
 
 /// Put a tile sidecar in place through `staged`.
 fn write_tile_file(path: &Path, staged: &Path, bytes: &[u8]) -> Result<(), AtlasError> {
-    let how = crate::atomic_file::Replace {
+    use crate::atomic_file::Replace;
+    let how = Replace {
         sync: false,
-        clean_after_write_error: false,
-        clean_after_place_error: false,
+        ..Replace::DURABLE
     };
     crate::atomic_file::replace_file(path, staged, how, |staged| std::fs::write(staged, bytes))
         .map_err(|e| match e {

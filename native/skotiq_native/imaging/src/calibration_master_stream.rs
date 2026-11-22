@@ -686,8 +686,7 @@ fn build_with_free_space(
     let partial = output.with_extension("partial.fits");
     let how = Replace {
         sync: false,
-        clean_after_write_error: false,
-        clean_after_place_error: false,
+        ..Replace::DURABLE
     };
     replace_file(output, &partial, how, |partial| {
         write_fits(partial, &image, &header)
@@ -1128,6 +1127,24 @@ mod tests {
             matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")),
             "{err}"
         );
+    }
+
+    /// A master that cannot take its name leaves no staged file beside it.
+    #[test]
+    fn a_master_that_cannot_be_placed_leaves_no_partial_file() {
+        let dir = tempdir();
+        let a = write_frame(dir.path(), "a.fits", &noisy(1, 4, 4, 300.0), 4, 4, CARDS);
+        let b = write_frame(dir.path(), "b.fits", &noisy(2, 4, 4, 300.0), 4, 4, CARDS);
+        let taken = dir.path().join("m.fits");
+        std::fs::create_dir_all(taken.join("inside")).unwrap();
+        let err = build_streamed_master(
+            &[a, b],
+            &taken,
+            &StreamedMasterConfig::new(StreamedMasterKind::Dark),
+        )
+        .unwrap_err();
+        assert!(matches!(err, MasterBuildError::Failed(_)), "{err}");
+        assert!(!dir.path().join("m.partial.fits").exists());
     }
 
     /// Gain, offset and binning agree when their whole parts do; the refusal

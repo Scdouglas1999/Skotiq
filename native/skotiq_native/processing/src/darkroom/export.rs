@@ -622,8 +622,7 @@ fn write_atomic(
     let temp = temp_sibling(path);
     let how = Replace {
         sync: false,
-        clean_after_write_error: false,
-        clean_after_place_error: true,
+        ..Replace::DURABLE
     };
     replace_file(path, &temp, how, write).map_err(|e| match e {
         ReplaceError::Write(message) => message,
