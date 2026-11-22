@@ -42,6 +42,24 @@ SkotiqEvent _progressEvent({
 );
 
 void main() {
+  // Hosts and clients of other releases read these spellings.
+  test('the progress event keeps its wire spelling', () {
+    final event = _progressEvent(
+      phase: 'registering',
+      fraction: 0.25,
+      framesDone: 3,
+      framesTotal: 12,
+    );
+    expect(event.category, EventCategory.imaging);
+    expect(event.eventType, 'IntegrationProgress');
+    expect(event.data, {
+      'phase': 'registering',
+      'fraction': 0.25,
+      'frames_done': 3,
+      'frames_total': 12,
+    });
+  });
+
   group('BridgePostSessionSeam.integrationProgress', () {
     test('yields (phase, fraction) for imaging IntegrationProgress events and '
         'drops everything else', () async {

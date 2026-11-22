@@ -531,18 +531,23 @@ void main() {
       'Abell 2151',
     ];
     for (final name in emissionNames) {
+      final choice = _choose(_target(name, 'Galaxy'));
       expect(
-        _choose(_target(name, 'Galaxy')).strategy,
+        choice.strategy,
         SmartNightStrategy.autoLrgb,
         reason: '$name typed as a galaxy',
       );
+      expect(choice.filters, ['L', 'R', 'G', 'B'], reason: name);
+      expect(choice.suggestion, isNull, reason: name);
     }
     for (final name in broadbandNames) {
+      final choice = _choose(_target(name, 'HII Region'));
       expect(
-        _choose(_target(name, 'HII Region')).strategy,
+        choice.strategy,
         SmartNightStrategy.narrowbandSho,
         reason: '$name typed as an HII region',
       );
+      expect(choice.filters, ['Ha', 'OIII', 'SII'], reason: name);
     }
   });
 }
