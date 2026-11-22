@@ -95,7 +95,7 @@ SPA upgrades the bearer to an `HttpOnly skotiq_session` cookie via
 
 | Surface | Endpoint | Notes |
 |--------|----------|-------|
-| Event firehose | `WebSocket /events?ticket=...` | Single-use 60s ticket from `POST /api/ws/ticket`; falls back to `?token=` for compatibility |
+| Event firehose | `WebSocket /events?ticket=...&version=...` | Single-use 60s ticket from `POST /api/ws/ticket`, plus the page's release |
 | Image preview  | `GET /api/camera/last-image/jpeg`, polled via the camera panel | Driven by `ExposureComplete` events; a 30s grace timer kicks a manual fetch if no event arrives |
 | Image gallery  | `GET /api/images?limit=24` + `GET /api/images/<id>/thumbnail` | Modal preview uses the same thumbnail endpoint at higher resolution |
 | Log tail       | `EventSource /api/logs/tail?minSeverity=info&access_token=...` | Bearer goes in the query string because EventSource lacks a header API |

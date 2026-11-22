@@ -355,7 +355,7 @@ Future<void> expectSmokeWebSocketPong(
     host: baseUri.host,
     port: baseUri.port,
     path: '/events',
-    queryParameters: {'token': token},
+    queryParameters: {'token': token, 'version': _skotiqRelease},
   );
   final socket = await WebSocket.connect(uri.toString()).timeout(timeout);
   try {
