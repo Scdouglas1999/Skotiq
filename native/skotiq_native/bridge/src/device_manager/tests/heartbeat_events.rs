@@ -146,8 +146,6 @@ async fn disconnect_phd2_via_generic_route_calls_phd2_disconnect() {
 //      `Connected`.
 #[tokio::test]
 async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
-    use crate::device_manager::connection::RECONNECT_CANCELED_MSG;
-
     let manager = build_device_manager();
     let device_id = "simulator:test-reconnect-cancel";
     let info = DeviceInfo {
@@ -219,7 +217,7 @@ async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
     // device's state back to Connected.
     let result = manager.connect_device_internal(&info).await;
     match result {
-        Err(e) if e == RECONNECT_CANCELED_MSG => {}
+        Err(crate::device_manager::connection::ConnectError::Canceled) => {}
         other => panic!(
             "connect_device_internal with tripped token must return \
                  RECONNECT_CANCELED_MSG, got {:?}",

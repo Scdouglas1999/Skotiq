@@ -19,11 +19,61 @@ use tokio::time::interval;
 // probe below needs it (and `CameraDriver`) on every platform.
 use skotiq_device::{CameraDriver, DeviceDriver};
 
-/// Error message returned by `connect_device_internal` when an in-flight
-/// reconnect attempt is aborted by a manual disconnect. The string is part
-/// of the public contract (the reconnection loop matches on it to suppress
-/// noisy "reconnection attempt failed" events).
+/// What a connect canceled by a manual disconnect answers.
 pub(crate) const RECONNECT_CANCELED_MSG: &str = "reconnect canceled by manual disconnect";
+
+/// Why a connect did not leave the device connected. Each displays the
+/// sentence the device's error and events carry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ConnectError {
+    /// A manual disconnect arrived during the attempt.
+    Canceled,
+    /// The id answered as other hardware than it did before.
+    IdentityConflict(String),
+    /// The vendor SDK no longer lists the device.
+    NotEnumerated(String),
+    /// Any other failure, in the driver's words.
+    Failed(String),
+}
+
+impl ConnectError {
+    /// A driver's failure to open or connect, of the kind it names.
+    pub(crate) fn from_driver(error: skotiq_device::DriverError) -> Self {
+        match error {
+            skotiq_device::DriverError::NotEnumerated(_) => Self::NotEnumerated(error.to_string()),
+            error => Self::Failed(error.to_string()),
+        }
+    }
+}
+
+impl std::fmt::Display for ConnectError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Canceled => f.write_str(RECONNECT_CANCELED_MSG),
+            Self::IdentityConflict(message)
+            | Self::NotEnumerated(message)
+            | Self::Failed(message) => f.write_str(message),
+        }
+    }
+}
+
+impl From<String> for ConnectError {
+    fn from(message: String) -> Self {
+        Self::Failed(message)
+    }
+}
+
+impl From<&str> for ConnectError {
+    fn from(message: &str) -> Self {
+        Self::Failed(message.to_string())
+    }
+}
+
+impl From<ConnectError> for String {
+    fn from(error: ConnectError) -> Self {
+        error.to_string()
+    }
+}
 
 impl DeviceManager {
     /// Install (or reuse) a per-device cancellation token. The returned
@@ -160,7 +210,7 @@ impl DeviceManager {
         // `connect_device_internal` re-checks the cancel token at additional
         // checkpoints inside the call.
         match self.connect_device_internal(info).await {
-            Err(e) if e == RECONNECT_CANCELED_MSG => {
+            Err(ConnectError::Canceled) => {
                 // The user stopped it with a disconnect: not a failed attempt.
                 tracing::info!(
                     "Reconnect for {} canceled mid-attempt (manual disconnect)",
@@ -177,7 +227,7 @@ impl DeviceManager {
                         device_id,
                         e
                     );
-                    dev.last_error = Some(e);
+                    dev.last_error = Some(e.to_string());
                 }
             }
             Ok(()) => {
@@ -283,7 +333,9 @@ impl DeviceManager {
         };
 
         let _cancel_rx = self.install_reconnect_cancel_token(device_id).await;
-        self.connect_device_internal(&device_info).await
+        self.connect_device_internal(&device_info)
+            .await
+            .map_err(String::from)
     }
 
     /// Whether the device answers a probe made now. The registry's
@@ -393,7 +445,10 @@ impl DeviceManager {
         self.connect_device(device_id).await
     }
 
-    pub(crate) async fn connect_device_internal(&self, info: &DeviceInfo) -> Result<(), String> {
+    pub(crate) async fn connect_device_internal(
+        &self,
+        info: &DeviceInfo,
+    ) -> Result<(), ConnectError> {
         let device_id = &info.id;
 
         // Subscribe to the device's cancel token. The reconnection loop and
@@ -405,7 +460,7 @@ impl DeviceManager {
         // between the reconnection loop's backoff wakeup and our entry here.
         if let Some(rx) = cancel_rx.as_ref() {
             if Self::reconnect_canceled(rx) {
-                return Err(RECONNECT_CANCELED_MSG.to_string());
+                return Err(ConnectError::Canceled);
             }
         }
 
@@ -439,10 +494,10 @@ impl DeviceManager {
 
         // Perform actual connection based on driver type
         let result = match info.driver_type {
-            DriverType::Simulator => self.connect_simulator(info).await,
-            DriverType::Ascom => self.connect_ascom(info).await,
-            DriverType::Alpaca => self.connect_alpaca(info).await,
-            DriverType::Indi => self.connect_indi(info).await,
+            DriverType::Simulator => self.connect_simulator(info).await.map_err(Into::into),
+            DriverType::Ascom => self.connect_ascom(info).await.map_err(Into::into),
+            DriverType::Alpaca => self.connect_alpaca(info).await.map_err(Into::into),
+            DriverType::Indi => self.connect_indi(info).await.map_err(Into::into),
             DriverType::Native => self.connect_native(info).await,
         };
 
@@ -465,8 +520,8 @@ impl DeviceManager {
         //
         // A dispatch that happened to succeed has its success discarded, so
         // the user sees their disconnect honored. The reconnection_loop
-        // already special-cases
-        // `RECONNECT_CANCELED_MSG` to suppress the "attempt failed" event.
+        // already special-cases a canceled connect to suppress the "attempt
+        // failed" event.
         //
         // One result is never converted: an identity conflict trips this very
         // token itself, because `verify_identity_after_connect` releases the
@@ -478,11 +533,13 @@ impl DeviceManager {
         // replug re-binding the id) would report nothing at all to the
         // operator.
         if let Some(rx) = cancel_rx.as_ref() {
-            if Self::reconnect_canceled(rx) && !Self::is_identity_conflict(&result) {
+            if Self::reconnect_canceled(rx)
+                && !matches!(result, Err(ConnectError::IdentityConflict(_)))
+            {
                 // Best-effort: leave the device in whatever state the post-
                 // dispatch result implies; the disconnect path will fix it up
                 // when it acquires the `devices` write lock next.
-                return Err(RECONNECT_CANCELED_MSG.to_string());
+                return Err(ConnectError::Canceled);
             }
         }
 
@@ -498,7 +555,7 @@ impl DeviceManager {
                     }
                     Err(e) => {
                         dev.connection_state = ConnectionState::Error;
-                        dev.last_error = Some(e.clone());
+                        dev.last_error = Some(e.to_string());
                     }
                 }
             }
@@ -514,17 +571,15 @@ impl DeviceManager {
         // auto-connecting at dusk — keeps failing against a list nobody has
         // refreshed. This is the automatic form of the manual rescan that
         // otherwise clears it.
-        if let Err(e) = &result {
-            if Self::is_stale_enumeration_error(e) {
-                tracing::warn!(
-                    "Connect to {} failed because the SDK no longer enumerates it \
-                     ({}); invalidating the discovery cache so the next list is \
-                     accurate",
-                    device_id,
-                    e
-                );
-                crate::discovery::forget().await;
-            }
+        if let Err(e @ ConnectError::NotEnumerated(_)) = &result {
+            tracing::warn!(
+                "Connect to {} failed because the SDK no longer enumerates it \
+                 ({}); invalidating the discovery cache so the next list is \
+                 accurate",
+                device_id,
+                e
+            );
+            crate::discovery::forget().await;
         }
 
         match &result {
@@ -612,7 +667,7 @@ impl DeviceManager {
                     EquipmentEvent::Error {
                         device_type: info.device_type.as_str().to_string(),
                         device_id: device_id.clone(),
-                        message: e.clone(),
+                        message: e.to_string(),
                     },
                     EventSeverity::Error,
                 );
@@ -620,35 +675,6 @@ impl DeviceManager {
         }
 
         result
-    }
-
-    /// True when this connect failed because the id re-bound to other hardware.
-    ///
-    /// Used only to stop the self-inflicted disconnect inside
-    /// `verify_identity_after_connect` from masquerading as a user cancel; see
-    /// the post-dispatch cancel check in `connect_device_internal`.
-    fn is_identity_conflict(result: &Result<(), String>) -> bool {
-        matches!(result, Err(e) if e.contains(IDENTITY_CONFLICT_MARKER))
-    }
-
-    /// True when a connect failed because the vendor SDK no longer enumerates
-    /// the device — as opposed to the many ways a device that IS present can
-    /// refuse to open (in use, permissions, a driver fault).
-    ///
-    /// The distinction decides whether the cached discovery list is wrong. A
-    /// busy or faulty device is still on the bus and the list is accurate; a
-    /// device the SDK cannot enumerate is not, and the list is lying.
-    ///
-    /// Matched on the message because these strings cross a vendor boundary as
-    /// plain `String` (`DriverError::InvalidDevice` carries no code). The
-    /// phrases are the ones the vendor modules emit — `zwo.rs` for the first,
-    /// and the generic form the shared enumeration helpers use.
-    fn is_stale_enumeration_error(message: &str) -> bool {
-        const MARKERS: [&str; 2] = [
-            "no longer present in the SDK enumeration",
-            "not present in the SDK enumeration",
-        ];
-        MARKERS.iter().any(|m| message.contains(m))
     }
 
     /// Ask a freshly-connected driver what it is, and refuse the connect if the
@@ -683,7 +709,7 @@ impl DeviceManager {
     pub(crate) async fn verify_identity_after_connect(
         &self,
         info: &DeviceInfo,
-    ) -> Result<(), String> {
+    ) -> Result<(), ConnectError> {
         let observed = self.probe_device_identity(info).await;
         if observed.is_empty() {
             tracing::debug!(
@@ -774,7 +800,7 @@ impl DeviceManager {
                     e
                 );
             }
-            return Err(message);
+            return Err(ConnectError::IdentityConflict(message));
         }
 
         tracing::info!("Device {} identified as {}", info.id, observed.describe());
@@ -1008,7 +1034,7 @@ impl DeviceManager {
         //
         // We do not block waiting for the reconnect to bail: `connect_device_
         // internal` polls the token at pre- and post-dispatch checkpoints and
-        // returns `RECONNECT_CANCELED_MSG`, which the reconnection_loop
+        // returns `ConnectError::Canceled`, which the reconnection_loop
         // suppresses. Worst case, the driver dispatch is mid-flight and runs
         // to completion against now-stale maps; its result is then discarded
         // by the post-dispatch cancel check.
@@ -1189,39 +1215,40 @@ impl DeviceManager {
 }
 
 #[cfg(test)]
-mod stale_enumeration_tests {
+mod connect_error_tests {
     use super::*;
+    use skotiq_device::DriverError;
 
-    /// The message the live rig produced on 2026-08-09, verbatim. The list went
-    /// on offering `native:zwo:0` for the full 60 s discovery TTL after the SDK
-    /// stopped enumerating it, so every retry failed against a list nobody had
-    /// refreshed.
+    /// Only a device the SDK no longer lists says the cached device list is
+    /// out of date. A device on the bus that refuses to open does not.
     #[test]
-    fn recognises_the_live_rig_message() {
-        assert!(DeviceManager::is_stale_enumeration_error(
-            "Failed to connect to native:zwo:0 via native bridge: \
-             SkotiqError.connectionFailed(deviceId: native:zwo:0, reason: \
-             Invalid device: ZWO camera ID 0 is no longer present in the SDK \
-             enumeration)"
+    fn only_a_device_the_sdk_no_longer_lists_is_not_enumerated() {
+        let missing = ConnectError::from_driver(DriverError::NotEnumerated(
+            "ZWO camera ID 0 is no longer present in the SDK enumeration".to_string(),
         ));
+        assert_eq!(
+            missing,
+            ConnectError::NotEnumerated(
+                "Invalid device: ZWO camera ID 0 is no longer present in the SDK enumeration"
+                    .to_string()
+            )
+        );
+        for refused in [
+            DriverError::Disconnected,
+            DriverError::InvalidDevice("ASIOpenCamera failed: rc=5".to_string()),
+            DriverError::SessionLost("camera in use".to_string()),
+            DriverError::Timeout("waiting for the driver".to_string()),
+        ] {
+            assert!(matches!(
+                ConnectError::from_driver(refused),
+                ConnectError::Failed(_)
+            ));
+        }
     }
 
-    /// A device that IS on the bus and merely refuses to open must not
-    /// invalidate the cache: the list is accurate and dropping it would make
-    /// every busy-camera retry re-run a full multi-driver scan.
     #[test]
-    fn leaves_present_but_unopenable_devices_alone() {
-        for message in [
-            "Device disconnected",
-            "ASIOpenCamera failed: rc=5",
-            "Camera is already in use by another application",
-            "Access denied opening ASCOM.ASICamera2.Camera",
-            "Timed out waiting for the driver to connect",
-        ] {
-            assert!(
-                !DeviceManager::is_stale_enumeration_error(message),
-                "{message:?} is not an enumeration failure"
-            );
-        }
+    fn a_canceled_connect_keeps_its_sentence() {
+        assert_eq!(ConnectError::Canceled.to_string(), RECONNECT_CANCELED_MSG);
+        assert_eq!(String::from(ConnectError::from("boom")), "boom");
     }
 }
