@@ -9,7 +9,7 @@
 //! connected where it is. Two devices that both match are never guessed
 //! between: the device stays lost and the operator is told.
 
-use crate::device::{ConnectionState, DeviceInfo};
+use crate::device::DeviceInfo;
 use crate::device_manager::identity::{same_model, DeviceIdentity};
 use crate::device_manager::DeviceManager;
 use crate::event::bus::EventPayload;
@@ -25,25 +25,26 @@ pub(crate) enum Found {
     At(DeviceInfo),
     /// More than one listed device matches: these ids.
     Ambiguous(Vec<String>),
+    /// The one device that matches is at an id another device of this
+    /// manager holds (two devices traded places): not connected there.
+    Taken(String),
 }
 
 /// The listed device that is `wanted`, the device last seen at `old` (or
 /// the model the caller expects there). A device of the same type and
-/// driver, at another id and not in use, whose serial is `wanted`'s; when
-/// either side has no serial, whose model is.
+/// driver at another id whose serial is `wanted`'s; when either side has no
+/// serial, whose model is. One at an id in `registered` is [`Found::Taken`]:
+/// that id belongs to another device, whose record must not be reused.
 pub(crate) fn find_moved(
     old: &DeviceInfo,
     wanted: &DeviceIdentity,
     listed: &[DeviceInfo],
-    in_use: &HashSet<String>,
+    registered: &HashSet<String>,
 ) -> Found {
     let matches: Vec<&DeviceInfo> = listed
         .iter()
         .filter(|d| {
-            d.id != old.id
-                && d.device_type == old.device_type
-                && d.driver_type == old.driver_type
-                && !in_use.contains(&d.id)
+            d.id != old.id && d.device_type == old.device_type && d.driver_type == old.driver_type
         })
         .filter(
             |d| match (wanted.serial_number.as_deref(), d.serial_number.as_deref()) {
@@ -56,6 +57,7 @@ pub(crate) fn find_moved(
         .collect();
     match matches.as_slice() {
         [] => Found::Nowhere,
+        [one] if registered.contains(&one.id) => Found::Taken(one.id.clone()),
         [one] => Found::At((*one).clone()),
         several => Found::Ambiguous(several.iter().map(|d| d.id.clone()).collect()),
     }
@@ -121,18 +123,25 @@ impl DeviceManager {
                     return None;
                 }
             };
-        let in_use: HashSet<String> = self
-            .devices
-            .read()
-            .await
-            .iter()
-            .filter(|(_, d)| d.connection_state == ConnectionState::Connected)
-            .map(|(id, _)| id.clone())
-            .collect();
+        let registered: HashSet<String> = self.devices.read().await.keys().cloned().collect();
 
         let what = wanted.describe();
         let noun = old.device_type.noun();
-        let found = match find_moved(&old, &wanted, &listed, &in_use) {
+        let found = match find_moved(&old, &wanted, &listed, &registered) {
+            Found::Taken(id) => {
+                let message = format!(
+                    "{what} left {old_id} and is listed at {id}, the id of another device \
+                     Skotiq knows (the two may have traded places). Skotiq does not reuse \
+                     that id; connect the {noun} by hand."
+                );
+                tracing::warn!("{message}");
+                self.notify(
+                    "warning",
+                    &format!("The {noun} was not reconnected"),
+                    &message,
+                );
+                return None;
+            }
             Found::Nowhere => {
                 tracing::info!("{what} is not listed at another id; {old_id} stays lost");
                 return None;
@@ -156,9 +165,7 @@ impl DeviceManager {
         };
 
         let new_id = found.id.clone();
-        if !self.is_device_registered(&new_id).await {
-            self.register_device(found, auto_reconnect).await;
-        }
+        self.register_device(found, auto_reconnect).await;
         self.carry_held_state(old_id, &new_id).await;
         if let Err(e) = self
             .connect_device_expecting(&new_id, wanted.model.as_deref())
@@ -217,7 +224,7 @@ mod tests {
     /// The found ids, for comparing.
     fn ids(found: Found) -> Option<Vec<String>> {
         match found {
-            Found::Nowhere => None,
+            Found::Nowhere | Found::Taken(_) => None,
             Found::At(device) => Some(vec![device.id]),
             Found::Ambiguous(ids) => Some(ids),
         }
@@ -269,16 +276,30 @@ mod tests {
     }
 
     #[test]
-    fn the_old_id_another_model_and_a_device_in_use_are_not_candidates() {
+    fn the_old_id_and_another_model_are_not_candidates() {
         let old = listed("native:zwo:1", "ZWO ASI2600MM Pro", None);
         let bus = [
             listed("native:zwo:1", "ZWO ASI2600MM Pro", None),
             listed("native:zwo:0", "ZWO ASI120MM Mini", None),
-            listed("native:zwo:2", "ZWO ASI2600MM Pro", None),
         ];
-        let in_use: HashSet<String> = ["native:zwo:2".to_string()].into();
-        let found = find_moved(&old, &wanted("ZWO ASI2600MM Pro", None), &bus, &in_use);
+        let found = find_moved(
+            &old,
+            &wanted("ZWO ASI2600MM Pro", None),
+            &bus,
+            &HashSet::new(),
+        );
         assert!(ids(found).is_none());
+    }
+
+    /// Two cameras that traded places: the one that matches sits at the
+    /// other's id, which is not reused.
+    #[test]
+    fn a_match_at_another_known_devices_id_is_taken() {
+        let old = listed("native:zwo:1", "ZWO ASI2600MM Pro", None);
+        let bus = [listed("native:zwo:0", "ZWO ASI2600MM Pro", None)];
+        let registered: HashSet<String> = ["native:zwo:0".to_string()].into();
+        let found = find_moved(&old, &wanted("ZWO ASI2600MM Pro", None), &bus, &registered);
+        assert!(matches!(found, Found::Taken(id) if id == "native:zwo:0"));
     }
 
     #[test]

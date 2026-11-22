@@ -384,3 +384,63 @@ async fn a_reconnect_refused_at_the_old_id_follows_the_camera_to_its_new_id() {
     reset_sim_camera_bus();
     crate::discovery::forget().await;
 }
+
+/// R1H2-2: two cameras behind one hub trade places. The main camera's body
+/// now sits at the guide camera's id, which Skotiq knows as the guide
+/// camera: that id is not reused for the main camera (its record, held
+/// state and slot are the guide camera's). The main camera stays lost and
+/// the operator is told where it is.
+#[tokio::test]
+async fn a_camera_that_traded_places_with_another_is_not_connected_at_its_id() {
+    use crate::simulator::camera::{
+        reset_sim_camera_bus, unplug_sim_camera, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+    };
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+    let manager = build_device_manager();
+    for (id, model) in [
+        (SIM_IMAGING_CAMERA_ID, "Simulated Camera"),
+        (SIM_GUIDE_CAMERA_ID, "Simulated Guide Camera"),
+    ] {
+        manager
+            .register_device(build_sim_info(id, DeviceType::Camera), true)
+            .await;
+        manager
+            .connect_device_expecting(id, Some(model))
+            .await
+            .expect("connect");
+    }
+    unplug_sim_camera(SIM_IMAGING_CAMERA_ID, true).await;
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        manager.mark_lost(id, true, "the hub dropped").await;
+    }
+    let mut rx = manager.app_state.event_bus.subscribe();
+    let info = build_sim_info(SIM_IMAGING_CAMERA_ID, DeviceType::Camera);
+    manager
+        .attempt_reconnect(SIM_IMAGING_CAMERA_ID, &info)
+        .await;
+
+    assert!(!manager.is_connected(SIM_IMAGING_CAMERA_ID).await);
+    assert!(
+        !manager.is_connected(SIM_GUIDE_CAMERA_ID).await,
+        "the guide camera's id is not taken over by the main camera"
+    );
+    let mut told = false;
+    while let Ok(event) = rx.try_recv() {
+        if let crate::event::bus::EventPayload::System(
+            crate::event::system::SystemEvent::Notification { message, .. },
+        ) = &event.payload
+        {
+            told |= message.contains(SIM_GUIDE_CAMERA_ID);
+        }
+    }
+    assert!(told, "the operator is told where the camera is");
+
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        let _ = manager.disconnect_device(id).await;
+    }
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+}
