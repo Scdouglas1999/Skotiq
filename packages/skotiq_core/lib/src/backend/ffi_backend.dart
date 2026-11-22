@@ -109,11 +109,22 @@ abstract class _FfiBackendBase implements SkotiqBackend {
 
   bool _disposed = false;
 
+  final Stream<bridge.SkotiqEvent> Function() _openNativeEvents;
+
+  /// Told once when the native event stream cannot be opened or ends while
+  /// this backend is in use, with the reason.
+  final void Function(String reason)? _onEventsLost;
+  bool _eventsLostReported = false;
+
   _FfiBackendBase({
     SkotiqDatabase? database,
     ThumbnailSidecarService? thumbnailSidecars,
+    Stream<bridge.SkotiqEvent> Function()? nativeEvents,
+    void Function(String reason)? onEventsLost,
   }) : _database = database,
-       _thumbnailSidecars = thumbnailSidecars ?? ThumbnailSidecarService();
+       _thumbnailSidecars = thumbnailSidecars ?? ThumbnailSidecarService(),
+       _openNativeEvents = nativeEvents ?? _openBridgeEvents,
+       _onEventsLost = onEventsLost;
 
   @override
   void dispose() {
@@ -142,11 +153,15 @@ abstract class _FfiBackendBase implements SkotiqBackend {
 
       Log.info('Event stream created as broadcast stream', source: _logSource);
 
-      _polarAlignSubscription = _cachedEventStream!.listen((event) {
-        if (event.category == EventCategory.polarAlignment) {
-          _polarAlignController.add(event.data);
-        }
-      });
+      _polarAlignSubscription = _cachedEventStream!.listen(
+        (event) {
+          if (event.category == EventCategory.polarAlignment) {
+            _polarAlignController.add(event.data);
+          }
+        },
+        // [_nativeEventStream] has logged it; the app's own listeners get it.
+        onError: (Object error) {},
+      );
     }
     return _cachedEventStream!;
   }
@@ -154,22 +169,56 @@ abstract class _FfiBackendBase implements SkotiqBackend {
   final _polarAlignController =
       StreamController<Map<String, dynamic>>.broadcast();
 
-  /// The Rust event stream, or a stream that never emits when the native
-  /// library is not loaded (nothing can produce an event then).
+  /// The native event stream, watched: an error is logged and passed on, and
+  /// a stream that cannot be opened or ends before [dispose] is logged and
+  /// reported to [_onEventsLost], since nothing reaches the app after that.
   Stream<bridge.SkotiqEvent> _nativeEventStream() {
-    if (bridge.NativeBridge.isNativeAvailable) {
-      try {
-        return bridge.apiEventStream();
-      } catch (e) {
-        Log.error(
-          'Failed to get the native event stream: $e',
-          source: _logSource,
-        );
-      }
+    final Stream<bridge.SkotiqEvent> events;
+    try {
+      events = _openNativeEvents();
+    } catch (e) {
+      Log.error(
+        'Failed to get the native event stream: $e',
+        source: _logSource,
+      );
+      _reportEventsLost('the native event stream could not be opened: $e');
+      return StreamController<bridge.SkotiqEvent>().stream;
     }
-    return StreamController<bridge.SkotiqEvent>().stream;
+    return events.transform(
+      StreamTransformer.fromHandlers(
+        handleError: (error, stackTrace, sink) {
+          Log.error(
+            'The native event stream reported an error',
+            source: _logSource,
+            error: error,
+            stackTrace: stackTrace,
+          );
+          sink.addError(error, stackTrace);
+        },
+        handleDone: (sink) {
+          if (!_disposed) {
+            Log.error('The native event stream ended', source: _logSource);
+            _reportEventsLost('the native event stream ended');
+          }
+          sink.close();
+        },
+      ),
+    );
+  }
+
+  void _reportEventsLost(String reason) {
+    if (_eventsLostReported) return;
+    _eventsLostReported = true;
+    _onEventsLost?.call(reason);
   }
 }
+
+/// The Rust event stream, or a stream that never emits when the native
+/// library is not loaded (nothing can produce an event then).
+Stream<bridge.SkotiqEvent> _openBridgeEvents() =>
+    bridge.NativeBridge.isNativeAvailable
+    ? bridge.apiEventStream()
+    : StreamController<bridge.SkotiqEvent>().stream;
 
 /// FFI backend implementation that wraps the native Rust bridge
 ///
@@ -194,8 +243,15 @@ class FfiBackend extends _FfiBackendBase
         MountGuardBackend {
   /// [thumbnailSidecars] is a seam for tests that need to observe or stub
   /// thumbnail generation without a live Rust bridge; production leaves it
-  /// null and gets the default service.
-  FfiBackend({super.database, super.thumbnailSidecars});
+  /// null and gets the default service. [nativeEvents] stands in for the Rust
+  /// event stream the same way. [onEventsLost] is told once when the native
+  /// event stream cannot be opened or ends while the backend is in use.
+  FfiBackend({
+    super.database,
+    super.thumbnailSidecars,
+    super.nativeEvents,
+    super.onEventsLost,
+  });
 
   /// Pure bridge conversion seams. They keep the native library out of mapper
   /// tests while production conversion stays centralized in

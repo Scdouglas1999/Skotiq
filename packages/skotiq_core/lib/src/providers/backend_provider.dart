@@ -14,6 +14,9 @@ import '../backend/disconnected_backend.dart';
 import '../backend/network_backend.dart';
 import '../models/sequence/sequence_models.dart';
 import 'database_provider.dart';
+import 'host_mutation_event_provider.dart';
+import 'native_events_lost_notice.dart';
+import 'ui_notification_provider.dart';
 import 'equipment/device_slots.dart';
 import 'sequence/run_record.dart';
 import 'sequence/sequence_progress.dart';
@@ -269,6 +272,10 @@ class BackendNotifier extends StateNotifier<SkotiqBackend> {
     final backend = FfiBackend(
       database: database,
       thumbnailSidecars: _ref.read(thumbnailSidecarServiceProvider),
+      onEventsLost: (_) => announceNativeEventsLost(
+        hub: _ref.read(hostMutationEventHubProvider),
+        notifications: _ref.read(uiNotificationProvider.notifier),
+      ),
     );
     try {
       await _swapBackend(backend, authorityGeneration: transitionGeneration);
