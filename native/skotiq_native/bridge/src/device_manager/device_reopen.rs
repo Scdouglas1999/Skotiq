@@ -17,6 +17,7 @@
 //! focuser has its slot or position read again, never set.
 
 use crate::device::{DeviceInfo, DeviceType};
+use crate::device_manager::failure::DeviceFailure;
 use crate::device_manager::{DeviceManager, HeldCameraState};
 use crate::event::equipment::{EquipmentEvent, EventSeverity};
 use std::collections::HashMap;
@@ -46,8 +47,12 @@ fn reopen_lock(device_id: &str) -> Arc<tokio::sync::Mutex<()>> {
 /// caller the reopen ends (the device's heartbeat). The reopens run on one
 /// worker the requests reach by channel, so the heartbeat's future does not
 /// hold the connect that starts a heartbeat.
-pub(crate) fn reopen_in_background(manager: Arc<DeviceManager>, device_id: String, error: String) {
-    type Request = (Arc<DeviceManager>, String, String);
+pub(crate) fn reopen_in_background(
+    manager: Arc<DeviceManager>,
+    device_id: String,
+    error: DeviceFailure,
+) {
+    type Request = (Arc<DeviceManager>, String, DeviceFailure);
     static WORKER: OnceLock<tokio::sync::mpsc::UnboundedSender<Request>> = OnceLock::new();
     let sender = WORKER.get_or_init(|| {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Request>();
@@ -101,12 +106,6 @@ pub(crate) fn note_commanded(device_id: &str, update: impl FnOnce(&mut Commanded
     );
 }
 
-/// Whether a failure's words say the device is gone.
-fn says_disconnected(error: &str) -> bool {
-    let error = error.to_ascii_lowercase();
-    error.contains("disconnected") || error.contains("not connected")
-}
-
 impl DeviceManager {
     /// Update what `device_id` is recorded as holding. A write only when it
     /// changes: status reads come several times a second during a run.
@@ -143,21 +142,22 @@ impl DeviceManager {
         device_id: &str,
         error: &crate::dispatch::error::DeviceOpError,
     ) {
-        let message = error.to_string();
-        if says_disconnected(&message) || skotiq_native::camera_session_broken(&message) {
+        let failure = DeviceFailure::from(error);
+        if failure.says_gone() || failure.session_lost() {
             self.status_reads
-                .record_failure(device_id, &message, std::time::Instant::now());
+                .record_failure(device_id, failure, std::time::Instant::now());
         }
     }
 
     /// Whether `error`, a failure of `device_id`, means its session is
     /// broken and a reopen is the cure:
     ///
-    /// * a camera: the vendor's words say so (`camera_session_broken`), or a
-    ///   device came or went on the bus recently;
-    /// * a filter wheel or focuser: it says it is disconnected, and a device
-    ///   came or went on the bus recently.
-    pub(crate) async fn wants_reopen(&self, device_id: &str, error: &str) -> bool {
+    /// * a camera: its SDK session is broken
+    ///   ([`DeviceFailure::session_lost`]), or a device came or went on the
+    ///   bus recently;
+    /// * a filter wheel or focuser: its words say it is disconnected, and a
+    ///   device came or went on the bus recently.
+    pub(crate) async fn wants_reopen(&self, device_id: &str, error: &DeviceFailure) -> bool {
         let Some(device_type) = self
             .devices
             .read()
@@ -169,10 +169,8 @@ impl DeviceManager {
         };
         let bus_changed = crate::hotplug::bus_changed_within(BUS_CHANGE_SUSPECT_WINDOW);
         match device_type {
-            DeviceType::Camera => skotiq_native::camera_session_broken(error) || bus_changed,
-            DeviceType::FilterWheel | DeviceType::Focuser => {
-                bus_changed && says_disconnected(error)
-            }
+            DeviceType::Camera => error.session_lost() || bus_changed,
+            DeviceType::FilterWheel | DeviceType::Focuser => bus_changed && error.says_gone(),
             _ => false,
         }
     }
@@ -181,7 +179,11 @@ impl DeviceManager {
     /// ([`Self::wants_reopen`]). `Ok(true)` when the device was reopened, by
     /// this call or by one that held the reopen while this one waited;
     /// `Ok(false)` when the failure does not call for it.
-    pub(crate) async fn reopen_after(&self, device_id: &str, error: &str) -> Result<bool, String> {
+    pub(crate) async fn reopen_after(
+        &self,
+        device_id: &str,
+        error: &DeviceFailure,
+    ) -> Result<bool, String> {
         if !self.wants_reopen(device_id, error).await {
             return Ok(false);
         }
@@ -326,7 +328,7 @@ impl DeviceManager {
         };
         self.note_operation_failure(device_id, &error);
         // Boxed: the reopen's connect is a deep future of its own.
-        match Box::pin(self.reopen_after(device_id, &error.to_string())).await {
+        match Box::pin(self.reopen_after(device_id, &DeviceFailure::from(&error))).await {
             Ok(true) => op().await,
             Ok(false) => Err(error),
             Err(reopen_error) => {

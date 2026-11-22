@@ -216,14 +216,16 @@ impl CameraDriver for PlayerOneCamera {
             // get_control_int returns c_long (i64 on Linux); CameraStatus stores i32.
             // A failed poll reports the last value this driver applied, not 0 — the
             // same rule the frame metadata follows in download_image.
-            gain: self
-                .get_control_int(&sdk, POAConfig::POA_GAIN)
-                .map(|v| v as i32)
-                .unwrap_or(self.core.gain),
-            offset: self
-                .get_control_int(&sdk, POAConfig::POA_OFFSET)
-                .map(|v| v as i32)
-                .unwrap_or(self.core.offset),
+            gain: Some(
+                self.get_control_int(&sdk, POAConfig::POA_GAIN)
+                    .map(|v| v as i32)
+                    .unwrap_or(self.core.gain),
+            ),
+            offset: Some(
+                self.get_control_int(&sdk, POAConfig::POA_OFFSET)
+                    .map(|v| v as i32)
+                    .unwrap_or(self.core.offset),
+            ),
             bin_x: self.core.bin_x,
             bin_y: self.core.bin_y,
             exposure_remaining: None, // Not directly available from POA SDK

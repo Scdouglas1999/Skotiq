@@ -3,9 +3,6 @@
 use serde::{Deserialize, Serialize};
 use skotiq_frame::ColorFilterArray;
 
-/// A gain or offset in [`CameraStatus`] that the camera could not report.
-pub const UNKNOWN_CAMERA_SETTING: i32 = -1;
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CameraCapabilities {
     pub can_cool: bool,
@@ -89,8 +86,11 @@ pub struct CameraStatus {
     /// whose SDK cannot read its cooler back may be cooling from an earlier
     /// session, so "off" would be a guess.
     pub cooler_on: Option<bool>,
-    pub gain: i32,
-    pub offset: i32,
+    /// `None` when the camera has the control and would not read it. A
+    /// camera without the control reports 0 and `can_set_gain` false.
+    pub gain: Option<i32>,
+    /// As [`Self::gain`].
+    pub offset: Option<i32>,
     pub bin_x: i32,
     pub bin_y: i32,
     pub exposure_remaining: Option<f64>, // seconds

@@ -64,7 +64,8 @@ async fn connect_refuses_an_id_that_re_bound_to_different_hardware() {
     let err = manager
         .connect_device_internal(&info)
         .await
-        .expect_err("a swapped camera must not connect");
+        .expect_err("a swapped camera must not connect")
+        .to_string();
 
     assert!(
         err.contains("no longer the same hardware"),
@@ -137,7 +138,8 @@ async fn a_swap_found_during_auto_reconnect_is_not_reported_as_a_user_cancel() {
     let err = manager
         .connect_device_internal(&info)
         .await
-        .expect_err("a swapped camera must not connect");
+        .expect_err("a swapped camera must not connect")
+        .to_string();
 
     assert_ne!(
         err,

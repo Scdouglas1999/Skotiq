@@ -308,11 +308,16 @@ async fn a_camera_unplugged_while_connected_reads_as_disconnected() {
         matches!(started, Err(DriverError::Disconnected)),
         "{started:?}"
     );
-    // Not there when a connect looks for it: a wrong id, not a lost camera.
+    // Not there when a connect looks for it: the SDK no longer lists it, which
+    // is not a lost camera, and is worded as an invalid device.
     assert!(
-        matches!(reconnect, Err(DriverError::InvalidDevice(_))),
+        matches!(&reconnect, Err(DriverError::NotEnumerated(_))),
         "{reconnect:?}"
     );
+    assert!(reconnect
+        .unwrap_err()
+        .to_string()
+        .starts_with("Invalid device: ZWO camera ID"));
     camera.disconnect().await.unwrap();
 }
 

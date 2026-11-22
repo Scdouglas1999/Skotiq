@@ -114,6 +114,7 @@ macro_rules! indi_accessory {
     };
 }
 
+mod answer;
 mod camera;
 mod camera_driver;
 mod client;

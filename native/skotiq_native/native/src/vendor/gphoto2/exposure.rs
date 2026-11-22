@@ -3,6 +3,7 @@
 //! choice strings libgphoto2 lists, so they are tested against real bodies'
 //! lists.
 
+use crate::dslr::{self, Pick, Plan, PlanRules, TimedSpeed, Unplannable};
 use skotiq_device::DriverError;
 
 /// The shutter widgets libgphoto2 names, in the order the INDI driver prefers
@@ -66,11 +67,7 @@ impl ShutterSpeeds {
     /// The timed speed nearest to `seconds`; above the longest one, that is
     /// the longest.
     pub(crate) fn nearest_timed(&self, seconds: f64) -> Option<&ShutterSpeed> {
-        self.timed.iter().min_by(|a, b| {
-            let da = (a.seconds / seconds).ln().abs();
-            let db = (b.seconds / seconds).ln().abs();
-            da.total_cmp(&db)
-        })
+        dslr::pick(&self.timed, seconds, Pick::Ratio)
     }
 }
 
@@ -139,9 +136,6 @@ pub(crate) enum ExposurePlan {
     Bulb,
 }
 
-/// A timed speed this close to the request is the request.
-const SAME_DURATION: f64 = 0.01;
-
 /// The longest timed speed used when the body can also do bulb. A timed
 /// capture holds the camera (and libgphoto2) until it ends and cannot be
 /// aborted, so longer frames are bulb, as NINA makes them (EDCamera.cs:689,
@@ -155,10 +149,11 @@ const SAME_DURATION: f64 = 0.01;
 /// known to work on those bodies over USB.
 const LONGEST_TIMED_WITH_BULB_SECONDS: f64 = 30.0;
 
-/// Bulb is timed by the host, which cannot hold a sub-second release
-/// reliably: the release can reach the camera before it starts exposing
-/// (gphoto_driver.cpp:1160-1162).
-const SHORTEST_BULB_SECONDS: f64 = 1.0;
+impl TimedSpeed for ShutterSpeed {
+    fn seconds(&self) -> f64 {
+        self.seconds
+    }
+}
 
 /// The way to make an exposure of `seconds`: a timed speed of the same
 /// duration (up to 30 s on a body that can also do bulb, at any length when
@@ -177,38 +172,28 @@ pub(crate) fn plan_exposure(
             "an exposure lasts longer than 0 s; {seconds} s was requested"
         )));
     }
-    let bulb_instead = can_bulb
-        && !timed_at_any_length
-        && seconds > LONGEST_TIMED_WITH_BULB_SECONDS * (1.0 + SAME_DURATION);
-    if let Some(same) = speeds
-        .timed
-        .iter()
-        .find(|s| ((s.seconds - seconds) / seconds).abs() <= SAME_DURATION)
-        .filter(|_| !bulb_instead)
-    {
-        return Ok(ExposurePlan::Timed(same.clone()));
-    }
-    if can_bulb && (seconds >= SHORTEST_BULB_SECONDS || speeds.timed.is_empty()) {
-        return Ok(ExposurePlan::Bulb);
-    }
-    let Some(nearest) = speeds.nearest_timed(seconds) else {
-        return Err(DriverError::SdkError(format!(
+    let rules = PlanRules::<()> {
+        can_bulb,
+        timed_up_to: (!timed_at_any_length).then_some(LONGEST_TIMED_WITH_BULB_SECONDS),
+        same: Pick::Shortest,
+        shown: &[],
+        bulb_without_speeds: true,
+        fallback: Pick::Ratio,
+    };
+    match dslr::plan(&speeds.timed, seconds, &rules, |_, ()| false) {
+        Ok(Plan::Timed(speed)) => Ok(ExposurePlan::Timed(speed.clone())),
+        Ok(Plan::Bulb) => Ok(ExposurePlan::Bulb),
+        Err(Unplannable::NoSpeeds) => Err(DriverError::SdkError(format!(
             "gPhoto2: {model} lists no shutter speeds and offers no bulb control over USB, so \
              Skotiq cannot set an exposure time. Set the camera's mode dial to M."
-        )));
-    };
-    if let Some(longest) = speeds
-        .longest()
-        .filter(|l| seconds > l * (1.0 + SAME_DURATION))
-    {
-        if !can_bulb {
-            return Err(DriverError::InvalidParameter(format!(
+        ))),
+        Err(Unplannable::LongerThanLongest { longest }) => {
+            Err(DriverError::InvalidParameter(format!(
                 "{model} offers no bulb control over USB; its longest shutter speed is {longest} s \
                  and {seconds} s was requested"
-            )));
+            )))
         }
     }
-    Ok(ExposurePlan::Timed(nearest.clone()))
 }
 
 /// The exposures the body can make: from its shortest timed speed to its
@@ -218,7 +203,7 @@ pub(crate) fn exposure_range(speeds: &ShutterSpeeds, can_bulb: bool) -> Option<(
     const LONGEST_BULB_SECONDS: f64 = 3600.0;
     let shortest = speeds
         .shortest()
-        .or(can_bulb.then_some(SHORTEST_BULB_SECONDS))?;
+        .or(can_bulb.then_some(dslr::SHORTEST_BULB_SECONDS))?;
     let longest = if can_bulb {
         speeds
             .longest()

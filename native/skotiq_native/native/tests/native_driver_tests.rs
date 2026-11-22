@@ -910,8 +910,8 @@ mod fake_sdk_contract {
             .expect("set cooler");
         let status = camera.get_status().await.expect("camera status");
         assert_eq!(status.cooler_on, Some(true));
-        assert_eq!(status.gain, 42);
-        assert_eq!(status.offset, 8);
+        assert_eq!(status.gain, Some(42));
+        assert_eq!(status.offset, Some(8));
         camera
             .start_exposure(ExposureParams {
                 duration_secs: 0.01,
@@ -1138,8 +1138,8 @@ mod fake_sdk_contract {
         assert_eq!(camera.get_gain().await.expect("SVBONY read gain"), 44);
         assert_eq!(camera.get_offset().await.expect("SVBONY read offset"), 7);
         let status = camera.get_status().await.expect("SVBONY status");
-        assert_eq!(status.gain, 44);
-        assert_eq!(status.offset, 7);
+        assert_eq!(status.gain, Some(44));
+        assert_eq!(status.offset, Some(7));
         // The SDK clamps this zero-second request to its 32 µs minimum.
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
             while !camera
@@ -1231,8 +1231,8 @@ mod fake_sdk_contract {
             .expect("Player One set cooler");
         let status = cooled.get_status().await.expect("Player One status");
         assert_eq!(status.cooler_on, Some(true));
-        assert_eq!(status.gain, 73);
-        assert_eq!(status.offset, 11);
+        assert_eq!(status.gain, Some(73));
+        assert_eq!(status.offset, Some(11));
 
         env::set_var("SK_POA_NOT_READY", "1");
         assert!(!cooled
@@ -1430,8 +1430,8 @@ mod fake_sdk_contract {
         let status = cooled.get_status().await.expect("QHY status");
         assert_eq!(status.cooler_on, Some(true));
         assert_eq!(status.target_temp, Some(-18.0));
-        assert_eq!(status.gain, 81);
-        assert_eq!(status.offset, 14);
+        assert_eq!(status.gain, Some(81));
+        assert_eq!(status.offset, Some(14));
 
         env::set_var("SK_QHY_EXPOSURE_ERROR", "1");
         cooled
@@ -1571,7 +1571,7 @@ mod fake_sdk_contract {
             .await
             .expect("ToupTek start exposure");
         let status = cooled.get_status().await.expect("ToupTek status");
-        assert_eq!(status.gain, 260);
+        assert_eq!(status.gain, Some(260));
         cooled
             .download_image()
             .await

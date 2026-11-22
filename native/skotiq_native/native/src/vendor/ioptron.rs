@@ -1022,6 +1022,18 @@ impl DeviceDriver for IOptronMount {
     }
 }
 
+/// The command that selects `rate`. `:RT4#`, the stored custom rate, is
+/// not offered: nothing sets it.
+fn tracking_rate_command(rate: TrackingRate) -> Option<&'static str> {
+    match rate {
+        TrackingRate::Sidereal => Some(commands::SET_TRACKING_SIDEREAL),
+        TrackingRate::Lunar => Some(commands::SET_TRACKING_LUNAR),
+        TrackingRate::Solar => Some(commands::SET_TRACKING_SOLAR),
+        TrackingRate::King => Some(commands::SET_TRACKING_KING),
+        TrackingRate::Custom => None,
+    }
+}
+
 #[async_trait]
 impl MountDriver for IOptronMount {
     async fn slew_to_coordinates(
@@ -1287,16 +1299,7 @@ impl MountDriver for IOptronMount {
     async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
         self.session()?;
 
-        let cmd = match rate {
-            TrackingRate::Sidereal => commands::SET_TRACKING_SIDEREAL,
-            TrackingRate::Lunar => commands::SET_TRACKING_LUNAR,
-            TrackingRate::Solar => commands::SET_TRACKING_SOLAR,
-            TrackingRate::King => commands::SET_TRACKING_KING,
-            // `:RT4#` selects the stored custom rate, which nothing here sets.
-            TrackingRate::Custom => {
-                return Err(DriverError::NotSupported);
-            }
-        };
+        let cmd = tracking_rate_command(rate).ok_or(DriverError::NotSupported)?;
 
         self.command_ok(cmd, "change the tracking rate")?;
         tracing::info!("Set tracking rate to {:?}", rate);
@@ -1325,14 +1328,11 @@ impl MountDriver for IOptronMount {
             .is_some_and(|session| session.alt_az)
     }
 
-    /// `:RT4#`, the stored custom rate, is not offered: nothing sets it.
     async fn tracking_rates(&self) -> Vec<TrackingRate> {
-        vec![
-            TrackingRate::Sidereal,
-            TrackingRate::Lunar,
-            TrackingRate::Solar,
-            TrackingRate::King,
-        ]
+        TrackingRate::ALL
+            .into_iter()
+            .filter(|&rate| tracking_rate_command(rate).is_some())
+            .collect()
     }
 
     async fn can_find_home(&self) -> Result<bool, DriverError> {

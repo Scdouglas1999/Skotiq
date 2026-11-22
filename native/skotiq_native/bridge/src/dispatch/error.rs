@@ -103,6 +103,15 @@ pub enum DeviceOpError {
         detail: String,
     },
 
+    /// The device answers, but its SDK session is broken: it takes no
+    /// command until it is closed and opened again. Otherwise a hardware
+    /// failure.
+    #[error("{detail}")]
+    SessionLost {
+        device_id: Option<String>,
+        detail: String,
+    },
+
     /// The device did not finish in the time allowed. Retrying can work.
     #[error("{detail}")]
     Timeout {
@@ -193,7 +202,8 @@ impl DeviceOpError {
             N::NotConnected | N::Disconnected => DeviceOpError::NotConnected { device_id, detail },
             N::NotSupported => DeviceOpError::Unsupported { detail },
             N::InvalidParameter(_) => DeviceOpError::InvalidParameter { detail },
-            N::InvalidDevice(_) => DeviceOpError::InvalidDeviceId { detail },
+            N::InvalidDevice(_) | N::NotEnumerated(_) => DeviceOpError::InvalidDeviceId { detail },
+            N::SessionLost(_) => DeviceOpError::SessionLost { device_id, detail },
             N::DeviceNotFound(id) => DeviceOpError::DeviceNotFound(id),
             N::Timeout(_) => DeviceOpError::Timeout { device_id, detail },
             // An SDK that failed or is missing, an I/O fault, an unknown
@@ -245,6 +255,10 @@ impl DeviceOpError {
                 device_id: device_id.or(own),
                 detail,
             },
+            DeviceOpError::SessionLost { device_id: own, .. } => DeviceOpError::SessionLost {
+                device_id: device_id.or(own),
+                detail,
+            },
             DeviceOpError::Message(_) => DeviceOpError::Hardware { device_id, detail },
         }
     }
@@ -257,6 +271,7 @@ impl DeviceOpError {
             DeviceOpError::DeviceNotFound(id) => Some(id),
             DeviceOpError::NotConnected { device_id, .. }
             | DeviceOpError::Hardware { device_id, .. }
+            | DeviceOpError::SessionLost { device_id, .. }
             | DeviceOpError::Timeout { device_id, .. } => device_id.as_deref(),
             DeviceOpError::InvalidState { device_id, .. } => Some(device_id),
             DeviceOpError::InvalidDeviceId { .. }
@@ -283,6 +298,7 @@ impl DeviceOpError {
             self,
             DeviceOpError::NotConnected { .. }
                 | DeviceOpError::Hardware { .. }
+                | DeviceOpError::SessionLost { .. }
                 | DeviceOpError::Timeout { .. }
         )
     }

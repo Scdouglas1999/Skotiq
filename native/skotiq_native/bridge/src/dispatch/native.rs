@@ -18,11 +18,15 @@ use skotiq_native::catalog::{NativeHandle, OpenRequest};
 use std::sync::Arc;
 
 impl DeviceManager {
-    pub(crate) async fn connect_native(&self, info: &DeviceInfo) -> Result<(), String> {
+    pub(crate) async fn connect_native(
+        &self,
+        info: &DeviceInfo,
+    ) -> Result<(), crate::device_manager::connection::ConnectError> {
+        use crate::device_manager::connection::ConnectError;
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();
         if parts.len() < 3 {
-            return Err("Invalid native device ID format".to_string());
+            return Err("Invalid native device ID format".into());
         }
 
         let vendor = parts[1];
@@ -83,7 +87,7 @@ impl DeviceManager {
                     let _ = old.disconnect().await;
                     tracing::info!("Closed the previous native camera for {}", info.id);
                 }
-                camera.connect().await.map_err(|e| e.to_string())?;
+                camera.connect().await.map_err(ConnectError::from_driver)?;
                 self.tell_long_exposure_noise_reduction(
                     &info.name,
                     camera.long_exposure_noise_reduction(),
@@ -100,7 +104,7 @@ impl DeviceManager {
                     let _ = old.disconnect().await;
                     tracing::info!("Closed the previous native focuser for {}", info.id);
                 }
-                focuser.connect().await.map_err(|e| e.to_string())?;
+                focuser.connect().await.map_err(ConnectError::from_driver)?;
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::Focuser(Arc::new(DriverFocuser::vendor(&info.id, focuser))),
@@ -114,7 +118,10 @@ impl DeviceManager {
                     let _ = old.disconnect().await;
                     tracing::info!("Disconnected old native filter wheel for {}", info.id);
                 }
-                filterwheel.connect().await.map_err(|e| e.to_string())?;
+                filterwheel
+                    .connect()
+                    .await
+                    .map_err(ConnectError::from_driver)?;
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::vendor(
@@ -137,7 +144,7 @@ impl DeviceManager {
                     stale.release().await;
                     tracing::info!("Released the previous native mount handle for {}", info.id);
                 }
-                mount.connect().await.map_err(|e| e.to_string())?;
+                mount.connect().await.map_err(ConnectError::from_driver)?;
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::Mount(Arc::new(DriverMount::vendor(&info.id, mount))),
@@ -148,7 +155,7 @@ impl DeviceManager {
             // as a guider) is held as a plain device.
             (NativeHandle::Camera(camera), _) => {
                 let mut device: Box<dyn DeviceDriver> = camera;
-                device.connect().await.map_err(|e| e.to_string())?;
+                device.connect().await.map_err(ConnectError::from_driver)?;
                 self.native_devices
                     .write()
                     .await

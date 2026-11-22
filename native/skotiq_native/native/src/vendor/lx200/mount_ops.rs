@@ -672,23 +672,9 @@ impl MountDriver for Lx200Mount {
             return Err(DriverError::NotConnected);
         }
 
-        // OnStep and standard LX200 use the same commands for tracking rates
-        let cmd = match rate {
-            TrackingRate::Sidereal => commands::SET_TRACK_SIDEREAL,
-            TrackingRate::Lunar => commands::SET_TRACK_LUNAR,
-            TrackingRate::Solar => commands::SET_TRACK_SOLAR,
-            TrackingRate::King => {
-                // King rate is only supported by OnStep
-                if self.mount_type.is_onstep() {
-                    commands::ONSTEP_SET_RATE_KING
-                } else {
-                    return Err(DriverError::NotSupported);
-                }
-            }
-            TrackingRate::Custom => {
-                return Err(DriverError::NotSupported);
-            }
-        };
+        let cmd = self
+            .tracking_rate_command(rate)
+            .ok_or(DriverError::NotSupported)?;
 
         self.send_command_no_response(cmd)?;
         *self
@@ -730,17 +716,11 @@ impl MountDriver for Lx200Mount {
         true
     }
 
-    /// King rate only on OnStep; no custom rate is set.
     async fn tracking_rates(&self) -> Vec<TrackingRate> {
-        let mut rates = vec![
-            TrackingRate::Sidereal,
-            TrackingRate::Lunar,
-            TrackingRate::Solar,
-        ];
-        if self.mount_type.is_onstep() {
-            rates.push(TrackingRate::King);
-        }
-        rates
+        TrackingRate::ALL
+            .into_iter()
+            .filter(|&rate| self.tracking_rate_command(rate).is_some())
+            .collect()
     }
 
     async fn can_find_home(&self) -> Result<bool, DriverError> {

@@ -44,8 +44,6 @@ pub enum IndiError {
         duration: Duration,
         last_state: Option<String>,
     },
-    /// Legacy timeout variant (kept for backwards compatibility)
-    Timeout,
     /// XML parse error
     ParseError(String),
     PropertyNotFound {
@@ -173,7 +171,6 @@ impl fmt::Display for IndiError {
                     device, property, duration, state_info
                 )
             }
-            IndiError::Timeout => write!(f, "Connection timeout"),
             IndiError::ParseError(msg) => write!(f, "XML parse error: {}", msg),
             IndiError::PropertyNotFound { device, property } => {
                 write!(f, "Property not found: {}.{}", device, property)
@@ -230,8 +227,7 @@ impl From<IndiError> for skotiq_device::DriverError {
             IndiError::NotConnected => DriverError::NotConnected,
             // The connection to the server is gone, and with it every device on it.
             IndiError::ChannelClosed(_) | IndiError::ReaderDied(_) => DriverError::Disconnected,
-            IndiError::Timeout
-            | IndiError::ConnectionTimeout { .. }
+            IndiError::ConnectionTimeout { .. }
             | IndiError::OperationTimeout { .. }
             | IndiError::MessageParseTimeout { .. }
             | IndiError::BlobTimeout { .. }

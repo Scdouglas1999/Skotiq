@@ -127,7 +127,7 @@ impl ZwoCamera {
             }
         }
         let info = matched_info.ok_or_else(|| {
-            DriverError::InvalidDevice(format!(
+            DriverError::NotEnumerated(format!(
                 "ZWO camera ID {} is no longer present in the SDK enumeration",
                 self.camera_id
             ))

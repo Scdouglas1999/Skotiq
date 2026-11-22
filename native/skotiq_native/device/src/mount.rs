@@ -11,6 +11,17 @@ pub enum TrackingRate {
     Custom = 4,
 }
 
+impl TrackingRate {
+    /// Every rate, in this order.
+    pub const ALL: [TrackingRate; 5] = [
+        TrackingRate::Sidereal,
+        TrackingRate::Lunar,
+        TrackingRate::Solar,
+        TrackingRate::King,
+        TrackingRate::Custom,
+    ];
+}
+
 /// Where the mount believes it is standing.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MountSiteInfo {

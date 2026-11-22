@@ -8,6 +8,7 @@
 
 use super::*;
 use crate::device::DriverType;
+use crate::device_manager::failure::DeviceFailure;
 use crate::event::bus::{EventPayload, SkotiqEvent};
 use crate::event::equipment::EquipmentEvent;
 use crate::simulator::camera::get_sim_camera_for;
@@ -60,7 +61,11 @@ async fn the_cooler_set_point_survives_a_reopen() {
     let reopened = manager
         .reopen_after(
             id,
-            "Failed to check exposure status: SDK error: ZWO camera reported a failed exposure",
+            &DeviceFailure::from(&crate::dispatch::error::DeviceOpError::caused_by(
+                Some(id.to_string()),
+                "Failed to check exposure status: SDK error: the exposure failed".to_string(),
+                skotiq_device::DriverError::SessionLost("the exposure failed".to_string()),
+            )),
         )
         .await
         .expect("reopen");
@@ -86,7 +91,9 @@ async fn a_plain_failure_does_not_reopen_the_camera() {
     let reopened = manager
         .reopen_after(
             id,
-            "Failed to download image: Injected simulator fault: the driver reported a failure",
+            &DeviceFailure::words(
+                "Failed to download image: Injected simulator fault: the driver reported a failure",
+            ),
         )
         .await;
     assert_eq!(reopened, Ok(false));

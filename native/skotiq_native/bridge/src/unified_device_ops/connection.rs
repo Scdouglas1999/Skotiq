@@ -31,7 +31,10 @@ impl ConnectionOps for UnifiedDeviceOps {
         error: &DeviceError,
     ) -> DeviceResult<bool> {
         get_device_manager()
-            .reopen_after(camera_id, &error.to_string())
+            .reopen_after(
+                camera_id,
+                &crate::device_manager::failure::DeviceFailure::from(error),
+            )
             .await
             .map_err(|message| DeviceError::NotConnected {
                 device: DeviceKind::Camera,

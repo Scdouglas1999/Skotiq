@@ -40,6 +40,21 @@ impl std::fmt::Debug for Lx200Mount {
 }
 
 impl Lx200Mount {
+    /// The command that selects `rate`. OnStep and standard LX200 share the
+    /// sidereal, lunar and solar commands; King is OnStep's only, and no
+    /// custom rate is set.
+    pub(crate) fn tracking_rate_command(&self, rate: TrackingRate) -> Option<&'static str> {
+        match rate {
+            TrackingRate::Sidereal => Some(commands::SET_TRACK_SIDEREAL),
+            TrackingRate::Lunar => Some(commands::SET_TRACK_LUNAR),
+            TrackingRate::Solar => Some(commands::SET_TRACK_SOLAR),
+            TrackingRate::King if self.mount_type.is_onstep() => {
+                Some(commands::ONSTEP_SET_RATE_KING)
+            }
+            TrackingRate::King | TrackingRate::Custom => None,
+        }
+    }
+
     pub fn new(port: String, mount_type: Lx200MountType, baud_rate: Option<u32>) -> Self {
         let type_prefix = match &mount_type {
             Lx200MountType::Meade => "meade",

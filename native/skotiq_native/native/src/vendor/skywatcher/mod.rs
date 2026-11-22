@@ -815,6 +815,12 @@ impl DeviceDriver for SkyWatcherMount {
     }
 }
 
+/// Whether the driver drives the RA axis at `rate`. A custom rate has no
+/// value to drive at.
+fn drives_at(rate: TrackingRate) -> bool {
+    rate != TrackingRate::Custom
+}
+
 #[async_trait]
 impl MountDriver for SkyWatcherMount {
     async fn slew_to_coordinates(
@@ -1097,7 +1103,7 @@ impl MountDriver for SkyWatcherMount {
 
     async fn set_tracking_rate(&mut self, rate: TrackingRate) -> Result<(), DriverError> {
         let controller = self.controller()?;
-        if rate == TrackingRate::Custom {
+        if !drives_at(rate) {
             return Err(DriverError::NotSupported);
         }
         self.state_mut().rate = rate;
@@ -1131,12 +1137,10 @@ impl MountDriver for SkyWatcherMount {
     }
 
     async fn tracking_rates(&self) -> Vec<TrackingRate> {
-        vec![
-            TrackingRate::Sidereal,
-            TrackingRate::Lunar,
-            TrackingRate::Solar,
-            TrackingRate::King,
-        ]
+        TrackingRate::ALL
+            .into_iter()
+            .filter(|&rate| drives_at(rate))
+            .collect()
     }
 
     async fn get_side_of_pier(&self) -> Result<PierSide, DriverError> {

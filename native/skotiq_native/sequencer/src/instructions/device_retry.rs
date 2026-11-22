@@ -173,7 +173,9 @@ pub(crate) fn classify_device_fault(error: &DeviceError) -> DeviceFault {
         | DeviceError::Unsupported(_)
         | DeviceError::Rejected(_)
         | DeviceError::InvalidFrame(_) => DeviceFault::Refused,
-        DeviceError::Timeout(_) | DeviceError::Failed(_) => DeviceFault::Transient,
+        DeviceError::Timeout(_) | DeviceError::Failed(_) | DeviceError::SessionLost(_) => {
+            DeviceFault::Transient
+        }
     }
 }
 
