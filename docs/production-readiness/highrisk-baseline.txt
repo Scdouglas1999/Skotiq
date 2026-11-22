@@ -6,7 +6,6 @@ apps/desktop/lib/headless_api/handlers/db_read_handlers.dart	DbReadHandlers	high
 apps/desktop/lib/headless_api/handlers/db_read_handlers.dart	DbReadHandlers	highrisk	1	baseline	/// must surface as a Bad Request rather than a silent no-op.
 apps/desktop/lib/headless_api/handlers/device_discovery_handlers.dart	DeviceDiscoveryHandlers	highrisk	1	baseline	/// it is a POST. Failures surface as 500 rather than a silent no-op.
 apps/desktop/lib/headless_api/handlers/push_handlers.dart	handleDeleteToken	highrisk	1	baseline	// IDOR. Silent no-op (idempotent 200) when it isn't the caller's, so
-apps/desktop/lib/headless_api/handlers/sequencer/sequencer_start_preflight.dart	_SequencerStartPreflight	highrisk	1	baseline	/// be driven), so a silent no-op there strands them with no path forward.
 apps/desktop/lib/headless_api_server.dart	HeadlessApiServer	highrisk	1	baseline	/// implementations throw [UnimplementedError] until an operator wires
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_HeadlessApiServerEventForwarding	highrisk	1	baseline	/// scaffolds throw [UnimplementedError]; the headless server logs
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_deliverRemotePush	highrisk	1	baseline	} on UnimplementedError catch (e) {
