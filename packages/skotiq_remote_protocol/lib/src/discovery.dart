@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'host_advert.dart';
 import 'link_version.dart';
 import 'network_uri.dart';
+import 'ports.dart';
 
 class DiscoveredServer {
   final String host;
@@ -75,7 +76,7 @@ class DiscoveredServer {
   DiscoveredServer({
     required this.host,
     required this.webPort,
-    this.signalingPort = 45678,
+    this.signalingPort = kDefaultSignalingPort,
     required this.name,
     this.version,
     this.mode = 'desktop',
@@ -327,7 +328,7 @@ class SkotiqDiscovery {
   static const int _serverPort = discoveryPort;
 
   /// The UDP port Skotiq hosts listen on for discovery and update probes.
-  static const int discoveryPort = 45679;
+  static const int discoveryPort = kDiscoveryPort;
   // Marker bytes so we never mistake a stray UDP datagram for a Skotiq
   // packet. JSON alone is not sufficient — anything on the local LAN can
   // emit `{...}`.
@@ -673,7 +674,7 @@ class DiscoveredUpdateTarget {
 /// Discovery service for finding Skotiq instances to push updates to
 class UpdatePushDiscovery {
   static const int _discoveryPort = SkotiqDiscovery.discoveryPort;
-  static const int _pushPort = 45680;
+  static const int _pushPort = kLanUpdatePushPort;
   static const String _updatePushMessage = 'SKOTIQ_UPDATE_PUSH';
   static const String _updateResponsePrefix = 'SKOTIQ_UPDATE_TARGET:';
 

@@ -268,7 +268,7 @@ Future<RunningHostServer> startHostServer({
       );
       stops.add((name: 'discovery socket', action: () async => beacons.stop()));
       logger.info(
-        'UDP discovery broadcasting on port 45679 '
+        'UDP discovery broadcasting on port ${SkotiqDiscovery.discoveryPort} '
         '(advertising ${server.actualPort})',
         source: logSource,
       );

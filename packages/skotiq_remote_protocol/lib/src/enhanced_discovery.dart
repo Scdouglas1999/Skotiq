@@ -12,6 +12,7 @@ import 'discovery.dart';
 import 'host_advert.dart';
 import 'host_info.dart';
 import 'network_uri.dart';
+import 'ports.dart';
 import 'link_version.dart';
 import 'rig_discovery.dart' show skotiqMdnsServiceType;
 import 'tailnet_detector.dart';
@@ -156,7 +157,7 @@ class QrConnectionData {
     required this.webPort,
     required this.version,
     required this.fingerprint,
-    this.signalingPort = 45678,
+    this.signalingPort = kDefaultSignalingPort,
     this.serverName,
     this.mode = 'desktop',
     this.authRequired = false,
@@ -293,7 +294,7 @@ class QrConnectionData {
     final signalingPort = decoded['signalingPort'];
     final int parsedSignalingPort;
     if (signalingPort == null) {
-      parsedSignalingPort = 45678;
+      parsedSignalingPort = kDefaultSignalingPort;
     } else if (signalingPort is int &&
         signalingPort > 0 &&
         signalingPort <= 65535) {
@@ -520,7 +521,8 @@ class EnhancedSkotiqDiscovery {
       host: host,
       webPort: port,
       signalingPort:
-          prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ?? 45678,
+          prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ??
+          kDefaultSignalingPort,
       name: prefs.getString(_DiscoveryPrefs.lastServerName) ?? 'Skotiq',
       version: prefs.getString(_DiscoveryPrefs.lastServerVersion),
       mode: prefs.getString(_DiscoveryPrefs.lastServerMode) ?? 'desktop',
@@ -917,7 +919,7 @@ class EnhancedSkotiqDiscovery {
     return DiscoveredServer(
       host: host,
       webPort: port,
-      signalingPort: advert.signalingPort ?? 45678,
+      signalingPort: advert.signalingPort ?? kDefaultSignalingPort,
       name: advert.name ?? serviceName ?? 'Skotiq',
       version: advert.version,
       scheme: advert.scheme ?? 'http',
@@ -1004,7 +1006,7 @@ class EnhancedSkotiqDiscovery {
     required int webPort,
     required String version,
     required String fingerprint,
-    int signalingPort = 45678,
+    int signalingPort = kDefaultSignalingPort,
     String? serverName,
     String mode = 'desktop',
     bool authRequired = false,
