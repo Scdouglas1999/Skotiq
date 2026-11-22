@@ -318,11 +318,10 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = _now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDegrees,
-      date: now,
+      date: _nightUnderWay(longitude),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
@@ -376,11 +375,10 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = _now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDegrees,
-      date: now,
+      date: _nightUnderWay(longitude),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       minAltitude: minAltitude,
@@ -404,6 +402,11 @@ class SchedulerHandlers implements RouteSource {
     });
   }
 
+  /// The night the site is in now (it runs from the site's solar noon to the
+  /// next), which a route that names no date answers for.
+  DateTime _nightUnderWay(double longitude) =>
+      AstronomyCalculations.nightDateOf(_now(), longitudeDeg: longitude);
+
   /// The floor a visibility answer is measured against: the altitude the
   /// caller names, otherwise the site's altitude floor.
   AltitudeFloor _floorFor(double? requestedDeg) => requestedDeg == null
@@ -418,21 +421,17 @@ class SchedulerHandlers implements RouteSource {
     required double latitude,
     required double longitude,
   }) {
-    final now = _now();
+    final night = _nightUnderWay(longitude);
     if (floor.isFlat) {
       return AstronomyCalculations.calculateObjectVisibility(
         raDeg: raDeg,
         decDeg: decDeg,
-        date: now,
+        date: night,
         latitudeDeg: latitude,
         longitudeDeg: longitude,
         minAltitude: floor.atAzimuth(0),
       );
     }
-    final night = AstronomyCalculations.nightDateOf(
-      now,
-      longitudeDeg: longitude,
-    );
     return floor.visibilityAround(
       raDeg: raDeg,
       decDeg: decDeg,
