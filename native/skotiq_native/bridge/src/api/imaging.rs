@@ -648,9 +648,32 @@ pub async fn api_camera_start_exposure_configured(
         bin_x,
         bin_y,
         subframe,
-        skotiq_device::FrameType::from_str_lenient(&frame_type),
+        requested_frame_type(&frame_type),
     )
     .await
+}
+
+/// The frame a capture from the app asks for. A name the capture does not
+/// know is taken as a light, so a night never loses a frame to a spelling,
+/// and is logged the first time it is seen.
+fn requested_frame_type(name: &str) -> skotiq_device::FrameType {
+    skotiq_device::FrameType::from_app_name(name).unwrap_or_else(|| {
+        if first_sight_of_unknown_frame_type(name) {
+            tracing::warn!(
+                "Capture asked for an unknown frame type {name:?}; taking it as a light"
+            );
+        }
+        skotiq_device::FrameType::Light
+    })
+}
+
+/// Whether `name` is an unknown frame type name not seen before.
+fn first_sight_of_unknown_frame_type(name: &str) -> bool {
+    static SEEN: std::sync::Mutex<std::collections::BTreeSet<String>> =
+        std::sync::Mutex::new(std::collections::BTreeSet::new());
+    SEEN.lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .insert(name.to_string())
 }
 
 /// Start a camera exposure with *optional* gain/offset.
@@ -2019,6 +2042,27 @@ mod autofocus_validation_tests {
         assert!(
             matches!(err, SkotiqError::InvalidParameter(ref msg) if msg.contains("typomethod")),
             "expected InvalidParameter mentioning 'typomethod', got {err:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod requested_frame_type_tests {
+    use super::*;
+
+    /// F1-4: an unknown name is still taken as a light (a capture never
+    /// fails at night for a spelling), and is reported once.
+    #[test]
+    fn an_unknown_frame_type_is_taken_as_a_light_and_reported_once() {
+        assert_eq!(
+            requested_frame_type("Darks-f1-4"),
+            skotiq_device::FrameType::Light
+        );
+        assert!(!first_sight_of_unknown_frame_type("Darks-f1-4"));
+        assert!(first_sight_of_unknown_frame_type("Lights-f1-4"));
+        assert_eq!(
+            requested_frame_type("darkFlat"),
+            skotiq_device::FrameType::DarkFlat
         );
     }
 }
