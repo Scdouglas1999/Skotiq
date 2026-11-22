@@ -41,14 +41,15 @@ String darkroomMasterTargetName(
 
 /// Whether [master] belongs to the target listed as [key], whose lights carry
 /// the target rows [rowIds]: the target row it records, the frames it folded,
-/// else the target [darkroomMasterTargetName] reads, the same one the Edit
-/// tab's library files it under.
+/// else the target [darkroomMasterTargetName] reads with the row names
+/// [targetNames], the same one the Edit tab's library files it under.
 bool darkroomMasterBelongsTo(
   IntegratedMaster master,
   String key, {
   Set<int> rowIds = const {},
   Set<int> frameIds = const {},
   Set<int> foldedIds = const {},
+  Map<int, String> targetNames = const {},
 }) {
   if (master.targetId != null && rowIds.isNotEmpty) {
     return rowIds.contains(master.targetId);
@@ -56,7 +57,9 @@ bool darkroomMasterBelongsTo(
   if (frameIds.isNotEmpty && foldedIds.any(frameIds.contains)) return true;
   final wanted = normalizeDarkroomTargetName(key);
   return wanted.isNotEmpty &&
-      normalizeDarkroomTargetName(darkroomMasterTargetName(master, const {})) ==
+      normalizeDarkroomTargetName(
+            darkroomMasterTargetName(master, targetNames),
+          ) ==
           wanted;
 }
 
@@ -79,9 +82,9 @@ Future<List<IntegratedMaster>> darkroomMastersOfFrames(
 ) async {
   if (imageIds.isEmpty) return const [];
   final grouped = await loadDarkroomTargets(db, catalog);
-  final rowsByName = {
-    for (final t in await db.targetsDao.getAllTargets()) t.name: t,
-  };
+  final rows = await db.targetsDao.getAllTargets();
+  final rowsByName = {for (final t in rows) t.name: t};
+  final targetNames = {for (final t in rows) t.id: t.name};
   final masters = await mastersDao.getAll();
   final folded = {
     for (final MapEntry(:key, :value)
@@ -99,6 +102,7 @@ Future<List<IntegratedMaster>> darkroomMastersOfFrames(
         rowIds: darkroomTargetRowIds(frames, rowsByName[key]),
         frameIds: frameIds,
         foldedIds: folded[m.id] ?? const {},
+        targetNames: targetNames,
       )) {
         own.add(m);
       }

@@ -421,6 +421,7 @@ List<DarkroomTarget> buildDarkroomTargets({
   TargetPlacements placements = const TargetPlacements(),
 }) {
   final rowsByName = {for (final t in targetRows) t.name: t};
+  final targetNames = {for (final t in targetRows) t.id: t.name};
   final result = <DarkroomTarget>[];
   for (final entry in framesByTarget.entries) {
     final key = entry.key;
@@ -436,6 +437,7 @@ List<DarkroomTarget> buildDarkroomTargets({
           rowIds: rowIds,
           frameIds: frameIds,
           foldedIds: foldedByMaster[m.id] ?? const {},
+          targetNames: targetNames,
         ))
           m,
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
