@@ -41,7 +41,11 @@ class SchedulerHandlers implements RouteSource {
 
   final ProviderContainer container;
 
-  SchedulerHandlers(this.container);
+  /// The instant the sky answers are measured at when the request names none.
+  final DateTime Function() _now;
+
+  SchedulerHandlers(this.container, {DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
   LoggingService get _logger => container.read(loggingServiceProvider);
 
@@ -70,7 +74,7 @@ class SchedulerHandlers implements RouteSource {
 
   Future<Map<String, dynamic>> _schedulerState() async {
     final engine = await container.read(schedulerEngineReadyProvider.future);
-    final decision = await engine.previewDecision(DateTime.now());
+    final decision = await engine.previewDecision(_now());
     return {
       'status': engine.status.toJson(),
       'decision': decision.toJson(),
@@ -235,7 +239,7 @@ class SchedulerHandlers implements RouteSource {
         time = parsed;
       }
     } else {
-      time = DateTime.now();
+      time = _now();
     }
 
     final latitude = await database.settingsDao.read(AppSettingDefs.latitude);
@@ -314,7 +318,7 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = DateTime.now();
+    final now = _now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDegrees,
@@ -372,7 +376,7 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final raDeg = raHours * 15.0;
-    final now = DateTime.now();
+    final now = _now();
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDegrees,
@@ -414,7 +418,7 @@ class SchedulerHandlers implements RouteSource {
     required double latitude,
     required double longitude,
   }) {
-    final now = DateTime.now();
+    final now = _now();
     if (floor.isFlat) {
       return AstronomyCalculations.calculateObjectVisibility(
         raDeg: raDeg,
@@ -569,7 +573,7 @@ class SchedulerHandlers implements RouteSource {
       });
     }
 
-    final now = DateTime.now();
+    final now = _now();
     final targetVisibility = <int, Map<String, dynamic>>{};
 
     for (final target in targets) {
@@ -757,7 +761,7 @@ class SchedulerHandlers implements RouteSource {
       }
       date = parsed;
     } else {
-      date = DateTime.now();
+      date = _now();
     }
 
     final twilight = AstronomyCalculations.calculateTwilightTimes(
@@ -814,7 +818,7 @@ class SchedulerHandlers implements RouteSource {
       }
       date = parsed;
     } else {
-      date = DateTime.now();
+      date = _now();
     }
 
     final (moonRaDeg, moonDecDeg, moonDistance) =
