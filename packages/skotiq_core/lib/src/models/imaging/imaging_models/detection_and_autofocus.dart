@@ -181,7 +181,7 @@ class AutofocusSettings extends Equatable {
     this.focuserSettleTimeMs = 500,
     this.exposuresPerPoint = 1,
     this.backlashCompMethod = 'Overshoot',
-    this.backlashIn = 350,
+    this.backlashIn = 0,
     this.backlashOut = 0,
     this.autofocusFilterName = '',
     this.filterSettings = const {},

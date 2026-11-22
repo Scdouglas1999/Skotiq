@@ -29,7 +29,7 @@ class _ExecutorSequenceSink
     // swaps the loaded plan without disturbing the stashed manual sequence.
     _currentSequence.takeOwnership(sequence, ActivePlanOwner.autopilot);
     final executor = _ref.read(sequenceExecutorProvider);
-    await executor.start();
+    await executor.startUnattended();
   }
 
   @override

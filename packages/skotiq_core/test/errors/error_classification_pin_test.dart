@@ -9,7 +9,8 @@ import 'package:skotiq_core/models.dart';
 void main() {
   group('a text kind decides category, recoverable and reconnect', () {
     // (text, category, recoverable, reconnect) from SkotiqError.fromString,
-    // (device type, recoverable) from DeviceError.fromException.
+    // (device type, recoverable) from DeviceError.fromException. Both
+    // recoverable columns are one rule.
     const rows =
         <(String, BackendErrorCategory, bool, bool, DeviceErrorType, bool)>[
           (
@@ -66,7 +67,7 @@ void main() {
             false,
             false,
             DeviceErrorType.invalidParameter,
-            true,
+            false,
           ),
           (
             'Pulse guiding unsupported',
@@ -74,12 +75,12 @@ void main() {
             false,
             false,
             DeviceErrorType.invalidParameter,
-            true,
+            false,
           ),
           (
             'Exposure aborted',
             BackendErrorCategory.imaging,
-            false,
+            true,
             false,
             DeviceErrorType.driverError,
             true,
@@ -87,7 +88,7 @@ void main() {
           (
             'ASCOM driver threw',
             BackendErrorCategory.driver,
-            false,
+            true,
             false,
             DeviceErrorType.driverError,
             true,
@@ -95,7 +96,7 @@ void main() {
           (
             'Something odd',
             BackendErrorCategory.unknown,
-            false,
+            true,
             false,
             DeviceErrorType.unknown,
             true,
@@ -112,6 +113,7 @@ void main() {
         final device = DeviceError.fromException(Exception(text));
         expect(device.type, type);
         expect(device.recoverable, deviceOk);
+        expect(device.recoverable, error.isRecoverable);
       });
     }
   });
@@ -256,7 +258,7 @@ void main() {
       });
     }
 
-    test('a device card reads them by their text', () {
+    test('a device card reads their type by category, recovery by text', () {
       final notConnected = DeviceError.fromException(
         const ConnectionException(
           message: 'Not connected to server.',
@@ -273,13 +275,37 @@ void main() {
           userMessage: 'The camera device is not available',
         ),
       );
-      expect(unavailable.type, DeviceErrorType.driverError);
+      // Its text says "camera", which read as a driver error.
+      expect(unavailable.type, DeviceErrorType.connectionFailed);
       expect(unavailable.recoverable, isTrue);
+
+      // A run holding the cooler is a busy device, not a driver fault.
+      final busy = DeviceError.fromException(
+        const DeviceBusyException(
+          message: 'A sequence run owns the camera cooler',
+          userMessage: 'The running sequence controls the camera cooler.',
+          deviceId: 'cam',
+        ),
+      );
+      expect(busy.type, DeviceErrorType.busy);
+      expect(busy.userMessage, 'Device is busy. Please wait and try again.');
+      expect(busy.deviceId, 'cam');
+      expect(busy.recoverable, isTrue);
+
+      // Not recoverable by its own flag, recoverable as its text reads.
+      final saveFailed = DeviceError.fromException(
+        const ImagingException(
+          message: 'Failed to write FITS',
+          userMessage: 'The frame could not be saved',
+        ),
+      );
+      expect(saveFailed.type, DeviceErrorType.driverError);
+      expect(saveFailed.recoverable, isTrue);
 
       final notFound = DeviceError.fromException(
         ConnectionException.notFound('cam'),
       );
-      expect(notFound.type, DeviceErrorType.deviceNotFound);
+      expect(notFound.type, DeviceErrorType.connectionFailed);
       expect(notFound.recoverable, isFalse);
     });
 
@@ -306,7 +332,7 @@ void main() {
         skotiqErrorFromBridge(const bridge.SkotiqError.notConnected('cam')),
         domain: ErrorDomain.device,
       );
-      expect(text.message, "'cam' is not connected");
+      expect(text.message, 'Device not connected: cam');
       expect(text.suggestion, 'Reconnect the device, then try again.');
       expect(text.isRecoverable, isFalse);
     });

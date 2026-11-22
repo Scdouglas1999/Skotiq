@@ -714,9 +714,12 @@ void main() {
           container.read(flipExecutionStateProvider),
           FlipExecutionState.aborted,
         );
-        expect(container.read(flipCurrentStepProvider), isNull);
-        expect(container.read(flipProgressProvider), 0);
-        expect(container.read(flipCurrentAttemptProvider), 0);
+        expect(
+          container.read(flipCurrentStepProvider),
+          FlipStep.slewingToTarget,
+        );
+        expect(container.read(flipProgressProvider), 42);
+        expect(container.read(flipCurrentAttemptProvider), 1);
         expect(
           container.read(flipLastErrorProvider),
           'Meridian flip aborted: mount disconnected',

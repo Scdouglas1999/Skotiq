@@ -252,6 +252,25 @@ class NotificationRouter {
     }
   }
 
+  /// Whether a [category] notice at [severity] reaches the phone push under
+  /// the operator's rules: notifications and the category's rule are on, the
+  /// severity clears the rule's floor, the rule names the phone push and the
+  /// push transport is set up. Debounce, rate limits and duplicates are not
+  /// asked; they quiet a notice the operator wants, they do not decline it.
+  bool wouldPush(
+    NotificationCategory category, {
+    EventSeverity severity = EventSeverity.critical,
+  }) {
+    if (!_matrix.enabled) return false;
+    final rule = _ruleFor(category);
+    if (!rule.enabled || severity.index < rule.minSeverity.index) return false;
+    if (!rule.transports.contains(NotificationTransportKind.systemPush)) {
+      return false;
+    }
+    return _transports[NotificationTransportKind.systemPush]?.isConfigured ??
+        false;
+  }
+
   /// A classified event is presented at its category's severity; [severity]
   /// on [route] only decides whether the rule's floor lets it through.
   NotificationMessage _render(

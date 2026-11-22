@@ -25,8 +25,10 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
-import '../flat_wizard_provider.dart';
 import '../meridian_flip_provider.dart';
+import '../rig_activity.dart';
+import '../imaging_service_providers.dart' show imagingServiceProvider;
+import '../../models/rig_activity.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -395,16 +397,37 @@ class SequenceExecutor {
     return validator.validate(sequence);
   }
 
+  /// A start nobody is at the keyboard for: the autopilot, end-of-night
+  /// calibration, Start at dark. A manual capture left running (a Loop left
+  /// on at dusk) is ended first, so it does not cost the night; any other
+  /// activity holding the rig still refuses the start.
+  Future<void> startUnattended() async {
+    bool captureHolds() =>
+        rigHeldBy(_ref.read, starting: RigActivity.sequence) ==
+        RigActivity.manualCapture;
+    if (captureHolds()) {
+      _logger.warning(
+        'Ending the manual capture so the run can start',
+        source: 'SequenceExecutor',
+      );
+      _ref.read(imagingServiceProvider).cancelExposure();
+      final deadline = DateTime.now().add(_manualCaptureYield);
+      while (captureHolds() && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+    await start();
+  }
+
+  /// How long an unattended start waits for a manual capture to end.
+  static const _manualCaptureYield = Duration(seconds: 30);
+
   Future<void> start() async {
     _ensureBackendAuthority();
-    // A flat run or a flip already owns the mount and the camera. Refuse
-    // before the launch latch, so this start opens no session and no run.
-    if (_ref.read(flatWizardProvider.notifier).isBusy ||
-        _ref.read(isFlipInProgressProvider)) {
-      throw StateError(
-        'Cannot start: a flat capture or a meridian flip is in progress.',
-      );
-    }
+    // Another activity holds the camera or the mount. Refuse before the
+    // launch latch, so this start opens no session and no run.
+    final held = rigHeldBy(_ref.read, starting: RigActivity.sequence);
+    if (held != null) throw StateError('Cannot start: ${held.busy}.');
     // A. Start serialization + admissible-state gate.
     // This gate mutates nothing,
     // so a rejected concurrent caller leaves the in-flight run — and its

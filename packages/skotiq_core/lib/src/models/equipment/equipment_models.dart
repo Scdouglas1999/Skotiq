@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../backend/device_capabilities.dart' show TrackingRate;
+import '../../errors/device_connect_exception.dart';
 import '../../errors/error_text.dart';
 import '../../errors/error_text_kind.dart';
 import '../../errors/skotiq_error.dart';
@@ -90,20 +91,32 @@ class DeviceError extends Equatable {
     this.recoverable = true,
   });
 
-  /// Create a DeviceError from an exception
+  /// [error] as a device error. A typed error is read by its category; one
+  /// with no category of its own is classified from its text by
+  /// [classifyErrorText]. The message is the sentence a person reads.
   ///
-  /// If the exception is a [SkotiqError], the structured error information
-  /// is extracted directly. Otherwise, the error message is parsed to determine
-  /// the error category.
-  /// [error] as a device error. An error with no category of its own is
-  /// classified from its text by [classifyErrorText]; the message is the
-  /// sentence a person reads.
+  /// An error Skotiq's Dart code raised ([SkotiqException]) takes its type
+  /// from its category but whether it is recoverable from its text, as a
+  /// device slot has always read it.
   factory DeviceError.fromException(
     Object error, {
     String? deviceId,
     int retryAttempts = 0,
   }) {
     if (error is DeviceError) return error;
+    // A failed connect carries the native failure typed; the driver's own
+    // sentence stays the message.
+    if (error is DeviceConnectException) {
+      final native = error.nativeError;
+      if (native != null) {
+        return DeviceError.fromSkotiqError(
+          native,
+          deviceId: deviceId ?? error.deviceId,
+          retryAttempts: retryAttempts,
+          message: userFacingError(error),
+        );
+      }
+    }
     if (error is SkotiqError && error is! SkotiqException) {
       return DeviceError.fromSkotiqError(
         error,
@@ -113,26 +126,28 @@ class DeviceError extends Equatable {
     }
     final message = userFacingError(error);
     final kind = classifyErrorText(message);
-    final type = switch (kind) {
-      ErrorTextKind.timeout => DeviceErrorType.timeout,
-      ErrorTextKind.notFound => DeviceErrorType.deviceNotFound,
-      ErrorTextKind.connection => DeviceErrorType.connectionFailed,
-      ErrorTextKind.permission => DeviceErrorType.permissionDenied,
-      ErrorTextKind.busy => DeviceErrorType.busy,
-      ErrorTextKind.hardware => DeviceErrorType.communicationError,
-      ErrorTextKind.invalid ||
-      ErrorTextKind.unsupported => DeviceErrorType.invalidParameter,
-      ErrorTextKind.imaging ||
-      ErrorTextKind.driver => DeviceErrorType.driverError,
-      ErrorTextKind.unknown => DeviceErrorType.unknown,
-    };
+    final type = error is SkotiqException
+        ? _typeOfCategory(error.category)
+        : switch (kind) {
+            ErrorTextKind.timeout => DeviceErrorType.timeout,
+            ErrorTextKind.notFound => DeviceErrorType.deviceNotFound,
+            ErrorTextKind.connection => DeviceErrorType.connectionFailed,
+            ErrorTextKind.permission => DeviceErrorType.permissionDenied,
+            ErrorTextKind.busy => DeviceErrorType.busy,
+            ErrorTextKind.hardware => DeviceErrorType.communicationError,
+            ErrorTextKind.invalid ||
+            ErrorTextKind.unsupported => DeviceErrorType.invalidParameter,
+            ErrorTextKind.imaging ||
+            ErrorTextKind.driver => DeviceErrorType.driverError,
+            ErrorTextKind.unknown => DeviceErrorType.unknown,
+          };
     return DeviceError(
       type: type,
       message: message,
       timestamp: DateTime.now(),
-      deviceId: deviceId,
+      deviceId: deviceId ?? (error is SkotiqError ? error.deviceId : null),
       retryAttempts: retryAttempts,
-      recoverable: !kind.refusal,
+      recoverable: kind.recoverable,
     );
   }
 
@@ -140,35 +155,34 @@ class DeviceError extends Equatable {
     SkotiqError error, {
     String? deviceId,
     int retryAttempts = 0,
+    String? message,
   }) {
-    final type = switch (error.category) {
-      BackendErrorCategory.connection => DeviceErrorType.connectionFailed,
-      BackendErrorCategory.hardware => DeviceErrorType.communicationError,
-      BackendErrorCategory.timeout => DeviceErrorType.timeout,
-      BackendErrorCategory.validation => DeviceErrorType.invalidParameter,
-      BackendErrorCategory.unsupported => DeviceErrorType.invalidParameter,
-      BackendErrorCategory.busy => DeviceErrorType.busy,
-      BackendErrorCategory.imaging => DeviceErrorType.driverError,
-      BackendErrorCategory.io => DeviceErrorType.driverError,
-      BackendErrorCategory.sequence => DeviceErrorType.driverError,
-      BackendErrorCategory.driver => DeviceErrorType.driverError,
-      BackendErrorCategory.system => DeviceErrorType.unknown,
-      BackendErrorCategory.unknown => DeviceErrorType.unknown,
-    };
-
-    // Determine recoverability - prefer SkotiqError's assessment
-    final recoverable = error.isRecoverable;
-
     return DeviceError(
-      type: type,
-      message: error.userMessage,
+      type: _typeOfCategory(error.category),
+      message: message ?? error.userMessage,
       code: error.errorCode?.toString(),
       timestamp: DateTime.now(),
       deviceId: deviceId ?? error.deviceId,
       retryAttempts: retryAttempts,
-      recoverable: recoverable,
+      recoverable: error.isRecoverable,
     );
   }
+
+  static DeviceErrorType _typeOfCategory(BackendErrorCategory category) =>
+      switch (category) {
+        BackendErrorCategory.connection => DeviceErrorType.connectionFailed,
+        BackendErrorCategory.hardware => DeviceErrorType.communicationError,
+        BackendErrorCategory.timeout => DeviceErrorType.timeout,
+        BackendErrorCategory.validation ||
+        BackendErrorCategory.unsupported => DeviceErrorType.invalidParameter,
+        BackendErrorCategory.busy => DeviceErrorType.busy,
+        BackendErrorCategory.imaging ||
+        BackendErrorCategory.io ||
+        BackendErrorCategory.sequence ||
+        BackendErrorCategory.driver => DeviceErrorType.driverError,
+        BackendErrorCategory.system ||
+        BackendErrorCategory.unknown => DeviceErrorType.unknown,
+      };
 
   String get userMessage {
     switch (type) {

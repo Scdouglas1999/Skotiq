@@ -646,8 +646,14 @@ class Phd2Controller {
       }
     }
 
+    // An idle guider ("Connected", "Stopped", a star "Selected") is sent
+    // nothing; a word this build does not know may be any active state.
     final status = await readPhd2StatusOrDisconnected(backend);
-    if (status.connected && status.state.toLowerCase() != 'stopped') {
+    final idle = switch (phd2StateFromGuiderWord(status.state)) {
+      Phd2State.stopped || Phd2State.selected => true,
+      _ => false,
+    };
+    if (status.connected && !idle) {
       await backend.guiderStopGuiding();
     }
 

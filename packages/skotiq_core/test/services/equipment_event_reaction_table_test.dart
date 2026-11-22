@@ -103,6 +103,11 @@ final _equipment = <String, E>{
     deviceId: 'cam1',
     message: 'USB gone',
   ),
+  'error camera warning': const E.error(
+    deviceType: 'camera',
+    deviceId: 'cam1',
+    message: 'Cooler set-point was not restored',
+  ),
   'mountSlewStarted': const E.mountSlewStarted(
     deviceId: 'mount1',
     ra: 1,
@@ -331,12 +336,22 @@ String _hostWindowReaction(_Start start, SkotiqEvent event) {
   }
 }
 
+/// The severity a producer sends an event at, where it is not info: a fault
+/// is an error, a notice about a device that still works a warning.
+const _severities = {
+  'error camera': bridge.EventSeverity.error,
+  'error camera warning': bridge.EventSeverity.warning,
+};
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   final rows = <String, SkotiqEvent Function(EventPath)>{
     for (final entry in _equipment.entries)
-      entry.key: (path) =>
-          wireEventOver(path, bridge.EventPayload.equipment(entry.value)),
+      entry.key: (path) => wireEventOver(
+        path,
+        bridge.EventPayload.equipment(entry.value),
+        severity: _severities[entry.key] ?? bridge.EventSeverity.info,
+      ),
     'guiding Connected': (path) => wireEventOver(path, _guidingConnected),
   };
 
@@ -388,6 +403,7 @@ const Map<_Start, Map<String, String>> _expected = {
         'slots unchanged retained=0 calls= later=',
     'error camera':
         'slots=camera=[DeviceConnectionState.error, null, null, null, null, -10.0, null, null, null, null, false, false, null, DeviceError(type: DeviceErrorType.unknown, message: USB gone, deviceId: null), null, true] mount=[DeviceConnectionState.disconnected, null, null, null, null, null, null, false, false, true, false, false, false, null, null, false, true, null, true] focuser=[DeviceConnectionState.disconnected, null, null, null, null, null, false, false, null, false, null, true] wheel=[DeviceConnectionState.disconnected, null, null, null, [], false, null, true] rotator=[DeviceConnectionState.disconnected, null, null, null, null, false, false, null, true] guider=[DeviceConnectionState.disconnected, null, null, false, false, null, null, null, null, null, true] retained=0 calls= later=',
+    'error camera warning': 'slots unchanged retained=0 calls= later=',
     'mountSlewStarted': 'slots unchanged retained=0 calls= later=',
     'mountSlewStarted other': 'slots unchanged retained=0 calls= later=',
     'mountSlewCompleted': 'slots unchanged retained=0 calls= later=',
@@ -448,6 +464,8 @@ const Map<_Start, Map<String, String>> _expected = {
         'slots unchanged retained=0 calls= later=getMountStatus,getMountStatus,getMountStatus',
     'error camera':
         'slots=camera=[DeviceConnectionState.error, cam1, cam1, null, null, -10.0, null, null, null, null, false, false, null, DeviceError(type: DeviceErrorType.unknown, message: USB gone, deviceId: cam1), null, true] mount=[DeviceConnectionState.connected, mount1, mount1, null, null, null, null, false, false, true, false, false, false, null, null, false, true, null, true] focuser=[DeviceConnectionState.connected, foc1, foc1, null, null, null, false, false, null, false, null, true] wheel=[DeviceConnectionState.connected, fw1, fw1, null, [], false, null, true] rotator=[DeviceConnectionState.connected, rot1, rot1, null, null, false, false, null, true] guider=[DeviceConnectionState.disconnected, null, null, false, false, null, null, null, null, null, true] retained=0 calls= later=getMountStatus,getMountStatus,getMountStatus',
+    'error camera warning':
+        'slots unchanged retained=0 calls= later=getMountStatus,getMountStatus,getMountStatus',
     'mountSlewStarted':
         'slots=camera=[DeviceConnectionState.connected, cam1, cam1, null, null, -10.0, null, null, null, null, false, false, null, null, null, true] mount=[DeviceConnectionState.connected, mount1, mount1, null, null, null, null, false, true, true, false, false, false, null, null, false, true, null, true] focuser=[DeviceConnectionState.connected, foc1, foc1, null, null, null, false, false, null, false, null, true] wheel=[DeviceConnectionState.connected, fw1, fw1, null, [], false, null, true] rotator=[DeviceConnectionState.connected, rot1, rot1, null, null, false, false, null, true] guider=[DeviceConnectionState.disconnected, null, null, false, false, null, null, null, null, null, true] retained=0 calls= later=getMountStatus,getMountStatus,getMountStatus,getMountStatus,getMountStatus,getMountStatus,getMountStatus,getMountStatus,getMountStatus,getMountStatus',
     'mountSlewStarted other':
@@ -529,6 +547,7 @@ const Map<_Start, Map<String, String>> _hostWindowExpected = {
     'propertyChanged AutofocusProgress': 'slots unchanged',
     'propertyChanged FocuserBacklashCalibrationProgress': 'slots unchanged',
     'error camera': 'slots unchanged',
+    'error camera warning': 'slots unchanged',
     'mountSlewStarted': 'slots unchanged',
     'mountSlewStarted other': 'slots unchanged',
     'mountSlewCompleted': 'slots unchanged',
@@ -575,6 +594,7 @@ const Map<_Start, Map<String, String>> _hostWindowExpected = {
     'propertyChanged AutofocusProgress': 'slots unchanged',
     'propertyChanged FocuserBacklashCalibrationProgress': 'slots unchanged',
     'error camera': 'slots unchanged',
+    'error camera warning': 'slots unchanged',
     'mountSlewStarted': 'slots unchanged',
     'mountSlewStarted other': 'slots unchanged',
     'mountSlewCompleted': 'slots unchanged',

@@ -37,6 +37,11 @@ abstract final class NativeBridge {
 
   static bool get isNativeAvailable => _nativeAvailable;
 
+  /// True once [init] started the native side as a host
+  /// (`api_init_host`), which also starts its file logging.
+  static bool get hostInitialized => _hostInitialized;
+  static bool _hostInitialized = false;
+
   /// Loads the native library and initializes the Rust side: a host with
   /// [host] (its data, log and profile directories), anything else with
   /// console logging only. Safe to call more than once. A failed load leaves
@@ -72,7 +77,10 @@ abstract final class NativeBridge {
     // A loaded library whose stores cannot open (an unwritable profile
     // directory, a store another process still holds) fails with its own
     // error, not as a missing library.
-    if (_nativeAvailable && host != null) gen_api.apiInitHost(paths: host);
+    if (_nativeAvailable && host != null) {
+      gen_api.apiInitHost(paths: host);
+      _hostInitialized = true;
+    }
 
     if (!_nativeAvailable) {
       // Warning level: the app keeps running, but every hardware operation

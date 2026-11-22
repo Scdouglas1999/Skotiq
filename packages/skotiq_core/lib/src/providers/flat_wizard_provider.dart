@@ -13,12 +13,8 @@ import '../backend/skotiq_backend.dart';
 import '../utils/host_paths.dart';
 import '../errors/error_text.dart';
 import 'host_role.dart';
-import 'sequence/sequence_progress.dart';
-import 'session_provider.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/flat_wizard/flat_capture_config.dart';
-import '../models/sequence/sequence_models.dart'
-    show SequenceExecutionStateCapabilities;
 import '../models/imaging/imaging_models.dart' show ExposureSettings, FrameType;
 import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
@@ -35,6 +31,8 @@ import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
 import '../models/flat_wizard/flat_run_snapshot.dart';
 import 'imaging_service_providers.dart';
+import 'rig_activity.dart';
+import '../models/rig_activity.dart';
 import 'profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../database/daos/settings_dao.dart';
@@ -193,14 +191,9 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   /// The host checks this synchronously at the point it admits a draft.
   String? get startBlockReason {
     if (isBusy) return 'A flat capture is already in progress';
-    if (ref.read(sequenceLaunchInFlightProvider) ||
-        ref.read(sequenceExecutionStateProvider).ownsHardware) {
-      return 'The sequencer is using the camera';
-    }
-    if (ref.read(rawCameraExposureInFlightProvider) ||
-        ref.read(cameraStateProvider).isExposing ||
-        ref.read(sessionStateProvider).isCapturing ||
-        ref.read(imagingServiceProvider).isCapturing) {
+    final held = rigHeldBy(ref.read, starting: RigActivity.flats);
+    if (held != null) return held.busy;
+    if (ref.read(cameraStateProvider).isExposing) {
       return 'Camera is busy with another exposure';
     }
     return null;

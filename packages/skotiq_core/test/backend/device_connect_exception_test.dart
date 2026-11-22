@@ -28,6 +28,31 @@ void main() {
     expect(const DeviceConnectException('x', 'boom').nativeError, isNull);
   });
 
+  test('a device card reads a native connect failure by its type', () {
+    const error = DeviceConnectException(
+      'native:zwo:0',
+      bridge.SkotiqError.connectionFailed(
+        deviceId: 'native:zwo:0',
+        reason: 'USB device busy',
+      ),
+      reason: 'USB device busy',
+    );
+    final card = DeviceError.fromException(error);
+    // The text says "busy"; the driver said the connect failed.
+    expect(card.type, DeviceErrorType.connectionFailed);
+    expect(card.recoverable, isTrue);
+    expect(card.message, 'USB device busy');
+    expect(card.deviceId, 'native:zwo:0');
+
+    final notFound = DeviceError.fromException(
+      const DeviceConnectException(
+        'native:zwo:9',
+        bridge.SkotiqError.deviceNotFound('native:zwo:9'),
+      ),
+    );
+    expect(notFound.recoverable, isFalse);
+  });
+
   test('a failed connect is explained in the driver\'s own words', () {
     const error = DeviceConnectException(
       'native:builtin_guider:multi_star',

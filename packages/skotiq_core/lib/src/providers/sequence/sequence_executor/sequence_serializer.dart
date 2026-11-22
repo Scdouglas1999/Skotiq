@@ -293,13 +293,27 @@ class SequenceSerializer {
     AutofocusRun run,
   ) {
     final nodeMethod = run.method;
-    final method = nodeMethod == null
-        ? switch (settings.curveFitting.trim().toLowerCase()) {
-            'hyperbolic' => 'Hyperbolic',
-            'parabolic' || 'quadratic' => 'Quadratic',
-            _ => 'VCurve',
-          }
-        : _autofocusMethodToString(nodeMethod);
+    final String method;
+    if (nodeMethod != null) {
+      method = _autofocusMethodToString(nodeMethod);
+    } else {
+      final known = switch (settings.curveFitting.trim().toLowerCase()) {
+        'hyperbolic' => 'Hyperbolic',
+        'parabolic' || 'quadratic' => 'Quadratic',
+        'trend lines' || 'v-curve' || 'vcurve' || 'v_curve' || '' => 'VCurve',
+        _ => null,
+      };
+      // A stored value no release offers still focuses: an autofocus refused
+      // at night would cost the run more than a V-curve fit does.
+      if (known == null) {
+        _warn(
+          'Autofocus curve fitting "${settings.curveFitting}" is not one '
+          'Skotiq knows; this run fits a V-curve. Choose a curve in '
+          'Settings > Autofocus.',
+        );
+      }
+      method = known ?? 'VCurve';
+    }
     final backlashEnabled = !settings.backlashCompMethod
         .trim()
         .toLowerCase()

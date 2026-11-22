@@ -181,7 +181,7 @@ class ProviderEonRig implements EonRig {
       _ref
           .read(currentSequenceProvider.notifier)
           .takeOwnership(sequence, ActivePlanOwner.calibration);
-      await _ref.read(sequenceExecutorProvider).start();
+      await _ref.read(sequenceExecutorProvider).startUnattended();
       final result = await done.future;
       return EonRunResult(runId: result.runId, runStatus: result.runStatus);
     } finally {

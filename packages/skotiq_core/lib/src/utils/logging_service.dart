@@ -309,6 +309,7 @@ class LoggingService {
   final Map<String, String>? _environment;
   final void Function({String? logDirectory}) _nativeInitWithLogging;
   final void Function() _nativeInit;
+  final bool Function() _nativeLoggingStarted;
   final String? Function() _currentLogFileProvider;
   final Future<void> Function(File file, String line) _appendRequestLine;
   Future<void> _requestWrites = Future<void>.value();
@@ -356,6 +357,7 @@ class LoggingService {
     Map<String, String>? environment,
     void Function({String? logDirectory})? nativeInitWithLogging,
     void Function()? nativeInit,
+    bool Function()? nativeLoggingStarted,
     String? Function()? currentLogFileProvider,
     Future<void> Function(File file, String line)? appendRequestLine,
   }) : _applicationSupportDirectoryProvider =
@@ -364,6 +366,9 @@ class LoggingService {
        _nativeInitWithLogging =
            nativeInitWithLogging ?? bridge_api.apiInitWithLogging,
        _nativeInit = nativeInit ?? bridge_api.apiInit,
+       _nativeLoggingStarted =
+           nativeLoggingStarted ??
+           (() => bridge_api.NativeBridge.hostInitialized),
        _currentLogFileProvider =
            currentLogFileProvider ?? bridge_api.apiGetCurrentLogFile,
        _appendRequestLine = appendRequestLine ?? _writeRequestLine;
@@ -403,7 +408,11 @@ class LoggingService {
         await logsDir.create(recursive: true);
       }
 
-      _nativeInitWithLogging(logDirectory: _logDirectory);
+      // A host started the native side and its file log in `api_init_host`;
+      // a second start would log, publish and listen for hotplug again.
+      if (!_nativeLoggingStarted()) {
+        _nativeInitWithLogging(logDirectory: _logDirectory);
+      }
 
       _initialized = true;
       log(
@@ -419,7 +428,7 @@ class LoggingService {
     } catch (e) {
       // Fall back to console-only logging
       try {
-        _nativeInit();
+        if (!_nativeLoggingStarted()) _nativeInit();
       } catch (bridgeError) {
         // Why: the LoggingService runs in test harnesses where the Rust
         // bridge is not loaded — `_nativeInit` then throws because the FFI

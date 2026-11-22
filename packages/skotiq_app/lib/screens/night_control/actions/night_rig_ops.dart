@@ -36,6 +36,8 @@ class NightCenterTarget {
 abstract interface class NightRigOps {
   Future<CommandActionResult> pauseRun();
   Future<CommandActionResult> resumeRun();
+
+  /// Starts the armed run, a start nobody is at the keyboard for.
   Future<CommandActionResult> startRun();
 
   /// The Start dialog's pre-flight validation of [sequence]. Throws when
@@ -124,7 +126,7 @@ class ServiceNightRigOps implements NightRigOps {
   Future<CommandActionResult> resumeRun() => _sequence.resume();
 
   @override
-  Future<CommandActionResult> startRun() => _sequence.start();
+  Future<CommandActionResult> startRun() => _sequence.startUnattended();
 
   @override
   Future<ValidationResult> validateRun(Sequence sequence) async {

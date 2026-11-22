@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:path/path.dart' as path;
 import 'package:skotiq_core/src/backend/network_backend.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/errors/skotiq_exception.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
@@ -2352,6 +2353,60 @@ void main() {
       expect(capturedImages.length, 2);
       expect(errors.length, 1);
       expect(errors.first, contains('Temporary sensor error'));
+    });
+
+    group('a Loop exposure that throws', () {
+      const settings = ExposureSettings(
+        exposureTime: 1.0,
+        gain: 100,
+        offset: 50,
+        binningX: 1,
+        binningY: 1,
+        frameType: FrameType.light,
+      );
+
+      Future<int> exposuresUntilStop(Object failure) async {
+        var calls = 0;
+        when(
+          () => mockBackend.cameraStartExposure(
+            deviceId: any(named: 'deviceId'),
+            exposureTime: any(named: 'exposureTime'),
+            frameType: any(named: 'frameType'),
+            gain: any(named: 'gain'),
+            offset: any(named: 'offset'),
+            binX: any(named: 'binX'),
+            binY: any(named: 'binY'),
+          ),
+        ).thenAnswer((_) async {
+          calls++;
+          throw failure;
+        });
+        await container
+            .read(imagingServiceProvider)
+            .startLoopCapture(settings: settings, maxFrames: 5);
+        return calls;
+      }
+
+      test('stops at once on a non-recoverable error from the host', () async {
+        expect(
+          await exposuresUntilStop(
+            const SkotiqError(
+              category: BackendErrorCategory.unsupported,
+              message: 'Operation not supported: subframe on device cam',
+            ),
+          ),
+          1,
+        );
+      });
+
+      test('keeps trying on a recoverable error', () async {
+        expect(
+          await exposuresUntilStop(
+            SkotiqError.fromString('USB transfer stalled'),
+          ),
+          5,
+        );
+      });
     });
 
     test('startLoopCapture stops when cancelExposure is called', () async {

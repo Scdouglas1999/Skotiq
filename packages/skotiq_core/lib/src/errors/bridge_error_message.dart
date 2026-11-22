@@ -15,20 +15,30 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import 'skotiq_error.dart';
 
-/// A bridge error as the GUI reads it and as a remote client reads it.
-typedef BridgeErrorTexts = ({SkotiqError error, String remote});
-
 /// [error] as the core error: its category, whether trying again or
-/// reconnecting can help, the technical and the user message, and the
-/// sentence the driver authored ([SkotiqError.reason]).
-SkotiqError skotiqErrorFromBridge(bridge.SkotiqError error) =>
-    bridgeErrorTexts(error).error;
+/// reconnecting can help, the technical message, the sentence a person reads
+/// ([SkotiqError.userMessage], the same one a remote client reads in the
+/// host's reply) and the sentence the driver authored ([SkotiqError.reason]).
+SkotiqError skotiqErrorFromBridge(bridge.SkotiqError error) {
+  final (error: core, :sentence) = _bridgeErrorTexts(error);
+  return SkotiqError(
+    category: core.category,
+    message: core.message,
+    userMessage: sentence,
+    isRecoverable: core.isRecoverable,
+    shouldReconnect: core.shouldReconnect,
+    isTimeout: core.isTimeout,
+    deviceId: core.deviceId,
+    errorCode: core.errorCode,
+    reason: core.reason,
+  );
+}
 
-/// The one table over the bridge's error union: [error] as the core error
-/// (what the GUI reads), and [BridgeErrorTexts.remote], the sentence a remote
-/// client reads in the host's reply. The two are worded apart today; a
-/// rewording of either lands here.
-BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
+/// The one table over the bridge's error union: each variant as the core
+/// error and the one sentence it is told in. A rewording lands here.
+({SkotiqError error, String sentence}) _bridgeErrorTexts(
+  bridge.SkotiqError error,
+) {
   // `deviceId` is empty on the arms where the driver did not scope the
   // failure to one device; appending "(device )" there would be noise.
   String scoped(String sentence, String deviceId) =>
@@ -45,7 +55,6 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message:
             'Operation timed out: $operation'
             '${secs != null ? ' after ${secs.toStringAsFixed(1)}s' : ''}',
-        userMessage: 'Operation timed out: $operation',
         isRecoverable: true,
         isTimeout: true,
         deviceId: deviceId,
@@ -54,93 +63,85 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
   const canceled = SkotiqError(
     category: system,
     message: 'Operation cancelled',
-    userMessage: 'Operation canceled',
   );
   return error.when(
     deviceNotFound: (deviceId) => (
       error: SkotiqError(
         category: connection,
         message: 'Device not found: $deviceId',
-        userMessage: "Device '$deviceId' not found",
         deviceId: deviceId,
         reason: "Device '$deviceId' was not found",
       ),
-      remote: 'Device not found: $deviceId',
+      sentence: 'Device not found: $deviceId',
     ),
     connectionFailed: (deviceId, reason) => (
       error: SkotiqError(
         category: connection,
         message: 'Device connection failed: $deviceId - $reason',
-        userMessage: "Could not connect to '$deviceId'",
         isRecoverable: true,
         shouldReconnect: true,
         deviceId: deviceId,
         reason: reason,
       ),
-      remote: 'Could not connect to $deviceId: $reason',
+      sentence: 'Could not connect to $deviceId: $reason',
     ),
     alreadyConnected: (deviceId) => (
       error: SkotiqError(
         category: connection,
         message: 'Device already connected: $deviceId',
-        userMessage: "'$deviceId' is already connected",
         deviceId: deviceId,
         reason: "'$deviceId' is already connected",
       ),
-      remote: 'Device already connected: $deviceId',
+      sentence: 'Device already connected: $deviceId',
     ),
     notConnected: (deviceId) => (
       error: SkotiqError(
         category: connection,
         message: 'Device not connected: $deviceId',
-        userMessage: "'$deviceId' is not connected",
         shouldReconnect: true,
         deviceId: deviceId,
         reason: "'$deviceId' is not connected",
       ),
-      remote: 'Device not connected: $deviceId',
+      sentence: 'Device not connected: $deviceId',
     ),
     deviceDisconnected: (deviceId, reason) => (
       error: SkotiqError(
         category: connection,
         message: 'Device disconnected unexpectedly: $deviceId - $reason',
-        userMessage: "'$deviceId' disconnected unexpectedly",
         isRecoverable: true,
         shouldReconnect: true,
         deviceId: deviceId,
         reason: reason,
       ),
-      remote: 'Device $deviceId disconnected: $reason',
+      sentence: 'Device $deviceId disconnected: $reason',
     ),
     hardwareError: (deviceId, message, errorCode) => (
       error: SkotiqError(
         category: BackendErrorCategory.hardware,
         message: 'Hardware error: $deviceId - $message',
-        userMessage: "Hardware error on '$deviceId': $message",
         isRecoverable: true,
         deviceId: deviceId,
         errorCode: errorCode,
         reason: message,
       ),
-      remote: 'Hardware error on $deviceId: $message',
+      sentence: 'Hardware error on $deviceId: $message',
     ),
     communicationError: (deviceId, message) => (
       error: SkotiqError(
         category: BackendErrorCategory.hardware,
         message: 'Communication error: $deviceId - $message',
-        userMessage: "Communication error with '$deviceId'",
         isRecoverable: true,
         shouldReconnect: true,
         deviceId: deviceId,
         reason: message,
       ),
-      remote: 'Communication error with $deviceId: $message',
+      sentence: 'Communication error with $deviceId: $message',
     ),
     timeout: (message) =>
-        (error: timedOut(message, null, null), remote: message),
+        (error: timedOut(message, null, null), sentence: message),
     deviceTimeout: (deviceId, operation, timeoutSecs) => (
       error: timedOut(operation, deviceId, timeoutSecs),
-      remote: '$deviceId timed out after ${timeoutSecs}s during $operation',
+      sentence: '$deviceId timed out after ${timeoutSecs}s during $operation',
     ),
     connectionTimeout: (deviceId, timeoutSecs) => (
       error: SkotiqError(
@@ -148,13 +149,12 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message:
             'Connection timeout: $deviceId after '
             '${timeoutSecs.toStringAsFixed(1)}s',
-        userMessage: "Connection to '$deviceId' timed out",
         isRecoverable: true,
         isTimeout: true,
         shouldReconnect: true,
         deviceId: deviceId,
       ),
-      remote: 'Connecting to $deviceId timed out after ${timeoutSecs}s',
+      sentence: 'Connecting to $deviceId timed out after ${timeoutSecs}s',
     ),
     invalidParameter: (message) => (
       error: SkotiqError(
@@ -162,7 +162,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Invalid parameter: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     invalidInput: (message) => (
       error: SkotiqError(
@@ -170,7 +170,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Invalid input: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     invalidDeviceId: (deviceId, reason) => (
       error: SkotiqError(
@@ -179,16 +179,15 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         deviceId: deviceId,
         reason: reason,
       ),
-      remote: scoped(reason, deviceId),
+      sentence: scoped(reason, deviceId),
     ),
     parameterOutOfRange: (paramName, value, min, max) => (
       error: SkotiqError(
         category: validation,
         message:
             'Parameter out of range: $paramName = $value (valid: $min to $max)',
-        userMessage: '$paramName value $value is out of range ($min to $max)',
       ),
-      remote: '$paramName $value is outside the valid range $min to $max',
+      sentence: '$paramName $value is outside the valid range $min to $max',
     ),
     operationFailed: (message) => (
       error: SkotiqError(
@@ -197,17 +196,16 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         isRecoverable: true,
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     notSupported: (deviceId, operation) => (
       error: SkotiqError(
         category: BackendErrorCategory.unsupported,
         message: 'Operation not supported: $operation on device $deviceId',
-        userMessage: "'$deviceId' does not support: $operation",
         deviceId: deviceId,
         reason: "'$deviceId' does not support $operation",
       ),
-      remote: scoped(operation, deviceId),
+      sentence: scoped(operation, deviceId),
     ),
     // A refusal reads as the variant it was raised as before it had a kind.
     refused: (kind, message) => (
@@ -224,18 +222,17 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
           reason: message,
         ),
       },
-      remote: message,
+      sentence: message,
     ),
     deviceBusy: (deviceId, currentOperation) => (
       error: SkotiqError(
         category: BackendErrorCategory.busy,
         message: 'Device busy: $deviceId - $currentOperation',
-        userMessage: "'$deviceId' is busy: $currentOperation",
         isRecoverable: true,
         deviceId: deviceId,
         reason: "'$deviceId' is busy with $currentOperation",
       ),
-      remote: '$deviceId is busy: $currentOperation',
+      sentence: '$deviceId is busy: $currentOperation',
     ),
     invalidState: (message) => (
       error: SkotiqError(
@@ -243,7 +240,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: message,
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     imageError: (message) => (
       error: SkotiqError(
@@ -251,7 +248,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Image error: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     cameraError: (message) => (
       error: SkotiqError(
@@ -259,25 +256,24 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Camera error: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     noImageAvailable: () => (
       error: const SkotiqError(
         category: imaging,
         message: 'No image available',
       ),
-      remote: 'No image is available yet — capture an exposure first',
+      sentence: 'No image is available yet — capture an exposure first',
     ),
-    exposureCancelled: () => (error: canceled, remote: 'Exposure cancelled'),
+    exposureCancelled: () => (error: canceled, sentence: 'Exposure canceled'),
     exposureFailed: (cameraId, reason) => (
       error: SkotiqError(
         category: imaging,
         message: 'Exposure failed: $cameraId - $reason',
-        userMessage: "Exposure failed on '$cameraId'",
         deviceId: cameraId,
         reason: reason,
       ),
-      remote: reason,
+      sentence: reason,
     ),
     downloadFailed: (cameraId, reason) => (
       error: SkotiqError(
@@ -286,7 +282,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         deviceId: cameraId,
         reason: reason,
       ),
-      remote: 'Image download failed: $cameraId - $reason',
+      sentence: 'Image download failed: $cameraId - $reason',
     ),
     ioError: (message) => (
       error: SkotiqError(
@@ -294,7 +290,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'I/O error: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     serializationError: (message) => (
       error: SkotiqError(
@@ -302,7 +298,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Serialization error: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     plateSolveError: (message) => (
       error: SkotiqError(
@@ -310,7 +306,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Plate solve failed: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     sequenceError: (message) => (
       error: SkotiqError(
@@ -318,7 +314,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Sequence error: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     ascomError: (progId, message, errorCode) => (
       error: SkotiqError(
@@ -327,7 +323,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         errorCode: errorCode,
         reason: message,
       ),
-      remote: 'ASCOM driver $progId reported: $message (code $errorCode)',
+      sentence: 'ASCOM driver $progId reported: $message (code $errorCode)',
     ),
     alpacaError: (baseUrl, deviceNumber, message, errorCode) => (
       error: SkotiqError(
@@ -338,7 +334,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         errorCode: errorCode,
         reason: message,
       ),
-      remote:
+      sentence:
           'Alpaca device $deviceNumber at $baseUrl reported: $message (code $errorCode)',
     ),
     indiError: (server, port, deviceName, message) => (
@@ -347,7 +343,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'INDI error: $server:$port device $deviceName - $message',
         reason: message,
       ),
-      remote: 'INDI device $deviceName on $server:$port reported: $message',
+      sentence: 'INDI device $deviceName on $server:$port reported: $message',
     ),
     nativeError: (vendor, message, errorCode) => (
       error: SkotiqError(
@@ -356,7 +352,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         errorCode: errorCode,
         reason: message,
       ),
-      remote: '$vendor SDK reported: $message (code $errorCode)',
+      sentence: '$vendor SDK reported: $message (code $errorCode)',
     ),
     comError: (message, hresult) => (
       error: SkotiqError(
@@ -368,7 +364,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         shouldReconnect: true,
         reason: message,
       ),
-      remote:
+      sentence:
           'Windows COM call failed: $message (HRESULT 0x${hresult.toUnsigned(32).toRadixString(16)})',
     ),
     internal: (message) => (
@@ -377,16 +373,16 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         message: 'Internal error: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
-    cancelled: () => (error: canceled, remote: 'Operation cancelled'),
+    cancelled: () => (error: canceled, sentence: 'Operation canceled'),
     runtimeInitFailed: (message) => (
       error: SkotiqError(
         category: system,
         message: 'Runtime initialization failed: $message',
         reason: message,
       ),
-      remote: message,
+      sentence: message,
     ),
     resourceExhausted: (resource, message) => (
       error: SkotiqError(
@@ -395,7 +391,7 @@ BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
         isRecoverable: true,
         reason: message,
       ),
-      remote: '$resource exhausted: $message',
+      sentence: '$resource exhausted: $message',
     ),
   );
 }

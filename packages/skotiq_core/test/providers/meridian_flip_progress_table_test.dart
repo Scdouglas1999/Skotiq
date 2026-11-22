@@ -196,7 +196,7 @@ void main() {
         'executing | 1 | null | 0 | null  ->  executing | 1 | null | 0 | null',
         'executing | 1 | slewingToTarget | 0 | null  ->  executing | 1 | slewingToTarget | 0 | null',
         'executing | 1 | slewingToTarget | 40 | null  ->  executing | 1 | slewingToTarget | 40 | null',
-        'aborted | 0 | null | 0 | Meridian flip aborted: mount disconnected  ->  aborted | 0 | null | 0 | Meridian flip aborted: mount disconnected',
+        'aborted | 1 | slewingToTarget | 40 | Meridian flip aborted: mount disconnected  ->  aborted | 1 | slewingToTarget | 40 | Meridian flip aborted: mount disconnected',
       ],
     );
   });

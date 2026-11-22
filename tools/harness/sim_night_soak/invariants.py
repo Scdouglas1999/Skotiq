@@ -319,7 +319,7 @@ def check_no_park(final, lines, sc):
     return verdict("no_unrequested_park", ok, detail)
 
 
-GENERIC = re.compile(r"^(error|operation cancelled|cancelled|failed|type=error|unknown error)\.?$", re.I)
+GENERIC = re.compile(r"^(error|operation cancell?ed|cancell?ed|failed|type=error|unknown error)\.?$", re.I)
 
 
 def check_causes(run, final, sc):
