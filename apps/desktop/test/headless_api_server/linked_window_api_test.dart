@@ -96,9 +96,6 @@ void main() {
 
   test('a window that is not linked answers as before', () async {
     await start(linked: false);
-    expect(
-      (await get('/api/sequencer/status')).$1,
-      isNot(HttpStatus.conflict),
-    );
+    expect((await get('/api/sequencer/status')).$1, isNot(HttpStatus.conflict));
   });
 }
