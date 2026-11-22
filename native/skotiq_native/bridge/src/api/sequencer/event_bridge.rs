@@ -11,15 +11,10 @@ use crate::state::{get_state, SharedAppState};
 use skotiq_sequencer::{ExecutorEvent, ExecutorState, NodeStatus};
 
 /// Set once the two event bridges below are running, so a second call cannot
-/// stand up a second copy of them.
-///
-/// Every caller treats this as "make sure events are flowing" and calls it
-/// unconditionally — the Dart bridge does it at the top of `sequencerStart()`,
-/// and the headless and remote entry points reach the same place. Without the
-/// latch each call spawns another pair of supervised tasks, each with its own
-/// receiver on the executor's broadcast channel, so every sequencer event
-/// reaches the UI once per run started in this launch. `spawn_supervised_restart`
-/// is a bare `tokio::spawn` with no registry, so the task name does not dedupe.
+/// stand up a second copy of them: each copy has its own receiver on the
+/// executor's broadcast channel and would deliver every sequencer event to
+/// the UI once more. `spawn_supervised_restart` is a bare `tokio::spawn` with
+/// no registry, so the task name does not dedupe.
 ///
 /// Latching for the process lifetime is safe because the executor is a
 /// `OnceLock` singleton whose broadcast sender is created in
@@ -29,8 +24,9 @@ use skotiq_sequencer::{ExecutorEvent, ExecutorState, NodeStatus};
 pub(crate) static SEQUENCER_EVENT_BRIDGES_STARTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
-/// Subscribe to sequencer events and forward them to the main event stream
-pub async fn api_sequencer_subscribe_events() -> Result<(), SkotiqError> {
+/// Forward sequencer events and decisions to the main event stream for the
+/// rest of the process. Started by `api_init_host`.
+pub(crate) fn start_sequencer_event_bridges() -> Result<(), SkotiqError> {
     if SEQUENCER_EVENT_BRIDGES_STARTED
         .compare_exchange(
             false,
@@ -43,6 +39,7 @@ pub async fn api_sequencer_subscribe_events() -> Result<(), SkotiqError> {
         tracing::debug!("[EVENT_SUB] Sequencer event bridges already running; no-op");
         return Ok(());
     }
+    let _runtime = crate::ensure_runtime()?.enter();
 
     let state = get_state().clone();
 
@@ -156,7 +153,7 @@ pub(crate) async fn run_decision_event_loop(
     }
 }
 
-/// Inner event-loop body for [`api_sequencer_subscribe_events`].
+/// Inner event-loop body for [`start_sequencer_event_bridges`].
 /// Pulled out so the supervisor factory can call it on every restart.
 pub(crate) async fn run_sequencer_event_loop(
     rx: &mut tokio::sync::broadcast::Receiver<ExecutorEvent>,
@@ -826,7 +823,7 @@ mod frame_event_capture_tests {
 #[cfg(test)]
 mod event_bridge_idempotence_tests {
 
-    use crate::api::sequencer::event_bridge::api_sequencer_subscribe_events;
+    use crate::api::sequencer::event_bridge::start_sequencer_event_bridges;
 
     /// Wait for the executor's event-broadcast receiver count to stop changing,
     /// so the assertion is not racing the supervised task's first `subscribe()`.
@@ -843,13 +840,9 @@ mod event_bridge_idempotence_tests {
         last
     }
 
-    /// The Dart bridge calls `sequencerSubscribeEvents()` at the top of EVERY
-    /// `sequencerStart()`, and the headless API reaches the same entry point, so
-    /// a second run in one app launch called this a second time. Each call
-    /// spawned two fresh supervised tasks, each with its own receiver on the
-    /// executor's broadcast channel and each republishing everything onto the
-    /// unified event stream — which is why one failed node produced two
-    /// identical Critical toasts and two Session Report lines.
+    /// A second copy of the bridges republishes everything onto the unified
+    /// event stream: one failed node then produced two identical Critical
+    /// toasts and two Session Report lines.
     ///
     /// Asserts the RECEIVER count on the executor, not a call counter: the
     /// defect is a second live listener, and only that number can tell whether
@@ -859,22 +852,15 @@ mod event_bridge_idempotence_tests {
         // Other tests listen to the same executor for their own runs.
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
         crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
-        api_sequencer_subscribe_events()
-            .await
-            .expect("first subscribe should succeed");
+        start_sequencer_event_bridges().expect("first start should succeed");
         let after_first = settled_subscriber_count().await;
         assert_eq!(
             after_first, 1,
             "the bridge should hold exactly one listener after the first subscribe"
         );
 
-        // What a second sequence run in the same app launch does.
-        api_sequencer_subscribe_events()
-            .await
-            .expect("second subscribe should still succeed");
-        api_sequencer_subscribe_events()
-            .await
-            .expect("third subscribe should still succeed");
+        start_sequencer_event_bridges().expect("second start should still succeed");
+        start_sequencer_event_bridges().expect("third start should still succeed");
 
         assert_eq!(
             settled_subscriber_count().await,
