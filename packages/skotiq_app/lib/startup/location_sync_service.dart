@@ -12,9 +12,9 @@ import 'package:skotiq_core/utils.dart';
 ///
 /// This deliberately does **not** auto-detect a location on first launch. Free
 /// IP services resolve to the ISP's egress point and disagree with each other
-/// by a hundred kilometres or more, yet a persisted estimate is rendered
+/// by a hundred kilometers or more, yet a persisted estimate is rendered
 /// exactly like a site the user typed. The estimate stays one click away: the
-/// onboarding observing-site step offers it as a labelled suggestion, and
+/// onboarding observing-site step offers it as a labeled suggestion, and
 /// Settings → Location has the same affordance.
 ///
 /// The backend must NOT receive the 0/0 sentinel. Its site is
