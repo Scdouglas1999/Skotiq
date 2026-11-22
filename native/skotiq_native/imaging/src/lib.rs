@@ -8,6 +8,7 @@
 //! - Auto-stretch algorithms
 //! - Buffer pooling for efficient image capture
 
+mod airmass;
 pub mod atomic_file;
 pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
 pub mod buffer_pool;
@@ -29,6 +30,7 @@ pub mod fits_reader;
 mod frame_cutouts;
 mod frame_io;
 mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
+mod frame_validation;
 pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
 pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
 pub mod master_accumulation; // NEW: Multi-night accumulating master frame
@@ -58,6 +60,7 @@ mod trail; // Star trailing from the autocorrelation of the bright pixels
 pub mod wcs_sip; // NEW: SIP-aware (CD + forward/inverse SIP) gnomonic projection
 pub mod xisf;
 
+pub use airmass::calculate_airmass;
 pub use background_extraction::*; // NEW: Export background-extraction types
 pub use buffer_pool::*;
 pub use calibration::*;
@@ -72,6 +75,7 @@ pub use fits::*;
 pub use frame_cutouts::read_frame_cutouts;
 pub use frame_io::*;
 pub use frame_shape::*;
+pub use frame_validation::*;
 pub use frame_weighting::*; // NEW: Export frame-weighting types
 pub use integration::*; // NEW: Export batch-integration types
 pub use master_accumulation::*; // NEW: Export accumulating-master types
