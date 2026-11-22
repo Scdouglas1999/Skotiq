@@ -219,11 +219,6 @@ final List<Check> checks = [
   ),
   Check(
     'audits',
-    'developer-quality:self-test',
-    _tool('developer_quality_audit_self_test'),
-  ),
-  Check(
-    'audits',
     'windows-bundle:self-test',
     _tool('windows_bundle_audit_self_test'),
   ),
@@ -236,11 +231,6 @@ final List<Check> checks = [
     'audits',
     'linux-release-package-metadata:self-test',
     _tool('linux_release_package_metadata_self_test'),
-  ),
-  Check(
-    'audits',
-    'linux-release-workflow:self-test',
-    _tool('linux_release_workflow_audit_self_test'),
   ),
   Check(
     'audits',

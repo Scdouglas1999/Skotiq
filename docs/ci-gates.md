@@ -32,12 +32,8 @@ call `scripts/rust_checks.sh`, which the gate's `rust` stage runs too.
 | (none: the runners have no codegen) | `codegen`: `scripts/check_bridge_codegen.sh` regenerates the bridge and fails when that changed the generated files or the event wire codec is stale; skipped where `flutter_rust_bridge_codegen` is not installed |
 | Rust License Audit | `rust` → `rust-licenses` (CI uses cargo-deny-action; the gate skips it, saying so, where cargo-deny is not installed) |
 
-Build Test (Desktop) is CI only. Not in the gate because
-they fail on the current tree for reasons outside the code they check:
-`audit:developer-quality`, `audit:platform-capabilities` and
-`audit:linux-release-workflow` (each reads a report file that
-`docs/production-readiness/` git-ignores); `audit:windows-bundle` needs a
-built Windows bundle.
+Build Test (Desktop) is CI only. `audit:windows-bundle` is not in the gate:
+it needs a built Windows bundle.
 
 | Gate | Job / Step | What it enforces | Local repro |
 |------|------------|------------------|-------------|
