@@ -162,7 +162,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
                 kind: NotificationTransportKind.mqtt,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

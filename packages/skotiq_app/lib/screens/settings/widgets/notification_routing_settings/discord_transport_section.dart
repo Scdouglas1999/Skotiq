@@ -97,7 +97,6 @@ class _DiscordRoutingSectionState
                 kind: NotificationTransportKind.discord,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

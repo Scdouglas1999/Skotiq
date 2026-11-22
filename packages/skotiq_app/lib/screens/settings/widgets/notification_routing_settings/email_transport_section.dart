@@ -144,7 +144,6 @@ class _EmailTransportSectionState
                 kind: NotificationTransportKind.email,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

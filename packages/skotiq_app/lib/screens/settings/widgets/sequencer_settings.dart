@@ -103,7 +103,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               defaultThumbnailSize: size,
             ),
           ),
-          isLast: true,
         ),
       ],
     );
@@ -378,7 +377,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               return notifier.setPushNotificationOnFlip(value);
             },
           ),
-          isLast: true,
         ),
       ],
     );
@@ -513,7 +511,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                         .read(appSettingsProvider.notifier)
                         .setSafetyFailMode(mode),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -562,7 +559,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           .setFilterWheelRetries(value.toInt());
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -626,7 +622,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           );
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -663,7 +658,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           .setDitherEveryFrames(value.toInt());
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -695,7 +689,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           .setPromptForNotesAfterRun(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -820,7 +813,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           );
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),

@@ -289,7 +289,6 @@ class FilePathSettings extends ConsumerWidget {
                     onPathEntered: (value) =>
                         _enterPath(context, ref, 'sequences', value),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -466,7 +465,6 @@ class _BackupFolderRow extends ConsumerWidget {
       title: 'Backups',
       subtitle: subtitle,
       stackWhenNarrow: true,
-      isLast: true,
       trailing: Wrap(
         spacing: SkotiqTokens.spaceSm,
         runSpacing: SkotiqTokens.spaceXs,

@@ -274,7 +274,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .setElevation(value);
                     },
                   ),
-                  isLast: false,
                 ),
                 // Only a remote session HAS a server to read from: over a local
                 // backend `profileSettingsBackendProvider` reads this app's own
@@ -333,7 +332,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                         }
                       },
                     ),
-                    isLast: false,
                   ),
                 SettingRow(
                   icon: LucideIcons.locate,
@@ -361,7 +359,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     isLoading: _detecting,
                     onPressed: _detecting ? null : () => _detectLocation(),
                   ),
-                  isLast: !_wifiRadioOffersPrecision,
                 ),
                 if (_wifiRadioOffersPrecision)
                   SettingRow(
@@ -379,7 +376,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           ? null
                           : () => _detectLocation(mayEnableWifiRadio: true),
                     ),
-                    isLast: true,
                   ),
               ],
             ),
@@ -409,7 +405,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     ),
                   ),
                   controlFlex: 2,
-                  isLast: true,
                 ),
               ],
             ),
@@ -446,7 +441,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     style: SkotiqTypography.bodyStrong
                         .copyWith(color: SkotiqColors.of(context).textPrimary),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -496,7 +490,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       decimals: 0,
                       onChanged: (_) => _updateHorizonProfile(),
                     ),
-                    isLast: i == horizonDirections.length - 1,
                   );
                 }),
                 Padding(
@@ -577,7 +570,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .setUseSystemTime(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),

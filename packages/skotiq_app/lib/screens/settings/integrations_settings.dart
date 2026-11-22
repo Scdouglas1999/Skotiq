@@ -106,7 +106,6 @@ class IntegrationsSettings extends ConsumerWidget {
                     'their credentials. Local changes on this client would '
                     'not affect remote sequence execution.',
                 trailing: Icon(LucideIcons.lock, size: 16),
-                isLast: true,
                 stackWhenNarrow: true,
               ),
             ],

@@ -109,7 +109,6 @@ class _TelegramTransportSectionState
                 kind: NotificationTransportKind.telegram,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

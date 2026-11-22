@@ -22,7 +22,6 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
             subtitle:
                 'Connect a filter wheel to configure per-filter autofocus settings.',
             trailing: SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       );
@@ -173,7 +172,6 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
             );
           },
         ),
-        isLast: true,
       ),
     );
 

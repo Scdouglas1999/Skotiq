@@ -118,7 +118,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     onChanged: (value) =>
                         scienceNotifier.setOverlayEnabled(value),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -284,7 +283,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     value: science.fitsHeaderWritebackEnabled,
                     onChanged: scienceNotifier.setFitsHeaderWritebackEnabled,
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -309,7 +307,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   validate: _validateAavsoObserverCode,
                   value: science.aavsoObserverCode,
                   onCommit: scienceNotifier.setAavsoObserverCode,
-                  isLast: true,
                 ),
               ],
             ),
@@ -339,7 +336,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   width: 110,
                   value: science.mpcAstrometricCatalog,
                   onCommit: scienceNotifier.setMpcAstrometricCatalog,
-                  isLast: true,
                 ),
               ],
             ),
@@ -356,7 +352,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   width: 160,
                   value: science.observerName,
                   onCommit: scienceNotifier.setObserverName,
-                  isLast: true,
                 ),
               ],
             ),
@@ -466,7 +461,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   min: 255,
                   max: 65535,
                   integer: true,
-                  isLast: true,
                 ),
               ],
             ),
@@ -506,7 +500,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
 
   final int? maxLength;
   final bool numeric;
-  final bool isLast;
   final String? Function(String value)? validate;
 
   const _ScienceTextRow({
@@ -520,7 +513,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
     this.uppercase = false,
     this.maxLength,
     this.numeric = false,
-    this.isLast = false,
     this.validate,
   });
 
@@ -586,7 +578,6 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
         inputFormatters: _formatters,
         onChanged: _commit,
       ),
-      isLast: widget.isLast,
     );
   }
 }
@@ -699,7 +690,6 @@ class _TnsSandboxRow extends ConsumerWidget {
         onChanged: (value) =>
             ref.read(scienceSettingsProvider.notifier).setTnsUseSandbox(value),
       ),
-      isLast: true,
     );
   }
 }
@@ -756,7 +746,6 @@ class _ScienceOnlineCatalogRowState
         value: enabled,
         onChanged: _setEnabled,
       ),
-      isLast: true,
     );
   }
 }
@@ -837,7 +826,6 @@ class _ScienceCameraValueRow extends ConsumerStatefulWidget {
   final double min;
   final double max;
   final bool integer;
-  final bool isLast;
 
   const _ScienceCameraValueRow({
     required this.settingKey,
@@ -848,7 +836,6 @@ class _ScienceCameraValueRow extends ConsumerStatefulWidget {
     required this.min,
     required this.max,
     this.integer = false,
-    this.isLast = false,
   });
 
   @override
@@ -922,7 +909,6 @@ class _ScienceCameraValueRowState
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: _commit,
       ),
-      isLast: widget.isLast,
     );
   }
 }

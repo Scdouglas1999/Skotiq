@@ -431,7 +431,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                     : () => _verifyAstap(
                         _resolveAstapTarget(detection, preference)!),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -473,7 +472,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                         : () => _verifyAstrometry(
                             _resolveAstrometryTarget(detection, preference)!),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -515,7 +513,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                 if (next == null) return;
                 await _savePreference(preference.copyWith(choice: next));
               },
-              isLast: true,
             ),
           ],
         ),
@@ -848,7 +845,6 @@ class _ChoiceRow extends StatelessWidget {
   final PlateSolverChoice value;
   final PlateSolverChoice groupValue;
   final ValueChanged<PlateSolverChoice?> onChanged;
-  final bool isLast;
 
   const _ChoiceRow({
     required this.label,
@@ -857,7 +853,6 @@ class _ChoiceRow extends StatelessWidget {
     required this.value,
     required this.groupValue,
     required this.onChanged,
-    this.isLast = false,
   });
 
   @override
@@ -871,7 +866,6 @@ class _ChoiceRow extends StatelessWidget {
         title: label,
         subtitle: subtitle,
         trailing: _ChoiceIndicator(selected: selected, colors: colors),
-        isLast: isLast,
       ),
     );
   }

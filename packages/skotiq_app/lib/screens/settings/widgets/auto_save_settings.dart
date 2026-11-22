@@ -126,7 +126,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                     'Automatic backup scheduling is stored and executed on '
                     'the computer connected to your equipment.',
                 trailing: SizedBox.shrink(),
-                isLast: true,
               ),
             ],
           ),
@@ -200,7 +199,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   sequenceInterval: Duration(minutes: value.round()),
                 ),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -252,7 +250,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   maxBackups: value.round(),
                 ),
               ),
-              isLast: true,
             ),
           ],
         ),

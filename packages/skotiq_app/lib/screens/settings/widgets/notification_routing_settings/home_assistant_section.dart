@@ -120,7 +120,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                   context.showInfoSnackBar('Home Assistant config saved');
                 },
               ),
-              isLast: true,
             ),
           ],
         );
@@ -164,7 +163,6 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
             icon: LucideIcons.loader,
             title: 'Loading host configuration…',
             trailing: SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       ),
@@ -182,7 +180,6 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
               onPressed: () =>
                   ref.invalidate(remoteHomeAssistantHostSettingsProvider),
             ),
-            isLast: true,
           ),
         ],
       ),
@@ -513,7 +510,6 @@ class _RemoteHomeAssistantFormState
                 isLoading: _saving,
                 onPressed: _saving || !_dirty ? null : _save,
               ),
-              isLast: true,
             ),
           ],
         ),

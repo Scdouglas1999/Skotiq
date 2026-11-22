@@ -367,7 +367,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                           .setNotifyOnMeridianFlip(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -425,7 +424,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                           .setPushCriticalAlerts(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -439,7 +437,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     subtitle: 'Which events reach phones is set on the '
                         'computer that runs the rig.',
                     trailing: SizedBox.shrink(),
-                    isLast: true,
                   ),
                 ],
               )
@@ -458,7 +455,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                       child: SkotiqSpinner(
                           size: 18, color: SkotiqColors.of(context).primary),
                     ),
-                    isLast: true,
                   ),
                 ],
               )
@@ -477,7 +473,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                       onPressed: () =>
                           ref.invalidate(pushNotificationConfigProvider),
                     ),
-                    isLast: true,
                   ),
                 ],
               ),
@@ -625,7 +620,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                           ? _testPushToMobile
                           : null,
                     ),
-                    isLast: true,
                   ),
                 ],
               ),
@@ -642,7 +636,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.messageSquare,
                     title: 'Webhook URL',
                     subtitle: 'The Discord channel alerts are posted to.',
-                    isLast: credentialsHidden,
                     trailing: AdminOnlyControl(
                       text: adminOnlyCredentialAdvice(settings.discordWebhook),
                       child: settingsTrailingTextInput(
@@ -674,7 +667,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                         isLoading: _activeTest == _NotificationTest.discord,
                         onPressed: _activeTest == null ? _testDiscord : null,
                       ),
-                      isLast: true,
                     ),
                 ],
               ),
@@ -707,7 +699,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     icon: LucideIcons.user,
                     title: 'User key',
                     subtitle: 'Your Pushover user or group key.',
-                    isLast: credentialsHidden,
                     trailing: AdminOnlyControl(
                       text: adminOnlyCredentialAdvice(settings.pushoverUser),
                       child: SettingsTextInput(
@@ -737,7 +728,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                         isLoading: _activeTest == _NotificationTest.pushover,
                         onPressed: _activeTest == null ? _testPushover : null,
                       ),
-                      isLast: true,
                     ),
                 ],
               ),

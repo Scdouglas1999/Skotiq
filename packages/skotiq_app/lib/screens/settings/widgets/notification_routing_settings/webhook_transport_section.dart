@@ -111,7 +111,6 @@ class _WebhookTransportSectionState
                 kind: NotificationTransportKind.webhookGeneric,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

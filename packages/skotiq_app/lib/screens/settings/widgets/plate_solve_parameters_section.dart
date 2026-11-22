@@ -40,7 +40,6 @@ class _PlateSolveParametersSectionState
             title: 'Loading…',
             subtitle: 'Reading saved solve parameters',
             trailing: SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       ),
@@ -52,7 +51,6 @@ class _PlateSolveParametersSectionState
             title: 'Failed to load solve parameters',
             subtitle: userFacingError(error),
             trailing: const SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       ),
@@ -148,7 +146,6 @@ class _PlateSolveParametersSectionState
                       .setCenteringToleranceArcsec(value);
                 },
               ),
-              isLast: true,
             ),
           ],
         );

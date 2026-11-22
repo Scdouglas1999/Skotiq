@@ -206,7 +206,6 @@ Widget _transportErrorSection({
           size: ButtonSize.small,
           onPressed: onRetry,
         ),
-        isLast: true,
       ),
     ],
   );

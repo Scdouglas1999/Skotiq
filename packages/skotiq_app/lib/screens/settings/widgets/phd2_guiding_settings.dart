@@ -336,7 +336,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                       ),
                     ],
                   ),
-                  isLast: true,
                 ),
               ],
             ),

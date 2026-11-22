@@ -112,7 +112,6 @@ class _PushoverRoutingSectionState
                 kind: NotificationTransportKind.pushover,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );
