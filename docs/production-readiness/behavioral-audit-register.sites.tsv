@@ -513,6 +513,7 @@ native/skotiq_native/bridge/src/device_manager/accessory.rs	cover_calibrator_cap
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	unwrap_or_literal	1	R9-020	let max_value = ascom_optional(switch.max_value(index).await)?.unwrap_or(1.0);
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	unwrap_or_literal	1	R9-020	let min_value = ascom_optional(switch.min_value(index).await)?.unwrap_or(0.0);
 native/skotiq_native/bridge/src/device_manager/accessory.rs	switch_capabilities	unwrap_or_literal	1	R9-020	let step = ascom_optional(switch.step(index).await)?.unwrap_or(1.0);
+native/skotiq_native/bridge/src/device_manager/capture/mod.rs	capture_once	rust_let_underscore	1	V0711	let _ = mgr.camera_abort_exposure(camera_id).await;
 native/skotiq_native/bridge/src/device_manager/connection.rs	DeviceManager	comment_best_effort	1	V0050	/// placeholder `ZWO 1` with the raw `native:zwo:1` in the connected-device
 native/skotiq_native/bridge/src/device_manager/connection.rs	connect_device_internal	comment_best_effort	1	V0050	// Best-effort: leave the device in whatever state the post-
 native/skotiq_native/bridge/src/device_manager/connection.rs	close_device	rust_let_underscore	1	V0050	let _ = self.stop_heartbeat(device_id).await;
@@ -521,7 +522,6 @@ native/skotiq_native/bridge/src/device_manager/connection.rs	trip_reconnect_canc
 native/skotiq_native/bridge/src/device_manager/device_reopen.rs	reopen_in_background	rust_let_underscore	1	O10-07	let _ = sender.send((manager, device_id, error));
 native/skotiq_native/bridge/src/device_manager/device_reopen.rs	hold_camera_state	unwrap_or_default	1	O10-06	dev.held_camera_state.unwrap_or_default()
 native/skotiq_native/bridge/src/device_manager/device_reopen.rs	restore_camera_state	unwrap_or_default	1	O10-06	dev.held_camera_state.unwrap_or_default(),
-native/skotiq_native/bridge/src/device_manager/device_reopen.rs	reopen_count	unwrap_or_literal	1	O10-07	.unwrap_or(0)
 native/skotiq_native/bridge/src/device_manager/handle.rs	capabilities	rust_drop_result	1	O10-01	let status = d.status().await.ok();
 native/skotiq_native/bridge/src/device_manager/heartbeat.rs	get_device_health	unwrap_or_literal	1	V0050	let last_comm = device.last_successful_comm.unwrap_or(0);
 native/skotiq_native/bridge/src/device_manager/identity.rs	DeviceIdentity	comment_best_effort	1	V0704	/// placeholders standing in until the device is open; this replaces them
@@ -607,7 +607,6 @@ native/skotiq_native/bridge/src/solver/ladder.rs	a_follower_receives_the_escalat
 native/skotiq_native/bridge/src/solver/ladder.rs	a_frame_with_no_solver_installed_names_no_search	rust_let_underscore	1	V0779	let _ = std::fs::remove_file(&path);
 native/skotiq_native/bridge/src/solver/scale.rs	frame	unwrap_or_default	1	V0779	timestamp: chrono::DateTime::from_timestamp(1_789_000_000, 0).unwrap_or_default(),
 native/skotiq_native/bridge/src/state.rs	AppState	comment_best_effort	1	V0052	/// placeholder triple silently defeats guards that exist precisely to stop
-native/skotiq_native/bridge/src/unified_device_ops/camera.rs	expose_once	rust_let_underscore	1	V0711	let _ = mgr.camera_abort_exposure(camera_id).await;
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	disconnect_fixed_camera	rust_let_underscore	1	U2-17	let _ = crate::api::imaging::api_clear_device_image(device_id.to_string()).await;
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	R9-032	let _ = crate::last_frame::measure(&raw, 2.0);
 native/skotiq_native/bridge/src/unified_device_ops/capture_pins_tests.rs	frame_path_stage_times	rust_let_underscore	1	R9-032	let _ = ops.measure_light_frame(&image).await.expect("measurement");
@@ -1209,7 +1208,6 @@ native/skotiq_native/sequencer/src/device_ops/safe_state.rs	new	simulated_runtim
 native/skotiq_native/sequencer/src/device_ops/safe_state.rs	park_and_close_safe_state_reports_unsafe_on_jammed_shutter	unwrap_or_literal	1	V0064	assert!(outcome.park.as_ref().map(|p| p.success).unwrap_or(false));
 native/skotiq_native/sequencer/src/device_ops/safety.rs	weather_get_humidity	rust_let_underscore	1	V0064	let _ = weather_id;
 native/skotiq_native/sequencer/src/dual_rig.rs	barrier_blocks_secondary_while_dither_pending	rust_let_underscore	1	V0121	let _ = cancel;
-native/skotiq_native/sequencer/src/dual_rig.rs	capture_secondary_frame	rust_let_underscore	1	V0121	let _ = device_ops.camera_abort_exposure(&config.camera_id).await;
 native/skotiq_native/sequencer/src/dual_rig.rs	run_secondary_loop	rust_let_underscore	1	V0121	let _ = tokio::time::timeout(
 native/skotiq_native/sequencer/src/dual_rig.rs	wait_for_secondary_clear	rust_let_underscore	1	V0121	let _ = tokio::time::timeout(remaining, self.secondary_cleared.notified()).await;
 native/skotiq_native/sequencer/src/dual_rig.rs	wait_until_clear_to_expose	rust_let_underscore	1	V0121	let _ = tokio::time::timeout(Duration::from_millis(250), notified).await;
