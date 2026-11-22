@@ -187,7 +187,7 @@
     "core": {
       "category": "timeout",
       "message": "Operation timed out: slew",
-      "userMessage": "slew",
+      "userMessage": "Operation timed out: slew",
       "reason": "slew",
       "isRecoverable": true,
       "shouldReconnect": false,
@@ -256,7 +256,7 @@
     "core": {
       "category": "validation",
       "message": "Invalid parameter: gain",
-      "userMessage": "gain",
+      "userMessage": "Invalid parameter: gain",
       "reason": "gain",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -279,7 +279,7 @@
     "core": {
       "category": "validation",
       "message": "Invalid input: nope",
-      "userMessage": "nope",
+      "userMessage": "Invalid input: nope",
       "reason": "nope",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -394,7 +394,7 @@
     "core": {
       "category": "system",
       "message": "Operation failed:   ",
-      "userMessage": "  ",
+      "userMessage": "Operation failed:   ",
       "reason": "  ",
       "isRecoverable": true,
       "shouldReconnect": false,
@@ -417,7 +417,7 @@
     "core": {
       "category": "unsupported",
       "message": "Operation not supported: setGain on device ascom:X",
-      "userMessage": "setGain (device ascom:X)",
+      "userMessage": "'ascom:X' does not support: setGain",
       "reason": "'ascom:X' does not support setGain",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -486,7 +486,7 @@
     "core": {
       "category": "validation",
       "message": "Invalid input: light leak: 3 of 9 frames",
-      "userMessage": "light leak: 3 of 9 frames",
+      "userMessage": "Invalid input: light leak: 3 of 9 frames",
       "reason": "light leak: 3 of 9 frames",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -532,7 +532,7 @@
     "core": {
       "category": "imaging",
       "message": "Image error: bad stride",
-      "userMessage": "bad stride",
+      "userMessage": "Image error: bad stride",
       "reason": "bad stride",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -555,7 +555,7 @@
     "core": {
       "category": "imaging",
       "message": "Camera error: no sensor",
-      "userMessage": "no sensor",
+      "userMessage": "Camera error: no sensor",
       "reason": "no sensor",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -670,7 +670,7 @@
     "core": {
       "category": "io",
       "message": "I/O error: disk gone",
-      "userMessage": "disk gone",
+      "userMessage": "I/O error: disk gone",
       "reason": "disk gone",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -693,7 +693,7 @@
     "core": {
       "category": "io",
       "message": "Serialization error: bad json",
-      "userMessage": "bad json",
+      "userMessage": "Serialization error: bad json",
       "reason": "bad json",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -716,7 +716,7 @@
     "core": {
       "category": "io",
       "message": "Plate solve failed: no match",
-      "userMessage": "no match",
+      "userMessage": "Plate solve failed: no match",
       "reason": "no match",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -739,7 +739,7 @@
     "core": {
       "category": "sequence",
       "message": "Sequence error: node missing",
-      "userMessage": "node missing",
+      "userMessage": "Sequence error: node missing",
       "reason": "node missing",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -877,7 +877,7 @@
     "core": {
       "category": "system",
       "message": "Internal error: bug",
-      "userMessage": "bug",
+      "userMessage": "Internal error: bug",
       "reason": "bug",
       "isRecoverable": false,
       "shouldReconnect": false,
@@ -923,7 +923,7 @@
     "core": {
       "category": "system",
       "message": "Runtime initialization failed: no tokio",
-      "userMessage": "no tokio",
+      "userMessage": "Runtime initialization failed: no tokio",
       "reason": "no tokio",
       "isRecoverable": false,
       "shouldReconnect": false,

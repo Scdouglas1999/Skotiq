@@ -48,6 +48,24 @@ typedef _BridgeErrorTexts = ({SkotiqError core, String sentence, String shown});
 _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
   _BridgeErrorTexts told(SkotiqError core, String sentence) =>
       (core: core, sentence: sentence, shown: sentence);
+  // A variant whose published sentence is only the driver's payload (often a
+  // bare token: "slew", "set_simulation_mode(true)") is shown with the words
+  // that say what failed: [shown], or the technical message.
+  _BridgeErrorTexts payloadOnly(
+    SkotiqError core,
+    String sentence, {
+    String? shown,
+  }) => (core: core, sentence: sentence, shown: shown ?? core.message);
+  // A variant whose payload is the driver's own sentence is shown as
+  // published unless the driver gave none.
+  _BridgeErrorTexts driverSentence(
+    SkotiqError core,
+    String sentence, {
+    required String payload,
+    String? shown,
+  }) => payload.trim().isEmpty
+      ? payloadOnly(core, sentence, shown: shown)
+      : told(core, sentence);
   // `deviceId` is empty on the arms where the driver did not scope the
   // failure to one device; appending "(device )" there would be noise.
   String scoped(String sentence, String deviceId) =>
@@ -146,7 +164,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       'Communication error with $deviceId: $message',
     ),
-    timeout: (message) => told(timedOut(message, null, null), message),
+    timeout: (message) => payloadOnly(timedOut(message, null, null), message),
     deviceTimeout: (deviceId, operation, timeoutSecs) => told(
       timedOut(operation, deviceId, timeoutSecs),
       '$deviceId timed out after ${timeoutSecs}s during $operation',
@@ -164,7 +182,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       'Connecting to $deviceId timed out after ${timeoutSecs}s',
     ),
-    invalidParameter: (message) => told(
+    invalidParameter: (message) => payloadOnly(
       SkotiqError(
         category: validation,
         message: 'Invalid parameter: $message',
@@ -172,7 +190,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       message,
     ),
-    invalidInput: (message) => told(
+    invalidInput: (message) => payloadOnly(
       SkotiqError(
         category: validation,
         message: 'Invalid input: $message',
@@ -197,7 +215,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       '$paramName $value is outside the valid range $min to $max',
     ),
-    operationFailed: (message) => told(
+    operationFailed: (message) => driverSentence(
       SkotiqError(
         category: system,
         message: 'Operation failed: $message',
@@ -205,8 +223,9 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
         reason: message,
       ),
       message,
+      payload: message,
     ),
-    notSupported: (deviceId, operation) => told(
+    notSupported: (deviceId, operation) => payloadOnly(
       SkotiqError(
         category: BackendErrorCategory.unsupported,
         message: 'Operation not supported: $operation on device $deviceId',
@@ -214,21 +233,29 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
         reason: "'$deviceId' does not support $operation",
       ),
       scoped(operation, deviceId),
+      shown: "'$deviceId' does not support: $operation",
     ),
     // A refusal reads as the variant it was raised as before it had a kind.
-    refused: (kind, message) => told(switch (kind) {
-      bridge.Refusal.lightLeak => SkotiqError(
-        category: validation,
-        message: 'Invalid input: $message',
-        reason: message,
+    refused: (kind, message) => switch (kind) {
+      bridge.Refusal.lightLeak => payloadOnly(
+        SkotiqError(
+          category: validation,
+          message: 'Invalid input: $message',
+          reason: message,
+        ),
+        message,
       ),
-      _ => SkotiqError(
-        category: system,
-        message: 'Operation failed: $message',
-        isRecoverable: true,
-        reason: message,
+      _ => driverSentence(
+        SkotiqError(
+          category: system,
+          message: 'Operation failed: $message',
+          isRecoverable: true,
+          reason: message,
+        ),
+        message,
+        payload: message,
       ),
-    }, message),
+    },
     deviceBusy: (deviceId, currentOperation) => told(
       SkotiqError(
         category: BackendErrorCategory.busy,
@@ -247,7 +274,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       message,
     ),
-    imageError: (message) => told(
+    imageError: (message) => payloadOnly(
       SkotiqError(
         category: imaging,
         message: 'Image error: $message',
@@ -255,7 +282,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       message,
     ),
-    cameraError: (message) => told(
+    cameraError: (message) => payloadOnly(
       SkotiqError(
         category: imaging,
         message: 'Camera error: $message',
@@ -268,7 +295,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       'No image is available yet — capture an exposure first',
     ),
     exposureCancelled: () => told(canceled, 'Exposure canceled'),
-    exposureFailed: (cameraId, reason) => told(
+    exposureFailed: (cameraId, reason) => driverSentence(
       SkotiqError(
         category: imaging,
         message: 'Exposure failed: $cameraId - $reason',
@@ -276,6 +303,8 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
         reason: reason,
       ),
       reason,
+      payload: reason,
+      shown: "Exposure failed on '$cameraId'",
     ),
     downloadFailed: (cameraId, reason) => told(
       SkotiqError(
@@ -286,7 +315,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       'Image download failed: $cameraId - $reason',
     ),
-    ioError: (message) => told(
+    ioError: (message) => payloadOnly(
       SkotiqError(
         category: io,
         message: 'I/O error: $message',
@@ -294,7 +323,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       message,
     ),
-    serializationError: (message) => told(
+    serializationError: (message) => payloadOnly(
       SkotiqError(
         category: io,
         message: 'Serialization error: $message',
@@ -302,7 +331,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       message,
     ),
-    plateSolveError: (message) => told(
+    plateSolveError: (message) => payloadOnly(
       SkotiqError(
         category: io,
         message: 'Plate solve failed: $message',
@@ -310,7 +339,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       ),
       message,
     ),
-    sequenceError: (message) => told(
+    sequenceError: (message) => payloadOnly(
       SkotiqError(
         category: BackendErrorCategory.sequence,
         message: 'Sequence error: $message',
@@ -369,7 +398,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
 
       'Windows COM call failed: $message (HRESULT 0x${hresult.toUnsigned(32).toRadixString(16)})',
     ),
-    internal: (message) => told(
+    internal: (message) => payloadOnly(
       SkotiqError(
         category: system,
         message: 'Internal error: $message',
@@ -378,7 +407,7 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
       message,
     ),
     cancelled: () => told(canceled, 'Operation canceled'),
-    runtimeInitFailed: (message) => told(
+    runtimeInitFailed: (message) => payloadOnly(
       SkotiqError(
         category: system,
         message: 'Runtime initialization failed: $message',
