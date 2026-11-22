@@ -33,9 +33,15 @@ final liveStackMasterLibraryProvider = Provider<LiveStackMasterLibrary>((ref) {
   );
 });
 
-final liveStackDarkroomPromoterProvider = Provider<LiveStackDarkroomPromoter>(
-  (ref) => LiveStackDarkroomPromoter(
-    library: ref.watch(liveStackMasterLibraryProvider),
+final liveStackDarkroomPromoterProvider = Provider<LiveStackDarkroomPromoter>((
+  ref,
+) {
+  final stacking = ref.watch(liveStackingServiceProvider);
+  return LiveStackDarkroomPromoter(
+    saveMaster: (path) => stacking.saveMaster(filePath: path),
+    saveMasterForFilter: (filterKey, path) =>
+        stacking.saveMaster(filePath: path, filterKey: filterKey),
+    masters: ref.watch(integratedMastersDaoProvider),
     recipes: ref.watch(recipesDaoProvider),
-  ),
-);
+  );
+});
