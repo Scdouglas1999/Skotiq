@@ -12,28 +12,51 @@
 
 ## Required gates (block merge on red)
 
-Every gate below corresponds to a step in `.github/workflows/ci.yml`. If the
-step exits non-zero, the job fails, the check shows red on the PR, and the
-"Required checks must pass" branch-protection rule prevents merge.
+The checks are one table, `tools/production/gate.dart`. Each CI job of
+`.github/workflows/ci.yml` runs one stage of it, and `melos run gate` runs
+every stage (`-- --list` prints the table, `-- --stage <s>`, `--only <check>`
+and `--skip <stage or check>` narrow it, `--out <dir>` keeps one log per
+check). Every selected check runs even after one fails; the step fails when
+any did, and the summary names each failure. The `melos run audit:*` scripts
+run single checks of the same table. The Rust jobs set up no Dart, so they
+call `scripts/rust_checks.sh`, which the gate's `rust` stage runs too.
+
+| CI job (check name) | Gate stage |
+|---|---|
+| Analyze | `analyze`: UI token audit and its tests, nebula light tests, the `scripts/test_*.py` release-script tests, the live-rig API driver against the route table, dependency hygiene, version consistency and its self-test, analyzer rollup, `dart analyze packages apps tools` |
+| Launch Gate | `audits`: the audit gates below, every audit self-test, and four reports that print counts and do not fail (design tokens, UI consistency, oversized files, narrative comments) |
+| Dart Tests | `dart-tests` |
+| Constellation Hub | `hub` |
+| Format Check | `format` |
+| Rust Tests (linux), Rust Tests (windows), Cargo Duplicate Versions | `rust` (via `scripts/rust_checks.sh`) |
+| (none: the runners have no codegen) | `codegen`: `scripts/check_bridge_codegen.sh` regenerates the bridge and fails when that changed the generated files or the event wire codec is stale; skipped where `flutter_rust_bridge_codegen` is not installed |
+| Rust License Audit | `rust` → `rust-licenses` (CI uses cargo-deny-action; the gate skips it, saying so, where cargo-deny is not installed) |
+
+Build Test (Desktop) and Code Coverage are CI only. Not in the gate because
+they fail on the current tree for reasons outside the code they check:
+`audit:developer-quality`, `audit:platform-capabilities` and
+`audit:linux-release-workflow` (each reads a report file that
+`docs/production-readiness/` git-ignores); `audit:windows-bundle` needs a
+built Windows bundle.
 
 | Gate | Job / Step | What it enforces | Local repro |
 |------|------------|------------------|-------------|
-| Placeholder/stub — no new vs baseline | `launch-gate` → "Runtime Placeholder Gate" | Zero **new** high-risk placeholder/stub markers vs the triaged baseline (`docs/production-readiness/highrisk-baseline.txt`). A marker is matched by its enclosing declaration and line text, so moved files and shifted lines stay covered. High-risk = `UnimplementedError`, `not implemented`, empty `catch (_)`, `.unwrap_or_default()`, `.ok();`. | `melos run audit:placeholders` |
-| Fail-closed policy | `launch-gate` → "Fail-Closed Policy Gate" | Each rule in `docs/production-readiness/fail_closed_rules.yaml` must be clean. A rule names a declaration (`declares:`) or a path glob, and covers every `part` file of the Dart library it matches. | `melos run audit:fail-closed` |
-| Behavioral audit | `launch-gate` → "Runtime Behavioral Gate" | Every behavioral marker (literal null-coalesce, empty catch, etc.) must have a closed verdict in `docs/production-readiness/behavioral-audit-register.md`. Unregistered or open markers fail. | `melos run audit:behavioral` |
-| Audit gate self-tests | `launch-gate` → "Audit Gate Self-Tests" | The behavioral, placeholder and fail-closed tools still keep a verdict attached to moved and re-numbered code, fail on new and open findings, and report rows for deleted code as prunable. | `melos run audit:gates:self-test` |
-| Bridge boundary | `launch-gate` → "Bridge Boundary Gate" | `skotiq_core` is the only package that imports `package:skotiq_bridge`. A reviewed exception is a `// bridge-boundary: <id>` comment above the import, with `<id>` justified in `tools/production/bridge_boundary_whitelist.json`. | `melos run audit:bridge-boundary` |
-| Dependency hygiene | `analyze` → "Dependency Hygiene Gate" | Every workspace package must declare a direct dependency for each library it imports under `lib/`. | `dart run tools/production/dependency_hygiene.dart` |
-| Analyzer rollup (production) | `analyze` → "Analyze code (production gate)" | Zero analyzer errors in production code (`docs/production-readiness/audit-scope.yaml` minus the excludes in `analyzer-policy.yaml`), zero criticals from `critical-warning-codes.txt`. | `melos run analyze:production` |
-| Dart tests | `test-dart` → "Run Dart tests", "Run pure Dart package tests", "Verify v4.3.0 database migration to current schema" | All `flutter test` packages green, then the pure-Dart packages and the migration of a 4.3.0 database to the current schema. The last two run even when the first step fails, so one red package does not hide them. `melos run test` passes `--exclude-tags golden`, so the host-specific pixel-diff/perceptual golden suites do NOT run on the Linux runner (their committed baselines are Windows-rendered). See `docs/testing/golden-tests.md`; run the goldens with `melos run test:golden` on the canonical host. | `melos run test` |
-| Rust tests (Linux) | `test-rust` → "Run Rust tests" | `cargo test --all-features --workspace --no-fail-fast` green. Runs on every PR. `--no-fail-fast` runs every test binary, so one failing binary cannot hide the crates after it. | `cd native/skotiq_native && cargo test --all-features --workspace --no-fail-fast` |
-| Rust clippy (workspace, deny warnings) | `test-rust` → "Run Rust clippy (workspace, deny warnings + high-value lints)" | `cargo clippy --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks` clean. Promotes `result_unit_err`, `await_holding_lock`, and `undocumented_unsafe_blocks` to errors. | `cd native/skotiq_native && cargo clippy --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks` |
-| Rust tests (Windows) | `test-rust-windows` → "Run Rust tests" | `cargo test --workspace --no-fail-fast` on `windows-2022`. Runs on push to main/master/develop, nightly, PRs from a `release/*` or `fix/*` branch, and PRs labeled `ci:windows-rust`. Gates the Windows-only `ascom/` crate. | (Windows only) `cd native/skotiq_native && cargo test --all-features --workspace --no-fail-fast` |
-| Rust clippy (Windows) | `test-rust-windows` → "Run Rust clippy (workspace, deny warnings + high-value lints)" | Same as the Linux clippy gate but on Windows so `ascom/windows_impl.rs` is exercised. | (Windows only) Same command as Linux clippy. |
-| Dart format | `format-check` → "Check Dart formatting" | `dart format --set-exit-if-changed` clean on every package. | `melos run format -- --set-exit-if-changed` |
-| Rust format | `format-check` → "Check Rust formatting" | `cargo fmt --all -- --check` clean. | `cd native/skotiq_native && cargo fmt --all -- --check` |
+| Placeholder/stub — no new vs baseline | `Launch Gate` → `placeholders` | Zero **new** high-risk placeholder/stub markers vs the triaged baseline (`docs/production-readiness/highrisk-baseline.txt`). A marker is matched by its enclosing declaration and line text, so moved files and shifted lines stay covered. High-risk = `UnimplementedError`, `not implemented` and the other stub markers. The silent-fallback shapes (empty `catch (_)`, `.unwrap_or_default()`, `.ok();`) are judged by the behavioral gate in Dart and Rust, so each finding has one register; in other scanned languages they stay high-risk here. | `melos run audit:placeholders` |
+| Fail-closed policy | `Launch Gate` → `fail-closed` | Each rule in `docs/production-readiness/fail_closed_rules.yaml` must be clean. A rule names a declaration (`declares:`) or a path glob, and covers every `part` file of the Dart library it matches. | `melos run audit:fail-closed` |
+| Behavioral audit | `Launch Gate` → `behavioral` | Every behavioral marker (literal null-coalesce, empty catch, etc.) must have a closed verdict in `docs/production-readiness/behavioral-audit-register.md`. Unregistered or open markers fail. | `melos run audit:behavioral` |
+| Audit gate self-tests | `Launch Gate` → `behavioral:self-test`, `placeholders:self-test`, `fail-closed:self-test` | The behavioral, placeholder and fail-closed tools still keep a verdict attached to moved and re-numbered code, fail on new and open findings, and report rows for deleted code as prunable. | `melos run audit:gates:self-test` |
+| Bridge boundary | `Launch Gate` → `bridge-boundary` | `skotiq_core` is the only package that imports `package:skotiq_bridge`. A reviewed exception is a `// bridge-boundary: <id>` comment above the import, with `<id>` justified in `tools/production/bridge_boundary_whitelist.json`. | `melos run audit:bridge-boundary` |
+| Dependency hygiene | `Analyze` → `dependency-hygiene` | Every workspace package must declare a direct dependency for each library it imports under `lib/`. | `melos run audit:dependency-hygiene` |
+| Analyzer rollup (production) | `Analyze` → `analyze-production` | Zero analyzer errors in production code (`docs/production-readiness/audit-scope.yaml` minus the excludes in `analyzer-policy.yaml`), zero criticals from `critical-warning-codes.txt`. | `melos run analyze:production` |
+| Dart tests | `Dart Tests` → `flutter-tests`, `pure-dart-tests`, `manual-migration` | All `flutter test` packages green, then the pure-Dart packages and the migration of a 4.3.0 database to the current schema. The last two run even when the first step fails, so one red package does not hide them. `melos run test` passes `--exclude-tags golden`, so the host-specific pixel-diff/perceptual golden suites do NOT run on the Linux runner (their committed baselines are Windows-rendered). See `docs/testing/golden-tests.md`; run the goldens with `melos run test:golden` on the canonical host. | `melos run gate -- --stage dart-tests` |
+| Rust tests (Linux) | `Rust Tests (linux)` → `scripts/rust_checks.sh test` | `cargo test --all-features --workspace --no-fail-fast` green. Runs on every PR. `--no-fail-fast` runs every test binary, so one failing binary cannot hide the crates after it. | `bash scripts/rust_checks.sh test` |
+| Rust clippy (workspace, deny warnings) | `Rust Tests (linux)` → `scripts/rust_checks.sh clippy` | `cargo clippy --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks` clean. Promotes `result_unit_err`, `await_holding_lock`, and `undocumented_unsafe_blocks` to errors. | `bash scripts/rust_checks.sh clippy` |
+| Rust tests (Windows) | `Rust Tests (windows)` → `scripts/rust_checks.sh test` | `cargo test --workspace --no-fail-fast` on `windows-2022`. Runs on push to main/master/develop, nightly, PRs from a `release/*` or `fix/*` branch, and PRs labeled `ci:windows-rust`. Gates the Windows-only `ascom/` crate. | (Windows only) `bash scripts/rust_checks.sh test` |
+| Rust clippy (Windows) | `Rust Tests (windows)` → `scripts/rust_checks.sh clippy` | Same as the Linux clippy gate but on Windows so `ascom/windows_impl.rs` is exercised. | (Windows only) `bash scripts/rust_checks.sh clippy` |
+| Dart format | `Format Check` → `dart-format` | `dart format --set-exit-if-changed` clean on every package. | `melos run gate -- --only dart-format` |
+| Rust format | `Format Check` → `rust-format` | `cargo fmt --all -- --check` clean. | `bash scripts/rust_checks.sh fmt` |
 | Build test | `build-test` → "Test build Flutter app" | Flutter debug build succeeds on Ubuntu, Windows, and macOS runners. Catches platform-specific build regressions before they reach release. | `cd apps/desktop && flutter build <platform> --debug` |
-| Coverage upload | `coverage` → "Upload coverage to Codecov" | `fail_ci_if_error: true` and Codecov target/threshold from `.github/codecov.yml`. Forked-PR uploads tolerated when token absent. | `melos run test -- --coverage` then run `codecov` locally. |
+| Coverage upload | `Code Coverage` → "Upload coverage to Codecov" (not a required check) | Runs the instrumented suite and archives the merged lcov (packages, apps and tools). The Codecov upload has `fail_ci_if_error: false` and `continue-on-error` until a `CODECOV_TOKEN` secret exists. | `melos run test -- --coverage` |
 
 ---
 
@@ -97,7 +120,7 @@ visible on every PR.
 
 | Step | Where | Why advisory |
 |------|-------|--------------|
-| `cargo-duplicates` | `cargo-duplicates` job | Documents the bloater crates being tracked under the windows-upgrade work. Annotated as a build warning until those land. Promote to `exit 1` once the deny.toml skip list is empty. |
+| `Cargo Duplicate Versions` | `scripts/rust_checks.sh duplicates` | Fails when the resolved duplicate-version set differs from `native/skotiq_native/duplicate-versions-baseline.txt`; not a required check, so a drift does not block a merge on its own. |
 | Codecov upload (forked PR) | `coverage` step | `continue-on-error` only when the PR is from a fork without the `CODECOV_TOKEN` secret. Native-repo PRs still gate. |
 
 ---
@@ -193,9 +216,9 @@ the committed baselines** — `docs/production-readiness/highrisk-baseline.txt` 
 `docs/production-readiness/behavioral-audit-register.md` (with its
 `.sites.tsv`) — not an absolute-zero
 count. An earlier "fail on any high-risk" (absolute-zero) policy was aspirational
-and never passed, because the triaged baseline holds roughly 160 reviewed entries
-that are mostly fail-loud documentation comments and audited Rust
-`unwrap_or_default()` defaults on optional ASCOM/Alpaca/INDI driver properties.
+and never passed, because the triaged baseline holds reviewed entries that are mostly
+fail-loud documentation comments (the Rust `unwrap_or_default()` defaults on
+optional driver properties are behavioral findings with their own verdicts).
 The enforced policy is therefore baseline-compare (by declaration and line
 text, so moved files and line drift cannot trip it) plus the scope check from
 `audit-scope.yaml`, which catches a glob change accidentally dropping a
@@ -208,20 +231,16 @@ as `-D` in the workspace clippy gate (see the "Required gates" table above).
 
 ## Adding a new required gate
 
-1. Add the step to `.github/workflows/ci.yml`. Use a name beginning with the
-   audit's plain English label and ending in "Gate" so the GitHub Actions UI
-   makes the required-vs-advisory distinction obvious.
-2. Confirm the step exits non-zero on failure (no `continue-on-error`, no
-   `set +e`, no `|| true`).
+1. Add a `Check` to the stage it belongs to in `tools/production/gate.dart`.
+   The CI job of that stage runs it from then on; no workflow edit is needed.
+2. Confirm the command exits non-zero on failure (no `|| true`).
 3. Add a row to the **Required gates** table above with the local repro
-   command. The local command must be a single-line copy-paste that
-   reproduces the CI failure exactly.
-4. If the gate is advisory (warning-level, informational), add it to the
-   **Advisory gates** table instead and document the promotion criteria so
-   the gate doesn't stay advisory forever.
-5. Update branch-protection on `main`/`master` so the new job is in the
-   "Require status checks to pass before merging" list. This is a GitHub UI
-   step, not a YAML change — see `docs/RUNBOOK.md` if you have admin access.
+   command, and a melos `audit:*` script (`dart run tools/production/gate.dart
+   --only <check>`) if people will run it by name.
+4. A new CI job (a new check name) also needs branch protection on `main`
+   updated in the GitHub UI, and `REQUIRED_CHECKS` in
+   `scripts/release_gate.py`; `scripts/test_release_gate.py` fails when a
+   required name is not a CI job.
 
 ---
 

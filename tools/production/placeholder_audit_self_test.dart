@@ -34,6 +34,23 @@ Future<void> main() async {
       'allowlisted high-risk marker should not appear in high-risk output',
     );
 
+    // Silent-fallback shapes belong to the behavioral register in Dart and
+    // Rust; in any other scanned language they stay high-risk here.
+    await _writeSilentFallbackFixture(temp);
+    await _runAudit(
+      script,
+      temp,
+      outHits: '.audit_hits.txt',
+      outHighRisk: '.audit_highrisk.txt',
+    );
+    final fallbackHighRisk = _readLines(temp, '.audit_highrisk.txt');
+    _expect(
+      fallbackHighRisk.length == 1 &&
+          fallbackHighRisk.single.startsWith('apps/desktop/lib/web/page.js:'),
+      'only the non-Dart, non-Rust silent fallback should be high-risk '
+      '(got $fallbackHighRisk)',
+    );
+
     await _writeFailingFixture(temp);
     final failing = await _runAudit(
       script,
@@ -241,6 +258,31 @@ Future<void> _writeFailingFixture(Directory root) async {
   await _writeFile(root, 'apps/desktop/lib/bad.dart', '''
 void unsafeRuntimeStub() {
   throw UnimplementedError('release blocker');
+}
+''');
+}
+
+Future<void> _writeSilentFallbackFixture(Directory root) async {
+  await _resetWorkspace(root);
+  await _writeFile(root, 'apps/desktop/lib/swallow.dart', '''
+void swallow() {
+  try {
+    run();
+  } catch (_) {}
+}
+''');
+  await _writeFile(root, 'native/skotiq_native/fixture/src/lib.rs', '''
+fn read() -> u32 {
+    parse().unwrap_or_default()
+}
+
+fn drop_it() {
+    write().ok();
+}
+''');
+  await _writeFile(root, 'apps/desktop/lib/web/page.js', '''
+function swallow() {
+  try { run(); } catch (_) {}
 }
 ''');
 }

@@ -10,6 +10,9 @@ name: Windows Release Build
 on:
   workflow_dispatch:
 
+env:
+  FLUTTER_VERSION: '3.44.1'
+
 jobs:
   windows-release-build:
     name: Build Windows Release Artifact
@@ -33,9 +36,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Match the modernized toolchain (Dart 3.12 / analyzer 10). The repo's
-          # codegen deps (freezed 3, drift 2.33, etc.) require Flutter 3.4x.
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -60,19 +61,29 @@ jobs:
       - name: Build Rust native bridge (release)
         run: dart scripts/build.dart bridge
 
+      # Built like release.yml's Windows job (update key, updater.exe), so the
+      # artifact can verify and apply an OTA update the way a release does.
       - name: Build Flutter Windows app (release)
-        run: dart scripts/build.dart flutter windows
+        run: dart scripts/build.dart flutter windows -- "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Stage native DLLs (bridge, libraw, MSVC runtime) into Release
         shell: pwsh
         run: ./scripts/stage_windows_release.ps1 -Profile Release
+
+      - name: Build + stage updater.exe
+        shell: pwsh
+        run: |
+          dart scripts/build.dart updater
+          $rel = "apps/desktop/build/windows/x64/runner/Release"
+          Copy-Item native/skotiq_native/target/release/updater.exe (Join-Path $rel "updater.exe") -Force
+          Write-Host "Staged updater.exe into $rel"
 
       - name: Verify the Release output is complete
         shell: pwsh
         run: |
           $rel = "apps/desktop/build/windows/x64/runner/Release"
           $missing = @()
-          foreach ($f in @("skotiq.exe", "skotiq_bridge.dll", "libraw.dll")) {
+          foreach ($f in @("skotiq.exe", "skotiq_bridge.dll", "libraw.dll", "updater.exe")) {
             if (-not (Test-Path (Join-Path $rel $f))) { $missing += $f }
           }
           if ($missing.Count -gt 0) {

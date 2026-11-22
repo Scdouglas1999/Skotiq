@@ -22,13 +22,19 @@ Usage
 Everything it observes is appended to reports/live-rig/<timestamp>.json so a
 finding can cite what the rig actually returned rather than what the code says
 it should.
+
+Every path it calls must be in the host's route table (GET /api/openapi.json).
+A path that is not is never sent, and it, a 404/405, a transport error or a 5xx
+fails the run.
 """
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 DEVICE_TYPES = [
@@ -37,12 +43,38 @@ DEVICE_TYPES = [
 ]
 
 
+def route_patterns(spec):
+    """(METHOD, compiled path) for every operation in an OpenAPI document."""
+    patterns = []
+    for path, operations in spec.get('paths', {}).items():
+        regex = re.compile('^' + re.sub(r'\\\{[^}]+\\\}', '[^/]+', re.escape(path)) + '$')
+        for method in operations:
+            patterns.append((method.upper(), regex))
+    return patterns
+
+
 class Rig:
     def __init__(self, host, port, token, timeout=30):
         self.base = 'http://%s:%d' % (host, port)
         self.token = token
         self.timeout = timeout
         self.log = []
+        self.routes = None
+
+    def load_routes(self):
+        """Reads the host's route table; returns an error text or None."""
+        entry = self.call('GET', '/api/openapi.json', check_route=False)
+        spec = entry.get('json')
+        if entry.get('status') != 200 or not isinstance(spec, dict):
+            return 'could not read the route table: %s %s' % (
+                entry.get('status'), entry.get('error', ''))
+        self.routes = route_patterns(spec)
+        entry['json'] = '(%d paths)' % len(spec.get('paths', {}))
+        return None
+
+    def has_route(self, method, path):
+        bare = urllib.parse.urlsplit(path).path
+        return any(m == method and regex.match(bare) for m, regex in self.routes)
 
     def release(self):
         """The host's Skotiq release. Every API request names it in
@@ -52,7 +84,13 @@ class Rig:
                 self._release = json.load(resp)["version"]
         return self._release
 
-    def call(self, method, path, body=None, timeout=None):
+    def call(self, method, path, body=None, timeout=None, check_route=True):
+        entry = {'method': method, 'path': path, 'body': body}
+        if check_route and not self.has_route(method, path):
+            entry['status'] = None
+            entry['error'] = 'not in the host route table; not sent'
+            self.log.append(entry)
+            return entry
         url = self.base + path
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method)
@@ -62,7 +100,6 @@ class Rig:
         if self.token:
             req.add_header('Authorization', 'Bearer ' + self.token)
         started = time.time()
-        entry = {'method': method, 'path': path, 'body': body}
         try:
             with urllib.request.urlopen(req, timeout=timeout or self.timeout) as r:
                 raw = r.read().decode('utf-8', 'replace')
@@ -83,6 +120,23 @@ class Rig:
             entry['text'] = raw[:2000]
         self.log.append(entry)
         return entry
+
+
+def failed(entry):
+    status = entry.get('status') or 0
+    return bool(entry.get('error')) or status in (404, 405) or status >= 500
+
+
+def connected_ids(payload):
+    """The first connected device id of each type, keyed like DEVICE_TYPES."""
+    ids = {}
+    devices = payload.get('devices', []) if isinstance(payload, dict) else []
+    for d in devices:
+        if not isinstance(d, dict) or not d.get('id'):
+            continue
+        kind = str(d.get('deviceType', '')).lower().rstrip('_')
+        ids.setdefault(kind, d['id'])
+    return ids
 
 
 def show(entry, label=None):
@@ -110,10 +164,13 @@ def main():
     args = ap.parse_args()
 
     rig = Rig(args.host, args.port, args.token)
+    problem = rig.load_routes()
+    if problem:
+        print('== route table\n  ' + problem)
+        return 1
 
     print('== system')
-    for path in ('/api/system/version', '/api/system/health',
-                 '/api/system/disk-space', '/api/system/endpoints'):
+    for path in ('/api/system/version', '/api/status', '/api/system/disk-space'):
         show(rig.call('GET', path))
 
     print('== discovery (one scan, by type)')
@@ -133,36 +190,50 @@ def main():
                 print('        %s  [%s]' % (d.get('name'), d.get('driverType')))
 
     print('== already connected')
-    show(rig.call('GET', '/api/devices/connected'))
+    e = rig.call('GET', '/api/devices/connected')
+    show(e)
+    connected = connected_ids(e.get('json'))
 
-    print('== camera')
-    for path in ('/api/camera/cooling', '/api/camera/gain', '/api/camera/offset',
-                 '/api/camera/recommended-settings'):
-        show(rig.call('GET', path))
+    camera = connected.get('camera')
+    print('== camera %s' % (camera or '(none connected)'))
+    if camera:
+        query = '?deviceId=' + urllib.parse.quote(camera)
+        for path in ('/api/equipment/camera/status', '/api/camera/cooling',
+                     '/api/camera/recommended-settings'):
+            show(rig.call('GET', path + query))
 
+    wheel = connected.get('filterwheel')
     if args.set_filter >= 0:
-        print('== filter wheel')
-        show(rig.call('POST', '/api/filterwheel/position',
-                      {'position': args.set_filter}, timeout=120))
-        show(rig.call('GET', '/api/filterwheel/position'))
+        print('== filter wheel %s' % (wheel or '(none connected)'))
+        if wheel:
+            show(rig.call('POST', '/api/filter-wheel/position',
+                          {'deviceId': wheel, 'position': args.set_filter}, timeout=120))
+            show(rig.call('GET', '/api/filter-wheel/position?deviceId='
+                          + urllib.parse.quote(wheel)))
 
+    focuser = connected.get('focuser')
     if args.move_focuser:
-        print('== focuser (relative move, then undone)')
-        before = rig.call('GET', '/api/focuser/position')
-        show(before, 'position before')
-        show(rig.call('POST', '/api/focuser/move-relative',
-                      {'steps': args.move_focuser}, timeout=180))
-        show(rig.call('GET', '/api/focuser/position'), 'position after')
-        show(rig.call('POST', '/api/focuser/move-relative',
-                      {'steps': -args.move_focuser}, timeout=180), 'undo')
+        print('== focuser %s (relative move, then undone)' % (focuser or '(none connected)'))
+        if focuser:
+            status = '/api/equipment/focuser/status?deviceId=' + urllib.parse.quote(focuser)
+            show(rig.call('GET', status), 'position before')
+            show(rig.call('POST', '/api/focuser/move-relative',
+                          {'deviceId': focuser, 'delta': args.move_focuser}, timeout=180))
+            show(rig.call('GET', status), 'position after')
+            show(rig.call('POST', '/api/focuser/move-relative',
+                          {'deviceId': focuser, 'delta': -args.move_focuser}, timeout=180),
+                 'undo')
 
     if args.expose > 0:
         print('== exposure %.2fs' % args.expose)
-        show(rig.call('POST', '/api/camera/expose',
-                      {'exposureSeconds': args.expose, 'frameType': 'light'},
-                      timeout=args.expose + 180))
-        time.sleep(min(args.expose + 3, 60))
-        show(rig.call('GET', '/api/camera/last-image'), 'last-image metadata')
+        if camera:
+            show(rig.call('POST', '/api/camera/expose',
+                          {'deviceId': camera, 'exposureTime': args.expose,
+                           'frameType': 'light'},
+                          timeout=args.expose + 180))
+            time.sleep(min(args.expose + 3, 60))
+            show(rig.call('GET', '/api/camera/last-image?deviceId='
+                          + urllib.parse.quote(camera)), 'last-image metadata')
 
     os.makedirs(args.out, exist_ok=True)
     stamp = time.strftime('%Y%m%dT%H%M%S')
@@ -171,9 +242,10 @@ def main():
         json.dump({'host': args.host, 'calls': rig.log}, fh, indent=2)
     print('\nwrote %s (%d calls)' % (path, len(rig.log)))
 
-    bad = [c for c in rig.log if c.get('error') or (c.get('status') or 0) >= 500]
+    bad = [c for c in rig.log if failed(c)]
     if bad:
-        print('\n%d call(s) errored or returned 5xx:' % len(bad))
+        print('\n%d call(s) failed (not in the route table, transport error, 404/405 or 5xx):'
+              % len(bad))
         for c in bad:
             print('  %s %s -> %s %s' % (c['method'], c['path'],
                                         c.get('status'), c.get('error', '')[:80]))

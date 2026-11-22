@@ -12,7 +12,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("release_gate.py")
 sys.path.insert(0, str(SCRIPT.parent))
-from release_gate import REQUIRED_CHECKS  # noqa: E402
+from release_gate import CI_WORKFLOW, REQUIRED_CHECKS, missing_required_checks  # noqa: E402
 
 FAKE_GH = """#!/usr/bin/env python3
 import os, sys
@@ -140,6 +140,54 @@ class ReleaseGateTest(unittest.TestCase):
         result = self.gate(self.merged, checks=checks)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("'Analyze'", result.stderr)
+
+
+CI_FIXTURE = """name: CI
+on:
+  push:
+env:
+  FLUTTER_VERSION: '3.44.1'
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+  launch-gate:
+    name: Launch Gate
+  test-dart:
+    name: Dart Tests
+  test-rust:
+    name: Rust Tests (linux)
+  test-rust-windows:
+    name: Rust Tests (windows)
+  format-check:
+    name: Format Check
+  build-test:
+    name: Build Test (Desktop)
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-2022, macos-15]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+"""
+
+
+class RequiredChecksTest(unittest.TestCase):
+    def test_every_required_check_is_a_job_of_the_ci_workflow(self):
+        self.assertEqual(missing_required_checks(CI_WORKFLOW.read_text()), [])
+
+    def test_the_fixture_produces_every_required_check(self):
+        self.assertEqual(missing_required_checks(CI_FIXTURE), [])
+
+    def test_a_renamed_job_is_reported(self):
+        renamed = CI_FIXTURE.replace("name: Launch Gate", "name: Launch Gates")
+        self.assertEqual(missing_required_checks(renamed), ["Launch Gate"])
+
+    def test_a_matrix_job_produces_one_check_per_runner(self):
+        without_linux = CI_FIXTURE.replace(
+            "os: [ubuntu-latest, windows-2022, macos-15]", "os: [windows-2022, macos-15]")
+        self.assertEqual(
+            missing_required_checks(without_linux), ["Build Test (Desktop) (ubuntu-latest)"])
 
 
 class SourceCommitTest(unittest.TestCase):

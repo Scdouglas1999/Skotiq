@@ -50,16 +50,20 @@ scripts:
     run: dart run melos exec -- dart analyze .
     description: Run dart analyze in all packages
 
+  gate:
+    run: dart run tools/production/gate.dart
+    description: Run every check CI runs (stages analyze, audits, dart-tests, hub, format, rust); pass `-- --stage <s>`, `--only <check>`, `--skip <stage or check>`, `--out <dir>` or `--list`
+
   analyze:production:
-    run: dart run tools/production/analyzer_rollup.dart
+    run: dart run tools/production/gate.dart --only analyze-production
     description: Run analyzer rollup with zero-error/critical-warning gate
 
   audit:placeholders:
-    run: dart run tools/production/placeholder_audit.dart --fail-on-new-highrisk --compare-highrisk-baseline docs/production-readiness/highrisk-baseline.txt
+    run: dart run tools/production/gate.dart --only placeholders
     description: Scan placeholder/stub markers and fail on new high-risk markers
 
   audit:behavioral:
-    run: dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open
+    run: dart run tools/production/gate.dart --only behavioral
     description: Fail on silent-fallback shapes in runtime code that have no reviewed, closed verdict in the behavioral register
 
   audit:behavioral:sync:
@@ -71,55 +75,47 @@ scripts:
     description: After moving, renaming or deleting code - refresh the high-risk baseline, then run the gate
 
   audit:gates:self-test:
-    run: dart run tools/production/behavioral_audit_self_test.dart && dart run tools/production/placeholder_audit_self_test.dart && dart run tools/production/fail_closed_check_self_test.dart
+    run: dart run tools/production/gate.dart --only behavioral:self-test --only placeholders:self-test --only fail-closed:self-test
     description: Self-test the behavioral, placeholder and fail-closed gates against temporary fixtures (moved, shifted, deleted and new code)
 
   audit:design-tokens:
-    run: dart run tools/production/design_tokens_audit.dart
-    description: Track design-system token adoption in app screens (hardcoded radii, inline TextStyle fontSize, raw Colors.*). Informational by default; pass --max-*=N or --strict to enforce.
+    run: dart run tools/production/gate.dart --only design-tokens
+    description: Track design-system token adoption in app screens (hardcoded radii, inline TextStyle fontSize, raw Colors.*). Informational; for a budget run `dart run tools/production/design_tokens_audit.dart --max-*=N` or `--strict`.
 
   audit:narrative-comments:
-    run: dart run tools/production/narrative_comment_audit.dart
-    description: Flag AI-narrative / audit-trail comments (change-history, self-narration, restated-obvious lines, over-written 'why this import' blocks). Informational human-in-the-loop lint; allowlist real-invariant keepers in docs/production-readiness/narrative-comment-allowlist.txt. Pass --max N to gate.
+    run: dart run tools/production/gate.dart --only narrative-comments
+    description: Flag AI-narrative / audit-trail comments (change-history, self-narration, restated-obvious lines, over-written 'why this import' blocks). Informational human-in-the-loop lint; allowlist real-invariant keepers in docs/production-readiness/narrative-comment-allowlist.txt. For a budget run `dart run tools/production/narrative_comment_audit.dart --max N`.
 
   audit:narrative-comments:self-test:
-    run: dart run tools/production/narrative_comment_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only narrative-comments:self-test
     description: Self-test the narrative-comment audit classifier and walk/allowlist against temporary fixtures.
 
-  audit:stale-comments:
-    run: dart run tools/production/stale_comment_audit.dart
-    description: Flag doc/line comments asserting a symbol is unused/not-wired/not-registered or that a conversion is pending, when current code contradicts the claim. Informational by default; pass --fail-on-stale to gate.
-
-  audit:stale-comments:self-test:
-    run: dart run tools/production/stale_comment_audit_self_test.dart
-    description: Self-test the stale-comment auditor against synthetic contradicted and still-true fixtures
-
   audit:fail-closed:
-    run: dart run tools/production/fail_closed_check.dart
+    run: dart run tools/production/gate.dart --only fail-closed
     description: Enforce fail-closed backend policy checks
 
   audit:cargo-duplicates:
-    run: cd native/skotiq_native && cargo tree --duplicates --workspace
-    description: Surface duplicate semver versions of the same crate in the Rust workspace
+    run: dart run tools/production/gate.dart --only cargo-duplicates
+    description: Fail when the resolved duplicate-version set of the Rust workspace differs from native/skotiq_native/duplicate-versions-baseline.txt
 
   audit:version-consistency:
-    run: dart run tools/production/version_consistency_audit.dart
+    run: dart run tools/production/gate.dart --only version-consistency
     description: Fail when version.yaml, the desktop pubspec, the mobile pubspec, and installer.iss disagree on version/build, or when the OTA package builder stops sourcing its version from version.yaml
   audit:version-consistency:self-test:
-    run: dart run tools/production/version_consistency_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only version-consistency:self-test
     description: Self-test the version consistency gate against aligned and mismatched temporary fixtures
 
 
   audit:ui-consistency:
-    run: dart run tools/production/ui_consistency_audit.dart
+    run: dart run tools/production/gate.dart --only ui-consistency
     description: Report raw UI styling, fake callbacks, and headless route advertisement drift
 
   audit:oversized-files:
-    run: dart run tools/production/oversized_file_audit.dart
+    run: dart run tools/production/gate.dart --only oversized-files
     description: Report oversized hand-authored Dart files for planned refactors
 
   audit:oversized-files:self-test:
-    run: dart run tools/production/oversized_file_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only oversized-files:self-test
     description: Self-test oversized file audit thresholds and exclusions against temporary fixtures
 
   audit:developer-quality:
@@ -127,7 +123,7 @@ scripts:
     description: Roll up UI consistency, headless route policy, and oversized-file developer-quality audit signals
 
   audit:developer-quality:self-test:
-    run: dart run tools/production/developer_quality_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only developer-quality:self-test
     description: Self-test developer quality audit pass/fail behavior against temporary fixtures
 
   audit:windows-bundle:
@@ -135,39 +131,39 @@ scripts:
     description: Verify the Windows release bundle has required assets and no dev placeholders
 
   audit:headless-api-contract:
-    run: dart run tools/production/headless_api_contract_audit.dart
+    run: dart run tools/production/gate.dart --only headless-api-contract
     description: Verify headless route registration, advertised endpoints, OpenAPI coverage, and NetworkBackend calls stay aligned
 
   audit:headless-route-policy:
-    run: dart run tools/production/headless_route_policy_audit.dart
+    run: dart run tools/production/gate.dart --only headless-route-policy
     description: Verify headless request-size limits, rate limits, and high-risk audit metadata
 
   audit:headless-response-helpers:
-    run: dart run tools/production/headless_response_helper_audit.dart
+    run: dart run tools/production/gate.dart --only headless-response-helpers
     description: Verify typed headless JSON response helpers exist, are tested, and raw response debt is counted
 
   audit:headless-response-helpers:self-test:
-    run: dart run tools/production/headless_response_helper_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only headless-response-helpers:self-test
     description: Self-test headless response helper audit pass/fail behavior against temporary fixtures
 
   audit:dependency-hygiene:
-    run: dart run tools/production/dependency_hygiene.dart
+    run: dart run tools/production/gate.dart --only dependency-hygiene
     description: Verify workspace packages declare direct dependencies for lib imports
 
   audit:bridge-boundary:
-    run: dart run tools/production/bridge_boundary_audit.dart
+    run: dart run tools/production/gate.dart --only bridge-boundary
     description: Enforce that skotiq_core is the only Dart package importing package:skotiq_bridge (architecture §1); whitelist holds reviewed exceptions
 
   audit:bridge-boundary:self-test:
-    run: dart run tools/production/bridge_boundary_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only bridge-boundary:self-test
     description: Self-test bridge boundary audit exemptions, violation detection, whitelist handling, and symbol extraction against temporary fixtures
 
   audit:architecture:
-    run: dart run tools/production/architecture_rules_audit.dart
+    run: dart run tools/production/gate.dart --only architecture
     description: Enforce package/crate dependency direction, no backend class checks outside the backend files, no cross-package src/ imports, no new per-node-type dispatch outside the node table, no provider imports from skotiq_core's backend, database, models and services layers, and no snackbar shown outside the app's feedback helper; each failure names where the change goes instead
 
   audit:architecture:self-test:
-    run: dart run tools/production/architecture_rules_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only architecture:self-test
     description: Self-test the architecture rules audit against a temporary workspace that breaks each rule once
 
   audit:hardware-availability:
@@ -183,7 +179,7 @@ scripts:
     description: Package a Linux release bundle and write artifact size/hash metadata
 
   audit:linux-release-package-metadata:self-test:
-    run: dart run tools/production/linux_release_package_metadata_self_test.dart
+    run: dart run tools/production/gate.dart --only linux-release-package-metadata:self-test
     description: Self-test Linux release package metadata and evidence generation against a temporary bundle
 
   audit:linux-release-workflow:
@@ -191,31 +187,31 @@ scripts:
     description: Verify Linux release GitHub Actions workflow and package metadata generator wiring
 
   audit:linux-release-workflow:self-test:
-    run: dart run tools/production/linux_release_workflow_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only linux-release-workflow:self-test
     description: Self-test Linux release workflow audit against temporary workflow fixtures
 
   audit:manual-migration:
-    run: cd packages/skotiq_core && SKOTIQ_OLD_DATABASE="$PWD/test/fixtures/skotiq-v4.3.0-profile.db" flutter test tool/production_migration_probe.dart --dart-define=REQUIRE_MIGRATION_ARTIFACT=true
+    run: dart run tools/production/gate.dart --only manual-migration
     description: Verify the release-authentic v4.3.0 profile/database migration to the current schema
 
   audit:migration-regression:
-    run: dart run tools/production/migration_regression_audit.dart
+    run: dart run tools/production/gate.dart --only migration-regression
     description: Verify synthetic old-schema coverage alongside the release-authentic migration artifact gate
 
   audit:migration-regression:self-test:
-    run: dart run tools/production/migration_regression_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only migration-regression:self-test
     description: Self-test migration regression audit pass/fail behavior against temporary fixtures
 
   audit:docs-links:
-    run: dart run tools/production/docs_link_audit.dart
+    run: dart run tools/production/gate.dart --only docs-links
     description: Check local Markdown links under docs and write release-readiness evidence
 
   audit:release-docs:
-    run: dart run tools/production/release_docs_audit.dart
+    run: dart run tools/production/gate.dart --only release-docs
     description: Verify release-critical docs include required sections and cross-links
 
   audit:release-docs:self-test:
-    run: dart run tools/production/release_docs_audit_self_test.dart
+    run: dart run tools/production/gate.dart --only release-docs:self-test
     description: Self-test release docs audit against complete and deficient temporary fixtures
 
   audit:platform-capabilities:
@@ -271,7 +267,7 @@ scripts:
   test:dart:
     # `test` runs `flutter test` in Flutter packages only; pure Dart packages
     # (skotiq_astro) run under `dart test`.
-    run: dart run melos exec --concurrency=1 --no-flutter --dir-exists=test -- dart test
+    run: dart run tools/production/gate.dart --only pure-dart-tests
     description: Run tests in the pure Dart packages
 
   test:golden:

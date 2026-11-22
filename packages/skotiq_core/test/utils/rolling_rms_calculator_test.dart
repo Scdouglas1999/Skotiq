@@ -10,7 +10,7 @@ library;
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_bridge/src/rolling_rms_calculator.dart';
+import 'package:skotiq_core/src/utils/rolling_rms_calculator.dart';
 
 void main() {
   group('RollingRmsCalculator rms', () {
