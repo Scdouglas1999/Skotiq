@@ -141,7 +141,6 @@ class ErrorService {
       );
     }
 
-    // Push to UI notifications for error and critical severity
     if (_uiNotificationNotifier != null) {
       final text = describeError(
         entry.message,

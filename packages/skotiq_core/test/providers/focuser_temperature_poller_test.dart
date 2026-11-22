@@ -1,4 +1,4 @@
-// SY-08: the host's own screens showed the focuser's connect-time temperature
+// The host's own screens showed the focuser's connect-time temperature
 // (19.2 °C) all night while the focuser and the host API reported 18.1 °C.
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

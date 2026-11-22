@@ -282,9 +282,7 @@ extension _CrashRecovery on SkotiqDatabase {
   /// row as though it were still going.
   ///
   /// The retry-limit sentence is built from the ROW: the attempt number comes
-  /// out of `attempts`, in SQL, so one statement still covers every residual
-  /// row. It used to be a constant reading "on attempt 3 of 3" while its own
-  /// `WHERE` selects `attempts >= 3`, so a row that had been started five times
+  /// row.
   /// was told it died on its third — a number nothing in the row supports.
   ///
   /// Returns what was found BEFORE either write, because those rows are the

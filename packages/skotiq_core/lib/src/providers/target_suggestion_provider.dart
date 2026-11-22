@@ -196,7 +196,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final logging = ref.read(loggingServiceProvider);
 
       try {
-        // Fetch host-backed targets and sessions when connected remotely.
         final List<db.DbTarget> userTargets = await ref.watch(
           allDbTargetsProvider.future,
         );
@@ -234,7 +233,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 
         return suggestions;
       } catch (e, stackTrace) {
-        // Log the error but don't crash - return empty list
         logging.error(
           'Failed to generate target suggestions: $e',
           source: 'TargetSuggestionProvider',

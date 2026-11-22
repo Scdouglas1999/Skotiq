@@ -47,7 +47,7 @@ class _NoopSafeRigService extends SafeRigService {
 }
 
 void main() {
-  // Audit 2026-07-29: with "Enable weather safety" OFF the Weather screen showed
+  // With "Enable weather safety" OFF the Weather screen showed
   // a green shield, "Conditions safe for imaging" and "Auto-Park: Enabled" —
   // pixel-identical to the monitoring-on state. The provider short-circuits to
   // `safe` when nothing is evaluated, so the state has to carry the distinction

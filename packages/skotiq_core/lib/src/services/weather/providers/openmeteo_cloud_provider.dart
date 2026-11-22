@@ -49,8 +49,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
     double radiusKm = 100.0,
   }) async {
     try {
-      // Build the API URL.
-      //
       // `timezone=UTC` is REQUIRED, not cosmetic: without it Open-Meteo returns
       // hourly timestamps in the location's local time as naive ISO-8601
       // strings (e.g. "2026-05-30T18:00", no zone designator). `DateTime.parse`
@@ -147,7 +145,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
 
         final clampedCloudCover = cloudCover.clamp(0.0, 100.0);
 
-        // Convert cloud cover percentage to opacity (0.0-1.0)
         final opacity = clampedCloudCover / 100.0;
 
         final isForecast = timestamp.isAfter(now);
@@ -256,7 +253,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
       return null;
     }
 
-    // Convert opacity back to percentage (0-100)
     return closestFrame.opacity * 100.0;
   }
 

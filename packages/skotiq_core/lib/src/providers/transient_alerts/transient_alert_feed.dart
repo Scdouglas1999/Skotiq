@@ -87,7 +87,6 @@ final activeTransientAlertsProvider =
           List<TransientAlert> alerts;
 
           if (networkBackend != null) {
-            // Fetch from headless server API
             final response = await networkBackend.getActiveTransients();
             final alertsJson = response['alerts'];
             if (alertsJson is! List) {
@@ -121,7 +120,6 @@ final activeTransientAlertsProvider =
             // trip itself is the evidence that something was asked.
             recordCheck(queried: {TransientSource.tns});
           } else {
-            // Fetch directly from AAVSO/TNS APIs
             var tnsApiKey = '';
             if (settings.enabledSources.contains(TransientSource.tns) &&
                 scienceSettings != null &&

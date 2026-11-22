@@ -169,7 +169,7 @@ def build_plan(minutes=80.0, exposure_secs=15.0, unix=None, site=None):
     t3_frames_each = max(3, int(0.15 * minutes * 60.0 / per_frame / 4))
 
     # T1 and T3 slew before centering, the way the editor's "Slew & Center"
-    # builds them (and the path the 2026-09-14 slew validator broke). T2
+    # builds them. T2
     # centers straight from T1's position, so its first solve is far off --
     # the way a Center-only target starts.
     nodes = []

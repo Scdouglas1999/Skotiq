@@ -274,7 +274,6 @@ extension FlatWizardRun on FlatWizardNotifier {
           break;
         }
 
-        // Calibrate exposure
         // Target ADU is an absolute value against the DETECTED full scale, so a
         // 12/14-bit camera targets e.g. 50% of 4095/16383 — never an impossible
         // 32768.
@@ -985,10 +984,6 @@ extension FlatWizardRun on FlatWizardNotifier {
     required double histogramTarget,
   }) async {
     try {
-      // Use the run's snapshotted mode/twilight, not `state.mode`/
-      // `state.twilightMode`: browsing to another tab mid-run flips those live
-      // and would misrecord the sky-flats rate / twilight phase for the
-      // remaining filters.
       final skyAduRate = runMode == FlatWizardMode.skyFlats
           ? brightnessTracker.calculateRate()
           : null;

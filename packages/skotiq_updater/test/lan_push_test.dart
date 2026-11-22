@@ -30,7 +30,6 @@ Future<int> _unusedTcpPort() async {
 void main() {
   group('LAN Push Discovery Protocol', () {
     test('should broadcast discovery message and receive response', () async {
-      // Start a mock responder
       final responder = await RawDatagramSocket.bind(
         InternetAddress.loopbackIPv4,
         testDiscoveryPort,
@@ -46,7 +45,6 @@ void main() {
             final message = utf8.decode(datagram.data);
             receivedMessage.complete(message);
 
-            // Send response
             if (message == updatePushMessage) {
               final response =
                   updateResponsePrefix +
@@ -67,7 +65,6 @@ void main() {
         }
       });
 
-      // Send discovery broadcast
       final sender = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       sender.send(
         utf8.encode(updatePushMessage),
@@ -75,7 +72,6 @@ void main() {
         testDiscoveryPort,
       );
 
-      // Wait for message to be received
       final message = await receivedMessage.future.timeout(
         const Duration(seconds: 2),
         onTimeout: () => throw TimeoutException('Discovery response timeout'),
@@ -120,7 +116,6 @@ void main() {
         }
       });
 
-      // Send discovery
       final sender = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       final responseReceived = Completer<Map<String, dynamic>>();
 
@@ -158,7 +153,6 @@ void main() {
 
   group('LAN Push Transfer Protocol', () {
     test('should transfer manifest and package data', () async {
-      // Start mock receiver
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       final pushPort = server.port;
       final connectionReceived = Completer<void>();
@@ -172,7 +166,6 @@ void main() {
         await for (final chunk in socket) {
           buffer.add(chunk);
 
-          // Read manifest length
           if (manifestLength == null && buffer.length >= 4) {
             final bytes = buffer.takeBytes();
             manifestLength = ByteData.view(
@@ -181,7 +174,6 @@ void main() {
             buffer.add(bytes.sublist(4));
           }
 
-          // Read manifest
           if (receivedManifest == null &&
               manifestLength != null &&
               buffer.length >= manifestLength) {
@@ -198,7 +190,6 @@ void main() {
           }
         }
 
-        // Send success response
         socket.write(
           jsonEncode({'status': 'complete', 'receivedBytes': receivedBytes}),
         );
@@ -206,7 +197,6 @@ void main() {
         connectionReceived.complete();
       });
 
-      // Create test data
       final manifest = {
         'version': '2.1.0',
         'buildNumber': 100,
@@ -227,15 +217,12 @@ void main() {
       lengthBytes.setInt32(0, manifestBytes.length, Endian.big);
       client.add(lengthBytes.buffer.asUint8List());
 
-      // Send manifest
       client.add(manifestBytes);
 
-      // Send package
       client.add(packageData);
       await client.flush();
       await client.close();
 
-      // Wait for receiver to process
       await connectionReceived.future.timeout(const Duration(seconds: 5));
 
       expect(receivedManifest, isNotNull);
@@ -306,7 +293,6 @@ void main() {
           completer.complete(receivedBytes);
         });
 
-        // Send 1MB of data
         const largeSize = 1024 * 1024; // 1MB
         final manifest = {
           'version': '2.1.0',
@@ -327,7 +313,6 @@ void main() {
         client.add(lengthBytes.buffer.asUint8List());
         client.add(manifestBytes);
 
-        // Send in chunks
         const chunkSize = 64 * 1024; // 64KB chunks
         for (var i = 0; i < largeData.length; i += chunkSize) {
           final end = (i + chunkSize < largeData.length)

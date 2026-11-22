@@ -89,7 +89,6 @@ extension AnnotationSnrTracker on AnnotationService {
       );
     }
 
-    // Trigger progressive re-annotation (increasing)
     _logger.info(
       'SNR improved from ${_lastAnnotationSnr?.toStringAsFixed(1) ?? "N/A"} to ${currentSnr.toStringAsFixed(1)}, '
       'updating magnitude limit from ${_currentSnrMagnitudeLimit.toStringAsFixed(1)} to ${newMagnitudeLimit.toStringAsFixed(1)}',
@@ -131,7 +130,6 @@ extension AnnotationSnrTracker on AnnotationService {
       );
       if (!isCurrent()) return;
 
-      // Filter to only new objects (not already revealed)
       final newObjects = additionalObjects
           .where((obj) => !_revealedObjectIds.contains(obj.id))
           .toList();
@@ -204,7 +202,6 @@ extension AnnotationSnrTracker on AnnotationService {
       _ref.read(annotationStateProvider.notifier).state =
           const AnnotationState.searching();
 
-      // Filter existing objects to only those within the new magnitude limit
       final filteredObjects = currentAnnotation.objects.where((obj) {
         if (obj.magnitude == null) return true;
         return obj.magnitude! <= newMagnitudeLimit;

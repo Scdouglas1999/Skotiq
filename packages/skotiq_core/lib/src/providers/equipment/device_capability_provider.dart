@@ -195,9 +195,7 @@ class CoverCalibratorCapabilitySnapshot {
 
 /// The newest cover/calibrator reading per device id.
 ///
-/// The card's state used to be fetched once and cached for the life of the
-/// app, so it never showed a change made from another window (and stuck on
-/// `Moving` after its own command). On the host,
+/// On the host,
 /// [coverCalibratorStatusPollerProvider] keeps this current; on a linked
 /// client the `coverCalibrator` runtime channel does.
 final liveCoverCalibratorSnapshotsProvider =

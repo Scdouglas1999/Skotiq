@@ -238,8 +238,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
 
   @override
   Future<void> sequencerUpdateSkyBrightness({required double? mag}) async {
-    // Push the live SkyBrightnessTracker reading to the
-    // executor.
     await bridge.apiSequencerUpdateSkyBrightness(mag: mag);
   }
 

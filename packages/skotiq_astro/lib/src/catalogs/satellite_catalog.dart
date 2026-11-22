@@ -217,7 +217,6 @@ class TleParser {
   }
 
   static OrbitalElements? _parseTwoLines(String line1, String line2) {
-    // Extract catalog number for name
     final catStr = line1.substring(2, 7).trim();
     return _parseTwoLinesWithName('SAT $catStr', line1, line2);
   }

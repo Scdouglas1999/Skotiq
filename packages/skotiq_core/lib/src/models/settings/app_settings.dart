@@ -33,10 +33,7 @@ abstract class ObserverLocation with _$ObserverLocation {
       _$ObserverLocationFromJson(json);
 }
 
-/// Remote settings wire model. Every field here must also appear in
-/// `_remotableSettingKeys` (settings_sections/app_settings_partial_persistence
-/// _mapping.dart) under its DB key, or a remote save of that key throws through
-/// the `_assertKeysRemotable` guard instead of round-tripping.
+/// Remote settings wire model.
 @freezed
 abstract class AppSettings with _$AppSettings {
   const factory AppSettings({

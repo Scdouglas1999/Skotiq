@@ -85,18 +85,12 @@ export 'sequence_executor/stop_confirmation.dart'
         kNativeStopConfirmationPollInterval,
         kNativeStopConfirmationTimeout;
 
-/// Sequence executor that manages execution.
-///
 /// The provider wires `ref.onDispose(executor.dispose)` so owned timers and
 /// the native event subscription are guaranteed to be torn down with the
 /// provider lifetime, even if a sequence is invalidated mid-run.
 final sequenceExecutorProvider = Provider<SequenceExecutor>((ref) {
   final backend = ref.watch(backendProvider);
   final executor = SequenceExecutor(ref, backend: backend);
-  // Owned timers/subscriptions must be torn down with the provider lifetime —
-  // otherwise an invalidation mid-sequence leaks the periodic progress timer,
-  // the checkpoint timer, and the native event stream subscription past the
-  // disposed Ref. stop() handles the running case; this handles teardown.
   ref.onDispose(executor.dispose);
   return executor;
 });
@@ -272,7 +266,6 @@ class SequenceExecutor {
   /// through [_ref] afterwards — the container may be gone, and the read
   /// throws "Tried to read a provider from a ProviderContainer that was
   /// already disposed" out of an unhandled async error.
-  // NOT final: set to true in [dispose].
   bool _disposed = false;
 
   /// Per-frame cadence smoother backing the run's ETA.
@@ -339,10 +332,7 @@ class SequenceExecutor {
   /// Completes when every live-stacking feed AND fire-and-forget frame
   /// persistence queued SO FAR has finished (the feed chain serialises
   /// feeds, so awaiting the current tail covers all frames pumped before
-  /// this call). Tests await this instead of sleeping a wall-clock
-  /// margin — fixed delays were flaky on slow CI runners, where a
-  /// still-running feed outlived the test body and failed it "after
-  /// completion".
+  /// this call). Tests await this instead of sleeping a wall-clock margin.
   @visibleForTesting
   Future<void> get liveStackingFeedSettledForTest async {
     // Re-read in a loop: a feed step can append to the chain while we
@@ -388,11 +378,6 @@ class SequenceExecutor {
   Future<void> seedIntegrationCarryOverFromHandoffForTest(Sequence sequence) =>
       _runtimeConfig.seedIntegrationCarryOver(sequence);
 
-  /// Convert Dart sequence to JSON for native executor
-  ///
-  /// Why: this is the point where per-sequence and per-node values are
-  /// combined with global AppSettings defaults. Per-node values always win;
-  /// AppSettings is consulted only when the node provides no explicit value.
   Future<validation.ValidationResult> validateSequenceForStart(
     Sequence sequence,
   ) async {
@@ -411,10 +396,7 @@ class SequenceExecutor {
       );
     }
     // A. Start serialization + admissible-state gate.
-    // Reject a second concurrent start (latch) or a start while the executor
-    // is already busy (running / paused / stopping / recovering). A
-    // completed/failed prior run may start again once its cleanup has settled
-    // (idle / completed / failed are admissible). This gate mutates nothing,
+    // This gate mutates nothing,
     // so a rejected concurrent caller leaves the in-flight run — and its
     // Smart Night / mosaic handoff — completely untouched.
     final admissionState = _ref.read(sequenceExecutionStateProvider);
@@ -473,7 +455,7 @@ class SequenceExecutor {
         rethrow;
       }
 
-      // Audit C3 — full pre-flight pass. Every start path (UI button via
+      // Full pre-flight pass. Every start path (UI button via
       // sequence_action_service, headless POST /api/sequencer/start,
       // scheduler autopilot) reaches this code, so they all see the same
       // equipment / disk-space / dark-library / settings checks the pre-flight
@@ -1059,7 +1041,6 @@ class SequenceExecutor {
 
     _startPerRunTimers();
 
-    // Always use backend/native sequencer engine to avoid divergent semantics.
     // This is the last acquisition step; it sets up the native event
     // subscription + settings watchers and issues sequencerStart(). A throw
     // anywhere in the transaction (including here) is rolled back by [start].
@@ -1870,8 +1851,6 @@ class SequenceExecutor {
   /// null (completed, failed, or nothing settled yet).
   String? get lastRunEndOrigin => _lifecycle.lastRunEndOrigin;
 
-  /// Stop the sequencer.
-  ///
   /// The caller declares checkpoint intent via [preserveCheckpoint]:
   ///   * `true` for an operator Stop (`SequenceActionService.stop`) — the
   ///     resume point survives and the session row is finalised as
@@ -2345,10 +2324,7 @@ class SequenceExecutor {
     // Acquisition transaction.
     // From the UI running-state flip onward every resource is part of one
     // lifecycle transaction, protected by the same [_rollbackStart] path as
-    // start(). Every resource from the running-state flip onward is inside
-    // that one rollback transaction, not just the native start — a failure
-    // creating the session/run row must not leave a running UI with an active
-    // session and no native run.
+    // start().
     _beginLaunch();
     try {
       final progressNotifier = _ref.read(runRecordProvider.notifier);
@@ -2366,9 +2342,7 @@ class SequenceExecutor {
       // a Dart DB id, but by this point [_recoverResumedSequence] has put the
       // tree back into `currentSequenceProvider` and the active profile never
       // left memory — so a resumed session carries exactly the identity a
-      // fresh run's does. Recording nulls here is what made the Continue
-      // Session dialog offer "Unknown Profile" / "No Sequence" after the one
-      // event that dialog exists for: an interrupted night.
+      // fresh run's does.
       final loadedForResume = _ref.read(currentSequenceProvider);
       final resumedSequence = loadedForResume == null
           ? null
@@ -2422,11 +2396,6 @@ class SequenceExecutor {
       _clearRestored();
       await backend.sequencerStart();
     } catch (e, st) {
-      // Single rollback path shared with start(): cancels every acquired
-      // resource, finalizes the run failed, ends the session, clears the
-      // stale run id, releases a Smart Night / mosaic handoff, and leaves a
-      // truthful failed state — so a resumed night never shows a permanently
-      // "running" ghost sequence.
       await _rollbackStart(e, st);
       rethrow;
     }

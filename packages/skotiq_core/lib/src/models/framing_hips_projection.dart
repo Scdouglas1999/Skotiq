@@ -409,7 +409,6 @@ class FramingSkyProjection {
     final ux0 = fromCenterX * _cosRot + fromCenterY * _sinRot;
     final uy0 = -fromCenterX * _sinRot + fromCenterY * _cosRot;
 
-    // Remove pan to get the unrotated offset from the panned center.
     final ux = ux0 - pan.dx;
     final uy = uy0 - pan.dy;
 

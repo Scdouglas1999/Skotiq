@@ -1,4 +1,4 @@
-// Pillar C ("Constellation") — Wave 3 swarm-scale hardening.
+// Pillar C ("Constellation") swarm-scale hardening.
 //
 // Pins the two Track-C scale fixes:
 //   * cone tile-selection is index-backed (Dec-band prefilter on

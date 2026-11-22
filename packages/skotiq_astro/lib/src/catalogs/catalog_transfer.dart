@@ -94,7 +94,7 @@ Stream<List<int>> guardCatalogTransfer(
 /// and never returns response headers would leave the download awaiting
 /// forever, before any stream exists for [guardCatalogTransfer] to watch. The
 /// GLADE+ query is the slow case: VizieR runs it for 20 s or more before the
-/// first header, and a cancel pressed in that time used to wait it out.
+/// first header.
 ///
 /// The caller's `finally { client.close(); }` aborts the abandoned request.
 Future<http.StreamedResponse> sendCatalogRequest(

@@ -127,7 +127,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         milliseconds: (settings.exposureTime * 1000).toInt() + 30000,
       );
 
-      // Listen for exposure events and complete when done
       final eventSubscription = backend.eventStream.listen((event) {
         if (!_hasBackendAuthority(backend)) return;
         if (event.category == EventCategory.imaging) {
@@ -452,7 +451,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             );
           }
 
-          // Call native FITS save API
           // Note: This uses the raw data still in memory on the Rust side
           final recordedPath = await _saveFitsFile(
             backend: backend,
@@ -722,7 +720,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           'Inner finally: canceling event subscription',
           source: 'ImagingService',
         );
-        // Add timeout to prevent hanging
         try {
           await eventSubscription.cancel().timeout(
             const Duration(seconds: 2),

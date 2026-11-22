@@ -119,7 +119,7 @@ void main() {
     expect(md, contains('87% (good)'));
   });
 
-  // Audit 2026-08-03: "Export report" produced a Science Report with no light
+  // "Export report" produced a Science Report with no light
   // curve at all for a session holding 80 photometry measurements — the
   // exporter never read photometry_measurements — and the only
   // photometry-shaped heading said "No photometric calibration produced this

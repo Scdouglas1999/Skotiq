@@ -13,6 +13,5 @@ library;
 /// but counting the installed file (119,626 rows) the per-magnitude gain turns
 /// over after 9 — 25,690 stars in 7-8, 41,975 in 8-9, then only 24,814 in 9-10
 /// and 7,580 in 10-11. HYG is Hipparcos-derived, so 9 is where the sky it can
-/// draw runs out. Stating the faintest row instead told the user that the
-/// empty field on screen was the real sky.
+/// draw runs out.
 const double kHygFaintFloorMag = 9.0;

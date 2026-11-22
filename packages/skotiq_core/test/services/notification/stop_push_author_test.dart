@@ -335,7 +335,7 @@ void main() {
     });
   });
 
-  // Decisions-verify refutation D2 (2026-08-14): the terminal `Stopped` trails
+  // The terminal `Stopped` trails
   // the press by however long the safing teardown takes — exposure abort, park,
   // dome close can exceed the 2-minute episode window. A matching run id is
   // proof of identity, and identity outranks time.
@@ -401,7 +401,7 @@ void main() {
     });
   });
 
-  // Decisions-verify refutation D10 (2026-08-14): the autofocusContinued
+  // The autofocusContinued
   // category existed with honest copy but could not reach a phone — absent
   // from the default push matrix AND parked in the transport's never-escalate
   // arm. The exact row the executor writes must push, at the ordinary tier.

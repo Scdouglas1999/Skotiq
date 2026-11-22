@@ -305,7 +305,7 @@ void main() {
     expect(container.read(autofocusOverlayProvider).isRunning, isTrue);
   });
 
-  // Audit 2026-08-03: the completed-result pill never expired. The overlay is
+  // The completed-result pill never expired. The overlay is
   // shell-mounted so it survives navigation during a run (by design), which
   // meant a finished result followed the operator onto Guiding / Plan Tonight
   // / Framing and covered their controls until the app was restarted.

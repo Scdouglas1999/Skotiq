@@ -66,8 +66,7 @@ NodeRollups computeNodeRollups(
     );
   }
   // Compute any node not reached from the root (detached subtrees, or the
-  // no-root case) so every tree row still gets its own value — matching the
-  // pre-memoization behaviour where the family computed each id on demand.
+  // no-root case) so every tree row still gets its own value.
   // Already-computed nodes short-circuit via the cache inside the walk.
   for (final id in sequence.nodes.keys) {
     if (!secsById.containsKey(id)) {

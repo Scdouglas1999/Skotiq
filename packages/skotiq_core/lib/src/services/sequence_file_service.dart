@@ -173,7 +173,6 @@ class SequenceFileService {
 
     _validateSequenceJson(decoded);
 
-    // Read schema version and apply migrations if needed
     final migrated = _migrateSchema(decoded);
 
     final sequence = _jsonToSequence(migrated);
@@ -291,7 +290,6 @@ class SequenceFileService {
       );
     }
 
-    // Validate each node has a 'nodeType' string
     final nodesMap = (json['nodes'] as Map).cast<String, dynamic>();
     for (final entry in nodesMap.entries) {
       if (entry.value is! Map) {

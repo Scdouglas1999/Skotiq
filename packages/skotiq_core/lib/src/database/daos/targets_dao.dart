@@ -86,7 +86,6 @@ class TargetsDao extends DatabaseAccessor<SkotiqDatabase>
     return (select(targets)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
-  /// Get target by catalog ID (e.g., M42, NGC7000)
   Future<DbTarget?> getTargetByCatalogId(String catalogId) {
     return (select(
       targets,

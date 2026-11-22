@@ -1,6 +1,6 @@
 part of '../settings_provider.dart';
 
-/// P1 — Observer-location "unset" detection.
+/// Observer-location "unset" detection.
 ///
 /// Latitude/longitude/elevation default to 0.0 when the user has never
 /// entered a location (the DB seed and every loader fall back to 0.0). The

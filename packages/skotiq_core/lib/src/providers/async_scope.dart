@@ -66,10 +66,6 @@ final class AsyncScope<T> {
 
 /// Hands out [AsyncScope]s for one owner (a `State`, a notifier, a service).
 ///
-/// Replaces the hand-kept `identical(ref.read(backendProvider), backend)`
-/// checks, `_generation` counters and `mounted` tests that each owner used to
-/// combine by hand.
-///
 /// * [begin] scopes are independent: any number can be current at once.
 /// * [beginLatest] scopes supersede each other per [slot]: starting a new one
 ///   makes the previous one stale ("only the newest load may apply").

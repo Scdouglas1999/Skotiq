@@ -25,8 +25,6 @@ part of '../astronomy_calculations.dart';
   var mSun = 357.5291092 + 35999.0502909 * t;
   mSun = mSun % 360;
 
-  // Convert to radians
-  // Note: lRad not needed for simplified calculation
   final mRad = m * _deg2rad;
   final dRad = d * _deg2rad;
   final fRad = f * _deg2rad;

@@ -43,9 +43,7 @@ final _paddedNumber = RegExp(r'^(m|ngc|ic|hip|hd|hyg)0*(\d+)$');
 /// list: per object, its names lower-cased and its names normalized, each
 /// joined with a newline.
 ///
-/// Built once where the catalog is parsed (a background isolate). Searching
-/// used to normalize every name of every object again for each query, about
-/// 400 ms per keystroke with the star catalog installed.
+/// Built once where the catalog is parsed (a background isolate).
 class CatalogNameKeys {
   final List<String> lower;
   final List<String> normalized;

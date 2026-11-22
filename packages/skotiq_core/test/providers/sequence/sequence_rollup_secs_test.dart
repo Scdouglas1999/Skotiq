@@ -1,5 +1,5 @@
 // The Saved library card read "QA M35 Plan · 2m" for a plan the Builder
-// estimated at "~2h 49m" (qa-rig RIG-18): the stored estimate counted one
+// estimated at "~2h 49m": the stored estimate counted one
 // pass of a loop-until-stopped Smart Exposure. It now stores the Builder's
 // own rollup. A block that loops until its target's window closes has no
 // length a saved plan can store (the Builder bills it by tonight's window, or

@@ -378,7 +378,6 @@ class CelestialSpatialIndex<T extends CelestialObject> {
       maxResults: maxResults != null ? maxResults * 2 : null,
     );
 
-    // Filter by actual angular distance
     final results = <T>[];
     for (final obj in candidates) {
       if (maxResults != null && results.length >= maxResults) break;

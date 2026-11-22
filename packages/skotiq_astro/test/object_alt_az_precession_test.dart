@@ -44,7 +44,7 @@ void main() {
       expect(alt, closeTo(6.145, 0.02));
       expect(az, closeTo(42.90, 0.03));
 
-      // And explicitly NOT the unprecessed J2000 answer the app used to state.
+      // And explicitly NOT the unprecessed J2000 answer.
       final lst = AstronomyCalculations.localSiderealTime(dt, _lon);
       final (rawAlt, rawAz) = AstronomyCalculations.equatorialToHorizontal(
         raDeg: _vegaRaDeg,

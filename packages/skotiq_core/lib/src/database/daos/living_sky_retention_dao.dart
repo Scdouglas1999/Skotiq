@@ -5,7 +5,7 @@ import '../tables/living_sky_retention.dart';
 
 part 'living_sky_retention_dao.g.dart';
 
-/// Data access for [LivingSkyRetention] — the Wave 3 per-pillar retention
+/// Data access for [LivingSkyRetention] — the per-pillar retention
 /// bookkeeping ("where did the last prune get to").
 ///
 /// One row per [LivingSkyRetentionScope]. A maintenance sweep reads its marker

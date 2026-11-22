@@ -710,7 +710,6 @@ extension CurrentSequenceTreeEditing on CurrentSequenceNotifier {
     final parent = _currentSequence!.nodes[parentId];
     if (parent == null) return;
 
-    // Validate every requested child is in the parent's child list.
     final parentChildIds = parent.childIds;
     final indices = <int>[];
     for (final childId in childIds) {

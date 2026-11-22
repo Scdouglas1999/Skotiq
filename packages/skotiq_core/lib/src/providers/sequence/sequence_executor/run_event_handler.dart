@@ -902,8 +902,7 @@ class RunEventHandler {
   ///
   /// The executor also sends `pier_changed` the moment the mount is verified
   /// on its new side, before centering and guiding are done. That is the flip,
-  /// and it is counted then: on 2026-11-03 the count stayed 0 through a
-  /// twelve-minute recovery and after it, with the mount on the east side.
+  /// and it is counted then.
   /// The verdict that follows does not count it again.
   void _handleMeridianFlipOutcome(SequencerEvent_MeridianFlipOutcome event) {
     final progressNotifier = _ref.read(runRecordProvider.notifier);

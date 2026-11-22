@@ -113,11 +113,7 @@ final String updaterExecutableName = Platform.isWindows
 
 /// The command line this process was started with, as its `main` received it.
 ///
-/// Handed to the updater so the app comes back the way it was started. A
-/// headless rig launched as `skotiq_desktop --headless --port=...` used to
-/// be relaunched with no arguments at all, which starts the GUI: on a machine
-/// with no display that is nothing, and the rig drops off the network after
-/// what looked like a successful update.
+/// Handed to the updater so the app comes back the way it was started.
 List<String> _relaunchArguments = const [];
 
 /// Record the app's own command line for the updater to reuse. Called once
@@ -436,7 +432,6 @@ class UpdateService {
         );
       }
 
-      // Check if newer version available
       final latestVersion = channelInfo.version;
       final manifest = await _fetchManifest(channelInfo.manifestUrl);
       if (manifest.version != latestVersion) {
@@ -691,7 +686,6 @@ class UpdateService {
     // cancellable network phase has ended.
     onVerifying?.call();
 
-    // Verify package integrity: size and SHA-256 hash
     final packageFile = File(packagePath);
     final verified = await _verifier.verifyPackage(packageFile, manifest);
     if (!verified) {
@@ -1608,12 +1602,6 @@ class PendingInstallStatus {
 }
 
 /// How [UpdateService.applyUpdate] handed the update off.
-///
-/// Callers used to infer this from still being alive afterwards — the desktop
-/// path exits the process, so any return meant something had gone wrong. That
-/// inference is false on Android, where the OS installer takes over and this
-/// process keeps running normally, and it made a successful install report
-/// itself as "the app should have restarted".
 enum UpdateApplyOutcome {
   /// A helper process was launched and this process is exiting. Reaching a
   /// caller at all means the handoff failed.

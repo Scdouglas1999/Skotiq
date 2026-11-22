@@ -19,17 +19,16 @@ import '../utils/retryable_once.dart';
 /// them.
 class FocusModelConfig {
   /// Reject regressions whose absolute slope exceeds this many steps/°C.
-  /// Was hardcoded `|slope| > 500`.
   final double maxAcceptableSlopeStepsPerC;
 
-  /// Minimum R² before [FocusModel.isReliable] returns true. Was 0.7.
+  /// Minimum R² before [FocusModel.isReliable] returns true.
   final double minRSquared;
 
-  /// Minimum sample count before [FocusModel.isReliable] returns true. Was 5.
+  /// Minimum sample count before [FocusModel.isReliable] returns true.
   final int minDataPointCount;
 
   /// Minimum filter-offset confidence required to apply the offset during a
-  /// prediction. Was 0.5.
+  /// prediction.
   final double minFilterOffsetConfidence;
 
   const FocusModelConfig({
@@ -339,7 +338,6 @@ class FocusModelService {
     return _profileData[profileId];
   }
 
-  /// Add a focus data point from an autofocus run
   Future<void> addDataPoint({
     required String profileId,
     required double temperatureCelsius,
@@ -374,7 +372,6 @@ class FocusModelService {
       data = data.copyWith(clearTemperatureModel: true);
     }
 
-    // Update filter offsets if we have a reference filter.
     // Pass the freshly recomputed temperature model so the offset
     // estimation can subtract temperature drift before averaging.
     if (filterName != null && data.referenceFilter != null) {
@@ -424,8 +421,6 @@ class FocusModelService {
   /// so we down-grade to "medium"..
   static const double _highConfidenceTemperatureSpreadC = 5.0;
 
-  /// Update filter offsets based on collected data.
-  ///
   /// The temperature model's prediction is subtracted at each sample's
   /// temperature before averaging, so the reported offset is the *additional*
   /// per-filter shift on top of the shared temperature relationship: for a
@@ -706,7 +701,6 @@ class FocusModelService {
 
     data = data.copyWith(referenceFilter: filterName);
 
-    // Recalculate offsets with new reference.
     // Include the existing temperature model so the recomputed
     // offsets are temperature-corrected when the model is reliable.
     final offsets = _updateFilterOffsets(

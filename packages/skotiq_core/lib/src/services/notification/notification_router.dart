@@ -125,7 +125,6 @@ class NotificationRouter {
   /// windows and the rendered clock time deterministically.
   final DateTime Function() _now;
 
-  /// Event stream subscription.
   StreamSubscription<SkotiqEvent>? _subscription;
 
   /// Decides the ONE phone push a stop episode is allowed, and whether the
@@ -698,10 +697,6 @@ class NotificationRouter {
   /// Hand one message to one transport. Returns false when the dedupe window
   /// swallowed it, which is the seventh way a routed message can send nothing.
   bool _dispatch(NotificationTransport transport, NotificationMessage message) {
-    // Cross-producer de-duplication. Several converging inputs describe one
-    // physical happening (see [_recentSignatures]); the operator must be told
-    // once. The signature is per transport kind, so an external alert is never
-    // swallowed because the UI already said it.
     if (_isDuplicate(transport.kind, message.title, message.body)) return false;
 
     // Fire and forget — the transport's own timeout caps the wait. We

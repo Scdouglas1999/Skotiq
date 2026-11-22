@@ -109,14 +109,6 @@ class SchedulerEngine {
   // `Sequence.id` of the last sequence passed to
   // [SchedulerSequenceSink.dispatchSequence]. This — not `currentTargetId` —
   // is what makes "is this run mine?" answerable.
-  //
-  // `currentTargetId != null` was a STALE-STATE test, not an ownership test:
-  // when the autopilot's own run ended by any path the engine never hears
-  // about (operator Stop, abort, failure — only a natural completion reaches
-  // the trigger stream), currentTargetId stayed set, so the next no-eligible
-  // tick stopped whatever the operator had loaded by then. The engine now
-  // records the run it dispatched and asks the sink whether that exact run is
-  // still the active one before ending it.
   String? _dispatchedRunId;
 
   // Bumped by [stop] (and any other disengage) so an evaluation whose dispatch
@@ -627,8 +619,7 @@ class SchedulerEngine {
         // `filter: null` — not the empty sentinel — is the wire contract for an
         // unfiltered row: it is what suppresses the filter-change instruction
         // and makes the executor render the ${filter} filename token as
-        // "nofilter". Passing '' through emitted a node that asked a wheel-less
-        // rig to select a filter named "".
+        // "nofilter".
         final unfiltered = row.goal.filter.trim().isEmpty;
         nodes[expId] = ExposureNode(
           id: expId,

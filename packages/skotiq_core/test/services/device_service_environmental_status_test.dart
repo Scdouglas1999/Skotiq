@@ -123,7 +123,7 @@ void main() {
     },
   );
 
-  // Simulator campaign 2026-07-28 (S1): a safety monitor that started failing
+  // A safety monitor that started failing
   // its status reads dropped to `error`, and the poll loop skipped every
   // non-connected device — so it was never read again, even after the sensor
   // came back reporting UNSAFE. Only a manual reconnect resumed polling.

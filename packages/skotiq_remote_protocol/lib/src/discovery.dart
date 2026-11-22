@@ -219,10 +219,8 @@ typedef DiscoveryDatagramHandler =
 /// `reuseAddress`. On Windows a unicast datagram to a doubly bound UDP port is
 /// delivered to only one of the sockets, and it was the update responder's,
 /// which ignores discovery probes. A Windows imaging computer therefore never
-/// answered `SKOTIQ_DISCOVERY_V2:` at all (reproduced against a live 8.2.1 GUI
-/// host: the update probe was answered on the same port, the discovery probe
-/// was not). One socket that hands each message to the responder whose prefix
-/// it carries cannot lose a datagram that way.
+/// answered `SKOTIQ_DISCOVERY_V2:` at all. One socket that hands each message
+/// to the responder whose prefix it carries cannot lose a datagram that way.
 class DiscoveryPortMux {
   DiscoveryPortMux._();
 
@@ -738,7 +736,6 @@ class UpdatePushDiscovery {
         }
       });
 
-      // Send update push discovery broadcast
       developer.log(
         'Sending discovery broadcast...',
         name: 'UpdatePushDiscovery',
@@ -750,7 +747,6 @@ class UpdatePushDiscovery {
         _discoveryPort,
       );
 
-      // Wait for responses
       await Future.delayed(timeout);
       developer.log(
         'Discovery complete, found ${targets.length} targets',

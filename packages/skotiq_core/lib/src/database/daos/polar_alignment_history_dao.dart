@@ -107,7 +107,6 @@ class PolarAlignmentHistoryDao extends DatabaseAccessor<SkotiqDatabase>
         ? ((avgInitial - avgFinal) / avgInitial * 100)
         : 0.0;
 
-    // Get best and worst results
     history.sort((a, b) => a.finalTotalError.compareTo(b.finalTotalError));
     final bestFinalError = history.first.finalTotalError;
     final worstFinalError = history.last.finalTotalError;

@@ -312,7 +312,7 @@ SolvedFrameFoldHook solvedFrameFoldHook(
     // invertible WCS; the scan itself no-ops (skips thin tiles) until a deep
     // template exists, so an early-night frame over a sparse tile is cheap.
     //
-    // ORDER IS LOAD-BEARING (Wave 1 self-subtraction fix): the scan MUST run
+    // ORDER IS LOAD-BEARING: the scan MUST run
     // BEFORE the atlas fold below. The diff template is read from the SAME
     // per-tile `.skt` sidecars the fold writes into, so folding first would
     // average this frame's own flux into the template it is differenced

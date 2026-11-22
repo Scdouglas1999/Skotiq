@@ -337,7 +337,6 @@ abstract class Sequence with _$Sequence {
           if (node.integrationTimeTarget != null &&
               node.integrationTimeTarget! > 0 &&
               childrenSingleIteration > 0) {
-            // Find total exposure time per iteration from children
             double exposurePerIteration = 0;
             for (final childId in node.childIds) {
               final child = nodes[childId];

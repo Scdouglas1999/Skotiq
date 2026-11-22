@@ -173,7 +173,7 @@ void main() {
       // overlapped used to open the same file twice and write at offset 0
       // from both handles, leaving the shorter JSON followed by the tail of
       // the longer one (unreadable, so the deferral was lost) or the older
-      // state on top. Measured before the fix: 165 of 200 rounds corrupt.
+      // state on top.
       for (var round = 0; round < 50; round++) {
         unawaited(
           store.write(

@@ -332,7 +332,6 @@ class NoaaRadarProvider extends RadarProvider {
       }
     }
 
-    // Sort in reverse chronological order and limit to max frames
     timestamps.sort((a, b) => b.compareTo(a));
     return timestamps.take(_maxFrames).toList();
   }

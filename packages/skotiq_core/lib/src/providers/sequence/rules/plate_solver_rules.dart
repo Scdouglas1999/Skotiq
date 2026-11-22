@@ -12,10 +12,7 @@ import '../../../models/sequence/validation/validation_issue.dart';
 /// (`native/skotiq_native/sequencer/src/executor/start/preflight.rs`:
 /// "This sequence centers on a target but no plate solver … was found"), but
 /// nothing checked it BEFORE the run: pre-flight reported "Ready with
-/// warnings", Start was enabled, and the run died in 0 s with the reason
-/// buried in History → Session summary. Driven and reproduced on the built
-/// bundle 2026-09-09 with the "Mono LRGB M51" starter, which contains a
-/// Center node.
+/// buried in History → Session summary.
 ///
 /// Silent when the detection probe has not answered yet: an unknown solver
 /// state must not block a run that would have succeeded.

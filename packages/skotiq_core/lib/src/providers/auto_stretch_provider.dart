@@ -444,7 +444,6 @@ _StfParams _calculateStfParams(
     return _StfParams(0, 1, 0.5);
   }
 
-  // Sort for median calculation
   final sorted = List<double>.from(pixels)..sort();
   final len = sorted.length;
   final median = sorted[len ~/ 2];
@@ -555,7 +554,6 @@ Uint8List _histogramStretchIsolate(_StretchParams params) {
     // For RGB, stretch luminance and reconstruct
     final result = Uint8List(pixelCount * 3);
 
-    // Build histogram from luminance
     final histogram = List<int>.filled(65536, 0);
     for (var i = 0; i < pixelCount; i++) {
       final r = data[i * 3];
@@ -641,7 +639,6 @@ Uint8List _asinhStretchIsolate(_StretchParams params) {
   final settings = params.settings;
   final pixelCount = width * height;
 
-  // Calculate scale factor based on data range
   double maxVal = 0;
   for (var i = 0; i < data.length; i++) {
     if (data[i] > maxVal) maxVal = data[i].toDouble();
@@ -699,7 +696,6 @@ Uint8List _logStretchIsolate(_StretchParams params) {
   final isColor = params.isColor;
   final pixelCount = width * height;
 
-  // Find max value for normalization
   double maxVal = 0;
   for (var i = 0; i < data.length; i++) {
     if (data[i] > maxVal) maxVal = data[i].toDouble();

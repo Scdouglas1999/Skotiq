@@ -151,9 +151,7 @@ class PlateSolveService {
         timeoutSeconds: config.timeoutSeconds,
       );
     } catch (e) {
-      // The native solver's own answer is the one shown. A second solver in
-      // Dart used to run here and reported a worse solution than the one the
-      // native side would have (no `--crpix-center`, CD/PC rotation lost).
+      // The native solver's own answer is the one shown.
       return _failureResult('Plate solve failed: ${userFacingError(e)}');
     }
   }

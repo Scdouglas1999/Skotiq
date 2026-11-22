@@ -19,16 +19,6 @@ import 'dart:io';
 /// blind mass replace. The script reports per-category counts and the
 /// worst-offending files so the migration can be driven down over time and
 /// regressions (count growth) can be caught in review.
-///
-/// The TextStyle count jumped from 23 to 2,160 in the Observatory wave-0
-/// commit and no code was added: the scan was line-at-a-time, and `dart format`
-/// breaks nearly every one of these constructors across lines, so it had been
-/// reporting roughly one percent of what was there — while this very comment
-/// said "~2780 inline TextStyles across the app". The count is now taken over
-/// the whole file (2,145 `TextStyle(fontSize:)` plus 15 `.copyWith(fontSize:)`
-/// in the screen layer), which is the number the prose always claimed. The
-/// radius count going 4 -> 0 in the same commit IS a real migration.
-///
 /// Exit behavior:
 ///   * Default (informational): always exits 0 — safe for CI, never blocks.
 ///   * `--max-radii=N`, `--max-textstyles=N`, `--max-colors=N`: exit 1 if the

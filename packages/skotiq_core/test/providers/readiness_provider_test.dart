@@ -472,7 +472,7 @@ void main() {
       },
     );
 
-    // No-hardware campaign 2026-07-29: the profile's guider failed to connect
+    // The profile's guider failed to connect
     // on every launch and the readiness rail read "Ready to image / 2 items to
     // review" where the 2 items were the plate solver and the dark library —
     // the failed guider was not one of them, and appeared nowhere else in the

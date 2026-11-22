@@ -284,14 +284,6 @@ class NinaSequenceParser {
       case 'WaitForAltitude':
         return CanonicalKind.waitForTime;
       // A time SPAN is a duration, not an instant.
-      //
-      // `WaitForTimeSpan` was grouped with the wait-until-an-instant items, so
-      // it mapped to a `WaitTimeNode` whose `waitUntil` comes from a
-      // `waitUntilIso` a timespan does not carry. The result was a Wait node
-      // with no time set — which the validator correctly calls an error, so
-      // every NINA sequence containing one failed to import at all rather than
-      // arriving with a working delay. Its sibling `WaitForTimeSpanDelay`
-      // was already classified this way.
       case 'WaitForTimeSpan':
       case 'WaitForTimeSpanDelay':
       case 'Delay':

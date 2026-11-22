@@ -462,9 +462,7 @@ class NarratorService {
   /// Without this the sessionless bucket has no producer at all. `_imageStats`,
   /// and therefore every quality, focus-drift and milestone detector, is filled
   /// only by [_onImagesChanged], which hangs off `sessionImagesStreamProvider`
-  /// and so is never bound when there is no DB session. The strip was pointed at
-  /// the sessionless feed and the feed stayed empty: an operator shooting by
-  /// hand for an hour saw nothing, which is exactly the complaint.
+  /// and so is never bound when there is no DB session.
   ///
   /// `_pendingFwhm` is deliberately left alone here. It is consumed by
   /// [_onImagesChanged] to stamp a FWHM onto the newest row of the session

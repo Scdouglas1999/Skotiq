@@ -67,7 +67,7 @@ class FlatWizardService {
   /// offset actually commanded, and the binning — used by the UI preview, the
   /// backend command, the FITS header, and the DB record so they cannot drift.
   ///
-  /// Host authority (defect: remote mode): [backend.getCameraStatus] and
+  /// Host authority: [backend.getCameraStatus] and
   /// [backend.getCameraCapabilities] route to the master on a [NetworkBackend],
   /// so the host — not the phone — defines the range and capability limits. Both
   /// Calls are best-effort so the UI can still render a disconnected/partial
@@ -207,11 +207,6 @@ class FlatWizardService {
   }
 
   /// Calculate next exposure time to reach target ADU using proportional adjustment
-  ///
-  /// Uses a conservative approach with safety limits to avoid overshooting:
-  /// - Limits adjustment ratio to prevent extreme jumps
-  /// - Applies minimum/maximum exposure bounds
-  /// - Uses logarithmic damping for large adjustments
   double calculateNextExposure({
     required double currentExposure,
     required double currentAdu,
@@ -506,14 +501,6 @@ class FlatWizardService {
   }
 
   /// Run iterative calibration to find optimal exposure for target ADU
-  ///
-  /// Uses binary search-like algorithm with adaptive step sizing:
-  /// 1. Start with initial exposure estimate
-  /// 2. Capture test frame and measure ADU
-  /// 3. Calculate next exposure using proportional adjustment
-  /// 4. Repeat until within tolerance or max iterations reached
-  ///
-  /// Returns [FlatResult] with optimal exposure and final ADU
   Future<FlatResult> calibrateFilter({
     required String deviceId,
     required String filter,
@@ -712,8 +699,6 @@ class FlatWizardService {
       'the tolerance.';
 
   /// Calibrate filter with rate tracking for sky flats
-  ///
-  /// Uses predictive exposure calculation based on sky brightness rate
   Future<FlatResult> calibrateFilterWithRateTracking({
     required String deviceId,
     required String filter,
@@ -725,8 +710,6 @@ class FlatWizardService {
     required double maxExposure,
     required SkyBrightnessTracker brightnessTracker,
     double? historicalExposure,
-    // Sky flats used to stop after 3 tries, which a darkening twilight sky
-    // routinely needs more than; they now get the operator's setting too.
     int? maxIterations,
     int binX = 1,
     int binY = 1,
@@ -997,9 +980,6 @@ class FlatWizardService {
   }
 
   /// Generate sequence nodes from flat calibration results
-  ///
-  /// Creates ExposureNode for each successful calibration with specified frame count
-  /// Nodes are created as independent flat capture sequences
   List<SequenceNode> generateFlatSequence({
     required List<FlatResult> calibrations,
     required int framesPerFilter,
@@ -1048,9 +1028,6 @@ class FlatWizardService {
   }
 
   /// Generate a complete flat sequence with optional sequence wrapper
-  ///
-  /// Creates InstructionSetNode containing all flat exposure nodes
-  /// Returns a complete Sequence ready to be saved or executed
   Sequence generateCompleteSequence({
     required List<FlatResult> calibrations,
     required int framesPerFilter,
@@ -1107,8 +1084,6 @@ class FlatWizardService {
   }
 
   /// Quick calibration with intelligent defaults
-  ///
-  /// Simplified calibration that uses standard settings for most scenarios
   Future<FlatResult> quickCalibrate({
     required String deviceId,
     required String filter,
@@ -1119,9 +1094,6 @@ class FlatWizardService {
     int binX = 1,
     int binY = 1,
   }) async {
-    // Exposure bounds and iteration count come from the
-    // service's settings-derived fields rather than hardcoded literals so the
-    // user can tune them via the flat wizard global-settings panel.
     return calibrateFilter(
       deviceId: deviceId,
       filter: filter,
@@ -1137,10 +1109,10 @@ class FlatWizardService {
     );
   }
 
-  /// Default minimum exposure for [quickCalibrate]. Was hardcoded 0.001s.
+  /// Default minimum exposure for [quickCalibrate].
   /// Promoted to a service field so user settings can override it.
   final double quickMinExposure;
 
-  /// Default maximum exposure for [quickCalibrate]. Was hardcoded 30.0s.
+  /// Default maximum exposure for [quickCalibrate].
   final double quickMaxExposure;
 }

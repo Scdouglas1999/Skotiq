@@ -176,7 +176,6 @@ class FusionService {
     );
     final sanitizedBytes = delta.serialize();
 
-    // Load (or seed) the fused base tile.
     final base =
         _store.load(tileId, order) ??
         TileBuilder.empty(

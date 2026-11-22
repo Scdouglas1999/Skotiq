@@ -211,8 +211,7 @@ class ResolvedCameraSensorSpecs {
 ///
 /// The producer ([sensorSpecCaveat]) and the recognisers (the Plan screen's
 /// risk banner, the Smart Night builder's prompt) share it, so a reworded
-/// caveat cannot silently stop being recognised — which is how the old banner
-/// came to collapse caveats by sniffing for the words "not configured".
+/// caveat cannot silently stop being recognised.
 const String _sensorSpecCaveatMarker = 'is not published for';
 
 /// The caveat for a sensor field that missed at every tier of the chain.

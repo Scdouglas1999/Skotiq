@@ -34,9 +34,6 @@ Future<void> main() async {
       'missing bundle fixture should replace stale evidence with a failure report',
     );
     _expect(
-      // No `+ 1`: the audit no longer carries a required glob prefix. It
-      // required `FF`, which never shipped in any real bundle — the published,
-      // working v6.0.0 Windows archive has no FF*/ffmpeg file either.
       missingBundleReport['missingRequiredFileCount'] == _requiredFiles.length,
       'missing bundle report should list every required artifact',
     );

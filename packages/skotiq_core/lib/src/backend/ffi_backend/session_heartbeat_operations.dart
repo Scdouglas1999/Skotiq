@@ -67,11 +67,7 @@ mixin _FfiSessionHeartbeatOperations on _FfiBackendBase {
 
       // Sidecar first. `ThumbnailSidecarService` writes a `.thumb.jpg` beside
       // every captured FITS, and reading that back is a ~30 KB file read
-      // instead of a full-frame FITS decode. This path used to go straight to
-      // the cold decode, so on the desktop a night's worth of frames cost one
-      // full decode per frame per navigation even though the cache was sitting
-      // right there on disk. The remote-mode HTTP handler has always read it
-      // first; now both backends agree.
+      // instead of a full-frame FITS decode.
       final sidecarBytes = await _thumbnailSidecars.readSidecar(
         dbImage.filePath,
         stampedPath: await imagesDao.getThumbnailPath(imageId),

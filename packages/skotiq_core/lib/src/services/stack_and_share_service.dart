@@ -252,7 +252,6 @@ class StackAndShareService {
       // the dominant cause instead of just quoting a number.
       final rejectionReasons = <String, int>{};
 
-      // Start the stack from the reference frame.
       await _startStack(
         frame: reference,
         stackingConfig: stackingConfig,

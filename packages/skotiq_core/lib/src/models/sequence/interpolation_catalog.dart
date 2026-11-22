@@ -363,7 +363,6 @@ String previewInterpolation(
   String template, {
   List<InterpolationVariable> catalog = interpolationCatalog,
 }) {
-  // Map from name → example for O(1) lookup.
   final byName = {for (final v in catalog) v.name: v};
   final buf = StringBuffer();
   var i = 0;

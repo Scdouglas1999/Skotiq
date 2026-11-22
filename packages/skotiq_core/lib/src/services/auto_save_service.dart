@@ -590,7 +590,6 @@ class AutoSaveService {
     try {
       final backups = await backupService.listBackups();
 
-      // Filter to only auto-save backups
       final autoSaveBackups = backups
           .where((file) => file.path.contains('autosave'))
           .toList();

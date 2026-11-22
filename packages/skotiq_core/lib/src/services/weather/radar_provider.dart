@@ -90,7 +90,6 @@ class GeoBounds {
   ///
   /// Handles the antimeridian crossing case where east < west.
   bool contains(double lat, double lon) {
-    // Check latitude (simple case)
     if (lat < south || lat > north) {
       return false;
     }

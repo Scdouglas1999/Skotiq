@@ -58,7 +58,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       final endTime = currentTime.add(nodeDuration);
       final warnings = <String>[];
 
-      // Add loop iteration note if applicable
       if (loopIterationNote != null) {
         warnings.add(loopIterationNote);
       }
@@ -80,7 +79,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       currentTime = endTime;
     }
 
-    // Process children in order
     if (node.childIds.isNotEmpty) {
       final children = sequence.getChildren(node.id);
 

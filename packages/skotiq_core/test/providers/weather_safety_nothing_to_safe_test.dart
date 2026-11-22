@@ -72,7 +72,7 @@ class _FakeSecondaryRig extends SecondaryRigController {
 }
 
 void main() {
-  // Coverage campaign 2026-08: turning "Enable weather safety" on with no
+  // Turning "Enable weather safety" on with no
   // weather source, on an idle app with nothing connected, executed the
   // safe-the-rig workflow and announced a rig-safing event. Nothing was — or
   // could be — commanded.

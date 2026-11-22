@@ -766,7 +766,6 @@ class SessionOptimizerService {
         )
         .toList(growable: false);
 
-    // Sort by confidence descending so the strongest insights surface first.
     filtered.sort((a, b) => b.confidence.compareTo(a.confidence));
 
     return filtered;

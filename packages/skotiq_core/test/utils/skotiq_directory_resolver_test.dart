@@ -1,6 +1,6 @@
 // One resolver decides where this instance's data lives.
 //
-// Live defect (fresh-install audit, 2026-09-01): SKOTIQ_DATA_DIR relocated
+// SKOTIQ_DATA_DIR relocated
 // the Rust side's persistence and the Dart log directory, and nothing else.
 // Catalogs, catalog caches, checkpoints, the sky atlas, staged updates, the
 // remote-access token and the push secret went on resolving

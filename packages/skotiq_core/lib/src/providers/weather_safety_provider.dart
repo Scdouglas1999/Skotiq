@@ -127,7 +127,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// reporting itself connected.
 
   /// Push cadence for cloud-motion data into the Rust
-  /// executor. 60 seconds matches the brief's "every 60s say".
+  /// executor.
   static const _cloudMotionPushInterval = Duration(seconds: 60);
 
   /// How often the verdict is re-sent to the sequencer and the forecast's age
@@ -458,7 +458,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       dataSource = SafetyDataSource.weatherApi;
     }
 
-    // Check for failures requiring fail mode handling
     String? failModeWarning = unreachableWarning;
     if (alertStale) {
       failModeWarning ??=

@@ -234,12 +234,7 @@ Map<String, Object?> _buildJsonReport({
   final semanticRawColors =
       rawColorClassifications['semantic_theme_color'] ?? 0;
   // `deprecated_text_style` is deliberately NOT here. It reports an
-  // in-progress migration — the Observatory overhaul deprecates the old scale
-  // in wave 0 and rewrites the call sites screen by screen in wave 3 — so every
-  // one of its findings is a site the deprecating wave was forbidden to touch.
-  // Blocking on it would fail the build for doing exactly what was asked. Wave
-  // 4 deletes the deprecated members, at which point the rule can only fire on
-  // a reintroduction and can be promoted.
+  // in-progress migration.
   final blockingRuleIds = <String>[
     'raw_button_style',
     'large_radius',
@@ -515,11 +510,7 @@ Map<String, Object?> _designSystemGalleryEvidence() {
     missing.add('package_export');
   }
 
-  // The Observatory kit, section by section (05 §18). The list used to name
-  // the PRE-overhaul library — Cards, the pill Tabs, Chips and Status Pills,
-  // Alerts, `SubTabButton`, `StatusPill`, `SkotiqAlert` — and wave 4
-  // deleted those sections from the gallery, so holding the gallery to them
-  // would have demanded the retired kit back.
+  // The Observatory kit, section by section (05 §18).
   const requiredComponentMarkers = <String>[
     'Panels and wells',
     'Readouts',

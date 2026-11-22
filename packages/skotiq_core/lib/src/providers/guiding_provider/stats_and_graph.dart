@@ -157,7 +157,6 @@ class GuideStatsNotifier extends StateNotifier<Phd2GuideStats> {
     _rmsDecCalculator.add(decDistance);
     _frameCount++;
 
-    // Calculate proper RMS using rolling window
     // Formula: sqrt(mean(x²)) for each axis
     final rmsRa = _rmsRaCalculator.rms;
     final rmsDec = _rmsDecCalculator.rms;
@@ -406,10 +405,7 @@ final guideGraphProvider =
 class GuideGraphNotifier extends StateNotifier<List<GuideGraphPoint>> {
   final Ref ref;
   late final _BackendGuidingEventBinding _events;
-  // ~2.5–7 min of history at PHD2's typical 0.5–2 Hz guide cadence. The
-  // previous cap of 100 (≈1 min) erased the context needed to judge
-  // whether a spike was a one-off (cable snag, gust) or a developing
-  // trend (balance/drift) — exactly the call a user makes from the couch.
+  // ~2.5–7 min of history at PHD2's typical 0.5–2 Hz guide cadence.
   static const int maxPoints = 400;
   final Queue<GuideGraphPoint> _buffer = Queue<GuideGraphPoint>();
   LoggingService get _logger => ref.read(loggingServiceProvider);

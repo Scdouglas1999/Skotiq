@@ -53,7 +53,6 @@ class SimbadProvider {
 
         if (data != null && (data as List).isNotEmpty) {
           final row = data[0];
-          // Parse row data (simplified mapping)
           // Note: SIMBAD JSON format is [[val1, val2, ...], ...]
 
           return ObjectData(
