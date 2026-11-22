@@ -58,6 +58,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show PairedDevice, PairingDatabase;
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_core/settings.dart' show PortRange;
 
 import '../../utils/confirm_dialog.dart';
 import '../../utils/snackbar_helper.dart';

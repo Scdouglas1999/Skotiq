@@ -67,7 +67,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     required bool showFeedback,
   }) {
     final port = int.tryParse(_portController.text);
-    if (port != null && port >= 1024 && port <= 65535) {
+    if (port != null && PortRange.webServer.contains(port)) {
       if (port == settings.webServerPort || port == _lastSubmittedPort) {
         _lastSubmittedPort = port;
         return;

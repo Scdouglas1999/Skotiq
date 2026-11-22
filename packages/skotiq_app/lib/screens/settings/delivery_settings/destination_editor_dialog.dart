@@ -538,7 +538,7 @@ class _DestinationEditorDialogState
             error: 'An SFTP destination needs a remote directory.',
           );
         }
-        if (port == null || port < 1 || port > 65535) {
+        if (port == null || !PortRange.any.contains(port)) {
           return (
             config: config,
             error: 'The port must be a number between 1 and 65535.',
