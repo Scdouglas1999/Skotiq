@@ -14,7 +14,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequence_mutator_helper.dart';
 import '../../../tours/tour_target.dart';
-import '../../../widgets/accessible_dropdown.dart';
 import '../sequence_fold_model.dart';
 import '../sequence_fold_state.dart';
 import 'delete_node_confirmation.dart';
@@ -37,6 +36,7 @@ import 'tree_insert.dart';
 import 'visual_timeline.dart';
 import 'node_appearance.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'node_status_color.dart';
 
 part 'sequence_tree/auto_collapse.dart';
 part 'sequence_tree/gutter_map.dart';

@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 import '../utils/touch_target.dart';
 import 'skotiq_text_field.dart';
 
@@ -43,10 +41,6 @@ class SkotiqDropdown extends StatefulWidget {
   /// one, like every other field.
   final bool isExpanded;
 
-  /// No longer read: the closed control's height is fixed by the field face.
-  @Deprecated('The field height is fixed; use `dense`. Removed in wave 4.')
-  final bool isDense;
-
   /// 28px instead of 32 — matches [SkotiqTextField.dense] so a dense row
   /// can mix the two without a step in the baseline.
   final bool dense;
@@ -61,7 +55,6 @@ class SkotiqDropdown extends StatefulWidget {
     this.onChanged,
     this.isExpanded = false,
     // ignore: deprecated_member_use_from_same_package
-    this.isDense = false,
     this.dense = false,
   });
 

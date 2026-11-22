@@ -1,7 +1,5 @@
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'package:flutter/material.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
 
 enum StatusPillStatus { active, warning, error, inactive, success }
 

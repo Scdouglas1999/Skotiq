@@ -128,7 +128,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
                     'Could not open the onboarding tour. Please try again.',
                 onPressed: () => runner.resume(Tour.firstLaunch),
               ),
-              isLast: false,
             ),
             SettingRow(
               icon: LucideIcons.archive,
@@ -143,7 +142,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
                 icon: LucideIcons.play,
                 onPressed: () => context.push(AppRoute.diagnosticsDump.path),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -177,7 +175,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
                 size: ButtonSize.small,
                 onPressed: () => _showResetConfirmation(context, ref),
               ),
-              isLast: true,
             ),
           ],
         ),

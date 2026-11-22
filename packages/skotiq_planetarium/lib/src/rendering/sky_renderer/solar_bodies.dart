@@ -29,15 +29,13 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
     canvas.drawCircle(offset, 10, sunPaint);
 
     // Sun label
-    const textStyle = TextStyle(
-      fontFamily: SkotiqTypography.fontFamily,
-      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+    final textStyle = SkotiqTypography.canvas(
       color: sunColor,
       fontSize: 10,
       fontWeight: FontWeight.bold,
     );
     final textPainter = TextPainter(
-      text: const TextSpan(text: 'SUN', style: textStyle),
+      text: TextSpan(text: 'SUN', style: textStyle),
       textDirection: ui.TextDirection.ltr,
     );
     textPainter.layout();
@@ -151,9 +149,7 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
 
     // Moon label with illumination %
     final illuminationPct = (illumination * 100).round();
-    final labelStyle = TextStyle(
-      fontFamily: SkotiqTypography.fontFamily,
-      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+    final labelStyle = SkotiqTypography.canvas(
       color: const Color(0xFFB0BEC5),
       fontSize: moonRadius > 20 ? 11 : 10,
       fontWeight: FontWeight.w500,
@@ -203,9 +199,7 @@ extension _SkyCanvasPainterSolarBodies on SkyCanvasPainter {
 
       // Planet label with collision avoidance
       final fontSize = _getLabelFontSize(planet.magnitude, 'planet');
-      final textStyle = TextStyle(
-        fontFamily: SkotiqTypography.fontFamily,
-        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+      final textStyle = SkotiqTypography.canvas(
         color: planetColor,
         fontSize: fontSize,
         fontWeight: FontWeight.w600, // Planets always prominent

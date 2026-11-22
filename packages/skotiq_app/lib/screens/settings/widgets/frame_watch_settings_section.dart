@@ -79,7 +79,6 @@ class _FrameWatchSettingsSectionState
             onChanged: (value) =>
                 _save(() => notifier.setDriftLimitArcsec(value)),
           ),
-          isLast: !widget.showObstructionDetection,
         ),
         if (widget.showObstructionDetection) ...[
           SettingRow(
@@ -97,7 +96,6 @@ class _FrameWatchSettingsSectionState
               onChanged: (value) =>
                   _save(() => notifier.setObstructionDetection(value)),
             ),
-            isLast: !settings.obstructionDetection,
           ),
           if (settings.obstructionDetection)
             SettingRow(
@@ -119,7 +117,6 @@ class _FrameWatchSettingsSectionState
                 onChanged: (action) =>
                     _save(() => notifier.setObstructionAction(action)),
               ),
-              isLast: true,
             ),
         ],
       ],

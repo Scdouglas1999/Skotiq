@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'skotiq_colors.dart';
-import 'skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// Shared [BoxDecoration] helpers for the Skotiq UI.
 ///
@@ -388,72 +387,6 @@ abstract final class SkotiqDecorations {
         color: color.withValues(alpha: SkotiqTokens.opacitySelectedRing),
       ),
     );
-  }
-
-  /// Selected navigation rail / sidebar item.
-  @Deprecated('Use SkotiqDecorations.railItemSelected. Removed in wave 4.')
-  static BoxDecoration navSelected(
-    SkotiqColors colors, {
-    BorderRadius? borderRadius,
-  }) {
-    final base = railItemSelected(colors);
-    return borderRadius == null
-        ? base
-        : base.copyWith(borderRadius: borderRadius);
-  }
-
-  /// Selected card with accent tint and emphasis border.
-  @Deprecated('Use SkotiqDecorations.panelSelected. Removed in wave 4.')
-  static BoxDecoration cardSelected(
-    Color accent, {
-    Color? background,
-    BorderRadius? borderRadius,
-    double borderWidth = 1,
-  }) {
-    final fill = background != null
-        ? Color.alphaBlend(
-            accent.withValues(alpha: SkotiqTokens.opacityTint),
-            background,
-          )
-        : accent.withValues(alpha: SkotiqTokens.opacityTint);
-    return BoxDecoration(
-      color: fill,
-      borderRadius:
-          borderRadius ?? BorderRadius.circular(SkotiqTokens.radiusLg),
-      border: Border.all(
-        color: accent.withValues(alpha: SkotiqTokens.opacitySelectedRing),
-        width: borderWidth,
-      ),
-    );
-  }
-
-  /// Hover state for interactive rows.
-  @Deprecated(
-    'A panel has no hover; a tappable row takes a surfaceHover fill. '
-    'Removed in wave 4.',
-  )
-  static BoxDecoration cardHover(
-    SkotiqColors colors, {
-    BorderRadius? borderRadius,
-  }) {
-    return BoxDecoration(
-      color: colors.surfaceHover,
-      borderRadius:
-          borderRadius ?? BorderRadius.circular(SkotiqTokens.radiusLg),
-    );
-  }
-
-  /// Drag-and-drop feedback frame.
-  @Deprecated('Use SkotiqDecorations.popover. Removed in wave 4.')
-  static BoxDecoration dragFeedback(
-    SkotiqColors colors, {
-    BorderRadius? borderRadius,
-    Color? accentColor,
-  }) {
-    final base = popover(colors);
-    return borderRadius == null
-        ? base
-        : base.copyWith(borderRadius: borderRadius);
   }
 
   /// Circular or rounded KPI / score badge.

@@ -1,8 +1,6 @@
-import '../theme/skotiq_data_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
 import 'skotiq_switch_style.dart';
 
 /// Canonical Skotiq toggle control — the visual switch only.

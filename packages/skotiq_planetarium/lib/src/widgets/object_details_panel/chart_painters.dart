@@ -22,18 +22,14 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: TextStyle(
-            fontFamily: SkotiqTypography.fontFamily,
-            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+          style: SkotiqTypography.canvas(
             color: color.withValues(alpha: 0.5),
             fontSize: SkotiqTypography.fontSize10,
           ),
         ),
         Text(
           value,
-          style: TextStyle(
-            fontFamily: SkotiqTypography.fontFamily,
-            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+          style: SkotiqTypography.canvas(
             color: color,
             fontSize: SkotiqTypography.fontSize12,
             fontWeight: FontWeight.w600,
@@ -109,9 +105,7 @@ class _AltitudeGraphPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: ccLabel,
-          style: TextStyle(
-            fontFamily: SkotiqTypography.fontFamily,
-            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+          style: SkotiqTypography.canvas(
             color: labelColor.withValues(alpha: 0.7),
             fontSize: SkotiqTypography.fontSize8,
             fontWeight: FontWeight.w500,
@@ -241,9 +235,7 @@ class _AirmassChartPainter extends CustomPainter {
     final now = ref.read(observationTimeProvider).time;
 
     final gridColor = txtColor.withValues(alpha: 0.15);
-    final labelStyle = TextStyle(
-      fontFamily: SkotiqTypography.fontFamily,
-      fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+    final labelStyle = SkotiqTypography.canvas(
       color: txtColor.withValues(alpha: 0.4),
       fontSize: SkotiqTypography.fontSize9,
     );
@@ -409,11 +401,9 @@ class _AirmassChartPainter extends CustomPainter {
 
       // Label "best" below marker
       final bestLabel = TextPainter(
-        text: const TextSpan(
+        text: TextSpan(
           text: 'best',
-          style: TextStyle(
-            fontFamily: SkotiqTypography.fontFamily,
-            fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+          style: SkotiqTypography.canvas(
             color: SkyPlotColors.good,
             fontSize: SkotiqTypography.fontSize8,
             fontWeight: FontWeight.w600,

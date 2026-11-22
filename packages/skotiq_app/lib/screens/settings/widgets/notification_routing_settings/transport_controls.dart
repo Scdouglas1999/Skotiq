@@ -206,7 +206,6 @@ Widget _transportErrorSection({
           size: ButtonSize.small,
           onPressed: onRetry,
         ),
-        isLast: true,
       ),
     ],
   );
@@ -231,7 +230,7 @@ Widget _transportErrorSection({
   final trimmed = raw.trim();
   if (trimmed.isEmpty) return (port: defaultPort, error: null);
   final parsed = int.tryParse(trimmed);
-  if (parsed == null || parsed < 1 || parsed > 65535) {
+  if (parsed == null || !PortRange.any.contains(parsed)) {
     return (port: null, error: 'Enter a valid port (1-65535).');
   }
   return (port: parsed, error: null);

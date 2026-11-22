@@ -19,4 +19,11 @@ void main() {
     }
     expect(SkotiqTypography.fontFamilyFallback, ['Sora', 'SkotiqSymbols']);
   });
+
+  test('painted text takes the text face and the same fallback', () {
+    final style = SkotiqTypography.canvas(fontSize: 10);
+    expect(style.fontFamily, SkotiqTypography.fontFamily);
+    expect(style.fontFamilyFallback, SkotiqTypography.fontFamilyFallback);
+    expect(style.fontSize, 10);
+  });
 }

@@ -228,7 +228,6 @@ class _SettingsChoiceState<T> extends State<SettingsChoice<T>> {
           if (index >= 0) _select(values[index]);
         },
         isExpanded: true,
-        isDense: true,
       ),
     );
 

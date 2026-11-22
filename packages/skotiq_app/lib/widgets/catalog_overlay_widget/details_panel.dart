@@ -17,7 +17,7 @@ class CatalogOverlayDetailsPanel extends ConsumerWidget {
     final object = ref.watch(selectedCatalogOverlayObjectProvider);
     if (object == null) return const SizedBox.shrink();
 
-    final panelWidth = clampPanelWidth(
+    final panelWidth = panelWidthFromFraction(
       MediaQuery.sizeOf(context).width,
       fraction: 0.28,
       min: 200,

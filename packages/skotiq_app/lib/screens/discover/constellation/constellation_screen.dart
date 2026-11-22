@@ -247,7 +247,7 @@ class _ConnectedBody extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Expanded(
-                child: SectionHeader(
+                child: SectionTitle(
                   title: 'Shared targets',
                   subtitle: 'Community fields the swarm is deepening together',
                 ),
@@ -314,7 +314,7 @@ class _FollowTheNightSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(
+            const SectionTitle(
               title: 'Follow the night',
               subtitle: 'Where it is darkest for you and the swarm needs depth',
             ),
@@ -333,7 +333,7 @@ class _FollowTheNightSection extends StatelessWidget {
       error: (error, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const SectionTitle(
             title: 'Follow the night',
             subtitle: 'Where it is darkest for you and the swarm needs depth',
           ),

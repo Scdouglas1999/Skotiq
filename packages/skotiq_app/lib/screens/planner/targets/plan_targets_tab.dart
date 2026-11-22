@@ -24,6 +24,7 @@ import '../../../router/planner_route.dart';
 import '../../../router/settings_sections.dart';
 import '../../../services/run_dashboard_providers.dart'
     show runDashboardActiveTargetProvider;
+import '../../../utils/confirm_dialog.dart';
 import '../../../utils/darkroom_navigation.dart';
 import '../../../utils/plan_tonight_sequencer_helper.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -275,16 +276,14 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
       await _runAutopilot(_AutopilotAction.start);
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (context) => _ConfirmDialog(
-        title: 'Start with these not ready?',
-        body: 'The rig can run, but:\n\n'
-            '${warnings.map((w) => '${w.title}: ${w.detail}').join('\n')}',
-        confirmLabel: 'Start anyway',
-      ),
+      title: 'Start with these not ready?',
+      message: 'The rig can run, but:\n\n'
+          '${warnings.map((w) => '${w.title}: ${w.detail}').join('\n')}',
+      confirmLabel: 'Start anyway',
     );
-    if (confirmed == true) {
+    if (confirmed) {
       await _runAutopilot(_AutopilotAction.start, allowWarnings: true);
     }
   }
@@ -474,17 +473,15 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     if (_groupsReadOnly()) return;
     final id = group.id;
     if (id == null) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (_) => _ConfirmDialog(
-        title: 'Delete the group "${group.name}"?',
-        body: 'Its targets, their frames and their goals are kept. Only the '
-            'grouping is removed.',
-        confirmLabel: 'Delete group',
-        destructive: true,
-      ),
+      title: 'Delete the group "${group.name}"?',
+      message: 'Its targets, their frames and their goals are kept. Only the '
+          'grouping is removed.',
+      confirmLabel: 'Delete group',
+      isDestructive: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     final deleted = await _groupEdit(
       'Could not delete the group.',
       (s) => s.deleteProject(id),
@@ -518,15 +515,13 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     if (_groupsReadOnly()) return;
     final groupId = group.id;
     if (groupId == null) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (_) => _ConfirmDialog(
-        title: 'Take ${target.name} out of "${group.name}"?',
-        body: 'Its frames and goals are kept, and it stays under All targets.',
-        confirmLabel: 'Take out',
-      ),
+      title: 'Take ${target.name} out of "${group.name}"?',
+      message: 'Its frames and goals are kept, and it stays under All targets.',
+      confirmLabel: 'Take out',
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     await _groupEdit(
       'Could not take the target out of the group.',
       (s) => s.removeTarget(projectId: groupId, targetId: target.id),
@@ -554,17 +549,15 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
   }
 
   Future<void> _cleanUp(int count) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await ConfirmDialog.show(
       context: context,
-      builder: (_) => _ConfirmDialog(
-        title: 'Remove $count unused ${count == 1 ? 'target' : 'targets'}?',
-        body: 'Targets with no frames, no sessions and no goal are removed '
-            'from your list. Nothing that was imaged is touched.',
-        confirmLabel: 'Remove',
-        destructive: true,
-      ),
+      title: 'Remove $count unused ${count == 1 ? 'target' : 'targets'}?',
+      message: 'Targets with no frames, no sessions and no goal are removed '
+          'from your list. Nothing that was imaged is touched.',
+      confirmLabel: 'Remove',
+      isDestructive: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     final host = ref.backendScope();
     try {
       final removed =
@@ -876,46 +869,4 @@ String _progressText(ProjectProgress p) {
     return '${_hours(p.integratedSecs)} / ${_hours(p.goal.goalSecs)}';
   if (p.integratedSecs <= 0) return 'Not started';
   return '${_hours(p.integratedSecs)} · no goal';
-}
-
-/// A yes/no question in the app's dialog.
-class _ConfirmDialog extends StatelessWidget {
-  const _ConfirmDialog({
-    required this.title,
-    required this.body,
-    required this.confirmLabel,
-    this.destructive = false,
-  });
-
-  final String title;
-  final String body;
-  final String confirmLabel;
-  final bool destructive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    return SkotiqDialog(
-      title: title,
-      width: 480,
-      showCloseButton: false,
-      actions: [
-        SkotiqButton(
-          label: 'Cancel',
-          variant: ButtonVariant.ghost,
-          onPressed: () => Navigator.of(context).pop(false),
-        ),
-        SkotiqButton(
-          label: confirmLabel,
-          variant:
-              destructive ? ButtonVariant.destructive : ButtonVariant.primary,
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
-      ],
-      child: Text(
-        body,
-        style: SkotiqTypography.body.copyWith(color: colors.textSecondary),
-      ),
-    );
-  }
 }

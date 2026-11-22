@@ -6,10 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
 
 import '../components/series_chart.dart' show SeriesChart, SeriesChartTone;
-import '../theme/skotiq_chart_colors.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'chart_scale.dart';
 
 /// How a [ChartSeries] is drawn.

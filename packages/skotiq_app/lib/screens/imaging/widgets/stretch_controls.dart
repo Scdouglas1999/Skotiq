@@ -7,7 +7,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../utils/snackbar_helper.dart';
 
 /// Provides descriptions for each stretch method, used in tooltips.

@@ -278,7 +278,7 @@ class _CoImagingSectionState extends ConsumerState<_CoImagingSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Live co-imaging',
           subtitle: 'Pool integration on one target across rigs and longitudes',
           trailing: SkotiqButton(
@@ -611,7 +611,7 @@ class _MosaicsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const SectionTitle(
           title: 'Collaborative mosaics',
           subtitle: 'Split a mosaic across rigs and get one fused result',
         ),
@@ -693,7 +693,7 @@ class _SharedLibrarySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const SectionTitle(
           title: 'Shared calibration',
           subtitle: 'Pull a sensor-matched master instead of re-shooting',
         ),

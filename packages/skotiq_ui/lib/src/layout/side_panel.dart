@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../components/skotiq_icon_button.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../tokens/shell_chrome_metrics.dart';
 
 /// One section of a [SidePanel]'s icon strip.

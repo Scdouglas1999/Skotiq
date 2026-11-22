@@ -42,7 +42,6 @@ class _ProbeLeaf extends StatelessWidget {
                 height: 24,
                 child: ColoredBox(color: Color(0xFF00FF00)),
               ),
-              isLast: true,
             ),
           ],
         ),

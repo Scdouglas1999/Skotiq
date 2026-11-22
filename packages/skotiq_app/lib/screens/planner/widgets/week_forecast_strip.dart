@@ -97,7 +97,7 @@ class WeekForecastStrip extends ConsumerWidget {
                 SkotiqTokens.spaceLg,
                 0,
               ),
-              child: SectionHeader(
+              child: SectionTitle(
                 title: 'This week',
                 subtitle: 'Best nights for your project targets',
               ),

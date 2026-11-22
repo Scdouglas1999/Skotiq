@@ -236,7 +236,7 @@ class _DiscordConfigDialogState extends State<_DiscordConfigDialog> {
                   const SizedBox(height: SkotiqTokens.spaceLg),
                   SkotiqInlineBanner(
                     message: _validationError!,
-                    severity: SkotiqAlertSeverity.error,
+                    severity: BannerTone.error,
                   ),
                 ],
               ],

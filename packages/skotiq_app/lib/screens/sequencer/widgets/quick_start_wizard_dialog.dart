@@ -28,7 +28,6 @@ import 'package:uuid/uuid.dart';
 import '../../../utils/open_in_editor.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/authority_bound_dialog.dart';
-import '../../../widgets/accessible_dropdown.dart';
 import '../sequencer_screen.dart';
 
 part 'quick_start_wizard_dialog/_wizard_shell.dart';

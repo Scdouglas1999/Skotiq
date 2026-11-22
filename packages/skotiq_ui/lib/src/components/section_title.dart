@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// A section heading inside a side panel or a settings page:
-/// `[icon 15 muted] [sectionTitle] … [trailing]`, 8px gap, 8px below.
+/// `[icon 15 muted] [sectionTitle] … [trailing]`, 8px gap, 8px below, with an
+/// optional [subtitle] caption under the row.
 ///
 /// Replaces the Imaging 4 × 2 tile grid and the Sequencer properties header —
 /// a section needs a name, not a chrome of its own.
@@ -15,6 +14,7 @@ class SectionTitle extends StatelessWidget {
     required this.title,
     this.icon,
     this.trailing,
+    this.subtitle,
   });
 
   /// The section name, in sentence case.
@@ -26,6 +26,9 @@ class SectionTitle extends StatelessWidget {
   /// An optional trailing control, right-aligned.
   final Widget? trailing;
 
+  /// An optional sentence under the title, in `caption` `textMuted`.
+  final String? subtitle;
+
   static const double gap = SkotiqTokens.spaceSm;
 
   /// Space between the title row and the section's content.
@@ -36,28 +39,44 @@ class SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.skotiqColors;
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: <Widget>[
+        if (icon != null) ...<Widget>[
+          Icon(icon, size: iconSize, color: colors.textMuted),
+          const SizedBox(width: gap),
+        ],
+        Expanded(
+          child: Text(
+            title,
+            style: SkotiqTypography.sectionTitle.copyWith(
+              color: colors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    );
+    final subtitle = this.subtitle;
     return Padding(
       padding: const EdgeInsets.only(bottom: bottomGap),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          if (icon != null) ...<Widget>[
-            Icon(icon, size: iconSize, color: colors.textMuted),
-            const SizedBox(width: gap),
-          ],
-          Expanded(
-            child: Text(
-              title,
-              style: SkotiqTypography.sectionTitle.copyWith(
-                color: colors.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+      child: subtitle == null
+          ? row
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                row,
+                const SizedBox(height: SkotiqTokens.spaceXs),
+                Text(
+                  subtitle,
+                  style: SkotiqTypography.caption.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
+              ],
             ),
-          ),
-          if (trailing != null) trailing!,
-        ],
-      ),
     );
   }
 }

@@ -199,7 +199,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                     narrowWidth: 240,
                     onChanged: _commitPattern,
                   ),
-                  isLast: true,
                   stackWhenNarrow: true,
                 ),
                 _patternFeedback(

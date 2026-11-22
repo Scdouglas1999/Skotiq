@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../tokens/shell_chrome_metrics.dart';
 import '../utils/touch_target.dart';
 

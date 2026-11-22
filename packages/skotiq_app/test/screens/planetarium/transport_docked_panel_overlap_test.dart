@@ -15,7 +15,7 @@ import 'package:skotiq_planetarium/skotiq_planetarium.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The Layers/Plan drawer width the shell docks at 900 px
-/// (`clampPanelWidth(900, fraction: 0.30, min: 280, max: 380)`).
+/// (`panelWidthFromFraction(900, fraction: 0.30, min: 280, max: 380)`).
 const double _drawerWidth = 280;
 const Size _window = Size(900, 900);
 

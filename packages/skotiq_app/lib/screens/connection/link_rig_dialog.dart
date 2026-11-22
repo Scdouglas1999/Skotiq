@@ -9,6 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/settings.dart' show PortRange;
 
 import 'link_mismatch_actions.dart';
 
@@ -198,7 +199,7 @@ class _LinkRigDialogState extends ConsumerState<LinkRigDialog> {
       setState(() => _manualError = 'Enter the computer name or IP address.');
       return;
     }
-    if (port == null || port < 1 || port > 65535) {
+    if (port == null || !PortRange.any.contains(port)) {
       setState(() => _manualError = 'The port is a number from 1 to 65535.');
       return;
     }

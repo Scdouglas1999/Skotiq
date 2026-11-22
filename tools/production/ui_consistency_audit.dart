@@ -71,8 +71,8 @@ final _rules = <_Rule>[
       // The pre-overhaul decoration factories, replaced by panel / well /
       // panelSelected / railItemSelected / chip / popover / dialog (§5.2).
       r'|SkotiqDecorations\.(?:iconChip|emphasisSurface|tintedBadge'
-      r'|statusChip|selectedSurface|cardSelected|navSelected|cardHover'
-      r'|dragFeedback|kpiBadge|filledButtonColors|filledButton)\b',
+      r'|statusChip|selectedSurface|kpiBadge|filledButtonColors'
+      r'|filledButton)\b',
     ),
     summary:
         'Deprecated design-system member. Adopt the Observatory replacement '
@@ -491,8 +491,7 @@ Map<String, Object?> _designSystemGalleryEvidence() {
   const widgetPath =
       'packages/skotiq_ui/lib/src/widgets/design_system_gallery.dart';
   const exportPath = 'packages/skotiq_ui/lib/skotiq_ui.dart';
-  const testPath =
-      'packages/skotiq_ui/test/design_system_gallery_test.dart';
+  const testPath = 'packages/skotiq_ui/test/design_system_gallery_test.dart';
   final missing = <String>[];
   final componentEvidence = <String, bool>{};
   final testEvidence = <String, bool>{};
@@ -643,13 +642,6 @@ bool _isScopedOutFinding({required String path, required String ruleId}) {
           'packages/skotiq_app/lib/screens/discover/mosaic/mosaic_project_screen.dart') {
     // A muted breadcrumb, not an action: the theme's TextButton default paints
     // it as a primary one. The override keeps kMinInteractiveDimension.
-    return true;
-  }
-  if (ruleId == 'deprecated_text_style' &&
-      path == 'packages/skotiq_ui/lib/src/theme/skotiq_colors.dart') {
-    // The rule is about CALL SITES. This file is where `surfaceAlt` is
-    // declared, and a deprecated field still has to appear in its own class's
-    // constructor, copyWith, lerp, == and hashCode until wave 4 removes it.
     return true;
   }
 

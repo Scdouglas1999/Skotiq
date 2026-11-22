@@ -84,16 +84,16 @@ class _ConnectionTroubleshooterDialogState
   /// Maps the diagnostic category to an alert severity. A configuration problem
   /// is informational (the link is up, just mis-set); everything else is a
   /// warning the user must act on.
-  SkotiqAlertSeverity get _severity {
+  BannerTone get _severity {
     switch (_diagnosis.category) {
       case DiagnosticCategory.configuration:
-        return SkotiqAlertSeverity.info;
+        return BannerTone.info;
       case DiagnosticCategory.usb:
       case DiagnosticCategory.driver:
       case DiagnosticCategory.permission:
       case DiagnosticCategory.network:
       case DiagnosticCategory.unknown:
-        return SkotiqAlertSeverity.warning;
+        return BannerTone.warning;
     }
   }
 

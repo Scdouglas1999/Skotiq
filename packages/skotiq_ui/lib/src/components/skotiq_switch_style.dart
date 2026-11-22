@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// Shared visual metrics and color resolution for [SkotiqSwitch].
 ///

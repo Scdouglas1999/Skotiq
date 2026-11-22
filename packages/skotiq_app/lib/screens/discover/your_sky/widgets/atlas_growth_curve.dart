@@ -52,7 +52,7 @@ class AtlasGrowthCurvePanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Deepening over time',
           subtitle:
               '${DurationFormat.decimalHours(curve.totalSeconds)} integrated across '
@@ -175,7 +175,7 @@ class AtlasGrowthCurvePanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: 'Deepening over time'),
+        const SectionTitle(title: 'Deepening over time'),
         const SizedBox(height: SkotiqTokens.spaceSm),
         SkotiqPanel(
           padding: SkotiqTokens.cardPadding,

@@ -121,7 +121,6 @@ class _AdaptiveConditionsSettingsState
                     },
                   ),
                   stackWhenNarrow: true,
-                  isLast: true,
                 ),
               ],
             ),
@@ -181,7 +180,6 @@ class _AdaptiveConditionsSettingsState
                   authorityKey: authority,
                   onChanged: (value) =>
                       _setWeight(notifier, settings, 'wind', value),
-                  isLast: true,
                 ),
               ],
             ),
@@ -249,7 +247,6 @@ class _WeightRow extends StatelessWidget {
   /// value. A `void` signature would swallow the rejection and leave the
   /// field showing a number that was never saved.
   final Future<void> Function(double) onChanged;
-  final bool isLast;
 
   const _WeightRow({
     super.key,
@@ -261,7 +258,6 @@ class _WeightRow extends StatelessWidget {
     required this.authoritativeValue,
     required this.authorityKey,
     required this.onChanged,
-    this.isLast = false,
   });
 
   @override
@@ -282,7 +278,6 @@ class _WeightRow extends StatelessWidget {
         onChanged: onChanged,
       ),
       stackWhenNarrow: true,
-      isLast: isLast,
     );
   }
 }

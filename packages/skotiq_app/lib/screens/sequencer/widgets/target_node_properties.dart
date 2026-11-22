@@ -8,7 +8,6 @@ import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/altitude_floor_rule.dart';
 import 'framing_assistant_inline.dart';
 import 'node_property_widgets.dart';

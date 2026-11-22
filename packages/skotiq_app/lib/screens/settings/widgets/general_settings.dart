@@ -56,7 +56,6 @@ class GeneralSettings extends ConsumerWidget {
                         .setAutoConnectEquipment(value);
                   },
                 ),
-                isLast: true,
               ),
             ],
           ),
@@ -90,7 +89,6 @@ class GeneralSettings extends ConsumerWidget {
                   },
                   width: 150,
                 ),
-                isLast: isRemoteMode,
               ),
               // `confirm_before_closing` is intentionally non-remotable
               // (host-only); hide the row over a remote session.
@@ -107,7 +105,6 @@ class GeneralSettings extends ConsumerWidget {
                           .setConfirmBeforeClosing(value);
                     },
                   ),
-                  isLast: true,
                 ),
             ],
           ),

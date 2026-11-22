@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../../utils/animation_duration.dart';
 import '../../utils/on_screen_animation_gate.dart';
 import 'trails_geometry.dart';

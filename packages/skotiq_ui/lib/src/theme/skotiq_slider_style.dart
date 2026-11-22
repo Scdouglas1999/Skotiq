@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'skotiq_colors.dart';
-import 'skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 abstract final class SkotiqSliderStyle {
   static SliderThemeData theme(SkotiqColors colors, {Color? accent}) {

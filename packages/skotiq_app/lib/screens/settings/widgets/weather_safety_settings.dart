@@ -172,7 +172,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 value: settings.autoResumeEnabled,
                 onChanged: (value) => _updateSettings(autoResumeEnabled: value),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -219,7 +218,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(maxCloudCoverPercent: value),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -252,7 +250,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(leadTimeMinutes: value.toInt()),
               ),
-              isLast: true,
             ),
           ],
         ),

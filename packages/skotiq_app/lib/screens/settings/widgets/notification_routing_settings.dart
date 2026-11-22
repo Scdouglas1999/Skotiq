@@ -24,8 +24,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/settings.dart' show PortRange;
 
-import '../../../widgets/accessible_dropdown.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -62,7 +62,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
                     'so email, webhook, Pushover, Telegram, Discord and MQTT '
                     'are set up there.',
                 trailing: SizedBox.shrink(),
-                isLast: true,
               ),
             ],
           ),
@@ -144,7 +143,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
                       .setEnabled(v);
                 },
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -158,7 +156,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
                 NotificationCategory.values[i],
                 matrix,
                 configured,
-                isLast: i == NotificationCategory.values.length - 1,
               ),
           ],
         ),
@@ -172,9 +169,8 @@ class NotificationRoutingSettings extends ConsumerWidget {
     WidgetRef ref,
     NotificationCategory category,
     NotificationRoutingMatrix matrix,
-    Set<NotificationTransportKind> configured, {
-    required bool isLast,
-  }) {
+    Set<NotificationTransportKind> configured,
+  ) {
     final rule = matrix.ruleFor(category);
     final summary = rule.enabled && rule.transports.isNotEmpty
         ? rule.transports.map((t) => _transportLabel(t, configured)).join(', ')
@@ -204,7 +200,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
           );
         },
       ),
-      isLast: isLast,
     );
   }
 

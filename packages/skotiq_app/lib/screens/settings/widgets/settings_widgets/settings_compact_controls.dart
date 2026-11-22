@@ -142,8 +142,6 @@ class ObjectTypeToggle extends StatelessWidget {
 
   final ValueChanged<bool> onChanged;
 
-  final bool isLast;
-
   const ObjectTypeToggle({
     super.key,
     required this.title,
@@ -151,7 +149,6 @@ class ObjectTypeToggle extends StatelessWidget {
     required this.color,
     required this.isEnabled,
     required this.onChanged,
-    this.isLast = false,
   });
 
   @override
@@ -165,7 +162,6 @@ class ObjectTypeToggle extends StatelessWidget {
         value: isEnabled,
         onChanged: onChanged,
       ),
-      isLast: isLast,
     );
   }
 }

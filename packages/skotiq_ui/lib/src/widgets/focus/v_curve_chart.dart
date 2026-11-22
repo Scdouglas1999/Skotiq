@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import '../../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// One measured focus sample: a focuser position and the star size there.
 class VCurveSample {

@@ -34,6 +34,23 @@ abstract final class SkotiqTypography {
   /// superscript signs (e⁻), arrows, geometric shapes (▸) and symbols (★ ⓘ ⌘).
   static const List<String> fontFamilyFallback = ['Sora', 'SkotiqSymbols'];
 
+  /// A style for text a painter lays out with a [TextPainter]. Painted text
+  /// does not inherit the theme, so the family and the glyph fallback are set
+  /// here once instead of at every painter.
+  static TextStyle canvas({
+    Color? color,
+    double? fontSize,
+    FontWeight? fontWeight,
+    double? height,
+  }) => TextStyle(
+    fontFamily: fontFamily,
+    fontFamilyFallback: fontFamilyFallback,
+    color: color,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    height: height,
+  );
+
   // Named TextStyles below are preferred for new UI. Numeric tokens support
   // dense scientific readouts with custom weights, heights or canvas scaling.
   // Their values are shared so screens never invent another text-size scale.

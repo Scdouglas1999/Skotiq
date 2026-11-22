@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'skotiq_dropdown.dart' show SkotiqDropdown;
+
 /// Drop-in replacements for Material's dropdowns that are operable by
 /// assistive technology.
 ///
@@ -11,7 +13,7 @@ import 'package:flutter/material.dart';
 /// no entry carries the `selected` mark that says which one is in force. That
 /// is one framework behaviour, not one bug per screen.
 ///
-/// The remedy, pinned in `SkotiqDropdown`, is two-part:
+/// The remedy, also in [SkotiqDropdown], is two-part:
 ///
 /// 1. wrap each item's child in `Semantics(enabled:, selected:)` — the flags
 ///    the framework leaves out — and
@@ -188,8 +190,11 @@ class AccessibleDropdownFormField<T> extends StatelessWidget {
       disabledHint: disabledHint == null
           ? null
           : Semantics(enabled: false, child: disabledHint),
-      items:
-          annotateDropdownItems(items, value: initialValue, enabled: enabled),
+      items: annotateDropdownItems(
+        items,
+        value: initialValue,
+        enabled: enabled,
+      ),
       selectedItemBuilder: (context) => buildSelectedDropdownItems(
         items,
         enabled: enabled,
@@ -221,30 +226,29 @@ List<DropdownMenuItem<T>> annotateDropdownItems<T>(
   List<DropdownMenuItem<T>> items, {
   required T? value,
   required bool enabled,
-}) =>
-    <DropdownMenuItem<T>>[
-      for (final item in items)
-        DropdownMenuItem<T>(
-          key: item.key,
-          value: item.value,
-          enabled: item.enabled,
-          alignment: item.alignment,
-          onTap: item.onTap,
-          child: Semantics(
-            enabled: enabled && item.enabled,
-            selected: item.value == value,
-            // `selected` alone reaches AT-SPI as SELECTED, which several
-            // readers (and the audit harness, which prints [ON]/[off] from the
-            // checked/checkable states) do not announce for a menu entry — so
-            // the Analytics session pickers highlighted the current row
-            // visually while publishing no checked state at all, unlike
-            // `SkotiqDropdown`, which sets both. Parity, one line: the two
-            // dropdown families must announce the same way.
-            checked: item.value == value,
-            child: item.child,
-          ),
-        ),
-    ];
+}) => <DropdownMenuItem<T>>[
+  for (final item in items)
+    DropdownMenuItem<T>(
+      key: item.key,
+      value: item.value,
+      enabled: item.enabled,
+      alignment: item.alignment,
+      onTap: item.onTap,
+      child: Semantics(
+        enabled: enabled && item.enabled,
+        selected: item.value == value,
+        // `selected` alone reaches AT-SPI as SELECTED, which several
+        // readers (and the audit harness, which prints [ON]/[off] from the
+        // checked/checkable states) do not announce for a menu entry — so
+        // the Analytics session pickers highlighted the current row
+        // visually while publishing no checked state at all, unlike
+        // `SkotiqDropdown`, which sets both. Parity, one line: the two
+        // dropdown families must announce the same way.
+        checked: item.value == value,
+        child: item.child,
+      ),
+    ),
+];
 
 /// Builds the widgets the CLOSED control paints, from the UNANNOTATED item
 /// children — so the control does not inherit the chosen entry's `selected`
@@ -257,16 +261,14 @@ List<Widget> buildSelectedDropdownItems<T>(
   List<DropdownMenuItem<T>> items, {
   required bool enabled,
   required bool declareButtonRole,
-}) =>
-    <Widget>[
-      for (final item in items)
-        Semantics(
-          enabled: enabled,
-          button: declareButtonRole ? true : null,
-          child: ConstrainedBox(
-            constraints:
-                const BoxConstraints(minHeight: kMinInteractiveDimension),
-            child: Align(alignment: item.alignment, child: item.child),
-          ),
-        ),
-    ];
+}) => <Widget>[
+  for (final item in items)
+    Semantics(
+      enabled: enabled,
+      button: declareButtonRole ? true : null,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+        child: Align(alignment: item.alignment, child: item.child),
+      ),
+    ),
+];

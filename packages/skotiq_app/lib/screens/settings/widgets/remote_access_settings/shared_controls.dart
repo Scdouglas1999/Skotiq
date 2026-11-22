@@ -9,7 +9,7 @@ class _PortRangeFormatter extends TextInputFormatter {
     if (newValue.text.isEmpty) return newValue;
     final port = int.tryParse(newValue.text);
     if (port == null) return oldValue;
-    if (port > 65535) return oldValue;
+    if (port > PortRange.webServer.max) return oldValue;
     return newValue;
   }
 }

@@ -100,7 +100,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     description:
                         'Missing darks render as errors. Sequence refuses to start until every flagged issue is resolved or acknowledged.',
                     icon: LucideIcons.shieldAlert,
-                    isLast: true,
                     onSelected: () async {
                       await notifier
                           .setPreflightStrictness(PreflightStrictness.strict);
@@ -129,7 +128,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                       await notifier.setPolarAlignmentMaxAgeDays(value.toInt());
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -152,7 +150,6 @@ class _StrictnessOption extends StatelessWidget {
   final String description;
   final IconData icon;
   final VoidCallback onSelected;
-  final bool isLast;
 
   const _StrictnessOption({
     required this.value,
@@ -161,7 +158,6 @@ class _StrictnessOption extends StatelessWidget {
     required this.description,
     required this.icon,
     required this.onSelected,
-    this.isLast = false,
   });
 
   @override
@@ -179,7 +175,6 @@ class _StrictnessOption extends StatelessWidget {
         trailing: Radio<PreflightStrictness>(
           value: value,
         ),
-        isLast: isLast,
       ),
     );
   }

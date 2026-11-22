@@ -529,9 +529,7 @@ class _FOVOverlayPainter extends CustomPainter {
     final textPainter = TextPainter(
       text: TextSpan(
         text: fovText,
-        style: const TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        style: SkotiqTypography.canvas(
           color: FieldOfViewColors.green,
           fontSize: SkotiqTypography.fontSize11,
           fontWeight: FontWeight.w500,

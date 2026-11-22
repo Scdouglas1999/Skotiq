@@ -2,10 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_theme.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
 
 /// A translucent blurred panel used ONLY over imagery.
 ///

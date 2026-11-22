@@ -808,7 +808,7 @@ class _MeasurementVerdict extends StatelessWidget {
     }
     return SkotiqInlineBanner(
       message: '$apertureCount apertures across the region.',
-      severity: SkotiqAlertSeverity.success,
+      severity: BannerTone.success,
     );
   }
 }

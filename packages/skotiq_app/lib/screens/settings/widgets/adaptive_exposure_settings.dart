@@ -124,7 +124,6 @@ class _AdaptiveExposureSettingsState
                       await notifier.setAdaptiveExposureEnabled(v);
                     },
                   ),
-                  isLast: !enabled,
                 ),
                 // Target SNR control hidden until the native executor honors
                 // target_snr; compute_adaptive_exposure ignores it today.
@@ -177,7 +176,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 1,
                       onChanged: (_) => _commitGlobalBounds(notifier),
                     ),
-                    isLast: true,
                   ),
                 ],
               ],

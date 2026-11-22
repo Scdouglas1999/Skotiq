@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// Custom checkbox matching Skotiq theme semantics.
 class SkotiqCheckbox extends StatefulWidget {

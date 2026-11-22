@@ -191,7 +191,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 },
                 onChanged: settingsNotifier.setGridType,
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -228,7 +227,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setMagnitudeCutoff(value),
               ),
-              isLast: true,
               stackWhenNarrow: true,
             ),
           ],
@@ -292,7 +290,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                   settings.visibleTypes.contains(AnnotationObjectFilter.other),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.other),
-              isLast: true,
             ),
           ],
         ),
@@ -353,7 +350,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setFadeAnimationMs(value.toInt()),
               ),
-              isLast: true,
               stackWhenNarrow: true,
             ),
           ],
@@ -387,7 +383,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setClickSearchRadius(value),
               ),
-              isLast: true,
               stackWhenNarrow: true,
             ),
           ],
@@ -434,7 +429,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 value: markerStyle.scaleBySize,
                 onChanged: (value) => markerNotifier.setScaleBySize(value),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -452,7 +446,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 value: settings.autoAnnotate,
                 onChanged: (value) => settingsNotifier.setAutoAnnotate(value),
               ),
-              isLast: true,
             ),
           ],
         ),

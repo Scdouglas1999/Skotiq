@@ -189,7 +189,7 @@ Widget buildCheckpointRecoveryDialog({
           if (failure != null) ...[
             const SizedBox(height: 16),
             SkotiqAlert(
-              severity: SkotiqAlertSeverity.error,
+              severity: BannerTone.error,
               title: 'Recovery did not complete',
               message: '${userFacingError(failure.error)}\n\n'
                   '$aftermath',

@@ -5,7 +5,6 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:skotiq_app/widgets/accessible_dropdown.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/secondary_rig_card.dart';
 import 'package:skotiq_app/screens/settings/widgets/element_refresh_card.dart';
 import 'package:skotiq_core/models.dart';

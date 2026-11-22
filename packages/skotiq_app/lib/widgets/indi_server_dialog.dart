@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart' show PortRange;
 
 /// INDI server address configuration (Linux/macOS).
 class IndiServerDialog extends ConsumerStatefulWidget {
@@ -91,7 +92,7 @@ class _IndiServerDialogState extends ConsumerState<IndiServerDialog> {
     final port = int.tryParse(portRaw);
     if (port == null) {
       portError = 'Port must be a whole number.';
-    } else if (port < 1 || port > 65535) {
+    } else if (!PortRange.any.contains(port)) {
       portError = 'Port must be between 1 and 65535.';
     }
 

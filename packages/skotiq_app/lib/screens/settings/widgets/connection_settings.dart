@@ -126,7 +126,6 @@ class ConnectionSettings extends ConsumerWidget {
                 onPressed: () =>
                     _handleConnectionAction(context, ref, isNetwork),
               ),
-              isLast: !(isDisconnected && canWorkLocally),
             ),
             // The only way out of a DisconnectedBackend was to relaunch:
             // `useLocalBackend()` had no UI caller anywhere in the app, so a
@@ -141,7 +140,6 @@ class ConnectionSettings extends ConsumerWidget {
                     'Drive the equipment attached to this computer instead of '
                     'a remote server',
                 trailing: WorkLocallyButton(),
-                isLast: true,
               ),
           ],
         ),
@@ -221,7 +219,6 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.qhyDiscoveryEnabled,
                   onChanged: settingsNotifier.setQhyDiscoveryEnabled,
                 ),
-                isLast: true,
               ),
             ],
           ),
@@ -234,7 +231,6 @@ class ConnectionSettings extends ConsumerWidget {
                 title: 'Refresh host settings',
                 subtitle: 'Reload this screen from the connected Skotiq host',
                 trailing: _HostSettingsRefreshButton(),
-                isLast: true,
               ),
             ],
           ),

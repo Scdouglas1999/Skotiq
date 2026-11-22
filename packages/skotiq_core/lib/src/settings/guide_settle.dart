@@ -41,6 +41,9 @@ class GuideSettle {
   final bool ditherRaOnly;
 }
 
+/// The stored dither sizes, smallest first.
+const ditherScales = ['Small', 'Medium', 'Large'];
+
 /// The dither amount, in pixels, of the stored dither size.
 double ditherScalePixels(String scale) => switch (scale) {
   'Small' => 2.0,
