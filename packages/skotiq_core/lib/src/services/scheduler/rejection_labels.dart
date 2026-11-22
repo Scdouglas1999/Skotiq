@@ -45,7 +45,21 @@ enum SchedulerRejectionKind {
   goalsComplete,
 
   /// Anything the ladder does not recognise; render the raw reason.
-  other,
+  other;
+
+  /// Whether the target rising later tonight can clear this rejection: it is
+  /// too low, under the horizon or behind the horizon profile, or the reason
+  /// is one the ladder does not name (a sky still too bright). Rising does
+  /// not clear the moon, a missing filter, a time window or met goals.
+  bool get curedByRising => switch (this) {
+    belowHorizon || tooLowForSite || behindHorizonProfile || other => true,
+    moonSeparation ||
+    moonIllumination ||
+    moon ||
+    outsideTimeWindow ||
+    filterMissing ||
+    goalsComplete => false,
+  };
 }
 
 /// First signed decimal number in [text] (e.g. the `9.8` of

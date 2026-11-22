@@ -28,7 +28,9 @@ import '../services/scheduler/target_constraint_service.dart';
 import '../services/smart_night_models.dart'
     show smartNightPlanningFilters, smartNightRotatesFilters;
 import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import '../database/daos/settings_dao.dart';
+import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'clock_provider.dart';
 import 'database_provider.dart';
@@ -67,6 +69,7 @@ import 'scheduler/target_constraint_service_provider.dart';
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';
 part 'scheduler/scheduler_config.dart';
+part 'scheduler/autopilot_view.dart';
 part 'scheduler/scheduler_control.dart';
 part 'scheduler/scheduler_readiness.dart';
 part 'scheduler/scheduler_remote_and_goals.dart';

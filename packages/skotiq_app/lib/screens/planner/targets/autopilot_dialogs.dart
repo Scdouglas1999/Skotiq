@@ -2,7 +2,7 @@ part of 'plan_targets_tab.dart';
 
 /// Why the autopilot chose what it chose: its reasoning, then every target it
 /// weighed with the score and what ruled it out.
-void _showWhy(BuildContext context, _AutopilotView view) {
+void _showWhy(BuildContext context, AutopilotView view) {
   showDialog<void>(
     context: context,
     builder: (_) => _WhyDialog(view: view),
@@ -12,7 +12,7 @@ void _showWhy(BuildContext context, _AutopilotView view) {
 class _WhyDialog extends StatefulWidget {
   const _WhyDialog({required this.view});
 
-  final _AutopilotView view;
+  final AutopilotView view;
 
   @override
   State<_WhyDialog> createState() => _WhyDialogState();
