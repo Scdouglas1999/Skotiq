@@ -609,7 +609,7 @@ class SchedulerEngine {
       exposureIds.add(expId);
       nodes[expId] = SmartExposureNode(
         id: expId,
-        name: 'Smart Exposure: ${rotation.map((p) => p.goal.filter).join('+')}',
+        name: SmartExposureNode.autoName(rotation.map((p) => p.goal.filter)),
         plans: [
           for (final row in rotation)
             FilterPlan(

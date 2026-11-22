@@ -102,8 +102,8 @@ class SmartExposureFilterSets extends ConsumerWidget {
           );
       ref.read(currentSequenceProvider.notifier).updateNode(
             node.copyWith(
-              name: _autoNamed(node)
-                  ? 'Smart Exposure: ${filled.map((p) => p.filterName).join('+')}'
+              name: node.hasAutoName
+                  ? SmartExposureNode.autoName(filled.map((p) => p.filterName))
                   : node.name,
               plans: [
                 for (final row in filled)
@@ -129,14 +129,6 @@ class SmartExposureFilterSets extends ConsumerWidget {
       }
     }
   }
-
-  /// Whether [node] still has the name a builder gives it ("Smart
-  /// Exposure: Ha+OIII+SII"), so its new filters rename it; a name the user
-  /// typed stays.
-  static bool _autoNamed(SmartExposureNode node) =>
-      node.name == 'Smart Exposure' ||
-      node.name ==
-          'Smart Exposure: ${node.plans.map((p) => p.filterName).join('+')}';
 
   static bool _sameFilters(List<String> a, List<String> b) {
     if (a.length != b.length) return false;

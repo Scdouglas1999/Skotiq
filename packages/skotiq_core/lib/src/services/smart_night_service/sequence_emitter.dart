@@ -851,9 +851,9 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     final loop = fillWindow && rotate;
     return SmartExposureNode(
       id: SmartNightService._uuid.v4(),
-      name:
-          'Smart Exposure: '
-          '${planned.filterPlans.map((p) => p.filterName).join("+")}',
+      name: SmartExposureNode.autoName(
+        planned.filterPlans.map((p) => p.filterName),
+      ),
       plans: [
         for (final fp in planned.filterPlans)
           _smartExposureRow(profile: profile, plan: fp, settings: settings),
