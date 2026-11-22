@@ -203,7 +203,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     try {
       await ref
           .read(filterSetPreferencesProvider.notifier)
-          .choose(target, set, recommended: choice.recommended);
+          .pick(target, set, choice);
       await _buildPreview();
     } catch (e) {
       if (mounted) {

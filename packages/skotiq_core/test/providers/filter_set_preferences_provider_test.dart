@@ -81,7 +81,7 @@ void main() {
           saved: first.read(filterSetPreferencesProvider).requireValue.custom,
         )
         .singleWhere((set) => set.isCustom);
-    await notifier.choose(_m1, mine, recommended: choice.recommended);
+    await notifier.pick(_m1, mine, choice);
 
     expect(await dao.getSetting('filter_sets.7'), isNotNull);
 

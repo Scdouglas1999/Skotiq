@@ -108,7 +108,7 @@ class _TargetDetailColumn extends ConsumerWidget {
           dense: true,
           onChanged: (picked) => ref
               .read(filterSetPreferencesProvider.notifier)
-              .choose(target, picked, recommended: choice.recommended)
+              .pick(target, picked, choice)
               .catchError((Object e) {
             if (context.mounted) {
               context.showErrorSnackBar(
