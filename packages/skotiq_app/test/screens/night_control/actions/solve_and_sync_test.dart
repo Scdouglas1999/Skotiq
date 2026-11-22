@@ -54,6 +54,9 @@ class _MockPhd2 extends Mock implements Phd2Controller {}
 /// A centering run that reports one slew and then gives up.
 class _GivingUpCentering extends Mock implements CenteringService {
   @override
+  bool get isRunning => false;
+
+  @override
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
     required double targetDec,
