@@ -325,6 +325,7 @@ final List<Check> checks = [
     'format',
     '.',
     '--set-exit-if-changed',
+    '--output=none',
   ]),
   Check('format', 'rust-format', ['bash', 'scripts/rust_checks.sh', 'fmt']),
 
