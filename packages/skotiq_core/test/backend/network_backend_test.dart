@@ -630,7 +630,7 @@ void main() {
       backend = _buildBackend(fake);
 
       final result = await backend.autofocusStart(
-        AutofocusRequest(
+        const AutofocusRequest(
           deviceId: 'focuser-1',
           cameraId: 'camera-1',
           exposureTime: 2,

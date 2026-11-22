@@ -288,7 +288,7 @@ void main() {
         coolerMaxTempC: 30,
       ),
     );
-    final expected = CameraCapabilities(
+    const expected = CameraCapabilities(
       maxWidth: 6248,
       maxHeight: 4176,
       bitDepth: 14,
@@ -303,7 +303,7 @@ void main() {
       canSetGain: true,
       gainMin: 0,
       gainMax: 570,
-      isoSpeeds: const [100, 200, 400],
+      isoSpeeds: [100, 200, 400],
       canSetOffset: true,
       offsetMin: 1,
       offsetMax: 80,
@@ -316,7 +316,7 @@ void main() {
       bayerPattern: 'RGGB',
       sensorType: 'CMOS',
       hasFastReadout: true,
-      readoutModes: const ['Normal', 'High Speed'],
+      readoutModes: ['Normal', 'High Speed'],
       exposureMin: 0.000032,
       exposureMax: 2000,
       ccdTemperature: -5.5,
