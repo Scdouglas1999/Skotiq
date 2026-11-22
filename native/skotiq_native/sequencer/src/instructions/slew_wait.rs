@@ -133,7 +133,10 @@ pub(crate) async fn wait_for_slew<S>(
                     .into()
             }))
         }
-        // Only a watch with a target can find a mount that did not move.
-        Err(SlewEnd::DidNotMove) => SlewWait::Done,
+        // Reached only by a watch with a target; a mount that did not move
+        // never started.
+        Err(SlewEnd::DidNotMove) => SlewWait::NeverStarted {
+            abort: device_ops.mount_abort_slew(mount_id).await,
+        },
     }
 }

@@ -556,6 +556,20 @@ impl AcquisitionSettings {
     }
 }
 
+/// A number a [`Disagreement`](crate::Disagreement) states, to one decimal.
+fn one_decimal(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .map_or_else(|_| value.to_string(), |v| format!("{v:.1}"))
+}
+
+/// A number a [`Disagreement`](crate::Disagreement) states, to three decimals.
+fn three_decimals(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .map_or_else(|_| value.to_string(), |v| format!("{v:.3}"))
+}
+
 /// DepthLock's agreement rule: names in any case, exposure within 0.1 % of
 /// the goal's (darks are not scaled), whole gain, offset and binning, and no
 /// set-point or read-mode check.
@@ -632,14 +646,17 @@ pub fn check_compatible(
             stated(light.offset)
         ),
         Setting::SensorTemp => format!(
-            "Sensor temperature differs by more than {:.1} °C: goal {:.1} °C, light {:.1} °C",
+            "Sensor temperature differs by more than {:.1} °C: goal {} °C, light {} °C",
             policy.temperature_tolerance_c,
-            goal.ccd_temp_c.unwrap_or_default(),
-            light.ccd_temp_c.unwrap_or_default()
+            one_decimal(&first.first),
+            one_decimal(&first.other)
         ),
-        Setting::SetPoint | Setting::ReadMode => {
-            unreachable!("DepthLock does not compare {}", first.setting.card())
-        }
+        Setting::SetPoint | Setting::ReadMode => format!(
+            "{} differs: goal is {}, light is {}",
+            first.setting.card(),
+            first.first,
+            first.other
+        ),
     })
 }
 
@@ -723,7 +740,7 @@ pub fn validate_master(
     let Some(first) = goal.acquisition().disagreement(&master, &agreement) else {
         return Ok(());
     };
-    let raw = |key: &str| header.get_string(key).unwrap_or_default();
+    let raw = |key: &str| header.get_string(key).unwrap_or(first.other.as_str());
     Err(match first.setting {
         Setting::Instrument => format!(
             "{label} is from camera {:?}, goal is for {:?}",
@@ -736,8 +753,8 @@ pub fn validate_master(
             goal.filter
         ),
         Setting::Exposure => format!(
-            "{label} exposure {:.3} s does not match the goal's {:.3} s",
-            master.exposure_s.unwrap_or_default(),
+            "{label} exposure {} s does not match the goal's {:.3} s",
+            three_decimals(&first.other),
             goal.exposure_secs
         ),
         setting => format!(
