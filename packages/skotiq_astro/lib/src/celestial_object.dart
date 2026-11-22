@@ -463,3 +463,39 @@ class DeepSkyObject implements CelestialObject {
     return null;
   }
 }
+
+/// Extract optional catalog metadata from any [CelestialObject].
+({
+  String? catalogId,
+  String? objectType,
+  double? sizeArcmin,
+  String? constellation,
+})
+celestialObjectMetadata(CelestialObject object) {
+  if (object is DeepSkyObject) {
+    return (
+      catalogId: object.catalogIds.isNotEmpty
+          ? object.catalogIds.first
+          : object.name,
+      objectType: object.type.displayName,
+      sizeArcmin: object.sizeArcMin,
+      constellation: object.constellation,
+    );
+  }
+  if (object is Star) {
+    return (
+      catalogId: object.catalogIds.isNotEmpty
+          ? object.catalogIds.first
+          : object.name,
+      objectType: 'Star',
+      sizeArcmin: null,
+      constellation: object.constellation,
+    );
+  }
+  return (
+    catalogId: object.name,
+    objectType: null,
+    sizeArcmin: null,
+    constellation: null,
+  );
+}

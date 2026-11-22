@@ -567,41 +567,6 @@ Future<bool> _loadMosaicNodesIntoEditor({
   }
 }
 
-String dsoTypeLabel(DsoType type) => type.displayName;
-
-/// Extract optional catalog metadata from any [CelestialObject].
-({
-  String? catalogId,
-  String? objectType,
-  double? sizeArcmin,
-  String? constellation
-}) celestialObjectMetadata(CelestialObject object) {
-  if (object is DeepSkyObject) {
-    return (
-      catalogId:
-          object.catalogIds.isNotEmpty ? object.catalogIds.first : object.name,
-      objectType: dsoTypeLabel(object.type),
-      sizeArcmin: object.sizeArcMin,
-      constellation: object.constellation,
-    );
-  }
-  if (object is Star) {
-    return (
-      catalogId:
-          object.catalogIds.isNotEmpty ? object.catalogIds.first : object.name,
-      objectType: 'Star',
-      sizeArcmin: null,
-      constellation: object.constellation,
-    );
-  }
-  return (
-    catalogId: object.name,
-    objectType: null,
-    sizeArcmin: null,
-    constellation: null,
-  );
-}
-
 String annotationObjectTypeLabel(ObjectType type) {
   switch (type) {
     case ObjectType.galaxy:
