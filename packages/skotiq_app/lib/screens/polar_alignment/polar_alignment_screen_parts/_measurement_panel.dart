@@ -226,7 +226,8 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                 fontWeight: FontWeight.bold,
                 color: polarErrorToneColor(
                   colors,
-                  polarErrorTone(error.azimuthError, _gradingTargetArcsec),
+                  polarErrorTone(
+                      error.azimuthError, config.autoCompleteThreshold),
                 ),
               ),
             )
@@ -258,7 +259,8 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                 fontWeight: FontWeight.bold,
                 color: polarErrorToneColor(
                   colors,
-                  polarErrorTone(error.altitudeError, _gradingTargetArcsec),
+                  polarErrorTone(
+                      error.altitudeError, config.autoCompleteThreshold),
                 ),
               ),
             )
@@ -303,7 +305,8 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
               color: error != null
                   ? polarErrorToneColor(
                       colors,
-                      polarErrorTone(error.totalError, _gradingTargetArcsec),
+                      polarErrorTone(
+                          error.totalError, config.autoCompleteThreshold),
                     )
                   : colors.textMuted,
               minHeight: 6,
@@ -351,6 +354,3 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
     );
   }
 }
-
-/// The target the error readouts grade against.
-const double _gradingTargetArcsec = 30;

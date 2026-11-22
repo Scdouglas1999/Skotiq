@@ -139,11 +139,15 @@ class _PolarErrorVisualization extends StatelessWidget {
   final PolarAlignPhase phase;
   final AnimationController pulseAnimation;
 
+  /// The alignment target the rings are graded against, in arcseconds.
+  final double targetArcsec;
+
   const _PolarErrorVisualization({
     required this.colors,
     required this.error,
     required this.phase,
     required this.pulseAnimation,
+    required this.targetArcsec,
   });
 
   @override
@@ -157,6 +161,7 @@ class _PolarErrorVisualization extends StatelessWidget {
             error: error,
             phase: phase,
             pulseValue: pulseAnimation.value,
+            targetArcsec: targetArcsec,
           ),
           size: Size.infinite,
         );
@@ -243,12 +248,14 @@ class _PolarErrorPainter extends CustomPainter {
   final PolarAlignmentError? error;
   final PolarAlignPhase phase;
   final double pulseValue;
+  final double targetArcsec;
 
   _PolarErrorPainter({
     required this.colors,
     required this.error,
     required this.phase,
     required this.pulseValue,
+    required this.targetArcsec,
   });
 
   TextPainter _ringLabel(String text) => TextPainter(
@@ -259,11 +266,11 @@ class _PolarErrorPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       )..layout();
 
-  /// Zone colour for a ring at [arcsec]: the same 30"/60" grading the error
-  /// readouts use, so a coarse-scale target is honestly all red.
+  /// Zone color for a ring at [arcsec]: the same grading the error readouts
+  /// use, so a coarse-scale target is honestly all red.
   Color _zoneColor(double arcsec) => polarErrorToneColor(
         colors,
-        polarErrorTone(arcsec, _gradingTargetArcsec, inclusive: true),
+        polarErrorTone(arcsec, targetArcsec, inclusive: true),
       );
 
   @override
@@ -386,6 +393,7 @@ class _PolarErrorPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _PolarErrorPainter oldDelegate) {
     return oldDelegate.error != error ||
+        oldDelegate.targetArcsec != targetArcsec ||
         oldDelegate.phase != phase ||
         oldDelegate.pulseValue != pulseValue;
   }
