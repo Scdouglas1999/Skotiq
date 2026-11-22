@@ -961,9 +961,6 @@ class SkyAtlasService {
       final overlayPath = p.join(_overlayDir(root), '$tileId.skt');
       final legacyOverlay = File(p.join(_overlayDir(root), '$tileId.nst'));
 
-      // REPLACE-not-add: drop any prior overlay so the merge folds the freshly
-      // pulled community snapshot into a zeroed accumulator — the overlay always
-      // equals exactly one copy of the current community depth.
       for (final stale in [File(overlayPath), legacyOverlay]) {
         if (!stale.existsSync()) continue;
         try {

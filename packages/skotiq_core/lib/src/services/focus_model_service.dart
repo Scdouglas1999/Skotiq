@@ -372,7 +372,6 @@ class FocusModelService {
       data = data.copyWith(clearTemperatureModel: true);
     }
 
-    // Update filter offsets if we have a reference filter.
     // Pass the freshly recomputed temperature model so the offset
     // estimation can subtract temperature drift before averaging.
     if (filterName != null && data.referenceFilter != null) {
@@ -422,8 +421,6 @@ class FocusModelService {
   /// so we down-grade to "medium"..
   static const double _highConfidenceTemperatureSpreadC = 5.0;
 
-  /// Update filter offsets based on collected data.
-  ///
   /// The temperature model's prediction is subtracted at each sample's
   /// temperature before averaging, so the reported offset is the *additional*
   /// per-filter shift on top of the shared temperature relationship: for a
@@ -704,7 +701,6 @@ class FocusModelService {
 
     data = data.copyWith(referenceFilter: filterName);
 
-    // Recalculate offsets with new reference.
     // Include the existing temperature model so the recomputed
     // offsets are temperature-corrected when the model is reliable.
     final offsets = _updateFilterOffsets(

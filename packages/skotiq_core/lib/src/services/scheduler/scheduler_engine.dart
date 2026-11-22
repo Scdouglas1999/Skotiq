@@ -619,8 +619,7 @@ class SchedulerEngine {
         // `filter: null` — not the empty sentinel — is the wire contract for an
         // unfiltered row: it is what suppresses the filter-change instruction
         // and makes the executor render the ${filter} filename token as
-        // "nofilter". Passing '' through emitted a node that asked a wheel-less
-        // rig to select a filter named "".
+        // "nofilter".
         final unfiltered = row.goal.filter.trim().isEmpty;
         nodes[expId] = ExposureNode(
           id: expId,

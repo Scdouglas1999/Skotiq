@@ -216,11 +216,6 @@ class CloudMotionAnalyzer {
         currentCentroid.$2,
       );
 
-      // Reject sub-resolution displacement: a centroid shift smaller than the
-      // grid spacing is indistinguishable from a stationary mass and would
-      // fabricate a spurious (and arbitrarily-directed) motion vector. Such
-      // snapshot pairs simply do not contribute — if no pair clears the bar the
-      // result is reported as [CloudMotionUnavailableReason.noResolvableMotion].
       if (distance < _minResolvableDisplacementKm) {
         continue;
       }
@@ -242,9 +237,6 @@ class CloudMotionAnalyzer {
     }
 
     if (!sawSpatialStructure) {
-      // Every frame was a single uniform box: the data structure carries no
-      // per-cell information, so motion genuinely cannot be computed. Fail loud
-      // rather than returning a fabricated constant-field motion.
       return const CloudMotionResult.unavailable(
         CloudMotionUnavailableReason.noSpatialData,
       );
@@ -599,11 +591,6 @@ class CloudMotionAnalyzer {
     // Coverage fraction of significant cloud over the sampled grid.
     final coverage = significantCount / gridPoints.length;
 
-    // A field is "uniform" (untrackable) only when significant cloud blankets
-    // essentially the whole grid AND every cloudy cell shares one density value.
-    // Such a field has a centre-pinned centroid with no gradient to follow — the
-    // signature of a single whole-area box. Partial coverage means the centroid
-    // is offset and can move between snapshots, so it IS trackable.
     final isUniform =
         allSignificantEqual && coverage >= _uniformCoverageFraction;
 

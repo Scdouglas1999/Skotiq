@@ -241,15 +241,7 @@ class DeviceReconnectCoordinator {
 
     // Dual-reconnect de-duplication: if the native Rust
     // reconnection engine owns reconnect for this device type, defer to
-    // it. Both engines firing against the same physical device after a
-    // heartbeat-driven loss double-connected and thrashed the driver.
-    // The native loop will reconnect (emitting Connecting/Connected) and
-    // keep retrying for minutes; our [onAuthoritativeDeviceConnected]
-    // hook (driven off the live Connected event) still resumes a paused
-    // sequence once the device is back, and per-attempt failures still
-    // surface to the user via the native `Error` events. We only need to
-    // (a) NOT schedule a competing Dart reconnect, and (b) surface the
-    // "reconnecting" indicator the native side never emits an event for.
+    // it.
     if (nativeOwnsReconnect(type)) {
       _surfaceReconnecting(deviceId);
       logSafely(
