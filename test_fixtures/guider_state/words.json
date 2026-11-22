@@ -1,0 +1,54 @@
+{
+  "states": [
+    {
+      "mayMoveMount": false,
+      "variant": "Disconnected",
+      "word": "Disconnected"
+    },
+    {
+      "mayMoveMount": false,
+      "variant": "Connected",
+      "word": "Connected"
+    },
+    {
+      "mayMoveMount": false,
+      "variant": "Stopped",
+      "word": "Stopped"
+    },
+    {
+      "mayMoveMount": true,
+      "variant": "Calibrating",
+      "word": "Calibrating"
+    },
+    {
+      "mayMoveMount": true,
+      "variant": "Guiding",
+      "word": "Guiding"
+    },
+    {
+      "mayMoveMount": false,
+      "variant": "Looping",
+      "word": "Looping"
+    },
+    {
+      "mayMoveMount": false,
+      "variant": "Paused",
+      "word": "Paused"
+    },
+    {
+      "mayMoveMount": true,
+      "variant": "Settling",
+      "word": "Settling"
+    },
+    {
+      "mayMoveMount": true,
+      "variant": "LostLock",
+      "word": "LostLock"
+    },
+    {
+      "mayMoveMount": true,
+      "variant": "Unknown",
+      "word": "GuidingPaused"
+    }
+  ]
+}

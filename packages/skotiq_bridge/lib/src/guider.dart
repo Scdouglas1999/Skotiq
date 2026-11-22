@@ -5,6 +5,8 @@
 
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+part 'guider.freezed.dart';
 
 /// A crop of the guide frame around the guide star.
 class GuideStarImage {
@@ -48,6 +50,24 @@ class GuideStarImage {
           starX == other.starX &&
           starY == other.starY &&
           pixels == other.pixels;
+}
+
+@freezed
+sealed class GuiderActivity with _$GuiderActivity {
+  const GuiderActivity._();
+
+  const factory GuiderActivity.disconnected() = GuiderActivity_Disconnected;
+  const factory GuiderActivity.connected() = GuiderActivity_Connected;
+  const factory GuiderActivity.stopped() = GuiderActivity_Stopped;
+  const factory GuiderActivity.calibrating() = GuiderActivity_Calibrating;
+  const factory GuiderActivity.guiding() = GuiderActivity_Guiding;
+  const factory GuiderActivity.looping() = GuiderActivity_Looping;
+  const factory GuiderActivity.paused() = GuiderActivity_Paused;
+  const factory GuiderActivity.settling() = GuiderActivity_Settling;
+  const factory GuiderActivity.lostLock() = GuiderActivity_LostLock;
+
+  /// A state PHD2 names that this build does not know, as PHD2 spells it.
+  const factory GuiderActivity.unknown(String field0) = GuiderActivity_Unknown;
 }
 
 /// The guider's calibration of the mount.
@@ -96,10 +116,9 @@ class GuiderStatus {
   final String deviceId;
   final bool connected;
 
-  /// [`GuiderState::as_wire`]: "Disconnected", "Connected", "Stopped",
-  /// "Calibrating", "Guiding", "Looping", "Paused", "Settling", "LostLock",
-  /// or a state PHD2 names that this build does not know, as PHD2 spells it.
-  final String state;
+  /// What the guider is doing. The app spells it as a word for the
+  /// headless API: `test_fixtures/guider_state/words.json`.
+  final GuiderActivity state;
 
   /// Guide error RMS in arcseconds.
   final double rmsRa;

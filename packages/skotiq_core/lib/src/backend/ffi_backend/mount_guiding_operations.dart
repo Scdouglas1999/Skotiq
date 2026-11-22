@@ -740,7 +740,7 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
 
 Phd2Status _guiderStatus(bridge.GuiderStatus status) => Phd2Status(
   deviceId: status.deviceId,
-  state: status.state,
+  state: guiderActivityWord(status.state),
   connected: status.connected,
   rmsRa: status.rmsRa,
   rmsDec: status.rmsDec,

@@ -1,6 +1,6 @@
 use crate::builtin_guider::config::{GuiderConfig, Vec2};
 use crate::builtin_guider::metrics::{guide_reference_weight, PulseDebt};
-use crate::guider::GuiderState;
+use crate::guider::GuiderActivity;
 use crate::guider::TrackedGuideStar;
 use skotiq_imaging::{DetectedStar, ImageData};
 use std::sync::{Arc, OnceLock};
@@ -155,7 +155,7 @@ impl GuideSnapshot {
 #[derive(Clone, Debug)]
 pub struct BuiltinGuideStatus {
     pub connected: bool,
-    pub state: String,
+    pub state: GuiderActivity,
     /// Current RA-axis guide error in arcseconds.
     pub rms_ra: f64,
     /// Current Dec-axis guide error in arcseconds.
@@ -172,7 +172,7 @@ impl Default for BuiltinGuideStatus {
     fn default() -> Self {
         Self {
             connected: false,
-            state: GuiderState::Disconnected.into(),
+            state: GuiderActivity::Disconnected,
             rms_ra: 0.0,
             rms_dec: 0.0,
             rms_total: 0.0,

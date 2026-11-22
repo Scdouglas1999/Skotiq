@@ -8,33 +8,13 @@ final phd2ControllerProvider = Provider<Phd2Controller>((ref) {
   return controller;
 });
 
-/// Serialises guiding commands issued through [Phd2Controller] so a double-tap
-/// — or a UI command racing a programmatic one — cannot fire the same native
-/// call twice or leave a late Start active after the user pressed Stop. Stop is
-/// issued immediately to interrupt settling, then issued once more after any
-/// in-flight positive command drains. That final stop is the ordering fence:
-/// even if the first stop reached the host before Start did, the terminal
-/// command observed by PHD2 is still Stop.
-/// The guider state an `AppState` string names (the guiding events and the
-/// guider status use the same words); null for one this build does not know.
-Phd2State? phd2StateFromAppState(String? appState) => switch (appState) {
-  'Stopped' => Phd2State.stopped,
-  'Selected' => Phd2State.selected,
-  'Calibrating' => Phd2State.calibrating,
-  'Guiding' => Phd2State.guiding,
-  'LostLock' => Phd2State.lostLock,
-  'Paused' => Phd2State.paused,
-  'Looping' => Phd2State.looping,
-  _ => null,
-};
-
 /// The guider state a guiding event leaves, or null for an event that says
 /// nothing about it (a guide step, a star statistic). An `AppState` this
 /// build does not know is [Phd2State.unknown], never stopped: that would
 /// offer Start over a guider that may be running.
 Phd2State? phd2StateAfterEvent(GuidingEvent event) => switch (event) {
   GuidingEvent_AppState(:final state) =>
-    phd2StateFromAppState(state) ?? Phd2State.unknown,
+    phd2StateFromGuiderWord(state) ?? Phd2State.unknown,
   GuidingEvent_GuidingStarted() ||
   GuidingEvent_Resumed() ||
   GuidingEvent_Settled() => Phd2State.guiding,
@@ -56,6 +36,13 @@ Phd2State? phd2StateAfterEvent(GuidingEvent event) => switch (event) {
   GuidingEvent_GuideStats() => null,
 };
 
+/// Serialises guiding commands issued through [Phd2Controller] so a double-tap
+/// — or a UI command racing a programmatic one — cannot fire the same native
+/// call twice or leave a late Start active after the user pressed Stop. Stop is
+/// issued immediately to interrupt settling, then issued once more after any
+/// in-flight positive command drains. That final stop is the ordering fence:
+/// even if the first stop reached the host before Start did, the terminal
+/// command observed by PHD2 is still Stop.
 class _GuidingCommandGate {
   bool _positiveInFlight = false;
   bool _stopInFlight = false;

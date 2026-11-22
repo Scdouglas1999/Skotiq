@@ -576,6 +576,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GuideStarImage dco_decode_guide_star_image(dynamic raw);
 
   @protected
+  GuiderActivity dco_decode_guider_activity(dynamic raw);
+
+  @protected
   GuiderCalibration dco_decode_guider_calibration(dynamic raw);
 
   @protected
@@ -1696,6 +1699,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   GuideStarImage sse_decode_guide_star_image(SseDeserializer deserializer);
+
+  @protected
+  GuiderActivity sse_decode_guider_activity(SseDeserializer deserializer);
 
   @protected
   GuiderCalibration sse_decode_guider_calibration(SseDeserializer deserializer);
@@ -5847,6 +5853,55 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_guider_activity(
+    GuiderActivity apiObj,
+    wire_cst_guider_activity wireObj,
+  ) {
+    if (apiObj is GuiderActivity_Disconnected) {
+      wireObj.tag = 0;
+      return;
+    }
+    if (apiObj is GuiderActivity_Connected) {
+      wireObj.tag = 1;
+      return;
+    }
+    if (apiObj is GuiderActivity_Stopped) {
+      wireObj.tag = 2;
+      return;
+    }
+    if (apiObj is GuiderActivity_Calibrating) {
+      wireObj.tag = 3;
+      return;
+    }
+    if (apiObj is GuiderActivity_Guiding) {
+      wireObj.tag = 4;
+      return;
+    }
+    if (apiObj is GuiderActivity_Looping) {
+      wireObj.tag = 5;
+      return;
+    }
+    if (apiObj is GuiderActivity_Paused) {
+      wireObj.tag = 6;
+      return;
+    }
+    if (apiObj is GuiderActivity_Settling) {
+      wireObj.tag = 7;
+      return;
+    }
+    if (apiObj is GuiderActivity_LostLock) {
+      wireObj.tag = 8;
+      return;
+    }
+    if (apiObj is GuiderActivity_Unknown) {
+      var pre_field0 = cst_encode_String(apiObj.field0);
+      wireObj.tag = 9;
+      wireObj.kind.Unknown.field0 = pre_field0;
+      return;
+    }
+  }
+
+  @protected
   void cst_api_fill_to_wire_guider_calibration(
     GuiderCalibration apiObj,
     wire_cst_guider_calibration wireObj,
@@ -5865,7 +5920,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ) {
     wireObj.device_id = cst_encode_String(apiObj.deviceId);
     wireObj.connected = cst_encode_bool(apiObj.connected);
-    wireObj.state = cst_encode_String(apiObj.state);
+    cst_api_fill_to_wire_guider_activity(apiObj.state, wireObj.state);
     wireObj.rms_ra = cst_encode_f_64(apiObj.rmsRa);
     wireObj.rms_dec = cst_encode_f_64(apiObj.rmsDec);
     wireObj.rms_total = cst_encode_f_64(apiObj.rmsTotal);
@@ -8885,6 +8940,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_guide_star_image(
     GuideStarImage self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_guider_activity(
+    GuiderActivity self,
     SseSerializer serializer,
   );
 
@@ -23436,6 +23497,21 @@ final class wire_cst_guide_star_image extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> pixels;
 }
 
+final class wire_cst_GuiderActivity_Unknown extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
+}
+
+final class GuiderActivityKind extends ffi.Union {
+  external wire_cst_GuiderActivity_Unknown Unknown;
+}
+
+final class wire_cst_guider_activity extends ffi.Struct {
+  @ffi.Int32()
+  external int tag;
+
+  external GuiderActivityKind kind;
+}
+
 final class wire_cst_guider_calibration extends ffi.Struct {
   @ffi.Bool()
   external bool is_calibrated;
@@ -23455,7 +23531,7 @@ final class wire_cst_guider_status extends ffi.Struct {
   @ffi.Bool()
   external bool connected;
 
-  external ffi.Pointer<wire_cst_list_prim_u_8_strict> state;
+  external wire_cst_guider_activity state;
 
   @ffi.Double()
   external double rms_ra;

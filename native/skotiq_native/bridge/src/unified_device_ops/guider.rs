@@ -42,8 +42,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .await
             .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Guider))?;
         Ok(GuidingStatus {
-            is_guiding: crate::guider::GuiderState::from_wire(&status.state)
-                == crate::guider::GuiderState::Guiding,
+            is_guiding: status.state == crate::guider::GuiderActivity::Guiding,
             rms_ra: status.rms_ra,
             rms_dec: status.rms_dec,
             rms_total: status.rms_total,
@@ -56,7 +55,7 @@ impl GuiderOps for UnifiedDeviceOps {
             .status()
             .await
             .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Guider))?;
-        Ok(crate::guider::state_may_move_mount(&status.state))
+        Ok(status.state.may_move_mount())
     }
 
     async fn guider_get_calibration(&self) -> DeviceResult<GuidingCalibration> {

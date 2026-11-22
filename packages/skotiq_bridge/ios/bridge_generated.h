@@ -2343,6 +2343,19 @@ typedef struct wire_cst_guide_star_image {
   struct wire_cst_list_prim_u_8_strict *pixels;
 } wire_cst_guide_star_image;
 
+typedef struct wire_cst_GuiderActivity_Unknown {
+  struct wire_cst_list_prim_u_8_strict *field0;
+} wire_cst_GuiderActivity_Unknown;
+
+typedef union GuiderActivityKind {
+  struct wire_cst_GuiderActivity_Unknown Unknown;
+} GuiderActivityKind;
+
+typedef struct wire_cst_guider_activity {
+  int32_t tag;
+  union GuiderActivityKind kind;
+} wire_cst_guider_activity;
+
 typedef struct wire_cst_guider_calibration {
   bool is_calibrated;
   double *ra_angle;
@@ -2354,7 +2367,7 @@ typedef struct wire_cst_guider_calibration {
 typedef struct wire_cst_guider_status {
   struct wire_cst_list_prim_u_8_strict *device_id;
   bool connected;
-  struct wire_cst_list_prim_u_8_strict *state;
+  struct wire_cst_guider_activity state;
   double rms_ra;
   double rms_dec;
   double rms_total;

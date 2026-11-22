@@ -159,15 +159,6 @@ final hostGuiderStatusProvider =
       HostGuiderStatusNotifier.new,
     );
 
-/// The guider state a status names, for a guider no event has spoken for
-/// yet. A status also says `Connected` for an idle guider and `Settling`,
-/// which no AppState event does.
-Phd2State? _stateOf(String? status) => switch (status) {
-  'Connected' => Phd2State.stopped,
-  'Settling' => Phd2State.settling,
-  _ => phd2StateFromAppState(status),
-};
-
 /// The state the host's guider reports: guiding, stopped, calibrating and
 /// the rest, why it is held, its RMS, and the guide graph a late joiner
 /// missed.
@@ -235,7 +226,7 @@ class GuiderStatusChannel extends RuntimeMirrorChannel<HostGuiderStatus?> {
     final lost = container.read(starLostEventProvider);
     return {
       'deviceId': value.deviceId,
-      'state': (value.state ?? _stateOf(status.state))?.name,
+      'state': (value.state ?? phd2StateFromGuiderWord(status.state))?.name,
       'stopReason': status.stopReason,
       'rmsRa': finiteOrNull(status.rmsRa),
       'rmsDec': finiteOrNull(status.rmsDec),

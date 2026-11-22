@@ -61,6 +61,22 @@ String autofocusCurveMethodForNativeBridge(String curveFitting) {
   };
 }
 
+/// The word a guider state has on the headless API and in [Phd2Status.state]
+/// (`test_fixtures/guider_state/words.json`). An unknown state keeps PHD2's
+/// own spelling.
+String guiderActivityWord(bridge.GuiderActivity activity) => switch (activity) {
+  bridge.GuiderActivity_Disconnected() => 'Disconnected',
+  bridge.GuiderActivity_Connected() => 'Connected',
+  bridge.GuiderActivity_Stopped() => 'Stopped',
+  bridge.GuiderActivity_Calibrating() => 'Calibrating',
+  bridge.GuiderActivity_Guiding() => 'Guiding',
+  bridge.GuiderActivity_Looping() => 'Looping',
+  bridge.GuiderActivity_Paused() => 'Paused',
+  bridge.GuiderActivity_Settling() => 'Settling',
+  bridge.GuiderActivity_LostLock() => 'LostLock',
+  bridge.GuiderActivity_Unknown(:final field0) => field0,
+};
+
 /// The bridge's config for an operator-run autofocus.
 bridge.AutofocusConfigApi autofocusConfigForBridge(AutofocusRequest request) =>
     bridge.AutofocusConfigApi(
