@@ -56,8 +56,8 @@ abstract final class FilterColors {
     return null;
   }
 
-  /// A band word with its bandwidth glued on ("Ha7nm", "OIII6.5nm"), which
-  /// the rule does not read as the band.
+  /// A band word with a bare number glued on ("Ha7"), which the rule does not
+  /// read as the band; with its unit ("Ha7nm") the rule already does.
   static Color? _gluedBandwidthColor(String name) {
     for (final word in name.split(_wordSplit)) {
       final token = word.replaceAll(_notAlphanumeric, '').toUpperCase();
