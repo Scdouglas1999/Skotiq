@@ -270,6 +270,9 @@ pub struct DeviceManager {
     /// (camera, read mode) pairs already told about as not listed.
     pub(crate) unlisted_read_mode_notices:
         std::sync::Mutex<std::collections::HashSet<(String, String)>>,
+
+    /// What is kept of each device across its connections.
+    pub(crate) sessions: device_reopen::DeviceSessions,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -421,6 +424,7 @@ impl DeviceManager {
             retained_captures: Default::default(),
             stated_frame_defaults: Default::default(),
             unlisted_read_mode_notices: Default::default(),
+            sessions: Default::default(),
         })
     }
 

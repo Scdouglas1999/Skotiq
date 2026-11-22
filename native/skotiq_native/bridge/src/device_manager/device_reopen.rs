@@ -29,20 +29,6 @@ use std::time::Duration;
 /// changed.
 const BUS_CHANGE_SUSPECT_WINDOW: Duration = Duration::from_secs(15 * 60);
 
-/// One reopen at a time per device: the heartbeat and a move can both find a
-/// wheel gone at once.
-fn reopen_lock(device_id: &str) -> Arc<tokio::sync::Mutex<()>> {
-    static LOCKS: OnceLock<StdMutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>> =
-        OnceLock::new();
-    LOCKS
-        .get_or_init(Default::default)
-        .lock()
-        .unwrap_or_else(|p| p.into_inner())
-        .entry(device_id.to_string())
-        .or_default()
-        .clone()
-}
-
 /// Ask for [`DeviceManager::reopen_after`] on a task of its own, for a
 /// caller the reopen ends (the device's heartbeat). The reopens run on one
 /// worker the requests reach by channel, so the heartbeat's future does not
@@ -68,12 +54,6 @@ pub(crate) fn reopen_in_background(
     let _ = sender.send((manager, device_id, error));
 }
 
-/// How many times each device has been reopened.
-fn reopens() -> &'static StdMutex<HashMap<String, u64>> {
-    static REOPENS: OnceLock<StdMutex<HashMap<String, u64>>> = OnceLock::new();
-    REOPENS.get_or_init(Default::default)
-}
-
 /// A switch the app set, as it set it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum SwitchCommand {
@@ -90,23 +70,38 @@ pub(crate) struct Commanded {
     pub(crate) switches: std::collections::BTreeMap<i32, SwitchCommand>,
 }
 
-fn commanded() -> &'static StdMutex<HashMap<String, Commanded>> {
-    static COMMANDED: OnceLock<StdMutex<HashMap<String, Commanded>>> = OnceLock::new();
-    COMMANDED.get_or_init(Default::default)
+/// What the manager keeps of one device across its connections: what a
+/// reopen needs and what a connect puts back. Kept for the life of the
+/// process, through every close and reopen.
+#[derive(Default)]
+pub(crate) struct DeviceSession {
+    /// One reopen at a time: the heartbeat and a move can both find a wheel
+    /// gone at once.
+    reopen_lock: Arc<tokio::sync::Mutex<()>>,
+    /// How many times the device has been reopened.
+    reopens: u64,
+    /// What the app last commanded that a connect restores.
+    commanded: Commanded,
 }
 
-/// Record a command the device accepted, for the next connect to restore.
-pub(crate) fn note_commanded(device_id: &str, update: impl FnOnce(&mut Commanded)) {
-    update(
-        commanded()
+/// [`DeviceSession`] by device id.
+pub(crate) type DeviceSessions = StdMutex<HashMap<String, DeviceSession>>;
+
+impl DeviceManager {
+    fn with_session<T>(&self, device_id: &str, f: impl FnOnce(&mut DeviceSession) -> T) -> T {
+        f(self
+            .sessions
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .entry(device_id.to_string())
-            .or_default(),
-    );
-}
+            .or_default())
+    }
 
-impl DeviceManager {
+    /// Record a command the device accepted, for the next connect to restore.
+    pub(crate) fn note_commanded(&self, device_id: &str, update: impl FnOnce(&mut Commanded)) {
+        self.with_session(device_id, |session| update(&mut session.commanded));
+    }
+
     /// Update what `device_id` is recorded as holding. A write only when it
     /// changes: status reads come several times a second during a run.
     pub(crate) async fn hold_camera_state(
@@ -187,7 +182,7 @@ impl DeviceManager {
         if !self.wants_reopen(device_id, error).await {
             return Ok(false);
         }
-        let lock = reopen_lock(device_id);
+        let lock = self.with_session(device_id, |session| session.reopen_lock.clone());
         let Ok(_reopening) = lock.try_lock() else {
             // Another caller is reopening it: wait for that one.
             let _done = lock.lock().await;
@@ -207,12 +202,7 @@ impl DeviceManager {
     /// How many times `device_id` has been reopened. A caller that sees it
     /// move across a failed operation knows the device behind it is new.
     pub(crate) fn reopen_count(&self, device_id: &str) -> u64 {
-        reopens()
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .get(device_id)
-            .copied()
-            .unwrap_or(0)
+        self.with_session(device_id, |session| session.reopens)
     }
 
     /// Close `device_id` without announcing it lost, and connect it through
@@ -232,11 +222,7 @@ impl DeviceManager {
         }
         let connected = self.connect_device(device_id).await;
         self.set_auto_reconnect(device_id, auto_reconnect).await;
-        *reopens()
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .entry(device_id.to_string())
-            .or_default() += 1;
+        self.with_session(device_id, |session| session.reopens += 1);
         connected
     }
 
@@ -245,14 +231,10 @@ impl DeviceManager {
     /// never commanded is left as it came up.
     pub(crate) async fn restore_commanded_state(&self, info: &DeviceInfo) {
         let id = &info.id;
-        let Some(held) = commanded()
-            .lock()
-            .unwrap_or_else(|p| p.into_inner())
-            .get(id)
-            .cloned()
-        else {
+        let held = self.with_session(id, |session| session.commanded.clone());
+        if held == Commanded::default() {
             return;
-        };
+        }
         match held.calibrator {
             Some(Some(brightness)) => {
                 if let Err(e) = self.cover_calibrator_calibrator_on(id, brightness).await {
