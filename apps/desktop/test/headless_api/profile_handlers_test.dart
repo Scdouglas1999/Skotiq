@@ -21,6 +21,21 @@ import 'handler_test_helpers.dart';
 class _MockProfileSettingsBackend extends Mock
     implements ProfileSettingsBackend {}
 
+/// Settings whose snapshot for the change diff cannot be read once, as after
+/// a failed load.
+class _UnreadableOnceSettings extends AppSettingsNotifier {
+  bool unreadable = true;
+
+  @override
+  AppSettings exportRemoteSettings() {
+    if (unreadable) {
+      unreadable = false;
+      throw StateError('settings not readable');
+    }
+    return super.exportRemoteSettings();
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(() {
@@ -412,6 +427,51 @@ void main() {
         expect(body['error'], contains('Configure an MQTT broker'));
       },
     );
+
+    // With no readable previous settings the posted keys merge onto the
+    // install defaults, not the wire model's: the three optional grading
+    // checks default on (50 / 40 / 50 %) and must not be switched off by a
+    // write that never named them.
+    test('a partial update with unreadable previous settings keeps the '
+        'install defaults of the keys it omits', () async {
+      when(() => profileBackend.updateSettings(any())).thenAnswer((_) async {});
+      container.dispose();
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          secretsStoreProvider.overrideWithValue(secrets),
+          profileSettingsBackendProvider.overrideWithValue(profileBackend),
+          appSettingsProvider.overrideWith(_UnreadableOnceSettings.new),
+        ],
+      );
+      handlers = ProfileHandlers(container);
+      await container.read(appSettingsProvider.future);
+
+      final response = await translateHandlerErrors(
+        handlers.handleUpdateSettings(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/api/settings'),
+            body: jsonEncode({
+              'settings': {'ditherEnabled': false},
+            }),
+            headers: {'content-type': 'application/json'},
+            context: {
+              authGrantContextKey: HeadlessAuthGrant.fromCoarse(
+                HeadlessTokenScope.admin,
+              ),
+            },
+          ),
+        ),
+      );
+
+      expect(response.statusCode, HttpStatus.ok);
+      final stored = await container.read(appSettingsProvider.future);
+      expect(stored.ditherEnabled, isFalse);
+      expect(stored.imageGradingHfrBaselinePercent, 50.0);
+      expect(stored.imageGradingEccentricityBaselinePercent, 40.0);
+      expect(stored.imageGradingStarCountDropPercent, 50.0);
+    });
 
     test('partial settings update merges onto current values instead of '
         'resetting omitted keys to model defaults', () async {

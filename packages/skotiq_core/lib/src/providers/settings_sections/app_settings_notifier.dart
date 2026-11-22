@@ -61,6 +61,13 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// Every field of the host's typed settings a setting stands behind.
   static final Set<String> wireFields = AppSettingsCodec.wireFields;
 
+  /// A fresh install's settings as the wire carries them: each setting at the
+  /// settings table's default, which for the optional checks that default on
+  /// is not the wire model's null.
+  static final models.AppSettings installDefaults = AppSettingsCodec.toWire(
+    const AppSettingsState(),
+  );
+
   /// [settings] as the stored rows would hold them.
   Map<String, String> storedRowsOf(AppSettingsState settings) =>
       AppSettingsCodec.toRows(settings);
