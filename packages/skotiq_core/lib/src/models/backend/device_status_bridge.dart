@@ -62,11 +62,9 @@ MountStatus mountStatusFromBridge(bridge.MountStatus s) {
         : pierSideFromBridge(s.sideOfPier!),
     rightAscension: s.rightAscension,
     declination: s.declination,
-    // Pass the horizon frame through as the native side reported it. These
-    // three carried `?? 0.0`, which turned "this mount cannot say" — what
-    // `sim_gate::apply_derived_mount_telemetry` returns when no observing
-    // site is configured — into a settled `0.00°` on every panel that
-    // prints them. The panels already render `--` for null.
+    // The horizon frame as the native side reported it: null is "this mount
+    // cannot say" (what `sim_gate::apply_derived_mount_telemetry` returns
+    // when no observing site is configured), which the panels show as `--`.
     altitude: s.altitude,
     azimuth: s.azimuth,
     siderealTime: s.siderealTime,
