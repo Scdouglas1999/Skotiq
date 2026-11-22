@@ -205,7 +205,7 @@ class QuickCaptureNight {
   final DateTime night;
   final List<DbCapturedImage> lights;
 
-  double get integrationSecs => exposureSecs(lights);
+  double get integrationSecs => acceptedIntegrationSecs(lights);
 }
 
 /// One observing night of History, newest entries first.
