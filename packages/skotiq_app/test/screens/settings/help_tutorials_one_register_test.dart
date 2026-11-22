@@ -13,7 +13,6 @@
 // mechanically over the widget's own source so a new row cannot reintroduce the
 // split by adding a sixth Title Case title.
 
-
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
