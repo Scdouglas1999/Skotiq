@@ -16,6 +16,7 @@ use tokio::sync::{Mutex, RwLock};
 mod alpaca_mount;
 mod capabilities;
 mod device_reopen;
+mod focuser_busy;
 mod guards;
 mod heartbeat_config;
 mod heartbeat_events;

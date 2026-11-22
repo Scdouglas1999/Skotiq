@@ -13,6 +13,32 @@ use crate::timeout_ops::Timeouts;
 /// How often a move that returned before the focuser arrived is checked.
 const ARRIVAL_POLL: Duration = Duration::from_millis(250);
 
+/// What focuser drivers say when they refuse a move because the focuser is
+/// already moving (ASCOM drivers answer "Move Failure"), lowercased.
+const BUSY_ANSWERS: [&str; 4] = [
+    "move failure",
+    "already moving",
+    "device busy",
+    "focuser is busy",
+];
+
+/// A move the driver refused because the focuser is moving is a busy
+/// device (`InvalidState`, `DeviceBusy` over the FFI), not a fault.
+fn refused_while_moving(device_id: &str, error: DeviceOpError) -> DeviceOpError {
+    if matches!(error, DeviceOpError::InvalidState { .. }) {
+        return error;
+    }
+    let words = error.to_string().to_lowercase();
+    if BUSY_ANSWERS.iter().any(|answer| words.contains(answer)) {
+        DeviceOpError::InvalidState {
+            device_id: device_id.to_string(),
+            detail: error.to_string(),
+        }
+    } else {
+        error
+    }
+}
+
 impl DeviceManager {
     /// Move to an absolute position, publishing `FocuserMoveStarted` before
     /// the move and `FocuserMoveCompleted` with the position read back once
@@ -147,7 +173,10 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         let focuser = self.focuser(device_id).await?;
         let _op = self.busy(device_id, Busy::BlockingCall);
-        focuser.move_to(position).await
+        focuser
+            .move_to(position)
+            .await
+            .map_err(|e| refused_while_moving(device_id, e))
     }
 
     async fn focuser_move_rel_dispatch(
@@ -157,7 +186,10 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         let focuser = self.focuser(device_id).await?;
         let _op = self.busy(device_id, Busy::BlockingCall);
-        focuser.move_by(steps).await
+        focuser
+            .move_by(steps)
+            .await
+            .map_err(|e| refused_while_moving(device_id, e))
     }
 
     /// Read the focuser's position. The outcome feeds the device's read health (see
