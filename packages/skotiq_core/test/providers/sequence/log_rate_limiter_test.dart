@@ -1,6 +1,6 @@
 // One line can consume the whole in-app log ring.
 //
-// `SequenceExecutor._handleSequencerEvent` traces EVERY backend event at debug
+// The executor (`RunEventHandler.handle`) traces EVERY backend event at debug
 // level ("Received event: type=…, category=…"). At ~5 lines/s that fills
 // LoggingService's 1000-entry ring in ~3 minutes, leaving Settings > Advanced >
 // Logs showing nothing but `SequenceExecutor` DBG rows with no other producer
@@ -10,10 +10,38 @@
 // The trace is kept (it is genuinely useful when an event goes missing) but
 // rate-limited PER EVENT TYPE, so a burst of one chatty type collapses while a
 // type that has not been seen recently is never hidden behind it.
-import 'dart:io';
+import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/providers/sequence/log_rate_limiter.dart';
+import 'package:skotiq_core/utils.dart';
+
+import '../../mocks/mock_backend.dart';
+
+class _TestBackendNotifier extends BackendNotifier {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
+}
+
+class _CapturingLogger extends LoggingService {
+  final List<String> lines = [];
+
+  @override
+  void log(
+    LogLevel level,
+    String message, {
+    String? source,
+    Map<String, Object?>? fields,
+  }) {
+    lines.add(message);
+  }
+}
 
 void main() {
   late DateTime now;
@@ -79,23 +107,68 @@ void main() {
     expect(limiter.trackedKeys, lessThan(50));
   });
 
-  // The unit above is only worth having if the executor actually uses it. This
-  // is the guard against the trace being restored to an unconditional
-  // `_logger.debug` — the shape that made the log unreadable in the first
-  // place.
-  test('the executor traces backend events THROUGH the limiter', () {
-    final source = File(
-      'lib/src/providers/sequence/sequence_executor/run_event_handler.dart',
-    ).readAsStringSync();
-    final handler = source.substring(
-      source.indexOf('void handle(SkotiqEvent raw)'),
-      source.indexOf('sequencerEventOf('),
+  // The limiter is only worth having if the executor's event trace goes
+  // through it: an unconditional per-event debug line is what filled the ring.
+  group('the executor\'s event trace', () {
+    late MockBackend backend;
+    late StreamController<SkotiqEvent> events;
+    late _CapturingLogger logger;
+    late ProviderContainer container;
+
+    setUp(() {
+      backend = MockBackend();
+      events = StreamController<SkotiqEvent>.broadcast();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      logger = _CapturingLogger();
+      container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+          loggingServiceProvider.overrideWithValue(logger),
+        ],
+      );
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await events.close();
+    });
+
+    SkotiqEvent cameraEvent(String type) => SkotiqEvent(
+      timestamp: DateTime.now().millisecondsSinceEpoch,
+      severity: EventSeverity.info,
+      category: EventCategory.equipment,
+      eventType: type,
+      data: const {},
     );
-    expect(handler, contains('_eventTraceLimiter.admit('));
-    expect(
-      handler,
-      isNot(contains("_logger.debug(\n      'Received event")),
-      reason: 'the per-event trace must not be logged unconditionally again',
-    );
+
+    test('a burst of one event type leaves one trace line', () {
+      final executor = container.read(sequenceExecutorProvider);
+      for (var i = 0; i < 200; i++) {
+        executor.handleSequencerEventForTest(cameraEvent('CoolerStatus'));
+      }
+
+      expect(
+        logger.lines.where((l) => l.contains('CoolerStatus')),
+        hasLength(1),
+      );
+    });
+
+    test('another event type is traced the moment it arrives', () {
+      final executor = container.read(sequenceExecutorProvider);
+      for (var i = 0; i < 50; i++) {
+        executor.handleSequencerEventForTest(cameraEvent('CoolerStatus'));
+      }
+      executor.handleSequencerEventForTest(cameraEvent('FilterChanged'));
+
+      expect(
+        logger.lines.where((l) => l.contains('FilterChanged')),
+        hasLength(1),
+      );
+    });
   });
 }

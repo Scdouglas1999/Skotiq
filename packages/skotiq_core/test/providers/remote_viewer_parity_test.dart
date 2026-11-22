@@ -10,9 +10,6 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
-import 'package:skotiq_core/src/providers/sequence/sequence_editor.dart';
-import 'package:skotiq_core/src/services/device_service.dart';
-import 'package:skotiq_core/src/services/weather/current_sky_service.dart';
 import 'package:skotiq_core/utils.dart';
 
 import '../harness/in_memory_database.dart';
@@ -407,7 +404,7 @@ void main() {
     const exposures = 61;
     applyHostRuntimeUpdate(
       client,
-      HostRuntimeUpdate(
+      const HostRuntimeUpdate(
         channel: 'runRecord',
         revision: 1,
         value: {

@@ -590,7 +590,11 @@ void main() {
       },
     );
 
-    test('Error event for unknown device type does not crash', () async {
+    test('Error event for unknown device type touches no device', () async {
+      final mountNotifier = container.read(mountStateProvider.notifier);
+      mountNotifier.setConnecting('mount-1');
+      mountNotifier.setConnected();
+
       eventStreamController.add(
         SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -606,8 +610,9 @@ void main() {
       );
 
       await Future.delayed(const Duration(milliseconds: 50));
-      // Should not throw; warning path is exercised.
-      expect(true, isTrue);
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.connected);
+      expect(mount.lastError, isNull);
     });
 
     test('Error event with missing message still routes through', () async {

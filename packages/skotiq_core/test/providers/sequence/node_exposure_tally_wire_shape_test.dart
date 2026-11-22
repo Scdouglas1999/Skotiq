@@ -6,15 +6,15 @@
 //   node/instructions/expose.rs        ProgressDetail::Exposure { frame, total, .. }
 //   api/sequencer/event_translation.rs `payload.to_string()`  -> a JSON String
 //   event/sequencer.rs:118             `detail_json: String`
-//   ffi_backend/event_mapping.dart:534 'detail_json': sequencerEvent.detailJson
+//   event_wire/event_wire.g.dart      'detail_json': event.detailJson
 //
 // — so every consumer must decode it first (`decodeStructuredProgressJson`
 // beside the event codec). A consumer that reads it as a Map sees `{}`
 // and counts nothing.
 //
 // The second half of this file pins the id-less boundary: `ExposureCompleted`
-// carries no node id on the wire (event_mapping.dart's ExposureCompleted case
-// has frame/total/duration only), and `NodeStarted` for the next node can be
+// carries no node id on the wire (the generated codec's ExposureCompleted
+// case has frame/total/duration only), and `NodeStarted` for the next node can be
 // emitted BEFORE the previous node's last frame. Attributing an id-less event
 // to "the run's current node" therefore credits the wrong node — a join by
 // position, with the node id available in the structured event.

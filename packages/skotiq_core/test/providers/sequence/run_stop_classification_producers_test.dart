@@ -4,7 +4,7 @@
 // producers can turn that into an error message:
 //
 //   1. NotificationEventClassifier          -> "Sequence failed" toast + push
-//   2. SequenceExecutor._handleSequencerEvent -> rollup "Error: …", red node
+//   2. RunEventHandler.handle (the executor) -> rollup "Error: …", red node
 //   2b. applySequencerEventToSequenceProviders -> the SAME rollup message,
 //       from a second live subscriber on the same desktop host
 //   3. runDashboardCriticalEventsBridge      -> "Critical · Sequencer" toast,
@@ -15,17 +15,27 @@
 // from app start, handling the identical event — writing "Error: Sequence
 // cancelled" into the same provider the target rollup reads.
 //
-// This file pins the behaviour of 2b directly and, for the handlers that need a
-// whole executor to exercise, asserts structurally that every `case 'Error'` in
-// the sequence providers consults the ONE shared predicate. If someone adds a
-// third handler, or deletes the guard from one, this fails.
+// This file drives 2b and 2 with the same wire rows, so a fix to one producer
+// that misses the other fails here.
 
-import 'dart:io';
+import 'dart:async';
 
+import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/backend.dart';
+import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+
+import '../../mocks/mock_backend.dart';
+
+class _TestBackendNotifier extends BackendNotifier {
+  _TestBackendNotifier(super.ref, SkotiqBackend backend) {
+    state = backend;
+  }
+}
 
 SkotiqEvent _sequencerEvent(
   String eventType,
@@ -183,45 +193,76 @@ void main() {
     });
   });
 
-  // Structural guard for the implementations a unit test cannot reach cheaply.
-  // Both files below own a `case 'Error':` for the SAME wire event.
-  test('every sequencer-Error handler consults the shared predicate', () {
-    const handlers = <String>[
-      'lib/src/providers/sequence/sequence_progress.dart',
-      'lib/src/providers/sequence/sequence_executor/run_event_handler.dart',
-    ];
-    for (final path in handlers) {
-      final source = File(path).readAsStringSync();
-      expect(
-        source,
-        contains('case SequencerEvent_Error('),
-        reason:
-            '$path no longer handles the sequencer Error event. If the '
-            'handler moved, move this pin with it.',
+  // Producer 2: the executor's own subscriber handles the identical event.
+  // Fixing one producer and not the other is the defect this file keeps
+  // reopening, so the executor is driven with the same wire rows.
+  group('the executor\'s event handler (producer 2)', () {
+    late MockBackend backend;
+    late StreamController<SkotiqEvent> events;
+    late SkotiqDatabase db;
+    late ProviderContainer container;
+    late SequenceExecutor executor;
+
+    setUp(() {
+      backend = MockBackend();
+      events = StreamController<SkotiqEvent>.broadcast();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      when(
+        () => backend.polarAlignmentEvents,
+      ).thenAnswer((_) => const Stream.empty());
+      db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+      container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+        ],
       );
-      expect(
-        source,
-        contains('SequencerErrorKind.cancelled'),
-        reason:
-            '$path handles a sequencer Error without asking whether it is '
-            'a stopped run\'s cancellation. That is the defect this file keeps '
-            'reopening: one producer fixed, the other still crying wolf.',
+      container.read(runRecordProvider.notifier).setStats(SequenceRunStats());
+      container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
+      executor = container.read(sequenceExecutorProvider);
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await events.close();
+      await db.close();
+    });
+
+    test('an operator stop does not become "Error: Sequence cancelled"', () {
+      executor.handleSequencerEventForTest(_operatorStopDecision());
+      executor.handleSequencerEventForTest(_cancellation());
+
+      final message = container.read(sequenceProgressProvider).message;
+      expect(message, kSequenceStoppedByRequestMessage);
+      expect(message, isNot(contains('Error')));
+      expect(container.read(liveSequenceStatsProvider)!.errorMessages, isEmpty);
+    });
+
+    test('a trigger-driven park names its trigger, not a human', () {
+      executor.handleSequencerEventForTest(
+        _triggerFired('Dawn Approaching', 'ParkAndAbort'),
       );
+      executor.handleSequencerEventForTest(_cancellation());
+
       expect(
-        source,
-        contains('sequenceStoppedMessage('),
-        reason:
-            '$path answers the cancel notice without asking WHO ended the '
-            'run. The notice is identical for an operator Stop and for a '
-            'dawn/weather ParkAndAbort, so the constant is a guess.',
+        container.read(sequenceProgressProvider).message,
+        'Parked by the Dawn Approaching trigger',
       );
+    });
+
+    test('a real fault is still reported as an error', () {
+      executor.handleSequencerEventForTest(
+        _sequencerError('Temperature compensation cancelled'),
+      );
+
       expect(
-        source,
-        isNot(contains('message: kSequenceStoppedByRequestMessage')),
-        reason:
-            '$path writes the operator\'s sentence as a constant again. The '
-            'cause has to come from the run\'s own authorship rows.',
+        container.read(sequenceProgressProvider).message,
+        'Error: Temperature compensation cancelled',
       );
-    }
+    });
   });
 }

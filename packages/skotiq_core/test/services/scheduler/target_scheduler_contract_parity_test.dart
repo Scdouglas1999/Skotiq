@@ -57,11 +57,13 @@ void main() {
         (f) => f.existsSync(),
         orElse: () => candidates.first,
       );
-      if (!rust.existsSync()) {
-        // The native tree is not always present in every checkout/CI shard.
-        // Skip rather than fail spuriously; the pure-Dart pins above still run.
-        return;
-      }
+      expect(
+        rust.existsSync(),
+        isTrue,
+        reason:
+            'scoring.rs moved; point this pin at the file that declares '
+            'ScoringWeights',
+      );
       final src = rust.readAsStringSync();
 
       // Field set + ordering: the snake_case mirror of the Dart fields.

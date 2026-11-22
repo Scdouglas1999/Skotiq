@@ -540,17 +540,22 @@ void main() {
       // leave the heartbeat clear a no-op that does not raise, and the event
       // must still reach the existing handler.
       const deviceId = 'native:zwo:0';
+      container.read(cameraStateProvider.notifier)
+        ..setConnecting(deviceId, 'ZWO')
+        ..setConnected();
 
-      expect(
-        () => events.add(
-          makeEvent('Disconnected', {
-            'device_type': 'camera',
-            'device_id': deviceId,
-          }),
-        ),
-        returnsNormally,
+      events.add(
+        makeEvent('Disconnected', {
+          'device_type': 'camera',
+          'device_id': deviceId,
+        }),
       );
       await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(
+        container.read(cameraStateProvider).connectionState,
+        DeviceConnectionState.disconnected,
+      );
     },
   );
 }

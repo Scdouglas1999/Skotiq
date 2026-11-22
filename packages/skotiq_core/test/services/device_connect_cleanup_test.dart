@@ -37,7 +37,8 @@ void main() {
     when(
       () => backend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
-    // The native policy: the heartbeat reconnects these itself.
+    // The native heartbeat reconnects these; the focuser here takes the Dart
+    // reconnect path.
     when(() => backend.nativeReconnectedDeviceTypes).thenReturn(const {
       DeviceType.mount,
       DeviceType.guider,

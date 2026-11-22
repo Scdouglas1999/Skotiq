@@ -69,8 +69,6 @@ void main() {
         'lib/src/backend/roles',
       ).listSync().whereType<File>().where((f) => f.path.endsWith('.dart')),
       File('lib/src/backend/skotiq_backend.dart'),
-      // SequencerBackend implements AdaptiveSwapBackend.
-      File('lib/src/services/adaptive_swap_service.dart'),
     ];
     final disconnected = File(
       'lib/src/backend/disconnected_backend.dart',

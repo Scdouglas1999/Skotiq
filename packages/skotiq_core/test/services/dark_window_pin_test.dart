@@ -9,6 +9,18 @@ import '../fakes/fake_target_scoring.dart';
 
 class _Log extends Mock implements LoggingService {}
 
+typedef _Site = ({double lat, double lon, String now});
+
+/// The planners are handed the app clock's local time, so the clock-window
+/// fallback lands on the machine's local calendar day, whatever its zone.
+DateTime _localNow(_Site site) => DateTime.parse(site.now).toLocal();
+
+/// [hour]:00 local, [days] after the local day of the site's instant.
+DateTime _clockOn(_Site site, int days, int hour) {
+  final local = _localNow(site);
+  return DateTime(local.year, local.month, local.day + days, hour);
+}
+
 // Tonight's dark window as the two planners derive it, pinned at a
 // mid-latitude night, a summer night with no astronomical dark, midnight sun
 // and polar night.
@@ -21,7 +33,7 @@ void main() {
   };
 
   Future<({int start, int end, List<String> warnings})> suggestionWindow(
-    ({double lat, double lon, String now}) site,
+    _Site site,
   ) async {
     final scoring = FakeTargetScoring();
     final log = _Log();
@@ -55,7 +67,7 @@ void main() {
         ),
       ],
       sessions: const [],
-      observationTime: DateTime.parse(site.now),
+      observationTime: _localNow(site),
       floor: const AltitudeFloor(horizon: null, minimumDeg: 0.0),
     );
     final sky = scoring.nightRequests.single.sky;
@@ -66,7 +78,7 @@ void main() {
     );
   }
 
-  Object smartNightWindow(({double lat, double lon, String now}) site) {
+  Object smartNightWindow(_Site site) {
     final service = SmartNightService(
       suggestionService: TargetSuggestionService(
         loggingService: _Log(),
@@ -79,7 +91,7 @@ void main() {
       final w = service.calculateWindow(
         latitudeDeg: site.lat,
         longitudeDeg: site.lon,
-        now: DateTime.parse(site.now),
+        now: _localNow(site),
       );
       return (start: w.start, end: w.end);
     } on SmartNightBuildException {
@@ -116,14 +128,15 @@ void main() {
   test(
     'midnight sun: suggestions take 21:00-05:00, Smart Night refuses',
     () async {
-      final suggestion = await suggestionWindow(sites['midnight sun']!);
+      final site = sites['midnight sun']!;
+      final suggestion = await suggestionWindow(site);
       expect(
         DateTime.fromMillisecondsSinceEpoch(suggestion.start),
-        DateTime(2024, 6, 21, 21),
+        _clockOn(site, 0, 21),
       );
       expect(
         DateTime.fromMillisecondsSinceEpoch(suggestion.end),
-        DateTime(2024, 6, 22, 5),
+        _clockOn(site, 1, 5),
       );
       expect(suggestion.warnings, [
         'No twilight boundaries found - using default 21:00-05:00 window',
@@ -133,19 +146,18 @@ void main() {
   );
 
   test('polar night: both take a clock window from 21:00', () async {
-    final suggestion = await suggestionWindow(sites['polar night']!);
+    final site = sites['polar night']!;
+    final suggestion = await suggestionWindow(site);
     expect(
       DateTime.fromMillisecondsSinceEpoch(suggestion.start),
-      DateTime(2024, 12, 21, 21),
+      _clockOn(site, 0, 21),
     );
     expect(
       DateTime.fromMillisecondsSinceEpoch(suggestion.end),
-      DateTime(2024, 12, 22, 5),
+      _clockOn(site, 1, 5),
     );
-    final smart =
-        smartNightWindow(sites['polar night']!)
-            as ({DateTime start, DateTime end});
-    expect(smart.start, DateTime(2024, 12, 21, 21));
-    expect(smart.end, DateTime(2024, 12, 22, 5));
+    final smart = smartNightWindow(site) as ({DateTime start, DateTime end});
+    expect(smart.start, _clockOn(site, 0, 21));
+    expect(smart.end, _clockOn(site, 1, 5));
   });
 }

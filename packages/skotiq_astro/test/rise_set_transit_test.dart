@@ -29,10 +29,14 @@ void main() {
       expect(visibility.neverRises, isFalse);
     });
 
-    test('transit altitude equals 90 - |lat - dec| on the equinox (~49.5)', () {
-      // On the equinox the Sun's declination is ~0, so the noon altitude is
-      // 90 - latitude. Apparent (refracted) altitude is a hair higher.
-      expect(visibility.transitAltitude, closeTo(90 - lat, 0.4));
+    test('transit altitude equals 90 - |lat - dec| at the transit', () {
+      // The noon altitude is 90 - |latitude - declination| for the Sun's
+      // declination at that moment (~0 on the equinox). Apparent (refracted)
+      // altitude is a hair higher.
+      final (_, dec) = AstronomyCalculations.sunPosition(
+        visibility.transitTime!,
+      );
+      expect(visibility.transitAltitude, closeTo(90 - (lat - dec).abs(), 0.1));
     });
 
     // The -0.8333 deg limb is a GEOMETRIC sun-centre altitude: the -34' in it
