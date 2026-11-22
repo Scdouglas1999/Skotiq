@@ -79,7 +79,8 @@ impl DeviceManager {
         let result = camera.is_exposure_complete().await;
         if let Err(error) = &result {
             self.note_operation_failure(device_id, error);
-            if let Err(e) = Box::pin(self.reopen_after(device_id, &error.to_string())).await {
+            let failure = crate::device_manager::failure::DeviceFailure::from(error);
+            if let Err(e) = Box::pin(self.reopen_after(device_id, &failure)).await {
                 tracing::warn!("Reopen of {device_id} failed: {e}");
             }
         }

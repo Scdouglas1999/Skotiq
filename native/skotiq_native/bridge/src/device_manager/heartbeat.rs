@@ -4,6 +4,7 @@
 //! using Rust's split-impl-block feature.
 
 use crate::device::{DeviceType, DriverType};
+use crate::device_manager::failure::DeviceFailure;
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, HeartbeatConfig};
 use crate::event::equipment::{EquipmentEvent, EventSeverity};
@@ -56,11 +57,13 @@ pub(crate) fn defers_for_camera_usb(
 /// [`crate::device_manager::read_health`].
 pub(crate) fn with_status_reads(
     probe: Result<bool, String>,
-    failing_reads: Option<String>,
-) -> Result<bool, String> {
+    failing_reads: Option<DeviceFailure>,
+) -> Result<bool, DeviceFailure> {
     match (probe, failing_reads) {
-        (Ok(true), Some(reason)) => Err(format!("Status reads are failing: {reason}")),
-        (probe, _) => probe,
+        (Ok(true), Some(reason)) => {
+            Err(reason.reworded(|reason| format!("Status reads are failing: {reason}")))
+        }
+        (probe, _) => probe.map_err(DeviceFailure::words),
     }
 }
 
@@ -469,10 +472,11 @@ impl DeviceManager {
                             device.heartbeat_deferred_at = None;
                         }
                     }
-                    let error_msg = match &health_check_result {
+                    let failure = match &health_check_result {
                         Err(e) => e.clone(),
-                        _ => "Device not responding".to_string(),
+                        _ => DeviceFailure::words("Device not responding"),
                     };
+                    let error_msg = failure.to_string();
 
                     tracing::warn!(
                         "Heartbeat failure {}/{} for device {}: {}",
@@ -485,11 +489,11 @@ impl DeviceManager {
                     // A device lost to a hub that dropped is reopened at
                     // once, off this task: the reopen restarts this
                     // heartbeat.
-                    if manager.wants_reopen(&device_id_clone, &error_msg).await {
+                    if manager.wants_reopen(&device_id_clone, &failure).await {
                         crate::device_manager::device_reopen::reopen_in_background(
                             manager.clone(),
                             device_id_clone.clone(),
-                            error_msg.clone(),
+                            failure.clone(),
                         );
                     }
 
@@ -715,8 +719,8 @@ impl DeviceManager {
 #[cfg(test)]
 mod heartbeat_event_tests {
     use super::{
-        defers_for_camera_usb, heartbeat_events_for_poll, with_status_reads, HeartbeatEventKind,
-        MAX_USB_DEFERRAL,
+        defers_for_camera_usb, heartbeat_events_for_poll, with_status_reads, DeviceFailure,
+        HeartbeatEventKind, MAX_USB_DEFERRAL,
     };
     use std::time::Duration;
 
@@ -747,17 +751,19 @@ mod heartbeat_event_tests {
     /// and arms the latch.
     #[test]
     fn failing_status_reads_overrule_a_passing_probe() {
-        let reads = Some("the last 3 status reads failed: Failed to get RA".to_string());
+        let reads = Some(DeviceFailure::words(
+            "the last 3 status reads failed: Failed to get RA",
+        ));
         let result = with_status_reads(Ok(true), reads.clone());
         assert!(
-            matches!(&result, Err(e) if e.contains("Failed to get RA")),
+            matches!(&result, Err(e) if e.message().contains("Failed to get RA")),
             "{result:?}"
         );
         assert_eq!(with_status_reads(Ok(true), None), Ok(true));
         // A failing probe keeps its own, more specific reason.
         assert_eq!(
             with_status_reads(Err("probe".into()), reads),
-            Err("probe".to_string())
+            Err(DeviceFailure::words("probe"))
         );
     }
 
