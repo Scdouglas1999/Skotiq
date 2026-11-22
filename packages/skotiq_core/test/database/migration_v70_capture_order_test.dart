@@ -1,5 +1,7 @@
 // The v70 migration numbers old mosaic grids with its own frozen copy of the
 // capture-order inference; today it answers exactly as the live one does.
+// When the live geometry changes on purpose, delete this test: the copy is
+// meant to stay as it is.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
