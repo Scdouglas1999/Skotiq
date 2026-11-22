@@ -7,8 +7,9 @@ const BROKEN: &str =
     "Failed to check exposure status: SDK error: ZWO camera reported a failed exposure";
 
 /// Every frame taker of the sequencer and the policy it takes its frame
-/// with. Only the light frame, the centering frame and the autofocus samples
-/// get the run's camera retries (and so the reopen of a broken session).
+/// with. Every frame of a run gets the run's camera retries (and so the
+/// reopen of a broken session), except the secondary rig, which has no run
+/// of its own.
 #[test]
 fn the_twelve_capture_sites_and_their_policy() {
     use CaptureSite::*;
@@ -31,15 +32,15 @@ fn the_twelve_capture_sites_and_their_policy() {
             false,
         ),
         (AutofocusSample, After, true, Retried, false),
-        (AutofocusVerify, After, true, Once, false),
-        (BacklashCalibration, After, true, Once, false),
+        (AutofocusVerify, After, true, Retried, false),
+        (BacklashCalibration, After, true, Retried, false),
         (SecondaryRig, Poll, false, Once, false),
-        (FlatWizardTest, After, false, Once, false),
-        (AllSkyPolar, After, false, Once, false),
-        (PolarAlignMeasure, After, false, Once, false),
-        (PolarAlignAdjust, After, false, Once, false),
-        (FlipCenter, After, false, Once, false),
-        (FlipNearbyRecovery, After, false, Once, false),
+        (FlatWizardTest, After, false, Retried, false),
+        (AllSkyPolar, After, false, Retried, false),
+        (PolarAlignMeasure, After, false, Retried, false),
+        (PolarAlignAdjust, After, false, Retried, false),
+        (FlipCenter, After, false, Retried, false),
+        (FlipNearbyRecovery, After, false, Retried, false),
     ];
     assert_eq!(
         table.map(|row| row.0),
@@ -105,12 +106,16 @@ async fn a_broken_session_is_reopened_only_where_the_site_retries() {
 /// meanwhile; only a retry's wait turns a failure into a stop.
 #[tokio::test(start_paused = true)]
 async fn a_single_attempt_failure_is_not_read_as_a_stop() {
+    assert_eq!(
+        CaptureSite::SecondaryRig.policy().retries,
+        FrameRetries::None
+    );
     let ops = Arc::new(ScriptedDomeRotatorOps::new().failing_exposures(&["download failed"]));
     let ctx = run_ctx(ops).await;
     ctx.cancellation_token.store(true, Ordering::SeqCst);
     let result = take_frame(
         &ctx,
-        CaptureSite::FlatWizardTest,
+        CaptureSite::SecondaryRig,
         crate::device_ops::ExposureRequest::new("camera-1", 0.0),
         "on a test frame",
     )
@@ -222,4 +227,26 @@ async fn the_secondary_rig_frame_is_cut_short_for_a_dither() {
         "{exposed:?}"
     );
     assert_eq!(ops.camera_abort_calls.load(Ordering::SeqCst), 1);
+}
+
+/// Every frame of a run, whatever takes it, gets the camera reopened when
+/// its session broke and is taken again.
+#[tokio::test(start_paused = true)]
+async fn every_run_frame_reopens_a_broken_camera_session() {
+    for site in CaptureSite::ALL {
+        if site == CaptureSite::SecondaryRig {
+            continue;
+        }
+        let ops = Arc::new(ScriptedDomeRotatorOps::new().with_broken_camera_session(BROKEN));
+        let ctx = run_ctx(ops.clone()).await;
+        let result = take_frame(
+            &ctx,
+            site,
+            crate::device_ops::ExposureRequest::new("camera-1", 0.0),
+            "on a test frame",
+        )
+        .await;
+        assert!(result.is_ok(), "{site:?}: {result:?}");
+        assert_eq!(ops.camera_reopens.load(Ordering::SeqCst), 1, "{site:?}");
+    }
 }
