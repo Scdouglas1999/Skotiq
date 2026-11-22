@@ -98,6 +98,22 @@ const DIFFUSE_R90_RATIO: f64 = 1.7;
 /// extended-source cut.
 const MIN_STARS_FOR_SIZE_CUT: usize = 10;
 
+/// The wide pass that finds defocused donuts runs only on frames at least
+/// this many pixels on each side.
+const WIDE_PASS_MIN_SIDE_PX: usize = 128;
+
+/// Coarse sources the wide pass measures, brightest first.
+const WIDE_PASS_MAX_SOURCES: usize = 50;
+
+/// A pass-1 source at most this HFR and eccentricity is compact: a focused
+/// star or one knot of a shattered donut rim.
+const COMPACT_KNOT_MAX_HFR: f64 = 3.5;
+const COMPACT_KNOT_MAX_ECCENTRICITY: f64 = 0.65;
+
+/// Fewest compact knots that can be one donut's rim: four stars on a circle
+/// leave a gap of at least 90°.
+const MIN_RIM_KNOTS: usize = 5;
+
 /// Detection output with the frame-level background and noise.
 pub(crate) struct Detection {
     pub stars: Vec<DetectedStar>,
@@ -416,7 +432,7 @@ fn estimate_wide_star_size(
 ) -> Option<f64> {
     const BIN: usize = 4;
     let (w, h) = (frame.width, frame.height);
-    if w < 128 || h < 128 {
+    if w < WIDE_PASS_MIN_SIDE_PX || h < WIDE_PASS_MIN_SIDE_PX {
         return None;
     }
     let (bw, bh) = (w / BIN, h / BIN);
@@ -451,7 +467,7 @@ fn estimate_wide_star_size(
         &coarse,
         2,
         (config.max_area as usize / (BIN * BIN)).max(64),
-        50,
+        WIDE_PASS_MAX_SOURCES,
     );
     if ranked.len() < 3 {
         return None;
@@ -508,8 +524,8 @@ fn estimate_wide_star_size(
                     if !m.hot
                         && !m.diffuse
                         && m.star.hfr > 0.0
-                        && m.star.hfr <= 3.5
-                        && m.star.eccentricity <= 0.65
+                        && m.star.hfr <= COMPACT_KNOT_MAX_HFR
+                        && m.star.eccentricity <= COMPACT_KNOT_MAX_ECCENTRICITY
                     {
                         compact.push((m.star.x, m.star.y, m.star.hfr));
                     }
@@ -549,7 +565,7 @@ fn estimate_wide_star_size(
 /// shattered ring has five or more knots, a thin spread of radii, and almost
 /// no flux in the hole.
 fn compact_knots_on_one_ring(frame: &Frame, footprint: &[u32], knots: &[(f64, f64, f64)]) -> bool {
-    if knots.len() < 5 {
+    if knots.len() < MIN_RIM_KNOTS {
         return false;
     }
     let w = frame.width;

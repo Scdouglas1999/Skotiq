@@ -375,7 +375,7 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
         // Elongated sources above the round-star selection ceiling are masked
         // when they are genuine trails (high SNR), not marginal 5σ noise
         // percolation clusters sitting on faint target nebulosity.
-        if star.eccentricity > crate::SELECTION_MAX_ECCENTRICITY && star.snr < 8.0 {
+        if star.kind() == crate::SourceKind::NoiseCluster {
             continue;
         }
         mark_disk(star.x, star.y, (3.0 * star.fwhm).clamp(6.0, 25.0));
