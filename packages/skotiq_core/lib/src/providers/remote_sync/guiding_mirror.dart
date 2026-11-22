@@ -3,14 +3,16 @@ part of '../remote_sync_handler.dart';
 /// The host's own window following a guider that connected or disconnected
 /// through the server.
 void _applyGuidingEvent(ProviderContainer container, SkotiqEvent event) {
-  switch (event.eventType) {
-    case 'Connected':
+  switch (guidingEventOf(event)) {
+    case bridge.GuidingEvent_Connected():
       _noteGuiderConnected(container);
-    case 'Disconnected':
+    case bridge.GuidingEvent_Disconnected():
       readDeviceConnectionNotifier(
         container,
         DeviceType.guider,
       ).setDisconnected();
+    case _:
+      break;
   }
 }
 

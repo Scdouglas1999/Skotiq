@@ -24,11 +24,11 @@ class LockPositionNotifier extends StateNotifier<({double x, double y})?> {
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted || event.category != EventCategory.guiding) return;
-    if (event.eventType == 'StarSelected' ||
-        event.eventType == 'LockPositionSet') {
-      final x = (event.data['X'] ?? event.data['x'] ?? 0).toDouble();
-      final y = (event.data['Y'] ?? event.data['y'] ?? 0).toDouble();
+    if (!mounted) return;
+    if (guidingEventOf(event) case GuidingEvent_StarSelected(
+      :final x,
+      :final y,
+    )) {
       state = (x: x, y: y);
     }
   }

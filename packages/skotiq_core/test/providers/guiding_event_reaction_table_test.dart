@@ -329,11 +329,11 @@ const Map<_Start, Map<String, String>> _expected = {
     'wire UnknownGuidingEvent':
         'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'wire LockPositionSet':
-        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=4.0,5.0 calibrated=false calls= later=',
+        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'wire CalibrationFailed':
         'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'wire CalibrationDataFlipped':
-        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls=guiderGetCalibration later=',
+        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'equipment Connected':
         'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
   },
@@ -391,11 +391,11 @@ const Map<_Start, Map<String, String>> _expected = {
     'wire UnknownGuidingEvent':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'wire LockPositionSet':
-        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=4.0,5.0 calibrated=false calls= later=',
+        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'wire CalibrationFailed':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'wire CalibrationDataFlipped':
-        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls=guiderGetCalibration later=',
+        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'equipment Connected':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
   },
@@ -453,11 +453,11 @@ const Map<_Start, Map<String, String>> _expected = {
     'wire UnknownGuidingEvent':
         'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'wire LockPositionSet':
-        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=4.0,5.0 calibrated=false calls= later=',
+        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'wire CalibrationFailed':
         'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'wire CalibrationDataFlipped':
-        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls=guiderGetCalibration later=',
+        'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
     'equipment Connected':
         'stopped conn=disconnected guiding=false rms=null stop=null settleTimeout=false lost=false snr=0.0 mass=0.0 statsRms=0.000 loop=0 graph=0 history=0 lock=null calibrated=false calls= later=',
   },
@@ -515,11 +515,11 @@ const Map<_Start, Map<String, String>> _expected = {
     'wire UnknownGuidingEvent':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'wire LockPositionSet':
-        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=4.0,5.0 calibrated=false calls= later=',
+        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'wire CalibrationFailed':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'wire CalibrationDataFlipped':
-        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls=guiderGetCalibration later=',
+        'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
     'equipment Connected':
         'guiding conn=connected guiding=true rms=null stop=null settleTimeout=false lost=false snr=5.0 mass=100.0 statsRms=0.000 loop=0 graph=1 history=1 lock=1.0,1.0 calibrated=false calls= later=',
   },
