@@ -429,7 +429,10 @@ class SchedulerHandlers implements RouteSource {
     return floor.visibilityAround(
       raDeg: raDeg,
       decDeg: decDeg,
-      center: DateTime(night.year, night.month, night.day, 24),
+      center: AstronomyCalculations.nightMiddleOf(
+        night,
+        longitudeDeg: longitude,
+      ),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );

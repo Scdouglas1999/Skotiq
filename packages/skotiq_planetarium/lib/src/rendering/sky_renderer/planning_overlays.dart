@@ -49,11 +49,9 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // Sample apparent altitude across the local night window (noon→noon), the
     // same 24h span the object-details altitude chart uses, so the on-sky track
     // and the side-panel chart agree.
-    final localNoon = DateTime(
-      observationTime.year,
-      observationTime.month,
-      observationTime.day,
-      12,
+    final localNoon = AstronomyCalculations.nightStartOf(
+      observationTime,
+      longitudeDeg: longitude,
     );
     const samples = 48; // every 30 minutes
     // Memoized on (target, day, site): this runs on the animated overlay layer,
@@ -235,11 +233,9 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
 
     // Gauge spans the local night window (noon→noon) so "now" and the band map
     // consistently with the altitude track.
-    final localNoon = DateTime(
-      observationTime.year,
-      observationTime.month,
-      observationTime.day,
-      12,
+    final localNoon = AstronomyCalculations.nightStartOf(
+      observationTime,
+      longitudeDeg: longitude,
     );
     const windowMinutes = 24 * 60;
     double frac(DateTime t) =>

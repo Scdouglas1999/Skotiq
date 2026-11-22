@@ -452,6 +452,20 @@ class AstronomyCalculations {
   /// sidereal day (~4 min) of error in every rise/transit/set time.
   static DateTime nightDateOf(DateTime instant) => _nightDateOf(instant);
 
+  /// The instant the night of [date] opens at a site at [longitudeDeg]: the
+  /// start of the window [calculateObjectVisibility] scans. Only the calendar
+  /// day of [date] is read.
+  static DateTime nightStartOf(DateTime date, {required double longitudeDeg}) =>
+      _nightStartOf(date, longitudeDeg);
+
+  /// The middle of the night of [date] at a site at [longitudeDeg], halfway
+  /// through the window [nightStartOf] opens. Pass it as the `center` of a
+  /// search that spans the night of [date].
+  static DateTime nightMiddleOf(
+    DateTime date, {
+    required double longitudeDeg,
+  }) => _nightMiddleOf(date, longitudeDeg);
+
   /// Calculate rise, transit, and set times for an object.
   ///
   /// The window scanned is the local day of [date] from noon to the following

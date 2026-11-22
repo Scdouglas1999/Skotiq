@@ -1,7 +1,13 @@
 part of '../astronomy_calculations.dart';
 
-DateTime _localNoonOf(DateTime date) =>
+/// The instant the night of [date] opens at a site at [longitudeDeg]. Only
+/// the calendar day of [date] is read.
+DateTime _nightStartOf(DateTime date, double longitudeDeg) =>
     DateTime(date.year, date.month, date.day, 12);
+
+/// The middle of the night of [date] at a site at [longitudeDeg].
+DateTime _nightMiddleOf(DateTime date, double longitudeDeg) =>
+    DateTime(date.year, date.month, date.day, 24);
 
 /// Apparent altitude (degrees, including refraction) of a body at [dt].
 ///
@@ -126,7 +132,7 @@ ObjectVisibility _calculateObjectVisibility({
   EquatorialPositionAt? positionAt,
   DateTime? windowStart,
 }) {
-  final localNoon = windowStart ?? _localNoonOf(date);
+  final localNoon = windowStart ?? _nightStartOf(date, longitudeDeg);
   final windowEnd = localNoon.add(const Duration(hours: 24));
   final crossingAlt = standardAltitude ?? minAltitude;
 

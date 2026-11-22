@@ -225,7 +225,10 @@ final objectVisibilityProvider = Provider.autoDispose
         floor.at,
         raDeg: key.raDeg,
         decDeg: key.decDeg,
-        center: DateTime(night.year, night.month, night.day, 24),
+        center: AstronomyCalculations.nightMiddleOf(
+          night,
+          longitudeDeg: key.longitudeDeg,
+        ),
         latitudeDeg: key.latitudeDeg,
         longitudeDeg: key.longitudeDeg,
       );

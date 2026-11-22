@@ -160,11 +160,9 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
             floor.forTargetMinimum(node.minAltitude).visibilityAround(
                   raDeg: node.raHours * 15.0,
                   decDeg: node.decDegrees,
-                  center: DateTime(
-                    nightDate.year,
-                    nightDate.month,
-                    nightDate.day,
-                    24,
+                  center: AstronomyCalculations.nightMiddleOf(
+                    nightDate,
+                    longitudeDeg: lon,
                   ),
                   latitudeDeg: lat,
                   longitudeDeg: lon,

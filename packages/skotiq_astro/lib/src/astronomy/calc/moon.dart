@@ -135,8 +135,9 @@ MoonTimes _calculateMoonTimes({
 }) {
   // Similar algorithm to Sun but accounting for Moon's faster motion
   final localNoon = DateTime(date.year, date.month, date.day, 12);
-  final searchStart = localNoon.subtract(const Duration(hours: 12));
-  final searchEnd = localNoon.add(const Duration(hours: 36));
+  final nightStart = _nightStartOf(date, longitudeDeg);
+  final searchStart = nightStart.subtract(const Duration(hours: 12));
+  final searchEnd = nightStart.add(const Duration(hours: 36));
 
   DateTime? moonrise;
   DateTime? moonset;

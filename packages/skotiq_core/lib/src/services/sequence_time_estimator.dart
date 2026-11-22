@@ -215,12 +215,10 @@ class SequenceTimeEstimator {
         var neverRises = visibility.neverRises;
         if (!targetFloor.isFlat) {
           // A floor that changes with direction has no closed-form crossing:
-          // the night is searched, local noon to noon.
-          final from = DateTime(
-            nightDate.year,
-            nightDate.month,
-            nightDate.day,
-            12,
+          // the whole night is searched.
+          final from = AstronomyCalculations.nightStartOf(
+            nightDate,
+            longitudeDeg: longitude,
           );
           final until = from.add(const Duration(hours: 24));
           final above = targetFloor.windowAbove(
