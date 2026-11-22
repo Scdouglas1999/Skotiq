@@ -1951,7 +1951,7 @@ fn write_tile_file(path: &Path, staged: &Path, bytes: &[u8]) -> Result<(), Atlas
     };
     crate::atomic_file::replace_file(path, staged, how, |staged| std::fs::write(staged, bytes))
         .map_err(|e| match e {
-            crate::atomic_file::ReplaceError::Write(error)
+            crate::atomic_file::ReplaceError::Write { error, .. }
             | crate::atomic_file::ReplaceError::Place { error, .. } => {
                 AtlasError::Io(error.to_string())
             }

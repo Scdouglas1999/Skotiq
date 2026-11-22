@@ -540,7 +540,7 @@ pub(crate) fn rewrite_unit_metadata(path: &Path, unit: &XisfUnit) -> Result<(), 
     };
     // On disk before it takes the name of the only copy of the frame.
     replace_file(path, &staged, Replace::DURABLE, rewrite).map_err(|e| match e {
-        ReplaceError::Write(e) => e,
+        ReplaceError::Write { error: e, .. } => e,
         ReplaceError::Place { error, .. } => XisfError::Io(error),
     })
 }

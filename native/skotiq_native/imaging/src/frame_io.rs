@@ -552,7 +552,7 @@ fn replace_file(
     let name = display_name(path);
     let staged = path.with_file_name(format!(".{name}.tmp"));
     crate::atomic_file::replace_file(path, &staged, Replace::DURABLE, write).map_err(|e| match e {
-        ReplaceError::Write(e) => e,
+        ReplaceError::Write { error: e, .. } => e,
         ReplaceError::Place { error, .. } => FrameIoError::Io(error),
     })
 }

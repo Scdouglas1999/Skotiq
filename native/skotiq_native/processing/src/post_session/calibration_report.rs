@@ -664,7 +664,7 @@ pub(crate) fn append_fold_calibration(
         ..Replace::DURABLE
     };
     replace_file(&path, &temp, how, |temp| std::fs::write(temp, encoded)).map_err(|e| match e {
-        ReplaceError::Write(e) => {
+        ReplaceError::Write { error: e, .. } => {
             format!("failed to write calibration log '{}': {e}", temp.display())
         }
         ReplaceError::Place { error, cleanup } => {

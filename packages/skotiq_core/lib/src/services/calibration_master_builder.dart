@@ -44,7 +44,7 @@ String calibrationMasterFileName({
   required String kind,
   required CalibrationMasterNameStyle style,
   required DateTime builtAt,
-  required double? exposureSeconds,
+  required double exposureSeconds,
   required int? gain,
   required int? offset,
   required int binX,
@@ -56,7 +56,7 @@ String calibrationMasterFileName({
     'bias' => 'MasterBias',
     'flat' =>
       'MasterFlat_${(filter ?? 'NoFilter').replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}',
-    _ => 'MasterDark_${calibrationMasterNameNumber(exposureSeconds ?? 0)}s',
+    _ => 'MasterDark_${calibrationMasterNameNumber(exposureSeconds)}s',
   };
   String part(String tag, int? value) =>
       value != null ? '_$tag$value' : (style.unstatedAsX ? '_${tag}x' : '');

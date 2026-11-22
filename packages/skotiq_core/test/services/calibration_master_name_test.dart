@@ -7,7 +7,7 @@ void main() {
   String name(
     String kind,
     CalibrationMasterNameStyle style, {
-    double? exposure = 90,
+    double exposure = 90,
     int? gain = 76,
     int? offset = 15,
     double? temp = -10.2,

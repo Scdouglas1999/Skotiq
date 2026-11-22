@@ -297,7 +297,7 @@ impl OpenMaster {
             std::fs::write(tmp, self.master.serialize())
         })
         .map_err(|e| match e {
-            ReplaceError::Write(error) | ReplaceError::Place { error, .. } => {
+            ReplaceError::Write { error, .. } | ReplaceError::Place { error, .. } => {
                 format!("failed to write sidecar: {error}")
             }
         })?;

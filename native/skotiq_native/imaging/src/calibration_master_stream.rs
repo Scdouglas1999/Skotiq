@@ -692,7 +692,9 @@ fn build_with_free_space(
         write_fits(partial, &image, &header)
     })
     .map_err(|e| match e {
-        ReplaceError::Write(e) => Failed(format!("writing {}: {e}", partial.display())),
+        ReplaceError::Write { error: e, .. } => {
+            Failed(format!("writing {}: {e}", partial.display()))
+        }
         ReplaceError::Place { error, .. } => {
             Failed(format!("moving master into {}: {error}", output.display()))
         }

@@ -30,8 +30,12 @@ impl Replace {
 /// Why a replacement failed.
 #[derive(Debug)]
 pub enum ReplaceError<E> {
-    /// The writer failed on the staged file.
-    Write(E),
+    /// The writer failed on the staged file. `cleanup` is the error removing
+    /// it gave, when removal was asked for and failed.
+    Write {
+        error: E,
+        cleanup: Option<std::io::Error>,
+    },
     /// The staged file was written but could not be flushed or renamed.
     /// `cleanup` is the error removing it gave, when removal was asked for
     /// and failed.
@@ -50,10 +54,11 @@ pub fn replace_file<E>(
     write: impl FnOnce(&Path) -> Result<(), E>,
 ) -> Result<(), ReplaceError<E>> {
     if let Err(error) = write(staged) {
-        if how.clean_after_write_error {
-            let _ = std::fs::remove_file(staged);
-        }
-        return Err(ReplaceError::Write(error));
+        let cleanup = how
+            .clean_after_write_error
+            .then(|| remove_staged(staged))
+            .flatten();
+        return Err(ReplaceError::Write { error, cleanup });
     }
     let placed = if how.sync {
         // Opened for writing: Windows flushes only a handle that may write.
@@ -68,13 +73,21 @@ pub fn replace_file<E>(
     match placed {
         Ok(()) => Ok(()),
         Err(error) => {
-            let cleanup = if how.clean_after_place_error {
-                std::fs::remove_file(staged).err()
-            } else {
-                None
-            };
+            let cleanup = how
+                .clean_after_place_error
+                .then(|| remove_staged(staged))
+                .flatten();
             Err(ReplaceError::Place { error, cleanup })
         }
+    }
+}
+
+/// Remove a staged file; one never written is already gone.
+fn remove_staged(staged: &Path) -> Option<std::io::Error> {
+    match std::fs::remove_file(staged) {
+        Ok(()) => None,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => Some(error),
     }
 }
 
@@ -82,17 +95,10 @@ pub fn replace_file<E>(
 mod tests {
     use super::*;
 
-    fn scratch(name: &str) -> std::path::PathBuf {
-        let dir =
-            std::env::temp_dir().join(format!("skotiq-replace-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
     #[test]
     fn the_staged_file_takes_the_destination_name() {
-        let dir = scratch("ok");
+        let scratch = tempfile::tempdir().unwrap();
+        let dir = scratch.path();
         let path = dir.join("a.bin");
         let staged = dir.join(".a.bin.tmp");
         std::fs::write(&path, b"old").unwrap();
@@ -102,12 +108,12 @@ mod tests {
         .unwrap();
         assert_eq!(std::fs::read(&path).unwrap(), b"new");
         assert!(!staged.exists());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn a_failure_keeps_the_old_file_and_cleans_up_only_when_asked() {
-        let dir = scratch("fail");
+        let scratch = tempfile::tempdir().unwrap();
+        let dir = scratch.path();
         let path = dir.join("taken");
         std::fs::create_dir_all(path.join("inside")).unwrap();
         let staged = dir.join(".taken.tmp");
@@ -131,8 +137,7 @@ mod tests {
             Err::<(), _>(std::io::Error::other("writer gave up"))
         })
         .unwrap_err();
-        assert!(matches!(err, ReplaceError::Write(_)));
+        assert!(matches!(err, ReplaceError::Write { cleanup: None, .. }));
         assert!(!staged.exists());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

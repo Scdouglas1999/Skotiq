@@ -241,10 +241,10 @@ impl FitsHeader {
 
     /// Image planes (`NAXIS3`): 1 when the card is missing or not positive.
     pub fn planes(&self) -> u32 {
-        self.get_int("NAXIS3")
-            .filter(|n| *n > 0)
-            .and_then(|n| u32::try_from(n).ok())
-            .unwrap_or(1)
+        match self.get_int("NAXIS3").and_then(|n| u32::try_from(n).ok()) {
+            Some(planes) if planes > 0 => planes,
+            _ => 1,
+        }
     }
 
     /// Every value card in header order: keyword, value, inline comment.
