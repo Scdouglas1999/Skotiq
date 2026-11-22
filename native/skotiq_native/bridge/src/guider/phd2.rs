@@ -97,7 +97,7 @@ pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError>
         let connected = phd2_client()
             .await?
             .get_connected()
-            .map_err(SkotiqError::OperationFailed)?;
+            .map_err(|e| SkotiqError::OperationFailed(e.into()))?;
         if !connected {
             return Err(SkotiqError::OperationFailed(
                 "PHD2 says its equipment is still not connected".to_string(),
@@ -132,7 +132,7 @@ pub(crate) async fn check_equipment_after_bus_change() {
 /// PHD2 answers JSON null when its profile has no focal length or pixel size,
 /// which the client reports as an error; a zero or negative number is no scale
 /// either. Both read as unknown.
-fn known_pixel_scale(reply: Result<f64, String>) -> Option<f64> {
+fn known_pixel_scale(reply: Result<f64, skotiq_phd2::Phd2Error>) -> Option<f64> {
     reply.ok().filter(|scale| scale.is_finite() && *scale > 0.0)
 }
 
@@ -586,7 +586,7 @@ async fn stop_capture_and_wait(exposure: Duration) -> Result<bool, SkotiqError> 
             tracing::warn!(
                 "[GUIDING] PHD2 was still capturing {} s after it was asked to stop ({})",
                 (exposure + STOP_GRACE).as_secs(),
-                state.unwrap_or_else(|e| e)
+                state.unwrap_or_else(String::from)
             );
             return Ok(false);
         }
@@ -1128,7 +1128,7 @@ async fn find_fresh_star(
                 tracing::warn!(
                     "[GUIDING] No guide star found in frame {attempt}/{FRESH_STAR_ATTEMPTS}: {e}"
                 );
-                last_error = e;
+                last_error = e.into();
                 continue;
             }
         };

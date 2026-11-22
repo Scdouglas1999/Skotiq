@@ -12,6 +12,69 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+/// Why a request to PHD2 failed. Each kind displays its message as is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Phd2Error {
+    /// There is no link to PHD2's event server and none is to be made.
+    NotConnected(String),
+    /// Connecting to PHD2's server, sending to it or reading from it failed.
+    Link(String),
+    /// PHD2 did not answer in time.
+    Timeout(String),
+    /// PHD2 answered the request with an error.
+    Refused(String),
+    /// PHD2's answer was not what the request expects.
+    Protocol(String),
+    /// Guiding did not settle after a guide or dither.
+    Settle(String),
+}
+
+impl Phd2Error {
+    pub fn message(&self) -> &str {
+        match self {
+            Self::NotConnected(message)
+            | Self::Link(message)
+            | Self::Timeout(message)
+            | Self::Refused(message)
+            | Self::Protocol(message)
+            | Self::Settle(message) => message,
+        }
+    }
+
+    /// The same kind of failure in other words.
+    fn reworded(self, words: impl FnOnce(String) -> String) -> Self {
+        match self {
+            Self::NotConnected(message) => Self::NotConnected(words(message)),
+            Self::Link(message) => Self::Link(words(message)),
+            Self::Timeout(message) => Self::Timeout(words(message)),
+            Self::Refused(message) => Self::Refused(words(message)),
+            Self::Protocol(message) => Self::Protocol(words(message)),
+            Self::Settle(message) => Self::Settle(words(message)),
+        }
+    }
+}
+
+impl std::fmt::Display for Phd2Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.message())
+    }
+}
+
+impl std::error::Error for Phd2Error {}
+
+/// An answer helper's own words: an answer it could not read.
+impl From<String> for Phd2Error {
+    fn from(message: String) -> Self {
+        Self::Protocol(message)
+    }
+}
+
+impl From<Phd2Error> for String {
+    fn from(error: Phd2Error) -> Self {
+        error.to_string()
+    }
+}
+
 /// The port PHD2's event server listens on unless the user changed it.
 pub const PHD2_DEFAULT_PORT: u16 = 4400;
 
@@ -689,9 +752,11 @@ impl Phd2Client {
     }
 
     /// Attempt to reconnect with exponential backoff
-    pub fn reconnect(&mut self) -> Result<(), String> {
+    pub fn reconnect(&mut self) -> Result<(), Phd2Error> {
         if !self.config.auto_reconnect {
-            return Err("Auto-reconnect is disabled".to_string());
+            return Err(Phd2Error::NotConnected(
+                "Auto-reconnect is disabled".to_string(),
+            ));
         }
 
         let max_attempts = self.config.max_reconnect_attempts;
@@ -719,19 +784,19 @@ impl Phd2Client {
             }
         }
 
-        Err(format!(
+        Err(Phd2Error::Link(format!(
             "Failed to reconnect after {} attempts",
             max_attempts
-        ))
+        )))
     }
 
     /// Wait until PHD2 responds to RPC after the TCP connection is established.
     ///
     /// PHD2 sends initial event messages on connect; the server may not answer
     /// RPC until that burst completes. Retries avoid racing `get_app_state`.
-    pub fn wait_until_ready(&mut self, timeout: Duration) -> Result<(), String> {
+    pub fn wait_until_ready(&mut self, timeout: Duration) -> Result<(), Phd2Error> {
         let deadline = Instant::now() + timeout;
-        let mut last_error = String::from("PHD2 did not respond");
+        let mut last_error = Phd2Error::Timeout("PHD2 did not respond".to_string());
 
         while Instant::now() < deadline {
             match self.get_app_state() {
@@ -743,21 +808,21 @@ impl Phd2Client {
             }
         }
 
-        Err(format!(
+        Err(Phd2Error::Timeout(format!(
             "PHD2 did not become ready within {}s: {}",
             timeout.as_secs(),
             last_error
-        ))
+        )))
     }
 
-    pub fn connect(&mut self) -> Result<(), String> {
+    pub fn connect(&mut self) -> Result<(), Phd2Error> {
         self.connect_with_settle(None)
     }
 
     fn connect_with_settle(
         &mut self,
         settle: Option<Arc<Mutex<SettleTracker>>>,
-    ) -> Result<(), String> {
+    ) -> Result<(), Phd2Error> {
         self.close_transport();
         self.connection_wanted = true;
 
@@ -767,22 +832,22 @@ impl Phd2Client {
         let stream = TcpStream::connect_timeout(
             &addr
                 .parse()
-                .map_err(|e| format!("Invalid address: {}", e))?,
+                .map_err(|e| Phd2Error::Link(format!("Invalid address: {}", e)))?,
             Duration::from_secs(5),
         )
-        .map_err(|e| format!("Failed to connect to PHD2: {}", e))?;
+        .map_err(|e| Phd2Error::Link(format!("Failed to connect to PHD2: {}", e)))?;
 
         stream
             .set_write_timeout(Some(Duration::from_secs(5)))
-            .map_err(|e| format!("Failed to set write timeout: {e}"))?;
+            .map_err(|e| Phd2Error::Link(format!("Failed to set write timeout: {e}")))?;
 
         // Clone the stream: one for reading (event listener), one for writing (commands)
         let read_stream = stream
             .try_clone()
-            .map_err(|e| format!("Failed to clone stream for reader: {}", e))?;
+            .map_err(|e| Phd2Error::Link(format!("Failed to clone stream for reader: {}", e)))?;
         read_stream
             .set_read_timeout(Some(Duration::from_millis(100)))
-            .map_err(|e| format!("Failed to set read timeout: {}", e))?;
+            .map_err(|e| Phd2Error::Link(format!("Failed to set read timeout: {}", e)))?;
 
         // Reader state is transport-local. An acknowledged settle may follow
         // read-only recovery, but explicit reconnect starts a new operation.
@@ -1139,15 +1204,15 @@ impl Phd2Client {
         &mut self,
         method: &str,
         params: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, Phd2Error> {
         self.ensure_connected()?;
         self.send_request_connected(method, params)
     }
 
-    fn ensure_connected(&mut self) -> Result<(), String> {
+    fn ensure_connected(&mut self) -> Result<(), Phd2Error> {
         if !self.is_connected() {
             if !self.connection_wanted || !self.config.auto_reconnect {
-                return Err("Not connected to PHD2".to_string());
+                return Err(Phd2Error::NotConnected("Not connected to PHD2".to_string()));
             }
             self.connect()?;
         }
@@ -1158,7 +1223,7 @@ impl Phd2Client {
         &mut self,
         method: &str,
         params: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value, String> {
+    ) -> Result<serde_json::Value, Phd2Error> {
         // Reads and stopping capture are idempotent. A timed-out dither or
         // guide may already have executed, so never replay those implicitly.
         let can_retry = method.starts_with("get_") || method == "stop_capture";
@@ -1191,7 +1256,9 @@ impl Phd2Client {
                         tracker.lock().unwrap_or_else(|p| p.into_inner()).recovering = false;
                     }
                     self.report_disconnect();
-                    return Err(format!("{first}; reconnect failed: {error}"));
+                    return Err(
+                        first.reworded(|first| format!("{first}; reconnect failed: {error}"))
+                    );
                 }
                 match self.request_response(method, params) {
                     Ok(line) => {
@@ -1201,17 +1268,19 @@ impl Phd2Client {
                     Err(error) => {
                         self.close_transport();
                         self.report_disconnect();
-                        return Err(format!("{first}; fresh connection also failed: {error}"));
+                        return Err(first.reworded(|first| {
+                            format!("{first}; fresh connection also failed: {error}")
+                        }));
                     }
                 }
             }
         };
 
         let resp: JsonRpcResponse = serde_json::from_str(&response_line)
-            .map_err(|e| format!("Failed to parse response: {}", e))?;
+            .map_err(|e| Phd2Error::Protocol(format!("Failed to parse response: {}", e)))?;
 
         if let Some(error) = resp.error {
-            return Err(format!("PHD2 error: {}", error.message));
+            return Err(Phd2Error::Refused(format!("PHD2 error: {}", error.message)));
         }
 
         // Why: per JSON-RPC 2.0, a response with no `error`
@@ -1240,7 +1309,7 @@ impl Phd2Client {
         &mut self,
         method: &str,
         params: Option<serde_json::Value>,
-    ) -> Result<String, String> {
+    ) -> Result<String, Phd2Error> {
         self.request_id = self.request_id.wrapping_add(1);
         let request_id = self.request_id;
         let request = JsonRpcRequest {
@@ -1249,35 +1318,38 @@ impl Phd2Client {
             id: request_id,
         };
         let mut json = serde_json::to_string(&request)
-            .map_err(|e| format!("Failed to serialize request: {e}"))?;
+            .map_err(|e| Phd2Error::Protocol(format!("Failed to serialize request: {e}")))?;
         json.push_str("\r\n");
         let (tx, rx) = mpsc::channel::<String>();
         self.response_registry
             .lock()
-            .map_err(|e| format!("Failed to lock response registry: {e}"))?
+            .map_err(|e| Phd2Error::Link(format!("Failed to lock response registry: {e}")))?
             .insert(request_id, tx);
         let lines_before = self.received_lines.load(Ordering::Relaxed);
-        let stream = self.write_stream.as_mut().ok_or("Not connected to PHD2")?;
+        let stream = self
+            .write_stream
+            .as_mut()
+            .ok_or_else(|| Phd2Error::NotConnected("Not connected to PHD2".to_string()))?;
         // Submit the JSON and its delimiter together, with a bounded write.
-        stream
-            .write_all(json.as_bytes())
-            .map_err(|e| format!("Failed to send '{method}' (id={request_id}): {e}"))?;
+        stream.write_all(json.as_bytes()).map_err(|e| {
+            Phd2Error::Link(format!("Failed to send '{method}' (id={request_id}): {e}"))
+        })?;
         tracing::debug!("PHD2 sent {method} (id={request_id}, bytes={})", json.len());
         rx.recv_timeout(Duration::from_secs(10)).map_err(|e| {
             let received = self.received_lines.load(Ordering::Relaxed) - lines_before;
             match e {
-                mpsc::RecvTimeoutError::Timeout => format!(
+                mpsc::RecvTimeoutError::Timeout => Phd2Error::Timeout(format!(
                     "Request '{method}' timed out (id={request_id}, {} bytes written, {received} incoming lines while waiting)",
                     json.len()
-                ),
-                mpsc::RecvTimeoutError::Disconnected => format!(
+                )),
+                mpsc::RecvTimeoutError::Disconnected => Phd2Error::Link(format!(
                     "PHD2 connection closed waiting for '{method}' (id={request_id})"
-                ),
+                )),
             }
         })
     }
 
-    pub fn get_app_state(&mut self) -> Result<Phd2State, String> {
+    pub fn get_app_state(&mut self) -> Result<Phd2State, Phd2Error> {
         let result = self.send_request("get_app_state", None)?;
         let state_str = result
             .as_str()
@@ -1286,17 +1358,18 @@ impl Phd2Client {
     }
 
     /// Get connected equipment
-    pub fn get_connected(&mut self) -> Result<bool, String> {
+    pub fn get_connected(&mut self) -> Result<bool, Phd2Error> {
         let result = self.send_request("get_connected", None)?;
         // A non-bool here is protocol corruption or schema drift, not "not
         // connected": propagate the type mismatch.
         result
             .as_bool()
             .ok_or_else(|| format!("get_connected: expected bool, got {}", result))
+            .map_err(Phd2Error::Protocol)
     }
 
     /// Connect PHD2 to equipment
-    pub fn set_connected(&mut self, connected: bool) -> Result<(), String> {
+    pub fn set_connected(&mut self, connected: bool) -> Result<(), Phd2Error> {
         self.send_request("set_connected", Some(serde_json::json!(connected)))?;
         Ok(())
     }
@@ -1307,7 +1380,7 @@ impl Phd2Client {
         settle_pixels: f64,
         settle_time: f64,
         settle_timeout: f64,
-    ) -> Result<(), String> {
+    ) -> Result<(), Phd2Error> {
         let params = serde_json::json!({
             "settle": {
                 "pixels": settle_pixels,
@@ -1325,7 +1398,7 @@ impl Phd2Client {
         pixels: f64,
         time: f64,
         timeout: f64,
-    ) -> Result<SettleWaiter, String> {
+    ) -> Result<SettleWaiter, Phd2Error> {
         self.ensure_connected()?;
         let waiter = self.arm_settle();
         self.send_request_connected(
@@ -1362,22 +1435,23 @@ impl Phd2Client {
 
     /// PHD2's application state exactly as it names it. "Stopped" is the only
     /// state with no capture in progress; "Selected" still has one.
-    pub fn get_app_state_name(&mut self) -> Result<String, String> {
+    pub fn get_app_state_name(&mut self) -> Result<String, Phd2Error> {
         let result = self.send_request("get_app_state", None)?;
         result
             .as_str()
             .map(str::to_string)
             .ok_or_else(|| format!("get_app_state: expected string, got {}", result))
+            .map_err(Phd2Error::Protocol)
     }
 
     /// Stop guiding
-    pub fn stop_capture(&mut self) -> Result<(), String> {
+    pub fn stop_capture(&mut self) -> Result<(), Phd2Error> {
         self.send_request("stop_capture", None)?;
         Ok(())
     }
 
     /// Pause guiding
-    pub fn set_paused(&mut self, paused: bool) -> Result<(), String> {
+    pub fn set_paused(&mut self, paused: bool) -> Result<(), Phd2Error> {
         self.send_request("set_paused", Some(serde_json::json!([paused, "full"])))?;
         Ok(())
     }
@@ -1426,7 +1500,7 @@ impl Phd2Client {
         settle_pixels: f64,
         settle_time: f64,
         settle_timeout: f64,
-    ) -> Result<SettleWaiter, String> {
+    ) -> Result<SettleWaiter, Phd2Error> {
         let params = serde_json::json!({
             "amount": amount,
             "raOnly": ra_only,
@@ -1459,22 +1533,22 @@ impl Phd2Client {
         settle_pixels: f64,
         settle_time: f64,
         settle_timeout: f64,
-    ) -> Result<(), String> {
+    ) -> Result<(), Phd2Error> {
         let waiter =
             self.dither_arm(amount, ra_only, settle_pixels, settle_time, settle_timeout)?;
         waiter
             .wait(Self::settle_wait_duration(settle_time, settle_timeout))
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| Phd2Error::Settle(e.to_string()))?;
         Ok(())
     }
 
     /// Set lock position (guide star position)
-    pub fn set_lock_position(&mut self, x: f64, y: f64, exact: bool) -> Result<(), String> {
+    pub fn set_lock_position(&mut self, x: f64, y: f64, exact: bool) -> Result<(), Phd2Error> {
         self.send_request("set_lock_position", Some(serde_json::json!([x, y, exact])))?;
         Ok(())
     }
 
-    pub fn clear_calibration(&mut self, which: &str) -> Result<(), String> {
+    pub fn clear_calibration(&mut self, which: &str) -> Result<(), Phd2Error> {
         // PHD2's positional JSON-RPC contract requires an array here.
         // Sending the bare string makes PHD2 2.6.14 execute the clear but omit
         // the response, leaving the caller blocked until its 10-second timeout.
@@ -1483,13 +1557,13 @@ impl Phd2Client {
     }
 
     /// Flip calibration (after meridian flip)
-    pub fn flip_calibration(&mut self) -> Result<(), String> {
+    pub fn flip_calibration(&mut self) -> Result<(), Phd2Error> {
         self.send_request("flip_calibration", None)?;
         Ok(())
     }
 
     /// Get current guide star position
-    pub fn get_lock_position(&mut self) -> Result<(f64, f64), String> {
+    pub fn get_lock_position(&mut self) -> Result<(f64, f64), Phd2Error> {
         let result = self.send_request("get_lock_position", None)?;
         let arr = result
             .as_array()
@@ -1510,7 +1584,7 @@ impl Phd2Client {
         Ok((x, y))
     }
 
-    pub fn get_exposure(&mut self) -> Result<u32, String> {
+    pub fn get_exposure(&mut self) -> Result<u32, Phd2Error> {
         let result = self.send_request("get_exposure", None)?;
         // PHD2 always returns the exposure as an unsigned
         // integer (milliseconds). A non-integer or negative value is a
@@ -1521,16 +1595,17 @@ impl Phd2Client {
             .ok_or_else(|| format!("get_exposure: expected unsigned integer, got {}", result))?;
         u32::try_from(exposure)
             .map_err(|_| format!("get_exposure: value {} exceeds u32::MAX", exposure))
+            .map_err(Phd2Error::Protocol)
     }
 
     /// Set exposure time (milliseconds)
-    pub fn set_exposure(&mut self, exposure_ms: u32) -> Result<(), String> {
+    pub fn set_exposure(&mut self, exposure_ms: u32) -> Result<(), Phd2Error> {
         self.send_request("set_exposure", Some(serde_json::json!(exposure_ms)))?;
         Ok(())
     }
 
     /// Get pixel scale (arcsec/pixel)
-    pub fn get_pixel_scale(&mut self) -> Result<f64, String> {
+    pub fn get_pixel_scale(&mut self) -> Result<f64, Phd2Error> {
         let result = self.send_request("get_pixel_scale", None)?;
         // pixel scale of 0 is physically meaningless and
         // would silently break every downstream RA/Dec-to-pixel conversion.
@@ -1539,17 +1614,18 @@ impl Phd2Client {
         result
             .as_f64()
             .ok_or_else(|| format!("get_pixel_scale: expected number, got {}", result))
+            .map_err(Phd2Error::Protocol)
     }
 
     /// Get current star image (raw bytes only - deprecated, use get_star_image_data instead)
-    pub fn get_star_image(&mut self) -> Result<Vec<u8>, String> {
+    pub fn get_star_image(&mut self) -> Result<Vec<u8>, Phd2Error> {
         let data = self.get_star_image_data(32)?;
         Ok(data.pixels)
     }
 
     /// Get current star image with full metadata
     /// size: requested size of the subframe (minimum 15, default 32)
-    pub fn get_star_image_data(&mut self, size: u32) -> Result<StarImageData, String> {
+    pub fn get_star_image_data(&mut self, size: u32) -> Result<StarImageData, Phd2Error> {
         let params = serde_json::json!({ "size": size });
         let result = self.send_request("get_star_image", Some(params))?;
 
@@ -1615,13 +1691,13 @@ impl Phd2Client {
     }
 
     /// Loop exposures (without guiding)
-    pub fn loop_exposures(&mut self) -> Result<(), String> {
+    pub fn loop_exposures(&mut self) -> Result<(), Phd2Error> {
         self.send_request("loop", None)?;
         Ok(())
     }
 
     /// Find a guide star automatically
-    pub fn find_star(&mut self) -> Result<(f64, f64), String> {
+    pub fn find_star(&mut self) -> Result<(f64, f64), Phd2Error> {
         let result = self.send_request("find_star", None)?;
         let arr = result
             .as_array()
@@ -1646,7 +1722,7 @@ impl Phd2Client {
 
     /// Get available algorithm parameter names for an axis
     /// axis: "ra" or "dec" (also accepts "x" or "y")
-    pub fn get_algo_param_names(&mut self, axis: &str) -> Result<Vec<String>, String> {
+    pub fn get_algo_param_names(&mut self, axis: &str) -> Result<Vec<String>, Phd2Error> {
         let params = serde_json::json!({ "axis": axis });
         let result = self.send_request("get_algo_param_names", Some(params))?;
 
@@ -1675,7 +1751,7 @@ impl Phd2Client {
     /// Get the value of an algorithm parameter
     /// axis: "ra" or "dec" (also accepts "x" or "y")
     /// name: parameter name (from get_algo_param_names)
-    pub fn get_algo_param(&mut self, axis: &str, name: &str) -> Result<f64, String> {
+    pub fn get_algo_param(&mut self, axis: &str, name: &str) -> Result<f64, Phd2Error> {
         let params = serde_json::json!({
             "axis": axis,
             "name": name
@@ -1685,13 +1761,14 @@ impl Phd2Client {
         result
             .as_f64()
             .ok_or_else(|| format!("Invalid response for parameter {}: expected number", name))
+            .map_err(Phd2Error::Protocol)
     }
 
     /// Set the value of an algorithm parameter
     /// axis: "ra" or "dec" (also accepts "x" or "y")
     /// name: parameter name (from get_algo_param_names)
     /// value: new parameter value
-    pub fn set_algo_param(&mut self, axis: &str, name: &str, value: f64) -> Result<(), String> {
+    pub fn set_algo_param(&mut self, axis: &str, name: &str, value: f64) -> Result<(), Phd2Error> {
         let params = serde_json::json!({
             "axis": axis,
             "name": name,
@@ -1707,17 +1784,17 @@ impl Phd2Client {
         // strip the helpful "Failed to set parameter X" prefix.
         let code = result.as_i64().unwrap_or(-1);
         if code != 0 {
-            return Err(format!(
+            return Err(Phd2Error::Refused(format!(
                 "Failed to set parameter {}: error code {}",
                 name, code
-            ));
+            )));
         }
 
         Ok(())
     }
 
     /// Get all algorithm parameters for an axis
-    pub fn get_all_algo_params(&mut self, axis: &str) -> Result<Vec<AlgoParam>, String> {
+    pub fn get_all_algo_params(&mut self, axis: &str) -> Result<Vec<AlgoParam>, Phd2Error> {
         let names = self.get_algo_param_names(axis)?;
         let mut params = Vec::with_capacity(names.len());
 
@@ -1729,17 +1806,17 @@ impl Phd2Client {
         Ok(params)
     }
 
-    pub fn get_calibration_data(&mut self, which: &str) -> Result<serde_json::Value, String> {
+    pub fn get_calibration_data(&mut self, which: &str) -> Result<serde_json::Value, Phd2Error> {
         let params = serde_json::json!({ "which": which });
         self.send_request("get_calibration_data", Some(params))
     }
 
-    pub fn deselect_star(&mut self) -> Result<(), String> {
+    pub fn deselect_star(&mut self) -> Result<(), Phd2Error> {
         self.send_request("deselect_star", None)?;
         Ok(())
     }
 
-    pub fn get_camera_frame_size(&mut self) -> Result<(u32, u32), String> {
+    pub fn get_camera_frame_size(&mut self) -> Result<(u32, u32), Phd2Error> {
         let result = self.send_request("get_camera_frame_size", None)?;
         let arr = result
             .as_array()
@@ -1761,7 +1838,7 @@ impl Phd2Client {
         Ok((width, height))
     }
 
-    pub fn get_guide_output_enabled(&mut self) -> Result<bool, String> {
+    pub fn get_guide_output_enabled(&mut self) -> Result<bool, Phd2Error> {
         let result = self.send_request("get_guide_output_enabled", None)?;
         // see `get_connected`. A non-bool means protocol
         // corruption; "guide output disabled" is the wrong default to assume
@@ -1769,14 +1846,15 @@ impl Phd2Client {
         result
             .as_bool()
             .ok_or_else(|| format!("get_guide_output_enabled: expected bool, got {}", result))
+            .map_err(Phd2Error::Protocol)
     }
 
-    pub fn set_guide_output_enabled(&mut self, enabled: bool) -> Result<(), String> {
+    pub fn set_guide_output_enabled(&mut self, enabled: bool) -> Result<(), Phd2Error> {
         self.send_request("set_guide_output_enabled", Some(serde_json::json!(enabled)))?;
         Ok(())
     }
 
-    pub fn get_profile(&mut self) -> Result<String, String> {
+    pub fn get_profile(&mut self) -> Result<String, Phd2Error> {
         let result = self.send_request("get_profile", None)?;
         // Surface the absence rather than displaying "Unknown": the field is
         // `name` today and new PHD2 builds may rename it, which is schema drift
@@ -2680,7 +2758,7 @@ mod tests {
             client.connect().unwrap();
             let error = client.get_app_state().unwrap_err();
             assert_eq!(
-                error.contains("fresh connection also failed"),
+                error.message().contains("fresh connection also failed"),
                 auto_reconnect
             );
             assert!(!client.is_connected());
@@ -2792,10 +2870,9 @@ mod tests {
         waiter.wait(Duration::from_secs(2)).unwrap();
         assert!(old_waiter.wait(Duration::from_millis(50)).is_err());
         client.disconnect();
-        assert!(client
-            .get_app_state()
-            .unwrap_err()
-            .contains("Not connected"));
+        let gone = client.get_app_state().unwrap_err();
+        assert!(matches!(gone, Phd2Error::NotConnected(_)), "{gone:?}");
+        assert!(gone.message().contains("Not connected"));
         server.join().unwrap();
     }
 
@@ -2827,7 +2904,9 @@ mod tests {
         });
         let mut client = Phd2Client::new("127.0.0.1", port);
         client.connect().unwrap();
-        assert!(client.find_star().unwrap_err().contains("no star"));
+        let refused = client.find_star().unwrap_err();
+        assert!(matches!(refused, Phd2Error::Refused(_)), "{refused:?}");
+        assert!(refused.message().contains("no star"));
         assert_eq!(client.get_app_state().unwrap(), Phd2State::Guiding);
         client.disconnect();
         server.join().unwrap();
