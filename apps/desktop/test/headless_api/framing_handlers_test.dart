@@ -21,7 +21,10 @@ void main() {
 
     setUp(() {
       container = ProviderContainer();
-      handlers = FramingHandlers(container);
+      handlers = FramingHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     tearDown(() {
@@ -256,15 +259,24 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final response = await FramingHandlers(container).handleCenterOnTarget(
-        Request(
-          'POST',
-          Uri.parse('http://localhost/api/framing/center-on-target'),
-          body: jsonEncode({'ra': 22.14, 'dec': 45.0, 'maxIterations': 3}),
-        ),
-      );
+      final jobs = JobManager(emitEvent: (_) {});
+      final response = await FramingHandlers(container, jobManager: jobs)
+          .handleCenterOnTarget(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/framing/center-on-target'),
+              body: jsonEncode({'ra': 22.14, 'dec': 45.0, 'maxIterations': 3}),
+            ),
+          );
 
       expect(response.statusCode, 200);
+      final jobId =
+          (jsonDecode(await response.readAsString()) as Map)['jobId'] as String;
+      final deadline = DateTime.now().add(const Duration(seconds: 5));
+      while (!jobs.get(jobId)!.state.isTerminal) {
+        if (DateTime.now().isAfter(deadline)) fail('the job never ended');
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
       expect(ranWith!.syncMount, isFalse);
       expect(ranWith!.exposureTime, ManualCentering.defaultExposureSeconds);
       // The host's Centering tolerance setting, 5" by default.

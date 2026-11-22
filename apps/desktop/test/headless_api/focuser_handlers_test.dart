@@ -201,7 +201,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     Future<Response> moveTo(int position) => handlers.handleFocuserMoveTo(

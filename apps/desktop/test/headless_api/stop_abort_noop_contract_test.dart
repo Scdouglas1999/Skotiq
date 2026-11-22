@@ -9,6 +9,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/framing_handlers.dart';
 import 'package:skotiq_desktop/headless_api/response_helpers.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 /// Pins the shared stop/abort no-op contract (see [kWasRunningField]).
 ///
@@ -38,7 +39,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    handlers = DeviceHandlers(container);
+    handlers = DeviceHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    );
   });
 
   Request post(String path, Map<String, Object?> body) => Request(
@@ -145,7 +149,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      framing = FramingHandlers(container);
+      framing = FramingHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     Future<Map<String, Object?>> abortSlew() async {

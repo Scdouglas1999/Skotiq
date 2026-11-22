@@ -13,18 +13,14 @@ import 'package:skotiq_relay/uplink.dart' show normalizeRelayUrl;
 void main() {
   group('normalizeRelayUrl — accepted schemes', () {
     test('http is mapped to ws', () {
-      final out = normalizeRelayUrl(
-        Uri.parse('http://relay.example:8443'),
-      );
+      final out = normalizeRelayUrl(Uri.parse('http://relay.example:8443'));
       expect(out.scheme, 'ws');
       expect(out.host, 'relay.example');
       expect(out.port, 8443);
     });
 
     test('https is mapped to wss', () {
-      final out = normalizeRelayUrl(
-        Uri.parse('https://relay.example'),
-      );
+      final out = normalizeRelayUrl(Uri.parse('https://relay.example'));
       expect(out.scheme, 'wss');
     });
 
@@ -39,17 +35,13 @@ void main() {
     });
 
     test('a reverse-proxy subpath is preserved', () {
-      final out = normalizeRelayUrl(
-        Uri.parse('https://relay.example/tunnel'),
-      );
+      final out = normalizeRelayUrl(Uri.parse('https://relay.example/tunnel'));
       expect(out.scheme, 'wss');
       expect(out.path, '/tunnel');
     });
 
     test('a trailing slash is stripped so suffixes append uniformly', () {
-      final out = normalizeRelayUrl(
-        Uri.parse('https://relay.example/tunnel/'),
-      );
+      final out = normalizeRelayUrl(Uri.parse('https://relay.example/tunnel/'));
       expect(out.path, '/tunnel');
     });
 

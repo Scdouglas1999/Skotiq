@@ -9,6 +9,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +24,10 @@ void main() {
           backendProvider.overrideWith((ref) => _TestBackendNotifier(ref)),
         ],
       );
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     tearDown(() {
@@ -79,7 +83,10 @@ void main() {
           ],
         );
         addTearDown(localContainer.dispose);
-        final localHandlers = DeviceHandlers(localContainer);
+        final localHandlers = DeviceHandlers(
+          localContainer,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
 
         final response = await translateHandlerErrors(
           localHandlers.handleCameraGetRecommendedSettings(

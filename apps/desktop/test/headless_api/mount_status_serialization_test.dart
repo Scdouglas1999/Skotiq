@@ -11,6 +11,7 @@ import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
 import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 /// Regression guard for `GET /api/mount/status`.
 ///
@@ -105,7 +106,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final handlers = DeviceHandlers(container);
+      final handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
 
       final response = await translateHandlerErrors(
         handlers.handleMountGetStatus(
@@ -163,7 +167,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final handlers = DeviceHandlers(container);
+      final handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
 
       final response = await translateHandlerErrors(
         handlers.handleMountGetStatus(
@@ -208,7 +215,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      final handlers = DeviceHandlers(container);
+      final handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
 
       final response = await translateHandlerErrors(
         handlers.handleMountGetStatus(

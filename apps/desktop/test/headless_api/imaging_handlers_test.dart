@@ -29,7 +29,10 @@ void main() {
 
     setUp(() {
       container = ProviderContainer();
-      handlers = ImagingHandlers(container);
+      handlers = ImagingHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     tearDown(() {
@@ -67,7 +70,10 @@ void main() {
           ],
         );
         addTearDown(local.dispose);
-        final localHandlers = ImagingHandlers(local);
+        final localHandlers = ImagingHandlers(
+          local,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
 
         final response = await translateHandlerErrors(
           localHandlers.handleSetPlateSolverConfig(
@@ -101,7 +107,10 @@ void main() {
         ],
       );
       addTearDown(local.dispose);
-      final localHandlers = ImagingHandlers(local);
+      final localHandlers = ImagingHandlers(
+        local,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
 
       final response = await translateHandlerErrors(
         localHandlers.handleSetPlateSolverConfig(
@@ -140,7 +149,10 @@ void main() {
           ],
         );
         addTearDown(local.dispose);
-        localHandlers = ImagingHandlers(local);
+        localHandlers = ImagingHandlers(
+          local,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
       });
 
       Future<Response> saveConfig(
@@ -238,7 +250,10 @@ void main() {
           ],
         );
         addTearDown(local.dispose);
-        final localHandlers = ImagingHandlers(local);
+        final localHandlers = ImagingHandlers(
+          local,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
 
         for (final raw in ['abc', '0', '-1', '201', '1.5']) {
           final response = await translateHandlerErrors(
@@ -339,12 +354,18 @@ void main() {
         ],
       );
       addTearDown(local.dispose);
-      final response = await ImagingHandlers(local).handleGetLastRawImageData(
-        Request(
-          'GET',
-          Uri.parse('http://localhost/api/imaging/raw-data?deviceId=camera-1'),
-        ),
-      );
+      final response =
+          await ImagingHandlers(
+            local,
+            jobManager: JobManager(emitEvent: (_) {}),
+          ).handleGetLastRawImageData(
+            Request(
+              'GET',
+              Uri.parse(
+                'http://localhost/api/imaging/raw-data?deviceId=camera-1',
+              ),
+            ),
+          );
 
       expect(response.statusCode, HttpStatus.ok);
       expect(response.headers['content-type'], 'application/octet-stream');
@@ -382,7 +403,10 @@ void main() {
       );
       addTearDown(local.dispose);
       await local.read(appSettingsProvider.future);
-      final localHandlers = ImagingHandlers(local);
+      final localHandlers = ImagingHandlers(
+        local,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
       final filePath = p.join(root.path, '2026-07-13', 'L', 'flat-1.fits');
 
       final response = await translateHandlerErrors(
@@ -445,7 +469,10 @@ void main() {
           ],
         );
         addTearDown(local.dispose);
-        final localHandlers = ImagingHandlers(local);
+        final localHandlers = ImagingHandlers(
+          local,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
 
         final response = await translateHandlerErrors(
           localHandlers.handleSaveFitsFromLastCapture(
@@ -521,6 +548,7 @@ void main() {
         await headless.read(appSettingsProvider.future);
         await ImagingHandlers(
           headless,
+          jobManager: JobManager(emitEvent: (_) {}),
         ).handleSaveFitsFromLastCapture(saveRequest());
         await Future<void>.delayed(Duration.zero);
         expect(publisher.published, isEmpty);
@@ -530,6 +558,7 @@ void main() {
         final response = await ImagingHandlers(
           desktop,
           showApiCapturesInPreview: true,
+          jobManager: JobManager(emitEvent: (_) {}),
         ).handleSaveFitsFromLastCapture(saveRequest());
         expect(response.statusCode, HttpStatus.ok);
         await Future<void>.delayed(Duration.zero);
@@ -577,7 +606,10 @@ void main() {
       );
       addTearDown(local.dispose);
       await local.read(appSettingsProvider.future);
-      final localHandlers = ImagingHandlers(local);
+      final localHandlers = ImagingHandlers(
+        local,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
       final outsideParent = Directory('${outsideRoot.path}/unexpected');
       final filePath = '${outsideParent.path}/flat-1.fits';
 
