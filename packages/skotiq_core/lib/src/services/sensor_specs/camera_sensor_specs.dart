@@ -229,6 +229,12 @@ String sensorSpecCaveat({
       'planning with $estimate.';
 }
 
+/// The caveat for a pixel size that missed at every tier of the chain. No
+/// estimate stands in for it: Smart Night plans nothing until it is known.
+String unknownPixelSizeCaveat({required String cameraLabel}) =>
+    'Pixel size $_sensorSpecCaveatMarker $cameraLabel; Smart Night will not '
+    'plan exposures until it is entered.';
+
 /// The caveat for a saved override the app could not parse. Separate from
 /// [sensorSpecCaveat] because the remedy is different: the user's own entry is
 /// being ignored and they need to know.

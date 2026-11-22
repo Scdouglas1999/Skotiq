@@ -4,10 +4,11 @@
 //! long spellings folded onto the short ones ("Luminance" and "Clear" are L,
 //! "Red" is R, "H-alpha" is HA, "Sulfur II" is SII, "L-eXtreme" is HA and
 //! OIII). Every other word, a brand, a product line, "CCD", a bandwidth such
-//! as "7nm", is not a band: "Baader Ha 7nm" is HA, "ZWO R" is R. A name with
-//! no known band is its whole name ("Dark", "UV/IR Pass"). Two names are the
-//! same filter when their bands are the same; a name is never matched by a
-//! piece of another ("R" is not "Dark").
+//! as "7nm", is not a band: "Baader Ha 7nm" is HA, "ZWO R" is R. A band with
+//! its bandwidth glued on is that band ("Ha7nm" is HA). A name with no known
+//! band is its whole name ("Dark", "UV/IR Pass"). Two names are the same
+//! filter when their bands are the same; a name is never matched by a piece
+//! of another ("R" is not "Dark").
 //!
 //! `filters/filter_names.dart` in the Dart package `skotiq_astro`
 //! holds the same rule for the app. Both are tested against
@@ -43,6 +44,20 @@ fn known_bands(letters: &str) -> Option<&'static [&'static str]> {
     })
 }
 
+/// The bands of a known spelling, given as its letters, with a bandwidth
+/// ("7NM") glued on or not: "HA7NM" is HA. Of the splits a run of digits
+/// allows, the longest known spelling wins ("O37NM" is O3, OIII).
+fn bands_of(letters: &str) -> Option<&'static [&'static str]> {
+    if let Some(bands) = known_bands(letters) {
+        return Some(bands);
+    }
+    let spelling = letters.strip_suffix("NM")?;
+    (1..spelling.len())
+        .rev()
+        .take_while(|&end| spelling[end..].bytes().all(|b| b.is_ascii_digit()))
+        .find_map(|end| known_bands(&spelling[..end]))
+}
+
 fn letters(text: &str) -> String {
     text.chars()
         .filter(char::is_ascii_alphanumeric)
@@ -56,7 +71,7 @@ pub fn filter_bands(name: &str) -> BTreeSet<String> {
     if whole.is_empty() {
         return BTreeSet::new();
     }
-    if let Some(bands) = known_bands(&whole) {
+    if let Some(bands) = bands_of(&whole) {
         return bands.iter().map(|band| band.to_string()).collect();
     }
     let words: Vec<String> = name
@@ -70,7 +85,7 @@ pub fn filter_bands(name: &str) -> BTreeSet<String> {
         let known = (1..=3)
             .rev()
             .filter(|run| i + run <= words.len())
-            .find_map(|run| known_bands(&words[i..i + run].concat()).map(|bands| (run, bands)));
+            .find_map(|run| bands_of(&words[i..i + run].concat()).map(|bands| (run, bands)));
         match known {
             Some((run, known)) => {
                 bands.extend(known.iter().map(|band| band.to_string()));

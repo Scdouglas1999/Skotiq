@@ -9,6 +9,7 @@ import '../services/catalog_target_types.dart';
 import '../utils/logging_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/target_suggestion_service.dart';
+import '../services/tonight_dark_window.dart';
 import 'clock_provider.dart';
 import 'database_provider.dart';
 import 'hardware_presets_provider.dart';
@@ -160,6 +161,21 @@ final tonightSuggestionsProvider =
       ref.keepAlive();
       return suggestions;
     });
+
+/// Whether the Sun stays up all night at the site tonight, so tonight's
+/// suggestions are empty and the planner says why ([midnightSunNotice]).
+/// False with no site set.
+final tonightSunStaysUpProvider = Provider.autoDispose<bool>((ref) {
+  final site = ref.watch(appObserverLocationProvider);
+  if (site == null || !siteLocationIsSet(site.latitude, site.longitude)) {
+    return false;
+  }
+  return sunStaysUpTonight(
+    now: ref.read(clockProvider).instant,
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
+  );
+});
 
 /// Tonight's ranking computed on this machine from its own catalog, optics,
 /// horizon, targets and sessions.

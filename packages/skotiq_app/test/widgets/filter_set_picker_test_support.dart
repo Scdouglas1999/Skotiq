@@ -13,13 +13,13 @@ class MemoryFilterSetPreferences extends FilterSetPreferencesNotifier {
   Future<FilterSetPreferences> build() async => initial;
 
   @override
-  Future<void> choose(
+  Future<void> pick(
     TargetSuggestion target,
-    FilterSet set, {
-    required FilterSet recommended,
-  }) async =>
+    FilterSet set,
+    SmartNightFilterChoice choice,
+  ) async =>
       state = AsyncData(
-          (await future).choose(target, set, recommended: recommended));
+          (await future).choose(target, set, recommended: choice.recommended));
 
   @override
   Future<void> save(CustomFilterSet set) async =>

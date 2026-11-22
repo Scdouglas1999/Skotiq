@@ -32,10 +32,14 @@ void main() {
     'polar night': (lat: 89.0, lon: 15.6, now: '2024-12-21T20:00:00Z'),
   };
 
-  Future<({int start, int end, List<String> warnings})> suggestionWindow(
-    _Site site, {
-    bool utcClock = false,
-  }) async {
+  Future<
+    ({
+      FakeTargetScoring scoring,
+      List<TargetSuggestion> suggestions,
+      List<String> warnings,
+    })
+  >
+  suggest(_Site site, {bool utcClock = false}) async {
     final scoring = FakeTargetScoring();
     final log = _Log();
     final warnings = <String>[];
@@ -46,7 +50,7 @@ void main() {
       loggingService: log,
       scorer: TargetScorer(scoring),
     );
-    await service.getSuggestionsForTonight(
+    final suggestions = await service.getSuggestionsForTonight(
       config: const TargetSuggestionConfig(minScore: 0.0),
       latitude: site.lat,
       longitude: site.lon,
@@ -71,11 +75,20 @@ void main() {
       observationTime: utcClock ? DateTime.parse(site.now) : _localNow(site),
       floor: const AltitudeFloor(horizon: null, minimumDeg: 0.0),
     );
-    final sky = scoring.nightRequests.single.sky;
+    return (scoring: scoring, suggestions: suggestions, warnings: warnings);
+  }
+
+  Future<({int start, int end, List<String> warnings})?> suggestionWindow(
+    _Site site, {
+    bool utcClock = false,
+  }) async {
+    final run = await suggest(site, utcClock: utcClock);
+    final sky = run.scoring.nightRequests.singleOrNull?.sky;
+    if (sky == null) return null;
     return (
       start: sky.nightStartUnixMs,
       end: sky.nightEndUnixMs,
-      warnings: warnings,
+      warnings: run.warnings,
     );
   }
 
@@ -107,7 +120,7 @@ void main() {
     };
     for (final MapEntry(:key, value: bounds) in pinned.entries) {
       final site = sites[key]!;
-      final suggestion = await suggestionWindow(site);
+      final suggestion = (await suggestionWindow(site))!;
       expect(
         (start: suggestion.start, end: suggestion.end),
         bounds,
@@ -127,54 +140,59 @@ void main() {
   });
 
   test(
-    'midnight sun: suggestions take 21:00-05:00, Smart Night refuses',
+    'midnight sun: no suggestions and a notice, Smart Night refuses',
     () async {
       final site = sites['midnight sun']!;
-      final suggestion = await suggestionWindow(site);
+      final run = await suggest(site);
+      expect(run.scoring.nightRequests, isEmpty);
+      expect(run.suggestions, isEmpty);
+      expect(run.warnings, [midnightSunNotice]);
       expect(
-        DateTime.fromMillisecondsSinceEpoch(suggestion.start),
-        _clockOn(site, 0, 21),
+        sunStaysUpTonight(
+          now: _localNow(site),
+          latitudeDeg: site.lat,
+          longitudeDeg: site.lon,
+        ),
+        isTrue,
       );
-      expect(
-        DateTime.fromMillisecondsSinceEpoch(suggestion.end),
-        _clockOn(site, 1, 5),
-      );
-      expect(suggestion.warnings, [
-        'No twilight boundaries found - using default 21:00-05:00 window',
-      ]);
-      expect(smartNightWindow(sites['midnight sun']!), 'refused');
+      expect(smartNightWindow(site), 'refused');
     },
   );
 
   test('polar night: both take a clock window from 21:00', () async {
     final site = sites['polar night']!;
-    final suggestion = await suggestionWindow(site);
+    final suggestion = (await suggestionWindow(site))!;
     expect(
       DateTime.fromMillisecondsSinceEpoch(suggestion.start),
       _clockOn(site, 0, 21),
     );
     expect(
       DateTime.fromMillisecondsSinceEpoch(suggestion.end),
-      _clockOn(site, 1, 5),
+      _clockOn(site, 0, 21).add(const Duration(hours: 8)),
+    );
+    expect(
+      sunStaysUpTonight(
+        now: _localNow(site),
+        latitudeDeg: site.lat,
+        longitudeDeg: site.lon,
+      ),
+      isFalse,
     );
     final smart = smartNightWindow(site) as ({DateTime start, DateTime end});
     expect(smart.start, _clockOn(site, 0, 21));
-    expect(smart.end, _clockOn(site, 1, 5));
+    expect(smart.end, _clockOn(site, 0, 21).add(const Duration(hours: 8)));
   });
 
   // The clock window is read off the machine's local day. A UTC instant for
   // the same moment used to build it from the UTC date's fields, a day off on
   // a computer whose local date differs from the UTC one.
   test('a UTC clock gives the same fallback window as the local one', () async {
-    for (final key in ['midnight sun', 'polar night']) {
-      final site = sites[key]!;
-      final local = await suggestionWindow(site);
-      final utc = await suggestionWindow(site, utcClock: true);
-      expect(
-        (start: utc.start, end: utc.end),
-        (start: local.start, end: local.end),
-        reason: key,
-      );
-    }
+    final site = sites['polar night']!;
+    final local = (await suggestionWindow(site))!;
+    final utc = (await suggestionWindow(site, utcClock: true))!;
+    expect(
+      (start: utc.start, end: utc.end),
+      (start: local.start, end: local.end),
+    );
   });
 }

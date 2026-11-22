@@ -713,7 +713,8 @@ class _PlanSummary extends StatelessWidget {
               'integration',
           subtitle: 'Estimated wall-clock: '
               '${(plan.estimatedWallClockSecs / 3600).toStringAsFixed(1)}h '
-              '(includes slews, AF, dither, downloads).',
+              '(includes slews, AF, dither, downloads; a frame-count change '
+              'adds or takes away its exposure time only).',
         ),
       ],
     );

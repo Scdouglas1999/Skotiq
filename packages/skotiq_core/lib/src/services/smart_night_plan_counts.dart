@@ -7,9 +7,10 @@ import 'smart_night_models.dart';
 /// [target] taking [delta] more frames (within [ExposureFieldLimits.frameCount],
 /// as in the exposure editors), its totals and tree to match.
 ///
-/// Wall-clock moves by the capture time added or taken away; the tree's
-/// capture steps are patched in place, matched by target name and filter
-/// name, rather than emitted again.
+/// Wall-clock moves by the exposure time added or taken away; the tree's
+/// capture steps are patched in place, each under the target header the
+/// planned target emitted (its name and coordinates, so two targets of one
+/// name stay apart) and by filter name, rather than emitted again.
 SmartNightPlan smartNightPlanWithCountChange(
   SmartNightPlan plan,
   SmartNightPlannedTarget target,
@@ -87,20 +88,25 @@ Sequence _patchSequenceCounts(
   Sequence seq,
   List<SmartNightPlannedTarget> targets,
 ) {
-  final byTargetName = <String, SmartNightPlannedTarget>{
-    for (final t in targets) t.suggestion.targetName: t,
-  };
   final newNodes = <String, SequenceNode>{...seq.nodes};
 
-  String? targetNameFor(SequenceNode node) =>
-      seq.enclosingTarget(node.id)?.targetName;
+  SmartNightPlannedTarget? plannedTargetOf(SequenceNode node) {
+    final header = seq.enclosingTarget(node.id);
+    if (header == null) return null;
+    for (final t in targets) {
+      if (t.suggestion.targetName == header.targetName &&
+          t.suggestion.raHours == header.raHours &&
+          t.suggestion.decDegrees == header.decDegrees) {
+        return t;
+      }
+    }
+    return null;
+  }
 
   for (final entry in seq.nodes.entries) {
     final node = entry.value;
     if (node is ExposureNode && node.frameType == FrameType.light) {
-      final targetName = targetNameFor(node);
-      if (targetName == null) continue;
-      final tweaked = byTargetName[targetName];
+      final tweaked = plannedTargetOf(node);
       if (tweaked == null || !tweaked.isUnfiltered) continue;
       final plan = tweaked.filterPlans.single;
       newNodes[node.id] = node.copyWith(
@@ -110,9 +116,7 @@ Sequence _patchSequenceCounts(
       continue;
     }
     if (node is! SmartExposureNode) continue;
-    final targetName = targetNameFor(node);
-    if (targetName == null) continue;
-    final tweaked = byTargetName[targetName];
+    final tweaked = plannedTargetOf(node);
     if (tweaked == null) continue;
     final newPlans = <FilterPlan>[];
     for (final plan in node.plans) {

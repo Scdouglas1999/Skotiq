@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import 'horizon_profile.dart';
 import 'site_horizon_profile.dart';
 
 /// How high a target must stand at this site to be imaged: the one rule.
@@ -22,6 +23,7 @@ class AltitudeFloor {
     required this.horizon,
     required this.minimumDeg,
     this.targetMinimumDeg,
+    this.targetHorizon,
   });
 
   /// The site's horizon with the learned obstructions merged in; null before
@@ -34,6 +36,12 @@ class AltitudeFloor {
   /// What one target must clear on top of the site's floor, when the operator
   /// gave that target a minimum of its own.
   final double? targetMinimumDeg;
+
+  /// A horizon one target must clear on top of the site's floor, when the
+  /// operator gave its step a horizon of its own. It answers by its own
+  /// interpolation ([HorizonProfile.minAltitudeAt]), so the floor is never
+  /// below what the step's horizon alone asked.
+  final HorizonProfile? targetHorizon;
 
   /// Whether the operator's own horizon is in force rather than the minimum
   /// altitude.
@@ -50,6 +58,18 @@ class AltitudeFloor {
           horizon: horizon,
           minimumDeg: minimumDeg,
           targetMinimumDeg: degrees,
+          targetHorizon: targetHorizon,
+        );
+
+  /// This floor for a target whose step carries a horizon of its own: the
+  /// target must clear both.
+  AltitudeFloor withTargetHorizon(HorizonProfile? profile) => profile == null
+      ? this
+      : AltitudeFloor(
+          horizon: horizon,
+          minimumDeg: minimumDeg,
+          targetMinimumDeg: targetMinimumDeg,
+          targetHorizon: profile,
         );
 
   /// The floor in degrees toward [azimuthDeg].
@@ -57,16 +77,27 @@ class AltitudeFloor {
     final horizonDeg = horizon?.altitudeAtAzimuth(azimuthDeg) ?? 0.0;
     final site = followsHorizon ? horizonDeg : math.max(minimumDeg, horizonDeg);
     final own = targetMinimumDeg;
-    return own == null ? site : math.max(site, own);
+    final withOwn = own == null ? site : math.max(site, own);
+    final step = targetHorizon;
+    return step == null
+        ? withOwn
+        : math.max(withOwn, step.minAltitudeAt(azimuthDeg));
   }
 
   /// The floor by azimuth, including the learned obstruction edges that a
-  /// regular grid could smooth away. One sample when it is flat.
+  /// regular grid could smooth away and a step horizon's own samples. One
+  /// sample when it is flat.
   List<({double azimuth, double altitude})> denseSamples() {
-    final samples = [
+    final azimuths = {
       for (final sample
           in horizon?.denseSamples() ?? const [(azimuth: 0.0, altitude: 0.0)])
-        (azimuth: sample.azimuth, altitude: atAzimuth(sample.azimuth)),
+        sample.azimuth,
+      for (final sample in targetHorizon?.samples ?? const <HorizonSample>[])
+        (sample.azimuthDegrees % 360 + 360) % 360,
+    }.toList()..sort();
+    final samples = [
+      for (final azimuth in azimuths)
+        (azimuth: azimuth, altitude: atAzimuth(azimuth)),
     ];
     if (samples.every((sample) => sample.altitude == samples.first.altitude)) {
       return [samples.first];

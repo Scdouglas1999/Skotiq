@@ -1,5 +1,5 @@
 {
-  "comment": "The filter-name rule, shared by frame/src/filter_name.rs (Rust) and skotiq_astro filters/filter_names.dart (Dart); both tests read this file. A name is the set of known bands it names; brands, product lines and widths are not bands, and a name with no known band is its whole name. slots: the 0-based slot a request means, index null when none; ambiguous: true when several slots mean it. bands: a name's bands, sorted.",
+  "comment": "The filter-name rule, shared by frame/src/filter_name.rs (Rust) and skotiq_astro filters/filter_names.dart (Dart); both tests read this file. A name is the set of known bands it names; brands, product lines and widths are not bands (a width glued to a band, \"Ha7nm\", is that band), and a name with no known band is its whole name. slots: the 0-based slot a request means, index null when none; ambiguous: true when several slots mean it. bands: a name's bands, sorted.",
   "slots": [
     {
       "names": [
@@ -725,6 +725,31 @@
       ],
       "requested": "R",
       "index": null
+    },
+    {
+      "names": [
+        "L",
+        "Ha",
+        "OIII"
+      ],
+      "requested": "Ha7nm",
+      "index": 1
+    },
+    {
+      "names": [
+        "Ha",
+        "Ha7nm"
+      ],
+      "requested": "Ha7nm",
+      "index": 1
+    },
+    {
+      "names": [
+        "Ha",
+        "Ha7nm"
+      ],
+      "requested": "Ha",
+      "index": 0
     }
   ],
   "bands": [
@@ -937,6 +962,60 @@
       "name": "Baader IR Pass 685nm",
       "bands": [
         "BAADERIRPASS685NM"
+      ]
+    },
+    {
+      "name": "Ha7nm",
+      "bands": [
+        "HA"
+      ]
+    },
+    {
+      "name": "Baader Ha7nm",
+      "bands": [
+        "HA"
+      ]
+    },
+    {
+      "name": "H-alpha7nm",
+      "bands": [
+        "HA"
+      ]
+    },
+    {
+      "name": "OIII6.5nm",
+      "bands": [
+        "OIII"
+      ]
+    },
+    {
+      "name": "SII3nm",
+      "bands": [
+        "SII"
+      ]
+    },
+    {
+      "name": "O3",
+      "bands": [
+        "OIII"
+      ]
+    },
+    {
+      "name": "S2",
+      "bands": [
+        "SII"
+      ]
+    },
+    {
+      "name": "N2",
+      "bands": [
+        "NII"
+      ]
+    },
+    {
+      "name": "685nm",
+      "bands": [
+        "685NM"
       ]
     }
   ]

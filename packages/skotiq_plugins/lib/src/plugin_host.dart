@@ -159,6 +159,11 @@ class PluginHost {
     return _plugins[pluginId]?.plugin;
   }
 
+  /// Publishes an app event ([eventName] with [data]) to the plugins that
+  /// listen for it on their event bus.
+  void publishHostEvent(String eventName, Map<String, dynamic> data) =>
+      _contextFactory.publish(eventName, data);
+
   /// Return the live [PluginContext] associated with [pluginId], or `null`
   /// if no such plugin is registered. Plugin nodes use this to access the
   /// same logger / storage / event bus their owning plugin sees during

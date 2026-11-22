@@ -114,7 +114,8 @@ class MountSlewWatcher {
   /// How long a mount gets to show any motion toward the target.
   static const Duration defaultMotionStartWindow = Duration(seconds: 15);
 
-  /// How long a GoTo may take to arrive.
+  /// How long a GoTo may take to arrive: the native bridge's long-slew
+  /// timeout, which test_fixtures/timeouts/long_slew.json holds both to.
   static const Duration defaultCompletionTimeout = Duration(minutes: 5);
 
   static const Duration defaultPollInterval = Duration(milliseconds: 500);

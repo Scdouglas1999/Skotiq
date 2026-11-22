@@ -141,7 +141,7 @@ final nodePaletteProvider = Provider<List<NodePaletteCategory>>((ref) {
       defaults.exposureFilter ?? profile?.filterNames.firstOrNull;
   final effectiveExposureDuration = defaults.isExposureDurationConfigured
       ? defaults.exposureDuration
-      : exposureContext?.recommendForFilter(effectiveFilter).seconds ??
+      : exposureContext?.recommendForFilter(effectiveFilter)?.seconds ??
             defaults.exposureDuration;
 
   return [

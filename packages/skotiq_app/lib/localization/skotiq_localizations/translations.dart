@@ -569,6 +569,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerNoMatchesBody':
         '{total} candidates were scored and {passed} passed the filters.',
     'plannerNoMatchesAction': 'Reset filters',
+    'plannerMidnightSunTitle': 'The Sun does not set here tonight',
+    'plannerMidnightSunBody':
+        'With no dark window there are no targets to suggest. Choose another '
+            'date, or build a sequence by hand for twilight imaging.',
     'plannerPlanFailedAction': 'Retry',
     // The live dot's chip. One word, because the panel head beside it
     // already says which session this is.
@@ -2222,6 +2226,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerNoMatchesBody':
         'Se puntuaron {total} candidatos y {passed} pasaron los filtros.',
     'plannerNoMatchesAction': 'Restablecer filtros',
+    'plannerMidnightSunTitle': 'El Sol no se pone aquí esta noche',
+    'plannerMidnightSunBody':
+        'Sin ventana oscura no hay objetivos que sugerir. Elige otra fecha o '
+            'crea una secuencia a mano para imágenes en el crepúsculo.',
     'plannerPlanFailedAction': 'Reintentar',
     'analyticsLive': 'En vivo',
     'nightPlanDrawer': 'Plan',
