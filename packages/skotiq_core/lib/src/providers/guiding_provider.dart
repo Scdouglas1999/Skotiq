@@ -19,6 +19,7 @@ import '../backend/phd2_status_poll.dart';
 import '../settings/app_settings_state.g.dart';
 import '../settings/guide_settle.dart';
 import '../utils/device_id.dart';
+import '../utils/rolling_rms_calculator.dart';
 import 'backend_provider.dart';
 import 'equipment_provider.dart';
 import 'operation_progress_provider.dart';
