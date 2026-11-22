@@ -263,7 +263,7 @@ class LiveDarkroomRecipeSettings {
   }) {
     final payload = <String, dynamic>{
       'id': 'live-$filterKey',
-      'schemaVersion': 1,
+      'schemaVersion': recipeSchemaVersion,
       'baseMasterRef': 'livestack:$filterKey',
       'createdBy': 'user',
       'steps': toRecipeSteps(isColor: isColor),
