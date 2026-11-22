@@ -328,21 +328,16 @@ class LiveStackSlotSummary {
   }
 }
 
-/// A host's live stack as its runtime channel shares it: whether it is
-/// armed or running and what each filter slot holds. Pixels are fetched per
+/// A host's running live stack as its runtime channel shares it: whether it
+/// waits for frames and what each filter slot holds. Pixels are fetched per
 /// slot over the stacking routes.
 class LiveStackSummary {
-  const LiveStackSummary({
-    required this.running,
-    required this.armed,
-    required this.slots,
-  });
+  const LiveStackSummary({required this.armed, required this.slots});
 
-  /// Null when the stack is neither armed nor running.
+  /// Null when no stack is running, including one whose start failed.
   static LiveStackSummary? of(LiveStackingState state) {
-    if (!state.isActiveOrArmed) return null;
+    if (state.status != LiveStackingStatus.running) return null;
     return LiveStackSummary(
-      running: state.status == LiveStackingStatus.running,
       armed: state.isArmed,
       slots: [
         for (final key in state.availableFilters)
@@ -359,26 +354,22 @@ class LiveStackSummary {
     );
   }
 
-  final bool running;
   final bool armed;
   final List<LiveStackSlotSummary> slots;
 
   Map<String, Object?> toJson() => {
-    'running': running,
     'armed': armed,
     'slots': [for (final slot in slots) slot.toJson()],
   };
 
   /// Throws [FormatException] for a value the two ends disagree about.
   factory LiveStackSummary.fromJson(Map<String, dynamic> json) {
-    final running = json['running'];
     final armed = json['armed'];
     final slots = json['slots'];
-    if (running is! bool || armed is! bool || slots is! List) {
+    if (armed is! bool || slots is! List) {
       throw const FormatException('Live stack summary is incomplete');
     }
     return LiveStackSummary(
-      running: running,
       armed: armed,
       slots: [
         for (final slot in slots)

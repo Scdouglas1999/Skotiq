@@ -71,8 +71,9 @@ class StackingHandlers implements RouteSource {
   StackedResultsDao get _resultsDao =>
       container.read(stackedResultsDaoProvider);
 
-  /// Whether the stack is armed or running.
-  bool get _armed => _stackState.isActiveOrArmed;
+  /// Whether the stack is armed or running. One whose start failed is
+  /// neither: a run's frames are not fed to it.
+  bool get _armed => _stackState.status == LiveStackingStatus.running;
 
   /// Whether a reference frame has been established.
   bool get _started => _stackState.filterStacks.isNotEmpty;
@@ -492,8 +493,11 @@ class StackingHandlers implements RouteSource {
       // slot together before arming again; a native reset keeps its reference.
       if (_started || _service.isActive) {
         final wasArmed = _armed;
+        // The stack keeps its own settings; POST /config applies at the next
+        // start.
+        final config = _stackState.config;
         await _stack.stopOrThrow();
-        if (wasArmed) await _stack.arm(config: _config);
+        if (wasArmed) await _stack.arm(config: config);
       }
       return jsonOk({'status': 'reset'});
     });
@@ -555,6 +559,8 @@ class StackingHandlers implements RouteSource {
   }) async {
     _config = config;
     if (referencePath != null && referencePath.isNotEmpty) {
+      // A slot the stack already has starts again from the new reference.
+      await _stack.stopFilter(filterKey, throwOnFailure: true);
       final stats = await _startReference(
         referencePath,
         config,

@@ -76,7 +76,6 @@ void main() {
       _update(
         1,
         LiveStackSummary(
-          running: true,
           armed: true,
           slots: [_slot('L', 3, 3), _slot('R', 2, 2)],
         ),
@@ -106,7 +105,6 @@ void main() {
       _update(
         2,
         LiveStackSummary(
-          running: true,
           armed: true,
           slots: [_slot('L', 4, 4), _slot('R', 2, 2)],
         ),
@@ -128,10 +126,7 @@ void main() {
   test('when the host stack ends the client view ends without a stop sent '
       'back', () async {
     hostHolds = [
-      _update(
-        1,
-        LiveStackSummary(running: true, armed: true, slots: [_slot('L', 1, 1)]),
-      ),
+      _update(1, LiveStackSummary(armed: true, slots: [_slot('L', 1, 1)])),
     ];
     final client = linked();
     client.container.read(liveStackingServiceProvider);
@@ -154,10 +149,7 @@ void main() {
 
   test('Stop on a client reaches a stack the host started', () async {
     hostHolds = [
-      _update(
-        1,
-        LiveStackSummary(running: true, armed: true, slots: [_slot('L', 1, 1)]),
-      ),
+      _update(1, LiveStackSummary(armed: true, slots: [_slot('L', 1, 1)])),
     ];
     final client = linked();
     client.container.read(liveStackingServiceProvider);
@@ -174,9 +166,7 @@ void main() {
   });
 
   test('an armed host stack with no frame yet is not polled', () async {
-    hostHolds = [
-      _update(1, const LiveStackSummary(running: true, armed: true, slots: [])),
-    ];
+    hostHolds = [_update(1, const LiveStackSummary(armed: true, slots: []))];
     final client = linked();
     client.container.read(liveStackingServiceProvider);
     await hydrateHostRuntimeState(client.container, client.backend);
@@ -213,5 +203,17 @@ void main() {
     expect(back.toJson(), summary.toJson());
     expect(back.slots.single.stats.totalIntegrationSecs, 2100);
     expect(LiveStackSummary.of(const LiveStackingState()), isNull);
+    // A start that failed leaves the stack armed in error: nothing is
+    // stacked into it, so a client is not shown one.
+    expect(
+      LiveStackSummary.of(
+        const LiveStackingState(
+          status: LiveStackingStatus.error,
+          isArmed: true,
+          errorMessage: 'Reference frame has only 0 stars',
+        ),
+      ),
+      isNull,
+    );
   });
 }

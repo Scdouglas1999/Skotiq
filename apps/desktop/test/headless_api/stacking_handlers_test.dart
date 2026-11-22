@@ -289,6 +289,19 @@ void main() {
     },
   );
 
+  test('a reset keeps the settings the stack runs with', () async {
+    const own = LiveStackingConfig(sigmaClipThreshold: 2.25);
+    await container.read(liveStackingProvider.notifier).arm(config: own);
+    await saved('/host/ref.fits');
+
+    final reset = await handlers.handleReset(post('/api/stacking/reset'));
+    expect(reset.statusCode, 200);
+    await saved('/host/new-ref.fits');
+
+    expect(fake.started, ['/host/ref.fits', '/host/new-ref.fits']);
+    expect(fake.startedConfigs.last.sigmaClipThreshold, 2.25);
+  });
+
   test('no auto-feed before arming or after stop', () async {
     // Not armed yet → ignored.
     await saved('/host/ignored.fits');
@@ -455,7 +468,37 @@ void main() {
     expect(body['error'], 'stacking_reference_rejected');
     expect(body['detectedStars'], 0);
     expect(body['requiredStars'], 5);
+
+    // The stack did not start: it is not armed, and a run's frames are not
+    // fed to it.
+    final status = await _json(
+      handlers.handleStatus(
+        Request('GET', Uri.parse('http://localhost/api/stacking/status')),
+      ),
+    );
+    expect(status['armed'], isFalse);
+    expect(status['started'], isFalse);
   });
+
+  test(
+    'a named start from a reference restarts a slot it already has',
+    () async {
+      final dispatch = RouteTable.only(handlers).handler;
+      await dispatch(
+        post('/api/stacking/filters/Ha/start', {
+          'referencePath': '/host/ha.fits',
+        }),
+      );
+      final again = await dispatch(
+        post('/api/stacking/filters/Ha/start', {
+          'referencePath': '/host/ha-2.fits',
+        }),
+      );
+
+      expect(again.statusCode, 200);
+      expect(fake.startedFilters, ['Ha', 'Ha']);
+    },
+  );
 
   test('bodyless start is allowed but malformed JSON is rejected', () async {
     final bodyless = await handlers.handleStart(post('/api/stacking/start'));
