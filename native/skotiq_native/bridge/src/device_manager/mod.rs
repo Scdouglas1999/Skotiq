@@ -83,6 +83,14 @@ impl Default for ReconnectConfig {
     }
 }
 
+/// The tracking a mount held, for a reconnect to keep.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeldTracking {
+    pub tracking: bool,
+    /// The rate it tracked at, when known.
+    pub rate: Option<crate::device::TrackingRate>,
+}
+
 /// The camera state a reopen restores, from the camera's last good status
 /// read and the gain and offset last set on it.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -127,12 +135,12 @@ pub struct ManagedDevice {
     /// and offset last set on it. With `desired_cooler` this is what a reopen
     /// of the camera restores. Cameras only.
     pub held_camera_state: Option<HeldCameraState>,
-    /// Last commanded mount tracking state, recorded whenever
-    /// `mount_set_tracking` succeeds. Re-applied after an unplanned reconnect
-    /// so a mount that was tracking before the disconnect resumes tracking
-    /// instead of sitting parked while the sequence "resumes". `None` until
-    /// tracking has been commanded at least once; mounts only.
-    pub desired_tracking: Option<bool>,
+    /// The mount's tracking as last commanded through Skotiq (see
+    /// [`HeldTracking`]). Re-applied after an unplanned reconnect so a mount
+    /// that was tracking before the disconnect resumes tracking instead of
+    /// sitting parked while the sequence "resumes". `None` until tracking has
+    /// been commanded at least once; mounts only.
+    pub held_tracking: Option<HeldTracking>,
     /// The equatorial frame the mount's driver declared at its last connect
     /// (ASCOM `EquatorialSystem`). `None` when it declared none Skotiq can
     /// use; [`DeviceManager::mount_frame`] then falls back to the driver

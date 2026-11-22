@@ -370,6 +370,21 @@ pub enum TrackingRate {
     Custom,
 }
 
+impl TrackingRate {
+    /// The rate `mount_set_tracking_rate` takes as `wire` (ASCOM
+    /// `DriveRates`, with 4 for a custom rate).
+    pub(crate) fn from_wire(wire: i32) -> Option<Self> {
+        Some(match wire {
+            0 => Self::Sidereal,
+            1 => Self::Lunar,
+            2 => Self::Solar,
+            3 => Self::King,
+            4 => Self::Custom,
+            _ => return None,
+        })
+    }
+}
+
 /// Current status of a focuser
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FocuserStatus {

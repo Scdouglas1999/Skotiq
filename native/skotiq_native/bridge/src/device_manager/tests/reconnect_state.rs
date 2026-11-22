@@ -11,7 +11,7 @@ use crate::device::DriverType;
 // "resumes". A *fresh* connect (from Disconnected) must NOT re-apply mount
 // tracking; a camera restores what it held on any connect (camera_reopen.rs).
 
-/// Setting tracking records `desired_tracking`; an Error->reconnect replays it.
+/// Setting tracking records the held tracking; an Error->reconnect replays it.
 #[tokio::test]
 async fn reconnect_reapplies_mount_tracking() {
     use crate::simulator::mount::get_sim_mount;
@@ -38,9 +38,10 @@ async fn reconnect_reapplies_mount_tracking() {
             .await
             .get(device_id)
             .unwrap()
-            .desired_tracking,
+            .held_tracking
+            .map(|held| held.tracking),
         Some(true),
-        "successful set_tracking must record desired_tracking"
+        "successful set_tracking must record the held tracking"
     );
 
     // Simulate a heartbeat-lost disconnect: device goes to Error and the

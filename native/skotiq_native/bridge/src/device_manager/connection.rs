@@ -321,7 +321,7 @@ impl DeviceManager {
                 heartbeat_active: false,
                 desired_cooler: None,
                 held_camera_state: None,
-                desired_tracking: None,
+                held_tracking: None,
                 declared_mount_frame: None,
             },
         );
@@ -1187,14 +1187,14 @@ impl DeviceManager {
         if info.device_type != DeviceType::Mount {
             return;
         }
-        let desired_tracking = {
+        let held_tracking = {
             let devices = self.devices.read().await;
             match devices.get(device_id) {
-                Some(dev) => dev.desired_tracking,
+                Some(dev) => dev.held_tracking,
                 None => return,
             }
         };
-        let Some(enabled) = desired_tracking else {
+        let Some(enabled) = held_tracking.map(|held| held.tracking) else {
             return;
         };
         // A parked mount stays parked: tracking it would leave the park.

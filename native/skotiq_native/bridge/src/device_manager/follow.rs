@@ -190,7 +190,7 @@ impl DeviceManager {
         if let Some(new) = devices.get_mut(to) {
             new.desired_cooler = new.desired_cooler.or(old.desired_cooler);
             new.held_camera_state = new.held_camera_state.or(old.held_camera_state);
-            new.desired_tracking = new.desired_tracking.or(old.desired_tracking);
+            new.held_tracking = new.held_tracking.or(old.held_tracking);
         }
         drop(devices);
         self.carry_session(from, to);
