@@ -1592,9 +1592,10 @@ impl MeridianFlipExecutor {
             };
 
             *solved = true;
-            let error = policy
-                .separation
-                .measure(target, (result.ra_degrees, result.dec_degrees));
+            let error = crate::instructions::pointing_error(
+                target,
+                (result.ra_degrees, result.dec_degrees),
+            );
             tracing::info!(
                 "[MERIDIAN] Plate solve result: offset={:.1}\" (RA={:.1}\", Dec={:.1}\")",
                 error.total_arcsec,
@@ -1603,7 +1604,7 @@ impl MeridianFlipExecutor {
             );
 
             // A correction is verified by the next frame, not assumed.
-            if policy.tolerance.is_met(error.total_arcsec) {
+            if policy.is_centered(error.total_arcsec) {
                 tracing::info!("[MERIDIAN] Centering within tolerance");
                 return Ok(());
             }
