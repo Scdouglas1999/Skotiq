@@ -89,23 +89,26 @@ class FramingHandlers implements RouteSource {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final centering = await centeringForRequest(container, payload);
 
-    Future<CenteringResult> runCentering() => container
-        .read(centeringServiceProvider)
-        .centerOnTarget(targetRa: ra, targetDec: dec, config: centering);
+    final run = container.read(centeringRunProvider);
+    Future<CenteringResult> runCentering() async => (await run.center(
+      raHours: ra,
+      decDegrees: dec,
+      config: centering,
+      publishes: false,
+    ))!;
 
     final job = jobManager.start(
       operation: JobOperation.centerOnTarget,
       deviceId: null,
       work: (sink, cancellation) async {
         sink.update(0.0, 'Centering on RA=$ra DEC=$dec');
-        final centeringService = container.read(centeringServiceProvider);
         final workFuture = runCentering();
         final raced = await Future.any<dynamic>([
           workFuture,
           cancellation.whenCancelled.then((_) => _CenteringCancelled.instance),
         ]);
         if (raced is _CenteringCancelled) {
-          await centeringService.stop();
+          await run.cancel();
           try {
             await workFuture;
           } catch (e) {

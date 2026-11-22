@@ -6,6 +6,7 @@ library;
 
 import 'dart:math' as math;
 
+import '../equipment/equipment_models.dart' show ShutterStatus;
 import '../imaging/gain_kind.dart';
 
 enum TrackingRate { sidereal, lunar, solar, king, custom }
@@ -780,14 +781,13 @@ class RotatorCapabilities {
   };
 }
 
-/// Dome capabilities
+/// Dome capabilities, and the state the driver reported with them.
 ///
 /// Mirrors the Rust `DomeCapabilities` struct exposed by
-/// `bridge::device_capabilities::DomeCapabilities`. Added for to
-/// drive capability-gated UI on dome controls (shutter, parking, slewing,
-/// sync). Only flag fields are required for gating; dynamic state fields
-/// (azimuth, slewing, etc.) are not exposed because the existing
-/// `domeStateProvider` already provides live status.
+/// `bridge::device_capabilities::DomeCapabilities`. [toJson] is the body of
+/// `GET /api/dome/capabilities` (after its `deviceId`) and [fromJson] reads
+/// it back. The live fields come with the reading; the dome card shows live
+/// status from `domeStateProvider`.
 class DomeCapabilities {
   final bool canSetAzimuth;
   final bool canPark;
@@ -797,6 +797,15 @@ class DomeCapabilities {
   final bool canSlave;
   final bool canAbort;
 
+  final bool slewing;
+  final bool atHome;
+  final bool atPark;
+  final bool slaved;
+  final double? azimuth;
+
+  /// [ShutterStatus.unknown] when the driver did not report one.
+  final ShutterStatus shutterStatus;
+
   const DomeCapabilities({
     this.canSetAzimuth = false,
     this.canPark = false,
@@ -805,6 +814,12 @@ class DomeCapabilities {
     this.canSyncAzimuth = false,
     this.canSlave = false,
     this.canAbort = false,
+    this.slewing = false,
+    this.atHome = false,
+    this.atPark = false,
+    this.slaved = false,
+    this.azimuth,
+    this.shutterStatus = ShutterStatus.unknown,
   });
 
   factory DomeCapabilities.fromJson(Map<String, dynamic> json) {
@@ -830,16 +845,32 @@ class DomeCapabilities {
           json['canSlave'] as bool? ?? json['can_slave'] as bool? ?? false,
       canAbort:
           json['canAbort'] as bool? ?? json['can_abort'] as bool? ?? false,
+      slewing: json['slewing'] == true,
+      atHome: json['atHome'] == true,
+      atPark: json['atPark'] == true,
+      slaved: json['slaved'] == true,
+      azimuth: (json['azimuth'] as num?)?.toDouble(),
+      shutterStatus: ShutterStatus.values.firstWhere(
+        (s) => s.name == json['shutterStatus'],
+        orElse: () => ShutterStatus.unknown,
+      ),
     );
   }
 
   Map<String, dynamic> toJson() => {
     'canSetAzimuth': canSetAzimuth,
+    'canSetShutter': canSetShutter,
     'canPark': canPark,
     'canFindHome': canFindHome,
-    'canSetShutter': canSetShutter,
     'canSyncAzimuth': canSyncAzimuth,
     'canSlave': canSlave,
+    'canSetSlave': canSlave,
     'canAbort': canAbort,
+    'slewing': slewing,
+    'atHome': atHome,
+    'atPark': atPark,
+    'slaved': slaved,
+    'azimuth': azimuth,
+    'shutterStatus': shutterStatus.name,
   };
 }

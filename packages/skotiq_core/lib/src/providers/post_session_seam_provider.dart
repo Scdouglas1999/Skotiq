@@ -14,3 +14,9 @@ final postSessionSeamProvider = Provider<PostSessionSeam>((ref) {
     host: ref.watch(linkedHostPostSessionProvider),
   );
 });
+
+/// This machine's native post-session pipeline, which the host's
+/// `/api/post-session/*` routes run.
+final postSessionPipelineProvider = Provider<PostSessionPipeline>(
+  (ref) => const PostSessionPipeline(),
+);

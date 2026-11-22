@@ -1,8 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// bridge-boundary: post_session_handlers
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:shelf/shelf.dart';
@@ -30,10 +28,9 @@ import 'package:skotiq_core/utils.dart';
 /// payload is the exact JSON envelope the native FFI returned — the client's
 /// [PostSessionSeam] result classes decode it verbatim.
 ///
-/// The handlers forward to the same native bridge free functions
-/// (`apiIntegrateSession`, `apiAnalyzeNight`, `apiBuildMasterFlat`,
-/// `apiColorCalibrate`, `apiExtractBackground`, `apiDrizzleIntegrate`) that [BridgePostSessionSeam] wraps, so the host result
-/// is byte-for-byte identical whether the op was driven locally or remotely.
+/// The handlers run the same [PostSessionPipeline] that [BridgePostSessionSeam]
+/// runs locally, so the host result is byte-for-byte identical whether the op
+/// was driven locally or remotely.
 ///
 /// Mosaic stitching (`api_stitch_mosaic`) is intentionally NOT exposed here; it
 /// is owned by the separate mosaic surface.
@@ -96,16 +93,8 @@ class PostSessionHandlers implements RouteSource {
     return scalars.join(', ');
   }
 
-  /// Decode a native JSON envelope to a `Map<String, dynamic>`, the job-result
-  /// shape clients decode. Mirrors `BridgePostSessionSeam._decodeObject`.
-  Map<String, dynamic> _decodeObject(String json) {
-    final decoded = jsonDecode(json);
-    if (decoded is Map<String, dynamic>) return decoded;
-    throw FormatException(
-      'post-session native call returned a non-object JSON payload',
-      json,
-    );
-  }
+  PostSessionPipeline get _pipeline =>
+      container.read(postSessionPipelineProvider);
 
   /// Encode a decoded request body for the bridge, refusing a number JSON
   /// cannot carry before the encoder gets to it.
@@ -323,10 +312,11 @@ class PostSessionHandlers implements RouteSource {
     final args = await readJsonObject(request);
     _refuseExposuresSec(args, lightsField: 'lightPaths');
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionIntegrate, () async {
-      final out = await bridge.apiIntegrateSession(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionIntegrate,
+      () => pipeline.run(PostSessionOp.integrateSession, argsJson),
+    );
   }
 
   // Drizzle integrate — variable-pixel linear reconstruction onto a scaled
@@ -344,10 +334,11 @@ class PostSessionHandlers implements RouteSource {
     _logInfo('[API] POST /api/post-session/drizzle');
     final args = await readJsonObject(request);
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionDrizzle, () async {
-      final out = await bridge.apiDrizzleIntegrate(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionDrizzle,
+      () => pipeline.run(PostSessionOp.drizzleIntegrate, argsJson),
+    );
   }
 
   // Analyze night — marginal-SNR integration curve + keep/cull recommendation.
@@ -366,10 +357,11 @@ class PostSessionHandlers implements RouteSource {
     requireList<dynamic>(args, 'weights');
     requireList<dynamic>(args, 'exposuresS');
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionAnalyzeNight, () async {
-      final out = await bridge.apiAnalyzeNight(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionAnalyzeNight,
+      () => pipeline.run(PostSessionOp.analyzeNight, argsJson),
+    );
   }
 
   // Build master flat — unit-mean master flat from raw flats. Wraps
@@ -382,10 +374,11 @@ class PostSessionHandlers implements RouteSource {
     _logInfo('[API] POST /api/post-session/build-master-flat');
     final args = await readJsonObject(request);
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionBuildMasterFlat, () async {
-      final out = await bridge.apiBuildMasterFlat(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionBuildMasterFlat,
+      () => pipeline.run(PostSessionOp.buildMasterFlat, argsJson),
+    );
   }
 
   // Color calibrate — solve + apply a per-channel white balance from the
@@ -403,10 +396,11 @@ class PostSessionHandlers implements RouteSource {
     requireInt(args, 'channels');
     requireList<dynamic>(args, 'matchedStars');
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionColorCalibrate, () async {
-      final out = await bridge.apiColorCalibrate(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionColorCalibrate,
+      () => pipeline.run(PostSessionOp.colorCalibrate, argsJson),
+    );
   }
 
   // Detect stars (photometry) — measure each star's per-channel aperture flux,
@@ -421,10 +415,11 @@ class PostSessionHandlers implements RouteSource {
     final args = await readJsonObject(request);
     requireString(args, 'inputFits');
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionDetectStars, () async {
-      final out = await bridge.apiDetectStarsPhotometry(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionDetectStars,
+      () => pipeline.run(PostSessionOp.detectStarsPhotometry, argsJson),
+    );
   }
 
   // Extract background — fit + subtract a low-order background model. Wraps
@@ -439,10 +434,11 @@ class PostSessionHandlers implements RouteSource {
     requireString(args, 'inputFits');
     requireString(args, 'outputFits');
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionExtractBackground, () async {
-      final out = await bridge.apiExtractBackground(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionExtractBackground,
+      () => pipeline.run(PostSessionOp.extractBackground, argsJson),
+    );
   }
 
   // Master accumulate — multi-night accumulating master (create / add /
@@ -466,9 +462,10 @@ class PostSessionHandlers implements RouteSource {
       _refuseExposuresSec(args, lightsField: 'lightPaths');
     }
     final argsJson = _encodeArgs(args);
-    return _startJob(JobOperation.postSessionMasterAccumulate, () async {
-      final out = await bridge.apiMasterAccumulate(argsJson: argsJson);
-      return _decodeObject(out);
-    });
+    final pipeline = _pipeline;
+    return _startJob(
+      JobOperation.postSessionMasterAccumulate,
+      () => pipeline.run(PostSessionOp.masterAccumulate, argsJson),
+    );
   }
 }

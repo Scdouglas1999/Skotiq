@@ -97,11 +97,8 @@ final equipmentRotatorCapabilitiesProvider =
       return backend.getRotatorCapabilities(deviceId);
     });
 
-/// Dome capability fetcher — overridable for tests.
-///
-/// Production calls the FRB bridge directly because the [SkotiqBackend]
-/// abstraction does not yet have a `getDomeCapabilities` method, and adding
-/// one belongs to a backend-shape change outside the scope of.
+/// Reads a dome's capabilities: this process's driver, or the linked host's
+/// `GET /api/dome/capabilities`.
 typedef DomeCapabilityFetcher =
     Future<DomeCapabilities?> Function(String deviceId);
 
@@ -349,6 +346,18 @@ DomeCapabilities _fromBridgeDomeCapabilities(bridge_caps.DomeCapabilities src) {
     canSyncAzimuth: src.canSyncAzimuth,
     canSlave: src.canSlave,
     canAbort: src.canAbort,
+    slewing: src.slewing,
+    atHome: src.atHome,
+    atPark: src.atPark,
+    slaved: src.slaved,
+    azimuth: src.azimuth,
+    shutterStatus: switch (src.shutterStatus) {
+      bridge_caps.ShutterStatus.open => ShutterStatus.open,
+      bridge_caps.ShutterStatus.closed => ShutterStatus.closed,
+      bridge_caps.ShutterStatus.opening => ShutterStatus.opening,
+      bridge_caps.ShutterStatus.closing => ShutterStatus.closing,
+      bridge_caps.ShutterStatus.unknown || null => ShutterStatus.unknown,
+    },
   );
 }
 

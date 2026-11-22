@@ -247,13 +247,14 @@ class PlanetariumHandlers implements RouteSource {
     final ra = requireDouble(payload, 'ra', min: 0, max: 24);
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final centering = await centeringForRequest(container, payload);
-    final centeringService = container.read(centeringServiceProvider);
-
-    final result = await centeringService.centerOnTarget(
-      targetRa: ra,
-      targetDec: dec,
-      config: centering,
-    );
+    final result = (await container
+        .read(centeringRunProvider)
+        .center(
+          raHours: ra,
+          decDegrees: dec,
+          config: centering,
+          publishes: false,
+        ))!;
 
     return jsonOk(result.toJson());
   }

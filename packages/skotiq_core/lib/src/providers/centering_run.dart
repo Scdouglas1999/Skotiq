@@ -31,33 +31,42 @@ class CenteringRun {
   /// window read. A centering already under way is refused and publishes
   /// nothing. Null when [isCurrent] turns false before the run starts.
   /// While [isCurrent] is false the run publishes nothing.
+  ///
+  /// [config] replaces the manual centering (a client's request names its
+  /// own). With [publishes] false the run leaves the status and the last
+  /// result alone: the host's center routes pass it, because the client that
+  /// asked runs its own CenteringRun and reports that run's status here.
   Future<CenteringResult?> center({
     required double raHours,
     required double decDegrees,
     double? exposureSeconds,
+    CenteringConfig? config,
+    bool publishes = true,
     bool Function()? isCurrent,
   }) async {
     bool current() => isCurrent?.call() ?? true;
-    final centering = ManualCentering.of(
-      await _ref.read(appSettingsProvider.future),
-      _ref.read(activeEquipmentProfileProvider),
-      exposureSeconds: exposureSeconds,
-    );
+    final centering =
+        config ??
+        ManualCentering.of(
+          await _ref.read(appSettingsProvider.future),
+          _ref.read(activeEquipmentProfileProvider),
+          exposureSeconds: exposureSeconds,
+        ).config;
     if (!current()) return null;
     final service = _ref.read(centeringServiceProvider);
-    if (service.isRunning) {
-      // The service refuses at once; the status and last result stay those
-      // of the run that holds the loop.
+    if (service.isRunning || !publishes) {
+      // A running service refuses at once; the status and last result stay
+      // those of the run that holds the loop.
       return service.centerOnTarget(
         targetRa: raHours,
         targetDec: decDegrees,
-        config: centering.config,
+        config: centering,
       );
     }
     final result = await service.centerOnTarget(
       targetRa: raHours,
       targetDec: decDegrees,
-      config: centering.config,
+      config: centering,
       onStatusUpdate: (status) {
         if (current()) _status.state = status;
       },

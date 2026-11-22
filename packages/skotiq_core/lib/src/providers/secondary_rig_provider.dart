@@ -213,10 +213,10 @@ class SecondaryRigStartContext {
 /// Controller that arms / stops the secondary rig through the FRB bindings.
 class SecondaryRigController {
   SecondaryRigController(this._ref)
-    : _drive = _ref.read(_secondaryRigDriveProvider);
+    : _drive = _ref.read(secondaryRigDriveProvider);
 
   final Ref _ref;
-  _SecondaryRigDrive _drive;
+  SecondaryRigDrive _drive;
   int _driveRevision = 0;
   Future<void> _operationTail = Future<void>.value();
 
@@ -233,7 +233,7 @@ class SecondaryRigController {
 
   Future<void> _start(
     SecondaryRigStartContext context,
-    _SecondaryRigDrive drive,
+    SecondaryRigDrive drive,
   ) async {
     final config = _ref.read(secondaryRigConfigProvider);
     if (!config.isValid) {
@@ -284,7 +284,7 @@ class SecondaryRigController {
     return status;
   }
 
-  void _switchDrive(_SecondaryRigDrive drive) {
+  void _switchDrive(SecondaryRigDrive drive) {
     if (identical(drive, _drive)) return;
     _drive = drive;
     _driveRevision++;
@@ -292,7 +292,7 @@ class SecondaryRigController {
     _ref.read(secondaryRigOperationInProgressProvider.notifier).state = false;
   }
 
-  void _ensureAuthority(_SecondaryRigDrive drive, int revision) {
+  void _ensureAuthority(SecondaryRigDrive drive, int revision) {
     if (revision != _driveRevision || !identical(drive, _drive)) {
       throw StateError(
         'The imaging host changed before the secondary-rig action completed.',
@@ -382,6 +382,22 @@ class SecondaryRigStatus {
     );
   }
 
+  /// The body of `GET /api/sequencer/secondary-rig`, which [fromJson] reads.
+  Map<String, Object?> toJson() => {
+    'armed': armed,
+    'running': running,
+    'cameraId': cameraId,
+    'rigLabel': rigLabel,
+    'framesCaptured': framesCaptured,
+    'framesAborted': framesAborted,
+    'plannedFrames': plannedFrames,
+    'waitingForDither': waitingForDither,
+    'exposing': exposing,
+    'ditherPending': ditherPending,
+    'forcedProceeds': forcedProceeds,
+    'lastError': lastError,
+  };
+
   factory SecondaryRigStatus.fromJson(Map<String, dynamic> json) {
     bool requiredBool(String key) {
       final value = json[key];
@@ -414,7 +430,7 @@ class SecondaryRigStatus {
 
 /// The second camera's capture loop where it runs: this process's drivers,
 /// or the linked host's.
-abstract interface class _SecondaryRigDrive {
+abstract interface class SecondaryRigDrive {
   Future<void> start(
     SecondaryRigConfig config,
     SecondaryRigStartContext context,
@@ -424,7 +440,7 @@ abstract interface class _SecondaryRigDrive {
   Future<SecondaryRigStatus> status();
 }
 
-final class _BridgeSecondaryRig implements _SecondaryRigDrive {
+final class _BridgeSecondaryRig implements SecondaryRigDrive {
   _BridgeSecondaryRig(this._ref);
 
   final Ref _ref;
@@ -488,7 +504,7 @@ final class _BridgeSecondaryRig implements _SecondaryRigDrive {
   );
 }
 
-final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
+final class _HostSecondaryRigDrive implements SecondaryRigDrive {
   const _HostSecondaryRigDrive(this._host);
 
   final HostSecondaryRig _host;
@@ -535,12 +551,14 @@ final class _HostSecondaryRigDrive implements _SecondaryRigDrive {
       SecondaryRigStatus.fromJson(await _host.secondaryRigGetStatus());
 }
 
-_SecondaryRigDrive _secondaryRigDriveOn(Ref ref, RemoteHost? host) =>
+SecondaryRigDrive _secondaryRigDriveOn(Ref ref, RemoteHost? host) =>
     host == null
     ? _BridgeSecondaryRig(ref)
     : _HostSecondaryRigDrive(host.secondaryRig);
 
-final _secondaryRigDriveProvider = hostRoleProvider<_SecondaryRigDrive>(
+/// The second camera's capture loop: this process's drivers, or the linked
+/// host's.
+final secondaryRigDriveProvider = hostRoleProvider<SecondaryRigDrive>(
   here: (ref) => _secondaryRigDriveOn(ref, null),
   linked: (ref, host) => _secondaryRigDriveOn(ref, host),
 );

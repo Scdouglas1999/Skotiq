@@ -3,8 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// bridge-boundary: imaging_handlers
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -184,7 +182,9 @@ class ImagingHandlers implements RouteSource {
         statusCode: HttpStatus.notFound,
       );
     }
-    final fits = await bridge.apiReadFitsFile(filePath: filePath);
+    final fits = await container
+        .read(imagingBackendProvider)
+        .readFitsFile(filePath: filePath);
     return jsonOk({'width': fits.width, 'height': fits.height});
   }
 
@@ -551,13 +551,15 @@ class ImagingHandlers implements RouteSource {
       outDir.createSync(recursive: true);
     }
 
-    await bridge.apiCalibrateImageFile(
-      lightPath: lightPath,
-      darkPath: darkPath,
-      flatPath: flatPath,
-      biasPath: biasPath,
-      outputPath: outputPath,
-    );
+    await container
+        .read(imagingBackendProvider)
+        .calibrateImageFile(
+          lightPath: lightPath,
+          darkPath: darkPath,
+          flatPath: flatPath,
+          biasPath: biasPath,
+          outputPath: outputPath,
+        );
 
     return jsonOk({
       'outputPath': outputPath,
