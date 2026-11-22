@@ -53,7 +53,7 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
       loading: () => const SizedBox.shrink(),
       error: (e, _) => const SkotiqInlineBanner(
         message: 'Could not load Home Assistant routing configuration.',
-        severity: SkotiqAlertSeverity.error,
+        severity: BannerTone.error,
       ),
       data: (cfg) {
         if (!_initialized) {
@@ -366,7 +366,7 @@ class _RemoteHomeAssistantFormState
             padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceMd),
             child: SkotiqInlineBanner(
               message: _error!,
-              severity: SkotiqAlertSeverity.error,
+              severity: BannerTone.error,
             ),
           ),
         SettingsSection(

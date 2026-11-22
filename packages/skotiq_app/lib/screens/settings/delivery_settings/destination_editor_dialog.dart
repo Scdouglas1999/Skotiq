@@ -233,7 +233,7 @@ class _DestinationEditorDialogState
             const SizedBox(height: SkotiqTokens.spaceLg),
             SkotiqInlineBanner(
               message: _validationError!,
-              severity: SkotiqAlertSeverity.error,
+              severity: BannerTone.error,
             ),
           ],
         ],
@@ -274,7 +274,7 @@ class _DestinationEditorDialogState
               'names, with nothing saying which rig wrote them. That is the '
               'setting a single-rig folder wants and the one that collides '
               'when a second rig is pointed at the same place.',
-          severity: SkotiqAlertSeverity.warning,
+          severity: BannerTone.warning,
         ),
       ],
     ];
@@ -335,9 +335,7 @@ class _DestinationEditorDialogState
         const SizedBox(height: SkotiqTokens.spaceSm),
         SkotiqInlineBanner(
           message: probe.message,
-          severity: probe.writable
-              ? SkotiqAlertSeverity.success
-              : SkotiqAlertSeverity.warning,
+          severity: probe.writable ? BannerTone.success : BannerTone.warning,
         ),
       ],
     ];
@@ -415,7 +413,7 @@ class _DestinationEditorDialogState
               'Saving removes this destination\'s key from the keyring. SSH '
               'then has nothing to authenticate with, so nothing is sent here '
               'until a new key is pasted.',
-          severity: SkotiqAlertSeverity.warning,
+          severity: BannerTone.warning,
         ),
       ],
       if (pinned.isNotEmpty) ...[

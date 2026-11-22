@@ -65,7 +65,7 @@ Future<void> _pumpRefusal(
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(SkotiqTokens.spaceMd),
           child: SkotiqAlert(
-            severity: SkotiqAlertSeverity.warning,
+            severity: BannerTone.warning,
             title: _refusalTitle,
             message: _refusalMessage,
             compact: true,
@@ -219,7 +219,7 @@ void _intrinsicHostCases() {
           body: Center(
             child: IntrinsicWidth(
               child: SkotiqAlert(
-                severity: SkotiqAlertSeverity.error,
+                severity: BannerTone.error,
                 title: _refusalTitle,
                 message: _refusalMessage,
                 action: _refusalAction(),
@@ -245,7 +245,7 @@ void _intrinsicHostCases() {
         home: Scaffold(
           body: AlertDialog(
             content: SkotiqAlert(
-              severity: SkotiqAlertSeverity.warning,
+              severity: BannerTone.warning,
               title: _refusalTitle,
               message: 'The checkpoint could not be resumed.',
               action: _refusalAction(),
@@ -274,7 +274,7 @@ void _intrinsicHostCases() {
     addTearDown(tester.view.reset);
 
     const banner = SkotiqAlert(
-      severity: SkotiqAlertSeverity.info,
+      severity: BannerTone.info,
       title: _refusalTitle,
       message: _refusalMessage,
     );

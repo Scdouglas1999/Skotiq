@@ -299,7 +299,7 @@ class _MountSiteReconciliationCardState
           if (_error != null) ...[
             const SizedBox(height: 12),
             SkotiqAlert(
-              severity: SkotiqAlertSeverity.error,
+              severity: BannerTone.error,
               title: 'Not everything was applied',
               message: _error!,
             ),

@@ -131,7 +131,7 @@ class _GoalList extends ConsumerWidget {
               message: '${status.dropped} frames were not analyzed because the '
                   'analysis queue was full. They are still on disk. Offer '
                   'them to a goal with "Add frames".',
-              severity: SkotiqAlertSeverity.warning,
+              severity: BannerTone.warning,
             ),
             const SizedBox(height: SidePanel.sectionGap),
           ],
@@ -349,13 +349,13 @@ class _SelectionCard extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceMd),
             SkotiqInlineBanner(
               message: selection.blocker!,
-              severity: SkotiqAlertSeverity.warning,
+              severity: BannerTone.warning,
             ),
           ] else if (selection.advisory != null) ...<Widget>[
             const SizedBox(height: SkotiqTokens.spaceMd),
             SkotiqInlineBanner(
               message: selection.advisory!,
-              severity: SkotiqAlertSeverity.info,
+              severity: BannerTone.info,
             ),
           ],
           const SizedBox(height: SkotiqTokens.spaceMd),
@@ -695,7 +695,7 @@ class _DepthLockGoalDetailState extends ConsumerState<DepthLockGoalDetail> {
               // newest frame was refused, and it is the only explanation
               // there is.
               message: goal.lastIssue!,
-              severity: SkotiqAlertSeverity.warning,
+              severity: BannerTone.warning,
             ),
           ],
           const SizedBox(height: SkotiqTokens.spaceMd),

@@ -314,7 +314,7 @@ class _IntroPanelState extends ConsumerState<_IntroPanel> {
       mainAxisSize: MainAxisSize.min,
       children: [
         const SkotiqAlert(
-          severity: SkotiqAlertSeverity.info,
+          severity: BannerTone.info,
           title: "Let's take your first picture of the sky",
           message: 'In one click Skotiq will take a short exposure, stretch it '
               'for a punchy preview, plate-solve where the telescope is '
@@ -644,7 +644,7 @@ class _AnnotationSummary extends ConsumerWidget {
         children: [
           Expanded(
             child: SkotiqInlineBanner(
-              severity: SkotiqAlertSeverity.warning,
+              severity: BannerTone.warning,
               message:
                   state.note ?? FirstLightOrchestrator.solverNotConfiguredNote,
             ),
@@ -773,7 +773,7 @@ class _FailurePanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SkotiqAlert(
-          severity: SkotiqAlertSeverity.error,
+          severity: BannerTone.error,
           title: "First light didn't finish",
           message: state.errorMessage ??
               'Something went wrong during the first-light flow.',

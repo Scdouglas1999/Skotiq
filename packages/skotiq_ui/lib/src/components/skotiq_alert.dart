@@ -6,20 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/intrinsic_safe_layout.dart';
-
-enum SkotiqAlertSeverity {
-  /// Informational alert (blue)
-  info,
-
-  /// Success alert (green)
-  success,
-
-  /// Warning alert (yellow/orange)
-  warning,
-
-  /// Error alert (red)
-  error,
-}
+import 'skotiq_banner.dart' show BannerTone;
 
 /// A styled alert/banner component for notifications and status messages.
 ///
@@ -33,7 +20,7 @@ class SkotiqAlert extends StatelessWidget {
   const SkotiqAlert({
     super.key,
     required this.message,
-    this.severity = SkotiqAlertSeverity.info,
+    this.severity = BannerTone.info,
     this.title,
     this.icon,
     this.action,
@@ -44,7 +31,7 @@ class SkotiqAlert extends StatelessWidget {
 
   final String message;
 
-  final SkotiqAlertSeverity severity;
+  final BannerTone severity;
 
   /// Optional title shown above the message
   final String? title;
@@ -64,10 +51,10 @@ class SkotiqAlert extends StatelessWidget {
 
   IconData get _defaultIcon {
     return switch (severity) {
-      SkotiqAlertSeverity.info => LucideIcons.info,
-      SkotiqAlertSeverity.success => LucideIcons.checkCircle2,
-      SkotiqAlertSeverity.warning => LucideIcons.alertTriangle,
-      SkotiqAlertSeverity.error => LucideIcons.xCircle,
+      BannerTone.info => LucideIcons.info,
+      BannerTone.success => LucideIcons.checkCircle2,
+      BannerTone.warning => LucideIcons.alertTriangle,
+      BannerTone.error => LucideIcons.xCircle,
     };
   }
 
@@ -245,7 +232,7 @@ class SkotiqAlert extends StatelessWidget {
     SkotiqColors colors,
   ) {
     return switch (severity) {
-      SkotiqAlertSeverity.info => (
+      BannerTone.info => (
         Color.alphaBlend(
           colors.info.withValues(alpha: 0.06),
           colors.surfaceAlt,
@@ -254,7 +241,7 @@ class SkotiqAlert extends StatelessWidget {
         colors.info,
         colors.textPrimary,
       ),
-      SkotiqAlertSeverity.success => (
+      BannerTone.success => (
         Color.alphaBlend(
           colors.success.withValues(alpha: 0.06),
           colors.surfaceAlt,
@@ -263,7 +250,7 @@ class SkotiqAlert extends StatelessWidget {
         colors.success,
         colors.textPrimary,
       ),
-      SkotiqAlertSeverity.warning => (
+      BannerTone.warning => (
         Color.alphaBlend(
           colors.warning.withValues(alpha: 0.06),
           colors.surfaceAlt,
@@ -272,7 +259,7 @@ class SkotiqAlert extends StatelessWidget {
         colors.warning,
         colors.textPrimary,
       ),
-      SkotiqAlertSeverity.error => (
+      BannerTone.error => (
         Color.alphaBlend(
           colors.error.withValues(alpha: 0.06),
           colors.surfaceAlt,
@@ -290,22 +277,22 @@ class SkotiqInlineBanner extends StatelessWidget {
   const SkotiqInlineBanner({
     super.key,
     required this.message,
-    this.severity = SkotiqAlertSeverity.info,
+    this.severity = BannerTone.info,
     this.icon,
     this.showIcon = true,
   });
 
   final String message;
-  final SkotiqAlertSeverity severity;
+  final BannerTone severity;
   final IconData? icon;
   final bool showIcon;
 
   IconData get _defaultIcon {
     return switch (severity) {
-      SkotiqAlertSeverity.info => LucideIcons.info,
-      SkotiqAlertSeverity.success => LucideIcons.check,
-      SkotiqAlertSeverity.warning => LucideIcons.alertTriangle,
-      SkotiqAlertSeverity.error => LucideIcons.alertCircle,
+      BannerTone.info => LucideIcons.info,
+      BannerTone.success => LucideIcons.check,
+      BannerTone.warning => LucideIcons.alertTriangle,
+      BannerTone.error => LucideIcons.alertCircle,
     };
   }
 
@@ -333,10 +320,10 @@ class SkotiqInlineBanner extends StatelessWidget {
 
   Color _getColor(SkotiqColors colors) {
     return switch (severity) {
-      SkotiqAlertSeverity.info => colors.info,
-      SkotiqAlertSeverity.success => colors.success,
-      SkotiqAlertSeverity.warning => colors.warning,
-      SkotiqAlertSeverity.error => colors.error,
+      BannerTone.info => colors.info,
+      BannerTone.success => colors.success,
+      BannerTone.warning => colors.warning,
+      BannerTone.error => colors.error,
     };
   }
 }

@@ -137,7 +137,7 @@ class _PushoverConfigDialogState extends State<_PushoverConfigDialog> {
                   const SizedBox(height: SkotiqTokens.spaceLg),
                   SkotiqInlineBanner(
                     message: _validationError!,
-                    severity: SkotiqAlertSeverity.error,
+                    severity: BannerTone.error,
                   ),
                 ],
               ],

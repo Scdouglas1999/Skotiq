@@ -315,7 +315,7 @@ void main() {
       await _pump(
         tester,
         _state(isArmed: true, timeToFlip: const Duration(minutes: 4)),
-        dismissedSeverityIndex: SkotiqAlertSeverity.warning.index,
+        dismissedSeverityIndex: BannerTone.warning.index,
       );
 
       expect(
@@ -331,7 +331,7 @@ void main() {
       await _pump(
         tester,
         _state(isArmed: true, timeToFlip: const Duration(minutes: 6)),
-        dismissedSeverityIndex: SkotiqAlertSeverity.info.index,
+        dismissedSeverityIndex: BannerTone.info.index,
       );
 
       expect(find.textContaining('Meridian flip in'), findsOneWidget);

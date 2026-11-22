@@ -455,7 +455,7 @@ class _HardwarePresetEditorDialogState
       child: SkotiqInlineBanner(
         message: 'This is a built-in preset. Saving creates your own editable '
             'copy; the original stays available.',
-        severity: SkotiqAlertSeverity.info,
+        severity: BannerTone.info,
       ),
     );
   }
