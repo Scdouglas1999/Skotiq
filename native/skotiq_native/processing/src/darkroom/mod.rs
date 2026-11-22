@@ -56,6 +56,8 @@ mod state;
 pub use state::{register_live_stack_resolver, LiveStackIdentityFn, LiveStackOpImageFn};
 
 #[cfg(test)]
+mod catalog_fixture_tests;
+#[cfg(test)]
 mod tests;
 
 #[cfg(test)]
