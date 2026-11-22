@@ -159,16 +159,6 @@ pub(crate) enum Unexposed {
     },
 }
 
-impl Unexposed {
-    /// The failure; a stop is a cancelled exposure.
-    pub(crate) fn into_error(self) -> DeviceError {
-        match self {
-            Self::Failed(error) => error,
-            Self::Stopped { .. } => DeviceError::Cancelled("Exposure cancelled".to_string()),
-        }
-    }
-}
-
 /// The stop a run's instruction context watches: its cancellation token.
 pub(crate) fn cancel_of(token: &AtomicBool) -> Option<FrameStop> {
     token.load(Ordering::Relaxed).then_some(FrameStop::Cancel)
@@ -184,7 +174,9 @@ pub(crate) async fn wait_for_stop(stop: &(dyn Fn() -> Option<FrameStop> + Sync))
 }
 
 /// One attempt at a frame from `request.camera_id`, watched for a stop as
-/// `policy` says.
+/// `policy` says. Only `watch` and `abort_if_dropped` apply here; the retries
+/// and the set-point hold are the caller's ([`take_run_frame`], the exposure
+/// instruction).
 pub(crate) async fn expose_frame(
     device_ops: &SharedDeviceOps,
     request: ExposureRequest<'_>,

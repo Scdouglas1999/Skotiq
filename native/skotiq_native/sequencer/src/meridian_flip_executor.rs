@@ -1507,14 +1507,20 @@ impl MeridianFlipExecutor {
         for _ in 0..3 {
             self.wait_for_mount_to_settle(ctx).await?;
             // The retry ladder increases acquisition exposure after the first attempt.
-            let image = crate::instructions::expose_frame(
-                &self.run.device_ops,
+            let image = crate::instructions::take_run_frame(
+                crate::instructions::RetryScope {
+                    run: &self.run,
+                    stop: &|| {
+                        self.is_cancelled(ctx)
+                            .then_some(crate::instructions::FrameStop::Cancel)
+                    },
+                },
+                crate::instructions::CaptureSite::FlipCenter,
                 crate::device_ops::ExposureRequest::new(camera_id, exposure_secs),
-                crate::instructions::CaptureSite::FlipCenter.policy(),
-                &|| None,
+                "on the flip's solve frame",
             )
             .await
-            .map_err(crate::instructions::Unexposed::into_error)?;
+            .map_err(|end| end.to_string())?;
 
             // Passing target hints (deg-converted RA) accelerates blind solves on
             // ASTAP/local indexes by ~10x; without them the solver scans the full
