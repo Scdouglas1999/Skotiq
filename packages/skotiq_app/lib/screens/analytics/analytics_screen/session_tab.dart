@@ -33,22 +33,19 @@ class _SessionTabState extends ConsumerState<_SessionTab> {
 
     final allSessions =
         ref.watch(allSessionsProvider).valueOrNull ?? const <ImagingSession>[];
-    // A session is picked even when none is live, so the night that just
-    // finished is reachable from the tab named for it.
-    final pickedSessionId =
-        allSessions.any((session) => session.id == _selectedSessionId)
-            ? _selectedSessionId
-            : null;
-    // An explicit "Quick captures" pick outranks the auto-pick; without it the
-    // auto-pick reclaimed the tab on the very next build.
+    // Watched unconditionally: a watch inside the chain would come and go
+    // with the pick and silently drop the dependency.
+    final defaultSessionId =
+        ref.watch(scienceDefaultSessionProvider).valueOrNull;
     final quickCapturesPinned =
         _selectedSessionId == kQuickCaptureSessionSelection;
-    // Watched unconditionally: a watch inside the ?? chain would come and go
-    // with the pick and silently drop the dependency.
-    final autoSessionId = sessionState.dbSessionId ??
-        ref.watch(scienceDefaultSessionProvider).valueOrNull;
-    final reviewSessionId =
-        quickCapturesPinned ? null : (pickedSessionId ?? autoSessionId);
+    final reviewSessionId = analyticsSessionInView(
+      pick: _selectedSessionId,
+      sessions: allSessions,
+      liveSessionId: sessionState.dbSessionId,
+      defaultSessionId: defaultSessionId,
+      newestFallback: false,
+    );
     final reviewSession = allSessions
         .cast<ImagingSession?>()
         .firstWhere((s) => s?.id == reviewSessionId, orElse: () => null);
