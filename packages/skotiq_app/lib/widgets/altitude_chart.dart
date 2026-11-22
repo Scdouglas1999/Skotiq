@@ -171,49 +171,7 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     final raDeg = widget.raHours * 15.0;
     final decDeg = widget.decDegrees;
 
-    // Which night to plot. `calculateTwilightTimes(date:)` returns a
-    // sunset-tonight → sunrise-tomorrow window, so anchoring purely on the
-    // calendar date describes the NEXT night once the clock passes midnight —
-    // while the user is still imaging the current one. Mirror
-    // `twilightTimesProvider`: keep the previous date's window for as long as
-    // it is still running.
-    TwilightTimes twilightFor(DateTime date) =>
-        AstronomyCalculations.calculateTwilightTimes(
-          date: date,
-          latitudeDeg: lat,
-          longitudeDeg: lon,
-        );
-
-    final todayTwilight = twilightFor(now);
-    _twilight = todayTwilight;
-    final tonightStart = todayTwilight.sunset?.subtract(
-      const Duration(hours: 1),
-    );
-    final todaySunrise = todayTwilight.sunrise;
-    if (tonightStart != null &&
-        todaySunrise != null &&
-        now.isBefore(tonightStart)) {
-      // A twilight solve costs ~1.3 ms and this widget is built once per
-      // planner candidate card, so estimate before paying for a second one.
-      // `sunrise` is TOMORROW morning's, so the previous night's window ended
-      // about 23 h earlier; sunrise drifts only a couple of minutes a day, and
-      // the slack covers that. Past that estimate there is no running night to
-      // switch to and the calendar-date window is already the right one.
-      final approximatePreviousEnd = todaySunrise.subtract(
-        const Duration(hours: 23) - const Duration(minutes: 15),
-      );
-      if (now.isBefore(approximatePreviousEnd)) {
-        final previousTwilight = twilightFor(
-          now.subtract(const Duration(days: 1)),
-        );
-        final previousEnd = previousTwilight.sunrise?.add(
-          const Duration(hours: 1),
-        );
-        if (previousEnd != null && previousEnd.isAfter(now)) {
-          _twilight = previousTwilight;
-        }
-      }
-    }
+    _twilight = altitudeChartNight(now, latitudeDeg: lat, longitudeDeg: lon);
 
     // Determine time range - prefer sunset to sunrise, fallback to 12 hours
     if (_twilight?.sunset != null && _twilight?.sunrise != null) {
@@ -950,4 +908,57 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     if (tooltip == null) return chip;
     return Tooltip(message: tooltip, child: chip);
   }
+}
+
+/// The night an altitude chart drawn at [now] plots: the twilight window of
+/// the night under way, or of the coming night once the last one is over.
+@visibleForTesting
+TwilightTimes altitudeChartNight(
+  DateTime now, {
+  required double latitudeDeg,
+  required double longitudeDeg,
+}) {
+  // Which night to plot. `calculateTwilightTimes(date:)` returns a
+  // sunset-tonight → sunrise-tomorrow window, so anchoring purely on the
+  // calendar date describes the NEXT night once the clock passes midnight —
+  // while the user is still imaging the current one. Mirror
+  // `twilightTimesProvider`: keep the previous date's window for as long as
+  // it is still running.
+  TwilightTimes twilightFor(DateTime date) =>
+      AstronomyCalculations.calculateTwilightTimes(
+        date: date,
+        latitudeDeg: latitudeDeg,
+        longitudeDeg: longitudeDeg,
+      );
+
+  final todayTwilight = twilightFor(now);
+  final tonightStart = todayTwilight.sunset?.subtract(
+    const Duration(hours: 1),
+  );
+  final todaySunrise = todayTwilight.sunrise;
+  if (tonightStart != null &&
+      todaySunrise != null &&
+      now.isBefore(tonightStart)) {
+    // A twilight solve costs ~1.3 ms and this widget is built once per
+    // planner candidate card, so estimate before paying for a second one.
+    // `sunrise` is TOMORROW morning's, so the previous night's window ended
+    // about 23 h earlier; sunrise drifts only a couple of minutes a day, and
+    // the slack covers that. Past that estimate there is no running night to
+    // switch to and the calendar-date window is already the right one.
+    final approximatePreviousEnd = todaySunrise.subtract(
+      const Duration(hours: 23) - const Duration(minutes: 15),
+    );
+    if (now.isBefore(approximatePreviousEnd)) {
+      final previousTwilight = twilightFor(
+        now.subtract(const Duration(days: 1)),
+      );
+      final previousEnd = previousTwilight.sunrise?.add(
+        const Duration(hours: 1),
+      );
+      if (previousEnd != null && previousEnd.isAfter(now)) {
+        return previousTwilight;
+      }
+    }
+  }
+  return todayTwilight;
 }
