@@ -3296,7 +3296,7 @@ const DASHBOARD_RUN_STATE = {
   'idle': ['idle', 'badge-idle', 'start'],
   'running': ['running', 'badge-running', 'pause', 'stop'],
   'paused': ['paused', 'badge-paused', 'resume', 'stop'],
-  'paused, step finishing': ['paused', 'badge-paused', 'resume', 'stop'],
+  'paused, step finishing': ['pausing: step finishing', 'badge-paused', 'resume', 'stop'],
   'paused, step finished': ['paused', 'badge-paused', 'resume', 'stop'],
   'stopping': ['stopping', 'badge-idle'],
   'cancelled': ['cancelled', 'badge-idle', 'start'],
@@ -3376,4 +3376,16 @@ test('the dashboard shows each guider state with its badge and controls', () => 
     seen[word] = dashboardGuiderState(word);
   }
   assert.deepEqual(seen, DASHBOARD_GUIDER_STATE);
+});
+
+// A paused run whose step is still finishing (an exposure, a slew, a focuser
+// move) is not yet free to act on; the host says so with `pausedIdle`, and
+// run-watch and the app already read it.
+test('a paused run reads as pausing on the dashboard until its step has finished', () => {
+  const label = (pausedIdle) => dashboardRunState(
+    { state: 'paused', pausedIdle })[0];
+  assert.equal(label(false), 'pausing: step finishing');
+  assert.equal(label(true), 'paused');
+  // An older host sends no pausedIdle: the badge says what it always said.
+  assert.equal(dashboardRunState({ state: 'paused' })[0], 'paused');
 });

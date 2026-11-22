@@ -4178,7 +4178,13 @@
 
     if (statusEl) {
       const badgeClass = getSequencerBadgeClass(runState);
-      renderBadge(statusEl, runState, badgeClass);
+      // A paused run whose step is still finishing (an exposure, a slew, a
+      // focuser move) is not yet free to act on: say so until the host
+      // reports it idle.
+      const stepFinishing = runState.toLowerCase() === 'paused' &&
+        s.pausedIdle === false;
+      renderBadge(statusEl, stepFinishing ? 'pausing: step finishing' : runState,
+        badgeClass);
     }
 
     if (nodeEl) nodeEl.textContent = s.currentNodeName || '--';
