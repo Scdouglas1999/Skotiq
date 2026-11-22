@@ -10,6 +10,7 @@ import 'package:skotiq_core/utils.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path/path.dart' as path;
 
+import 'desktop_instance.dart';
 import 'startup_timeline.dart';
 
 /// Pre-Riverpod boot artifacts captured during early initialisation so they
@@ -127,15 +128,22 @@ Future<AppVersionInfo> loadDesktopAppVersion() async {
   return AppVersionInfo(version: packageInfo.version, buildNumber: buildNumber);
 }
 
-/// Initialise the Rust bridge with this instance's data, log and profile
-/// directories ([resolveDesktopProfileDirectory]). Returns the resolved paths
-/// so the rest of the bootstrap can hand them to the `LoggingService` and `ProfileService` without re-querying
+/// The start every desktop process that owns this computer's Skotiq makes,
+/// window and daemon alike: claim the database, resolve this instance's data,
+/// log and profile directories, and start the native side on them. Returns
+/// the resolved paths so the rest of the bootstrap can hand them to the
+/// `LoggingService` and `ProfileService` without re-querying
 /// [resolveSkotiqDataDirectory].
 ///
-/// This step must run before any provider that touches the Rust runtime
-/// (every local backend method calls into it), so it lives
-/// outside the Riverpod container.
-Future<DesktopBootPaths> initialiseDesktopLogging() async {
+/// The claim comes first: the native start opens stores that allow one
+/// process, and a second instance must stop at the claim instead of failing
+/// in them. Everything here runs before any provider that touches the Rust
+/// runtime (every local backend method calls into it), so it lives outside
+/// the Riverpod container.
+Future<DesktopBootPaths> startDesktopProcess() async {
+  await claimDesktopInstance();
+  startupTimeline.mark('single-instance claim');
+
   final (dataRoot: dataRoot, logDirectory: logDir) =
       await prepareDesktopLogDirectory();
   startupTimeline.mark('data directories');

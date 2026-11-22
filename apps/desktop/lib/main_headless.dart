@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_core/services.dart';
 
-import 'desktop_instance.dart';
 import 'desktop_logging_init.dart';
 import 'headless/headless_auth_config.dart';
 import 'headless/headless_shutdown.dart';
@@ -181,11 +180,9 @@ void main(List<String> args) async {
   ];
 
   try {
-    // Before logging, which opens native stores. See claimDesktopInstance.
-    await claimDesktopInstance();
     final appVersion = await loadDesktopAppVersion();
     stdout.writeln('Initializing native bridge and data directories...');
-    final bootPaths = await initialiseDesktopLogging();
+    final bootPaths = await startDesktopProcess();
     stdout.writeln('[OK] Native bridge initialized');
     stdout.writeln('[OK] Data directory: ${bootPaths.dataDirectory}');
     stdout.writeln('[OK] Profile and settings storage initialized');
@@ -196,7 +193,7 @@ void main(List<String> args) async {
     );
     final runtimeLogger = activeContainer.read(loggingServiceProvider);
     logger = runtimeLogger;
-    await runtimeLogger.initialize();
+    await runtimeLogger.ensureInitialized();
     startupTimeline.mark('logger');
 
     final startup = host = HostStartup(
