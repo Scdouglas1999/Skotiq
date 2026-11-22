@@ -40,6 +40,7 @@ export 'src/providers/sequence/run_node_times_provider.dart';
 export 'src/providers/sequence/session_report_presentation.dart';
 // The one channel only exposure-shaped progress can write.
 export 'src/providers/sequence/node_exposure_tally.dart';
+export 'src/providers/sequence/exposure_node_frames.dart';
 // Thumbnail — inline frame thumbnails in the sequence tree.
 export 'src/providers/sequence/exposure_node_thumbnails_provider.dart';
 export 'src/providers/plugin_node_dispatcher.dart';
