@@ -79,15 +79,16 @@ class LiveStackCanvas extends ConsumerWidget {
         stack.previewWidth <= 0 ||
         stack.previewHeight <= 0) {
       final isRunning = stack.status == LiveStackingStatus.running;
-      final isRemote = ref.watch(isRemoteModeProvider);
       final plan = ref.watch(sessionStackPlanProvider);
       final currentFilePath = ref.watch(
         currentImageProvider.select((img) => img?.filePath),
       );
+      // The stacker here reads the frame's file, which a linked client
+      // cannot open.
       final canStartFromCurrent = !isRunning &&
-          !isRemote &&
           currentFilePath != null &&
-          currentFilePath.isNotEmpty;
+          currentFilePath.isNotEmpty &&
+          ref.watch(hostPathsProvider).local(currentFilePath) != null;
 
       return Container(
         color: colors.isRedNight

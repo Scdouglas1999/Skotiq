@@ -287,7 +287,6 @@ final stackedPreviewStretchAsyncProvider = Provider<StackedPreviewStretchAsync>(
     }
 
     final service = ref.watch(liveStackingServiceProvider);
-    final isRemote = ref.watch(isRemoteModeProvider);
     return ({
       required int width,
       required int height,
@@ -296,7 +295,9 @@ final stackedPreviewStretchAsyncProvider = Provider<StackedPreviewStretchAsync>(
       int maxDimension = 2048,
       String? filterKey,
     }) async {
-      if (!isRemote && filterKey != null && filterKey.isNotEmpty) {
+      // The native render reads this machine's stacker; a linked client's
+      // stack is the host's, so it stretches the buffer it was sent.
+      if (!service.readsHost && filterKey != null && filterKey.isNotEmpty) {
         try {
           return await service.renderStackPreviewRgba(
             filterKey: filterKey,
