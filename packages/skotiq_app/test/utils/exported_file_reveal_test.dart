@@ -55,4 +55,11 @@ void main() {
 
     expect(find.text('Logs exported to: /tmp/logs.txt'), findsOneWidget);
   }, skip: Platform.isAndroid || Platform.isIOS);
+
+  test('the export reveal shares on the hosts with a share sheet', () {
+    expect(hostHasShareSheet('android'), isTrue);
+    expect(hostHasShareSheet('ios'), isTrue);
+    expect(hostHasShareSheet('linux'), isFalse);
+    expect(hostHasShareSheet('windows'), isFalse);
+  });
 }

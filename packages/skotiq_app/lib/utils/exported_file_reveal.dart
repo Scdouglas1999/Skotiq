@@ -29,7 +29,7 @@ Future<void> revealExportedFile(
   Duration? desktopDuration,
 }) async {
   // The host OS, not defaultTargetPlatform: widget tests report Android there.
-  if (Platform.isAndroid || Platform.isIOS) {
+  if (hostHasShareSheet(Platform.operatingSystem)) {
     await Share.shareXFiles([XFile(filePath)], subject: subject);
     return;
   }
@@ -39,6 +39,12 @@ Future<void> revealExportedFile(
     duration: desktopDuration,
   );
 }
+
+/// Whether [revealExportedFile] hands a file to the share sheet on the host
+/// whose `Platform.operatingSystem` is [operatingSystem].
+@visibleForTesting
+bool hostHasShareSheet(String operatingSystem) =>
+    operatingSystem == 'android' || operatingSystem == 'ios';
 
 /// Whether this platform has a system share sheet `share_plus` can drive.
 /// Windows and Linux have none. macOS has one; [macOS] says whether the
