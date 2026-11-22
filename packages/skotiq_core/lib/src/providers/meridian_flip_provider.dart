@@ -531,11 +531,24 @@ enum MeridianMonitorDecision {
 ///   The flip targets the mount's CURRENT coordinates (the object it is
 ///   tracking). A cooldown prevents re-firing while a flip is in flight or
 ///   the operator is responding to a failure notification.
+/// Whether the flip monitor's own flip (outside any run, automatic or asked
+/// for by hand) is being performed now.
+final standaloneFlipInFlightProvider = StateProvider<bool>((ref) => false);
+
 class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
   final Ref _ref;
   Timer? _pollTimer;
   DateTime? _lastTriggerAt;
-  bool _flipInFlight = false;
+
+  bool _inFlight = false;
+
+  bool get _flipInFlight => _inFlight;
+  set _flipInFlight(bool value) {
+    _inFlight = value;
+    if (mounted) {
+      _ref.read(standaloneFlipInFlightProvider.notifier).state = value;
+    }
+  }
 
   /// Minimum interval between trigger fires.
   ///

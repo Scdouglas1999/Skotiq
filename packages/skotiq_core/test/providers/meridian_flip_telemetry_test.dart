@@ -202,6 +202,50 @@ void main() {
         expect(shown().error, isNull);
       });
 
+      test('the flip monitor\'s own flip is left to end itself', () async {
+        lifecycle(SequenceExecutionState.stopping);
+        container.read(standaloneFlipInFlightProvider.notifier).state = true;
+        await send(completedFlip.sublist(0, 3));
+        lifecycle(SequenceExecutionState.idle);
+
+        expect(shown().state, FlipExecutionState.executing);
+        expect(container.read(isFlipInProgressProvider), isTrue);
+      });
+
+      test(
+        'a native abort after the run end keeps what the flip reached',
+        () async {
+          lifecycle(SequenceExecutionState.running);
+          await send(completedFlip.sublist(0, 3));
+          lifecycle(SequenceExecutionState.finalizing);
+          await send(['{"Aborted":{"reason":"User requested abort"}}']);
+
+          expect(shown().toJson(), {
+            'state': 'aborted',
+            'attempt': 1,
+            'step': 'slewingToTarget',
+            'progress': 40,
+            'error': 'User requested abort',
+          });
+        },
+      );
+
+      test('a refusal after that reads none of the ended flip', () async {
+        lifecycle(SequenceExecutionState.running);
+        await send(completedFlip.sublist(0, 3));
+        lifecycle(SequenceExecutionState.idle);
+        await send(['{"Aborted":{"reason":"User requested abort"}}']);
+        await send(['{"Aborted":{"reason":"a sequence owns the mount"}}']);
+
+        expect(shown().toJson(), {
+          'state': 'aborted',
+          'attempt': 0,
+          'step': null,
+          'progress': 0,
+          'error': 'a sequence owns the mount',
+        });
+      });
+
       test('a flip outcome that arrives after the run end is shown', () async {
         lifecycle(SequenceExecutionState.running);
         await send(completedFlip.sublist(0, 3));

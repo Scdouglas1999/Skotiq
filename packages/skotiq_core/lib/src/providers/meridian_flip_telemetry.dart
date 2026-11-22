@@ -18,13 +18,16 @@ import '../utils/logging_service.dart';
 final meridianFlipTelemetryProvider = Provider<void>((ref) {
   final backend = ref.watch(backendProvider);
   if (backend.linksToHost) return;
+  // The flip the run's end ended, until the next flip starts: its own end
+  // may still arrive and keeps what the flip reached.
+  var endedAtRunEnd = false;
   final subscription = backend.eventStream.listen(
     (event) {
       if (sequencerEventOf(event) case SequencerEvent_InstructionProgress(
         detailKind: 'MeridianFlip',
         detailJson: final raw,
       )) {
-        _applyFlipStep(ref, raw);
+        endedAtRunEnd = _applyFlipStep(ref, raw, endedAtRunEnd: endedAtRunEnd);
       }
     },
     onError: (Object error, StackTrace stack) {
@@ -47,7 +50,12 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
     if (previous == null || !previous.ownsHardware || next.ownsHardware) {
       return;
     }
-    if (!ref.read(isFlipInProgressProvider)) return;
+    // The flip monitor's own flip can run while a run winds down; it ends
+    // with its own outcome.
+    if (!ref.read(isFlipInProgressProvider) ||
+        ref.read(standaloneFlipInFlightProvider)) {
+      return;
+    }
     Log.warning(
       'The run ended while its meridian flip was in progress; '
       'ending the flip as aborted',
@@ -59,21 +67,25 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
           FlipExecutionState.aborted,
           'The run ended during the meridian flip',
         );
+    endedAtRunEnd = true;
   });
 });
 
-void _applyFlipStep(Ref ref, String raw) {
+/// Applies one native flip step; returns whether the flip is still the one
+/// the run's end ended ([endedAtRunEnd] until another flip starts).
+bool _applyFlipStep(Ref ref, String raw, {required bool endedAtRunEnd}) {
   final Object? decoded;
   try {
     decoded = jsonDecode(raw);
   } on FormatException {
-    return;
+    return endedAtRunEnd;
   }
   final progress = ref.read(flipMonitorProgressProvider.notifier);
   switch (MeridianFlipEvent.fromWire(decoded)) {
     case null:
-      return;
+      return endedAtRunEnd;
     case MeridianFlipStarting():
+      endedAtRunEnd = false;
       progress.update(
         (p) => p.copyWith(
           state: FlipExecutionState.executing,
@@ -123,9 +135,27 @@ void _applyFlipStep(Ref ref, String raw) {
           clearError: true,
         ),
       );
+      endedAtRunEnd = false;
     case MeridianFlipFailed(:final error):
-      progress.end(FlipExecutionState.failed, error);
+      _endWith(progress, FlipExecutionState.failed, error, endedAtRunEnd);
+      endedAtRunEnd = false;
     case MeridianFlipAborted(:final reason):
-      progress.end(FlipExecutionState.aborted, reason);
+      _endWith(progress, FlipExecutionState.aborted, reason, endedAtRunEnd);
+      endedAtRunEnd = false;
   }
+  return endedAtRunEnd;
 }
+
+/// Ends the flip as [outcome]; a flip the run's end already ended keeps the
+/// attempt, step and progress it reached.
+void _endWith(
+  FlipMonitorProgressNotifier progress,
+  FlipExecutionState outcome,
+  String? error,
+  bool endedAtRunEnd,
+) => endedAtRunEnd
+    ? progress.update(
+        (p) =>
+            p.copyWith(state: outcome, error: error, clearError: error == null),
+      )
+    : progress.end(outcome, error);
