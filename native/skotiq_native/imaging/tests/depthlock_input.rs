@@ -728,3 +728,99 @@ fn a_dark_library_master_is_accepted() {
     let _ = std::fs::remove_dir_all(&dir);
     assert!(verdict.is_ok(), "{verdict:?}");
 }
+
+/// What `light_settings` reads from the acquisition cards, edge by edge.
+#[test]
+fn a_light_acquisition_is_read_card_by_card() {
+    let goal = light_settings(&light_header()).unwrap();
+    let read = |change: &dyn Fn(&mut FitsHeader)| {
+        let mut h = light_header();
+        change(&mut h);
+        light_settings(&h)
+    };
+    let with = |change: &dyn Fn(&mut AcquisitionSettings)| {
+        let mut settings = goal.clone();
+        change(&mut settings);
+        Ok(settings)
+    };
+    assert_eq!(
+        read(&|h| h.set_string("INSTRUME", " ZWO ASI2600MM Pro ")),
+        Ok(goal.clone())
+    );
+    assert_eq!(read(&|h| h.set_string("FILTER", " L")), Ok(goal.clone()));
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("INSTRUME");
+        }),
+        Err("Light has no camera identity (INSTRUME)".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_string("INSTRUME", "  ")),
+        Err("Light has no camera identity (INSTRUME)".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("FILTER");
+        }),
+        Err("Light has no filter identity (FILTER)".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_float("GAIN", 100.7)),
+        with(&|s| s.gain = Some(100))
+    );
+    assert_eq!(
+        read(&|h| h.set_int("GAIN", 3_000_000_000)),
+        Err("GAIN is out of range".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_int("OFFSET", -3_000_000_000)),
+        Err("OFFSET is out of range".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("GAIN");
+        }),
+        with(&|s| s.gain = None)
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("XBINNING");
+            h.keywords.remove("YBINNING");
+        }),
+        Ok(goal.clone())
+    );
+    assert_eq!(read(&|h| h.set_int("XBINNING", 2)), with(&|s| s.bin_x = 2));
+    assert_eq!(
+        read(&|h| h.set_float("EXPTIME", 0.0)),
+        Err("Light has a non-positive EXPTIME".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_float("EXPTIME", f64::NAN)),
+        Err("DepthLock requires a finite EXPTIME FITS keyword".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("EXPTIME");
+            h.set_float("EXPOSURE", 120.0);
+        }),
+        Err("DepthLock requires a finite EXPTIME FITS keyword".to_string())
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("EXPTIME");
+        }),
+        Err("DepthLock requires a finite EXPTIME FITS keyword".to_string())
+    );
+    assert_eq!(
+        read(&|h| h.set_float("CCD-TEMP", f64::NAN)),
+        with(&|s| s.ccd_temp_c = None)
+    );
+    assert_eq!(
+        read(&|h| {
+            h.keywords.remove("CCD-TEMP");
+            h.set_float("SET-TEMP", -10.0);
+            h.set_string("READOUTM", "High Gain");
+        }),
+        with(&|s| s.ccd_temp_c = None)
+    );
+}
