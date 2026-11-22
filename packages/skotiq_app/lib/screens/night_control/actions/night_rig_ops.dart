@@ -7,9 +7,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/providers.dart' as core show startGuidingAndSettle;
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 
@@ -262,41 +262,12 @@ class ServiceNightRigOps implements NightRigOps {
       GuideSettle.of(_settings ?? const AppSettingsState());
 
   @override
-  Future<void> startGuidingAndSettle() async {
-    final settle = _settle;
-    final backend = _ref.read(backendProvider);
-    final settled = Completer<void>();
-    // Subscribed before the start command so an early SettleDone is not
-    // missed. A failed settle reaches the app as StarLost.
-    final subscription = backend.eventStream.listen((event) {
-      final payload = typedEventFromWire(event)?.payload;
-      if (payload is! sk_events.EventPayload_Guiding || settled.isCompleted) {
-        return;
-      }
-      switch (payload.field0) {
-        case sk_events.GuidingEvent_Settled():
-          settled.complete();
-        case sk_events.GuidingEvent_LostStar():
-          settled.completeError(
-              StateError('Guiding lost the star while settling'));
-        case sk_events.GuidingEvent_GuidingStopped():
-          settled.completeError(StateError('Guiding stopped while settling'));
-        default:
-      }
-    });
-    try {
-      await _guider.startGuiding();
-      // Calibration can precede the first settle, so allow it a few minutes
-      // on top of PHD2's own settle timeout.
-      await settled.future.timeout(
-        Duration(seconds: settle.timeoutSeconds.round() + 300),
-        onTimeout: () =>
-            throw TimeoutException('Guiding did not report settled'),
+  Future<void> startGuidingAndSettle() => core.startGuidingAndSettle(
+        guider: _guider,
+        events: _ref.read(backendProvider).eventStream,
+        settle: _settle,
+        calibrationAllowance: const Duration(seconds: 300),
       );
-    } finally {
-      await subscription.cancel();
-    }
-  }
 
   @override
   Future<void> dither() => _guider.dither();
