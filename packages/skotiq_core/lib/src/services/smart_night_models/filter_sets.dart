@@ -250,6 +250,29 @@ class FilterSetPreferences {
       );
 }
 
+/// The set a target images through when the user has not picked one for
+/// it: [strategy]'s preset when a plan runs one strategy for every target,
+/// else Skotiq's choice.
+FilterSet defaultTargetFilterSet(
+  SmartNightFilterChoice choice, {
+  SmartNightStrategy? strategy,
+}) => strategy == null
+    ? choice.recommended
+    : FilterSet.preset(strategy, choice.filtersFor(strategy));
+
+/// The set [target] images through: the one the user picked for it in
+/// [prefs], else [defaultTargetFilterSet].
+FilterSet resolveTargetFilterSet(
+  TargetSuggestion target, {
+  required SmartNightFilterChoice choice,
+  required FilterSetPreferences prefs,
+  SmartNightStrategy? strategy,
+}) => prefs.setFor(
+  target,
+  sets: choice.sets(saved: prefs.custom),
+  recommended: defaultTargetFilterSet(choice, strategy: strategy),
+);
+
 /// The key a target's remembered filter set is kept under: its catalog
 /// designation, else its name.
 String filterSetTargetKey(TargetSuggestion target) =>

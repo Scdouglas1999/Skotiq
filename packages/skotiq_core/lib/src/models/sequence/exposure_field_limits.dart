@@ -17,3 +17,50 @@ abstract final class ExposureFieldLimits {
   /// Frames between dithers; zero dithers never.
   static const ({int min, int max}) ditherEvery = (min: 0, max: 100);
 }
+
+/// The values the other step fields take, in every editor that sets them:
+/// the inspector and the inline popover. Where the two editors allow
+/// different ranges today, both are listed and named by editor.
+abstract final class NodeFieldLimits {
+  static const ({double min, double max}) coolTargetC = (min: -50, max: 30);
+
+  static const ({int min, int max}) loopRepeatCount = (min: 1, max: 9999);
+
+  static const ({double min, double max}) delaySecsInline = (
+    min: 0,
+    max: 86400,
+  );
+  static const ({double min, double max}) delaySecsInspector = (
+    min: 0.1,
+    max: 3600,
+  );
+
+  static const ({double min, double max}) ditherPixelsInline = (
+    min: 0,
+    max: 50,
+  );
+  static const ({double min, double max}) ditherPixelsInspector = (
+    min: 1,
+    max: 50,
+  );
+
+  /// Settle limits of a Dither step and of a Start Guiding step. Both write
+  /// the same dither defaults.
+  static const ({double min, double max}) ditherSettlePixels = (
+    min: 0.1,
+    max: 5,
+  );
+  static const ({double min, double max}) guidingSettlePixels = (
+    min: 0.1,
+    max: 10,
+  );
+  static const ({double min, double max}) ditherSettleSecs = (min: 5, max: 120);
+  static const ({double min, double max}) guidingSettleSecs = (
+    min: 1,
+    max: 120,
+  );
+  static const ({double min, double max}) settleTimeoutSecs = (
+    min: 10,
+    max: 300,
+  );
+}

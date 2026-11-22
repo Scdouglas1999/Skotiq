@@ -60,6 +60,18 @@ class SmartExposureNode extends SequenceNode {
     this.loopUntilStopped = false,
   });
 
+  /// The name a builder gives a node that images through [filterNames]
+  /// ("Smart Exposure: Ha+OIII+SII").
+  static String autoName(Iterable<String> filterNames) =>
+      'Smart Exposure: ${filterNames.join('+')}';
+
+  /// Whether this node still has a builder's name (the default one, or
+  /// [autoName] of its own filters), so refilling its plans may rename it;
+  /// a name the user typed stays.
+  bool get hasAutoName =>
+      name == 'Smart Exposure' ||
+      name == autoName(plans.map((p) => p.filterName));
+
   /// Sum of per-plan integration time across all filter rows (count *
   /// duration), in seconds. The dashboard's "estimated total" indicator
   /// reads this; wall-clock estimates that include filter-change and

@@ -23,8 +23,8 @@ class _DitherProperties extends ConsumerWidget {
             colors: colors,
             value: node.pixels,
             suffix: 'px',
-            min: 1,
-            max: 50,
+            min: NodeFieldLimits.ditherPixelsInspector.min,
+            max: NodeFieldLimits.ditherPixelsInspector.max,
             decimals: 1,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
@@ -43,8 +43,8 @@ class _DitherProperties extends ConsumerWidget {
             colors: colors,
             value: node.settleTime,
             suffix: 's',
-            min: 5,
-            max: 120,
+            min: NodeFieldLimits.ditherSettleSecs.min,
+            max: NodeFieldLimits.ditherSettleSecs.max,
             decimals: 0,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
@@ -63,8 +63,8 @@ class _DitherProperties extends ConsumerWidget {
             colors: colors,
             value: node.settlePixels,
             suffix: 'px',
-            min: 0.1,
-            max: 5,
+            min: NodeFieldLimits.ditherSettlePixels.min,
+            max: NodeFieldLimits.ditherSettlePixels.max,
             decimals: 1,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
@@ -80,8 +80,8 @@ class _DitherProperties extends ConsumerWidget {
             colors: colors,
             value: node.settleTimeout,
             suffix: 's',
-            min: 10,
-            max: 300,
+            min: NodeFieldLimits.settleTimeoutSecs.min,
+            max: NodeFieldLimits.settleTimeoutSecs.max,
             decimals: 0,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(

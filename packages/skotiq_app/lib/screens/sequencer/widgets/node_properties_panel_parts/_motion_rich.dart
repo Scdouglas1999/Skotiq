@@ -591,14 +591,15 @@ class _CoordinateReadout extends StatelessWidget {
 
 /// Mount-target resolution preview shared by the Slew and Center editors.
 ///
-/// When "Use Target Coordinates" is on, the node inherits RA/Dec from its
-/// parent (or the first) [TargetHeaderNode]. This card shows which target will
-/// be used (green) or warns when none can be found (amber) so the user isn't
-/// left guessing whether the slew/center has anything to aim at.
+/// When "Use Target Coordinates" is on, the run points at the target step the
+/// node sits under ([Sequence.enclosingTarget]); outside every target it has
+/// none and the step fails. This card shows which target will be used (green)
+/// or warns when there is none (amber) so the user isn't left guessing whether
+/// the slew/center has anything to aim at.
 ///
 /// Finding a target group is not the same as having somewhere to point: a
 /// freshly-added target sits at the 0h/+0° placeholder
-/// ([targetCoordinatesUnset]), and confirming that in green is the app
+/// ([TargetHeaderNode.coordinatesUnset]), and confirming that in green is the app
 /// asserting a pointing the user never chose. Unset coordinates get the amber
 /// warning treatment too.
 class _TargetResolutionPreview extends ConsumerWidget {
@@ -609,23 +610,11 @@ class _TargetResolutionPreview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sequence = ref.watch(currentSequenceProvider);
-    TargetHeaderNode? targetGroup;
-
-    if (sequence != null) {
-      targetGroup = sequence.nodes.values
-          .whereType<TargetHeaderNode>()
-          .where((n) => n.childIds.contains(nodeId))
-          .firstOrNull;
-      // If no direct parent owns this node, fall back to the first target
-      // group in the sequence.
-      targetGroup ??= sequence.targetHeaders.isNotEmpty
-          ? sequence.targetHeaders.first
-          : null;
-    }
+    final targetGroup =
+        ref.watch(currentSequenceProvider)?.enclosingTarget(nodeId);
 
     final coordinatesUnset =
-        targetGroup != null && targetCoordinatesUnset(targetGroup);
+        targetGroup != null && targetGroup.coordinatesUnset;
     final resolved = targetGroup != null && !coordinatesUnset;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -646,7 +635,10 @@ class _TargetResolutionPreview extends ConsumerWidget {
             Expanded(
               child: Text(
                 targetGroup == null
-                    ? 'No target group found in sequence'
+                    ? 'This step is not inside a target, so the run has no '
+                        'target coordinates for it.\n'
+                        'Move it under a target, or turn off Use target '
+                        'coordinates.'
                     : coordinatesUnset
                         ? 'Target "${targetGroup.targetName}" has no '
                             'coordinates set. This node has nowhere to point.\n'

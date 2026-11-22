@@ -872,12 +872,12 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
 /// inspector. An unset pointing says so in `warning`, exactly as
 /// [TargetHeaderCard] does, because exactly 0h/+0° is a real point in Pisces
 /// and printing it as a settled pointing is the bug
-/// [targetCoordinatesUnset] exists to prevent.
+/// [TargetHeaderNode.coordinatesUnset] exists to prevent.
 List<Widget> _targetCoordinateChips(
   TargetHeaderNode node,
   SkotiqColors colors,
 ) {
-  if (targetCoordinatesUnset(node)) {
+  if (node.coordinatesUnset) {
     return <Widget>[
       _LedgerChip(colors: colors, label: 'Not set', tone: colors.warning),
     ];

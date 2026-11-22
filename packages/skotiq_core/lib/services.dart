@@ -45,6 +45,7 @@ export 'src/services/remote_sequence_repository.dart';
 export 'src/services/sequence_file_service.dart';
 export 'src/services/open_plan_service.dart';
 export 'src/services/snippet_file_service.dart';
+export 'src/services/built_in_template_service.dart';
 export 'src/services/sample_sequence_service.dart';
 export 'src/services/import/sequence_importer.dart';
 export 'src/services/import/nina_sequence_parser.dart';
@@ -164,6 +165,7 @@ export 'src/services/smart_night/dark_library_coverage.dart';
 export 'src/services/smart_night/smart_night_draft_service.dart';
 // Smart Night auto-builder (the one-click "plan tonight").
 export 'src/services/smart_night_service.dart';
+export 'src/services/smart_night_plan_counts.dart';
 // Conversational sequence builder (LLM-driven sequence planning).
 export 'src/services/conversational_builder/llm_provider.dart';
 export 'src/services/conversational_builder/llm_settings.dart';

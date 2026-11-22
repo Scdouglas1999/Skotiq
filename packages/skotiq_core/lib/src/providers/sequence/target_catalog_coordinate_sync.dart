@@ -38,7 +38,7 @@ class TargetCatalogCoordinateSync {
   /// Returns true when a row was actually updated. Never throws: a failed sync
   /// must not take the editor down with it.
   Future<bool> syncHeader(TargetHeaderNode header) async {
-    if (header.raHours == 0.0 && header.decDegrees == 0.0) return false;
+    if (header.coordinatesUnset) return false;
     try {
       final dao = _ref.read(targetsDaoProvider);
       final row = await _resolveRow(dao, header);

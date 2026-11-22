@@ -116,6 +116,16 @@ abstract class Sequence with _$Sequence {
   /// [SequenceTreeIndex.descendantsOf].
   List<String> descendantsOf(String nodeId) => treeIndex.descendantsOf(nodeId);
 
+  /// The nearest target step [nodeId] sits under. See
+  /// [SequenceTreeIndex.enclosingTarget].
+  TargetHeaderNode? enclosingTarget(String nodeId) =>
+      treeIndex.enclosingTarget(nodeId);
+
+  /// Whether a target step above [nodeId] has an end condition. See
+  /// [SequenceTreeIndex.isBoundedByTargetWindow].
+  bool isBoundedByTargetWindow(String nodeId) =>
+      treeIndex.isBoundedByTargetWindow(nodeId);
+
   /// Verify the structural invariants of this sequence. See
   /// [SequenceTreeIndex.invariants] for the full set of checks.
   List<String> invariants() => treeIndex.invariants();

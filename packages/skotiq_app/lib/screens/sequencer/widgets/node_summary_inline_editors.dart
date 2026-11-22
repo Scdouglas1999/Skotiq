@@ -11,11 +11,11 @@
 //   * Every mutation is `ref.read(currentSequenceProvider.notifier)
 //     .updateNode(node.copyWith(...))` — the same call the panel makes, so
 //     undo/redo, autosave, and `modifiedAt` bookkeeping come for free.
-//   * Exposure-owned fields (duration / count / filter / gain / binning) ALSO
-//     mirror into `sequencerDefaultsProvider.notifier.updateExposureDefaults`,
-//     exactly as `_capture_properties.dart` does, so the next exposure node a
-//     user drops inherits their latest choice. Loop iterations, dither, center
-//     tolerance, etc. are NOT exposure defaults and never mirror.
+//   * Exposure-owned fields (duration / count / filter / gain / binning) commit
+//     through `ref.commitExposureEdit`, as the inspector does, so the next
+//     exposure node a user drops inherits their latest choice. Loop
+//     iterations, dither, center tolerance, etc. are NOT exposure defaults and
+//     never mirror.
 //   * The editor is GATED on `canEditSequenceProvider`: while a sequence is
 //     running/paused/stopping/recovering the popup simply never opens. The
 //     `updateNode` call itself also throws `SequenceLockedException` in that
@@ -349,12 +349,7 @@ class _ExposureCountEditor extends ConsumerWidget {
         max: ExposureFieldLimits.frameCount.max,
         semanticLabel: 'Exposure count',
         onChanged: (count) {
-          ref
-              .read(currentSequenceProvider.notifier)
-              .updateNode(node.copyWith(count: count));
-          ref
-              .read(sequencerDefaultsProvider.notifier)
-              .updateExposureDefaults(count: count);
+          ref.commitExposureEdit(node.copyWith(count: count), count: count);
         },
       ),
     );
@@ -372,8 +367,8 @@ class _LoopIterationsEditor extends ConsumerWidget {
       icon: LucideIcons.repeat,
       child: SkotiqStepper(
         value: node.repeatCount ?? 1,
-        min: 1,
-        max: 9999,
+        min: NodeFieldLimits.loopRepeatCount.min,
+        max: NodeFieldLimits.loopRepeatCount.max,
         semanticLabel: 'Loop iterations',
         // Loop iterations are NOT an exposure default — no defaults mirror.
         onChanged: (count) => ref
@@ -399,12 +394,8 @@ class _ExposureDurationEditor extends ConsumerWidget {
       decimals: 3,
       suffix: 's',
       onCommit: (value) {
-        ref
-            .read(currentSequenceProvider.notifier)
-            .updateNode(node.copyWith(durationSecs: value));
-        ref
-            .read(sequencerDefaultsProvider.notifier)
-            .updateExposureDefaults(duration: value);
+        ref.commitExposureEdit(node.copyWith(durationSecs: value),
+            duration: value);
       },
     );
   }
@@ -420,8 +411,8 @@ class _DelaySecondsEditor extends ConsumerWidget {
       title: 'Delay',
       icon: LucideIcons.timer,
       initialValue: node.seconds,
-      min: 0,
-      max: 86400,
+      min: NodeFieldLimits.delaySecsInline.min,
+      max: NodeFieldLimits.delaySecsInline.max,
       decimals: 0,
       suffix: 's',
       onCommit: (value) => ref
@@ -441,8 +432,8 @@ class _CoolTargetTempEditor extends ConsumerWidget {
       title: 'Target temperature',
       icon: LucideIcons.snowflake,
       initialValue: node.targetTemp,
-      min: -50,
-      max: 30,
+      min: NodeFieldLimits.coolTargetC.min,
+      max: NodeFieldLimits.coolTargetC.max,
       decimals: 1,
       suffix: '°C',
       onCommit: (value) => ref
@@ -462,8 +453,8 @@ class _DitherPixelsEditor extends ConsumerWidget {
       title: 'Dither amount',
       icon: LucideIcons.shuffle,
       initialValue: node.pixels,
-      min: 0,
-      max: 50,
+      min: NodeFieldLimits.ditherPixelsInline.min,
+      max: NodeFieldLimits.ditherPixelsInline.max,
       decimals: 1,
       suffix: 'px',
       onCommit: (value) => ref
@@ -480,12 +471,7 @@ class _GainEditor extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     void commit(int gain) {
-      ref
-          .read(currentSequenceProvider.notifier)
-          .updateNode(node.copyWith(gain: gain));
-      ref
-          .read(sequencerDefaultsProvider.notifier)
-          .updateExposureDefaults(gain: gain);
+      ref.commitExposureEdit(node.copyWith(gain: gain), gain: gain);
     }
 
     return SensitivityField(
@@ -609,27 +595,21 @@ class _ExposureFilterEditor extends ConsumerWidget {
         initialValue: node.filter ?? '',
         onCommit: (text) {
           final filter = text.isEmpty ? null : text;
-          ref.read(currentSequenceProvider.notifier).updateNode(
-                node.copyWith(filter: filter, clearFilter: filter == null),
-              );
-          ref
-              .read(sequencerDefaultsProvider.notifier)
-              .updateExposureDefaults(filter: filter);
+          ref.commitExposureEdit(
+              node.copyWith(filter: filter, clearFilter: filter == null),
+              filter: filter);
         },
       );
     }
 
     void select(String? filter, int? index) {
-      ref.read(currentSequenceProvider.notifier).updateNode(
-            node.copyWith(
-              filter: filter,
-              filterIndex: index,
-              clearFilter: filter == null && index == null,
-            ),
-          );
-      ref
-          .read(sequencerDefaultsProvider.notifier)
-          .updateExposureDefaults(filter: filter);
+      ref.commitExposureEdit(
+          node.copyWith(
+            filter: filter,
+            filterIndex: index,
+            clearFilter: filter == null && index == null,
+          ),
+          filter: filter);
       Navigator.of(context).pop();
     }
 
@@ -773,12 +753,8 @@ class _BinningEditor extends ConsumerWidget {
             label: mode.label,
             selected: node.binning == mode,
             onTap: () {
-              ref
-                  .read(currentSequenceProvider.notifier)
-                  .updateNode(node.copyWith(binning: mode));
-              ref
-                  .read(sequencerDefaultsProvider.notifier)
-                  .updateExposureDefaults(binning: mode);
+              ref.commitExposureEdit(node.copyWith(binning: mode),
+                  binning: mode);
               Navigator.of(context).pop();
             },
           ),

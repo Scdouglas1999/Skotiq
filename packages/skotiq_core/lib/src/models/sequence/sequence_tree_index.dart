@@ -136,6 +136,32 @@ class SequenceTreeIndex {
     return out;
   }
 
+  /// The nodes above [nodeId], nearest first, following each node's
+  /// `parentId`. Stops at a parent that is not in the sequence, and at a
+  /// cycle.
+  Iterable<SequenceNode> ancestorsOf(String nodeId) sync* {
+    final seen = <String>{};
+    var id = _parentById[nodeId];
+    while (id != null && seen.add(id)) {
+      final node = _nodes[id];
+      if (node == null) return;
+      yield node;
+      id = node.parentId;
+    }
+  }
+
+  /// The nearest target step [nodeId] sits under, or null when it sits
+  /// under none.
+  TargetHeaderNode? enclosingTarget(String nodeId) =>
+      ancestorsOf(nodeId).whereType<TargetHeaderNode>().firstOrNull;
+
+  /// Whether a target step above [nodeId] has an end condition (`endWhen`
+  /// or the wall-clock `endBefore`). That window is what stops a Smart
+  /// Exposure that loops until stopped.
+  bool isBoundedByTargetWindow(String nodeId) => ancestorsOf(nodeId).any(
+    (n) => n is TargetHeaderNode && (n.endWhen != null || n.endBefore != null),
+  );
+
   /// Whether a run executes [nodeId]: the node and every ancestor are
   /// enabled. A disabled container switches off everything under it, the way
   /// the native sequencer skips it, so nothing under it may block, check or

@@ -95,14 +95,20 @@ class SmartNightService {
   /// never disagree with what the builder actually emits.
   static const double weatherRecoveryCloudProbabilityThreshold = 0.4;
 
-  /// Whether [build] will inject a [MeridianFlipNode] for [planned].
+  /// Whether the emitter adds a [MeridianFlipNode] for [planned].
   ///
   /// The flip is added only when the target's transit time lands strictly
-  /// inside its scheduled imaging window. This is the authoritative
-  /// predicate: both the sequence builder and the plan preview call it so
-  /// the preview never claims (or omits) a meridian-flip watchdog that the
-  /// emitted sequence wouldn't (or would) contain.
-  static bool willInjectMeridianFlip(SmartNightPlannedTarget planned) {
+  /// inside its scheduled imaging window and the capture does not run until
+  /// that window closes ([fillWindow]): a fill-window capture is cut off at
+  /// the window, and the runtime flip policy is what crosses the meridian
+  /// during it. The sequence builder and the plan preview both call this, so
+  /// the preview never claims (or omits) a flip the emitted sequence would
+  /// not (or would) contain.
+  static bool willInjectMeridianFlip(
+    SmartNightPlannedTarget planned, {
+    bool fillWindow = false,
+  }) {
+    if (fillWindow) return false;
     final transit = planned.suggestion.visibility.transitTime;
     return transit != null &&
         transit.isAfter(planned.windowStart) &&
@@ -415,10 +421,8 @@ class SmartNightService {
       );
       final targetSet =
           targetSets[suggestion.targetId] ??
-          (strategy == null
-              ? choice.recommended
-              : FilterSet.preset(strategy, choice.filtersFor(strategy)));
-      final filterPlans = _composeFilterPlans(
+          defaultTargetFilterSet(choice, strategy: strategy);
+      final filterPlans = composeSmartNightFilterPlans(
         shares: targetSet.shares,
         activeFilters: targetSet.filters,
         windowSecs: windowSecs,
@@ -433,6 +437,7 @@ class SmartNightService {
         settings: settings,
         integrationGoalProgress: integrationGoals[suggestion.targetId],
         availableFiltersForGoals: availableFilters,
+        exposureCalculator: _exposureCalculator,
       );
       if (filterPlans.isEmpty) continue;
 
@@ -671,7 +676,7 @@ class SmartNightService {
     );
     if (windowSecs <= 0) return null;
 
-    final filterPlans = _composeFilterPlans(
+    final filterPlans = composeSmartNightFilterPlans(
       shares: set.shares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
@@ -686,6 +691,7 @@ class SmartNightService {
       settings: settings,
       integrationGoalProgress: integrationGoalProgress,
       availableFiltersForGoals: planningFilters,
+      exposureCalculator: _exposureCalculator,
     );
     if (filterPlans.isEmpty) return null;
 
@@ -791,7 +797,7 @@ class SmartNightService {
       settings: settings,
     );
 
-    final filterPlans = _composeFilterPlans(
+    final filterPlans = composeSmartNightFilterPlans(
       shares: set.shares,
       activeFilters: activeFilters,
       windowSecs: windowSecs,
@@ -806,6 +812,7 @@ class SmartNightService {
       settings: settings,
       integrationGoalProgress: integrationGoalProgress,
       availableFiltersForGoals: planningFilters,
+      exposureCalculator: _exposureCalculator,
     );
     if (filterPlans.isEmpty) {
       throw SmartNightBuildException(
@@ -894,7 +901,7 @@ class SmartNightService {
         'recommendations.',
       );
     }
-    final plans = _composeFilterPlans(
+    final plans = composeSmartNightFilterPlans(
       shares: filterSet.shares,
       activeFilters: filterSet.filters,
       windowSecs: plannedSecs,
@@ -907,6 +914,7 @@ class SmartNightService {
       recentGuideRmsArcsec: exposureContext?.guideRmsArcsec,
       recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
       settings: settings,
+      exposureCalculator: _exposureCalculator,
     );
     return [
       for (final plan in plans)
@@ -1013,42 +1021,6 @@ class SmartNightService {
         suggestion,
         _emissionObjects,
       ),
-    );
-  }
-
-  /// Compose per-filter plans — delegates to the public helper.
-  List<SmartNightFilterPlan> _composeFilterPlans({
-    required Map<String, double> shares,
-    required List<String> activeFilters,
-    required double windowSecs,
-    required EquipmentProfileModel profile,
-    required CameraExposureSpec cameraSpec,
-    required double focalLengthMm,
-    required double apertureMm,
-    required double pixelSizeUm,
-    required int bortleClass,
-    required double? recentGuideRmsArcsec,
-    required int recentGuideSamples,
-    required SmartNightSettings settings,
-    List<IntegrationGoalProgress>? integrationGoalProgress,
-    List<String>? availableFiltersForGoals,
-  }) {
-    return composeSmartNightFilterPlans(
-      shares: shares,
-      activeFilters: activeFilters,
-      windowSecs: windowSecs,
-      profile: profile,
-      cameraSpec: cameraSpec,
-      focalLengthMm: focalLengthMm,
-      apertureMm: apertureMm,
-      pixelSizeUm: pixelSizeUm,
-      bortleClass: bortleClass,
-      recentGuideRmsArcsec: recentGuideRmsArcsec,
-      recentGuideSamples: recentGuideSamples,
-      settings: settings,
-      integrationGoalProgress: integrationGoalProgress,
-      availableFiltersForGoals: availableFiltersForGoals,
-      exposureCalculator: _exposureCalculator,
     );
   }
 

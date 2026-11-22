@@ -83,8 +83,10 @@ class SchedulerEngine {
   final SchedulerLogSink? _logSink;
   StreamSubscription<SchedulerTriggerEvent>? _triggerSubscription;
   Timer? _tickTimer;
-  bool _evaluating = false;
-  final List<Completer<void>> _pendingEvaluations = [];
+  // The evaluation in flight and every one queued behind it; null when none
+  // is. Evaluations run one at a time, and [stop] waits on this so a dispatch
+  // that is still starting the executor lands before the run is stopped.
+  Future<void>? _evaluationQueue;
   // Debounce window used by [requestReevaluation]. A burst of provider
   // emissions (e.g. a goal upsert that also touches the constraint table)
   // should fire ONE re-evaluation, not N.
@@ -122,12 +124,6 @@ class SchedulerEngine {
   // superseded generation and must not be committed as the engine's current
   // target.
   int _runGeneration = 0;
-
-  // Completes when the in-flight evaluation finishes. [stop] waits on it so a
-  // stop issued while `dispatchSequence` is still starting the executor lands
-  // AFTER the run it is meant to end, instead of racing ahead of it and
-  // leaving an orphan run exposing with the autopilot disengaged.
-  Completer<void>? _evaluationIdle;
 
   SchedulerStatus _status = const SchedulerStatus();
   final _statusController = StreamController<SchedulerStatus>.broadcast(
@@ -426,25 +422,15 @@ class SchedulerEngine {
     );
   }
 
-  /// Wait until no evaluation is in flight.
+  /// Wait until no evaluation is in flight or queued.
   ///
   /// Called by [stop] before it touches the executor so a dispatch that is
-  /// still starting a run completes first. The loop is bounded because the
-  /// tick timer is already cancelled and the engine state is already `idle`,
-  /// so queued evaluations short-circuit without dispatching.
+  /// still starting a run completes first. The tick timer is already
+  /// cancelled and the engine state is already `idle`, so queued evaluations
+  /// short-circuit without dispatching.
   Future<void> _awaitEvaluationQuiescence() async {
-    for (var i = 0; i < 32 && _evaluating; i++) {
-      final idle = _evaluationIdle;
-      if (idle == null) break;
-      try {
-        await idle.future;
-      } catch (_) {
-        // The evaluation's own failure is reported through its caller; here we
-        // only care that it is no longer in flight.
-      }
-      // Give a queued (coalesced) evaluation the chance to take the lock so
-      // the next iteration waits for it too.
-      await Future<void>.delayed(Duration.zero);
+    while (_evaluationQueue != null) {
+      await _evaluationQueue;
     }
   }
 
@@ -609,7 +595,7 @@ class SchedulerEngine {
       exposureIds.add(expId);
       nodes[expId] = SmartExposureNode(
         id: expId,
-        name: 'Smart Exposure: ${rotation.map((p) => p.goal.filter).join('+')}',
+        name: SmartExposureNode.autoName(rotation.map((p) => p.goal.filter)),
         plans: [
           for (final row in rotation)
             FilterPlan(

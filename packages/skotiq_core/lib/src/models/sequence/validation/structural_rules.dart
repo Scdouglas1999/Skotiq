@@ -108,13 +108,6 @@ const String kTargetCoordinatesUnsetCode = 'target_coordinates_unset';
 /// (the Slew editor warns instead of showing "Will use target: M31" in
 /// green); this rule is the matching gate on the start path.
 class TargetCoordinatesUnsetRule implements SequenceValidator {
-  /// True while [node] still carries the (0h, +0°) placeholder. A deliberate
-  /// origin pointing reads as unset as well; nudging either value by the
-  /// ten-thousandth of a unit the coordinate editor already exposes claims it
-  /// back.
-  static bool isUnset(TargetHeaderNode node) =>
-      node.raHours == 0 && node.decDegrees == 0;
-
   @override
   String get name => 'TargetCoordinatesUnset';
 
@@ -122,7 +115,7 @@ class TargetCoordinatesUnsetRule implements SequenceValidator {
   List<ValidationIssue> validate(Sequence sequence) {
     final issues = <ValidationIssue>[];
     for (final target in sequence.targetHeaders) {
-      if (!isUnset(target)) continue;
+      if (!target.coordinatesUnset) continue;
 
       // Block only when the placeholder actually reaches hardware or frame
       // metadata on this run. A half-built target nobody has wired up yet is

@@ -72,7 +72,7 @@ class _LiveStackingPropertiesState
     if (t.isEmpty) {
       ref
           .read(currentSequenceProvider.notifier)
-          .updateNode(_rebuildWithCleared(clearAuthToken: true));
+          .updateNode(widget.node.copyWith(clearAuthToken: true));
     } else {
       _update((n) => n.copyWith(authToken: t));
     }
@@ -83,7 +83,7 @@ class _LiveStackingPropertiesState
     if (w.isEmpty) {
       ref
           .read(currentSequenceProvider.notifier)
-          .updateNode(_rebuildWithCleared(clearWatermark: true));
+          .updateNode(widget.node.copyWith(clearWatermarkText: true));
     } else {
       _update((n) => n.copyWith(watermarkText: w));
     }
@@ -111,33 +111,6 @@ class _LiveStackingPropertiesState
     final mutator = ref.read(currentSequenceProvider.notifier);
     final updated = mutate(widget.node);
     mutator.updateNode(updated);
-  }
-
-  /// `LiveStackingNode.copyWith` uses plain `?? this.authToken` semantics, so a
-  /// null arg means "keep current". Making the broadcast PUBLIC (clearing the
-  /// token) therefore requires a fresh node. Same recipe for the watermark.
-  LiveStackingNode _rebuildWithCleared({
-    bool clearAuthToken = false,
-    bool clearWatermark = false,
-  }) {
-    final n = widget.node;
-    return LiveStackingNode(
-      id: n.id,
-      name: n.name,
-      isEnabled: n.isEnabled,
-      childIds: n.childIds,
-      parentId: n.parentId,
-      orderIndex: n.orderIndex,
-      comment: n.comment,
-      mode: n.mode,
-      stackMethod: n.stackMethod,
-      maxFramesToStack: n.maxFramesToStack,
-      broadcastEnabled: n.broadcastEnabled,
-      authToken: clearAuthToken ? null : n.authToken,
-      watermarkText: clearWatermark ? null : n.watermarkText,
-      thumbnailWidth: n.thumbnailWidth,
-      thumbnailHeight: n.thumbnailHeight,
-    );
   }
 
   @override
