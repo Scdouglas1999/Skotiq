@@ -167,4 +167,76 @@ void main() {
       expect(backend.verdicts, isEmpty);
     },
   );
+
+  // Which events start a plugin node, and with what request. Every row the
+  // native sequencer sends is the first; the others are shapes no producer
+  // makes.
+  final requestRows = <String, (EventCategory, Map<String, Object?>)>{
+    'full': (EventCategory.sequencer, pluginRequest('n1').data),
+    'no_display_name': (
+      EventCategory.sequencer,
+      {...pluginRequest('n1').data, 'display_name': null},
+    ),
+    'empty_node_id': (
+      EventCategory.sequencer,
+      {...pluginRequest('n1').data, 'node_id': ''},
+    ),
+    'other_category': (EventCategory.equipment, pluginRequest('n1').data),
+  };
+  for (final MapEntry(key: name, value: (category, data))
+      in requestRows.entries) {
+    test('plugin node request row $name', () async {
+      final requests = <PluginNodeDispatchRequest>[];
+      await startServer(
+        dispatcher: (request) async {
+          requests.add(request);
+          return const PluginNodeDispatchResult(success: true);
+        },
+      );
+      events.add(
+        SkotiqEvent(
+          timestamp: 0,
+          severity: EventSeverity.info,
+          category: category,
+          eventType: 'PluginNodeRequested',
+          data: Map<String, dynamic>.from(data),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      final seen = [
+        for (final r in requests)
+          [
+            r.nodeId,
+            r.pluginId,
+            r.nodeTypeId,
+            r.configJson,
+            r.displayName,
+            r.timeoutSecs,
+          ],
+      ];
+      expect(seen, switch (name) {
+        'full' => [
+          [
+            'n1',
+            'com.example.notify',
+            'notify.send',
+            '{"message":"hello"}',
+            'Notify',
+            12,
+          ],
+        ],
+        'no_display_name' => [
+          [
+            'n1',
+            'com.example.notify',
+            'notify.send',
+            '{"message":"hello"}',
+            null,
+            12,
+          ],
+        ],
+        _ => isEmpty,
+      });
+    });
+  }
 }
