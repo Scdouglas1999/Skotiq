@@ -1,12 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
 import '../utils/logging_service.dart';
 import '../backend/network_backend.dart';
-import '../providers/logging_service_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
 
 /// The live stacker: this process's native stacker.
@@ -20,9 +18,8 @@ class LiveStackingService {
   final LoggingService _logger;
   final SaveStackMasterFits _saveFitsMaster;
 
-  LiveStackingService(Ref ref, {SaveStackMasterFits? saveFitsMaster})
-    : _logger = ref.read(loggingServiceProvider),
-      _saveFitsMaster = saveFitsMaster ?? bridge.apiStackingSaveMasterFits;
+  LiveStackingService(this._logger, {SaveStackMasterFits? saveFitsMaster})
+    : _saveFitsMaster = saveFitsMaster ?? bridge.apiStackingSaveMasterFits;
 
   /// Whether the stack lives on a linked imaging host rather than here.
   bool get readsHost => false;
@@ -497,7 +494,7 @@ class LiveStackingService {
 class LinkedLiveStackingService extends LiveStackingService {
   final HostLiveStack _host;
 
-  LinkedLiveStackingService(super.ref, this._host, {super.saveFitsMaster});
+  LinkedLiveStackingService(super.logger, this._host, {super.saveFitsMaster});
 
   @override
   bool get readsHost => true;

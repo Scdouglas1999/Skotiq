@@ -208,7 +208,7 @@ class SequenceExecutor {
     }
     final inner = _ref.read(liveStackingBroadcastServiceProvider);
     final wrapped = _SequenceArmedBroadcast(
-      ref: _ref,
+      logger: _logger,
       inner: inner,
       onArmed: (armed) => _sequenceLiveStackArmed = armed,
     );
@@ -2524,12 +2524,12 @@ class _RestoredCheckpoint {
 /// only signals that this executor, rather than the operator, owns the session.
 final class _SequenceArmedBroadcast extends LiveStackingBroadcastService {
   _SequenceArmedBroadcast({
-    required Ref ref,
+    required LoggingService logger,
     required LiveStackingBroadcastService inner,
     required void Function(bool armed) onArmed,
   }) : _inner = inner,
        _onArmed = onArmed,
-       super(ref);
+       super(logger);
 
   final LiveStackingBroadcastService _inner;
   final void Function(bool armed) _onArmed;

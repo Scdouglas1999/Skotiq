@@ -1,12 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'sequence/sequencer_defaults.dart' show sequencerDefaultsProvider;
 import '../services/live_stacking_broadcast_service.dart';
+import 'logging_service_provider.dart';
 
 /// Provider for the broadcast service. Singleton per app — the HTTP
 /// handler reads from this every request.
 final liveStackingBroadcastServiceProvider =
     Provider<LiveStackingBroadcastService>((ref) {
-      final svc = LiveStackingBroadcastService(ref);
+      final svc = LiveStackingBroadcastService(
+        ref.read(loggingServiceProvider),
+      );
       ref.onDispose(svc.dispose);
       return svc;
     });

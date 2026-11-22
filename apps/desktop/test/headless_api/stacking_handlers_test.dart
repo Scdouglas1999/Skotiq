@@ -25,7 +25,7 @@ import 'package:skotiq_core/utils.dart';
 
 /// Records what the coordinator asks the stacker to do, without touching FFI.
 class _FakeStackingService extends LiveStackingService {
-  _FakeStackingService(super.ref);
+  _FakeStackingService(super.logger);
 
   final List<String> started = [];
   final List<String> startedFilters = [];
@@ -196,7 +196,8 @@ void main() {
       overrides: [
         loggingServiceProvider.overrideWithValue(logger),
         liveStackingServiceProvider.overrideWith(
-          (ref) => fake = _FakeStackingService(ref),
+          (ref) =>
+              fake = _FakeStackingService(ref.read(loggingServiceProvider)),
         ),
       ],
     );

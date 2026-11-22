@@ -21,6 +21,7 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/services/live_stacking_service.dart';
 import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 import 'package:skotiq_core/src/providers/linked_host.dart';
+import 'package:skotiq_core/src/providers/logging_service_provider.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -166,6 +167,13 @@ void main() {
 LiveStackingService _service(Ref ref, SaveStackMasterFits saveFits) {
   final host = ref.watch(linkedHostLiveStackProvider);
   return host == null
-      ? LiveStackingService(ref, saveFitsMaster: saveFits)
-      : LinkedLiveStackingService(ref, host, saveFitsMaster: saveFits);
+      ? LiveStackingService(
+          ref.read(loggingServiceProvider),
+          saveFitsMaster: saveFits,
+        )
+      : LinkedLiveStackingService(
+          ref.read(loggingServiceProvider),
+          host,
+          saveFitsMaster: saveFits,
+        );
 }

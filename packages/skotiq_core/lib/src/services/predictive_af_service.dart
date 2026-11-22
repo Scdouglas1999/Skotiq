@@ -11,11 +11,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/daos/settings_dao.dart';
 import '../database/database.dart' as db;
-import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
 import 'focus_temperature_fit.dart';
 import '../utils/logging_service.dart';
@@ -462,16 +460,3 @@ class PredictiveAfService {
     );
   }
 }
-
-/// Riverpod provider for the predictive AF service. Lives at the DB layer
-/// so it can be reached from anywhere in the app.
-final predictiveAfServiceProvider = Provider<PredictiveAfService>((ref) {
-  final database = ref.watch(databaseProvider);
-  final settingsDao = ref.watch(settingsDaoProvider);
-  final service = PredictiveAfService(database, settingsDao: settingsDao);
-  unawaited(service.hydrateFromSettings());
-  ref.onDispose(() async {
-    await service.dispose();
-  });
-  return service;
-});
