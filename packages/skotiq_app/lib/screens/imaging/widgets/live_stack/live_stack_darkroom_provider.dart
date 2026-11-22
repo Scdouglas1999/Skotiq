@@ -198,9 +198,9 @@ class LiveDarkroomRecipeSettings {
         'enabled': true,
         'params': <String, dynamic>{
           'channelScale': <double>[
-            colorRedScale.clamp(0.1, 10.0),
-            colorGreenScale.clamp(0.1, 10.0),
-            colorBlueScale.clamp(0.1, 10.0),
+            colorRedScale.clamp(1e-6, 1e6),
+            colorGreenScale.clamp(1e-6, 1e6),
+            colorBlueScale.clamp(1e-6, 1e6),
           ],
         },
       });
@@ -221,7 +221,7 @@ class LiveDarkroomRecipeSettings {
         'params': <String, dynamic>{
           'blackPoint': bp,
           'whitePoint': wp,
-          'd': stretchD.clamp(0.0, 100.0),
+          'd': stretchD.clamp(0.0, 10000.0),
           'b': stretchB.clamp(-5.0, 15.0),
           'symmetryPoint': stretchSymmetryPoint.clamp(0.0, 1.0),
         },

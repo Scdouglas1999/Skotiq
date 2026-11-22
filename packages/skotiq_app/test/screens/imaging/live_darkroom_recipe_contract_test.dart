@@ -47,13 +47,6 @@ const _unclamped = {
   'star_reduce.maskDilatePx',
 };
 
-/// Bounds the Live Darkroom clamps differently from the catalogue.
-const _knownDrift = {
-  'stretch.d.max',
-  'color_calibrate.channelScale.min',
-  'color_calibrate.channelScale.max',
-};
-
 void main() {
   final catalog = jsonDecode(
     File(
@@ -117,7 +110,7 @@ void main() {
           }
         }
       }
-      expect(drift, _knownDrift.where((d) => d.endsWith('.$bound')).toSet());
+      expect(drift, isEmpty);
     });
   }
 }
