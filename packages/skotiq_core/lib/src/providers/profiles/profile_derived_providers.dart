@@ -96,13 +96,8 @@ final opticalConfigProvider = Provider<OpticalConfig?>((ref) {
   final profile = ref.watch(activeEquipmentProfileProvider);
   if (profile == null) return null;
 
-  // Get effective focal length - prefer profile focalLength, fall back to telescope
-  final effectiveFocalLength = profile.focalLength > 0
-      ? profile.focalLength
-      : (profile.telescopeFocalLength ?? 0);
-  final effectiveAperture = profile.aperture > 0
-      ? profile.aperture
-      : (profile.telescopeAperture ?? 0);
+  final effectiveFocalLength = profile.effectiveFocalLength;
+  final effectiveAperture = profile.effectiveAperture;
 
   // Try to get camera capabilities if camera is connected
   final camera = ref.watch(

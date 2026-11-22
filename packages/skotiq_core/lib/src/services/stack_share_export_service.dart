@@ -376,20 +376,10 @@ class StackShareExportService {
     final telescope = _firstNonEmpty([p0?.telescopeName]);
     final camera = _firstNonEmpty([p0?.cameraName]);
 
-    // Prefer the profile-level optical values — these are the *effective*
-    // focal length / aperture of the imaging train (post reducer / barlow),
-    // which is the true acquisition value AstroBin wants. Fall back to the bare
-    // telescope optics only when the profile-level value is unset. This matches
-    // the `EquipmentProfileExtension.effectiveFocalLength` convention used
-    // elsewhere (base field preferred over the telescope field); preferring the
-    // telescope value first would report the wrong focal length / f-ratio for
-    // anyone using a focal reducer or barlow. A non-positive value is treated
-    // as "unknown" so f-ratio math never divides by zero.
-    final focalLength = _firstPositive([
-      p0?.focalLength,
-      p0?.telescopeFocalLength,
-    ]);
-    final aperture = _firstPositive([p0?.aperture, p0?.telescopeAperture]);
+    // The effective train (after a reducer or barlow) is what AstroBin wants;
+    // the telescope's own optics only stand in when it is not set.
+    final focalLength = _firstPositive([p0?.effectiveFocalLength]);
+    final aperture = _firstPositive([p0?.effectiveAperture]);
 
     return AstroBinExportMetadata(
       title: result.targetName,

@@ -234,11 +234,11 @@ void main() {
         );
         backend = _buildBackend(fake);
 
-        await backend.saveProfile(
+        final id = await backend.saveProfile(
           const EquipmentProfile(id: '', name: 'Remote Rig'),
         );
 
-        expect(backend.lastSavedProfileId, '42');
+        expect(id, 42);
         expect(fake.requestsFor('/api/profiles'), hasLength(1));
       },
     );
@@ -259,7 +259,6 @@ void main() {
           ),
           throwsA(isA<FormatException>()),
         );
-        expect(backend.lastSavedProfileId, isNull);
       },
     );
 

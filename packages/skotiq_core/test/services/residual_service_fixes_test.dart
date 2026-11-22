@@ -469,11 +469,11 @@ void main() {
           'filterFocusOffsets': {'L': 1.9, 'R': -2.2},
         });
 
-        expect(data.defaultGain, 100);
-        expect(data.defaultOffset, 50);
-        expect(data.defaultBinX, 2);
-        expect(data.defaultBinY, 3);
-        expect(data.filterFocusOffsets, {'L': 1, 'R': -2});
+        expect(data.profile.defaultGain, 100);
+        expect(data.profile.defaultOffset, 50);
+        expect(data.profile.defaultBinX, 2);
+        expect(data.profile.defaultBinY, 3);
+        expect(data.profile.filterFocusOffsets, {'L': 1, 'R': -2});
       },
     );
 
@@ -539,8 +539,8 @@ void main() {
           'focalLength': rig[0],
           'aperture': rig[1],
         });
-        expect(data.focalLength, rig[0]);
-        expect(data.aperture, rig[1]);
+        expect(data.profile.focalLength, rig[0]);
+        expect(data.profile.aperture, rig[1]);
       }
     });
 
@@ -592,17 +592,17 @@ void main() {
         ProfileExportData.fromModel(model).toJson(),
       );
 
-      expect(restored.cameraName, model.cameraName);
-      expect(restored.mountName, model.mountName);
-      expect(restored.telescopeName, model.telescopeName);
-      expect(restored.telescopeFocalLength, 550);
-      expect(restored.telescopeAperture, 100);
-      expect(restored.coolOnConnect, isTrue);
-      expect(restored.defaultCenteringExposure, 4.5);
-      expect(restored.meridianFlipOverrides, '{"enabled":true}');
-      expect(restored.profileIcon, 'telescope');
-      expect(restored.profileColor, 0xff336699);
-      expect(restored.filterFocusOffsets, {'L': 0, 'R': 12});
+      expect(restored.profile.cameraName, model.cameraName);
+      expect(restored.profile.mountName, model.mountName);
+      expect(restored.profile.telescopeName, model.telescopeName);
+      expect(restored.profile.telescopeFocalLength, 550);
+      expect(restored.profile.telescopeAperture, 100);
+      expect(restored.profile.coolOnConnect, isTrue);
+      expect(restored.profile.defaultCenteringExposure, 4.5);
+      expect(restored.profile.meridianFlipOverrides, '{"enabled":true}');
+      expect(restored.profile.profileIcon, 'telescope');
+      expect(restored.profile.profileColor, 0xff336699);
+      expect(restored.profile.filterFocusOffsets, {'L': 0, 'R': 12});
     });
 
     test('equipment snapshot rejects malformed JSON schema', () {

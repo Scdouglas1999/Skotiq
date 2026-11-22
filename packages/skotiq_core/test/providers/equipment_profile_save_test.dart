@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,6 +177,48 @@ void main() {
   });
 
   group('on a linked host', () {
+    test('two saves at once each get their own profile\'s id', () async {
+      final backend = _MockNetworkBackend();
+      when(
+        () => backend.eventStream,
+      ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
+      when(() => backend.getProfiles()).thenAnswer((_) async => const []);
+      when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
+      final responses = [Completer<int>(), Completer<int>()];
+      var calls = 0;
+      when(
+        () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
+      ).thenAnswer((_) => responses[calls++].future);
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(
+            SkotiqDatabase.forTesting(NativeDatabase.memory()),
+          ),
+          backendProvider.overrideWith(
+            (ref) => _FixedBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(equipmentProfilesProvider.future);
+      final notifier = container.read(equipmentProfilesProvider.notifier);
+
+      final first = notifier.saveProfile(
+        const EquipmentProfileModel(name: 'First'),
+      );
+      final second = notifier.saveProfile(
+        const EquipmentProfileModel(name: 'Second'),
+      );
+      await pumpEventQueue();
+      expect(calls, 2);
+      // The host answers both before either save reads its answer.
+      responses[0].complete(11);
+      responses[1].complete(12);
+
+      expect(await first, 11);
+      expect(await second, 12);
+    });
+
     test('a save that turns Default off clears the host\'s startup '
         'profile', () async {
       const hosted = remote_profile.EquipmentProfile(
@@ -191,8 +235,7 @@ void main() {
       when(() => backend.getActiveProfile()).thenAnswer((_) async => hosted);
       when(
         () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
-      ).thenAnswer((_) async {});
-      when(() => backend.lastSavedProfileId).thenReturn('7');
+      ).thenAnswer((_) async => 7);
       when(() => backend.clearDefaultProfileRemote()).thenAnswer((_) async {});
       final container = ProviderContainer(
         overrides: [

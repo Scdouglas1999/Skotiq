@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
-import '../database/database.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';
@@ -13,7 +12,6 @@ import '../providers/equipment_provider.dart';
 import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../providers/settings_provider.dart';
-import '../utils/json_validation.dart';
 import 'device_service.dart';
 import '../models/optical_train_limits.dart';
 import '../backend/network_backend.dart';
@@ -168,7 +166,7 @@ class ProfileService {
       final profiles = await dao.getAllProfiles();
       _requireAuthority(authority);
       exportData = profiles
-          .map((p) => ProfileExportData.fromDatabase(p))
+          .map((p) => ProfileExportData.fromModel(p.toModel()))
           .toList();
     }
 

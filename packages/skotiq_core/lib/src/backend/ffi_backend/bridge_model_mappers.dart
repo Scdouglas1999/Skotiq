@@ -312,14 +312,10 @@ extension _FfiBackendBridgeModelMappers on _FfiBackendBase {
       weatherId: p.weatherId,
       safetyMonitorId: p.safetyMonitorId,
       coverCalibratorId: p.coverCalibratorId,
-      // The bridge schema still carries the legacy telescope* field names,
-      // while current Drift profiles store optics in focalLength/aperture.
-      // Serialize the effective values so legacy and current rows both reach
-      // FFI consumers (notably the headless planetarium FOV endpoint).
-      telescopeFocalLength: p.focalLength > 0
-          ? p.focalLength
-          : p.telescopeFocalLength,
-      telescopeAperture: p.aperture > 0 ? p.aperture : p.telescopeAperture,
+      // The native profile names its optics telescope*, but they are the
+      // effective train (the headless planetarium FOV endpoint reads them).
+      telescopeFocalLength: p.effectiveFocalLength,
+      telescopeAperture: p.effectiveAperture,
     );
   }
 }

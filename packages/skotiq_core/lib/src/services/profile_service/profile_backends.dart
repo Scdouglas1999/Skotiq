@@ -143,149 +143,36 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     _requireAuthority(authority);
     final host = _hostProfiles;
-    if (host != null) {
-      final existingProfiles = await host.getProfiles();
-      _requireAuthority(authority);
-      var name = data.name;
-      var suffix = 1;
-      while (existingProfiles.any((p) => p.name == name)) {
-        name = '${data.name} ($suffix)';
-        suffix++;
-      }
-
-      final model = EquipmentProfileModel(
-        name: name,
-        description: data.description,
-        cameraId: data.cameraId,
-        mountId: data.mountId,
-        focuserId: data.focuserId,
-        filterWheelId: data.filterWheelId,
-        guiderId: data.guiderId,
-        guideCameraId: data.guideCameraId,
-        guideFocalLength: data.guideFocalLength,
-        rotatorId: data.rotatorId,
-        domeId: data.domeId,
-        weatherId: data.weatherId,
-        safetyMonitorId: data.safetyMonitorId,
-        switchId: data.switchId,
-        coverCalibratorId: data.coverCalibratorId,
-        cameraName: data.cameraName,
-        mountName: data.mountName,
-        focuserName: data.focuserName,
-        filterWheelName: data.filterWheelName,
-        guiderName: data.guiderName,
-        guideCameraName: data.guideCameraName,
-        rotatorName: data.rotatorName,
-        safetyMonitorName: data.safetyMonitorName,
-        switchName: data.switchName,
-        telescopeName: data.telescopeName,
-        telescopeFocalLength: data.telescopeFocalLength,
-        telescopeAperture: data.telescopeAperture,
-        focalLength: data.focalLength,
-        aperture: data.aperture,
-        focalRatio: data.focalRatio,
-        defaultGain: data.defaultGain,
-        defaultOffset: data.defaultOffset,
-        defaultReadoutMode: data.defaultReadoutMode,
-        defaultBinX: data.defaultBinX,
-        defaultBinY: data.defaultBinY,
-        defaultCoolingTemp: data.defaultCoolingTemp,
-        coolOnConnect: data.coolOnConnect,
-        defaultCenteringExposure: data.defaultCenteringExposure,
-        filterNames: data.filterNames ?? const [],
-        filterFocusOffsets: data.filterFocusOffsets ?? const {},
-        meridianFlipOverrides: data.meridianFlipOverrides,
-        profileIcon: data.profileIcon,
-        profileColor: data.profileColor,
-      );
-      await host.saveProfile(model.toRemoteProfile());
-      _requireAuthority(authority);
-      _ref.invalidate(equipmentProfilesProvider);
-      final savedText = host.lastSavedProfileId;
-      final savedId = savedText == null ? null : int.tryParse(savedText);
-      if (savedId != null && savedId > 0) {
-        return savedId;
-      }
-      final refreshed = await host.getProfiles();
-      _requireAuthority(authority);
-      for (final profile in refreshed) {
-        if (profile.name == name) {
-          final id = int.tryParse(profile.id);
-          if (id != null) {
-            return id;
-          }
-        }
-      }
-      throw StateError(
-        'Host saved imported profile "$name" but id was not resolved',
-      );
-    }
-
-    final dao = _ref.read(equipmentProfilesDaoProvider);
-
-    // Check for name conflicts and rename if needed
-    final existingProfiles = await dao.getAllProfiles();
+    final takenNames = host != null
+        ? [for (final p in await host.getProfiles()) p.name]
+        : [
+            for (final p
+                in await _ref
+                    .read(equipmentProfilesDaoProvider)
+                    .getAllProfiles())
+              p.name,
+          ];
     _requireAuthority(authority);
     var name = data.name;
     var suffix = 1;
-    while (existingProfiles.any((p) => p.name == name)) {
+    while (takenNames.contains(name)) {
       name = '${data.name} ($suffix)';
       suffix++;
     }
+    final model = data.toModel(name: name);
 
-    final id = await dao.createProfile(
-      EquipmentProfilesCompanion.insert(
-        name: name,
-        description: Value(data.description),
-        cameraId: Value(data.cameraId),
-        mountId: Value(data.mountId),
-        focuserId: Value(data.focuserId),
-        filterWheelId: Value(data.filterWheelId),
-        guiderId: Value(data.guiderId),
-        guideCameraId: Value(data.guideCameraId),
-        guideFocalLength: Value(data.guideFocalLength),
-        rotatorId: Value(data.rotatorId),
-        domeId: Value(data.domeId),
-        weatherId: Value(data.weatherId),
-        safetyMonitorId: Value(data.safetyMonitorId),
-        switchId: Value(data.switchId),
-        coverCalibratorId: Value(data.coverCalibratorId),
-        cameraName: Value(data.cameraName),
-        mountName: Value(data.mountName),
-        focuserName: Value(data.focuserName),
-        filterWheelName: Value(data.filterWheelName),
-        guiderName: Value(data.guiderName),
-        guideCameraName: Value(data.guideCameraName),
-        rotatorName: Value(data.rotatorName),
-        safetyMonitorName: Value(data.safetyMonitorName),
-        switchName: Value(data.switchName),
-        telescopeName: Value(data.telescopeName),
-        telescopeFocalLength: Value(data.telescopeFocalLength),
-        telescopeAperture: Value(data.telescopeAperture),
-        focalLength: Value(data.focalLength),
-        aperture: Value(data.aperture),
-        focalRatio: Value(data.focalRatio),
-        defaultGain: Value(data.defaultGain),
-        defaultOffset: Value(data.defaultOffset),
-        defaultReadoutMode: Value(data.defaultReadoutMode),
-        defaultBinX: Value(data.defaultBinX),
-        defaultBinY: Value(data.defaultBinY),
-        defaultCoolingTemp: Value(data.defaultCoolingTemp),
-        coolOnConnect: Value(data.coolOnConnect),
-        defaultCenteringExposure: Value(data.defaultCenteringExposure),
-        filterNames: Value(
-          data.filterNames != null ? jsonEncode(data.filterNames) : null,
-        ),
-        filterFocusOffsets: Value(
-          data.filterFocusOffsets != null
-              ? jsonEncode(data.filterFocusOffsets)
-              : null,
-        ),
-        meridianFlipOverrides: Value(data.meridianFlipOverrides),
-        profileIcon: Value(data.profileIcon),
-        profileColor: Value(data.profileColor),
-      ),
-    );
+    if (host != null) {
+      final savedId = await host.saveProfile(model.toRemoteProfile());
+      _requireAuthority(authority);
+      _ref.invalidate(equipmentProfilesProvider);
+      return savedId;
+    }
+
+    final id = await _ref
+        .read(equipmentProfilesDaoProvider)
+        .createProfile(
+          model.toCompanion().copyWith(updatedAt: const Value.absent()),
+        );
     _requireAuthority(authority);
     return id;
   }

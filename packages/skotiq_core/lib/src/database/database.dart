@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
-import 'package:skotiq_astro/skotiq_astro.dart' show inferMosaicCaptureOrder;
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show pairingDatabaseDirEnv;
 
