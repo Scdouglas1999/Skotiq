@@ -304,56 +304,41 @@ async fn center(
         // A transient camera fault retries the capture under the run's camera
         // retry budget; it is not a centering attempt, which is about the
         // solve and the pointing.
-        let mut camera_retries = CameraRetries::new(&camera_id);
-        let image_data = loop {
-            let result = tokio::select! {
-                // Full resolution + 1x1 binning gives the plate solver the highest
-                // possible star count; binning would reduce SNR enough to fail on
-                // sparse fields.
-                result = ctx.run.device_ops.camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration),
-                ) => result,
-                _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
-                    tracing::info!("Center cancelled during exposure, aborting...");
-                    if let Err(error) = ctx.run.device_ops.camera_abort_exposure(&camera_id).await {
-                        tracing::warn!(
-                            "Center: abort-exposure failed on cancel ({}); the camera may still be \
-                             integrating and the next instruction can find it busy",
-                            error
-                        );
-                    }
-                    return InstructionResult::cancelled("Center cancelled");
-                }
-            };
-            match result {
-                Ok(data) => {
-                    tracing::info!(
-                        "[SEQ] Exposure completed: {}x{} image ({} pixels)",
-                        data.width,
-                        data.height,
-                        data.data.len()
+        //
+        // Full resolution + 1x1 binning gives the plate solver the highest
+        // possible star count; binning would reduce SNR enough to fail on
+        // sparse fields.
+        let image_data = match take_frame(
+            ctx,
+            CaptureSite::CenterFrame,
+            crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration),
+            &format!("on the centering frame (attempt {})", attempt),
+        )
+        .await
+        {
+            Ok(data) => {
+                tracing::info!(
+                    "[SEQ] Exposure completed: {}x{} image ({} pixels)",
+                    data.width,
+                    data.height,
+                    data.data.len()
+                );
+                data
+            }
+            Err(FrameEnd::Stopped { abort, .. }) => {
+                if let Err(error) = abort {
+                    tracing::warn!(
+                        "Center: abort-exposure failed on cancel ({}); the camera may still be \
+                         integrating and the next instruction can find it busy",
+                        error
                     );
-                    break data;
                 }
-                Err(e) => match camera_retries
-                    .after_failure(
-                        ctx,
-                        e,
-                        &format!("on the centering frame (attempt {})", attempt),
-                    )
-                    .await
-                {
-                    RetryOutcome::Retry => {}
-                    RetryOutcome::Cancelled => {
-                        return InstructionResult::cancelled("Center cancelled")
-                    }
-                    RetryOutcome::GiveUp(failure) => {
-                        return InstructionResult::failure(format!(
-                            "Failed to capture image: {failure}"
-                        ))
-                        .caused_by(&failure.error)
-                    }
-                },
+                return InstructionResult::cancelled("Center cancelled");
+            }
+            Err(FrameEnd::Cancelled) => return InstructionResult::cancelled("Center cancelled"),
+            Err(FrameEnd::Failed(failure)) => {
+                return InstructionResult::failure(format!("Failed to capture image: {failure}"))
+                    .caused_by(&failure.error)
             }
         };
 
