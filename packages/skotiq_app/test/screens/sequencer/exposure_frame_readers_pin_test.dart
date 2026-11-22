@@ -107,20 +107,22 @@ final _rows = <_Row>[
       night: '2/4',
       card: '2 / 4 | 2 | 0',
       activity: '2 of 4 done'),
+  // The typed `frame` counts frames captured: the native executor reports
+  // it after saving the frame. Every surface reads it that way.
   _Row('typed 2/4 running, no tally',
       typed: _typed(2, 4),
       status: NodeStatus.running,
       fold: 'L 2/4 · R 0/4',
       night: '2/4',
-      card: '2 / 4 | 1 | 2',
-      activity: '1 of 4 done · capturing 2'),
+      card: '2 / 4 | 2 | 3',
+      activity: '2 of 4 done · capturing 3'),
   _Row('typed 2/4 cancelled, no tally',
       typed: _typed(2, 4),
       status: NodeStatus.cancelled,
       fold: 'L 2/4 · R 0/4',
       night: '2/4',
-      card: '2 / 4 | 1 | 2',
-      activity: '1 of 4 done · capturing 2'),
+      card: '2 / 4 | 2 | 0',
+      activity: '2 of 4 done'),
   _Row('typed 4/4 success, no tally',
       typed: _typed(4, 4),
       status: NodeStatus.success,
@@ -133,21 +135,21 @@ final _rows = <_Row>[
       status: NodeStatus.running,
       fold: 'L 4/4 · R 0/4',
       night: '4/4',
-      card: '4 / 4 | 3 | 4',
-      activity: '3 of 4 done · capturing 4'),
+      card: '4 / 4 | 4 | 0',
+      activity: '4 of 4 done'),
   _Row('typed 2/4, no status',
       typed: _typed(2, 4),
       fold: 'L 2/4 · R 0/4',
       night: '2/4',
-      card: '2 / 4 | 1 | 2',
-      activity: '1 of 4 done · capturing 2'),
+      card: '2 / 4 | 2 | 0',
+      activity: '2 of 4 done'),
   _Row('typed 2/6 running, total differs from the node',
       typed: _typed(2, 6),
       status: NodeStatus.running,
       fold: 'L 2/6 · R 0/4',
       night: '2/6',
-      card: '2 / 6 | 1 | 2',
-      activity: '1 of 6 done · capturing 2'),
+      card: '2 / 6 | 2 | 3',
+      activity: '2 of 6 done · capturing 3'),
   // A typed report with no total is not a frame count (the native executor
   // never sends one: it reports frame n of a burst of count >= n).
   _Row('typed 2/0 running',
@@ -302,8 +304,7 @@ Future<String> _activity(WidgetTester tester, _Row row) async {
   if (row.line != null) run.updateNodeProgress(node.id, 0, row.line!);
   final tally = row.tally;
   if (tally != null) {
-    run.recordFrames(node.id,
-        captured: tally.captured, planned: tally.planned);
+    run.recordFrames(node.id, captured: tally.captured, planned: tally.planned);
   }
   await tester.pump();
   final caption = tester

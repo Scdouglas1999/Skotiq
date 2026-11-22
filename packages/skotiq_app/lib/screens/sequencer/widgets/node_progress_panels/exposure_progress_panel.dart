@@ -4,7 +4,6 @@ part of '../node_progress_panels.dart';
 const _cardFrameRules = ExposureFramesRules(
   successMeansAll: true,
   statusWhenSilent: true,
-  typedFrameExposing: true,
 );
 
 class _ExposureProgressPanel extends StatelessWidget {

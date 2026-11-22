@@ -459,7 +459,6 @@ class _ExposureActivitySectionState
           rules: const ExposureFramesRules(
             successMeansAll: true,
             statusWhenSilent: true,
-            typedFrameExposing: true,
           ),
         ) ??
         ExposureNodeFrames(captured: 0, planned: node.count);

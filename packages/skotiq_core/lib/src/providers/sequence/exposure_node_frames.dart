@@ -47,7 +47,6 @@ class ExposureFramesRules {
   const ExposureFramesRules({
     this.successMeansAll = false,
     this.statusWhenSilent = false,
-    this.typedFrameExposing = false,
   });
 
   /// A step whose status is success, or whose last line reports its final
@@ -57,16 +56,13 @@ class ExposureFramesRules {
   /// With no report at all, the status answers: success is every planned
   /// frame, a started step none; a pending step has no frames to show.
   final bool statusWhenSilent;
-
-  /// The typed report's `frame` is read as the frame exposing, not as the
-  /// frames captured.
-  final bool typedFrameExposing;
 }
 
 /// The frames an exposure step has captured, planned and is exposing, from
 /// what the run reported for it, in one order: the per-step [tally], then
 /// the typed Exposure report [typed], then the step's progress [line], then
-/// its [status]. [plannedFallback] is the step's own count, used when the
+/// its [status]. The typed report's `frame` is the number of frames
+/// captured: the native executor sends it after each frame is saved. [plannedFallback] is the step's own count, used when the
 /// report names no total. Null when nothing reports any frames.
 ExposureNodeFrames? exposureNodeFrames({
   NodeExposureTally? tally,
@@ -93,14 +89,6 @@ ExposureNodeFrames? exposureNodeFrames({
     final total = typed.total;
     if (rules.successMeansAll && status == NodeStatus.success) {
       return ExposureNodeFrames(captured: total, planned: total);
-    }
-    if (rules.typedFrameExposing) {
-      return ExposureNodeFrames(
-        captured: (typed.frame - 1).clamp(0, total),
-        planned: total,
-        inFlight: typed.frame,
-        named: typed.frame,
-      );
     }
     final captured = typed.frame.clamp(0, total);
     return ExposureNodeFrames(
