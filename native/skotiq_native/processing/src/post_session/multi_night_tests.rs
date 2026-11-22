@@ -634,3 +634,32 @@ fn local_drizzle_build_preserves_faint_structure_and_removes_changing_gradients(
     println!("local+2x drizzle: background left={l:.3}, right={r:.3}, faint contrast={:.3}, rejected={}, retained={}", f-l, result["rejected"], delivered["retainedArea"]);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// The rejection tokens a multi-night build takes, and what each one runs.
+#[test]
+fn multi_night_rejection_tokens_read_as_they_do_today() {
+    use crate::post_session::multi_night::build_rejection;
+    use skotiq_imaging::integration::Reject;
+    let pi = |n| Reject::pixinsight_auto(n);
+    for (token, frames, expected) in [
+        (None, 22, pi(22)),
+        (Some(""), 5, pi(5)),
+        (Some(" AUTO "), 30, pi(30)),
+        (Some("none"), 9, Reject::None),
+        (Some("percentile"), 9, Reject::PercentileClip { low: 0.2, high: 0.1 }),
+        (Some("winsorized"), 9, Reject::WinsorizedSigmaClip { low: 4.0, high: 3.0 }),
+        (Some("winsorizedSigma"), 9, Reject::WinsorizedSigmaClip { low: 4.0, high: 3.0 }),
+        (Some("linearFit"), 9, Reject::LinearFitClip { low: 5.0, high: 4.0 }),
+        (Some("esd"), 9, pi(25)),
+        (Some("generalizedESD"), 9, pi(25)),
+    ] {
+        assert_eq!(build_rejection(token, frames), Ok(expected), "{token:?}");
+    }
+    for token in ["sigmaClip", "minMax", "percentileClip", "linear_fit", "winsorized_sigma", "bogus"] {
+        assert_eq!(
+            build_rejection(Some(token), 9),
+            Err(format!("unknown rejection '{}'", token.to_ascii_lowercase())),
+            "{token:?}"
+        );
+    }
+}

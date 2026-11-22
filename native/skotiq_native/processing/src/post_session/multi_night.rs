@@ -480,7 +480,7 @@ pub(crate) fn calibrate_for_fold(
 }
 
 /// The rejection the build applies, from the request token.
-fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
+pub(crate) fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
     Ok(
         match token
             .map(str::trim)

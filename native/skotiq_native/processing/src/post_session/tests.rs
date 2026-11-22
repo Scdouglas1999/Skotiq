@@ -2350,3 +2350,49 @@ fn flat_pedestal_state_reads_the_cards_it_reads_today() {
         FlatPedestal::Removed
     );
 }
+
+/// The rejection tokens one night's integration takes, and what each one runs.
+#[test]
+fn integration_rejection_tokens_read_as_they_do_today() {
+    use crate::post_session::args::IntegrationArgs;
+    use crate::post_session::helpers::{auto_reject, build_integration_config};
+    use skotiq_imaging::integration::Reject;
+    let args = |reject: &str| IntegrationArgs {
+        reject: reject.to_string(),
+        reject_low: 2.5,
+        reject_high: 3.5,
+        min_max_low: 1,
+        min_max_high: 2,
+        ..IntegrationArgs::default()
+    };
+    let (low, high) = (2.5, 3.5);
+    for (token, expected) in [
+        ("", auto_reject(9, low, high)),
+        ("Auto", auto_reject(9, low, high)),
+        ("none", Reject::None),
+        ("sigmaClip", Reject::SigmaClip { low, high }),
+        ("sigma_clip", Reject::SigmaClip { low, high }),
+        ("winsorizedSigma", Reject::WinsorizedSigmaClip { low, high }),
+        ("winsorized_sigma", Reject::WinsorizedSigmaClip { low, high }),
+        ("winsorizedSigmaClip", Reject::WinsorizedSigmaClip { low, high }),
+        ("linearFit", Reject::LinearFitClip { low, high }),
+        ("linear_fit", Reject::LinearFitClip { low, high }),
+        ("linearFitClip", Reject::LinearFitClip { low, high }),
+        ("percentile", Reject::PercentileClip { low, high }),
+        ("percentileClip", Reject::PercentileClip { low, high }),
+        ("minMax", Reject::MinMax { n_low: 1, n_high: 2 }),
+        ("min_max", Reject::MinMax { n_low: 1, n_high: 2 }),
+    ] {
+        assert_eq!(build_integration_config(&args(token), 9).unwrap().reject, expected, "{token:?}");
+    }
+    for token in ["winsorized", "esd", "generalizedEsd", "bogus"] {
+        assert_eq!(
+            build_integration_config(&args(token), 9).unwrap_err(),
+            format!("unknown reject algorithm '{}'", token.to_ascii_lowercase()),
+            "{token:?}"
+        );
+    }
+    assert_eq!(auto_reject(7, low, high), Reject::PercentileClip { low: 0.2, high: 0.1 });
+    assert_eq!(auto_reject(24, low, high), Reject::WinsorizedSigmaClip { low, high });
+    assert_eq!(auto_reject(25, low, high), Reject::LinearFitClip { low, high });
+}
