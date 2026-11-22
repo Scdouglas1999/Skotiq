@@ -1,4 +1,4 @@
-// Mobile Companion — Internet Reachability via Tailscale (P3).
+// Mobile Companion — Internet Reachability via Tailscale.
 //
 // Guided "connect over Tailscale" bottom sheet. This is the primary
 // onboarding path for an off-site operator: the phone is NOT on the

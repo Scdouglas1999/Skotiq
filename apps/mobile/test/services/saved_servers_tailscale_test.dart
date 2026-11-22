@@ -1,4 +1,4 @@
-// Mobile Companion — Internet Reachability via Tailscale (P3).
+// Mobile Companion — Internet Reachability via Tailscale.
 //
 // Tests for the Tailscale additions to SavedServer / SavedServersService:
 //   * scheme (http/https) round-trips and validates fail-closed.

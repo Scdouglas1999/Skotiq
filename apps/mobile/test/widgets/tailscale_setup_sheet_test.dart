@@ -1,4 +1,4 @@
-// Mobile Companion — Internet Reachability via Tailscale (P3).
+// Mobile Companion — Internet Reachability via Tailscale.
 //
 // Widget tests for TailscaleSetupSheet:
 //   * a tailnet host + port + scheme + token returns a TailscaleSetupResult.
