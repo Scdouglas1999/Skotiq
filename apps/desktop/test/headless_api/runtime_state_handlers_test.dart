@@ -49,13 +49,14 @@ void main() {
         ),
       ],
     );
+    // Registered after the database's close, so the container (whose
+    // channels hold database watches) is disposed first.
+    addTearDown(container.dispose);
     broadcast = <SkotiqEvent>[];
     container.read(hostMutationEventHubProvider).wsBroadcast = broadcast.add;
     nightEvents = NightEventLog();
     handlers = RuntimeStateHandlers(container, nightEvents: nightEvents);
   });
-
-  tearDown(() => container.dispose());
 
   test('GET serves the latest value of every channel', () async {
     final response = await handlers.handleGetState(

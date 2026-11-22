@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart'
+    show SequencerNightEnd, SequencerTriggerAction;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -84,14 +86,16 @@ void main() {
     return session;
   }
 
-  /// The dawn park ends the run of [session].
+  /// The dawn park ends the run of [session], as the dawn trigger's stop
+  /// reaches the app.
   void dawnEnds(ProviderContainer container, int session, int runId) {
     container
         .read(runRecordProvider.notifier)
-        .setStopEvidence(const SequenceStopDecision(
-          SequenceStopAuthor.system,
-          origin: 'dawn_approaching',
-          parked: true,
+        .setStopEvidence(sequenceStopTriggerDecision(
+          triggerId: 'dawn_approaching',
+          triggerName: 'Dawn Approaching',
+          action: SequencerTriggerAction.parkAndAbort,
+          nightEnd: SequencerNightEnd.dawn,
         ));
     container
         .read(runRecordProvider.notifier)
