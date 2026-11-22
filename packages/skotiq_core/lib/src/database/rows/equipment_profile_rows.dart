@@ -28,62 +28,18 @@ EquipmentProfileModel equipmentProfileFromRemote(
   updatedAt: profile.updatedAt,
 );
 
+// BEGIN GENERATED equipment-profile rows
+// dart format off
 EquipmentProfileModel _profileFromRow(
   DbEquipmentProfile db, {
   required int? id,
   required DateTime? createdAt,
   required DateTime? updatedAt,
 }) {
-  List<String> filters = [];
-  Map<String, int> offsets = {};
-  final rawTelescopeFocalLength = db.telescopeFocalLength;
-  final rawTelescopeAperture = db.telescopeAperture;
-  final telescopeFocalLength =
-      rawTelescopeFocalLength != null && rawTelescopeFocalLength > 0
-      ? rawTelescopeFocalLength
-      : null;
-  final telescopeAperture =
-      rawTelescopeAperture != null && rawTelescopeAperture > 0
-      ? rawTelescopeAperture
-      : null;
-  final effectiveFocalLength = db.focalLength > 0
-      ? db.focalLength
-      : (telescopeFocalLength ?? 0.0);
-  final effectiveAperture = db.aperture > 0
-      ? db.aperture
-      : (telescopeAperture ?? 0.0);
-
-  if (db.filterNames != null) {
-    try {
-      filters = decodeStringListJson(
-        db.filterNames,
-        context: 'equipment_profiles.filter_names for "${db.name}"',
-      );
-    } catch (e) {
-      _log.warning(
-        'Failed to parse filterNames JSON for profile "${db.name}": $e',
-      );
-    }
-  }
-
-  if (db.filterFocusOffsets != null) {
-    try {
-      offsets = decodeStringIntMapJson(
-        db.filterFocusOffsets,
-        context: 'equipment_profiles.filter_focus_offsets for "${db.name}"',
-      );
-    } catch (e) {
-      _log.warning(
-        'Failed to parse filterFocusOffsets JSON for profile "${db.name}": $e',
-      );
-    }
-  }
-
   return EquipmentProfileModel(
     id: id,
     name: db.name,
     description: db.description,
-    isActive: db.isActive,
     cameraId: db.cameraId,
     mountId: db.mountId,
     focuserId: db.focuserId,
@@ -97,6 +53,20 @@ EquipmentProfileModel _profileFromRow(
     safetyMonitorId: db.safetyMonitorId,
     switchId: db.switchId,
     coverCalibratorId: db.coverCalibratorId,
+    focalLength: db.focalLength > 0 ? db.focalLength : (_positiveOrNull(db.telescopeFocalLength) ?? 0.0),
+    aperture: db.aperture > 0 ? db.aperture : (_positiveOrNull(db.telescopeAperture) ?? 0.0),
+    focalRatio: db.focalRatio,
+    defaultGain: db.defaultGain,
+    defaultOffset: db.defaultOffset,
+    defaultReadoutMode: db.defaultReadoutMode,
+    defaultBinX: db.defaultBinX,
+    defaultBinY: db.defaultBinY,
+    defaultCoolingTemp: db.defaultCoolingTemp,
+    coolOnConnect: db.coolOnConnect,
+    defaultCenteringExposure: db.defaultCenteringExposure,
+    filterNames: _storedFilterNames(db.filterNames, field: 'filterNames', column: 'filter_names', profile: db.name),
+    filterFocusOffsets: _storedFocusOffsets(db.filterFocusOffsets, field: 'filterFocusOffsets', column: 'filter_focus_offsets', profile: db.name),
+    meridianFlipOverrides: db.meridianFlipOverrides,
     cameraName: db.cameraName,
     mountName: db.mountName,
     focuserName: db.focuserName,
@@ -107,24 +77,11 @@ EquipmentProfileModel _profileFromRow(
     safetyMonitorName: db.safetyMonitorName,
     switchName: db.switchName,
     telescopeName: db.telescopeName,
-    telescopeFocalLength: telescopeFocalLength,
-    telescopeAperture: telescopeAperture,
-    focalLength: effectiveFocalLength,
-    aperture: effectiveAperture,
-    focalRatio: db.focalRatio,
-    defaultGain: db.defaultGain,
-    defaultOffset: db.defaultOffset,
-    defaultReadoutMode: db.defaultReadoutMode,
-    defaultBinX: db.defaultBinX,
-    defaultBinY: db.defaultBinY,
-    defaultCoolingTemp: db.defaultCoolingTemp,
-    coolOnConnect: db.coolOnConnect,
-    defaultCenteringExposure: db.defaultCenteringExposure,
-    filterNames: filters,
-    filterFocusOffsets: offsets,
-    meridianFlipOverrides: db.meridianFlipOverrides,
+    telescopeFocalLength: _positiveOrNull(db.telescopeFocalLength),
+    telescopeAperture: _positiveOrNull(db.telescopeAperture),
     profileIcon: db.profileIcon,
     profileColor: db.profileColor,
+    isActive: db.isActive,
     sortOrder: db.sortOrder,
     isDefault: db.isDefault,
     createdAt: createdAt,
@@ -133,12 +90,12 @@ EquipmentProfileModel _profileFromRow(
 }
 
 extension EquipmentProfileModelRow on EquipmentProfileModel {
+  /// The row a save of this profile writes.
   EquipmentProfilesCompanion toCompanion() {
     return EquipmentProfilesCompanion(
       id: id != null ? Value(id!) : const Value.absent(),
       name: Value(name),
       description: Value(description),
-      isActive: Value(isActive),
       cameraId: Value(cameraId),
       mountId: Value(mountId),
       focuserId: Value(focuserId),
@@ -152,6 +109,20 @@ extension EquipmentProfileModelRow on EquipmentProfileModel {
       safetyMonitorId: Value(safetyMonitorId),
       switchId: Value(switchId),
       coverCalibratorId: Value(coverCalibratorId),
+      focalLength: Value(focalLength),
+      aperture: Value(aperture),
+      focalRatio: Value(focalRatio),
+      defaultGain: Value(defaultGain),
+      defaultOffset: Value(defaultOffset),
+      defaultReadoutMode: Value(defaultReadoutMode),
+      defaultBinX: Value(defaultBinX),
+      defaultBinY: Value(defaultBinY),
+      defaultCoolingTemp: Value(defaultCoolingTemp),
+      coolOnConnect: Value(coolOnConnect),
+      defaultCenteringExposure: Value(defaultCenteringExposure),
+      filterNames: Value(filterNames.isNotEmpty ? jsonEncode(filterNames) : null),
+      filterFocusOffsets: Value(filterFocusOffsets.isNotEmpty ? jsonEncode(filterFocusOffsets) : null),
+      meridianFlipOverrides: Value(meridianFlipOverrides),
       cameraName: Value(cameraName),
       mountName: Value(mountName),
       focuserName: Value(focuserName),
@@ -164,29 +135,53 @@ extension EquipmentProfileModelRow on EquipmentProfileModel {
       telescopeName: Value(telescopeName),
       telescopeFocalLength: Value(telescopeFocalLength),
       telescopeAperture: Value(telescopeAperture),
-      focalLength: Value(focalLength),
-      aperture: Value(aperture),
-      focalRatio: Value(focalRatio),
-      defaultGain: Value(defaultGain),
-      defaultOffset: Value(defaultOffset),
-      defaultReadoutMode: Value(defaultReadoutMode),
-      defaultBinX: Value(defaultBinX),
-      defaultBinY: Value(defaultBinY),
-      defaultCoolingTemp: Value(defaultCoolingTemp),
-      coolOnConnect: Value(coolOnConnect),
-      defaultCenteringExposure: Value(defaultCenteringExposure),
-      filterNames: Value(
-        filterNames.isNotEmpty ? jsonEncode(filterNames) : null,
-      ),
-      filterFocusOffsets: Value(
-        filterFocusOffsets.isNotEmpty ? jsonEncode(filterFocusOffsets) : null,
-      ),
-      meridianFlipOverrides: Value(meridianFlipOverrides),
       profileIcon: Value(profileIcon),
       profileColor: Value(profileColor),
+      isActive: Value(isActive),
       sortOrder: Value(sortOrder),
       isDefault: Value(isDefault),
       updatedAt: Value(DateTime.now()),
     );
+  }
+}
+// dart format on
+// END GENERATED equipment-profile rows
+
+double? _positiveOrNull(double? value) =>
+    value != null && value > 0 ? value : null;
+
+List<String> _storedFilterNames(
+  String? stored, {
+  required String field,
+  required String column,
+  required String profile,
+}) {
+  if (stored == null) return <String>[];
+  try {
+    return decodeStringListJson(
+      stored,
+      context: 'equipment_profiles.$column for "$profile"',
+    );
+  } catch (e) {
+    _log.warning('Failed to parse $field JSON for profile "$profile": $e');
+    return <String>[];
+  }
+}
+
+Map<String, int> _storedFocusOffsets(
+  String? stored, {
+  required String field,
+  required String column,
+  required String profile,
+}) {
+  if (stored == null) return <String, int>{};
+  try {
+    return decodeStringIntMapJson(
+      stored,
+      context: 'equipment_profiles.$column for "$profile"',
+    );
+  } catch (e) {
+    _log.warning('Failed to parse $field JSON for profile "$profile": $e');
+    return <String, int>{};
   }
 }

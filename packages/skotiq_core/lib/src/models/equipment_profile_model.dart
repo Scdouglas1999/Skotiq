@@ -4,13 +4,15 @@ import 'optical_train_limits.dart';
 import 'backend/device_types.dart' show DeviceType;
 import 'equipment_profile.dart' as remote_profile;
 
-/// A fully-typed model representing an equipment profile
+/// An equipment profile: the devices, optics and camera defaults of one rig.
+///
+/// Its fields come from `equipment_profile_fields.dart`.
 class EquipmentProfileModel {
+  // BEGIN GENERATED equipment-profile model
+  // dart format off
   final int? id;
   final String name;
   final String? description;
-  final bool isActive;
-
   final String? cameraId;
   final String? mountId;
   final String? focuserId;
@@ -24,8 +26,20 @@ class EquipmentProfileModel {
   final String? safetyMonitorId;
   final String? switchId;
   final String? coverCalibratorId;
-
-  // User-friendly device names (can be auto-generated or custom)
+  final double focalLength;
+  final double aperture;
+  final double? focalRatio;
+  final int? defaultGain;
+  final int? defaultOffset;
+  final String? defaultReadoutMode;
+  final int defaultBinX;
+  final int defaultBinY;
+  final double? defaultCoolingTemp;
+  final bool coolOnConnect;
+  final double? defaultCenteringExposure;
+  final List<String> filterNames;
+  final Map<String, int> filterFocusOffsets;
+  final String? meridianFlipOverrides;
   final String? cameraName;
   final String? mountName;
   final String? focuserName;
@@ -35,40 +49,14 @@ class EquipmentProfileModel {
   final String? rotatorName;
   final String? safetyMonitorName;
   final String? switchName;
-
-  // Telescope/OTA information
   final String? telescopeName;
   final double? telescopeFocalLength;
   final double? telescopeAperture;
-
-  // Optical setup (profile-level, may differ from telescope if using reducers/barlows)
-  final double focalLength;
-  final double aperture;
-  final double? focalRatio;
-
-  // Camera defaults
-  final int? defaultGain;
-  final int? defaultOffset;
-  final String? defaultReadoutMode;
-  final int defaultBinX;
-  final int defaultBinY;
-  final double? defaultCoolingTemp;
-  final bool coolOnConnect;
-
-  // Centering/plate-solve default exposure (seconds)
-  final double? defaultCenteringExposure;
-
-  final List<String> filterNames;
-  final Map<String, int> filterFocusOffsets;
-
-  // Meridian flip settings overrides (raw JSON; null = use global defaults)
-  final String? meridianFlipOverrides;
-
   final String? profileIcon;
   final int? profileColor;
+  final bool isActive;
   final int sortOrder;
   final bool isDefault;
-
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -76,7 +64,6 @@ class EquipmentProfileModel {
     this.id,
     required this.name,
     this.description,
-    this.isActive = false,
     this.cameraId,
     this.mountId,
     this.focuserId,
@@ -90,18 +77,6 @@ class EquipmentProfileModel {
     this.safetyMonitorId,
     this.switchId,
     this.coverCalibratorId,
-    this.cameraName,
-    this.mountName,
-    this.focuserName,
-    this.filterWheelName,
-    this.guiderName,
-    this.guideCameraName,
-    this.rotatorName,
-    this.safetyMonitorName,
-    this.switchName,
-    this.telescopeName,
-    this.telescopeFocalLength,
-    this.telescopeAperture,
     this.focalLength = 0.0,
     this.aperture = 0.0,
     this.focalRatio,
@@ -116,13 +91,243 @@ class EquipmentProfileModel {
     this.filterNames = const [],
     this.filterFocusOffsets = const {},
     this.meridianFlipOverrides,
+    this.cameraName,
+    this.mountName,
+    this.focuserName,
+    this.filterWheelName,
+    this.guiderName,
+    this.guideCameraName,
+    this.rotatorName,
+    this.safetyMonitorName,
+    this.switchName,
+    this.telescopeName,
+    this.telescopeFocalLength,
+    this.telescopeAperture,
     this.profileIcon,
     this.profileColor,
+    this.isActive = false,
     this.sortOrder = 0,
     this.isDefault = false,
     this.createdAt,
     this.updatedAt,
   });
+
+  /// A copy with the given fields replaced; a field left out or
+  /// passed null keeps its value.
+  EquipmentProfileModel copyWith({
+    int? id,
+    String? name,
+    String? description,
+    String? cameraId,
+    String? mountId,
+    String? focuserId,
+    String? filterWheelId,
+    String? guiderId,
+    String? guideCameraId,
+    double? guideFocalLength,
+    String? rotatorId,
+    String? domeId,
+    String? weatherId,
+    String? safetyMonitorId,
+    String? switchId,
+    String? coverCalibratorId,
+    double? focalLength,
+    double? aperture,
+    double? focalRatio,
+    int? defaultGain,
+    int? defaultOffset,
+    String? defaultReadoutMode,
+    bool clearDefaultReadoutMode = false,
+    int? defaultBinX,
+    int? defaultBinY,
+    double? defaultCoolingTemp,
+    bool? coolOnConnect,
+    double? defaultCenteringExposure,
+    List<String>? filterNames,
+    Map<String, int>? filterFocusOffsets,
+    String? meridianFlipOverrides,
+    String? cameraName,
+    String? mountName,
+    String? focuserName,
+    String? filterWheelName,
+    String? guiderName,
+    String? guideCameraName,
+    String? rotatorName,
+    String? safetyMonitorName,
+    String? switchName,
+    String? telescopeName,
+    double? telescopeFocalLength,
+    double? telescopeAperture,
+    String? profileIcon,
+    int? profileColor,
+    bool? isActive,
+    int? sortOrder,
+    bool? isDefault,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return EquipmentProfileModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      cameraId: cameraId ?? this.cameraId,
+      mountId: mountId ?? this.mountId,
+      focuserId: focuserId ?? this.focuserId,
+      filterWheelId: filterWheelId ?? this.filterWheelId,
+      guiderId: guiderId ?? this.guiderId,
+      guideCameraId: guideCameraId ?? this.guideCameraId,
+      guideFocalLength: guideFocalLength ?? this.guideFocalLength,
+      rotatorId: rotatorId ?? this.rotatorId,
+      domeId: domeId ?? this.domeId,
+      weatherId: weatherId ?? this.weatherId,
+      safetyMonitorId: safetyMonitorId ?? this.safetyMonitorId,
+      switchId: switchId ?? this.switchId,
+      coverCalibratorId: coverCalibratorId ?? this.coverCalibratorId,
+      focalLength: focalLength ?? this.focalLength,
+      aperture: aperture ?? this.aperture,
+      focalRatio: focalRatio ?? this.focalRatio,
+      defaultGain: defaultGain ?? this.defaultGain,
+      defaultOffset: defaultOffset ?? this.defaultOffset,
+      defaultReadoutMode: clearDefaultReadoutMode ? null : (defaultReadoutMode ?? this.defaultReadoutMode),
+      defaultBinX: defaultBinX ?? this.defaultBinX,
+      defaultBinY: defaultBinY ?? this.defaultBinY,
+      defaultCoolingTemp: defaultCoolingTemp ?? this.defaultCoolingTemp,
+      coolOnConnect: coolOnConnect ?? this.coolOnConnect,
+      defaultCenteringExposure: defaultCenteringExposure ?? this.defaultCenteringExposure,
+      filterNames: filterNames ?? this.filterNames,
+      filterFocusOffsets: filterFocusOffsets ?? this.filterFocusOffsets,
+      meridianFlipOverrides: meridianFlipOverrides ?? this.meridianFlipOverrides,
+      cameraName: cameraName ?? this.cameraName,
+      mountName: mountName ?? this.mountName,
+      focuserName: focuserName ?? this.focuserName,
+      filterWheelName: filterWheelName ?? this.filterWheelName,
+      guiderName: guiderName ?? this.guiderName,
+      guideCameraName: guideCameraName ?? this.guideCameraName,
+      rotatorName: rotatorName ?? this.rotatorName,
+      safetyMonitorName: safetyMonitorName ?? this.safetyMonitorName,
+      switchName: switchName ?? this.switchName,
+      telescopeName: telescopeName ?? this.telescopeName,
+      telescopeFocalLength: telescopeFocalLength ?? this.telescopeFocalLength,
+      telescopeAperture: telescopeAperture ?? this.telescopeAperture,
+      profileIcon: profileIcon ?? this.profileIcon,
+      profileColor: profileColor ?? this.profileColor,
+      isActive: isActive ?? this.isActive,
+      sortOrder: sortOrder ?? this.sortOrder,
+      isDefault: isDefault ?? this.isDefault,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  /// A new profile to insert with every field of this one and
+  /// [name]: no id (so the host or the DAO creates a row, where
+  /// `copyWith(id: null)` would keep the id and rename this one),
+  /// neither active nor default, and fresh timestamps.
+  EquipmentProfileModel toInsertionCopy({required String name}) {
+    return EquipmentProfileModel(
+      name: name,
+      description: description,
+      cameraId: cameraId,
+      mountId: mountId,
+      focuserId: focuserId,
+      filterWheelId: filterWheelId,
+      guiderId: guiderId,
+      guideCameraId: guideCameraId,
+      guideFocalLength: guideFocalLength,
+      rotatorId: rotatorId,
+      domeId: domeId,
+      weatherId: weatherId,
+      safetyMonitorId: safetyMonitorId,
+      switchId: switchId,
+      coverCalibratorId: coverCalibratorId,
+      focalLength: focalLength,
+      aperture: aperture,
+      focalRatio: focalRatio,
+      defaultGain: defaultGain,
+      defaultOffset: defaultOffset,
+      defaultReadoutMode: defaultReadoutMode,
+      defaultBinX: defaultBinX,
+      defaultBinY: defaultBinY,
+      defaultCoolingTemp: defaultCoolingTemp,
+      coolOnConnect: coolOnConnect,
+      defaultCenteringExposure: defaultCenteringExposure,
+      filterNames: filterNames,
+      filterFocusOffsets: filterFocusOffsets,
+      meridianFlipOverrides: meridianFlipOverrides,
+      cameraName: cameraName,
+      mountName: mountName,
+      focuserName: focuserName,
+      filterWheelName: filterWheelName,
+      guiderName: guiderName,
+      guideCameraName: guideCameraName,
+      rotatorName: rotatorName,
+      safetyMonitorName: safetyMonitorName,
+      switchName: switchName,
+      telescopeName: telescopeName,
+      telescopeFocalLength: telescopeFocalLength,
+      telescopeAperture: telescopeAperture,
+      profileIcon: profileIcon,
+      profileColor: profileColor,
+      sortOrder: sortOrder,
+    );
+  }
+
+  /// REST `/api/profiles` body for host-authoritative writes.
+  remote_profile.EquipmentProfile toRemoteProfile() {
+    return remote_profile.EquipmentProfile(
+      id: id?.toString() ?? '',
+      name: name,
+      description: description,
+      cameraId: cameraId,
+      mountId: mountId,
+      focuserId: focuserId,
+      filterWheelId: filterWheelId,
+      guiderId: guiderId,
+      guideCameraId: guideCameraId,
+      guideFocalLength: guideFocalLength,
+      rotatorId: rotatorId,
+      domeId: domeId,
+      weatherId: weatherId,
+      safetyMonitorId: safetyMonitorId,
+      switchId: switchId,
+      coverCalibratorId: coverCalibratorId,
+      focalLength: focalLength,
+      aperture: aperture,
+      focalRatio: focalRatio,
+      defaultGain: defaultGain,
+      defaultOffset: defaultOffset,
+      defaultReadoutMode: defaultReadoutMode,
+      defaultBinX: defaultBinX,
+      defaultBinY: defaultBinY,
+      defaultCoolingTemp: defaultCoolingTemp,
+      coolOnConnect: coolOnConnect,
+      defaultCenteringExposure: defaultCenteringExposure,
+      filterNames: filterNames.isNotEmpty ? jsonEncode(filterNames) : null,
+      filterFocusOffsets: filterFocusOffsets.isNotEmpty ? jsonEncode(filterFocusOffsets) : null,
+      meridianFlipOverrides: meridianFlipOverrides,
+      cameraName: cameraName,
+      mountName: mountName,
+      focuserName: focuserName,
+      filterWheelName: filterWheelName,
+      guiderName: guiderName,
+      guideCameraName: guideCameraName,
+      rotatorName: rotatorName,
+      safetyMonitorName: safetyMonitorName,
+      switchName: switchName,
+      telescopeName: telescopeName,
+      telescopeFocalLength: telescopeFocalLength ?? 0.0,
+      telescopeAperture: telescopeAperture ?? 0.0,
+      profileIcon: profileIcon,
+      profileColor: profileColor,
+      sortOrder: sortOrder,
+      isDefault: isDefault,
+      createdAt: createdAt,
+      updatedAt: updatedAt ?? DateTime.now(),
+      isActive: isActive,
+    );
+  }
+  // dart format on
+  // END GENERATED equipment-profile model
 
   /// Telescope and camera name, else the first name there is, else how many
   /// slots the profile assigns (the count [RigDevices] gives for the active
@@ -189,179 +394,6 @@ class EquipmentProfileModel {
       (guideCameraId ?? '').isNotEmpty ||
       DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
 
-  EquipmentProfileModel copyWith({
-    int? id,
-    String? name,
-    String? description,
-    bool? isActive,
-    String? cameraId,
-    String? mountId,
-    String? focuserId,
-    String? filterWheelId,
-    String? guiderId,
-    String? guideCameraId,
-    double? guideFocalLength,
-    String? rotatorId,
-    String? domeId,
-    String? weatherId,
-    String? safetyMonitorId,
-    String? switchId,
-    String? coverCalibratorId,
-    String? cameraName,
-    String? mountName,
-    String? focuserName,
-    String? filterWheelName,
-    String? guiderName,
-    String? guideCameraName,
-    String? rotatorName,
-    String? safetyMonitorName,
-    String? switchName,
-    String? telescopeName,
-    double? telescopeFocalLength,
-    double? telescopeAperture,
-    double? focalLength,
-    double? aperture,
-    double? focalRatio,
-    int? defaultGain,
-    int? defaultOffset,
-    String? defaultReadoutMode,
-    bool clearDefaultReadoutMode = false,
-    int? defaultBinX,
-    int? defaultBinY,
-    double? defaultCoolingTemp,
-    bool? coolOnConnect,
-    double? defaultCenteringExposure,
-    List<String>? filterNames,
-    Map<String, int>? filterFocusOffsets,
-    String? meridianFlipOverrides,
-    String? profileIcon,
-    int? profileColor,
-    int? sortOrder,
-    bool? isDefault,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) {
-    return EquipmentProfileModel(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      description: description ?? this.description,
-      isActive: isActive ?? this.isActive,
-      cameraId: cameraId ?? this.cameraId,
-      mountId: mountId ?? this.mountId,
-      focuserId: focuserId ?? this.focuserId,
-      filterWheelId: filterWheelId ?? this.filterWheelId,
-      guiderId: guiderId ?? this.guiderId,
-      guideCameraId: guideCameraId ?? this.guideCameraId,
-      guideFocalLength: guideFocalLength ?? this.guideFocalLength,
-      rotatorId: rotatorId ?? this.rotatorId,
-      domeId: domeId ?? this.domeId,
-      weatherId: weatherId ?? this.weatherId,
-      safetyMonitorId: safetyMonitorId ?? this.safetyMonitorId,
-      switchId: switchId ?? this.switchId,
-      coverCalibratorId: coverCalibratorId ?? this.coverCalibratorId,
-      cameraName: cameraName ?? this.cameraName,
-      mountName: mountName ?? this.mountName,
-      focuserName: focuserName ?? this.focuserName,
-      filterWheelName: filterWheelName ?? this.filterWheelName,
-      guiderName: guiderName ?? this.guiderName,
-      guideCameraName: guideCameraName ?? this.guideCameraName,
-      rotatorName: rotatorName ?? this.rotatorName,
-      safetyMonitorName: safetyMonitorName ?? this.safetyMonitorName,
-      switchName: switchName ?? this.switchName,
-      telescopeName: telescopeName ?? this.telescopeName,
-      telescopeFocalLength: telescopeFocalLength ?? this.telescopeFocalLength,
-      telescopeAperture: telescopeAperture ?? this.telescopeAperture,
-      focalLength: focalLength ?? this.focalLength,
-      aperture: aperture ?? this.aperture,
-      focalRatio: focalRatio ?? this.focalRatio,
-      defaultGain: defaultGain ?? this.defaultGain,
-      defaultOffset: defaultOffset ?? this.defaultOffset,
-      defaultReadoutMode: clearDefaultReadoutMode
-          ? null
-          : (defaultReadoutMode ?? this.defaultReadoutMode),
-      defaultBinX: defaultBinX ?? this.defaultBinX,
-      defaultBinY: defaultBinY ?? this.defaultBinY,
-      defaultCoolingTemp: defaultCoolingTemp ?? this.defaultCoolingTemp,
-      coolOnConnect: coolOnConnect ?? this.coolOnConnect,
-      defaultCenteringExposure:
-          defaultCenteringExposure ?? this.defaultCenteringExposure,
-      filterNames: filterNames ?? this.filterNames,
-      filterFocusOffsets: filterFocusOffsets ?? this.filterFocusOffsets,
-      meridianFlipOverrides:
-          meridianFlipOverrides ?? this.meridianFlipOverrides,
-      profileIcon: profileIcon ?? this.profileIcon,
-      profileColor: profileColor ?? this.profileColor,
-      sortOrder: sortOrder ?? this.sortOrder,
-      isDefault: isDefault ?? this.isDefault,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  /// Build a fresh INSERTION copy of this profile: no id, inert
-  /// active/default flags, fresh timestamps, and the supplied [name]. Every
-  /// other device id/name, optical, camera-default, filter, meridian-flip and
-  /// customization field is preserved verbatim.
-  ///
-  /// Why not `copyWith`: `copyWith`'s nullable `id ?? this.id` semantics CANNOT
-  /// clear the id — `copyWith(id: null)` silently keeps the source id, which on
-  /// the remote path makes the host UPDATE (rename) the source instead of
-  /// creating a copy, and it also retains `isDefault`. This constructs a genuine
-  /// create with `id == null` (so `toRemoteProfile()` emits an empty id the host
-  /// treats as a create) and `isActive == false` / `isDefault == false`.
-  EquipmentProfileModel toInsertionCopy({required String name}) {
-    return EquipmentProfileModel(
-      // id intentionally omitted -> null -> host/DAO treats this as a CREATE.
-      name: name,
-      description: description,
-      isActive: false,
-      isDefault: false,
-      cameraId: cameraId,
-      mountId: mountId,
-      focuserId: focuserId,
-      filterWheelId: filterWheelId,
-      guiderId: guiderId,
-      guideCameraId: guideCameraId,
-      guideFocalLength: guideFocalLength,
-      rotatorId: rotatorId,
-      domeId: domeId,
-      weatherId: weatherId,
-      safetyMonitorId: safetyMonitorId,
-      switchId: switchId,
-      coverCalibratorId: coverCalibratorId,
-      cameraName: cameraName,
-      mountName: mountName,
-      focuserName: focuserName,
-      filterWheelName: filterWheelName,
-      guiderName: guiderName,
-      guideCameraName: guideCameraName,
-      rotatorName: rotatorName,
-      safetyMonitorName: safetyMonitorName,
-      switchName: switchName,
-      telescopeName: telescopeName,
-      telescopeFocalLength: telescopeFocalLength,
-      telescopeAperture: telescopeAperture,
-      focalLength: focalLength,
-      aperture: aperture,
-      focalRatio: focalRatio,
-      defaultGain: defaultGain,
-      defaultOffset: defaultOffset,
-      defaultReadoutMode: defaultReadoutMode,
-      defaultBinX: defaultBinX,
-      defaultBinY: defaultBinY,
-      defaultCoolingTemp: defaultCoolingTemp,
-      coolOnConnect: coolOnConnect,
-      defaultCenteringExposure: defaultCenteringExposure,
-      filterNames: filterNames,
-      filterFocusOffsets: filterFocusOffsets,
-      meridianFlipOverrides: meridianFlipOverrides,
-      profileIcon: profileIcon,
-      profileColor: profileColor,
-      sortOrder: sortOrder,
-      // createdAt/updatedAt omitted -> null -> fresh timestamps on insert.
-    );
-  }
-
   /// Calculate f/ratio from focal length and aperture, or null when the numbers
   /// cannot describe a real optical system.
   ///
@@ -390,62 +422,5 @@ class EquipmentProfileModel {
     final widthDeg = 2 * (57.3 * (sensorWidthMm / (2 * focalLength)));
     final heightDeg = 2 * (57.3 * (sensorHeightMm / (2 * focalLength)));
     return (widthDeg, heightDeg);
-  }
-
-  /// REST `/api/profiles` payload for host-authoritative writes.
-  remote_profile.EquipmentProfile toRemoteProfile() {
-    return remote_profile.EquipmentProfile(
-      id: id?.toString() ?? '',
-      name: name,
-      description: description,
-      cameraId: cameraId,
-      mountId: mountId,
-      focuserId: focuserId,
-      filterWheelId: filterWheelId,
-      guiderId: guiderId,
-      guideCameraId: guideCameraId,
-      guideFocalLength: guideFocalLength,
-      rotatorId: rotatorId,
-      domeId: domeId,
-      weatherId: weatherId,
-      safetyMonitorId: safetyMonitorId,
-      switchId: switchId,
-      coverCalibratorId: coverCalibratorId,
-      focalLength: focalLength,
-      aperture: aperture,
-      focalRatio: focalRatio,
-      defaultGain: defaultGain,
-      defaultOffset: defaultOffset,
-      defaultReadoutMode: defaultReadoutMode,
-      defaultBinX: defaultBinX,
-      defaultBinY: defaultBinY,
-      defaultCoolingTemp: defaultCoolingTemp,
-      coolOnConnect: coolOnConnect,
-      defaultCenteringExposure: defaultCenteringExposure,
-      filterNames: filterNames.isNotEmpty ? jsonEncode(filterNames) : null,
-      filterFocusOffsets: filterFocusOffsets.isNotEmpty
-          ? jsonEncode(filterFocusOffsets)
-          : null,
-      meridianFlipOverrides: meridianFlipOverrides,
-      cameraName: cameraName,
-      mountName: mountName,
-      focuserName: focuserName,
-      filterWheelName: filterWheelName,
-      guiderName: guiderName,
-      guideCameraName: guideCameraName,
-      rotatorName: rotatorName,
-      safetyMonitorName: safetyMonitorName,
-      switchName: switchName,
-      telescopeName: telescopeName,
-      telescopeFocalLength: telescopeFocalLength ?? 0.0,
-      telescopeAperture: telescopeAperture ?? 0.0,
-      profileIcon: profileIcon,
-      profileColor: profileColor,
-      sortOrder: sortOrder,
-      isDefault: isDefault,
-      createdAt: createdAt,
-      updatedAt: updatedAt ?? DateTime.now(),
-      isActive: isActive,
-    );
   }
 }
