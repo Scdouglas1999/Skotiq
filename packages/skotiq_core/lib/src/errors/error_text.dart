@@ -24,7 +24,6 @@ import 'package:http/http.dart' as http;
 
 import 'bridge_error_message.dart';
 import 'device_connect_exception.dart';
-import 'skotiq_exception.dart';
 import 'server_error.dart';
 import 'skotiq_error.dart';
 
@@ -81,7 +80,7 @@ String failureText(String action, Object? error) =>
 /// [error] as a message plus, when the failure is a known one, what to do
 /// about it.
 ErrorText describeError(Object? error, {ErrorDomain? domain}) {
-  if (error is SkotiqError && error is! SkotiqException) {
+  if (error is SkotiqError) {
     return ErrorText(
       _clean(error.userMessage),
       suggestion: error.shouldReconnect
