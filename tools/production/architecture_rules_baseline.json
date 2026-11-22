@@ -93,10 +93,6 @@
         "count": 6,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider, targetMastersFolderProvider."
       },
-      "services/default_science_backend.dart": {
-        "count": 6,
-        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, imagesDaoProvider, imagingBackendProvider, loggingServiceProvider, plateSolveServiceProvider, settingsDaoProvider."
-      },
       "services/defect_map_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads linkedHostCalibrationToolsProvider."
@@ -152,14 +148,6 @@
       "services/open_plan_service.dart": {
         "count": 5,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentSequenceProvider, sequenceFileServiceProvider, sequenceRepositoryProvider, settingsDaoProvider."
-      },
-      "services/photometric_catalog_service.dart": {
-        "count": 2,
-        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, settingsDaoProvider."
-      },
-      "services/photometric_transform_service.dart": {
-        "count": 2,
-        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, scienceDaoProvider."
       },
       "services/plate_solve_service.dart": {
         "count": 4,
@@ -238,10 +226,6 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider, targetMastersFolderProvider."
       },
-      "services/default_science_backend.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads appSettingsProvider, imagesDaoProvider, imagingBackendProvider, loggingServiceProvider, plateSolveServiceProvider, settingsDaoProvider."
-      },
       "services/defect_map_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads linkedHostCalibrationToolsProvider."
@@ -293,14 +277,6 @@
       "services/open_plan_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentSequenceProvider, sequenceFileServiceProvider, sequenceRepositoryProvider, settingsDaoProvider."
-      },
-      "services/photometric_catalog_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, settingsDaoProvider."
-      },
-      "services/photometric_transform_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads loggingServiceProvider, scienceDaoProvider."
       },
       "services/plate_solve_service.dart": {
         "count": 1,

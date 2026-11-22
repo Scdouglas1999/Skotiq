@@ -4,17 +4,15 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_astro/skotiq_astro.dart' show CatalogManager;
 import 'package:path/path.dart' as p;
 
 import '../../models/science/science_models.dart';
-import '../../providers/database_provider.dart';
+import '../../database/daos/settings_dao.dart';
 import '../../utils/logging_service.dart';
 import '../../utils/skotiq_data_directory.dart';
 import 'photometric_bands.dart';
-import '../../providers/logging_service_provider.dart';
 
 /// One catalog star usable for photometric work: position, Johnson V, and
 /// (when the catalog provides them) a B-V color index and Sloan r'.
@@ -115,7 +113,8 @@ class PhotometricCatalogService {
   /// reaches the ceiling is truncated, so it is used but not cached.
   static const _maxRows = 20000;
 
-  final Ref _ref;
+  final LoggingService _logger;
+  final SettingsDao Function() _settingsDao;
   final http.Client _client;
   final bool _ownsClient;
   final DateTime Function() _now;
@@ -126,11 +125,14 @@ class PhotometricCatalogService {
   /// (calibration + residuals of one frame) share a single fetch.
   final Map<String, Future<List<PhotometricCatalogStar>?>> _inflight = {};
 
-  PhotometricCatalogService(
-    this._ref, {
+  PhotometricCatalogService({
+    required LoggingService logger,
+    required SettingsDao Function() settingsDao,
     http.Client? client,
     DateTime Function()? now,
-  }) : _client = client ?? http.Client(),
+  }) : _logger = logger,
+       _settingsDao = settingsDao,
+       _client = client ?? http.Client(),
        _ownsClient = client == null,
        _now = now ?? DateTime.now;
 
@@ -139,8 +141,6 @@ class PhotometricCatalogService {
       _client.close();
     }
   }
-
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
 
   /// Cone search with APASS-first, HYG-fallback semantics. Stars are
   /// filtered to [maxMagnitude] (V) and the REQUESTED cone even when served
@@ -244,9 +244,7 @@ class PhotometricCatalogService {
 
   Future<bool> _onlineEnabled() async {
     try {
-      final stored = await _ref
-          .read(settingsDaoProvider)
-          .getSetting(onlineEnabledSettingKey);
+      final stored = await _settingsDao().getSetting(onlineEnabledSettingKey);
       return stored == null || stored.toLowerCase() != 'false';
     } catch (error, stack) {
       // Fail closed: if the setting read faults we must not silently enable

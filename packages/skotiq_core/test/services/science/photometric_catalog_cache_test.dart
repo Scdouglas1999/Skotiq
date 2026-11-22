@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/models.dart' show PhotometricCatalogSource;
@@ -59,7 +60,11 @@ void main() {
     );
     addTearDown(container.dispose);
     final serviceProvider = Provider(
-      (ref) => PhotometricCatalogService(ref, client: client),
+      (ref) => PhotometricCatalogService(
+        logger: ref.read(loggingServiceProvider),
+        settingsDao: () => ref.read(settingsDaoProvider),
+        client: client,
+      ),
     );
     final service = container.read(serviceProvider);
     for (var i = 0; i < 2; i++) {
@@ -94,7 +99,8 @@ void main() {
       addTearDown(container.dispose);
       final provider = Provider(
         (ref) => PhotometricCatalogService(
-          ref,
+          logger: ref.read(loggingServiceProvider),
+          settingsDao: () => ref.read(settingsDaoProvider),
           client: MockClient((_) async {
             requests++;
             throw TimeoutException('offline');
@@ -124,7 +130,8 @@ void main() {
       addTearDown(container.dispose);
       final provider = Provider(
         (ref) => PhotometricCatalogService(
-          ref,
+          logger: ref.read(loggingServiceProvider),
+          settingsDao: () => ref.read(settingsDaoProvider),
           client: MockClient((r) async {
             hosts.add(r.url.host);
             if (r.url.host == 'vizier.cds.unistra.fr') {
@@ -158,7 +165,8 @@ void main() {
       addTearDown(container.dispose);
       final provider = Provider(
         (ref) => PhotometricCatalogService(
-          ref,
+          logger: ref.read(loggingServiceProvider),
+          settingsDao: () => ref.read(settingsDaoProvider),
           now: () => now,
           client: MockClient((_) async {
             requests++;

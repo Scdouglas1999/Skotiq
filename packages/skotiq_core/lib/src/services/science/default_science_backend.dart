@@ -2,7 +2,6 @@ import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
 
 import '../../backend/skotiq_backend.dart';
@@ -11,10 +10,10 @@ import '../../models/science/science_models.dart';
 import '../frame_header.dart';
 import '../../models/imaging/gnomonic_projection.dart';
 import '../wcs/plate_solve_data_from_result.dart' show PlateSolveResultWcs;
-import '../../providers/backend_provider.dart';
-import '../../providers/database_provider.dart';
-import '../../providers/settings_provider.dart';
 import 'science_camera_auto_config.dart' show ScienceCameraAutoConfig;
+import '../../database/daos/images_dao.dart';
+import '../../database/daos/settings_dao.dart';
+import '../../settings/app_settings_state.g.dart' show AppSettingsState;
 import '../../utils/logging_service.dart';
 import '../plate_solve_service.dart';
 import 'astrometric_residuals.dart';
@@ -27,9 +26,6 @@ import 'photometric_bands.dart';
 import 'photometric_catalog_service.dart';
 import 'science_backend.dart';
 import 'frame_camera_noise.dart';
-import '../../providers/logging_service_provider.dart';
-import '../../providers/plate_solve_service_provider.dart';
-import '../../providers/science/photometric_catalog_service_provider.dart';
 
 part 'default_science_backend/helpers.dart';
 part 'default_science_backend/cpu_measurements.dart';
@@ -41,14 +37,35 @@ part 'default_science_backend/value_types.dart';
 const double _residualMatchPx = 10.0;
 
 class DefaultScienceBackend implements ScienceBackend {
-  final Ref _ref;
+  DefaultScienceBackend({
+    required ImagingBackend Function() backend,
+    required LoggingService logger,
+    required AppSettingsState? Function() appSettings,
+    required PlateSolveService Function() plateSolver,
+    required PhotometricCatalogService Function() catalog,
+    required ImagesDao Function() imagesDao,
+    required SettingsDao Function() settingsDao,
+  }) : _readBackend = backend,
+       _logger = logger,
+       _appSettings = appSettings,
+       _plateSolver = plateSolver,
+       _catalog = catalog,
+       _imagesDao = imagesDao,
+       _settingsDao = settingsDao;
 
-  DefaultScienceBackend(this._ref);
+  final ImagingBackend Function() _readBackend;
+  final LoggingService _logger;
+
+  /// The app settings once loaded, null before.
+  final AppSettingsState? Function() _appSettings;
+  final PlateSolveService Function() _plateSolver;
+  final PhotometricCatalogService Function() _catalog;
+  final ImagesDao Function() _imagesDao;
+  final SettingsDao Function() _settingsDao;
 
   final Map<String, MovingObjectFrameDetections> _movingObjectCache = {};
 
-  ImagingBackend get _backend => _ref.read(imagingBackendProvider);
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
+  ImagingBackend get _backend => _readBackend();
 
   @override
   Future<SolverCapabilities> getSolverCapabilities() async {
@@ -70,7 +87,7 @@ class DefaultScienceBackend implements ScienceBackend {
     SolveOptions options,
   ) async {
     try {
-      final settings = _ref.read(appSettingsProvider).valueOrNull;
+      final settings = _appSettings();
       final forceBlind = settings?.blindSolve ?? false;
       final result = await _backend.plateSolve(
         imagePath: imagePath,
@@ -127,14 +144,14 @@ class DefaultScienceBackend implements ScienceBackend {
   /// frame was never submitted to one.
   Future<void> _recordSolveFailure(String imagePath) async {
     try {
-      await _ref.read(plateSolveServiceProvider).ensureSolverAvailable();
+      await _plateSolver().ensureSolverAvailable();
     } on SolverNotAvailableError {
       return;
     } catch (_) {
       // Detection could not answer; the solve did run, so record it.
     }
     try {
-      await _ref.read(imagesDaoProvider).markPlateSolveFailed(imagePath);
+      await _imagesDao().markPlateSolveFailed(imagePath);
     } catch (error) {
       _logger.warning(
         'Could not record the failed solve of $imagePath: $error',
@@ -426,10 +443,7 @@ class DefaultScienceBackend implements ScienceBackend {
     if (field.noiseAdu.isFinite && field.noiseAdu > 0) {
       noiseAdu = field.noiseAdu * math.sqrt(aperturePixels);
     } else {
-      final cameraNoise = await frameCameraNoise(
-        _ref.read(settingsDaoProvider),
-        imagePath,
-      );
+      final cameraNoise = await frameCameraNoise(_settingsDao(), imagePath);
       final readNoise = cameraNoise.readNoise;
       if (readNoise == null || cameraNoise.gain == null) {
         _logger.warning(

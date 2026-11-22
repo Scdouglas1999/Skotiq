@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/services/science/default_science_backend.dart';
 import 'package:skotiq_core/src/models/science/science_models.dart';
 import 'package:skotiq_core/src/services/science/photometric_catalog_service.dart';
@@ -22,7 +23,7 @@ class _Catalog extends Mock implements PhotometricCatalogService {}
 
 class _MeasuredBackend extends DefaultScienceBackend {
   _MeasuredBackend(
-    super.ref, {
+    Ref ref, {
     this.stars = const [
       StarMeasurement(
         x: 50,
@@ -37,7 +38,15 @@ class _MeasuredBackend extends DefaultScienceBackend {
         peak: 2000,
       ),
     ],
-  });
+  }) : super(
+         backend: () => ref.read(imagingBackendProvider),
+         logger: ref.read(loggingServiceProvider),
+         appSettings: () => ref.read(appSettingsProvider).valueOrNull,
+         plateSolver: () => ref.read(plateSolveServiceProvider),
+         catalog: () => ref.read(photometricCatalogServiceProvider),
+         imagesDao: () => ref.read(imagesDaoProvider),
+         settingsDao: () => ref.read(settingsDaoProvider),
+       );
   final List<StarMeasurement> stars;
   @override
   Future<List<StarMeasurement>> measureStars(

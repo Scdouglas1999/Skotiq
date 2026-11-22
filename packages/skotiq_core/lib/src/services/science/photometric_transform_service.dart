@@ -3,15 +3,12 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/daos/science_dao.dart';
 import '../../database/database.dart' as db;
 import '../../models/science/science_models.dart';
-import '../../providers/database_provider.dart';
 import '../../utils/logging_service.dart';
 import 'photometric_bands.dart';
-import '../../providers/logging_service_provider.dart';
 
 /// Service for computing and applying photometric transformation coefficients.
 ///
@@ -27,12 +24,16 @@ import '../../providers/logging_service_provider.dart';
 ///   (B-V)  = color index
 ///   zp     = photometric zero point
 class PhotometricTransformService implements PhotometricTransforms {
-  final Ref _ref;
+  PhotometricTransformService({
+    required ScienceDao Function() scienceDao,
+    required LoggingService logger,
+  }) : _readScienceDao = scienceDao,
+       _logger = logger;
 
-  PhotometricTransformService(this._ref);
+  final ScienceDao Function() _readScienceDao;
+  final LoggingService _logger;
 
-  ScienceDao get _scienceDao => _ref.read(scienceDaoProvider);
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
+  ScienceDao get _scienceDao => _readScienceDao();
 
   /// Why the last [computeTransformCoefficients] call returned null, in
   /// words for the user; null after a successful fit.
