@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 
 import '../../database/database.dart' as db;
-import '../../database/rows/accepted_lights.dart';
 import '../../models/scheduler/integration_goal.dart';
 import '../../utils/resilient_poll_stream.dart';
 import '../../backend/remote_host.dart';
@@ -210,9 +209,7 @@ class IntegrationGoalService {
     }
     return goalFrameCount(
       filter,
-      acceptedFramesByFiledFilter(
-        await _db.planningDao.acceptedLightsOfTarget(targetId),
-      ),
+      await _db.planningDao.acceptedLightFramesByFilter(targetId),
     );
   }
 

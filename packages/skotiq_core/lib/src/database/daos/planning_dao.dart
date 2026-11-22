@@ -1,4 +1,3 @@
-import '../rows/accepted_lights.dart';
 import '../rows/frame_type_record.dart';
 import 'package:drift/drift.dart';
 
@@ -84,30 +83,23 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
           .get();
 
   /// Accepted light frames of [targetId] by filter as filed, `''` for frames
-  /// that name none ([acceptedLightsAsFiled] over the rows).
-  Future<List<AcceptedLights>> acceptedLightsOfTarget(int targetId) async {
+  /// that name none: the count `acceptedFramesByFiledFilter` gives over the
+  /// target's rows, made in the database.
+  Future<Map<String, int>> acceptedLightFramesByFilter(int targetId) async {
     final count = capturedImages.id.count();
-    final seconds = capturedImages.exposureDuration.sum();
     final query = selectOnly(capturedImages)
-      ..addColumns([capturedImages.filter, count, seconds])
+      ..addColumns([capturedImages.filter, count])
       ..where(
         capturedImages.targetId.equals(targetId) &
             capturedImages.isAcceptedLightFrame,
       )
       ..groupBy([capturedImages.filter]);
-    final byFilter = <String, (int, double)>{};
+    final byFilter = <String, int>{};
     for (final row in await query.get()) {
       final filter = row.read(capturedImages.filter) ?? '';
-      final (n, secs) = byFilter[filter] ?? (0, 0.0);
-      byFilter[filter] = (
-        n + (row.read(count) ?? 0),
-        secs + (row.read(seconds) ?? 0.0),
-      );
+      byFilter[filter] = (byFilter[filter] ?? 0) + (row.read(count) ?? 0);
     }
-    return [
-      for (final MapEntry(key: filter, value: (n, secs)) in byFilter.entries)
-        AcceptedLights(filter: filter, frames: n, seconds: secs),
-    ];
+    return byFilter;
   }
 
   Future<int> insertTargetConstraint(TargetConstraintsCompanion constraint) =>

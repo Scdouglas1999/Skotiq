@@ -205,8 +205,8 @@ class TargetProgressService {
     // captured_at comparison and re-hydration both use seconds.
     final windowStartSec = windowStart.toUtc().millisecondsSinceEpoch ~/ 1000;
 
-    final framesByFilter = acceptedFramesByFiledFilter(
-      await _db.planningDao.acceptedLightsOfTarget(targetId),
+    final framesByFilter = await _db.planningDao.acceptedLightFramesByFilter(
+      targetId,
     );
     final totalCapturedAny = framesByFilter.values.fold(0, (a, b) => a + b);
 
