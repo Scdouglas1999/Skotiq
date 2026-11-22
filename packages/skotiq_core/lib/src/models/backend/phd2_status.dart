@@ -133,7 +133,8 @@ enum GuidingStopReason {
   ),
   ditherSettle('dither_settle', 'Guiding is settling after a dither'),
   runStopped('run_stopped', 'Guiding stopped because the run was stopped'),
-  operator('operator', 'Guiding stopped from the guider controls');
+  operator('operator', 'Guiding stopped from the guider controls'),
+  mountFault('mount_fault', 'Guiding stopped: the mount moved on its own');
 
   const GuidingStopReason(this.wire, this.text);
 

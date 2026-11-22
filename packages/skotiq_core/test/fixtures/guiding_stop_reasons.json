@@ -1,0 +1,12 @@
+{
+  "autofocus": "Guiding paused for autofocus",
+  "meridian_flip": "Guiding paused for the meridian flip",
+  "tracking_limit_hold": "Guiding paused: the mount is at its tracking limit and waits for the flip",
+  "mount_move": "Guiding paused while the mount moves",
+  "pre_meridian_hold": "Guiding paused: the run waits at the meridian for the flip",
+  "sequence_step": "Guiding stopped by the sequence's Stop Guiding step",
+  "dither_settle": "Guiding is settling after a dither",
+  "run_stopped": "Guiding stopped because the run was stopped",
+  "operator": "Guiding stopped from the guider controls",
+  "mount_fault": "Guiding stopped: the mount moved on its own"
+}

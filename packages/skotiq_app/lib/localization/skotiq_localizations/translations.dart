@@ -1416,6 +1416,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideHeld_run_stopped':
         'Guiding stopped because the run was stopped',
     'nightScopeGuideHeld_operator': 'Guiding stopped from the guider controls',
+    'nightScopeGuideHeld_mount_fault':
+        'Guiding stopped: the mount moved on its own',
     'nightScopeGuideHeldOther': 'Guiding stopped ({reason})',
     'nightScopeGuideSettleTimedOut':
         'Last settle ran out of time at {time}; not a lost star',

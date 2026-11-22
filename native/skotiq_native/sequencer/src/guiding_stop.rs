@@ -218,6 +218,21 @@ mod tests {
         }
     }
 
+    /// The app names these reasons and their sentences from the file its
+    /// `guiding_stop_reason_test.dart` reads.
+    #[test]
+    fn stop_reasons_match_the_app() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/guiding_stop_reasons.json"
+        ))
+        .expect("the fixture is JSON");
+        let sent: serde_json::Map<String, serde_json::Value> = GuidingStopReason::ALL
+            .into_iter()
+            .map(|reason| (reason.as_wire().to_string(), reason.describe().into()))
+            .collect();
+        assert_eq!(serde_json::Value::Object(sent), expected);
+    }
+
     /// A guider scripted to be in one condition when a move asks it to stop.
     struct ScriptedGuider {
         inner: crate::device_ops::NullDeviceOps,
