@@ -40,6 +40,7 @@ import 'api/polar_alignment/run_loop.dart';
 import 'api/post_session/entrypoints.dart';
 import 'api/secondary_rig.dart';
 import 'api/sequencer.dart';
+import 'api/sequencer/event_bridge.dart';
 import 'api/sequencer/lifecycle.dart';
 import 'api/sequencer/mosaic.dart';
 import 'api/sequencer/runtime_config.dart';
@@ -121,7 +122,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1313968944;
+  int get rustContentHash => -915743585;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -1102,6 +1103,8 @@ abstract class RustLibApi extends BaseApi {
   Future<void> crateApiSequencerLifecycleApiSequencerStart();
 
   Future<void> crateApiSequencerLifecycleApiSequencerStop({String? origin});
+
+  Future<void> crateApiSequencerEventBridgeApiSequencerSubscribeEvents();
 
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateCloudMotion({
     double? currentCoverPercent,
@@ -8921,6 +8924,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_sequencer_stop",
         argNames: ["origin"],
+      );
+
+  @override
+  Future<void> crateApiSequencerEventBridgeApiSequencerSubscribeEvents() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          return wire
+              .wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
+                port_,
+              );
+        },
+        codec: DcoCodec(
+          decodeSuccessData: dco_decode_unit,
+          decodeErrorData: dco_decode_skotiq_error,
+        ),
+        constMeta:
+            kCrateApiSequencerEventBridgeApiSequencerSubscribeEventsConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta
+  get kCrateApiSequencerEventBridgeApiSequencerSubscribeEventsConstMeta =>
+      const TaskConstMeta(
+        debugName: "api_sequencer_subscribe_events",
+        argNames: [],
       );
 
   @override

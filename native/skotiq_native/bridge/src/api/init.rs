@@ -45,8 +45,7 @@ pub struct HostPaths {
 }
 
 /// Start the native side of a host: logging, device manager, hotplug, pass
-/// reports, the profile and settings stores rooted at `paths`, and the
-/// sequencer event bridges.
+/// reports and the profile and settings stores, all rooted at `paths`.
 /// Called once at app start, before any other API call.
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_init_host(paths: HostPaths) -> Result<(), SkotiqError> {
@@ -61,7 +60,6 @@ pub fn api_init_host(paths: HostPaths) -> Result<(), SkotiqError> {
     );
     crate::api::storage::init_profile_storage(paths.profile_directory.clone())?;
     crate::api::storage::init_settings_storage(paths.profile_directory)?;
-    crate::api::sequencer::event_bridge::start_sequencer_event_bridges()?;
     Ok(())
 }
 

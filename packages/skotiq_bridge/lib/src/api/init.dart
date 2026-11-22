@@ -16,8 +16,7 @@ void apiInitWithLogging({String? logDirectory}) => RustLib.instance.api
     .crateApiInitApiInitWithLogging(logDirectory: logDirectory);
 
 /// Start the native side of a host: logging, device manager, hotplug, pass
-/// reports, the profile and settings stores rooted at `paths`, and the
-/// sequencer event bridges.
+/// reports and the profile and settings stores, all rooted at `paths`.
 /// Called once at app start, before any other API call.
 void apiInitHost({required HostPaths paths}) =>
     RustLib.instance.api.crateApiInitApiInitHost(paths: paths);

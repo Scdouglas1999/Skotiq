@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1313968944;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -915743585;
 
 // Section: executor
 
@@ -5985,6 +5985,30 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_stop_impl(
                     (move || async move {
                         let output_ok =
                             crate::api::sequencer::lifecycle::api_sequencer_stop(api_origin)
+                                .await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "api_sequencer_subscribe_events",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            move |context| async move {
+                transform_result_dco::<_, _, crate::error::SkotiqError>(
+                    (move || async move {
+                        let output_ok =
+                            crate::api::sequencer::event_bridge::api_sequencer_subscribe_events()
                                 .await?;
                         Ok(output_ok)
                     })()
@@ -32110,6 +32134,13 @@ mod io {
         origin: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sequencer__lifecycle__api_sequencer_stop_impl(port_, origin)
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
+        port_: i64,
+    ) {
+        wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events_impl(port_)
     }
 
     #[unsafe(no_mangle)]
