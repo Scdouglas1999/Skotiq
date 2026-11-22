@@ -727,13 +727,13 @@ class EnhancedSkotiqDiscovery {
       }
       if (read.problem != null) return ServerProbeOutcome.incompatible;
       final advert = HostAdvertRead.fromJson(read.info);
-      if (!(advert.authRequired ?? false)) {
+      if (advert.authRequired != true) {
         return ServerProbeOutcome.reachable;
       }
 
       if (authToken == null || authToken.isEmpty) {
         // Host is up; mobile will pair via /api/pairing/* before connecting.
-        return advert.pairingSupported ?? false
+        return advert.pairingSupported == true
             ? ServerProbeOutcome.reachable
             : ServerProbeOutcome.unreachable;
       }
