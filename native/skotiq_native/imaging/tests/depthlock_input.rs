@@ -616,8 +616,87 @@ fn a_master_is_read_by_frametyp_word_type_and_nframes() {
     let mut counted = master_header("DARK", 20);
     counted.keywords.remove("NFRAMES");
     counted.set_int("NCOMBINE", 20);
+    assert!(
+        check(&counted).is_ok(),
+        "NCOMBINE counts when NFRAMES is absent"
+    );
+    counted.set_int("NFRAMES", 4);
     assert_eq!(
         check(&counted).unwrap_err(),
-        "Master dark was built from 0 frames; DepthLock needs at least 8"
+        "Master dark was built from 4 frames; DepthLock needs at least 8"
     );
+    let mut word_only = master_header("Master Dark", 20);
+    word_only.keywords.remove("FRAMETYP");
+    assert!(check(&word_only).is_ok(), "IMAGETYP says master");
+    for card in ["MasterDark", "DARK"] {
+        let mut unmarked = master_header(card, 20);
+        unmarked.keywords.remove("FRAMETYP");
+        assert_eq!(
+            check(&unmarked).unwrap_err(),
+            "Master dark is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)",
+            "{card:?}"
+        );
+    }
+}
+
+/// A dark-library master already on disk: the cards the streamed builder
+/// wrote before it wrote `FRAMETYP` and `NFRAMES`.
+#[test]
+fn a_dark_library_master_written_by_earlier_releases_is_accepted() {
+    let mut header = FitsHeader::new();
+    header.set_string("IMAGETYP", "Master Dark");
+    header.set_float("EXPTIME", 120.0);
+    header.set_float("EXPOSURE", 120.0);
+    header.set_int("GAIN", 100);
+    header.set_int("OFFSET", 50);
+    header.set_int("XBINNING", 1);
+    header.set_int("YBINNING", 1);
+    header.set_float("CCD-TEMP", -10.0);
+    header.set_float("SET-TEMP", -10.0);
+    header.set_string("INSTRUME", "ZWO ASI2600MM Pro");
+    header.set_string("READOUTM", "Normal");
+    header.set_int("NCOMBINE", 20);
+    let goal = light_settings(&light_header()).unwrap();
+    let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
+    let dark = u16_image(64, 48, 1_000);
+    assert_eq!(
+        validate_master(MasterKind::Dark, &header, &dark, &goal, &geometry),
+        Ok(())
+    );
+}
+
+/// A dark from the dark library is built by the streamed builder; DepthLock
+/// must accept what that builder writes, not a hand-built header.
+#[test]
+fn a_dark_library_master_is_accepted() {
+    use skotiq_imaging::calibration_master_stream::{
+        build_streamed_master, StreamedMasterConfig, StreamedMasterKind,
+    };
+    let dir = std::env::temp_dir().join(format!("skotiq-dl-dark-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut paths = Vec::new();
+    for i in 0..10u32 {
+        let mut header = light_header();
+        header.set_string("IMAGETYP", "Dark");
+        let samples: Vec<u16> = (0..64 * 48u32)
+            .map(|p| 1_000 + ((p.wrapping_mul(2_654_435_761) ^ i) % 7) as u16)
+            .collect();
+        let path = dir.join(format!("dark_{i}.fits"));
+        skotiq_imaging::write_fits(&path, &ImageData::from_u16(64, 48, 1, &samples), &header)
+            .unwrap();
+        paths.push(path);
+    }
+    let output = dir.join("master_dark.fits");
+    build_streamed_master(
+        &paths,
+        &output,
+        &StreamedMasterConfig::new(StreamedMasterKind::Dark),
+    )
+    .unwrap();
+    let (dark, header) = skotiq_imaging::read_fits(&output).unwrap();
+    let goal = light_settings(&light_header()).unwrap();
+    let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
+    let verdict = validate_master(MasterKind::Dark, &header, &dark, &goal, &geometry);
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(verdict.is_ok(), "{verdict:?}");
 }

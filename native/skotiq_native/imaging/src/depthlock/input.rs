@@ -668,10 +668,11 @@ pub enum MasterKind {
 }
 
 /// Vet a master frame's header and geometry against the light it will
-/// calibrate. Skotiq's own masters declare `FRAMETYP = MASTER`,
-/// `IMAGETYP = DARK|FLAT` and `NFRAMES`, and nothing about the acquisition
-/// — that part of the provenance comes from the frozen goal settings. When a
-/// master does carry acquisition cards they must agree.
+/// calibrate. A master says so by `FRAMETYP = MASTER` or by the word
+/// "master" in `IMAGETYP` (the dark library writes `IMAGETYP = 'Master
+/// Dark'`), names its kind in `IMAGETYP`, and counts its frames in `NFRAMES`,
+/// else `NCOMBINE`. Acquisition cards a master carries must agree with the
+/// frozen goal settings.
 pub fn validate_master(
     kind: MasterKind,
     header: &FitsHeader,
@@ -688,9 +689,11 @@ pub fn validate_master(
         MasterKind::Flat => ("flat", FrameType::Flat),
     };
     let provenance = MasterProvenance::from_header(header);
-    if !provenance.frame_type_says_master(CardReading::Exact) {
+    if !provenance.frame_type_says_master(CardReading::Exact)
+        && !provenance.image_type_says_master(CardReading::Word)
+    {
         return Err(format!(
-            "{label} is not a master frame (FRAMETYP is not MASTER)"
+            "{label} is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)"
         ));
     }
     let image_type = header.get_string("IMAGETYP").unwrap_or("").trim();
@@ -704,7 +707,7 @@ pub fn validate_master(
             "{label} carries a Bayer pattern; DepthLock is monochrome only"
         ));
     }
-    let frames = provenance.frames.unwrap_or(0);
+    let frames = provenance.frames.or(provenance.combined).unwrap_or(0);
     if frames < MIN_MASTER_FRAMES {
         return Err(format!(
             "{label} was built from {frames} frames; DepthLock needs at least {MIN_MASTER_FRAMES}"

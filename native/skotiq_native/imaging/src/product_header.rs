@@ -124,6 +124,13 @@ impl MasterProvenance {
             .is_some_and(|card| FrameKind::card_says_master(card, reading))
     }
 
+    /// Whether `IMAGETYP` says master, read the way `reading` says.
+    pub fn image_type_says_master(&self, reading: CardReading) -> bool {
+        self.image_type
+            .as_deref()
+            .is_some_and(|card| FrameKind::card_says_master(card, reading))
+    }
+
     /// Whether any card says the frame was integrated from several: `FRAMETYP`
     /// or `IMAGETYP` contains "master", or `NCOMBINE` or `NFRAMES` is above one.
     pub fn any_card_says_integrated(&self) -> bool {
