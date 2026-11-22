@@ -120,7 +120,8 @@ class FilterAutofocusConfig extends Equatable {
 /// Comprehensive autofocus settings grouped into a single typed object.
 ///
 /// This is derived from AppSettings autofocus fields and provides a
-/// convenient, typed view for the autofocus subsystem.
+/// convenient, typed view for the autofocus subsystem. The defaults are the
+/// settings table's (`autofocus_settings_defaults_test` holds them to it).
 class AutofocusSettings extends Equatable {
   final String method;
   final String curveFitting;
@@ -170,7 +171,7 @@ class AutofocusSettings extends Equatable {
     this.stepSize = 50,
     this.exposureTime = 4.0,
     this.initialOffsetSteps = 4,
-    this.numberOfAttempts = 2,
+    this.numberOfAttempts = 1,
     this.useBrightestNStars = 10,
     this.outerCropRatio = 1.0,
     this.innerCropRatio = 0.0,
@@ -181,7 +182,7 @@ class AutofocusSettings extends Equatable {
     this.focuserSettleTimeMs = 500,
     this.exposuresPerPoint = 1,
     this.backlashCompMethod = 'Overshoot',
-    this.backlashIn = 350,
+    this.backlashIn = 0,
     this.backlashOut = 0,
     this.autofocusFilterName = '',
     this.filterSettings = const {},
