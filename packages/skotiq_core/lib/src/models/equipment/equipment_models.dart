@@ -4,6 +4,7 @@ import '../backend/device_capabilities.dart' show TrackingRate;
 import '../../errors/error_text.dart';
 import '../../errors/error_text_kind.dart';
 import '../../errors/skotiq_error.dart';
+import '../../errors/skotiq_exception.dart';
 
 // Re-export TrackingRate from device_capabilities as the canonical source
 export '../backend/device_capabilities.dart' show TrackingRate;
@@ -103,7 +104,7 @@ class DeviceError extends Equatable {
     int retryAttempts = 0,
   }) {
     if (error is DeviceError) return error;
-    if (error is SkotiqError) {
+    if (error is SkotiqError && error is! SkotiqException) {
       return DeviceError.fromSkotiqError(
         error,
         deviceId: deviceId,

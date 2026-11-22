@@ -544,8 +544,7 @@ extension _DeviceServiceAutofocusControls on DeviceService {
 
   bool _isAutofocusCancellation(Object error) {
     if (error is AutofocusCancelledException) return true;
-    final text = error.toString().toLowerCase();
-    return text.contains('cancelled') || text.contains('canceled');
+    return saysCanceled(error.toString());
   }
 
   /// Resolve the temperature to associate with a predictive-AF sample/decision.

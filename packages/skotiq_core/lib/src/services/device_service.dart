@@ -29,6 +29,7 @@ import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/device_connect_exception.dart';
 import '../errors/skotiq_exception.dart' show ConnectionException;
+import '../errors/skotiq_error.dart' show saysCanceled;
 import '../models/equipment/equipment_models.dart';
 import '../models/imaging/imaging_models.dart'
     show AutofocusSettings, FilterAutofocusConfig;

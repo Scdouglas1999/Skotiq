@@ -303,7 +303,7 @@ void main() {
   group('describeError of a typed core error', () {
     test('user message, reconnect hint, its own recoverability', () {
       final text = describeError(
-        SkotiqError.notConnected('cam'),
+        skotiqErrorFromBridge(const bridge.SkotiqError.notConnected('cam')),
         domain: ErrorDomain.device,
       );
       expect(text.message, "'cam' is not connected");
@@ -314,7 +314,12 @@ void main() {
 
   group('cancellation is read from the message', () {
     test('both spellings, any family', () {
-      expect(SkotiqError.cancelled().isCancellation, isTrue);
+      expect(
+        skotiqErrorFromBridge(
+          const bridge.SkotiqError.cancelled(),
+        ).isCancellation,
+        isTrue,
+      );
       expect(ImagingException.cancelled().isCancellation, isTrue);
       expect(SkotiqError.fromString('Move canceled').isCancellation, isTrue);
       expect(SkotiqError.fromString('Move failed').isCancellation, isFalse);

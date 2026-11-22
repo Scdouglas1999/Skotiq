@@ -4,7 +4,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
-import '../errors/skotiq_exception.dart' show SkotiqException;
 import '../models/autofocus_progress.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/focuser_backlash_progress.dart';
@@ -282,16 +281,9 @@ class FocuserBacklashCalibrationNotifier
 
   /// Whether [error] is the operator's own cancellation rather than a fault.
   ///
-  /// Native raises `SkotiqError::Cancelled`, which the FFI backend maps to
-  /// [SkotiqError.cancelled]; over a network backend the same stop arrives
-  /// as text, hence the second test — the same two-step check the autofocus
-  /// path makes.
-  static bool _isCancellation(Object error) {
-    if (error is SkotiqError && error.isCancellation) return true;
-    if (error is SkotiqException && error.isCancellation) return true;
-    final text = error.toString().toLowerCase();
-    return text.contains('cancelled') || text.contains('canceled');
-  }
+  /// Native raises `SkotiqError::Cancelled`; over a network backend the
+  /// same stop arrives as text. Both say so in their text.
+  static bool _isCancellation(Object error) => saysCanceled(error.toString());
 
   Future<void> cancel() async {
     if (!state.isRunning) return;
