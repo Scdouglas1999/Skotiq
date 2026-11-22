@@ -452,7 +452,7 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
           .read(integrationGoalServiceProvider)
           .progressForTarget(targetId);
 
-      final smartNightSettings = SmartNightInputs.withExposureLimits(settings);
+      final smartNightSettings = SmartNightInputs.forNight(settings, profile);
       final filterSet = await ref.watch(
         targetFilterSetProvider(suggestion).future,
       );

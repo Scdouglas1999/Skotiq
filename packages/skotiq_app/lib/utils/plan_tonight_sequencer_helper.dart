@@ -168,8 +168,9 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final connected = camera.connectionState == DeviceConnectionState.connected;
   final captureProfile =
       connected ? profile.copyWith(cameraName: camera.deviceName) : profile;
-  final smartNightSettings = SmartNightInputs.withExposureLimits(
+  final smartNightSettings = SmartNightInputs.forNight(
     settings,
+    profile,
     SmartNightSettings(
       gainOverride: options?.gain,
       offsetOverride: options?.offset,
@@ -177,12 +178,9 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
       useExposurePresets: options != null && !options.useCalculator,
       defaultFrameDurationSecs: options?.exposures ??
           const SmartNightSettings().defaultFrameDurationSecs,
-      defaultIntegrationBudgetHours: integrationBudgetHours ??
-          const SmartNightSettings().defaultIntegrationBudgetHours,
-      coolDownTargetC: SmartNightInputs.coolDownTargetC(profile),
       hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(profile),
     ),
-  );
+  ).copyWith(defaultIntegrationBudgetHours: integrationBudgetHours);
 
   return ref.read(smartNightServiceProvider).buildSingleTargetSequence(
         profile: captureProfile,
