@@ -1076,7 +1076,7 @@ fn pin_finishing(pins: &mut Pins) {
         }
         pins.add(
             &format!("finishing/star_reduction.{name}"),
-            match reduce_stars(image, &StarReductionConfig::default()) {
+            match recipe::ops::star_reduce::reduce_stars_in_frame(image, 0.5, 2.0) {
                 Ok(out) => image_digest(&out),
                 Err(e) => debug_digest(&e),
             },

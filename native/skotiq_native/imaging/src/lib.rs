@@ -52,7 +52,6 @@ pub mod sky_atlas;
 pub mod stack_master;
 pub mod stacking;
 mod star_detect;
-pub mod star_reduction;
 mod stats;
 mod stretch;
 mod thumbnail;
@@ -91,7 +90,6 @@ pub use skotiq_frame::{
     Disagreement, ExposureTolerance, FrameKind, FrameType, NumberMatch, Setting, XTransPattern,
 };
 pub use sky_atlas::*;
-pub use star_reduction::*;
 pub use stats::*;
 pub use stretch::*;
 pub use thumbnail::thumbnail;
