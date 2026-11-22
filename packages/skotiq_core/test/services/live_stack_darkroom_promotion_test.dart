@@ -8,7 +8,9 @@ import 'package:skotiq_core/src/database/daos/recipes_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_state.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/services/live_stack_darkroom_promotion.dart';
+import 'package:skotiq_core/src/services/live_stack_master_library.dart';
 
 void main() {
   late SkotiqDatabase db;
@@ -16,6 +18,7 @@ void main() {
   late RecipesDao recipes;
   late Directory temp;
   late List<String> saves;
+  late List<String> previews;
 
   setUp(() {
     db = SkotiqDatabase.forTesting(NativeDatabase.memory());
@@ -23,36 +26,50 @@ void main() {
     recipes = RecipesDao(db);
     temp = Directory.systemTemp.createTempSync('live_promote_');
     saves = [];
+    previews = [];
   });
   tearDown(() async {
     await db.close();
     temp.deleteSync(recursive: true);
   });
 
-  LiveStackDarkroomPromoter promoter() => LiveStackDarkroomPromoter(
-    saveMaster: (path) async {
-      saves.add('active $path');
-      return LiveStackingMasterSave(
-        filePath: path,
-        stackedFrameCount: 12,
-        format: LiveStackingMasterFormat.fitsMaster,
-        totalIntegrationSecs: 1440,
-      );
-    },
-    saveMasterForFilter: (filterKey, path) async {
-      saves.add('$filterKey $path');
-      return LiveStackingMasterSave(
-        filePath: path,
-        stackedFrameCount: 12,
-        format: LiveStackingMasterFormat.fitsMaster,
-        totalIntegrationSecs: 1440,
-      );
-    },
-    masters: masters,
-    recipes: recipes,
-    now: () => DateTime.utc(2026, 11, 22, 3, 4, 5),
-    tempDir: () => temp.path,
-  );
+  LiveStackDarkroomPromoter promoter({
+    Map<String, Object> header = const {'OBJECT': 'M31', 'FILTER': 'L'},
+  }) {
+    LiveStackingMasterSave save(String path) => LiveStackingMasterSave(
+      filePath: path,
+      stackedFrameCount: 12,
+      format: LiveStackingMasterFormat.fitsMaster,
+      totalIntegrationSecs: 1440,
+      dateObs: '2026-11-22T03:00:00',
+    );
+    const result = LiveStackingResult(
+      width: 4,
+      height: 3,
+      data: [],
+      stats: LiveStackingStats(stackedFrameCount: 12),
+    );
+    return LiveStackDarkroomPromoter(
+      library: LiveStackMasterLibrary(
+        currentResult: () async => result,
+        currentResultForFilter: (_) async => result,
+        saveMaster: (path) async {
+          saves.add('active $path');
+          return save(path);
+        },
+        saveMasterForFilter: (filterKey, path) async {
+          saves.add('$filterKey $path');
+          return save(path);
+        },
+        writePreview: (path, result) async => previews.add(path),
+        masters: masters,
+        readHeader: (path) async => FrameHeader(header),
+      ),
+      recipes: recipes,
+      now: () => DateTime.utc(2026, 11, 22, 3, 4, 5),
+      tempDir: () => temp.path,
+    );
+  }
 
   FilterStackSnapshot slot(String key, {String? reference}) =>
       FilterStackSnapshot(
@@ -64,8 +81,8 @@ void main() {
         referenceImagePath: reference,
       );
 
-  test('a filter slot is saved beside its reference and named for the '
-      'session target', () async {
+  test('a filter slot is saved beside its reference, named by the library '
+      'with a thumbnail', () async {
     final reference = '${temp.path}/lights/L_0001.fits';
     final stack = LiveStackingState(
       status: LiveStackingStatus.running,
@@ -87,7 +104,9 @@ void main() {
     expect(saves, ['L $path']);
     final row = (await masters.getAll()).single;
     expect(row.id, promoted.masterId);
-    expect(row.name, 'M31 · L · (12 frames)');
+    expect(row.name, 'M31 L live stack');
+    expect(previews, [path.replaceAll('.fits', '.png')]);
+    expect(row.previewPngPath, path.replaceAll('.fits', '.png'));
     expect(row.filter, 'L');
     expect(row.masterFitsPath, path);
     expect((row.width, row.height, row.channels), (4, 3, 1));
@@ -101,7 +120,7 @@ void main() {
   });
 
   test(
-    'the unfiltered stack has no filter and no recipe without steps',
+    'the unfiltered slot is saved as that slot, with no recipe without steps',
     () async {
       final stack = LiveStackingState(
         status: LiveStackingStatus.running,
@@ -110,15 +129,15 @@ void main() {
         },
       );
 
-      final promoted = await promoter().promote(
-        stack: stack,
-        filterKey: kDefaultLiveStackFilterKey,
-      );
+      final promoted = await promoter(
+        header: const {},
+      ).promote(stack: stack, filterKey: kDefaultLiveStackFilterKey);
 
       expect(promoted.recipeId, isNull);
+      expect(saves.single, startsWith('$kDefaultLiveStackFilterKey '));
       final row = (await masters.getAll()).single;
-      expect(row.name, 'Live stack · (12 frames)');
-      expect(row.filter, isNull);
+      expect(row.name, 'Live stack Unfiltered');
+      expect(row.filter, kDefaultLiveStackFilterKey);
       expect(
         row.masterFitsPath,
         startsWith('${temp.path}/skotiq_live_masters/live_stack_Unfiltered_'),

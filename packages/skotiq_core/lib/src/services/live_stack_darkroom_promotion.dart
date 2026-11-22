@@ -7,12 +7,11 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
-import '../database/daos/integrated_masters_dao.dart';
 import '../database/daos/recipes_dao.dart';
 import '../models/darkroom/recipe.dart' show RecipeAuthor;
-import '../models/imaging/integrated_master.dart';
 import '../models/imaging/live_stacking_models.dart';
 import '../models/imaging/live_stacking_state.dart';
+import 'live_stack_master_library.dart';
 
 /// The library rows Open in Darkroom created, which the editor opens.
 class LiveStackDarkroomPromotion {
@@ -33,42 +32,29 @@ typedef LiveRecipeSteps =
 
 /// Saves a live stack as a Darkroom master and registers it.
 class LiveStackDarkroomPromoter {
-  final Future<LiveStackingMasterSave> Function(String filePath) _saveMaster;
-  final Future<LiveStackingMasterSave> Function(
-    String filterKey,
-    String filePath,
-  )
-  _saveMasterForFilter;
-  final IntegratedMastersDao _masters;
+  final LiveStackMasterLibrary _library;
   final RecipesDao _recipes;
   final DateTime Function() _now;
   final String Function() _tempDir;
 
   LiveStackDarkroomPromoter({
-    required Future<LiveStackingMasterSave> Function(String filePath)
-    saveMaster,
-    required Future<LiveStackingMasterSave> Function(
-      String filterKey,
-      String filePath,
-    )
-    saveMasterForFilter,
-    required IntegratedMastersDao masters,
+    required LiveStackMasterLibrary library,
     required RecipesDao recipes,
     DateTime Function() now = DateTime.now,
     String Function()? tempDir,
-  }) : _saveMaster = saveMaster,
-       _saveMasterForFilter = saveMasterForFilter,
-       _masters = masters,
+  }) : _library = library,
        _recipes = recipes,
        _now = now,
        _tempDir = tempDir ?? (() => Directory.systemTemp.path);
 
-  /// Persist the live stack for [filterKey] as a linear FITS master in the
-  /// Darkroom library and, when [recipeSteps] is given and yields steps, a
-  /// recipe holding the live edit.
+  /// Persist the live stack for [filterKey] through the master library, as
+  /// Save does, and, when [recipeSteps] is given and yields steps, a recipe
+  /// holding the live edit.
   ///
   /// The master is written in a `masters` folder beside the stack's
   /// reference frame, or in the system temp folder when the stack has none.
+  /// [targetName] names only the file; the library names the master from
+  /// the frames' own headers.
   Future<LiveStackDarkroomPromotion> promote({
     required LiveStackingState stack,
     required String filterKey,
@@ -114,14 +100,18 @@ class LiveStackDarkroomPromoter {
     }
     await Directory(mastersDir).create(recursive: true);
 
-    final filePath = p.join(
-      mastersDir,
-      '${safeTarget}_${safeFilter}_${stamp}Z_${frames}f.fits',
+    final saved = await _library.save(
+      p.join(
+        mastersDir,
+        '${safeTarget}_${safeFilter}_${stamp}Z_${frames}f.fits',
+      ),
+      sourceFramePath: refPath,
+      filterKey: hasSlot ? filterKey : null,
     );
-
-    final saved = hasSlot
-        ? await _saveMasterForFilter(filterKey, filePath)
-        : await _saveMaster(filePath);
+    final masterId = saved.masterId;
+    if (masterId == null) {
+      throw StateError('The live stack was not saved as a FITS master.');
+    }
 
     final width = snap?.previewWidth ?? stack.previewWidth;
     final height = snap?.previewHeight ?? stack.previewHeight;
@@ -132,32 +122,9 @@ class LiveStackDarkroomPromoter {
                 stack.previewData!.length >= width * height * 3)
             ? 3
             : 1);
-
     final displayFilter = filterKey == kDefaultLiveStackFilterKey
         ? null
         : filterKey;
-    final masterDisplayName = [
-      if (target != null && target.isNotEmpty) target else 'Live stack',
-      ?displayFilter,
-      '($frames frames)',
-    ].join(' · ');
-
-    final masterId = await _masters.insertMaster(
-      name: masterDisplayName,
-      masterFitsPath: saved.filePath,
-      status: IntegratedMasterStatus.finalized,
-      accumulationMode: AccumulationMode.runningWeightedMean,
-      channels: channels,
-      width: width,
-      height: height,
-      frameCount: saved.stackedFrameCount,
-      totalIntegrationSeconds: saved.totalIntegrationSecs ?? 0.0,
-      filter: displayFilter,
-      settingsJson: jsonEncode(<String, dynamic>{
-        'source': 'liveStack',
-        if (target != null && target.isNotEmpty) 'target': target,
-      }),
-    );
 
     int? recipeId;
     final steps = recipeSteps?.call(isColor: channels >= 3);
@@ -165,7 +132,7 @@ class LiveStackDarkroomPromoter {
       recipeId = await _recipes.create(
         masterId: masterId,
         sessionId: sessionId,
-        baseMasterPath: saved.filePath,
+        baseMasterPath: saved.saved.filePath,
         name:
             'Live Darkroom${displayFilter != null ? ' ($displayFilter)' : ''}',
         stepsJson: jsonEncode(steps),
@@ -176,7 +143,7 @@ class LiveStackDarkroomPromoter {
     return LiveStackDarkroomPromotion(
       masterId: masterId,
       recipeId: recipeId,
-      masterFitsPath: saved.filePath,
+      masterFitsPath: saved.saved.filePath,
     );
   }
 }
