@@ -3,38 +3,12 @@
 part of '../smart_night_dialog.dart';
 
 extension _SmartNightPlanHelpers on _SmartNightDialogState {
-  /// Translate the snake_case strategy id stored in app_settings back
-  /// into a [SmartNightStrategy]; `auto` and an unknown id are null, each
-  /// target's own filters.
-  SmartNightStrategy? _strategyFromPersistedName(String name) => switch (name) {
-        'auto_lrgb' => SmartNightStrategy.autoLrgb,
-        // LRGB with equal time, which every LRGB plan now is.
-        'mono_lrgb' => SmartNightStrategy.autoLrgb,
-        'ha_lrgb' => SmartNightStrategy.haLrgb,
-        'narrowband_ha' => SmartNightStrategy.narrowbandHa,
-        'narrowband_hoo' => SmartNightStrategy.narrowbandHoo,
-        'narrowband_sho' => SmartNightStrategy.narrowbandSho,
-        'osc_one_shot' => SmartNightStrategy.oscOneShot,
-        'rgb' => SmartNightStrategy.rgb,
-        'luminance' => SmartNightStrategy.luminance,
-        'narrowband_oiii' => SmartNightStrategy.narrowbandOiii,
-        'narrowband_sii' => SmartNightStrategy.narrowbandSii,
-        _ => null,
-      };
+  /// The stored strategy id back as a set; `auto` and an unknown id are
+  /// null, each target's own filters.
+  SmartNightStrategy? _strategyFromPersistedName(String name) =>
+      SmartNightStrategy.fromId(name);
 
-  String _persistedNameForStrategy(SmartNightStrategy? s) => switch (s) {
-        null => 'auto',
-        SmartNightStrategy.autoLrgb => 'auto_lrgb',
-        SmartNightStrategy.haLrgb => 'ha_lrgb',
-        SmartNightStrategy.narrowbandHa => 'narrowband_ha',
-        SmartNightStrategy.narrowbandHoo => 'narrowband_hoo',
-        SmartNightStrategy.narrowbandSho => 'narrowband_sho',
-        SmartNightStrategy.oscOneShot => 'osc_one_shot',
-        SmartNightStrategy.rgb => 'rgb',
-        SmartNightStrategy.luminance => 'luminance',
-        SmartNightStrategy.narrowbandOiii => 'narrowband_oiii',
-        SmartNightStrategy.narrowbandSii => 'narrowband_sii',
-      };
+  String _persistedNameForStrategy(SmartNightStrategy? s) => s?.id ?? 'auto';
 
   /// Best-effort writeback of the wizard's working [_settings] +
   /// [_strategy] into [AppSettingsState]. Called whenever the user

@@ -298,7 +298,7 @@ class SmartNightService {
           availableFilters: planningFilters,
         ).isEmpty) {
       throw SmartNightBuildException(
-        'The wheel has no filters for ${smartNightStrategyLabel(strategy)} '
+        'The wheel has no filters for ${strategy.label} '
         '(${availableFilters.isEmpty ? "no filters" : availableFilters.join(", ")}). '
         'Choose the filters per target, pick another filter set, or add the '
         'filters to the wheel or the equipment profile.',
@@ -1086,9 +1086,8 @@ class SmartNightService {
         'Altitude floor: ${_floor.followsHorizon ? 'your horizon' : '${_floor.minimumDeg.toStringAsFixed(0)}°'}.';
   }
 
-  String _filterSetLabel(SmartNightStrategy? strategy) => strategy == null
-      ? 'filters per target'
-      : smartNightStrategyLabel(strategy);
+  String _filterSetLabel(SmartNightStrategy? strategy) =>
+      strategy == null ? 'filters per target' : strategy.label;
 
   String _afCadenceLabel(SmartNightSettings s) {
     switch (s.afCadence) {

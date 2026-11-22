@@ -178,7 +178,7 @@ SmartNightFilterChoice chooseSmartNightFilters({
               availableFilters: named,
             ),
           );
-    final shown = label ?? smartNightStrategyLabel(set);
+    final shown = label ?? set.label;
     return SmartNightFilterChoice._(
       strategy: set,
       filters: resolveSmartNightFilterSet(
@@ -298,53 +298,18 @@ List<String> resolveSmartNightFilterSet({
     return slots.contains(null) ? const [] : slots.cast<String>();
   }
 
-  switch (strategy) {
-    case SmartNightStrategy.autoLrgb:
-      return all(const ['L', 'R', 'G', 'B']);
-    case SmartNightStrategy.haLrgb:
-      return all(const ['L', 'R', 'G', 'B', 'Ha']);
-    case SmartNightStrategy.rgb:
-      return all(const ['R', 'G', 'B']);
-    case SmartNightStrategy.luminance:
-      return all(const ['L']);
-    case SmartNightStrategy.narrowbandHa:
-      return all(const ['Ha']);
-    case SmartNightStrategy.narrowbandHoo:
-      return all(const ['Ha', 'OIII']);
-    case SmartNightStrategy.narrowbandSho:
-      return all(const ['Ha', 'OIII', 'SII']);
-    case SmartNightStrategy.narrowbandOiii:
-      return all(const ['OIII']);
-    case SmartNightStrategy.narrowbandSii:
-      return all(const ['SII']);
-    case SmartNightStrategy.oscOneShot:
-      final multiBand = named.where(isMultiBandFilter);
-      final light = named.where(
-        (f) => _lightFilterIdentities.contains(filterIdentity(f)),
-      );
-      final preferred = preferMultiBand
-          ? [...multiBand, ...light]
-          : [...light, ...multiBand];
-      if (preferred.isNotEmpty) return [preferred.first];
-      if (named.isNotEmpty) return [named.first];
-      return const [smartNightUnfilteredName];
-  }
+  if (strategy.bands case final bands?) return all(bands);
+  final multiBand = named.where(isMultiBandFilter);
+  final light = named.where(
+    (f) => _lightFilterIdentities.contains(filterIdentity(f)),
+  );
+  final preferred = preferMultiBand
+      ? [...multiBand, ...light]
+      : [...light, ...multiBand];
+  if (preferred.isNotEmpty) return [preferred.first];
+  if (named.isNotEmpty) return [named.first];
+  return const [smartNightUnfilteredName];
 }
-
-/// The name of [strategy] for the user, as plans and reasons say it.
-String smartNightStrategyLabel(SmartNightStrategy strategy) =>
-    switch (strategy) {
-      SmartNightStrategy.autoLrgb => 'LRGB',
-      SmartNightStrategy.haLrgb => 'LRGB + Ha',
-      SmartNightStrategy.rgb => 'RGB',
-      SmartNightStrategy.luminance => 'Luminance',
-      SmartNightStrategy.narrowbandHa => 'Narrowband Ha',
-      SmartNightStrategy.narrowbandHoo => 'Narrowband HOO',
-      SmartNightStrategy.narrowbandSho => 'Narrowband SHO',
-      SmartNightStrategy.narrowbandOiii => 'Narrowband OIII',
-      SmartNightStrategy.narrowbandSii => 'Narrowband SII',
-      SmartNightStrategy.oscOneShot => 'One filter',
-    };
 
 /// Broadband filters a color camera images through.
 const Set<String> _lightFilterIdentities = {'L', 'UVIRCUT', 'LPRO', 'CLS'};
