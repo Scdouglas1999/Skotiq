@@ -23,6 +23,7 @@ import 'smart_night/dark_library_coverage.dart'
     show SmartNightFlatPlan, SmartNightFlatExposure;
 import 'smart_night/exposure_calculator.dart';
 import 'smart_night/hardware_specs_service.dart';
+import 'smart_night/unknown_camera_figures.dart';
 import 'smart_night_models.dart';
 import 'target_suggestion_service.dart';
 
@@ -311,16 +312,11 @@ class SmartNightService {
       );
     }
 
-    final pixelSizeUm =
-        exposureContext?.pixelSizeMicrons ?? _pixelSize(profile);
-    final focalLength = profile.focalLength > 0
-        ? profile.focalLength
-        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
-    final aperture = profile.aperture > 0
-        ? profile.aperture
-        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-    final cameraSpec =
-        exposureContext?.camera ?? _cameraSpecFromProfile(profile);
+    final optics = _planningOptics(profile, exposureContext);
+    final pixelSizeUm = optics.pixelSizeUm;
+    final focalLength = optics.focalLengthMm;
+    final aperture = optics.apertureMm;
+    final cameraSpec = optics.camera;
 
     // Guide-RMS ceiling: the mount-tracking exposure limit only engages when
     // we actually know the mount's recent guide RMS. The cross-system
@@ -640,16 +636,11 @@ class SmartNightService {
     final activeFilters = set.filters;
     if (activeFilters.isEmpty) return null;
 
-    final pixelSizeUm =
-        exposureContext?.pixelSizeMicrons ?? _pixelSize(profile);
-    final focalLength = profile.focalLength > 0
-        ? profile.focalLength
-        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
-    final aperture = profile.aperture > 0
-        ? profile.aperture
-        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-    final cameraSpec =
-        exposureContext?.camera ?? _cameraSpecFromProfile(profile);
+    final optics = _planningOptics(profile, exposureContext);
+    final pixelSizeUm = optics.pixelSizeUm;
+    final focalLength = optics.focalLengthMm;
+    final aperture = optics.apertureMm;
+    final cameraSpec = optics.camera;
 
     if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
       return null;
@@ -685,7 +676,7 @@ class SmartNightService {
       focalLengthMm: focalLength,
       apertureMm: aperture,
       pixelSizeUm: pixelSizeUm,
-      bortleClass: exposureContext?.bortleClass ?? 5,
+      bortleClass: optics.bortleClass,
       recentGuideRmsArcsec: exposureContext?.guideRmsArcsec,
       recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
       settings: settings,
@@ -751,16 +742,11 @@ class SmartNightService {
       );
     }
 
-    final pixelSizeUm =
-        exposureContext?.pixelSizeMicrons ?? _pixelSize(profile);
-    final focalLength = profile.focalLength > 0
-        ? profile.focalLength
-        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
-    final aperture = profile.aperture > 0
-        ? profile.aperture
-        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-    final cameraSpec =
-        exposureContext?.camera ?? _cameraSpecFromProfile(profile);
+    final optics = _planningOptics(profile, exposureContext);
+    final pixelSizeUm = optics.pixelSizeUm;
+    final focalLength = optics.focalLengthMm;
+    final aperture = optics.apertureMm;
+    final cameraSpec = optics.camera;
 
     if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
       throw SmartNightBuildException(
@@ -806,7 +792,7 @@ class SmartNightService {
       focalLengthMm: focalLength,
       apertureMm: aperture,
       pixelSizeUm: pixelSizeUm,
-      bortleClass: exposureContext?.bortleClass ?? 5,
+      bortleClass: optics.bortleClass,
       recentGuideRmsArcsec: exposureContext?.guideRmsArcsec,
       recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
       settings: settings,
@@ -847,7 +833,7 @@ class SmartNightService {
     final context = SmartNightContext(
       windowStart: usable.$1,
       windowEnd: clampedEnd,
-      bortleClass: exposureContext?.bortleClass ?? 5,
+      bortleClass: optics.bortleClass,
       recentGuideRmsArcsec: exposureContext?.guideRmsArcsec,
       recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
     );
@@ -886,14 +872,10 @@ class SmartNightService {
     SmartNightExposureContext? exposureContext,
     SmartNightSettings settings = const SmartNightSettings(),
   }) {
-    final pixelSizeUm =
-        exposureContext?.pixelSizeMicrons ?? _pixelSize(profile);
-    final focalLength = profile.focalLength > 0
-        ? profile.focalLength
-        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
-    final aperture = profile.aperture > 0
-        ? profile.aperture
-        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
+    final optics = _planningOptics(profile, exposureContext);
+    final pixelSizeUm = optics.pixelSizeUm;
+    final focalLength = optics.focalLengthMm;
+    final aperture = optics.apertureMm;
     if (focalLength <= 0 || aperture <= 0 || pixelSizeUm <= 0) {
       throw SmartNightBuildException(
         'Equipment profile "${profile.name}" is missing aperture, focal '
@@ -906,11 +888,11 @@ class SmartNightService {
       activeFilters: filterSet.filters,
       windowSecs: plannedSecs,
       profile: profile,
-      cameraSpec: exposureContext?.camera ?? _cameraSpecFromProfile(profile),
+      cameraSpec: optics.camera,
       focalLengthMm: focalLength,
       apertureMm: aperture,
       pixelSizeUm: pixelSizeUm,
-      bortleClass: exposureContext?.bortleClass ?? 5,
+      bortleClass: optics.bortleClass,
       recentGuideRmsArcsec: exposureContext?.guideRmsArcsec,
       recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
       settings: settings,
@@ -971,6 +953,33 @@ class SmartNightService {
     );
     return maxEnd.isBefore(windowEnd) ? maxEnd : windowEnd;
   }
+
+  /// The optics a plan is computed with. Pixel size and the camera's noise
+  /// figures come from [exposureContext] first, then the profile's camera;
+  /// focal length and aperture come from the profile first, then
+  /// [exposureContext], then the profile's telescope. A sky brightness with
+  /// no context is Bortle 5.
+  ({
+    double pixelSizeUm,
+    double focalLengthMm,
+    double apertureMm,
+    CameraExposureSpec camera,
+    int bortleClass,
+  })
+  _planningOptics(
+    EquipmentProfileModel profile,
+    SmartNightExposureContext? exposureContext,
+  ) => (
+    pixelSizeUm: exposureContext?.pixelSizeMicrons ?? _pixelSize(profile),
+    focalLengthMm: profile.focalLength > 0
+        ? profile.focalLength
+        : (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0),
+    apertureMm: profile.aperture > 0
+        ? profile.aperture
+        : (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0),
+    camera: exposureContext?.camera ?? _cameraSpecFromProfile(profile),
+    bortleClass: exposureContext?.bortleClass ?? 5,
+  );
 
   /// Resolve the camera pixel size (µm) for [profile] WITHOUT a live
   /// exposure context.

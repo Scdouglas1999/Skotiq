@@ -62,7 +62,11 @@ void main() {
   final contexts = <String, SmartNightExposureContext?>{
     'none': null,
     'context': const SmartNightExposureContext(
-      camera: CameraExposureSpec(readNoiseE: 1.2, fullWellE: 50000, qePeak: 0.8),
+      camera: CameraExposureSpec(
+        readNoiseE: 1.2,
+        fullWellE: 50000,
+        qePeak: 0.8,
+      ),
       bortleClass: 7,
       focalLengthMm: 600,
       apertureMm: 120,

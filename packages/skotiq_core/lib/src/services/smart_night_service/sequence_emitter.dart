@@ -132,17 +132,11 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       ),
     );
     return CameraExposureSpec(
-      readNoiseE: specs.readNoiseE?.value ?? _kUnknownCameraReadNoiseE,
-      fullWellE: specs.fullWellE?.value ?? _kUnknownCameraFullWellE,
-      qePeak: specs.qePeakFraction?.value ?? _kUnknownCameraQePeak,
+      readNoiseE: specs.readNoiseE?.value ?? UnknownCameraFigures.readNoiseE,
+      fullWellE: specs.fullWellE?.value ?? UnknownCameraFigures.fullWellE,
+      qePeak: specs.qePeakFraction?.value ?? UnknownCameraFigures.qePeak,
     );
   }
-
-  /// Conservative stand-ins for a camera whose figures nothing publishes.
-  /// Kept in step with `session_optimizer_provider`'s planning estimates.
-  static const double _kUnknownCameraReadNoiseE = 3.5;
-  static const double _kUnknownCameraFullWellE = 18000;
-  static const double _kUnknownCameraQePeak = 0.65;
 
   /// Seconds of integration budget for one target: sampled time above the
   /// altitude floor tonight, capped by its window and optional budget.

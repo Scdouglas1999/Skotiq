@@ -8,6 +8,7 @@ import 'package:skotiq_astro/format.dart';
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
 import 'smart_night/exposure_calculator.dart';
+import 'smart_night/unknown_camera_figures.dart';
 import 'smart_night_service.dart';
 
 /// Kind of suggestion the post-session optimizer can emit.
@@ -351,11 +352,15 @@ MosaicExposureSettings smartNightMosaicExposureSettings(
 
 const SmartNightExposureContext
 _fallbackExposureContext = SmartNightExposureContext(
-  camera: CameraExposureSpec(readNoiseE: 3.5, fullWellE: 18000, qePeak: 0.65),
+  camera: CameraExposureSpec(
+    readNoiseE: UnknownCameraFigures.readNoiseE,
+    fullWellE: UnknownCameraFigures.fullWellE,
+    qePeak: UnknownCameraFigures.qePeak,
+  ),
   bortleClass: 5,
   focalLengthMm: 500,
   apertureMm: 80,
-  pixelSizeMicrons: 3.76,
+  pixelSizeMicrons: UnknownCameraFigures.pixelSizeMicrons,
   availableFilterNames: ['L'],
   caveats: [
     'Equipment optics are incomplete; using a conservative Smart Night planning estimate.',
