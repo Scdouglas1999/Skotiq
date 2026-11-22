@@ -20,21 +20,20 @@ final analyticsSessionPickProvider = StateProvider<int?>((ref) => null);
 
 /// The session an Analytics tab shows, or null for the quick captures.
 ///
-/// A [pick] among [sessions] wins, then the live session, then the
-/// [defaultSessionId] the Science tab opens on, then (with [newestFallback])
-/// the newest session on record. A [kQuickCaptureSessionSelection] pick shows
-/// the quick captures whatever else is there.
+/// One rule for the Session and Science tabs: a [pick] among [sessions] wins,
+/// then the live session, then the [defaultSessionId] the Science tab opens
+/// on, then the newest session on record. A [kQuickCaptureSessionSelection]
+/// pick shows the quick captures whatever else is there.
 int? analyticsSessionInView({
   required int? pick,
   required List<ImagingSession> sessions,
   required int? liveSessionId,
   required int? defaultSessionId,
-  required bool newestFallback,
 }) {
   if (pick == kQuickCaptureSessionSelection) return null;
   final picked = sessions.any((session) => session.id == pick) ? pick : null;
   return picked ??
       liveSessionId ??
       defaultSessionId ??
-      (newestFallback ? sessions.firstOrNull?.id : null);
+      sessions.firstOrNull?.id;
 }
