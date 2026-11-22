@@ -345,9 +345,8 @@ class _ChartSummary extends StatelessWidget {
 /// grader threw out and claim a p90 the accepted subs never saw. Calibration
 /// frames are excluded for the same reason: a dark's sensor temperature is
 /// real but it is not part of the night the rest of the card describes.
-List<DbCapturedImage> sessionChartFrames(List<DbCapturedImage> images) => images
-    .where((image) => image.isAccepted && image.isLight)
-    .toList(growable: false);
+List<DbCapturedImage> sessionChartFrames(List<DbCapturedImage> images) =>
+    images.where((image) => image.isAcceptedLight).toList(growable: false);
 
 class HfrChart extends StatelessWidget {
   final List<DbCapturedImage> images;

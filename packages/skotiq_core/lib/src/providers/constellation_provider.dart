@@ -46,7 +46,7 @@ final constellationServiceProvider = Provider<ConstellationService>((ref) {
           .read(imagesDaoProvider)
           .getImagesForTarget(targetId);
       return images
-          .where((i) => i.isLight && i.isAccepted && i.filePath.isNotEmpty)
+          .where((i) => i.isAcceptedLight && i.filePath.isNotEmpty)
           .map(
             (i) => RawSubframe(
               filePath: i.filePath,

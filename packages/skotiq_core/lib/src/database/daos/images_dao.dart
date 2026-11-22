@@ -595,30 +595,6 @@ class ImagesDao extends DatabaseAccessor<SkotiqDatabase> with _$ImagesDaoMixin {
     );
   }
 
-  /// Get image count by filter for a target using SQL GROUP BY.
-  Future<Map<String, int>> getFilterCountsForTarget(int targetId) async {
-    final countExp = capturedImages.id.count();
-    final query = selectOnly(capturedImages)
-      ..addColumns([capturedImages.filter, countExp])
-      ..where(
-        capturedImages.targetId.equals(targetId) &
-            capturedImages.isAccepted.equals(true) &
-            capturedImages.filter.isNotNull(),
-      )
-      ..groupBy([capturedImages.filter]);
-
-    final rows = await query.get();
-    final counts = <String, int>{};
-    for (final row in rows) {
-      final filter = row.read(capturedImages.filter);
-      final count = row.read(countExp);
-      if (filter != null && count != null) {
-        counts[filter] = count;
-      }
-    }
-    return counts;
-  }
-
   // Producing-node provenance and the thumbnail strip (per frame).
 
   /// Stamp the producing-node provenance on an already-persisted image row.

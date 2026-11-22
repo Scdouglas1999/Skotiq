@@ -1,3 +1,4 @@
+import '../../database/rows/accepted_lights.dart';
 import '../../database/rows/frame_type_record.dart';
 import 'dart:math' as math;
 
@@ -160,18 +161,16 @@ class TargetProgressService {
       now,
     ).start.subtract(const Duration(days: TargetProgress.etaWindowNights));
 
-    final framesByFilter = <String, int>{};
+    final framesByFilter = acceptedFramesByFiledFilter(
+      acceptedLightsAsFiled(images),
+    );
     var totalCapturedAny = 0;
     DateTime? lastImagedAt;
     final distinctNights = <DateTime>{};
     var windowFrameCount = 0;
 
     for (final frame in images) {
-      if (!frame.isLight) continue;
-      if (!frame.isAccepted) continue;
-
-      final filter = frame.filter ?? '';
-      framesByFilter[filter] = (framesByFilter[filter] ?? 0) + 1;
+      if (!frame.isAcceptedLight) continue;
       totalCapturedAny += 1;
 
       final capturedAt = frame.capturedAt;
@@ -206,8 +205,8 @@ class TargetProgressService {
     // captured_at comparison and re-hydration both use seconds.
     final windowStartSec = windowStart.toUtc().millisecondsSinceEpoch ~/ 1000;
 
-    final framesByFilter = await _db.planningDao.acceptedLightFramesByFilter(
-      targetId,
+    final framesByFilter = acceptedFramesByFiledFilter(
+      await _db.planningDao.acceptedLightsOfTarget(targetId),
     );
     final totalCapturedAny = framesByFilter.values.fold(0, (a, b) => a + b);
 
@@ -216,7 +215,7 @@ class TargetProgressService {
     final lastRow = await _db
         .customSelect(
           'SELECT MAX(captured_at) AS last_sec FROM captured_images '
-          'WHERE target_id = ? AND $lightFrameSql AND is_accepted = 1',
+          'WHERE target_id = ? AND $acceptedLightFrameSql',
           variables: [Variable.withInt(targetId)],
         )
         .getSingleOrNull();
@@ -237,7 +236,7 @@ class TargetProgressService {
     final windowRows = await _db
         .customSelect(
           'SELECT captured_at AS ts FROM captured_images '
-          'WHERE target_id = ? AND $lightFrameSql AND is_accepted = 1 '
+          'WHERE target_id = ? AND $acceptedLightFrameSql '
           'AND captured_at >= ?',
           variables: [
             Variable.withInt(targetId),

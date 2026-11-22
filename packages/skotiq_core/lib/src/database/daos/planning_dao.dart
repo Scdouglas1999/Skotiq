@@ -1,4 +1,4 @@
-import '../../models/imaging/imaging_models.dart' show FrameType;
+import '../rows/accepted_lights.dart';
 import '../rows/frame_type_record.dart';
 import 'package:drift/drift.dart';
 
@@ -83,27 +83,31 @@ class PlanningDao extends DatabaseAccessor<SkotiqDatabase>
             ]))
           .get();
 
-  /// Accepted light frames on record for a target in a filter. The filter
-  /// name is compared without case, because a goal typed as "Lum" has to
-  /// count frames the wheel reported as "lum".
   /// Accepted light frames of [targetId] by filter as filed, `''` for frames
-  /// that name none.
-  Future<Map<String, int>> acceptedLightFramesByFilter(int targetId) async {
+  /// that name none ([acceptedLightsAsFiled] over the rows).
+  Future<List<AcceptedLights>> acceptedLightsOfTarget(int targetId) async {
     final count = capturedImages.id.count();
+    final seconds = capturedImages.exposureDuration.sum();
     final query = selectOnly(capturedImages)
-      ..addColumns([capturedImages.filter, count])
+      ..addColumns([capturedImages.filter, count, seconds])
       ..where(
         capturedImages.targetId.equals(targetId) &
-            capturedImages.frameTypeIs(FrameType.light) &
-            capturedImages.isAccepted.equals(true),
+            capturedImages.isAcceptedLightFrame,
       )
       ..groupBy([capturedImages.filter]);
-    final byFilter = <String, int>{};
+    final byFilter = <String, (int, double)>{};
     for (final row in await query.get()) {
       final filter = row.read(capturedImages.filter) ?? '';
-      byFilter[filter] = (byFilter[filter] ?? 0) + (row.read(count) ?? 0);
+      final (n, secs) = byFilter[filter] ?? (0, 0.0);
+      byFilter[filter] = (
+        n + (row.read(count) ?? 0),
+        secs + (row.read(seconds) ?? 0.0),
+      );
     }
-    return byFilter;
+    return [
+      for (final MapEntry(key: filter, value: (n, secs)) in byFilter.entries)
+        AcceptedLights(filter: filter, frames: n, seconds: secs),
+    ];
   }
 
   Future<int> insertTargetConstraint(TargetConstraintsCompanion constraint) =>

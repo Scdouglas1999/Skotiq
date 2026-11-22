@@ -170,7 +170,7 @@ class NightEndRunner {
         .getImagesForSession(sessionId);
     final lightIds = {
       for (final image in images)
-        if (image.isLight && image.isAccepted) image.id,
+        if (image.isAcceptedLight) image.id,
     };
     if (lightIds.isEmpty) return null;
     final targets = await loadDarkroomTargets(

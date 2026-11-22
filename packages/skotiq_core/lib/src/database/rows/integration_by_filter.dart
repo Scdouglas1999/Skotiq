@@ -15,7 +15,7 @@ double exposureSecs(Iterable<DbCapturedImage> frames) {
 /// The integration of [frames]: the exposure seconds of the accepted light
 /// frames among them.
 double acceptedIntegrationSecs(Iterable<DbCapturedImage> frames) =>
-    exposureSecs(frames.where((f) => f.isLight && f.isAccepted));
+    exposureSecs(frames.where((f) => f.isAcceptedLight));
 
 /// Light-frame integration per filter: what the grader kept and what was
 /// spent. A frame with no filter counts under [unfiltered].

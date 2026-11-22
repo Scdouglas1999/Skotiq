@@ -68,6 +68,7 @@ export 'src/database/stores/polar_alignment_log.dart';
 export 'src/database/stores/science_products.dart';
 export 'src/database/rows/frame_gain.dart';
 export 'src/database/rows/frame_type_record.dart';
+export 'src/database/rows/accepted_lights.dart';
 export 'src/database/rows/integration_by_filter.dart';
 export 'src/database/rows/frame_quality_readings.dart';
 export 'src/database/rows/imaging_session_status.dart';
