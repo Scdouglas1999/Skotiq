@@ -15,7 +15,7 @@ use skotiq_device::ascom::sensor_type::{
 use skotiq_device::{
     CameraCapabilities, CameraDescription, CameraDriver, CameraReport, CameraState, CameraStatus,
     DeviceDriver, DriverError, ExposureParams, ImageData, ImageMetadata, ReadoutMode, SensorInfo,
-    SubFrame, Vendor, VendorFeatures, UNKNOWN_CAMERA_SETTING,
+    SubFrame, Vendor, VendorFeatures,
 };
 use std::sync::{Arc, Mutex};
 
@@ -122,14 +122,14 @@ fn read_setting(
     what: &str,
     read: Result<i32, AlpacaError>,
     control: &skotiq_device::ascom::camera::CameraControl,
-) -> i32 {
+) -> Option<i32> {
     match read {
-        Ok(wire) => control.from_wire(wire),
+        Ok(wire) => Some(control.from_wire(wire)),
         Err(error) if control.is_present() => {
             tracing::debug!("Alpaca camera did not report its {what}: {error}");
-            UNKNOWN_CAMERA_SETTING
+            None
         }
-        Err(_) => 0,
+        Err(_) => Some(0),
     }
 }
 

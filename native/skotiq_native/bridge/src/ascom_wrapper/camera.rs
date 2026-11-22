@@ -397,14 +397,18 @@ impl AscomCameraWrapper {
                                 cooler_power: full_status.thermal.cooler_power,
                                 target_temp,
                                 cooler_on: full_status.thermal.cooler_on,
-                                gain: full_status
-                                    .exposure_settings
-                                    .gain
-                                    .map_or(0, |wire| controls.gain.from_wire(wire)),
-                                offset: full_status
-                                    .exposure_settings
-                                    .offset
-                                    .map_or(0, |wire| controls.offset.from_wire(wire)),
+                                gain: Some(
+                                    full_status
+                                        .exposure_settings
+                                        .gain
+                                        .map_or(0, |wire| controls.gain.from_wire(wire)),
+                                ),
+                                offset: Some(
+                                    full_status
+                                        .exposure_settings
+                                        .offset
+                                        .map_or(0, |wire| controls.offset.from_wire(wire)),
+                                ),
                                 bin_x: full_status.exposure_settings.bin_x.unwrap_or(1),
                                 bin_y: full_status.exposure_settings.bin_y.unwrap_or(1),
                                 exposure_remaining,
@@ -1253,7 +1257,7 @@ impl CameraDriver for AscomCameraWrapper {
     async fn get_gain(&self) -> Result<i32, DriverError> {
         // Gain is included in status
         let status = self.get_status().await?;
-        Ok(status.gain)
+        Ok(status.gain.unwrap_or_default())
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
@@ -1268,7 +1272,7 @@ impl CameraDriver for AscomCameraWrapper {
     async fn get_offset(&self) -> Result<i32, DriverError> {
         // Offset is included in status
         let status = self.get_status().await?;
-        Ok(status.offset)
+        Ok(status.offset.unwrap_or_default())
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
@@ -1493,8 +1497,8 @@ mod tests {
                     cooler_power: None,
                     target_temp: None,
                     cooler_on: Some(false),
-                    gain: 0,
-                    offset: 0,
+                    gain: Some(0),
+                    offset: Some(0),
                     bin_x: 1,
                     bin_y: 1,
                     exposure_remaining: Some(7.5),

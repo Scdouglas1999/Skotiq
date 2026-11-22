@@ -76,8 +76,8 @@ impl CameraDriver for FliCamera {
             } else {
                 Some(false)
             },
-            gain: self.core.gain,
-            offset: self.core.offset,
+            gain: Some(self.core.gain),
+            offset: Some(self.core.offset),
             bin_x: self.core.bin_x,
             bin_y: self.core.bin_y,
             exposure_remaining,

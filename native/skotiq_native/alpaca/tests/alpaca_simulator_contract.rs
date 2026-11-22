@@ -26,7 +26,6 @@ use skotiq_alpaca::{
 };
 use skotiq_device::{
     BayerPattern, CameraDriver, ExposureParams, FrameType, MountDriver, TrackingRate,
-    UNKNOWN_CAMERA_SETTING,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -457,7 +456,10 @@ async fn a_failed_advertised_setting_is_unknown_in_a_status_that_still_answers()
     let driver = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 97));
     let report = driver.report().await.unwrap();
     assert!(report.can_set_gain && report.can_set_offset);
-    assert_eq!((report.status.gain, report.status.offset), (42, 17));
+    assert_eq!(
+        (report.status.gain, report.status.offset),
+        (Some(42), Some(17))
+    );
     for member in ["gain", "offset"] {
         state
             .camera_errors
@@ -474,8 +476,8 @@ async fn a_failed_advertised_setting_is_unknown_in_a_status_that_still_answers()
         } else {
             (status.offset, status.gain)
         };
-        assert_eq!(refused, UNKNOWN_CAMERA_SETTING, "{member}");
-        assert!(other >= 0, "{member}");
+        assert_eq!(refused, None, "{member}");
+        assert!(other.is_some_and(|other| other >= 0), "{member}");
         state.camera_errors.lock().unwrap().clear();
     }
     let absent = AlpacaCameraDriver::new(AlpacaCamera::from_server(&base, 0));

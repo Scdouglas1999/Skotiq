@@ -443,7 +443,7 @@ mod vendor_model {
     #[ignore = "run by qhy_driver_against_the_vendor_model"]
     async fn after_a_read_mode_change_the_gain_reported_is_the_one_the_camera_uses() {
         let mut camera = connected(COLOR_WITH_WHEEL, COLOR_ID).await;
-        assert_eq!(camera.get_status().await.unwrap().gain, 0);
+        assert_eq!(camera.get_status().await.unwrap().gain, Some(0));
         let mode = ReadoutMode {
             name: "High Gain Mode".into(),
             description: String::new(),
@@ -463,7 +463,7 @@ mod vendor_model {
         let status = camera.get_status().await.unwrap();
         assert_eq!(
             (status.gain, status.offset),
-            (56, 20),
+            (Some(56), Some(20)),
             "status after the mode change"
         );
         let frame = take(&mut camera, light(0.05, 1, None)).await;

@@ -191,7 +191,7 @@ fn the_gain_is_the_body_iso_read_at_connect_and_its_own_list() {
     run(async {
         let mut camera = connected(CANON_DETECTED, "usb:001,005").await;
         assert_eq!(camera.get_gain().await.unwrap(), 800);
-        assert_eq!(camera.get_status().await.unwrap().gain, 800);
+        assert_eq!(camera.get_status().await.unwrap().gain, Some(800));
         let speeds = camera.get_iso_speeds().await.unwrap();
         assert_eq!(speeds.first(), Some(&100));
         assert_eq!(speeds.last(), Some(&25600));
