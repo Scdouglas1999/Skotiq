@@ -643,3 +643,31 @@ async fn frame_path_stage_times() {
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Which frames may be uniform: today the frame's length decides, not its
+/// type. A uniform 0.05 s flat passes as a bias would; the same flat at
+/// 0.5 s is refused (owner item P8-3 would decide by the frame type).
+#[tokio::test]
+async fn a_uniform_frame_passes_validation_by_its_length_today() {
+    let uniform = Arc::new((64, 64, vec![1000u16; 64 * 64]));
+    let device_id = "native:pin_uniform";
+    connect_fixed_camera(device_id, uniform, None).await;
+    let flat = |secs: f64| {
+        let ops = create_unified_device_ops();
+        async move {
+            ops.camera_start_exposure(
+                skotiq_sequencer::ExposureRequest::new("native:pin_uniform", secs)
+                    .frame_type(skotiq_sequencer::FrameType::Flat),
+            )
+            .await
+        }
+    };
+    let short = flat(0.05).await;
+    let long = flat(0.5).await;
+    disconnect_fixed_camera(device_id).await;
+    assert!(short.is_ok(), "{short:?}");
+    assert!(
+        matches!(long, Err(skotiq_sequencer::DeviceError::InvalidFrame(_))),
+        "{long:?}"
+    );
+}
