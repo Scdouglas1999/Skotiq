@@ -45,20 +45,20 @@ void main() {
         overrides: [
           loggingServiceProvider.overrideWithValue(LoggingService()),
           liveStackingServiceProvider.overrideWith(
-            (ref) => LiveStackingService(ref, host: host),
+            (ref) => LinkedLiveStackingService(ref, host),
           ),
         ],
       );
       addTearDown(container.dispose);
       final service = container.read(liveStackingServiceProvider);
 
-      await service.resetForFilter('Ha');
+      await service.reset(filterKey: 'Ha');
       await service.reset();
-      await service.stopForFilter('OIII');
+      await service.stop(filterKey: 'OIII');
       await service.stop();
-      await service.startFromFileForFilter(
-        filterKey: 'SII',
+      await service.start(
         referenceImagePath: '/host/sii.fits',
+        filterKey: 'SII',
       );
 
       expect(host.resets, ['Ha', null]);

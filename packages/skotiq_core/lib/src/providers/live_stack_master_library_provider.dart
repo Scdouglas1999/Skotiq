@@ -9,10 +9,11 @@ final liveStackMasterLibraryProvider = Provider<LiveStackMasterLibrary>((ref) {
   final stacking = ref.watch(liveStackingServiceProvider);
   return LiveStackMasterLibrary(
     currentResult: stacking.getCurrentResult,
-    currentResultForFilter: stacking.getCurrentResultForFilter,
+    currentResultForFilter: (filterKey) =>
+        stacking.getCurrentResult(filterKey: filterKey),
     saveMaster: (path) => stacking.saveMaster(filePath: path),
     saveMasterForFilter: (filterKey, path) =>
-        stacking.saveMasterForFilter(filterKey: filterKey, filePath: path),
+        stacking.saveMaster(filePath: path, filterKey: filterKey),
     writePreview: (path, result) async {
       final stretched = await stacking.autoStretchPreviewAsync(
         width: result.width,

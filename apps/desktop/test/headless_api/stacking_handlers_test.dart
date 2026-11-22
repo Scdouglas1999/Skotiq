@@ -35,13 +35,32 @@ class _FakeStackingService extends LiveStackingService {
   final Set<String> _slots = {};
   Object? startError;
 
+  /// Set to make the next add throw, standing in for the native stacker's
+  /// unstructured failures (alignment rejection, unreadable file).
+  Object? addError;
+
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  bool get isActive => _active;
+
+  @override
+  int get frameCount => _active ? 1 + added.length : 0;
+
+  @override
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
+    if (filterKey != null) {
+      if (startError case final error?) throw error;
+      startedFilters.add(filterKey);
+      startedConfigs.add(config);
+      _slots.add(filterKey);
+      _active = true;
+      return LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
+    }
     if (startError case final error?) throw error;
-    started.add(referenceImagePath);
+    started.add(referenceImagePath!);
     startedConfigs.add(config);
     _slots.add('Unfiltered');
     _active = true;
@@ -49,43 +68,46 @@ class _FakeStackingService extends LiveStackingService {
   }
 
   @override
-  Future<LiveStackingStats> startFromFileForFilter({
-    required String filterKey,
-    required String referenceImagePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
+  Future<void> reset({String? filterKey}) async {
+    if (filterKey != null) {
+      if (!_slots.contains(filterKey)) {
+        throw StateError(
+          "Live stacker not initialized for filter '$filterKey'",
+        );
+      }
+      resetFilters.add(filterKey);
+      return;
+    }
+    // Mirror the native engine: reset is invalid before the first frame
+    // initializes the stacker.
+    if (!_active) throw StateError('Live stacker not initialized');
+    resets++;
+  }
+
+  @override
+  Future<void> stop({String? filterKey}) async {
+    if (filterKey != null) {
+      if (!_slots.contains(filterKey)) {
+        throw StateError(
+          "Live stacker not initialized for filter '$filterKey'",
+        );
+      }
+      stoppedFilters.add(filterKey);
+      _slots.remove(filterKey);
+      _active = _slots.isNotEmpty;
+      return;
+    }
+    if (!_active) throw StateError('Live stacker not initialized');
+    stops++;
+    _active = false;
+    _slots.clear();
+  }
+
+  @override
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
   }) async {
-    if (startError case final error?) throw error;
-    startedFilters.add(filterKey);
-    startedConfigs.add(config);
-    _slots.add(filterKey);
-    _active = true;
-    return LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
-  }
-
-  @override
-  Future<void> resetForFilter(String filterKey) async {
-    if (!_slots.contains(filterKey)) {
-      throw StateError("Live stacker not initialized for filter '$filterKey'");
-    }
-    resetFilters.add(filterKey);
-  }
-
-  @override
-  Future<void> stopForFilter(String filterKey) async {
-    if (!_slots.contains(filterKey)) {
-      throw StateError("Live stacker not initialized for filter '$filterKey'");
-    }
-    stoppedFilters.add(filterKey);
-    _slots.remove(filterKey);
-    _active = _slots.isNotEmpty;
-  }
-
-  /// Set to make the next add throw, standing in for the native stacker's
-  /// unstructured failures (alignment rejection, unreadable file).
-  Object? addError;
-
-  @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
     if (addError case final error?) throw error;
     added.add(imagePath);
     return LiveStackingResult(
@@ -101,41 +123,20 @@ class _FakeStackingService extends LiveStackingService {
   }
 
   @override
-  Future<void> reset() async {
-    // Mirror the native engine: reset is invalid before the first frame
-    // initializes the stacker.
-    if (!_active) throw StateError('Live stacker not initialized');
-    resets++;
-  }
-
-  @override
-  Future<void> stop() async {
-    if (!_active) throw StateError('Live stacker not initialized');
-    stops++;
-    _active = false;
-    _slots.clear();
-  }
-
-  @override
-  bool get isActive => _active;
-
-  @override
-  int get frameCount => _active ? 1 + added.length : 0;
-
-  @override
-  Future<LiveStackingStats> getStats() async {
+  Future<LiveStackingStats> getStats({String? filterKey}) async {
     if (!_active) throw StateError('Live stacker not initialized');
     return LiveStackingStats(stackedFrameCount: 1 + added.length);
   }
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async => LiveStackingResult(
-    width: 2,
-    height: 2,
-    channels: 1,
-    data: const [10, 20, 30, 40],
-    stats: LiveStackingStats(stackedFrameCount: 1 + added.length),
-  );
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
+      LiveStackingResult(
+        width: 2,
+        height: 2,
+        channels: 1,
+        data: const [10, 20, 30, 40],
+        stats: LiveStackingStats(stackedFrameCount: 1 + added.length),
+      );
 }
 
 void main() {

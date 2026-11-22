@@ -24,7 +24,7 @@ class _RecordingLiveStackingNotifier extends LiveStackingNotifier {
   int stopCalls = 0;
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stopCalls++;
     _log.add('stop');
     // ignore: invalid_use_of_protected_member
@@ -39,7 +39,7 @@ class _FakeLiveStackingService extends LiveStackingService {
   bool failSave = false;
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async =>
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
       const LiveStackingResult(
         width: 1920,
         height: 1080,
@@ -48,7 +48,10 @@ class _FakeLiveStackingService extends LiveStackingService {
       );
 
   @override
-  Future<LiveStackingMasterSave> saveMaster({required String filePath}) async {
+  Future<LiveStackingMasterSave> saveMaster({
+    required String filePath,
+    String? filterKey,
+  }) async {
     // Mirrors the real service: FITS is the master, PNG is the render, and any
     // other extension is refused rather than renaming the operator's file.
     final extension = filePath.contains('.')

@@ -29,9 +29,10 @@ class _FakeLocalStackingService extends LiveStackingService {
   int resetCalls = 0;
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
     startedFrom = referenceImagePath;
     return const LiveStackingStats(stackedFrameCount: 1);
@@ -42,12 +43,13 @@ class _FakeLocalStackingService extends LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async => const LiveStackingStats(stackedFrameCount: 1);
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async =>
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
       const LiveStackingResult(
         width: 2,
         height: 1,
@@ -56,12 +58,12 @@ class _FakeLocalStackingService extends LiveStackingService {
       );
 
   @override
-  Future<void> reset() async {
+  Future<void> reset({String? filterKey}) async {
     resetCalls++;
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stopCalls++;
   }
 }
@@ -253,9 +255,10 @@ class _FailingStackingService extends LiveStackingService {
   _FailingStackingService(super.ref);
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async => throw StateError('cannot read $referenceImagePath');
 }
 
