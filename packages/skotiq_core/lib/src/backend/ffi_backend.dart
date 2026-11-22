@@ -52,12 +52,14 @@ part 'ffi_backend/mount_guard_operations.dart';
 
 /// Map user-facing curve-fitting labels onto the native bridge's actual
 /// autofocus method enum strings. "Trend Lines" is the V-curve/trend-line
-/// implementation; unknown legacy labels also fail safely to VCurve.
+/// implementation; "V-Curve" and "Quadratic" are labels earlier releases
+/// stored. Any other label is passed as it is, and the bridge refuses it.
 String autofocusCurveMethodForNativeBridge(String curveFitting) {
   return switch (curveFitting.trim().toLowerCase()) {
     'hyperbolic' => 'Hyperbolic',
     'parabolic' || 'quadratic' => 'Parabolic',
-    _ => 'VCurve',
+    'trend lines' || 'v-curve' || 'vcurve' || 'v_curve' || '' => 'VCurve',
+    _ => curveFitting,
   };
 }
 
