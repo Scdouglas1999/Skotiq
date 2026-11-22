@@ -65,7 +65,6 @@ class AnnotationObject {
   factory AnnotationObject.fromHyperLeda(HyperLedaData galaxy) {
     final altNames = <String>[];
     if (galaxy.name != null) {
-      // Parse alternate names from the name field
       altNames.addAll(galaxy.name!.split(';').map((s) => s.trim()));
     }
     altNames.add('PGC ${galaxy.pgc}');
@@ -267,9 +266,7 @@ class AnnotationCatalog {
   }
 
   /// Deduplication key: position rounded to 0.01 deg (~36 arcsec), the
-  /// tolerance the merged catalogs were assembled with. Keyed through a map so
-  /// merging a colliding row is O(1) — it used to be `List.indexOf`, an O(n)
-  /// scan of the growing list per collision.
+  /// tolerance the merged catalogs were assembled with.
   String _positionKey(AnnotationObject object) =>
       '${object.ra.toStringAsFixed(2)},${object.dec.toStringAsFixed(2)}';
 
@@ -288,7 +285,6 @@ class AnnotationCatalog {
 
     if (nearby.isEmpty) return null;
 
-    // Find closest by angular distance
     AnnotationObject? closest;
     double minDistSq = double.infinity;
 

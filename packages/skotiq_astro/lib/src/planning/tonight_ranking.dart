@@ -23,12 +23,7 @@ const double kTonightCatalogFitWeight = 1 - kTonightConditionsWeight;
 
 /// The rule "Best Targets Tonight" is actually ranked by, in operator words.
 ///
-/// Kept next to the weights it describes, and derived from them, because the
-/// first version of this panel told the user it used "the same score the
-/// planner uses" while a third of the key was a catalog-fit term the planner
-/// has never heard of — so the row at the top could have FEWER usable dark
-/// hours than the row under it, on a card whose own headline number is those
-/// hours.
+/// Kept next to the weights it describes, and derived from them.
 final String kTonightRankingTooltip =
     'Ranked ${(kTonightConditionsWeight * 100).round()}% on tonight’s '
     'conditions (usable hours above your altitude floor in darkness, peak '
