@@ -124,10 +124,10 @@ class _ConnectionTroubleshooterDialogState
         children: [
           // Severity-styled header: the headline as the alert title and the
           // plain-language explanation as the message body.
-          SkotiqAlert(
-            severity: _severity,
+          SkotiqBanner(
             title: _diagnosis.headline,
             message: _diagnosis.plainLanguage,
+            tone: _severity,
           ),
           if (widget.reason case final reason?
               when reason.trim().isNotEmpty) ...[

@@ -149,7 +149,8 @@ void main() {
 
       // First attempt failed → troubleshooter is shown.
       expect(find.byType(ConnectionTroubleshooterDialog), findsOneWidget);
-      expect(find.text(_driverHeadline), findsOneWidget);
+      expect(find.textContaining(_driverHeadline, findRichText: true),
+          findsOneWidget);
       expect(deviceService.connectCameraCalls, 1);
 
       // Retry → the dialog closes and the shared mixin re-attempts the connect

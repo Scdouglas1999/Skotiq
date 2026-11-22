@@ -93,11 +93,11 @@ class _SlewToTargetDialog extends StatelessWidget {
           ],
           if (belowHorizon) ...[
             const SizedBox(height: SkotiqTokens.spaceMd),
-            SkotiqInlineBanner(
-              severity: BannerTone.warning,
-              message:
+            SkotiqBanner(
+              title:
                   '$targetName is below the horizon. The mount would point at '
                   'the ground.',
+              tone: BannerTone.warning,
             ),
           ],
         ],

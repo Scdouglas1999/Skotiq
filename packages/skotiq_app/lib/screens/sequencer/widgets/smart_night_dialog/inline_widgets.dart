@@ -308,19 +308,19 @@ class _SeedSourceBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (missingNames.isEmpty) {
-      return SkotiqInlineBanner(
-        severity: BannerTone.info,
-        message: 'Pre-selected the incomplete targets from "$label". '
+      return SkotiqBanner(
+        title: 'Pre-selected the incomplete targets from "$label". '
             'Adjust the selection below if you like.',
+        tone: BannerTone.info,
       );
     }
     final names = missingNames.join(', ');
-    return SkotiqInlineBanner(
-      severity: BannerTone.warning,
-      message: 'Pre-selected the incomplete targets from "$label". '
+    return SkotiqBanner(
+      title: 'Pre-selected the incomplete targets from "$label". '
           '${missingNames.length} '
           '($names) are below tonight\'s altitude / score cut-offs and '
           'won\'t be planned tonight.',
+      tone: BannerTone.warning,
     );
   }
 }

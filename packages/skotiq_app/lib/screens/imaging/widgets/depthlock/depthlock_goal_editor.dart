@@ -807,9 +807,9 @@ class _MeasurementVerdict extends StatelessWidget {
     if (apertureCount == null) {
       return const SizedBox.shrink();
     }
-    return SkotiqInlineBanner(
-      message: '$apertureCount apertures across the region.',
-      severity: BannerTone.success,
+    return SkotiqBanner(
+      title: '$apertureCount apertures across the region.',
+      tone: BannerTone.success,
     );
   }
 }

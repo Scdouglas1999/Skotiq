@@ -452,10 +452,10 @@ class _HardwarePresetEditorDialogState
   Widget _builtInOverrideNotice() {
     return const Padding(
       padding: EdgeInsets.only(bottom: SkotiqTokens.spaceLg),
-      child: SkotiqInlineBanner(
-        message: 'This is a built-in preset. Saving creates your own editable '
+      child: SkotiqBanner(
+        title: 'This is a built-in preset. Saving creates your own editable '
             'copy; the original stays available.',
-        severity: BannerTone.info,
+        tone: BannerTone.info,
       ),
     );
   }

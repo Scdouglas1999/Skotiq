@@ -298,10 +298,10 @@ class _MountSiteReconciliationCardState
           ],
           if (_error != null) ...[
             const SizedBox(height: 12),
-            SkotiqAlert(
-              severity: BannerTone.error,
+            SkotiqBanner(
               title: 'Not everything was applied',
               message: _error!,
+              tone: BannerTone.error,
             ),
           ],
           const SizedBox(height: 16),

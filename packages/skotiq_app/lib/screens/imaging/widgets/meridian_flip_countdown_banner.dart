@@ -224,13 +224,8 @@ class _MeridianFlipCountdownView extends StatelessWidget {
       BannerTone.error => colors.error,
     };
 
-    // Decoration recipe is identical to SkotiqAlert (severity tint @ 0.06
-    // over surfaceAlt, border @ 0.35, radiusMd) so the banner is visually
-    // indistinguishable from the design-system alert — we only compose a richer
-    // body so the live countdown can use tabular telemetry figures. The two
-    // alpha constants below are the exact values SkotiqAlert._getColors
-    // uses; mirroring them keeps the banner on the same surface as every other
-    // alert in the app.
+    // A tone tint over surfaceAlt with a tone border, so the live countdown
+    // can use tabular telemetry figures in a body richer than a banner's.
     const alertTintAlpha = 0.06;
     const alertBorderAlpha = 0.35;
     final background = Color.alphaBlend(
