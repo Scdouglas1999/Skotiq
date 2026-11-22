@@ -2351,9 +2351,10 @@ fn flat_pedestal_state_reads_the_cards_it_reads_today() {
     );
 }
 
-/// The rejection tokens one night's integration takes, and what each one runs.
+/// The rejection tokens one night's integration takes, and what each one runs:
+/// every spelling of the rejectors it runs, not the generalized ESD test.
 #[test]
-fn integration_rejection_tokens_read_as_they_do_today() {
+fn integration_rejection_tokens_name_its_rejectors() {
     use crate::post_session::args::IntegrationArgs;
     use crate::post_session::helpers::{auto_reject, build_integration_config};
     use skotiq_imaging::integration::Reject;
@@ -2373,26 +2374,61 @@ fn integration_rejection_tokens_read_as_they_do_today() {
         ("sigmaClip", Reject::SigmaClip { low, high }),
         ("sigma_clip", Reject::SigmaClip { low, high }),
         ("winsorizedSigma", Reject::WinsorizedSigmaClip { low, high }),
-        ("winsorized_sigma", Reject::WinsorizedSigmaClip { low, high }),
-        ("winsorizedSigmaClip", Reject::WinsorizedSigmaClip { low, high }),
+        (
+            "winsorized_sigma",
+            Reject::WinsorizedSigmaClip { low, high },
+        ),
+        (
+            "winsorizedSigmaClip",
+            Reject::WinsorizedSigmaClip { low, high },
+        ),
         ("linearFit", Reject::LinearFitClip { low, high }),
         ("linear_fit", Reject::LinearFitClip { low, high }),
         ("linearFitClip", Reject::LinearFitClip { low, high }),
         ("percentile", Reject::PercentileClip { low, high }),
         ("percentileClip", Reject::PercentileClip { low, high }),
-        ("minMax", Reject::MinMax { n_low: 1, n_high: 2 }),
-        ("min_max", Reject::MinMax { n_low: 1, n_high: 2 }),
+        (
+            "minMax",
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 2,
+            },
+        ),
+        (
+            "min_max",
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 2,
+            },
+        ),
+        ("winsorized", Reject::WinsorizedSigmaClip { low, high }),
     ] {
-        assert_eq!(build_integration_config(&args(token), 9).unwrap().reject, expected, "{token:?}");
+        assert_eq!(
+            build_integration_config(&args(token), 9).unwrap().reject,
+            expected,
+            "{token:?}"
+        );
     }
-    for token in ["winsorized", "esd", "generalizedEsd", "bogus"] {
+    for token in ["esd", "generalizedEsd", "bogus"] {
         assert_eq!(
             build_integration_config(&args(token), 9).unwrap_err(),
             format!("unknown reject algorithm '{}'", token.to_ascii_lowercase()),
             "{token:?}"
         );
     }
-    assert_eq!(auto_reject(7, low, high), Reject::PercentileClip { low: 0.2, high: 0.1 });
-    assert_eq!(auto_reject(24, low, high), Reject::WinsorizedSigmaClip { low, high });
-    assert_eq!(auto_reject(25, low, high), Reject::LinearFitClip { low, high });
+    assert_eq!(
+        auto_reject(7, low, high),
+        Reject::PercentileClip {
+            low: 0.2,
+            high: 0.1
+        }
+    );
+    assert_eq!(
+        auto_reject(24, low, high),
+        Reject::WinsorizedSigmaClip { low, high }
+    );
+    assert_eq!(
+        auto_reject(25, low, high),
+        Reject::LinearFitClip { low, high }
+    );
 }
