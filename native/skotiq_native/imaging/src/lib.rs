@@ -33,6 +33,7 @@ mod frame_shape;
 mod frame_validation;
 pub mod frame_weighting;
 pub mod integration;
+pub mod live_stack_stretch;
 pub mod master_accumulation;
 pub mod mosaic_stitch;
 pub mod normalization;
