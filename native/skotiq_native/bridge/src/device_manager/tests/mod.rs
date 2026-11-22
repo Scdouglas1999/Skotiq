@@ -27,6 +27,7 @@ mod mount_home;
 mod mount_ops;
 mod mount_set_park;
 mod mount_trace;
+mod move_holds;
 mod native_camera_probe;
 mod native_mount_probe;
 mod omnisim;

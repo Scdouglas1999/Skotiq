@@ -71,8 +71,13 @@ impl DeviceManager {
             from_filter_name: slot_name(from_position),
         });
 
+        // The heartbeat waits while the move call runs, as the focuser's
+        // does: an ASCOM driver blocks in it on the STA thread.
         let result = match self.filter_wheel(device_id).await {
-            Ok(wheel) => wheel.move_to_slot(position).await,
+            Ok(wheel) => {
+                let _op = self.busy(device_id, Busy::BlockingCall);
+                wheel.move_to_slot(position).await
+            }
             Err(e) => Err(e),
         };
 
