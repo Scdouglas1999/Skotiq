@@ -6,9 +6,10 @@
 //!
 //! A mount's tracking is what it last read (or was last commanded): one that
 //! stopped tracking by itself, at its limit or by a hand controller, holds
-//! that. A reconnect that finds the mount tracking otherwise sets it back,
-//! at the rate it had, and never slews, parks, unparks or homes it. A first
-//! connect, with nothing held, adopts what the mount reports. A camera keeps
+//! that. A reconnect that finds a mount that was tracking come back without
+//! tracking switches tracking on at the rate it had, and never slews, parks,
+//! unparks or homes it. A mount that comes back tracking is left tracking. A
+//! first connect, with nothing held, adopts what the mount reports. A camera keeps
 //! its cooler, gain and offset ([`DeviceManager::restore_camera_state`]).
 
 use crate::device::{ConnectionState, DeviceInfo, MountStatus};
@@ -17,9 +18,12 @@ use crate::event::equipment::{EquipmentEvent, EventSeverity};
 
 impl DeviceManager {
     /// Record what a status read says the mount's tracking is, while it is
-    /// connected. A write only when it changes: the mount is read every
-    /// second or two.
+    /// connected and not slewing (a slew's tracking is the slew's). A write
+    /// only when it changes: the mount is read every second or two.
     pub(crate) async fn hold_mount_tracking(&self, device_id: &str, status: &MountStatus) {
+        if status.slewing {
+            return;
+        }
         let observed = |previous: Option<HeldTracking>| HeldTracking {
             tracking: status.tracking,
             rate: status.tracking_rate.or(previous.and_then(|held| held.rate)),
@@ -43,29 +47,32 @@ impl DeviceManager {
         }
     }
 
-    /// After a connect: set the mount's tracking back to `held`, what it was
-    /// at its last disconnect, when it reports otherwise. Nothing for a first
-    /// connect. Tracking is not switched on for a parked or slewing mount, or
-    /// for one that came back at home though it was not at home before (it
-    /// lost its position).
+    /// After a connect: a mount that was tracking at its last disconnect
+    /// (`held`) and came back without tracking tracks again, at the rate it
+    /// had. Nothing for a first connect, or for a mount that was not
+    /// tracking: whatever it does now is left as it is. Tracking is not
+    /// switched on for a parked or slewing mount, or for one that came back at
+    /// home though it was not at home before (it lost its position).
     pub(crate) async fn keep_mount_tracking(&self, info: &DeviceInfo, held: Option<HeldTracking>) {
         let device_id = &info.id;
-        let Some(held) = held else {
+        let Some(held) = held.filter(|held| held.tracking) else {
             return;
         };
         let status = match self.mount_get_status(device_id).await {
             Ok(status) => status,
             Err(e) => {
                 tracing::warn!("{device_id} reconnected; its tracking could not be read: {e}");
+                self.hold_again(device_id, held).await;
                 return;
             }
         };
-        if !held.tracking {
-            if status.tracking {
-                tracing::info!("{device_id} reconnected tracking; it was not, so tracking stops");
-                if let Err(e) = self.mount_set_tracking(device_id, false).await {
-                    self.tracking_not_kept(info, &e.to_string());
-                }
+        let rate = held
+            .rate
+            .filter(|rate| status.tracking_rate != Some(*rate) && status.can_set_tracking_rate)
+            .and_then(|rate| rate.to_wire());
+        if status.tracking {
+            if let Some(wire) = rate {
+                self.set_rate_back(device_id, wire).await;
             }
             return;
         }
@@ -93,16 +100,8 @@ impl DeviceManager {
             }
             return;
         }
-        let rate = held
-            .rate
-            .filter(|rate| status.tracking_rate != Some(*rate) && status.can_set_tracking_rate);
-        if let Some(wire) = rate.and_then(|rate| rate.to_wire()) {
-            if let Err(e) = self.mount_set_tracking_rate(device_id, wire).await {
-                tracing::warn!("{device_id} reconnected; its tracking rate was not set back: {e}");
-            }
-        }
-        if status.tracking {
-            return;
+        if let Some(wire) = rate {
+            self.set_rate_back(device_id, wire).await;
         }
         match held.rate {
             Some(rate) => tracing::info!(
@@ -122,7 +121,24 @@ impl DeviceManager {
                     info.shown_name()
                 ),
             ),
-            Err(e) => self.tracking_not_kept(info, &e.to_string()),
+            Err(e) => {
+                self.tracking_not_kept(info, &e.to_string());
+                self.hold_again(device_id, held).await;
+            }
+        }
+    }
+
+    async fn set_rate_back(&self, device_id: &str, wire: i32) {
+        if let Err(e) = self.mount_set_tracking_rate(device_id, wire).await {
+            tracing::warn!("{device_id} reconnected; its tracking rate was not set back: {e}");
+        }
+    }
+
+    /// The tracking it held stays held when it could not be put back: the
+    /// read just after the connect recorded what the mount reports.
+    async fn hold_again(&self, device_id: &str, held: HeldTracking) {
+        if let Some(dev) = self.devices.write().await.get_mut(device_id) {
+            dev.held_tracking = Some(held);
         }
     }
 

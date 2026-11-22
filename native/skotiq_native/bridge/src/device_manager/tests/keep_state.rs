@@ -144,3 +144,77 @@ async fn a_mount_that_came_back_at_home_is_not_set_tracking() {
     assert!(told, "the operator is told why tracking stayed off");
     sim_mount_done().await;
 }
+
+fn warnings(rx: &mut tokio::sync::broadcast::Receiver<crate::event::bus::SkotiqEvent>) -> usize {
+    let mut count = 0;
+    while let Ok(event) = rx.try_recv() {
+        if let crate::event::bus::EventPayload::System(
+            crate::event::system::SystemEvent::Notification { level, .. },
+        ) = &event.payload
+        {
+            count += usize::from(level == "warning");
+        }
+    }
+    count
+}
+
+/// A mount that comes back at home and tracking is left as it is, and
+/// nothing says tracking stayed off.
+#[tokio::test]
+async fn a_mount_that_came_back_at_home_and_tracking_is_left_alone() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let id = "sim_mount_keep_home_tracking";
+    sim_mount(&manager, id).await;
+    sim_mount_reads(true, TrackingRate::Sidereal).await;
+    manager.mount_get_status(id).await.expect("status");
+    let mut rx = manager.app_state.event_bus.subscribe();
+
+    manager.mark_lost(id, true, "simulated drop").await;
+    get_sim_mount().write().await.status.at_home = Some(true);
+    manager.connect_device(id).await.expect("reconnect");
+    assert!(get_sim_mount().read().await.status.tracking);
+    assert_eq!(warnings(&mut rx), 0);
+    sim_mount_done().await;
+}
+
+/// A mount that was not tracking and comes back tracking is left tracking:
+/// a reconnect only puts back tracking that was on.
+#[tokio::test]
+async fn a_mount_that_comes_back_tracking_is_left_tracking() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let id = "sim_mount_keep_left_on";
+    sim_mount(&manager, id).await;
+    manager.mount_get_status(id).await.expect("status");
+
+    manager.disconnect_device(id).await.expect("disconnect");
+    sim_mount_reads(true, TrackingRate::Sidereal).await;
+    manager.connect_device(id).await.expect("reconnect");
+    assert!(get_sim_mount().read().await.status.tracking);
+    sim_mount_done().await;
+}
+
+/// A read during a slew is not what the mount holds: a link lost mid-slew
+/// still resumes the tracking the mount had.
+#[tokio::test]
+async fn a_read_during_a_slew_is_not_held() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let id = "sim_mount_keep_slew";
+    sim_mount(&manager, id).await;
+    sim_mount_reads(true, TrackingRate::Sidereal).await;
+    manager.mount_get_status(id).await.expect("status");
+    {
+        let mut mount = get_sim_mount().write().await;
+        mount.status.slewing = true;
+        mount.status.tracking = false;
+    }
+    manager.mount_get_status(id).await.expect("status mid-slew");
+
+    manager.mark_lost(id, true, "lost mid-slew").await;
+    get_sim_mount().write().await.status.slewing = false;
+    manager.connect_device(id).await.expect("reconnect");
+    assert!(get_sim_mount().read().await.status.tracking);
+    sim_mount_done().await;
+}
