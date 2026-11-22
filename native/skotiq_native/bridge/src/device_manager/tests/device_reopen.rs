@@ -782,3 +782,42 @@ async fn a_not_connected_kind_without_the_words_is_gone_at_every_recovery_site()
     assert!(manager.failing_status_reads(focuser).is_some());
     let _ = manager.disconnect_device(focuser).await;
 }
+
+/// P8-7: the app's own wheel and focuser moves (the FFI calls the manager
+/// directly) get the reopen the run's moves get after a bus drop.
+#[tokio::test]
+async fn a_manual_wheel_and_focuser_move_after_a_bus_drop_reopens_and_lands() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let wheel = "sim_wheel_manual_reopen";
+    let focuser = "sim_focuser_manual_reopen";
+    for (id, device_type) in [
+        (wheel, DeviceType::FilterWheel),
+        (focuser, DeviceType::Focuser),
+    ] {
+        manager
+            .register_device(build_sim_info(id, device_type), false)
+            .await;
+        manager.connect_device(id).await.expect("connect");
+    }
+
+    crate::hotplug::note_bus_change();
+    get_sim_filterwheel().write().await.status.connected = false;
+    get_sim_focuser().write().await.status.connected = false;
+    let moved = manager.filter_wheel_set_position(wheel, 3).await;
+    let focused = manager.focuser_move_abs(focuser, 5300).await;
+    crate::hotplug::forget_bus_change();
+
+    assert!(moved.is_ok(), "the manual wheel move lands: {moved:?}");
+    assert!(
+        focused.is_ok(),
+        "the manual focuser move lands: {focused:?}"
+    );
+    assert_eq!(manager.filter_wheel_get_position(wheel).await.ok(), Some(3));
+    assert_eq!(manager.focuser_get_position(focuser).await.ok(), Some(5300));
+    assert_eq!(manager.reopen_count(wheel), 1);
+    assert_eq!(manager.reopen_count(focuser), 1);
+    for id in [wheel, focuser] {
+        let _ = manager.disconnect_device(id).await;
+    }
+}
