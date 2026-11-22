@@ -1,6 +1,7 @@
 import '../../../services/centering_service.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
+import '../../centering_run.dart';
 import '../../centering_service_providers.dart';
 
 /// Progress of a centering run (state, attempt, offset). Centering is a loop
@@ -37,23 +38,27 @@ class CenteringStatusChannel extends RuntimeMirrorChannel<CenteringStatus> {
 
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
-    context.read(centeringStatusProvider.notifier).state = value == null
-        ? CenteringStatus.idle()
-        : CenteringStatus(
-            state: CenteringState.values.firstWhere(
-              (s) => s.name == value['state'],
-              orElse: () => CenteringState.idle,
-            ),
-            currentIteration: requireInt(value, 'currentIteration'),
-            maxIterations: requireInt(value, 'maxIterations'),
-            currentOffsetArcsec: jsonDouble(value['offsetArcsec']),
-            currentOffsetArcmin: jsonDouble(value['offsetArcmin']),
-            message: jsonString(value['message']),
-            iterationHistory: _decodeIterations(value['iterations']),
-            lastImagePath: jsonString(value['lastImagePath']),
-            solvedRa: jsonDouble(value['solvedRa']),
-            solvedDec: jsonDouble(value['solvedDec']),
-          );
+    context
+        .read(centeringRunProvider)
+        .adoptStatus(
+          value == null
+              ? CenteringStatus.idle()
+              : CenteringStatus(
+                  state: CenteringState.values.firstWhere(
+                    (s) => s.name == value['state'],
+                    orElse: () => CenteringState.idle,
+                  ),
+                  currentIteration: requireInt(value, 'currentIteration'),
+                  maxIterations: requireInt(value, 'maxIterations'),
+                  currentOffsetArcsec: jsonDouble(value['offsetArcsec']),
+                  currentOffsetArcmin: jsonDouble(value['offsetArcmin']),
+                  message: jsonString(value['message']),
+                  iterationHistory: _decodeIterations(value['iterations']),
+                  lastImagePath: jsonString(value['lastImagePath']),
+                  solvedRa: jsonDouble(value['solvedRa']),
+                  solvedDec: jsonDouble(value['solvedDec']),
+                ),
+        );
   }
 }
 
@@ -85,15 +90,19 @@ class CenteringResultChannel extends RuntimeMirrorChannel<CenteringResult?> {
 
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
-    context.read(lastCenteringResultProvider.notifier).state = value == null
-        ? null
-        : CenteringResult(
-            success: value['success'] == true,
-            finalOffsetArcsec: jsonDouble(value['finalOffsetArcsec']),
-            iterations: requireInt(value, 'iterations'),
-            errorMessage: jsonString(value['error']),
-            iterationHistory: _decodeIterations(value['history']),
-          );
+    context
+        .read(centeringRunProvider)
+        .adoptResult(
+          value == null
+              ? null
+              : CenteringResult(
+                  success: value['success'] == true,
+                  finalOffsetArcsec: jsonDouble(value['finalOffsetArcsec']),
+                  iterations: requireInt(value, 'iterations'),
+                  errorMessage: jsonString(value['error']),
+                  iterationHistory: _decodeIterations(value['history']),
+                ),
+        );
   }
 }
 

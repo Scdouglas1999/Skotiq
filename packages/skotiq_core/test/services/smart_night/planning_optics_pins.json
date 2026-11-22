@@ -1,0 +1,170 @@
+{
+  "full/none/L": [
+    {
+      "filter_name": "L",
+      "filter_index": null,
+      "count": 308,
+      "duration_secs": 35.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "full/none/Ha": [
+    {
+      "filter_name": "Ha",
+      "filter_index": null,
+      "count": 36,
+      "duration_secs": 300.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "full/context/L": [
+    {
+      "filter_name": "L",
+      "filter_index": null,
+      "count": 360,
+      "duration_secs": 30.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "full/context/Ha": [
+    {
+      "filter_name": "Ha",
+      "filter_index": null,
+      "count": 154,
+      "duration_secs": 70.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "full/contextNoPixel/L": "refused: Equipment profile \"full\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "full/contextNoPixel/Ha": "refused: Equipment profile \"full\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "telescopeOnly/none/L": [
+    {
+      "filter_name": "L",
+      "filter_index": null,
+      "count": 216,
+      "duration_secs": 50.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "telescopeOnly/none/Ha": [
+    {
+      "filter_name": "Ha",
+      "filter_index": null,
+      "count": 36,
+      "duration_secs": 300.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "telescopeOnly/context/L": [
+    {
+      "filter_name": "L",
+      "filter_index": null,
+      "count": 360,
+      "duration_secs": 30.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "telescopeOnly/context/Ha": [
+    {
+      "filter_name": "Ha",
+      "filter_index": null,
+      "count": 270,
+      "duration_secs": 40.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "telescopeOnly/contextNoPixel/L": "refused: Equipment profile \"telescopeOnly\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "telescopeOnly/contextNoPixel/Ha": "refused: Equipment profile \"telescopeOnly\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "unknownCamera/none/L": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "unknownCamera/none/Ha": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "unknownCamera/context/L": [
+    {
+      "filter_name": "L",
+      "filter_index": null,
+      "count": 360,
+      "duration_secs": 30.0,
+      "gain": null,
+      "offset": null,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "unknownCamera/context/Ha": [
+    {
+      "filter_name": "Ha",
+      "filter_index": null,
+      "count": 154,
+      "duration_secs": 70.0,
+      "gain": null,
+      "offset": null,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "unknownCamera/contextNoPixel/L": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "unknownCamera/contextNoPixel/Ha": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "noOptics/none/L": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "noOptics/none/Ha": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "noOptics/context/L": [
+    {
+      "filter_name": "L",
+      "filter_index": null,
+      "count": 360,
+      "duration_secs": 30.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "noOptics/context/Ha": [
+    {
+      "filter_name": "Ha",
+      "filter_index": null,
+      "count": 270,
+      "duration_secs": 40.0,
+      "gain": 100,
+      "offset": 50,
+      "binning": "One",
+      "dither_every": 3,
+      "depth_goal": null
+    }
+  ],
+  "noOptics/contextNoPixel/L": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "noOptics/contextNoPixel/Ha": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations."
+}

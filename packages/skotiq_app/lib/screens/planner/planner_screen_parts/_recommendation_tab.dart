@@ -42,15 +42,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       target: target,
       includeSessionPreamble: true,
     ),
-    run: (plan) async {
-      // takeOwnership keeps any unsaved manual sequence and restores it when
-      // the run stops, instead of discarding the operator's draft.
-      ref.read(currentSequenceProvider.notifier).takeOwnership(
-            plan.sequence,
-            ActivePlanOwner.smartNight,
-          );
-      await ref.read(sequenceExecutorProvider).start();
-    },
+    run: (plan) => ref
+        .read(sequenceActionServiceProvider)
+        .startOwnedPlan(plan.sequence, ActivePlanOwner.smartNight),
   )..addListener(_onImageTonightChanged);
 
   @override

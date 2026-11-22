@@ -163,6 +163,7 @@ export 'src/services/sensor_specs/curated_camera_sensors.dart';
 export 'src/services/sensor_specs/published_figure.dart';
 export 'src/services/smart_night/dark_library_coverage.dart';
 export 'src/services/smart_night/smart_night_draft_service.dart';
+export 'src/services/smart_night/smart_night_inputs.dart';
 // Smart Night auto-builder (the one-click "plan tonight").
 export 'src/services/smart_night_service.dart';
 export 'src/services/smart_night_plan_counts.dart';

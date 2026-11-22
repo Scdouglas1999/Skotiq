@@ -242,4 +242,114 @@ void main() {
     expect(shown.single.title, 'The run did not start');
     expect(shown.single.message, startsWith('Session already active.'));
   });
+
+  group('startOwnedPlan', () {
+    Sequence plan(String name) {
+      final root = InstructionSetNode(id: 'root-$name', name: name);
+      return Sequence.create(
+        id: name,
+        name: name,
+        rootNodeId: root.id,
+        nodes: {root.id: root},
+      );
+    }
+
+    test('a run that cannot start leaves the editor as it was', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.executor.startError = StateError('Cannot start');
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      h.container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
+
+      await expectLater(
+        h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.smartNight),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test('a start already in flight is not replaced by the plan', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor.startGate = gate;
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      final first = h.service.start();
+
+      await expectLater(
+        h.service.startOwnedPlan(plan('Mosaic'), ActivePlanOwner.mosaic),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(h.executor.startCount, 1);
+      gate.complete();
+      expect((await first).isSuccess, isTrue);
+    });
+
+    test('a Start pressed while a plan starts joins that start', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor.startGate = gate;
+
+      final owned =
+          h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+      final pressed = h.service.start();
+      gate.complete();
+      await owned;
+
+      expect((await pressed).isSuccess, isTrue);
+      expect(h.executor.startCount, 1);
+    });
+
+    test('a refused plan start answers a joined Start with a failure',
+        () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor
+        ..startGate = gate
+        ..startError = StateError('validation failed');
+
+      final owned =
+          h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+      final pressed = h.service.start();
+      final paused = h.service.pause();
+      gate.complete();
+
+      await expectLater(owned, throwsA(isA<StateError>()));
+      final result = await pressed;
+      expect(result.isSuccess, isFalse);
+      expect(result.message, contains('validation failed'));
+      expect((await paused).isSuccess, isTrue);
+      expect(h.executor.startCount, 1);
+    });
+
+    test('an idle executor takes the plan and starts it', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+
+      await h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Generated');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.mosaic,
+      );
+      expect(h.executor.startCount, 1);
+    });
+  });
 }

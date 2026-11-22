@@ -396,25 +396,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
     if (_settingsSeededFromAppSettings) return;
     _settingsSeededFromAppSettings = true;
 
-    // Translate the persisted minutes/hours into the wizard's native
-    // units. `null` => use SmartNightSettings constructor default
-    // (12h cap for max session, infinite per-target budget capped by
-    // window in practice).
-    final maxHours = app.smartNightMaxSessionHours;
-    final defaultIntegrationHours =
-        app.smartNightDefaultIntegrationBudgetMinsPerTarget / 60.0;
-    _settings = _settings.copyWith(
-      maxSessionHours: maxHours ?? _settings.maxSessionHours,
-      afEveryFrames: app.smartNightDefaultAfCadenceFrames,
-      defaultIntegrationBudgetHours: defaultIntegrationHours,
-      includeFlatsAtEnd: app.smartNightIncludeFlatsAtEnd,
-      useSchedulerForMultiTarget: app.smartNightUseSchedulerForMultiTarget,
-      schedulerTargetThreshold: app.smartNightSchedulerTargetThreshold,
-      polarAlignmentStaleAfterDays: app.smartNightPolarAlignmentStaleAfterDays,
-      subExposureFloorSecs: app.smartNightSubExposureFloorSecs,
-      subExposureCeilingSecs: app.smartNightSubExposureCeilingSecs,
-      targetSnr: app.smartNightTargetSnr,
-    );
+    _settings = SmartNightInputs.withWizardDefaults(app, _settings);
     _strategy = _strategyFromPersistedName(app.smartNightDefaultStrategy);
     final seed = widget.seedTargetIds;
     if (seed == null || seed.isEmpty) {
@@ -499,7 +481,10 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
 
       final effectiveSettings = _settings.copyWith(
         hasCoverCalibrator: _settings.hasCoverCalibrator ||
-            activeProfile.coverCalibratorId != null,
+            SmartNightInputs.hasCoverCalibrator(
+              activeProfile,
+              rule: CoverCalibratorRule.anyId,
+            ),
       );
       var exposureContext =
           await ref.read(smartNightExposureContextProvider.future);

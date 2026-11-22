@@ -213,6 +213,7 @@ export 'src/providers/calibration_master_builder_provider.dart';
 export 'src/providers/calibration_service_providers.dart';
 export 'src/providers/capture_preview_loader_provider.dart';
 export 'src/providers/centering_service_providers.dart';
+export 'src/providers/centering_run.dart';
 export 'src/providers/color_calibration_service_provider.dart';
 export 'src/providers/imaging_service_providers.dart';
 export 'src/providers/darkroom_build_jobs_provider.dart';
