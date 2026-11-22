@@ -49,7 +49,7 @@ enum CalibrationFrameKind {
 }
 
 /// The fewest frames a master is built from.
-const int calibrationBacklogMinFrames = 2;
+const int calibrationBacklogMinFrames = calibrationMasterMinFrames;
 
 /// Raw calibration frames of one kind and one capture setting, taken the same
 /// night, that no master in the library covers yet.
@@ -785,7 +785,7 @@ class CalibrationBacklogService {
     return null;
   }
 
-  /// File name of a built master, in the end-of-night calibration's style.
+  /// File name of a built master, in the backlog's style.
   String masterFileName({
     required CalibrationFrameKind kind,
     required double exposureSeconds,
@@ -794,32 +794,17 @@ class CalibrationBacklogService {
     required int binX,
     required double? temperature,
     required String? filter,
-  }) {
-    String trim(double v) => v == v.roundToDouble()
-        ? v.toStringAsFixed(0)
-        : v
-              .toStringAsFixed(3)
-              .replaceFirst(RegExp(r'0+$'), '')
-              .replaceAll('.', 'p');
-    final temp = temperature == null
-        ? 'notemp'
-        : (temperature.round() < 0
-              ? 'm${-temperature.round()}C'
-              : 'p${temperature.round()}C');
-    final t = _now();
-    String two(int v) => v.toString().padLeft(2, '0');
-    final stamp =
-        '${t.year}${two(t.month)}${two(t.day)}-${two(t.hour)}${two(t.minute)}'
-        '${two(t.second)}';
-    final head = switch (kind) {
-      CalibrationFrameKind.dark => 'MasterDark_${trim(exposureSeconds)}s',
-      CalibrationFrameKind.bias => 'MasterBias',
-      CalibrationFrameKind.flat =>
-        'MasterFlat_${(filter ?? 'NoFilter').replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}',
-    };
-    return '${head}_g${gain ?? 'x'}_o${offset ?? 'x'}_${temp}_bin$binX'
-        '_$stamp.fits';
-  }
+  }) => calibrationMasterFileName(
+    kind: kind.name,
+    style: CalibrationMasterNameStyle.backlog,
+    builtAt: _now(),
+    exposureSeconds: exposureSeconds,
+    gain: gain,
+    offset: offset,
+    binX: binX,
+    temperatureC: temperature,
+    filter: filter,
+  );
 
   /// Keys of groups the operator chose not to build.
   Future<Set<String>> dismissedKeys() async {

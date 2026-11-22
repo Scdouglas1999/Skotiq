@@ -600,7 +600,6 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       );
       if (!taken) _problem(report, 'No darks were taken for ${dark.label}');
     }
-    final stamp = _stamp(report.startedAt);
     for (final (index, group) in groups.indexed) {
       if (_cancelRequested) return;
       final s = group.setting;
@@ -633,23 +632,26 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
         );
       }
 
-      if (group.frames.length < 2) {
+      if (group.frames.length < calibrationMasterMinFrames) {
         unbuilt(
           group.offSetPoint.isEmpty
-              ? 'a master needs at least 2 frames'
-              : 'a master needs at least 2 frames at the set-point',
+              ? 'a master needs at least $calibrationMasterMinFrames frames'
+              : 'a master needs at least $calibrationMasterMinFrames frames '
+                    'at the set-point',
         );
         continue;
       }
-      final readMode = s.readMode == null
-          ? ''
-          : '_${s.readMode!.replaceAll(RegExp(r'[^A-Za-z0-9-]'), '')}';
-      final name =
-          '${isBias ? 'MasterBias' : 'MasterDark_${_trim(s.exposureSecs)}s'}'
-          '${s.gain == null ? '' : '_g${s.gain}'}'
-          '${s.offset == null ? '' : '_o${s.offset}'}'
-          '_${_tempTag(group.temperatureC)}_bin${s.binX}$readMode'
-          '_$stamp.fits';
+      final name = calibrationMasterFileName(
+        kind: isBias ? 'bias' : 'dark',
+        style: CalibrationMasterNameStyle.endOfNight,
+        builtAt: report.startedAt,
+        exposureSeconds: s.exposureSecs,
+        gain: s.gain,
+        offset: s.offset,
+        binX: s.binX,
+        temperatureC: group.temperatureC,
+        readMode: s.readMode,
+      );
       final output = p.join(
         p.dirname(group.frames.first.filePath),
         'Masters',
@@ -904,7 +906,9 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     final s = group.setting;
     final temp = group.temperatureC;
     return [
-      s.type == FrameType.bias ? 'bias' : '${_trim(s.exposureSecs)} s darks',
+      s.type == FrameType.bias
+          ? 'bias'
+          : '${calibrationMasterNameNumber(s.exposureSecs)} s darks',
       gainOffsetLabel(s.gain, s.offset),
       'bin ${s.binX}x${s.binY}',
       if (s.readMode != null) 'read mode ${s.readMode}',
@@ -921,25 +925,6 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
   static String _trimTemp(double value) => value == value.roundToDouble()
       ? value.toStringAsFixed(0)
       : value.toStringAsFixed(1);
-
-  static String _trim(double value) {
-    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
-    return value
-        .toStringAsFixed(3)
-        .replaceFirst(RegExp(r'0+$'), '')
-        .replaceAll('.', 'p');
-  }
-
-  static String _tempTag(double? temp) {
-    if (temp == null) return 'notemp';
-    final rounded = temp.round();
-    return rounded < 0 ? 'm${-rounded}C' : 'p${rounded}C';
-  }
-
-  static String _stamp(DateTime t) {
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${t.year}${two(t.month)}${two(t.day)}-${two(t.hour)}${two(t.minute)}';
-  }
 }
 
 /// How a calibration run's recorded status reads in a sentence ("The
