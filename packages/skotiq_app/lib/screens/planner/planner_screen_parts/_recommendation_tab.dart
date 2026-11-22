@@ -42,9 +42,11 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       target: target,
       includeSessionPreamble: true,
     ),
-    run: (plan) => ref
-        .read(sequenceActionServiceProvider)
-        .startOwnedPlan(plan.sequence, ActivePlanOwner.smartNight),
+    run: (plan) => ref.read(sequenceActionServiceProvider).startOwnedPlan(
+          plan.sequence,
+          ActivePlanOwner.smartNight,
+          confirm: () => confirmPreflight(context),
+        ),
   )..addListener(_onImageTonightChanged);
 
   @override

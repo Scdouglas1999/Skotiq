@@ -10,6 +10,15 @@ import 'command_action_result.dart';
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));
 
+/// The operator closed the pre-flight checks of a generated plan without
+/// starting it ([SequenceActionService.startOwnedPlan]).
+class PlanStartCanceled implements Exception {
+  const PlanStartCanceled();
+
+  @override
+  String toString() => 'The plan was not started: pre-flight was closed.';
+}
+
 /// The distinct playback commands, keyed for the shared single-flight latch.
 enum _SequenceCommand { start, pause, resume, stop, skip, reset }
 
@@ -102,19 +111,34 @@ class SequenceActionService {
   /// latch. A refusal to start is thrown to the caller; one the executor's
   /// state or a start already under way makes is thrown before the editor
   /// changes, so the editor keeps showing the run that is on.
-  Future<void> startOwnedPlan(Sequence sequence, ActivePlanOwner owner) async {
-    final state = _ref.read(sequenceExecutionStateProvider);
-    if (_inFlight.containsKey(_SequenceCommand.start) || !state.canStart) {
-      throw StateError(
-        'Cannot start: a sequence start is already in flight or the executor '
-        'is not in an admissible state (state: ${state.name}).',
-      );
+  ///
+  /// A caller with a screen passes [confirm], the pre-flight checks the
+  /// editor's own Start shows: the plan is loaded for them, and closing them
+  /// gives the editor back and throws [PlanStartCanceled]. Without [confirm]
+  /// the checks run beside the start and their findings are posted as a
+  /// notification; they never hold the start back.
+  Future<void> startOwnedPlan(
+    Sequence sequence,
+    ActivePlanOwner owner, {
+    Future<bool> Function()? confirm,
+  }) async {
+    _ensureStartAdmissible();
+    final editor = _ref.read(currentSequenceProvider.notifier);
+    Future<void> report = Future<void>.value();
+    if (confirm != null) {
+      editor.takeOwnership(sequence, owner);
+      if (!await confirm()) {
+        editor.releaseOwnership();
+        throw const PlanStartCanceled();
+      }
+      _ensureStartAdmissible();
+    } else {
+      // Beside the start, not before it: the run does not wait for the check.
+      report = _reportPreflight(sequence);
     }
     (Object, StackTrace)? refusal;
     await _single(_SequenceCommand.start, () async {
-      _ref
-          .read(currentSequenceProvider.notifier)
-          .takeOwnership(sequence, owner);
+      if (confirm == null) editor.takeOwnership(sequence, owner);
       try {
         await _executor.start();
         return CommandActionResult.ok;
@@ -127,8 +151,44 @@ class SequenceActionService {
         );
       }
     });
+    await report;
     if (refusal case (final error, final stack)) {
       Error.throwWithStackTrace(error, stack);
+    }
+  }
+
+  void _ensureStartAdmissible() {
+    final state = _ref.read(sequenceExecutionStateProvider);
+    if (_inFlight.containsKey(_SequenceCommand.start) || !state.canStart) {
+      throw StateError(
+        'Cannot start: a sequence start is already in flight or the executor '
+        'is not in an admissible state (state: ${state.name}).',
+      );
+    }
+  }
+
+  /// The pre-flight findings of a plan started without a screen to show them
+  /// on, as one notification.
+  Future<void> _reportPreflight(Sequence sequence) async {
+    try {
+      final result = await _ref.read(sequenceValidatorProvider).validate(
+            sequence,
+          );
+      final issues = [
+        for (final issue in result.issues)
+          if (issue.severity != ValidationSeverity.info) issue,
+      ];
+      if (issues.isEmpty) return;
+      final more = issues.length > 1 ? ' (and ${issues.length - 1} more)' : '';
+      _ref.read(uiNotificationProvider.notifier).showWarning(
+            '${issues.first.title}$more',
+            title: 'Pre-flight for ${sequence.name}',
+          );
+    } catch (e) {
+      _ref.read(loggingServiceProvider).warning(
+            'The pre-flight check of ${sequence.name} did not run: $e',
+            source: 'SequenceActionService',
+          );
     }
   }
 

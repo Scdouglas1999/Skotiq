@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/planner/image_tonight_controller.dart';
+import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' as planetarium;
@@ -98,6 +99,22 @@ void main() {
     expect(controller.state.target, target);
     expect(framedWith, target);
     expect(ranWith?.sequence.name, 'Smart Night M51');
+    expect(controller.state.error, isNull);
+  });
+
+  test(
+      'closing the pre-flight returns the button to its start, not to a '
+      'failure', () async {
+    final controller = ImageTonightController(
+      frame: (_) {},
+      plan: (t) async => result(t),
+      run: (_) async => throw const PlanStartCanceled(),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.go(suggestion());
+
+    expect(controller.state.phase, ImageTonightPhase.idle);
     expect(controller.state.error, isNull);
   });
 

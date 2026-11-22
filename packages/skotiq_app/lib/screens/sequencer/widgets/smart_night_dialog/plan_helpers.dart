@@ -289,7 +289,10 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         read: ref.read,
         plan: plan,
         draftId: _previewDraftId,
+        confirm: () => confirmPreflight(context),
       );
+    } on PlanStartCanceled {
+      return;
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(
