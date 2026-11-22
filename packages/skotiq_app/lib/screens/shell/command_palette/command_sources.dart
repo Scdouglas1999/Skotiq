@@ -19,6 +19,7 @@ import '../../../router/planner_route.dart';
 import '../shell_navigation.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
+import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import 'command_entry.dart';
 
 /// Every rail destination, every Settings section, and the screens that own a
@@ -153,7 +154,7 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
       enabled: !isRunning,
       disabledReason: isRunning ? 'Already running' : null,
       keywords: const ['run', 'begin', 'sequence'],
-      invoke: (context, ref) => ref.read(sequenceActionServiceProvider).start(),
+      invoke: (context, ref) => startWithPreflight(context, ref),
     ),
     CommandEntry(
       id: 'action:sequence-stop',
