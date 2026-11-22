@@ -276,7 +276,9 @@ class DeviceService {
         ),
       );
     }
-    _phd2Launcher = Phd2Launcher(ref: _ref);
+    _phd2Launcher = Phd2Launcher(
+      notices: () => _ref.read(uiNotificationProvider.notifier),
+    );
     _heartbeat = DeviceHeartbeatRouter(ref: _ref);
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,

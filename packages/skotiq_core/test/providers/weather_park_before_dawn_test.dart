@@ -14,7 +14,7 @@ import 'package:skotiq_core/src/providers/sequence_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/services/end_of_night_calibration/eon_plan.dart';
-import 'package:skotiq_core/src/services/safe_rig_service.dart';
+import 'package:skotiq_core/src/providers/safe_rig_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../mocks/mock_backend.dart';

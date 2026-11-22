@@ -495,6 +495,42 @@ Future<void> main() async {
   );
 
   await check(
+    'a service importing Riverpod fails without a baseline entry',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/src/services/night/night_service.dart',
+      "import 'package:flutter_riverpod/flutter_riverpod.dart';\n",
+    ),
+    exitCode: 1,
+    stderrHas: [
+      '[core-services-riverpod]',
+      'night_service.dart:1: imports package:flutter_riverpod/flutter_riverpod.dart',
+    ],
+  );
+
+  await check(
+    'a listed Riverpod service passes; providers and other packages pass',
+    (root) async {
+      await _baseline(
+        root,
+        coreServicesRiverpod: {'services/night_service.dart': 1},
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/services/night/night_service.dart',
+        "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
+            "import 'package:meta/meta.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/providers/night_provider.dart',
+        "import 'package:riverpod/riverpod.dart';\n",
+      );
+    },
+    exitCode: 0,
+  );
+
+  await check(
     'a listed service passes up to its count and fails above it',
     (root) async {
       await _baseline(root, coreLayers: {'services/night_service.dart': 1});
@@ -952,6 +988,7 @@ Future<void> _baseline(
   Map<String, int> srcImport = const {},
   Map<String, int> nodeDispatch = const {},
   Map<String, int> coreLayers = const {},
+  Map<String, int> coreServicesRiverpod = const {},
 }) => _write(
   root,
   'tools/production/architecture_rules_baseline.json',
@@ -967,6 +1004,12 @@ Future<void> _baseline(
     'coreLayers': {
       'allowed': {
         for (final e in coreLayers.entries)
+          e.key: {'count': e.value, 'reason': 'self-test'},
+      },
+    },
+    'coreServicesRiverpod': {
+      'allowed': {
+        for (final e in coreServicesRiverpod.entries)
           e.key: {'count': e.value, 'reason': 'self-test'},
       },
     },

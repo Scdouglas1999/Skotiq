@@ -25,7 +25,7 @@ class _LocalBackendNotifier extends BackendNotifier {
 }
 
 class _RecordingStackingService extends LiveStackingService {
-  _RecordingStackingService(super.ref);
+  _RecordingStackingService(super.logger);
 
   final calls = <String>[];
 
@@ -84,7 +84,7 @@ void main() {
         backendProvider.overrideWith(_LocalBackendNotifier.new),
         loggingServiceProvider.overrideWithValue(LoggingService()),
         liveStackingServiceProvider.overrideWith((ref) {
-          service = _RecordingStackingService(ref);
+          service = _RecordingStackingService(ref.read(loggingServiceProvider));
           return service;
         }),
       ],

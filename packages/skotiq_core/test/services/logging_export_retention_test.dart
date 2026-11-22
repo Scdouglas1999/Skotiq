@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:archive/archive_io.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/services/diagnostic_dump_service.dart';
+import 'package:skotiq_core/src/providers/diagnostic_dump_service.dart';
 import 'package:skotiq_core/src/utils/logging_service.dart';
 
 /// The diagnostic dump advertises "recent log files" but LoggingService.exportLogs

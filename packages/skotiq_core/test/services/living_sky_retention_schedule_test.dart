@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/src/providers/app_version_provider.dart';
-import 'package:skotiq_core/src/services/auto_save_service.dart';
+import 'package:skotiq_core/src/providers/auto_save_service.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
 import 'package:skotiq_core/src/services/sequence_repository.dart';
 

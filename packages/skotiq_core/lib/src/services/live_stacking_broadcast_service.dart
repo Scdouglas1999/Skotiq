@@ -23,8 +23,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../models/imaging/stack_and_share_models.dart'
     show ShareCardFontScale, ShareCardLayout, ShareCardSpec;
 import '../models/sequence/interpolation_catalog.dart'
@@ -33,7 +31,6 @@ import '../models/sequence/sequence_models.dart'
     show LiveStackingMethod, LiveStackingMode, LiveStackingNode;
 import '../utils/logging_service.dart';
 import 'share_card_renderer.dart';
-import '../providers/logging_service_provider.dart';
 
 /// The watermark template's ENTIRE vocabulary.
 ///
@@ -269,7 +266,7 @@ class BroadcastUpdate {
 /// Coordinates between the LiveStacking node, the live-stacking
 /// service, and the broadcast HTTP endpoints.
 class LiveStackingBroadcastService {
-  final Ref _ref;
+  final LoggingService Function() _readLogger;
   final StreamController<BroadcastUpdate> _updates =
       StreamController<BroadcastUpdate>.broadcast();
   final StreamController<BroadcastSessionState> _changes =
@@ -297,11 +294,11 @@ class LiveStackingBroadcastService {
   final ShareCardRenderer _renderer;
 
   LiveStackingBroadcastService(
-    this._ref, {
+    this._readLogger, {
     ShareCardRenderer renderer = const ShareCardRenderer(),
   }) : _renderer = renderer;
 
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
+  LoggingService get _logger => _readLogger();
 
   /// Subscribe to broadcast updates. The handler implementation maps
   /// each event onto an SSE message; the dashboard panel can also

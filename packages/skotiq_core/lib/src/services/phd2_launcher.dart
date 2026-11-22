@@ -2,10 +2,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
-import '../providers/ui_notification_provider.dart';
+import 'notification/ui_notices.dart';
 import '../backend/phd2_status_poll.dart';
 
 /// Auto-launches PHD2 on the local machine and waits for its socket to
@@ -25,14 +24,14 @@ import '../backend/phd2_status_poll.dart';
 /// After spawning, poll the port for [launchTimeout] before giving up.
 class Phd2Launcher {
   Phd2Launcher({
-    required Ref ref,
+    required UiNotices Function() notices,
     Duration launchTimeout = const Duration(seconds: 10),
     Duration pollInterval = const Duration(milliseconds: 250),
-  }) : _ref = ref,
+  }) : _notices = notices,
        _launchTimeout = launchTimeout,
        _pollInterval = pollInterval;
 
-  final Ref _ref;
+  final UiNotices Function() _notices;
   final Duration _launchTimeout;
   final Duration _pollInterval;
 
@@ -61,7 +60,7 @@ class Phd2Launcher {
       return;
     }
 
-    final notifications = _ref.read(uiNotificationProvider.notifier);
+    final notifications = _notices();
     final configuredPath = executablePath.trim();
     if (configuredPath.isNotEmpty) {
       final exe = File(configuredPath);

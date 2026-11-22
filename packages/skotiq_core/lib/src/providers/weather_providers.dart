@@ -25,7 +25,7 @@ export 'weather_safety_provider.dart';
 /// Manages radar data fetching from multiple providers (NOAA, RainViewer, OpenMeteo).
 /// Initializes on first access and disposes when the provider is destroyed.
 final weatherRadarServiceProvider = Provider<WeatherRadarService>((ref) {
-  final service = WeatherRadarService(ref);
+  final service = WeatherRadarService(() => ref.read(databaseProvider));
   service.initialize();
   ref.onDispose(() => service.dispose());
   return service;

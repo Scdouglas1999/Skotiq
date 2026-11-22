@@ -45,7 +45,10 @@ void main() {
         overrides: [
           loggingServiceProvider.overrideWithValue(LoggingService()),
           liveStackingServiceProvider.overrideWith(
-            (ref) => LinkedLiveStackingService(ref, host),
+            (ref) => LinkedLiveStackingService(
+              ref.read(loggingServiceProvider),
+              host,
+            ),
           ),
         ],
       );

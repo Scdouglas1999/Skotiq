@@ -17,7 +17,7 @@ import '../models/sequence/sequence_models.dart'
 import '../backend/skotiq_backend.dart';
 import 'sequence/plan_run_end.dart';
 import '../services/adaptive_swap_service.dart';
-import '../services/safe_rig_service.dart';
+import 'safe_rig_service.dart';
 import '../services/safety_config_service.dart';
 import '../services/weather/weather_threshold_evaluator.dart';
 import '../database/database.dart' as db;

@@ -603,7 +603,12 @@ void main() {
         final container = ProviderContainer();
         addTearDown(container.dispose);
         final service = container.read(
-          Provider((ref) => LinkedLiveStackingService(ref, remote)),
+          Provider(
+            (ref) => LinkedLiveStackingService(
+              ref.read(loggingServiceProvider),
+              remote,
+            ),
+          ),
         );
 
         expect(service.isActive, isFalse);

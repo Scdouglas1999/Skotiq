@@ -17,7 +17,7 @@ import '../models/scheduler/scheduler_readiness.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
-import '../services/safe_rig_service.dart';
+import 'safe_rig_service.dart';
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
 import '../models/site/horizon_profile.dart';
 import '../services/scheduler/horizon_profile_store.dart';

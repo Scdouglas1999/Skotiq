@@ -35,14 +35,12 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
         return fallback;
       }
       final center = projection.imageCentre;
-      final cone = await _ref
-          .read(photometricCatalogServiceProvider)
-          .coneSearch(
-            raDegrees: center.raDegrees,
-            decDegrees: center.decDegrees,
-            radiusDegrees: projection.wcs.coneSearchRadiusDegrees,
-            maxMagnitude: maxCatalogMag,
-          );
+      final cone = await _catalog().coneSearch(
+        raDegrees: center.raDegrees,
+        decDegrees: center.decDegrees,
+        radiusDegrees: projection.wcs.coneSearchRadiusDegrees,
+        maxMagnitude: maxCatalogMag,
+      );
       if (cone.stars.isEmpty) return fallback;
 
       final matches = await _matchCatalogInBackground(
@@ -153,7 +151,7 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   /// solve result carries no engine id, so when both are installed the only
   /// truthful answer names both rather than picking the likelier one.
   Future<({String label, bool available})> _resolveSolver() async {
-    final service = _ref.read(plateSolveServiceProvider);
+    final service = _plateSolver();
     try {
       final pref = await service.getConfig();
       switch (pref.choice) {
@@ -189,7 +187,7 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   /// detector can reject them.
   Future<int> _saturationLimitAdu() async {
     try {
-      final dao = _ref.read(settingsDaoProvider);
+      final dao = _settingsDao();
       final stored = await dao.getSetting(
         ScienceCameraAutoConfig.saturationKey,
       );

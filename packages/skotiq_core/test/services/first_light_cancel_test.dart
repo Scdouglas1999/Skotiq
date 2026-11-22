@@ -14,7 +14,7 @@ import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/auto_stretch_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/first_light_provider.dart';
-import 'package:skotiq_core/src/services/first_light/first_light_orchestrator.dart';
+import 'package:skotiq_core/src/providers/first_light/first_light_orchestrator.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 

@@ -7,18 +7,18 @@ import '../../models/annotation_data.dart';
 import '../../models/backend/device_types.dart';
 import '../../models/equipment/equipment_models.dart';
 import '../../models/imaging/imaging_models.dart';
-import '../../providers/auto_stretch_provider.dart';
-import '../../providers/equipment_provider.dart';
-import '../../providers/imaging_provider.dart';
-import '../annotation_service.dart';
-import '../imaging_service.dart';
+import '../auto_stretch_provider.dart';
+import '../equipment_provider.dart';
+import '../imaging_provider.dart';
+import '../../services/annotation_service.dart';
+import '../../services/imaging_service.dart';
 import '../../utils/logging_service.dart';
-import '../plate_solve_service.dart';
-import '../wcs/plate_solve_data_from_result.dart';
-import '../../providers/annotation_service_provider.dart';
-import '../../providers/imaging_service_providers.dart';
-import '../../providers/logging_service_provider.dart';
-import '../../providers/plate_solve_service_provider.dart';
+import '../../services/plate_solve_service.dart';
+import '../../services/wcs/plate_solve_data_from_result.dart';
+import '../annotation_service_provider.dart';
+import '../imaging_service_providers.dart';
+import '../logging_service_provider.dart';
+import '../plate_solve_service_provider.dart';
 
 /// Builds catalog annotations for a captured frame given its plate solve.
 ///

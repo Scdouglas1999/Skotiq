@@ -4,16 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/sequence/sequence_models.dart';
-import '../providers/async_scope.dart';
-import '../providers/backend_provider.dart';
-import '../providers/equipment/camera_state_provider.dart';
-import '../providers/equipment/cover_calibrator_state_provider.dart';
-import '../providers/equipment/device_capability_provider.dart';
-import '../providers/equipment/dome_state_provider.dart';
-import '../providers/equipment/mount_state_provider.dart';
-import '../providers/secondary_rig_provider.dart';
-import '../providers/sequence_provider.dart';
-import '../providers/ui_notification_provider.dart';
+import 'async_scope.dart';
+import 'backend_provider.dart';
+import 'equipment/camera_state_provider.dart';
+import 'equipment/cover_calibrator_state_provider.dart';
+import 'equipment/device_capability_provider.dart';
+import 'equipment/dome_state_provider.dart';
+import 'equipment/mount_state_provider.dart';
+import 'secondary_rig_provider.dart';
+import 'sequence_provider.dart';
+import 'ui_notification_provider.dart';
 
 /// What [SafeRigService.safeTheRig] does with a connected, unparked mount when
 /// nothing of Skotiq's is running: no sequence running or paused and no

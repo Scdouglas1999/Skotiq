@@ -46,7 +46,7 @@ class _TestBackendNotifier extends BackendNotifier {
 }
 
 class _DeactivateFails extends LiveStackingBroadcastService {
-  _DeactivateFails(super.ref);
+  _DeactivateFails(super.logger);
 
   @override
   void deactivate() {
@@ -584,7 +584,9 @@ void main() {
           ),
           liveStackingServiceProvider.overrideWithValue(fakeStacker),
           liveStackingBroadcastServiceProvider.overrideWith((ref) {
-            final svc = _DeactivateFails(ref);
+            final svc = _DeactivateFails(
+              () => ref.read(loggingServiceProvider),
+            );
             ref.onDispose(svc.dispose);
             return svc;
           }),

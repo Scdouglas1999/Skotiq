@@ -33,7 +33,7 @@ class _RecordingLiveStackingNotifier extends LiveStackingNotifier {
 }
 
 class _FakeLiveStackingService extends LiveStackingService {
-  _FakeLiveStackingService(super.ref);
+  _FakeLiveStackingService(super.logger);
 
   final saved = <String>[];
   bool failSave = false;
@@ -128,7 +128,8 @@ Future<_Harness> _pumpPanel(
         },
       ),
       liveStackingServiceProvider.overrideWith(
-        (ref) => _FakeLiveStackingService(ref)..failSave = failSave,
+        (ref) => _FakeLiveStackingService(ref.read(loggingServiceProvider))
+          ..failSave = failSave,
       ),
       // The library's own file reads and thumbnail writes are covered in the
       // core package; here the header and thumbnail are stand-ins.
@@ -394,8 +395,11 @@ void main() {
               return '/tmp/sk-audit/$suggestedName';
             },
           ),
-          liveStackingServiceProvider
-              .overrideWith(_FakeLiveStackingService.new),
+          liveStackingServiceProvider.overrideWith(
+            (ref) => _FakeLiveStackingService(
+              ref.read(loggingServiceProvider),
+            ),
+          ),
           liveStackMasterLibraryProvider.overrideWith((ref) {
             final service = ref.watch(liveStackingServiceProvider);
             return LiveStackMasterLibrary(

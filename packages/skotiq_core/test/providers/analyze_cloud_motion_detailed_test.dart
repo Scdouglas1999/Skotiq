@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:skotiq_core/src/models/weather/weather_models.dart';
+import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/models/site/location_settings.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
@@ -31,7 +32,7 @@ class _FakeAnalyzer extends CloudMotionAnalyzer {
 
 /// Radar service returning programmed cached frames without any network I/O.
 class _FakeRadarService extends WeatherRadarService {
-  _FakeRadarService(super.ref, this._frames);
+  _FakeRadarService(super.database, this._frames);
   final List<RadarFrame>? _frames;
 
   @override
@@ -95,7 +96,7 @@ void main() {
               const LocationSettings(latitude: 40, longitude: -74),
             ),
             weatherRadarServiceProvider.overrideWith((ref) {
-              radar = _FakeRadarService(ref, null);
+              radar = _FakeRadarService(() => ref.read(databaseProvider), null);
               return radar;
             }),
             cloudMotionAnalyzerProvider.overrideWithValue(
@@ -139,7 +140,8 @@ void main() {
               const LocationSettings(latitude: 40, longitude: -74),
             ),
             weatherRadarServiceProvider.overrideWith(
-              (ref) => _FakeRadarService(ref, frames),
+              (ref) =>
+                  _FakeRadarService(() => ref.read(databaseProvider), frames),
             ),
             cloudMotionAnalyzerProvider.overrideWithValue(analyzer),
           ],
@@ -179,7 +181,8 @@ void main() {
               const LocationSettings(latitude: 40, longitude: -74),
             ),
             weatherRadarServiceProvider.overrideWith(
-              (ref) => _FakeRadarService(ref, frames),
+              (ref) =>
+                  _FakeRadarService(() => ref.read(databaseProvider), frames),
             ),
             cloudMotionAnalyzerProvider.overrideWithValue(
               _FakeAnalyzer(CloudMotionResult.available(motion)),

@@ -1,6 +1,6 @@
 import 'dart:collection';
 import '../errors/error_text.dart';
-import '../providers/ui_notification_provider.dart';
+import 'notification/ui_notices.dart';
 import '../utils/logging_service.dart';
 
 /// Error severity levels matching Rust EventSeverity
@@ -109,14 +109,14 @@ class ErrorService {
   final Queue<ErrorEntry> _errorHistory = Queue<ErrorEntry>();
   final List<void Function(ErrorEntry)> _listeners = [];
   LoggingService? _loggingService;
-  UiNotificationNotifier? _uiNotificationNotifier;
+  UiNotices? _uiNotificationNotifier;
 
   /// Set the logging service for file output integration
   void setLoggingService(LoggingService service) {
     _loggingService = service;
   }
 
-  void setUiNotificationNotifier(UiNotificationNotifier notifier) {
+  void setUiNotificationNotifier(UiNotices notifier) {
     _uiNotificationNotifier = notifier;
   }
 

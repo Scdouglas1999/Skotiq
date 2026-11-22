@@ -11,7 +11,7 @@ import 'mirror_link.dart';
 
 /// The host's stacker as a linked client reaches it.
 class _HostStacker extends LiveStackingService {
-  _HostStacker(super.ref);
+  _HostStacker(super.logger);
 
   final List<String?> fetched = [];
   int stops = 0;
@@ -65,7 +65,7 @@ void main() {
     snapshot: () => hostHolds,
     overrides: [
       liveStackingServiceProvider.overrideWith(
-        (ref) => stacker = _HostStacker(ref),
+        (ref) => stacker = _HostStacker(ref.read(loggingServiceProvider)),
       ),
     ],
   );

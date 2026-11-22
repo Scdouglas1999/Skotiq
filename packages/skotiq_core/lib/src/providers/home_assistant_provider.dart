@@ -19,7 +19,7 @@ import 'linked_host.dart';
 import '../models/backend/host_mutation_event.dart';
 import '../models/notification/transport_configs.dart';
 import '../models/notification/home_assistant_discovery_config.dart';
-import '../services/home_assistant/home_assistant_discovery_service.dart';
+import 'home_assistant/home_assistant_discovery_service.dart';
 import '../models/notification/home_assistant_host_settings.dart';
 import '../settings/store_settings.dart';
 import 'database_provider.dart';

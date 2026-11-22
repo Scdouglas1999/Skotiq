@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/src/services/auto_save_service.dart';
+import 'package:skotiq_core/src/providers/auto_save_service.dart';
 import 'package:skotiq_core/src/services/backup_service.dart';
 import 'package:skotiq_core/src/services/sequence_repository.dart';
 

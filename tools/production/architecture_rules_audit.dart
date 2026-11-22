@@ -18,9 +18,12 @@ import 'src/audit_scope.dart';
 ///                       node types) outside the node table.
 ///   core-layers         skotiq_core's `lib/src/` directories are layered
 ///                       ([_coreLayers], lowest first) and a file imports
-///                       only its own layer and the layers below it; a
-///                       service that needs a Riverpod Ref is listed in the
-///                       baseline with the reason.
+///                       only its own layer and the layers below it.
+///   core-services-riverpod
+///                       No file under skotiq_core's `lib/src/services/`
+///                       imports Riverpod: a service takes its collaborators
+///                       as arguments and the provider that builds it passes
+///                       them.
 ///   core-barrels        skotiq_core has one barrel per `lib/src/` directory
 ///                       and no union of them: a barrel exports only its own
 ///                       directory, nothing under `src/` re-exports another
@@ -39,7 +42,7 @@ import 'src/audit_scope.dart';
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
 /// names the package and import (src-import), the layer and file name
-/// (core-layers) or the file name and enclosing declaration (the other two),
+/// (core-layers, core-services-riverpod) or the file name and enclosing declaration (the other two),
 /// never a line number, so moving code does not touch the baseline. Only a
 /// count above the baseline fails.
 ///
@@ -316,9 +319,20 @@ const _coreLayersInstead =
     'lower layer needs moves down to the lowest layer that uses it (plain '
     'values to models/); an interface moves down to the layer of its lowest '
     'implementer; a call upward becomes a parameter or a callback the higher '
-    'layer passes in. A service that needs a Riverpod Ref may import '
-    'providers/ only with a coreLayers entry in the baseline that says what it '
-    'reads.';
+    'layer passes in. A service takes what it reads from a provider as a '
+    'constructor or function argument (a reader closure when the value can '
+    'change), and the provider that builds the service passes it; a class that '
+    'only wires providers together belongs in providers/.';
+
+const _riverpodPackages = {'flutter_riverpod', 'riverpod', 'hooks_riverpod'};
+
+const _coreServicesRiverpodInstead =
+    'Services are plain Dart. Take the collaborators the service reads as '
+    'constructor or function arguments (a `T Function()` reader where the '
+    'value changes under the service, a callback for a write) and build the '
+    'service in a provider under providers/, which reads and watches the '
+    'other providers. Declare providers in providers/, not beside the service. '
+    'A class that only wires providers together belongs in providers/.';
 
 const _appLib = 'packages/skotiq_app/lib/';
 
@@ -390,6 +404,7 @@ void main(List<String> args) {
     ..._rustDispatchSites(runtimeRust),
   ];
   final coreLayerSites = _coreLayerSites(runtimeDart);
+  final servicesRiverpodSites = _coreServicesRiverpodSites(runtimeDart);
   final hostStoreSites = _hostStoreSites(runtimeDart);
 
   final counted = {
@@ -397,6 +412,7 @@ void main(List<String> args) {
     _Rule.srcImport: srcImportSites,
     _Rule.nodeDispatch: dispatchSites,
     _Rule.coreLayers: coreLayerSites,
+    _Rule.coreServicesRiverpod: servicesRiverpodSites,
     _Rule.hostStore: hostStoreSites,
   };
   final current = <_Rule, Map<String, int>>{};
@@ -529,6 +545,11 @@ enum _Rule {
     'A core layer imports only itself and the layers below it.',
     _coreLayersInstead,
   ),
+  coreServicesRiverpod(
+    'core-services-riverpod',
+    'A core service does not depend on Riverpod.',
+    _coreServicesRiverpodInstead,
+  ),
   hostStore(
     'host-store',
     'One owner picks which store serves host data.',
@@ -561,6 +582,7 @@ enum _Rule {
     srcImport,
     nodeDispatch,
     coreLayers,
+    coreServicesRiverpod,
     hostStore,
   ];
 }
@@ -996,6 +1018,27 @@ List<_Site> _coreLayerSites(List<String> files) {
           'imports ${target.substring(_coreLib.length)} '
               '($layer/ is below $targetLayer/)',
         ),
+      );
+    }
+  }
+  return out;
+}
+
+List<_Site> _coreServicesRiverpodSites(List<String> files) {
+  const services = '${_coreSrc}services/';
+  final out = <_Site>[];
+  for (final path in files) {
+    if (!path.startsWith(services)) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final m = _directiveUri.firstMatch(lines[i]);
+      if (m == null) continue;
+      final uri = m.group(1)!;
+      if (!uri.startsWith('package:')) continue;
+      final package = uri.substring('package:'.length).split('/').first;
+      if (!_riverpodPackages.contains(package)) continue;
+      out.add(
+        _Site('services/${_basename(path)}', '$path:${i + 1}', 'imports $uri'),
       );
     }
   }
@@ -1692,6 +1735,7 @@ class _Baseline {
     _Rule.srcImport: 'srcImport',
     _Rule.nodeDispatch: 'nodeDispatch',
     _Rule.coreLayers: 'coreLayers',
+    _Rule.coreServicesRiverpod: 'coreServicesRiverpod',
     _Rule.hostStore: 'hostStore',
   };
 

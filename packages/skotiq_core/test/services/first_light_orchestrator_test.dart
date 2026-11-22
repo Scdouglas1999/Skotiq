@@ -14,7 +14,7 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/first_light_provider.dart';
 import 'package:skotiq_core/src/services/annotation_service.dart'
     show currentAnnotationProvider;
-import 'package:skotiq_core/src/services/first_light/first_light_orchestrator.dart';
+import 'package:skotiq_core/src/providers/first_light/first_light_orchestrator.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/plate_solve_service.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';

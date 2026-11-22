@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/providers.dart';
 
 import 'startup_ui_context.dart';
 import '../utils/snackbar_helper.dart';

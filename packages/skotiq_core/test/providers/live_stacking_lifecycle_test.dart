@@ -17,7 +17,7 @@ class _MockNetworkBackend extends Mock implements NetworkBackend {}
 class _MockLocalBackend extends Mock implements SkotiqBackend {}
 
 class _ControlledLocalStackingService extends LiveStackingService {
-  _ControlledLocalStackingService(super.ref);
+  _ControlledLocalStackingService(super.logger);
 
   final startResult = Completer<LiveStackingStats>();
   int stopCalls = 0;
@@ -149,7 +149,9 @@ void main() {
           loggingServiceProvider.overrideWithValue(LoggingService()),
           liveStackingServiceProvider.overrideWith((ref) {
             final backend = ref.watch(backendProvider);
-            final service = _ControlledLocalStackingService(ref);
+            final service = _ControlledLocalStackingService(
+              ref.read(loggingServiceProvider),
+            );
             if (identical(backend, oldBackend)) {
               oldService = service;
             } else {

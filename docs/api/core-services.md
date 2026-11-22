@@ -213,7 +213,7 @@ Analyzes cloud motion patterns for prediction.
 Database and settings backup/restore.
 
 ### AutoSaveService
-**Location:** `packages/skotiq_core/lib/src/services/auto_save_service.dart`
+**Location:** `packages/skotiq_core/lib/src/providers/auto_save_service.dart`
 
 Automatic state persistence.
 

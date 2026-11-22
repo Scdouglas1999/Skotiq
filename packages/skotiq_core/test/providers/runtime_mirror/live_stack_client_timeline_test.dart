@@ -16,7 +16,7 @@ import 'mirror_link.dart';
 /// The host's stacker as a linked client reaches it. A fetch returns the
 /// slot's newest pixels when the download ends: one sample, revision x 10.
 class _HostStacker extends LiveStackingService {
-  _HostStacker(super.ref);
+  _HostStacker(super.logger);
 
   final Map<String, int> revisions = {};
   final List<String?> fetched = [];
@@ -138,7 +138,7 @@ void main() {
         snapshot: () => holds,
         overrides: [
           liveStackingServiceProvider.overrideWith(
-            (ref) => host = _HostStacker(ref),
+            (ref) => host = _HostStacker(ref.read(loggingServiceProvider)),
           ),
         ],
       );
