@@ -135,18 +135,25 @@ final _currentDateProvider = Provider<DateTime>((ref) {
   );
 });
 
-/// The date of the observing NIGHT in progress — what
-/// [AstronomyCalculations.calculateObjectVisibility] wants as its `date`.
+/// The date of the observing NIGHT in progress at a site at the given
+/// longitude: what [AstronomyCalculations.calculateObjectVisibility] wants as
+/// its `date`.
 ///
-/// Distinct from [_currentDateProvider]: between local midnight and noon the
-/// night in progress began the previous calendar day, so anchoring rise /
+/// Distinct from [_currentDateProvider]: between midnight and the site's solar
+/// noon the night in progress began the previous day, so anchoring rise /
 /// transit / set on the calendar date describes the FOLLOWING night and puts
-/// every time one sidereal day (~4 min) out. Cheap to watch — the value only
-/// changes at local noon.
-final _currentNightDateProvider = Provider<DateTime>((ref) {
+/// every time one sidereal day (~4 min) out. Cheap to watch: the value only
+/// changes at the site's solar noon.
+final _currentNightDateProvider = Provider.family<DateTime, double>((
+  ref,
+  longitudeDeg,
+) {
   return ref.watch(
     observationTimeProvider.select(
-      (time) => AstronomyCalculations.nightDateOf(time.time),
+      (time) => AstronomyCalculations.nightDateOf(
+        time.time,
+        longitudeDeg: longitudeDeg,
+      ),
     ),
   );
 });
@@ -183,7 +190,8 @@ final observationMinuteProvider = Provider<DateTime>((ref) {
 ///
 /// A record, so Riverpod's family keying gets structural equality for free.
 /// [nightDate] is the output of [AstronomyCalculations.nightDateOf], which
-/// changes only at local noon — that is what makes the memo worth having.
+/// changes only at the site's solar noon; that is what makes the memo worth
+/// having.
 typedef ObjectVisibilityKey = ({
   double raDeg,
   double decDeg,
@@ -202,7 +210,7 @@ typedef ObjectVisibilityKey = ({
 /// bisects every horizon crossing and ternary-searches the transit. The object
 /// details panel called it twice per rebuild while sitting under a 1 Hz clock,
 /// so the same answer was recomputed roughly 86,400 times a night on the UI
-/// isolate. Nothing in the key moves faster than local noon.
+/// isolate. Nothing in the key moves faster than the site's solar noon.
 final objectVisibilityProvider = Provider.autoDispose
     .family<ObjectVisibility, ObjectVisibilityKey>((ref, key) {
       final floor = key.againstFloor
@@ -218,8 +226,8 @@ final objectVisibilityProvider = Provider.autoDispose
           minAltitude: floor?.at(0) ?? 0,
         );
       }
-      // The same local noon-to-noon night, searched against the floor in
-      // the direction the object stands.
+      // The same night, searched against the floor in the direction the
+      // object stands.
       final night = key.nightDate;
       return objectVisibilityAboveFloor(
         floor.at,

@@ -241,7 +241,10 @@ class _AltitudeChartState extends ConsumerState<AltitudeChart> {
     _visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDeg,
-      date: AstronomyCalculations.nightDateOf(plottedNightMid),
+      date: AstronomyCalculations.nightDateOf(
+        plottedNightMid,
+        longitudeDeg: lon,
+      ),
       latitudeDeg: lat,
       longitudeDeg: lon,
       minAltitude: 0,

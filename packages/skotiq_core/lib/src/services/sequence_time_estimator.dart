@@ -175,8 +175,8 @@ class SequenceTimeEstimator {
   ///
   /// [sequence] - The sequence containing target headers
   /// [date] - An instant within the observing night (in practice the run's
-  ///   start time, via [analyzeSequence]). Resolved to the night that CONTAINS
-  ///   it because the visibility scan runs local noon to noon.
+  ///   start time, via [analyzeSequence]). Resolved to the site's night that
+  ///   CONTAINS it, which runs from the site's solar noon to the next.
   /// [latitude] - Observer latitude in degrees
   /// [longitude] - Observer longitude in degrees
   ///
@@ -191,7 +191,10 @@ class SequenceTimeEstimator {
     required double longitude,
   }) {
     final windows = <String, TargetWindow>{};
-    final nightDate = AstronomyCalculations.nightDateOf(date);
+    final nightDate = AstronomyCalculations.nightDateOf(
+      date,
+      longitudeDeg: longitude,
+    );
     final siteFloor =
         floor ?? const AltitudeFloor(horizon: null, minimumDeg: 0);
 

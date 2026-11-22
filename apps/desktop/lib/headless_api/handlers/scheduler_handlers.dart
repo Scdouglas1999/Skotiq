@@ -425,7 +425,10 @@ class SchedulerHandlers implements RouteSource {
         minAltitude: floor.atAzimuth(0),
       );
     }
-    final night = AstronomyCalculations.nightDateOf(now);
+    final night = AstronomyCalculations.nightDateOf(
+      now,
+      longitudeDeg: longitude,
+    );
     return floor.visibilityAround(
       raDeg: raDeg,
       decDeg: decDeg,
