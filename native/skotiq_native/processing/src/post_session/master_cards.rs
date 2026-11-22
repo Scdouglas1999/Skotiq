@@ -45,7 +45,8 @@ pub(crate) struct WcsAttachment {
 /// Every master is resampled onto the grid reference, so the reference's own
 /// solve describes it: from the reference's header, or from the `.wcs` file
 /// ASTAP writes beside a solved frame. Failing both, the written master is
-/// solved with ASTAP when it is installed. `None` when no WCS could be found.
+/// solved with ASTAP when it is installed, one solver process at a time with
+/// every other solve in the app. `None` when no WCS could be found.
 pub(crate) fn attach_wcs(
     header: &mut FitsHeader,
     grid_path: &str,
@@ -86,7 +87,10 @@ fn attach_wcs_solved_by(
         });
     }
     let hint = |key: &str| header.get_float(key);
-    let result = solve(master_path, hint("RA"), hint("DEC"))?;
+    let result = {
+        let _gate = skotiq_platesolve::acquire_solve_gate_blocking("master");
+        solve(master_path, hint("RA"), hint("DEC"))?
+    };
     if !result.success || result.cd1_1 == 0.0 {
         tracing::info!(
             "no WCS for '{}': ASTAP could not solve it ({})",
@@ -151,5 +155,43 @@ mod tests {
             assert!(master.get(key).is_none(), "{key}");
         }
         assert_eq!(master.get_float("EXPTIME"), Some(7200.0));
+    }
+
+    /// The master's own solve holds the app's one-solver gate: a solve asked
+    /// for while it runs waits until it returns.
+    #[test]
+    fn a_master_solve_holds_the_solver_gate() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let (started_tx, started) = channel();
+        let (finish_tx, finish) = channel::<()>();
+        let master = std::thread::spawn(move || {
+            let mut header = FitsHeader::new();
+            attach_wcs_solved_by(
+                &mut header,
+                "",
+                Path::new("master.fits"),
+                (16, 16),
+                |_, _, _| {
+                    started_tx.send(()).unwrap();
+                    finish.recv().unwrap();
+                    None
+                },
+            )
+        });
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (solved_tx, solved) = channel();
+        let other = std::thread::spawn(move || {
+            let _gate = skotiq_platesolve::acquire_solve_gate_blocking("other");
+            solved_tx.send(()).unwrap();
+        });
+        assert!(
+            solved.recv_timeout(Duration::from_millis(300)).is_err(),
+            "another solve ran while the master was being solved"
+        );
+        finish_tx.send(()).unwrap();
+        solved.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(master.join().unwrap().is_none());
+        other.join().unwrap();
     }
 }

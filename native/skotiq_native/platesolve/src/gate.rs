@@ -34,3 +34,45 @@ pub async fn acquire_solve_gate(label: &str) -> MutexGuard<'static, ()> {
         }
     }
 }
+
+/// [`acquire_solve_gate`] for a caller on a plain thread, such as a
+/// processing step run from the FFI pool. Must not be called from inside an
+/// async runtime.
+pub fn acquire_solve_gate_blocking(label: &str) -> MutexGuard<'static, ()> {
+    let gate = plate_solve_gate();
+    match gate.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            let waited = Instant::now();
+            let guard = gate.blocking_lock();
+            tracing::info!(
+                "Plate solve ({label}): waited {:.1}s for another solve to finish \
+                 (one solver process at a time)",
+                waited.elapsed().as_secs_f64()
+            );
+            guard
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_blocking_caller_waits_for_a_running_solve() {
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let held = runtime.block_on(acquire_solve_gate("night"));
+        let (tx, rx) = std::sync::mpsc::channel();
+        let waiter = std::thread::spawn(move || {
+            let _gate = acquire_solve_gate_blocking("master");
+            tx.send(()).unwrap();
+        });
+        assert!(rx
+            .recv_timeout(std::time::Duration::from_millis(200))
+            .is_err());
+        drop(held);
+        rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
+        waiter.join().unwrap();
+    }
+}
