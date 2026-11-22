@@ -269,6 +269,24 @@ void main() {
     expect(find.widgetWithText(SkotiqButton, 'Change…'), findsNWidgets(2));
   });
 
+  testWidgets('the masters caption asks for what DepthLock reads', (
+    tester,
+  ) async {
+    await _openEditor(
+      tester,
+      backend: FakeDepthLockBackend(),
+      definition: depthLockDefinitionFixture(),
+    );
+
+    // DepthLock takes a master whose FRAMETYP or IMAGETYP says master, so the
+    // calibration library's own masters qualify.
+    expect(find.textContaining('FRAMETYP'), findsNothing);
+    expect(
+      find.textContaining('whose header says they are masters'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('an unmatched master shows the picker and the reason', (
     tester,
   ) async {

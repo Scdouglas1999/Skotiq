@@ -33,16 +33,18 @@ impl FlipStep {
         )
     }
 
+    /// The step's words, the app's words for it
+    /// (`packages/skotiq_core/test/fixtures/flip_step_words.json`).
     pub fn description(&self) -> &'static str {
         match self {
-            FlipStep::PausingGuider => "Pausing guider",
+            FlipStep::PausingGuider => "Pausing Guider",
             FlipStep::EnablingTracking => "Turning tracking on",
-            FlipStep::SlewingToTarget => "Slewing to target (flip)",
-            FlipStep::VerifyingPierSide => "Verifying pier side",
+            FlipStep::SlewingToTarget => "Slewing to Target",
+            FlipStep::VerifyingPierSide => "Verifying Pier Side",
             FlipStep::ConfirmingTracking => "Confirming tracking",
-            FlipStep::PlateSolvingAndCentering => "Plate solving and centering",
-            FlipStep::Refocusing => "Running autofocus",
-            FlipStep::ResumingGuider => "Resuming guider",
+            FlipStep::PlateSolvingAndCentering => "Plate Solving & Centering",
+            FlipStep::Refocusing => "Refocusing",
+            FlipStep::ResumingGuider => "Resuming Guider",
             FlipStep::Settling => "Settling",
         }
     }
@@ -266,6 +268,37 @@ mod tests {
             "15.0 minutes past the meridian"
         );
         assert_eq!(meridian_offset_phrase(0.0), "0.0 minutes past the meridian");
+    }
+
+    /// The step words are one table with the app's: its
+    /// `meridian_flip_event_test.dart` reads the same file.
+    #[test]
+    fn flip_step_words_match_the_app() {
+        let words: std::collections::BTreeMap<String, String> = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/flip_step_words.json"
+        ))
+        .expect("the fixture is JSON");
+        let steps = [
+            FlipStep::PausingGuider,
+            FlipStep::EnablingTracking,
+            FlipStep::SlewingToTarget,
+            FlipStep::VerifyingPierSide,
+            FlipStep::ConfirmingTracking,
+            FlipStep::PlateSolvingAndCentering,
+            FlipStep::Refocusing,
+            FlipStep::ResumingGuider,
+            FlipStep::Settling,
+        ];
+        assert_eq!(words.len(), steps.len());
+        for step in steps {
+            let name = serde_json::to_value(step).expect("a step serializes");
+            let name = name.as_str().expect("a step is its name");
+            assert_eq!(
+                Some(step.description()),
+                words.get(name).map(String::as_str),
+                "{name}"
+            );
+        }
     }
 
     /// The app reads the flip's steps by these names and fields; its

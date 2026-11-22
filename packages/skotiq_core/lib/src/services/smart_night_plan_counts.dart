@@ -1,10 +1,11 @@
 import '../models/imaging/imaging_models.dart' show FrameType;
+import '../models/sequence/exposure_field_limits.dart';
 import '../models/sequence/sequence_models.dart';
 import 'smart_night_models.dart';
 
 /// The preview's frame-count tweak: [plan] with filter row [filterIndex] of
-/// [target] taking [delta] more frames (clamped to 1..999), its totals and
-/// tree to match.
+/// [target] taking [delta] more frames (within [ExposureFieldLimits.frameCount],
+/// as in the exposure editors), its totals and tree to match.
 ///
 /// Wall-clock moves by the exposure time added or taken away; the tree's
 /// capture steps are patched in place, each under the target header the
@@ -25,7 +26,12 @@ SmartNightPlan smartNightPlanWithCountChange(
       for (var i = 0; i < p.filterPlans.length; i++) {
         if (i == filterIndex) {
           final fp = p.filterPlans[i];
-          final newCount = (fp.count + delta).clamp(1, 999).toInt();
+          final newCount = (fp.count + delta)
+              .clamp(
+                ExposureFieldLimits.frameCount.min,
+                ExposureFieldLimits.frameCount.max,
+              )
+              .toInt();
           wallClockDeltaSecs += (newCount - fp.count) * fp.durationSecs;
           updatedFilters.add(
             SmartNightFilterPlan(

@@ -38,17 +38,26 @@ part 'preflight_validation_dialog/section_builders.dart';
 
 /// Start the open sequence through the pre-flight checks: the dialog's Start
 /// starts the run, and the result is reported on [context].
-Future<void> startWithPreflight(BuildContext context, WidgetRef ref) {
-  return showDialog<void>(
+Future<void> startWithPreflight(BuildContext context, WidgetRef ref) async {
+  if (!await confirmPreflight(context)) return;
+  final result = await ref.read(sequenceActionServiceProvider).start();
+  if (!context.mounted) return;
+  context.showCommandActionResult(result);
+}
+
+/// Shows the pre-flight checks for the sequence in the editor. Completes with
+/// true once the operator pressed Start and the start's own steps (the
+/// carry-over choice, the unpark the dialog listed) are done; false when the
+/// dialog was closed without starting.
+Future<bool> confirmPreflight(BuildContext context) async {
+  var start = false;
+  await showDialog<void>(
     context: context,
     builder: (_) => PreFlightValidationDialog(
-      onStartSequence: () async {
-        final result = await ref.read(sequenceActionServiceProvider).start();
-        if (!context.mounted) return;
-        context.showCommandActionResult(result);
-      },
+      onStartSequence: () => start = true,
     ),
   );
+  return start;
 }
 
 class PreFlightValidationDialog extends ConsumerStatefulWidget {

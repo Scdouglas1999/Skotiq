@@ -58,8 +58,8 @@ void main() {
     expect(dialog, findsOneWidget);
     final onStart =
         tester.widget<PreFlightValidationDialog>(dialog).onStartSequence!;
+    // As the dialog's Start does: close, then start.
     Navigator.of(tester.element(dialog)).pop();
-    await tester.pump(const Duration(milliseconds: 500));
     onStart();
     await tester.pump(const Duration(milliseconds: 500));
 

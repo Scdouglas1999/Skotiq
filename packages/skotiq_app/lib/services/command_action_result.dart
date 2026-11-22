@@ -41,6 +41,15 @@ class CommandActionResult {
           alreadyShown: alreadyShown,
         );
 
+  /// The operator answered no to a question the command asked; there is
+  /// nothing more to tell them.
+  const CommandActionResult.declined()
+      : this._(
+          isSuccess: false,
+          message: null,
+          feedbackType: CommandFeedbackType.info,
+        );
+
   static const ok = CommandActionResult.success();
 
   bool get hasMessage => (message ?? '').trim().isNotEmpty;

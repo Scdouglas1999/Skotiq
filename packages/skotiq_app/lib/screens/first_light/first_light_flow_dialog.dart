@@ -313,13 +313,13 @@ class _IntroPanelState extends ConsumerState<_IntroPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SkotiqAlert(
-          severity: BannerTone.info,
+        const SkotiqBanner(
           title: "Let's take your first picture of the sky",
           message: 'In one click Skotiq will take a short exposure, stretch it '
               'for a punchy preview, plate-solve where the telescope is '
               'pointing, and label the objects it finds. Make sure your camera '
               'is connected on the Equipment screen first.',
+          tone: BannerTone.info,
         ),
         const SizedBox(height: SkotiqTokens.spaceXl),
         Text(
@@ -643,10 +643,10 @@ class _AnnotationSummary extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: SkotiqInlineBanner(
-              severity: BannerTone.warning,
-              message:
+            child: SkotiqBanner(
+              title:
                   state.note ?? FirstLightOrchestrator.solverNotConfiguredNote,
+              tone: BannerTone.warning,
             ),
           ),
           const SizedBox(width: SkotiqTokens.spaceMd),
@@ -772,11 +772,11 @@ class _FailurePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        SkotiqAlert(
-          severity: BannerTone.error,
+        SkotiqBanner(
           title: "First light didn't finish",
           message: state.errorMessage ??
               'Something went wrong during the first-light flow.',
+          tone: BannerTone.error,
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         Text(

@@ -847,14 +847,8 @@ class _LedgerRowState extends ConsumerState<_LedgerRow> {
     required String summary,
     required NodeStatus? status,
   }) {
-    final stateWord = switch (status) {
-      NodeStatus.running => 'running',
-      NodeStatus.success => 'done',
-      NodeStatus.failure => 'failed',
-      NodeStatus.skipped => 'skipped',
-      NodeStatus.cancelled => 'stopped',
-      _ => widget.node.isEnabled ? '' : 'disabled',
-    };
+    final stateWord = NodeStatusPresentation.of(status)?.word ??
+        (widget.node.isEnabled ? '' : 'disabled');
     return <String>[
       widget.node.name,
       if (summary.isNotEmpty) summary,

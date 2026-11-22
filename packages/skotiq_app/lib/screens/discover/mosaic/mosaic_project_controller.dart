@@ -9,7 +9,10 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:path/path.dart' as p;
 
+import '../../../router/app_router.dart';
 import '../../../services/sequence_action_service.dart';
+import '../../sequencer/widgets/preflight_validation_dialog.dart'
+    show confirmPreflight;
 import '../collaborative_sky/collaborative_sky_providers.dart'
     show invalidateCollaborativeMosaicState;
 
@@ -253,6 +256,8 @@ class MosaicProjectController extends StateNotifier<MosaicProjectState> {
     try {
       await _service.startCapture(_projectId, launcher: launcher);
       await load();
+      if (mounted) state = state.copyWith(isStartingCapture: false);
+    } on PlanStartCanceled {
       if (mounted) state = state.copyWith(isStartingCapture: false);
     } catch (e) {
       if (!mounted) return;

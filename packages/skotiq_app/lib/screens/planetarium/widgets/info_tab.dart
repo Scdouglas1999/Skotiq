@@ -98,7 +98,7 @@ class InfoTab extends ConsumerWidget {
             final coords = obj.coordinates;
             final result = await ref
                 .read(mountCommandServiceProvider)
-                .slewTo(coords.ra, coords.dec);
+                .slewTo(coords.ra, coords.dec, targetName: obj.name);
             if (context.mounted) {
               context.showCommandActionResult(result);
             }

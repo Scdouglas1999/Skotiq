@@ -48,8 +48,8 @@ class _StartGuidingProperties extends ConsumerWidget {
             colors: colors,
             value: node.settlePixels,
             suffix: 'px',
-            min: NodeFieldLimits.guidingSettlePixels.min,
-            max: NodeFieldLimits.guidingSettlePixels.max,
+            min: NodeFieldLimits.settlePixels.min,
+            max: NodeFieldLimits.settlePixels.max,
             decimals: 1,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
@@ -68,8 +68,8 @@ class _StartGuidingProperties extends ConsumerWidget {
             colors: colors,
             value: node.settleTime,
             suffix: 's',
-            min: NodeFieldLimits.guidingSettleSecs.min,
-            max: NodeFieldLimits.guidingSettleSecs.max,
+            min: NodeFieldLimits.settleSecs.min,
+            max: NodeFieldLimits.settleSecs.max,
             decimals: 0,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(

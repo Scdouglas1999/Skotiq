@@ -185,8 +185,10 @@ class RecordingMountCommands extends MountCommandService {
   @override
   Future<CommandActionResult> setTrackingRate(TrackingRate rate) =>
       _ok('setTrackingRate:${rate.name}');
+
+  /// The GoTo past the service's altitude question, recorded as a slew.
   @override
-  Future<CommandActionResult> slewTo(double ra, double dec,
+  Future<CommandActionResult> sendSlew(double ra, double dec,
           {bool showFeedback = true}) =>
       _ok('slewTo');
   @override

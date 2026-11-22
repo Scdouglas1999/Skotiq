@@ -231,9 +231,9 @@ class _DestinationEditorDialogState
           ),
           if (_validationError != null) ...[
             const SizedBox(height: SkotiqTokens.spaceLg),
-            SkotiqInlineBanner(
-              message: _validationError!,
-              severity: BannerTone.error,
+            SkotiqBanner(
+              title: _validationError!,
+              tone: BannerTone.error,
             ),
           ],
         ],
@@ -269,12 +269,12 @@ class _DestinationEditorDialogState
       ),
       if (_rigIdIsSet && _rigIdController.text.trim().isEmpty) ...[
         const SizedBox(height: SkotiqTokens.spaceSm),
-        const SkotiqInlineBanner(
-          message: 'Saving with this empty delivers under the rig\'s own file '
+        const SkotiqBanner(
+          title: 'Saving with this empty delivers under the rig\'s own file '
               'names, with nothing saying which rig wrote them. That is the '
               'setting a single-rig folder wants and the one that collides '
               'when a second rig is pointed at the same place.',
-          severity: BannerTone.warning,
+          tone: BannerTone.warning,
         ),
       ],
     ];
@@ -333,9 +333,9 @@ class _DestinationEditorDialogState
       ),
       if (probe != null) ...[
         const SizedBox(height: SkotiqTokens.spaceSm),
-        SkotiqInlineBanner(
-          message: probe.message,
-          severity: probe.writable ? BannerTone.success : BannerTone.warning,
+        SkotiqBanner(
+          title: probe.message,
+          tone: probe.writable ? BannerTone.success : BannerTone.warning,
         ),
       ],
     ];
@@ -408,12 +408,11 @@ class _DestinationEditorDialogState
       ],
       if (_clearStoredKey) ...[
         const SizedBox(height: SkotiqTokens.spaceSm),
-        const SkotiqInlineBanner(
-          message:
-              'Saving removes this destination\'s key from the keyring. SSH '
+        const SkotiqBanner(
+          title: 'Saving removes this destination\'s key from the keyring. SSH '
               'then has nothing to authenticate with, so nothing is sent here '
               'until a new key is pasted.',
-          severity: BannerTone.warning,
+          tone: BannerTone.warning,
         ),
       ],
       if (pinned.isNotEmpty) ...[

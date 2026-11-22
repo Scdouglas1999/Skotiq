@@ -112,7 +112,6 @@ class _ScienceAnalyticsTabState extends ConsumerState<ScienceAnalyticsTab> {
       sessions: allSessions,
       liveSessionId: liveSessionId,
       defaultSessionId: defaultSessionId,
-      newestFallback: true,
     );
 
     final scienceErrors = <Object>[];

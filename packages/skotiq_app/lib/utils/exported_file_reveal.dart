@@ -13,8 +13,9 @@ import 'snackbar_helper.dart';
 /// is actionable. On a PHONE/TABLET it is the app's PRIVATE sandbox — the same
 /// snackbar named a file the user can never open in Files/Photos/Drive. This
 /// helper closes that gap: on mobile it hands the file to the system share
-/// sheet (Save to Files, email, Drive, …); on desktop it keeps the path
-/// snackbar. Call it immediately after the file is written.
+/// sheet (Save to Files, email, Drive, …), and so does macOS, like the
+/// snippet palette and the session report; on Windows and Linux it keeps the
+/// path snackbar. Call it immediately after the file is written.
 ///
 /// [subject] is the share-sheet title / email subject on mobile.
 /// [desktopMessage] overrides the desktop snackbar (defaults to a path line).
@@ -29,7 +30,7 @@ Future<void> revealExportedFile(
   Duration? desktopDuration,
 }) async {
   // The host OS, not defaultTargetPlatform: widget tests report Android there.
-  if (Platform.isAndroid || Platform.isIOS) {
+  if (hostHasShareSheet(Platform.operatingSystem)) {
     await Share.shareXFiles([XFile(filePath)], subject: subject);
     return;
   }
@@ -40,13 +41,19 @@ Future<void> revealExportedFile(
   );
 }
 
-/// Whether this platform has a system share sheet `share_plus` can drive.
-/// Windows and Linux have none. macOS has one; [macOS] says whether the
-/// caller uses it there.
-bool platformHasShareSheet({required bool macOS}) =>
-    switch (defaultTargetPlatform) {
-      TargetPlatform.iOS || TargetPlatform.android => true,
-      TargetPlatform.macOS => macOS,
+/// Whether [revealExportedFile] hands a file to the share sheet on the host
+/// whose `Platform.operatingSystem` is [operatingSystem].
+@visibleForTesting
+bool hostHasShareSheet(String operatingSystem) =>
+    const {'android', 'ios', 'macos'}.contains(operatingSystem);
+
+/// Whether this platform has a system share sheet `share_plus` can drive:
+/// Android, iOS and macOS. Windows and Linux have none.
+bool platformHasShareSheet() => switch (defaultTargetPlatform) {
+      TargetPlatform.iOS ||
+      TargetPlatform.android ||
+      TargetPlatform.macOS =>
+        true,
       TargetPlatform.windows ||
       TargetPlatform.linux ||
       TargetPlatform.fuchsia =>

@@ -28,15 +28,18 @@ import '../../../sequencer/widgets/run_dashboard/frame_detail_dialog.dart';
   return (start, end);
 }
 
-ChipTone _categoryTone(DecisionCategory category) => switch (category) {
+/// How a decision of [category] is toned, on its chip in the decision list and
+/// on its mark on the run timeline. A recovery is something to watch, not a
+/// failure, and a trigger that fired is an event.
+ChipTone decisionCategoryTone(DecisionCategory category) => switch (category) {
       DecisionCategory.schedulerPick ||
       DecisionCategory.adaptiveSwap ||
       DecisionCategory.manualIntervention =>
         ChipTone.primary,
-      DecisionCategory.triggerFired ||
-      DecisionCategory.frameRejected =>
+      DecisionCategory.frameRejected ||
+      DecisionCategory.recoveryEntered =>
         ChipTone.warning,
-      DecisionCategory.recoveryEntered => ChipTone.error,
+      DecisionCategory.triggerFired => ChipTone.info,
       DecisionCategory.budgetMet ||
       DecisionCategory.frameAccepted =>
         ChipTone.success,
@@ -398,7 +401,7 @@ class _DecisionRowState extends State<_DecisionRow> {
     );
     final kind = SkotiqChip(
       label: decision.category.displayLabel,
-      tone: _categoryTone(decision.category),
+      tone: decisionCategoryTone(decision.category),
     );
     final summary = Text(
       decision.summary,

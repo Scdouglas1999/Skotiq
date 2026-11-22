@@ -471,44 +471,21 @@ class _GuiderIdleCard extends ConsumerWidget {
     final state = guider.state;
     final (String status, Color statusColor) = !guider.connected
         ? (l10n.text('nightCtrGuideNotConnected'), colors.textMuted)
-        : switch (state) {
-            Phd2State.guiding => (
-                l10n.text('nightCtrGuideGuiding'),
-                colors.success
-              ),
-            Phd2State.looping => (
-                l10n.text('nightCtrGuideLooping'),
-                colors.success
-              ),
-            Phd2State.calibrating => (
-                l10n.text('nightCtrGuideCalibrating'),
-                colors.textSecondary
-              ),
-            Phd2State.settling => (
-                l10n.text('nightCtrGuideSettling'),
-                colors.textSecondary
-              ),
-            Phd2State.paused => (
-                l10n.text('nightCtrGuidePaused'),
-                colors.warning
-              ),
-            Phd2State.lostLock => (
-                l10n.text('nightCtrGuideLost'),
-                colors.warning
-              ),
-            Phd2State.selected => (
-                l10n.text('nightCtrGuideSelected'),
-                colors.textSecondary
-              ),
-            Phd2State.unknown || null => (
-                l10n.text('nightCtrGuideUnknown'),
-                colors.textMuted
-              ),
-            Phd2State.stopped => (
-                l10n.text('nightCtrGuideIdle'),
-                colors.warning
-              ),
-          };
+        : (
+            l10n.text(guiderStateLabel(state ?? Phd2State.unknown).$1),
+            switch (state) {
+              Phd2State.guiding || Phd2State.looping => colors.success,
+              Phd2State.calibrating ||
+              Phd2State.settling ||
+              Phd2State.selected =>
+                colors.textSecondary,
+              Phd2State.paused ||
+              Phd2State.lostLock ||
+              Phd2State.stopped =>
+                colors.warning,
+              Phd2State.unknown || null => colors.textMuted,
+            },
+          );
     final idle = guider.connected &&
         (state == Phd2State.stopped || state == Phd2State.selected);
     final body = !guider.connected

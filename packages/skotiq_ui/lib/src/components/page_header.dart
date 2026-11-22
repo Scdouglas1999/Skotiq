@@ -96,7 +96,7 @@ class PageHeader extends StatelessWidget {
       // width at the right edge. A `Flexible` plus a `Spacer` would split the
       // spare width three ways and cut Plan's six tabs behind a scroll arrow.
       child: LayoutBuilder(
-        builder: (context, constraints) => Row(
+        builder: (_, constraints) => Row(
           children: [
             if (tabs != null && !narrow) ...[
               _titleBlock(colors, maxWidth: _titleCap(constraints.maxWidth)),
@@ -164,36 +164,44 @@ class PageHeader extends StatelessWidget {
     // the actions — which then sat mid-row on every tab-less screen.
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: _iconSize, color: colors.textSecondary),
-            const SizedBox(width: SkotiqTokens.spaceSm + 2),
-          ],
-          Flexible(
-            child: Text(
-              title,
-              style: SkotiqTypography.pageTitle.copyWith(
-                color: colors.textPrimary,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-          if (context != null) ...[
-            const SizedBox(width: SkotiqTokens.spaceMd),
+      // On a phone whose actions leave the title less room than its icon, the
+      // icon goes and the title ellipsizes, rather than the row overflowing.
+      child: LayoutBuilder(
+        builder: (_, constraints) => Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (icon != null &&
+                constraints.maxWidth >=
+                    _iconSize + _iconGap + _minTitleWidth) ...[
+              Icon(icon, size: _iconSize, color: colors.textSecondary),
+              const SizedBox(width: _iconGap),
+            ],
             Flexible(
               child: Text(
-                context!,
-                style: SkotiqTypography.body.copyWith(color: colors.textMuted),
+                title,
+                style: SkotiqTypography.pageTitle.copyWith(
+                  color: colors.textPrimary,
+                ),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
             ),
+            if (context != null) ...[
+              const SizedBox(width: SkotiqTokens.spaceMd),
+              Flexible(
+                child: Text(
+                  context!,
+                  style: SkotiqTypography.body.copyWith(
+                    color: colors.textMuted,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -202,4 +210,8 @@ class PageHeader extends StatelessWidget {
   static const double _hairlineWidth = 1.0;
 
   static const double _iconSize = SkotiqTokens.iconRail;
+  static const double _iconGap = SkotiqTokens.spaceSm + 2;
+
+  /// Room the title keeps for its first letters before the icon gives way.
+  static const double _minTitleWidth = 24;
 }

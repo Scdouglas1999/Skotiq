@@ -28,11 +28,25 @@ void main() {
     expect(FilterColors.knownColor('OIII6.5nm'), FilterColors.oxygen);
   });
 
-  test('a filter of several bands or of none has no color', () {
+  test(
+    'a name that spells its bands as words takes the first one\'s color',
+    () {
+      for (final (name, color) in [
+        ('Ha/OIII', FilterColors.hydrogenAlpha),
+        ('Ha+OIII', FilterColors.hydrogenAlpha),
+        ('OIII/Ha', FilterColors.oxygen),
+        ('Sulfur II / Ha', FilterColors.sulfur),
+      ]) {
+        expect(FilterColors.knownColor(name), color, reason: name);
+      }
+    },
+  );
+
+  test('a product of several bands or a name of none has no color', () {
     for (final name in [
       'L-eXtreme',
       'L-Pro',
-      'Ha/OIII',
+      'Optolong L-eXtreme',
       'UV/IR Cut',
       'Unfiltered',
       'Dark',

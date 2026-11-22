@@ -106,13 +106,25 @@ void main() {
     expect(step.integrationBudgetSecs, changed.integrationSecs);
   });
 
-  test('a count stays within 1..999', () {
+  test('a count takes the exposure editors\' range, 1 to 9999', () {
     final before = plan();
     final target = before.plannedTargets.first;
-    final low = smartNightPlanWithCountChange(before, target, 0, -100000);
-    expect(low.plannedTargets.first.filterPlans.first.count, 1);
-    final high = smartNightPlanWithCountChange(before, target, 0, 100000);
-    expect(high.plannedTargets.first.filterPlans.first.count, 999);
+    final count = target.filterPlans.first.count;
+
+    final raised = smartNightPlanWithCountChange(before, target, 0, 2000);
+    expect(raised.plannedTargets.first.filterPlans.first.count, count + 2000);
+
+    final capped = smartNightPlanWithCountChange(before, target, 0, 20000);
+    expect(
+      capped.plannedTargets.first.filterPlans.first.count,
+      ExposureFieldLimits.frameCount.max,
+    );
+
+    final floored = smartNightPlanWithCountChange(before, target, 0, -20000);
+    expect(
+      floored.plannedTargets.first.filterPlans.first.count,
+      ExposureFieldLimits.frameCount.min,
+    );
   });
 
   test('a count change on one of two same-named targets leaves the other', () {

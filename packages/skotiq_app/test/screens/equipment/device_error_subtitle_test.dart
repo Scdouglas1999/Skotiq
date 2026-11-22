@@ -2,8 +2,8 @@
 //
 // When the owning device is in `DeviceConnectionState.error` and a raw driver
 // message is available, the subtitle must surface a plain-language headline
-// drawn from the connection-troubleshooter knowledge base (NOT the raw string,
-// NOT the PrettyError pretty-printer), while the FULL untouched raw message
+// drawn from the connection-troubleshooter knowledge base (NOT the raw string),
+// while the FULL untouched raw message
 // remains reachable via the tooltip. When the
 // device is healthy it falls back to the descriptive "Main imaging camera"
 // blurb. A `Diagnose` affordance is offered only in the error state and only

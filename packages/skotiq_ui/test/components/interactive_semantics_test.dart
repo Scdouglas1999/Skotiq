@@ -103,8 +103,8 @@ void main() {
         label: 'Alerts',
         onPressed: () {},
       ),
-      'SkotiqAlert': SkotiqAlert(
-        message: 'Cooler is warming',
+      'SkotiqBanner': SkotiqBanner(
+        title: 'Cooler is warming',
         onDismiss: () {},
       ),
     };

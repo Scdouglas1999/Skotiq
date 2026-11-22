@@ -497,9 +497,12 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     // Fujifilm warranty disclaimer check — must clear before we attempt the
     // connection, so it stays out of the shared mixin connect path.
     if (device.type == DeviceType.camera &&
-        isFujifilmDevice(deviceId, device.displayName)) {
-      final accepted = await showFujifilmDisclaimerIfNeeded(context);
-      if (!accepted) return;
+        !await askCameraConsentBeforeConnect(
+          context,
+          deviceId: deviceId,
+          deviceName: device.displayName,
+        )) {
+      return;
     }
 
     // Route through the shared [DeviceConnectionMixin.connectDevice] so the

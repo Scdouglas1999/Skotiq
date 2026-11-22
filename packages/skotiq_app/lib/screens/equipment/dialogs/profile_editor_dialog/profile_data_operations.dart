@@ -24,7 +24,8 @@ class _ParsedProfileForm {
 
   final int? gain;
   final int? offset;
-  final int binning;
+  final int binX;
+  final int binY;
   final double? coolingTemp;
   final double? centeringExposure;
 
@@ -39,7 +40,8 @@ class _ParsedProfileForm {
     required this.focalRatio,
     required this.gain,
     required this.offset,
-    required this.binning,
+    required this.binX,
+    required this.binY,
     required this.coolingTemp,
     required this.centeringExposure,
     required this.filterNames,
@@ -383,7 +385,8 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
         ProfileValidator.parseCoolingTarget(_coolingTargetController.text);
     final centeringResult = ProfileValidator.parseCenteringExposure(
         _centeringExposureController.text);
-    final binningResult = ProfileValidator.parseBinning(_binning);
+    final binXResult = ProfileValidator.parseBinning(_binX, label: 'Binning X');
+    final binYResult = ProfileValidator.parseBinning(_binY, label: 'Binning Y');
     final filterResult = ProfileValidator.parseFilterRows([
       for (final pair in _filterControllers)
         ProfileFilterRowInput(
@@ -432,7 +435,8 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
     // the binning dropdown, per-filter rows) go in the in-dialog banner.
     final unattachedErrors = <String>[
       if (trainError != null) trainError,
-      if (!binningResult.isValid) binningResult.error!,
+      if (!binXResult.isValid) binXResult.error!,
+      if (!binYResult.isValid) binYResult.error!,
       if (!filterResult.isValid) ...filterResult.errors,
     ];
 
@@ -459,7 +463,8 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
             inlineErrors.containsKey(ProfileEditorField.offset) ||
             inlineErrors.containsKey(ProfileEditorField.coolingTarget) ||
             inlineErrors.containsKey(ProfileEditorField.centeringExposure) ||
-            !binningResult.isValid) {
+            !binXResult.isValid ||
+            !binYResult.isValid) {
           _expandedSections['camera'] = true;
         }
         if (!filterResult.isValid) _expandedSections['filters'] = true;
@@ -493,7 +498,8 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
           : null,
       gain: gainResult.value,
       offset: offsetResult.value,
-      binning: binningResult.value!,
+      binX: binXResult.value!,
+      binY: binYResult.value!,
       coolingTemp: coolingResult.value,
       centeringExposure: centeringResult.value,
       filterNames: filterResult.config!.names,
@@ -557,8 +563,8 @@ extension _ProfileEditorDataOperations on _ProfileEditorDialogState {
       defaultReadoutMode: _cameraId == widget.profile?.cameraId
           ? widget.profile?.defaultReadoutMode
           : null,
-      defaultBinX: parsed.binning,
-      defaultBinY: parsed.binning,
+      defaultBinX: parsed.binX,
+      defaultBinY: parsed.binY,
       defaultCoolingTemp: parsed.coolingTemp,
       coolOnConnect: _coolOnConnect,
       defaultCenteringExposure: parsed.centeringExposure,

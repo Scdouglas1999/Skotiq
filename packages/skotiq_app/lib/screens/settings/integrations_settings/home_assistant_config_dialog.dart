@@ -138,9 +138,9 @@ class _HomeAssistantConfigDialogState
                 ),
                 if (_validationError != null) ...[
                   const SizedBox(height: SkotiqTokens.spaceLg),
-                  SkotiqInlineBanner(
-                    message: _validationError!,
-                    severity: BannerTone.error,
+                  SkotiqBanner(
+                    title: _validationError!,
+                    tone: BannerTone.error,
                   ),
                 ],
               ],

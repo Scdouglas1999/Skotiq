@@ -10,8 +10,9 @@ typedef SmartNightProviderRead = T Function<T>(ProviderListenable<T> provider);
 /// Launches an accepted Smart Night plan.
 ///
 /// Keep this outside the dialog so the launch contract is testable: the
-/// generated sequence is loaded into the editor, the executor is started, and
-/// the draft is marked started only after the executor accepts the run.
+/// generated sequence is loaded into the editor, [confirm] (the pre-flight
+/// checks) is asked, the executor is started, and the draft is marked started
+/// only after the executor accepts the run.
 class SmartNightPlanLauncher {
   const SmartNightPlanLauncher();
 
@@ -19,10 +20,12 @@ class SmartNightPlanLauncher {
     required SmartNightProviderRead read,
     required SmartNightPlan plan,
     String? draftId,
+    Future<bool> Function()? confirm,
   }) async {
     await read(sequenceActionServiceProvider).startOwnedPlan(
       plan.sequence,
       ActivePlanOwner.smartNight,
+      confirm: confirm,
     );
 
     if (draftId != null) {

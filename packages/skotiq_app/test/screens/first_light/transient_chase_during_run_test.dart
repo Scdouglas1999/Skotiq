@@ -24,6 +24,8 @@ class _RecordingMount implements MountCommandService {
     double ra,
     double dec, {
     bool showFeedback = true,
+    String? targetName,
+    bool alwaysConfirms = false,
   }) async {
     slewCalls++;
     return const CommandActionResult.success();

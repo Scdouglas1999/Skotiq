@@ -3,9 +3,9 @@
 // When a device fails to connect during onboarding (or anywhere else),
 // the raw driver error is hostile to the user — bare ASCOM HRESULTs like
 // `0x800706ba`, Alpaca `connection refused`, INDI `timed out`. The device
-// error pipeline keeps that raw text for the audit trail (see
-// `PrettyError` in driver_error_pretty.dart), but a first-light user needs
-// to be told, in plain language, *what to do next*.
+// error pipeline keeps that raw text for the audit trail, but a first-light
+// user needs to be told, in plain language, *what to do next*. The device
+// card and the connect-all report both say [ConnectionDiagnosis.headline].
 //
 // This file is a pure, side-effect-free knowledge base. Given the device
 // type, the driver type, and the raw error string, [diagnoseConnectionFailure]
@@ -21,8 +21,8 @@
 //   * The classifier is pure and deterministic: identical inputs always yield
 //     an identical diagnosis. No clocks, no randomness, no I/O.
 //
-// The marker tables below are seeded from the `PrettyError` mapping concepts
-// and from the COM/`winerror.h` HRESULTs ASCOM drivers commonly surface.
+// The marker tables below are seeded from the COM/`winerror.h` HRESULTs ASCOM
+// drivers commonly surface.
 
 import '../backend/device_types.dart';
 

@@ -541,9 +541,10 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
-            'DepthLock measures signed ADU, so it needs Skotiq-format '
-            'masters: FRAMETYP=MASTER, a flat normalized to unit mean, and at '
-            'least 8 frames behind each one.',
+            'DepthLock measures signed ADU, so it needs monochrome masters '
+            'whose header says they are masters, as the calibration '
+            'library\'s are, each built from at least 8 frames: a dark at the '
+            'goal\'s exposure and a flat in its filter.',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textMuted,
             ),
@@ -806,9 +807,9 @@ class _MeasurementVerdict extends StatelessWidget {
     if (apertureCount == null) {
       return const SizedBox.shrink();
     }
-    return SkotiqInlineBanner(
-      message: '$apertureCount apertures across the region.',
-      severity: BannerTone.success,
+    return SkotiqBanner(
+      title: '$apertureCount apertures across the region.',
+      tone: BannerTone.success,
     );
   }
 }

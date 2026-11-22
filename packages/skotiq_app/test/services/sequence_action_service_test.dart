@@ -22,6 +22,22 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
+/// A rule that always finds one warning, for the non-blocking pre-flight.
+class _WarnRule extends SequenceValidator {
+  @override
+  String get name => 'warn';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence) => const [
+        ValidationIssue(
+          severity: ValidationSeverity.warning,
+          category: ValidationCategory.targets,
+          title: 'Target sets before the plan ends',
+          description: 'test',
+        ),
+      ];
+}
+
 /// A [SequenceExecutor] stand-in that only records the playback calls the
 /// service makes and lets each be parked on a [Completer] so a test can hold a
 /// command "in flight" while it races a second call. Every other executor
@@ -87,6 +103,7 @@ class _RecordingExecutor extends SequenceExecutor {
   _RecordingExecutor executor,
 }) _harness({
   SequenceExecutionState state = SequenceExecutionState.running,
+  List<Override> overrides = const [],
 }) {
   late _RecordingExecutor executor;
   final container = ProviderContainer(overrides: [
@@ -98,6 +115,7 @@ class _RecordingExecutor extends SequenceExecutor {
     runRecordProvider.overrideWith(
       (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
     ),
+    ...overrides,
   ]);
   // Force the executor override to build so `executor` is captured before any
   // command runs.
@@ -253,6 +271,112 @@ void main() {
         nodes: {root.id: root},
       );
     }
+
+    test('closing the pre-flight gives the editor back and starts nothing',
+        () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      String? checked;
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async {
+            checked = h.container.read(currentSequenceProvider)?.name;
+            return false;
+          },
+        ),
+        throwsA(isA<PlanStartCanceled>()),
+      );
+
+      expect(checked, 'Generated', reason: 'pre-flight checks the plan');
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test('a pre-flight that fails gives the editor back', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async => throw StateError('dialog failed'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test('Start in the pre-flight starts the plan', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      var asked = 0;
+
+      await h.service.startOwnedPlan(
+        plan('Generated'),
+        ActivePlanOwner.smartNight,
+        confirm: () async {
+          asked++;
+          return true;
+        },
+      );
+
+      expect(asked, 1);
+      expect(h.executor.startCount, 1);
+      expect(h.container.read(currentSequenceProvider)?.name, 'Generated');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.smartNight,
+      );
+    });
+
+    test(
+        'a plan started with no screen posts its pre-flight findings and '
+        'starts anyway', () async {
+      final h = _harness(
+        state: SequenceExecutionState.idle,
+        overrides: [
+          sequenceValidatorProvider.overrideWith(
+            (ref) => SequenceValidatorService(
+              ref: ref,
+              syncRules: [_WarnRule()],
+              refAwareRules: const [],
+              asyncRules: const [],
+            ),
+          ),
+        ],
+      );
+      addTearDown(h.container.dispose);
+
+      await h.service.startOwnedPlan(plan('Mosaic'), ActivePlanOwner.mosaic);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(h.executor.startCount, 1);
+      final shown = h.container.read(uiNotificationProvider);
+      expect(
+        shown.map((n) => n.message),
+        contains('Target sets before the plan ends'),
+      );
+    });
 
     test('a run that cannot start leaves the editor as it was', () async {
       final h = _harness(state: SequenceExecutionState.idle);

@@ -329,10 +329,8 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
     FlipStep.confirmingTracking =>
       'nightActivityFlip',
     FlipStep.pausingGuider => 'nightActivityFlipPauseGuide',
-    FlipStep.stoppingTracking => 'nightActivityFlipStopTracking',
     FlipStep.slewingToTarget => 'nightActivitySlew',
     FlipStep.verifyingPierSide => 'nightActivityFlipVerifySide',
-    FlipStep.resumingTracking => 'nightActivityFlipResumeTracking',
     FlipStep.plateSolvingAndCentering => titleKey,
     FlipStep.refocusing => 'nightActivityFocus',
     FlipStep.resumingGuider => 'nightActivityGuide',

@@ -91,4 +91,23 @@ void main() {
     expect(MeridianFlipEvent.fromWire({'Teleported': {}}), isNull);
     expect(MeridianFlipEvent.fromWire('Completed'), isNull);
   });
+
+  // One table of step words for the app and the native flip executor, whose
+  // `flip_step_words_match_the_app` reads the same file.
+  test('every step the native executor sends has its one word', () {
+    final words =
+        (jsonDecode(
+                  File('test/fixtures/flip_step_words.json').readAsStringSync(),
+                )
+                as Map<String, dynamic>)
+            .cast<String, String>();
+    for (final MapEntry(key: native, value: word) in words.entries) {
+      expect(flipStepFromNativeName(native)?.displayName, word, reason: native);
+    }
+    expect(
+      FlipStep.values.map((step) => step.displayName).toSet(),
+      words.values.toSet(),
+      reason: 'a step no host sends has no word',
+    );
+  });
 }
