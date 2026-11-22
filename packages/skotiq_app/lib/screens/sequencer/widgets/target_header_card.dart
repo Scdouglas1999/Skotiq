@@ -6,6 +6,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/altitude_chart.dart';
+import 'node_status_color.dart';
 import 'notes_panel.dart';
 
 /// A rich card widget for displaying target header nodes in the sequencer.
@@ -58,22 +59,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     _showAltitudeChart = !widget.isMobile;
   }
 
-  Color _getStatusColor() {
-    switch (widget.nodeStatus) {
-      case NodeStatus.running:
-        return widget.colors.info;
-      case NodeStatus.success:
-        return widget.colors.success;
-      case NodeStatus.failure:
-        return widget.colors.error;
-      case NodeStatus.skipped:
-        return widget.colors.textMuted;
-      case NodeStatus.cancelled:
-        return widget.colors.warning;
-      default:
-        return Colors.transparent;
-    }
-  }
+  Color _getStatusColor() => nodeStatusColor(widget.nodeStatus, widget.colors);
 
   /// Whether this target header's subtree is being executed **right now**.
   ///
