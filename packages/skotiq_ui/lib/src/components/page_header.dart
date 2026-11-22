@@ -90,14 +90,10 @@ class PageHeader extends StatelessWidget {
       ),
       // The tab strip gets ALL the width the title and the actions do not use.
       //
-      // It used to be a `Flexible` followed by a `Spacer`, which made the title
-      // block, the strip and the spacer three flex children of equal weight: on
-      // a 1600px window the strip was handed ~330px of the ~1180px going spare,
-      // so Plan's six tabs became "Tonight · Projects · Schedule · Framir…"
-      // with a scroll arrow — the opposite of every screen mockup, which shows
-      // the whole strip. The title is inflexible now (it sizes to its words and
-      // ellipsises inside its own Text), the strip is `Expanded`, and the
-      // actions keep their natural width at the right edge.
+      // The title is inflexible (it sizes to its words and ellipsises inside its
+      // own Text), the strip is `Expanded`, and the actions keep their natural
+      // width at the right edge. A `Flexible` plus a `Spacer` would split the
+      // spare width three ways and cut Plan's six tabs behind a scroll arrow.
       child: LayoutBuilder(
         builder: (context, constraints) => Row(
           children: [

@@ -6,13 +6,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// swap `BorderRadius.circular(8)` / `fontSize: 13` for a NAMED token. The
 /// font-size half is still value-preserving and still locked below.
 ///
-/// The RADIUS half no longer is. The Observatory design pass those tokens were
-/// waiting for has landed (`docs/design/overhaul/03-tokens.md` §3.2): there are
-/// four radii — 4, 6, 8, 12 — and every `radiusInline*` now forwards to the one
-/// it maps to, so the 979 call sites take the new value without an edit. What
-/// this group locks is therefore no longer "each token equals its old literal"
-/// but "each token equals the scale value it folds onto", which is what wave 4
-/// will sed-replace them with.
+/// The RADIUS half is not: there are four radii — 4, 6, 8, 12
+/// (`docs/design/overhaul/03-tokens.md` §3.2) — and every `radiusInline*`
+/// forwards to the one it maps to. What this group locks is "each token
+/// equals the scale value it folds onto".
 ///
 /// Mapping table of record: docs/design/overhaul/03-tokens.md §3.2.
 void main() {

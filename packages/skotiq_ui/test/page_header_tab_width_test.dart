@@ -1,12 +1,11 @@
 // The page header's tab strip must get the width the title and the actions do
 // not use.
 //
-// It used to be a `Flexible` followed by a `Spacer`, which made the title
-// block, the strip and the spacer three flex children of equal weight. On a
-// 1600px window the strip was handed about a third of the ~1180px going spare
-// — measured at ~330px on a built bundle — so the Plan screen's six tabs read
-// "Tonight · Projects · Schedule · Framir…" behind a scroll arrow, while every
-// screen mockup shows the whole strip. This is the check against that.
+// A `Flexible` followed by a `Spacer` makes the title block, the strip and the
+// spacer three flex children of equal weight: on a 1600px window the strip
+// gets about a third of the ~1180px going spare, so the Plan screen's six tabs
+// read "Tonight · Projects · Schedule · Framir…" behind a scroll arrow, while
+// every screen mockup shows the whole strip. This is the check against that.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -82,9 +81,8 @@ void main() {
     final strip = tester.getRect(find.byType(AdaptiveTabBar));
     final title = tester.getRect(find.text('Plan'));
 
-    // The old layout handed the strip about a third of the free width (~330px
-    // of ~1180). Half is a generous floor that the defect could not have
-    // reached and the fix clears comfortably.
+    // A three-way flex split hands the strip about a third of the free width
+    // (~330px of ~1180). Half is a generous floor that split cannot reach.
     expect(
       strip.width,
       greaterThan(600),
@@ -114,7 +112,7 @@ void main() {
         Size(ShellChromeMetrics.shellLayoutBreakpoint - 100, 900),
       );
 
-      // Its own row means it is no longer competing with the title and the
+      // Its own row means it is not competing with the title and the
       // actions, so it spans the header.
       final strip = tester.getRect(find.byType(AdaptiveTabBar));
       expect(strip.width, ShellChromeMetrics.shellLayoutBreakpoint - 100);

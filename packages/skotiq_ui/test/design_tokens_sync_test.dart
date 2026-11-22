@@ -275,7 +275,7 @@ void main() {
       expect(SkotiqTokens.radiusXl, (radius['xl'] as num).toDouble());
       expect(SkotiqTokens.radiusFull, (radius['full'] as num).toDouble());
       // radiusButton is an alias of Sm, and the migration aliases fold onto
-      // the scale; wave 4 deletes them, and until then they must not drift.
+      // the scale; they must not drift.
       expect(SkotiqTokens.radiusButton, SkotiqTokens.radiusSm);
       expect(SkotiqTokens.radiusInline2, SkotiqTokens.radiusXs);
       expect(SkotiqTokens.radiusInline4, SkotiqTokens.radiusXs);
@@ -347,8 +347,8 @@ void main() {
       );
     });
 
-    /// The component sizes wave 2 applied and wave 4 promoted onto
-    /// [SkotiqTokens]. They are held to the JSON for the same reason the
+    /// The component sizes on [SkotiqTokens]. They are held to the JSON for the
+    /// same reason the
     /// colours are: a height that only exists in Dart drifts from the mockups
     /// the moment someone edits one of them.
     test('the component sizes match the JSON', () {
@@ -392,11 +392,9 @@ void main() {
     });
 
     /// The type scale, by the same rule as the colours. `body`, `bodySm`,
-    /// `caption`, `button` and `buttonSm` predate the overhaul and carry line
-    /// heights and tracking from the old scale; wave 0 does not move them,
-    /// because changing a line height moves every screen. Only the styles the
-    /// overhaul INTRODUCED are held to the JSON here — the rest are wave 2's,
-    /// alongside the components that read them.
+    /// `caption`, `button` and `buttonSm` carry line heights and tracking from
+    /// the old scale, because changing a line height moves every screen. Only
+    /// the styles the overhaul INTRODUCED are held to the JSON here.
     test('the new type styles match the JSON exactly', () {
       final styles =
           (tokens['typography'] as Map<String, dynamic>)['styles']

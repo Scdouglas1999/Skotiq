@@ -111,10 +111,7 @@ class _SkotiqTooltipState extends State<SkotiqTooltip>
   /// `MouseRegion.onExit` does not fire when the widget under the cursor is
   /// rebuilt with new configuration — the pointer never moved, so there is no
   /// exit to report — and the tooltip then names a control that has changed
-  /// out from under it, or is gone. The rail reproduced it every time:
-  /// hovering a collapsed item and clicking it rebuilds the whole rail with a
-  /// new selection, and the old item's label stayed up over the page body
-  /// until the six-second lifetime clock retired it.
+  /// out from under it, or is gone.
   ///
   /// Not gated on the message changing: it is the trigger's identity that is
   /// in question, and a rail item whose label is unchanged is still a

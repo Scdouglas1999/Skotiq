@@ -62,10 +62,9 @@ void main() {
   // gets three captures of its own rather than displacing the existing ones.
   //
   // Captured at pixelRatio 1 because the sheet is ~4,500 logical pixels tall;
-  // at 2 the PNG is 20 MB and no reviewer thanks you for it. The canvas was
-  // 5,400 while the gallery still carried the nine pre-Observatory sections
-  // wave 4 deleted; leaving it there would only pad the golden with black,
-  // and cutting it too fine would crop the last section instead.
+  // at 2 the PNG is 20 MB and no reviewer thanks you for it. A taller canvas
+  // would only pad the golden with black, and cutting it too fine would crop
+  // the last section.
   const observatorySize = Size(1280, 4600);
 
   for (final entry in <String, ThemeData>{

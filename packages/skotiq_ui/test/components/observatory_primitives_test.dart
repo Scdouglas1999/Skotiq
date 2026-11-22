@@ -274,12 +274,9 @@ void main() {
       );
     });
 
-    // Wave 3 migrated 178 `IconButton(` call sites onto this control, and
-    // every one of them went invisible to `find.byTooltip` — the finder every
-    // screen test reaches for — because this button shows a `SkotiqTooltip`
-    // rather than Material's. Each screen then grew its own two-headed
-    // `findByTooltip` helper. The label is published where the standard finder
-    // looks, so those helpers can go.
+    // `find.byTooltip` is the finder every screen test reaches for, and this
+    // button shows a `SkotiqTooltip` rather than Material's, so the label is
+    // published where the standard finder looks.
     testWidgets('answers find.byTooltip, and shows only one tooltip', (
       tester,
     ) async {

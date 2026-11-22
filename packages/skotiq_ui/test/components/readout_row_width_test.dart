@@ -1,10 +1,10 @@
 // A readout gets the width its own words need.
 //
-// `ReadoutRow` used to be a `Row` of `Flexible` children, and flex splits the
-// FREE space equally: three readouts in a 320px side panel took 69px each and
-// "INTEGRATION" ellipsized although the three of them fitted together with
-// room to spare. A truncated readout label is the one thing 02 rule 3 forbids
-// outright — the number is the point of the panel.
+// Flex splits the FREE space equally: a `Row` of `Flexible` readouts in a
+// 320px side panel would give each 69px and ellipsize "INTEGRATION" although
+// the three of them fit together with room to spare. A truncated readout
+// label is the one thing 02 rule 3 forbids outright — the number is the
+// point of the panel.
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';

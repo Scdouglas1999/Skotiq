@@ -1,10 +1,10 @@
 // The select's OPEN list.
 //
-// Wave 2 left the open list on Material's `DropdownButton`, whose menu entries
-// assert a 48px floor — a touch figure applied to a pointer control. 05 §8 asks
-// for 32px rows on the `popover` decoration, the value left-aligned, and a list
-// an operator can drive from the keyboard. This suite pins all four, plus the
-// touch platform's own floor, which is the ONE place 48 is right.
+// Material's `DropdownButton` menu entries assert a 48px floor — a touch
+// figure applied to a pointer control. 05 §8 asks for 32px rows on the
+// `popover` decoration, the value left-aligned, and a list an operator can
+// drive from the keyboard. This suite pins all four, plus the touch
+// platform's own floor, which is the ONE place 48 is right.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
