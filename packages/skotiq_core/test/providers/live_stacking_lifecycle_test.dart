@@ -23,13 +23,14 @@ class _ControlledLocalStackingService extends LiveStackingService {
   int stopCalls = 0;
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) => startResult.future;
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stopCalls++;
   }
 }

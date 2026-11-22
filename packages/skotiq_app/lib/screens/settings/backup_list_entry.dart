@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:skotiq_core/backend.dart';
 
 /// One row in the Backup & Restore list, portable across the local backend
 /// (files on disk) and a remote headless host (`/api/backup/list`).
@@ -79,12 +78,3 @@ List<BackupListEntry> parseRemoteBackupList(List<Map<String, dynamic>> rows) {
   }
   return entries;
 }
-
-/// Stable identity of a backend, used to reject a slow list result or a row
-/// action after the user has switched host or mode mid-flight. Every backend
-/// instance has its own token, so a reconnect to the same rig is a new owner.
-/// A row loaded against one token must never dispatch its action against a
-/// different one — that is how an old row would otherwise target the current
-/// host.
-String backendBackupToken(SkotiqBackend backend) =>
-    '${backend.runtimeType}:${identityHashCode(backend)}';

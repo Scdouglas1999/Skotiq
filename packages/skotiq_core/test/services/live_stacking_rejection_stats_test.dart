@@ -34,13 +34,22 @@ class _TestBackendNotifier extends BackendNotifier {
 /// Stand-in stacker whose add-frame call refuses, exactly as the engine does
 /// when the alignment residual exceeds the configured ceiling.
 class _RefusingStacker implements LiveStackingService {
+  @override
+  bool get readsHost => false;
+
   _RefusingStacker(this.statsAfterRefusal);
 
   final LiveStackingStats statsAfterRefusal;
   int getStatsCalls = 0;
 
   @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
+  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
     throw LiveStackingFrameRejected(
       reason: 'Alignment residual too high: 37.11px (max 2.00px)',
       stats: statsAfterRefusal,
@@ -48,20 +57,21 @@ class _RefusingStacker implements LiveStackingService {
   }
 
   @override
-  Future<LiveStackingStats> getStats() async {
+  Future<LiveStackingStats> getStats({String? filterKey}) async {
     getStatsCalls++;
     return statsAfterRefusal;
   }
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async =>
       const LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async =>
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
       const LiveStackingResult(
         width: 2,
         height: 2,
@@ -70,13 +80,10 @@ class _RefusingStacker implements LiveStackingService {
       );
 
   @override
-  Future<void> stop() async {}
+  Future<void> stop({String? filterKey}) async {}
 
   @override
-  Future<void> reset() async {}
-
-  @override
-  noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  Future<void> reset({String? filterKey}) async {}
 }
 
 void main() {

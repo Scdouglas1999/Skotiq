@@ -14,6 +14,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart' as wire;
+import 'package:skotiq_core/models.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -79,7 +80,7 @@ void main() {
     expect(centering.currentIteration, 2);
     final solve = container.read(plateSolveStateProvider).lastResult!;
     expect(solve.ra, 5.5 * 15);
-    final mirrored = decodePlateSolveResult(encodePlateSolveResult(solve));
+    final mirrored = plateSolveResultFromJson(plateSolveResultToJson(solve));
     expect(mirrored.ra, solve.ra);
     expect(mirrored.dec, solve.dec);
     expect(mirrored.pixelScale.isNaN, isTrue);

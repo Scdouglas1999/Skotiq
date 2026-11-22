@@ -79,11 +79,15 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
 final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
 
 /// Catalog targets built from one OpenNGC reader. The catalog manager
-/// replaces the reader when the file changes, which retires this entry.
-final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
+/// replaces the reader when the file changes, which retires the entry.
+class _CatalogTargetsCache {
+  OpenNgcDsoCatalog? reader;
+  Future<List<db.DbTarget>>? targets;
+}
 
-/// The reader [_catalogTargets] was filled from. Replaced on install.
-OpenNgcDsoCatalog? _catalogReader;
+final _catalogTargetsCacheProvider = Provider<_CatalogTargetsCache>(
+  (ref) => _CatalogTargetsCache(),
+);
 
 /// Fires when a catalog file is installed or removed. Suggestions watch this
 /// so a list scored before the file arrived is dropped.
@@ -209,7 +213,10 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
           allSessionsProvider.future,
         );
 
-        final catalogTargets = await _loadCatalogTargets(logging);
+        final catalogTargets = await _loadCatalogTargets(
+          ref.read(_catalogTargetsCacheProvider),
+          logging,
+        );
         final allTargets = joinUserAndCatalogTargets(
           userTargets,
           catalogTargets,
@@ -254,7 +261,10 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 /// Suggestion candidates from the OpenNGC catalog: every object to
 /// magnitude 14 (which covers most imageable objects), as [db.DbTarget] rows
 /// with negative ids so they cannot be mistaken for the user's own targets.
-Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
+Future<List<db.DbTarget>> _loadCatalogTargets(
+  _CatalogTargetsCache cache,
+  LoggingService logging,
+) async {
   final manager = CatalogManager.instance;
 
   if (!manager.isInitialized) {
@@ -274,16 +284,14 @@ Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   }
 
   final reader = manager.dsos;
-  if (!identical(reader, _catalogReader)) {
-    final previous = _catalogReader;
-    if (previous != null) _catalogTargets[previous] = null;
-    _catalogReader = reader;
+  if (!identical(reader, cache.reader)) {
+    cache
+      ..reader = reader
+      ..targets = null;
   }
+  final targets = cache.targets ??= _readCatalogTargets(reader, logging);
   try {
-    return await (_catalogTargets[reader] ??= _readCatalogTargets(
-      reader,
-      logging,
-    ));
+    return await targets;
   } catch (e, stackTrace) {
     logging.error(
       'Failed to load OpenNGC catalog: $e',
@@ -293,7 +301,7 @@ Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
       'Stack trace: $stackTrace',
       source: 'TargetSuggestionProvider',
     );
-    _catalogTargets[reader] = null;
+    if (identical(cache.targets, targets)) cache.targets = null;
     rethrow;
   }
 }

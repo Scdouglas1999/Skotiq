@@ -12,6 +12,7 @@ import 'package:skotiq_app/screens/settings/widgets/weather_safety_settings.dart
 import 'package:skotiq_core/providers.dart';
 
 import '../../harness/harness.dart';
+import 'package:skotiq_core/models.dart';
 
 Future<HarnessHandle> _pump(
   WidgetTester tester, {

@@ -9,6 +9,9 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 class _MultiFilterFakeStackingService implements LiveStackingService {
+  @override
+  bool get readsHost => false;
+
   final Map<String, int> frameCounts = {};
   final List<String> updatedConfigs = [];
   final List<String> resetFilters = [];
@@ -60,63 +63,6 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   }
 
   @override
-  Future<LiveStackingStats> startFromFileForFilter({
-    required String filterKey,
-    required String referenceImagePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    final gate = startGate;
-    if (gate != null) await gate.future;
-    frameCounts[filterKey] = 1;
-    return _makeResult(filterKey, 1).stats;
-  }
-
-  @override
-  Future<LiveStackingStats> startFromDataForFilter({
-    required String filterKey,
-    required int width,
-    required int height,
-    required List<int> data,
-    double pedestal = 0.0,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    frameCounts[filterKey] = 1;
-    return _makeResult(filterKey, 1).stats;
-  }
-
-  @override
-  Future<LiveStackingResult> addFrameFromFileForFilter(
-    String imagePath, {
-    required String filterKey,
-  }) async {
-    inFlightAdds++;
-    if (inFlightAdds > maxConcurrentAdds) {
-      maxConcurrentAdds = inFlightAdds;
-    }
-    try {
-      if (addDelay > Duration.zero) {
-        await Future<void>.delayed(addDelay);
-      }
-      ingestedPaths.add(imagePath);
-      final next = (frameCounts[filterKey] ?? 0) + 1;
-      frameCounts[filterKey] = next;
-      return _makeResult(filterKey, next);
-    } finally {
-      inFlightAdds--;
-    }
-  }
-
-  @override
-  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) async {
-    return _makeResult(filterKey, frameCounts[filterKey] ?? 1);
-  }
-
-  @override
-  Future<LiveStackingStats> getStatsForFilter(String filterKey) async {
-    return _makeResult(filterKey, frameCounts[filterKey] ?? 0).stats;
-  }
-
-  @override
   Future<void> updateLiveConfig(
     LiveStackingConfig config, {
     String? filterKey,
@@ -127,27 +73,85 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
   }
 
   @override
-  Future<void> resetForFilter(String filterKey) async {
-    final error = resetError;
-    if (error != null) throw error;
-    resetFilters.add(filterKey);
-    frameCounts[filterKey] = 0;
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
+  }) async {
+    final gate = startGate;
+    if (gate != null) await gate.future;
+    frameCounts[filterKey!] = 1;
+    return _makeResult(filterKey, 1).stats;
   }
 
   @override
-  Future<void> stopForFilter(String filterKey) async {
-    stoppedFilters.add(filterKey);
-    frameCounts.remove(filterKey);
+  Future<LiveStackingStats> startFromData({
+    required int width,
+    required int height,
+    required List<int> data,
+    double pedestal = 0.0,
+    LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
+  }) async {
+    frameCounts[filterKey!] = 1;
+    return _makeResult(filterKey, 1).stats;
   }
 
   @override
-  Future<void> reset() async {
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
+    inFlightAdds++;
+    if (inFlightAdds > maxConcurrentAdds) {
+      maxConcurrentAdds = inFlightAdds;
+    }
+    try {
+      if (addDelay > Duration.zero) {
+        await Future<void>.delayed(addDelay);
+      }
+      ingestedPaths.add(imagePath);
+      final next = (frameCounts[filterKey!] ?? 0) + 1;
+      frameCounts[filterKey] = next;
+      return _makeResult(filterKey, next);
+    } finally {
+      inFlightAdds--;
+    }
+  }
+
+  @override
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async {
+    return _makeResult(filterKey!, frameCounts[filterKey] ?? 1);
+  }
+
+  @override
+  Future<LiveStackingStats> getStats({String? filterKey}) async {
+    return _makeResult(filterKey!, frameCounts[filterKey] ?? 0).stats;
+  }
+
+  @override
+  Future<void> reset({String? filterKey}) async {
+    if (filterKey != null) {
+      final error = resetError;
+      if (error != null) throw error;
+      resetFilters.add(filterKey);
+      frameCounts[filterKey] = 0;
+      return;
+    }
     resetCalls++;
     frameCounts.clear();
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
+    if (filterKey != null) {
+      stoppedFilters.add(filterKey);
+      frameCounts.remove(filterKey);
+      return;
+    }
     stopCalls++;
     final error = stopError;
     if (error != null) throw error;
@@ -157,9 +161,6 @@ class _MultiFilterFakeStackingService implements LiveStackingService {
     }
     frameCounts.clear();
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 void main() {
@@ -602,7 +603,7 @@ void main() {
         final container = ProviderContainer();
         addTearDown(container.dispose);
         final service = container.read(
-          Provider((ref) => LiveStackingService(ref, host: remote)),
+          Provider((ref) => LinkedLiveStackingService(ref, remote)),
         );
 
         expect(service.isActive, isFalse);

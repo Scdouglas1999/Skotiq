@@ -56,43 +56,7 @@ mixin _NetworkBackendSequencerOperations on NetworkBackendTransport {
           finishedJobResult(job, operation: 'plate solve');
     }
 
-    // CD matrix + SIP distortion terms are enriched by the master
-    // (`ImagingHandlers._plateSolveJson`). Tolerate their absence so an older
-    // master — or a solve that carried no distortion model — degrades to a
-    // pure-WCS / linear result instead of crashing.
-    double cd(String key) => (response[key] as num?)?.toDouble() ?? 0;
-    int sipOrder(String key) => (response[key] as num?)?.toInt() ?? 0;
-    Float64List sipCoeffs(String key) {
-      final raw = response[key];
-      if (raw is! List) return Float64List(0);
-      return Float64List.fromList(
-        raw.map((e) => (e as num).toDouble()).toList(),
-      );
-    }
-
-    return PlateSolveResult(
-      success: response['success'] as bool,
-      ra: (response['ra'] as num).toDouble(),
-      dec: (response['dec'] as num).toDouble(),
-      pixelScale: (response['pixelScale'] as num).toDouble(),
-      rotation: (response['rotation'] as num).toDouble(),
-      fieldWidth: (response['fieldWidth'] as num).toDouble(),
-      fieldHeight: (response['fieldHeight'] as num).toDouble(),
-      solveTimeSecs: (response['solveTimeSecs'] as num).toDouble(),
-      error: response['error'] as String?,
-      cd11: cd('cd11'),
-      cd12: cd('cd12'),
-      cd21: cd('cd21'),
-      cd22: cd('cd22'),
-      sipAOrder: sipOrder('sipAOrder'),
-      sipBOrder: sipOrder('sipBOrder'),
-      sipACoeffs: sipCoeffs('sipACoeffs'),
-      sipBCoeffs: sipCoeffs('sipBCoeffs'),
-      sipApOrder: sipOrder('sipApOrder'),
-      sipBpOrder: sipOrder('sipBpOrder'),
-      sipApCoeffs: sipCoeffs('sipApCoeffs'),
-      sipBpCoeffs: sipCoeffs('sipBpCoeffs'),
-    );
+    return plateSolveResultFromJson(response);
   }
 
   /// The solver's own result for a plate-solve job that ended `failed`

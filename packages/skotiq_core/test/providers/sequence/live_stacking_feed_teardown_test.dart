@@ -14,6 +14,9 @@ import 'package:skotiq_core/utils.dart';
 import '../../harness/sequencer_wire.dart';
 
 class _GatedStacker implements LiveStackingService {
+  @override
+  bool get readsHost => false;
+
   _GatedStacker({this.gate});
 
   final Completer<void>? gate;
@@ -21,10 +24,20 @@ class _GatedStacker implements LiveStackingService {
   int stops = 0;
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
+    if (filterKey != null) {
+      return const LiveStackingStats(
+        stackedFrameCount: 1,
+        totalFramesAttempted: 1,
+      );
+    }
     if (!entered.isCompleted) entered.complete();
     final pending = gate;
     if (pending != null) await pending.future;
@@ -35,44 +48,28 @@ class _GatedStacker implements LiveStackingService {
   }
 
   @override
-  Future<LiveStackingStats> startFromFileForFilter({
-    required String filterKey,
-    required String referenceImagePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    return const LiveStackingStats(
-      stackedFrameCount: 1,
-      totalFramesAttempted: 1,
-    );
-  }
-
-  @override
-  Future<LiveStackingResult> getCurrentResult() async =>
-      const LiveStackingResult(
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async {
+    if (filterKey != null) {
+      return LiveStackingResult(
         width: 2,
         height: 2,
-        data: [1, 2, 3, 4],
-        stats: LiveStackingStats(stackedFrameCount: 1),
+        data: const [1, 2, 3, 4],
+        filterKey: filterKey,
+        stats: const LiveStackingStats(stackedFrameCount: 1),
       );
-
-  @override
-  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) async {
-    return LiveStackingResult(
+    }
+    return const LiveStackingResult(
       width: 2,
       height: 2,
-      data: const [1, 2, 3, 4],
-      filterKey: filterKey,
-      stats: const LiveStackingStats(stackedFrameCount: 1),
+      data: [1, 2, 3, 4],
+      stats: LiveStackingStats(stackedFrameCount: 1),
     );
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stops++;
   }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 Sequence _sequenceWithLiveStack() {

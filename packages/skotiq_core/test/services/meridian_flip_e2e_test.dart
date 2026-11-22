@@ -34,6 +34,7 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/mount_state_provider.dart';
 import 'package:skotiq_core/src/providers/meridian_flip_provider.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import 'package:skotiq_core/src/models/meridian_flip_progress.dart';
 
 /// Test backend that satisfies the surface used by `mountStateProvider`:
 ///   - `eventStream` (broadcast)

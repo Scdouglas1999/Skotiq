@@ -30,6 +30,7 @@ import '../database/daos/settings_dao.dart';
 import 'logging_service_provider.dart';
 import 'notification_service_provider.dart';
 import '../utils/logging_service.dart';
+import '../models/meridian_flip_progress.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
@@ -375,29 +376,6 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
     return global;
   }
 });
-
-/// Current flip state for UI
-///
-/// Represents the current state of a meridian flip operation.
-enum FlipExecutionState {
-  /// No flip is in progress
-  idle,
-
-  /// Flip is currently executing
-  executing,
-
-  /// Flip failed and is being retried
-  retrying,
-
-  /// Flip completed successfully
-  completed,
-
-  /// Flip failed after all retries
-  failed,
-
-  /// Flip was aborted by user
-  aborted,
-}
 
 /// Provider tracking current flip execution state
 ///

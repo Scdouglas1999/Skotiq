@@ -30,6 +30,7 @@ import 'channels/run_record_channel.dart';
 import 'channels/scheduled_start_channel.dart';
 import 'channels/sequence_run_channel.dart';
 import 'channels/session_frames_channel.dart';
+import 'channels/weather_safety_channel.dart';
 import 'runtime_mirror_channel.dart';
 
 /// Every runtime channel the host shares with linked clients. Host and client
@@ -73,6 +74,7 @@ final runtimeMirrorChannelsProvider =
         const LiveBroadcastChannel(),
         const ScheduledStartChannel(),
         const EndOfNightChannel(),
+        const WeatherSafetyChannel(),
       ],
     );
 

@@ -19,6 +19,7 @@ import '../providers/database_provider.dart';
 import '../backend/remote_host.dart';
 import 'focus_temperature_fit.dart';
 import '../utils/logging_service.dart';
+import '../utils/retryable_once.dart';
 part 'predictive_af_service/predictive_af_models.dart';
 part 'predictive_af_service/settings_controller.dart';
 part 'predictive_af_service/regression.dart';
@@ -40,7 +41,9 @@ class PredictiveAfService {
   final SettingsDao? _settingsDao;
   PredictiveAfConfig _config;
   bool _disposed = false;
-  Future<void>? _hydration;
+  late final RetryableOnce<void> _hydration = RetryableOnce(
+    _hydrateFromSettings,
+  );
   Future<void> _configWriteTail = Future<void>.value();
 
   final _driftController = StreamController<DriftStatus>.broadcast();
@@ -86,21 +89,13 @@ class PredictiveAfService {
     await operation;
   }
 
-  Future<void> get hydrated => _hydration ?? Future<void>.value();
+  Future<void> get hydrated => _hydration.current ?? Future<void>.value();
 
   /// Load the persisted gate thresholds from `app_settings` into [config].
   /// Called once at provider construction; missing or unparseable keys keep
   /// the current default for that field.
   Future<void> hydrateFromSettings() async {
-    final future = _hydration ??= _hydrateFromSettings();
-    try {
-      await future;
-    } catch (_) {
-      if (identical(_hydration, future)) {
-        _hydration = null;
-      }
-      rethrow;
-    }
+    await _hydration();
   }
 
   /// Stream of drift detection events. Listen here to surface

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +19,7 @@ import '../../utils/confirm_dialog.dart';
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
 import 'backup_list_entry.dart';
+import 'backup_store.dart';
 import 'widgets/admin_only.dart';
 import 'widgets/cloud_sync_settings.dart';
 
@@ -96,7 +96,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
   /// The replace that waits for the next start of the app (or of the linked
   /// host), and what the last start did with one.
-  _ReplaceState _replace = const _ReplaceState();
+  BackupReplaceState _replace = const BackupReplaceState();
 
   /// Monotonic counter identifying the most recent [_loadAvailableBackups]
   /// call. A slow list from an old rig must not paint over a newer load (or a
@@ -105,10 +105,10 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   int _loadGeneration = 0;
   int _importGeneration = 0;
 
-  /// Backend identity ([backendBackupToken]) that produced [_availableBackups].
-  /// Row actions are rejected when the live backend no longer matches this, so
-  /// a row from host A can never be dispatched to host B (or the local store).
-  String? _loadedBackendToken;
+  /// The backend that produced [_availableBackups]. Row actions are rejected
+  /// once it is no longer the live one, so a row from host A can never be
+  /// dispatched to host B (or the local store).
+  AsyncScope<SkotiqBackend>? _loadedScope;
 
   /// Last list-load failure, surfaced inline with a Retry affordance instead of
   /// a transient snackbar so the user can actually recover.
@@ -132,21 +132,14 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   /// differs from the live backend. Guards every row action so a stale row is
   /// never sent to the wrong host.
   bool _rejectIfBackendChanged() {
-    if (_loadedBackendToken == null) return false;
-    final token = backendBackupToken(ref.read(backendProvider));
-    if (token == _loadedBackendToken) return false;
+    final loaded = _loadedScope;
+    if (loaded == null || loaded.isCurrent) return false;
     context.showWarningSnackBar(
       'The connected host changed. Refreshing the backup list.',
     );
     _loadAvailableBackups();
     return true;
   }
-
-  /// Whether the live backend still matches [token]. Used after an await to
-  /// skip applying stale success/refresh UI once the user has switched hosts
-  /// mid-operation.
-  bool _backendStillMatches(String token) =>
-      backendBackupToken(ref.read(backendProvider)) == token;
 
   bool _rejectRestoreDuringActiveRun() {
     final execution = ref.read(sequenceExecutionStateProvider);
@@ -176,101 +169,37 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   /// Runs one restore, here or on the linked host, showing how far it is,
   /// and announces a merge that worked. Throws when the restore fails.
   Future<void> _runRestore({
-    required RestoreMode mode,
-    required HostBackups? hostBackups,
-    required Future<Map<String, dynamic>> Function(HostBackups host) onHost,
-    required String localPath,
+    required bool onHost,
+    required Future<BackupRestoreOutcome> Function(
+      void Function(RestoreProgress) onProgress,
+    ) run,
     required bool Function() stillCurrent,
   }) async {
-    Timer? poll;
     setState(() => _progress = const RestoreProgress('Reading the backup', 0));
     try {
-      if (hostBackups != null) {
-        poll = _followHostProgress(hostBackups);
-        final result = await onHost(hostBackups);
-        final status = result['status'] as String?;
-        if (status != 'restored' && status != 'staged') {
-          throw Exception(result['error'] ?? 'Restore failed');
-        }
-        if (!stillCurrent()) return;
-        if (status == 'restored') {
-          _refreshAfterRestore();
-          _announceMerge(
-            result['message'] as String? ?? restoreReportFromWire(result),
-            remote: true,
-          );
-        }
-      } else {
-        final result = await ref.read(backupServiceProvider).restoreBackup(
-              filePath: localPath,
-              mode: mode,
-              onProgress: (progress) {
-                if (mounted) setState(() => _progress = progress);
-              },
-            );
-        if (!result.success) {
-          throw Exception(result.errorMessage ?? 'Restore failed');
-        }
-        if (!stillCurrent()) return;
-        if (!result.pendingRestart) {
-          _refreshAfterRestore();
-          _announceMerge(result.report, remote: false);
-        }
+      final outcome = await run(_showProgress);
+      if (!stillCurrent()) return;
+      final merged = outcome.merged;
+      if (merged != null) {
+        _refreshAfterRestore();
+        _announceMerge(merged, remote: onHost);
       }
       await _loadAvailableBackups();
     } finally {
-      poll?.cancel();
       if (mounted) setState(() => _progress = null);
     }
   }
 
-  /// Shows how far the linked host is with the backup or restore it is
-  /// running for this screen, until the returned timer is canceled.
-  Timer _followHostProgress(HostBackups hostBackups) =>
-      Timer.periodic(const Duration(seconds: 1), (_) async {
-        try {
-          final state = await hostBackups.restoreState();
-          final progress = state['progress'];
-          if (mounted && _progress != null && progress is Map) {
-            setState(() => _progress = RestoreProgress.fromJson(progress));
-          }
-        } on Exception catch (error) {
-          // The operation's own answer says how it went.
-          Log.debug(
-            'Could not read the host\'s backup progress: $error',
-            source: 'BackupScreen',
-          );
-        }
-      });
+  /// Shows how far the backup or restore in progress is.
+  void _showProgress(RestoreProgress progress) {
+    if (mounted && _progress != null) setState(() => _progress = progress);
+  }
 
   /// Reads the replace that waits for a restart and the record of the last
   /// one, from this database or from the linked host.
-  Future<void> _loadReplaceState(HostBackups? hostBackups) async {
+  Future<void> _loadReplaceState(BackupStore store) async {
     try {
-      final _ReplaceState state;
-      if (hostBackups != null) {
-        final body = await hostBackups.restoreState();
-        final pending = body['pendingReplace'];
-        final last = body['lastReplace'];
-        state = _ReplaceState(
-          pendingBackup:
-              pending is Map ? pending['backupName'] as String? : null,
-          pendingSafetyBackup:
-              pending is Map ? pending['safetyBackup'] as String? : null,
-          outcome: last is Map ? last['report'] as String? : null,
-          outcomeRestored: last is Map && last['restored'] == true,
-        );
-      } else {
-        final service = ref.read(backupServiceProvider);
-        final pending = await service.pendingReplace();
-        final last = await service.replaceOutcome();
-        state = _ReplaceState(
-          pendingBackup: pending?.backupName,
-          pendingSafetyBackup: pending?.safetyBackupName,
-          outcome: last?.report,
-          outcomeRestored: last != null && last.restored,
-        );
-      }
+      final state = await store.replaceState();
       if (mounted) setState(() => _replace = state);
     } on Exception catch (error) {
       // The list load reports a host that cannot be reached.
@@ -282,30 +211,22 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   }
 
   Future<void> _cancelReplace() async {
-    final hostBackups = ref.read(linkedHostBackupsProvider);
+    final store = ref.read(backupStoreProvider);
     try {
-      if (hostBackups != null) {
-        await hostBackups.cancelReplace();
-      } else {
-        await ref.read(backupServiceProvider).cancelPendingReplace();
-      }
+      await store.cancelReplace();
       if (!mounted) return;
       context.showSuccessSnackBar('The replace was canceled.');
     } catch (e) {
       if (!mounted) return;
       context.showErrorSnackBar('Could not cancel: ${userFacingError(e)}');
     }
-    await _loadReplaceState(hostBackups);
+    await _loadReplaceState(store);
   }
 
   Future<void> _dismissReplaceOutcome() async {
-    final hostBackups = ref.read(linkedHostBackupsProvider);
+    final store = ref.read(backupStoreProvider);
     try {
-      if (hostBackups != null) {
-        await hostBackups.acknowledgeReplace();
-      } else {
-        await ref.read(backupServiceProvider).dismissReplaceOutcome();
-      }
+      await store.acknowledgeReplace();
     } on Exception catch (error) {
       // It is shown again next time.
       Log.debug(
@@ -313,7 +234,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         source: 'BackupScreen',
       );
     }
-    await _loadReplaceState(hostBackups);
+    await _loadReplaceState(store);
   }
 
   void _refreshAfterRestore() {
@@ -330,30 +251,24 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
   Future<void> _loadAvailableBackups() async {
     final generation = ++_loadGeneration;
-    final backend = ref.read(backendProvider);
-    final hostBackups = ref.read(linkedHostBackupsProvider);
-    final token = backendBackupToken(backend);
+    final store = ref.read(backupStoreProvider);
+    final scope = ref.backendScope();
     setState(() {
       _isLoadingBackups = true;
       _loadError = null;
     });
     try {
-      final entries = hostBackups != null
-          ? parseRemoteBackupList(await hostBackups.listBackups())
-          : await Future.wait(
-              (await ref.read(backupServiceProvider).listBackups())
-                  .map(BackupListEntry.fromLocalFile),
-            );
+      final entries = await store.list();
       // Drop the result if a newer load has started or the screen switched
       // hosts while this one was in flight — an old rig must not populate the
       // current screen.
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _availableBackups = entries;
-        _loadedBackendToken = token;
+        _loadedScope = scope;
         _isLoadingBackups = false;
       });
-      await _loadReplaceState(hostBackups);
+      await _loadReplaceState(store);
     } catch (e) {
       if (!mounted || generation != _loadGeneration) return;
       setState(() {
@@ -365,43 +280,18 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
   Future<void> _createBackup() async {
     if (_rejectIfBusy()) return;
-    final backend = ref.read(backendProvider);
-    final hostBackups = ref.read(linkedHostBackupsProvider);
-    final token = backendBackupToken(backend);
+    final store = ref.read(backupStoreProvider);
+    final scope = ref.backendScope();
     setState(() {
       _isCreatingBackup = true;
       _progress = const RestoreProgress('Writing the backup', 0);
     });
-    Timer? poll;
     try {
-      String? createdPath;
-      if (hostBackups != null) {
-        poll = _followHostProgress(hostBackups);
-        final result = await hostBackups.createBackup();
-        if ((result['status'] as String?) != 'created') {
-          throw Exception(result['error'] ?? 'Backup failed');
-        }
-        createdPath = result['filePath'] as String?;
-      } else {
-        final result = await ref.read(backupServiceProvider).createBackup(
-          onProgress: (fraction) {
-            if (mounted) {
-              setState(
-                () =>
-                    _progress = RestoreProgress('Writing the backup', fraction),
-              );
-            }
-          },
-        );
-        if (!result.success) {
-          throw Exception(result.errorMessage ?? 'Backup failed');
-        }
-        createdPath = result.filePath;
-      }
+      final createdPath = await store.create(onProgress: _showProgress);
 
       // If the host switched mid-create, the new backup belongs to the old
       // host; don't paint success against the new one.
-      if (!mounted || !_backendStillMatches(token)) return;
+      if (!mounted || scope.isStale) return;
       // The "Last Full Backup" summary is fed by a provider that reads the
       // persisted timestamp when its stream starts, so it has to be re-read
       // now — otherwise the card keeps showing the previous (or "Never") time
@@ -414,10 +304,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       );
       await _loadAvailableBackups();
     } catch (e) {
-      if (!mounted || !_backendStillMatches(token)) return;
+      if (!mounted || scope.isStale) return;
       context.showErrorSnackBar('Error creating backup: ${userFacingError(e)}');
     } finally {
-      poll?.cancel();
       if (mounted) {
         setState(() {
           _isCreatingBackup = false;
@@ -435,16 +324,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     }
     // Capture the backend up front and dispatch to it, so a host switch after
     // the confirm dialog can't send this row to a different host.
-    final backend = ref.read(backendProvider);
-    final hostBackups = ref.read(linkedHostBackupsProvider);
-    final token = backendBackupToken(backend);
+    final store = ref.read(backupStoreProvider);
+    final scope = ref.backendScope();
     final mode = await _RestoreChoiceDialog.show(
       context,
       backupName: backup.fileName,
-      onHost: hostBackups != null,
+      onHost: store.onHost,
     );
     if (mode == null || !mounted || _rejectIfBusy()) return;
-    if (!_backendStillMatches(token)) {
+    if (scope.isStale) {
       context
           .showWarningSnackBar('The connected host changed. Restore canceled.');
       await _loadAvailableBackups();
@@ -454,16 +342,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     setState(() => _isRestoring = true);
     try {
       await _runRestore(
-        mode: mode,
-        hostBackups: hostBackups,
-        // By its id: the host resolves it to a file in its own backup
-        // folder, so no server path crosses the wire.
-        onHost: (host) => host.restoreBackupById(backup.id, mode: mode),
-        localPath: backup.filePath,
-        stillCurrent: () => mounted && _backendStillMatches(token),
+        onHost: store.onHost,
+        run: (onProgress) =>
+            store.restore(backup, mode: mode, onProgress: onProgress),
+        stillCurrent: () => mounted && scope.isCurrent,
       );
     } catch (e) {
-      if (!mounted || !_backendStillMatches(token)) return;
+      if (!mounted || scope.isStale) return;
       context.showErrorSnackBar('Restore failed: ${userFacingError(e)}');
     } finally {
       if (mounted) {
@@ -475,14 +360,13 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   Future<void> _importBackup() async {
     if (_rejectIfBusy() || _rejectRestoreDuringActiveRun()) return;
     final generation = ++_importGeneration;
-    final backend = ref.read(backendProvider);
-    final hostBackups = ref.read(linkedHostBackupsProvider);
-    final token = backendBackupToken(backend);
+    final store = ref.read(backupStoreProvider);
+    final scope = ref.backendScope();
     setState(() => _isImportingBackup = true);
 
     try {
       final file = await ref.read(backupImportPickerProvider)();
-      if (file == null || !mounted || !_isCurrentImport(generation, token)) {
+      if (file == null || !mounted || !_isCurrentImport(generation, scope)) {
         return;
       }
       if (_rejectRestoreDuringActiveRun()) return;
@@ -490,52 +374,45 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
       final mode = await _RestoreChoiceDialog.show(
         context,
         backupName: path.basename(file.path),
-        onHost: hostBackups != null,
+        onHost: store.onHost,
       );
-      if (mode == null || !_isCurrentImport(generation, token)) return;
+      if (mode == null || !_isCurrentImport(generation, scope)) return;
       if (_rejectRestoreDuringActiveRun()) return;
 
       await _runRestore(
-        mode: mode,
-        hostBackups: hostBackups,
-        onHost: (host) async {
-          final bytes = await ref.read(backupImportReaderProvider)(file);
-          return host.uploadBackupAndRestore(
-            Uint8List.fromList(bytes),
-            path.basename(file.path),
-            mode: mode,
-          );
-        },
-        localPath: file.path,
-        stillCurrent: () => _isCurrentImport(generation, token),
+        onHost: store.onHost,
+        run: (onProgress) => store.restoreFile(
+          file.path,
+          readBytes: () => ref.read(backupImportReaderProvider)(file),
+          mode: mode,
+          onProgress: onProgress,
+        ),
+        stillCurrent: () => _isCurrentImport(generation, scope),
       );
     } catch (e) {
-      if (!mounted || !_isCurrentImport(generation, token)) return;
+      if (!mounted || !_isCurrentImport(generation, scope)) return;
       context.showErrorSnackBar('Import failed: ${userFacingError(e)}');
     } finally {
-      if (_isCurrentImport(generation, token)) {
+      if (_isCurrentImport(generation, scope)) {
         setState(() => _isImportingBackup = false);
       }
     }
   }
 
-  bool _isCurrentImport(int generation, String token) {
-    return mounted &&
-        generation == _importGeneration &&
-        _backendStillMatches(token);
+  bool _isCurrentImport(int generation, AsyncScope<SkotiqBackend> scope) {
+    return mounted && generation == _importGeneration && scope.isCurrent;
   }
 
   Future<void> _deleteBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
-    final backend = ref.read(backendProvider);
-    final hostBackups = ref.read(linkedHostBackupsProvider);
-    final token = backendBackupToken(backend);
+    final store = ref.read(backupStoreProvider);
+    final scope = ref.backendScope();
     final confirmed = await ConfirmDialog.delete(
       context: context,
       itemName: 'backup "${backup.fileName}"',
     );
     if (!confirmed || !mounted || _rejectIfBusy()) return;
-    if (!_backendStillMatches(token)) {
+    if (scope.isStale) {
       context
           .showWarningSnackBar('The connected host changed. Delete canceled.');
       await _loadAvailableBackups();
@@ -544,16 +421,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
 
     setState(() => _isManagingBackup = true);
     try {
-      if (hostBackups != null) {
-        await hostBackups.deleteBackup(backup.id);
-      } else {
-        await File(backup.filePath).delete();
-      }
-      if (!mounted || !_backendStillMatches(token)) return;
+      await store.delete(backup);
+      if (!mounted || scope.isStale) return;
       context.showSuccessSnackBar('Backup deleted');
       await _loadAvailableBackups();
     } catch (e) {
-      if (!mounted || !_backendStillMatches(token)) return;
+      if (!mounted || scope.isStale) return;
       context
           .showErrorSnackBar('Failed to delete backup: ${userFacingError(e)}');
     } finally {
@@ -568,10 +441,9 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
   /// and this finishes with the share sheet instead.
   Future<void> _downloadBackup(BackupListEntry backup) async {
     if (_rejectIfBusy() || _rejectIfBackendChanged()) return;
-    final backend = ref.read(backendProvider);
-    final hostBackups = ref.read(linkedHostBackupsProvider);
-    if (hostBackups == null) return;
-    final token = backendBackupToken(backend);
+    final store = ref.read(backupStoreProvider);
+    if (!store.onHost) return;
+    final scope = ref.backendScope();
     setState(() => _isManagingBackup = true);
     try {
       // Reserve the operation before opening the native dialog. Without this,
@@ -580,16 +452,16 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         backup.fileName,
       );
       if (target == null || !mounted) return;
-      if (!_backendStillMatches(token)) {
+      if (scope.isStale) {
         context.showWarningSnackBar(
           'The connected host changed. Download canceled.',
         );
         return;
       }
 
-      final bytes = await hostBackups.downloadBackup(backup.id);
+      final bytes = await store.download(backup)!;
       await File(target.path).writeAsBytes(bytes, flush: true);
-      if (!mounted || !_backendStillMatches(token)) return;
+      if (!mounted || scope.isStale) return;
       await revealExportedFile(
         context,
         target.path,
@@ -597,7 +469,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
         desktopMessage: 'Saved backup to ${target.path}',
       );
     } catch (e) {
-      if (!mounted || !_backendStillMatches(token)) return;
+      if (!mounted || scope.isStale) return;
       context.showErrorSnackBar('Download failed: ${userFacingError(e)}');
     } finally {
       if (mounted) setState(() => _isManagingBackup = false);
@@ -613,11 +485,11 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final restoreNotice = ref.watch(restoreRestartNoticeProvider);
 
     // Reload when the active backend changes (connect / disconnect / switch
-    // rig) so the list — and the identity token guarding row actions — always
+    // rig) so the list — and the backend scope guarding row actions — always
     // reflects the live host instead of a stale one from a previous backend.
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
       if (previous == null) return;
-      if (backendBackupToken(previous) != backendBackupToken(next)) {
+      if (!identical(previous, next)) {
         _importGeneration++;
         if (_isImportingBackup) {
           setState(() => _isImportingBackup = false);
@@ -737,7 +609,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
                     const SizedBox(height: 24),
                     if (isRemoteMode)
                       RemoteCloudSyncCard(
-                        key: ValueKey(backendBackupToken(backend)),
+                        key: ObjectKey(backend),
                       )
                     else
                       const CloudSyncCard(),

@@ -34,62 +34,7 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
     try {
       final response = await remote.getSafetyStatus();
       if (!mounted) return;
-      final status = WeatherSafetyStatus.values.byName(
-        response['safetyStatus'] as String,
-      );
-      final dataSource = SafetyDataSource.values.byName(
-        response['dataSource'] as String,
-      );
-      final failModeWarning = response['failModeWarning'] as String?;
-      final rawActions = response['actions'] as Map;
-      bool actionFlag(String key) => rawActions[key] as bool;
-      String? actionText(String key) => rawActions[key] as String?;
-      DateTime? wireDate(Object? value) =>
-          value is String ? tryParseWireTime(value) : null;
-      final alertLevel = AlertLevel.values.byName(
-        response['currentAlertLevel'] as String,
-      );
-      final lastEvaluationRaw = response['lastEvaluation'];
-      final snoozeUntilRaw = response['snoozeUntil'];
-      final hardwareWeatherSafe = response['hardwareWeatherSafe'] as bool;
-      final safetyMonitorSafe = response['safetyMonitorSafe'] as bool;
-      state = WeatherSafetyState(
-        status: status,
-        actions: WeatherSafetyActions(
-          shouldPause: actionFlag('shouldPause'),
-          shouldPark: actionFlag('shouldPark'),
-          shouldCloseDome: actionFlag('shouldCloseDome'),
-          reason: actionText('reason'),
-          resumeCheckTime: wireDate(actionText('resumeCheckTime')),
-          advisoryOnly: actionFlag('advisoryOnly'),
-        ),
-        snoozeUntil: wireDate(snoozeUntilRaw),
-        currentAlertLevel: alertLevel,
-        dataSource: dataSource,
-        hardwareWeatherSafe: hardwareWeatherSafe,
-        safetyMonitorSafe: safetyMonitorSafe,
-        apiWeatherSafe: response['apiWeatherSafe'] as bool,
-        hardwareWeatherReading: _readingFromWire(
-          response['hardwareWeatherReading'],
-        ),
-        safetyMonitorReading: _readingFromWire(
-          response['safetyMonitorReading'],
-        ),
-        failModeWarning: failModeWarning,
-        lastEvaluation: wireDate(lastEvaluationRaw),
-        monitoringEnabled: response['monitoringEnabled'] as bool,
-        autoParkArmed: response['autoParkArmed'] as bool,
-        autoResumeArmed: response['autoResumeArmed'] as bool,
-        decisionSource: WeatherDecisionSource.values.byName(
-          response['decisionSource'] as String,
-        ),
-        forecastUnsafe: response['forecastUnsafe'] as bool,
-        forecastHoldsRun: response['forecastHoldsRun'] as bool,
-        starEvidence: _starEvidenceFromWire(response['starEvidence']),
-        starEvidenceOverridesForecast:
-            response['starEvidenceOverridesForecast'] as bool,
-        snoozeReason: response['snoozeReason'] as String?,
-      );
+      state = WeatherSafetyState.fromJson(response);
     } catch (error) {
       if (!mounted) return;
       state = WeatherSafetyState.initial().copyWith(
@@ -107,25 +52,3 @@ extension _WeatherSafetyRemote on WeatherSafetyNotifier {
 const _authRejectedSafetyWarning =
     'Imaging host safety status unavailable: the host rejected this '
     "device's access token";
-
-SkyStarEvidence? _starEvidenceFromWire(Object? raw) {
-  if (raw is! Map) return null;
-  final latest = raw['latestStars'];
-  final typical = raw['typicalStars'];
-  final at = raw['latestAt'] is String
-      ? tryParseWireTime(raw['latestAt'] as String)
-      : null;
-  final clear = raw['clear'];
-  if (latest is! int || typical is! int || at == null || clear is! bool) {
-    return null;
-  }
-  return SkyStarEvidence(
-    latestStars: latest,
-    typicalStars: typical,
-    latestAt: at,
-    clear: clear,
-  );
-}
-
-SafetySourceReading _readingFromWire(Object? raw) =>
-    SafetySourceReading.values.byName(raw as String);

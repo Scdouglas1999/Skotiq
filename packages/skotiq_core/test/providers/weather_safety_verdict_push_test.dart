@@ -14,6 +14,7 @@ import 'package:skotiq_core/src/services/safe_rig_service.dart';
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 /// AppSettings fake that resolves immediately so `appSettingsProvider.future`
 /// completes without touching the database.

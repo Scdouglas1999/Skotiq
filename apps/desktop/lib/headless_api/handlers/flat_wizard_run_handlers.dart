@@ -7,7 +7,7 @@ extension FlatWizardRunHandlers on FlatWizardHandlers {
   static const int _maxGain = 65535;
 
   Future<Response> handleGetRunState(Request request) async =>
-      jsonOk(container.read(flatWizardSnapshotProvider));
+      jsonOk(container.read(flatWizardSnapshotProvider).toJson());
 
   Future<Response> handleStartRun(Request request) async {
     final payload = await readJsonObject(request);
@@ -60,14 +60,14 @@ extension FlatWizardRunHandlers on FlatWizardHandlers {
       });
     }
     return jsonOk({
-      ...container.read(flatWizardSnapshotProvider),
+      ...container.read(flatWizardSnapshotProvider).toJson(),
       'busy': notifier.isBusy,
     });
   }
 
   Future<Response> handleCancelRun(Request request) async {
     container.read(flatWizardProvider.notifier).requestCancel();
-    return jsonOk(container.read(flatWizardSnapshotProvider));
+    return jsonOk(container.read(flatWizardSnapshotProvider).toJson());
   }
 
   Future<Response> handleGetPreview(Request request) async {

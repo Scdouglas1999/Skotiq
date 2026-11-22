@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/settings/app_settings.dart';
-import 'package:skotiq_core/src/providers/weather_safety_provider.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 /// Architecture-unification 2026-06-05 (Subsystem 2 step 1 — CROSS-LANGUAGE
 /// FAIL-MODE PARITY).

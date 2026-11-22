@@ -19,6 +19,7 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 // Park-before-dawn had no test that could reach it: the check read
 // `DateTime.now()` directly, so no test could stand in the half hour before

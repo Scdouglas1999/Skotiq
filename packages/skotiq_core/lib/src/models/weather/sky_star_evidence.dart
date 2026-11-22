@@ -1,5 +1,3 @@
-part of '../weather_safety_provider.dart';
-
 /// One light frame's detected star count, for [evaluateStarEvidence].
 typedef StarSample = ({DateTime capturedAt, int stars, double exposureSecs});
 

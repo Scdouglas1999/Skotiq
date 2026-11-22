@@ -8,6 +8,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart';
 
 import 'flat_wizard_panel.dart';
+import 'package:skotiq_core/models.dart';
 
 /// The flat wizard's last step: build a master flat from each filter's
 /// frames of the run that just finished and add it to the calibration
