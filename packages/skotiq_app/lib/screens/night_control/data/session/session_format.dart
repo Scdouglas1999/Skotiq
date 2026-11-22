@@ -7,16 +7,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
+import '../plan/night_plan_inputs.dart' show nightNowProvider;
 
-/// The session providers' "now". Tests pin it; the app reads the shared
-/// 30-second ticker so elapsed times and the dawn row stay current.
-final nightSessionNowProvider = Provider<DateTime>((ref) {
-  return ref.watch(tickerProvider(TickerCadence.thirtySeconds)).valueOrNull ??
-      DateTime.now();
-});
+/// The session providers' "now": Tonight's [nightNowProvider] on the
+/// operator's clock. Tests pin it.
+final nightSessionNowProvider = Provider<DateTime>(
+  (ref) => ref.watch(nightNowProvider).toLocal(),
+);
 
 const String _minus = '−';
 const String _groupSeparator = ' ';
