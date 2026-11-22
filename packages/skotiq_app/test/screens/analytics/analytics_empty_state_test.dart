@@ -1,8 +1,6 @@
 // The Analytics tabs present one empty state, and the Optics view prints no
 // page title or essay.
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -160,28 +158,29 @@ void main() {
     expect(find.text('Go to Imaging'), findsOneWidget);
   });
 
-  // The other tabs need more data to reach their empty branch, so the pin
-  // that they share the one widget is structural.
-  test('every Analytics empty state goes through AnalyticsEmptyState', () {
-    const sites = <String, String>{
-      'Session': 'lib/screens/analytics/analytics_screen/session_tab.dart',
-      'History': 'lib/screens/analytics/history/history_tab.dart',
-      'Optics': 'lib/screens/diagnostics/diagnostics_screen.dart',
-    };
-    final missing = <String>[];
-    sites.forEach((tab, path) {
-      final file = File(path);
-      if (!file.existsSync() ||
-          !file.readAsStringSync().contains('AnalyticsEmptyState(')) {
-        missing.add('$tab ($path)');
-      }
-    });
-    expect(
-      missing,
-      isEmpty,
-      reason: 'these tabs still hand-roll an empty state: '
-          '${missing.join(', ')}',
+  testWidgets('History with no nights shows the shared empty state',
+      (tester) async {
+    await tester.pumpWidget(_host(
+      const AnalyticsScreen(initialTab: AnalyticsTab.history),
+      extraOverrides: [
+        sequenceRunsProvider
+            .overrideWith((ref) => Stream.value(const <SequenceRun>[])),
+      ],
+    ));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(AnalyticsEmptyState), findsOneWidget);
+    expect(find.text('No nights recorded yet'), findsOneWidget);
+  });
+
+  testWidgets('Optics with no session shows the shared empty state',
+      (tester) async {
+    await tester.pumpWidget(
+      _host(const OpticsDiagnosticsView(sessionId: null)),
     );
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byType(AnalyticsEmptyState), findsOneWidget);
   });
 
   group('Optics chrome', () {
