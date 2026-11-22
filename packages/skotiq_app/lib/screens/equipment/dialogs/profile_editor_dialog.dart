@@ -14,7 +14,7 @@ import '../../../widgets/sensitivity_field.dart';
 import '../utils/profile_save_errors.dart';
 import '../widgets/profile_glyph.dart';
 import '../../../utils/count_label.dart';
-import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show formatDeviceId;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'profile_editor_dialog/profile_data_operations.dart';

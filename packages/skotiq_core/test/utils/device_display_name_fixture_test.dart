@@ -5,15 +5,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show formatDeviceId;
 
 void main() {
-  final cases = (jsonDecode(
-    File(
-      '../../test_fixtures/device_id/cases.json',
-    ).readAsStringSync(),
-  ) as List)
-      .cast<Map<String, dynamic>>();
+  final cases =
+      (jsonDecode(
+                File(
+                  '../../test_fixtures/device_id/cases.json',
+                ).readAsStringSync(),
+              )
+              as List)
+          .cast<Map<String, dynamic>>();
 
   for (final testCase in cases) {
     final id = testCase['id'] as String;

@@ -104,20 +104,8 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }) async {
     // PHD2 is reached through its own client, not the device registry.
     if (isPhd2WireToken(deviceId)) {
-      String? host;
-      int? port;
-      if (deviceId.startsWith('phd2://')) {
-        final uri = Uri.tryParse(deviceId);
-        host = uri?.host;
-        port = uri?.port == 0 ? null : uri?.port;
-      } else if (deviceId.startsWith('phd2:')) {
-        final parts = deviceId.split(':');
-        if (parts.length >= 3) {
-          host = parts[1];
-          port = int.tryParse(parts[2]) ?? 4400;
-        }
-      }
-      await phd2Connect(host: host ?? 'localhost', port: port ?? 4400);
+      final endpoint = phd2Endpoint(deviceId);
+      await phd2Connect(host: endpoint.host, port: endpoint.port);
       return;
     }
 

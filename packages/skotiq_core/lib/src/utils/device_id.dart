@@ -278,6 +278,26 @@ String canonicalGuiderId(String id) {
 /// route through it rather than inlining their own.
 bool isPhd2DeviceId(String id) => isPhd2WireToken(id.trim().toLowerCase());
 
+/// The PHD2 server a PHD2 [id] names: the host and port of `phd2://host:port`
+/// or `phd2:host:port`, and `localhost:4400` for the bare forms or a part
+/// that is missing.
+({String host, int port}) phd2Endpoint(String id) {
+  String? host;
+  int? port;
+  if (id.startsWith('phd2://')) {
+    final uri = Uri.tryParse(id);
+    host = uri?.host;
+    port = uri?.port == 0 ? null : uri?.port;
+  } else if (id.startsWith('phd2:')) {
+    final parts = id.split(':');
+    if (parts.length >= 3) {
+      host = parts[1];
+      port = int.tryParse(parts[2]) ?? 4400;
+    }
+  }
+  return (host: host ?? 'localhost', port: port ?? 4400);
+}
+
 /// Canonical id of the built-in multi-star guider, as minted by
 /// `bridge/src/builtin_guider/config.rs`.
 const String kBuiltinGuiderIdPrefix = 'native:builtin_guider:';

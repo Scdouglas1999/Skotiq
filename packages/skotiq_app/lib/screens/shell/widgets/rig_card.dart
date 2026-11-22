@@ -12,7 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show formatDeviceId;
 import '../../../utils/device_type_ui.dart';
 import 'operation_status_bar.dart';
 import '../../../router/settings_sections.dart';
