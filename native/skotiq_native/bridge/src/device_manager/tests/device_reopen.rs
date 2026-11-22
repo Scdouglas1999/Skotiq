@@ -821,3 +821,56 @@ async fn a_manual_wheel_and_focuser_move_after_a_bus_drop_reopens_and_lands() {
         let _ = manager.disconnect_device(id).await;
     }
 }
+
+/// R1H2-1: a safety monitor whose IsSafe reads keep failing is reopened, and
+/// never put in the error state (its policy does not escalate). The verdict
+/// stays what failing reads give today, an error, before, during and after
+/// the reopen while the reads still fail; only reads that answer again give
+/// a verdict. So nothing parks sooner than it does today.
+#[tokio::test]
+async fn a_safety_monitor_whose_reads_keep_failing_is_reopened_and_its_verdict_is_unchanged() {
+    use crate::simulator::environment::get_sim_safety_monitor;
+    use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
+    let _guard = simulator_singleton_test_lock().lock().await;
+    crate::hotplug::forget_bus_change();
+    let manager = build_device_manager();
+    let id = "sim_safety_reopen";
+    manager
+        .register_device(build_sim_info(id, DeviceType::SafetyMonitor), false)
+        .await;
+    manager.connect_device(id).await.expect("connect");
+    get_sim_safety_monitor().write().await.status.is_safe = true;
+
+    faults::arm(
+        "safetymonitor.status",
+        FaultSpec::new(Trigger::Always, Effect::Error("IsSafe read failed".into())),
+    );
+    let one = DeviceFailure::words("IsSafe read failed");
+    assert!(manager.safety_is_safe(id).await.is_err());
+    assert!(
+        !manager.wants_reopen(id, &one).await,
+        "one failed read does not reopen the monitor"
+    );
+    for _ in 1..crate::device_manager::read_health::STATUS_READ_FAILURE_LIMIT {
+        assert!(manager.safety_is_safe(id).await.is_err());
+    }
+    let failing = manager
+        .failing_status_reads(id)
+        .expect("failing IsSafe reads count against the monitor");
+    assert_eq!(manager.reopen_after(id, &failing).await, Ok(true));
+    assert_eq!(manager.reopen_count(id), 1);
+
+    // Still failing after the reopen: the same verdict, and still connected.
+    assert!(manager.safety_is_safe(id).await.is_err());
+    let state = manager.devices.read().await[id].connection_state;
+    assert_eq!(state, ConnectionState::Connected);
+
+    // During a reopen the monitor is closed: an error, as failing reads are.
+    manager.close_device(id, false).await.expect("close");
+    assert!(manager.safety_is_safe(id).await.is_err());
+    manager.connect_device(id).await.expect("connect");
+
+    faults::clear_all();
+    assert_eq!(manager.safety_is_safe(id).await.ok(), Some(true));
+    let _ = manager.disconnect_device(id).await;
+}

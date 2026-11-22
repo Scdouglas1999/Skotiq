@@ -151,7 +151,13 @@ impl DeviceManager {
     ///   ([`DeviceFailure::session_lost`]), or a device came or went on the
     ///   bus recently;
     /// * a filter wheel or focuser: it is gone ([`DeviceFailure::gone`]), and
-    ///   a device came or went on the bus recently.
+    ///   a device came or went on the bus recently;
+    /// * a safety monitor: its `IsSafe` reads have failed
+    ///   [`STATUS_READ_FAILURE_LIMIT`] times in a row. Its policy never puts
+    ///   it in the error state the reconnection loop takes, so this reopen is
+    ///   its only recovery.
+    ///
+    /// [`STATUS_READ_FAILURE_LIMIT`]: crate::device_manager::read_health::STATUS_READ_FAILURE_LIMIT
     pub(crate) async fn wants_reopen(&self, device_id: &str, error: &DeviceFailure) -> bool {
         let Some(device_type) = self
             .devices
@@ -166,6 +172,7 @@ impl DeviceManager {
         match device_type {
             DeviceType::Camera => error.session_lost() || bus_changed,
             DeviceType::FilterWheel | DeviceType::Focuser => bus_changed && error.gone(),
+            DeviceType::SafetyMonitor => self.failing_status_reads(device_id).is_some(),
             _ => false,
         }
     }
