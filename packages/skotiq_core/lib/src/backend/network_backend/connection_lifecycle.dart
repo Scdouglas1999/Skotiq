@@ -305,7 +305,6 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
         queryParameters['ticket'] = wsTicket;
         upgradeUsedTicket = true;
       }
-      queryParameters[LinkVersion.queryParameter] = skotiqRelease;
       // If we've previously attached to this server instance and have
       // a seq cursor to ask replay from, include both. The server-side
       // /events handler treats omitting either parameter as "fresh
