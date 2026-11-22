@@ -211,8 +211,8 @@ double _computeRollupSecs(
   final double result;
   if (node is LoopNode) {
     result = switch (node.conditionType) {
-      LoopConditionType.count =>
-        selfOverhead + (childSum * (node.repeatCount ?? 1)),
+      LoopConditionType.count || LoopConditionType.integrationTime =>
+        selfOverhead + childSum * (loopPasses(node, sequence.nodes) ?? 1),
       // We don't have a reference time here; reuse the Sequence-level
       // estimator's logic to get fittable iterations. Falling back to
       // single-iteration when the deadline is in the past matches
@@ -223,12 +223,6 @@ double _computeRollupSecs(
         childSum,
         selfOverhead,
         walked: walk?.leaf[node.id],
-      ),
-      LoopConditionType.integrationTime => _integrationTimeRollup(
-        sequence,
-        node,
-        childSum,
-        selfOverhead,
       ),
       // Unbounded: report a single iteration. Marking this as "~∞" would be
       // more honest but the tree row already shows the loop condition; the
@@ -311,30 +305,4 @@ DateTime? _untilTimeDeadline(Sequence sequence, LoopNode node) {
     parentId = parent?.parentId;
   }
   return deadline;
-}
-
-/// integrationTime loop rollup: iterate until the target integration time is
-/// met, mirroring `_estimateNodeIntegration` so the numbers agree.
-double _integrationTimeRollup(
-  Sequence sequence,
-  LoopNode node,
-  double childSum,
-  double selfOverhead,
-) {
-  if (node.integrationTimeTarget != null &&
-      node.integrationTimeTarget! > 0 &&
-      childSum > 0) {
-    double exposurePerIteration = 0;
-    for (final childId in node.childIds) {
-      final c = sequence.nodes[childId];
-      if (c is ExposureNode && c.isEnabled) {
-        exposurePerIteration += c.totalDurationSecs;
-      }
-    }
-    if (exposurePerIteration > 0) {
-      final iters = (node.integrationTimeTarget! / exposurePerIteration).ceil();
-      return selfOverhead + (childSum * iters);
-    }
-  }
-  return selfOverhead + childSum;
 }

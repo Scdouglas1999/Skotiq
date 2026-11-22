@@ -160,7 +160,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
           );
         }
         if (node.conditionType == LoopConditionType.count) {
-          final iterations = node.repeatCount ?? 1;
+          final iterations = loopPasses(node, sequence.nodes) ?? 1;
           if (iterations > 1) {
             final singlePass = currentTime.difference(loopStartTime);
             // Advance the clock by the remaining (count - 1) iterations'
