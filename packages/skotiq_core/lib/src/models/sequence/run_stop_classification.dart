@@ -52,6 +52,25 @@ bool isSequenceCancelledNotice(String message) {
       normalized == 'sequence canceled';
 }
 
+/// True when [message], read from a stored run's error list, is a stop
+/// notice rather than a fault.
+///
+/// A run records no stop notice any more: the executor's cancellation arrives
+/// as an `Error` of kind `cancelled`, which the run event handler turns into a
+/// stop before anything is stored. Runs stored before that carry the notice
+/// as text, in the native spelling ([isSequenceCancelledNotice]) or in one of
+/// the operator phrasings the report has always dropped. The match is exact
+/// for the same reason as [isSequenceCancelledNotice].
+bool isStoredRunStopNotice(String message) {
+  if (isSequenceCancelledNotice(message)) return true;
+  final m = message.trim().toLowerCase();
+  return m == 'stopped by user' ||
+      m == 'stopped by the user' ||
+      m == 'stopped by operator' ||
+      m == 'stopped by the operator' ||
+      m == 'stopped by request';
+}
+
 /// True when [message] is a failed run's reason that names no reason: the
 /// native executor's bare "Sequence failed" when it found no cause, or the
 /// "Unknown error" a reader puts in for a missing field.

@@ -555,7 +555,7 @@ Future<void> _startUpdateReceiver(HostStartup host) async {
   try {
     await receiver.startServer();
   } catch (e) {
-    if ('$e'.contains('no trusted public key compiled in')) {
+    if (e is LanPushKeyMissing) {
       // Unsigned local/development builds deliberately disable LAN updates.
       // This is an expected capability state, not an operational failure.
       logger.info(

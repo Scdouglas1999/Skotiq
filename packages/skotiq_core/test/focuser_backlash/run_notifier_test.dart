@@ -21,7 +21,8 @@ import 'fixtures.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/services/focuser_backlash/effective_focuser_backlash.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
-import 'package:skotiq_core/src/errors/skotiq_error.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/src/errors/bridge_error_message.dart';
 
 class CalibrationBackend extends DisconnectedBackend {
   CalibrationBackend({
@@ -326,7 +327,9 @@ void main() {
   });
 
   test('the operator canceling is not reported as a failure', () async {
-    final backend = CalibrationBackend(error: SkotiqError.cancelled());
+    final backend = CalibrationBackend(
+      error: skotiqErrorFromBridge(const bridge.SkotiqError.cancelled()),
+    );
     final container = buildContainer(backend);
     await container.read(appSettingsProvider.future);
     seedConnectedEquipment(container);

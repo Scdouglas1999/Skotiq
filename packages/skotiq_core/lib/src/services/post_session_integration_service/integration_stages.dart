@@ -314,7 +314,7 @@ extension _PostSessionIntegrationStages on PostSessionIntegrationService {
       final coveragePng = _swapExtension(coverageFits, '.png');
       // A stretched preview PNG sibling for the drizzled master, so the hero
       // shows the (scaled) drizzled image rather than the standard 1× preview.
-      final previewPng = _swapExtension(outputFits, '.png');
+      final previewPng = masterPreviewPath(outputFits);
       final drizzleResult = await _seam.drizzleIntegrate(<String, dynamic>{
         'frames': frames,
         'refW': result.width,

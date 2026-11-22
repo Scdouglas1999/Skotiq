@@ -129,7 +129,7 @@ class AuthHandlers implements RouteSource {
       );
       return jsonForbidden(
         {
-          'error': 'invalid_token',
+          'error': ApiErrorCodes.invalidToken,
           'message': 'The bearer token is not recognized.',
         },
         headers: {requestIdHeader: requestId},

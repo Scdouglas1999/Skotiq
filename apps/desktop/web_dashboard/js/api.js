@@ -141,7 +141,7 @@ class SkotiqApi {
     if (status !== 426 || !text) return null;
     let body;
     try { body = JSON.parse(text); } catch (_) { return null; }
-    if (!body || body.code !== 'version_mismatch') return null;
+    if (!body || body.code !== WIRE_ERROR_CODES.versionMismatch) return null;
     const host = String(body.hostVersion);
     const page = typeof body.clientVersion === 'string' ? body.clientVersion : '';
     return new SkotiqApiError(
@@ -761,7 +761,8 @@ class SkotiqApi {
   static _isGuiderNotAnswering(e) {
     if (!(e instanceof SkotiqApiError) || e.status !== 409) return false;
     try {
-      return JSON.parse(e.detail.body).error === 'guider_not_answering';
+      return JSON.parse(e.detail.body).error ===
+        WIRE_ERROR_CODES.guiderNotAnswering;
     } catch (_) {
       return false;
     }

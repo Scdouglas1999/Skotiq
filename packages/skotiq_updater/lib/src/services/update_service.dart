@@ -639,6 +639,7 @@ class UpdateService {
         'Package integrity verification failed: '
         'the package hash or manifest signature did not verify. '
         'The download may be corrupted or tampered with.',
+        isVerificationFailure: true,
       );
     }
 
@@ -658,7 +659,10 @@ class UpdateService {
     final verification = await _verifier.verifyDirectory(extractDir, manifest);
     if (!verification.success) {
       await extractDir.delete(recursive: true);
-      throw UpdateException('Verification failed: $verification');
+      throw UpdateException(
+        'Verification failed: $verification',
+        isVerificationFailure: true,
+      );
     }
 
     await persistStagedManifest(stagingDir, manifest);
@@ -761,6 +765,7 @@ class UpdateService {
         'Package integrity verification failed: '
         'the package hash or manifest signature did not verify. '
         'The download may be corrupted or tampered with.',
+        isVerificationFailure: true,
       );
     }
 
@@ -940,6 +945,7 @@ class UpdateService {
         'Staged manifest failed Ed25519 signature re-verification at apply '
         'time; refusing to apply. The staging tree may have been tampered '
         'with after download (a recomputed hash marker is not sufficient).',
+        isVerificationFailure: true,
       );
     }
 
@@ -1406,6 +1412,7 @@ class UpdateService {
       throw UpdateException(
         'Staged update is missing the verified marker '
         '(${markerFile.path}). Refusing to apply: redownload the update.',
+        isVerificationFailure: true,
       );
     }
 
@@ -1416,6 +1423,7 @@ class UpdateService {
         'Verified marker at ${markerFile.path} does not match the staged '
         'manifest hash. Refusing to apply: the staging tree may have '
         'been tampered with after download.',
+        isVerificationFailure: true,
       );
     }
   }
@@ -1582,7 +1590,11 @@ class UpdateException implements Exception {
   /// update status as it is.
   final String message;
 
-  UpdateException(this.message);
+  /// The package or its signature did not verify, as opposed to a download,
+  /// disk or network failure.
+  final bool isVerificationFailure;
+
+  UpdateException(this.message, {this.isVerificationFailure = false});
 
   @override
   String toString() => message;

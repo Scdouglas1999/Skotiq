@@ -14,6 +14,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/update_manifest.dart';
 import 'android_installer.dart';
+import 'update_downloader.dart' show DownloadCancelledException;
 import 'update_service.dart';
 
 /// The GitHub project shipped builds read releases from.
@@ -859,7 +860,7 @@ class UpdateController {
       // Operator abort surfaces as a cancellation from the downloader. Treat
       // it as a clean stop — return to staged/idle without a failure event.
       final cancelled =
-          e.runtimeType.toString().contains('Cancel') ||
+          e is DownloadCancelledException ||
           e.toString().toLowerCase().contains('cancel');
       if (cancelled) {
         final manifest = _lastManifest;
@@ -890,7 +891,7 @@ class UpdateController {
       // Verification failures surface as `UpdateVerificationFailed` so
       // the client can distinguish "the bytes were bad" from "the network
       // dropped".
-      if (e is UpdateException && e.message.toLowerCase().contains('verif')) {
+      if (e is UpdateException && e.isVerificationFailure) {
         _eventsController.add(
           UpdateVerificationFailedEvent(jobId: jobId, reason: e.message),
         );

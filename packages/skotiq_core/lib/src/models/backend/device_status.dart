@@ -68,30 +68,23 @@ class CameraStatus {
     return CameraStatus(
       connected: json['connected'] as bool? ?? false,
       state: _parseCameraState(json['state']),
-      sensorTemp:
-          (json['sensor_temp'] ?? json['sensorTemp'] ?? json['temperature'])
-              ?.toDouble(),
-      coolerPower: (json['cooler_power'] ?? json['coolerPower'])?.toDouble(),
-      targetTemp:
-          (json['target_temp'] ?? json['targetTemp'] ?? json['setpoint'])
-              ?.toDouble(),
-      coolerOn: (json['cooler_on'] ?? json['coolerOn']) as bool?,
+      sensorTemp: (json['sensorTemp'] ?? json['temperature'])?.toDouble(),
+      coolerPower: json['coolerPower']?.toDouble(),
+      targetTemp: (json['targetTemp'] ?? json['setpoint'])?.toDouble(),
+      coolerOn: json['coolerOn'] as bool?,
       gain: json['gain'] as int?,
       offset: json['offset'] as int?,
-      binX: (json['bin_x'] ?? json['binX']) as int? ?? 1,
-      binY: (json['bin_y'] ?? json['binY']) as int? ?? 1,
-      sensorWidth: (json['sensor_width'] ?? json['sensorWidth']) as int? ?? 0,
-      sensorHeight:
-          (json['sensor_height'] ?? json['sensorHeight']) as int? ?? 0,
-      pixelSizeX:
-          (json['pixel_size_x'] ?? json['pixelSizeX'])?.toDouble() ?? 0.0,
-      pixelSizeY:
-          (json['pixel_size_y'] ?? json['pixelSizeY'])?.toDouble() ?? 0.0,
-      maxAdu: (json['max_adu'] ?? json['maxAdu']) as int? ?? 65535,
-      saturationAdu: (json['saturation_adu'] ?? json['saturationAdu']) as int?,
-      canCool: json['can_cool'] ?? json['canCool'] ?? false,
-      canSetGain: json['can_set_gain'] ?? json['canSetGain'] ?? false,
-      canSetOffset: json['can_set_offset'] ?? json['canSetOffset'] ?? false,
+      binX: json['binX'] as int? ?? 1,
+      binY: json['binY'] as int? ?? 1,
+      sensorWidth: json['sensorWidth'] as int? ?? 0,
+      sensorHeight: json['sensorHeight'] as int? ?? 0,
+      pixelSizeX: json['pixelSizeX']?.toDouble() ?? 0.0,
+      pixelSizeY: json['pixelSizeY']?.toDouble() ?? 0.0,
+      maxAdu: json['maxAdu'] as int? ?? 65535,
+      saturationAdu: json['saturationAdu'] as int?,
+      canCool: json['canCool'] ?? false,
+      canSetGain: json['canSetGain'] ?? false,
+      canSetOffset: json['canSetOffset'] ?? false,
     );
   }
 
@@ -347,13 +340,10 @@ class FocuserStatus {
       position: json['position'] as int? ?? 0,
       moving: (json['moving'] ?? json['isMoving']) as bool? ?? false,
       temperature: json['temperature']?.toDouble(),
-      maxPosition: (json['max_position'] ?? json['maxPosition']) as int? ?? 0,
-      stepSize: (json['step_size'] ?? json['stepSize'])?.toDouble() ?? 0.0,
-      isAbsolute: json['is_absolute'] ?? json['isAbsolute'] ?? false,
-      hasTemperature:
-          json['has_temperature'] ??
-          json['hasTemperature'] ??
-          (json['temperature'] != null),
+      maxPosition: json['maxPosition'] as int? ?? 0,
+      stepSize: json['stepSize']?.toDouble() ?? 0.0,
+      isAbsolute: json['isAbsolute'] ?? false,
+      hasTemperature: json['hasTemperature'] ?? (json['temperature'] != null),
     );
   }
 
@@ -395,10 +385,8 @@ class FilterWheelStatus {
       connected: json['connected'] as bool? ?? false,
       position: json['position'] as int? ?? 0,
       moving: json['moving'] as bool? ?? false,
-      filterCount: (json['filter_count'] ?? json['filterCount']) as int? ?? 0,
-      filterNames: (json['filter_names'] ?? json['filterNames'] ?? [])
-          .cast<String>()
-          .toList(),
+      filterCount: json['filterCount'] as int? ?? 0,
+      filterNames: (json['filterNames'] ?? []).cast<String>().toList(),
     );
   }
 
@@ -435,12 +423,9 @@ class RotatorStatus {
       connected: json['connected'] as bool? ?? false,
       position: position,
       moving: json['moving'] as bool? ?? false,
-      mechanicalPosition:
-          (json['mechanical_position'] ?? json['mechanicalPosition'])
-              ?.toDouble() ??
-          position,
-      isMoving: json['is_moving'] ?? json['isMoving'] ?? false,
-      canReverse: json['can_reverse'] ?? json['canReverse'] ?? false,
+      mechanicalPosition: json['mechanicalPosition']?.toDouble() ?? position,
+      isMoving: json['isMoving'] ?? false,
+      canReverse: json['canReverse'] ?? false,
     );
   }
 

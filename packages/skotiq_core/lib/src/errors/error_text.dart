@@ -81,7 +81,7 @@ String failureText(String action, Object? error) =>
 /// [error] as a message plus, when the failure is a known one, what to do
 /// about it.
 ErrorText describeError(Object? error, {ErrorDomain? domain}) {
-  if (error is SkotiqError) {
+  if (error is SkotiqError && error is! SkotiqException) {
     return ErrorText(
       _clean(error.userMessage),
       suggestion: error.shouldReconnect
@@ -114,7 +114,6 @@ String? _typedMessage(Object error) {
   final bridged = bridgeErrorMessage(error);
   if (bridged != null) return bridged;
   if (error is SkotiqError) return error.userMessage;
-  if (error is SkotiqException) return error.userMessage;
   if (error is ServerError) return error.message;
   if (error is StateError) return error.message;
   // The unsupported-operation family shares this authored-message field.

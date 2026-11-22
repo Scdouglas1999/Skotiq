@@ -133,10 +133,7 @@ class LanPushReceiver {
     if (_server != null) return;
 
     if (!_verifier.hasTrustedPublicKey) {
-      throw StateError(
-        'LAN push receiver disabled: no trusted public key compiled in. '
-        'Build with --dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=... to enable.',
-      );
+      throw LanPushKeyMissing();
     }
 
     if (_pushSecret == null || _pushSecret!.isEmpty) {
@@ -539,3 +536,13 @@ class LanPushReceiver {
 }
 
 enum _ReceiveState { idle, authenticating, receiving }
+
+/// This build has no trusted update key, so it takes no LAN pushes: an
+/// unsigned development build, not a failure.
+class LanPushKeyMissing extends StateError {
+  LanPushKeyMissing()
+    : super(
+        'LAN push receiver disabled: no trusted public key compiled in. '
+        'Build with --dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=... to enable.',
+      );
+}

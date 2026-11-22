@@ -167,6 +167,14 @@ void main() {
           userFacingError('SkotiqException(connection): Camera not connected'),
           'Camera not connected',
         );
+        // The guider's chain keeps the step that failed.
+        expect(
+          userFacingError(
+            'Exception: _Exception: Guiding stopped: Operation failed: '
+            'Calibration star match failed',
+          ),
+          'Guiding stopped: Operation failed: Calibration star match failed',
+        );
         expect(
           userFacingError('Operation failed: Exception: slew aborted'),
           'slew aborted',

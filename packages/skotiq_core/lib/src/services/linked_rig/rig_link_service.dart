@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show ApiErrorCodes;
 
 import 'linked_rig_store.dart';
 
@@ -166,9 +167,9 @@ class RigLinkService {
       return RigPairing(token: token, scope: result.tokenScope ?? 'control');
     }
     final kind = switch (result.error) {
-      'invalid_pairing_code' => RigPairingFailureKind.invalidCode,
-      'pairing_code_expired' ||
-      'pairing_code_already_used' => RigPairingFailureKind.expiredCode,
+      ApiErrorCodes.invalidPairingCode => RigPairingFailureKind.invalidCode,
+      ApiErrorCodes.pairingCodeExpired ||
+      ApiErrorCodes.pairingCodeAlreadyUsed => RigPairingFailureKind.expiredCode,
       _ when result.statusCode == 429 => RigPairingFailureKind.rateLimited,
       _ => RigPairingFailureKind.refused,
     };

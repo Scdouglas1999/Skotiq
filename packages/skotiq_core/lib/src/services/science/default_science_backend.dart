@@ -14,6 +14,7 @@ import '../wcs/plate_solve_data_from_result.dart' show PlateSolveResultWcs;
 import '../../providers/backend_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/settings_provider.dart';
+import 'science_camera_auto_config.dart' show ScienceCameraAutoConfig;
 import '../../utils/logging_service.dart';
 import '../plate_solve_service.dart';
 import 'astrometric_residuals.dart';

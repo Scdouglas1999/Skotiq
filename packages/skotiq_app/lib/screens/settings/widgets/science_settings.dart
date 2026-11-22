@@ -430,7 +430,7 @@ class ScienceSettingsPage extends ConsumerWidget {
               children: [
                 _ScienceCameraAutoRow(),
                 _ScienceCameraValueRow(
-                  settingKey: 'science.camera.read_noise_e',
+                  settingKey: ScienceCameraAutoConfig.readNoiseKey,
                   icon: LucideIcons.zap,
                   title: 'Camera read noise (e⁻)',
                   subtitle: 'At the camera gain you image at. Used for '
@@ -440,7 +440,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 30.0,
                 ),
                 _ScienceCameraValueRow(
-                  settingKey: 'science.camera.gain_e_per_adu',
+                  settingKey: ScienceCameraAutoConfig.gainKey,
                   icon: LucideIcons.activity,
                   title: 'Camera gain (e⁻/ADU)',
                   subtitle: 'Electrons per ADU at the camera gain you image '
@@ -451,7 +451,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 50.0,
                 ),
                 _ScienceCameraValueRow(
-                  settingKey: 'science.camera.saturation_adu',
+                  settingKey: ScienceCameraAutoConfig.saturationKey,
                   icon: LucideIcons.sun,
                   title: 'Saturation level (ADU)',
                   subtitle: 'Stars peaking above this are left out of '

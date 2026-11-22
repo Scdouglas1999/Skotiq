@@ -10,6 +10,8 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart'
+    show darkroomMasterBelongsTo, darkroomMasterTargetName;
 
 import 'owner_nights_fixture.dart';
 
@@ -196,6 +198,29 @@ void main() {
     );
     expect(darkroomMasterBelongsTo(named!, 'NGC0891'), isTrue);
     expect(normalizeDarkroomTargetName('ngc 0891'), 'NGC0891');
+  });
+
+  test('a master whose target row was renamed is that target\'s', () async {
+    final dao = IntegratedMastersDao(owner.db);
+    final row = (await owner.db.targetsDao.getAllTargets()).single;
+    // Named when the row was still called something else.
+    final renamed = await dao.getById(
+      await dao.insertMaster(
+        name: 'Old name · Ha',
+        filter: 'Ha',
+        targetId: row.id,
+        status: IntegratedMasterStatus.finalized,
+        accumulationMode: AccumulationMode.batch,
+      ),
+    );
+    final names = {row.id: row.name};
+    // The library files it under the row's name...
+    expect(darkroomMasterTargetName(renamed!, names), row.name);
+    // ...and so does a Targets group whose lights name no row.
+    expect(
+      darkroomMasterBelongsTo(renamed, row.name, targetNames: names),
+      isTrue,
+    );
   });
 
   test('a master named for M31 is not M3\'s', () async {

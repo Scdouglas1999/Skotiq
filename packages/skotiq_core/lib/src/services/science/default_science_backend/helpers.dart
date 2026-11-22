@@ -190,7 +190,9 @@ extension _DefaultScienceBackendHelpers on DefaultScienceBackend {
   Future<int> _saturationLimitAdu() async {
     try {
       final dao = _ref.read(settingsDaoProvider);
-      final stored = await dao.getSetting('science.camera.saturation_adu');
+      final stored = await dao.getSetting(
+        ScienceCameraAutoConfig.saturationKey,
+      );
       if (stored != null && stored.isNotEmpty) {
         final parsed = int.tryParse(stored);
         if (parsed != null && parsed >= 255 && parsed <= 65535) {

@@ -240,6 +240,7 @@ export 'src/services/post_session_seam.dart';
 export 'src/services/darkroom_build_jobs.dart';
 export 'src/services/darkroom_target_edits.dart';
 export 'src/services/darkroom_target_frames.dart';
+export 'src/services/darkroom_target_masters.dart';
 export 'src/services/file_trash.dart';
 export 'src/services/target_standing_settings.dart';
 export 'src/services/output_locations.dart';

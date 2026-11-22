@@ -5,6 +5,7 @@ import 'dart:io';
 import '../backend/roles/host_data/calibration_library.dart';
 import '../database/daos/integrated_masters_dao.dart';
 import '../database/database.dart';
+import '../models/darkroom/master_naming.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/integration_settings.dart';

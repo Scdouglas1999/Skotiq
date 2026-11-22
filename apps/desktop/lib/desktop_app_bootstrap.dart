@@ -332,7 +332,7 @@ Future<bool> shouldStartMinimized(ProviderContainer container) async {
   final logger = container.read(loggingServiceProvider);
   try {
     final dao = container.read(settingsDaoProvider);
-    final value = await dao.getSetting('start_minimized');
+    final value = await dao.getSetting(AppSettingDefs.startMinimized.key);
     return value == 'true';
   } catch (e) {
     logger.warning(

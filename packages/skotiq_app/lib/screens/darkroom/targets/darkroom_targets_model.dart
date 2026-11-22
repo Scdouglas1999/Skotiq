@@ -5,7 +5,6 @@
 /// widget tree.
 library;
 
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:skotiq_astro/filters.dart';
@@ -408,74 +407,6 @@ List<DarkroomNightMark> _marks(List<DarkroomSub> subs) {
   return marks;
 }
 
-/// The target [master] belongs to.
-///
-/// The target row's name when the master carries one; otherwise the `target`
-/// the guided build recorded in the master's settings; otherwise the master's
-/// own name with its filter suffix taken off. The guided build keys its jobs by
-/// the same name, so an image lands under the target the Targets tab lists.
-String darkroomMasterTargetName(
-  IntegratedMaster master,
-  Map<int, String> targetNames,
-) {
-  final byId = master.targetId == null ? null : targetNames[master.targetId];
-  if (byId != null && byId.trim().isNotEmpty) return byId.trim();
-  try {
-    final settings = jsonDecode(master.settingsJson);
-    if (settings is Map && settings['target'] is String) {
-      final name = (settings['target'] as String).trim();
-      if (name.isNotEmpty) return name;
-    }
-  } on FormatException {
-    // Settings that are not JSON name no target; the master's name does.
-  }
-  var name = master.name.trim();
-  final filter = master.filter?.trim();
-  if (filter != null && filter.isNotEmpty) {
-    for (final separator in const [' · ', ' - ', ' ']) {
-      final suffix = '$separator$filter';
-      if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
-        name = name.substring(0, name.length - suffix.length).trim();
-        break;
-      }
-    }
-  }
-  // Session Review names a master "<target> · <filter>"; what follows the dot
-  // is never part of the target.
-  final dot = name.indexOf(' · ');
-  if (dot > 0) name = name.substring(0, dot).trim();
-  return name.isEmpty ? 'Unnamed target' : name;
-}
-
-/// Whether [master] belongs to the target listed as [key], whose lights carry
-/// the target rows [rowIds]: the target row it records, the frames it folded,
-/// else the target [darkroomMasterTargetName] reads, the same one the Edit
-/// tab's library files it under.
-bool darkroomMasterBelongsTo(
-  IntegratedMaster master,
-  String key, {
-  Set<int> rowIds = const {},
-  Set<int> frameIds = const {},
-  Set<int> foldedIds = const {},
-}) {
-  if (master.targetId != null && rowIds.isNotEmpty) {
-    return rowIds.contains(master.targetId);
-  }
-  if (frameIds.isNotEmpty && foldedIds.any(frameIds.contains)) return true;
-  final wanted = normalizeDarkroomTargetName(key);
-  return wanted.isNotEmpty &&
-      normalizeDarkroomTargetName(darkroomMasterTargetName(master, const {})) ==
-          wanted;
-}
-
-/// The target rows a group's lights record, with the row listed under its
-/// name: more than one when the group joins one object saved under two names.
-Set<int> darkroomTargetRowIds(List<DbCapturedImage> frames, DbTarget? row) => {
-      if (row != null) row.id,
-      for (final f in frames)
-        if (f.targetId != null) f.targetId!,
-    };
-
 /// The Targets tab's list: every target with lights or masters, the most
 /// recently imaged first.
 List<DarkroomTarget> buildDarkroomTargets({
@@ -490,6 +421,7 @@ List<DarkroomTarget> buildDarkroomTargets({
   TargetPlacements placements = const TargetPlacements(),
 }) {
   final rowsByName = {for (final t in targetRows) t.name: t};
+  final targetNames = {for (final t in targetRows) t.id: t.name};
   final result = <DarkroomTarget>[];
   for (final entry in framesByTarget.entries) {
     final key = entry.key;
@@ -505,6 +437,7 @@ List<DarkroomTarget> buildDarkroomTargets({
           rowIds: rowIds,
           frameIds: frameIds,
           foldedIds: foldedByMaster[m.id] ?? const {},
+          targetNames: targetNames,
         ))
           m,
     ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));

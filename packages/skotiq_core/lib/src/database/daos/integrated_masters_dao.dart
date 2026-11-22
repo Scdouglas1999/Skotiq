@@ -398,13 +398,31 @@ class IntegratedMastersDao extends DatabaseAccessor<SkotiqDatabase>
     final rows =
         await (select(integratedMasterFrames)
               ..where((f) => f.masterId.equals(masterId))
-              ..orderBy([
-                (f) => OrderingTerm.desc(f.foldedAt),
-                (f) => OrderingTerm.desc(f.id),
-              ]))
+              ..orderBy(_newestFoldFirst))
             .get();
-    return rows.map((r) {
-      return IntegratedMasterFrame(
+    return rows.map(_foldRecord).toList();
+  }
+
+  /// Every master's fold records, newest first, in one query.
+  Future<Map<int, List<IntegratedMasterFrame>>> getFramesByMaster() async {
+    final rows = await (select(
+      integratedMasterFrames,
+    )..orderBy(_newestFoldFirst)).get();
+    final byMaster = <int, List<IntegratedMasterFrame>>{};
+    for (final r in rows) {
+      (byMaster[r.masterId] ??= []).add(_foldRecord(r));
+    }
+    return byMaster;
+  }
+
+  static final _newestFoldFirst =
+      <OrderClauseGenerator<IntegratedMasterFrames>>[
+        (f) => OrderingTerm.desc(f.foldedAt),
+        (f) => OrderingTerm.desc(f.id),
+      ];
+
+  static IntegratedMasterFrame _foldRecord(IntegratedMasterFrameRow r) =>
+      IntegratedMasterFrame(
         id: r.id,
         masterId: r.masterId,
         imageId: r.imageId,
@@ -414,8 +432,6 @@ class IntegratedMastersDao extends DatabaseAccessor<SkotiqDatabase>
         rejectionReason: r.rejectionReason,
         foldedAt: fromEpochSeconds(r.foldedAt),
       );
-    }).toList();
-  }
 
   SimpleSelectStatement<IntegratedMasters, IntegratedMasterRow> _newestFirst({
     Expression<bool> Function(IntegratedMasters m)? where,
