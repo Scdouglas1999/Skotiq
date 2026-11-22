@@ -196,6 +196,17 @@ where
 mod tests {
     use super::*;
 
+    #[test]
+    fn long_slew_is_the_shared_figure_the_app_waits() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/timeouts/long_slew.json"
+        )))
+        .expect("the long-slew fixture is JSON");
+        let seconds = fixture["long_slew_seconds"].as_u64().expect("seconds");
+        assert_eq!(Timeouts::long_slew(), Duration::from_secs(seconds));
+    }
+
     #[tokio::test]
     async fn test_timeout_success() {
         let result: Result<i32, SkotiqError> = with_timeout(
