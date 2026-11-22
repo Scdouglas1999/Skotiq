@@ -338,16 +338,7 @@ fn build_output_wcs(
     let mut max_x = f64::NEG_INFINITY;
     let mut max_y = f64::NEG_INFINITY;
     for p in panels {
-        let w = p.width as f64;
-        let h = p.height as f64;
-        // 0-based corners: pixel centres at the four corners.
-        let corners = [
-            (0.0, 0.0),
-            (w - 1.0, 0.0),
-            (0.0, h - 1.0),
-            (w - 1.0, h - 1.0),
-        ];
-        for (cx, cy) in corners {
+        for (cx, cy) in boundary_points(p.width, p.height) {
             let (ra, dec) = p.proj.pixel_to_world(cx, cy);
             if let Some((ox, oy)) = proj0.world_to_pixel(ra, dec) {
                 min_x = min_x.min(ox);
@@ -387,22 +378,30 @@ fn build_output_wcs(
     Ok((out_wcs, proj, out_w as u32, out_h as u32))
 }
 
+/// Points spaced along the edge of a `width` x `height` panel (0-based pixel
+/// centres), the four corners among them. Under a linear WCS the corners
+/// alone bound the panel on the canvas; a panel's SIP distortion can bow an
+/// edge past them, so the edges are walked too.
+fn boundary_points(width: usize, height: usize) -> Vec<(f64, f64)> {
+    const STEPS: usize = 16;
+    let (right, bottom) = (width as f64 - 1.0, height as f64 - 1.0);
+    (0..=STEPS)
+        .flat_map(|i| {
+            let t = i as f64 / STEPS as f64;
+            let (x, y) = (t * right, t * bottom);
+            [(x, 0.0), (x, bottom), (0.0, y), (right, y)]
+        })
+        .collect()
+}
+
 /// Compute and stash each panel's integer canvas bounding box.
 fn compute_footprints(panels: &mut [DecodedPanel], out_proj: &SipWcs, out_w: u32, out_h: u32) {
     for p in panels.iter_mut() {
-        let w = p.width as f64;
-        let h = p.height as f64;
-        let corners = [
-            (0.0, 0.0),
-            (w - 1.0, 0.0),
-            (0.0, h - 1.0),
-            (w - 1.0, h - 1.0),
-        ];
         let mut min_x = f64::INFINITY;
         let mut min_y = f64::INFINITY;
         let mut max_x = f64::NEG_INFINITY;
         let mut max_y = f64::NEG_INFINITY;
-        for (cx, cy) in corners {
+        for (cx, cy) in boundary_points(p.width, p.height) {
             let (ra, dec) = p.proj.pixel_to_world(cx, cy);
             if let Some((ox, oy)) = out_proj.world_to_pixel(ra, dec) {
                 min_x = min_x.min(ox);
