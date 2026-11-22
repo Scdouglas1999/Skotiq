@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io' show Platform, SocketException;
 
 import 'package:http/http.dart' as http;
@@ -8,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:geolocator/geolocator.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show roundSiteEstimate;
 
+import '../../utils/logging_service.dart';
 import 'positioning/positioning_result.dart';
 import 'positioning/positioning_deadline.dart';
 import 'positioning/wifi_positioning.dart';
@@ -116,10 +116,9 @@ class GeolocationService {
         unreachable: false,
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[Geolocation] IP-based location failed (${uri.host}): $e',
-        name: 'GeolocationService',
-        level: 900,
+        source: 'GeolocationService',
         error: e,
       );
       return (
@@ -226,10 +225,9 @@ class GeolocationService {
             .get(uri, headers: const {'User-Agent': 'Skotiq/observatory'})
             .timeout(const Duration(seconds: 8));
       } catch (e) {
-        developer.log(
+        Log.warning(
           '[Geolocation] Place search failed: $e',
-          name: 'GeolocationService',
-          level: 900,
+          source: 'GeolocationService',
           error: e,
         );
         // Offline is not "no such place": an empty list here told a user at
@@ -565,10 +563,9 @@ class GeolocationService {
         failed('This machine’s location service did not answer in time.'),
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[Geolocation] Platform location service failed: $e',
-        name: 'GeolocationService',
-        level: 900,
+        source: 'GeolocationService',
         error: e,
       );
       return (null, failed('This machine has no working location service.'));

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +7,7 @@ import '../models/meridian_flip_event.dart';
 import 'backend_provider.dart';
 import 'meridian_flip_provider.dart';
 import '../models/meridian_flip_progress.dart';
+import '../utils/logging_service.dart';
 
 /// Native flip steps feed the same state that linked clients mirror. Listen
 /// on the host only; a viewer's authoritative source is its runtime snapshot.
@@ -74,9 +74,9 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
       }
     },
     onError: (Object error, StackTrace stack) {
-      developer.log(
+      Log.debug(
         'Meridian flip telemetry failed',
-        name: 'MeridianFlip',
+        source: 'MeridianFlip',
         error: error,
         stackTrace: stack,
       );

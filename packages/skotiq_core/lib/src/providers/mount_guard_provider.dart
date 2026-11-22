@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logging/logging.dart';
 
 import '../backend/roles/mount_guard_backend.dart';
 import '../models/backend/event_types.dart';
 import '../models/mount_guard.dart';
+import '../utils/logging_service.dart';
 import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'settings_provider.dart';
@@ -24,8 +24,6 @@ const _openPoll = Duration(seconds: 3);
 /// How often it is read otherwise, so a client that missed an event (it
 /// linked later, or its socket dropped) still catches up.
 const _quietPoll = Duration(seconds: 30);
-
-final _log = Logger('MountGuard');
 
 /// Every mount with an open motion fault or an unknown position, on the host
 /// and on linked clients alike.
@@ -104,7 +102,7 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
       _schedule(entries.isEmpty ? _quietPoll : _openPoll, gen);
     } catch (error) {
       if (_disposed || gen != _generation) return;
-      _log.fine('Mount guard read failed: $error');
+      Log.debug('Mount guard read failed: $error', source: 'MountGuard');
       // A client between connections reads nothing; the next poll or event
       // tries again. The last state stays on screen meanwhile, because an
       // open fault must not vanish just because one read failed.

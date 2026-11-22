@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 
+import '../../../utils/logging_service.dart';
 import 'positioning_result.dart';
 import 'wifi_scan.dart';
 
@@ -126,10 +126,9 @@ class WifiPositioningProvider {
         accessPointsUsed: sent.length,
       );
     } catch (e) {
-      developer.log(
+      Log.warning(
         '[Positioning] Wi-Fi lookup failed ($provider): $e',
-        name: 'WifiPositioningProvider',
-        level: 900,
+        source: 'WifiPositioningProvider',
         error: e,
       );
       return null;

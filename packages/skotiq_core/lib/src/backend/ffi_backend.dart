@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
-import 'package:logging/logging.dart';
 import '../database/daos/images_dao.dart';
 import '../database/database.dart';
 import '../models/autofocus_progress.dart';
@@ -89,8 +88,9 @@ bridge.AutofocusConfigApi autofocusConfigForBridge(AutofocusRequest request) =>
       failureHfrToleranceRatio: request.failureHfrToleranceRatio,
     );
 
+const _logSource = 'FfiBackend';
+
 abstract class _FfiBackendBase implements SkotiqBackend {
-  final _logger = Logger('FfiBackend');
   final SkotiqDatabase? _database;
 
   /// Reads and writes the `.thumb.jpg` sidecars that keep `getImageThumbnail`
@@ -125,7 +125,7 @@ abstract class _FfiBackendBase implements SkotiqBackend {
     _polarAlignController.close();
     _cachedEventStream = null;
 
-    _logger.info('FfiBackend disposed');
+    Log.info('FfiBackend disposed', source: _logSource);
   }
 
   @override
@@ -135,19 +135,12 @@ abstract class _FfiBackendBase implements SkotiqBackend {
     }
 
     if (_cachedEventStream == null) {
-      _logger.info('Creating event stream from native bridge');
-      _cachedEventStream = _nativeEventStream().map((bridgeEvent) {
-        final event = wireEventFromTyped(bridgeEvent);
-        if (event.category == EventCategory.guiding) {
-          _logger.info(
-            'FfiBackend received guiding event: ${event.eventType} '
-            'data=${event.data}',
-          );
-        }
-        return event;
-      }).asBroadcastStream();
+      Log.info('Creating event stream from native bridge', source: _logSource);
+      _cachedEventStream = _nativeEventStream()
+          .map(wireEventFromTyped)
+          .asBroadcastStream();
 
-      _logger.info('Event stream created as broadcast stream');
+      Log.info('Event stream created as broadcast stream', source: _logSource);
 
       _polarAlignSubscription = _cachedEventStream!.listen((event) {
         if (event.category == EventCategory.polarAlignment) {
@@ -168,7 +161,10 @@ abstract class _FfiBackendBase implements SkotiqBackend {
       try {
         return bridge.apiEventStream();
       } catch (e) {
-        _logger.severe('Failed to get the native event stream: $e');
+        Log.error(
+          'Failed to get the native event stream: $e',
+          source: _logSource,
+        );
       }
     }
     return StreamController<bridge.SkotiqEvent>().stream;
