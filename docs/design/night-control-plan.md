@@ -357,7 +357,7 @@ Also fix, inside P1b's new provider, the existing `?? 0` pixel defaulting: a sam
 - Fail-closed: `dart run melos run audit:fail-closed` (`--min-files 1337`)
 - Behavioral: `dart run tools/production/behavioral_audit.dart --register docs/production-readiness/behavioral-audit-register.md --fail-on-unregistered --fail-on-open --report .behavioral_audit_hits.txt --min-files 796`
 - Dependency hygiene: `dart run tools/production/dependency_hygiene.dart`
-- Informational, review before merge: `melos run audit:design-tokens`, `audit:narrative-comments`, `audit:stale-comments`, `audit:oversized-files`
+- Informational, review before merge: `melos run audit:design-tokens`, `audit:narrative-comments`, `audit:oversized-files`
 - Capture goldens (Linux, preview only): `cd packages/skotiq_app && SKOTIQ_CAPTURE_ASSETS=1 flutter test test/golden/night_control_golden_test.dart test/golden/public_screenshots_test.dart`
 - Release check at the owner's size (as in the u5 report): `cd apps/desktop && flutter build linux --release`, copy in `libskotiq_bridge.so`, run under `xvfb-run -s "-screen 0 1536x864x24"` with a scratch `HOME` and `SKOTIQ_DATABASE_DIR`, visit Tonight in every state, confirm `app.log` has no overflow or exception lines.
 - Rust gates (`cargo test/clippy/fmt` in `native/skotiq_native`) only if N1–N5 are approved.

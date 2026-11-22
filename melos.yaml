@@ -86,14 +86,6 @@ scripts:
     run: dart run tools/production/narrative_comment_audit_self_test.dart
     description: Self-test the narrative-comment audit classifier and walk/allowlist against temporary fixtures.
 
-  audit:stale-comments:
-    run: dart run tools/production/stale_comment_audit.dart
-    description: Flag doc/line comments asserting a symbol is unused/not-wired/not-registered or that a conversion is pending, when current code contradicts the claim. Informational by default; pass --fail-on-stale to gate.
-
-  audit:stale-comments:self-test:
-    run: dart run tools/production/stale_comment_audit_self_test.dart
-    description: Self-test the stale-comment auditor against synthetic contradicted and still-true fixtures
-
   audit:fail-closed:
     run: dart run tools/production/fail_closed_check.dart
     description: Enforce fail-closed backend policy checks
