@@ -281,6 +281,7 @@ class MobileNotificationService implements MobileNotificationSink {
   static const int _ownershipTakenOverId = 115;
   static const int _ownershipAutoReleasedId = 116;
   static const int _mountFaultId = 117;
+  static const int _hostJobFailedId = 118;
 
   /// Auto-incrementing ID for push notifications from the desktop
   int _nextPushNotificationId = 200;
@@ -906,6 +907,20 @@ class MobileNotificationService implements MobileNotificationSink {
       errorMessage,
       _warningDetails,
       payload: NotificationPayloadType.polarAlignmentFailed.payload(),
+    );
+  }
+
+  @override
+  Future<void> notifyHostJobFailed({
+    required String title,
+    required String message,
+  }) async {
+    await _notifications.show(
+      _hostJobFailedId,
+      title,
+      message,
+      _warningDetails,
+      payload: NotificationPayloadType.push.payload(),
     );
   }
 
