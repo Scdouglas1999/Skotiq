@@ -11,43 +11,25 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     });
   }
 
+  /// Run one evaluation. A caller that arrives while another is in flight
+  /// is queued behind it, without dropping the triggering event, and gets an
+  /// evaluation of its own once those ahead of it have finished.
   Future<void> _evaluateWithReason(
     String reason, {
     List<SchedulerCandidate>? candidates,
-  }) async {
-    if (_evaluating) {
-      // Queue this caller; they'll be released after the in-flight
-      // evaluation finishes. This serializes evaluations without dropping
-      // a triggering event.
-      final c = Completer<void>();
-      _pendingEvaluations.add(c);
-      return c.future;
-    }
-    _evaluating = true;
-    // Published so stop() can wait for a dispatch that is already in flight
-    // rather than racing it (see SchedulerEngine._awaitEvaluationQuiescence).
-    final idle = Completer<void>();
-    _evaluationIdle = idle;
-    try {
-      await _evaluateOnce(reason, candidates: candidates);
-    } finally {
-      _evaluating = false;
-      if (identical(_evaluationIdle, idle)) _evaluationIdle = null;
-      if (!idle.isCompleted) idle.complete();
-      if (_pendingEvaluations.isNotEmpty) {
-        final next = _pendingEvaluations.removeAt(0);
-        // Run the next evaluation in a microtask so the completer for the
-        // current caller resolves first.
-        scheduleMicrotask(() async {
-          try {
-            await _evaluateWithReason('coalesced');
-            next.complete();
-          } catch (e, st) {
-            next.completeError(e, st);
-          }
-        });
-      }
-    }
+  }) {
+    final ahead = _evaluationQueue;
+    final run = ahead == null
+        ? _evaluateOnce(reason, candidates: candidates)
+        : ahead.then((_) => _evaluateOnce('coalesced'));
+    // The evaluation's own failure is reported through its caller; the queue
+    // only tracks that it is no longer in flight.
+    final settled = run.then<void>((_) {}, onError: (Object _) {});
+    _evaluationQueue = settled;
+    settled.then((_) {
+      if (identical(_evaluationQueue, settled)) _evaluationQueue = null;
+    });
+    return run;
   }
 
   Future<void> _evaluateOnce(
