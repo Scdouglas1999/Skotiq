@@ -1,6 +1,7 @@
 //! Rotator operations.
 
 use crate::device::DeviceType;
+use crate::device_manager::busy::Busy;
 use crate::device_manager::handle::device_error;
 use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
@@ -35,7 +36,7 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         self.publish_state_event(EquipmentEvent::RotatorMoveStarted {
             device_id: device_id.to_string(),
             target_angle: position,
@@ -54,7 +55,7 @@ impl DeviceManager {
 
     /// Halt the rotator and publish where it stopped.
     pub async fn rotator_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         let result = self.rotator_halt_dispatch(device_id).await;
         if result.is_ok() {
             self.publish_rotator_move_end(device_id, None).await;
@@ -64,7 +65,7 @@ impl DeviceManager {
 
     /// Sync the reported sky angle without moving, publishing the new angle.
     pub async fn rotator_sync(&self, device_id: &str, position: f64) -> Result<(), DeviceOpError> {
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         self.rotator_sync_dispatch(device_id, position).await?;
         let angle = self
             .rotator_get_position(device_id)

@@ -7,7 +7,7 @@ impl DeviceManager {
         // ASCOM Remote serializes a status read behind the image transfer.
         // Hold the heartbeat off for the whole download, including the error
         // and cancel paths: the guard clears itself on drop.
-        let _download = self.begin_operation(device_id);
+        let _download = self.busy(device_id, crate::device_manager::busy::Busy::Download);
         let camera = self.camera(device_id).await?;
 
         let frame = rig::camera::download(camera.as_ref(), device_id).await;

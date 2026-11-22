@@ -114,7 +114,7 @@ impl DeviceManager {
         // `is_usb_contended`). The guard clears the marker when this function
         // returns — success, error, or panic — including every `?` early return
         // below, so it can never leak and permanently silence those heartbeats.
-        let _usb_contention = mgr.begin_usb_contention();
+        let _usb_contention = mgr.busy(camera_id, crate::device_manager::busy::Busy::Exposure);
 
         let mut exposure = AnnouncedExposure::start(
             &self.app_state,

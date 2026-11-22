@@ -6,6 +6,7 @@
 //! `crate::dispatch`.
 
 pub(crate) mod accessory;
+pub(crate) mod busy;
 pub(crate) mod capture;
 pub(crate) mod connection;
 pub(crate) mod device_reopen;
