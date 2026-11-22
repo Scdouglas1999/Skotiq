@@ -33,16 +33,6 @@ pub struct ApiDefectMapStatus {
 /// correction is off.
 static APPLIED: Mutex<Option<DefectMapApplyState>> = Mutex::const_new(None);
 
-fn defect_maps_root() -> PathBuf {
-    // Why: SKOTIQ_DATA_DIR is the per-platform application data path the app
-    // sets at launch. Without it (unit tests, a bare headless start) the maps
-    // live in the temp dir for the session.
-    let base = std::env::var_os("SKOTIQ_DATA_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("skotiq"));
-    base.join("defect_maps")
-}
-
 fn defect_map_path(camera_id: &str, width: u32, height: u32, bucket_decicelsius: i16) -> PathBuf {
     let camera: String = camera_id
         .chars()
@@ -51,7 +41,7 @@ fn defect_map_path(camera_id: &str, width: u32, height: u32, bucket_decicelsius:
             _ => '_',
         })
         .collect();
-    defect_maps_root().join(format!(
+    crate::data_root::defect_maps().join(format!(
         "{}_{}x{}_{:+05}.ndm",
         camera, width, height, bucket_decicelsius
     ))
@@ -100,7 +90,7 @@ fn unix_seconds(time: std::time::SystemTime) -> i64 {
 
 /// Build a defect map for a camera from at least
 /// [`MIN_CONSISTENCY_FRAMES`] dark frames (FITS/XISF) of one size and pixel
-/// type, and store it under `$SKOTIQ_DATA_DIR/defect_maps/` by camera, sensor
+/// type, and store it under `defect_maps` in the data directory by camera, sensor
 /// size and temperature bucket. When the sequencer is applying the map this
 /// replaces, it applies the new one from the next exposure.
 pub async fn api_defect_map_build(

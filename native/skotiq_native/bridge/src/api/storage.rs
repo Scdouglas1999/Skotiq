@@ -4,9 +4,8 @@ use crate::storage::{AppSettings, ObserverLocation};
 
 // Equipment profiles
 
-/// Initialize profile storage
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_init_profile_storage(storage_path: String) -> Result<(), SkotiqError> {
+/// Open the equipment profile store in `storage_path`.
+pub(crate) fn init_profile_storage(storage_path: String) -> Result<(), SkotiqError> {
     crate::state::init_profile_storage(std::path::PathBuf::from(storage_path))
         .map_err(|e| SkotiqError::OperationFailed(e))
 }
@@ -48,9 +47,9 @@ pub async fn api_get_active_profile() -> Result<Option<EquipmentProfile>, Skotiq
     Ok(get_state().get_profile().await)
 }
 
-/// Initialize settings storage and load observer location into memory
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError> {
+/// Open the settings, plate-solver and DepthLock stores in `storage_path` and
+/// load the observer location into memory.
+pub(crate) fn init_settings_storage(storage_path: String) -> Result<(), SkotiqError> {
     let path = std::path::PathBuf::from(storage_path);
     crate::state::init_settings_storage(path.clone())
         .map_err(|e| SkotiqError::OperationFailed(e))?;

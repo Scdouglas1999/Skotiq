@@ -27,32 +27,6 @@ class DesktopBootPaths {
   });
 }
 
-/// Sets `SKOTIQ_DATA_DIR` for the current process before Rust reads it.
-///
-/// Respects a value already supplied by the parent shell or systemd unit.
-/// The path matches [resolveSkotiqDataDirectory] — the same root used for
-/// logs, catalogs and tokens — so defect maps and other native persistence
-/// align with the Dart side of the same process.
-void configureSkotiqDataDirectory(
-  String dataDirectory, {
-  Map<String, String>? environment,
-}) {
-  final env = environment ?? Platform.environment;
-  // Freeze the PROCESS environment as the operator supplied it, before this
-  // function writes its own answer back into it. Without the snapshot the Dart
-  // resolvers would later read a SKOTIQ_DATA_DIR this function invented
-  // and conclude the instance had been relocated — which would move the
-  // documents root off `~/Documents` on an ordinary install. The snapshot is
-  // taken from `Platform.environment`, never from an injected [environment],
-  // so a test's fake map cannot become the process-wide answer.
-  captureSkotiqProcessEnvironment();
-  final existing = env[skotiqDataDirEnv]?.trim();
-  if (existing != null && existing.isNotEmpty) {
-    return;
-  }
-  _setProcessEnvironment(skotiqDataDirEnv, dataDirectory);
-}
-
 /// Resolves the directory that owns this instance's native profile, settings
 /// and plate-solver JSON.
 ///
@@ -72,10 +46,6 @@ Future<String> resolveDesktopProfileDirectory({
   Map<String, String>? environment,
   Future<Directory> Function()? documentsDirectoryProvider,
 }) async {
-  // [skotiqProcessEnvironment], not `Platform.environment`: by the time a
-  // caller reaches here [configureSkotiqDataDirectory] has published this
-  // process's data root back into the environment for Rust, and reading that
-  // back would move an ordinary install's native profile store.
   final env = environment ?? skotiqProcessEnvironment;
   final overrideDir = env[skotiqDatabaseDirEnv]?.trim();
   if (overrideDir != null && overrideDir.isNotEmpty) {
@@ -89,8 +59,7 @@ Future<String> resolveDesktopProfileDirectory({
   return path.join(appDir.path, 'Skotiq', 'profiles');
 }
 
-/// Resolves and creates this instance's log directory, publishing the same
-/// root to `SKOTIQ_DATA_DIR` for the Rust side.
+/// Resolves and creates this instance's data root and log directory.
 ///
 /// Separate from [initialiseDesktopLogging] so the path decision is reachable
 /// without the native bridge: everything after this point in the bootstrap
@@ -116,10 +85,7 @@ Future<({String dataRoot, String logDirectory})> prepareDesktopLogDirectory({
   // Carry a pre-rename install's state into the resolved roots before
   // anything creates files under them. This is the one place every launch
   // mode (GUI, --headless) funnels through before the bridge or the
-  // database opens, and it must run before
-  // [configureSkotiqDataDirectory] publishes this root into the process
-  // environment — the migration reads the operator's environment, not the
-  // one the app is about to rewrite.
+  // database opens.
   //
   // The documents root is best-effort: a context without the path_provider
   // channel (unit tests, a bare dart:io harness) has no Documents folder to
@@ -144,8 +110,6 @@ Future<({String dataRoot, String logDirectory})> prepareDesktopLogDirectory({
     log: stderr.writeln,
   );
 
-  configureSkotiqDataDirectory(dataRoot, environment: env);
-
   final logDir = path.join(dataRoot, 'logs');
   await Directory(logDir).create(recursive: true);
   return (dataRoot: dataRoot, logDirectory: logDir);
@@ -163,10 +127,9 @@ Future<AppVersionInfo> loadDesktopAppVersion() async {
   return AppVersionInfo(version: packageInfo.version, buildNumber: buildNumber);
 }
 
-/// Initialise the Rust bridge with this instance's log directory, then wire
-/// native profile + settings storage onto [resolveDesktopProfileDirectory].
-/// Returns the resolved paths so the rest of the bootstrap can hand them to
-/// the `LoggingService` and `ProfileService` without re-querying
+/// Initialise the Rust bridge with this instance's data, log and profile
+/// directories ([resolveDesktopProfileDirectory]). Returns the resolved paths
+/// so the rest of the bootstrap can hand them to the `LoggingService` and `ProfileService` without re-querying
 /// [resolveSkotiqDataDirectory].
 ///
 /// This step must run before any provider that touches the Rust runtime
@@ -181,7 +144,16 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
   // the process working directory is not the Release folder (e.g. shortcuts).
   configureWindowsNativeDllSearchPath();
 
-  await bridge.NativeBridge.init(logDirectory: logDir);
+  final profileDir = await resolveDesktopProfileDirectory();
+  await Directory(profileDir).create(recursive: true);
+
+  await bridge.NativeBridge.init(
+    host: bridge.HostPaths(
+      dataDirectory: dataRoot,
+      logDirectory: logDir,
+      profileDirectory: profileDir,
+    ),
+  );
   startupTimeline.mark('native bridge');
   if (!bridge.NativeBridge.isNativeAvailable) {
     // Name the CURRENT platform's library and layout, so the hint points at a
@@ -210,12 +182,6 @@ Future<DesktopBootPaths> initialiseDesktopLogging() async {
       'symptom. Check the console for "[Bridge] RustLib initialization failed".',
     );
   }
-
-  final profileDir = await resolveDesktopProfileDirectory();
-  await Directory(profileDir).create(recursive: true);
-  bridge.apiInitProfileStorage(storagePath: profileDir);
-  bridge.apiInitSettingsStorage(storagePath: profileDir);
-  startupTimeline.mark('native profile storage');
 
   return DesktopBootPaths(
     logDirectory: logDir,
@@ -249,52 +215,5 @@ void configureWindowsNativeDllSearchPath() {
     }
   } finally {
     malloc.free(dirPtr);
-  }
-}
-
-void _setProcessEnvironment(String name, String value) {
-  if (Platform.isWindows) {
-    _setWindowsEnvironment(name, value);
-    return;
-  }
-  _setPosixEnvironment(name, value);
-}
-
-void _setPosixEnvironment(String name, String value) {
-  final setenv = DynamicLibrary.process()
-      .lookupFunction<
-        Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Int32),
-        int Function(Pointer<Utf8>, Pointer<Utf8>, int)
-      >('setenv');
-  final namePtr = name.toNativeUtf8();
-  final valuePtr = value.toNativeUtf8();
-  try {
-    final result = setenv(namePtr, valuePtr, 1);
-    if (result != 0) {
-      throw StateError('setenv($name) failed (code $result)');
-    }
-  } finally {
-    malloc.free(namePtr);
-    malloc.free(valuePtr);
-  }
-}
-
-void _setWindowsEnvironment(String name, String value) {
-  final kernel32 = DynamicLibrary.open('kernel32.dll');
-  final setEnvironmentVariable = kernel32
-      .lookupFunction<
-        Int32 Function(Pointer<Utf16>, Pointer<Utf16>),
-        int Function(Pointer<Utf16>, Pointer<Utf16>)
-      >('SetEnvironmentVariableW');
-  final namePtr = name.toNativeUtf16();
-  final valuePtr = value.toNativeUtf16();
-  try {
-    final result = setEnvironmentVariable(namePtr, valuePtr);
-    if (result == 0) {
-      throw StateError('SetEnvironmentVariableW($name) failed');
-    }
-  } finally {
-    malloc.free(namePtr);
-    malloc.free(valuePtr);
   }
 }

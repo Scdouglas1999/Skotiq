@@ -37,9 +37,11 @@ abstract final class NativeBridge {
 
   static bool get isNativeAvailable => _nativeAvailable;
 
-  /// Loads the native library and initializes the Rust side. Safe to call
-  /// more than once. A failed load leaves [isNativeAvailable] false.
-  static Future<void> init({String? logDirectory}) async {
+  /// Loads the native library and initializes the Rust side: a host with
+  /// [host] (its data, log and profile directories), anything else with
+  /// console logging only. Safe to call more than once. A failed load leaves
+  /// [isNativeAvailable] false.
+  static Future<void> init({gen_api.HostPaths? host}) async {
     if (_initialized) return;
 
     final libraryPath = await _findNativeLibrary();
@@ -55,8 +57,8 @@ abstract final class NativeBridge {
         await frb.RustLib.init();
       }
 
-      if (logDirectory != null) {
-        gen_api.apiInitWithLogging(logDirectory: logDirectory);
+      if (host != null) {
+        gen_api.apiInitHost(paths: host);
       } else {
         gen_api.apiInit();
       }

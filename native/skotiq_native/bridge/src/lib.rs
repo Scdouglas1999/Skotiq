@@ -57,6 +57,7 @@ mod ascom_exposure_apply;
 #[cfg(windows)]
 mod ascom_wrapper;
 mod builtin_guider;
+mod data_root;
 mod depthlock_service;
 pub(crate) mod device;
 pub(crate) mod device_capabilities;

@@ -194,6 +194,12 @@ typedef struct wire_cst_star_detection_config_api {
   double *max_sharpness;
 } wire_cst_star_detection_config_api;
 
+typedef struct wire_cst_host_paths {
+  struct wire_cst_list_prim_u_8_strict *data_directory;
+  struct wire_cst_list_prim_u_8_strict *log_directory;
+  struct wire_cst_list_prim_u_8_strict *profile_directory;
+} wire_cst_host_paths;
+
 typedef struct wire_cst_mount_guard_settings {
   bool enabled;
   double min_altitude_degrees;
@@ -3271,9 +3277,7 @@ void frbgen_skotiq_bridge_wire__crate__api__guiding__api_guider_stop(int64_t por
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__init__api_init(void);
 
-WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_init_profile_storage(struct wire_cst_list_prim_u_8_strict *storage_path);
-
-WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__storage__api_init_settings_storage(struct wire_cst_list_prim_u_8_strict *storage_path);
+WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__init__api_init_host(struct wire_cst_host_paths *paths);
 
 WireSyncRust2DartDco frbgen_skotiq_bridge_wire__crate__api__init__api_init_with_logging(struct wire_cst_list_prim_u_8_strict *log_directory);
 
@@ -3928,6 +3932,8 @@ struct wire_cst_frame_wcs *frbgen_skotiq_bridge_cst_new_box_autoadd_frame_wcs(vo
 
 struct wire_cst_guiding_event *frbgen_skotiq_bridge_cst_new_box_autoadd_guiding_event(void);
 
+struct wire_cst_host_paths *frbgen_skotiq_bridge_cst_new_box_autoadd_host_paths(void);
+
 int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_i_32(int32_t value);
 
 int64_t *frbgen_skotiq_bridge_cst_new_box_autoadd_i_64(int64_t value);
@@ -4099,6 +4105,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_frame_capture_metadata);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_frame_wcs);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_guiding_event);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_host_paths);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_i_32);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_i_64);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_imaging_event);
@@ -4348,6 +4355,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_get_current_log_file);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_get_version);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_init);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_init_host);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__init__api_init_with_logging);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_auto_stretch_preview_async);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__live_stacking__api_stacking_add_frame);
@@ -4463,8 +4471,6 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_location);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_profiles);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_get_settings);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_init_profile_storage);
-    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_init_settings_storage);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_load_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_save_profile);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_wire__crate__api__storage__api_set_location);

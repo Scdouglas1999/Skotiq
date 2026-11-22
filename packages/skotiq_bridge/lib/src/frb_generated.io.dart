@@ -326,6 +326,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   GuidingEvent dco_decode_box_autoadd_guiding_event(dynamic raw);
 
   @protected
+  HostPaths dco_decode_box_autoadd_host_paths(dynamic raw);
+
+  @protected
   int dco_decode_box_autoadd_i_32(dynamic raw);
 
   @protected
@@ -580,6 +583,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   HeartbeatStatus dco_decode_heartbeat_status(dynamic raw);
+
+  @protected
+  HostPaths dco_decode_host_paths(dynamic raw);
 
   @protected
   int dco_decode_i_16(dynamic raw);
@@ -1372,6 +1378,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  HostPaths sse_decode_box_autoadd_host_paths(SseDeserializer deserializer);
+
+  @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer);
 
   @protected
@@ -1680,6 +1689,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   HeartbeatStatus sse_decode_heartbeat_status(SseDeserializer deserializer);
+
+  @protected
+  HostPaths sse_decode_host_paths(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_16(SseDeserializer deserializer);
@@ -2621,6 +2633,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     // Codec=Cst (C-struct based), see doc to use other codecs
     final ptr = wire.cst_new_box_autoadd_guiding_event();
     cst_api_fill_to_wire_guiding_event(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_cst_host_paths> cst_encode_box_autoadd_host_paths(
+    HostPaths raw,
+  ) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    final ptr = wire.cst_new_box_autoadd_host_paths();
+    cst_api_fill_to_wire_host_paths(raw, ptr.ref);
     return ptr;
   }
 
@@ -4462,6 +4484,14 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   }
 
   @protected
+  void cst_api_fill_to_wire_box_autoadd_host_paths(
+    HostPaths apiObj,
+    ffi.Pointer<wire_cst_host_paths> wireObj,
+  ) {
+    cst_api_fill_to_wire_host_paths(apiObj, wireObj.ref);
+  }
+
+  @protected
   void cst_api_fill_to_wire_box_autoadd_imaging_event(
     ImagingEvent apiObj,
     ffi.Pointer<wire_cst_imaging_event> wireObj,
@@ -5904,6 +5934,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.GuideStats.star_mass = pre_star_mass;
       return;
     }
+  }
+
+  @protected
+  void cst_api_fill_to_wire_host_paths(
+    HostPaths apiObj,
+    wire_cst_host_paths wireObj,
+  ) {
+    wireObj.data_directory = cst_encode_String(apiObj.dataDirectory);
+    wireObj.log_directory = cst_encode_String(apiObj.logDirectory);
+    wireObj.profile_directory = cst_encode_String(apiObj.profileDirectory);
   }
 
   @protected
@@ -8373,6 +8413,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_host_paths(
+    HostPaths self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer);
 
   @protected
@@ -8776,6 +8822,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     HeartbeatStatus self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_host_paths(HostPaths self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_16(int self, SseSerializer serializer);
@@ -13297,52 +13346,22 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__init__api_initPtr
           .asFunction<WireSyncRust2DartDco Function()>();
 
-  WireSyncRust2DartDco wire__crate__api__storage__api_init_profile_storage(
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> storage_path,
+  WireSyncRust2DartDco wire__crate__api__init__api_init_host(
+    ffi.Pointer<wire_cst_host_paths> paths,
   ) {
-    return _wire__crate__api__storage__api_init_profile_storage(storage_path);
+    return _wire__crate__api__init__api_init_host(paths);
   }
 
-  late final _wire__crate__api__storage__api_init_profile_storagePtr =
+  late final _wire__crate__api__init__api_init_hostPtr =
       _lookup<
         ffi.NativeFunction<
-          WireSyncRust2DartDco Function(
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
+          WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_host_paths>)
         >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__storage__api_init_profile_storage',
-      );
-  late final _wire__crate__api__storage__api_init_profile_storage =
-      _wire__crate__api__storage__api_init_profile_storagePtr
+      >('frbgen_skotiq_bridge_wire__crate__api__init__api_init_host');
+  late final _wire__crate__api__init__api_init_host =
+      _wire__crate__api__init__api_init_hostPtr
           .asFunction<
-            WireSyncRust2DartDco Function(
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
-          >();
-
-  WireSyncRust2DartDco wire__crate__api__storage__api_init_settings_storage(
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> storage_path,
-  ) {
-    return _wire__crate__api__storage__api_init_settings_storage(storage_path);
-  }
-
-  late final _wire__crate__api__storage__api_init_settings_storagePtr =
-      _lookup<
-        ffi.NativeFunction<
-          WireSyncRust2DartDco Function(
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__storage__api_init_settings_storage',
-      );
-  late final _wire__crate__api__storage__api_init_settings_storage =
-      _wire__crate__api__storage__api_init_settings_storagePtr
-          .asFunction<
-            WireSyncRust2DartDco Function(
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            )
+            WireSyncRust2DartDco Function(ffi.Pointer<wire_cst_host_paths>)
           >();
 
   WireSyncRust2DartDco wire__crate__api__init__api_init_with_logging(
@@ -18201,6 +18220,18 @@ class RustLibWire implements BaseWire {
       _cst_new_box_autoadd_guiding_eventPtr
           .asFunction<ffi.Pointer<wire_cst_guiding_event> Function()>();
 
+  ffi.Pointer<wire_cst_host_paths> cst_new_box_autoadd_host_paths() {
+    return _cst_new_box_autoadd_host_paths();
+  }
+
+  late final _cst_new_box_autoadd_host_pathsPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_cst_host_paths> Function()>>(
+        'frbgen_skotiq_bridge_cst_new_box_autoadd_host_paths',
+      );
+  late final _cst_new_box_autoadd_host_paths =
+      _cst_new_box_autoadd_host_pathsPtr
+          .asFunction<ffi.Pointer<wire_cst_host_paths> Function()>();
+
   ffi.Pointer<ffi.Int32> cst_new_box_autoadd_i_32(int value) {
     return _cst_new_box_autoadd_i_32(value);
   }
@@ -19467,6 +19498,14 @@ final class wire_cst_star_detection_config_api extends ffi.Struct {
   external ffi.Pointer<ffi.Double> min_snr;
 
   external ffi.Pointer<ffi.Double> max_sharpness;
+}
+
+final class wire_cst_host_paths extends ffi.Struct {
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> data_directory;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> log_directory;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> profile_directory;
 }
 
 final class wire_cst_mount_guard_settings extends ffi.Struct {

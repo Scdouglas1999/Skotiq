@@ -138,10 +138,6 @@ Future<void> apiClearDeviceImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiClearDeviceImage(deviceId: deviceId);
 
 /// Cancel current exposure.
-///
-/// The abort generation moves first: it is what stops the exposure waiting
-/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
-/// the stop, which must not be downloaded as a frame.
 Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .instance
     .api

@@ -7,11 +7,11 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `applies_to`, `apply`, `defect_map_path`, `defect_maps_root`, `is_map`, `require_camera`, `unix_seconds`
+// These functions are ignored because they are not marked as `pub`: `applies_to`, `apply`, `defect_map_path`, `is_map`, `require_camera`, `unix_seconds`
 
 /// Build a defect map for a camera from at least
 /// [`MIN_CONSISTENCY_FRAMES`] dark frames (FITS/XISF) of one size and pixel
-/// type, and store it under `$SKOTIQ_DATA_DIR/defect_maps/` by camera, sensor
+/// type, and store it under `defect_maps` in the data directory by camera, sensor
 /// size and temperature bucket. When the sequencer is applying the map this
 /// replaces, it applies the new one from the next exposure.
 Future<ApiDefectMapStatus> apiDefectMapBuild({

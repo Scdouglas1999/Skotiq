@@ -6,10 +6,8 @@ import 'package:path_provider/path_provider.dart';
 /// Environment variable that relocates this process's writable data root.
 ///
 /// Set by headless/systemd units and by any second instance that must not
-/// share state with the desktop GUI. The Rust side already honours it for its
-/// own persistence (`SKOTIQ_DATA_DIR` in `bridge/src/api/imaging.rs`), so
-/// Dart-side roots must resolve it the same way or the two halves of one
-/// process write to two different trees.
+/// share state with the desktop GUI. It is read here only: the desktop host
+/// hands the resolved root to the native side at start-up (`api_init_host`).
 const String skotiqDataDirEnv = 'SKOTIQ_DATA_DIR';
 
 /// Subdirectory of [skotiqDataDirEnv] that stands in for the platform
@@ -23,38 +21,21 @@ const String skotiqRelocatedDocumentsDirName = 'documents';
 
 Map<String, String>? _capturedProcessEnvironment;
 
-/// The environment the directory resolvers read.
-///
-/// Defaults to [Platform.environment]; becomes the snapshot taken by
-/// [captureSkotiqProcessEnvironment] once the desktop bootstrap has taken
-/// one. See that function for why the snapshot exists.
+/// The environment the directory resolvers read: [Platform.environment],
+/// unless a test replaced it with [captureSkotiqProcessEnvironment].
 Map<String, String> get skotiqProcessEnvironment =>
     _capturedProcessEnvironment ?? Platform.environment;
 
-/// Freezes the environment as the operator supplied it, before this process
-/// rewrites any of it.
-///
-/// `apps/desktop` publishes its resolved data root back into the C environment
-/// (`setenv("SKOTIQ_DATA_DIR", ...)`) so the Rust side lands in the same
-/// tree, and when the operator set nothing that value is the platform
-/// application-support path. A resolver that read the environment afterwards
-/// could not tell "the operator relocated this instance" from "the app told
-/// itself where it already was" — harmless for the app-support root, which
-/// resolves to the same directory either way, but it would silently move the
-/// documents root from `~/Documents` into the application-support folder on a
-/// perfectly ordinary install.
-///
-/// Idempotent: the first snapshot wins, so a later caller cannot replace the
-/// operator's environment with a rewritten one.
+/// Makes [environment] the one the directory resolvers read, for tests that
+/// relocate the whole process. The first call wins until
+/// [debugResetSkotiqProcessEnvironment].
 void captureSkotiqProcessEnvironment([Map<String, String>? environment]) {
   _capturedProcessEnvironment ??= Map<String, String>.unmodifiable(
     environment ?? Platform.environment,
   );
 }
 
-/// Drops the snapshot taken by [captureSkotiqProcessEnvironment].
-///
-/// Tests only: a process takes one snapshot and keeps it.
+/// Drops the environment set by [captureSkotiqProcessEnvironment].
 void debugResetSkotiqProcessEnvironment() {
   _capturedProcessEnvironment = null;
 }
