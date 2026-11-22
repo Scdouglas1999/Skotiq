@@ -11,6 +11,7 @@ import '../database/database.dart' as db;
 import '../utils/skotiq_data_directory.dart';
 import 'focus_temperature_fit.dart';
 import '../utils/logging_service.dart';
+import '../utils/retryable_once.dart';
 
 /// User-configurable thresholds that gate the focus regression model.
 ///
@@ -300,7 +301,9 @@ class FocusModelService {
   final Map<String, ProfileFocusData> _profileData = {};
   final FocusHistoryDao _store;
   final Future<Directory?> Function() _jsonFolder;
-  Future<void>? _initializeFuture;
+  late final RetryableOnce<void> _initialization = RetryableOnce(
+    _initializeInternal,
+  );
   bool _isInitialized = false;
 
   /// Thresholds that gate regression rejection, reliability, and filter-offset
@@ -323,15 +326,7 @@ class FocusModelService {
   /// Reads every profile from the database, importing the file store first.
   Future<void> initialize() async {
     if (_isInitialized) return;
-    final future = _initializeFuture ??= _initializeInternal();
-    try {
-      await future;
-    } catch (_) {
-      if (identical(_initializeFuture, future)) {
-        _initializeFuture = null;
-      }
-      rethrow;
-    }
+    await _initialization();
   }
 
   Future<void> _initializeInternal() async {

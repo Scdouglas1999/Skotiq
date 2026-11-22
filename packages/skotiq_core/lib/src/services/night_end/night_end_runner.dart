@@ -23,6 +23,7 @@ import '../../providers/darkroom_state_store_provider.dart';
 import '../../providers/logging_service_provider.dart';
 import '../../providers/notification_service_provider.dart';
 import '../../models/calibration/eon_status.dart';
+import '../../utils/retryable_once.dart';
 
 /// Where the night-end runs are saved.
 const String nightEndRunsStateKey = 'night_end_runs.v1';
@@ -59,7 +60,7 @@ class NightEndRunner {
 
   final Ref _ref;
   bool _disposed = false;
-  Future<void>? _restored;
+  late final RetryableOnce<void> _restored = RetryableOnce(_start);
   Future<void> _saving = Future<void>.value();
   Future<void> _queue = Future<void>.value();
   StreamSubscription<DarkroomBuildJob>? _finished;
@@ -71,15 +72,7 @@ class NightEndRunner {
   /// Read the saved runs and the saved builds back, follow builds that end,
   /// and carry on any run a restart cut short.
   Future<void> start() async {
-    final future = _restored ??= _start();
-    try {
-      await future;
-    } catch (_) {
-      if (identical(_restored, future)) {
-        _restored = null;
-      }
-      rethrow;
-    }
+    await _restored();
   }
 
   Future<void> _start() async {
