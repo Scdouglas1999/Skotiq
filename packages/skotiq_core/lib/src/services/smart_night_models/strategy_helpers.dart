@@ -101,9 +101,12 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
     final remainingWindowSecs = math
         .max(0.0, windowSecs - goalIntegrationSecs)
         .toDouble();
-    final goalNames = goalPlans.map((p) => p.filterName.toLowerCase()).toSet();
     final budgetFilters = activeFilters
-        .where((f) => !goalNames.contains(f.toLowerCase()))
+        .where(
+          (f) => !goalPlans.any(
+            (p) => _plansFilter(p, f, availableFilters: availableForGoals),
+          ),
+        )
         .toList();
 
     final budgetPlans = budgetFilters.isEmpty || remainingWindowSecs <= 0
@@ -127,6 +130,7 @@ List<SmartNightFilterPlan> composeSmartNightFilterPlans({
       activeFilters: activeFilters,
       goalPlans: goalPlans,
       budgetPlans: budgetPlans,
+      availableFilters: availableForGoals,
     );
   }
 
@@ -163,8 +167,12 @@ bool _allStrategyFiltersHaveRemainingGoals({
   for (final filter in activeFilters) {
     final hasRemaining = integrationGoalProgress.any((progress) {
       if (progress.remainingFrames <= 0) return false;
-      return matchingFilterName(progress.goal.filter, availableFilters) ==
-          filter;
+      final slot = matchingFilterName(progress.goal.filter, availableFilters);
+      return slot != null &&
+          _sameSlot(
+            slot,
+            matchingFilterName(filter, availableFilters) ?? filter,
+          );
     });
     if (!hasRemaining) return false;
   }
@@ -175,16 +183,39 @@ List<SmartNightFilterPlan> _mergeFilterPlansInStrategyOrder({
   required List<String> activeFilters,
   required List<SmartNightFilterPlan> goalPlans,
   required List<SmartNightFilterPlan> budgetPlans,
+  required List<String> availableFilters,
 }) {
-  final byName = {
-    for (final plan in [...goalPlans, ...budgetPlans])
-      plan.filterName.toLowerCase(): plan,
-  };
+  final plans = [...goalPlans, ...budgetPlans];
   return [
     for (final filter in activeFilters)
-      if (byName.containsKey(filter.toLowerCase()))
-        byName[filter.toLowerCase()]!,
+      if (plans
+              .where(
+                (plan) => _plansFilter(
+                  plan,
+                  filter,
+                  availableFilters: availableFilters,
+                ),
+              )
+              .lastOrNull
+          case final plan?)
+        plan,
   ];
+}
+
+bool _sameSlot(String a, String b) =>
+    a.trim().toLowerCase() == b.trim().toLowerCase();
+
+/// Whether [plan] images the strategy filter [filter]: the plan is named
+/// after the filter itself, or after the wheel slot of [availableFilters] the
+/// filter-name rule finds for it ("Ha 7nm" is the slot "Ha").
+bool _plansFilter(
+  SmartNightFilterPlan plan,
+  String filter, {
+  required List<String> availableFilters,
+}) {
+  if (_sameSlot(plan.filterName, filter)) return true;
+  final slot = matchingFilterName(filter, availableFilters);
+  return slot != null && _sameSlot(plan.filterName, slot);
 }
 
 List<SmartNightFilterPlan> _composeBudgetFilterPlans({
