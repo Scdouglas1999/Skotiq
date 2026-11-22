@@ -130,7 +130,8 @@ final class AutopilotController extends StateNotifier<AutopilotSettingsEdit> {
 
   /// Polls again after [pausePolling], unless it never stopped.
   void resumePolling() {
-    if (!(_poll?.isActive ?? false)) _startPolling();
+    final poll = _poll;
+    if (poll == null || !poll.isActive) _startPolling();
   }
 
   /// Stops the linked-host poll while the app is in the background.
