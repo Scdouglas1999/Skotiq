@@ -69,6 +69,15 @@ bridge.GuidingEvent? guidingEventOf(core.SkotiqEvent event) {
   };
 }
 
+/// The safety event [event] carries; null for any other event.
+bridge.SafetyEvent? safetyEventOf(core.SkotiqEvent event) {
+  if (event.category != core.EventCategory.safety) return null;
+  return switch (typedEventFromWire(event)?.payload) {
+    bridge.EventPayload_Safety(:final field0) => field0,
+    _ => null,
+  };
+}
+
 /// The system event [event] carries; null for any other event.
 bridge.SystemEvent? systemEventOf(core.SkotiqEvent event) {
   if (event.category != core.EventCategory.system) return null;

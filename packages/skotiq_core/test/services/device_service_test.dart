@@ -523,7 +523,7 @@ void main() {
             severity: EventSeverity.info,
             category: EventCategory.equipment,
             eventType: 'FocuserMoveStarted',
-            data: {'targetPosition': 24800},
+            data: {'device_id': 'focuser-1', 'target_position': 24800},
           ),
         );
         await Future.delayed(const Duration(milliseconds: 50));

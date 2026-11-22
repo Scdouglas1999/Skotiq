@@ -25,6 +25,7 @@ import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
+import '../backend/bridge_event_codec.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/device_connect_exception.dart';

@@ -51,6 +51,8 @@ import '../models/imaging/fits_keyword_write.dart';
 import 'roles/host_data/host_link.dart';
 import 'target_scoring.dart';
 import 'skotiq_backend.dart';
+import 'bridge_event_codec.dart';
+import 'bridge_events.dart' as bridge show EquipmentEvent_PropertyChanged;
 // TailnetDetector is the single source of truth for host reachability
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the
 // scheme/timeout tuning matches the QR/pairing validator exactly.

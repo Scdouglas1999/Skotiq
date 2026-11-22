@@ -72,13 +72,15 @@ void main() {
 
   // As the host's `DeviceService` applies an equipment event.
   Future<void> mirror(SkotiqEvent event) async {
-    switch (event.eventType) {
-      case 'PropertyChanged':
+    switch (equipmentEventOf(event)) {
+      case EquipmentEvent_PropertyChanged():
         applyDevicePropertyChange(container, event.data);
-      case 'CameraSettingsChanged':
+      case EquipmentEvent_CameraSettingsChanged():
         applyCameraSettings(container, event.data);
-      default:
-        applyDeviceStateEvent(container, event.eventType, event.data);
+      case final EquipmentEvent equipment:
+        applyDeviceStateEvent(container, equipment);
+      case null:
+        fail('not an equipment event this build can read: $event');
     }
   }
 
@@ -267,9 +269,13 @@ void main() {
 
     test('an event from a host older than the id still applies', () {
       expect(
-        applyDeviceStateEvent(container, 'FocuserMoveCompleted', {
-          'position': 777,
-        }),
+        applyDeviceStateEvent(
+          container,
+          const EquipmentEvent.focuserMoveCompleted(
+            deviceId: '',
+            position: 777,
+          ),
+        ),
         isTrue,
       );
       expect(container.read(focuserStateProvider).position, 777);

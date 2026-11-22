@@ -3,24 +3,28 @@ part of '../remote_sync_handler.dart';
 /// The host's own window following a device that connected or disconnected
 /// through the server.
 void _applyEquipmentEvent(ProviderContainer container, SkotiqEvent event) {
-  final data = event.data;
-  switch (event.eventType) {
-    case 'Connecting':
-      _applyConnectingDevice(
-        container,
-        data['device_type'] as String?,
-        data['device_id'] as String?,
-        data['device_name'] as String?,
-      );
-    case 'Connected':
+  switch (equipmentEventOf(event)) {
+    case bridge.EquipmentEvent_Connecting(
+      :final deviceType,
+      :final deviceId,
+      :final deviceName,
+    ):
+      _applyConnectingDevice(container, deviceType, deviceId, deviceName);
+    case bridge.EquipmentEvent_Connected(
+      :final deviceType,
+      :final deviceId,
+      :final deviceName,
+    ):
       _applyConnectedDeviceFromPayload(
         container,
-        data['device_type'] as String?,
-        data['device_id'] as String?,
-        data['device_name'] as String?,
+        deviceType,
+        deviceId,
+        deviceName,
       );
-    case 'Disconnected':
-      _applyDisconnectedDevice(container, data);
+    case bridge.EquipmentEvent_Disconnected():
+      _applyDisconnectedDevice(container, event.data);
+    default:
+      break;
   }
 }
 

@@ -24,6 +24,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/backend/event_types.dart' as core_events;
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart'
+    show EquipmentEvent_DeviceDiscovered, EquipmentEvent_DeviceLost;
 import 'backend_provider.dart';
 import 'unified_discovery_provider.dart';
 import 'device_service_providers.dart';
@@ -90,15 +93,11 @@ final hotplugEventBridgeProvider = Provider<void>((ref) {
   StreamSubscription<core_events.SkotiqEvent>? subscription;
   subscription = backend.eventStream.listen(
     (event) {
-      if (event.category != core_events.EventCategory.equipment) return;
-      // The hot-plug watcher emits first-class `DeviceDiscovered` /
-      // `DeviceLost` typed variants, so a simple eventType filter is enough —
-      // no need to inspect a JSON payload to distinguish hot-plug events from
-      // the unrelated (and frequent) Mount / Camera / Focuser property-changed
-      // traffic.
-      if (event.eventType != core_events.deviceDiscoveredEventType &&
-          event.eventType != core_events.deviceLostEventType) {
-        return;
+      switch (equipmentEventOf(event)) {
+        case EquipmentEvent_DeviceDiscovered() || EquipmentEvent_DeviceLost():
+          break;
+        default:
+          return;
       }
 
       Log.info(
