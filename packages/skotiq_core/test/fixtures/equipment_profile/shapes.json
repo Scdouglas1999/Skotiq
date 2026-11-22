@@ -1388,7 +1388,7 @@
         "weatherId": null
       },
       {
-        "aperture": 0.0,
+        "aperture": 100.0,
         "cameraId": null,
         "cameraName": null,
         "coolOnConnect": false,
@@ -1407,7 +1407,7 @@
         "filterNames": null,
         "filterWheelId": null,
         "filterWheelName": null,
-        "focalLength": 0.0,
+        "focalLength": 800.0,
         "focalRatio": null,
         "focuserId": null,
         "focuserName": null,
@@ -2139,7 +2139,7 @@
         "weatherId": null
       },
       {
-        "aperture": 0.0,
+        "aperture": 100.0,
         "cameraId": null,
         "cameraName": null,
         "coolOnConnect": false,
@@ -2154,10 +2154,10 @@
         "description": null,
         "domeId": null,
         "filterFocusOffsets": null,
-        "filterNames": [],
+        "filterNames": null,
         "filterWheelId": null,
         "filterWheelName": null,
-        "focalLength": 0.0,
+        "focalLength": 800.0,
         "focalRatio": null,
         "focuserId": null,
         "focuserName": null,
@@ -2198,7 +2198,7 @@
         "defaultReadoutMode": null,
         "description": null,
         "domeId": null,
-        "filterFocusOffsets": {},
+        "filterFocusOffsets": null,
         "filterNames": null,
         "filterWheelId": null,
         "filterWheelName": null,
@@ -2223,8 +2223,8 @@
         "safetyMonitorName": null,
         "switchId": null,
         "switchName": null,
-        "telescopeAperture": 0.0,
-        "telescopeFocalLength": 0.0,
+        "telescopeAperture": null,
+        "telescopeFocalLength": null,
         "telescopeName": null,
         "weatherId": null
       }
@@ -2700,7 +2700,7 @@
         "weather_id": null
       },
       {
-        "aperture": 0.0,
+        "aperture": 100.0,
         "camera_id": null,
         "camera_name": null,
         "cool_on_connect": false,
@@ -2715,10 +2715,10 @@
         "description": null,
         "dome_id": null,
         "filter_focus_offsets": null,
-        "filter_names": "[]",
+        "filter_names": null,
         "filter_wheel_id": null,
         "filter_wheel_name": null,
-        "focal_length": 0.0,
+        "focal_length": 800.0,
         "focal_ratio": null,
         "focuser_id": null,
         "focuser_name": null,
@@ -2763,7 +2763,7 @@
         "default_readout_mode": null,
         "description": null,
         "dome_id": null,
-        "filter_focus_offsets": "{}",
+        "filter_focus_offsets": null,
         "filter_names": null,
         "filter_wheel_id": null,
         "filter_wheel_name": null,
@@ -2792,8 +2792,8 @@
         "sort_order": 0,
         "switch_id": null,
         "switch_name": null,
-        "telescope_aperture": 0.0,
-        "telescope_focal_length": 0.0,
+        "telescope_aperture": null,
+        "telescope_focal_length": null,
         "telescope_name": null,
         "weather_id": null
       }
