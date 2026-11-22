@@ -9,10 +9,12 @@ import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show schedulerRejectionChipLabel;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../../harness/provider_teardown.dart';
+import '../scheduler_test_doubles.dart';
 import 'plan_targets_test_support.dart';
 
 ndb.DbTarget _target(int id, String name) => ndb.DbTarget(
@@ -215,6 +217,49 @@ void main() {
           matching: find.text('Imaging now'),
         ),
         findsNothing,
+      );
+      await settleProviderTeardown(tester);
+    });
+  }
+
+  // A target the autopilot rules out reads the scheduler's own reason,
+  // shortened by the one ladder in skotiq_core.
+  for (final (reason, chip) in const [
+    ('required filter Ha not in wheel', 'Filter missing'),
+    ('outside time window 22:00–02:00', 'Outside window'),
+  ]) {
+    testWidgets('a ruled-out target reads "$chip"', (tester) async {
+      await _pump(
+        tester,
+        extra: [
+          currentSchedulerDecisionProvider.overrideWith(
+            (ref) => FakeCurrentSchedulerDecisionNotifier(
+              SchedulerDecision(
+                score: 0,
+                reasoning: const [],
+                evaluatedAt: DateTime.utc(2026, 11, 3, 22),
+                scoredCandidates: [
+                  TargetScore(
+                    targetId: 2,
+                    targetName: 'M74',
+                    totalScore: 0,
+                    factors: const [],
+                    hardConstraintFailed: true,
+                    rejectionReasons: [reason],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+      expect(schedulerRejectionChipLabel(reason), chip);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-2')),
+          matching: find.text(chip),
+        ),
+        findsOneWidget,
       );
       await settleProviderTeardown(tester);
     });

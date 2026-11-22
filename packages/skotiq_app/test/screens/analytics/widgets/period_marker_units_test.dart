@@ -5,10 +5,16 @@
 // periodogram and "P=0.33h" on the BLS spectrum. Cross-checking the peak
 // against the result meant doing arithmetic.
 
-import 'dart:io';
+import 'dart:math' as math;
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/analytics/widgets/period_analysis_panel.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_ui/skotiq_ui.dart';
 
 void main() {
   const twentyMinutesInDays = 20.0 / (24.0 * 60.0);
@@ -39,37 +45,78 @@ void main() {
         periodogramPeakLabel(1.0 / twentyMinutesInDays), isNot(endsWith('d')));
   });
 
-  // The three tests above only exercise the formatters. Both peak markers are
-  // painted onto a canvas, so no widget test can read the string back:
-  // building either marker from its own inline '${(p * 24).toStringAsFixed(2)}h'
-  // would restore the exact reported defect with every assertion above still
-  // green. These guards pin the call sites.
-  group('the spectra route their peak marker through the shared formatter', () {
-    String chartsSource() {
-      final file = File(
-          'lib/screens/analytics/widgets/period_analysis_panel/period_charts.dart');
-      expect(file.existsSync(), isTrue,
-          reason: 'the period charts moved; repoint this guard at their path');
-      return file.readAsStringSync();
-    }
+  // Both peak markers are painted onto a canvas, so the panel is pumped over
+  // a real analysis and each spectrum's marker is read from the chart it
+  // hands to the painter.
+  testWidgets('the painted peak markers read like the headline',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 3000);
+    addTearDown(tester.view.reset);
 
-    test('BLS spectrum marker calls blsPeakLabel', () {
-      final source = chartsSource();
-      expect(source, contains('blsPeakLabel(bestPeriod)'));
-      // Nothing in the charts may build a peak annotation of its own.
-      expect(source.contains("'P="), isFalse,
-          reason:
-              'the marker text must come from the shared formatters, not an '
-              'inline '
-              'unit conversion');
+    // A 20-minute variable sampled every 90 s for two hours.
+    final start = DateTime.utc(2026, 8, 1, 9);
+    final curve = List.generate(80, (i) {
+      final t = 90.0 * i;
+      return LightCurvePoint(
+        timestamp: start.add(Duration(seconds: 90 * i)),
+        flux: 1000,
+        differentialMagnitude: 0.05 * math.sin(2 * math.pi * t / 1200),
+        snr: 120,
+        uncertainty: 0.008,
+      );
     });
+    final result = const PeriodAnalysisService().analyze(
+      points: curve,
+      minPeriodDays: 0.01,
+      maxPeriodDays: 0.0823,
+    );
 
-    test('Lomb-Scargle marker calls periodogramPeakLabel', () {
-      final source = chartsSource();
-      expect(source, contains('periodogramPeakLabel(bestFrequency)'));
-      expect(source.contains("'P="), isFalse,
-          reason: 'the marker text must come from periodogramPeakLabel, not an '
-              'inline unit conversion');
-    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          periodAnalysisProvider.overrideWith(
+            () => _PresetAnalysis(PeriodAnalysisState(result: result)),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: SingleChildScrollView(
+                child: PeriodAnalysisPanel(
+                  colors: SkotiqColors.of(context),
+                  lightCurve: curve,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    String marker(String seriesLabel) => tester
+        .widgetList<SkotiqChart>(find.byType(SkotiqChart))
+        .singleWhere((c) => c.series.any((s) => s.label == seriesLabel))
+        .rules
+        .single
+        .label!;
+
+    final lsPeriod = formatPeriodLabel(result.lombScargle.bestPeriod);
+    expect(lsPeriod, endsWith('min'));
+    expect(marker('Power'), 'P=$lsPeriod');
+    expect(
+      marker('SR'),
+      'P=${formatPeriodLabel(result.bls.bestPeriod)}',
+    );
   });
+}
+
+class _PresetAnalysis extends PeriodAnalysisNotifier {
+  _PresetAnalysis(this._state);
+  final PeriodAnalysisState _state;
+
+  @override
+  PeriodAnalysisState build() => _state;
 }

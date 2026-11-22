@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';
 
@@ -42,33 +40,4 @@ void main() {
       );
     },
   );
-
-  test('the target list grows no second rejection ladder', () {
-    // The guard that makes the two-implementations trap loud instead of
-    // silent: the chip must come from skotiq_core, so this file may not
-    // contain its own reason matching.
-    final source = File(
-      'lib/screens/planner/targets/target_list.dart',
-    ).readAsStringSync();
-    // Strip the doc comment that explains the rule (it names the words).
-    final code = source
-        .split('\n')
-        .where((l) => !l.trimLeft().startsWith('//'))
-        .join('\n');
-    for (final forbidden in const [
-      "contains('altitude'",
-      "contains('moon",
-      "contains('horizon",
-      "contains('filter'",
-      "contains('time window'",
-    ]) {
-      expect(
-        code.contains(forbidden),
-        isFalse,
-        reason: 'target_list.dart must not classify rejection reasons itself; '
-            'use schedulerRejectionChipLabel() from skotiq_core',
-      );
-    }
-    expect(code, contains('schedulerRejectionChipLabel('));
-  });
 }

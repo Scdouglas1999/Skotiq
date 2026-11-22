@@ -6,20 +6,23 @@
 // click aimed at the app underneath.
 //
 // Two halves are pinned here:
-//   1. the sequencer screen asks `sessionReportPresentationProvider` BEFORE it
-//      shows the dialog, and
+//   1. an ending run the presentation gate calls unattended queues its report
+//      and opens no dialog, and
 //   2. the queue those reports go into is reachable — the toast says "open it
 //      from Sequencer ▸ History", and this is the card that makes that true.
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/pending_session_reports_card.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/session_report_dialog.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
+import '../../harness/pump_app_screen.dart';
 
 Future<void> _pump(WidgetTester tester, ProviderContainer container) async {
   await tester.pumpWidget(
@@ -105,20 +108,42 @@ void main() {
     expect(find.text('Open report'), findsNothing);
   });
 
-  // Structural guard: the gate has to be consulted at the ONE place the modal
-  // is opened. A widget test of the whole sequencer screen cannot be built
-  // cheaply, and the failure mode being guarded is someone restoring the
-  // unconditional `SessionReportDialog.show` above it.
-  test('the terminal-run listener consults the presentation gate first', () {
-    final source = File(
-      'lib/screens/sequencer/sequencer_screen.dart',
-    ).readAsStringSync();
-    final listener = source.substring(
-      source.indexOf('ref.listenManual<SequenceTerminalRunResult?>'),
-      source.indexOf('SessionReportDialog.show(context, sessionId'),
+  testWidgets(
+      'an unattended run that ends queues its report instead of a modal',
+      (tester) async {
+    final handle = await pumpAppScreen(
+      tester,
+      const SequencerScreen(),
+      size: const Size(1600, 900),
+      extraOverrides: [
+        sessionReportPresentationProvider
+            .overrideWithValue(SessionReportPresentation.queued),
+        // The ETA column's wall clock would leave a periodic timer behind.
+        ledgerClockProvider
+            .overrideWith((ref) => const Stream<DateTime>.empty()),
+      ],
+      settle: false,
     );
-    expect(listener, contains('sessionReportPresentationProvider'));
-    expect(listener, contains('SessionReportPresentation.queued'));
-    expect(listener, contains('pendingSessionReportsProvider'));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    handle.container.read(runRecordProvider.notifier).seed(
+          (record) => record.copyWith(
+            terminal: const SequenceTerminalRunResult(
+              generation: 1,
+              outcome: SequenceExecutionState.failed,
+              runStatus: SequenceRunStatus.failed,
+              runId: 11,
+              dbSessionId: 7,
+            ),
+          ),
+        );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final queued = handle.container.read(pendingSessionReportsProvider);
+    expect(queued.map((r) => (r.sessionId, r.runId)), [(7, 11)]);
+    expect(find.byType(SessionReportDialog), findsNothing,
+        reason: 'no modal over the screen the operator is on');
+    expect(find.byType(Dialog), findsNothing);
   });
 }
