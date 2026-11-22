@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/goto_altitude_check.dart';
 import '../services/mount_command_service.dart';
+import '../services/rotate_after_centering.dart';
 import 'centering_dialog.dart';
 import '../utils/snackbar_helper.dart';
 
@@ -355,31 +356,11 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
       return;
     }
 
-    if (widget.targetRotation != null) {
-      try {
-        final rotatorState = ref.read(rotatorStateProvider);
-        if (rotatorState.connectionState == DeviceConnectionState.connected &&
-            rotatorState.deviceId != null) {
-          final deviceBackend = ref.read(deviceBackendProvider);
-          await deviceBackend.rotatorMoveTo(
-            rotatorState.deviceId!,
-            widget.targetRotation!,
-          );
-          if (mounted &&
-              _isCurrentOperation(revision, backend) &&
-              identical(ref.read(deviceBackendProvider), deviceBackend) &&
-              ref.read(rotatorStateProvider).deviceId ==
-                  rotatorState.deviceId) {
-            context.showSuccessSnackBar(
-              'Rotating to ${widget.targetRotation!.toStringAsFixed(1)}°',
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted && _isCurrentOperation(revision, backend)) {
-          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
-        }
-      }
+    final rotation = widget.targetRotation;
+    if (rotation == null) return;
+    final rotated = await rotateAfterCentering(ref, rotation);
+    if (rotated != null && mounted && _isCurrentOperation(revision, backend)) {
+      context.showCommandActionResult(rotated);
     }
   }
 

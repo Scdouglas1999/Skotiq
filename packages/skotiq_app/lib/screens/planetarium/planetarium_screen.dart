@@ -24,6 +24,7 @@ import 'widgets/mobile_widgets.dart';
 import 'providers/device_orientation_provider.dart';
 import 'providers/finder_chart_catalog_provider.dart';
 import '../../services/mount_command_service.dart';
+import '../../services/rotate_after_centering.dart';
 import '../../utils/exported_file_reveal.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../tours/tour_target.dart';
