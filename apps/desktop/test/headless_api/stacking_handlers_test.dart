@@ -1,14 +1,18 @@
-// Regression tests for the host-side live-stacking coordinator
-// (StackingHandlers). The novel, bug-prone logic is the arm → reference →
-// auto-feed sequence: a remote client arms the host with no reference frame,
-// then the FIRST `ImageSaved` event becomes the reference (startFromFile) and
-// every subsequent saved frame is added (addFrameFromFile). These tests pin
-// that orchestration with a fake LiveStackingService so it can't regress.
+// Regression tests for the host's live-stacking routes (StackingHandlers).
+// The bug-prone logic is the arm -> reference -> feed sequence: a linked
+// client arms the host with no reference frame, then the first frame the
+// host's run accepts becomes the reference and every later one is added.
+// Frames reach the stack the way a run delivers them, through
+// LiveStackingFeed, and a fake LiveStackingService stands in for the native
+// stacker.
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/bridge_events.dart'
+    show SequencerEvent_FrameAccepted;
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_desktop/headless_api/handlers/stacking_handlers.dart';
 import 'package:shelf/shelf.dart';
@@ -45,24 +49,23 @@ class _FakeStackingService extends LiveStackingService {
   @override
   int get frameCount => _active ? 1 + added.length : 0;
 
+  /// A start of the unfiltered slot is the whole stack, as natively: a
+  /// start without a filter starts that slot.
   @override
   Future<LiveStackingStats> start({
     String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
     String? filterKey,
   }) async {
-    if (filterKey != null) {
-      if (startError case final error?) throw error;
-      startedFilters.add(filterKey);
-      startedConfigs.add(config);
-      _slots.add(filterKey);
-      _active = true;
-      return LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
-    }
     if (startError case final error?) throw error;
-    started.add(referenceImagePath!);
+    final slot = normalizeLiveStackFilterKey(filterKey);
+    if (slot == kDefaultLiveStackFilterKey) {
+      started.add(referenceImagePath!);
+    } else {
+      startedFilters.add(slot);
+    }
     startedConfigs.add(config);
-    _slots.add('Unfiltered');
+    _slots.add(slot);
     _active = true;
     return LiveStackingStats(stackedFrameCount: 1, totalFramesAttempted: 1);
   }
@@ -135,8 +138,31 @@ class _FakeStackingService extends LiveStackingService {
         height: 2,
         channels: 1,
         data: const [10, 20, 30, 40],
+        filterKey: normalizeLiveStackFilterKey(filterKey),
         stats: LiveStackingStats(stackedFrameCount: 1 + added.length),
       );
+}
+
+SequencerEvent_FrameAccepted _accepted(String path) {
+  final event = bridge.SequencerEvent.frameAccepted(
+    nodeId: 'exp-1',
+    frame: 1,
+    total: 1,
+    acceptedTotal: 1,
+    rejectedTotal: 0,
+    savePath: path,
+    capture: const bridge.FrameCaptureMetadata(
+      gainIsIso: false,
+      exposureSecs: 30,
+      binX: 1,
+      binY: 1,
+      frameType: 'Light',
+    ),
+  );
+  if (event is! SequencerEvent_FrameAccepted) {
+    throw StateError('frameAccepted did not build an accepted frame');
+  }
+  return event;
 }
 
 void main() {
@@ -147,6 +173,15 @@ void main() {
   late ProviderContainer container;
   late _FakeStackingService fake;
   late StackingHandlers handlers;
+  late LiveStackingFeed feed;
+  String? runFilter;
+
+  /// A light frame the host's run saved and accepted, through [runFilter].
+  Future<void> saved(String path, {String? filter}) async {
+    runFilter = filter;
+    feed.feed(_accepted(path));
+    await feed.pending;
+  }
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('sk_stacking_test_');
@@ -168,6 +203,15 @@ void main() {
     // Force creation so `fake` is assigned before the tests use it.
     container.read(liveStackingServiceProvider);
     handlers = StackingHandlers(container);
+    runFilter = null;
+    feed = LiveStackingFeed(
+      sequence: () => null,
+      progress: () => SequenceProgress(currentFilter: runFilter),
+      broadcast: () => container.read(liveStackingBroadcastServiceProvider),
+      stacker: () => container.read(liveStackingProvider.notifier),
+      stackState: () => container.read(liveStackingProvider),
+      logger: () => container.read(loggingServiceProvider),
+    );
   });
 
   tearDown(() async {
@@ -188,9 +232,9 @@ void main() {
     expect(jsonDecode(await startResp.readAsString())['status'], 'armed');
     expect(fake.started, isEmpty, reason: 'arming must not start the stacker');
 
-    await handlers.onImageSaved('/host/frame_0001.fits');
-    await handlers.onImageSaved('/host/frame_0002.fits');
-    await handlers.onImageSaved('/host/frame_0003.fits');
+    await saved('/host/frame_0001.fits');
+    await saved('/host/frame_0002.fits');
+    await saved('/host/frame_0003.fits');
 
     expect(fake.started, [
       '/host/frame_0001.fits',
@@ -201,14 +245,58 @@ void main() {
     ], reason: 'subsequent frames are added, not re-referenced');
   });
 
+  // 2026-11-22 simulator run: a client armed the host stack, the run saved
+  // nine frames and none reached it (status armed, started false): the routes
+  // armed their own flag while the run fed the host's live stack.
+  test('a stack a client armed is the one the host run feeds', () async {
+    await handlers.handleStart(post('/api/stacking/start'));
+    expect(container.read(liveStackingProvider).isActiveOrArmed, isTrue);
+
+    await saved('/host/L_0001.fits', filter: 'L');
+    await saved('/host/L_0002.fits', filter: 'L');
+
+    expect(fake.startedFilters, ['L']);
+    expect(fake.added, ['/host/L_0002.fits']);
+    final status = await _json(
+      handlers.handleStatus(
+        Request('GET', Uri.parse('http://localhost/api/stacking/status')),
+      ),
+    );
+    expect(status['started'], isTrue);
+  });
+
+  test(
+    'a stack the host armed itself is the one the routes answer for',
+    () async {
+      await container.read(liveStackingProvider.notifier).arm();
+      await saved('/host/ref.fits');
+
+      final status = await _json(
+        handlers.handleStatus(
+          Request('GET', Uri.parse('http://localhost/api/stacking/status')),
+        ),
+      );
+      expect(status['armed'], isTrue);
+      expect(status['started'], isTrue);
+
+      final stop = await _json(handlers.handleStop(post('/api/stacking/stop')));
+      expect(stop['wasRunning'], isTrue);
+      expect(fake.stops, 1);
+      expect(
+        container.read(liveStackingProvider).status,
+        LiveStackingStatus.idle,
+      );
+    },
+  );
+
   test('no auto-feed before arming or after stop', () async {
     // Not armed yet → ignored.
-    await handlers.onImageSaved('/host/ignored.fits');
+    await saved('/host/ignored.fits');
     expect(fake.started, isEmpty);
     expect(fake.added, isEmpty);
 
     await handlers.handleStart(post('/api/stacking/start'));
-    await handlers.onImageSaved('/host/ref.fits');
+    await saved('/host/ref.fits');
     expect(fake.started, ['/host/ref.fits']);
 
     final stopResp = await handlers.handleStop(post('/api/stacking/stop'));
@@ -216,7 +304,7 @@ void main() {
     expect(fake.stops, 1);
 
     // After stop, further saved frames are ignored.
-    await handlers.onImageSaved('/host/after_stop.fits');
+    await saved('/host/after_stop.fits');
     expect(fake.added, isEmpty);
   });
 
@@ -311,8 +399,8 @@ void main() {
     expect(fake.stoppedFilters, ['Ha']);
     expect(fake.stops, 0, reason: 'stopping Ha must not stop OIII');
 
-    // OIII is still the host stack, so a saved frame is still fed.
-    await handlers.onImageSaved('/host/oiii_2.fits');
+    // OIII is still a host stack, so its saved frame is still fed.
+    await saved('/host/oiii_2.fits', filter: 'OIII');
     expect(fake.added, ['/host/oiii_2.fits']);
 
     final dispatch = RouteTable.only(handlers).handler;
@@ -325,7 +413,7 @@ void main() {
     final resetAll = await dispatch(post('/api/stacking/reset'));
     expect(resetAll.statusCode, 200);
     expect(fake._slots, isEmpty);
-    await handlers.onImageSaved('/host/new-run.fits');
+    await saved('/host/new-run.fits');
     expect(fake.started.last, '/host/new-run.fits');
   });
 
@@ -463,7 +551,7 @@ void main() {
     'add-frame reports an alignment rejection as 422 frame_rejected',
     () async {
       await handlers.handleStart(post('/api/stacking/start'));
-      await handlers.onImageSaved('/host/ref.fits');
+      await saved('/host/ref.fits');
 
       fake.addError = Exception(
         'Alignment residual too high: 24.34px (max 10.00px)',
@@ -487,7 +575,7 @@ void main() {
     'add-frame reports a frame of another filter as 422 frame_other_filter',
     () async {
       await handlers.handleStart(post('/api/stacking/start'));
-      await handlers.onImageSaved('/host/ref.fits');
+      await saved('/host/ref.fits');
 
       fake.addError = Exception(
         'Frame of another filter not stacked: the frame was taken through R '
@@ -512,7 +600,7 @@ void main() {
 
   test('add-frame reports an unreadable path as 404 frame_unreadable', () async {
     await handlers.handleStart(post('/api/stacking/start'));
-    await handlers.onImageSaved('/host/ref.fits');
+    await saved('/host/ref.fits');
 
     fake.addError = Exception(
       'Failed to read frame image: IO error: No such file or directory (os error 2)',
@@ -532,7 +620,7 @@ void main() {
   /// rather than being mislabelled as a routine rejection.
   test('add-frame leaves an unrecognized failure as a 500', () async {
     await handlers.handleStart(post('/api/stacking/start'));
-    await handlers.onImageSaved('/host/ref.fits');
+    await saved('/host/ref.fits');
 
     fake.addError = Exception('stacker segfaulted somewhere unexpected');
     final response = await translateHandlerErrors(
@@ -549,15 +637,15 @@ void main() {
   /// did not change it.
   test('auto-feed survives a rejected frame without throwing', () async {
     await handlers.handleStart(post('/api/stacking/start'));
-    await handlers.onImageSaved('/host/ref.fits');
+    await saved('/host/ref.fits');
 
     fake.addError = Exception(
       'Alignment residual too high: 30.00px (max 10.00px)',
     );
-    await expectLater(handlers.onImageSaved('/host/cloudy.fits'), completes);
+    await expectLater(saved('/host/cloudy.fits'), completes);
 
     fake.addError = null;
-    await handlers.onImageSaved('/host/good.fits');
+    await saved('/host/good.fits');
     expect(
       fake.added,
       contains('/host/good.fits'),
@@ -567,8 +655,8 @@ void main() {
 
   test('status + preview reflect the live stack', () async {
     await handlers.handleStart(post('/api/stacking/start'));
-    await handlers.onImageSaved('/host/ref.fits');
-    await handlers.onImageSaved('/host/f2.fits');
+    await saved('/host/ref.fits');
+    await saved('/host/f2.fits');
 
     final status =
         jsonDecode(
@@ -642,3 +730,6 @@ void main() {
     },
   );
 }
+
+Future<Map<String, dynamic>> _json(Future<Response> response) async =>
+    jsonDecode(await (await response).readAsString()) as Map<String, dynamic>;

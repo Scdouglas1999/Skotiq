@@ -453,16 +453,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
           _equipmentHandlers.forgetSharedStatus();
         }
         final stamped = broadcastEvent(event);
-        // Host-side live-stacking auto-feed: every frame the host writes to
-        // disk is offered to the stacker, which ignores it unless stacking is
-        // armed. This is what lets a running sequence stack live with no client
-        // in the loop. Fire-and-forget; the coordinator serializes internally.
-        if (event.eventType == 'ImageSaved') {
-          final path = event.data['file_path'];
-          if (path is String && path.isNotEmpty) {
-            _stackingHandlers.onImageSaved(path);
-          }
-        }
         // re-broadcast onto the SSE fan-out controller. Two
         // separate sinks (WS clients + SSE clients) read from the same
         // upstream so a phone subscribing via SSE sees the same events
