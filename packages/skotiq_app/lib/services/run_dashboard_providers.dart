@@ -710,13 +710,12 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
   // path below already refuses to treat an Info event as critical, and the two
   // must not disagree about the same event.
   final isCritical = sk_events.isCriticalEvent(event) && _isAtLeastError(event);
-  final title = sk_events.skotiqEventDisplayTitle(event);
   return RunDashboardEvent(
     eventId: event.eventId,
     time: DateTime.fromMillisecondsSinceEpoch(ms),
     severity: isCritical ? RunDashboardEventSeverity.critical : severity,
     category: _categoryLabel(event.category),
-    title: title,
+    title: sk_events.skotiqEventDisplayTitle(event),
     message: _nameDepthGoal(
       humanizeDeviceIds(sk_events.skotiqEventDisplayDetail(event), event),
       event,
@@ -724,18 +723,14 @@ RunDashboardEvent _toDashboardEvent(sk_events.SkotiqEvent event) {
     isCritical: isCritical,
     faultKey: _faultKey(event),
     isRunFault: _isRunFault(event),
-    kind: _rowKind(event, title),
+    kind: _rowKind(event),
   );
 }
 
-RunDashboardRowKind _rowKind(sk_events.SkotiqEvent event, String title) =>
+RunDashboardRowKind _rowKind(sk_events.SkotiqEvent event) =>
     switch (_sequencerEvent(event)) {
       sk_events.SequencerEvent_Completed() => RunDashboardRowKind.completion,
-      _ => switch (title) {
-          'Sequence stopped' => RunDashboardRowKind.stop,
-          'Sequence complete' => RunDashboardRowKind.completion,
-          _ => RunDashboardRowKind.other,
-        },
+      _ => RunDashboardRowKind.other,
     };
 
 /// The banner key of a meridian flip outcome. One flip is one thing to know

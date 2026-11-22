@@ -125,23 +125,23 @@ void main() {
   });
 
   group('a host notification that happens to carry a run title', () {
-    test('titled Sequence stopped, it joins the stop row', () {
+    test('titled Sequence stopped, it is a row of its own', () {
       expect(
         _feed([
           _notification(2, s * 3, 'Sequence stopped'),
           _stopped(1, s, runId: 7),
         ]),
-        ['Sequence stopped|from the host (info)|x1'],
+        ['Sequence stopped|from the host (info)|x1', 'Sequence stopped||x1'],
       );
     });
 
-    test('titled Sequence complete, it folds into the completion', () {
+    test('titled Sequence complete, it is a row of its own', () {
       expect(
         _feed([
           _notification(2, s * 3, 'Sequence complete'),
           _completed(1, s),
         ]),
-        ['Sequence complete|from the host (info)|x1'],
+        ['Sequence complete|from the host (info)|x1', 'Sequence complete||x1'],
       );
     });
   });
