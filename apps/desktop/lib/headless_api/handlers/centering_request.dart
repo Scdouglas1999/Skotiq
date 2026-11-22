@@ -35,4 +35,4 @@ Future<CenteringConfig> centeringForRequest(
 /// it started, so a request without the flag publishes nothing; a caller
 /// that does not mirror (the web dashboard) sends `publish: true`.
 bool centeringPublishedFor(Map<String, dynamic> payload) =>
-    optionalBool(payload, 'publish') ?? false;
+    optionalBool(payload, 'publish') == true;
