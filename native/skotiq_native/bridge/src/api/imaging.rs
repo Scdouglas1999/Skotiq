@@ -252,7 +252,6 @@ pub async fn api_run_autofocus(
         device_id
     );
 
-    use serde::Deserialize;
     use skotiq_sequencer::instructions::{
         execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
     };
@@ -260,14 +259,6 @@ pub async fn api_run_autofocus(
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let af_config = sequencer_autofocus_config(&config)?;
-
-    #[derive(Debug, Deserialize)]
-    struct LegacyAutofocusPayload {
-        best_position: i32,
-        best_hfr: f64,
-        r_squared: f64,
-        focus_data: Vec<(i32, f64)>,
-    }
 
     let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
         device_id: device_id.clone(),
@@ -339,60 +330,34 @@ pub async fn api_run_autofocus(
                 )
             })?;
 
-            // Canonical payload (skotiq_sequencer::AutofocusResult)
-            if let Ok(af_result) =
-                serde_json::from_value::<skotiq_sequencer::AutofocusResult>(data.clone())
-            {
-                let focus_data: Vec<FocusDataPoint> = af_result
-                    .data_points
-                    .iter()
-                    .map(|dp| FocusDataPoint {
-                        position: dp.position,
-                        hfr: dp.hfr,
-                        fwhm: dp.fwhm,
-                        star_count: dp.star_count,
-                    })
-                    .collect();
+            let af_result = serde_json::from_value::<skotiq_sequencer::AutofocusResult>(data)
+                .map_err(|_| {
+                    SkotiqError::OperationFailed(
+                        "Autofocus completed but returned an unrecognized payload format"
+                            .to_string(),
+                    )
+                })?;
+            let focus_data: Vec<FocusDataPoint> = af_result
+                .data_points
+                .iter()
+                .map(|dp| FocusDataPoint {
+                    position: dp.position,
+                    hfr: dp.hfr,
+                    fwhm: dp.fwhm,
+                    star_count: dp.star_count,
+                })
+                .collect();
 
-                return Ok(AutofocusResultApi {
-                    best_position: af_result.best_position,
-                    best_hfr: af_result.best_hfr,
-                    focus_data,
-                    method: method_str,
-                    temperature: af_result.temperature_celsius.or(temperature),
-                    timestamp,
-                    curve_fit_quality: af_result.curve_fit_quality,
-                    backlash_applied: af_result.backlash_applied,
-                });
-            }
-
-            // Backward compatibility for legacy tuple payloads
-            if let Ok(legacy) = serde_json::from_value::<LegacyAutofocusPayload>(data.clone()) {
-                let focus_data = legacy
-                    .focus_data
-                    .into_iter()
-                    .map(|(position, hfr)| FocusDataPoint {
-                        position,
-                        hfr,
-                        fwhm: None,
-                        star_count: 0,
-                    })
-                    .collect();
-                return Ok(AutofocusResultApi {
-                    best_position: legacy.best_position,
-                    best_hfr: legacy.best_hfr,
-                    focus_data,
-                    method: method_str,
-                    temperature,
-                    timestamp,
-                    curve_fit_quality: legacy.r_squared,
-                    backlash_applied: false,
-                });
-            }
-
-            Err(SkotiqError::OperationFailed(
-                "Autofocus completed but returned an unrecognized payload format".to_string(),
-            ))
+            Ok(AutofocusResultApi {
+                best_position: af_result.best_position,
+                best_hfr: af_result.best_hfr,
+                focus_data,
+                method: method_str,
+                temperature: af_result.temperature_celsius.or(temperature),
+                timestamp,
+                curve_fit_quality: af_result.curve_fit_quality,
+                backlash_applied: af_result.backlash_applied,
+            })
         }
         NodeStatus::Failure => Err(SkotiqError::OperationFailed(
             result.message.unwrap_or("Autofocus failed".to_string()),
