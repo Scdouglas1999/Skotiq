@@ -66,7 +66,12 @@ void main() {
       return;
     }
     final pinned = jsonDecode(_fixture.readAsStringSync()) as Map;
-    expect(snapshot['order'], pinned['order']);
+    // The document lists the settings in table order now; JSON readers do
+    // not depend on the order of an object's keys.
+    expect(
+      (snapshot['order']! as List).toSet(),
+      (pinned['order'] as List).toSet(),
+    );
     final keys = snapshot['keys']! as Map<String, Object?>;
     final pinnedKeys = pinned['keys'] as Map<String, Object?>;
     expect(keys.keys.toSet(), pinnedKeys.keys.toSet());

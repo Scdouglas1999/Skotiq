@@ -4,7 +4,7 @@
 
 // dart format off
 
-import '../models/settings/app_settings.dart' show SafetyFailMode;
+import '../models/settings/app_settings_values.dart' show SafetyFailMode;
 import 'app_settings_table.dart';
 import 'preflight_strictness.dart';
 import 'setting.dart';
