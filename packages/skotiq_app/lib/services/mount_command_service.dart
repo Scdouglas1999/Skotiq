@@ -192,12 +192,16 @@ class MountCommandService {
   /// is asked once whether to move anyway ([moveWithSilentGuiderAskProvider]).
   ///
   /// A target below the horizon or the site's altitude floor is asked about
-  /// once first ([confirmGoToAltitude]); [targetName] names it there.
+  /// once first ([confirmGoToAltitude]); [targetName] names it there. A
+  /// caller that [alwaysConfirms] (a tap on the sky, the toolbar's Slew) asks
+  /// for every GoTo, and that one question carries the warning when there is
+  /// one.
   Future<CommandActionResult> slewTo(
     double ra,
     double dec, {
     bool showFeedback = true,
     String? targetName,
+    bool alwaysConfirms = false,
   }) async {
     final coordinateError = _equatorialCoordinateError(ra, dec);
     if (coordinateError != null) {
@@ -206,21 +210,28 @@ class MountCommandService {
     if (!isConnected) {
       return const CommandActionResult.failure('No mount connected');
     }
-    final refused = await confirmGoToAltitude(ra, dec, targetName: targetName);
+    final refused = await confirmGoToAltitude(
+      ra,
+      dec,
+      targetName: targetName,
+      alwaysConfirms: alwaysConfirms,
+    );
     if (refused != null) return refused;
     return sendSlew(ra, dec, showFeedback: showFeedback);
   }
 
   /// Asks the operator once when a GoTo to [ra]/[dec] points below the
-  /// horizon or the site's altitude floor ([goToAltitudeAskProvider]). Null
-  /// when the GoTo may go: the target is above the floor, the operator said
-  /// go, or no site is set (there is no altitude to judge). Otherwise the
+  /// horizon or the site's altitude floor ([goToAltitudeAskProvider]), or for
+  /// every GoTo when the caller [alwaysConfirms]. Null when the GoTo may go:
+  /// nothing needed asking (the target is above the floor, or no site is set
+  /// so there is no altitude to judge) or the operator said go. Otherwise the
   /// result to report. Settings that cannot be read refuse the GoTo, since a
   /// configured site cannot be told apart from none.
   Future<CommandActionResult?> confirmGoToAltitude(
     double ra,
     double dec, {
     String? targetName,
+    bool alwaysConfirms = false,
   }) async {
     try {
       await _ref.read(appSettingsProvider.future);
@@ -236,16 +247,18 @@ class MountCommandService {
       );
     }
     final site = _ref.read(appObserverLocationProvider);
-    if (site == null) return null;
     final floor = _ref.read(altitudeFloorProvider);
-    final verdict = judgeGoToAltitude(
-      raHours: ra,
-      decDeg: dec,
-      site: site,
-      floor: floor,
-      atUtc: _ref.read(clockProvider).nowUtc(),
-    );
-    if (verdict.kind == GoToAltitudeKind.clear) return null;
+    final verdict = site == null
+        ? null
+        : judgeGoToAltitude(
+            raHours: ra,
+            decDeg: dec,
+            site: site,
+            floor: floor,
+            atUtc: _ref.read(clockProvider).nowUtc(),
+          );
+    final clear = verdict == null || verdict.kind == GoToAltitudeKind.clear;
+    if (clear && !alwaysConfirms) return null;
     if (_altitudeQuestionOpen) {
       return const CommandActionResult.failure(
         'A GoTo below the horizon is already waiting for an answer',

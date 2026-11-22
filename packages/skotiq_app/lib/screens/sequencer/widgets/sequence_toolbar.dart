@@ -488,8 +488,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
           }
 
-          // A target below the horizon or the site's floor is asked about by
-          // the mount service, as every GoTo is.
+          // The toolbar's Slew always asks first; below the horizon or the
+          // site's floor that one question carries the warning.
           Future<void> slewToTarget() async {
             final target = ref.read(runDashboardActiveTargetProvider);
             if (target == null) {
@@ -511,6 +511,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   target.decDegrees,
                   showFeedback: false,
                   targetName: target.targetName,
+                  alwaysConfirms: true,
                 );
             if (result.isSuccess) {
               logger.info(
@@ -522,8 +523,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               }
             } else if (!result.hasMessage) {
               logger.info(
-                'Slew to ${target.targetName} canceled at the altitude '
-                'question.',
+                'Slew to ${target.targetName} canceled at the confirmation.',
                 source: 'Sequencer',
               );
             } else {

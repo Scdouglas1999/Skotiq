@@ -62,7 +62,9 @@ GoToAltitudeVerdict judgeGoToAltitude({
 /// A GoTo the operator is asked about: where its target sits against the
 /// ground and the site's floor.
 class GoToAltitudeQuestion {
-  final GoToAltitudeVerdict verdict;
+  /// Null when no site is set, so there is no altitude to judge. A GoTo whose
+  /// caller always confirms is asked about with a clear or a null verdict.
+  final GoToAltitudeVerdict? verdict;
   final String? targetName;
 
   /// The floor follows the site's horizon mask rather than one minimum
@@ -84,13 +86,23 @@ final goToAltitudeAskProvider =
   (ref) => (_) async => false,
 );
 
-/// The question of [goToAltitudeAskProvider], asked on [context]. Completes
-/// with true when the GoTo may go.
+/// The question of [goToAltitudeAskProvider], asked on [context]: a plain
+/// "Slew?" when the target is clear, the below-horizon or below-floor warning
+/// when it is not. Completes with true when the GoTo may go.
 Future<bool> askGoToAltitudeOn(
   BuildContext context,
   GoToAltitudeQuestion question,
 ) {
   final verdict = question.verdict;
+  if (verdict == null || verdict.kind == GoToAltitudeKind.clear) {
+    final name = question.targetName;
+    return ConfirmDialog.show(
+      context: context,
+      title: name == null ? 'Slew to these coordinates?' : 'Slew to $name?',
+      message: 'The mount will move now.',
+      confirmLabel: 'Slew now',
+    );
+  }
   final target = question.targetName ?? 'That target';
   final where = 'azimuth ${verdict.azimuthDeg.toStringAsFixed(0)}°';
 

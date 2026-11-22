@@ -128,16 +128,17 @@ void main() {
     );
   });
 
-  testWidgets(
-      'when idle it asks once when the target is under the floor, '
-      'as every GoTo does', (tester) async {
+  Future<(_SlewRecorder, List<GoToAltitudeQuestion>)> pumpAsking(
+    WidgetTester tester, {
+    List<Override> site = const [],
+  }) async {
     final asked = <GoToAltitudeQuestion>[];
     late _SlewRecorder mount;
     await _pumpToolbar(
       tester,
       executionState: SequenceExecutionState.idle,
       overrides: [
-        appSettingsProvider.overrideWith(_HighFloorSite.new),
+        ...site,
         mountStateProvider.overrideWith(_ConnectedMount.new),
         mountCommandServiceProvider
             .overrideWith((ref) => mount = _SlewRecorder(ref)),
@@ -147,17 +148,41 @@ void main() {
         }),
       ],
     );
-
     await tapCanvasBarAction(tester, 'Slew to target');
     await tester.pumpAndSettle();
+    return (mount, asked);
+  }
 
-    expect(asked, hasLength(1));
-    expect(asked.single.targetName, 'M42-TEST');
-    expect(mount.sent, 0);
+  Future<void> release(WidgetTester tester) async {
     // The connected mount arms the device-contact ticker; let it go.
     ProviderScope.containerOf(tester.element(find.byType(SequenceToolbar)))
         .read(mountStateProvider.notifier)
         .setDisconnected();
     await tester.pump(const Duration(seconds: 11));
+  }
+
+  testWidgets('when idle it always asks once before moving the mount',
+      (tester) async {
+    final (mount, asked) = await pumpAsking(tester);
+
+    expect(asked, hasLength(1), reason: 'a mis-press never moves the mount');
+    expect(asked.single.targetName, 'M42-TEST');
+    expect(asked.single.verdict?.kind ?? GoToAltitudeKind.clear,
+        GoToAltitudeKind.clear);
+    expect(mount.sent, 0);
+    await release(tester);
+  });
+
+  testWidgets('under the floor the one question carries the warning',
+      (tester) async {
+    final (mount, asked) = await pumpAsking(
+      tester,
+      site: [appSettingsProvider.overrideWith(_HighFloorSite.new)],
+    );
+
+    expect(asked, hasLength(1));
+    expect(asked.single.verdict?.kind, isNot(GoToAltitudeKind.clear));
+    expect(mount.sent, 0);
+    await release(tester);
   });
 }

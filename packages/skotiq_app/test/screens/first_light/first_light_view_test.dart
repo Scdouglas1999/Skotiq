@@ -23,6 +23,7 @@ class _ResultMountService extends MountCommandService {
     double dec, {
     bool showFeedback = true,
     String? targetName,
+    bool alwaysConfirms = false,
   }) async =>
       result;
 }

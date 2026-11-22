@@ -108,7 +108,7 @@ void main() {
     final result = await mount.slewTo(12, _belowHorizonDec, targetName: 'X');
 
     expect(asked, hasLength(1));
-    expect(asked.single.verdict.kind, GoToAltitudeKind.belowHorizon);
+    expect(asked.single.verdict?.kind, GoToAltitudeKind.belowHorizon);
     expect(asked.single.targetName, 'X');
     expect(mount.sent, 0);
     expect(result.isSuccess, isFalse);
@@ -121,7 +121,7 @@ void main() {
     await mount.slewTo(12, _alwaysUpDec);
 
     expect(asked, hasLength(1));
-    expect(asked.single.verdict.kind, GoToAltitudeKind.belowFloor);
+    expect(asked.single.verdict?.kind, GoToAltitudeKind.belowFloor);
     expect(mount.sent, 0);
   });
 
@@ -146,5 +146,28 @@ void main() {
     expect(asked, hasLength(1));
     expect(second.isSuccess, isFalse);
     expect(mount.sent, 1);
+  });
+
+  group('a caller that always confirms (sky tap, toolbar)', () {
+    testWidgets('above the floor: one plain question', (tester) async {
+      final (mount, asked) = await pump(tester, answer: true);
+
+      await mount.slewTo(12, _alwaysUpDec, alwaysConfirms: true);
+
+      expect(asked, hasLength(1));
+      expect(asked.single.verdict?.kind, GoToAltitudeKind.clear);
+      expect(mount.sent, 1);
+    });
+
+    testWidgets('below the floor: the same one question carries the warning',
+        (tester) async {
+      final (mount, asked) = await pump(tester, floorDeg: 60);
+
+      await mount.slewTo(12, _alwaysUpDec, alwaysConfirms: true);
+
+      expect(asked, hasLength(1));
+      expect(asked.single.verdict?.kind, GoToAltitudeKind.belowFloor);
+      expect(mount.sent, 0);
+    });
   });
 }

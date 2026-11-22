@@ -32,4 +32,16 @@ void main() {
     ];
     expect(definers, ['lib/services/mount_command_service.dart']);
   });
+
+  // A mis-tap or a mis-press must never move the mount without a question:
+  // these two callers ask for every GoTo, and the warning rides on that one
+  // question when the target is low.
+  for (final path in [
+    'lib/screens/planetarium/planetarium_screen/actions.dart',
+    'lib/screens/sequencer/widgets/sequence_toolbar.dart',
+  ]) {
+    test('$path always confirms its GoTo', () {
+      expect(File(path).readAsStringSync(), contains('alwaysConfirms: true'));
+    });
+  }
 }

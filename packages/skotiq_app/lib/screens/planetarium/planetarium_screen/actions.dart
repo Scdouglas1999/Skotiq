@@ -434,10 +434,12 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
       return;
     }
 
+    // A tap on the sky in slew mode always asks, so a mis-tap moves nothing.
     final result = await mountService.slewTo(
       coords.ra,
       coords.dec,
       targetName: objectName,
+      alwaysConfirms: true,
     );
     if (mounted) context.showCommandActionResult(result);
   }
