@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 require('./load_wire_errors');
+require('./load_run_state');
 
 const { makeDocument } = require('./dom_shim');
 

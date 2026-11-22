@@ -4026,7 +4026,7 @@
   /// live, fired a request, and surfaced an error toast; in the dark on a
   /// phone that reads as "the rig is broken", not "wrong button".
   function updateSequencerButtons(stateStr) {
-    const s = String(stateStr || 'idle').toLowerCase().replace(/[_\s]/g, '');
+    const phase = RUN_STATE.view(stateStr || 'idle').phase;
     const set = (id, enabled) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -4041,12 +4041,11 @@
       }
       el.disabled = !enabled;
     };
-    const running = s === 'running' || s === 'executing';
-    const paused = s === 'paused';
-    const transitional = s === 'stopping' || s === 'finalizing';
-    const recovering = s === 'recovering';
-    const stopRetry = s === 'stopfailed' || s === 'cleanupfailed';
-    set('btn-seq-start', !running && !paused && !transitional && !recovering && !stopRetry);
+    const running = phase === 'running';
+    const paused = phase === 'paused';
+    const recovering = phase === 'recovering';
+    const stopRetry = phase === 'stopRetry';
+    set('btn-seq-start', phase === 'idle' || phase === 'ended');
     set('btn-seq-pause', running);
     set('btn-seq-resume', paused);
     set('btn-seq-stop', running || paused || recovering || stopRetry);
@@ -4177,14 +4176,8 @@
     updateSequencerButtons(runState);
 
     if (statusEl) {
-      const badgeClass = getSequencerBadgeClass(runState);
-      // A paused run whose step is still finishing (an exposure, a slew, a
-      // focuser move) is not yet free to act on: say so until the host
-      // reports it idle.
-      const stepFinishing = runState.toLowerCase() === 'paused' &&
-        s.pausedIdle === false;
-      renderBadge(statusEl, stepFinishing ? 'pausing: step finishing' : runState,
-        badgeClass);
+      const view = RUN_STATE.view(runState, s.pausedIdle);
+      renderBadge(statusEl, view.label, view.badge);
     }
 
     if (nodeEl) nodeEl.textContent = s.currentNodeName || '--';
@@ -4214,17 +4207,6 @@
     // sequencer panel. They read the same state but render different
     // field sets.
     renderOpsSequencerLoadPanel();
-  }
-
-  function getSequencerBadgeClass(stateStr) {
-    if (!stateStr) return 'badge-idle';
-    const s = stateStr.toLowerCase();
-    if (s === 'running' || s === 'executing') return 'badge-running';
-    if (s === 'paused') return 'badge-paused';
-    if (s === 'recovering') return 'badge-recovering';
-    if (s === 'error' || s === 'failed') return 'badge-error';
-    if (s === 'completed' || s === 'done') return 'badge-completed';
-    return 'badge-idle';
   }
 
   // =========================================================================

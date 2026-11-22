@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 require('./load_wire_errors');
+require('./load_run_state');
 const vm = require('node:vm');
 
 const { makeDocument } = require('./dom_shim');
@@ -711,7 +712,7 @@ test('the sequencer badge asserts nothing before the first status', () => {
   ]);
   const render = build(
     ['document', 'state', 'renderBadge', 'updateSequencerButtons',
-      'getSequencerBadgeClass', 'sequencerProgressPercent',
+      'sequencerProgressPercent',
       'renderOpsSequencerLoadPanel', 'runDataIsStale', 'paintRunUnknown'],
     [fn('markProgressUnknown'), fn('markProgressKnown'),
       fn('renderSequencerPanel')],
@@ -721,7 +722,6 @@ test('the sequencer badge asserts nothing before the first status', () => {
     { sequencerStatus: null },
     (el, label, cls) => { el.textContent = label; el.className = cls; },
     () => {},
-    () => 'badge-idle',
     () => 0,
     () => {},
     // A healthy link with a fresh sequencer route: this test is about the
@@ -1722,7 +1722,7 @@ function sequencerPanel(sequencerStatus, { stale = false } = {}) {
   const render = build(
     ['document', 'state', 'renderBadge', 'updateSequencerButtons',
       'renderOpsSequencerLoadPanel', 'runDataIsStale'],
-    [fn('sequencerStateOf'), fn('getSequencerBadgeClass'),
+    [fn('sequencerStateOf'),
       fn('sequencerProgressPercent'), fn('markProgressUnknown'),
       fn('markProgressKnown'), fn('paintRunUnknown'),
       fn('renderSequencerPanel')],
@@ -3275,7 +3275,7 @@ function dashboardRunState(c) {
   build(
     ['document', 'state', 'refusedControls', 'renderOpsSequencerLoadPanel',
       'runDataIsStale', 'clearElement'],
-    [fn('sequencerStateOf'), fn('getSequencerBadgeClass'),
+    [fn('sequencerStateOf'),
       fn('sequencerProgressPercent'), fn('markProgressUnknown'),
       fn('markProgressKnown'), fn('paintRunUnknown'), fn('renderBadge'),
       fn('updateSequencerButtons'), fn('renderSequencerPanel')],

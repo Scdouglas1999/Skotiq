@@ -33,6 +33,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
+import '../run_state_script.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 import 'package:skotiq_core/utils.dart';
@@ -186,18 +187,27 @@ class StaticFileHandlers implements RouteSource {
         headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
       );
     }
-    if (normalized == _errorCodesScript) return _errorCodesResponse();
+    final shared = _sharedScript(normalized);
+    if (shared != null) return shared;
     return _serveFile(findDashboardDir(), normalized, surface: 'dashboard');
   }
 
-  /// The error codes both pages act on, from [ApiErrorCodes].
-  static const _errorCodesScript = 'js/wire-errors.js';
-
-  Response _errorCodesResponse() => contentResponse(
-    utf8.encode(ApiErrorCodes.javaScript()),
-    contentType: _mimeTypes['.js']!,
-    headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
-  );
+  /// The scripts both pages load from the host's own tables: the error codes
+  /// they act on ([ApiErrorCodes]) and the run state they show
+  /// ([RunStateScript]). Null for any other path.
+  Response? _sharedScript(String path) {
+    final script = switch (path) {
+      'js/wire-errors.js' => ApiErrorCodes.javaScript(),
+      'js/run-state.js' => RunStateScript.javaScript(),
+      _ => null,
+    };
+    if (script == null) return null;
+    return contentResponse(
+      utf8.encode(script),
+      contentType: _mimeTypes['.js']!,
+      headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
+    );
+  }
 
   /// `GET /run-watch` / `GET /run-watch/` — serve `index.html` for the
   /// phone SPA bootstrap.
@@ -231,7 +241,8 @@ class StaticFileHandlers implements RouteSource {
     if (normalized == null) {
       return jsonForbidden({'error': 'Invalid path'});
     }
-    if (normalized == _errorCodesScript) return _errorCodesResponse();
+    final shared = _sharedScript(normalized);
+    if (shared != null) return shared;
     return _serveFile(findRunWatchDir(), normalized, surface: 'run-watch');
   }
 
