@@ -71,9 +71,9 @@ pub async fn execute_wait_time(
                 );
             }
         };
-        let twilight_time = calculate_twilight_time(lat, lon, twilight);
-
-        let now = chrono::Utc::now().timestamp();
+        let now = ctx.run.clock.now_utc();
+        let twilight_time = calculate_twilight_time(lat, lon, twilight, &now);
+        let now = now.timestamp();
         if twilight_time == crate::solar::SUN_ALTITUDE_NEVER_REACHED {
             return InstructionResult::failure(format!(
                 "{:?} twilight does not occur at latitude {:.3} and longitude {:.3} for the current date. \
@@ -142,16 +142,18 @@ pub(crate) fn calculate_twilight_time(
     latitude: f64,
     longitude: f64,
     twilight_type: &TwilightType,
+    now: &chrono::DateTime<chrono::Utc>,
 ) -> i64 {
     let altitude_threshold: f64 = match twilight_type {
         TwilightType::Civil => -6.0,
         TwilightType::Nautical => -12.0,
         TwilightType::Astronomical => -18.0,
     };
-    crate::solar::time_of_sun_altitude(
+    crate::solar::time_of_sun_altitude_at(
         latitude,
         longitude,
         altitude_threshold,
         crate::solar::SunCrossing::Setting,
+        now,
     )
 }
