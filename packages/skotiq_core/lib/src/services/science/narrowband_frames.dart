@@ -32,7 +32,8 @@ NarrowbandFrames? latestNarrowbandFrames(Iterable<DbCapturedImage> images) {
 DbCapturedImage? _latestThrough(List<DbCapturedImage> images, String band) {
   DbCapturedImage? latest;
   for (final image in images) {
-    if (filterIdentity(image.filter ?? '') != band) continue;
+    final filter = image.filter;
+    if (filter == null || filterIdentity(filter) != band) continue;
     if (latest == null || image.capturedAt.isAfter(latest.capturedAt)) {
       latest = image;
     }
