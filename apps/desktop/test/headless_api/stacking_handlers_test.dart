@@ -143,11 +143,12 @@ class _FakeStackingService extends LiveStackingService {
       );
 }
 
-SequencerEvent_FrameAccepted _accepted(String path) {
+SequencerEvent_FrameAccepted _accepted(String path, {double? hfr}) {
   final event = bridge.SequencerEvent.frameAccepted(
     nodeId: 'exp-1',
     frame: 1,
     total: 1,
+    hfr: hfr,
     acceptedTotal: 1,
     rejectedTotal: 0,
     savePath: path,
@@ -177,9 +178,9 @@ void main() {
   String? runFilter;
 
   /// A light frame the host's run saved and accepted, through [runFilter].
-  Future<void> saved(String path, {String? filter}) async {
+  Future<void> saved(String path, {String? filter, double? hfr}) async {
     runFilter = filter;
-    feed.feed(_accepted(path));
+    feed.feed(_accepted(path, hfr: hfr));
     await feed.pending;
   }
 
@@ -762,6 +763,37 @@ void main() {
       expect(body['message'], 'Live stacking is not running.');
     },
   );
+
+  // A gate a linked client sets (skip frames softer than 2 px HFR) applies to
+  // the frames of the host's run; it only decides what the live stack takes.
+  test('the host feeder applies the gates a client sends', () async {
+    const sent = LiveStackingConfig(maxHfrPx: 2.0, minStarCount: 12);
+    final response = await handlers.handleStart(
+      post('/api/stacking/start', {'config': sent.toWireJson()}),
+    );
+    expect(response.statusCode, HttpStatus.ok);
+    final config = container.read(liveStackingProvider).config;
+    expect(config.maxHfrPx, 2.0);
+    expect(config.minStarCount, 12);
+
+    await saved('/host/ref.fits', hfr: 1.5);
+    await saved('/host/soft.fits', hfr: 3.5);
+    await saved('/host/sharp.fits', hfr: 1.8);
+    expect(fake.added, ['/host/sharp.fits']);
+  });
+
+  test('a client that sends no gate keeps the host\'s', () async {
+    await handlers.handleStart(
+      post('/api/stacking/start', {
+        'config': {'sigmaClipThreshold': 3.0},
+      }),
+    );
+    final config = container.read(liveStackingProvider).config;
+    expect(config.maxHfrPx, isNull);
+    expect(config.minStarCount, isNull);
+    expect(config.separateByFilter, isTrue);
+    expect(config.autoFeedEnabled, isTrue);
+  });
 
   test('the host reads every engine setting a client sends', () async {
     const sent = LiveStackingConfig(

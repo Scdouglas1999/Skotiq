@@ -196,9 +196,10 @@ class LiveStackingConfig {
     demosaicQuality: demosaicQuality,
   );
 
-  /// The engine settings as the `config` object of the host's stacking
-  /// routes. The feeder policy ([separateByFilter], [autoFeedEnabled],
-  /// [maxHfrPx], [minStarCount]) is not part of it.
+  /// The settings as the `config` object of the host's stacking routes: the
+  /// engine's, and the feeder's ([separateByFilter], [autoFeedEnabled], and
+  /// the [maxHfrPx] / [minStarCount] gates, null when off), which the host's
+  /// feeder applies to the frames of its run.
   Map<String, Object?> toWireJson() => {
     'sigmaClipEnabled': sigmaClipEnabled,
     'sigmaClipThreshold': sigmaClipThreshold,
@@ -212,6 +213,10 @@ class LiveStackingConfig {
     'sensorMode': sensorMode,
     if (bayerPattern != null) 'bayerPattern': bayerPattern,
     'demosaicQuality': demosaicQuality,
+    'separateByFilter': separateByFilter,
+    'autoFeedEnabled': autoFeedEnabled,
+    'maxHfrPx': maxHfrPx,
+    'minStarCount': minStarCount,
   };
 
   LiveStackingConfig copyWith({

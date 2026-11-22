@@ -742,6 +742,19 @@ class StackingHandlers implements RouteSource {
       sensorMode: sensorMode,
       bayerPattern: bayerPattern,
       demosaicQuality: demosaicQuality,
+      // The feeder's gates for the frames of this host's run. A key the
+      // client sends null turns its gate off; a key it does not send keeps
+      // the host's.
+      separateByFilter:
+          optionalBool(json, 'separateByFilter') ?? defaults.separateByFilter,
+      autoFeedEnabled:
+          optionalBool(json, 'autoFeedEnabled') ?? defaults.autoFeedEnabled,
+      maxHfrPx: json.containsKey('maxHfrPx')
+          ? optionalDouble(json, 'maxHfrPx', min: 0.1, max: 100)
+          : defaults.maxHfrPx,
+      minStarCount: json.containsKey('minStarCount')
+          ? optionalInt(json, 'minStarCount', min: 1, max: 100000)
+          : defaults.minStarCount,
     );
   }
 
