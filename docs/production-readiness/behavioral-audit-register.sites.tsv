@@ -3201,7 +3201,6 @@ packages/skotiq_core/lib/src/services/import/observing_list_json_importer.dart	O
 packages/skotiq_core/lib/src/services/import/observing_list_json_importer.dart	ObservingListMosaic.fromJson	literal_null_coalesce	1	V0102	row: (json['row'] ?? 0).toInt(),
 packages/skotiq_core/lib/src/services/import/sgp_sequence_parser.dart	_parseTarget	literal_null_coalesce	1	V0030	final autoCenter = _readBool(t['AutoCenter']) ?? false;
 packages/skotiq_core/lib/src/services/import/telescopius_csv_importer.dart	_buildMosaicGroup	literal_null_coalesce	1	V0102	..sort((a, b) => (a.paneIndex ?? 0).compareTo(b.paneIndex ?? 0));
-packages/skotiq_core/lib/src/services/live_stack_darkroom_promotion.dart	promote	literal_null_coalesce	1	R91-09	totalIntegrationSeconds: saved.totalIntegrationSecs ?? 0.0,
 packages/skotiq_core/lib/src/services/live_stack_master_library.dart	save	literal_null_coalesce	1	V0875	totalIntegrationSeconds: saved.totalIntegrationSecs ?? 0,
 packages/skotiq_core/lib/src/services/live_stacking_broadcast_service.dart	_watermarkTokens	literal_null_coalesce	1	V0102	'target': session.currentTarget ?? '',
 packages/skotiq_core/lib/src/services/live_stacking_broadcast_service.dart	_watermarkTokens	literal_null_coalesce	1	V0102	'target.name': session.currentTarget ?? '',
