@@ -13,7 +13,6 @@
 // mechanically over the widget's own source so a new row cannot reintroduce the
 // split by adding a sixth Title Case title.
 
-import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -179,18 +178,20 @@ void main() {
     expect(variants.single, ButtonVariant.secondary);
   });
 
-  test('no row title in the widget source is Title Case', () {
-    final source = File(
-      'lib/screens/settings/widgets/help_tutorials_settings.dart',
-    ).readAsStringSync();
-    final offenders = <String>[];
-    for (final match in RegExp(
-      r"^\s*title: '([^']+)',",
-      multiLine: true,
-    ).allMatches(source)) {
-      final title = match.group(1)!;
-      if (_isTitleCase(title)) offenders.add(title);
-    }
+  testWidgets('no title or label on the page is Title Case', (tester) async {
+    final db = _newInMemoryDb();
+    addTearDown(() async => db.close());
+    await _pumpHelpScreen(tester, db: db);
+
+    // Titles and labels, not the descriptions under them (sentences that
+    // name screens) or the section heads the theme sets in capitals.
+    bool isLabel(String text) =>
+        !text.endsWith('.') && text != text.toUpperCase();
+    final offenders = <String>{
+      for (final text in tester.widgetList<Text>(find.byType(Text)))
+        if (text.data case final data? when isLabel(data) && _isTitleCase(data))
+          data,
+    };
     // 06's copy rules ask for sentence case everywhere, headers included, so
     // there is no exception to enumerate.
     expect(
