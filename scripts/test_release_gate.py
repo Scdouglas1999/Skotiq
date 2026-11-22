@@ -12,7 +12,7 @@ from pathlib import Path
 
 SCRIPT = Path(__file__).with_name("release_gate.py")
 sys.path.insert(0, str(SCRIPT.parent))
-from release_gate import REQUIRED_CHECKS  # noqa: E402
+from release_gate import CI_WORKFLOW, REQUIRED_CHECKS, missing_required_checks  # noqa: E402
 
 FAKE_GH = """#!/usr/bin/env python3
 import os, sys
@@ -140,6 +140,21 @@ class ReleaseGateTest(unittest.TestCase):
         result = self.gate(self.merged, checks=checks)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("'Analyze'", result.stderr)
+
+
+class RequiredChecksTest(unittest.TestCase):
+    def test_every_required_check_is_a_job_of_the_ci_workflow(self):
+        self.assertEqual(missing_required_checks(CI_WORKFLOW.read_text()), [])
+
+    def test_a_renamed_job_is_reported(self):
+        renamed = CI_WORKFLOW.read_text().replace("name: Launch Gate", "name: Launch Gates")
+        self.assertEqual(missing_required_checks(renamed), ["Launch Gate"])
+
+    def test_a_matrix_job_produces_one_check_per_runner(self):
+        without_linux = CI_WORKFLOW.read_text().replace(
+            "os: [ubuntu-latest, windows-2022, macos-15]", "os: [windows-2022, macos-15]")
+        self.assertEqual(
+            missing_required_checks(without_linux), ["Build Test (Desktop) (ubuntu-latest)"])
 
 
 class SourceCommitTest(unittest.TestCase):
