@@ -134,4 +134,20 @@ void main() {
     expect(saves, isEmpty);
     expect(await masters.getAll(), isEmpty);
   });
+
+  test('a filter with no live stack is refused, not saved as the active '
+      'slot under its name', () async {
+    final stack = LiveStackingState(
+      status: LiveStackingStatus.running,
+      filterStacks: {'L': slot('L')},
+      selectedFilterKey: 'L',
+    );
+
+    await expectLater(
+      promoter().promote(stack: stack, filterKey: 'Ha'),
+      throwsStateError,
+    );
+    expect(saves, isEmpty);
+    expect(await masters.getAll(), isEmpty);
+  });
 }

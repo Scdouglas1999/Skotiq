@@ -76,6 +76,16 @@ class LiveStackDarkroomPromoter {
     int? sessionId,
     LiveRecipeSteps? recipeSteps,
   }) async {
+    final hasSlot = stack.filterStacks.containsKey(filterKey);
+    // The active-slot saver has no filter argument: using it for a filter
+    // with no slot would label whichever slot is active with [filterKey].
+    if (!hasSlot &&
+        (stack.filterStacks.isNotEmpty ||
+            filterKey != kDefaultLiveStackFilterKey)) {
+      throw StateError(
+        'There is no $filterKey live stack to send to Darkroom.',
+      );
+    }
     final snap = stack.filterStacks[filterKey] ?? stack.activeFilterStack;
     final frames =
         snap?.stats.stackedFrameCount ?? stack.stats.stackedFrameCount;
@@ -109,7 +119,7 @@ class LiveStackDarkroomPromoter {
       '${safeTarget}_${safeFilter}_${stamp}Z_${frames}f.fits',
     );
 
-    final saved = stack.filterStacks.containsKey(filterKey)
+    final saved = hasSlot
         ? await _saveMasterForFilter(filterKey, filePath)
         : await _saveMaster(filePath);
 
