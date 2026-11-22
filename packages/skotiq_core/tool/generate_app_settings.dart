@@ -286,9 +286,6 @@ final List<_WireField> _documentOnlyFields = [
   ),
 ];
 
-/// Host settings the wire model does not carry yet.
-const Set<String> _notOnTheWire = {'centeringToleranceArcsec'};
-
 String _scalar(String key, String type, String? fallback) {
   final read = switch (type.replaceAll('?', '')) {
     'int' => "(json['$key'] as num?)?.toInt()",
@@ -395,7 +392,7 @@ List<_WireField> _wireFields(String tableSource) {
           "ObserverLocation.fromJson(json['location'] as Map<String, dynamic>)",
     ),
     for (final s in kAppSettingsTable)
-      if (s.sync == SettingSync.host && !_notOnTheWire.contains(s.field))
+      if (s.sync == SettingSync.host)
         _wireFieldOf(s, docs[s.field] ?? const []),
     ..._documentOnlyFields,
   ];

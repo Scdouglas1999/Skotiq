@@ -476,6 +476,37 @@ void main() {
       );
     });
 
+    test(
+      'every host setting a client posts is applied and read back',
+      () async {
+        when(
+          () => profileBackend.updateSettings(any()),
+        ).thenAnswer((_) async {});
+        final response = await translateHandlerErrors(
+          handlers.handleUpdateSettings(
+            Request(
+              'POST',
+              Uri.parse('http://localhost/api/settings'),
+              body: jsonEncode({
+                'settings': {'centeringToleranceArcsec': 12.0},
+              }),
+              headers: {'content-type': 'application/json'},
+            ),
+          ),
+        );
+        expect(response.statusCode, HttpStatus.ok);
+        final get = await translateHandlerErrors(
+          handlers.handleGetSettings(
+            Request('GET', Uri.parse('http://localhost/api/settings')),
+          ),
+        );
+        final envelope =
+            jsonDecode(await get.readAsString()) as Map<String, dynamic>;
+        final saved = envelope['settings'] as Map<String, dynamic>;
+        expect(saved['centeringToleranceArcsec'], 12.0);
+      },
+    );
+
     group('credential settings', () {
       Future<Response> postAs(
         HeadlessTokenScope scope,

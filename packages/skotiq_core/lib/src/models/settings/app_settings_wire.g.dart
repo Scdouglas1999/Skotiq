@@ -57,6 +57,7 @@ class AppSettings {
     this.plateSolveSearchRadius = 30.0,
     this.blindSolve = false,
     this.centeringSyncMount = true,
+    this.centeringToleranceArcsec = 5.0,
     this.phd2Path = '',
     this.phd2Host = 'localhost',
     this.phd2Port = 4400,
@@ -221,6 +222,7 @@ class AppSettings {
         plateSolveSearchRadius: (json['plateSolveSearchRadius'] as num?)?.toDouble() ?? 30.0,
         blindSolve: json['blindSolve'] as bool? ?? false,
         centeringSyncMount: json['centeringSyncMount'] as bool? ?? true,
+        centeringToleranceArcsec: (json['centeringToleranceArcsec'] as num?)?.toDouble() ?? 5.0,
         phd2Path: json['phd2Path'] as String? ?? '',
         phd2Host: json['phd2Host'] as String? ?? 'localhost',
         phd2Port: (json['phd2Port'] as num?)?.toInt() ?? 4400,
@@ -402,6 +404,9 @@ class AppSettings {
   final double plateSolveSearchRadius;
   final bool blindSolve;
   final bool centeringSyncMount;
+  /// How close to the target, in arcseconds, counts as centered: the Center
+  /// step, every recenter of a run and centering started by hand all read it.
+  final double centeringToleranceArcsec;
   final String phd2Path;
   final String phd2Host;
   final int phd2Port;
@@ -747,6 +752,7 @@ class AppSettings {
     'plateSolveSearchRadius': plateSolveSearchRadius,
     'blindSolve': blindSolve,
     'centeringSyncMount': centeringSyncMount,
+    'centeringToleranceArcsec': centeringToleranceArcsec,
     'phd2Path': phd2Path,
     'phd2Host': phd2Host,
     'phd2Port': phd2Port,
@@ -909,6 +915,7 @@ class AppSettings {
     double? plateSolveSearchRadius,
     bool? blindSolve,
     bool? centeringSyncMount,
+    double? centeringToleranceArcsec,
     String? phd2Path,
     String? phd2Host,
     int? phd2Port,
@@ -1068,6 +1075,7 @@ class AppSettings {
       plateSolveSearchRadius: plateSolveSearchRadius ?? this.plateSolveSearchRadius,
       blindSolve: blindSolve ?? this.blindSolve,
       centeringSyncMount: centeringSyncMount ?? this.centeringSyncMount,
+      centeringToleranceArcsec: centeringToleranceArcsec ?? this.centeringToleranceArcsec,
       phd2Path: phd2Path ?? this.phd2Path,
       phd2Host: phd2Host ?? this.phd2Host,
       phd2Port: phd2Port ?? this.phd2Port,
@@ -1233,6 +1241,7 @@ class AppSettings {
           other.plateSolveSearchRadius == plateSolveSearchRadius &&
           other.blindSolve == blindSolve &&
           other.centeringSyncMount == centeringSyncMount &&
+          other.centeringToleranceArcsec == centeringToleranceArcsec &&
           other.phd2Path == phd2Path &&
           other.phd2Host == phd2Host &&
           other.phd2Port == phd2Port &&
@@ -1394,6 +1403,7 @@ class AppSettings {
     plateSolveSearchRadius,
     blindSolve,
     centeringSyncMount,
+    centeringToleranceArcsec,
     phd2Path,
     phd2Host,
     phd2Port,
@@ -1556,6 +1566,7 @@ class AppSettings {
       'plateSolveSearchRadius: $plateSolveSearchRadius, '
       'blindSolve: $blindSolve, '
       'centeringSyncMount: $centeringSyncMount, '
+      'centeringToleranceArcsec: $centeringToleranceArcsec, '
       'phd2Path: $phd2Path, '
       'phd2Host: $phd2Host, '
       'phd2Port: $phd2Port, '
