@@ -57,13 +57,10 @@ mixin _NetworkBackendRemoteLogOperations on NetworkBackendTransport {
         final req = await client!.getUrl(uri);
         req.headers.set('accept', 'text/event-stream');
         req.headers.set('cache-control', 'no-cache');
-        // Mirror _addAuthHeaders manually because the dart:io HttpClient
-        // doesn't share the package:http header pipeline.
-        req.headers.set(LinkVersion.header, skotiqRelease);
+        // The dart:io HttpClient does not share the package:http header
+        // pipeline, so the headers are set on the request here.
+        LinkVersion.hostHeaders(token: authToken).forEach(req.headers.set);
         req.headers.set(NetworkBackend._requestIdHeader, _nextRequestId(path));
-        if (authToken != null && authToken!.isNotEmpty) {
-          req.headers.set('Authorization', 'Bearer $authToken');
-        }
         if (lastEventId != null) {
           req.headers.set('last-event-id', lastEventId!);
         }

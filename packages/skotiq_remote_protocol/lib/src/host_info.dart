@@ -142,7 +142,7 @@ Future<HostInfoRead> readHostInfo({
     port: port,
     pathAndQuery: '/api/info',
   );
-  final requestHeaders = {...headers, LinkVersion.header: skotiqRelease};
+  final requestHeaders = LinkVersion.hostHeaders(headers: headers);
   final http.Response response;
   try {
     response =

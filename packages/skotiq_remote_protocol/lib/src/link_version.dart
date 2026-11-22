@@ -28,6 +28,18 @@ abstract final class LinkVersion {
   /// not say which release sent it.
   static const releaseRequiredCode = 'release_required';
 
+  /// The headers of a request to a host: [headers], the bearer [token] when
+  /// there is one, and this build's release. Every request a client sends a
+  /// host is built with these, so none goes out without the release.
+  static Map<String, String> hostHeaders({
+    String? token,
+    Map<String, String> headers = const {},
+  }) => {
+    ...headers,
+    if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    header: skotiqRelease,
+  };
+
   /// Null when [host] and [client] are the same release; otherwise what is
   /// wrong and which side to update. [host] is the release a host actually
   /// reported: a host that has not answered is unreachable, not mismatched

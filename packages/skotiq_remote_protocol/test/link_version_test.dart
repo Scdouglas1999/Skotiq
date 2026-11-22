@@ -86,4 +86,31 @@ void main() {
       expect(skotiqRelease, declared);
     });
   });
+
+  group('host request headers', () {
+    test('carry the release, and the bearer token only when there is one', () {
+      expect(LinkVersion.hostHeaders(), {LinkVersion.header: skotiqRelease});
+      expect(LinkVersion.hostHeaders(token: ''), {
+        LinkVersion.header: skotiqRelease,
+      });
+      expect(
+        LinkVersion.hostHeaders(
+          token: 'secret',
+          headers: const {'Accept': 'application/json'},
+        ),
+        {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer secret',
+          LinkVersion.header: skotiqRelease,
+        },
+      );
+    });
+
+    test('the release wins over a caller-supplied value', () {
+      expect(
+        LinkVersion.hostHeaders(headers: const {LinkVersion.header: 'x'}),
+        {LinkVersion.header: skotiqRelease},
+      );
+    });
+  });
 }

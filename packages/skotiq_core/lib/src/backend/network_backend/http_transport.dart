@@ -27,13 +27,10 @@ extension _NetworkBackendHttpTransport on NetworkBackendTransport {
     Map<String, String> headers, {
     required String endpoint,
   }) {
-    headers[LinkVersion.header] = skotiqRelease;
+    headers.addAll(LinkVersion.hostHeaders(token: authToken));
     headers[NetworkBackendTransport._requestIdHeader] = _nextRequestId(
       endpoint,
     );
-    if (authToken != null && authToken!.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $authToken';
-    }
     return headers;
   }
 

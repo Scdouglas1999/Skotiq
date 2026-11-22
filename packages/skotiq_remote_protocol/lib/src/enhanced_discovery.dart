@@ -556,13 +556,8 @@ class EnhancedSkotiqDiscovery {
     developer.log('Cleared saved server', name: 'EnhancedDiscovery');
   }
 
-  static Map<String, String> _authHeaders(String? authToken) {
-    final headers = {LinkVersion.header: skotiqRelease};
-    if (authToken == null || authToken.isEmpty) {
-      return headers;
-    }
-    return {...headers, 'Authorization': 'Bearer $authToken'};
-  }
+  static Map<String, String> _authHeaders(String? authToken) =>
+      LinkVersion.hostHeaders(token: authToken);
 
   static DiscoveredServer _mergeServerInfo(
     DiscoveredServer seed,
