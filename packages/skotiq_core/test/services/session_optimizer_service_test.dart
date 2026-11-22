@@ -196,7 +196,8 @@ void main() {
       expect(plan.hasRecommendation, isTrue);
       expect(plan.primaryTarget, isNotNull);
       expect(plan.alternates.length, lessThanOrEqualTo(3));
-      expect(plan.recommendedExposureSeconds, greaterThan(0));
+      // No exposure context: no sub is sized from a stand-in rig.
+      expect(plan.recommendedExposureSeconds, 0);
       expect(plan.rationale, isNotEmpty);
     });
 
@@ -473,7 +474,7 @@ void main() {
     });
 
     test(
-      'falls back to Smart Night exposure math when context is unavailable',
+      'recommends no sub and names no filter when context is unavailable',
       () {
         final plan = service.buildPlanFromSuggestions([
           const TargetSuggestion(
@@ -495,15 +496,37 @@ void main() {
           ),
         ], generatedAt: DateTime(2026, 8, 1, 22));
 
-        expect(plan.recommendedExposureSeconds, greaterThan(0));
-        expect(plan.recommendedFilterName, equals('L'));
-        expect(plan.rationale.any((line) => line.contains('Glover')), isTrue);
+        expect(plan.recommendedExposureSeconds, 0);
+        expect(plan.recommendedFilterName, isNull);
+        expect(plan.rationale.any((line) => line.contains('Glover')), isFalse);
         expect(
-          plan.riskFactors.any((line) => line.contains('planning estimate')),
-          isTrue,
+          plan.riskFactors,
+          contains(
+            'Equipment optics are incomplete, so no sub-exposure is '
+            'recommended.',
+          ),
         );
       },
     );
+
+    test('a mosaic with no exposure context takes the luminance preset', () {
+      final exposure = smartNightMosaicExposureSettings(null);
+      expect(exposure.exposureSeconds, 120);
+      expect(exposure.filterName, isNull);
+      const noPixel = SmartNightExposureContext(
+        camera: CameraExposureSpec(
+          readNoiseE: 1.5,
+          fullWellE: 18000,
+          qePeak: 0.8,
+        ),
+        bortleClass: 5,
+        focalLengthMm: 480,
+        apertureMm: 80,
+        pixelSizeMicrons: null,
+        availableFilterNames: ['L'],
+      );
+      expect(smartNightMosaicExposureSettings(noPixel).exposureSeconds, 120);
+    });
 
     test(
       'builds mosaic exposure defaults from the shared Smart Night context',

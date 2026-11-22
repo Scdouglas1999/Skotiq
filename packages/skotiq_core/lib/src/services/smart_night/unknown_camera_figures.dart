@@ -7,8 +7,4 @@ abstract final class UnknownCameraFigures {
   static const double readNoiseE = 3.5;
   static const double fullWellE = 18000;
   static const double qePeak = 0.65;
-
-  /// The planning-estimate rig's pitch, used only before an exposure context
-  /// exists (session optimizer, mosaic defaults).
-  static const double pixelSizeMicrons = 3.76;
 }

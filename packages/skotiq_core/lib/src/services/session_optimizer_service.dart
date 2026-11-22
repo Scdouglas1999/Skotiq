@@ -8,7 +8,6 @@ import 'package:skotiq_astro/format.dart';
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
 import 'smart_night/exposure_calculator.dart';
-import 'smart_night/unknown_camera_figures.dart';
 import 'smart_night_service.dart';
 
 /// Kind of suggestion the post-session optimizer can emit.
@@ -346,35 +345,24 @@ MosaicExposureSettings smartNightMosaicExposureSettings(
   );
   if (recommended != null) return recommended;
   return MosaicExposureSettings(
-    exposureSeconds: _fallbackExposureContext
-        .recommendMosaicExposureSettings(
-          exposuresPerPanel: exposuresPerPanel,
-          binning: binning,
-        )!
-        .exposureSeconds,
+    exposureSeconds: _presetLuminanceSecs,
     exposuresPerPanel: exposuresPerPanel,
     filterName: null,
     binning: binning,
   );
 }
 
-const SmartNightExposureContext
-_fallbackExposureContext = SmartNightExposureContext(
-  camera: CameraExposureSpec(
-    readNoiseE: UnknownCameraFigures.readNoiseE,
-    fullWellE: UnknownCameraFigures.fullWellE,
-    qePeak: UnknownCameraFigures.qePeak,
-  ),
-  bortleClass: 5,
-  focalLengthMm: 500,
-  apertureMm: 80,
-  pixelSizeMicrons: UnknownCameraFigures.pixelSizeMicrons,
-  availableFilterNames: ['L'],
-  caveats: [
-    'Equipment optics are incomplete; using a conservative Smart Night planning estimate.',
-    'Configure focal length, aperture, and camera sensor values for target-specific exposure recommendations.',
-  ],
-);
+/// The sub a mosaic panel gets with no exposure calculation (no context yet,
+/// or no pixel size): Smart Night's own luminance preset.
+final double _presetLuminanceSecs =
+    const SmartNightSettings().defaultFrameDurationSecs['L'] ?? 120;
+
+/// What the plan says when it has no exposure context to size a sub with.
+const List<String> _noOpticsCaveats = [
+  'Equipment optics are incomplete, so no sub-exposure is recommended.',
+  'Configure focal length, aperture, and camera sensor values for '
+      'target-specific exposure recommendations.',
+];
 
 class _ExposurePlan {
   final double seconds;
@@ -459,16 +447,14 @@ class SessionOptimizerService {
     final estimatedUsableHours = (primary.visibility.hoursAboveMinAlt ?? 0)
         .clamp(0.0, 24.0);
 
-    final effectiveContext = exposureContext ?? _fallbackExposureContext;
     final filterChoice = chooseSmartNightFilters(
       target: primary,
-      availableFilters: effectiveContext.availableFilterNames,
-      oneShotColor: effectiveContext.oneShotColor,
+      availableFilters: exposureContext?.availableFilterNames ?? const [],
+      oneShotColor: exposureContext?.oneShotColor ?? false,
     );
-    final exposurePlan = _recommendExposure(
-      filterChoice.filters.first,
-      effectiveContext,
-    );
+    final exposurePlan = exposureContext == null
+        ? const _ExposurePlan(seconds: 0, caveats: _noOpticsCaveats)
+        : _recommendExposure(filterChoice.filters.first, exposureContext);
     final availableFilters = exposureContext?.availableFilterNames ?? const [];
     final recommendedFilterNames = availableFilters.isEmpty
         ? const <String>[]
@@ -476,11 +462,12 @@ class SessionOptimizerService {
     // A rig that reports no filter names at all captures unfiltered. The
     // exposure model still uses a luminance passband to size the sub, but
     // reporting that as "L" would promise a filter the built sequence never
-    // selects. A missing exposure context is a different case — that falls
-    // back to the planning-estimate rig, which does name a filter.
-    final rigNamesFilters = (exposureContext ?? _fallbackExposureContext)
-        .availableFilterNames
-        .any((name) => name.trim().isNotEmpty);
+    // selects. With no exposure context nothing is recommended.
+    final rigNamesFilters =
+        exposureContext?.availableFilterNames.any(
+          (name) => name.trim().isNotEmpty,
+        ) ??
+        false;
 
     final rationale = <String>[
       primary.reasoning,
