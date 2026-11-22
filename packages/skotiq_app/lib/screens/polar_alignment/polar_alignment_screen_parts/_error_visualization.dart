@@ -261,11 +261,10 @@ class _PolarErrorPainter extends CustomPainter {
 
   /// Zone colour for a ring at [arcsec]: the same 30"/60" grading the error
   /// readouts use, so a coarse-scale target is honestly all red.
-  Color _zoneColor(double arcsec) {
-    if (arcsec <= 30) return colors.success;
-    if (arcsec <= 60) return colors.warning;
-    return colors.error;
-  }
+  Color _zoneColor(double arcsec) => polarErrorToneColor(
+        colors,
+        polarErrorTone(arcsec, _gradingTargetArcsec, inclusive: true),
+      );
 
   @override
   void paint(Canvas canvas, Size size) {

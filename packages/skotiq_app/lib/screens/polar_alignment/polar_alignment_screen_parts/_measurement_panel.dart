@@ -224,11 +224,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize22,
                 fontWeight: FontWeight.bold,
-                color: error.azimuthError.abs() < 30
-                    ? colors.success
-                    : error.azimuthError.abs() < 60
-                        ? colors.warning
-                        : colors.error,
+                color: polarErrorToneColor(
+                  colors,
+                  polarErrorTone(error.azimuthError, _gradingTargetArcsec),
+                ),
               ),
             )
           else
@@ -257,11 +256,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
               style: TextStyle(
                 fontSize: SkotiqTypography.fontSize22,
                 fontWeight: FontWeight.bold,
-                color: error.altitudeError.abs() < 30
-                    ? colors.success
-                    : error.altitudeError.abs() < 60
-                        ? colors.warning
-                        : colors.error,
+                color: polarErrorToneColor(
+                  colors,
+                  polarErrorTone(error.altitudeError, _gradingTargetArcsec),
+                ),
               ),
             )
           else
@@ -303,11 +301,10 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
                   : 0.0,
               backgroundColor: colors.surfaceAlt,
               color: error != null
-                  ? (error.totalError < 30
-                      ? colors.success
-                      : error.totalError < 60
-                          ? colors.warning
-                          : colors.error)
+                  ? polarErrorToneColor(
+                      colors,
+                      polarErrorTone(error.totalError, _gradingTargetArcsec),
+                    )
                   : colors.textMuted,
               minHeight: 6,
             ),
@@ -354,3 +351,6 @@ extension _MeasurementPanel on _PolarAlignmentScreenState {
     );
   }
 }
+
+/// The target the error readouts grade against.
+const double _gradingTargetArcsec = 30;
