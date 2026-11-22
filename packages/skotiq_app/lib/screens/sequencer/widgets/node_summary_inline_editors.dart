@@ -411,8 +411,8 @@ class _DelaySecondsEditor extends ConsumerWidget {
       title: 'Delay',
       icon: LucideIcons.timer,
       initialValue: node.seconds,
-      min: NodeFieldLimits.delaySecsInline.min,
-      max: NodeFieldLimits.delaySecsInline.max,
+      min: NodeFieldLimits.delaySecs.min,
+      max: NodeFieldLimits.delaySecs.max,
       decimals: 0,
       suffix: 's',
       onCommit: (value) => ref
@@ -453,8 +453,8 @@ class _DitherPixelsEditor extends ConsumerWidget {
       title: 'Dither amount',
       icon: LucideIcons.shuffle,
       initialValue: node.pixels,
-      min: NodeFieldLimits.ditherPixelsInline.min,
-      max: NodeFieldLimits.ditherPixelsInline.max,
+      min: NodeFieldLimits.ditherPixels.min,
+      max: NodeFieldLimits.ditherPixels.max,
       decimals: 1,
       suffix: 'px',
       onCommit: (value) => ref

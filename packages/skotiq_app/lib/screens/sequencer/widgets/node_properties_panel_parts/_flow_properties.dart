@@ -280,8 +280,8 @@ class _DelayProperties extends ConsumerWidget {
             colors: colors,
             value: node.seconds,
             suffix: 's',
-            min: NodeFieldLimits.delaySecsInspector.min,
-            max: NodeFieldLimits.delaySecsInspector.max,
+            min: NodeFieldLimits.delaySecs.min,
+            max: NodeFieldLimits.delaySecs.max,
             decimals: 1,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
