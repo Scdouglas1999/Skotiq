@@ -335,9 +335,8 @@ void main() {
     });
   });
 
-  // Rig, 2026-11-03: a companion linked to the imaging host was stopped, and
-  // its next launch logged "nothing was safed on the way out. Check the rig."
-  // about equipment it never drove.
+  // A companion linked to the imaging host drives no equipment, so its next
+  // launch must not tell the operator to check the rig.
   group('a session that vanished', () {
     DesktopSessionRecord? vanished({required bool ownsRig}) {
       DesktopLastGasp(

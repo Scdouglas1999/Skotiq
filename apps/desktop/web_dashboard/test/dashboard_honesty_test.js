@@ -86,7 +86,7 @@ function build(params, sources, exportName) {
 }
 
 // ---------------------------------------------------------------------------
-// D4-05 — guider RMS
+// Guider RMS
 // ---------------------------------------------------------------------------
 
 function guidingPanel(guidingStatus) {
@@ -140,7 +140,7 @@ test('the RA row reads the key the server sends', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-10 — safety verdict with no sensor
+// Safety verdict with no sensor
 // ---------------------------------------------------------------------------
 
 function weatherPanel(weather, safety, { stale = false } = {}) {
@@ -214,12 +214,12 @@ test('a real sensor reporting unsafe still reads unsafe', () => {
   assert.equal(doc.getElementById('ops-safety-badge').textContent, 'unsafe');
 });
 
-// D4W-1. Arm weather safety on a box with no weather hardware and no reachable
+// Arm weather safety on a box with no weather hardware and no reachable
 // forecast and the provider falls to fail_closed: /api/safety/status answers
 // isSafe:false with dataSource 'unavailable', monitorsConnected 0 and
 // failModeWarning "No weather data sources available". Answering the sensor
-// question first turned that decision into "no sensor / no source" — a neutral
-// absence where the rig had refused to image.
+// question first would turn that refusal into a neutral "no sensor / no
+// source".
 test('a fail-closed refusal outranks the no-sensor reading', () => {
   const doc = weatherPanel(
     {
@@ -244,13 +244,12 @@ test('a fail-closed refusal outranks the no-sensor reading', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-04 — settings panel reads only keys the API emits
+// Settings panel reads only keys the API emits
 // ---------------------------------------------------------------------------
 
-// Verified against a live headless host: GET /api/settings emits 146 keys, of
-// which `observatoryName`, `defaultSavePath` and `plateSolveSolver` are none;
-// GET /api/settings/location answers {latitude, longitude, elevation} with no
-// `elevationMeters`. All four rows therefore read "--" on a configured host.
+// GET /api/settings carries none of `observatoryName`, `defaultSavePath` and
+// `plateSolveSolver`, and GET /api/settings/location answers {latitude,
+// longitude, elevation} with no `elevationMeters`.
 test('the settings panel reads the keys the API actually emits', async () => {
   const doc = makeDocument([
     'settings-observer-name', 'settings-save-path', 'settings-plate-solver',
@@ -304,7 +303,7 @@ test('the settings panel names no key the server does not send', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-01 — a dead backend must flip the header, not stay green
+// A dead backend must flip the header, not stay green
 // ---------------------------------------------------------------------------
 
 /**
@@ -422,10 +421,8 @@ function linkState({ unreachable, lastContactAt, lastWsMessageAt,
   return { doc, calls, repaints, opsRepaints, render, api, state };
 }
 
-// Measured before the fix: 65 s after SIGKILL the header still read a green
-// "Connected", the sequencer badge still read "running", and the weather panel
-// still read "safe". `api.isConnected` is set once at connect and never
-// cleared, so nothing in the page ever contradicted it.
+// `api.isConnected` is set once at connect and never cleared, so it cannot
+// be what the header reads.
 test('an unreachable server flips the header and raises a banner', () => {
   const now = Date.now();
   const { doc } = linkState({
@@ -444,12 +441,6 @@ test('an unreachable server flips the header and raises a banner', () => {
     'the sequencer badge must stop claiming a state');
 });
 
-// D4W-02. The badge was fixed and the figure was not. Measured against the
-// running bundle: SIGKILL at wire progress 0.250 left the badge "unknown" and
-// the banner up while "25%" stayed on screen, the bar stayed 94.75px wide and
-// the container kept announcing aria-valuenow="25" — for the whole 47 s the
-// probe watched. The sibling ops readout was correctly "--" the entire time,
-// so the page contradicted itself as well as the world.
 test('a lost link stops asserting a progress figure', () => {
   const now = Date.now();
   const seed = (doc) => {
@@ -520,11 +511,10 @@ test('silence past the contact window is stale even without a failed probe', () 
     /No answer from the Skotiq server/);
 });
 
-// D4W-1. An idle server pushes no events, so the 30 s ping/pong is the only
+// An idle server pushes no events, so the 30 s ping/pong is the only
 // thing that stamps contact and the gap between beats routinely reaches a full
-// interval. Measured against the 12 s window this code used to carry: over a
-// 200 s soak of a healthy, idle server the header spent 26 of 40 samples on
-// "No contact" while every request in flight was being answered.
+// interval, so a window shorter than that declares a healthy idle server
+// lost.
 test('a healthy idle server between heartbeats is never declared lost', () => {
   const now = Date.now();
   for (const gap of [12001, 20000, 29500, 35000]) {
@@ -542,10 +532,8 @@ test('a healthy idle server between heartbeats is never declared lost', () => {
   }
 });
 
-// D4W-2. Staleness is a state of the link, not a mark burned into the badge:
-// the badge that went "unknown" on a missed exchange stayed "unknown" for the
-// rest of the session — through every later healthy poll — because only the
-// header was ever restored.
+// Staleness is a state of the link, not a mark burned into the badge:
+// contact returning restores the badge as well as the header.
 test('contact returning hands the badge back to the real renderer', () => {
   const now = Date.now();
   const { doc, calls, repaints, render, api, state } = linkState({
@@ -600,7 +588,7 @@ test('a rate-limited but live server says so without going stale', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-03 — 429 handling
+// 429 handling
 // ---------------------------------------------------------------------------
 
 function loadApi(fetchStub) {
@@ -687,7 +675,7 @@ test('describeApiError never leaks a rate-limit body into the log', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-08 — aria-valuenow
+// Aria-valuenow
 // ---------------------------------------------------------------------------
 
 test('no progress bar declares aria-valuenow before it has a value', () => {
@@ -711,7 +699,7 @@ test('no progress bar declares aria-valuenow before it has a value', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4W-5 — before the first answer, the page is connecting, not reporting
+// Before the first answer, the page is connecting, not reporting
 // ---------------------------------------------------------------------------
 
 test('the sequencer badge asserts nothing before the first status', () => {
@@ -760,7 +748,7 @@ test('the sequencer badge asserts nothing before the first status', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4W-01 — the server log tail
+// The server log tail
 // ---------------------------------------------------------------------------
 
 /// An EventSource good enough to prove which listener kind a client used.
@@ -811,11 +799,8 @@ function apiWithEventSource() {
   return api;
 }
 
-// Measured against the running bundle: the panel sat on "Waiting for log
-// entries…" behind a badge reading "live" while a second EventSource attached
-// to the IDENTICAL url counted 174 frames on `addEventListener('log', …)` and
-// 0 on `onmessage`, over the same 12 s. `log_handlers.dart` names every frame
-// (`event: log`), and EventSource.onmessage fires only for unnamed ones.
+// `log_handlers.dart` names every frame (`event: log`), and
+// EventSource.onmessage fires only for unnamed ones.
 test('the log tail listens for the frames the server actually names', () => {
   const api = apiWithEventSource();
   const seen = [];
@@ -839,10 +824,7 @@ test('the log tail listens for the frames the server actually names', () => {
 });
 
 // The tail reads `severity` — an allow-LIST of exact level names. `minSeverity`
-// is /api/logs/recent's parameter and is ignored here, so the panel's selector
-// filtered nothing at all: a debug firehose arrived on a stream asked for
-// "info". Verified on the wire — `minSeverity=info` returned 2 debug entries in
-// the same window where `severity=info,warning,error,critical` returned none.
+// is /api/logs/recent's parameter and is ignored here.
 test('the log tail asks for the severities with the parameter that filters', () => {
   const api = apiWithEventSource();
   api.subscribeLogTail('warning', () => {}, null);
@@ -1038,14 +1020,6 @@ test('the header and the panels age their data on one clock', () => {
   }
 });
 
-// D4-4. Measured across a SIGTERM with the dashboard open on a live run: at
-// +8 s / +18 s / +38 s / +68 s the banner read "Every value below is from then
-// and may be wrong", the Run panel had gone to unknown/--/--, and seven
-// sibling panels carried a "Stale: …" line — while the Sequences panel went on
-// naming "M long night" as the Current target and the Analytics panel went on
-// reporting 15 frames, neither of them marked at all. They were simply not on
-// the clock: PANEL_KEYS never named them and the markup had no line for them
-// to write into.
 test('the Sequences and Analytics panels age like their siblings', () => {
   const now = Date.now();
   const h = linkState({
@@ -1067,7 +1041,7 @@ test('the Sequences and Analytics panels age like their siblings', () => {
   }
 });
 
-// D4-4, second half. paintRunUnknown clears every other claim the two panels
+// PaintRunUnknown clears every other claim the two panels
 // make about a run whose source has stopped answering — the badge, both
 // progress bars, the ETA, the node, the message — and left the target alone,
 // so "Current target: M long night" outlived all of them by 68 s.
@@ -1086,12 +1060,9 @@ test('a retired run leaves no target named either', () => {
     'the target is a claim about the run, and it dies with the run');
 });
 
-// Observed on screen during the fix's own re-reproduction: the Run panel had
-// gone honest (UNKNOWN / -- / --) while the Sequences panel two columns away
-// still read "Current node: Autofocus (HFR Degradation) / Progress 5%". Both
-// quote the same cached status, and the ops panel is repainted by sibling
-// fetches — the analytics summary, a slew, the first paint — that go on
-// succeeding while the sequencer route refuses.
+// Both panels quote the same cached status, and the ops panel is repainted
+// by sibling fetches — the analytics summary, a slew, the first paint — that
+// go on succeeding while the sequencer route refuses.
 test('the ops mirror cannot repaint a run the clock has already retired', () => {
   const doc = makeDocument([
     'seq-status', 'seq-node', 'seq-message', 'seq-progress-text',
@@ -1157,7 +1128,7 @@ test('the ops mirror cannot repaint a run the clock has already retired', () => 
 });
 
 // ---------------------------------------------------------------------------
-// D4-3 — "Current target" names the target
+// "Current target" names the target
 // ---------------------------------------------------------------------------
 
 /** Drive renderOpsSequencerLoadPanel with a healthy clock and one status. */
@@ -1209,13 +1180,6 @@ function opsLoadPanel(sequencerStatus, opsExtra) {
   return doc;
 }
 
-// Measured live against the release bundle: on a headless run whose
-// TargetHeader names "D4 Web Target" inside a sequence called "D4 web live",
-// the panel read "D4 web live" for every sample of the run — the imaging
-// SESSION's name, which a headless start takes from the sequence. Once the run
-// ended and /api/sessions/active answered {"session":null} the fallback named
-// the Loop ROOT node and the field read "D4 root"; during an interval
-// autofocus it read "Autofocus (HFR Degradation)".
 test('Current target names the target, never the sequence or the node', () => {
   const doc = opsLoadPanel({
     state: 'running',
@@ -1243,17 +1207,8 @@ test('a run that has named no target says so rather than guessing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W11-E / D4-01 + D4-02 — a positive empty state requires an answer that SAYS
+// A positive empty state requires an answer that SAYS
 // empty
-//
-// Measured against the release bundle on a rig with four connected simulator
-// devices and twelve registered frames: a content-free 200 on
-// /api/devices/connected rendered "No devices connected" (0 rows, mount alt
-// "--", no stale line, no toast, no log entry, header "Connected"), and the
-// same body — plus a body of `null` — on /api/images rendered "No captured
-// images yet." with the status line reading "No images captured yet.". The
-// control arms prove the class: a 500 kept the last good tiles and named the
-// failure.
 // ---------------------------------------------------------------------------
 
 class TestApiError extends Error {
@@ -1445,14 +1400,7 @@ test('an images answer lists its frames', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// W11-E / D4-03 — a rejected bearer must not strand the operator
-//
-// Measured against the release bundle: typing a wrong token and pressing Sign
-// in hid the overlay at t+3s, and at t+40s `#login-status` still read
-// "Signing in...", the header read "Disconnected", the only notice had been a
-// toast that expired at ~3s carrying the raw refusal body, and both fallback
-// controls (#btn-apply-token, #btn-pair) measured zero-size inside a collapsed
-// <details>.
+// A rejected bearer must not strand the operator
 // ---------------------------------------------------------------------------
 
 test('a refused credential is described by what to do, not by its JSON', () => {
@@ -1580,16 +1528,7 @@ test('an automatic connect only raises the form for a credential problem', () =>
 });
 
 // ---------------------------------------------------------------------------
-// D4W-2 — Weather & Safety is not exempt from the staleness clock
-//
-// Measured against the release bundle on :8213 with a hardware-connected safe
-// reading on the wire: 74 s after kill -TERM, with the header already reading
-// "No contact" and five sibling panels carrying "Stale: 1m 14s since last
-// update", the Weather & Safety panel still read "SAFE / Safe to image yes /
-// Alert level clear / Conditions are within limits / Temperature 8.5 °C /
-// Humidity 41 % / Cloud cover 3 %" with no freshness marker of any kind. It
-// was simply not on the clock: PANEL_KEYS never named it and the markup had
-// no line for it to write into. The Dome panel had the same shape.
+// Weather & Safety is not exempt from the staleness clock
 // ---------------------------------------------------------------------------
 
 test('the Weather & Safety and Dome panels age like their siblings', () => {
@@ -1762,13 +1701,10 @@ test('an answered weather fetch marks the panel fresh', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4W-3 — a sequencer status that names no state
+// A sequencer status that names no state
 //
-// Measured against the release bundle with {"state":null,...,"progress":null}
-// on /api/sequencer/status: the Run panel read Status IDLE / Progress 0% /
-// aria-valuenow="0" with no stale line, so a screen reader announced "0
-// percent" for a figure the server had explicitly refused to supply. The same
-// wire fed to /run-watch renders "Status unavailable / UNKNOWN / PROGRESS --".
+// A screen reader must not announce "0 percent" for a figure the server
+// explicitly refused to supply.
 // ---------------------------------------------------------------------------
 
 function sequencerPanel(sequencerStatus, { stale = false } = {}) {
@@ -1889,13 +1825,10 @@ test('a 200 that names a state is a refreshed panel', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4W-5 — a socket that never opened
+// A socket that never opened
 //
-// Measured against the release bundle through a page whose WebSocket never
-// completes its upgrade (a WS-hostile proxy or captive portal): the Event Log
-// printed the literal line "WebSocket silent for Infinitys — falling back to
-// REST polling". `Infinity` was the sentinel for "never connected" and it was
-// interpolated straight into operator-visible copy.
+// `Infinity` is the sentinel for "never connected"; it must not reach
+// operator-visible copy ("WebSocket silent for Infinitys").
 // ---------------------------------------------------------------------------
 
 function staleness({ lastWsMessageAt, lastContactAt = Date.now() - 200 }) {
@@ -1967,18 +1900,7 @@ test('a live socket arms no fallback and logs nothing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W13-C / D4-W1 — the dashboard must not 429-storm itself during a live run
-//
-// Measured against the release bundle on a D1 sim night (port 8212): with the
-// Event Log cleared and no other operator traffic, one 75 s run put 746 lines
-// in the panel of which 274 carried the red `error` category, and every single
-// one of those 274 was this page's own request coming back rate-limited
-// ("Sequencer fetch skipped: server is rate-limiting this session (retry in
-// 1s)" and its Checkpoint / Analytics / Camera siblings). Server-side over the
-// same shape, /api/logs/tail?minSeverity=debug recorded 147 real 429s in 45 s
-// across /api/sessions/active, /api/sequencer/checkpoint/has,
-// /api/sequencer/status, /api/sequencer/checkpoint/info and
-// /api/equipment/camera/status. The rig was healthy throughout.
+// The dashboard must not 429-storm itself during a live run
 // ---------------------------------------------------------------------------
 
 /** The coalescing scheduler over a fake clock, so a burst can be replayed. */
@@ -2138,17 +2060,7 @@ test('a panel-less background refresh still logs a real failure', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W13-C / D4-W2 — a rig that has never run reports no percentage
-//
-// Measured against the release bundle on an EMPTY database dir:
-// GET /api/sequencer/status answered
-// {"state":"idle","currentNodeId":null,"currentNodeName":null,
-//  "currentTarget":null,"progress":0.0,"message":null} — every field null
-// except the one figure, which was zero — and the two panels read
-// "Status IDLE / Current Node -- / Progress 0%" and "Current target -- /
-// Current node -- / Progress 0% / ETA --", both with aria-valuenow="0". The
-// same process answered /api/run-watch/snapshot with progressPercent null and
-// the phone surface rendered "PROGRESS --".
+// A rig that has never run reports no percentage
 // ---------------------------------------------------------------------------
 
 test('a rig that has never run shows no progress figure', () => {
@@ -2198,18 +2110,7 @@ test('a rig that HAS run keeps its real figure, zero included', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W13-C / D4-W3 — the gallery states the grader's verdict
-//
-// Measured against the release bundle after a D1 harness night whose star
-// floor was raised past anything the simulator produces: 26 of the 38 rows
-// GET /api/images returned carried "isAccepted": false plus a reason string,
-// and every tile rendered as
-// <button class="gallery-card" aria-label="B · 8/18/2026, 8:58:10 AM">
-//   <img …><div class="gallery-caption">B · 8/18/2026, 8:58:10 AM</div>
-// </button>
-// — indistinguishable from a keeper. The count line read "38 images shown."
-// and the preview modal read "Image preview / B · … / Download original /
-// Close".
+// The gallery states the grader's verdict
 // ---------------------------------------------------------------------------
 
 /** renderGallery over a scripted listing. */
@@ -2323,7 +2224,7 @@ test('the preview modal states the verdict on the frame it is showing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// w14-B — the active-session card
+// The active-session card
 // ---------------------------------------------------------------------------
 
 /** The REAL renderOpsAnalyticsPanel over the real wireNumber/formatDurationSeconds. */
@@ -2445,7 +2346,7 @@ test('wireNumber admits finite numbers and nothing else', () => {
 });
 
 // ---------------------------------------------------------------------------
-// w14-B — the rest of the sweep
+// The rest of the sweep
 //
 // The analytics card above was the finding's example, not its extent. These
 // are the other panels that took a wire value straight into a numeric render,
@@ -2565,8 +2466,8 @@ test('the weather rows refuse every value Number() would invent', () => {
   const doc = makeDocument(['t']);
   const el = doc.getElementById('t');
   const format = (v) => v.toFixed(1) + ' °C';
-  // Each of these used to coerce to a number and paint one: '' and [] became
-  // 0.0 °C — a freeze warning from a sensor that reported nothing.
+  // Each of these coerces to a number: '' and [] become 0.0 °C — a freeze
+  // warning from a sensor that reported nothing.
   for (const bad of ['', [], true, '12', 'banana', null, undefined, NaN]) {
     setOpsTelemetry(el, bad, format);
     assert.equal(el.textContent, '--', JSON.stringify(bad) + ' is not a reading');
@@ -2582,7 +2483,7 @@ test('a coordinate formatter answers only to numbers', () => {
     [], [fn('wireNumber'), fn('pad2'), fn('formatRA')], 'formatRA')();
   const formatDec = build(
     [], [fn('wireNumber'), fn('pad2'), fn('formatDec')], 'formatDec')();
-  // `isNaN([])` is false, so an empty array used to print the pole: an
+  // `isNaN([])` is false, so an empty array would print the pole: an
   // observatory pointed at 00h 00m from a payload that named no coordinate.
   for (const bad of [[], true, '5.588', 'banana', null, undefined, NaN, {}]) {
     assert.equal(formatRA(bad), '--h --m --s',
@@ -2681,9 +2582,8 @@ function polarPanel(polarAlignment) {
 }
 
 test('an unreadable polar error leaves the phase readable', () => {
-  // `isFinite('3.5')` is true, so the old guard admitted the string and threw
-  // on `.toFixed` — and the throw was raised before the phase row was written
-  // in the modal, so the operator lost the whole alignment readout.
+  // `isFinite('3.5')` is true, so a bare `isFinite` guard admits the string and
+  // throws on `.toFixed` before the phase row is written.
   const read = polarPanel({ phase: 'measuring', totalErrorArcmin: '3.5',
     statusMessage: 'adjusting' });
   assert.equal(read('pa-phase'), 'measuring');
@@ -2702,7 +2602,7 @@ test('a measured polar error is painted and graded', () => {
 test('a gallery row states an exposure only when one was sent', () => {
   const meta = build([], [fn('wireNumber'), fn('formatGalleryMeta')],
     'formatGalleryMeta')();
-  // `Number([])` is 0, so an empty exposure field used to label the frame
+  // `Number([])` is 0, so an empty exposure field would label the frame
   // "0s" — a sub that was never exposed.
   assert.doesNotMatch(meta({ id: 1, filter: 'L', exposureTime: [] }), /s$/);
   assert.doesNotMatch(meta({ id: 2, filter: 'L', exposureTime: true }), /1s/);
@@ -2711,7 +2611,7 @@ test('a gallery row states an exposure only when one was sent', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-03 — the camera panel's empty live preview
+// The camera panel's empty live preview
 // ---------------------------------------------------------------------------
 
 /** Every string a rendered subtree carries, joined. */
@@ -2754,9 +2654,7 @@ function emptyPreview(fallback) {
 }
 
 // `/api/camera/last-image/jpeg` serves an in-memory buffer that a relaunched
-// server has none of. Printing "No image captured yet" over its 404 put an
-// absolute on the same screen whose gallery said "14 images — 2 rejected",
-// measured against a rig restarted on its own database.
+// server has none of, so its 404 says nothing about the library.
 test('an empty buffer over a stocked library shows the library frame', () => {
   const { text, thumbs } = emptyPreview({
     status: 'read',
@@ -2833,18 +2731,7 @@ test('the static camera placeholder claims nothing about the night', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W19-A / D4-02, D4-03, D4-06 — a refusal the operator can read
-//
-// Measured against the release bundle with a read-only token on a live run:
-// pressing Pause posted /api/sequencer/pause, took a 403 naming
-// sequencer:control, and left the button enabled with no title, no Event Log
-// line, and a toast that pasted the wire body verbatim and then faded. Signing
-// in with a fine-grained view token that the rig accepts and honours produced
-// "The desktop rejected this token. Check it against the desktop's Remote
-// Access screen" — advice that cannot fix a scope problem, for a token that
-// was not rejected. And the Settings panel, refused a control-scope read,
-// rendered Observer / Save path / Latitude / Longitude / Elevation as "--",
-// which reads as an unconfigured host rather than a withheld one.
+// A refusal the operator can read
 // ---------------------------------------------------------------------------
 
 /** The 403 body the rig sends when it names the capability it refused on. */

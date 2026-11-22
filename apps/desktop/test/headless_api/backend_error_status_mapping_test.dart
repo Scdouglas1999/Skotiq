@@ -52,11 +52,9 @@ void main() {
     expect(result.body['message'], contains('completely saturated'));
     expect(result.body['message'], contains('reduce exposure time or gain'));
     expect(result.body['requestId'], 'test-request-id');
-    // The wire body must never carry the freezed constructor form. Named-field
-    // variants have no `field0`, so before this was special-cased the message
-    // shipped as
-    // "SkotiqError.exposureFailed(cameraId: native:zwo:0, reason: ...)"
-    // — observed live against the rig.
+    // The wire body must never carry the freezed constructor form
+    // ("SkotiqError.exposureFailed(cameraId: …)"); named-field variants have no
+    // `field0`.
     expect(
       result.body['message'],
       reason,
@@ -78,16 +76,10 @@ void main() {
   });
 
   // The wire `message` is rendered verbatim by remote/mobile clients, so it
-  // must always be a sentence an operator can act on. Observed live on a
-  // running instance with no image captured:
-  //   GET /api/camera/last-image  -> {"error":"device_error",
-  //        "message":"SkotiqError.noImageAvailable()"}
-  //   GET /api/imaging/raw-data   -> same
-  //   GET /api/run-watch/frame-thumbnail ->
-  //        "Failed to fetch last image: SkotiqError.noImageAvailable()"
-  // Cause: a message cleaner that only unwraps variants with a single
-  // positional `field0` lets zero-arg and named-field variants fall through to
-  // `toString()`, which is the freezed constructor form.
+  // must always be a sentence an operator can act on. A message cleaner that
+  // only unwraps variants with a single positional `field0` lets zero-arg and
+  // named-field variants fall through to `toString()`, which is the freezed
+  // constructor form ("SkotiqError.noImageAvailable()").
   test('no variant ever leaks the freezed constructor form', () async {
     final variants = <bridge_error.SkotiqError>[
       // zero-arg

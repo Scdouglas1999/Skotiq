@@ -234,9 +234,6 @@ function runningSnapshot(extra) {
   }, extra || {});
 }
 
-// D4-02. A killed backend used to leave a green `badge-running` on screen
-// indefinitely — measured at 35 s after SIGKILL, two poll intervals, with the
-// frame counter frozen at "1 / 12" and no banner anywhere on the page.
 test('a lost server flips the state badge and raises a banner', () => {
   const { doc, api } = loadRunWatch();
   api.noteLinkOk();
@@ -293,7 +290,7 @@ test('a missed poll interval counts as stale even with no error', () => {
     /state was "running"/);
 });
 
-// D4-06. `totalIntegrationSecs` is null whenever the host does not know the
+// `totalIntegrationSecs` is null whenever the host does not know the
 // run's planned integration, which on a headless appliance is always. The old
 // render turned that into "0s" and printed "24s / 0s".
 test('an unknown integration denominator renders as unknown, not zero', () => {
@@ -320,7 +317,7 @@ test('a target with no coordinates still shows its name', () => {
     /Coordinates unavailable/);
 });
 
-// D4-08. aria-valuenow="0" announces "0 percent" — a figure the server never
+// Aria-valuenow="0" announces "0 percent" — a figure the server never
 // sent. An absent attribute announces an indeterminate bar, which is the truth.
 test('an unknown progress percentage carries no aria-valuenow', () => {
   const { doc, api } = loadRunWatch();
@@ -344,7 +341,7 @@ test('the shipped markup declares no aria-valuenow before any snapshot', () => {
     'a bar that has heard nothing must not announce a value');
 });
 
-// D4-05, phone side. PHD2 answers 0.0 for every RMS while disconnected.
+// Phone side. PHD2 answers 0.0 for every RMS while disconnected.
 test('a disconnected guider reports no RMS at all', () => {
   const { doc, api } = loadRunWatch();
   api.applySnapshot(runningSnapshot());
@@ -388,7 +385,7 @@ test('no weather source never renders an affirmative verdict', () => {
     'a real sensor reporting clear may read green');
 });
 
-// D4W-1. A fail-closed safety policy refuses BECAUSE nothing could be read, so
+// A fail-closed safety policy refuses BECAUSE nothing could be read, so
 // the refusal arrives with dataSource 'unavailable' — the same payload shape as
 // "no sensor". The badge answered the sensor question first and printed a
 // neutral grey "no sensor"; the word "unsafe" appeared nowhere on the page
@@ -444,7 +441,7 @@ test('a refusal from a real sensor keeps the level it was given', () => {
   assert.ok(badge.classList.contains('badge-running'));
 });
 
-// D4-09. `POST /api/sequencer/stop` answers 200 with wasRunning:false and
+// `POST /api/sequencer/stop` answers 200 with wasRunning:false and
 // "No sequence was running; nothing to stop." when there is nothing to stop.
 test('a control reports the server refusal instead of a success toast', async () => {
   const answers = {
@@ -476,7 +473,7 @@ test('a control reports the server refusal instead of a success toast', async ()
   assert.equal(after[after.length - 1].textContent, 'Stop accepted');
 });
 
-// D4-03. The limiter's JSON body must never be what the operator reads, and
+// The limiter's JSON body must never be what the operator reads, and
 // the page must honour the server's own retry window rather than re-firing.
 test('a 429 is honoured as a retry window, not printed', async () => {
   const body = {
@@ -563,7 +560,7 @@ test('retryAfterSecsFrom prefers the body, then the header, then one second',
   });
 
 // ---------------------------------------------------------------------------
-// D4W-3 — a cancelled night is not an idle rig
+// A cancelled night is not an idle rig
 // ---------------------------------------------------------------------------
 
 /**
@@ -640,14 +637,8 @@ test('a snapshot that names no state at all is unknown, never idle', () => {
   assert.ok(doc.getElementById('state-badge').className.includes('badge-error'));
 });
 
-// D4-1. Measured live: `POST /api/sequencer/pause` at a cancelled run answered
-// 200 {"status":"paused"} and the next snapshot carried
-// `sequencer.state: cancelled` beside `progress.state: paused`; a resume made
-// it `progress.state: running`. The executor block outranked the wire state
-// unconditionally, so this page showed a green "running" badge — across
-// reloads, and without self-healing — for a run that had ended 40 s earlier.
-// The server now refuses those commands; this is the second lock, so neither
-// half can lie on its own.
+// The server refuses pause/resume on an ended run; this is the second lock,
+// so neither half can lie on its own.
 test('a run the wire says has ended outranks a live-looking executor block',
   () => {
     const { doc, api } = loadRunWatch();
@@ -675,7 +666,7 @@ test('a run the wire says has ended outranks a live-looking executor block',
   });
 
 // ---------------------------------------------------------------------------
-// D4-2 — the controls, and what they claim
+// The controls, and what they claim
 // ---------------------------------------------------------------------------
 
 /** The four gated controls' disabled flags, as the operator would find them. */
@@ -688,11 +679,6 @@ function controlState(doc) {
   };
 }
 
-// Measured on a fresh-boot rig with no run ever started: every control
-// rendered enabled (disabled === false for all five), Pause drew
-// "Pause accepted", Skip drew "Skip accepted", Resume drew "Resume accepted",
-// and GET /api/sequencer/status still read "idle" afterwards. The desktop
-// dashboard gated the same three on the executor state; this surface did not.
 test('the run controls open only for the state the rig reports', () => {
   const { doc, api } = loadRunWatch();
   api.noteLinkOk();
@@ -758,7 +744,7 @@ function ruleBody(css, selector) {
   return body.split(';').map((d) => d.trim()).filter(Boolean).sort();
 }
 
-// D4-W1. `updateRunControls` set `disabled` truthfully in every state, but the
+// `updateRunControls` set `disabled` truthfully in every state, but the
 // stylesheet carried no `.pb-btn:disabled` rule, so the flag painted nothing:
 // with the daemon killed under a live run the bar read `disabled: true` on all
 // four controls while rendering opacity 1, cursor pointer and full saturation
@@ -866,7 +852,7 @@ test('a healthy snapshot after an outage takes the figure back', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4W-5 — before the first snapshot, the page is connecting
+// Before the first snapshot, the page is connecting
 // ---------------------------------------------------------------------------
 
 test('the shipped markup asserts no rig state before the first snapshot', () => {
@@ -880,13 +866,11 @@ test('the shipped markup asserts no rig state before the first snapshot', () => 
   assert.match(name[1].trim(), /^Connecting/);
 });
 
-// D4W-03. `progressPercent: null` is the server's own degraded payload
+// `progressPercent: null` is the server's own degraded payload
 // (`_unavailableProgressJson` in run_watch_handlers.dart — every measured field
-// null, `state: 'unknown'`, a message naming the failed read). The text and the
-// aria attribute were already honest about it. The BAR was not: it painted
-// `width: 0%`, which is byte-identical to a fresh boot that has genuinely done
-// nothing — verified side by side on the running bundle, same computed width,
-// same classes, same background.
+// null, `state: 'unknown'`, a message naming the failed read). A bar painted
+// at `width: 0%` is byte-identical to a fresh boot that has genuinely done
+// nothing.
 test('an unknown progress percentage does not draw as a real zero', () => {
   const { doc, api } = loadRunWatch();
   const bar = doc.getElementById('progress-bar-aria');
@@ -1015,15 +999,7 @@ test('a first-run pair screen accuses nothing', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-02 — the settings sheet may not offer an ability this origin lacks
-//
-// Measured in the running bundle over the LAN address a phone actually uses,
-// http://192.168.1.20:8212/run-watch: isSecureContext false, 'wakeLock' in
-// navigator false, the service worker never registered, Notification.permission
-// already "denied". Both toggles were ticked, localStorage read
-// {"wakeLock":true,"push":true}, no toast fired, and the word HTTPS appeared
-// nowhere on the surface. The screen slept and no notification could ever be
-// delivered.
+// The settings sheet may not offer an ability this origin lacks
 // ---------------------------------------------------------------------------
 
 /** The page as served over plain HTTP to a phone on the observatory LAN. */
@@ -1154,7 +1130,7 @@ function textOf(el) {
   return (own + ' ' + kids).trim();
 }
 
-// D4W-3. With the run stalled on a failing meridian flip, the wire carried the
+// With the run stalled on a failing meridian flip, the wire carried the
 // reason in `sequencer.message` AND `progress.message` while the page showed
 // "RUNNING / 33% / 1 of 3" and nothing else: a DOM grep for "meridian" found
 // only the static "TIME TO MERIDIAN" label. The desktop dashboard's Sequencer
@@ -1197,7 +1173,7 @@ test('a run that says nothing raises no message surface', () => {
     'an empty message must not paint an empty box');
 });
 
-// D4W-4. `exposureAdjusted` is an ordinary event of an adaptive-exposure night,
+// `exposureAdjusted` is an ordinary event of an adaptive-exposure night,
 // and the mapper had no case for it, so the feed printed
 // "SequencerEvent.exposureAdjusted(nodeId: exp_r, adaptedSecs: 2.0, …)" — Dart
 // source text — on the operator's phone during routine imaging.
@@ -1230,8 +1206,7 @@ test('a stringified event object is never rendered, whoever sends one', () => {
       timestamp: Date.now(),
       severity: 'info',
       eventType: 'UnknownSequencerEvent',
-      // `event` first, the way the mapper used to send it and the way the
-      // generic field walk would find it.
+      // `event` first, the way the generic field walk would find it.
       data: {
         event: 'SequencerEvent.exposureAdjusted(nodeId: exp_r, adaptedSecs: '
           + '2.0, nominalSecs: 2.0, skyBrightnessMag: null, filter: R, '
@@ -1276,23 +1251,7 @@ test('an unread event from any family renders no stringified object', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4WEB-01 / D4WEB-02 — what the page may call a healthy link
-//
-// Both defects share one root: the exchange was declared successful on the
-// status code, before anything had been learned from the body. Measured
-// against the release bundle with the snapshot answers supplied by CDP:
-//
-//   * 200 with the body `null`, for 51 s past a 20 s staleness threshold, with
-//     the wire advancing 30% -> 90%: badge "running", "30%", "9 / 30", the
-//     connection dot in conn-connected and no banner. The SAME page answers a
-//     dead daemon with badge "unknown", "--" and "Cannot reach the observatory
-//     server…", so the honesty machinery existed and this path went round it.
-//
-//   * a payload whose activeTarget coordinates were strings: the page printed
-//     `NaNh NaNm NaNs · -NaN° NaN′ NaN″`, then `"not-a-number".toFixed(1)`
-//     threw, and every field below the target block — 25% instead of 75%,
-//     5 / 20 instead of 15 / 20, filter L instead of R, SNR 30.0 instead of
-//     12.0 — kept the PREVIOUS payload with nothing said anywhere.
+// What the page may call a healthy link
 // ---------------------------------------------------------------------------
 
 /** A fetch stub whose snapshot answers are read off `state.body`. */
@@ -1324,8 +1283,7 @@ function surface(doc) {
 
 test('a 200 whose body is falsy is a failed exchange, not a healthy link',
   async () => {
-    // Every falsy JSON body a 200 can carry. `null` is the one that was
-    // measured; the others reach the identical `if (!data) return;`.
+    // Every falsy JSON body a 200 can carry.
     for (const body of [null, 0, false, '']) {
       const state = { body: runningSnapshot() };
       const { doc, api } = loadRunWatch(snapshotServer(state));
@@ -1486,14 +1444,7 @@ test('a render that throws degrades instead of freezing silently', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-04 — the Recent-events feed carries events, not a progress read-out
-//
-// Measured against the release bundle during one live sim sequence: 327 events
-// in 60 s on /api/run-watch/events, 229 of them progress ticks. Sampling the
-// page every 2 s for 50 s of that run, 104 of 125 row slots held a progress
-// tick and not one of the 25 samples showed a FrameAccepted row or a node
-// transition — the five-row cap was spent before anything discrete could be
-// read.
+// The Recent-events feed carries events, not a progress read-out
 // ---------------------------------------------------------------------------
 
 /** Push one SSE frame through the page's own handler. */
@@ -1539,8 +1490,7 @@ test('a burst of progress ticks cannot evict a FrameAccepted row', () => {
   assert.deepEqual(feedTitles(doc), ['FrameAccepted']);
 
   // The measured cadence: four ticks a second. Sixty of them is fifteen
-  // seconds of one exposure — under the old rule the row above was gone
-  // after five.
+  // seconds of one exposure.
   for (let i = 0; i < 60; i++) {
     sse(api, { eventType: 'ExposureProgress', severity: 'info',
       timestamp: Date.now(), data: { progress: i / 60 } });
@@ -1612,9 +1562,7 @@ test('the snapshot\'s own recent list is filtered by the same rule', async () =>
 // the frame poll and the SSE subscription together, so a refused token
 // produces several 401s within a tick; the first tears the token down, and
 // without a guard the ones already in flight re-read a flag that first one had
-// just cleared. Measured on the running bundle: an accepted-then-revoked
-// pairing was described, after a reload, as a token that had never been
-// accepted — the second 401 overwrote the first one's sentence.
+// just cleared.
 test('concurrent refusals do not rewrite the first one\'s account', async () => {
   const { doc, api } = loadRunWatch({
     fetch: async () => ({
@@ -1638,13 +1586,9 @@ test('concurrent refusals do not rewrite the first one\'s account', async () => 
     'the account of what happened is settled by the first refusal, not the last');
 });
 
-// The seam the feed actually rides on. Measured on the release bundle: 327 of
-// 327 frames over one live minute carried an `event:` name, and EventSource
-// hands a named frame ONLY to a listener registered for that name — so
-// `sse.onmessage` never fired at all and the feed was painted solely by the
-// snapshot poll's five-deep `recentEvents` ring. Mid-exposure that ring is
-// progress ticks, which is why 25 consecutive samples of a live run held no
-// FrameAccepted row and no node transition.
+// The seam the feed actually rides on: every frame carries an `event:`
+// name, and EventSource hands a named frame ONLY to a listener registered
+// for that name, so `sse.onmessage` never fires.
 test('the feed is fed by the named frames the server actually sends', async () => {
   const listeners = {};
   function FakeEventSource() {
@@ -1776,10 +1720,7 @@ test('an event that arrives twice is shown once', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// W16-C — the counter, the absence, the handoff and the wall
-//
-// Four measurements against the release bundle on a headless rig, all four of
-// them the page saying something its own screen or its own server contradicts.
+// The counter, the absence, the handoff and the wall
 // ---------------------------------------------------------------------------
 
 /** The frame counter exactly as the operator reads it. */
@@ -1795,12 +1736,8 @@ function snapshotAtFrame(done, planned) {
   return snap;
 }
 
-// D4-WEB-01. Measured over one 25-frame run: the page read "22 / 25" with
-// "ExposureCompleted frame: 24" rendered directly beneath it and
-// /api/run-watch/snapshot agreeing with the feed, because only sequence-level
-// transitions re-polled the snapshot while frame events went to the thumbnail
-// alone. No badge, no styling and no "last updated" distinguished that screen
-// from an agreeing one.
+// Only sequence-level transitions re-poll the snapshot while frame events go
+// to the thumbnail alone, so the counter can fall behind the feed.
 test('a frame event the feed took marks the counter beside it as behind', () => {
   const { doc, api } = loadRunWatch();
   api.renderSnapshot(snapshotAtFrame(22, 25));
@@ -1853,11 +1790,6 @@ test('a numberless frame event still marks the counter as behind', () => {
   assert.equal(frameCounter(doc), '22 / 25 · updating');
 });
 
-// D4-WEB-02. Measured with four simulator devices genuinely connected and the
-// snapshot endpoint answering 500 to every read: EQUIPMENT read "No connected
-// devices" while GUIDING, WEATHER, PROGRESS, FRAMES and FILTER all read "--".
-// The shipped placeholder was the false claim, and it survived every failed
-// read.
 test('the shipped equipment placeholder claims nothing about the rig', () => {
   const html = fs.readFileSync(path.join(RUN_WATCH, 'index.html'), 'utf8');
   const block = html.slice(html.indexOf('id="equipment-list"'));
@@ -1897,10 +1829,7 @@ test('a device list the server sent renders its rows', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-WEB-03 — an operator authenticated to the dashboard is authenticated here
-//
-// Measured: the dashboard read "Connected" with its bearer in this tab's
-// sessionStorage, and its own Run-Watch link landed on the pairing wall.
+// An operator authenticated to the dashboard is authenticated here
 // ---------------------------------------------------------------------------
 
 test('the bearer the dashboard left in this tab is used, not re-requested', async () => {
@@ -2004,12 +1933,7 @@ function api_credentialRefusal(source, token, wasAccepted) {
 }
 
 // ---------------------------------------------------------------------------
-// D4-WEB-04 — the wall names a step the rig it is running on can perform
-//
-// Measured on a headless bundle with no GUI anywhere on the machine: the wall
-// said "Open the Skotiq desktop app's Remote Access screen", offered no
-// control that causes a code to exist, and the code the server does make sat in
-// an owner-only pairing-code.txt this page named nowhere.
+// The wall names a step the rig it is running on can perform
 // ---------------------------------------------------------------------------
 
 test('the wall names a code source a headless rig actually has', () => {
@@ -2066,11 +1990,8 @@ test('a console-printing host is named as such', () => {
   assert.match(text, /console output/);
 });
 
-// The wall's own Pair button, driven end-to-end against the release bundle with
-// a code read out of the rig's pairing-code.txt: the server answered 200 with
-// {"token": "...", "tokenScope": "control"} and this screen said "Pairing
-// failed." and threw the token away. It was reading `sessionToken`, which is
-// the server's internal name for the field and has never been on the wire.
+// The server mints the field as `token`; `sessionToken` is its internal name
+// and has never been on the wire.
 test('the token the server actually mints is the one the page keeps', async () => {
   const { doc, api, sandbox } = loadRunWatch({
     fetch: async () => ({
@@ -2108,10 +2029,7 @@ test('a 2xx that carries no token is not blamed on the operator typing', async (
   assert.ok(!doc.getElementById('pair-screen').classList.contains('hidden'));
 });
 
-// A counter with no figure on it cannot be behind. Measured with the snapshot
-// endpoint answering 500 while the SSE stream still delivered frames: the
-// counter read "-- · updating", a staleness claim about a number that was not
-// on the screen.
+// A counter with no figure on it cannot be behind.
 test('an unknown frame counter is not decorated with a staleness cue', () => {
   const { doc, api } = loadRunWatch();
   const snap = runningSnapshot();
@@ -2126,13 +2044,8 @@ test('an unknown frame counter is not decorated with a staleness cue', () => {
 // ---------------------------------------------------------------------------
 // The LAST FRAME card
 // ---------------------------------------------------------------------------
-// D4-1. Measured on the release bundle: a rig whose library held 26 frames and
-// whose sim camera was connected answered `/api/run-watch/frame-thumbnail` 404
-// (the driver's in-memory buffer is empty after a relaunch), and this card
-// rendered "No frame captured yet" — an absolute about the whole rig, from a
-// page that had been told only about one process's buffer. The sibling
-// dashboard read the same wire correctly. `refreshFrame` discarded the typed
-// body with `if (!res.ok) return;` and index.html's static string simply stood.
+// The driver's in-memory frame buffer is empty after a relaunch, so a 404
+// from `/api/run-watch/frame-thumbnail` says nothing about the library.
 
 /** The 404 the server sends when this process has buffered no exposure. */
 function emptyBufferBody() {
@@ -2255,7 +2168,7 @@ test('a frame that stops being served is taken off the screen with its caption',
     assert.equal(sandbox.URL._live.size, 0, 'the object URL is released');
   });
 
-// D4-2. One physical frame carries two HFRs: the live-preview measurement on
+// One physical frame carries two HFRs: the live-preview measurement on
 // `x-frame-hfr` (the median of the brightest half of the detected stars) and
 // the graded measurement in `captured_images.hfr` (the mean over every
 // detected star), which is what the session report and the reject threshold
@@ -2479,12 +2392,11 @@ test('the refusal sentence never invents a level the rig did not state', () => {
 });
 
 // The event feed de-dupes on the pair (serverInstanceId, seq) the server
-// stamps, not on the timestamp+type key it used to. A host stamps a whole
-// burst with ONE millisecond, so a same-type burst — three FrameAccepted in
-// the same tick — collapsed onto one row under the old key and the second and
-// third events vanished. seq is server-assigned and monotonic, so the burst
-// stays distinct while the same event heard twice (stream, then the snapshot's
-// recent ring) still shows once.
+// stamps. A host stamps a whole burst with ONE millisecond, so a
+// timestamp+type key would collapse a same-type burst onto one row. seq is
+// server-assigned and monotonic, so the burst stays distinct while the same
+// event heard twice (stream, then the snapshot's recent ring) still shows
+// once.
 test('a same-millisecond same-type burst keeps every event by seq', () => {
   const { api } = loadRunWatch();
   const base = {

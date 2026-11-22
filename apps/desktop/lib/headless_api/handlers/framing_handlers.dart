@@ -223,12 +223,10 @@ class FramingHandlers implements RouteSource {
       return jsonBadRequest({'error': 'No mount connected'});
     }
 
-    // Shared stop/abort no-op contract — see [kWasRunningField]. Observed live
-    // with no slew in progress:
-    //   POST /api/framing/abort-slew -> 200 {"status":"aborted"}
-    // An operator hitting abort in a hurry reads that as "the mount was
-    // stopped". This is the most dangerous instance of the pattern, because it
-    // can mask the fact that a slew is still running somewhere else.
+    // Shared stop/abort no-op contract — see [kWasRunningField]. An operator
+    // hitting abort in a hurry reads a bare {"status":"aborted"} as "the mount
+    // was stopped". This is the most dangerous instance of the pattern, because
+    // it can mask the fact that a slew is still running somewhere else.
     //
     // Never skip a mount abort because we could not confirm motion: a failed
     // status read still issues the abort.

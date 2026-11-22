@@ -177,8 +177,7 @@ void main() {
 
       // Wait for the startup catch-up pass to run and FAIL against the absent
       // directory before healing it. Otherwise the catch-up would be the thing
-      // that delivered, and this case would pass with no timer armed at all —
-      // which is exactly the state the release bundle was in.
+      // that delivered, and this case would pass with no timer armed at all.
       final failedBy = DateTime.now().add(const Duration(seconds: 5));
       while (DateTime.now().isBefore(failedBy)) {
         final row = (await journal.listForTarget(targetId)).single;

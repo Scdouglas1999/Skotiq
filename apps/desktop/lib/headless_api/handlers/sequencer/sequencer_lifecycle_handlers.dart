@@ -446,10 +446,8 @@ extension _SequencerLifecycle on SequencerHandlers {
         }
       }
     }
-    // Shared stop/abort no-op contract — see [kWasRunningField]. Observed live
-    // with the sequencer idle:
-    //   POST /api/sequencer/stop -> 200 {"status":"stopped","preserveCheckpoint":true}
-    // which reports a run stopped when none was in flight.
+    // Shared stop/abort no-op contract — see [kWasRunningField]: a stop on an
+    // idle sequencer must not report a run stopped.
     //
     // A failed status read still runs the stop: a stop that silently declines
     // to act is worse than a redundant one.
@@ -654,13 +652,10 @@ extension _SequencerLifecycle on SequencerHandlers {
 
     // Also close a durable session that no run owns any more.
     //
-    // Reset clears the executor, but the `imaging_sessions` row survived it. A
-    // run that failed early left its row `active`, so EVERY later start was
-    // refused with "Imaging session N is already active" — and reset, the
-    // obvious recovery, did not help. The sequencer was then wedged for the
-    // night with no in-app way out (reproduced end-to-end: a run that aborted on
-    // frame 1 blocked all subsequent starts). Only abort the session when the
-    // executor is genuinely idle, so this can never tear down a live run.
+    // Reset clears the executor, but not the `imaging_sessions` row: a run that
+    // failed early leaves its row `active`, and every later start is refused
+    // with "Imaging session N is already active". Only abort the session when
+    // the executor is genuinely idle, so this can never tear down a live run.
     int? abortedSessionId;
     try {
       final status = await backend.sequencerGetStatus();

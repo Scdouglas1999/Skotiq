@@ -61,7 +61,8 @@ void main() {
         'coimaging',
       );
       // The live collaboration surface (shared-viewer join, broadcast preview,
-      // chat, annotations) maps to the collaborative `constellation` resource, so
+      // chat, annotations) maps to the collaborative `constellation` resource,
+      // so
       // a fine-grained token does not need `system` to run a shared viewing
       // session (and a `system` grant does not silently gain it).
       expect(

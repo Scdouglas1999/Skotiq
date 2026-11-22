@@ -1,12 +1,6 @@
 // Regression coverage: a headless operator must be able to READ the pairing
 // code, and a remote client must NOT be able to.
 //
-// Observed live (2026-07-25): `POST /api/pairing/start` returned 200, but the
-// generated code appeared in NO host log — not
-// `~/.local/share/com.skotiq.desktop/logs/skotiq.log.<date>`
-// (line count unchanged across the request) and not stdout. On a headless
-// appliance with no GUI that made code pairing unusable.
-//
 // Why logging is not the channel: `LoggingService` does not write the on-disk
 // log at all — that file carries only the native Rust tracing output. Its
 // entries go to an in-memory ring buffer that is SERVED OVER HTTP by
@@ -179,10 +173,8 @@ void main() {
     /// unauthenticated callers drive it is a CPU-burn vector — so its own
     /// "clear on success" line is unreachable while the client is limited.
     /// Without clearing here, an operator whose tablet tripped the limiter on
-    /// a stale token (exactly what an appliance restart produces) stayed
-    /// locked out while holding a brand-new, valid token. Observed live: a
-    /// token issued seconds earlier still answers 429 "Too many
-    /// authentication failures".
+    /// a stale token (exactly what an appliance restart produces) would stay
+    /// locked out while holding a brand-new, valid token.
     test(
       'a successful pairing lifts the bearer-token failure lockout',
       () async {

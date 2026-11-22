@@ -388,12 +388,9 @@ void main() {
       expect(payload.contains('abc-123'), isTrue);
     });
 
-    // D4-1. Measured on the release bundle relaunched against its own
-    // database: `/api/images` listed 26 captures from that evening, sim_camera_1
-    // was connected, and this endpoint answered "No image is available yet —
-    // capture an exposure first". Run-Watch printed that as "No frame captured
-    // yet". `/api/camera/last-image/jpeg` already answered the same emptiness
-    // with the process-scoped wording; the phone's endpoint now does too.
+    // The preview buffer is per process while the library holds the whole
+    // evening, so an empty buffer answers with the process-scoped wording
+    // `/api/camera/last-image/jpeg` uses.
     group('an empty preview buffer says which emptiness it is', () {
       // Through the REAL error translator, so what is pinned is which failures
       // this handler answers itself and which it hands to the status table.
@@ -473,13 +470,10 @@ void main() {
       );
     });
 
-    // D4-2. One frame carries two HFRs: this header (the median of the
-    // brightest half of the detected stars) and `captured_images.hfr` (the
-    // mean over every detected star), which is what the session report and the
-    // reject threshold read. Joined on timestamp with an identical star count,
-    // three consecutive sim frames read 2.0032 / 2.0139 / 2.0368 here against
-    // 2.4770 / 2.4732 / 2.4807 in the library. The number therefore travels
-    // with the name of its measurement.
+    // One frame carries two HFRs: this header (the median of the brightest half
+    // of the detected stars) and `captured_images.hfr` (the mean over every
+    // detected star), which is what the session report and the reject threshold
+    // read. The number therefore travels with the name of its measurement.
     test('the frame HFR header names which measurement it carries', () async {
       container.dispose();
       container = ProviderContainer(

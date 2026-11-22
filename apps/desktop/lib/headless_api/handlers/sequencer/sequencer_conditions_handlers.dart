@@ -33,7 +33,7 @@ extension _SequencerConditions on SequencerHandlers {
     return jsonOk({'status': 'ok'});
   }
 
-  /// Full-night audit 2026-06-04 (defense-in-depth) — POST
+  /// POST
   /// /api/sequencer/update-weather-verdict.
   ///
   /// Mirrors `NetworkBackend.sequencerUpdateWeatherVerdict`. Forwards the

@@ -635,7 +635,7 @@ class HeadlessApiServer {
     return mock;
   }
 
-  /// Phase D — load [PushConfig] from [appSupportDir] (or the
+  /// Load [PushConfig] from [appSupportDir] (or the
   /// `SKOTIQ_PUSH_CONFIG` env override) and wire the resulting delivery:
   ///
   ///  * a real FCM and/or APNs delivery when the operator has dropped a valid

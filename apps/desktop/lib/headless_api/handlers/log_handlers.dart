@@ -57,7 +57,7 @@ import '../route_table.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 
-/// P1-14 — Headless API handlers for log retrieval and tail.
+/// Headless API handlers for log retrieval and tail.
 ///
 /// Stateless: every request resolves the [LoggingService] from the
 /// provider container so a hot-reload of the service is picked up

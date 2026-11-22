@@ -55,7 +55,8 @@ void main() {
     test(
       'plate-solver config accepts empty paths so an ASTAP-only rig can save',
       () async {
-        // A rig without Astrometry.net installed reports astrometryPath:"" from GET,
+        // A rig without Astrometry.net installed reports astrometryPath:""
+        // from GET,
         // so requiring non-empty would make the document the API serves one it
         // refuses to accept back.
         final backend = _RecordingPlateSolverBackend();

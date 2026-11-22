@@ -1693,11 +1693,8 @@
   /// A panel may only render a positive empty state — "No devices connected",
   /// "No captured images yet." — when the server SAID empty, which on this API
   /// means an answer carrying `field: []`. An answer with no such field said
-  /// nothing about the inventory at all, and `payload.field || []` turned that
-  /// silence into a stated fact: measured against the release bundle, a
-  /// content-free 200 on /api/devices/connected described a rig with four
-  /// connected devices as having none, with nothing anywhere on the page
-  /// saying the read had failed.
+  /// nothing about the inventory at all, and `payload.field || []` would turn
+  /// that silence into a stated fact.
   ///
   /// The refusal is the same `unusable_answer` the API client raises for an
   /// empty body, so every caller's existing catch — the stale line, the log
@@ -7973,12 +7970,8 @@
       statusEl.textContent = 'Signing in...';
       statusEl.className = 'login-status';
     }
-    // The overlay stays up until the connection is known good. Hiding it here
-    // dismissed the only surface that can fix a credential: measured against
-    // the release bundle, a rejected bearer left the dashboard "Disconnected"
-    // with `#login-status` reading "Signing in..." forty seconds later, and
-    // both fallback controls (#btn-apply-token, #btn-pair) zero-size inside a
-    // collapsed <details>.
+    // The overlay stays up until the connection is known good: it is the only
+    // surface that can fix a credential.
     const outcome = await handleConnect();
     if (!outcome || !outcome.ok) {
       reportLoginFailure(outcome);

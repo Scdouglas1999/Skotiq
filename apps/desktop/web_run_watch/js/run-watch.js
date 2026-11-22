@@ -73,9 +73,7 @@ let inMemoryTokenAccepted = false;
 /// `bootSession` fires the snapshot, the frame poll and the SSE subscription
 /// together, so a refused credential produces several 401s within a tick. The
 /// first tears the token down; without this guard the ones already in flight
-/// re-decided the sentence from a flag the first had just cleared, and an
-/// accepted-then-revoked pairing ended up described as a token that was never
-/// accepted — measured on the running bundle after a reload.
+/// would re-decide the sentence from a flag the first had just cleared.
 let authRefusalStated = false;
 function effectiveToken() {
   return getToken() || inMemoryToken || adoptedBearer;
@@ -85,13 +83,8 @@ function effectiveToken() {
 // Credentials this browser is already carrying
 //
 // An operator who signs in on /dashboard/ and taps the dashboard's own
-// Run-Watch link is authenticated to this origin already, and used to land on
-// the pairing wall: measured on the release bundle, the dashboard read
-// "Connected", its bearer sat in this tab's sessionStorage, and this page
-// asked for a pairing code from a screen the rig may not even have. Two
-// credential models that never handed off.
-//
-// So this page reads the two the dashboard actually leaves behind, in the
+// Run-Watch link is authenticated to this origin already. So this page reads
+// the two credentials the dashboard actually leaves behind, in the
 // dashboard's own storage and with the dashboard's own lifetime. Neither is
 // copied into this page's localStorage: a bearer the dashboard deliberately
 // keeps in sessionStorage — the operator left "remember me" off — stays there
@@ -876,13 +869,8 @@ async function startPairing(code) {
     });
     const data = await res.json();
     // The field is `token` — that is what `handlePairingVerify` answers with
-    // and what the dashboard's own pair modal reads. Reading `sessionToken`
-    // (the server's INTERNAL name for it, never a wire name) meant a pairing
-    // the server had just completed was reported to the operator as "Pairing
-    // failed." and the minted token thrown away: driven end-to-end against the
-    // release bundle with a code read out of the rig's own pairing-code.txt,
-    // the exchange answered 200 with a control-scoped token and this screen
-    // stayed on the wall.
+    // and what the dashboard's own pair modal reads. `sessionToken` is the
+    // server's INTERNAL name for it, never a wire name.
     const minted = data && typeof data.token === 'string' ? data.token : '';
     if (!res.ok) {
       statusEl.textContent = pairingErrorText(data, res.status);
@@ -1019,16 +1007,9 @@ async function fetchSnapshot() {
 // The frame counter, and the feed it sits beside
 //
 // The counter is snapshot data on a 15 s poll; the feed under it is the SSE
-// stream, live. Only sequence-level transitions used to re-poll the snapshot,
-// so a frame event moved the feed and left the counter where it was: measured
-// on the release bundle over one 25-frame run, the page read "22 / 25" with
-// "ExposureCompleted frame: 24" rendered directly beneath it and the wire
-// agreeing with the feed, and nothing on screen distinguished that moment from
-// an agreeing one.
-//
-// So the counter now advances on the same events the feed does, and while it
-// has not yet caught up it says so rather than presenting a figure the page's
-// own feed contradicts.
+// stream, live. So the counter advances on the same events the feed does,
+// and while it has not yet caught up it says so rather than presenting a
+// figure the page's own feed contradicts.
 // ---------------------------------------------------------------------------
 
 /// The frame-bearing events. One of these means a frame has landed, which is
@@ -1510,12 +1491,10 @@ function renderSnapshot(data) {
   }
 
   // Recent events. The server's ring is five deep and, mid-exposure, made
-  // almost entirely of progress ticks — measured on the release bundle, 2 of
-  // the 5 rows it answered with were `Progress` while the stream ran 229 ticks
-  // in 327 events. Overwriting the feed with that ring every 15 s is what
-  // erased the frames and node transitions the stream had delivered, so the
-  // ring is MERGED into the feed's own model, oldest first, and each entry is
-  // judged by the same rule a streamed event is.
+  // almost entirely of progress ticks. Overwriting the feed with that ring
+  // every 15 s would erase the frames and node transitions the stream had
+  // delivered, so the ring is MERGED into the feed's own model, oldest first,
+  // and each entry is judged by the same rule a streamed event is.
   if (Array.isArray(data.recentEvents)) {
     for (let i = data.recentEvents.length - 1; i >= 0; i--) {
       const evt = data.recentEvents[i];
@@ -1608,13 +1587,9 @@ function formatEventDetail(evt) {
 //
 // Every figure on this page is drawn with arithmetic — a multiply, a
 // Math.floor, a toFixed — and every one of those fields is typed by a wire
-// this page does not control. A field carrying a string took that arithmetic
-// two ways, both measured against the release bundle: `"abc"` through
-// formatRaDec printed `NaNh NaNm NaNs · -NaN° NaN′ NaN″` on the operator's
-// phone, and `"not-a-number".toFixed(1)` threw a TypeError that aborted the
-// rest of the render.
-//
-// So the guard is the type, not just null: a field that is not a finite number
+// this page does not control: a string through formatRaDec prints
+// `NaNh NaNm NaNs`, and `"x".toFixed(1)` throws and aborts the render. So the
+// guard is the type, not just null: a field that is not a finite number
 // carries no reading, and no reading renders as the same `--` a null does.
 // ---------------------------------------------------------------------------
 
@@ -1799,13 +1774,9 @@ function openSSE() {
   };
   sse.onmessage = (evt) => handleSseMessage(evt);
 
-  // Every frame this server sends carries an `event:` name — measured on the
-  // release bundle: 327 of 327 frames over one live minute — and EventSource
-  // delivers a NAMED frame only to a listener registered for that name.
-  // `onmessage` above therefore never fires here, which is why the feed was
-  // painted solely by the snapshot poll's five-deep `recentEvents` ring, and
-  // why that ring being all progress ticks mid-exposure emptied the panel of
-  // everything that had actually happened.
+  // Every frame this server sends carries an `event:` name, and EventSource
+  // delivers a NAMED frame only to a listener registered for that name, so
+  // `onmessage` above never fires here.
   FEED_EVENT_NAMES.concat(PROGRESS_EVENT_NAMES).forEach(name => {
     sse.addEventListener(name, (evt) => {
       try { noteFeedEvent(JSON.parse(evt.data)); } catch { /* not our shape */ }
@@ -1848,12 +1819,8 @@ const FEED_ROW_CAP = 5;
 
 /// Whether an event is a progress tick rather than something that happened.
 ///
-/// Measured against the release bundle over 60 s of one live sim sequence,
-/// progress ticks were 229 of the 327 events on /api/run-watch/events, about
-/// four a second. Against a five-row feed that cadence
-/// evicts everything else within a second: sampled every 2 s across 50 s of a
-/// live run, 104 of 125 row slots were ticks and not one of the 25 samples
-/// held a FrameAccepted row or a node transition.
+/// Progress ticks arrive about four a second mid-exposure; against a five-row
+/// feed that cadence evicts everything else within a second.
 ///
 /// Matched by name so a family the host adds later (`FooProgress`,
 /// `FooProgressStructured`) is folded on arrival rather than after it has

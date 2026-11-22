@@ -369,14 +369,9 @@ class SkotiqApi {
       );
     }
     // A 2xx carrying nothing is a FAILED exchange wearing a success code.
-    // This used to `return {}`, which handed every caller a well-formed empty
-    // payload: measured against the release bundle, an empty-bodied 200 on
-    // /api/devices/connected made the dashboard state "No devices connected"
-    // over four connected devices — no stale line, no toast, no log entry,
-    // header still reading "Connected" — and the same body on /api/images
-    // produced "No captured images yet." over a night with 12 registered
-    // frames. The sibling client already refuses this shape; this is that
-    // refusal, here.
+    // Returning `{}` would hand every caller a well-formed empty payload, and
+    // the panels would state "No devices connected" / "No captured images yet."
+    // over a live rig.
     if (!text) {
       throw new SkotiqApiError(
         'unusable_answer',

@@ -410,7 +410,7 @@ class GuidingHandlers implements RouteSource {
       // "No guide star found" is an ordinary outcome — a sparse field, clouds,
       // or a defocused frame — not a server fault. The native layer raises it as
       // an unstructured `OperationFailed`, which the error translator maps to
-      // `500 internal_error` (observed live against the built-in guider). A 500
+      // `500 internal_error`. A 500
       // tells a remote client the HOST broke and invites a retry storm, so
       // answer 404 with a code the caller can branch on.
       //

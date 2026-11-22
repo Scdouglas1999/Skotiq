@@ -323,13 +323,10 @@ void main() {
     });
   });
 
-  // The last hole in the same seam: a wrong-length list and a negative entry
-  // were refused by the request, but a wrong-TYPED one was not. `serde` refuses
-  // it while decoding the args struct — inside the bridge call, after the id
-  // has been minted — so `"exposuresSec":{"a":1}` answered `200 queued` and
-  // only turned out refused on a later poll, as `invalid type: map, expected a
-  // sequence at line 1 column 214`. Measured against the running host on
-  // 2026-08-31; the arity and value cases answered 400 in the same session.
+  // A wrong-TYPED list is refused by `serde` while decoding the args struct —
+  // inside the bridge call, after the id has been minted — so the request
+  // itself has to refuse it, or `"exposuresSec":{"a":1}` answers `200 queued`
+  // and only turns out refused on a later poll.
   group('exposuresSec type', () {
     String integrateWith(String lights, String exposures) =>
         '{"runId":"x","lightPaths":$lights,"exposuresSec":$exposures,'
