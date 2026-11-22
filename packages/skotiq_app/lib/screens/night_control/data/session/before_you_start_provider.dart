@@ -27,6 +27,7 @@ import 'session_format.dart';
 import 'session_stats_provider.dart';
 import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
+import '../../../../utils/guider_state_label.dart';
 
 final String _siteRoute = AppRoutes.settings(SettingsSectionId.location);
 final String _folderRoute = AppRoutes.settings(SettingsSectionId.filesStorage);
@@ -316,7 +317,7 @@ final nightBeforeYouStartProvider = Provider<List<ChecklistItemVm>>((ref) {
               ChecklistItemId.guider,
               ChecklistItemState.ok,
               'nightSessionCheckGuider',
-              detail: NightText(nightPhd2StateKey(phd2)),
+              detail: NightText(guiderStateLabel(phd2).$1),
             )
           : _row(
               ChecklistItemId.guider,

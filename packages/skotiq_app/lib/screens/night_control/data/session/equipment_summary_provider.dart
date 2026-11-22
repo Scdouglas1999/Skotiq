@@ -14,6 +14,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../night_control_contracts.dart';
+import '../../../../utils/guider_state_label.dart';
 import 'session_format.dart';
 
 /// PHD2 states in which the guider is doing useful work.
@@ -23,19 +24,6 @@ const Set<Phd2State> _guiderWorking = <Phd2State>{
   Phd2State.calibrating,
   Phd2State.settling,
 };
-
-/// The translations key for a PHD2 state word.
-String nightPhd2StateKey(Phd2State state) => switch (state) {
-      Phd2State.guiding => 'nightSessionGuiderGuiding',
-      Phd2State.looping => 'nightSessionGuiderLooping',
-      Phd2State.calibrating => 'nightSessionGuiderCalibrating',
-      Phd2State.settling => 'nightSessionGuiderSettling',
-      Phd2State.paused => 'nightSessionGuiderPaused',
-      Phd2State.lostLock => 'nightSessionGuiderLostStar',
-      Phd2State.selected => 'nightSessionGuiderStarSelected',
-      Phd2State.stopped => 'nightSessionGuiderNotLooping',
-      Phd2State.unknown => 'nightSessionGuiderUnknown',
-    };
 
 /// Why the guider is stopped or held, in the guide tab's words
 /// (`nightScopeGuideHeld_<wire name>`).
@@ -306,7 +294,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
   }
 
   // A held guider says why (an autofocus, a flip, the mount's tracking
-  // limit) rather than only "not looping".
+  // limit) rather than only "Not guiding".
   final mass = guideStats.frameCount > 0 && guideStats.starMass > 0
       ? guideStats.starMass
       : null;
@@ -319,7 +307,7 @@ final nightEquipmentProvider = Provider<List<EquipmentRowVm>>((ref) {
     if (held != null)
       nightGuideStopReason(held)
     else
-      NightText(nightPhd2StateKey(phd2)),
+      NightText(guiderStateLabel(phd2).$1),
     if (mass != null)
       NightText(
         'nightSessionGuiderMass',

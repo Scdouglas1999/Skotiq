@@ -30,7 +30,7 @@ Future<void> _pump(WidgetTester tester, Phd2State state) => pumpAppScreen(
 void main() {
   for (final (state, label) in [
     (Phd2State.looping, 'Looping'),
-    (Phd2State.stopped, 'Stopped'),
+    (Phd2State.stopped, 'Not guiding'),
     (Phd2State.calibrating, 'Calibrating'),
     (Phd2State.guiding, 'Guiding'),
     (Phd2State.lostLock, 'Star lost'),

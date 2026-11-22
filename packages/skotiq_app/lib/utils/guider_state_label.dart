@@ -2,7 +2,10 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// What every screen calls a guider's state (a localization key), and its
-/// tone. The built-in guider reports through the same states as PHD2.
+/// tone: the guide tab, the equipment card, the guiding screen, Tonight's
+/// session summary and its guider card. The built-in guider reports through
+/// the same states as PHD2, so an idle guider of either kind is "Not guiding"
+/// (never "suspended": a guider that is not guiding has not lost anything).
 (String key, MetricGridTone tone) guiderStateLabel(Phd2State state) =>
     switch (state) {
       Phd2State.stopped => ('nightScopeGuideStopped', MetricGridTone.neutral),
