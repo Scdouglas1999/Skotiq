@@ -234,14 +234,17 @@ class RunPauseGuard {
       }
       final exposure = _ref.read(exposureProgressProvider);
       final exposureActive = exposure.remaining > 0 || exposure.isDownloading;
-      final nativeExposure = _ref.read(nightCameraExposureProvider);
-      final cameraBusy =
-          nativeExposure != null || _ref.read(cameraStateProvider).isExposing;
       // The instruction in flight may be a slew or a focuser move rather than
-      // an exposure; native pause lets it finish too.
-      final mountBusy = _ref.read(mountStateProvider).isSlewing;
-      final focuserBusy = _ref.read(focuserStateProvider).isMoving;
-      if (!cameraBusy && !exposureActive && !mountBusy && !focuserBusy) {
+      // an exposure; native pause lets it finish too. Tonight also follows
+      // the camera's own exposure events.
+      final stepInFlight = _ref.read(nightCameraExposureProvider) != null ||
+          pausedStepInFlight(
+            exposure: exposure,
+            cameraExposing: _ref.read(cameraStateProvider).isExposing,
+            mountSlewing: _ref.read(mountStateProvider).isSlewing,
+            focuserMoving: _ref.read(focuserStateProvider).isMoving,
+          );
+      if (!stepInFlight) {
         if (cameraConfirmedIdle) {
           done.complete();
         } else if (!probing) {
