@@ -118,7 +118,7 @@ class SchedulerRejection extends Equatable {
   }
 
   factory SchedulerRejection.fromJson(Map<String, dynamic> j) {
-    final reason = j['reason'] as String? ?? '';
+    final reason = j['reason'] as String;
     final kind = SchedulerRejectionKind.values
         .where((k) => k.name == j['kind'])
         .firstOrNull;
