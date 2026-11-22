@@ -151,6 +151,78 @@
     "hostStatus": "idle",
     "hostLastResult": false
   },
+  "planetarium.published": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "iterations": 2,
+      "finalOffsetArcsec": 4.5,
+      "errorMessage": null,
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "completed",
+    "hostLastResult": true
+  },
+  "planetarium.published_missed": {
+    "status": 200,
+    "body": {
+      "success": false,
+      "iterations": 5,
+      "finalOffsetArcsec": 300.0,
+      "errorMessage": "Did not converge",
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "error",
+    "hostLastResult": true
+  },
+  "planetarium.not_published": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "iterations": 2,
+      "finalOffsetArcsec": 4.5,
+      "errorMessage": null,
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
   "framing.defaults": {
     "status": 200,
     "body": {
@@ -311,6 +383,109 @@
       "message": "Value must be >= 1.0"
     },
     "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.published": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "success": true,
+        "iterations": 2,
+        "finalOffsetArcsec": 4.5,
+        "errorMessage": null,
+        "iterationHistory": []
+      },
+      "error": null
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "completed",
+    "hostLastResult": true
+  },
+  "framing.published_missed": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "centering_failed",
+        "message": "Did not converge",
+        "details": {
+          "success": false,
+          "iterations": 5,
+          "finalOffsetArcsec": 300.0,
+          "errorMessage": "Did not converge",
+          "iterationHistory": []
+        }
+      }
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "error",
+    "hostLastResult": true
+  },
+  "framing.not_published": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "success": true,
+        "iterations": 2,
+        "finalOffsetArcsec": 4.5,
+        "errorMessage": null,
+        "iterationHistory": []
+      },
+      "error": null
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
     "stops": 0,
     "hostStatus": "idle",
     "hostLastResult": false

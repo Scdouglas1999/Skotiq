@@ -1585,6 +1585,8 @@ class SkotiqApi {
       binning: o.binning != null ? o.binning : 2,
       gain: o.gain != null ? o.gain : 100,
       syncMount: o.syncMount != null ? o.syncMount : false,
+      // This page does not mirror the run to the host, so the host shows it.
+      publish: true,
     });
     // Centering can iterate up to maxIterations plate-solves; allow a long
     // window so a 5-iteration run with 3s exposures + a slow solver completes.
