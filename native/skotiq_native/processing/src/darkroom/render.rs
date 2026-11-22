@@ -8,10 +8,7 @@
 //! preview therefore returns RGBA bytes and reuses that path whole; no new
 //! decoding, caching or transform plumbing appears on the Dart side.
 //!
-//! What it does **not** reuse is the display stretch behind that path.
-//! `auto_stretch_stf` decodes its input as `u16` pairs with no pixel-type check,
-//! and masters are `F32`, so the existing screen transfer reads a master's bytes
-//! as numbers that are not in it. Every pixel here comes from the recipe
+//! Every pixel here comes from the recipe
 //! engine's own `F32` arithmetic.
 //!
 //! # Encodings
