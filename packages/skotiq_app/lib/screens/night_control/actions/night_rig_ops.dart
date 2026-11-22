@@ -247,7 +247,6 @@ class ServiceNightRigOps implements NightRigOps {
         guider: _guider,
         events: _ref.read(backendProvider).eventStream,
         settle: _settle,
-        calibrationAllowance: const Duration(seconds: 300),
       );
 
   @override
