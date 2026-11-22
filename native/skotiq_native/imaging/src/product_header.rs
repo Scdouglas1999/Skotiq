@@ -162,6 +162,7 @@ pub fn acquisition(header: &FitsHeader) -> Acquisition {
         offset: header.get_float("OFFSET"),
         bin_x: header.get_float("XBINNING"),
         bin_y: header.get_float("YBINNING"),
+        sensor_temp_c: header.get_float("CCD-TEMP"),
     }
 }
 
