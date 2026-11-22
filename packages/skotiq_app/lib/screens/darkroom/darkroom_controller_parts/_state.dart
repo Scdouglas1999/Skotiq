@@ -11,7 +11,6 @@ class DarkroomSiblingDraft {
   /// `integrated_masters.id` of the sibling.
   final int masterId;
 
-  /// The sibling master's own library name.
   final String masterName;
 
   /// The filter it covers, or null for an unfiltered master.
@@ -21,10 +20,8 @@ class DarkroomSiblingDraft {
   /// yet — in which case the link opens the master and offers a first one.
   final int? recipeId;
 
-  /// That recipe's label, or null when there is no recipe.
   final String? recipeName;
 
-  /// Who wrote that recipe, or null when there is none.
   final RecipeAuthor? author;
 
   /// True when the operation registry composed that recipe's steps — the same
@@ -60,10 +57,7 @@ class DarkroomSiblingDraft {
 /// The step a failed render NAMED, and the fault it named for it.
 ///
 /// A render that stops names its culprit exactly — "step 3 failed:
-/// color_calibrate@1: unsupported channel layout…" — and the stack showed that
-/// nowhere: the failing step's card carried the same "the last render did not
-/// finish, so nothing is reported for this step" sentence as every step that
-/// merely never ran, so nothing on screen said which one stopped the render.
+/// color_calibrate@1: unsupported channel layout…".
 ///
 /// It is only ever built from a message whose index AND operation both match
 /// the step at that position in the recipe the engine was handed. A message
@@ -120,13 +114,11 @@ class DarkroomViewState {
   /// `recipes.id` of the open recipe, null while none is open.
   final int? recipeId;
 
-  /// Operator-facing recipe (branch) label.
   final String recipeName;
 
   /// Absolute path of the linear master this recipe replays over.
   final String baseMasterPath;
 
-  /// Who authored the step list as it stands.
   final RecipeAuthor author;
 
   /// `integrated_masters.id` the recipe was framed from, or null when the
@@ -208,12 +200,9 @@ class DarkroomViewState {
   /// Which attempt raised [reorderRefusal], counted from 1. Zero when there is
   /// no refusal.
   ///
-  /// The screen announces a refusal once per occurrence, and the only thing
-  /// that told two occurrences apart was the sentence: a second refused move of
-  /// the same step, for the same reason, produced a byte-identical string, so
-  /// the announcement was suppressed and the second press went silent while
-  /// the screen's own comment promised it would speak again. The stamp is what
-  /// makes an identical refusal a second refusal.
+  /// The screen announces a refusal once per occurrence, and a second refused
+  /// move of the same step, for the same reason, produces a byte-identical
+  /// sentence. The stamp is what makes an identical refusal a second refusal.
   final int reorderRefusalAttempt;
 
   /// True while an added step is being measured and checked, so a second press
@@ -253,8 +242,7 @@ class DarkroomViewState {
   /// which darks, flats and bias reached these pixels. It is the one fact about
   /// the base master that changes what the operator should believe about every
   /// step above it — a gradient over an uncalibrated frame is a sensor
-  /// signature, not sky — and the Recipe panel's provenance block, which names
-  /// the author and the file, said nothing about it at all.
+  /// signature, not sky.
   final DawnMasterStats? masterCalibration;
 
   /// Why the field carries no catalogue photometry, when it does not. The
@@ -348,7 +336,6 @@ class DarkroomViewState {
     this.importNote,
   });
 
-  /// True when a recipe is open and editable.
   bool get hasRecipe => recipeId != null;
 
   /// True when every step is disabled — the state "Reset to linear" leaves

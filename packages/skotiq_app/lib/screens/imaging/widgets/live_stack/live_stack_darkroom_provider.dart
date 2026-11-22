@@ -310,14 +310,12 @@ class LiveDarkroomRenderResult {
 
 @immutable
 class LiveStackDarkroomState {
-  /// Whether live Darkroom processing is active over the live stack preview.
   final bool enabled;
 
   /// When true, temporarily displays the raw auto-stretched stack for A/B
   /// comparison while keeping live Darkroom enabled.
   final bool compareBeforeAfter;
 
-  /// Per-filter Darkroom recipe controls.
   final Map<String, LiveDarkroomRecipeSettings> settingsByFilter;
 
   /// Latest rendered RGBA frames keyed by filter key.
@@ -426,7 +424,6 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
     );
   }
 
-  /// Toggle live Darkroom processing on/off.
   Future<void> setEnabled(bool enabled) async {
     if (state.enabled == enabled) return;
     state = state.copyWith(
@@ -582,7 +579,6 @@ class LiveStackDarkroomNotifier extends StateNotifier<LiveStackDarkroomState> {
     _scheduleRender(filterKey, immediate: false);
   }
 
-  /// Clear all live Darkroom adjustments for [filterKey].
   void resetFilterSettings(String filterKey) {
     final map = Map<String, LiveDarkroomRecipeSettings>.of(
       state.settingsByFilter,

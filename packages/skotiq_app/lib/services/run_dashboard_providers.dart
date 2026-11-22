@@ -173,7 +173,6 @@ class RunDashboardFilterTotals {
     goalSecs: {},
   );
 
-  /// Returns true if no exposures are configured for any filter.
   bool get isEmpty => integrationSecs.isEmpty && goalSecs.isEmpty;
 }
 
@@ -277,10 +276,7 @@ class RunDashboardEvent {
   /// How many consecutive identical events this row stands for.
   ///
   /// 1 for a lone event. The feed only holds a handful of rows, so a condition
-  /// that re-reports itself would otherwise evict everything else: a single
-  /// mount unplug produced four identical "Guider disconnected" rows (one per
-  /// reconnect attempt, on a 5/10/20s backoff) and filled 4 of the 5 slots,
-  /// pushing the equipment error that actually named the cause off-panel.
+  /// that re-reports itself would otherwise evict everything else.
   final int repeatCount;
 
   /// What this critical event is about when a newer event about the same
@@ -834,13 +830,9 @@ String humanizeDeviceIds(String message, sk_events.SkotiqEvent event) {
 
 /// Whether [event] is something a user reads their night from.
 ///
-/// The feed is meant to summarise the night, and on a fresh profile its only
-/// entry was `System EventStreamReady — Event stream subscription is active
-/// (debug)`. One connect then filled it with `Heartbeat started · Heartbeat
-/// stopped · Heartbeat started · Heartbeat stopped · Connected`: five rows for
-/// one action, four of them monitor plumbing that means nothing to an
-/// astrophotographer and that evicted the events that do. Both still reach the
-/// diagnostics log, which is where they belong.
+/// The feed is meant to summarise the night; connection and heartbeat
+/// plumbing means nothing to an astrophotographer and would evict the events
+/// that do. Both still reach the diagnostics log, which is where they belong.
 bool isUserFacingRunEvent(sk_events.SkotiqEvent event) {
   final payload = event.payload;
   if (payload is sk_events.EventPayload_Equipment) {
@@ -896,10 +888,7 @@ class RunDashboardCriticalEventsNotifier
     // Skip exact duplicates — the bridge emits the same event to multiple
     // subscribers and we may receive it twice.
     if (state.any(event.sameAs)) return;
-    // A newer event about the same thing replaces the older one: the banner
-    // kept the first flip failure ("still West") after a second one with the
-    // mount already on the new pier side, telling the operator the opposite
-    // of the truth.
+    // A newer event about the same thing replaces the older one.
     final key = event.faultKey;
     final next = [
       event,
@@ -1095,10 +1084,9 @@ bool _isSequencerRunStart(sk_events.SkotiqEvent event) {
 /// broadcast buffer for the last `InstructionFailed` and re-formatting it as
 /// `"<node>: <message>"` (`executor/mod.rs: last_instruction_failure`) — the
 /// byte-identical string the bridge already delivered as a mid-run
-/// `SequencerEvent.Error`. Both payload variants are on the `isCriticalEvent`
-/// allow-list, so one failed Open Cover node raised TWO identical
-/// "Critical · Sequencer" toasts and left two identical rows in the critical
-/// banner. Matching on the reason text (rather than a time window) is what
+/// `SequencerEvent.Error`, and both payload variants are on the
+/// `isCriticalEvent` allow-list. Matching on the reason text (rather than a
+/// time window) is what
 /// keeps this from swallowing a genuinely new failure: a terminal error the
 /// run never announced mid-flight is still escalated, and the ledger is
 /// per-run.
@@ -1131,10 +1119,8 @@ class RunCriticalAlert {
 
   final sk_events.SkotiqEvent event;
 
-  /// The banner's entry for [event].
   final RunDashboardEvent row;
 
-  /// The alert's text: the event's detail, or its title when it has none.
   String get detail => row.message.isNotEmpty ? row.message : row.title;
 
   String get title => 'Critical · ${row.category}';
@@ -1161,11 +1147,8 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
   // depending on the order or count of rebuilds.
   //
   // New entries are the ones at the front of the history that the previous
-  // list did not hold, by identity. An id watermark ("everything above the
-  // last id seen") dropped events on a linked client, where the id is the
-  // host's millisecond timestamp: a second event of the same millisecond, or
-  // any host event after one the client stamped with a clock running ahead
-  // (its own "reconnected" notice), never reached the banner.
+  // list did not hold, by identity. An id watermark would drop events on a
+  // linked client, where the id is the host's millisecond timestamp.
   List<sk_events.SkotiqEvent> seen = const [];
   // Mid-run failure reasons this run has already escalated, so the terminal
   // event that restates one is not escalated a second time. See
@@ -1190,9 +1173,8 @@ final runCriticalAlertsProvider = Provider<Stream<RunCriticalAlert>>((ref) {
         // runtime-config updates (e.g. `conditions_score`) with Info severity
         // but reuses the `SequencerEvent::Error` payload to avoid an FRB regen
         // (see native `RuntimeConfigUpdated`); isCriticalEvent keys off that
-        // Error payload, so without this guard every 30s config tick flooded
-        // the run dashboard with false "Sequencer error" banners + audible /
-        // push alerts.
+        // Error payload, so without this guard every 30s config tick would
+        // raise a false "Sequencer error" banner and alerts.
         // A fresh run starts a fresh ledger of reasons. Checked ahead of the
         // severity/criticality gates because a run start is Info-severity and
         // is not itself a critical event.

@@ -56,10 +56,7 @@ String darkroomEditLocation({int? masterId, int? recipeId}) =>
 /// The one sentence every Darkroom entry point refuses a remote client with.
 ///
 /// Shared rather than repeated so two controls cannot answer the same question
-/// in two different ways: the session-level "Refine in Darkroom" explained
-/// itself inline while the master card's "Darkroom" navigated into the
-/// host-only screen, and an operator pressing both learned two different things
-/// about the same machine.
+/// in two different ways.
 const String kDarkroomHostOnlyRefusal =
     'The Darkroom works on the imaging host, where the linear masters are '
     'stored. Open Skotiq there to refine this night.';
@@ -79,10 +76,7 @@ String? darkroomHostOnlyRefusal(WidgetRef ref) =>
 /// The refusal has to be IN the name. Flutter's `tooltip:` publishes
 /// `SemanticsProperties.tooltip`, and the Linux AT-SPI bridge does not fold
 /// that into the accessible name, so a reason carried only by a tooltip
-/// reaches a pointer and nothing else: the session dialog's Darkroom action
-/// read `Refine on imaging host [DISABLED]` to a screen reader while the hover
-/// tooltip carried the whole sentence, and the header buttons are icon-only,
-/// so there was no visible reason either. The tooltip stays — it is what a
+/// reaches a pointer and nothing else. The tooltip stays — it is what a
 /// mouse user gets — and the same words go in the name for everyone else.
 ///
 /// The em dash is the separator the rest of this build already uses for the
@@ -93,13 +87,9 @@ String unavailableControlName(String label, String reason) => '$label: $reason';
 /// [darkroomHostOnlyRefusal] for a control that is being BUILT rather than
 /// pressed: the same answer, watched so the control follows the role.
 ///
-/// Every Darkroom entry point asked the question inside its tap handler, so on
-/// a remote client each of them was drawn live — full contrast, focusable,
-/// nothing in the accessibility tree saying otherwise — and answered only after
-/// the operator committed to the press. A control that looks available and then
-/// refuses is the cry-wolf shape: it teaches the operator that the app's
-/// enabled state means nothing. The refusal belongs ON the control, as its
-/// disabled reason, before anybody reaches for it.
+/// A control that looks available and then refuses teaches the operator that
+/// the app's enabled state means nothing, so the refusal belongs ON the
+/// control, as its disabled reason, before anybody reaches for it.
 ///
 /// `watch`, not `read`: a control built while the role answer is one thing has
 /// to be rebuilt when it becomes another — a desktop that is handed
@@ -123,10 +113,8 @@ void openDarkroomForMaster(BuildContext context, int masterId) {
 /// Open the Darkroom on [masterId] from a control that names the master row
 /// itself, or refuse where the operator pressed.
 ///
-/// The master library's "Darkroom" button called [openDarkroomForMaster]
-/// directly, so on a client it navigated into the host-only screen while the
-/// session-level control on the same launch refused inline. One resolver, one
-/// behaviour: no Darkroom control on a client lands on a gate screen.
+/// One resolver, one behaviour: no Darkroom control on a client lands on a
+/// gate screen.
 void openDarkroomForMasterRow(
   BuildContext context,
   WidgetRef ref,
@@ -205,13 +193,9 @@ final darkroomSessionTargetProvider = FutureProvider.autoDispose
 /// What a session-scoped Darkroom control says instead of opening, or null when
 /// it can open.
 ///
-/// Both predicates, on the control, before the press. The ROLE half was already
-/// answered here by [watchDarkroomHostOnlyRefusal]; the MASTER half was asked
-/// only inside the tap handler, so on a night that was never integrated the
-/// control was drawn live — full contrast, focusable, nothing in the
-/// accessibility tree saying otherwise — and the sentence explaining that there
-/// is nothing to open arrived after the operator had committed to the press.
-/// That is the cry-wolf shape this library exists to name, one predicate short.
+/// Both predicates, on the control, before the press: the ROLE half through
+/// [watchDarkroomHostOnlyRefusal] and the MASTER half from the resolution, so
+/// a night that was never integrated is not drawn as a live control.
 ///
 /// The role is answered FIRST and short-circuits: a client owns none of the
 /// host's masters, so reading its own database to find out would answer a

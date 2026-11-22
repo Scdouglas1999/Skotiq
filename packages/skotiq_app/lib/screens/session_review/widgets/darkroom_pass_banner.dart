@@ -12,25 +12,17 @@ import '../../../utils/darkroom_navigation.dart';
 /// The Darkroom pass is what turns a night's masters into drafts, a night
 /// report and a delivery. When it runs at dawn nobody is standing at the
 /// machine, so its ending lives only on its `darkroom_jobs` row — the toast
-/// that reports a pass belongs to the button that started one. A pass that
-/// failed at 05:40 therefore left this screen showing the night's verdict, the
-/// masters and the score with nothing saying the drafting and the delivery had
-/// not happened, and the operator's first sign of it was a destination that
-/// never received the night.
+/// that reports a pass belongs to the button that started one.
 ///
 /// Renders nothing for a pass that is still running — that one has the screen's
 /// own progress strip.
 ///
 /// A pass that ran to the END gets a line too, and that is not decoration. The
 /// dawn pass finishes while nobody is at the machine and its only durable
-/// account is its `darkroom_jobs` row: measured against a completed D1 night —
-/// one `done` job, four autopilot recipes, four rendered drafts, nine delivered
-/// files — the Dashboard, the status bar and this screen said NOTHING about any
-/// of it, and the only way to the drafts was an unlabelled icon in an Analytics
-/// session dialog. The morning notification's `darkroom_draft:` deep link is
-/// routed by the phone alone, so on the desktop the pass had no surface at all.
-/// This is that surface: the ending, in the place the operator opens to look at
-/// the night, with the way to what it made.
+/// account is its `darkroom_jobs` row; the morning notification's
+/// `darkroom_draft:` deep link is routed by the phone alone. This is the
+/// desktop's surface for it: the ending, in the place the operator opens to
+/// look at the night, with the way to what it made.
 ///
 /// A `queued` pass DOES get one, because that is what a night still owed its
 /// drafts looks like on this screen. The autopilot queues and runs in one
@@ -113,10 +105,7 @@ class DarkroomPassBanner extends StatelessWidget {
   /// B`, `Delivering the night` — a fragment that only reads as English inside
   /// a frame. The open-time recovery that ends a job at the retry limit leaves
   /// a finished sentence instead: `Stopped at the retry limit; this job is not
-  /// re-queued.` Wrapping the second in the first's frame produced `It was
-  /// Stopped at the retry limit; this job is not re-queued. when it stopped.`
-  /// — a full stop mid-clause and a dangling tail, on the banner an operator
-  /// reads when a night has gone wrong.
+  /// re-queued.`, which must not be wrapped in the first's frame.
   ///
   /// Terminal punctuation is what separates them, and it separates them because
   /// of what each writer is doing: a stage name is a noun phrase and never ends
@@ -188,9 +177,8 @@ class _CompletedPass extends ConsumerWidget {
 ///
 /// Kept apart from the ended-pass shapes above because it is not a failure and
 /// must not read as one. Nothing has gone wrong yet — the work is queued and
-/// the startup drain runs it — but the screen said nothing at all about a night
-/// in this state, and a night in this state has no drafts, no report and no
-/// delivery to show for itself.
+/// the startup drain runs it — but a night in this state has no drafts, no
+/// report and no delivery to show for itself.
 class _QueuedPass extends StatelessWidget {
   const _QueuedPass({required this.pass});
 
