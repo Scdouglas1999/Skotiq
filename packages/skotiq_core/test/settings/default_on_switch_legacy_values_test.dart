@@ -33,6 +33,7 @@ const _onUnlessFalse = {
   'tutorials_enabled',
   'frame_watch_recenter_enabled',
   'calibration.auto_dark_from_library',
+  'calibration.auto_flat_from_library',
   'transient_alert_notify_on_new',
 };
 

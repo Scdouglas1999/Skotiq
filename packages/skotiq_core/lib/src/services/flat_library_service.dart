@@ -136,6 +136,25 @@ class FlatLibraryService {
     return rows.firstWhere((row) => row.id == selection.record.id);
   }
 
+  /// The master flat for a light being calibrated as it is captured
+  /// ([liveFlatFor] over this library).
+  Future<FlatLibraryEntry?> findLiveFlat({
+    required String? filter,
+    required int? gain,
+    required int? offset,
+    int binX = 1,
+    int binY = 1,
+    double? temperature,
+  }) async => liveFlatFor(
+    await _dao.getAllEntries(),
+    filter: filter,
+    gain: gain,
+    offset: offset,
+    binX: binX,
+    binY: binY,
+    temperature: temperature,
+  );
+
   /// All registered master flats, newest first.
   Future<List<FlatLibraryEntry>> getAllEntries() => _dao.getAllEntries();
 
@@ -159,4 +178,40 @@ class FlatMasterBuild {
 
   final int libraryId;
   final BuildMasterFlatResult result;
+}
+
+/// The master flat of [rows] for a light being calibrated as it is captured:
+/// a flat of exactly the light's [filter] (the same name ignoring case and
+/// surrounding space; no filter takes a flat recorded with none), then
+/// [selectFlat] over the capture tuple, binning and temperature. Null when
+/// none qualifies: a light never takes another filter's flat.
+FlatLibraryEntry? liveFlatFor(
+  List<FlatLibraryEntry> rows, {
+  required String? filter,
+  required int? gain,
+  required int? offset,
+  int binX = 1,
+  int binY = 1,
+  double? temperature,
+}) {
+  final wanted = filter?.trim().toLowerCase() ?? '';
+  final candidates = [
+    for (final row in rows)
+      if ((row.filter?.trim().toLowerCase() ?? '') == wanted) row,
+  ];
+  final selection = selectFlat(
+    candidates.map(flatLibraryRecord),
+    LightFrameContext(
+      gain: gain,
+      offset: offset,
+      exposureSeconds: 0,
+      temperature: temperature,
+      filter: filter,
+      binX: binX,
+      binY: binY,
+    ),
+    temperatureToleranceC: CalibrationMatchTolerances.defaults.flatTemperatureC,
+  );
+  if (selection == null) return null;
+  return candidates.firstWhere((row) => row.id == selection.record.id);
 }

@@ -12,6 +12,7 @@ import '../providers/async_scope.dart';
 import '../providers/dark_library_provider.dart';
 import '../services/calibration/calibration_selection.dart';
 import '../services/dark_library_service.dart';
+import 'flat_library_service.dart';
 import '../utils/logging_service.dart';
 import '../settings/setting.dart';
 import '../settings/store_settings.dart';
@@ -29,7 +30,8 @@ class CalibrationSettings {
   /// Whether to auto-calibrate captured light frames.
   final bool autoCalibrate;
 
-  /// Path to a master flat file (null = skip flat correction).
+  /// Path to a master flat file, used for every light when
+  /// [autoFlatFromLibrary] is off (null = skip flat correction).
   final String? masterFlatPath;
 
   /// Path to a master bias file (null = skip bias correction).
@@ -40,6 +42,11 @@ class CalibrationSettings {
 
   /// Manual dark path override (used if [autoDarkFromLibrary] is false).
   final String? manualDarkPath;
+
+  /// Whether each light's flat is picked from the flat library by its filter
+  /// (exact name), its capture tuple and its binning. No matching flat means
+  /// no flat, never another filter's.
+  final bool autoFlatFromLibrary;
 
   /// True while a remote controller is loading the imaging host's snapshot.
   /// Local/host settings are fed by the Drift stream and never use this flag.
@@ -55,6 +62,7 @@ class CalibrationSettings {
     this.masterBiasPath,
     this.autoDarkFromLibrary = true,
     this.manualDarkPath,
+    this.autoFlatFromLibrary = true,
     this.isLoading = false,
     this.loadError,
   });
@@ -68,6 +76,7 @@ class CalibrationSettings {
     Object? masterBiasPath = _sentinel,
     bool? autoDarkFromLibrary,
     Object? manualDarkPath = _sentinel,
+    bool? autoFlatFromLibrary,
     bool? isLoading,
     Object? loadError = _sentinel,
   }) {
@@ -83,6 +92,7 @@ class CalibrationSettings {
       manualDarkPath: manualDarkPath == _sentinel
           ? this.manualDarkPath
           : manualDarkPath as String?,
+      autoFlatFromLibrary: autoFlatFromLibrary ?? this.autoFlatFromLibrary,
       isLoading: isLoading ?? this.isLoading,
       loadError: loadError == _sentinel ? this.loadError : loadError,
     );
@@ -97,6 +107,8 @@ class CalibrationSettings {
         autoDarkFromLibrary: StoreSettings.calibrationAutoDarkFromLibrary
             .valueIn(rows),
         manualDarkPath: StoreSettings.calibrationManualDarkPath.valueIn(rows),
+        autoFlatFromLibrary: StoreSettings.calibrationAutoFlatFromLibrary
+            .valueIn(rows),
       );
 
   /// The snapshot `GET /api/calibration/settings` returns.
@@ -106,6 +118,7 @@ class CalibrationSettings {
     'masterBiasPath': masterBiasPath,
     'autoDarkFromLibrary': autoDarkFromLibrary,
     'manualDarkPath': manualDarkPath,
+    'autoFlatFromLibrary': autoFlatFromLibrary,
   };
 
   /// Strictly decode the complete host snapshot returned by
@@ -135,6 +148,14 @@ class CalibrationSettings {
       masterBiasPath: nullablePath('masterBiasPath'),
       autoDarkFromLibrary: autoDarkFromLibrary,
       manualDarkPath: nullablePath('manualDarkPath'),
+      // A host from before the setting stores none: the default.
+      autoFlatFromLibrary: switch (json['autoFlatFromLibrary']) {
+        null => true,
+        final bool value => value,
+        _ => throw const FormatException(
+          'Malformed calibration settings from imaging host',
+        ),
+      },
     );
   }
 }
@@ -187,6 +208,52 @@ class CalibrationService {
 
   DarkLibraryService get _darkLibrary => _ref.read(darkLibraryServiceProvider);
 
+  /// The library flat for a light of [filter] (exact name, see
+  /// [liveFlatFor]), asked of the linked host when there
+  /// is one; null, with a log line, when none matches.
+  Future<String?> _matchFlat({
+    required HostCalibrationTools? host,
+    required String? filter,
+    required int? gain,
+    required int? offset,
+    required int binX,
+    required int binY,
+    required double? temperature,
+  }) async {
+    final String? matched;
+    if (host != null) {
+      matched = await host.matchFlatFromLibrary(
+        filter: filter,
+        gain: gain,
+        offset: offset,
+        binX: binX,
+        binY: binY,
+        temperature: temperature,
+      );
+    } else {
+      matched = liveFlatFor(
+        await _ref.read(flatLibraryDaoProvider).getAllEntries(),
+        filter: filter,
+        gain: gain,
+        offset: offset,
+        binX: binX,
+        binY: binY,
+        temperature: temperature,
+      )?.filePath;
+    }
+    _host.ensureCurrent('calibration was in progress');
+    final label = filter == null || filter.trim().isEmpty
+        ? 'no filter'
+        : 'filter "${filter.trim()}"';
+    _logger.info(
+      matched == null
+          ? 'No library flat for $label; the light gets no flat'
+          : 'Library flat for $label: $matched',
+      source: 'CalibrationService',
+    );
+    return matched;
+  }
+
   /// Calibrate a light frame file using the provided settings.
   ///
   /// If [settings.autoDarkFromLibrary] is true, the best-matching dark
@@ -207,6 +274,7 @@ class CalibrationService {
     int binX = 1,
     int binY = 1,
     double? sensorTemperature,
+    String? filter,
   }) async {
     _host.ensureCurrent('calibration was in progress');
     _logger.info('Calibrating: $lightPath', source: 'CalibrationService');
@@ -278,7 +346,17 @@ class CalibrationService {
       }
     }
 
-    final flatPath = settings.masterFlatPath;
+    final flatPath = settings.autoFlatFromLibrary
+        ? await _matchFlat(
+            host: host,
+            filter: filter,
+            gain: gain,
+            offset: offset,
+            binX: binX,
+            binY: binY,
+            temperature: sensorTemperature,
+          )
+        : settings.masterFlatPath;
     final biasPath = settings.masterBiasPath;
 
     if (darkPath == null && flatPath == null && biasPath == null) {
@@ -550,6 +628,18 @@ class CalibrationSettingsNotifier extends StateNotifier<CalibrationSettings> {
     final next = state.copyWith(autoDarkFromLibrary: enabled);
     state = next;
     await _save(StoreSettings.calibrationAutoDarkFromLibrary, enabled);
+  }
+
+  Future<void> setAutoFlatFromLibrary(bool enabled) async {
+    if (_remote != null) {
+      await _saveRemote({
+        'autoFlatFromLibrary': enabled,
+      }, (current) => current.copyWith(autoFlatFromLibrary: enabled));
+      return;
+    }
+    final next = state.copyWith(autoFlatFromLibrary: enabled);
+    state = next;
+    await _save(StoreSettings.calibrationAutoFlatFromLibrary, enabled);
   }
 
   Future<void> setManualDarkPath(String? path) async {
