@@ -48,7 +48,8 @@ class SequenceTimeline extends ConsumerWidget {
 
     final sessionStart =
         isRunning ? ref.watch(sessionStateProvider).startTime : null;
-    final timelineStart = startTime ?? sessionStart ?? DateTime.now();
+    final timelineStart =
+        startTime ?? sessionStart ?? ref.watch(clockProvider).instant;
     final timing = ref.watch(planTimerProvider).time(sequence, timelineStart);
     final segments = _buildTimelineSegments(sequence, timing);
     final totalDuration = timing.total.inMilliseconds / 1000.0;
