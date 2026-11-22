@@ -2,7 +2,7 @@
 
 part of '../profile_editor_dialog.dart';
 
-/// The binning factors this editor offers. Square only (binX == binY).
+/// The binning factors this editor offers on each axis.
 const List<int> _binningFactors = [1, 2, 3, 4];
 
 const double _recommendationLabelWidth = 104;
@@ -178,15 +178,44 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
           ],
           _EditorRow(
             label: 'Binning',
+            help: 'X by Y. Most cameras bin both axes alike.',
             child: Align(
               alignment: Alignment.centerLeft,
-              child: SkotiqDropdown(
-                value: _binning.toString(),
-                items: [for (final b in _binningFactors) b.toString()],
-                itemLabels: [for (final b in _binningFactors) '$b×$b'],
-                onChanged: (v) => setState(
-                  () => _binning = int.tryParse(v ?? '') ?? 1,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Semantics(
+                    label: 'Binning X',
+                    child: SkotiqDropdown(
+                      value: _binX.toString(),
+                      items: [for (final b in _binningFactors) b.toString()],
+                      onChanged: (v) => setState(
+                        () => _binX = int.tryParse(v ?? '') ?? 1,
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SkotiqTokens.spaceSm,
+                    ),
+                    child: Text(
+                      '×',
+                      style: SkotiqTypography.body.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  Semantics(
+                    label: 'Binning Y',
+                    child: SkotiqDropdown(
+                      value: _binY.toString(),
+                      items: [for (final b in _binningFactors) b.toString()],
+                      onChanged: (v) => setState(
+                        () => _binY = int.tryParse(v ?? '') ?? 1,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -334,11 +363,11 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
     setState(() {
       _gainController.text = preset.recommendedGain.toString();
       _offsetController.text = preset.recommendedOffset.toString();
-      // The binning dropdown is square (binX == binY) in this editor; presets
-      // store the recommended X binning, which we apply directly when it is one
-      // of the offered factors.
-      if (preset.recommendedBinX >= 1 && preset.recommendedBinX <= 4) {
-        _binning = preset.recommendedBinX;
+      if (_binningFactors.contains(preset.recommendedBinX)) {
+        _binX = preset.recommendedBinX;
+      }
+      if (_binningFactors.contains(preset.recommendedBinY)) {
+        _binY = preset.recommendedBinY;
       }
       final coolingTemp = preset.recommendedCoolingTempC;
       if (coolingTemp != null) {
