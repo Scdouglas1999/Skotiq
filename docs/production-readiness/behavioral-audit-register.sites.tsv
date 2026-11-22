@@ -2712,6 +2712,8 @@ packages/skotiq_core/lib/src/models/weather/weather_status.g.dart	_$WeatherStatu
 packages/skotiq_core/lib/src/models/weather/weather_status.g.dart	_$WeatherStatusFromJson	literal_null_coalesce	1	V0014	isLoading: json['isLoading'] as bool? ?? false,
 packages/skotiq_core/lib/src/providers/app_version_provider.dart	-	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/async_scope.dart	beginLatest	literal_null_coalesce	1	U2-02	final turn = (_latest[slot] ?? 0) + 1;
+packages/skotiq_core/lib/src/providers/auto_save_service.dart	-	empty_catch	1	V0024	} catch (_) {
+packages/skotiq_core/lib/src/providers/auto_save_service.dart	positiveInt	literal_null_coalesce	1	V0024	final parsed = int.tryParse(values[key] ?? '');
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	_fetch	empty_catch	1	V0811	} catch (_) {
 packages/skotiq_core/lib/src/providers/autofocus_preview_feeder.dart	fetchLatestFrame	guessed_now_timestamp	1	V0812	final capturedAt = tryParseUtcTimestamp(result.timestamp) ?? DateTime.now();
 packages/skotiq_core/lib/src/providers/autofocus_progress_provider.dart	_sequenceResult	literal_null_coalesce	1	V0810	backlashApplied: json['backlash_applied'] as bool? ?? false,
@@ -2725,6 +2727,8 @@ packages/skotiq_core/lib/src/providers/captured_image_rows.dart	_known	literal_n
 packages/skotiq_core/lib/src/providers/device_connection_progress_provider.dart	endSweep	guessed_now_timestamp	1	V0266	state = state.copyWith(isSweeping: false, finishedAt: at ?? DateTime.now());
 packages/skotiq_core/lib/src/providers/device_last_contact_provider.dart	_refresh	empty_catch	1	V0359	} catch (_) {
 packages/skotiq_core/lib/src/providers/device_last_contact_provider.dart	_refresh	empty_catch	1	V0360	} catch (_) {
+packages/skotiq_core/lib/src/providers/diagnostic_dump_service.dart	_gatherSystemInfo	comment_best_effort	1	V0029	// placeholder so the file path is preserved.
+packages/skotiq_core/lib/src/providers/diagnostic_dump_service.dart	_gatherSystemInfo	empty_catch	1	V0029	} on Exception catch (_) {
 packages/skotiq_core/lib/src/providers/disk_space_provider.dart	-	literal_null_coalesce	1	V0098	ref.watch(cameraStateProvider.select((c) => c.deviceId)) ?? '';
 packages/skotiq_core/lib/src/providers/disk_space_provider.dart	projectCurrentSequence	literal_null_coalesce	1	V0098	final cameraId = cameraState.deviceId ?? '';
 packages/skotiq_core/lib/src/providers/end_of_night_calibration/eon_providers.dart	camera	empty_catch	1	V0825	} catch (_) {
@@ -2752,6 +2756,9 @@ packages/skotiq_core/lib/src/providers/glance_mode_provider.dart	setEnabled	empt
 packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	disconnect	comment_best_effort	1	V0121	// Best-effort interruption. The authoritative teardown below reports
 packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	disconnect	empty_catch	2	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	addPoint	guessed_now_timestamp	1	R91-11	final point = GuideGraphPoint(ra, dec, at ?? DateTime.now());
+packages/skotiq_core/lib/src/providers/home_assistant/home_assistant_discovery_service.dart	_stop	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/home_assistant/home_assistant_discovery_service.dart	_computeStates	literal_null_coalesce	1	V0121	states[HaEntityKeys.framesTonight] = (liveStats?.framesCaptured ?? 0)
+packages/skotiq_core/lib/src/providers/home_assistant/home_assistant_discovery_service.dart	isRunning	literal_null_coalesce	1	V0121	bool get isRunning => _client?.isConnected ?? false;
 packages/skotiq_core/lib/src/providers/hotplug_event_bridge_provider.dart	flushInvalidations	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/imaging_provider.dart	-	empty_catch	1	V0189	} catch (_) {
 packages/skotiq_core/lib/src/providers/imaging_provider.dart	update	empty_catch	1	V0189	} catch (_) {
@@ -2775,6 +2782,7 @@ packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_n
 packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_null_coalesce	1	V0121	if (ref.watch(hasCapturedImagesProvider).valueOrNull ?? false) {
 packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_null_coalesce	1	U2-19	ref.watch(savedSequenceSummariesProvider).valueOrNull?.length ?? 0;
 packages/skotiq_core/lib/src/providers/next_use_prompt_provider.dart	-	literal_null_coalesce	1	V0121	sessionStateProvider.select((s) => (s.targetName ?? '').trim().isNotEmpty),
+packages/skotiq_core/lib/src/providers/night_end/night_end_coordinator.dart	describeNightEndRun	literal_null_coalesce	1	V0121	'${target.build.detail ?? ''}'
 packages/skotiq_core/lib/src/providers/notification_router_provider.dart	-	literal_null_coalesce	1	V0098	ref.watch(pushNotificationConfigProvider).valueOrNull?.enabled ?? false,
 packages/skotiq_core/lib/src/providers/notification_router_provider.dart	-	literal_null_coalesce	1	V0098	secretsOf: (c) => {SecretField.mqttPassword: c.password ?? ''},
 packages/skotiq_core/lib/src/providers/notification_router_provider.dart	_persistConfigWithSecrets	literal_null_coalesce	1	V0098	await secrets.write(field, previousValues[field] ?? '');
@@ -2832,6 +2840,12 @@ packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_candidate_loader.dart	isMosaicTarget	literal_null_coalesce	1	V0407	final haystack = '$name ${objectType ?? ''} ${notes ?? ''}'.toLowerCase();
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_engine_providers.dart	-	literal_null_coalesce	1	V0815	final lat = settings?.latitude ?? 0.0;
 packages/skotiq_core/lib/src/providers/scheduler/scheduler_engine_providers.dart	-	literal_null_coalesce	1	V0815	final lng = settings?.longitude ?? 0.0;
+packages/skotiq_core/lib/src/providers/science/narrator_service.dart	_bindStreams	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/science/narrator_service.dart	_focuserTempC	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/science/narrator_service.dart	_objectId	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/science/narrator_service.dart	_onGuideStats	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/science/narrator_service.dart	_readOr	empty_catch	1	V0121	} catch (_) {
+packages/skotiq_core/lib/src/providers/science/narrator_service.dart	_readWeather	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/science_provider/session_products.dart	-	literal_null_coalesce	3	V0121	snr: row.snr ?? 0.0,
 packages/skotiq_core/lib/src/providers/science_provider/session_products.dart	-	literal_null_coalesce	3	V0121	uncertainty: row.uncertainty ?? 0.0,
 packages/skotiq_core/lib/src/providers/secondary_rig_provider.dart	SecondaryRigStatus.fromJson	literal_null_coalesce	1	V0121	rigLabel: json['rigLabel'] as String? ?? '',
@@ -2961,8 +2975,6 @@ packages/skotiq_core/lib/src/services/annotation_export.dart	_csv	literal_null_c
 packages/skotiq_core/lib/src/services/annotation_pipeline.dart	findObjectsInFov	comment_best_effort	1	V0024	// Temporary map for deduplication: keyed by normalized name or position.
 packages/skotiq_core/lib/src/services/annotation_service.dart	_deduplicationKey	literal_null_coalesce	1	V0025	final catalogId = annotation.catalogId?.trim().toUpperCase() ?? '';
 packages/skotiq_core/lib/src/services/annotation_service.dart	_describePlateSolveFailure	literal_null_coalesce	1	V0025	final count = int.tryParse(starMatch.group(1)!) ?? 0;
-packages/skotiq_core/lib/src/services/auto_save_service.dart	-	empty_catch	1	V0024	} catch (_) {
-packages/skotiq_core/lib/src/services/auto_save_service.dart	positiveInt	literal_null_coalesce	1	V0024	final parsed = int.tryParse(values[key] ?? '');
 packages/skotiq_core/lib/src/services/backup_service.dart	BackupService	comment_best_effort	1	V0026	/// Best-effort: a settings-write failure must not turn a backup that is
 packages/skotiq_core/lib/src/services/backup_service.dart	getConfiguredBackupDirectory	literal_null_coalesce	1	V0026	final trimmed = value?.trim() ?? '';
 packages/skotiq_core/lib/src/services/backup_service.dart	setBackupDirectory	literal_null_coalesce	1	V0026	final trimmed = directoryPath?.trim() ?? '';
@@ -3140,8 +3152,6 @@ packages/skotiq_core/lib/src/services/device_service/event_handling.dart	_handle
 packages/skotiq_core/lib/src/services/device_service/event_handling.dart	_isGuideCameraEvent	literal_null_coalesce	1	V0121	if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||
 packages/skotiq_core/lib/src/services/device_service/filter_wheel_controls.dart	_setFilterWheelPosition	literal_null_coalesce	1	V0249	final positionCount = capabilities?.positionCount ?? 0;
 packages/skotiq_core/lib/src/services/device_service/focuser_rotator_controls.dart	_moveFocuserRelative	literal_null_coalesce	1	V0250	final maxIncrement = capabilities?.maxIncrement ?? 0;
-packages/skotiq_core/lib/src/services/diagnostic_dump_service.dart	_gatherSystemInfo	comment_best_effort	1	V0029	// placeholder so the file path is preserved.
-packages/skotiq_core/lib/src/services/diagnostic_dump_service.dart	_gatherSystemInfo	empty_catch	1	V0029	} on Exception catch (_) {
 packages/skotiq_core/lib/src/services/end_of_night_calibration/eon_plan.dart	planFrameNeeds	literal_null_coalesce	1	V0819	darkCounts[key] = (darkCounts[key] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/end_of_night_calibration/eon_service.dart	_readFilterPosition	empty_catch	1	V0824	} catch (_) {
 packages/skotiq_core/lib/src/services/end_of_night_calibration/eon_settings.dart	count	literal_null_coalesce	1	V0827	(int.tryParse(raw ?? '') ?? fallback).clamp(minCount, maxCount);
@@ -3166,9 +3176,6 @@ packages/skotiq_core/lib/src/services/hips/hips_tile_loader.dart	hasPendingRecom
 packages/skotiq_core/lib/src/services/hips/hips_tile_loader.dart	requestTiles	literal_null_coalesce	1	V0121	!(_pendingTimer?.isActive ?? false)) {
 packages/skotiq_core/lib/src/services/home_assistant/ha_mqtt_session_client.dart	_handleDrop	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/home_assistant/ha_mqtt_session_client.dart	disconnect	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	_stop	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	_computeStates	literal_null_coalesce	1	V0121	states[HaEntityKeys.framesTonight] = (liveStats?.framesCaptured ?? 0)
-packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	isRunning	literal_null_coalesce	1	V0121	bool get isRunning => _client?.isConnected ?? false;
 packages/skotiq_core/lib/src/services/imaging_service.dart	histogram256FromRawU16	literal_null_coalesce	1	R9-128	if (isCancelled?.call() ?? false) return null;
 packages/skotiq_core/lib/src/services/imaging_service/exposure_state.dart	_withLiveFilter	empty_catch	1	V0472	} catch (_) {
 packages/skotiq_core/lib/src/services/import/astrobin_importer.dart	_parseIntegration	literal_null_coalesce	1	V0102	? (double.tryParse(hm.group(2)!) ?? 0)
@@ -3217,7 +3224,6 @@ packages/skotiq_core/lib/src/services/night_analysis_service.dart	_loadScienceSn
 packages/skotiq_core/lib/src/services/night_analysis_service.dart	_loadPsfFwhm	literal_null_coalesce	1	V0121	counts[id] = (counts[id] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/night_analysis_service.dart	_loadPsfFwhm	literal_null_coalesce	1	V0121	sums[id] = (sums[id] ?? 0) + r.medianFwhm;
 packages/skotiq_core/lib/src/services/night_analysis_service.dart	_score	literal_null_coalesce	1	V0121	score -= _penalty[f.severity] ?? 0;
-packages/skotiq_core/lib/src/services/night_end/night_end_coordinator.dart	describeNightEndRun	literal_null_coalesce	1	V0121	'${target.build.detail ?? ''}'
 packages/skotiq_core/lib/src/services/night_end/night_end_run.dart	NightEndRun.fromJson	literal_null_coalesce	1	V0842	reason: json['reason'] as String? ?? '',
 packages/skotiq_core/lib/src/services/night_end/night_end_settings.dart	load	literal_null_coalesce	1	V0843	await dao.getSetting(minRetainedAreaKey) ?? '',
 packages/skotiq_core/lib/src/services/notification/notification_router.dart	prune	guessed_now_timestamp	1	V0105	final cutoff = (now ?? DateTime.now()).subtract(maxAge);
@@ -3316,12 +3322,6 @@ packages/skotiq_core/lib/src/services/science/narrator/narrator_context.dart	obs
 packages/skotiq_core/lib/src/services/science/narrator/narrator_context.dart	offTarget	literal_null_coalesce	1	V0879	bool get offTarget => rejectionReason?.contains('Off target') ?? false;
 packages/skotiq_core/lib/src/services/science/narrator/narrator_engine.dart	evaluate	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/science/narrator/narrator_event.dart	fromJsonString	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_bindStreams	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_focuserTempC	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_objectId	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_onGuideStats	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_readOr	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/services/science/narrator/narrator_service.dart	_readWeather	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/science/photometric_bands.dart	normalizeFilterKey	literal_null_coalesce	1	V0877	final raw = (filter ?? '').trim();
 packages/skotiq_core/lib/src/services/science/science_camera_auto_config.dart	_resolveBitDepth	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/science/science_camera_auto_config.dart	_resolveCameraStatus	empty_catch	1	V0121	} catch (_) {
