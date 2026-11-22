@@ -17,6 +17,7 @@ import '../../../utils/authority_bound_dialog.dart';
 import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
+import '../../../utils/open_in_editor.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../widgets/save_sequence.dart';
 

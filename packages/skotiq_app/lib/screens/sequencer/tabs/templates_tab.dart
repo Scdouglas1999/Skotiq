@@ -10,6 +10,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../sequencer_screen.dart';
 import 'package:skotiq_app/utils/authority_bound_dialog.dart';
+import 'package:skotiq_app/utils/open_in_editor.dart';
 import 'package:skotiq_app/utils/snackbar_helper.dart';
 import '../widgets/quick_start_wizard_dialog.dart';
 import '../../../utils/count_label.dart';

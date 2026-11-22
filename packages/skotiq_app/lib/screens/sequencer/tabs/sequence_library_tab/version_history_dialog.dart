@@ -147,40 +147,18 @@ class _VersionHistoryDialogState extends ConsumerState<_VersionHistoryDialog>
       return;
     }
 
-    try {
-      editor.loadSequence(restored);
-    } on UnsavedChangesException catch (e) {
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => SkotiqDialog(
-          title: 'Discard unsaved changes?',
-          width: SkotiqDialog.widthConfirm,
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and restore',
-              variant: ButtonVariant.destructive,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
-          child: Text(
-            '"${e.currentSequenceName}" has unsaved changes. '
-            'Restoring this version will discard them.',
-            style: SkotiqTypography.body.copyWith(
-              color: widget.colors.textSecondary,
-            ),
-          ),
-        ),
-      );
-      if (discard != true || host.isStale) {
-        return;
-      }
-      editor.loadSequence(restored, discardUnsaved: true);
-    }
+    final restoredSequence = restored;
+    final opened = await openInEditor(
+      context,
+      load: ({required discardUnsaved}) =>
+          editor.loadSequence(restoredSequence, discardUnsaved: discardUnsaved),
+      prompt: const DiscardUnsavedPrompt(
+        consequence: 'Restoring this version will discard them.',
+        confirmLabel: 'Discard and restore',
+      ),
+      proceed: () => !host.isStale,
+    );
+    if (!opened) return;
 
     if (!mounted || host.isStale) return;
     Navigator.of(context).pop();

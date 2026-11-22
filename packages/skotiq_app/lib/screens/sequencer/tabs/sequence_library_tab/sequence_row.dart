@@ -414,39 +414,19 @@ class _SequenceRowState extends ConsumerState<_SequenceRow> {
     final loadedSequence = source.copyWith(isTemplate: false);
 
     final editor = ref.read(currentSequenceProvider.notifier);
-    try {
-      editor.loadSequence(loadedSequence);
-    } on UnsavedChangesException catch (e) {
-      // Opening a row is a deliberate switch, but unsaved work still gets
-      // the chance to be kept.
-      if (!context.mounted) return;
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => SkotiqDialog(
-          title: 'Discard unsaved changes?',
-          width: SkotiqDialog.widthConfirm,
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and open',
-              variant: ButtonVariant.destructive,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
-          child: Text(
-            '"${e.currentSequenceName}" has unsaved changes. '
-            'Opening "${_summary.name}" will discard them.',
-            style: SkotiqTypography.body.copyWith(color: _colors.textSecondary),
-          ),
-        ),
-      );
-      if (discard != true || host.isStale) return;
-      editor.loadSequence(loadedSequence, discardUnsaved: true);
-    }
+    // Opening a row is a deliberate switch, but unsaved work still gets the
+    // chance to be kept.
+    final opened = await openInEditor(
+      context,
+      load: ({required discardUnsaved}) =>
+          editor.loadSequence(loadedSequence, discardUnsaved: discardUnsaved),
+      prompt: DiscardUnsavedPrompt(
+        consequence: 'Opening "${_summary.name}" will discard them.',
+        confirmLabel: 'Discard and open',
+      ),
+      proceed: () => !host.isStale,
+    );
+    if (!opened) return;
 
     if (host.isStale) return;
 

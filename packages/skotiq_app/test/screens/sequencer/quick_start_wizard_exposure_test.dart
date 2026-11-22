@@ -629,7 +629,7 @@ void main() {
     expect(editor.state?.name, 'Manual draft');
     expect(editor.isDirty, isTrue);
 
-    final confirmation = find.byType(AlertDialog);
+    final confirmation = find.byType(SkotiqDialog);
     await tester.tap(
       find.descendant(of: confirmation, matching: find.text('Cancel')),
     );

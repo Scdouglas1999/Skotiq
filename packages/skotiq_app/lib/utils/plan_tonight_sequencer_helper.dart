@@ -4,10 +4,10 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../widgets/auto_build_options_dialog.dart';
 import 'held_future.dart';
+import 'open_in_editor.dart';
 import 'snackbar_helper.dart';
 
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
@@ -623,50 +623,15 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
       result.sequence.nodes.values.whereType<TargetHeaderNode>().firstOrNull;
   if (templateHeader == null) return false;
 
-  Future<bool> loadReplacing() async {
-    try {
-      notifier.loadSequence(result.sequence, discardUnsaved: false);
-      return true;
-    } on UnsavedChangesException catch (e) {
-      if (!context.mounted) return false;
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              ctx,
-              designMaxWidth: 440,
-            ),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Open the loaded sequence anyway?'),
-          ),
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and open',
-              variant: ButtonVariant.primary,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
+  Future<bool> loadReplacing() => openInEditor(
+        context,
+        load: ({required discardUnsaved}) => notifier.loadSequence(
+          result.sequence,
+          discardUnsaved: discardUnsaved,
         ),
+        prompt: openLoadedSequencePrompt,
+        onLocked: (e) => context.showInfoSnackBar(e.message),
       );
-      if (discard != true) return false;
-      notifier.loadSequence(result.sequence, discardUnsaved: true);
-      return true;
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) {
-        context.showInfoSnackBar(e.message);
-      }
-      return false;
-    }
-  }
 
   if (replaceSequence || ref.read(currentSequenceProvider) == null) {
     return loadReplacing();
