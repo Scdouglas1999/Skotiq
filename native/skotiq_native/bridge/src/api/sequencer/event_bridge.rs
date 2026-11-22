@@ -552,14 +552,10 @@ pub(crate) async fn run_sequencer_event_loop(
                 // payload. Its outcome rides a sibling property, since no
                 // call returns it to Dart.
                 ExecutorEvent::AutofocusProgress { focuser_id, detail } => {
-                    state.publish_equipment_event(
-                        crate::event::equipment::EquipmentEvent::PropertyChanged {
-                            device_type: "focuser".to_string(),
-                            device_id: focuser_id.clone(),
-                            property: "AutofocusProgress".to_string(),
-                            value: detail.clone(),
-                        },
-                        EventSeverity::Info,
+                    crate::util::executor_event_bridge::publish_autofocus_progress(
+                        state,
+                        focuser_id,
+                        detail.clone(),
                     );
                     None
                 }

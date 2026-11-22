@@ -83,6 +83,21 @@ pub fn spawn_executor_event_bridge(state: SharedAppState) -> broadcast::Sender<E
     tx
 }
 
+/// Publish one point of an autofocus sweep as the focuser's
+/// `AutofocusProgress` property, the payload every focus panel draws its
+/// V-curve from, whoever started the sweep.
+pub(crate) fn publish_autofocus_progress(state: &SharedAppState, focuser_id: &str, detail: String) {
+    state.publish_equipment_event(
+        crate::event::equipment::EquipmentEvent::PropertyChanged {
+            device_type: "focuser".to_string(),
+            device_id: focuser_id.to_string(),
+            property: "AutofocusProgress".to_string(),
+            value: detail,
+        },
+        EventSeverity::Info,
+    );
+}
+
 /// Publish an autofocus sweep's outcome as the focuser's `AutofocusFinished`
 /// property, the one shape every window settles its focus panel from,
 /// whoever started the sweep. `in_run` says a sequence ran it: a run tells a
@@ -147,11 +162,30 @@ fn forward_event(state: &SharedAppState, event: ExecutorEvent) {
         ExecutorEvent::DitherPerformed { .. } => return,
         // Frame measurements belong to a run's frame record.
         ExecutorEvent::FrameWatch(_) => return,
-        // Other variants currently surface as an informational error-tagged
-        // payload because the one-shot bridge sites don't have a richer
-        // mapping. If a future caller needs typed routing (e.g. exposure
-        // progress for the standalone autofocus), extend this match.
-        other => (
+        // A run's own events: a one-shot operation has no run to report
+        // them for. Listed one by one so a new event is decided here too.
+        other @ (ExecutorEvent::StateChanged(_)
+        | ExecutorEvent::ProgressUpdated(_)
+        | ExecutorEvent::NodeStarted { .. }
+        | ExecutorEvent::NodeCompleted { .. }
+        | ExecutorEvent::NodeProgress { .. }
+        | ExecutorEvent::ExposureStarted { .. }
+        | ExecutorEvent::ExposureCompleted { .. }
+        | ExecutorEvent::DepthGoalCompleted { .. }
+        | ExecutorEvent::TargetStarted { .. }
+        | ExecutorEvent::TargetCompleted { .. }
+        | ExecutorEvent::TriggerFired { .. }
+        | ExecutorEvent::Cancelled
+        | ExecutorEvent::MeridianFlipProgress { .. }
+        | ExecutorEvent::MeridianFlipOutcome { .. }
+        | ExecutorEvent::RuntimeConfigUpdated { .. }
+        | ExecutorEvent::RecoveryStarted { .. }
+        | ExecutorEvent::RecoveryProgress { .. }
+        | ExecutorEvent::RecoveryCompleted { .. }
+        | ExecutorEvent::RecoveryGaveUp { .. }
+        | ExecutorEvent::SequenceCompleted
+        | ExecutorEvent::InstructionFailed { .. }
+        | ExecutorEvent::PluginNodeRequested { .. }) => (
             EventSeverity::Info,
             format!("[ExecutorEvent] {:?}", std::mem::discriminant(&other)),
         ),
