@@ -239,9 +239,8 @@ pub struct NormalizationConfig {
     ///
     /// Used **only** by [`NormEstimator::CoLocatedPairFit`], where bright stars
     /// really would dominate a least-squares slope. The additive-with-scaling
-    /// estimator ignores it: median and MAD are already star-resistant, and
-    /// restricting them to background pixels breaks the
-    /// estimator. Default 0.92.
+    /// estimator ignores it: median and MAD are already star-resistant.
+    /// Default 0.92.
     pub high_reject_percentile: f64,
     /// Sigma-clip threshold (κ) — for the pair fit, the residual cut; for
     /// additive-with-scaling, the IKSS refinement cut. Default 2.5.
