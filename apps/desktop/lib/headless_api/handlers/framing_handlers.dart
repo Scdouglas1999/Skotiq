@@ -90,29 +90,6 @@ class FramingHandlers implements RouteSource {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final centering = await centeringForRequest(container, payload);
 
-    Map<String, Object?> resultToJson(CenteringResult result) => {
-      'success': result.success,
-      'iterations': result.iterations,
-      'finalOffsetArcsec': result.finalOffsetArcsec,
-      'errorMessage': result.errorMessage,
-      'iterationHistory': result.iterationHistory
-          .map(
-            (i) => {
-              'iterationNumber': i.iterationNumber,
-              'solvedRa': i.solvedRa,
-              'solvedDec': i.solvedDec,
-              'targetRa': i.targetRa,
-              'targetDec': i.targetDec,
-              'offsetArcsec': i.offsetArcsec,
-              'offsetArcmin': i.offsetArcmin,
-              'plateSolveSuccess': i.plateSolveSuccess,
-              'errorMessage': i.errorMessage,
-              'timestamp': i.timestamp.millisecondsSinceEpoch,
-            },
-          )
-          .toList(),
-    };
-
     Future<CenteringResult> runCentering() => container
         .read(centeringServiceProvider)
         .centerOnTarget(targetRa: ra, targetDec: dec, config: centering);
@@ -153,10 +130,10 @@ class FramingHandlers implements RouteSource {
               code: 'centering_failed',
               message:
                   result.errorMessage ?? 'Centering did not reach the target.',
-              details: resultToJson(result),
+              details: result.toJson(),
             );
           }
-          return resultToJson(result);
+          return result.toJson();
         },
       );
       return jsonOk({
@@ -167,7 +144,7 @@ class FramingHandlers implements RouteSource {
     }
 
     final result = await runCentering();
-    return jsonOk(resultToJson(result));
+    return jsonOk(result.toJson());
   }
 
   Future<Response> handleSyncMount(Request request) async {

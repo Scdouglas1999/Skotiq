@@ -80,25 +80,25 @@ final class HostCenteringRunner implements CenteringRunner {
       }
       final job = await _host.awaitJobCompletion(
         jobId,
-        timeout: const Duration(minutes: 10),
+        timeout: CenteringConfig.defaultOverallTimeout,
         pollInterval: const Duration(seconds: 1),
       );
       final outcome = job.result ?? job.error?['details'];
-      for (final attempt
-          in (outcome is Map ? outcome['iterationHistory'] : null)
-                  as List<dynamic>? ??
-              const []) {
-        if (attempt case {
-          'iterationNumber': final int number,
-          'solvedRa': final num ra,
-          'solvedDec': final num dec,
-          'offsetArcsec': final num separation,
-        }) {
+      final attempts = outcome is Map
+          ? CenteringResult.iterationsFromJson(outcome)
+          : const <CenteringIteration>[];
+      for (final attempt in attempts) {
+        if (attempt case CenteringIteration(
+          iterationNumber: final number,
+          solvedRa: final ra?,
+          solvedDec: final dec?,
+          offsetArcsec: final separation?,
+        )) {
           yield ApiCenteringStep.solved(
             attempt: number,
-            raHours: ra.toDouble(),
-            decDegrees: dec.toDouble(),
-            separationArcsec: separation.toDouble(),
+            raHours: ra,
+            decDegrees: dec,
+            separationArcsec: separation,
           );
         }
       }
@@ -178,7 +178,7 @@ class CenteringService {
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
     required double targetDec,
-    CenteringConfig config = const CenteringConfig(),
+    required CenteringConfig config,
     void Function(CenteringStatus)? onStatusUpdate,
   }) async {
     final refusal = _refusal(targetRa, targetDec, config);

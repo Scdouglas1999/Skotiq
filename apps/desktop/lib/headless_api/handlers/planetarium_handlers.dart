@@ -255,28 +255,7 @@ class PlanetariumHandlers implements RouteSource {
       config: centering,
     );
 
-    return jsonOk({
-      'success': result.success,
-      'iterations': result.iterations,
-      'finalOffsetArcsec': result.finalOffsetArcsec,
-      'errorMessage': result.errorMessage,
-      'iterationHistory': result.iterationHistory
-          .map(
-            (i) => {
-              'iterationNumber': i.iterationNumber,
-              'solvedRa': i.solvedRa,
-              'solvedDec': i.solvedDec,
-              'targetRa': i.targetRa,
-              'targetDec': i.targetDec,
-              'offsetArcsec': i.offsetArcsec,
-              'offsetArcmin': i.offsetArcmin,
-              'plateSolveSuccess': i.plateSolveSuccess,
-              'errorMessage': i.errorMessage,
-              'timestamp': i.timestamp.millisecondsSinceEpoch,
-            },
-          )
-          .toList(),
-    });
+    return jsonOk(result.toJson());
   }
 
   /// POST /api/planetarium/sync-to
