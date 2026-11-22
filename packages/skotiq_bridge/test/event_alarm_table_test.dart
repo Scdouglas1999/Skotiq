@@ -47,20 +47,41 @@ const _beyondSeverity = {
   'ImagingEvent.exposureFailed: info,warning,error,critical',
   'ImagingEvent.exposureFailedOld: info,warning,error,critical',
   'SequencerEvent.failed: info,warning,error,critical',
-  'SequencerEvent.error: error,critical',
   'SafetyEvent.weatherUnsafe: info,warning,error,critical',
   'SafetyEvent.emergencyStop: info,warning,error,critical',
   'SystemEvent.error: info,warning,error,critical',
   'SystemEvent.diskSpaceLow: info,warning,error,critical',
 };
 
+/// A run error by its kind: the severities at which it alarms.
+const _runErrorAlarms = [
+  'advisory: critical',
+  'stepProblem: critical',
+  'runHeld: error,critical',
+  'stepFailed: error,critical',
+  'standalone: error,critical',
+  'cancelled: critical',
+];
+
 void main() {
   test('which events alarm, at which severity', () {
-    final rows = <String>{for (final p in eventWireSamples) _row(p)};
+    final rows = <String>{
+      for (final p in eventWireSamples)
+        if (p is! EventPayload_Sequencer || p.field0 is! SequencerEvent_Error)
+          _row(p),
+    };
     expect(
       rows.where((r) => !r.endsWith(': critical')).toSet(),
       _beyondSeverity,
     );
     expect(rows.length, greaterThan(100), reason: 'every variant is sampled');
+  });
+
+  test('a run error alarms by its kind and severity', () {
+    final rows = [
+      for (final kind in SequencerErrorKind.values)
+        '${kind.name}: ${_row(EventPayload.sequencer(SequencerEvent.error(message: 'x', kind: kind))).split(': ').last}',
+    ];
+    expect(rows, _runErrorAlarms);
   });
 }
