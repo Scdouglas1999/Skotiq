@@ -145,9 +145,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (active != null) return active;
     final future = operation();
     _startInFlight = future;
+    // The caller receives the outcome; this bookkeeping copy must not report
+    // a failure a second time as unhandled.
     future.whenComplete(() {
       if (identical(_startInFlight, future)) _startInFlight = null;
-    });
+    }).ignore();
     return future;
   }
 
@@ -402,10 +404,29 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     );
   }
 
+  /// [startFromFile], or [startFromFileForFilter] with a [filterKey], for a
+  /// caller that answers with the outcome: a failure is recorded in the state
+  /// as usual and also completes the returned future with the stacker's error.
+  Future<void> startFromFileOrThrow(
+    String referenceImagePath, {
+    String? filterKey,
+    LiveStackingConfig? config,
+  }) {
+    return _trackStart(
+      () => _startFromFile(
+        referenceImagePath,
+        config: config,
+        filterKey: filterKey,
+        throwOnFailure: true,
+      ),
+    );
+  }
+
   Future<void> _startFromFile(
     String referenceImagePath, {
     LiveStackingConfig? config,
     String? filterKey,
+    bool throwOnFailure = false,
   }) async {
     final stopping = _stopInFlight;
     if (stopping != null) await stopping;
@@ -543,6 +564,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         'Failed to start live stacking: $e',
         source: 'LiveStackingNotifier',
       );
+      if (throwOnFailure) rethrow;
     }
   }
 
@@ -713,7 +735,13 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   /// the next step is attached with [Future.then], which never runs when the
   /// previous future completed with an error, so its completer would stay
   /// pending forever.
-  Future<void> _enqueueIngest(Future<void> Function() body) {
+  ///
+  /// With [propagate] a failing step completes its caller with the error
+  /// instead of being logged here.
+  Future<void> _enqueueIngest(
+    Future<void> Function() body, {
+    bool propagate = false,
+  }) {
     final completer = Completer<void>();
     final settled = _ingestChain.then<void>(
       (_) {},
@@ -722,7 +750,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final done = settled.then((_) async {
       try {
         await body();
-      } catch (error) {
+      } catch (error, stackTrace) {
+        if (propagate) {
+          completer.completeError(error, stackTrace);
+          return;
+        }
         _logger.error(
           'Live stack ingest step failed: ${_stackErrorText(error)}',
           source: 'LiveStackingNotifier',
@@ -786,7 +818,39 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     });
   }
 
-  Future<void> _ingestFrameFromFileWithMetadata(
+  /// Add [imagePath] to the active slot of a running stack and return the
+  /// stacked result, for a caller that answers with the outcome. A frame the
+  /// stacker refuses is recorded in the state as usual and also completes the
+  /// returned future with the stacker's error.
+  Future<LiveStackingResult> addFrameFromFileOrThrow(String imagePath) async {
+    final generation = _sessionGeneration;
+    final authority = _sessionAuthority;
+    if (state.status != LiveStackingStatus.running || authority == null) {
+      throw StateError('Live stacker not initialized');
+    }
+    LiveStackingResult? added;
+    await _enqueueIngest(() async {
+      if (!_isCurrentSession(generation, authority) ||
+          state.status != LiveStackingStatus.running) {
+        return;
+      }
+      added = await _ingestFrameFromFileWithMetadata(
+        imagePath,
+        generation: generation,
+        authority: authority,
+        throwOnFailure: true,
+      );
+    }, propagate: true);
+    final result = added;
+    if (result == null) {
+      throw StateError('Live stacking stopped before $imagePath was added');
+    }
+    return result;
+  }
+
+  /// The stacked result after [imagePath] joined it; null when the frame was
+  /// skipped, started a new filter slot, or the session ended meanwhile.
+  Future<LiveStackingResult?> _ingestFrameFromFileWithMetadata(
     String imagePath, {
     required int generation,
     required Object authority,
@@ -794,8 +858,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     double? exposureSecs,
     double? hfr,
     int? starCount,
+    bool throwOnFailure = false,
   }) async {
-    if (state.status != LiveStackingStatus.running) return;
+    if (state.status != LiveStackingStatus.running) return null;
 
     final targetFilter = state.config.separateByFilter
         ? (filter != null
@@ -816,7 +881,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         detectedStars: starCount,
         exposureSecs: exposureSecs,
       );
-      return;
+      return null;
     }
     final minStars = state.config.minStarCount;
     if (minStars != null && starCount != null && starCount < minStars) {
@@ -829,7 +894,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         detectedStars: starCount,
         exposureSecs: exposureSecs,
       );
-      return;
+      return null;
     }
 
     final service = _sessionService;
@@ -855,7 +920,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         referenceImagePath: imagePath,
         exposureSecs: exposureSecs,
       );
-      return;
+      return null;
     }
 
     try {
@@ -870,7 +935,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
 
       if (!_isCurrentSession(generation, authority) ||
           state.status != LiveStackingStatus.running) {
-        return;
+        return null;
       }
 
       _applyAcceptedResult(
@@ -879,8 +944,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         sourceLabel: p.basename(imagePath),
         exposureSecs: exposureSecs,
       );
+      return result;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       _logger.warning('Frame rejected: $e', source: 'LiveStackingNotifier');
       await _publishRejectionStats(
         generation,
@@ -893,6 +959,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         sourceLabel: p.basename(imagePath),
         exposureSecs: exposureSecs,
       );
+      if (throwOnFailure) rethrow;
+      return null;
     }
   }
 
@@ -1249,7 +1317,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   /// Reset one specific filter stack while preserving other active filters.
-  Future<void> resetFilter(String filterKey) {
+  ///
+  /// With [throwOnFailure] a failure also completes the returned future with
+  /// the stacker's error.
+  Future<void> resetFilter(String filterKey, {bool throwOnFailure = false}) {
     final normalizedKey = normalizeLiveStackFilterKey(filterKey);
     if (state.status != LiveStackingStatus.running) {
       return Future<void>.value();
@@ -1299,17 +1370,24 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           errorMessage:
               'Failed to reset $normalizedKey stack: ${userFacingError(e)}',
         );
+        if (throwOnFailure) rethrow;
       }
-    });
+    }, propagate: throwOnFailure);
   }
 
   /// Stop and release a single filter stack. If it was the last remaining
   /// filter, stops the entire session cleanly.
-  Future<void> stopFilter(String filterKey) async {
+  ///
+  /// With [throwOnFailure] a failure also completes the returned future with
+  /// the stacker's error.
+  Future<void> stopFilter(
+    String filterKey, {
+    bool throwOnFailure = false,
+  }) async {
     final normalizedKey = normalizeLiveStackFilterKey(filterKey);
     if (!state.filterStacks.containsKey(normalizedKey)) return;
     if (!_sessionOnHost && state.filterStacks.length <= 1) {
-      await stop();
+      await (throwOnFailure ? stopOrThrow() : stop());
       return;
     }
     final authority = _sessionAuthority;
@@ -1361,10 +1439,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           errorMessage:
               'Failed to stop $normalizedKey stack: ${userFacingError(e)}',
         );
+        if (throwOnFailure) rethrow;
       }
-    });
+    }, propagate: throwOnFailure);
     if (stopWholeSession) {
-      await stop();
+      await (throwOnFailure ? stopOrThrow() : stop());
     }
   }
 
@@ -1437,18 +1516,27 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   /// Stop stacking and release resources.
-  Future<void> stop() {
+  Future<void> stop() => _trackStop(throwOnFailure: false);
+
+  /// [stop] for a caller that answers with the outcome: a failure other than
+  /// "nothing was started" also completes the returned future with the
+  /// stacker's error. A stop already in flight is joined as it is.
+  Future<void> stopOrThrow() => _trackStop(throwOnFailure: true);
+
+  Future<void> _trackStop({required bool throwOnFailure}) {
     final active = _stopInFlight;
     if (active != null) return active;
-    final future = _stop();
+    final future = _stop(throwOnFailure: throwOnFailure);
     _stopInFlight = future;
+    // The caller receives the outcome; this bookkeeping copy must not report
+    // a failure a second time as unhandled.
     future.whenComplete(() {
       if (identical(_stopInFlight, future)) _stopInFlight = null;
-    });
+    }).ignore();
     return future;
   }
 
-  Future<void> _stop() async {
+  Future<void> _stop({required bool throwOnFailure}) async {
     final config = state.config;
     final authority = _sessionAuthority ?? _ref.read(backendProvider);
     final service = _sessionService;
@@ -1471,7 +1559,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         // Ingest errors are owned by their callers.
       }
       await service?.stop();
-    } catch (e) {
+    } catch (e, stackTrace) {
       // An armed session that never received a frame has no native slot.
       // api_stacking_stop reports that as "not initialized". The stop still
       // succeeded: the in-flight start/ingest above was waited out, and
@@ -1494,6 +1582,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
             _startRemotePolling(generation, authority);
           }
         }
+        if (throwOnFailure) Error.throwWithStackTrace(e, stackTrace);
         return;
       }
     }
