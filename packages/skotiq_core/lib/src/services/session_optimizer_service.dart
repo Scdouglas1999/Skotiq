@@ -240,7 +240,11 @@ class SmartNightExposureContext {
   final int bortleClass;
   final double focalLengthMm;
   final double apertureMm;
-  final double pixelSizeMicrons;
+
+  /// The camera's pixel size, null when no reading, user entry or published
+  /// specification gives one. Nothing is computed from a stand-in pitch:
+  /// [recommendForFilter] then has no answer and Smart Night refuses to plan.
+  final double? pixelSizeMicrons;
   final List<String> availableFilterNames;
   final double? guideRmsArcsec;
   final int guideSampleCount;
@@ -272,11 +276,15 @@ class SmartNightExposureContext {
     this.oneShotColor = false,
   });
 
-  ExposureRecommendation recommendForFilter(
+  /// The exposure calculator's sub for [filterName] on this rig; null when
+  /// the pixel size is unknown.
+  ExposureRecommendation? recommendForFilter(
     String? filterName, {
     SmartNightExposureCalculator calculator =
         const SmartNightExposureCalculator(),
   }) {
+    final pixelSizeMicrons = this.pixelSizeMicrons;
+    if (pixelSizeMicrons == null) return null;
     return calculator.recommend(
       ExposureCalculatorInput(
         camera: camera,
@@ -298,13 +306,14 @@ class SmartNightExposureContext {
   /// Shared default for mosaic builders: prefer the luminance/clear channel
   /// when present, otherwise use the first configured filter, and run the
   /// same Smart Night exposure calculator used by Plan Tonight and the
-  /// sequencer property panels.
-  MosaicExposureSettings recommendMosaicExposureSettings({
+  /// sequencer property panels. Null when the pixel size is unknown.
+  MosaicExposureSettings? recommendMosaicExposureSettings({
     int exposuresPerPanel = 10,
     int binning = 1,
   }) {
     final filterName = _preferredBroadbandFilterName(availableFilterNames);
     final recommendation = recommendForFilter(filterName);
+    if (recommendation == null) return null;
     return MosaicExposureSettings(
       exposureSeconds: recommendation.seconds,
       exposuresPerPanel: exposuresPerPanel,
@@ -331,21 +340,20 @@ MosaicExposureSettings smartNightMosaicExposureSettings(
   int exposuresPerPanel = 10,
   int binning = 1,
 }) {
-  if (exposureContext == null) {
-    return MosaicExposureSettings(
-      exposureSeconds: _fallbackExposureContext
-          .recommendMosaicExposureSettings(
-            exposuresPerPanel: exposuresPerPanel,
-            binning: binning,
-          )
-          .exposureSeconds,
-      exposuresPerPanel: exposuresPerPanel,
-      filterName: null,
-      binning: binning,
-    );
-  }
-  return exposureContext.recommendMosaicExposureSettings(
+  final recommended = exposureContext?.recommendMosaicExposureSettings(
     exposuresPerPanel: exposuresPerPanel,
+    binning: binning,
+  );
+  if (recommended != null) return recommended;
+  return MosaicExposureSettings(
+    exposureSeconds: _fallbackExposureContext
+        .recommendMosaicExposureSettings(
+          exposuresPerPanel: exposuresPerPanel,
+          binning: binning,
+        )!
+        .exposureSeconds,
+    exposuresPerPanel: exposuresPerPanel,
+    filterName: null,
     binning: binning,
   );
 }
@@ -525,10 +533,10 @@ class SessionOptimizerService {
       calculator: _exposureCalculator,
     );
     return _ExposurePlan(
-      seconds: recommendation.seconds,
+      seconds: recommendation?.seconds ?? 0,
       filterName: filterName,
-      rationale: recommendation.rationale,
-      caveats: [...context.caveats, ...recommendation.caveats],
+      rationale: recommendation?.rationale,
+      caveats: [...context.caveats, ...?recommendation?.caveats],
     );
   }
 

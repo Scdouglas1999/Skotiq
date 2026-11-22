@@ -42,8 +42,8 @@
     {
       "filter_name": "Ha",
       "filter_index": null,
-      "count": 154,
-      "duration_secs": 70.0,
+      "count": 270,
+      "duration_secs": 40.0,
       "gain": 100,
       "offset": 50,
       "binning": "One",
@@ -51,8 +51,10 @@
       "depth_goal": null
     }
   ],
-  "full/contextNoPixel/L": "refused: Equipment profile \"full\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "full/contextNoPixel/Ha": "refused: Equipment profile \"full\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "full/contextUnknownPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"full\": it has no camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "full/contextUnknownPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"full\": it has no camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "full/contextNoPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"full\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "full/contextNoPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"full\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
   "telescopeOnly/none/L": [
     {
       "filter_name": "L",
@@ -105,10 +107,12 @@
       "depth_goal": null
     }
   ],
-  "telescopeOnly/contextNoPixel/L": "refused: Equipment profile \"telescopeOnly\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "telescopeOnly/contextNoPixel/Ha": "refused: Equipment profile \"telescopeOnly\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "unknownCamera/none/L": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "unknownCamera/none/Ha": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "telescopeOnly/contextUnknownPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"telescopeOnly\": it has no camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "telescopeOnly/contextUnknownPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"telescopeOnly\": it has no camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "telescopeOnly/contextNoPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"telescopeOnly\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "telescopeOnly/contextNoPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"telescopeOnly\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "unknownCamera/none/L": "refused: Smart Night cannot compute exposures for equipment profile \"unknownCamera\": it has no camera pixel size. No pixel size is known for the camera \"Nobody Cam 9000\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "unknownCamera/none/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"unknownCamera\": it has no camera pixel size. No pixel size is known for the camera \"Nobody Cam 9000\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
   "unknownCamera/context/L": [
     {
       "filter_name": "L",
@@ -126,8 +130,8 @@
     {
       "filter_name": "Ha",
       "filter_index": null,
-      "count": 154,
-      "duration_secs": 70.0,
+      "count": 270,
+      "duration_secs": 40.0,
       "gain": null,
       "offset": null,
       "binning": "One",
@@ -135,10 +139,12 @@
       "depth_goal": null
     }
   ],
-  "unknownCamera/contextNoPixel/L": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "unknownCamera/contextNoPixel/Ha": "refused: Equipment profile \"unknownCamera\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "noOptics/none/L": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "noOptics/none/Ha": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
+  "unknownCamera/contextUnknownPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"unknownCamera\": it has no camera pixel size. No pixel size is known for the camera \"Nobody Cam 9000\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "unknownCamera/contextUnknownPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"unknownCamera\": it has no camera pixel size. No pixel size is known for the camera \"Nobody Cam 9000\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "unknownCamera/contextNoPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"unknownCamera\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"Nobody Cam 9000\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "unknownCamera/contextNoPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"unknownCamera\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"Nobody Cam 9000\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "noOptics/none/L": "refused: Smart Night cannot compute exposures for equipment profile \"noOptics\": it has no focal length and aperture.",
+  "noOptics/none/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"noOptics\": it has no focal length and aperture.",
   "noOptics/context/L": [
     {
       "filter_name": "L",
@@ -165,6 +171,8 @@
       "depth_goal": null
     }
   ],
-  "noOptics/contextNoPixel/L": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations.",
-  "noOptics/contextNoPixel/Ha": "refused: Equipment profile \"noOptics\" is missing aperture, focal length, or pixel size. These are required to compute exposure recommendations."
+  "noOptics/contextUnknownPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"noOptics\": it has no camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "noOptics/contextUnknownPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"noOptics\": it has no camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "noOptics/contextNoPixel/L": "refused: Smart Night cannot compute exposures for equipment profile \"noOptics\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size.",
+  "noOptics/contextNoPixel/Ha": "refused: Smart Night cannot compute exposures for equipment profile \"noOptics\": it has no focal length, aperture and camera pixel size. No pixel size is known for the camera \"ZWO ASI2600MM Pro\": it reported none, and none is entered or published for it. Connect the camera so its real pixel size is read, or enter it in the camera sensor specs. Smart Night will not guess a pixel size."
 }

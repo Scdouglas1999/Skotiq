@@ -426,7 +426,7 @@ void main() {
       expect(plan.recommendedFilterNames, equals(['Ha', 'OIII', 'SII']));
       expect(
         plan.recommendedExposureSeconds,
-        context.recommendForFilter('Ha').seconds,
+        context.recommendForFilter('Ha')!.seconds,
       );
     });
 
@@ -525,7 +525,7 @@ void main() {
         expect(exposure.filterName, equals('L'));
         expect(
           exposure.exposureSeconds,
-          equals(context.recommendForFilter('L').seconds),
+          equals(context.recommendForFilter('L')!.seconds),
         );
         expect(exposure.exposuresPerPanel, equals(10));
         expect(exposure.binning, equals(1));

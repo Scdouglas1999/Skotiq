@@ -53,7 +53,7 @@ void main() {
       'uses Smart Night exposure recommendations for required durations',
       () async {
         final expectedDuration = exposureContext
-            .recommendForFilter('L')
+            .recommendForFilter('L')!
             .seconds
             .toStringAsFixed(0);
 
@@ -82,7 +82,7 @@ void main() {
       final dao = DarkLibraryDao(database);
       final requiredDurations = <double>{
         for (final filter in const ['L', 'R', 'G', 'B'])
-          exposureContext.recommendForFilter(filter).seconds,
+          exposureContext.recommendForFilter(filter)!.seconds,
       };
       var index = 0;
       for (final duration in requiredDurations) {

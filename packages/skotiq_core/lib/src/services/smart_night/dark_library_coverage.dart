@@ -41,17 +41,19 @@ class SmartNightDarkLibraryCoverage {
     // coolDownTargetC from the profile, so a profile default that differs puts
     // the darks in a temperature bucket the lights never used.
     final targetTemp = settings.coolDownTargetC;
-    final requirements = filters.map((filter) {
-      final recommendation = exposureContext.recommendForFilter(filter);
-      return DarkFrameRequirement(
-        gain: profile.defaultGain ?? 0,
-        offset: profile.defaultOffset ?? 0,
-        durationSecs: recommendation.seconds,
-        binX: profile.defaultBinX,
-        binY: profile.defaultBinY,
-        targetTemp: targetTemp,
-      );
-    }).toSet();
+    final requirements = {
+      for (final filter in filters)
+        if (exposureContext.recommendForFilter(filter)
+            case final recommendation?)
+          DarkFrameRequirement(
+            gain: profile.defaultGain ?? 0,
+            offset: profile.defaultOffset ?? 0,
+            durationSecs: recommendation.seconds,
+            binX: profile.defaultBinX,
+            binY: profile.defaultBinY,
+            targetTemp: targetTemp,
+          ),
+    };
 
     final report = coverageService.evaluate(
       requirements: requirements,

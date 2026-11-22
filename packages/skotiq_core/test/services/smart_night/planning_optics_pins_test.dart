@@ -15,8 +15,9 @@ const _pinsPath = 'test/services/smart_night/planning_optics_pins.json';
 
 /// Which optics Smart Night plans with when the profile and the exposure
 /// context disagree or leave a field out: each case's planned rows (or the
-/// refusal) as Skotiq produced them before the optics were resolved in one
-/// place. Run with SKOTIQ_WRITE_PINS=1 to record.
+/// refusal). With a context every figure is the context's; without one, the
+/// profile's. An unknown pixel size refuses, naming it. Run with
+/// SKOTIQ_WRITE_PINS=1 to record.
 void main() {
   final service = SmartNightService(
     suggestionService: TargetSuggestionService(
@@ -74,6 +75,17 @@ void main() {
       guideRmsArcsec: 0.9,
       guideSampleCount: 40,
     ),
+    'contextUnknownPixel': const SmartNightExposureContext(
+      camera: CameraExposureSpec(
+        readNoiseE: 1.2,
+        fullWellE: 50000,
+        qePeak: 0.8,
+      ),
+      bortleClass: 7,
+      focalLengthMm: 600,
+      apertureMm: 120,
+      pixelSizeMicrons: null,
+    ),
     'contextNoPixel': const SmartNightExposureContext(
       camera: CameraExposureSpec(readNoiseE: 3, fullWellE: 20000, qePeak: 0.6),
       bortleClass: 3,
@@ -110,7 +122,7 @@ void main() {
     return out;
   }
 
-  test('planned rows per profile and exposure context are unchanged', () {
+  test('planned rows per profile and exposure context', () {
     final actual = jsonDecode(jsonEncode(compute()));
     final file = File(_pinsPath);
     if (Platform.environment['SKOTIQ_WRITE_PINS'] == '1') {

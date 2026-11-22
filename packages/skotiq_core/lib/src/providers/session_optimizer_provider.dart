@@ -128,13 +128,7 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
   final qePeak = _preferUserValue(sensorSpecs.qePeakFraction, settingsQePeak);
 
   if (pixelSize == null) {
-    caveats.add(
-      sensorSpecCaveat(
-        field: SensorSpecField.pixelSize,
-        cameraLabel: cameraLabel,
-        estimate: 'a ${UnknownCameraFigures.pixelSizeMicrons} micron estimate',
-      ),
-    );
+    caveats.add(unknownPixelSizeCaveat(cameraLabel: cameraLabel));
   }
   if (readNoise == null) {
     caveats.add(
@@ -177,7 +171,7 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
     bortleClass: settings.bortleClass,
     focalLengthMm: focalLength,
     apertureMm: aperture,
-    pixelSizeMicrons: pixelSize ?? UnknownCameraFigures.pixelSizeMicrons,
+    pixelSizeMicrons: pixelSize,
     availableFilterNames: effectiveFilters.isNotEmpty
         ? effectiveFilters
         : (profile?.filterNames ?? const []),
@@ -215,8 +209,9 @@ Future<bool> _connectedCameraRecordsColor(Ref ref) async {
   }
 }
 
-// A value that misses at every tier of the resolution chain takes its
-// UnknownCameraFigures stand-in, paired with a caveat that says so.
+// A noise figure that misses at every tier of the resolution chain takes its
+// UnknownCameraFigures stand-in, paired with a caveat that says so; an unknown
+// pixel size has none.
 
 /// Picks between the resolved value and a global expert setting.
 ///
