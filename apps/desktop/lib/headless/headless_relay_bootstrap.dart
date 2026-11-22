@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_relay/skotiq_relay.dart';
+import 'package:skotiq_relay/uplink.dart';
 
 import 'headless_env.dart';
 
@@ -39,7 +39,7 @@ Future<RelayUplink?> startRelayUplink({
 
   final Uri relayUrl;
   try {
-    relayUrl = RelayUplink.normalizeRelayUrl(Uri.parse(relayUrlRaw));
+    relayUrl = normalizeRelayUrl(Uri.parse(relayUrlRaw));
   } catch (e) {
     logger.error(
       'Invalid relay URL "$relayUrlRaw": $e. Relay disabled; LAN access '

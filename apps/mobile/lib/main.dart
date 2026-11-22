@@ -16,7 +16,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_relay/skotiq_relay.dart';
+import 'package:skotiq_relay/client.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
