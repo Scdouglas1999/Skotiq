@@ -53,7 +53,7 @@ final catalogEmissionObjectsProvider = FutureProvider<List<DeepSkyObject>>((
   final objects = await manager.dsos.load();
   return [
     for (final object in objects)
-      if (targetLight(object.type.displayName) == TargetLight.emission) object,
+      if (object.type.light == TargetLight.emission) object,
   ];
 });
 
