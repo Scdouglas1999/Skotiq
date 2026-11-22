@@ -43,8 +43,7 @@ class BuiltInTemplateService {
       '$assetDirectory/${id.replaceFirst('template-', '')}.json';
 
   /// Every built-in template, dated against [now].
-  Future<List<Sequence>> load({DateTime? now}) async {
-    final at = now ?? DateTime.now();
+  Future<List<Sequence>> load({required DateTime now}) async {
     final parser = SequenceFileService();
     return [
       for (final entry in catalog)
@@ -53,7 +52,7 @@ class BuiltInTemplateService {
           jsonDecode(await rootBundle.loadString(assetPathFor(entry.id)))
               as Map<String, dynamic>,
           parser: parser,
-          now: at,
+          now: now,
         ),
     ];
   }

@@ -29,7 +29,7 @@ void main() {
   setUpAll(() async {
     registerFallbackValue(Sequence.create(name: 'fallback'));
     TestWidgetsFlutterBinding.ensureInitialized();
-    builtIns = await const BuiltInTemplateService().load();
+    builtIns = await const BuiltInTemplateService().load(now: DateTime.now());
   });
 
   test('saving a custom template does not replace the built-in catalog',

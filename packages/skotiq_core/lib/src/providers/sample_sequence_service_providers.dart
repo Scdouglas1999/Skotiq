@@ -16,5 +16,5 @@ final sampleSequencesProvider = FutureProvider<List<SampleSequence>>((ref) {
 
 /// The templates Skotiq ships, dated when they are read.
 final builtInTemplatesProvider = FutureProvider.autoDispose<List<Sequence>>(
-  (ref) => const BuiltInTemplateService().load(),
+  (ref) => const BuiltInTemplateService().load(now: DateTime.now()),
 );
