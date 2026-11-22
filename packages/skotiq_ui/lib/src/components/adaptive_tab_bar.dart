@@ -510,12 +510,6 @@ class _AdaptiveTabButtonState extends State<_AdaptiveTabButton> {
 
     return Semantics(
       button: true,
-      // Measured on the running app during the GUI drive 2026-08-09: the
-      // sequencer's four tabs came off the accessibility tree as
-      // `Builder [DISABLED]`, `Templates [DISABLED]`, `Sequences [DISABLED]`,
-      // `History [DISABLED]` — every one of them live and clickable. Fifteen
-      // controls on that one screen carried the same false flag.
-      //
       // `Semantics` publishes SemanticsFlag.isEnabled ONLY when `enabled` is
       // passed; `button: true` alone leaves the flag unset, and AT-SPI treats
       // an interactive node with no enabled/sensitive state as disabled. The

@@ -307,7 +307,8 @@ void main() {
         tester,
         find.byType(SkotiqDropdown),
       ).getSemanticsData();
-      // Both halves on ONE node: a hint named on a node with no tap and operable
+      // Both halves on ONE node: a hint named on a node with no tap and
+      // operable
       // on a node with no name leaves assistive tech with nothing it can both
       // read out and activate.
       expect(data.label, 'Choose the step to stop after');

@@ -90,7 +90,8 @@ class PageHeader extends StatelessWidget {
       ),
       // The tab strip gets ALL the width the title and the actions do not use.
       //
-      // The title is inflexible (it sizes to its words and ellipsises inside its
+      // The title is inflexible (it sizes to its words and ellipsises inside
+      // its
       // own Text), the strip is `Expanded`, and the actions keep their natural
       // width at the right edge. A `Flexible` plus a `Spacer` would split the
       // spare width three ways and cut Plan's six tabs behind a scroll arrow.

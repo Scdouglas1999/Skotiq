@@ -28,11 +28,10 @@ class StatusDot extends StatefulWidget {
   /// dot.
   ///
   /// The pulse exists to draw the eye to a state change; it does not need to
-  /// run for as long as the state lasts. Left unbounded it did: a run that
-  /// FAILED left the status bar's red dot pulsing at 61 fps — a full-window
-  /// frame per vsync on the Linux embedder — for **32.7% of a core,
-  /// indefinitely**, on an app doing nothing (measured on the release
-  /// bundle). Ten cycles is long enough to be noticed from across a dark
+  /// run for as long as the state lasts: left unbounded, a FAILED run's red dot
+  /// pulses at 61 fps — a full-window frame per vsync on the Linux embedder —
+  /// for about a third of a core on an otherwise idle app. Ten cycles is long
+  /// enough to be noticed from across a dark
   /// room; after that the dot stays red and stays still, which says the same
   /// thing.
   static const Duration urgentPulseWindow = Duration(seconds: 20);
