@@ -86,9 +86,10 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       // SINGLE iteration (with a "1 of N" warning), but the cumulative clock
       // must advance by the full loop so downstream nodes + the
       // meridian/dawn conflict checks see the real end time: advancing one
-      // pass under-reports a Count loop by the loop factor. For unbounded or
-      // condition-based loops the iteration count is not known statically, so
-      // the single-pass estimate stands and the warning note says so.
+      // pass under-reports a loop by its pass count ([loopPasses]: a count, or
+      // the passes an integration target takes). For loops that run by time
+      // or sky the pass count is not known statically, so the single-pass
+      // estimate stands and the warning note says so.
       if (node is LoopNode) {
         final loopNote = _getLoopIterationNote(node);
         if (node.conditionType == LoopConditionType.untilTime) {
@@ -159,15 +160,13 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
             windowEnd: windowEnd,
           );
         }
-        if (node.conditionType == LoopConditionType.count) {
-          final iterations = loopPasses(node, sequence.nodes) ?? 1;
-          if (iterations > 1) {
-            final singlePass = currentTime.difference(loopStartTime);
-            // Advance the clock by the remaining (count - 1) iterations'
-            // worth of body time. The first pass is already reflected in
-            // `currentTime` (and rendered in the timeline).
-            currentTime = currentTime.add(singlePass * (iterations - 1));
-          }
+        final iterations = loopPasses(node, sequence.nodes) ?? 1;
+        if (iterations > 1) {
+          final singlePass = currentTime.difference(loopStartTime);
+          // Advance the clock by the remaining (passes - 1) passes' worth of
+          // body time. The first pass is already reflected in `currentTime`
+          // (and rendered in the timeline).
+          currentTime = currentTime.add(singlePass * (iterations - 1));
         }
         // The target's window ends a loop inside it at the next boundary.
         if (windowEnd != null && currentTime.isAfter(windowEnd)) {

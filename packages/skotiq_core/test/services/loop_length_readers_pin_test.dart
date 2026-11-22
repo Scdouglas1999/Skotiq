@@ -107,6 +107,9 @@ void main() {
       unbounded: false,
       timeline: pass,
     ),
+    // The executor repeats an integration-time loop while the run's
+    // integration is short of the target, so the loop takes several passes
+    // and the timeline advances by all of them, as the tree row does.
     _Case(
       'integration time 1500 s over 300 s passes',
       (_) => _planOf(
@@ -119,7 +122,7 @@ void main() {
       rollup: 5 * pass,
       integration: 1500,
       unbounded: false,
-      timeline: pass,
+      timeline: 5 * pass,
     ),
     _Case(
       'integration time 1000 s rounds up to 4 passes',
@@ -133,7 +136,7 @@ void main() {
       rollup: 4 * pass,
       integration: 1200,
       unbounded: false,
-      timeline: pass,
+      timeline: 4 * pass,
     ),
     _Case(
       'integration time with no target',
@@ -160,7 +163,7 @@ void main() {
       rollup: 5 * pass,
       integration: 1500,
       unbounded: false,
-      timeline: pass,
+      timeline: 5 * pass,
     ),
     _Case(
       'forever',
