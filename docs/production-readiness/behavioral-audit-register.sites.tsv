@@ -2778,16 +2778,7 @@ packages/skotiq_core/lib/src/providers/focuser_backlash_provider.dart	noteAutofo
 packages/skotiq_core/lib/src/providers/glance_mode_provider.dart	setEnabled	empty_catch	1	V0220	} catch (_) {
 packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	disconnect	comment_best_effort	1	V0121	// Best-effort interruption. The authoritative teardown below reports
 packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	disconnect	empty_catch	2	V0121	} catch (_) {
-packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	_handleGuideStats	literal_null_coalesce	1	V0121	final snr = (json['SNR'] as num?)?.toDouble() ?? 0;
-packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	_handleGuideStats	literal_null_coalesce	1	V0121	final starMass = (json['StarMass'] as num?)?.toDouble() ?? 0;
-packages/skotiq_core/lib/src/providers/guiding_provider/controller.dart	_init	literal_null_coalesce	1	V0121	_handleSettleTimedOut(event.data['error'] as String? ?? '');
-packages/skotiq_core/lib/src/providers/guiding_provider/lock_and_builtin.dart	_onBackendEvent	literal_null_coalesce	1	V0121	final x = (event.data['X'] ?? event.data['x'] ?? 0).toDouble();
-packages/skotiq_core/lib/src/providers/guiding_provider/lock_and_builtin.dart	_onBackendEvent	literal_null_coalesce	1	V0121	final y = (event.data['Y'] ?? event.data['y'] ?? 0).toDouble();
 packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	addPoint	guessed_now_timestamp	1	R91-11	final point = GuideGraphPoint(ra, dec, at ?? DateTime.now());
-packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_handleGuideStep	literal_null_coalesce	1	V0121	snr: (json['SNR'] ?? 0).toDouble(),
-packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_handleGuideStep	literal_null_coalesce	1	V0121	starMass: (json['StarMass'] ?? 0).toDouble(),
-packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_onBackendEvent	literal_null_coalesce	1	V0121	final snr = (event.data['SNR'] ?? 0).toDouble();
-packages/skotiq_core/lib/src/providers/guiding_provider/stats_and_graph.dart	_onBackendEvent	literal_null_coalesce	1	V0121	final starMass = (event.data['StarMass'] ?? 0).toDouble();
 packages/skotiq_core/lib/src/providers/hotplug_event_bridge_provider.dart	flushInvalidations	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/providers/imaging_provider.dart	-	empty_catch	1	V0189	} catch (_) {
 packages/skotiq_core/lib/src/providers/imaging_provider.dart	update	empty_catch	1	V0189	} catch (_) {
@@ -3296,8 +3287,6 @@ packages/skotiq_core/lib/src/services/plugin_management_service.dart	_manifestFr
 packages/skotiq_core/lib/src/services/plugin_management_service.dart	_manifestFromRegistryJson	literal_null_coalesce	1	V0121	signed: json['signed'] as bool? ?? false,
 packages/skotiq_core/lib/src/services/plugin_management_service.dart	_manifestFromRegistryJson	literal_null_coalesce	1	V0121	version: json['version'] as String? ?? '',
 packages/skotiq_core/lib/src/services/post_session_integration_service.dart	PostSessionIntegrationService	comment_best_effort	1	V0121	/// best-effort extras, reporting the lane to the pass view.
-packages/skotiq_core/lib/src/services/post_session_seam.dart	BridgePostSessionSeam	literal_null_coalesce	1	V0121	fraction: (e.data['fraction'] as num?)?.toDouble() ?? 0.0,
-packages/skotiq_core/lib/src/services/post_session_seam.dart	BridgePostSessionSeam	literal_null_coalesce	1	V0121	phase: e.data['phase'] as String? ?? '',
 packages/skotiq_core/lib/src/services/post_session_seam.dart	BuildMasterFlatResult.fromJson	literal_null_coalesce	1	V0121	frameCount: (json['frameCount'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/services/post_session_seam.dart	BuildMasterFlatResult.fromJson	literal_null_coalesce	1	V0121	height: (json['height'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/services/post_session_seam.dart	BuildMasterFlatResult.fromJson	literal_null_coalesce	1	V0121	if (e is Map) '${e['path'] ?? ''}' else '$e',
