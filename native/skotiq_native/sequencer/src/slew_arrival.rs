@@ -22,11 +22,11 @@
 //! The target and the position read-backs must be in the same frame; callers
 //! convert the target with `DeviceOps::mount_readback_frame`.
 //!
-//! [`watch_slew`] is the one watch every slew wait runs. Each caller states
-//! its rule in [`SlewArrivalTimings`]: the Center and the meridian flip wait
-//! with no target, an optional start phase and the first idle read ending the
-//! slew (`instructions::slew_wait`); the Slew instruction, the wizards and the
-//! bridge's slew-completed event need the evidence above.
+//! [`watch_slew`] is the one watch every slew wait runs, and every caller
+//! needs the evidence above. Each states the rest in [`SlewArrivalTimings`]:
+//! the Center and the meridian flip wait with no target and an optional start
+//! phase (`instructions::slew_wait`); the Slew instruction, the wizards and
+//! the bridge's slew-completed event poll without one.
 
 use std::future::Future;
 use std::time::Duration;

@@ -28,7 +28,11 @@ fn the_slew_waits_and_their_bounds() {
             "post-flip centering correction",
             FLIP_CENTERING_SLEW,
             SlewWaitBounds {
-                start: None,
+                start: Some(SlewStartBound {
+                    within: s(5),
+                    poll: ms(500),
+                    proceed_if_never: false,
+                }),
                 complete: s(300),
                 poll: ms(500),
                 deadline_inclusive: false,

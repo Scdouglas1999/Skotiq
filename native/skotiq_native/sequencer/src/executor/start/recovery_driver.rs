@@ -812,7 +812,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
                 exit.is_cancelled.clone(),
             )
         };
-        let config = crate::CenterConfig::run_recenter();
+        let config = ctx.run.recenter_config();
         let result = crate::instructions::execute_center(&config, &ctx, None).await;
         claim.release().await;
         if result.status != NodeStatus::Success {

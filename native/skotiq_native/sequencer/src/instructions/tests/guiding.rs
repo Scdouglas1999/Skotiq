@@ -888,7 +888,7 @@ fn the_guiding_lock_rules() {
     let two_s = Duration::from_secs(2);
     let table = [
         ("Start Guiding", START_GUIDING_LOCK, true),
-        ("post-flip guider restart", POST_FLIP_GUIDING_LOCK, false),
+        ("post-flip guider restart", POST_FLIP_GUIDING_LOCK, true),
     ];
     for (site, rule, needs_measured_step) in table {
         assert_eq!(rule.needs_measured_step, needs_measured_step, "{site}");

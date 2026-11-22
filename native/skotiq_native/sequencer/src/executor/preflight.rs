@@ -26,6 +26,16 @@ pub(super) fn tree_contains_centering(node: &dyn Node) -> bool {
         .any(|node| matches!(node.node_type(), NodeType::CenterTarget(_)))
 }
 
+/// The sync choice of the first enabled Center step, in run order.
+pub(super) fn first_center_sync(node: &dyn Node) -> Option<bool> {
+    crate::node::enabled_nodes(node)
+        .iter()
+        .find_map(|node| match node.node_type() {
+            NodeType::CenterTarget(config) => Some(config.sync_mount),
+            _ => None,
+        })
+}
+
 /// True when an enabled step captures frames it must persist through the
 /// run's base save path. A `TakeExposure` carrying an absolute `save_to` names
 /// its own complete destination, so it does not depend on the base path.

@@ -60,7 +60,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         return ActionFlow::Finished;
     }
     let recenter_ctx = rig.instruction_context(target, run);
-    let center_config = crate::CenterConfig::run_recenter();
+    let center_config = recenter_ctx.run.recenter_config();
     let result = crate::instructions::execute_center(&center_config, &recenter_ctx, None).await;
     // The solve exposures are done; the capture loop may go on.
     camera_claim.release().await;

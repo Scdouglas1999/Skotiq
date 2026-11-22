@@ -68,6 +68,11 @@ impl CenterProgress {
     }
 }
 
+/// How long a centering frame's solve may take: a hung solver (stalled IO, a
+/// bad catalog, a zombie child) would otherwise hold the step until someone
+/// presses cancel, which an unattended night never does.
+pub(crate) const CENTER_SOLVE_TIMEOUT: Duration = Duration::from_secs(180);
+
 /// A Center's correction slew: the mount must report moving within 5 s and
 /// stop within 300 s; a failed state read is polled again.
 pub(crate) const CENTER_CORRECTION_SLEW: SlewWaitBounds = SlewWaitBounds {
@@ -176,47 +181,15 @@ async fn centering_slew_wait(
 /// How a centering run judges and corrects the pointing. A Center step and a
 /// run's own recenters take theirs from the step's [`CenterConfig`] and the
 /// operator's tolerance ([`CenterPolicy::for_step`]); the post-flip centering
-/// has its own (`meridian_flip_executor::POST_FLIP_CENTERING`).
+/// takes the run's recenter policy.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct CenterPolicy {
-    pub tolerance: CenterTolerance,
+    /// How close to the target counts as centered, in arcseconds.
+    pub tolerance_arcsec: f64,
     pub max_attempts: u32,
     /// Each correction syncs the mount to the solve and slews to the target;
     /// off, it slews by the measured error and leaves the pointing model.
     pub sync_mount: bool,
-    pub separation: Separation,
-}
-
-/// How close to the target counts as centered, in arcseconds.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum CenterTolerance {
-    AtMost(f64),
-    Below(f64),
-}
-
-impl CenterTolerance {
-    pub(crate) fn arcsec(self) -> f64 {
-        match self {
-            Self::AtMost(arcsec) | Self::Below(arcsec) => arcsec,
-        }
-    }
-
-    pub(crate) fn is_met(self, separation_arcsec: f64) -> bool {
-        match self {
-            Self::AtMost(arcsec) => separation_arcsec <= arcsec,
-            Self::Below(arcsec) => separation_arcsec < arcsec,
-        }
-    }
-}
-
-/// How the distance between the target and a solve is measured.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Separation {
-    /// The angle between the two on the sky.
-    OnTheSphere,
-    /// The RA difference scaled by cos(target Dec), combined with the Dec
-    /// difference as if the sky were flat there.
-    FlatAtTargetDec,
 }
 
 /// How far a solve landed from the target.
@@ -224,32 +197,25 @@ pub(crate) enum Separation {
 pub(crate) struct PointingError {
     pub ra_arcsec: f64,
     pub dec_arcsec: f64,
+    /// The angle between the two on the sky.
     pub total_arcsec: f64,
 }
 
-impl Separation {
-    /// From `target` (RA hours, Dec degrees) to `solved` (RA degrees, Dec
-    /// degrees), as a plate solve answers.
-    pub(crate) fn measure(self, target: (f64, f64), solved: (f64, f64)) -> PointingError {
-        let (target_ra_hours, target_dec) = target;
-        let (solved_ra_deg, solved_dec) = solved;
-        let ra_offset_hours = crate::meridian::wrap_hours((solved_ra_deg / 15.0) - target_ra_hours);
-        let ra_arcsec = ra_offset_hours * 15.0 * 3600.0 * target_dec.to_radians().cos();
-        let dec_arcsec = (solved_dec - target_dec) * 3600.0;
-        let total_arcsec = match self {
-            Self::OnTheSphere => calculate_separation_arcsec(
-                target_ra_hours * 15.0,
-                target_dec,
-                solved_ra_deg,
-                solved_dec,
-            ),
-            Self::FlatAtTargetDec => (ra_arcsec.powi(2) + dec_arcsec.powi(2)).sqrt(),
-        };
-        PointingError {
-            ra_arcsec,
-            dec_arcsec,
-            total_arcsec,
-        }
+/// From `target` (RA hours, Dec degrees) to `solved` (RA degrees, Dec
+/// degrees), as a plate solve answers.
+pub(crate) fn pointing_error(target: (f64, f64), solved: (f64, f64)) -> PointingError {
+    let (target_ra_hours, target_dec) = target;
+    let (solved_ra_deg, solved_dec) = solved;
+    let ra_offset_hours = crate::meridian::wrap_hours((solved_ra_deg / 15.0) - target_ra_hours);
+    PointingError {
+        ra_arcsec: ra_offset_hours * 15.0 * 3600.0 * target_dec.to_radians().cos(),
+        dec_arcsec: (solved_dec - target_dec) * 3600.0,
+        total_arcsec: calculate_separation_arcsec(
+            target_ra_hours * 15.0,
+            target_dec,
+            solved_ra_deg,
+            solved_dec,
+        ),
     }
 }
 
@@ -258,13 +224,14 @@ impl CenterPolicy {
     /// accuracy or else the operator's centering tolerance.
     pub(crate) fn for_step(config: &CenterConfig, tolerance_setting_arcsec: f64) -> Self {
         Self {
-            tolerance: CenterTolerance::AtMost(
-                config.accuracy_arcsec.unwrap_or(tolerance_setting_arcsec),
-            ),
+            tolerance_arcsec: config.accuracy_arcsec.unwrap_or(tolerance_setting_arcsec),
             max_attempts: config.max_attempts,
             sync_mount: config.sync_mount,
-            separation: Separation::OnTheSphere,
         }
+    }
+
+    pub(crate) fn is_centered(&self, separation_arcsec: f64) -> bool {
+        separation_arcsec <= self.tolerance_arcsec
     }
 }
 
@@ -312,7 +279,7 @@ async fn center(
     progress_callback: CenterProgressSink<'_>,
 ) -> InstructionResult {
     let policy = CenterPolicy::for_step(config, ctx.run.centering_tolerance_arcsec());
-    let accuracy_arcsec = policy.tolerance.arcsec();
+    let accuracy_arcsec = policy.tolerance_arcsec;
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,
@@ -468,15 +435,11 @@ async fn center(
             }
         };
 
-        // Hard cap on the solver call: a hung solver process (stalled IO,
-        // bad catalog, zombie child) would otherwise block this select
-        // indefinitely — cancellation is the only other exit, and an
-        // unattended night never presses cancel. Treated exactly like a
-        // failed solve so the attempt loop's retry applies.
-        const PLATE_SOLVE_TIMEOUT: Duration = Duration::from_secs(180);
+        // A solve that runs out of time counts as a failed one, so the
+        // attempt loop's retry applies.
         let solve_result = tokio::select! {
             result = tokio::time::timeout(
-                PLATE_SOLVE_TIMEOUT,
+                CENTER_SOLVE_TIMEOUT,
                 ctx.run.device_ops.plate_solve(
                     &image_data,
                     Some(target_ra_deg),
@@ -500,7 +463,7 @@ async fn center(
                     Err(_) => {
                         tracing::warn!(
                             "Plate solve timed out after {}s on attempt {}",
-                            PLATE_SOLVE_TIMEOUT.as_secs(),
+                            CENTER_SOLVE_TIMEOUT.as_secs(),
                             attempt
                         );
                         continue;
@@ -513,13 +476,11 @@ async fn center(
             }
         };
 
-        let separation_arcsec = policy
-            .separation
-            .measure(
-                (target_ra_hours, target_dec),
-                (solve_result.ra_degrees, solve_result.dec_degrees),
-            )
-            .total_arcsec;
+        let separation_arcsec = pointing_error(
+            (target_ra_hours, target_dec),
+            (solve_result.ra_degrees, solve_result.dec_degrees),
+        )
+        .total_arcsec;
         tracing::info!("Current separation: {:.1}\" from target", separation_arcsec);
 
         // Feeding the solve back into trigger state is what enables the
@@ -530,7 +491,7 @@ async fn center(
         // fired DriftLimit's own recenter in the middle of this one, which then
         // exposed over this loop's next frame and failed the node with "No
         // exposure is available to download" (found by the simulator soak).
-        if policy.tolerance.is_met(separation_arcsec) {
+        if policy.is_centered(separation_arcsec) {
             if let Some(trigger_state_lock) = &ctx.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.update_plate_solve(
@@ -559,7 +520,7 @@ async fn center(
             );
         }
 
-        if policy.tolerance.is_met(separation_arcsec) {
+        if policy.is_centered(separation_arcsec) {
             if let Some(cb) = progress_callback {
                 cb(95.0, &CenterProgress::Centered { separation_arcsec });
             }

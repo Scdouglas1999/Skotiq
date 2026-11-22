@@ -630,6 +630,9 @@ struct StoreInner {
     /// Autofocus tuning of the loaded sequence's first Autofocus node, read
     /// at each start.
     sequence_autofocus: StdRwLock<Option<AutofocusConfig>>,
+    /// Whether the loaded sequence's first enabled Center step syncs the
+    /// mount, read at each start; `None` without a Center step.
+    sequence_center_sync: StdRwLock<Option<bool>>,
     slots: ConfigSlots,
     /// Held across read-modify-apply so two setters cannot lose each
     /// other's change.
@@ -657,6 +660,7 @@ impl RunConfigStore {
             inner: Arc::new(StoreInner {
                 config: StdRwLock::new(config),
                 sequence_autofocus: StdRwLock::new(None),
+                sequence_center_sync: StdRwLock::new(None),
                 slots,
                 applying: tokio::sync::Mutex::new(()),
             }),
@@ -697,6 +701,17 @@ impl RunConfigStore {
     /// Record the starting sequence's own autofocus tuning.
     pub(crate) fn set_sequence_autofocus(&self, config: Option<AutofocusConfig>) {
         *self.inner.sequence_autofocus.write() = config;
+    }
+
+    /// Whether the run's own recenters sync the mount: as the sequence's
+    /// first enabled Center step does, and without one, yes.
+    pub(crate) fn recenter_syncs_mount(&self) -> bool {
+        *self.inner.sequence_center_sync.read() != Some(false)
+    }
+
+    /// Record the starting sequence's Center sync choice.
+    pub(crate) fn set_sequence_center_sync(&self, sync_mount: Option<bool>) {
+        *self.inner.sequence_center_sync.write() = sync_mount;
     }
 
     /// Make `new` the settings: store it, carry each changed section to its

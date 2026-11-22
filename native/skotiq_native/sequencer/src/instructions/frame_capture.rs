@@ -125,15 +125,13 @@ impl CaptureSite {
                 retries: FrameRetries::RunCameraBudget,
                 ..PLAIN
             },
-            Self::AutofocusSample => CapturePolicy {
-                abort_if_dropped: true,
-                retries: FrameRetries::RunCameraBudget,
-                ..PLAIN
-            },
-            Self::AutofocusVerify | Self::BacklashCalibration => CapturePolicy {
-                abort_if_dropped: true,
-                ..PLAIN
-            },
+            Self::AutofocusSample | Self::AutofocusVerify | Self::BacklashCalibration => {
+                CapturePolicy {
+                    abort_if_dropped: true,
+                    retries: FrameRetries::RunCameraBudget,
+                    ..PLAIN
+                }
+            }
             Self::SecondaryRig => CapturePolicy {
                 watch: StopWatch::Poll,
                 ..PLAIN
@@ -143,7 +141,10 @@ impl CaptureSite {
             | Self::PolarAlignMeasure
             | Self::PolarAlignAdjust
             | Self::FlipCenter
-            | Self::FlipNearbyRecovery => PLAIN,
+            | Self::FlipNearbyRecovery => CapturePolicy {
+                retries: FrameRetries::RunCameraBudget,
+                ..PLAIN
+            },
         }
     }
 }

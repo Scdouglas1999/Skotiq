@@ -3393,6 +3393,114 @@ async fn guiding_rms_over_the_limit_holds_the_run_when_the_operator_asked_for_it
     assert!(run.recovery_started, "the recovery driver took the run");
 }
 
+/// The mount syncs a drift recenter sent while `plan` (whether the plan has
+/// a Center step, and its sync choice) runs. A disabled Center step with the
+/// other choice comes first and is not read.
+async fn drift_recenter_syncs(plan: Option<bool>) -> usize {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    let mut children = vec!["wait".to_string()];
+    if let Some(sync_mount) = plan {
+        // The start pre-flight refuses a centering sequence on a machine with
+        // no solver; the double never runs one, so a file at the configured
+        // ASTAP path is all it needs to see.
+        let solver_dir = std::env::temp_dir().join(format!("sk-recenter-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&solver_dir).unwrap();
+        let astap = solver_dir.join("astap");
+        std::fs::write(&astap, b"").unwrap();
+        skotiq_platesolve::set_solver_preference(astap.to_str(), None, None, None);
+        children.insert(0, "skipped".to_string());
+        children.push("center".to_string());
+        for (id, enabled, sync_mount) in [
+            ("skipped", false, !sync_mount),
+            ("center", true, sync_mount),
+        ] {
+            sequence.nodes.push(crate::NodeDefinition {
+                id: id.to_string(),
+                name: "Center".to_string(),
+                node_type: crate::NodeType::CenterTarget(crate::CenterConfig {
+                    sync_mount,
+                    ..Default::default()
+                }),
+                enabled,
+                children: vec![],
+            });
+        }
+    }
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "night".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig::default()),
+        enabled: true,
+        children,
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("night".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    ops.solve_dec_offsets_deg.lock().unwrap().push_back(0.1);
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops.clone());
+    executor.set_devices(
+        Some("sim_camera_1".to_string()),
+        Some("mount-1".to_string()),
+        None,
+        None,
+        None,
+    );
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();
+        for id in ids {
+            manager.remove_trigger(&id);
+        }
+        manager.add_trigger(
+            Trigger::new(
+                "drift_limit",
+                "Plate-Solve Drift Limit",
+                crate::TriggerType::DriftLimit { max_pixels: 30.0 },
+                crate::RecoveryAction::Recenter,
+            )
+            .with_cooldown(600),
+        );
+    }
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+    {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let mut state = state.write().await;
+        state.set_target(10.684, 41.269);
+        state.update_plate_solve(10.784, 41.269, 1.5);
+    }
+    let corrected = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        while !ops.calls().iter().any(|call| call == "mount_slew:mount-1") {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    })
+    .await;
+    executor.stop().await.ok();
+    assert!(corrected.is_ok(), "no correction slew: {:?}", ops.calls());
+    ops.calls()
+        .iter()
+        .filter(|call| *call == "mount_sync:mount-1")
+        .count()
+}
+
+/// A run's own recenter corrects as the plan's first enabled Center step
+/// does; a plan without one syncs.
+#[tokio::test]
+async fn a_drift_recenter_takes_the_plans_center_sync_choice() {
+    assert_eq!(drift_recenter_syncs(None).await, 1);
+    assert_eq!(drift_recenter_syncs(Some(true)).await, 1);
+    assert_eq!(drift_recenter_syncs(Some(false)).await, 0);
+}
+
 /// What a run did after a DriftLimit recenter could not solve.
 struct FailedRecenterRun {
     state: ExecutorState,

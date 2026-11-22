@@ -1,7 +1,7 @@
 //! Per-run trigger preparation: clear the previous run's latches, disarm the
 //! triggers this run's hardware cannot act on, carry the settings onto the
 //! reset trigger state, arm temperature compensation from the plan, and read
-//! the sequence's own autofocus tuning.
+//! the sequence's own autofocus tuning and Center sync choice.
 
 use super::*;
 
@@ -91,6 +91,12 @@ impl SequenceExecutor {
             }
         }
         self.settings.set_sequence_autofocus(node_af);
+        // The run's own recenters correct as the plan's Center steps do.
+        self.settings.set_sequence_center_sync(
+            self.root_node
+                .as_ref()
+                .and_then(|root| first_center_sync(&**root)),
+        );
 
         // surface trigger-creation-time clamp diagnostics
         // (e.g. FocusDrift.window_size > FOCUS_DRIFT_WINDOW_MAX) as
