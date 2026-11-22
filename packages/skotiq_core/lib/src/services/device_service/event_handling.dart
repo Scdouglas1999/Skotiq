@@ -641,8 +641,8 @@ extension _DeviceServiceEventHandling on DeviceService {
     // is told there, once.
     if (deviceId != null && _attempts.isOwn(deviceId)) return;
 
-    // 2. Update the matching device-type state notifier so equipment
-    //    cards display the error in their subtitle.
+    // 2. An error-level event puts the matching device slot in error, so
+    //    the equipment card shows the driver's message.
     final type = deviceTypeFromWireName(deviceType ?? '');
     final isGuideCamera = _isGuideCameraEvent(deviceType, deviceId);
     // An error while the slot is connecting this device is a connect that
@@ -658,7 +658,10 @@ extension _DeviceServiceEventHandling on DeviceService {
           source: 'DeviceService',
         ),
       );
-    } else if (!isGuideCamera) {
+    } else if (!isGuideCamera && severity.index >= EventSeverity.error.index) {
+      // A warning-level Error is a notice about a device that still works
+      // (a setting not restored, a connect-check note): it is told below and
+      // leaves the slot as it is.
       final before = readDeviceSlot(_ref.container, type);
       if (before.connectionState == DeviceConnectionState.connecting &&
           before.deviceId == deviceId) {
