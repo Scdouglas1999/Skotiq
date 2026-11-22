@@ -163,10 +163,9 @@ impl MountDriver for Lx200Mount {
         }
 
         // Every other LX200 flavour: ask the distance bar while a goto is
-        // latched. Without it the latch was only ever cleared by an abort, so
-        // a Meade, Losmandy or 10Micron mount read as slewing forever after its
-        // first goto and every sequencer slew waited out its limit and failed.
-        // A mount that does not answer keeps the latched value, as before.
+        // latched; without it a Meade, Losmandy or 10Micron mount would read as
+        // slewing forever after its first goto.
+        // A mount that does not answer keeps the latched value.
         let latched = *self.is_slewing.lock().unwrap_or_else(|e| e.into_inner());
         if latched && !self.mount_type.is_onstep() {
             if let Ok(bars) = self.send_command(commands::DISTANCE_BARS) {

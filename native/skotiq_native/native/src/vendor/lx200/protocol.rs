@@ -663,8 +663,7 @@ mod slew_ack_tests {
 
     #[test]
     fn bare_zero_is_an_accepted_goto() {
-        // The reply that used to hang the reader for the full 5 s deadline:
-        // one byte, no `#`, mount already moving.
+        // One byte, no `#`, mount already moving: must not hang the reader.
         assert_eq!(parse_slew_ack(b'0', &[]), SlewAck::Accepted);
     }
 

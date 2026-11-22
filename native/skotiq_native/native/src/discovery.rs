@@ -39,7 +39,6 @@ fn get_discovery_cache() -> &'static Mutex<Option<DiscoveryCache>> {
 }
 
 /// How long to cache discovery results before re-querying SDKs
-/// Set to 60 seconds to avoid redundant discovery during the same session.
 /// Discovery can still be triggered manually via the UI refresh button.
 const CACHE_TTL: Duration = Duration::from_secs(60);
 

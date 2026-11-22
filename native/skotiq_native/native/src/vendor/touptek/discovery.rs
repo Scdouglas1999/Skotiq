@@ -57,8 +57,6 @@ pub(crate) fn enumerate_brand_devices_from_sdk(
     // SAFETY: `arr.as_mut_ptr()` points to a contiguous buffer of OGMACAM_MAX `#[repr(C)]` OgmacamDeviceV2 entries; OgmacamEnumV2 fills at most OGMACAM_MAX entries and returns the count, per the SDK header.
     let count = unsafe { (sdk.enum_v2)(arr.as_mut_ptr()) };
 
-    // Why: count is c_uint (u32) returned by OgmacamEnumV2; widening u32 -> usize is
-    // value-preserving on every Tier 1 target.
     for dev in arr.iter().take(count as usize) {
         let name = touptek_device_string(&dev.displayname);
         let id = touptek_device_string(&dev.id);
