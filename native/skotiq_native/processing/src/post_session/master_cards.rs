@@ -3,7 +3,7 @@
 
 use skotiq_imaging::{
     copy_header_cards, is_instrument_keyword, read_frame_header, replace_astrometry_headers,
-    FitsHeader, PlateSolveResult,
+    FitsHeader, PlateSolveResult, SipWcs,
 };
 use std::path::Path;
 
@@ -26,13 +26,14 @@ pub(crate) fn copy_optics_cards(header: &mut FitsHeader, source: &FitsHeader) {
     });
 }
 
-/// Whether `header` holds a celestial WCS.
+/// Whether `header` holds a celestial WCS a master can use: `CTYPE1` names
+/// RA and the cards make a whole solution (a reference point and a linear
+/// part) that [`SipWcs::from_header`] reads.
 pub(crate) fn has_wcs(header: &FitsHeader) -> bool {
     header
         .get_string("CTYPE1")
         .is_some_and(|t| t.contains("RA"))
-        && header.get_float("CRVAL1").is_some()
-        && header.get_float("CRVAL2").is_some()
+        && SipWcs::from_header(header).is_some()
 }
 
 pub(crate) struct WcsAttachment {
@@ -155,6 +156,43 @@ mod tests {
             assert!(master.get(key).is_none(), "{key}");
         }
         assert_eq!(master.get_float("EXPTIME"), Some(7200.0));
+    }
+
+    /// A grid reference whose header names a reference point but no linear
+    /// part has no WCS a master can use, so the master is solved instead of
+    /// taking it; a whole solution is taken without a solve.
+    #[test]
+    fn a_reference_without_a_linear_part_is_not_inherited() {
+        let dir = std::env::temp_dir().join(format!("skotiq-mc-wcs-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let grid = dir.join("grid.fits");
+        let mut reference = FitsHeader::new();
+        reference.set_string("CTYPE1", "RA---TAN");
+        reference.set_string("CTYPE2", "DEC--TAN");
+        reference.set_float("CRVAL1", 10.0);
+        reference.set_float("CRVAL2", 41.0);
+        let image = skotiq_imaging::ImageData::from_u16(16, 16, 1, &[100; 256]);
+        let attach = |reference: &FitsHeader| {
+            skotiq_imaging::write_fits(&grid, &image, reference).unwrap();
+            let mut asked = false;
+            let mut header = FitsHeader::new();
+            let attached = attach_wcs_solved_by(
+                &mut header,
+                grid.to_str().unwrap(),
+                &dir.join("master.fits"),
+                (16, 16),
+                |_, _, _| {
+                    asked = true;
+                    None
+                },
+            );
+            (attached.map(|a| a.inherited), asked)
+        };
+        assert_eq!(attach(&reference), (None, true), "no CD: solved");
+        reference.set_float("CD1_1", -2.8e-4);
+        reference.set_float("CD2_2", 2.8e-4);
+        assert_eq!(attach(&reference), (Some(true), false), "CD: inherited");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The master's own solve holds the app's one-solver gate: a solve asked
