@@ -6,6 +6,7 @@
 //     per-action narrowing, persisting + resolving through the tokens table.
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:skotiq_hub/skotiq_hub.dart';
 import 'package:test/test.dart';
@@ -37,11 +38,42 @@ void main() {
       }
     });
 
-    test('re-open is idempotent (CREATE IF NOT EXISTS)', () {
-      // A second open against the same in-memory handle would be a fresh DB, so
-      // re-run the migration on the SAME connection to prove idempotency.
-      expect(() => HubDatabase.open(':memory:').dispose(), returnsNormally);
-      expect(tableExists('shared_calibration_masters'), isTrue);
+    test('re-opening an existing hub database keeps its tables and rows', () {
+      final dir = Directory.systemTemp.createTempSync('hub_reopen_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final path = '${dir.path}/hub.db';
+
+      final first = HubDatabase.open(path);
+      final accountId =
+          AccountService(
+                first,
+                TokenService(first),
+                hasher: PasswordHasher(iterations: 1000),
+              )
+              .signup(
+                publicKey: 'pk-reopen',
+                displayName: 'Imager',
+                password: 'pw',
+              )
+              .account
+              .id;
+      first.dispose();
+
+      final second = HubDatabase.open(path);
+      addTearDown(second.dispose);
+      expect(
+        second.db.select('SELECT id FROM accounts WHERE id = ?;', <Object?>[
+          accountId,
+        ]),
+        hasLength(1),
+      );
+      expect(
+        second.db.select(
+          "SELECT 1 FROM sqlite_master WHERE type = 'table' "
+          "AND name = 'shared_calibration_masters';",
+        ),
+        hasLength(1),
+      );
     });
 
     test(
