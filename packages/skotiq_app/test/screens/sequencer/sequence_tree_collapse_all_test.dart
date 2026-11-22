@@ -58,9 +58,8 @@ Future<HarnessHandle> _pumpTree(WidgetTester tester) async {
 
   return pumpAppScreen(
     tester,
-    // Collapse-all moved from the tree's own header row into the canvas
-    // bar's menu in wave 3 (06 §Sequencer), so the pair is pumped
-    // together — which is also how the builder lays them out.
+    // Collapse-all lives in the canvas bar's menu (06 §Sequencer), so the pair
+    // is pumped together — which is also how the builder lays them out.
     Builder(
       builder: (context) => Column(
         children: [

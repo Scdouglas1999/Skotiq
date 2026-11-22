@@ -6,7 +6,7 @@
 //
 // On a phone the controls collapse into AdaptivePanelLayout (preview dominant,
 // controls in a bottom sheet / landscape split) so the narrow controls column
-// can no longer squish the sliders/inputs into overflow.
+// cannot squish the sliders/inputs into overflow.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

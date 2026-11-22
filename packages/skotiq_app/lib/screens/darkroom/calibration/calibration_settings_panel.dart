@@ -66,8 +66,7 @@ final calibrationFileWriterProvider = Provider<CalibrationFileWriter>((ref) {
 });
 
 /// How captured light frames are calibrated as they arrive, and which
-/// masters that uses: the switches and files that used to live on the
-/// Settings Calibration and Dark library pages.
+/// masters that uses.
 class CalibrationSettingsPanel extends ConsumerWidget {
   const CalibrationSettingsPanel({super.key});
 

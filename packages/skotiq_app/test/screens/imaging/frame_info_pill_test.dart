@@ -1,6 +1,6 @@
 // The live view's one frame-info pill: what the frame is, when it landed, HFR
 // and stars, and the badges that qualify it — including the accept / reject
-// verdict, which used to float in its own box in another corner.
+// verdict.
 import 'dart:async';
 import 'dart:typed_data';
 

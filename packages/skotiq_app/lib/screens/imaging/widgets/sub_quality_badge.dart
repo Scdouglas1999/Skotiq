@@ -110,8 +110,7 @@ NightFrameRunVerdict? _runVerdict(WidgetRef ref) {
 
 /// The ACCEPT / REJECT verdict on its own, for the canvas's frame-info pill.
 ///
-/// The verdict used to float in its own glass box in the bottom-left corner of
-/// the image. It qualifies the same frame the pill names, so it rides inside
+/// It qualifies the same frame the pill names, so it rides inside
 /// that pill instead of claiming another corner. Collapses to nothing with no
 /// frame or a frame no run graded.
 class SubQualityVerdict extends ConsumerWidget {

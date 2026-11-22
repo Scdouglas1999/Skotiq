@@ -421,8 +421,7 @@ void main() {
     final state = await settle(const DarkroomScope.recipe(4242));
     expect(state.loadError, contains('Recipe 4242 no longer has a row'));
     // `recipes.master_id` is ON DELETE SET NULL, so a deleted master cannot
-    // take a recipe row with it. The sentence used to speculate that it might
-    // have, which read as "the master is gone" over a master still on disk.
+    // take a recipe row with it.
     expect(state.loadError, contains('still in the library'));
     expect(state.loadError, isNot(contains('deleted along with the master')));
   });

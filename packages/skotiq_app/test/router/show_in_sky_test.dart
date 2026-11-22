@@ -46,9 +46,8 @@ void main() {
         ),
       );
 
-      // The sky view starts at its default pose (the zenith — it no longer
-      // opens on RA 0h / Dec 0, which pointed below the horizon), and nothing
-      // is selected.
+      // The sky view starts at its default pose (the zenith), and nothing is
+      // selected.
       final homeRa = container.read(skyViewHomeCenterProvider)!.$1;
       expect(
         container.read(skyViewStateProvider).centerRA,

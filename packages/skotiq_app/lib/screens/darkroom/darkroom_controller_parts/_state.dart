@@ -278,11 +278,7 @@ class DarkroomViewState {
   /// the operation registry decided about, with the reason it gave.
   ///
   /// Read from `recipes.draft_notes_json` when the recipe opens, so the reasons
-  /// survive the pass that recorded them. They used to be attached in memory by
-  /// the in-session "Draft for me" alone: the dawn autopilot's own draft opened
-  /// with none of them, and one Reload erased the rest. The operator was
-  /// promised "color where there is color to calibrate" and then handed a
-  /// four-step stack that said nothing about the colour step it did not carry.
+  /// survive the pass that recorded them.
   ///
   /// Empty for a recipe nobody drafted — which is what [composedByRegistry]
   /// reads to tell a drafted stack from a hand-written one.

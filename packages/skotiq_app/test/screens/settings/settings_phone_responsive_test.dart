@@ -149,7 +149,7 @@ void main() {
       //
       // GENERAL, not EQUIPMENT, is the sentinel: the list is a lazy
       // ListView.builder, so on a short phone EQUIPMENT is simply never built
-      // and `findsNothing` passed for the wrong reason — it could not tell
+      // and `findsNothing` would pass for the wrong reason — it could not tell
       // "the list is gone" from "the list is here but that row is below the
       // fold". GENERAL is the first row, so it is built whenever the list is.
       expect(find.text('GENERAL'), findsNothing,

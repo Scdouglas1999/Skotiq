@@ -1,9 +1,9 @@
-// What every plan data provider (night-control plan section 3, P1a) reads:
+// What every plan data provider reads:
 // now, the operator's clock, the loaded plan flattened into execution order,
 // and one estimator run. When nodes really started and finished is core's
 // `runNodeTimesProvider`.
 //
-// Every DateTime a P1a view model carries is on the operator's clock, the
+// Every DateTime a plan view model carries is on the operator's clock, the
 // same clock `tonightNightProvider` renders sunset and dawn on. A widget
 // compares one against `clockProvider.now()`, never `DateTime.now()`; the two
 // differ only when Settings picks a time zone other than the host's.

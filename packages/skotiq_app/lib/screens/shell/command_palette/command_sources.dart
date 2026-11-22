@@ -238,9 +238,9 @@ class _SearchableTarget {
 /// The installed catalogs as the palette searches them, built once per
 /// catalog load.
 ///
-/// A keystroke used to walk both catalogs (some 13,000 objects and 118,000
-/// stars), normalizing every designation with a regular expression and
-/// lower-casing every name: 50 to 100 ms on the UI isolate per letter typed.
+/// Walking both catalogs on every keystroke (some 13,000 objects and 118,000
+/// stars), normalizing every designation, costs 50 to 100 ms on the UI
+/// isolate per letter typed.
 /// Only the 400 or so stars that have a name can be found, so the rest are
 /// not kept.
 final targetSearchIndexProvider = Provider<TargetSearchIndex>((ref) {

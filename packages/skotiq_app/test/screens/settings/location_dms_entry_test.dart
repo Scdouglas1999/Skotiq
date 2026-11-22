@@ -135,13 +135,10 @@ void main() {
     });
   });
 
-  // The two row subtitles were reworded to name the accepted notations, but
-  // the generated search index was not regenerated - on the (wrong) belief
-  // that only `title:` is indexed. The generator's `title:` pattern has no
-  // left word boundary, so `subtitle:` is indexed too, and the index kept the
-  // DELETED wording. That cost the new capability its discoverability AND left
-  // 'Positive for East, negative for West' in the index as a row-shaped term
-  // the search offers as a tappable result that no longer exists on the page.
+  // The generator's `title:` pattern has no left word boundary, so
+  // `subtitle:` is indexed too: a reworded row subtitle needs the generated
+  // search index regenerated, or the index keeps the old wording as a
+  // tappable result that does not exist on the page.
   group('the search index knows what the coordinate rows now accept', () {
     const location = 'location';
 

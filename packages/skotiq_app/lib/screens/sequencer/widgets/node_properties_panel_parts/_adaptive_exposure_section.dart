@@ -386,7 +386,7 @@ class _PerFilterRow extends StatelessWidget {
             onChanged: (v) {
               // First explicit edit while the map is empty: seed every filter
               // with its current effective state so toggling one filter doesn't
-              // silently disable the rest (which all previously inherited the
+              // silently disable the rest (which all inherit the
               // empty-map default).
               final next = cfg.perFilterEnabled.isEmpty
                   ? {for (final f in allFilters) f: cfg.enabled}

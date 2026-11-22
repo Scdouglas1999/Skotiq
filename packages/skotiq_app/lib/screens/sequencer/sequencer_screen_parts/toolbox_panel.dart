@@ -85,8 +85,7 @@ class _ToolboxPanelState extends ConsumerState<_ToolboxPanel>
         children: [
           // A second-level switch INSIDE a panel is a SegmentedControl, never
           // a tab strip: the page header owns the only tab style in the app
-          // (05 §4). The control sizes itself, so the old shrink-the-labels
-          // LayoutBuilder is gone with the pills it was compensating for.
+          // (05 §4).
           Padding(
             padding: const EdgeInsets.all(SkotiqTokens.spaceSm),
             child: Row(

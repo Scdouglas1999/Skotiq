@@ -211,7 +211,7 @@ enum ManualActionId {
   cooler,
 }
 
-/// The panel tab an action-bar button selects when pressed (plan section 2).
+/// The panel tab an action-bar button selects when pressed.
 /// Automatic events never switch tabs.
 extension ManualActionPanelTab on ManualActionId {
   NightPanelTab get panelTab => switch (this) {

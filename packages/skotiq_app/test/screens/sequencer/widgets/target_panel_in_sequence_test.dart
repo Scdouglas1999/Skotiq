@@ -1,9 +1,6 @@
 // The "In this sequence" section of the Targets panel.
 //
-// The tab used to be called Queue and showed only the planetarium wishlist, so
-// loading the bundled "Mono LRGB M51" starter — a sequence with a target in it
-// — produced a panel reading "Your target queue is empty." These tests pin the
-// repair: the panel lists the sequence's own target headers, in the order the
+// The panel lists the sequence's own target headers, in the order the
 // canvas bar counts them, with the coordinates and the planned capture the
 // tree row carries, and a tap that selects the header and scrolls the tree to
 // it.

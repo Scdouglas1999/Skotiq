@@ -930,8 +930,7 @@ abstract final class NightFixtures {
         running: running,
       );
 
-  /// Flip now is disabled during a run (plan section 3, P2): the board drew
-  /// it enabled, the contract does not.
+  /// Flip now is disabled during a run.
   static List<ManualActionVm> runningActions() => <ManualActionVm>[
         _action(ManualActionId.snapshot, 'Snapshot', sub: '5 s'),
         _action(ManualActionId.loop, 'Loop'),

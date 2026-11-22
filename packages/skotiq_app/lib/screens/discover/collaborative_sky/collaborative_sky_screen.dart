@@ -66,7 +66,7 @@ class CollaborativeSkyView extends ConsumerWidget {
 
   /// Re-reads everything the collaborative view shows.
   ///
-  /// Public because the view no longer carries a header of its own: the Plan
+  /// Public because the view carries no header of its own: the Plan
   /// screen's "Your sky" tab owns the one refresh button for all three
   /// discovery surfaces (06 §Plan removes the second header row).
   static void refreshCollaborativeSky(WidgetRef ref) {

@@ -1,14 +1,12 @@
 /// Truthful "can a critical alert actually reach a phone?" state for the
 /// notification settings surface.
 ///
-/// The "Push critical alerts to mobile" row used to render as a plain ON
-/// switch whatever the real delivery state was. On Android that claim was
-/// never true in a stock build — the FCM client is a dormant scaffold pending
+/// On Android a stock build's FCM client is a dormant scaffold pending
 /// Firebase provisioning (`apps/mobile/android/app/google-services.json` is
 /// absent), so the phone logs
 /// `FCM not configured (no google-services.json); push registration dormant`
-/// and never registers a token. The switch therefore asserted a capability the
-/// system did not have.
+/// and never registers a token. A plain ON switch would assert a capability
+/// the system does not have.
 ///
 /// Two authorities answer the question, depending on where this code runs:
 ///   * a remote controller (phone/tablet paired to a host) asks the host over

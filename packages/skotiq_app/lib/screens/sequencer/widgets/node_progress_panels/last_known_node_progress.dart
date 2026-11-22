@@ -71,8 +71,8 @@ class NodeActivitySnapshot {
 /// Written ONLY by folding [sequenceProgressProvider] deltas: every key the
 /// progress maps touch is folded in, and a node whose status transitions INTO
 /// `running` first drops its previous snapshot — a fresh pass over the node is
-/// no longer the previous run's story (mirrors `_NodeItem.didUpdateWidget`'s
-/// `_forgetLiveProgress`). `RunRecordNotifier.reset()` empties the maps
+/// no longer the previous run's story. `RunRecordNotifier.reset()` empties
+/// the maps
 /// without touching this state, which is exactly what lets a finished node's
 /// last readings survive for the rest of the session.
 ///
@@ -83,10 +83,6 @@ class NodeActivitySnapshot {
 /// execution-state transition into `running` from a state the enum itself
 /// marks as start-admissible (`canStart`: idle / completed / failed). Resume
 /// arrives via `paused`/`recovering` and deliberately does not clear.
-///
-/// The tree keeps its private copy in `_NodeItem` until the density-mode
-/// workstream removes the inline panels; this provider is the shared slot the
-/// inspector (and eventually the tree) reads.
 final lastKnownNodeActivityProvider = StateNotifierProvider<
     LastKnownNodeActivityNotifier, Map<String, NodeActivitySnapshot>>(
   (ref) => LastKnownNodeActivityNotifier(ref),

@@ -253,10 +253,8 @@ class PairingNotifier extends StateNotifier<PairingState> {
   /// Adopt a freshly-read device list, dropping a confirmation banner whose
   /// device is no longer paired.
   ///
-  /// "WaveD Test Phone paired" sat at the top of the page while the list below
-  /// it read "No paired devices" — the operator had just revoked that very
-  /// device, and the page told them both things at once. The banner is a
-  /// statement about a row; when the row goes, so does the statement.
+  /// The banner is a statement about a row; when the row goes, so does the
+  /// statement.
   PairingState _adoptDevices(List<PairedDevice> devices) {
     final banner = state.lastPairedDevice;
     final stillPaired =

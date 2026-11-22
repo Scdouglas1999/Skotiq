@@ -44,8 +44,7 @@ class TargetHeaderCard extends ConsumerStatefulWidget {
 /// The step's icon square and the glyph inside it (06 Sequencer).
 ///
 /// File-level so the spinning form of the glyph is the same size as the still
-/// one: it used to be built at a hard-coded 18, so the target's icon grew by
-/// 4 px the moment the run reached it and shrank again when it moved on.
+/// one.
 const double _iconSquare = 28;
 const double _iconGlyph = 14;
 
@@ -224,10 +223,9 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           // Altitude chart toggle
           // SkotiqIconButton is a fixed 28/32/36 box on every platform: 05 §6
           // gives it no touch behaviour, so on a phone its tappable rect is 20 dp
-          // under Android's 48 dp rule. Until wave 4 grows the component's hit area
-          // (see reports/observatory/w3-sequencer/notes.md), touch platforms keep
-          // the skotiq_ui button that already implements that padding
-          // correctly. Same glyph, same tooltip, legal target.
+          // under Android's 48 dp rule, so touch platforms keep the skotiq_ui button
+          // that already implements that padding correctly. Same glyph, same tooltip,
+          // legal target.
           SkotiqIconButton(
             icon: _showAltitudeChart
                 ? LucideIcons.chevronUp

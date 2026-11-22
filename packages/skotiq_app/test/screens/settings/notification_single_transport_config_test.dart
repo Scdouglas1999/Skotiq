@@ -78,11 +78,8 @@ void main() {
       expect(find.text('Webhook URL'), findsOneWidget);
       expect(find.text('API token'), findsOneWidget);
       expect(find.text('User key'), findsOneWidget);
-      // The legacy routing-matrix rows used to be told apart from these by
-      // their Title Case ('API key', 'User key'); both spellings are sentence
-      // case now, so absence is no longer expressible as text. The
-      // findsOneWidget above is the same claim and a stronger one: exactly one
-      // credential field per transport, so no legacy row is duplicating them.
+      // The findsOneWidget above is the claim: exactly one credential field per
+      // transport, so no legacy row is duplicating them.
 
       // One test action per transport.
       expect(find.text('Test Discord'), findsOneWidget);

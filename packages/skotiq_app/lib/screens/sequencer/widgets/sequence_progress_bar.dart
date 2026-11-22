@@ -180,12 +180,10 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
     // The pulse is owned by the gate, not by this build: `repeating` says
     // whether we want it at all (a paused run gets a calm, static
     // warning-tinted background instead of a strobing one), and the gate ANDs
-    // that with whether the bar is actually being painted. The bar was
-    // previously pause-gated only, so a running sequence kept the 2 s pulse —
-    // and therefore a full-window frame every vsync — going even where nothing
-    // drew it. The RepaintBoundary sits OUTSIDE the gate so the per-frame
-    // repaint is isolated from the rest of the screen rather than the gate
-    // being isolated from the paint it needs to observe.
+    // that with whether the bar is actually being painted. The RepaintBoundary
+    // sits OUTSIDE the gate so the per-frame repaint is isolated from the rest
+    // of the screen rather than the gate being isolated from the paint it needs
+    // to observe.
     return RepaintBoundary(
       child: OnScreenAnimationGate(
         controller: _pulseController,

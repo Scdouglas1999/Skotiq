@@ -347,7 +347,7 @@ class _NodePaletteState extends ConsumerState<NodePalette> {
 
             // Insertion target indicator: surfaces *where* the + / tap-to-add
             // affordance will drop the new node so the implicit "selected
-            // node is the insert parent" rule is no longer invisible.
+            // node is the insert parent" rule is visible.
             _AddTargetIndicator(colors: widget.colors),
 
             // Category color legend so the palette is self-describing.

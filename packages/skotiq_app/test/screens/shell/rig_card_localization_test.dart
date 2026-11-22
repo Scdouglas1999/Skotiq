@@ -102,7 +102,7 @@ void main() {
     expect(_inCard('No focuser'), findsOneWidget);
     expect(_inCard('No save path'), findsOneWidget);
     // Exactly ONE run-state word anywhere on screen (04 §8): the pill. The
-    // sequencer LED beside it no longer renders a label of its own, and the
+    // sequencer LED beside it renders no label of its own, and the
     // Tonight eyebrow is a different screen's business.
     expect(_inCard('Idle'), findsOneWidget);
 

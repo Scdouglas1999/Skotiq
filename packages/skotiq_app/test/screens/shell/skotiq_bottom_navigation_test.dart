@@ -108,7 +108,7 @@ void main() {
     // Walked from the semantics tree, not from `getSemantics(find.text(...))`:
     // each slot's Semantics node EXCLUDES its Text child (otherwise the node
     // merges into "More\nMore" and a screen reader says it twice), so the
-    // Text is no longer a node of its own to look up.
+    // Text is not a node of its own to look up.
     final nodes = <SemanticsData>[];
     void visit(SemanticsNode node) {
       final data = node.getSemanticsData();

@@ -694,8 +694,7 @@ class _ProfileCardState extends State<_ProfileCard>
                           onPressed: () {
                             // Not null-guarded: the button has just been
                             // pressed, so it is laid out. A fallback offset
-                            // here is how the old code shipped a menu that
-                            // opened in the wrong place instead of failing.
+                            // here would open the menu in the wrong place.
                             final box =
                                 buttonContext.findRenderObject()! as RenderBox;
                             widget.onShowContextMenu(

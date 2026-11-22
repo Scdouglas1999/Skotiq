@@ -660,8 +660,7 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 onPressed: canEdit ? slewToTarget : null,
               ),
             const _ToolbarAction.divider(),
-            // Canvas view actions that used to sit in the tree's own header
-            // row. They belong to the document, so they follow it into the
+            // Canvas view actions. They belong to the document, so they live in the
             // canvas bar rather than getting a second bar of their own.
             _ToolbarAction(
               icon: LucideIcons.search,

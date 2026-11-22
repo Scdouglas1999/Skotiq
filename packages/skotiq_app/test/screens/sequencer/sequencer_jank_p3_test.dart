@@ -89,10 +89,10 @@ List<String> _paletteRowOrder(WidgetTester tester, List<String> candidates) {
   // match the query the test just typed into the search field, which sits
   // above every row and would always look like the top hit.
   //
-  // The search field is a SkotiqTextField now, and it has Columns of its
-  // own between the hint and the palette's, so "the first Column ancestor" is
-  // no longer the palette. Walk out until a Column is found that actually
-  // holds the result list.
+  // The search field is a SkotiqTextField, and it has Columns of its own
+  // between the hint and the palette's, so "the first Column ancestor" is
+  // not the palette. Walk out until a Column is found that actually holds the
+  // result list.
   Finder? list;
   final columns = find.ancestor(
     of: find.text('Search nodes…'),

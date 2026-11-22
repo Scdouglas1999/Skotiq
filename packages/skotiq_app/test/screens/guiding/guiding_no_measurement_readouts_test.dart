@@ -94,9 +94,7 @@ void main() {
       reason: 'a fabricated 0.00 RMS reads as flawless guiding',
     );
     // The graph's own stats row (RA / Dec / Tot) plus the SNR and Star mass
-    // readouts. The duplicate RMS chips that used to sit in the screen's own
-    // status bar are gone (06 §Guiding: one status surface), so five, not
-    // eight.
+    // readouts; the screen has one status surface (06 §Guiding), so five.
     expect(find.text('—'), findsAtLeastNWidgets(5));
     await _closeScreen(tester, handle);
   });

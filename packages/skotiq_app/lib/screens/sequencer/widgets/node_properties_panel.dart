@@ -147,10 +147,7 @@ class NodePropertiesPanel extends ConsumerWidget {
   Widget _buildDesktopSidebarContent(
       BuildContext context, WidgetRef ref, SequenceNode? selectedNode) {
     // A side panel with no strip: 300 px of content, 16 px padding, each
-    // section opening with a SectionTitle (05 §15). The old 48 px "Properties"
-    // header bar is gone — a panel that only ever holds one thing does not
-    // need a row to say what that thing is, and the SectionTitle already names
-    // the node.
+    // section opening with a SectionTitle (05 §15).
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,

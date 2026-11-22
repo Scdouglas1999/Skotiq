@@ -46,7 +46,7 @@ class ManualActionVm {
       Object.hash(id, label, sub, enabled, disabledReason, running);
 }
 
-/// The steps a manual action goes through (plan section 3, RunPauseGuard).
+/// The steps a manual action goes through.
 enum ManualActionPhase {
   idle,
 

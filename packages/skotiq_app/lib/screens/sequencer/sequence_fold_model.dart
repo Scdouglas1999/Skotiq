@@ -18,7 +18,7 @@
 /// `sequence_tree_shortcuts.dart`, which pulls in `flutter/material`) that
 /// would break this file's purity.
 ///
-/// Rendering (wave 2) consumes [foldChildren] per parent instead of the raw
+/// Rendering consumes [foldChildren] per parent instead of the raw
 /// child list; the returned [TreeEntry]s are the ONLY contract it sees, so the
 /// shapes here carry everything a folded row needs to paint — label, chip,
 /// shared capture spec, member ids and per-member labels — without a second

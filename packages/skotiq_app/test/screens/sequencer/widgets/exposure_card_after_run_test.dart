@@ -1,17 +1,12 @@
 // What the exposure node's card says once its frames are on disk, driven
 // through the real SequenceTree rather than the panel widget.
 //
-// Keying "this node finished" off `nodeStatus == NodeStatus.success` passes a
-// test that pumps exactly that, and still reads zero in the running app: the
-// per-node progress entries are GONE by the time the operator reads the card, so
-// a 4x15s run whose Session Report says "Frames accepted 4/4" leaves the node
-// reading "Exposure: No Filter - 0 / 4 frames" with four empty boxes above four
-// R-labelled thumbnails. A run STOPPED at frame 1 still reads "1 / 4", which
-// makes the zeroing look specific to the success path.
-//
-// So the input these tests encode is the real one: the card is still on screen
-// (the panel deliberately persists for 20s after the node stops running) while
-// the progress maps no longer hold anything for it.
+// The per-node progress entries are GONE by the time the operator reads the
+// card, so keying "this node finished" off `nodeStatus == NodeStatus.success`
+// alone reads zero in the running app. The input these tests encode is the
+// real one: the card is still on screen (the panel deliberately persists for
+// 20s after the node stops running) while the progress maps hold nothing for
+// it.
 //
 // The card's other half is the filter: the node carries none of its own, but the
 // run images through R and says so everywhere else — telemetry strip,

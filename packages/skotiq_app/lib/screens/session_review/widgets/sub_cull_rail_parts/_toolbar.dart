@@ -54,10 +54,8 @@ class _CullToolbar extends StatelessWidget {
       runSpacing: SkotiqTokens.spaceSm,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // The two numbers the whole screen is about. They used to be a subtitle
-        // sentence under the page title ("41 accepted · 6 rejected"), which is
-        // a measurement written as prose in the one place 04-shell §4 has no
-        // slot for. They belong here, beside the controls that change them.
+        // The two numbers the whole screen is about. They belong here, beside the
+        // controls that change them.
         ReadoutRow(
           gap: SkotiqTokens.spaceLg,
           children: [

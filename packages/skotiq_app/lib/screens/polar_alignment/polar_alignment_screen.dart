@@ -324,9 +324,7 @@ class _PolarAlignmentScreenState extends ConsumerState<PolarAlignmentScreen>
       body: Column(
         children: [
           // The one page header. It carries the identity, the method switch,
-          // the device chips and the screen's ONE primary — the footer bar
-          // that used to hold the primary (and repeat every blocker beside it
-          // in warning colour) is gone.
+          // the device chips and the screen's ONE primary.
           _buildHeader(colors, isRunning),
 
           // Main content — responsive layout avoids squeezing the guide

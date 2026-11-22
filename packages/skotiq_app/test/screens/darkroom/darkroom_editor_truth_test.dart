@@ -440,7 +440,7 @@ void main() {
       await settle(tester);
 
       expect(find.text('Nothing to open in the Darkroom'), findsOneWidget);
-      // It no longer promises a review it has not found.
+      // It does not promise a review it has not found.
       expect(find.text('Back to session review'), findsNothing);
       expect(find.text('Choose another image'), findsOneWidget);
 

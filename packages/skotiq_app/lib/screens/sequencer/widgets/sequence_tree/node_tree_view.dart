@@ -100,8 +100,8 @@ class _NodeTreeView extends ConsumerWidget {
     }
 
     // Use TargetHeaderCard for TargetHeaderNode, otherwise use _NodeItem. In
-    // Ledger the big card is gone: a target is a row like every other row, so
-    // the columns line up through it (spec §2).
+    // Ledger a target is a row like every other row, so the columns line up
+    // through it (spec §2).
     final targetHeaderNode =
         node is TargetHeaderNode && !isLedger ? node : null;
 

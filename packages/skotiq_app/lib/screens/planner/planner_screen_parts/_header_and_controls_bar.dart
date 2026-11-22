@@ -192,11 +192,9 @@ class _PlannerControlsBar extends ConsumerWidget {
                 );
 
                 // Below the desktop breakpoint the three inline chips do not
-                // fit beside a 300 px search field and the sort, and the
-                // horizontal scroll they used to live in simply SLICED the
-                // last one — "Alt now: any" was cut mid-chip with the sort
-                // apparently sitting on top of it, which reads as a broken
-                // layout rather than as something scrollable.
+                // fit beside a 300 px search field and the sort, and a horizontal
+                // scroll would slice the last one, which reads as a broken layout
+                // rather than as something scrollable.
                 //
                 // So they collapse into the Filters sheet, which already
                 // carries all six controls (see _ControlsBarChips): nothing

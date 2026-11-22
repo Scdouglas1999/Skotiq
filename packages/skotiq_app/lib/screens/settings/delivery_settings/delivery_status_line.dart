@@ -239,16 +239,12 @@ class DeliveryStatusLine {
   ///
   /// **A red truth outranks a newer green.** What did not arrive is counted
   /// across EVERY job at this destination, and only what DID arrive is read
-  /// from the newest run. A destination holding four of last night's drafts
-  /// that failed terminally, and four of tonight's that landed, used to read
-  /// "Delivered 17:55, 4 files" in green with no mention of the four the rig
-  /// will never look at again — the exact sentence this page exists to get
-  /// right, in the other direction.
+  /// from the newest run, so drafts that failed terminally last night are not
+  /// hidden behind tonight's green.
   ///
   /// **The counts are the destination's whole backlog.** "4 files owed" beside
   /// a sweep logging "8 retrying" for the same destination is the page
-  /// disagreeing with the process, and an operator whose share was full for
-  /// two nights was told half of it.
+  /// disagreeing with the process.
   static DeliveryStatusLine _journalSentence(DeliveryDestinationView view) {
     final isPeer = view.destination.kind == ArtifactDestinationKind.peer;
 

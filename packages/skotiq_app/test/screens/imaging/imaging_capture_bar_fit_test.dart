@@ -6,11 +6,6 @@
 // the fixed children overflow the Row and the advanced-settings button is
 // hard-clipped to a sliver that still swallows clicks, with no scroll to
 // recover it.
-//
-// This contract survived the Observatory relayout: the bar moved from a
-// full-width banner under the preview to a content-sized glass pill over the
-// frame, and at a 900 dp window with the side panel open it has LESS room than
-// before, not more. The sweep below covers the widths that actually overflow.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/imaging/widgets/imaging_capture_bar.dart';

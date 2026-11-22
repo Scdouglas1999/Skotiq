@@ -191,10 +191,8 @@ void main() {
       final title = match.group(1)!;
       if (_isTitleCase(title)) offenders.add(title);
     }
-    // The four SECTION headers used to be the allowed exceptions, on the
-    // grounds that headers stayed Title Case app-wide. 06's copy rules ended
-    // that — sentence case everywhere, headers included — so the list is now
-    // empty and there is no exception left to enumerate.
+    // 06's copy rules ask for sentence case everywhere, headers included, so
+    // there is no exception to enumerate.
     expect(
       offenders,
       isEmpty,

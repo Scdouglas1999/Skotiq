@@ -187,8 +187,7 @@ void main() {
   // operator nothing: hover text is invisible to a click and the log gains no
   // line. A tooltip assertion is not an assertion that anything is legible,
   // so these pin the VISIBLE refusal — a warning banner on the idle centre
-  // column, where wave 4 moved it from the deleted footer — and the published
-  // disabled state.
+  // column — and the published disabled state.
   testWidgets('a parked mount says so on screen, not only on hover',
       (tester) async {
     final semantics = tester.ensureSemantics();

@@ -105,9 +105,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // The four numbers are unknown, and a readout says that with the em dash.
-    // They used to read 'Unavailable', which is a word standing where a
-    // measurement goes; the DISTINCTION from empty data is carried by the
-    // banner below, which is the screen's one error surface.
+    // The DISTINCTION from empty data is carried by the banner below, which is
+    // the screen's one error surface.
     expect(_summaryValues(tester), [null, null, null, null]);
     expect(find.textContaining('Frames did not load'), findsOneWidget);
     expect(find.textContaining('image catalog offline'), findsOneWidget);

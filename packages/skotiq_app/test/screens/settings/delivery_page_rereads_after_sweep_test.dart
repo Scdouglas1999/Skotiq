@@ -221,13 +221,9 @@ void main() {
   testWidgets(
     'a peer file the RIG lost stops being reported as the desktop\'s to pull',
     (tester) async {
-      // Measured against the release bundle on one launch: the manifest
-      // endpoint answered `sourceMissing` for a published draft deleted from
-      // the rig, the sweep on that same launch logged `peer-desktop: 4
-      // awaiting pull`, and the settings row read "Published 4 files, 671.6 KB
-      // — waiting for office-pc to pull" — 338 KB of which was the file the
-      // rig no longer had. The peer arm counted rows without reading the disk,
-      // so the row never failed and the operator had no control on it either.
+      // The peer arm reads the disk rather than counting rows: a published draft
+      // deleted from the rig has to fail its row and give the operator a control
+      // on it.
       _swallowKnownOverflows();
       final database = mockDatabase();
       addTearDown(database.close);

@@ -3,8 +3,7 @@ part of '../annotation_panel.dart';
 /// The ONE place the "annotations need a catalog" problem is stated on this
 /// screen (02 rule 5, 05 §11).
 ///
-/// It used to be three: a full-width info bar above the viewer, a box floating
-/// over the frame, and a modal on the first snapshot. The same problem is also
+/// The same problem is also
 /// step 4 of the Tonight checklist; here it is a single inline banner inside
 /// the section it blocks, and it self-hides when a catalog is installed or
 /// annotations are off.

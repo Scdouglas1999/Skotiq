@@ -1,4 +1,4 @@
-/// Wave 5B — Phone-native sequencer authoring surface.
+/// Phone-native sequencer authoring surface.
 ///
 /// Renders the current sequence as a flat, depth-indented list of touch-
 /// friendly rows with the desktop sequencer's status visuals, plus:

@@ -39,7 +39,7 @@ class DepthLockMasterChoice {
 ///
 /// The form asks two questions an observer can answer — how deep, and is the
 /// calibration right — and keeps every number that follows from those behind
-/// **Advanced**. The error floor in particular is no longer typed: it is
+/// **Advanced**. The error floor in particular is not typed: it is
 /// derived from the operator's own masters, because a number invented at the
 /// keyboard is the one input that can make a calibration artefact look like
 /// sky signal.

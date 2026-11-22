@@ -513,7 +513,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstTooltip': 'Local sidereal time at your observing site',
     'statusLstNoSite': 'No observing site set. Sidereal time is unknown. '
         'Set it in Settings > Location.',
-    // Observatory wave 3 — Plan screen.
+    // Plan screen.
     'plannerTitleShort': 'Plan',
     'plannerTabTonight': 'Best tonight',
     'plannerTabYourSky': 'Your sky',
@@ -570,9 +570,6 @@ final Map<String, Map<String, String>> _localizedValues = {
         '{total} candidates were scored and {passed} passed the filters.',
     'plannerNoMatchesAction': 'Reset filters',
     'plannerPlanFailedAction': 'Retry',
-    // Wave 3 Analytics: 06-screens names the tab "Equipment" and the copy
-    // rules require sentence case, so this replaces 'Equipment Stats' at the
-    // call site. The old key stays; other surfaces still read it.
     // The live dot's chip. One word, because the panel head beside it
     // already says which session this is.
     'analyticsLive': 'Live',
@@ -2188,7 +2185,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstNoSite':
         'No hay lugar de observación definido: la hora sidérea es desconocida. '
             'Defínelo en Ajustes → Ubicación.',
-    // Observatory wave 3 — Plan screen.
+    // Plan screen.
     'plannerTitleShort': 'Planificar',
     'plannerTabTonight': 'Lo mejor de hoy',
     'plannerTabYourSky': 'Tu cielo',

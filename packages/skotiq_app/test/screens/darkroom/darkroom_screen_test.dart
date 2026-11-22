@@ -1057,10 +1057,9 @@ void main() {
     expect(slider, findsOneWidget);
 
     // Press on the middle of the track and sweep right in held steps, the way
-    // a finger or a mouse does. Every update in the gesture has to land: the
-    // card used to be re-keyed by the first one, which tore its subtree down
-    // and took the drag recognizer with it — the slider then took the value
-    // under the pointer at press and ignored the rest of the sweep.
+    // a finger or a mouse does. Every update in the gesture has to land:
+    // re-keying the card on the first one would tear its subtree down and take
+    // the drag recognizer with it.
     num storedValue() => handle.container
         .read(darkroomControllerProvider(scope))
         .steps[0]
@@ -1596,11 +1595,9 @@ void main() {
     final handle = tester.ensureSemantics();
     await pump(tester, const DarkroomScope.recipe(4242));
 
-    // The whole screen used to be ONE ~300-character button: the header's
+    // The screen must not merge into ONE ~300-character button (the header's
     // title and subtitle, the empty state's title, the reason and this label
-    // twice over, merged into the single fragment that carried a tap. Nothing
-    // was named for an exact-name lookup to find, and an activation landed on a
-    // node whose extents were the screen.
+    // twice over): nothing would be named for an exact-name lookup to find.
     final action = find.widgetWithText(
       SkotiqButton,
       'Choose another image',

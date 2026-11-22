@@ -134,9 +134,8 @@ class _TargetDetailColumn extends ConsumerWidget {
         ),
       ],
       // The optimizer's reasoning belongs to the optimizer's PICK, not to
-      // whichever row the user has selected — the old screen showed it under a
-      // hero card a search could have replaced, so it explained numbers that
-      // were not on screen. It appears here only when the two agree.
+      // whichever row the user has selected. It appears here only when the two
+      // agree.
       if (_isOptimizerPick && plan.rationale.isNotEmpty) ...[
         const SizedBox(height: SkotiqTokens.spaceMd),
         SectionTitle(

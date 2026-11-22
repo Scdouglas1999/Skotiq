@@ -1,7 +1,6 @@
 // The Guiding screen with the built-in guider: its calibration is shown like
 // PHD2's (without PHD2's Clear and Flip), and a control it cannot use looks
-// unavailable. The screen used to show only "Skotiq calibrates this guider
-// itself" and an outline Pause that looked as live as Loop.
+// unavailable.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/guiding/guiding_screen.dart';
