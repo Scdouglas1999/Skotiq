@@ -751,6 +751,17 @@ fn provenance_digest(
     }
     bytes.extend_from_slice(&acquisition.bin_x.to_le_bytes());
     bytes.extend_from_slice(&acquisition.bin_y.to_le_bytes());
+    // Appended only when stated, so a goal defined without them keeps its
+    // digest and the evidence pooled under it.
+    if let Some(set_point) = acquisition.set_point_c {
+        bytes.extend_from_slice(b"SET-TEMP");
+        bytes.extend_from_slice(&set_point.to_bits().to_le_bytes());
+    }
+    if let Some(mode) = &acquisition.read_mode {
+        bytes.extend_from_slice(b"READOUTM");
+        bytes.extend_from_slice(mode.to_ascii_lowercase().as_bytes());
+        bytes.push(0);
+    }
     for value in [
         reference.crval1,
         reference.crval2,

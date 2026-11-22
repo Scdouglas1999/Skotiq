@@ -3707,6 +3707,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.bin_x = cst_encode_i_32(apiObj.binX);
     wireObj.bin_y = cst_encode_i_32(apiObj.binY);
     wireObj.ccd_temp_c = cst_encode_opt_box_autoadd_f_64(apiObj.ccdTempC);
+    wireObj.set_point_c = cst_encode_opt_box_autoadd_f_64(apiObj.setPointC);
+    wireObj.read_mode = cst_encode_opt_String(apiObj.readMode);
   }
 
   @protected
@@ -19337,6 +19339,10 @@ final class wire_cst_api_acquisition_settings extends ffi.Struct {
   external int bin_y;
 
   external ffi.Pointer<ffi.Double> ccd_temp_c;
+
+  external ffi.Pointer<ffi.Double> set_point_c;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> read_mode;
 }
 
 final class wire_cst_api_depth_goal_definition extends ffi.Struct {

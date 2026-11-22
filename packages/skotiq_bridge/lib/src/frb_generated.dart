@@ -10937,8 +10937,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiAcquisitionSettings dco_decode_api_acquisition_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ApiAcquisitionSettings(
       instrument: dco_decode_String(arr[0]),
       filter: dco_decode_String(arr[1]),
@@ -10948,6 +10948,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: dco_decode_i_32(arr[5]),
       binY: dco_decode_i_32(arr[6]),
       ccdTempC: dco_decode_opt_box_autoadd_f_64(arr[7]),
+      setPointC: dco_decode_opt_box_autoadd_f_64(arr[8]),
+      readMode: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -15285,6 +15287,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_binX = sse_decode_i_32(deserializer);
     var var_binY = sse_decode_i_32(deserializer);
     var var_ccdTempC = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_setPointC = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_readMode = sse_decode_opt_String(deserializer);
     return ApiAcquisitionSettings(
       instrument: var_instrument,
       filter: var_filter,
@@ -15294,6 +15298,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: var_binX,
       binY: var_binY,
       ccdTempC: var_ccdTempC,
+      setPointC: var_setPointC,
+      readMode: var_readMode,
     );
   }
 
@@ -21483,6 +21489,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.binX, serializer);
     sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.ccdTempC, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.setPointC, serializer);
+    sse_encode_opt_String(self.readMode, serializer);
   }
 
   @protected

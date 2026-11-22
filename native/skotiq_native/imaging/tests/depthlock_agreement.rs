@@ -418,3 +418,83 @@ fn a_goal_silent_on_gain_takes_any_master_gain() {
         Ok(())
     );
 }
+
+/// A goal defined on a light that states its set-point and read mode.
+fn cooled_goal() -> AcquisitionSettings {
+    let mut header = light_header();
+    header.set_float("SET-TEMP", -10.0);
+    header.set_string("READOUTM", "Normal");
+    light_settings(&header).unwrap()
+}
+
+#[test]
+fn a_cooled_goal_holds_lights_to_its_set_point_and_read_mode() {
+    let policy = CompatibilityPolicy::default();
+    let goal = cooled_goal();
+    let light = |change: &dyn Fn(&mut AcquisitionSettings)| {
+        let mut light = cooled_goal();
+        change(&mut light);
+        check_compatible(&goal, &light, &policy)
+    };
+    assert_eq!(light(&|_| {}), Ok(()));
+    assert_eq!(light(&|l| l.read_mode = Some("normal".into())), Ok(()));
+    assert_eq!(light(&|l| l.set_point_c = Some(-10.04)), Ok(()));
+    assert_eq!(
+        light(&|l| l.set_point_c = None),
+        Ok(()),
+        "a light silent on it is not held to it"
+    );
+    assert_eq!(
+        light(&|l| l.set_point_c = Some(-5.0)),
+        Err("SET-TEMP differs: goal is -10, light is -5".to_string())
+    );
+    assert_eq!(
+        light(&|l| l.read_mode = Some("High Gain".into())),
+        Err("READOUTM differs: goal is Normal, light is High Gain".to_string())
+    );
+    assert_eq!(
+        light(&|l| {
+            l.set_point_c = Some(-5.0);
+            l.bin_x = 2;
+        }),
+        Err("Binning differs: goal is 1x1, light is 2x1".to_string())
+    );
+    // A goal defined before the cards were read binds neither.
+    let mut legacy = goal.clone();
+    legacy.set_point_c = None;
+    legacy.read_mode = None;
+    let mut light = cooled_goal();
+    light.set_point_c = Some(-5.0);
+    light.read_mode = Some("High Gain".into());
+    assert_eq!(check_compatible(&legacy, &light, &policy), Ok(()));
+}
+
+#[test]
+fn a_cooled_goal_holds_masters_to_its_set_point_and_read_mode() {
+    let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
+    let image = ImageData::from_f32(64, 48, 1, &[1_000.0; 64 * 48]);
+    let master = |change: &dyn Fn(&mut FitsHeader)| {
+        let mut header = master_header("DARK");
+        header.set_float("SET-TEMP", -10.0);
+        header.set_string("READOUTM", "Normal");
+        change(&mut header);
+        validate_master(MasterKind::Dark, &header, &image, &cooled_goal(), &geometry)
+    };
+    assert_eq!(master(&|_| {}), Ok(()));
+    assert_eq!(master(&|h| h.set_string("READOUTM", " NORMAL ")), Ok(()));
+    assert_eq!(
+        master(&|h| {
+            h.keywords.remove("SET-TEMP");
+            h.set_float("SET_TEMP", -10.0);
+        }),
+        Ok(())
+    );
+    assert_eq!(
+        master(&|h| h.set_float("SET-TEMP", -20.0)),
+        Err("Master dark SET-TEMP is -20, goal is -10".to_string())
+    );
+    assert_eq!(
+        master(&|h| h.set_string("READOUTM", "High Gain")),
+        Err("Master dark READOUTM is High Gain, goal is Normal".to_string())
+    );
+}

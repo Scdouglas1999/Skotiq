@@ -162,6 +162,8 @@ typedef struct wire_cst_api_acquisition_settings {
   int32_t bin_x;
   int32_t bin_y;
   double *ccd_temp_c;
+  double *set_point_c;
+  struct wire_cst_list_prim_u_8_strict *read_mode;
 } wire_cst_api_acquisition_settings;
 
 typedef struct wire_cst_api_depth_goal_definition {

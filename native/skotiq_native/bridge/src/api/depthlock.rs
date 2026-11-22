@@ -94,6 +94,10 @@ pub struct ApiAcquisitionSettings {
     pub bin_x: i32,
     pub bin_y: i32,
     pub ccd_temp_c: Option<f64>,
+    /// `SET-TEMP`, when the reference states it.
+    pub set_point_c: Option<f64>,
+    /// `READOUTM`, when the reference states it.
+    pub read_mode: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -285,6 +289,8 @@ impl From<&AcquisitionSettings> for ApiAcquisitionSettings {
             bin_x: a.bin_x,
             bin_y: a.bin_y,
             ccd_temp_c: a.ccd_temp_c,
+            set_point_c: a.set_point_c,
+            read_mode: a.read_mode.clone(),
         }
     }
 }
@@ -300,6 +306,8 @@ impl From<&ApiAcquisitionSettings> for AcquisitionSettings {
             bin_x: a.bin_x,
             bin_y: a.bin_y,
             ccd_temp_c: a.ccd_temp_c,
+            set_point_c: a.set_point_c,
+            read_mode: a.read_mode.clone(),
         }
     }
 }

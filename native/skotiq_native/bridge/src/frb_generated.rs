@@ -7907,6 +7907,8 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
         let mut var_binX = <i32>::sse_decode(deserializer);
         let mut var_binY = <i32>::sse_decode(deserializer);
         let mut var_ccdTempC = <Option<f64>>::sse_decode(deserializer);
+        let mut var_setPointC = <Option<f64>>::sse_decode(deserializer);
+        let mut var_readMode = <Option<String>>::sse_decode(deserializer);
         return crate::api::depthlock::ApiAcquisitionSettings {
             instrument: var_instrument,
             filter: var_filter,
@@ -7916,6 +7918,8 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
             bin_x: var_binX,
             bin_y: var_binY,
             ccd_temp_c: var_ccdTempC,
+            set_point_c: var_setPointC,
+            read_mode: var_readMode,
         };
     }
 }
@@ -13789,6 +13793,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::depthlock::ApiAcquisitionSett
             self.bin_x.into_into_dart().into_dart(),
             self.bin_y.into_into_dart().into_dart(),
             self.ccd_temp_c.into_into_dart().into_dart(),
+            self.set_point_c.into_into_dart().into_dart(),
+            self.read_mode.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -19012,6 +19018,8 @@ impl SseEncode for crate::api::depthlock::ApiAcquisitionSettings {
         <i32>::sse_encode(self.bin_x, serializer);
         <i32>::sse_encode(self.bin_y, serializer);
         <Option<f64>>::sse_encode(self.ccd_temp_c, serializer);
+        <Option<f64>>::sse_encode(self.set_point_c, serializer);
+        <Option<String>>::sse_encode(self.read_mode, serializer);
     }
 }
 
@@ -23580,6 +23588,8 @@ mod io {
                 bin_x: self.bin_x.cst_decode(),
                 bin_y: self.bin_y.cst_decode(),
                 ccd_temp_c: self.ccd_temp_c.cst_decode(),
+                set_point_c: self.set_point_c.cst_decode(),
+                read_mode: self.read_mode.cst_decode(),
             }
         }
     }
@@ -27684,6 +27694,8 @@ mod io {
                 bin_x: Default::default(),
                 bin_y: Default::default(),
                 ccd_temp_c: core::ptr::null_mut(),
+                set_point_c: core::ptr::null_mut(),
+                read_mode: core::ptr::null_mut(),
             }
         }
     }
@@ -33915,6 +33927,8 @@ mod io {
         bin_x: i32,
         bin_y: i32,
         ccd_temp_c: *mut f64,
+        set_point_c: *mut f64,
+        read_mode: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

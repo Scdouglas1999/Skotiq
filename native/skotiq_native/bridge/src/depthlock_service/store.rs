@@ -158,7 +158,11 @@ impl GoalDefinition {
         if self.acquisition.bin_x < 1 || self.acquisition.bin_y < 1 {
             return Err("acquisition binning must be at least 1".into());
         }
+        if let Some(mode) = &self.acquisition.read_mode {
+            checked_field("acquisition.readMode", mode)?;
+        }
         if self.acquisition.ccd_temp_c.is_some_and(|t| !t.is_finite())
+            || self.acquisition.set_point_c.is_some_and(|t| !t.is_finite())
             || !self.compatibility.temperature_tolerance_c.is_finite()
             || self.compatibility.temperature_tolerance_c < 0.0
         {
@@ -912,6 +916,8 @@ pub(crate) mod tests {
                 bin_x: 1,
                 bin_y: 1,
                 ccd_temp_c: Some(-10.0),
+                set_point_c: None,
+                read_mode: None,
             },
             compatibility: CompatibilityPolicy::default(),
             dark_path: fixture_path("dark.fits"),

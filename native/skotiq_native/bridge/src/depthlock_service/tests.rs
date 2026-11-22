@@ -346,6 +346,8 @@ fn definition(night: &Night) -> GoalDefinition {
             bin_x: 1,
             bin_y: 1,
             ccd_temp_c: Some(-10.0),
+            set_point_c: None,
+            read_mode: None,
         },
         compatibility: CompatibilityPolicy::default(),
         dark_path: night.dark.to_string_lossy().into_owned(),

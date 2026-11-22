@@ -240,6 +240,8 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     binX: a.binX,
     binY: a.binY,
     ccdTempC: a.ccdTempC,
+    setPointC: a.setPointC,
+    readMode: a.readMode,
   );
 
   bridge.ApiAcquisitionSettings _toBridgeAcquisitionSettings(
@@ -253,6 +255,8 @@ extension _FfiBackendDepthLockMappers on _FfiBackendBase {
     binX: a.binX,
     binY: a.binY,
     ccdTempC: a.ccdTempC,
+    setPointC: a.setPointC,
+    readMode: a.readMode,
   );
 
   DepthLockMeasurement _fromBridgeDepthMeasurement(

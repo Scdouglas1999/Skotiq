@@ -462,6 +462,13 @@ pub struct AcquisitionSettings {
     pub bin_x: i32,
     pub bin_y: i32,
     pub ccd_temp_c: Option<f64>,
+    /// `SET-TEMP`: the cooler's set-point. Goals defined before it was read
+    /// carry none, and are not held to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set_point_c: Option<f64>,
+    /// `READOUTM`, as stated; held to the same rule as `set_point_c`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_mode: Option<String>,
 }
 
 /// The binning of a light whose header does not state it: unbinned.
@@ -521,6 +528,8 @@ pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String
         bin_x: whole(Setting::BinX, taken.bin_x)?.unwrap_or(UNSTATED_BINNING),
         bin_y: whole(Setting::BinY, taken.bin_y)?.unwrap_or(UNSTATED_BINNING),
         ccd_temp_c: taken.sensor_temp_c.filter(|v| v.is_finite()),
+        set_point_c: taken.set_point_c.filter(|v| v.is_finite()),
+        read_mode: name(taken.read_mode),
     })
 }
 
@@ -553,7 +562,8 @@ impl AcquisitionSettings {
             bin_x: Some(f64::from(self.bin_x)),
             bin_y: Some(f64::from(self.bin_y)),
             sensor_temp_c: self.ccd_temp_c,
-            ..Acquisition::default()
+            set_point_c: self.set_point_c,
+            read_mode: self.read_mode.clone(),
         }
     }
 }
@@ -572,9 +582,14 @@ fn three_decimals(value: &str) -> String {
         .map_or_else(|_| value.to_string(), |v| format!("{v:.3}"))
 }
 
-/// DepthLock's agreement rule: names in any case, exposure within 0.1 % of
-/// the goal's (darks are not scaled), whole gain, offset and binning, and no
-/// set-point or read-mode check.
+/// How far a set-point may differ: rounding of the card, as the dark
+/// library's builder allows.
+const DEPTHLOCK_SET_POINT_TOLERANCE_C: f64 = 0.05;
+
+/// DepthLock's agreement rule: names and read mode in any case, exposure
+/// within 0.1 % of the goal's (darks are not scaled), the set-point within
+/// rounding, whole gain, offset and binning. A card is compared only when
+/// both frames state it.
 const DEPTHLOCK_AGREEMENT: AgreementPolicy = AgreementPolicy {
     instrument: true,
     filter: true,
@@ -582,8 +597,8 @@ const DEPTHLOCK_AGREEMENT: AgreementPolicy = AgreementPolicy {
         absolute_s: 0.0,
         relative: 0.001,
     }),
-    set_point_c: None,
-    read_mode: false,
+    set_point_c: Some(DEPTHLOCK_SET_POINT_TOLERANCE_C),
+    read_mode: true,
     numbers: NumberMatch::Whole,
     text_ignores_case: true,
     first_states_numbers: false,
@@ -606,8 +621,8 @@ pub fn check_compatible(
     // Binning is named before gain and offset, the sensor temperature last.
     let rank = |setting: Setting| match setting {
         Setting::BinX | Setting::BinY => 0,
-        Setting::Gain | Setting::Offset => 1,
-        Setting::SensorTemp => 2,
+        Setting::Gain | Setting::Offset | Setting::ReadMode => 1,
+        Setting::SetPoint | Setting::SensorTemp => 2,
         _ => -1,
     };
     let Some(first) = goal
@@ -729,6 +744,7 @@ pub fn validate_master(
     master_pixels(image)?;
     let card_text = |key: &str| header.get_string(key).map(|v| v.trim().to_string());
     let card_number = |key: &str| header.get_int(key).map(|v| v as f64);
+    let taken = crate::acquisition(header);
     let master = Acquisition {
         instrument: card_text("INSTRUME"),
         filter: card_text("FILTER"),
@@ -737,6 +753,8 @@ pub fn validate_master(
         offset: card_number("OFFSET"),
         bin_x: card_number("XBINNING"),
         bin_y: card_number("YBINNING"),
+        set_point_c: taken.set_point_c,
+        read_mode: taken.read_mode.map(|mode| mode.trim().to_string()),
         ..Acquisition::default()
     };
     // A master dark is held to the goal's exposure, a master flat to its filter.
