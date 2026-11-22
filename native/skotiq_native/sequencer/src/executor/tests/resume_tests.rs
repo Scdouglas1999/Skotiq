@@ -365,3 +365,143 @@ fn a_checkpoint_without_per_step_frames_still_loads() {
         serde_json::from_value(json).expect("an older checkpoint loads");
     assert!(loaded.exposure_frames_done.is_empty());
 }
+
+/// `fixtures/checkpoint_mid_flip.json` was written by `CheckpointManager::save`
+/// at 8755f67f5 (checkpoint and trigger-state code as at that commit) for a run
+/// stopped while its Meridian Flip step ran: the step Running, the flip not yet
+/// recorded for the target, guiding stopped for the flip.
+const MID_FLIP_CHECKPOINT: &str = include_str!("fixtures/checkpoint_mid_flip.json");
+
+fn mid_flip_plan() -> SequenceDefinition {
+    let mut sequence = SequenceDefinition::new("Mid-flip".to_string());
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "root".to_string(),
+        name: "Root".to_string(),
+        node_type: NodeType::Loop(LoopConfig {
+            iterations: Some(1),
+            condition: LoopCondition::Count,
+            condition_value: None,
+            horizon_profile: None,
+        }),
+        enabled: true,
+        children: vec![
+            "frames-1".to_string(),
+            "flip".to_string(),
+            "frames-2".to_string(),
+        ],
+    });
+    for id in ["frames-1", "frames-2"] {
+        sequence.nodes.push(crate::NodeDefinition {
+            id: id.to_string(),
+            name: "Lights".to_string(),
+            node_type: NodeType::TakeExposure(crate::ExposureConfig {
+                duration_secs: SUB_SECS,
+                count: FRAMES,
+                ..Default::default()
+            }),
+            enabled: true,
+            children: vec![],
+        });
+    }
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "flip".to_string(),
+        name: "Meridian Flip".to_string(),
+        node_type: NodeType::MeridianFlip(crate::MeridianFlipConfig {
+            settle_time: 12.0,
+            max_post_settle_rms_pixels: 1.5,
+            ..Default::default()
+        }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("root".to_string());
+    sequence
+}
+
+fn mid_flip_checkpoint() -> crate::checkpoint::SessionCheckpoint {
+    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(mid_flip_plan());
+    checkpoint
+        .node_statuses
+        .insert("frames-1".to_string(), NodeStatus::Success);
+    checkpoint
+        .node_statuses
+        .insert("flip".to_string(), NodeStatus::Running);
+    checkpoint.current_node = Some("flip".to_string());
+    checkpoint.last_completed_node = Some("frames-1".to_string());
+    checkpoint.completed_exposures = FRAMES;
+    checkpoint.is_active = true;
+    checkpoint.executor_state = ExecutorState::Running;
+    let mut state = crate::triggers::TriggerState::new();
+    state.set_guiding_enabled(false);
+    state.guiding.guiding_stopped_by_motion();
+    checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
+        &state,
+        crate::SafetyFailMode::default(),
+        Default::default(),
+    ));
+    checkpoint
+}
+
+/// Writes the fixture; run once with `SKOTIQ_WRITE_MID_FLIP_FIXTURE=1`.
+#[test]
+fn write_the_mid_flip_fixture() {
+    if std::env::var_os("SKOTIQ_WRITE_MID_FLIP_FIXTURE").is_none() {
+        return;
+    }
+    let dir = std::env::temp_dir().join(format!("sk-mid-flip-{}", uuid::Uuid::new_v4()));
+    let manager = crate::checkpoint::CheckpointManager::new(&dir);
+    manager.save(&mid_flip_checkpoint()).expect("saves");
+    let written = std::fs::read_to_string(dir.join("skotiq_session.checkpoint")).unwrap();
+    std::fs::write(
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/executor/tests/fixtures/checkpoint_mid_flip.json"
+        ),
+        written,
+    )
+    .unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A checkpoint taken mid-flip resumes as it always has: the flip step runs
+/// again (only finished imaging steps are kept), the frames before it are
+/// not taken again, the flip is not recorded for the target, and the run's
+/// guiding stays stopped until something starts it.
+#[tokio::test]
+async fn a_checkpoint_taken_mid_flip_resumes_with_the_flip_to_run() {
+    let dir = std::env::temp_dir().join(format!("sk-resume-mid-flip-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(dir.join("checkpoint")).unwrap();
+    std::fs::write(
+        dir.join("checkpoint").join("skotiq_session.checkpoint"),
+        MID_FLIP_CHECKPOINT,
+    )
+    .unwrap();
+    let mut executor = executor_for(&dir);
+    executor
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+
+    let root = executor.root_node.as_ref().expect("the plan has a tree");
+    let kept = crate::node::resume::kept_on_resume(root.as_ref());
+    assert!(kept.contains("frames-1"));
+    assert!(!kept.contains("flip"), "the flip step runs again");
+    let NodeType::MeridianFlip(config) = root
+        .children()
+        .iter()
+        .find(|child| child.id() == "flip")
+        .expect("the flip step")
+        .node_type()
+    else {
+        panic!("the flip step is a Meridian Flip");
+    };
+    assert_eq!(config.settle_time, 12.0);
+    assert_eq!(config.max_post_settle_rms_pixels, 1.5);
+
+    let trigger_state = executor.trigger_manager.read().await.state();
+    let state = trigger_state.read().await;
+    assert!(!state.meridian.has_flipped());
+    assert!(!state.guiding.is_enabled());
+    assert!(!state.guiding.star_lost());
+    let _ = std::fs::remove_dir_all(&dir);
+}
