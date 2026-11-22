@@ -47,6 +47,10 @@ class AutofocusOverlayState {
   /// Whether the autofocus run ended in an error (avoids stringly-typed checks)
   final bool hasError;
 
+  /// Whether the run was canceled: it ended with no error and no result.
+  /// Kept until the status changes.
+  final bool cancelled;
+
   const AutofocusOverlayState({
     this.isRunning = false,
     this.currentPoint = 0,
@@ -62,6 +66,7 @@ class AutofocusOverlayState {
     this.focusRange,
     this.starCrops = const [],
     this.hasError = false,
+    this.cancelled = false,
   });
 
   AutofocusOverlayState copyWith({
@@ -80,6 +85,7 @@ class AutofocusOverlayState {
     FocusRange? focusRange,
     List<StarCrop>? starCrops,
     bool? hasError,
+    bool? cancelled,
   }) {
     return AutofocusOverlayState(
       isRunning: isRunning ?? this.isRunning,
@@ -96,6 +102,7 @@ class AutofocusOverlayState {
       focusRange: focusRange ?? this.focusRange,
       starCrops: starCrops ?? this.starCrops,
       hasError: hasError ?? this.hasError,
+      cancelled: cancelled ?? (status == null && this.cancelled),
     );
   }
 }
@@ -325,6 +332,7 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
       hasError: false,
       isMinimized: true,
       status: 'Autofocus cancelled',
+      cancelled: true,
       clearResult: true,
     );
   }
@@ -368,6 +376,7 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
       focusRange: incoming.focusRange,
       starCrops: incoming.starCrops,
       hasError: incoming.hasError,
+      cancelled: incoming.cancelled,
     );
   }
 

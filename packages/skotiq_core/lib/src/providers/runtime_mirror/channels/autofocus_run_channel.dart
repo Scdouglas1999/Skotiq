@@ -62,7 +62,7 @@ class AutofocusRunChannel extends RuntimeMirrorChannel<AutofocusOverlayState> {
         'result': const AutofocusResultChannel().encode(value.result),
       } else if (value.hasError)
         'outcome': 'failed'
-      else if (value.status == 'Autofocus cancelled')
+      else if (value.cancelled)
         'outcome': 'cancelled',
     };
   }
@@ -183,6 +183,7 @@ AutofocusOverlayState _overlayFromSnapshot(Map<String, dynamic> value) {
     starCount: jsonInt(value['starCount']) ?? 0,
     status: jsonString(value['status']) ?? '',
     hasError: value['outcome'] == 'failed',
+    cancelled: value['outcome'] == 'cancelled',
     result: parsed,
     focusRange: minPosition != null && maxPosition != null
         ? FocusRange(min: minPosition, max: maxPosition)
