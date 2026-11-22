@@ -35,13 +35,14 @@ core.SkotiqEvent wireEventFromTyped(bridge.SkotiqEvent event) {
 /// The typed event a host sent as [event], or null when this build cannot
 /// rebuild it: an event type it does not know (a newer host's, or one of the
 /// job, session, catalog and host-sync envelopes that only exist on the
-/// wire), or data missing a field the event cannot be built without. Such an event is left
+/// wire, and the events the host makes in Dart), or data missing a field the
+/// event cannot be built without. Such an event is left
 /// out of the typed stream instead of becoming something the host never said.
 bridge.SkotiqEvent? typedEventFromWire(core.SkotiqEvent event) =>
     (_typedOf[event] ??= _Typed(_decode(event))).event;
 
 bridge.SkotiqEvent? _decode(core.SkotiqEvent event) {
-  if (isHostSyncEnvelope(event)) return null;
+  if (isHostSyncEnvelope(event) || core.isHostMadeEvent(event)) return null;
   final category = _typedCategory(event.category);
   if (category == null) return null;
   final severity = _typedSeverity(event.severity);

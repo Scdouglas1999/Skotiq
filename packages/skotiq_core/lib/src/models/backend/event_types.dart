@@ -20,6 +20,18 @@ const String settingsChangedEventType = 'settings.changed';
 /// document, sent when the host could not diff against the previous one.
 const String settingsSnapshotKey = '__snapshot__';
 
+/// The event a host sends when its sequence library or templates change.
+const String sequenceUpdatedEventType = 'SequenceUpdated';
+
+/// Events the host's Dart code makes and sends on the event stream. Their
+/// readers take the wire event; none of them has a typed native form.
+bool isHostMadeEvent(SkotiqEvent event) =>
+    switch ((event.category, event.eventType)) {
+      (EventCategory.system, settingsChangedEventType) => true,
+      (EventCategory.sequencer, sequenceUpdatedEventType) => true,
+      _ => false,
+    };
+
 // Hot-plug discovery event types. The Rust side publishes arrivals/removals
 // as the first-class `EquipmentEvent::DeviceDiscovered` /
 // `EquipmentEvent::DeviceLost` typed FRB variants (see
