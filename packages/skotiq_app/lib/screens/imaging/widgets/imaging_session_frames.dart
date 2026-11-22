@@ -242,7 +242,6 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
     final row = widget.frame.row;
     final exclusion = frameExclusionKindOf(row.rejectionReason);
     final rejected = !row.isAccepted;
-    final remote = ref.watch(isRemoteModeProvider);
     final hfr = row.hfr;
     final stars = row.starCount;
     final time = ClockFormat.hms(row.capturedAt.toLocal());
@@ -289,8 +288,7 @@ class _FrameTileState extends ConsumerState<_FrameTile> {
                         opacity: rejected ? SkotiqTokens.opacityMuted : 1,
                         child: FrameThumbnail(
                           bytesFuture: _bytes,
-                          // The path is the host's on a linked client.
-                          fallbackFilePath: remote ? '' : row.filePath,
+                          fallbackFilePath: row.filePath,
                           colors: colors,
                         ),
                       ),

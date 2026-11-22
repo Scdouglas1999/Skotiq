@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/calibration/calibration_settings_panel.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -43,11 +44,11 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _SwappableBackendNotifier(ref, DisconnectedBackend()),
         ),
-        calibrationFilePickerProvider.overrideWithValue(
-          (context,
-              {required fileType, required isRemote, required currentPath}) {
-            return picks[pickerCalls++].future;
-          },
+        hostFoldersProvider.overrideWithValue(
+          FakeHostFolders(
+            onPickPath: (request, {required currentPath}) =>
+                picks[pickerCalls++].future,
+          ),
         ),
         calibrationFileWriterProvider.overrideWithValue(
           (fileType, path) async => writes.add((fileType, path)),
@@ -97,12 +98,10 @@ void main() {
         currentPath: null,
       ),
       extraOverrides: [
-        calibrationFilePickerProvider.overrideWithValue(
-          (context,
-                  {required fileType,
-                  required isRemote,
-                  required currentPath}) =>
-              pick.future,
+        hostFoldersProvider.overrideWithValue(
+          FakeHostFolders(
+            onPickPath: (request, {required currentPath}) => pick.future,
+          ),
         ),
         calibrationFileWriterProvider.overrideWithValue(
           (fileType, path) async => writes.add(path),
@@ -131,12 +130,11 @@ void main() {
         currentPath: null,
       ),
       extraOverrides: [
-        calibrationFilePickerProvider.overrideWithValue(
-          (context,
-                  {required fileType,
-                  required isRemote,
-                  required currentPath}) async =>
-              throw StateError('picker unavailable'),
+        hostFoldersProvider.overrideWithValue(
+          FakeHostFolders(
+            onPickPath: (request, {required currentPath}) async =>
+                throw StateError('picker unavailable'),
+          ),
         ),
       ],
     );

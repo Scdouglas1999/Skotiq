@@ -8,7 +8,7 @@ import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart' show GainKind;
-import 'package:skotiq_core/providers.dart' show isRemoteModeProvider;
+import 'package:skotiq_core/providers.dart' show hostPathsProvider;
 import 'package:skotiq_core/services.dart'
     show FrameQualityAssessment, imagingRecordsProvider;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -150,13 +150,16 @@ class _FrameDetailDialogState extends ConsumerState<FrameDetailDialog> {
                 child: Image.memory(payload.bytes!, fit: BoxFit.contain),
               );
             }
+            final local = ref.read(hostPathsProvider).local(
+                  widget.image.filePath,
+                );
             if (payload.fileExists &&
                 isDisplayableImagePath(widget.image.filePath) &&
-                !ref.read(isRemoteModeProvider)) {
+                local != null) {
               return ClipRRect(
                 borderRadius: SkotiqTokens.borderRadiusMd,
                 child: Image.file(
-                  File(widget.image.filePath),
+                  File(local),
                   fit: BoxFit.contain,
                 ),
               );

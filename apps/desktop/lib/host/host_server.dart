@@ -70,12 +70,16 @@ class HostServerConfig {
 class RunningHostServer {
   RunningHostServer._({
     required this.server,
+    required this.advert,
     required this.tls,
     required this.securityAdvisories,
     required this.stopSteps,
   });
 
   final HeadlessApiServer server;
+
+  /// What the server says about itself in discovery and `/api/info`.
+  final HostAdvert advert;
 
   final TlsProvisionResult? tls;
   final List<String> securityAdvisories;
@@ -457,6 +461,7 @@ Future<RunningHostServer> startHostServer({
 
   return RunningHostServer._(
     server: server,
+    advert: advert,
     tls: tls,
     securityAdvisories: securityAdvisories,
     stopSteps: [

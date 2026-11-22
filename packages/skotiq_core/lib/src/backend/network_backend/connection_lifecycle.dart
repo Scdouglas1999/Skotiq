@@ -139,17 +139,17 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     // operator paired with (MITM, stale QR, or a re-keyed host). Throwing here
     // propagates to [connect], which surfaces it as a terminal
     // [BackendConnectionState.error] rather than spinning on reconnect.
-    _verifyPinnedFingerprint(info['fingerprint']);
-    final authRequired = info['authRequired'];
-    _hostRequiresPairing = authRequired is bool ? authRequired : null;
+    final advert = HostAdvertRead.fromJson(info);
+    _verifyPinnedFingerprint(advert.fingerprint);
+    _hostRequiresPairing = advert.authRequired;
     // The server instance decides whether the event cursor cached on the
     // previous attachment still applies to the server about to be joined.
     final advertisedInstance = info['serverInstanceId'];
     if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
       _reconcileInstanceFromInfo(advertisedInstance);
     }
-    final release = info['version'];
-    if (release is! String || release.trim().isEmpty) {
+    final release = advert.version;
+    if (release == null || release.trim().isEmpty) {
       throw HttpException(
         'GET /api/info did not answer as a Skotiq host (no release)',
         uri: uri,
@@ -163,13 +163,13 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   /// null/empty (pinning disabled). Throws a typed connection error on
   /// mismatch — including when the client pinned a fingerprint but the server
   /// advertised none (a downgrade an attacker could otherwise exploit).
-  void _verifyPinnedFingerprint(Object? advertised) {
+  void _verifyPinnedFingerprint(String? advertised) {
     final pinned = pinnedFingerprint;
     if (pinned == null || pinned.isEmpty) {
       return;
     }
-    final serverFp = advertised is String ? advertised.trim() : '';
-    if (serverFp.isEmpty) {
+    final serverFp = advertised?.trim();
+    if (serverFp == null || serverFp.isEmpty) {
       throw dart_error.ServerIdentityMismatchError(
         expectedFingerprint: pinned,
         actualFingerprint: null,

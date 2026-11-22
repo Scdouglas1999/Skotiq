@@ -7,49 +7,24 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:file_selector/file_selector.dart';
 
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/remote_host_path_dialog.dart';
+import '../../../services/host_folders.dart';
 import 'calibration_panel.dart';
 
 enum CalibrationFileType { flat, bias, dark }
 
-typedef CalibrationFilePicker = Future<String?> Function(
-  BuildContext context, {
-  required CalibrationFileType fileType,
-  required bool isRemote,
-  required String? currentPath,
-});
+/// A master frame on the machine that owns the data.
+const calibrationMasterRequest = HostPathRequest(
+  hostTitle: 'Master frame on host',
+  typeLabel: 'FITS/XISF images',
+  extensions: ['fits', 'fit', 'fts', 'xisf'],
+);
 
 typedef CalibrationFileWriter = Future<void> Function(
   CalibrationFileType fileType,
   String path,
 );
-
-Future<String?> _pickCalibrationFile(
-  BuildContext context, {
-  required CalibrationFileType fileType,
-  required bool isRemote,
-  required String? currentPath,
-}) async {
-  if (isRemote) {
-    return RemoteHostPathDialog.show(
-      context,
-      title: 'Master frame on host',
-      initialPath: currentPath,
-    );
-  }
-
-  const fitsGroup = XTypeGroup(
-    label: 'FITS/XISF images',
-    extensions: ['fits', 'fit', 'fts', 'xisf'],
-  );
-  return (await openFile(acceptedTypeGroups: [fitsGroup]))?.path;
-}
-
-final calibrationFilePickerProvider =
-    Provider<CalibrationFilePicker>((ref) => _pickCalibrationFile);
 
 final calibrationFileWriterProvider = Provider<CalibrationFileWriter>((ref) {
   return (fileType, path) async {
@@ -372,14 +347,13 @@ class _CalibrationFileBrowseButtonState
     if (_busy) return;
     final generation = ++_operationGeneration;
     final authority = ref.read(backendProvider);
-    final isRemote = ref.read(isRemoteModeProvider);
+    final folders = ref.read(hostFoldersProvider);
     setState(() => _busy = true);
 
     try {
-      final path = await ref.read(calibrationFilePickerProvider)(
+      final path = await folders.pickPath(
         context,
-        fileType: widget.fileType,
-        isRemote: isRemote,
+        calibrationMasterRequest,
         currentPath: widget.currentPath,
       );
       if (path == null || path.isEmpty || !_isCurrent(generation, authority)) {
@@ -418,7 +392,8 @@ class CalibrationFileCheck extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    if (ref.watch(isRemoteModeProvider)) {
+    final path = ref.watch(hostPathsProvider).local(filePath);
+    if (path == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Row(
@@ -439,7 +414,7 @@ class CalibrationFileCheck extends ConsumerWidget {
     }
 
     return FutureBuilder<bool>(
-      future: File(filePath).exists(),
+      future: File(path).exists(),
       builder: (context, snapshot) {
         final exists = snapshot.data ?? false;
         final isLoading = !snapshot.hasData;

@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/paired_devices.dart';
 import 'package:skotiq_app/screens/settings/widgets/remote_access_settings.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_core/settings.dart';
 
 import '../../harness/harness.dart';
@@ -62,6 +63,14 @@ const _authRequired = WebServerState(
   dashboardAvailable: true,
   serverFingerprint: 'abcdef0123456789abcdef0123456789',
   localIp: '192.168.1.50',
+  advert: HostAdvert(
+    hostName: 'OBS-PC',
+    hostMode: SkotiqHostMode.gui,
+    version: '9.1.0',
+    scheme: 'http',
+    fingerprint: 'abcdef0123456789abcdef0123456789',
+    authRequired: true,
+  ),
 );
 
 Future<void> _pumpRemoteAccess(

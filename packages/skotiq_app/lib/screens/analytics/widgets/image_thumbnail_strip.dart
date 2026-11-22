@@ -12,7 +12,7 @@ import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart'
-    show imagingBackendProvider, isRemoteModeProvider;
+    show hostPathsProvider, imagingBackendProvider;
 import 'package:skotiq_core/services.dart'
     show
         imagingRecordsProvider,

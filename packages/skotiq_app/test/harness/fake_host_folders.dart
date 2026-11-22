@@ -7,15 +7,21 @@ import 'package:skotiq_core/providers.dart';
 
 typedef FolderPick = Future<String?> Function({required String? initialPath});
 
+typedef PathPick = Future<String?> Function(
+  HostPathRequest request, {
+  required String? currentPath,
+});
+
 typedef FolderCheckAnswer = Future<FolderCheck> Function(String path);
 
 /// [LocalFolders] without a file picker, a disk or a file manager: picks
-/// answer [onPick], checks [onCheck] (every folder takes files by default),
+/// answer [onPick] and [onPickPath], checks [onCheck] (every folder takes files by default),
 /// and making or opening a folder does nothing.
 class FakeHostFolders extends LocalFolders {
-  FakeHostFolders({this.onPick, this.onCheck});
+  FakeHostFolders({this.onPick, this.onPickPath, this.onCheck});
 
   FolderPick? onPick;
+  PathPick? onPickPath;
   FolderCheckAnswer? onCheck;
 
   @override
@@ -26,6 +32,15 @@ class FakeHostFolders extends LocalFolders {
     String confirmLabel = 'Select',
   }) =>
       onPick?.call(initialPath: initialPath) ?? Future<String?>.value();
+
+  @override
+  Future<String?> pickPath(
+    BuildContext context,
+    HostPathRequest request, {
+    String? currentPath,
+  }) =>
+      onPickPath?.call(request, currentPath: currentPath) ??
+      Future<String?>.value();
 
   @override
   Future<FolderCheck> check(String path) =>
