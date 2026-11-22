@@ -2568,6 +2568,8 @@ mod tests {
         stuck_at_limit: AtomicBool,
         /// Rates of the MoveAxis calls on the primary axis.
         move_axis_rates: Mutex<Vec<f64>>,
+        /// The RMS the guider reports; `None` reports 0.64 px.
+        guider_rms_total: Mutex<Option<f64>>,
     }
 
     struct MockDeviceOps {
@@ -2867,7 +2869,7 @@ mod tests {
                 is_guiding: !self.state.guider_stopped.load(Ordering::Relaxed),
                 rms_ra: 0.5,
                 rms_dec: 0.4,
-                rms_total: 0.64,
+                rms_total: self.state.guider_rms_total.lock().unwrap().unwrap_or(0.64),
             })
         }
 
@@ -5511,5 +5513,175 @@ mod tests {
             assert_eq!(executor.attempts_made, 3);
         }
         assert_eq!(elapsed[0], elapsed[1]);
+    }
+
+    /// The post-flip centering a run's flip does: how close counts as
+    /// centered, whether a correction syncs, how many frames it takes. The
+    /// run's centering tolerance is 5"; the flip keeps its own 30" and always
+    /// syncs (owner item P9-1).
+    #[tokio::test(start_paused = true)]
+    async fn post_flip_centering_keeps_its_own_policy() {
+        struct Case {
+            solved_dec_offsets_arcsec: &'static [f64],
+            centered: bool,
+            solves: i32,
+            syncs: i32,
+            correction_slews: i32,
+        }
+        let cases = [
+            // 20" off: centered for the flip, though the run's 5" is not met.
+            Case {
+                solved_dec_offsets_arcsec: &[20.0],
+                centered: true,
+                solves: 1,
+                syncs: 0,
+                correction_slews: 0,
+            },
+            Case {
+                solved_dec_offsets_arcsec: &[29.9],
+                centered: true,
+                solves: 1,
+                syncs: 0,
+                correction_slews: 0,
+            },
+            // Every correction syncs the mount to the solve and slews again.
+            Case {
+                solved_dec_offsets_arcsec: &[40.0, 0.0],
+                centered: true,
+                solves: 2,
+                syncs: 1,
+                correction_slews: 1,
+            },
+            Case {
+                solved_dec_offsets_arcsec: &[40.0, 40.0, 0.0],
+                centered: true,
+                solves: 3,
+                syncs: 2,
+                correction_slews: 2,
+            },
+            // Three frames, then the step fails.
+            Case {
+                solved_dec_offsets_arcsec: &[40.0, 40.0, 40.0, 0.0],
+                centered: false,
+                solves: 3,
+                syncs: 3,
+                correction_slews: 3,
+            },
+        ];
+        for case in cases {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.solved_dec_offsets.lock().unwrap().extend(
+                case.solved_dec_offsets_arcsec
+                    .iter()
+                    .map(|arcsec| arcsec / 3600.0),
+            );
+            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+            let mut run = RunShared::new(ops);
+            run.settings = Some(crate::executor::RunConfigStore::new(
+                crate::executor::RunConfig {
+                    centering_tolerance_arcsec: 5.0,
+                    ..Default::default()
+                },
+            ));
+            let executor = MeridianFlipExecutor::in_run(
+                MeridianFlipConfig {
+                    settle_time: 0.0,
+                    ..Default::default()
+                },
+                run,
+            );
+            let result = executor.plate_solve_and_center(&make_ctx(&state)).await;
+            let offsets = case.solved_dec_offsets_arcsec;
+            assert_eq!(result.is_ok(), case.centered, "{offsets:?}: {result:?}");
+            if !case.centered {
+                assert_eq!(
+                    result.unwrap_err(),
+                    "Post-flip centering did not converge after three solves"
+                );
+            }
+            assert_eq!(
+                state.plate_solve_calls.load(Ordering::Relaxed),
+                case.solves,
+                "{offsets:?}"
+            );
+            assert_eq!(
+                state.sync_calls.load(Ordering::Relaxed),
+                case.syncs,
+                "{offsets:?}"
+            );
+            assert_eq!(
+                state.slew_calls.load(Ordering::Relaxed),
+                case.correction_slews,
+                "{offsets:?}"
+            );
+        }
+    }
+
+    /// Frames that never solve: three, then the step fails with the solve's
+    /// own words.
+    #[tokio::test(start_paused = true)]
+    async fn post_flip_centering_takes_three_frames_that_do_not_solve() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .plate_solve_failures_remaining
+            .store(5, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            ops,
+        );
+        let result = executor.plate_solve_and_center(&make_ctx(&state)).await;
+        assert_eq!(
+            result.unwrap_err(),
+            "Plate solve failed: no solution; target centering is unverified (three frames tried)"
+        );
+        assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 3);
+        assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);
+    }
+
+    /// The post-flip guider restart counts guiding as locked once the guider
+    /// says it guides, even with an empty RMS window (Start Guiding waits for
+    /// a measured step; owner item P9-3).
+    #[tokio::test(start_paused = true)]
+    async fn the_post_flip_guider_restart_accepts_guiding_with_no_rms_yet() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        *state.guider_rms_total.lock().unwrap() = Some(0.0);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            ops,
+        );
+        let started = tokio::time::Instant::now();
+        assert_eq!(executor.restart_guider(&make_ctx(&state)).await, Ok(()));
+        // The lock poll answers at once; the RMS check samples three times
+        // two seconds apart.
+        assert_eq!(started.elapsed(), std::time::Duration::from_secs(6));
+    }
+
+    /// The post-flip RMS check: three samples two seconds apart, over the
+    /// flip's ceiling fails the restart with these words.
+    #[tokio::test(start_paused = true)]
+    async fn the_post_flip_guider_restart_fails_over_the_rms_ceiling() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        *state.guider_rms_total.lock().unwrap() = Some(2.5);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                max_post_settle_rms_pixels: 2.0,
+                ..Default::default()
+            },
+            ops,
+        );
+        assert_eq!(
+            executor.restart_guider(&make_ctx(&state)).await,
+            Err("Post-flip guiding RMS too high: 2.50px (limit 2.00px)".to_string())
+        );
     }
 }
