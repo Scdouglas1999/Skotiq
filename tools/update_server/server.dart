@@ -158,7 +158,6 @@ Future<Response> _handleManifest(Request request, String version) async {
 }
 
 Future<Response> _handleManifestFile(Request request, String version) async {
-  // Remove .json extension if present
   final cleanVersion = version.replaceAll('.json', '');
   return _serveManifest(cleanVersion);
 }
@@ -230,7 +229,6 @@ Future<Response> _handleRangeRequest(
 
   final length = end - start + 1;
 
-  // Create a stream that reads just the requested range
   final stream = file.openRead(start, end + 1);
 
   return Response(

@@ -10,7 +10,6 @@ import pyautogui
 import win32con
 import win32gui
 
-# Import sibling capture helper
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from capture_window import capture, find_window  # noqa: E402
 

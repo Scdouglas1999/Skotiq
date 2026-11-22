@@ -238,7 +238,7 @@ class Guider:
                     self.first_guide_at = time.time()
                 if self.lost and self.resume_refusals_left > 0:
                     # Accepted, and nothing happens: PHD2 keeps hunting for a
-                    # star that is not there. This is the 2026-09-14 shape.
+                    # star that is not there.
                     self.resume_refusals_left -= 1
                     self.log("guide", accepted=True, locked=False)
                     self.broadcast({"Event": "SettleBegin"})

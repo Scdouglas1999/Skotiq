@@ -204,7 +204,6 @@ Future<List<UpdateTarget>> discoverTargets() async {
       discoveryPort,
     );
 
-    // Wait for responses
     await Future.delayed(const Duration(seconds: 3));
     socket.close();
   } catch (e) {
@@ -295,7 +294,6 @@ Future<void> pushToTarget(
     socket.add(manifestBytes);
     print('  Manifest sent.');
 
-    // Wait for acknowledgment
     await socket.flush();
 
     // Send package in chunks with progress, flushing periodically

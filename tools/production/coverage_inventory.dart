@@ -52,7 +52,7 @@ const _controlPatterns = <String, String>{
   'tab': r'\bTab\(|\bTabBar\(',
   'tile': r'\bListTile\(|\bExpansionTile\(',
   'dialog': r'showDialog<|showModalBottomSheet<|\bAlertDialog\(',
-  // Added 2026-08-09. Without these the ledger could only see Material-style
+  // Without these the ledger could only see Material-style
   // controls, so a surface built out of gestures over a CustomPainter — which
   // is the entire planetarium — registered as having nothing to touch. The sky
   // view contributed two units to a 402-unit ledger while being one of the
@@ -112,7 +112,7 @@ Map<String, Object?> _buildInventory(String root) {
     ..._treeUnits(root, 'packages/skotiq_ui/lib', 'ui', 'design-system'),
     ..._webUnits(root),
     ..._apiUnits(root),
-    // Added 2026-08-14 (task #31 remainder): the hub server is a shipped
+    // The hub server is a shipped
     // surface (Collaborative Sky) and was the last uncounted tree.
     ..._treeUnits(
       root,
