@@ -72,9 +72,8 @@ Future<FrameThumbnailPayload> loadFrameThumbnail(
         );
   }
 
-  // In remote mode the frame's path names a file on the HOST, so probing it
-  // here would report the operator's own disk.
-  if (ref.read(isRemoteModeProvider)) {
+  final path = ref.read(hostPathsProvider).local(image.filePath);
+  if (path == null) {
     return FrameThumbnailPayload(
       fileExists: false,
       errorMessage: backendError,
@@ -82,7 +81,7 @@ Future<FrameThumbnailPayload> loadFrameThumbnail(
   }
 
   try {
-    final exists = await File(image.filePath).exists();
+    final exists = await File(path).exists();
     return FrameThumbnailPayload(
       fileExists: exists,
       errorMessage: backendError,
@@ -175,7 +174,7 @@ class FrameThumbnail extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isRemoteMode = ref.watch(isRemoteModeProvider);
+    final local = ref.watch(hostPathsProvider).local(fallbackFilePath);
     return FutureBuilder<Uint8List?>(
       future: bytesFuture,
       builder: (context, snapshot) {
@@ -193,10 +192,10 @@ class FrameThumbnail extends ConsumerWidget {
           // No backend thumbnail. `Image.file` handles a missing file through
           // its own errorBuilder, so there is no need to stat it from a sync
           // build.
-          if (!isRemoteMode && isDisplayableImagePath(fallbackFilePath)) {
+          if (local != null && isDisplayableImagePath(local)) {
             return _decodedToCell(
               (cacheWidth) => Image.file(
-                File(fallbackFilePath),
+                File(local),
                 fit: fit,
                 width: double.infinity,
                 height: double.infinity,

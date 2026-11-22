@@ -392,7 +392,8 @@ class CalibrationFileCheck extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = SkotiqColors.of(context);
-    if (ref.watch(isRemoteModeProvider)) {
+    final path = ref.watch(hostPathsProvider).local(filePath);
+    if (path == null) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         child: Row(
@@ -413,7 +414,7 @@ class CalibrationFileCheck extends ConsumerWidget {
     }
 
     return FutureBuilder<bool>(
-      future: File(filePath).exists(),
+      future: File(path).exists(),
       builder: (context, snapshot) {
         final exists = snapshot.data ?? false;
         final isLoading = !snapshot.hasData;

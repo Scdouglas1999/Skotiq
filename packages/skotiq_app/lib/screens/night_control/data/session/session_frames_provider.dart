@@ -94,7 +94,7 @@ final nightRunLightRowsProvider = Provider<List<DbCapturedImage>>((ref) {
 /// strip loads thumbnails through the existing thumbnail service by file.
 final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
   final rows = ref.watch(nightSessionLightRowsProvider);
-  final remote = ref.watch(isRemoteModeProvider);
+  final paths = ref.watch(hostPathsProvider);
   return <StripFrameVm>[
     for (var i = 0; i < rows.length; i++)
       StripFrameVm(
@@ -107,8 +107,8 @@ final nightSessionFramesProvider = Provider<List<StripFrameVm>>((ref) {
         starCount: rows[i].starCount,
         accepted: nightFrameVerdict(rows[i]),
         exclusion: frameExclusionKindOf(rows[i].rejectionReason),
-        // The path is the host's; a remote viewer has no file there.
-        filePath: remote || rows[i].filePath.isEmpty ? null : rows[i].filePath,
+        filePath:
+            rows[i].filePath.isEmpty ? null : paths.local(rows[i].filePath),
         hostPath: rows[i].filePath.isEmpty ? null : rows[i].filePath,
         isNewest: i == rows.length - 1,
       ),
