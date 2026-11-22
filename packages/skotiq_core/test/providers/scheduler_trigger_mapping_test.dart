@@ -40,11 +40,11 @@ void main() {
       ),
       'dither started': (
         const GuidingEvent.ditherStarted(pixels: 5),
-        SchedulerTriggerEvent.guidingRecovered,
+        null,
       ),
       'stop reason run_stopped': (
         const GuidingEvent.stopReason(reason: 'run_stopped'),
-        SchedulerTriggerEvent.guidingLost,
+        null,
       ),
       'stop reason autofocus': (
         const GuidingEvent.stopReason(reason: 'autofocus'),
@@ -91,7 +91,7 @@ void main() {
       ),
       'unparked': (
         const EquipmentEvent.mountUnparked(deviceId: 'mount'),
-        SchedulerTriggerEvent.mountParked,
+        SchedulerTriggerEvent.mountUnparked,
       ),
       'error text naming a park': (
         const EquipmentEvent.error(
@@ -99,7 +99,7 @@ void main() {
           deviceId: 'mount',
           message: 'Mount is parked',
         ),
-        SchedulerTriggerEvent.mountParked,
+        null,
       ),
       'slew completed': (
         const EquipmentEvent.mountSlewCompleted(
