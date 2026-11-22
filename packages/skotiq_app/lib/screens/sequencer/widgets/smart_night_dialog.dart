@@ -536,16 +536,13 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
           availableFilters: planningFilters,
           exposureContext: exposureContext,
         );
-        final sets = choice.sets(saved: filterPrefs.custom);
-        final global = _strategy;
-        final fallback = global == null
-            ? choice.recommended
-            : FilterSet.preset(global, choice.filtersFor(global));
         _targetChoices[suggestion.targetId] = choice;
-        _targetSets[suggestion.targetId] = filterPrefs.targetChoices
-                .containsKey(filterSetTargetKey(suggestion))
-            ? filterPrefs.setFor(suggestion, sets: sets, recommended: fallback)
-            : fallback;
+        _targetSets[suggestion.targetId] = resolveTargetFilterSet(
+          suggestion,
+          choice: choice,
+          prefs: filterPrefs,
+          strategy: _strategy,
+        );
       }
 
       // On a remote client the local dark library is the tablet's — empty —

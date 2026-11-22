@@ -36,11 +36,7 @@ final targetFilterSetProvider = FutureProvider.autoDispose
     .family<FilterSet, TargetSuggestion>((ref, target) async {
       final choice = await ref.watch(targetFilterChoiceProvider(target).future);
       final prefs = await ref.watch(filterSetPreferencesProvider.future);
-      return prefs.setFor(
-        target,
-        sets: choice.sets(saved: prefs.custom),
-        recommended: choice.recommended,
-      );
+      return resolveTargetFilterSet(target, choice: choice, prefs: prefs);
     });
 
 /// The active equipment profile's Filters picker state: the filter sets the

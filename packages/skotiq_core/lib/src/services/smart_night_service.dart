@@ -443,9 +443,7 @@ class SmartNightService {
       );
       final targetSet =
           targetSets[suggestion.targetId] ??
-          (strategy == null
-              ? choice.recommended
-              : FilterSet.preset(strategy, choice.filtersFor(strategy)));
+          defaultTargetFilterSet(choice, strategy: strategy);
       final filterPlans = composeSmartNightFilterPlans(
         shares: targetSet.shares,
         activeFilters: targetSet.filters,
