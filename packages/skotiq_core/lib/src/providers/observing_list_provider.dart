@@ -50,6 +50,17 @@ final listedCatalogIdsProvider = StreamProvider<Set<String>>(
   (ref) => ref.watch(observingListsStoreProvider).watchAllListedCatalogIds(),
 );
 
+/// Watch catalog IDs for the active list only.
+final activeListCatalogIdsProvider = StreamProvider<Set<String>>((ref) {
+  final activeId = ref.watch(activeObservingListIdProvider);
+  if (activeId == null) {
+    return const Stream.empty();
+  }
+  return ref
+      .watch(observingListsStoreProvider)
+      .watchCatalogIdsForList(activeId);
+});
+
 /// Currently selected/active observing list ID for the planetarium sidebar.
 final activeObservingListIdProvider = StateProvider<int?>((ref) => null);
 
