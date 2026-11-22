@@ -669,7 +669,7 @@ class _StackingPanelState extends ConsumerState<StackingPanel> {
               onRetry: isRemoteMode && isRunning
                   ? () => ref
                       .read(liveStackingProvider.notifier)
-                      .retryRemotePolling()
+                      .retryHostFetch()
                   : null,
             ),
 
