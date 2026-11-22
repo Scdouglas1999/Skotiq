@@ -28,8 +28,8 @@ import '../errors/skotiq_exception.dart'
         ConnectionException,
         DeviceBusyException,
         ImagingException,
-        SkotiqException,
         ValidationException;
+import '../errors/skotiq_error.dart' show SkotiqError;
 import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
 import '../utils/host_paths.dart';
@@ -261,10 +261,9 @@ class ImagingService {
         consecutiveErrors++;
         onError?.call(e.toString());
 
-        // A non-recoverable structured error (notably a FITS write failure)
-        // must stop immediately. Retrying ten more exposures would only lose
-        // more frames to the same full/unwritable destination.
-        if (e is SkotiqException && !e.isRecoverable) {
+        // A non-recoverable error (a FITS write failure, a refusal from the
+        // host) stops at once: ten more exposures would fail the same way.
+        if (e is SkotiqError && !e.isRecoverable) {
           _logger.error(
             'Loop capture stopped after non-recoverable error: $e',
             source: 'ImagingService',
