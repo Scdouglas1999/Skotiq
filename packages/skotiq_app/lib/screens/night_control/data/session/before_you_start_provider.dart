@@ -22,7 +22,6 @@ import 'package:skotiq_core/services.dart';
 import '../../night_control_contracts.dart';
 import '../plan/night_plan_inputs.dart';
 import 'conditions_provider.dart';
-import 'equipment_summary_provider.dart';
 import 'session_format.dart';
 import 'session_stats_provider.dart';
 import '../../../../router/settings_sections.dart';
