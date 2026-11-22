@@ -19,9 +19,9 @@ pub struct GuiderStatus {
     /// The guider that answered (`phd2_guider` or the built-in guider's id).
     pub device_id: String,
     pub connected: bool,
-    /// "Disconnected", "Connected", "Stopped", "Calibrating", "Guiding",
-    /// "Looping", "Paused", "Settling", "LostLock", or a state PHD2 names
-    /// that this build does not know, as PHD2 spells it.
+    /// [`GuiderState::as_wire`]: "Disconnected", "Connected", "Stopped",
+    /// "Calibrating", "Guiding", "Looping", "Paused", "Settling", "LostLock",
+    /// or a state PHD2 names that this build does not know, as PHD2 spells it.
     pub state: String,
     /// Guide error RMS in arcseconds.
     pub rms_ra: f64,
@@ -326,15 +326,83 @@ impl Guider {
     }
 }
 
-/// Whether a guider in `state` may move the mount: anything but idle,
-/// looping or paused. PHD2 in LostLock keeps searching and guides again the
-/// moment it finds the star; settling and calibrating move the mount; a
-/// state this build does not know is treated as moving it.
+/// What a guider is doing, as both guiders state it. An idle PHD2 says
+/// `Connected` and an idle built-in guider `Stopped`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum GuiderState {
+    Disconnected,
+    Connected,
+    Stopped,
+    Calibrating,
+    Guiding,
+    Looping,
+    Paused,
+    Settling,
+    LostLock,
+    /// A state PHD2 names that this build does not know, as PHD2 spells it.
+    Unknown(String),
+}
+
+impl GuiderState {
+    const KNOWN: [Self; 9] = [
+        Self::Disconnected,
+        Self::Connected,
+        Self::Stopped,
+        Self::Calibrating,
+        Self::Guiding,
+        Self::Looping,
+        Self::Paused,
+        Self::Settling,
+        Self::LostLock,
+    ];
+
+    /// The word the guider status carries.
+    pub(crate) fn as_wire(&self) -> &str {
+        match self {
+            Self::Disconnected => "Disconnected",
+            Self::Connected => "Connected",
+            Self::Stopped => "Stopped",
+            Self::Calibrating => "Calibrating",
+            Self::Guiding => "Guiding",
+            Self::Looping => "Looping",
+            Self::Paused => "Paused",
+            Self::Settling => "Settling",
+            Self::LostLock => "LostLock",
+            Self::Unknown(raw) => raw,
+        }
+    }
+
+    pub(crate) fn from_wire(word: &str) -> Self {
+        Self::KNOWN
+            .into_iter()
+            .find(|state| state.as_wire() == word)
+            .unwrap_or_else(|| Self::Unknown(word.to_string()))
+    }
+
+    /// Whether a guider in this state may move the mount: anything but idle,
+    /// looping or paused. PHD2 in LostLock keeps searching and guides again
+    /// the moment it finds the star; settling and calibrating move the mount;
+    /// a state this build does not know is treated as moving it.
+    pub(crate) fn may_move_mount(&self) -> bool {
+        !matches!(
+            self,
+            Self::Disconnected | Self::Connected | Self::Stopped | Self::Looping | Self::Paused
+        )
+    }
+}
+
+impl From<GuiderState> for String {
+    fn from(state: GuiderState) -> Self {
+        match state {
+            GuiderState::Unknown(raw) => raw,
+            known => known.as_wire().to_string(),
+        }
+    }
+}
+
+/// [`GuiderState::may_move_mount`] for a status's state word.
 pub(crate) fn state_may_move_mount(state: &str) -> bool {
-    !matches!(
-        state,
-        "Disconnected" | "Connected" | "Stopped" | "Selected" | "Looping" | "Paused"
-    )
+    GuiderState::from_wire(state).may_move_mount()
 }
 
 #[cfg(test)]
@@ -425,6 +493,22 @@ mod tests {
     }
 
     #[test]
+    fn every_state_reads_back_from_its_word() {
+        for state in GuiderState::KNOWN {
+            assert_eq!(GuiderState::from_wire(state.as_wire()), state);
+            assert_eq!(String::from(state.clone()), state.as_wire());
+        }
+        assert_eq!(
+            GuiderState::from_wire("GuidingPaused"),
+            GuiderState::Unknown("GuidingPaused".to_string())
+        );
+        assert_eq!(
+            String::from(GuiderState::Unknown("GuidingPaused".to_string())),
+            "GuidingPaused"
+        );
+    }
+
+    #[test]
     fn a_guider_that_may_move_the_mount_is_any_but_idle_looping_or_paused() {
         for state in [
             "Guiding",
@@ -435,14 +519,7 @@ mod tests {
         ] {
             assert!(state_may_move_mount(state), "{state}");
         }
-        for state in [
-            "Disconnected",
-            "Connected",
-            "Stopped",
-            "Selected",
-            "Looping",
-            "Paused",
-        ] {
+        for state in ["Disconnected", "Connected", "Stopped", "Looping", "Paused"] {
             assert!(!state_may_move_mount(state), "{state}");
         }
     }

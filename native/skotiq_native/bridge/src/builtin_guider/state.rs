@@ -1,5 +1,6 @@
 use crate::builtin_guider::config::{GuiderConfig, Vec2};
 use crate::builtin_guider::metrics::{guide_reference_weight, PulseDebt};
+use crate::guider::GuiderState;
 use crate::guider::TrackedGuideStar;
 use skotiq_imaging::{DetectedStar, ImageData};
 use std::sync::{Arc, OnceLock};
@@ -171,7 +172,7 @@ impl Default for BuiltinGuideStatus {
     fn default() -> Self {
         Self {
             connected: false,
-            state: "Disconnected".to_string(),
+            state: GuiderState::Disconnected.into(),
             rms_ra: 0.0,
             rms_dec: 0.0,
             rms_total: 0.0,

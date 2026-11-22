@@ -57,7 +57,10 @@ pub(crate) fn note_operator_stop() {
 /// settles after a dither.
 pub(crate) fn reported(state: &str) -> Option<String> {
     current()
-        .filter(|reason| state != "Guiding" || *reason == GuidingStopReason::DitherSettle)
+        .filter(|reason| {
+            super::GuiderState::from_wire(state) != super::GuiderState::Guiding
+                || *reason == GuidingStopReason::DitherSettle
+        })
         .map(|reason| reason.as_wire().to_string())
 }
 

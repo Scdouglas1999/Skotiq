@@ -17,6 +17,7 @@ use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::event::system::SystemEvent;
+use crate::guider::GuiderState;
 use crate::state::get_state;
 use skotiq_imaging::{detect_stars_with_stats, DetectedStar, ImageData, StarDetectionConfig};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -322,9 +323,9 @@ pub(crate) async fn capture_and_store_loop_frame(
     update_snapshot_from_frame(&mut guard, &frame, 50);
     guard.last_status.connected = true;
     guard.last_status.state = if guard.looping {
-        "Looping".to_string()
+        GuiderState::Looping.into()
     } else {
-        "Connected".to_string()
+        GuiderState::Connected.into()
     };
     publish_star_measurement(&mut guard, selected.as_ref());
     guard.last_frame = Some(frame);
@@ -457,7 +458,7 @@ pub(crate) async fn run_guiding_loop(
         let mut guard = controller.write().await;
         guard.calibration = Some(calibration);
         guard.calibrating = false;
-        guard.last_status.state = "Guiding".to_string();
+        guard.last_status.state = GuiderState::Guiding.into();
         // Arm the settle timeout for the initial settle after calibration, and
         // publish the spec this episode is judged by so `apply_settle_state`
         // reads one source of truth (a dither later replaces it with its own).
@@ -545,7 +546,7 @@ pub(crate) async fn run_guiding_loop(
             record_per_star_residuals(&mut guard.reference_stars, &frame.stars, desired);
             update_snapshot_from_frame(&mut guard, &frame, 50);
             if guard.paused {
-                guard.last_status.state = "Paused".to_string();
+                guard.last_status.state = GuiderState::Paused.into();
                 guard.last_frame = Some(frame.clone());
                 continue;
             }
@@ -556,7 +557,7 @@ pub(crate) async fn run_guiding_loop(
                     )
                 })?;
             guard.last_status.connected = true;
-            guard.last_status.state = "Guiding".to_string();
+            guard.last_status.state = GuiderState::Guiding.into();
             // Public guider RMS is consumed by the sequencer's arcsecond
             // GuidingFailed threshold. Internal correction, settle, and dither
             // calculations below deliberately remain in guide-camera pixels.
