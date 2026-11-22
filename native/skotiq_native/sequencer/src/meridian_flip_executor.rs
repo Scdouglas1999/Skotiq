@@ -258,6 +258,15 @@ pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
         read_errors: crate::instructions::SlewReadErrors::Fail,
     };
 
+/// The post-flip guider restart counts guiding as locked once the guider says
+/// it guides, polled every 2 s up to the settle timeout.
+pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
+    crate::instructions::GuidingLockRule {
+        needs_measured_step: false,
+        timeout: std::time::Duration::ZERO,
+        poll: std::time::Duration::from_secs(2),
+    };
+
 /// A post-flip centering correction: a short move, 5 min to finish.
 pub(crate) const FLIP_CENTERING_SLEW: crate::instructions::SlewWaitBounds =
     crate::instructions::SlewWaitBounds {
@@ -1905,78 +1914,40 @@ impl MeridianFlipExecutor {
             Err(error) => return Err(error.message().to_string()),
         }
 
-        // guider_start() can return Ok before the guider has actually
-        // re-locked onto a star (PHD2 reports the Start accepted while
-        // re-acquisition / calibration is still in progress). Mirror
-        // execute_start_guiding's verification: poll until is_guiding and fail
-        // closed if it never re-locks — otherwise the post-flip exposures
-        // resume UNGUIDED and the rest of the night trails.
-        let poll_interval = std::time::Duration::from_secs(2);
-        let deadline =
-            tokio::time::Instant::now() + std::time::Duration::from_secs_f64(settle_timeout);
-        let mut relocked = false;
-        while tokio::time::Instant::now() < deadline {
-            if self.is_cancelled(ctx) {
-                return Err("Abort requested while verifying post-flip guiding".to_string());
+        // Locked once the guider says it guides, then checked over the RMS
+        // window: a guider that never locks, or tracks badly, fails the step,
+        // and the flip's retries and failure action take it from there.
+        let stop = || self.is_cancelled(ctx).then_some(());
+        match crate::instructions::verify_guiding_locked(
+            &self.run.device_ops,
+            POST_FLIP_GUIDING_LOCK.with_timeout(std::time::Duration::from_secs_f64(settle_timeout)),
+            &stop,
+        )
+        .await
+        {
+            crate::instructions::GuidingLock::Locked(status) => tracing::info!(
+                "[MERIDIAN] Guiding re-locked after flip: {}",
+                status.rms_summary()
+            ),
+            crate::instructions::GuidingLock::NotLocked => {
+                return Err(format!(
+                    "Guiding did not re-lock within {:.0}s after the meridian flip. \
+                     The guider may have failed to re-acquire a star.",
+                    settle_timeout
+                ))
             }
-            match self.run.device_ops.guider_get_status().await {
-                Ok(status) if status.is_guiding => {
-                    tracing::info!(
-                        "[MERIDIAN] Guiding re-locked after flip: {}",
-                        status.rms_summary()
-                    );
-                    relocked = true;
-                    break;
-                }
-                Ok(status) => {
-                    tracing::debug!(
-                        "[MERIDIAN] Guiding not yet re-locked (is_guiding={}), waiting...",
-                        status.is_guiding
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!("[MERIDIAN] Guider status poll failed: {}", e);
-                }
+            crate::instructions::GuidingLock::Stopped(()) => {
+                return Err("Abort requested while verifying post-flip guiding".to_string())
             }
-            tokio::time::sleep(poll_interval).await;
         }
 
-        if !relocked {
-            return Err(format!(
-                "Guiding did not re-lock within {:.0}s after the meridian flip. \
-                 The guider may have failed to re-acquire a star.",
-                settle_timeout
-            ));
-        }
-
-        // Post-settle RMS sanity — mirror execute_start_guiding's gate. A guider
-        // can report is_guiding while tracking poorly (a re-lock onto a hot
-        // pixel, or drift/over-correction that only blows up after the initial
-        // settle). Sample RMS over a short window and fail closed if the peak
-        // exceeds the ceiling, so a bad post-flip re-lock trips the flip failure
-        // action (default: pause + alert) instead of silently trailing the rest
-        // of the night on subs that look guided but aren't. rms_total is in
-        // pixels here, consistent with StartGuidingConfig::max_post_settle_rms_pixels.
         let rms_ceiling = self.config.max_post_settle_rms_pixels;
-        const RMS_SAMPLES: u32 = 3;
-        let rms_interval = std::time::Duration::from_secs(2);
-        let mut max_rms: f64 = 0.0;
-        let mut sample_count: u32 = 0;
-        for _ in 0..RMS_SAMPLES {
-            if self.is_cancelled(ctx) {
-                return Err("Abort requested while validating post-flip guiding RMS".to_string());
-            }
-            tokio::time::sleep(rms_interval).await;
-            match self.run.device_ops.guider_get_status().await {
-                Ok(status) => {
-                    max_rms = max_rms.max(status.rms_total);
-                    sample_count += 1;
-                }
-                Err(e) => {
-                    tracing::warn!("[MERIDIAN] Post-flip RMS sample failed: {}", e);
-                }
-            }
-        }
+        let crate::instructions::RmsPeak {
+            peak_pixels: max_rms,
+            samples: sample_count,
+        } = crate::instructions::sample_post_settle_rms(&self.run.device_ops, &stop)
+            .await
+            .map_err(|()| "Abort requested while validating post-flip guiding RMS".to_string())?;
         if sample_count > 0 && max_rms > rms_ceiling {
             return Err(format!(
                 "Post-flip guiding RMS too high: {max_rms:.2}px (limit {rms_ceiling:.2}px)"

@@ -1,7 +1,5 @@
-//! `guiding.rs` — moved verbatim out of the former single-file `instructions.rs`
-//! (release-pass C3 mechanical split). No logic changed; private items were
-//! widened to `pub(crate)` so the sibling modules and the tests module still
-//! see them, and `super::*` supplies the imports the original file had.
+//! Starting, verifying and stopping guiding, and the guider's part in the
+//! run's own mount moves.
 
 use super::*;
 
@@ -238,6 +236,110 @@ async fn record_settled_guiding(ctx: &InstructionContext, replace_reference: boo
             state.target.guide_star_reference = Some(star);
         }
     }
+}
+
+/// When a guider that took a start counts as guiding.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct GuidingLockRule {
+    /// Also wait for a measured guide step: an RMS of exactly zero is an
+    /// empty statistics window, which PHD2 empties when guiding starts.
+    pub needs_measured_step: bool,
+    pub timeout: Duration,
+    pub poll: Duration,
+}
+
+/// Start Guiding counts guiding as locked at the first measured guide step,
+/// polled every 2 s up to the step's settle timeout.
+pub(crate) const START_GUIDING_LOCK: GuidingLockRule = GuidingLockRule {
+    needs_measured_step: true,
+    timeout: Duration::ZERO,
+    poll: Duration::from_secs(2),
+};
+
+impl GuidingLockRule {
+    pub(crate) fn with_timeout(self, timeout: Duration) -> Self {
+        Self { timeout, ..self }
+    }
+}
+
+/// How a lock check ended.
+#[derive(Debug)]
+pub(crate) enum GuidingLock<S> {
+    Locked(crate::device_ops::GuidingStatus),
+    /// The timeout passed without the guider guiding.
+    NotLocked,
+    Stopped(S),
+}
+
+/// Poll the guider until it guides by `rule`, `stop` is answered, or the
+/// timeout passes. `guider_start` can return before the guider has locked on
+/// a star (PHD2 accepts the start while it re-acquires or calibrates).
+pub(crate) async fn verify_guiding_locked<S>(
+    device_ops: &SharedDeviceOps,
+    rule: GuidingLockRule,
+    stop: &(dyn Fn() -> Option<S> + Send + Sync),
+) -> GuidingLock<S> {
+    let deadline = tokio::time::Instant::now() + rule.timeout;
+    while tokio::time::Instant::now() < deadline {
+        if let Some(reason) = stop() {
+            return GuidingLock::Stopped(reason);
+        }
+        match device_ops.guider_get_status().await {
+            Ok(status)
+                if status.is_guiding && (!rule.needs_measured_step || status.rms_total > 0.0) =>
+            {
+                return GuidingLock::Locked(status);
+            }
+            Ok(status) => tracing::debug!(
+                "Guiding not yet locked (is_guiding={}, rms_total={:.2}), waiting...",
+                status.is_guiding,
+                status.rms_total
+            ),
+            Err(e) => tracing::warn!("Guider status poll failed: {}", e),
+        }
+        sleep(rule.poll).await;
+    }
+    GuidingLock::NotLocked
+}
+
+/// The post-settle RMS check: `samples` readings `interval` apart, after a
+/// guider started guiding. A guider can guide and still track badly (a lock
+/// on a hot pixel, drift or over-correction that shows only after the
+/// settle).
+pub(crate) const POST_SETTLE_RMS_SAMPLES: u32 = 3;
+pub(crate) const POST_SETTLE_RMS_INTERVAL: Duration = Duration::from_secs(2);
+
+/// The peak RMS over the readings that answered.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct RmsPeak {
+    pub peak_pixels: f64,
+    pub samples: u32,
+}
+
+/// Sample the guiding RMS [`POST_SETTLE_RMS_SAMPLES`] times; `Err` with the
+/// stop's answer when `stop` is answered first.
+pub(crate) async fn sample_post_settle_rms<S>(
+    device_ops: &SharedDeviceOps,
+    stop: &(dyn Fn() -> Option<S> + Send + Sync),
+) -> Result<RmsPeak, S> {
+    let mut peak = RmsPeak {
+        peak_pixels: 0.0,
+        samples: 0,
+    };
+    for _ in 0..POST_SETTLE_RMS_SAMPLES {
+        if let Some(reason) = stop() {
+            return Err(reason);
+        }
+        sleep(POST_SETTLE_RMS_INTERVAL).await;
+        match device_ops.guider_get_status().await {
+            Ok(status) => {
+                peak.peak_pixels = peak.peak_pixels.max(status.rms_total);
+                peak.samples += 1;
+            }
+            Err(e) => tracing::warn!("Guiding RMS sample failed: {}", e),
+        }
+    }
+    Ok(peak)
 }
 
 /// A mount move the run is making: a slew, a center, a sync or a flip.
@@ -630,9 +732,6 @@ async fn start_guiding(
         Ok(_) => {
             let mut cleanup_guard = GuiderStartupCleanupGuard::new(ctx.run.device_ops.clone());
             let result = async {
-                // ENG-F10: Validate that guiding actually reached "guiding" state.
-                // guider_start() may return Ok without the guider truly locking on.
-                // Poll status with a timeout to confirm guiding is active.
                 if let Some(cb) = progress_callback {
                     cb(80.0, "Verifying guiding is active".to_string());
                 }
@@ -641,47 +740,22 @@ async fn start_guiding(
                 // f64 -> u64 saturates per Rust 1.45 spec; negatives clamp to 0
                 // which Duration::from_secs treats as "no wait" — surfaces as an
                 // immediate timeout, not a silent hang.
-                let verification_timeout = Duration::from_secs(config.settle_timeout as u64);
-                let poll_interval = Duration::from_secs(2);
-                let deadline = tokio::time::Instant::now() + verification_timeout;
-                let mut guiding_confirmed = false;
-
-                while tokio::time::Instant::now() < deadline {
-                    if let Some(result) = ctx.check_cancelled() {
-                        return result;
+                let rule = START_GUIDING_LOCK
+                    .with_timeout(Duration::from_secs(config.settle_timeout as u64));
+                match verify_guiding_locked(&ctx.run.device_ops, rule, &|| ctx.check_cancelled())
+                    .await
+                {
+                    GuidingLock::Locked(status) => {
+                        tracing::info!("Guiding confirmed active: {}", status.rms_summary());
                     }
-
-                    match ctx.run.device_ops.guider_get_status().await {
-                        // An RMS of exactly zero is an empty statistics window:
-                        // PHD2 empties it when guiding starts, so no guide step
-                        // has been measured yet.
-                        Ok(status) if status.is_guiding && status.rms_total > 0.0 => {
-                            tracing::info!("Guiding confirmed active: {}", status.rms_summary());
-                            guiding_confirmed = true;
-                            break;
-                        }
-                        Ok(status) => {
-                            tracing::debug!(
-                                "Guiding not yet active (is_guiding={}, no guide step measured \
-                                 yet: {}), waiting...",
-                                status.is_guiding,
-                                status.rms_total <= 0.0
-                            );
-                        }
-                        Err(e) => {
-                            tracing::warn!("Guider status poll failed: {}", e);
-                        }
+                    GuidingLock::NotLocked => {
+                        return InstructionResult::failure(format!(
+                            "Guiding did not reach active state within {:.0}s timeout. \
+                         The guider may have failed to calibrate or lock onto a star.",
+                            config.settle_timeout
+                        ));
                     }
-
-                    sleep(poll_interval).await;
-                }
-
-                if !guiding_confirmed {
-                    return InstructionResult::failure(format!(
-                        "Guiding did not reach active state within {:.0}s timeout. \
-                     The guider may have failed to calibrate or lock onto a star.",
-                        config.settle_timeout
-                    ));
+                    GuidingLock::Stopped(result) => return result,
                 }
 
                 // P3-7: post-start calibration quality validation. A guider can
@@ -727,25 +801,17 @@ async fn start_guiding(
                     // Step 2: post-settle RMS sanity — sample over a short window
                     // to catch calibrations whose RMS only blows up after the
                     // initial settle (drift / over-correction).
-                    let rms_samples: u32 = 3;
-                    let rms_interval = Duration::from_secs(2);
-                    let mut max_rms: f64 = 0.0;
-                    let mut sample_count: u32 = 0;
-                    for _ in 0..rms_samples {
-                        if let Some(result) = ctx.check_cancelled() {
-                            return result;
-                        }
-                        sleep(rms_interval).await;
-                        match ctx.run.device_ops.guider_get_status().await {
-                            Ok(status) => {
-                                max_rms = max_rms.max(status.rms_total);
-                                sample_count += 1;
-                            }
-                            Err(e) => {
-                                tracing::warn!("RMS sample failed during validation: {}", e);
-                            }
-                        }
-                    }
+                    let (max_rms, sample_count) = match sample_post_settle_rms(
+                        &ctx.run.device_ops,
+                        &|| ctx.check_cancelled(),
+                    )
+                    .await
+                    {
+                        Ok(peak) => (peak.peak_pixels, peak.samples),
+                        Err(result) => return result,
+                    };
+                    let rms_samples = POST_SETTLE_RMS_SAMPLES;
+                    let rms_interval = POST_SETTLE_RMS_INTERVAL;
                     if sample_count > 0 && max_rms > config.max_post_settle_rms_pixels {
                         let problem = format!(
                             "Post-settle guiding RMS too high: {:.2}px peak across {} sample{} \
