@@ -1154,12 +1154,21 @@ impl MeridianFlipExecutor {
     /// Tell the operator what failed after the mount reached its new side and
     /// that the run goes on.
     async fn carry_on_after_flip(&self, ctx: &FlipContext, problem: &str) {
-        let continuation = crate::executor::quality_problem_continuation(
-            "After the meridian flip",
+        self.notify_quality_problem(
+            ctx,
             &format!(
                 "{problem}. The mount is on its new pier side and tracks; imaging continues and \
                  guiding is tried again before the next frame."
             ),
+        );
+    }
+
+    /// Tell the operator about a quality problem after the flip that the run
+    /// carries on through.
+    fn notify_quality_problem(&self, ctx: &FlipContext, problem: &str) {
+        let continuation = crate::executor::quality_problem_continuation(
+            "After the meridian flip",
+            problem,
             serde_json::json!({ "target_name": ctx.target_name }),
         );
         tracing::warn!("[MERIDIAN] {}", continuation.operator_message);
