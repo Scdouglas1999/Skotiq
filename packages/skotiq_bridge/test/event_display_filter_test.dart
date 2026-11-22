@@ -1,5 +1,5 @@
 // The Log read "Filter changing · 0 → 1" and "Position 1" while Equipment read
-// "R (2 of 8)" for the same move (rig, 2026-11-03). Slots are the wheel's
+// "R (2 of 8)" for the same move. Slots are the wheel's
 // 0-based positions; the Log names them.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';

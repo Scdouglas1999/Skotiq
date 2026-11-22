@@ -1,5 +1,5 @@
-// Tonight's log read "Guiding settled · RMS 0.00" right after guiding started
-// (rig, 2026-11-17). PHD2's settle reports no RMS; the built-in guider's is
+// Tonight's log read "Guiding settled · RMS 0.00" right after guiding started.
+// PHD2's settle reports no RMS; the built-in guider's is
 // in guide-camera pixels.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
