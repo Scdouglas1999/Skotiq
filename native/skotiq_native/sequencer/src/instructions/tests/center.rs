@@ -404,7 +404,6 @@ fn a_runs_own_recenter() {
 /// How each centering judges and corrects the pointing.
 #[test]
 fn the_centering_policies() {
-    use crate::meridian_flip_executor::POST_FLIP_CENTERING;
     let setting = 5.0;
     let table = [
         (
@@ -446,13 +445,17 @@ fn the_centering_policies() {
             },
         ),
         (
-            "post-flip centering (tolerance replaced by the operator's)",
-            POST_FLIP_CENTERING,
+            "post-flip centering, outside a run",
+            crate::meridian_flip_executor::MeridianFlipExecutor::new(
+                crate::MeridianFlipConfig::default(),
+                Arc::new(NullDeviceOps),
+            )
+            .centering_policy(),
             CenterPolicy {
-                tolerance: CenterTolerance::Below(30.0),
+                tolerance: CenterTolerance::AtMost(5.0),
                 max_attempts: 3,
                 sync_mount: true,
-                separation: Separation::FlatAtTargetDec,
+                separation: Separation::OnTheSphere,
             },
         ),
     ];

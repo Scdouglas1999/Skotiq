@@ -1,6 +1,9 @@
 //! Acquisition recovery after the mount has already reached its intended side.
 use super::*;
 
+/// How long the nearby field's solve may take.
+const NEARBY_SOLVE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 impl MeridianFlipExecutor {
     pub(super) async fn plate_solve_and_center(&self, ctx: &FlipContext) -> Result<(), String> {
         if ctx.simulate {
@@ -131,7 +134,9 @@ impl MeridianFlipExecutor {
             )
             .await
             .map_err(|end| end.to_string())?;
-            let solved = self.recovery_solve(ctx, &image, ra * 15.0, dec).await?;
+            let solved = self
+                .recovery_solve(ctx, &image, ra * 15.0, dec, NEARBY_SOLVE_TIMEOUT)
+                .await?;
             if !solved.success || !solved.ra_degrees.is_finite() || !(-90.0..=90.0).contains(&solved.dec_degrees) {
                 return Err("Nearby recovery field did not solve".into());
             }
@@ -170,9 +175,10 @@ impl MeridianFlipExecutor {
         image: &crate::device_ops::ImageData,
         ra: f64,
         dec: f64,
+        bound: std::time::Duration,
     ) -> Result<crate::device_ops::PlateSolveResult, String> {
         let solve = tokio::time::timeout(
-            std::time::Duration::from_secs(60),
+            bound,
             self.run
                 .device_ops
                 .plate_solve(image, Some(ra), Some(dec), None),
@@ -180,7 +186,7 @@ impl MeridianFlipExecutor {
         tokio::pin!(solve);
         loop {
             tokio::select! {
-                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?.map_err(String::from),
+                result = &mut solve => return result.map_err(|_| format!("Recovery plate solve timed out after {}s", bound.as_secs()))?.map_err(String::from),
                 _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
                     if self.is_cancelled(ctx) {
                 return Err("Recovery cancelled".into());

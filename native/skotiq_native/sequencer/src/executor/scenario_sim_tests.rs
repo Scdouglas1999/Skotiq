@@ -71,6 +71,9 @@ pub(crate) struct SimMount {
     pub(crate) settle_creep_arcsec_per_sec: Option<f64>,
     /// The last exposure started while the mount was still moving.
     exposure_while_moving: bool,
+    /// Slewing reads left before a commanded slew reads as done; each slew
+    /// reports slewing once.
+    slewing_reads_left: u32,
 }
 
 impl SimMount {
@@ -85,6 +88,7 @@ impl SimMount {
             settle_secs: 0.0,
             settle_creep_arcsec_per_sec: None,
             exposure_while_moving: false,
+            slewing_reads_left: 0,
         }
     }
 
@@ -396,6 +400,7 @@ impl MountOps for ScriptedDeviceOps {
             mount.dec_deg = dec;
             mount.since = now;
             mount.settle_until = Some(now + std::time::Duration::from_secs_f64(mount.settle_secs));
+            mount.slewing_reads_left = 1;
         }
         let result = self.inner.mount_slew_to_coordinates(id, ra, dec).await;
         let mut pointing = self.pointing.lock().unwrap();
@@ -425,6 +430,12 @@ impl MountOps for ScriptedDeviceOps {
         self.inner.mount_unpark(id).await
     }
     async fn mount_is_slewing(&self, _id: &str) -> DeviceResult<bool> {
+        if let Some(mount) = self.sim_mount.lock().unwrap().as_mut() {
+            if mount.slewing_reads_left > 0 {
+                mount.slewing_reads_left -= 1;
+                return Ok(true);
+            }
+        }
         Ok(self.mount_slewing.load(Ordering::SeqCst))
     }
     async fn mount_is_parked(&self, _id: &str) -> DeviceResult<bool> {

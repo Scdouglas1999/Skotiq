@@ -258,17 +258,6 @@ pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
         read_errors: crate::instructions::SlewReadErrors::Fail,
     };
 
-/// The post-flip centering: three frames, measured flat at the target's Dec,
-/// every correction synced, centered at the operator's centering tolerance
-/// (which replaces the tolerance here).
-pub(crate) const POST_FLIP_CENTERING: crate::instructions::CenterPolicy =
-    crate::instructions::CenterPolicy {
-        tolerance: crate::instructions::CenterTolerance::Below(30.0),
-        max_attempts: 3,
-        sync_mount: true,
-        separation: crate::instructions::Separation::FlatAtTargetDec,
-    };
-
 /// A post-flip centering that did not center.
 #[derive(Debug)]
 pub(super) struct CenteringFailure {
@@ -286,10 +275,11 @@ pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
         poll: std::time::Duration::from_secs(2),
     };
 
-/// A post-flip centering correction: a short move, 5 min to finish.
+/// A post-flip centering correction: a short move that must report moving
+/// within 5 s, as a Center step's does, and finish within 5 min.
 pub(crate) const FLIP_CENTERING_SLEW: crate::instructions::SlewWaitBounds =
     crate::instructions::SlewWaitBounds {
-        start: None,
+        start: crate::instructions::CENTER_CORRECTION_SLEW.start,
         complete: std::time::Duration::from_secs(300),
         ..FLIP_SLEW
     };
@@ -1539,12 +1529,11 @@ impl MeridianFlipExecutor {
         let camera_id = ctx.camera_id.as_ref().ok_or("No camera configured")?;
 
         let mut last_failure = String::new();
-        let policy = crate::instructions::CenterPolicy {
-            tolerance: crate::instructions::CenterTolerance::AtMost(
-                self.run.centering_tolerance_arcsec(),
-            ),
-            ..POST_FLIP_CENTERING
-        };
+        let policy = self.centering_policy();
+        let target = (ctx.target_ra_hours, ctx.target_dec_degrees);
+        // Where the mount was last sent; without sync each correction offsets
+        // it by the measured error.
+        let mut commanded = target;
         for _ in 0..policy.max_attempts {
             self.wait_for_mount_to_settle(ctx).await?;
             // The retry ladder increases acquisition exposure after the first attempt.
@@ -1572,6 +1561,7 @@ impl MeridianFlipExecutor {
                     &image,
                     ctx.target_ra_hours * 15.0,
                     ctx.target_dec_degrees,
+                    crate::instructions::CENTER_SOLVE_TIMEOUT,
                 )
                 .await;
             // A frame that does not solve is taken again after another
@@ -1592,7 +1582,6 @@ impl MeridianFlipExecutor {
             };
 
             *solved = true;
-            let target = (ctx.target_ra_hours, ctx.target_dec_degrees);
             let error = policy
                 .separation
                 .measure(target, (result.ra_degrees, result.dec_degrees));
@@ -1613,18 +1602,18 @@ impl MeridianFlipExecutor {
             // the flip; a bare re-slew would land at the same wrong spot.
             self.stop_guider_before_move("post-flip centering correction")
                 .await;
-            let slew_to = crate::instructions::correct_pointing(
+            commanded = crate::instructions::correct_pointing(
                 &self.run.device_ops,
                 &ctx.mount_id,
                 policy.sync_mount,
-                target,
+                commanded,
                 target,
                 (result.ra_degrees / 15.0, result.dec_degrees),
             )
             .await?;
             self.run
                 .device_ops
-                .mount_slew_to_coordinates(&ctx.mount_id, slew_to.0, slew_to.1)
+                .mount_slew_to_coordinates(&ctx.mount_id, commanded.0, commanded.1)
                 .await?;
 
             match crate::instructions::wait_for_slew(
@@ -1654,8 +1643,20 @@ impl MeridianFlipExecutor {
                     }
                     return Err("Centering slew timed out after 5 minutes".to_string());
                 }
-                // No start phase: the wait never ends this way.
-                crate::instructions::SlewWait::NeverStarted { .. } => {}
+                crate::instructions::SlewWait::NeverStarted { abort } => {
+                    if let Err(e) = abort {
+                        tracing::error!(
+                            "[MERIDIAN] mount_abort_slew failed after the centering slew never reported moving: {}",
+                            e
+                        );
+                    }
+                    return Err(format!(
+                        "Centering correction slew did not report startup within {}s",
+                        FLIP_CENTERING_SLEW
+                            .start
+                            .map_or(0, |start| start.within.as_secs())
+                    ));
+                }
                 crate::instructions::SlewWait::ReadFailed(error) => return Err(error.into()),
             }
         }
@@ -1664,6 +1665,15 @@ impl MeridianFlipExecutor {
         } else {
             Err(format!("{last_failure} (three frames tried)"))
         }
+    }
+
+    /// How the post-flip centering judges and corrects: as the run's own
+    /// recenters do (attempts, sync choice, the operator's tolerance).
+    pub(crate) fn centering_policy(&self) -> crate::instructions::CenterPolicy {
+        crate::instructions::CenterPolicy::for_step(
+            &self.run.recenter_config(),
+            self.run.centering_tolerance_arcsec(),
+        )
     }
 
     /// The move rule for each of the flip's own slews and syncs. The flip
@@ -2559,6 +2569,11 @@ mod tests {
         move_axis_rates: Mutex<Vec<f64>>,
         /// The RMS the guider reports; `None` reports 0.64 px.
         guider_rms_total: Mutex<Option<f64>>,
+        /// Slewing reads left before a commanded slew reads as done; each
+        /// slew that moves the mount reports slewing once.
+        slewing_reads_left: AtomicI32,
+        /// How long each plate solve takes.
+        plate_solve_delay: Mutex<std::time::Duration>,
     }
 
     struct MockDeviceOps {
@@ -2583,6 +2598,7 @@ mod tests {
             if self.state.stuck_at_limit.load(Ordering::Relaxed) {
                 return Ok(());
             }
+            self.state.slewing_reads_left.store(1, Ordering::Relaxed);
             let (d_ra, d_dec) = self
                 .state
                 .readback_offset
@@ -2664,7 +2680,14 @@ mod tests {
         }
 
         async fn mount_is_slewing(&self, _mount_id: &str) -> DeviceResult<bool> {
-            Ok(self.state.is_slewing.load(Ordering::Relaxed))
+            let moving = self
+                .state
+                .slewing_reads_left
+                .try_update(Ordering::Relaxed, Ordering::Relaxed, |left| {
+                    (left > 0).then_some(left - 1)
+                })
+                .is_ok();
+            Ok(moving || self.state.is_slewing.load(Ordering::Relaxed))
         }
 
         async fn mount_is_parked(&self, _mount_id: &str) -> DeviceResult<bool> {
@@ -3028,6 +3051,8 @@ mod tests {
         ) -> DeviceResult<PlateSolveResult> {
             self.state.post_flip_calls.lock().unwrap().push("solve");
             self.state.plate_solve_calls.fetch_add(1, Ordering::Relaxed);
+            let delay = *self.state.plate_solve_delay.lock().unwrap();
+            tokio::time::sleep(delay).await;
             let dec_offset = self
                 .state
                 .solved_dec_offsets
@@ -5652,6 +5677,85 @@ mod tests {
                 "{offsets:?}"
             );
         }
+    }
+
+    /// In a plan whose Center steps do not sync, the post-flip corrections
+    /// leave the pointing model alone and offset each slew by the error the
+    /// solve measured, from where the mount was last sent.
+    #[tokio::test(start_paused = true)]
+    async fn post_flip_centering_follows_the_plans_sync_choice() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .solved_dec_offsets
+            .lock()
+            .unwrap()
+            .extend([40.0 / 3600.0, 40.0 / 3600.0, 0.0]);
+        let mut run = RunShared::new(Arc::new(MockDeviceOps::new(state.clone())));
+        let store = crate::executor::RunConfigStore::default();
+        store.set_sequence_center_sync(Some(false));
+        run.settings = Some(store);
+        let executor = MeridianFlipExecutor::in_run(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            run,
+        );
+        let ctx = make_ctx(&state);
+        executor.plate_solve_and_center(&ctx).await.unwrap();
+        assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 2);
+        let (ra, dec) = *state.coordinates.lock().unwrap();
+        assert!((ra - ctx.target_ra_hours).abs() < 1e-9, "{ra}");
+        assert!(
+            (dec - (ctx.target_dec_degrees - 80.0 / 3600.0)).abs() < 1e-9,
+            "{dec}"
+        );
+    }
+
+    /// A post-flip solve gets as long as a Center step's: 180 s.
+    #[tokio::test(start_paused = true)]
+    async fn a_post_flip_solve_gets_three_minutes() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        *state.plate_solve_delay.lock().unwrap() = std::time::Duration::from_secs(170);
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            Arc::new(MockDeviceOps::new(state.clone())),
+        );
+        executor
+            .plate_solve_and_center(&make_ctx(&state))
+            .await
+            .unwrap();
+        assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 1);
+    }
+
+    /// A correction slew the mount never reports moving on is aborted and
+    /// fails the centering, as a Center step's does.
+    #[tokio::test(start_paused = true)]
+    async fn a_post_flip_correction_that_never_starts_fails_the_centering() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .solved_dec_offsets
+            .lock()
+            .unwrap()
+            .extend([40.0 / 3600.0, 0.0]);
+        state.stuck_at_limit.store(true, Ordering::Relaxed);
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            Arc::new(MockDeviceOps::new(state.clone())),
+        );
+        let ctx = make_ctx(&state);
+        assert_eq!(
+            executor.plate_solve_and_center(&ctx).await,
+            Err("Centering correction slew did not report startup within 5s".to_string())
+        );
+        assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 1);
     }
 
     /// Frames that never solve: three, then the step fails with the solve's

@@ -68,6 +68,11 @@ impl CenterProgress {
     }
 }
 
+/// How long a centering frame's solve may take: a hung solver (stalled IO, a
+/// bad catalog, a zombie child) would otherwise hold the step until someone
+/// presses cancel, which an unattended night never does.
+pub(crate) const CENTER_SOLVE_TIMEOUT: Duration = Duration::from_secs(180);
+
 /// A Center's correction slew: the mount must report moving within 5 s and
 /// stop within 300 s; a failed state read is polled again.
 pub(crate) const CENTER_CORRECTION_SLEW: SlewWaitBounds = SlewWaitBounds {
@@ -176,7 +181,7 @@ async fn centering_slew_wait(
 /// How a centering run judges and corrects the pointing. A Center step and a
 /// run's own recenters take theirs from the step's [`CenterConfig`] and the
 /// operator's tolerance ([`CenterPolicy::for_step`]); the post-flip centering
-/// has its own (`meridian_flip_executor::POST_FLIP_CENTERING`).
+/// takes the run's recenter policy.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct CenterPolicy {
     pub tolerance: CenterTolerance,
@@ -468,15 +473,11 @@ async fn center(
             }
         };
 
-        // Hard cap on the solver call: a hung solver process (stalled IO,
-        // bad catalog, zombie child) would otherwise block this select
-        // indefinitely — cancellation is the only other exit, and an
-        // unattended night never presses cancel. Treated exactly like a
-        // failed solve so the attempt loop's retry applies.
-        const PLATE_SOLVE_TIMEOUT: Duration = Duration::from_secs(180);
+        // A solve that runs out of time counts as a failed one, so the
+        // attempt loop's retry applies.
         let solve_result = tokio::select! {
             result = tokio::time::timeout(
-                PLATE_SOLVE_TIMEOUT,
+                CENTER_SOLVE_TIMEOUT,
                 ctx.run.device_ops.plate_solve(
                     &image_data,
                     Some(target_ra_deg),
@@ -500,7 +501,7 @@ async fn center(
                     Err(_) => {
                         tracing::warn!(
                             "Plate solve timed out after {}s on attempt {}",
-                            PLATE_SOLVE_TIMEOUT.as_secs(),
+                            CENTER_SOLVE_TIMEOUT.as_secs(),
                             attempt
                         );
                         continue;
