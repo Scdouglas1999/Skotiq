@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/skotiq_astro.dart' show observingNightWindow;
 
 import '../../database/database.dart' show DbCapturedImage;
 import '../../models/calibration/calibration_library_models.dart'
@@ -124,9 +125,6 @@ abstract class EonRig {
 
   Future<void> saveReport(Map<String, Object?> report);
 }
-
-/// How far back the night's light frames are looked for.
-const eonNightWindow = Duration(hours: 16);
 
 /// The end-of-night calibration step: work out the darks and bias the night's
 /// lights need, take them through the dark slot (or behind a cap the operator
@@ -269,8 +267,10 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
     EonReport report, {
     required bool retake,
   }) async {
+    // The night's lights are those of its observing night (local noon to
+    // noon), as the calibration backlog and the Darkroom group them.
     final lights = await _rig.lightFramesSince(
-      _rig.now().subtract(eonNightWindow),
+      observingNightWindow(_rig.now()).start,
     );
     final camera = await _rig.camera();
     if (camera == null) {

@@ -264,7 +264,7 @@ void main() {
 
     expect(report.phase, EonPhase.finished, reason: report.summary);
     expect(rig.calls.take(3), [
-      'lights since 2026-10-21 14:30:00.000',
+      'lights since 2026-10-21 12:00:00.000',
       'stopGuiding',
       'mount home',
     ]);
@@ -724,6 +724,24 @@ void main() {
     );
     await skipping.run(reason: 'manual');
     expect(rig.calls, isNot(contains('warmUp')));
+  });
+
+  test('the night\'s lights are those of its observing night', () async {
+    // A late finish: the step runs at 11:30 and the night's first lights
+    // were taken at 18:00 the evening before, 17.5 hours earlier.
+    rig.clock = DateTime(2026, 10, 22, 11, 30);
+    final evening = DateTime(2026, 10, 21, 18);
+    rig.lights = [
+      for (var i = 0; i < 4; i++)
+        frame(
+          i,
+          type: 'light',
+          exposure: 90,
+        ).copyWith(capturedAt: evening.add(Duration(seconds: i))),
+    ];
+    final report = await service.run(reason: 'manual');
+    expect(rig.calls.first, 'lights since ${DateTime(2026, 10, 21, 12)}');
+    expect(report.phase, isNot(EonPhase.skipped));
   });
 
   test('a night without lights is skipped', () async {
