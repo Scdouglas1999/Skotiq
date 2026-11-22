@@ -31,7 +31,8 @@ pub mod quirks;
 pub mod utils;
 pub mod vendor;
 
-pub use discovery::*;
-pub use quirks::*;
-pub use utils::*;
-pub use vendor::*;
+pub use discovery::{
+    discover_native_devices, invalidate_discovery_cache, serial_port_of_id, DiscoveryScope,
+    NativeDeviceInfo, SerialPorts,
+};
+pub use vendor::camera_session_broken;

@@ -1,3 +1,4 @@
+use super::filter_wheel::{encode_cfw_position, parse_cfw_position, parse_cfw_slot_count};
 use super::*;
 
 /// A 16-bit transfer of a sub-16-bit ADC must publish the left-justified

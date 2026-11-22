@@ -32,7 +32,17 @@ mod sdk;
 #[cfg(test)]
 mod tests;
 
-pub use camera::*;
-pub use discovery::*;
-pub use ffi::*;
+// What the driver files share through `use super::*`; the public names
+// are the ones below.
+use camera::*;
+use discovery::*;
+use ffi::*;
+
+pub use camera::TouptekCamera;
+pub use discovery::{
+    discover_devices, discover_devices_for_brand, is_sdk_available, TouptekDeviceInfo,
+};
+pub use ffi::{
+    OgmacamChar, OgmacamDeviceV2, OgmacamFrameInfoV3, OgmacamModelV2, OgmacamResolution,
+};
 use sdk::*;

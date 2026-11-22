@@ -45,8 +45,15 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub use camera::*;
-pub use discovery::*;
-pub use ffi::*;
-pub use filter_wheel::*;
-pub use sdk::*;
+// What the driver files share through `use super::*`; the public names
+// are the ones below.
+use camera::*;
+use discovery::*;
+use ffi::*;
+use sdk::*;
+
+pub use camera::QhyCamera;
+pub use discovery::{discover_devices, is_sdk_available, QhyCameraInfo};
+pub use ffi::QhyControl;
+pub use filter_wheel::{discover_filter_wheels, QhyFilterWheel, QhyFilterWheelInfo};
+pub use sdk::{is_qhy_discovery_enabled, set_qhy_discovery_enabled, QhyDiscoveryConfig};
