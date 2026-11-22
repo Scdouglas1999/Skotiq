@@ -114,4 +114,43 @@ void main() {
     final high = smartNightPlanWithCountChange(before, target, 0, 100000);
     expect(high.plannedTargets.first.filterPlans.first.count, 999);
   });
+
+  test('a count change on one of two same-named targets leaves the other', () {
+    final twins = service.build(
+      profile: profile,
+      availableFilters: profile.filterNames,
+      latitudeDeg: 80,
+      longitudeDeg: -73,
+      context: SmartNightContext(
+        windowStart: _siteTime(17, 22),
+        windowEnd: _siteTime(18, 5),
+        bortleClass: 4,
+        rainOrCloudProbability: null,
+      ),
+      selectedSuggestions: [
+        suggestion(1),
+        suggestion(2).copyWith(targetName: 'Target 1'),
+      ],
+      strategy: SmartNightStrategy.autoLrgb,
+      settings: const SmartNightSettings(subExposureFloorSecs: 1),
+      planTimer: PlanTimer(site: (latitude: 80.0, longitude: -73.0)),
+    );
+    expect(twins.plannedTargets, hasLength(2));
+    final first = twins.plannedTargets.first;
+    final second = twins.plannedTargets.last;
+    final after = smartNightPlanWithCountChange(twins, first, 0, 3);
+
+    int? lCountUnder(SmartNightPlannedTarget target) {
+      for (final node in after.sequence.nodes.values) {
+        if (node is! SmartExposureNode) continue;
+        final header = after.sequence.enclosingTarget(node.id);
+        if (header?.raHours != target.suggestion.raHours) continue;
+        return node.plans.first.count;
+      }
+      return null;
+    }
+
+    expect(lCountUnder(first), first.filterPlans.first.count + 3);
+    expect(lCountUnder(second), second.filterPlans.first.count);
+  });
 }
