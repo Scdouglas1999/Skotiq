@@ -4,14 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _prefKey = 'fujifilm_disclaimer_acknowledged';
 
-bool isFujifilmDevice(String deviceId, String deviceName) {
-  final idLower = deviceId.toLowerCase();
-  final nameLower = deviceName.toLowerCase();
-  return idLower.contains('fujifilm') ||
-      idLower.contains('fuji') ||
-      nameLower.contains('fujifilm') ||
-      nameLower.contains('fuji');
-}
+bool isFujifilmDevice(String deviceId, String? deviceName) => [
+      deviceId,
+      if (deviceName != null) deviceName,
+    ].any((text) => text.toLowerCase().contains('fuji'));
 
 /// Shows the Fujifilm warranty disclaimer if not previously acknowledged.
 ///
@@ -41,7 +37,7 @@ Future<bool> showFujifilmDisclaimerIfNeeded(BuildContext context) async {
 Future<bool> askCameraConsentBeforeConnect(
   BuildContext context, {
   required String deviceId,
-  String deviceName = '',
+  String? deviceName,
 }) async {
   if (!isFujifilmDevice(deviceId, deviceName)) return true;
   return showFujifilmDisclaimerIfNeeded(context);

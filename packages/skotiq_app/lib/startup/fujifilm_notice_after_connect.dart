@@ -37,7 +37,8 @@ class _FujifilmNoticeAfterConnectState
           next.connectionState == DeviceConnectionState.connected &&
               previous?.connectionState != DeviceConnectionState.connected;
       if (!connectedNow || _shown) return;
-      if (!isFujifilmDevice(next.deviceId ?? '', next.deviceName ?? '')) {
+      final deviceId = next.deviceId;
+      if (deviceId == null || !isFujifilmDevice(deviceId, next.deviceName)) {
         return;
       }
       final uiContext = resolveStartupUiContext(ref, context);

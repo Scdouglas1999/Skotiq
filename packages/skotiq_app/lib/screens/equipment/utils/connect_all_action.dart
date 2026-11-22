@@ -37,7 +37,7 @@ Future<void> runConnectAllForProfile(
       !await askCameraConsentBeforeConnect(
         context,
         deviceId: cameraId,
-        deviceName: profile.cameraName ?? '',
+        deviceName: profile.cameraName,
       )) {
     sweepProfile = sweepProfile.copyWith(cameraId: '');
   }
@@ -48,7 +48,7 @@ Future<void> runConnectAllForProfile(
       !await askCameraConsentBeforeConnect(
         context,
         deviceId: guideCameraId,
-        deviceName: profile.guideCameraName ?? '',
+        deviceName: profile.guideCameraName,
       )) {
     sweepProfile = sweepProfile.copyWith(guideCameraId: '');
   }

@@ -189,9 +189,10 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
                     child: SkotiqDropdown(
                       value: _binX.toString(),
                       items: [for (final b in _binningFactors) b.toString()],
-                      onChanged: (v) => setState(
-                        () => _binX = int.tryParse(v ?? '') ?? 1,
-                      ),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _binX = int.parse(v));
+                      },
                     ),
                   ),
                   Padding(
@@ -210,9 +211,10 @@ extension _ProfileEditorFiltersAndCameraDefaults on _ProfileEditorDialogState {
                     child: SkotiqDropdown(
                       value: _binY.toString(),
                       items: [for (final b in _binningFactors) b.toString()],
-                      onChanged: (v) => setState(
-                        () => _binY = int.tryParse(v ?? '') ?? 1,
-                      ),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _binY = int.parse(v));
+                      },
                     ),
                   ),
                 ],
