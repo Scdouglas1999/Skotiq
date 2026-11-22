@@ -1400,7 +1400,7 @@ fn every_registered_operation_is_documented() {
 /// `haLrgb`, `custom`); each choice carries the name the engine reports it by.
 #[test]
 fn the_combination_choices_are_every_palette_by_its_name() {
-    use skotiq_imaging::color_composite::Palette;
+    use skotiq_imaging::recipe::composite::Palette;
     let palette = OP_DOCS
         .iter()
         .find(|doc| doc.id == "channel_combine")

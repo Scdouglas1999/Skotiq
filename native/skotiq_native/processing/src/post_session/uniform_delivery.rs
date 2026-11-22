@@ -217,11 +217,11 @@ pub(super) fn deliver(json: &str) -> Result<serde_json::Value, String> {
                 .get_string("FILTER")
                 .map(str::to_string)
                 .unwrap_or_else(|| input.filter.clone());
-            let role = match skotiq_imaging::color_composite::classify_filter(Some(&named), 1) {
-                skotiq_imaging::color_composite::FilterRole::Luminance => Some("L"),
-                skotiq_imaging::color_composite::FilterRole::Red => Some("R"),
-                skotiq_imaging::color_composite::FilterRole::Green => Some("G"),
-                skotiq_imaging::color_composite::FilterRole::Blue => Some("B"),
+            let role = match skotiq_imaging::recipe::composite::classify_filter(Some(&named), 1) {
+                skotiq_imaging::recipe::composite::FilterRole::Luminance => Some("L"),
+                skotiq_imaging::recipe::composite::FilterRole::Red => Some("R"),
+                skotiq_imaging::recipe::composite::FilterRole::Green => Some("G"),
+                skotiq_imaging::recipe::composite::FilterRole::Blue => Some("B"),
                 _ => None,
             };
             if let Some(role) = role.filter(|_| args.composites) {

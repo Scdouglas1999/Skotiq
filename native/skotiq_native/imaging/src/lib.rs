@@ -10,18 +10,18 @@
 
 mod airmass;
 pub mod atomic_file;
-pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
+pub mod background_extraction;
 pub mod buffer_pool;
 pub mod calibration;
-pub mod calibration_master_stream; // Memory-bounded dark/bias masters straight from frame files
-pub mod calibration_masters; // NEW: Master-flat build + cosmetic (hot/cold) correction
-pub mod color_calibration; // NEW: Photometric color calibration (per-channel white balance)
-pub mod deconvolution; // NEW: PSF estimation + Richardson-Lucy deconvolution
+pub mod calibration_master_stream;
+pub mod calibration_masters;
+pub mod color_calibration;
+pub mod deconvolution;
 pub mod defect_map;
 pub mod depthlock;
 pub mod detection_plane;
-pub mod difference_image; // NEW: Difference imaging (Pillar B — First Light) transient detection
-pub mod drizzle; // NEW: Drizzle (variable-pixel linear reconstruction) integration
+pub mod difference_image;
+pub mod drizzle;
 
 mod debayer;
 mod fits;
@@ -29,77 +29,75 @@ pub mod fits_layout;
 pub mod fits_reader;
 mod frame_cutouts;
 mod frame_io;
-mod frame_shape; // Per-frame star size/shape for grading (local background, adaptive moments)
+mod frame_shape;
 mod frame_validation;
-pub mod frame_weighting; // NEW: Per-sub quality weighting for batch integration
-pub mod integration; // NEW: Advanced weighted batch integration + pixel rejection
-pub mod master_accumulation; // NEW: Multi-night accumulating master frame
-pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
-pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
+pub mod frame_weighting;
+pub mod integration;
+pub mod master_accumulation;
+pub mod mosaic_stitch;
+pub mod normalization;
 mod numeric;
-pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
+pub mod optimizer;
 pub mod product_header;
 mod raster;
 mod raw;
 mod raw_exif;
-pub mod recipe; // Darkroom recipe engine: non-destructive, replayable op stack
-pub mod registration; // NEW: High-quality star-based registration
+pub mod recipe;
+pub mod registration;
 mod resample;
-mod robust_stats; // The crate's one set of order statistics (median / percentile conventions)
+mod robust_stats;
 pub mod sample_range;
 pub mod samples;
-pub mod sky_atlas; // NEW: HEALPix-tiled additive all-sky accumulator (the 5.0 keystone)
-pub mod stack_master; // NEW: the live stack's FITS master (synthesized EXPTIME/DATE-OBS)
+pub mod sky_atlas;
+pub mod stack_master;
 pub mod stacking;
-mod star_detect; // Star detection: background/noise maps, matched filter, deblending
-pub mod star_reduction; // NEW: Star-size reduction (morphological + screen recombine)
+mod star_detect;
+pub mod star_reduction;
 mod stats;
 mod stretch;
 mod thumbnail;
-mod trail; // Star trailing from the autocorrelation of the bright pixels
-pub mod wcs_sip; // NEW: SIP-aware (CD + forward/inverse SIP) gnomonic projection
+mod trail;
+pub mod wcs_sip;
 pub mod xisf;
 
 pub use airmass::calculate_airmass;
-pub use background_extraction::*; // NEW: Export background-extraction types
+pub use background_extraction::*;
 pub use buffer_pool::*;
 pub use calibration::*;
-pub use calibration_masters::*; // NEW: Export master-flat / cosmetic-correction types
-pub use color_calibration::*; // NEW: Export color-calibration types
+pub use calibration_masters::*;
+pub use color_calibration::*;
 pub use debayer::*;
-pub use deconvolution::*; // NEW: Export deconvolution types
+pub use deconvolution::*;
 pub use detection_plane::{ChannelCollapse, DetectionPlane, Quantize};
-pub use difference_image::*; // NEW: Export difference-imaging (First Light) types
-pub use drizzle::*; // NEW: Export drizzle types
+pub use difference_image::*;
+pub use drizzle::*;
 pub use fits::*;
 pub use frame_cutouts::read_frame_cutouts;
 pub use frame_io::*;
 pub use frame_shape::*;
 pub use frame_validation::*;
-pub use frame_weighting::*; // NEW: Export frame-weighting types
-pub use integration::*; // NEW: Export batch-integration types
-pub use master_accumulation::*; // NEW: Export accumulating-master types
-pub use mosaic_stitch::*; // NEW: Export mosaic-stitching types
-pub use normalization::*; // NEW: Export normalization types
-pub use optimizer::*; // NEW: Export integration-optimizer types
+pub use frame_weighting::*;
+pub use integration::*;
+pub use master_accumulation::*;
+pub use mosaic_stitch::*;
+pub use normalization::*;
+pub use optimizer::*;
 pub use product_header::{acquisition, CalibrationMarks, MasterProvenance, ProductCards};
 pub use raster::{write_raster, RasterError, RasterFormat, DEFAULT_JPEG_QUALITY};
 pub use raw::*;
-/// The color-composite stages, under the name the bridge imports them by.
-pub use recipe::composite as color_composite;
-pub use registration::*; // NEW: Export registration types
+pub use registration::*;
 pub use sample_range::{SampleRange, ADU_FULL_SCALE};
 pub use skotiq_frame::{
     Acquisition, AgreementPolicy, BayerColor, BayerPattern, CardReading, ColorFilterArray,
     Disagreement, ExposureTolerance, FrameKind, FrameType, NumberMatch, Setting, XTransPattern,
 };
-pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
-pub use star_reduction::*; // NEW: Export star-reduction types
+pub use sky_atlas::*;
+pub use star_reduction::*;
 pub use stats::*;
 pub use stretch::*;
 pub use thumbnail::thumbnail;
 pub use trail::{measure_frame_trail, FrameTrail, TRAIL_MIN_AXIS_RATIO};
-pub use wcs_sip::*; // NEW: Export SIP-aware projection types
+pub use wcs_sip::*;
 pub use xisf::{
     read_xisf_unit, ChecksumAlgorithm, XisfCodec, XisfCompression, XisfError, XisfUnit,
     XisfWriteOptions,

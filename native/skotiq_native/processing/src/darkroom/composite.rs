@@ -11,7 +11,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use skotiq_imaging::color_composite::{
+use skotiq_imaging::recipe::composite::{
     alignment_check, overlap_rect, plan_filter_set, register_onto, star_sigma, warp_window,
     Affine2, ChannelMix, FilterRole, FilterSetInput, Palette, PyramidSources, Rect,
 };
