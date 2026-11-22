@@ -98,10 +98,25 @@ class SequenceActionService {
   /// Hands the editor to the generated [sequence], owned by [owner], and
   /// starts it: Smart Night, a planner recommendation and a mosaic project.
   /// Taking ownership keeps the operator's unsaved sequence, which a stop of
-  /// the run restores. A refusal to start is thrown to the caller.
+  /// the run restores. The start shares the Start command's single-flight
+  /// latch. A refusal to start is thrown to the caller; one the executor's
+  /// state or a start already under way makes is thrown before the editor
+  /// changes, so the editor keeps showing the run that is on.
   Future<void> startOwnedPlan(Sequence sequence, ActivePlanOwner owner) async {
-    _ref.read(currentSequenceProvider.notifier).takeOwnership(sequence, owner);
-    await _executor.start();
+    final state = _ref.read(sequenceExecutionStateProvider);
+    if (_inFlight.containsKey(_SequenceCommand.start) || !state.canStart) {
+      throw StateError(
+        'Cannot start: a sequence start is already in flight or the executor '
+        'is not in an admissible state (state: ${state.name}).',
+      );
+    }
+    await _single(_SequenceCommand.start, () async {
+      _ref
+          .read(currentSequenceProvider.notifier)
+          .takeOwnership(sequence, owner);
+      await _executor.start();
+      return CommandActionResult.ok;
+    });
   }
 
   Future<CommandActionResult> pause() => _single(
