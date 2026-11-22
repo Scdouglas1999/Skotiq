@@ -534,21 +534,15 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
         );
       }
 
-      // On a remote client the local dark library is the tablet's — empty —
-      // not the rig's. Evaluating coverage against it would falsely report
-      // every dark as missing and, with auto-schedule enabled, waste rig time
-      // re-capturing darks the appliance already has. The rig owns its
-      // calibration library, so skip the meaningless local computation here
-      // (the plan's exposures/timing/targets come from synced settings +
-      // profile and are unaffected). Browse the rig's darks via the
-      // Calibration Library screen instead.
-      final isRemoteBackend = ref.read(isRemoteModeProvider);
+      // The imaging host's dark library: a linked client's own table is
+      // empty, and coverage against it would report every dark missing and,
+      // with auto-schedule on, spend rig time on darks the host already has.
       final SmartNightDarkLibraryMissing darkLibraryMissing;
-      if (exposureContext == null || isRemoteBackend) {
+      if (exposureContext == null) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();
       } else {
         darkLibraryMissing = await SmartNightDarkLibraryCoverage(
-          darkLibraryService: ref.read(darkLibraryServiceProvider),
+          readEntries: ref.read(darkLibraryEntriesReadProvider),
         ).missing(
           profile: activeProfile,
           filters: {

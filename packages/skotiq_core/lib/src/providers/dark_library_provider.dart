@@ -32,6 +32,18 @@ final darkLibraryServiceProvider = Provider<DarkLibraryService>((ref) {
   );
 });
 
+/// Reads every dark and bias of the imaging host's library once, for a plan's
+/// coverage check; null when the library cannot be read from here.
+///
+/// A linked client does not read the host's library yet: it answers null, so
+/// a plan built there reports no missing darks.
+final darkLibraryEntriesReadProvider =
+    hostRoleProvider<Future<List<DarkLibraryEntry>?> Function()>(
+      here: (ref) => ref.watch(darkLibraryDaoProvider).getAllEntries,
+      linked: (ref, host) =>
+          () async => null,
+    );
+
 /// Reactive stream of all dark library entries (newest first).
 ///
 /// On a linked client the slave's local `dark_library`

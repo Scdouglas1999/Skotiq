@@ -41,7 +41,7 @@ void main() {
     setUp(() {
       database = SkotiqDatabase.forTesting(NativeDatabase.memory());
       coverage = SmartNightDarkLibraryCoverage(
-        darkLibraryService: DarkLibraryService(DarkLibraryDao(database)),
+        readEntries: DarkLibraryDao(database).getAllEntries,
       );
     });
 
