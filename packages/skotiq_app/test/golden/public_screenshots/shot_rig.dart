@@ -663,7 +663,7 @@ const _solver = PlateSolverDetection(
   catalogPath: 'C:\\Program Files\\astap',
 );
 
-final _nightScoring = RecordedNightScoring.load();
+final nightScoring = RecordedNightScoring.load();
 
 /// The shared overrides: the rig, the run and the site.
 List<Override> rigOverrides() => <Override>[
@@ -671,7 +671,7 @@ List<Override> rigOverrides() => <Override>[
       planetarium.skyNowProvider.overrideWithValue(() => ShotNight.now),
       // A debug build shows the frame-time readout; a release build does not.
       planetarium.showPerfHudProvider.overrideWith((ref) => false),
-      targetScorerProvider.overrideWithValue(TargetScorer(_nightScoring)),
+      targetScorerProvider.overrideWithValue(TargetScorer(nightScoring)),
       appSettingsProvider.overrideWith(_Settings.new),
       planetarium.observerLocationProvider.overrideWith((ref) => _Observer()),
       equipmentProfilesProvider.overrideWith(_Profiles.new),

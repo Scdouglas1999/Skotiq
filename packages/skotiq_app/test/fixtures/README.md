@@ -63,7 +63,9 @@ wire's night request without the target arrays.
 Recorded on 2026-11-22 from a debug build of `skotiq_bridge` at the tree's
 own Rust, by running the screenshots with a `TargetScoring` that loaded
 `native/skotiq_native/target/debug/libskotiq_bridge.so` (`RustLib.init` with
-that `ExternalLibrary`) and wrote each request and its response. The replay
+that `ExternalLibrary`) and wrote each request and its response. The scene's
+times are local, so the recording holds for runs with
+`TZ=America/New_York`, as the screenshots are run. The replay
 refuses a request that differs from the recorded one, so a change to the
 scene, the catalog or the scoring weights asks for a new recording. A change
 to the scorer itself does not; record again when the scoring changes.

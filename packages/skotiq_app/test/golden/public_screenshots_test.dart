@@ -195,7 +195,10 @@ final shots = <Shot>[
 /// Clicks the row named [name], as the user picks it from a list.
 Future<void> Function(WidgetTester tester, ProviderContainer container) pickRow(
         String name) =>
-    (tester, _) => tester.tap(find.text(name).first);
+    (tester, _) async {
+      if (nightScoring.refusal case final refusal?) fail(refusal);
+      await tester.tap(find.text(name).first);
+    };
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

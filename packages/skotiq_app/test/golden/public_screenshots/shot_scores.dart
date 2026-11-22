@@ -41,6 +41,10 @@ class RecordedNightScoring implements TargetScoring {
     );
   }
 
+  /// Why the last request was refused. The planner shows a refused plan as
+  /// "Failed to generate plan", so a shot reads this to say why.
+  String? refusal;
+
   final Map<String, dynamic> _request;
   final int _targetCount;
   final Map<(double, double), Map<String, dynamic>> _scores;
@@ -64,11 +68,11 @@ class RecordedNightScoring implements TargetScoring {
       drift.add('targets: recorded $_targetCount, asked ${targets.length}');
     }
     if (drift.isNotEmpty) {
-      throw StateError(
-        'The recorded night scores are for another request '
-        '(${drift.join('; ')}). Record them again as '
-        'test/fixtures/README.md describes.',
-      );
+      refusal = 'The recorded night scores are for another request '
+          '(${drift.join('; ')}). Run the screenshots with '
+          'TZ=America/New_York, or record the scores again as '
+          'test/fixtures/README.md describes.';
+      throw StateError(refusal!);
     }
     return TargetScoringWire.readNightResponse([
       for (final t in targets)
