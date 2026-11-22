@@ -30,7 +30,9 @@ use crate::fits_reader::FitsReader;
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::{frame_format, FitsCopy, ImageFormat};
-use crate::{AgreementPolicy, ExposureTolerance, ImageData, NumberMatch, PixelType, Setting};
+use crate::{
+    AgreementPolicy, ExposureTolerance, ImageData, NumberMatch, PixelType, ProductCards, Setting,
+};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -616,7 +618,14 @@ fn build_with_free_space(
     };
 
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", config.kind.image_type());
+    ProductCards {
+        image_type: config.kind.image_type(),
+        frame_type: false,
+        calstat: None,
+        frames: None,
+        combined: None,
+    }
+    .write_to(&mut header);
     if let Some(v) = exposure_secs {
         header.set_float("EXPTIME", v);
         header.set_float("EXPOSURE", v);

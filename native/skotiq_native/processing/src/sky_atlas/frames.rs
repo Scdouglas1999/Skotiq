@@ -4,6 +4,7 @@ use crate::output::write_preview_png;
 use crate::sky_atlas::fold::{default_order, default_weight, fold_impl, FoldArgs, FoldFrameArgs};
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::wcs_sip::SipWcs;
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{write_fits, FitsHeader};
 use std::path::Path;
 
@@ -187,8 +188,7 @@ pub(crate) fn query_cutout_impl(args: QueryCutoutArgs) -> Result<QueryCutoutResu
     let path = Path::new(&args.fits_path);
     ensure_parent_dir(path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq sky-atlas cutout");
+    ProductCards::product("MASTER_LIGHT", "Skotiq sky-atlas cutout").write_to(&mut header);
     out_wcs.write_to_header(&mut header);
     header.add_history(&format!(
         "Sky-atlas cone cutout: RA {:.4} Dec {:.4} radius {:.4}deg, mean coverage {:.2}",

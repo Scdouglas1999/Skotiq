@@ -26,6 +26,7 @@ use skotiq_imaging::drizzle::{
     self, bayer_drizzle_integrate, BayerDrizzleFrame, DrizzleConfig, DrizzleFrame, DrizzleKernel,
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_color_filter_array, read_frame, write_fits, FitsHeader, PixelType};
 use std::path::Path;
 
@@ -254,10 +255,9 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     let master_path = Path::new(&args.output_fits);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq drizzle master");
-    header.set_int("NFRAMES", args.frames.len() as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq drizzle master")
+        .with_frames(args.frames.len() as i64)
+        .write_to(&mut header);
     header.set_float("DRZSCALE", cfg.scale);
     header.set_float("PIXFRAC", cfg.pixfrac);
     header.set_string("DRZKERN", kernel_name(cfg.kernel));

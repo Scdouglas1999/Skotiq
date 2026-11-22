@@ -11,6 +11,7 @@ use skotiq_imaging::normalization::{NormMode, NormalizationConfig};
 use skotiq_imaging::registration::{
     min_registration_stars, registrable_star_count, Interpolator, RegistrationConfig, TransformKind,
 };
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_frame_header, read_image, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -541,10 +542,9 @@ pub(crate) fn build_master_header(
     calibration: &CalibrationReport,
 ) -> FitsHeader {
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq post-session integration");
-    header.set_int("NFRAMES", sub_count as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq post-session integration")
+        .with_frames(sub_count as i64)
+        .write_to(&mut header);
     // FITS keywords are capped at 8 chars (see `fits::is_valid_keyword`).
     header.set_string("COMBMETH", &int_args.combine);
     let reject = reject_label(resolved_reject);

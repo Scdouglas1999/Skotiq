@@ -3,6 +3,7 @@ use crate::output::ensure_parent_dir;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::sky_atlas::{tile_center, PreparedFrame, TileId, ATLAS_HEALPIX_ORDER};
 use skotiq_imaging::wcs_sip::SipWcs;
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{write_fits, FitsHeader};
 use std::path::Path;
 
@@ -257,9 +258,7 @@ pub(crate) fn finalize_impl(args: FinalizeArgs) -> Result<FinalizeResult, String
     let path = Path::new(&args.out_path);
     ensure_parent_dir(path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq sky-atlas tile");
+    ProductCards::master("MASTER_LIGHT", "Skotiq sky-atlas tile").write_to(&mut header);
     header.set_int("TILEID", args.tile_id as i64);
     header.set_int("HPXORDER", args.order as i64);
     header.set_int("NFRAMES", tile.provenance.total_frames as i64);

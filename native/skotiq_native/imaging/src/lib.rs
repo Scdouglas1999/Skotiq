@@ -77,7 +77,7 @@ pub use master_accumulation::*; // NEW: Export accumulating-master types
 pub use mosaic_stitch::*; // NEW: Export mosaic-stitching types
 pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
-pub use product_header::{acquisition, CalibrationMarks, MasterCards, MasterProvenance};
+pub use product_header::{acquisition, CalibrationMarks, MasterProvenance, ProductCards};
 pub use raster::{write_raster, RasterError, RasterFormat, DEFAULT_JPEG_QUALITY};
 pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.

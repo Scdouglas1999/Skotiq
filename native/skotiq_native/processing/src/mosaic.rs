@@ -27,6 +27,7 @@ use skotiq_imaging::mosaic_stitch::{
     self, MosaicBlend, MosaicError, MosaicPanel, MosaicStitchConfig,
 };
 use skotiq_imaging::registration::Interpolator;
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_frame, write_fits, FitsHeader, SipWcs};
 use std::path::Path;
 
@@ -181,9 +182,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
     let master_path = Path::new(&args.output.mosaic_fits_path);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq mosaic stitch");
+    ProductCards::master("MASTER_LIGHT", "Skotiq mosaic stitch").write_to(&mut header);
     header.set_int("NPANELS", output.stats.panels as i64);
     header.set_int("OVRLPPRS", output.stats.overlap_pairs as i64);
     header.set_float("MOSGAIN", output.stats.mean_panel_gain);

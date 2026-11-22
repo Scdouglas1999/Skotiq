@@ -41,6 +41,7 @@ use skotiq_imaging::normalization::{
     apply_normalization, estimate_normalization, CoverageMask, NormalizationCoeffs,
 };
 use skotiq_imaging::registration::{min_registration_stars, Interpolator, TransformModel};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_image, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -1124,9 +1125,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     if let Some(source) = fits_header_of(&normalization_path) {
         copy_optics_cards(&mut header, &source);
     }
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq multi-night master");
+    ProductCards::master("MASTER_LIGHT", "Skotiq multi-night master").write_to(&mut header);
     header.set_string("GRIDREF", &grid_id);
     header.set_int("NFRAMES", folded.len() as i64);
     header.set_int("NCOMBINE", folded.len() as i64);

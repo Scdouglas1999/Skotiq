@@ -196,10 +196,9 @@ impl StackProvenance {
     /// post-session masters use.
     pub fn to_fits_header(&self) -> FitsHeader {
         let mut header = FitsHeader::new();
-        header.set_string("IMAGETYP", "MASTER_LIGHT");
-        header.set_string("FRAMETYP", "MASTER");
-        header.set_string("CALSTAT", "Skotiq live stack");
-        header.set_int("NFRAMES", self.stacked_frames as i64);
+        crate::ProductCards::master("MASTER_LIGHT", "Skotiq live stack")
+            .with_frames(self.stacked_frames as i64)
+            .write_to(&mut header);
         if let Some(ref filter) = self.filter {
             header.set_string("FILTER", filter);
         }

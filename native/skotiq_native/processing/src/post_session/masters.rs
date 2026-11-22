@@ -23,6 +23,7 @@ use skotiq_imaging::master_accumulation::{
 use skotiq_imaging::normalization::{apply_normalization, estimate_normalization, CoverageMask};
 use skotiq_imaging::registration::RegistrationConfig;
 use skotiq_imaging::stacking::{CombineMethod, MasterOutputType};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{
     acquisition, read_frame_header, read_image, write_fits, AgreementPolicy, FitsHeader, ImageData,
     NumberMatch, PixelType, Setting,
@@ -692,11 +693,10 @@ pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult,
     let master_path = Path::new(&args.master_fits_path);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq accumulating master");
-    header.set_int("NFRAMES", master.metadata.total_frames as i64);
-    header.set_int("NCOMBINE", master.metadata.total_frames as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq accumulating master")
+        .with_frames(master.metadata.total_frames as i64)
+        .with_combined(master.metadata.total_frames as i64)
+        .write_to(&mut header);
     header.set_float("EXPTIME", master.metadata.total_integration_seconds);
     if let Some(f) = &master.metadata.filter {
         header.set_string("FILTER", f);
@@ -1022,11 +1022,10 @@ pub(crate) fn build_master_flat_impl(
     let out_path = Path::new(&args.output_path);
     ensure_parent_dir(out_path)?;
     let mut header = source_headers[0].clone();
-    header.set_string("IMAGETYP", "FLAT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq master flat");
-    header.set_int("NFRAMES", master.frame_count as i64);
-    header.set_int("NCOMBINE", master.frame_count as i64);
+    ProductCards::master("FLAT", "Skotiq master flat")
+        .with_frames(master.frame_count as i64)
+        .with_combined(master.frame_count as i64)
+        .write_to(&mut header);
     header.set_bool(FLAT_PEDESTAL_CARD, pedestal.is_some());
     match pedestal_path {
         Some(path) => header.add_history(&format!(
@@ -1144,9 +1143,7 @@ pub(crate) fn save_fits_master_impl(
     let out_path = Path::new(&args.output_path);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq master (re-export)");
+    ProductCards::master("MASTER_LIGHT", "Skotiq master (re-export)").write_to(&mut header);
     if let Some(o) = &args.object {
         header.set_string("OBJECT", o);
     }

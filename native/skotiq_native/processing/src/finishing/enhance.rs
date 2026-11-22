@@ -31,6 +31,7 @@ use serde::{Deserialize, Serialize};
 use skotiq_imaging::background_extraction::{self, BackgroundConfig};
 use skotiq_imaging::deconvolution::{self, DeconvConfig, PsfEstimateConfig, PsfKind, PsfModel};
 use skotiq_imaging::star_reduction::{self, StarReduceMethod, StarReductionConfig};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{
     carry_source_header, read_frame, write_fits, FitsHeader, ImageData, PixelType,
 };
@@ -141,8 +142,7 @@ fn extract_background_impl(args: ExtractBackgroundArgs) -> Result<ExtractBackgro
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq background-extracted");
+    ProductCards::product("MASTER_LIGHT", "Skotiq background-extracted").write_to(&mut header);
     header.set_int("BGDEGREE", model.degree as i64);
     // Background extraction rewrites pixel values on the input's own grid, so
     // the input's astrometry describes this output unchanged.
@@ -282,8 +282,7 @@ fn deconvolve_preview_impl(args: DeconvolvePreviewArgs) -> Result<DeconvolvePrev
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut out_header = FitsHeader::new();
-    out_header.set_string("IMAGETYP", "MASTER_LIGHT");
-    out_header.set_string("CALSTAT", "Skotiq deconvolution preview");
+    ProductCards::product("MASTER_LIGHT", "Skotiq deconvolution preview").write_to(&mut out_header);
     out_header.set_float("PSFFWHM", psf.fwhm);
     carry_source_header(&mut out_header, &header);
     write_fits(out_path, &restored, &out_header)
@@ -489,8 +488,7 @@ fn reduce_stars_preview_impl(
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq star-reduction preview");
+    ProductCards::product("MASTER_LIGHT", "Skotiq star-reduction preview").write_to(&mut header);
     carry_source_header(&mut header, &source_header);
     write_fits(out_path, &reduced, &header)
         .map_err(|e| format!("failed to write star-reduced FITS: {e:?}"))?;

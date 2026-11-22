@@ -9,11 +9,11 @@
 use crate::FitsHeader;
 use skotiq_frame::{Acquisition, CardReading, FrameKind, FrameType};
 
-/// The identification cards of a master or other integrated product, written
+/// The identification cards of a master or other product, written
 /// in this order: `IMAGETYP`, `FRAMETYP = MASTER`, `CALSTAT`, `NFRAMES`,
 /// `NCOMBINE`. A card left `None` (or `frame_type` false) is not written.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct MasterCards<'a> {
+pub struct ProductCards<'a> {
     /// The `IMAGETYP` spelling this product is written with.
     pub image_type: &'a str,
     /// Whether `FRAMETYP = MASTER` is written.
@@ -26,10 +26,22 @@ pub struct MasterCards<'a> {
     pub combined: Option<i64>,
 }
 
-impl MasterCards<'_> {
+impl ProductCards<'_> {
+    /// A Skotiq product made from a master (a finishing step, an atlas
+    /// cutout): `IMAGETYP` and `CALSTAT`.
+    pub fn product<'a>(image_type: &'a str, calstat: &'a str) -> ProductCards<'a> {
+        ProductCards {
+            image_type,
+            frame_type: false,
+            calstat: Some(calstat),
+            frames: None,
+            combined: None,
+        }
+    }
+
     /// A Skotiq master: `IMAGETYP`, `FRAMETYP = MASTER` and `CALSTAT`.
-    pub fn master<'a>(image_type: &'a str, calstat: &'a str) -> MasterCards<'a> {
-        MasterCards {
+    pub fn master<'a>(image_type: &'a str, calstat: &'a str) -> ProductCards<'a> {
+        ProductCards {
             image_type,
             frame_type: true,
             calstat: Some(calstat),
@@ -173,7 +185,7 @@ mod tests {
     #[test]
     fn master_cards_are_written_in_order_and_read_back() {
         let mut header = FitsHeader::new();
-        MasterCards::master("FLAT", "Skotiq master flat")
+        ProductCards::master("FLAT", "Skotiq master flat")
             .with_frames(20)
             .with_combined(20)
             .write_to(&mut header);
@@ -192,7 +204,7 @@ mod tests {
     #[test]
     fn a_streamed_dark_says_integrated_by_its_type_and_count_only() {
         let mut header = FitsHeader::new();
-        MasterCards {
+        ProductCards {
             image_type: "Master Dark",
             frame_type: false,
             calstat: None,
