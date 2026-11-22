@@ -6,6 +6,7 @@ import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart'
     show darkroomEditLocation;
 import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
+import 'package:skotiq_remote_protocol/wire.dart' show NotificationPayloadType;
 
 import 'mobile_preferences.dart';
 import 'package:skotiq_core/utils.dart';
@@ -149,46 +150,43 @@ String? routeForNotificationPayload(String payload) {
   // tab) share one table with the desktop banners.
   final darkroom = darkroomRouteForPayload(payload);
   if (darkroom != null) return darkroom;
-  final colon = payload.indexOf(':');
-  final type = colon == -1 ? payload : payload.substring(0, colon);
-  final arg = colon == -1 ? null : payload.substring(colon + 1);
-
+  final (:type, argument: arg) = NotificationPayloadType.parse(payload);
   switch (type) {
-    case 'image_ready':
+    case NotificationPayloadType.imageReady:
       if (arg == null || arg.isEmpty) return AppRoute.imaging.path;
       return AppRoutes.imagingPreview(arg);
-    case 'sequence_complete':
-    case 'sequence_failed':
-    case 'meridian_flip':
-    case 'target_completed':
-    case 'autofocus_failed':
+    case NotificationPayloadType.sequenceComplete:
+    case NotificationPayloadType.sequenceFailed:
+    case NotificationPayloadType.meridianFlip:
+    case NotificationPayloadType.targetCompleted:
+    case NotificationPayloadType.autofocusFailed:
       return AppRoute.sequencer.path;
-    case 'exposure_failed':
+    case NotificationPayloadType.exposureFailed:
       return AppRoute.imaging.path;
-    case 'plate_solve_failed':
-    case 'centering_failed':
+    case NotificationPayloadType.plateSolveFailed:
+    case NotificationPayloadType.centeringFailed:
       // Both job-failure paths land on the imaging viewport because that
       // screen exposes the "solve again" / "re-center" actions.
       return AppRoute.imaging.path;
-    case 'polar_alignment_failed':
+    case NotificationPayloadType.polarAlignmentFailed:
       // Polar align has its own dedicated screen; route there directly.
       return AppRoute.polarAlignment.path;
-    case 'guiding_lost':
+    case NotificationPayloadType.guidingLost:
       return AppRoute.guiding.path;
-    case 'safety':
+    case NotificationPayloadType.safety:
       return AppRoute.weather.path;
-    case 'equipment_disconnected':
-    case 'mount_fault':
+    case NotificationPayloadType.equipmentDisconnected:
+    case NotificationPayloadType.mountFault:
       return AppRoute.equipment.path;
-    case 'low_battery':
-    case 'low_disk_space':
+    case NotificationPayloadType.lowBattery:
+    case NotificationPayloadType.lowDiskSpace:
       return AppRoute.tonight.path;
-    case 'ownership_taken_over':
-    case 'ownership_auto_released':
+    case NotificationPayloadType.ownershipTakenOver:
+    case NotificationPayloadType.ownershipAutoReleased:
       // Session ownership state lives on the dashboard banner; that's
       // where the user resolves the take-over.
       return AppRoute.tonight.path;
-    case 'darkroom_draft':
+    case NotificationPayloadType.darkroomDraft:
       // The dawn autopilot's morning message. The argument is the recipe row
       // the pass saved; without one there is nothing specific to open, so the
       // tap lands on the Darkroom's own empty/most-recent state rather than on
@@ -196,9 +194,9 @@ String? routeForNotificationPayload(String payload) {
       final recipeId = int.tryParse(arg ?? '');
       if (recipeId == null) return AppRoute.darkroom.path;
       return darkroomEditLocation(recipeId: recipeId);
-    case 'push':
+    case NotificationPayloadType.push:
       return AppRoute.tonight.path;
-    default:
+    case null:
       return null;
   }
 }
@@ -638,7 +636,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Sequence Complete',
       'Imaging of $targetName finished. $imageCount images captured.',
       _sequenceDetails,
-      payload: 'sequence_complete:$targetName',
+      payload: NotificationPayloadType.sequenceComplete.payload(targetName),
     );
   }
 
@@ -654,7 +652,7 @@ class MobileNotificationService implements MobileNotificationSink {
       title,
       body,
       _sequenceDetails,
-      payload: 'sequence_failed',
+      payload: NotificationPayloadType.sequenceFailed.payload(),
     );
   }
 
@@ -670,7 +668,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Meridian Flip',
       'Meridian flip finished for $targetName at $timeStr',
       _infoDetails,
-      payload: 'meridian_flip:$targetName',
+      payload: NotificationPayloadType.meridianFlip.payload(targetName),
     );
   }
 
@@ -683,7 +681,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Low Disk Space',
       message,
       _warningDetails,
-      payload: 'low_disk_space',
+      payload: NotificationPayloadType.lowDiskSpace.payload(),
     );
   }
 
@@ -696,7 +694,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Low Battery',
       lowBatteryMessage(percentage),
       _warningDetails,
-      payload: 'low_battery:$percentage',
+      payload: NotificationPayloadType.lowBattery.payload(percentage),
     );
   }
 
@@ -721,7 +719,7 @@ class MobileNotificationService implements MobileNotificationSink {
       title,
       body,
       _criticalAlarmDetails,
-      payload: 'safety',
+      payload: NotificationPayloadType.safety.payload(),
     );
   }
 
@@ -735,7 +733,7 @@ class MobileNotificationService implements MobileNotificationSink {
       title,
       body,
       _criticalAlarmDetails,
-      payload: 'mount_fault',
+      payload: NotificationPayloadType.mountFault.payload(),
     );
   }
 
@@ -746,7 +744,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Guiding Lost',
       reason,
       _criticalDetails,
-      payload: 'guiding_lost',
+      payload: NotificationPayloadType.guidingLost.payload(),
     );
   }
 
@@ -758,7 +756,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Guiding Recovered',
       body,
       _infoDetails,
-      payload: 'guiding_lost',
+      payload: NotificationPayloadType.guidingLost.payload(),
     );
   }
 
@@ -769,7 +767,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Exposure Failed',
       errorMessage,
       _warningDetails,
-      payload: 'exposure_failed',
+      payload: NotificationPayloadType.exposureFailed.payload(),
     );
   }
 
@@ -780,7 +778,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Autofocus Failed',
       'Autofocus did not complete successfully.',
       _warningDetails,
-      payload: 'autofocus_failed',
+      payload: NotificationPayloadType.autofocusFailed.payload(),
     );
   }
 
@@ -794,7 +792,9 @@ class MobileNotificationService implements MobileNotificationSink {
       'Device Disconnected',
       '$deviceType disconnected: $deviceId',
       _criticalDetails,
-      payload: 'equipment_disconnected:$deviceType',
+      payload: NotificationPayloadType.equipmentDisconnected.payload(
+        deviceType,
+      ),
     );
   }
 
@@ -805,7 +805,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Target Complete',
       'Finished imaging target: $targetName',
       _infoDetails,
-      payload: 'target_completed:$targetName',
+      payload: NotificationPayloadType.targetCompleted.payload(targetName),
     );
   }
 
@@ -864,7 +864,7 @@ class MobileNotificationService implements MobileNotificationSink {
         priority: androidPriority,
         playSound: playSound,
       ),
-      payload: deepLink ?? 'push:$eventType',
+      payload: deepLink ?? NotificationPayloadType.push.payload(eventType),
     );
   }
 
@@ -883,7 +883,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Plate Solve Failed',
       errorMessage,
       _warningDetails,
-      payload: 'plate_solve_failed',
+      payload: NotificationPayloadType.plateSolveFailed.payload(),
     );
   }
 
@@ -894,7 +894,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Centering Failed',
       errorMessage,
       _warningDetails,
-      payload: 'centering_failed',
+      payload: NotificationPayloadType.centeringFailed.payload(),
     );
   }
 
@@ -905,7 +905,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Polar Alignment Failed',
       errorMessage,
       _warningDetails,
-      payload: 'polar_alignment_failed',
+      payload: NotificationPayloadType.polarAlignmentFailed.payload(),
     );
   }
 
@@ -925,7 +925,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Control Taken Over',
       body,
       _warningDetails,
-      payload: 'ownership_taken_over',
+      payload: NotificationPayloadType.ownershipTakenOver.payload(),
     );
   }
 
@@ -936,7 +936,7 @@ class MobileNotificationService implements MobileNotificationSink {
       'Session Released',
       'Your session was released due to inactivity ($reason).',
       _infoPassiveDetails,
-      payload: 'ownership_auto_released',
+      payload: NotificationPayloadType.ownershipAutoReleased.payload(),
     );
   }
 
