@@ -83,6 +83,14 @@ final List<AlwaysOnService> alwaysOnServices = [
     'the queue the remote access server delivers to paired phones',
   ),
   AlwaysOnService(
+    'plugin events',
+    pluginHostEventsProvider,
+    // Plugins run where the hardware is.
+    _hosts,
+    'weather readings and focuser moves reach the plugins that listen for '
+        'them (the Weather Logger, when it is turned on)',
+  ),
+  AlwaysOnService(
     'error toasts',
     errorNotificationBridgeProvider,
     _windows,

@@ -205,6 +205,7 @@ export 'src/providers/constellation_provider.dart';
 export 'src/providers/transient_detections_provider.dart';
 export 'src/providers/hardware_presets_provider.dart';
 export 'src/providers/plugin_enablement_provider.dart';
+export 'src/providers/plugin_host_events.dart';
 export 'src/providers/end_of_night_calibration/eon_providers.dart';
 export 'src/providers/annotation_service_provider.dart';
 export 'src/providers/device_service_providers.dart';
