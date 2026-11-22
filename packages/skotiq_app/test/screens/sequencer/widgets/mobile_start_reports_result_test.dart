@@ -3,7 +3,6 @@
 // context, gone by then, so a refused start said nothing on a phone.
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/mobile_playback_bar.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/preflight_validation_dialog.dart';

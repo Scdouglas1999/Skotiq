@@ -31,7 +31,6 @@ apps/desktop/lib/headless_api/handlers/db_read_handlers.dart	handleUpdateJournal
 apps/desktop/lib/headless_api/handlers/db_read_handlers.dart	handleUpdateJournalNote	literal_null_coalesce	1	V0121	clearTitle: optionalBool(payload, 'clearTitle') ?? false,
 apps/desktop/lib/headless_api/handlers/device_discovery_handlers.dart	handleDiscoverAlpacaAtAddress	literal_null_coalesce	1	V0121	final host = (query['host'] ?? '').trim();
 apps/desktop/lib/headless_api/handlers/device_discovery_handlers.dart	handleDiscoverIndiAtAddress	literal_null_coalesce	1	V0121	final host = (query['host'] ?? '').trim();
-apps/desktop/lib/headless_api/handlers/device_handlers.dart	requestPrefersLegacyBlocking	literal_null_coalesce	1	V0036	final accept = request.headers['accept'] ?? '';
 apps/desktop/lib/headless_api/handlers/device_handlers/camera_handlers.dart	handleCameraGetCooling	literal_null_coalesce	1	V0121	final deviceId = request.url.queryParameters['deviceId'] ?? '';
 apps/desktop/lib/headless_api/handlers/device_handlers/camera_handlers.dart	handleCameraGetLastImage	literal_null_coalesce	1	V0121	final deviceId = request.url.queryParameters['deviceId'] ?? '';
 apps/desktop/lib/headless_api/handlers/device_handlers/camera_handlers.dart	handleCameraGetLastImageJpeg	literal_null_coalesce	1	V0121	final deviceId = (query['deviceId'] ?? '').trim();
@@ -2199,8 +2198,8 @@ packages/skotiq_core/lib/src/backend/network_backend/host_notifications.dart	upd
 packages/skotiq_core/lib/src/backend/network_backend/host_rig_settings.dart	getSettingsStore	literal_null_coalesce	1	V0121	(key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
 packages/skotiq_core/lib/src/backend/network_backend/host_rig_settings.dart	mergeSettingsStore	literal_null_coalesce	1	V0121	entry.key.toString(): entry.value?.toString() ?? '',
 packages/skotiq_core/lib/src/backend/network_backend/http_transport.dart	_openRawGetWithAuthRefresh	empty_catch	1	V0121	} catch (_) {
-packages/skotiq_core/lib/src/backend/network_backend/imaging_profile_operations.dart	_capturedImageFromRow	literal_null_coalesce	1	V0121	final gain = _optionalImageInt(row, 'gain', context, min: 0) ?? 0;
-packages/skotiq_core/lib/src/backend/network_backend/imaging_profile_operations.dart	_capturedImageFromRow	literal_null_coalesce	1	V0121	final offset = _optionalImageInt(row, 'offset', context, min: 0) ?? 0;
+packages/skotiq_core/lib/src/backend/network_backend/imaging_profile_operations.dart	_capturedImageFromRow	literal_null_coalesce	1	V0121	final gain = optionalInt(row, 'gain', context, min: 0) ?? 0;
+packages/skotiq_core/lib/src/backend/network_backend/imaging_profile_operations.dart	_capturedImageFromRow	literal_null_coalesce	1	V0121	final offset = optionalInt(row, 'offset', context, min: 0) ?? 0;
 packages/skotiq_core/lib/src/backend/network_backend/imaging_profile_operations.dart	saveProfileFields	literal_null_coalesce	1	V0121	if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
 packages/skotiq_core/lib/src/backend/network_backend/remote_calibration_catalog_operations.dart	getFlatRecommendation	literal_null_coalesce	1	V0121	(recommended['exposureDuration'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/backend/network_backend/remote_calibration_catalog_operations.dart	getFlatRecommendation	literal_null_coalesce	1	V0121	ageDays: (basedOn?['ageDays'] as num?)?.toInt() ?? 0,
