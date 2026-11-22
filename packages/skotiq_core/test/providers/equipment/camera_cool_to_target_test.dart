@@ -1,5 +1,5 @@
 // "Cool to" named the cooler's live setpoint, so during and after a warm-up
-// it read "Cool to -8°C" and cooled there (qa-pair QP-21). It names the
+// it read "Cool to -8°C" and cooled there. It names the
 // cooling goal: the user's choice this session, else the profile's setpoint.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

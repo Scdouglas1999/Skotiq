@@ -125,7 +125,6 @@ class NotificationRouter {
   /// windows and the rendered clock time deterministically.
   final DateTime Function() _now;
 
-  /// Event stream subscription.
   StreamSubscription<SkotiqEvent>? _subscription;
 
   /// Decides the ONE phone push a stop episode is allowed, and whether the

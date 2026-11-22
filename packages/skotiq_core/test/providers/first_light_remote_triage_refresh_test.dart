@@ -1,4 +1,4 @@
-// Wave 2 / Pillar B — remote-slave First Light triage refresh.
+// Pillar B — remote-slave First Light triage refresh.
 //
 // On the night tablet (NetworkBackend / slave), the First Light feed is a
 // debounced REST snapshot of /api/firstlight/candidates that otherwise only

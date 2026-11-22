@@ -5,11 +5,7 @@
 /// anything: when the stop condition is ALREADY true at entry there is no
 /// window left, so the whole target is skipped
 /// (`native/skotiq_native/sequencer/src/node/logic/target_header.rs`,
-/// `emit_end_when_skipped_at_entry`). That skip used to publish nothing at
-/// all — a run that dropped an entire target answered `state: "completed"`,
-/// `progress: 1.0`, `warningMessages: []` and a `targetBreakdown` the target
-/// was absent from, and the only record anywhere was one `WARN` line in the
-/// Rust log file.
+/// `emit_end_when_skipped_at_entry`).
 ///
 /// ## Why it rides `TriggerFired`
 ///

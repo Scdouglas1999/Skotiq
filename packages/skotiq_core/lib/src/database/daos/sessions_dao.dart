@@ -298,7 +298,6 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
         .watch();
   }
 
-  /// Update session status only
   Future<void> updateSessionStatus(int id, SessionStatus status) {
     return (update(imagingSessions)..where((s) => s.id.equals(id))).write(
       ImagingSessionsCompanion(status: Value(status.token)),
@@ -361,10 +360,8 @@ class SessionsDao extends DatabaseAccessor<SkotiqDatabase>
   /// Every session a previous process left unfinished, newest first — the
   /// nights the Continue Session handoff exists for.
   ///
-  /// Reads `interrupted`, not `active`. Those two used to be the same set
-  /// because nothing ever closed an abandoned row, so `active` meant "live OR
-  /// abandoned" and the handoff read it for the second meaning. The boot sweep
-  /// now closes abandoned rows at open, which leaves `active` meaning only
+  /// Reads `interrupted`, not `active`. The boot sweep
+  /// closes abandoned rows at open, which leaves `active` meaning only
   /// "this process is driving it right now" — and a night still in progress is
   /// not a night to hand off from.
   Future<List<ImagingSession>> getInterruptedSessions() =>

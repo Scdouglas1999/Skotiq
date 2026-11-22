@@ -300,7 +300,6 @@ class MosaicService {
       );
     }
 
-    // Check if target is near celestial poles
     if (config.centerDec.abs() > 80) {
       warnings.add(
         'Targets near celestial poles may have distorted panel layout',
@@ -435,7 +434,6 @@ class MosaicService {
         final exposureId = uuid.v4();
         final exposureChildIds = <String>[exposureId];
 
-        // Add dither if enabled
         if (options.ditherBetweenExposures) {
           final ditherId = uuid.v4();
           exposureChildIds.add(ditherId);

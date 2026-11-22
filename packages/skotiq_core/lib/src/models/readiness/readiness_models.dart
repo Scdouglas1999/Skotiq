@@ -441,12 +441,7 @@ ReadinessItem _buildCriticalDevices({
 /// Other profile devices.
 ///
 /// CAUTION when the active profile assigns a device that is not connected. Not
-/// blocking — you can image without a guider or a dome — but it must be VISIBLE,
-/// which was the whole defect: a profile whose guider failed to connect on
-/// launch produced no card, no banner and no readiness row, while the same
-/// screen read "Ready to image / 2 items to review" and neither item was the
-/// guider. The only explanation anywhere in the product was a tooltip on a
-/// ~6 px status dot.
+/// blocking — you can image without a guider or a dome — but it must be VISIBLE.
 ReadinessItem _buildProfileDevices({
   required List<String> offlineProfileDevices,
   required bool hasActiveProfile,

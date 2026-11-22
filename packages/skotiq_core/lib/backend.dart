@@ -22,8 +22,6 @@ export 'src/backend/sequencer_error_kind.dart';
 // the surfaces that persist or assert on a sequenced frame read the event's
 // key names from one place rather than re-spelling them.
 export 'src/backend/frame_capture_metadata.dart';
-// Authored sentence inside a typed bridge error, for UI packages that render a
-// caught error as copy without importing package:skotiq_bridge.
 export 'src/backend/network_backend/host_data/remote_imaging_records.dart';
 export 'src/backend/roles/host_data/imaging_records.dart';
 export 'src/backend/bridge_event_codec.dart';

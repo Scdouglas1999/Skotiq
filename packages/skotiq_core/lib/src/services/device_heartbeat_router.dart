@@ -103,7 +103,7 @@ class DeviceHeartbeatRouter {
 
   /// Surface a Dart-driven "reconnecting" health state for [deviceId].
   ///
-  /// Why this exists (DEV-P1 reconnect-UI gap): the native heartbeat
+  /// Why this exists: the native heartbeat
   /// monitor defines `HeartbeatReconnecting` / `HeartbeatReconnected`
   /// events but never emits them (bridge `event.rs` ~220-226). So the
   /// `reconnecting` indicator was permanently dead during real

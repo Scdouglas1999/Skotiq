@@ -126,11 +126,9 @@ class MpcExportService {
       );
     }
 
-    // Sort by timestamp for consistent output
     final sorted = List<MovingObjectCandidateRow>.from(candidates)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
-    // Build provisional designations if not provided
     final designations =
         provisionalDesignations ?? _assignProvisionalDesignations(sorted);
 
@@ -166,7 +164,6 @@ class MpcExportService {
       group.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     }
 
-    // Filter to only groups with observations spanning multiple nights
     final multiNight = <String, List<MovingObjectCandidateRow>>{};
     for (final entry in groups.entries) {
       final nights = entry.value.map((c) {
@@ -482,7 +479,6 @@ class MpcExportService {
     var ra = raDegrees % 360.0;
     if (ra < 0) ra += 360.0;
 
-    // Convert degrees to hours
     final totalHours = ra / 15.0;
     final hours = totalHours.floor();
     final remainderMinutes = (totalHours - hours) * 60.0;
@@ -559,7 +555,6 @@ class MpcExportService {
     var counter = 1;
 
     for (final candidateId in uniqueIds) {
-      // Find the first observation for this candidate to check if it's known
       final firstObs = candidates.firstWhere(
         (c) => c.candidateId == candidateId,
       );

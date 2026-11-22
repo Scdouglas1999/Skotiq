@@ -76,7 +76,7 @@ class MeridianCountdownState extends Equatable {
   /// The target is past the meridian and the mount already points at it from
   /// the post-flip side (pier East, looking West): no flip is pending. A run
   /// that homes through the meridian and slews back lands here without
-  /// flipping, and the countdown used to read "past due" all night.
+  /// flipping.
   final bool onPostFlipSide;
 
   const MeridianCountdownState({

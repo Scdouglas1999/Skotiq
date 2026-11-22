@@ -271,7 +271,6 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
     final sessionService = _ref.read(sessionServiceProvider);
 
-    // Update session service with final statistics before ending
     await _updateSessionServiceStats();
 
     await sessionService.endSession(status: status);

@@ -165,7 +165,6 @@ class SiteHorizonProfile {
 
     if (_samples.length >= 2) return _interpolateSamples(az);
 
-    // Find which two compass points we're between
     const segmentSize = 360.0 / 8.0; // 45 degrees per segment
     final segmentIndex = (az / segmentSize).floor() % 8;
     final nextIndex = (segmentIndex + 1) % 8;

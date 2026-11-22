@@ -19,17 +19,16 @@ import '../utils/retryable_once.dart';
 /// them.
 class FocusModelConfig {
   /// Reject regressions whose absolute slope exceeds this many steps/°C.
-  /// Was hardcoded `|slope| > 500`.
   final double maxAcceptableSlopeStepsPerC;
 
-  /// Minimum R² before [FocusModel.isReliable] returns true. Was 0.7.
+  /// Minimum R² before [FocusModel.isReliable] returns true.
   final double minRSquared;
 
-  /// Minimum sample count before [FocusModel.isReliable] returns true. Was 5.
+  /// Minimum sample count before [FocusModel.isReliable] returns true.
   final int minDataPointCount;
 
   /// Minimum filter-offset confidence required to apply the offset during a
-  /// prediction. Was 0.5.
+  /// prediction.
   final double minFilterOffsetConfidence;
 
   const FocusModelConfig({
@@ -339,7 +338,6 @@ class FocusModelService {
     return _profileData[profileId];
   }
 
-  /// Add a focus data point from an autofocus run
   Future<void> addDataPoint({
     required String profileId,
     required double temperatureCelsius,

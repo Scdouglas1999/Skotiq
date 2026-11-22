@@ -1,4 +1,4 @@
-// Component C6 — HiPS framing tile loader / orchestrator.
+// HiPS framing tile loader / orchestrator.
 //
 // This is the *scheduler* that turns a stream of fast-changing framing
 // viewports (pan/zoom/rotate gestures, target switches) into a small, ordered,

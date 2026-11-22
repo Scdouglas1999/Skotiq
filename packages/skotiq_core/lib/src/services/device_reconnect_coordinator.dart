@@ -239,7 +239,7 @@ class DeviceReconnectCoordinator {
       return;
     }
 
-    // DEV-P1 dual-reconnect de-duplication: if the native Rust
+    // Dual-reconnect de-duplication: if the native Rust
     // reconnection engine owns reconnect for this device type, defer to
     // it. Both engines firing against the same physical device after a
     // heartbeat-driven loss double-connected and thrashed the driver.

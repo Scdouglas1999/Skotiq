@@ -485,7 +485,7 @@ void main() {
       },
     );
 
-    // Phase B (scheduler-activation): the in-sequence TargetScheduler config
+    // The in-sequence TargetScheduler config
     // emitted to the Rust executor must carry the adaptive-swap threshold and
     // the azimuth horizon mask (samples-only shape) so the already-built Rust
     // swap engine + horizon runnable-gate engage.

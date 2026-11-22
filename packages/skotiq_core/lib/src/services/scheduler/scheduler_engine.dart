@@ -109,14 +109,6 @@ class SchedulerEngine {
   // `Sequence.id` of the last sequence passed to
   // [SchedulerSequenceSink.dispatchSequence]. This — not `currentTargetId` —
   // is what makes "is this run mine?" answerable.
-  //
-  // `currentTargetId != null` was a STALE-STATE test, not an ownership test:
-  // when the autopilot's own run ended by any path the engine never hears
-  // about (operator Stop, abort, failure — only a natural completion reaches
-  // the trigger stream), currentTargetId stayed set, so the next no-eligible
-  // tick stopped whatever the operator had loaded by then. The engine now
-  // records the run it dispatched and asks the sink whether that exact run is
-  // still the active one before ending it.
   String? _dispatchedRunId;
 
   // Bumped by [stop] (and any other disengage) so an evaluation whose dispatch

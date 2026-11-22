@@ -1,4 +1,4 @@
-// SY-24 (sync night 2026-11-03): a client linked to the host never showed
+// A client linked to the host never showed
 // why guiding was stopped. The host's /api/sequencer/status carried
 // guidingStopReason "tracking_limit_hold" and /api/phd2/status its
 // stopReason, but the client set its stop reason only from live StopReason

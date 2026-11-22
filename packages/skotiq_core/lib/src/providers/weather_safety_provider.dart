@@ -458,7 +458,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       dataSource = SafetyDataSource.weatherApi;
     }
 
-    // Check for failures requiring fail mode handling
     String? failModeWarning = unreachableWarning;
     if (alertStale) {
       failModeWarning ??=

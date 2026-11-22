@@ -86,7 +86,7 @@ void main() {
       expect(report.insights.single.title, contains('stable'));
     });
 
-    // qa-rig RIG-08: one aborted session that logged 84.9" RMS made a rig
+    // One aborted session that logged 84.9" RMS made a rig
     // guiding at 1.2" read "19.23x the historical baseline".
     test('one outlier session does not read as guiding degradation', () {
       final report = service.analyze(
@@ -225,7 +225,7 @@ void main() {
     });
   });
 
-  // No-hardware campaign 2026-07-29: reproduced on 3 of 3 restarts — the
+  // Reproduced on 3 of 3 restarts — the
   // profile's guider failed to connect on launch and the equipment screen still
   // read "System Health 100 - Excellent" in green above "Ready to image",
   // because a device that never connected has no heartbeat and therefore

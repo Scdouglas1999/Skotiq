@@ -208,7 +208,6 @@ TemplateSnippet createSnippetFromSelection({
     throw ArgumentError('nodeIds cannot be empty');
   }
 
-  // Create a SequenceFileService instance to use its serialization methods
   final fileService = SequenceFileService();
 
   final nodeData = <Map<String, dynamic>>[];
@@ -219,8 +218,6 @@ TemplateSnippet createSnippetFromSelection({
       throw ArgumentError('Node with id $nodeId not found in sequence');
     }
 
-    // Use the file service's internal serialization method
-    // We need to access it through a workaround since it's private
     nodeData.add(_serializeNode(node, sequence, fileService));
   }
 

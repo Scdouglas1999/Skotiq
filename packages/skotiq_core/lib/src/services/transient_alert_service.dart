@@ -699,7 +699,6 @@ class TransientAlertService {
         return false;
       }
 
-      // Filter by magnitude threshold (only if magnitude is known)
       if (alert.magnitude != null &&
           alert.magnitude! > settings.magnitudeThreshold) {
         return false;
@@ -752,7 +751,6 @@ class TransientAlertService {
       }
     }
 
-    // Check auto-queue criteria for bright transients
     if (settings.autoQueueBright) {
       if (alert.magnitude != null &&
           alert.magnitude! <= settings.autoQueueMagnitude) {
@@ -760,7 +758,6 @@ class TransientAlertService {
       }
     }
 
-    // Notify for any alert that passes magnitude and type filters
     return settings.notifyOnNew;
   }
 

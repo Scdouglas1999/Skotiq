@@ -76,7 +76,7 @@ void main() {
     expect(lines.where((e) => e.source == 'BridgeEventCodec'), isEmpty);
   });
 
-  // A linked run on 2026-11-22 (u91/p19): host and client each logged
+  // A linked run on 2026-11-22: host and client each logged
   // "Dropped a system/settings.changed event this build cannot read" after a
   // settings save and the same for sequencer/SequenceUpdated after a sequence
   // save. The host's Dart code makes both; their readers take the wire event.

@@ -1,4 +1,4 @@
-// 2026-06-04 follow-up — live-stacking auto-feed during sequencer runs.
+// Live-stacking auto-feed during sequencer runs.
 //
 // Before this wiring, the Rust LiveStacking instruction node armed a
 // broadcast session but nothing on the Dart side ever fed accepted frames

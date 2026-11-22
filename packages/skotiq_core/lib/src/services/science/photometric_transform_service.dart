@@ -72,7 +72,6 @@ class PhotometricTransformService implements PhotometricTransforms {
       return null;
     }
 
-    // Filter out saturated or very faint stars
     final validStars = starMatches
         .where((star) {
           return star.instrumentalFlux > 0 &&

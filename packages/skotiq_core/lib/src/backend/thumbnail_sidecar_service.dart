@@ -9,9 +9,7 @@
 // never blocks) and self-heals legacy rows on demand. Every reader consults
 // the sidecar first and only falls back to a fresh decode when the file is
 // missing: the remote-mode HTTP handlers via `readSidecar`/`writeSidecarForRow`,
-// and the desktop FFI backend via `readSidecar`/`generateAndCacheSidecar`. The
-// FFI path used to skip the cache entirely, so on desktop a frame whose sidecar
-// was sitting on disk still cost a full-frame FITS decode on every navigation.
+// and the desktop FFI backend via `readSidecar`/`generateAndCacheSidecar`.
 //
 // Failed sidecar writes are logged at warning severity — not error, because
 // the captured image is fully usable without a sidecar and the cold-read

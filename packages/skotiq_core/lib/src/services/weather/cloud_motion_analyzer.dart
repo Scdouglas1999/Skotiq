@@ -130,7 +130,6 @@ class CloudMotionAnalyzer {
       );
     }
 
-    // Sort frames by timestamp to ensure chronological order
     final sortedFrames = List<RadarFrame>.from(frames)
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
@@ -142,7 +141,6 @@ class CloudMotionAnalyzer {
     // single uniform value per snapshot — which we detect below and reject.
     final snapshots = _groupFramesByTimestamp(sortedFrames);
 
-    // Find nearest cloud mass in the most recent snapshot.
     final cloudMassResult = findNearestCloudMass(
       frames: sortedFrames,
       userLatitude: userLatitude,

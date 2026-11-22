@@ -56,7 +56,6 @@ class CoverCalibratorChannel
 
 /// The host's switch channels (names, on/off, analog values), so a client's
 /// switch card follows a channel changed on the host or by another client.
-/// The card used to read the channels once when it opened.
 class SwitchChannelsChannel extends RuntimeMirrorChannel<SwitchState> {
   const SwitchChannelsChannel();
 

@@ -1,4 +1,4 @@
-// Migration round-trip test for the v53 -> v54 step (Living Sky — Wave 0 DB
+// Migration round-trip test for the v53 -> v54 step (Living Sky DB
 // layer). v54 is purely additive:
 //   * NEW table `constellation_contributions` (+ its unique
 //     (hub_key, tile_id, healpix_order) index) — federation receipts.

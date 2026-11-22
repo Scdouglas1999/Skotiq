@@ -7,7 +7,7 @@ import 'roles/profile_settings_backend.dart';
 import 'roles/sequencer_backend.dart';
 
 // Re-export the FRB-canonical PlateSolveResult so callers can keep importing
-// just `skotiq_backend.dart` after the model-layer copy was deleted.
+// just `skotiq_backend.dart`.
 // Also re-export CameraRecommendedSettings so device service / UI code can
 // stay on the skotiq_backend import path.
 export 'package:skotiq_bridge/skotiq_bridge.dart'

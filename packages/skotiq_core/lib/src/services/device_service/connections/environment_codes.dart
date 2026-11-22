@@ -1,6 +1,6 @@
 part of '../../device_service.dart';
 
-/// Simulator campaign 2026-07-28 (S1): a read failure moves the device to
+/// A read failure moves the device to
 /// `error`, and polling only `connected` devices meant the poll loop dropped
 /// the source permanently — a sensor that came back stayed unread until the
 /// operator reconnected it by hand. Keep polling a faulted device that still

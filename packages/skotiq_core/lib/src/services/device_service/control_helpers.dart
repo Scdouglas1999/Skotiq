@@ -260,7 +260,6 @@ extension _DeviceServiceControlHelpers on DeviceService {
         focuserNotifier.updateTemperature(status.temperature!);
       }
 
-      // Check if we've reached the target (within 1 step tolerance)
       if ((status.position - targetPosition).abs() <= 1) {
         focuserNotifier.setMoving(false);
         return;
@@ -442,7 +441,6 @@ extension _DeviceServiceControlHelpers on DeviceService {
           : '__default_filter_wheel__';
       final lastAppliedOffset = _lastAppliedFilterOffsetByWheel[offsetKey] ?? 0;
 
-      // Calculate delta from last applied offset for this wheel.
       final delta = newOffset - lastAppliedOffset;
 
       if (delta == 0) {

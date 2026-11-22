@@ -150,7 +150,6 @@ class DeviceMatchingService {
   String normalizeName(String name) {
     var normalized = name.trim();
 
-    // Remove ASCOM. or INDI. prefix patterns
     normalized = normalized.replaceAll(
       RegExp(r'^ASCOM\.\w+\.', caseSensitive: false),
       '',
@@ -188,7 +187,6 @@ class DeviceMatchingService {
       }
     }
 
-    // Remove extra whitespace and common separators
     normalized = normalized
         .replaceAll(RegExp(r'[-_]+'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')

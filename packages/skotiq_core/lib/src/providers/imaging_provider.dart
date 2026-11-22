@@ -925,7 +925,6 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
       }
     }
 
-    // Add some padding
     return (minTemp - 5, maxTemp + 5);
   }
 }

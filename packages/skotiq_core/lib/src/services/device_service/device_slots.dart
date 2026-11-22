@@ -7,11 +7,8 @@ extension _DeviceServiceSlots on DeviceService {
   /// device of the same type overwrote that slot while the incumbent's driver
   /// connection stayed open, and because every disconnect path matches on the
   /// slot's `deviceId`, the displaced device became unaddressable — its
-  /// ASCOM/native handle stayed open for the rest of the session. Verified on
-  /// the rig: after a simulator mount took the slot, a real NYX-101 kept
-  /// answering position polls, `/api/devices/connected` listed both mounts, and
-  /// `POST /api/devices/disconnect` for the real one returned
-  /// `device_id_mismatch` — so nothing could ever close it. The same hole is
+  /// ASCOM/native handle stayed open for the rest of the session.
+  /// The same hole is
   /// reachable from the equipment dropdown and from activating a profile that
   /// names a different device for a type.
   ///

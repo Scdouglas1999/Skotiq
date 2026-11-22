@@ -470,10 +470,6 @@ class SequenceSerializer {
           // How close counts as centered is the run's centering tolerance
           // setting, which the executor reads as the step starts.
           'max_attempts': n.maxAttempts,
-          // Emit the node's real solve-exposure duration instead of a hard
-          // 3.0s literal so the runtime uses the value the user configured
-          // (and the timeline estimate, which now reads the same field,
-          // agrees with execution).
           'exposure_duration': n.exposureDuration,
           'filter': null,
         };

@@ -345,7 +345,7 @@ void main() {
       expect(issues, isEmpty);
     });
 
-    // Audit 2026-08-03: the rule stamped the camera's LIVE setpoint onto every
+    // The rule stamped the camera's LIVE setpoint onto every
     // requirement, so a sequence whose Cool Camera node cools to +15 C was
     // checked (and offered "Capture missing darks") against darks at the
     // camera default of -10 C — a temperature the run never reaches.

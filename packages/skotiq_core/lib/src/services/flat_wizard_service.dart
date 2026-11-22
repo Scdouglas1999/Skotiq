@@ -67,7 +67,7 @@ class FlatWizardService {
   /// offset actually commanded, and the binning — used by the UI preview, the
   /// backend command, the FITS header, and the DB record so they cannot drift.
   ///
-  /// Host authority (defect: remote mode): [backend.getCameraStatus] and
+  /// Host authority: [backend.getCameraStatus] and
   /// [backend.getCameraCapabilities] route to the master on a [NetworkBackend],
   /// so the host — not the phone — defines the range and capability limits. Both
   /// Calls are best-effort so the UI can still render a disconnected/partial
@@ -725,8 +725,6 @@ class FlatWizardService {
     required double maxExposure,
     required SkyBrightnessTracker brightnessTracker,
     double? historicalExposure,
-    // Sky flats used to stop after 3 tries, which a darkening twilight sky
-    // routinely needs more than; they now get the operator's setting too.
     int? maxIterations,
     int binX = 1,
     int binY = 1,
@@ -1137,10 +1135,10 @@ class FlatWizardService {
     );
   }
 
-  /// Default minimum exposure for [quickCalibrate]. Was hardcoded 0.001s.
+  /// Default minimum exposure for [quickCalibrate].
   /// Promoted to a service field so user settings can override it.
   final double quickMinExposure;
 
-  /// Default maximum exposure for [quickCalibrate]. Was hardcoded 30.0s.
+  /// Default maximum exposure for [quickCalibrate].
   final double quickMaxExposure;
 }

@@ -158,7 +158,6 @@ class DarkLibraryService {
       );
     }
 
-    // Validate all frames share matching parameters
     final first = frames.first;
     for (final frame in frames.skip(1)) {
       if (frame.exposureTime != first.exposureTime ||

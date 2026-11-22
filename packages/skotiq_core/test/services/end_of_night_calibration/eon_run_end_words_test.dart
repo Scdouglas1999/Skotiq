@@ -1,4 +1,4 @@
-// reverify RV-09: the calibration status read "The calibration run ended
+// The calibration status read "The calibration run ended
 // paused-stopped before taking every frame" after a plain Stop.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';

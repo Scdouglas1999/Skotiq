@@ -101,7 +101,6 @@ class PeriodAnalysisService {
   }) {
     final n = times.length;
 
-    // Compute weights from inverse variance.
     final weights = List<double>.filled(n, 0.0);
     var weightSum = 0.0;
     for (var i = 0; i < n; i++) {
@@ -324,7 +323,6 @@ class PeriodAnalysisService {
   }) {
     final n = times.length;
 
-    // Compute weights from inverse variance.
     final weights = List<double>.filled(n, 0.0);
     var totalWeight = 0.0;
     for (var i = 0; i < n; i++) {

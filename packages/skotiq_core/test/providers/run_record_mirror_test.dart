@@ -1,4 +1,4 @@
-// SY-01 / SY-03 (sync night 2026-11-03): a client that joins after a run, or
+// A client that joins after a run, or
 // restarts during one, must show the host's finished run and the host's
 // session frame list, not only what it saw arrive since it started.
 

@@ -30,7 +30,7 @@ import 'target_suggestion_service.dart';
 // existing `package:skotiq_core/skotiq_core.dart` barrel surface
 // remains stable for consumers (Smart Night dialog, plan launcher, planner
 // screens, draft service, tests). The orchestration class
-// [SmartNightService] stays in this file; everything else now lives in
+// [SmartNightService] stays in this file; everything else lives in
 // `smart_night_models.dart`.
 export 'smart_night_models.dart';
 

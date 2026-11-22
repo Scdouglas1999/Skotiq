@@ -497,7 +497,7 @@ void main() {
     );
 
     // A move that fails sends no end event; the focuser read "Moving" with
-    // "Move to" disabled until some later move succeeded (reverify RV-02).
+    // "Move to" disabled until some later move succeeded.
     test(
       'a started move with no end settles from the focuser status',
       () async {
@@ -927,7 +927,7 @@ void main() {
 
     test('mount disconnect DEFERS to native auto-reconnect (no competing Dart '
         'connect) and surfaces the reconnecting indicator', () async {
-      // DEV-P1 dual-reconnect race. The mount is a NATIVE-owned reconnect
+      // Dual-reconnect race. The mount is a NATIVE-owned reconnect
       // type (HeartbeatConfig::for_mount sets auto_reconnect = true), so the
       // native reconnection_loop performs the real reconnect. The Dart
       // coordinator must DEFER — firing its own connect here raced the

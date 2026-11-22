@@ -147,7 +147,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
 
         final clampedCloudCover = cloudCover.clamp(0.0, 100.0);
 
-        // Convert cloud cover percentage to opacity (0.0-1.0)
         final opacity = clampedCloudCover / 100.0;
 
         final isForecast = timestamp.isAfter(now);
@@ -256,7 +255,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
       return null;
     }
 
-    // Convert opacity back to percentage (0-100)
     return closestFrame.opacity * 100.0;
   }
 

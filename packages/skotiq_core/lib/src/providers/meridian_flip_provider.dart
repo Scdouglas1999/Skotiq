@@ -367,7 +367,6 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
 
   try {
     final overrides = jsonDecode(overridesJson) as Map<String, dynamic>;
-    // Merge overrides with global defaults
     final globalJson = global.toJson();
     final merged = {...globalJson, ...overrides};
     return MeridianFlipSettings.fromJson(merged);

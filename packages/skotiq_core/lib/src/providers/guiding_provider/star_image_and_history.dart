@@ -42,7 +42,6 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
       }
     }, fireImmediately: true);
 
-    // Stop polling and reset state when PHD2 disconnects
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
       if (next.connectionState == DeviceConnectionState.disconnected) {
         _stopPolling();

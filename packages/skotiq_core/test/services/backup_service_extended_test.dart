@@ -159,7 +159,7 @@ void main() {
       expect(logs, hasLength(1), reason: 'restore must be idempotent');
     });
 
-    // Audit 2026-07-29: the weather_settings table was in no backup at all, so
+    // The weather_settings table was in no backup at all, so
     // migrating machines silently reset every safety threshold AND the master
     // switch to defaults while the Backup page promised "restoring replaces
     // local configuration". Configuration must win on restore, which also means
@@ -227,7 +227,7 @@ void main() {
       },
     );
 
-    // Audit 2026-07-29: two manual backups were written to disk and the Backup
+    // Two manual backups were written to disk and the Backup
     // & Restore card still read "Last Full Backup: Never" — only the scheduled
     // path recorded the time. The record now belongs to whoever writes the file.
     test('a manual backup records the last-backup time', () async {

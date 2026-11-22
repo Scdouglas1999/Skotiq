@@ -218,7 +218,6 @@ class AnnotationService {
       _currentSnrMagnitudeLimit = _SnrAnnotationConstants.baseMagnitude;
       _revealedObjectIds.clear();
 
-      // Clear stale annotations and suggestion banner
       _ref.read(currentAnnotationProvider.notifier).state = null;
       _ref.read(reAnnotateSuggestionProvider.notifier).state =
           const ReAnnotateSuggestion.none();
@@ -584,7 +583,6 @@ class AnnotationService {
     _ref.read(reAnnotateSuggestionProvider.notifier).state =
         const ReAnnotateSuggestion.none();
 
-    // Clear current annotation while processing
     _ref.read(currentAnnotationProvider.notifier).state = null;
 
     await processNewImage(image);

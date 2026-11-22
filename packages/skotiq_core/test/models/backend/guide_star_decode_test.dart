@@ -1,4 +1,4 @@
-// Unit tests for the per-star tracked-star DTO decode (Phase F, guider-ui).
+// Unit tests for the per-star tracked-star DTO decode.
 //
 // The built-in multi-star guider exports its tracked stars as a JSON payload
 // that rides through the guiding status path (no flutter_rust_bridge regen).

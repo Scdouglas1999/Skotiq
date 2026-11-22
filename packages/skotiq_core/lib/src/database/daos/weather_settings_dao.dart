@@ -10,7 +10,6 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
     with _$WeatherSettingsDaoMixin {
   WeatherSettingsDao(super.db);
 
-  /// Get the single settings row (first row or null)
   Future<WeatherSettingRow?> getSettings() async {
     return (select(weatherSettings)
           ..orderBy([(s) => OrderingTerm.asc(s.id)])
@@ -18,7 +17,6 @@ class WeatherSettingsDao extends DatabaseAccessor<SkotiqDatabase>
         .getSingleOrNull();
   }
 
-  /// Get existing settings or create with defaults
   Future<WeatherSettingRow> getOrCreateSettings() async {
     return transaction(() async {
       final rows = await (select(

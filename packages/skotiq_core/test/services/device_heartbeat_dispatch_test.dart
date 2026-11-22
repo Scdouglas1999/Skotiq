@@ -308,7 +308,7 @@ void main() {
 
   test('native-owned mount heartbeat loss surfaces reconnecting WITHOUT a '
       'competing Dart connect (single-owner de-dup)', () async {
-    // DEV-P1 dual-reconnect race. The mount is a native-owned reconnect
+    // Dual-reconnect race. The mount is a native-owned reconnect
     // type (HeartbeatConfig::for_mount sets auto_reconnect = true), so the
     // native reconnection_loop performs the real reconnect. The Dart
     // coordinator must DEFER — it must not schedule its own connect, or the

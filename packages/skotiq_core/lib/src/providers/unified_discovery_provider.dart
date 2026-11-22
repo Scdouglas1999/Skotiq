@@ -207,7 +207,6 @@ class UnifiedDiscoveryNotifier extends StateNotifier<UnifiedDiscoveryState> {
               if (isRemote) {
                 return typeDevices;
               }
-              // Filter to only include devices from this backend
               return typeDevices.where((d) => d.driverType == backend).toList();
             } on TimeoutException {
               errors.add(

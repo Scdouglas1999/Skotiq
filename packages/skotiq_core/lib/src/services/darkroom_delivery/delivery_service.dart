@@ -414,7 +414,7 @@ class DeliveryService {
   /// [DeliveryFile.confirmOnRig] — so a row that answers "due" here is a row
   /// that pass will actually move.
   ///
-  /// **This cannot become the permanent sweep loop wave 14 removed.** That
+  /// **This cannot become the permanent sweep loop that was removed.** That
   /// loop was an unpulled-but-present file answering "due" on every check for
   /// ever, because the pass it woke left the row exactly as it found it. The
   /// only outcome this question wakes a pass for is a source the rig has lost,
@@ -649,12 +649,8 @@ class DeliveryService {
     final targetId = destination.id ?? rows.first.targetId;
     final tally = _Tally(destination, targetId);
 
-    // The switch is read before the kind, for every transport. A peer's rows
-    // used to take the awaiting-pull branch above this check and be reported
-    // as waiting for a desktop to collect them — while `PeerManifestService`
-    // resolves peers through `readEnabled`, so the manifest endpoint answered
-    // that same peer with `unknown_delivery_peer` and nothing could ever pull
-    // them. Off is off on every transport, and it is what the row says.
+    // The switch is read before the kind, for every transport.
+    // Off is off on every transport, and it is what the row says.
     if (!destination.enabled) {
       tally.suspended += rows.length;
       final consequence = destination.kind == ArtifactDestinationKind.peer
@@ -713,11 +709,7 @@ class DeliveryService {
   /// A peer row moves no bytes — publication IS the journal row, and the next
   /// act belongs to the desktop — so there is no attempt to re-make here and
   /// no transport to open. What the rig still owns is the source file, and
-  /// that is the one thing this arm can be wrong about: a published artifact
-  /// deleted from the rig used to be counted straight into `awaitingPull` with
-  /// no read of any kind, so the row said "waiting for office-pc to pull"
-  /// for ever, with no error and its attempt count untouched, while the
-  /// manifest endpoint was already refusing to serve it as `sourceMissing`.
+  /// that is the one thing this arm can be wrong about.
   ///
   /// The rig losing the file is the RIG's fact, not the desktop's debt. The
   /// row goes terminal here exactly as it does on every other transport, which

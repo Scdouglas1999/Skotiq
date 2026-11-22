@@ -2385,7 +2385,7 @@ void main() {
     });
   });
 
-  // Phase B (scheduler-activation): the emitted in-sequence TargetSchedulerNode
+  // The emitted in-sequence TargetSchedulerNode
   // must carry the adaptive-swap threshold (default ON) and the operator's
   // site horizon mask. These are config values on the in-sequence node and
   // never touch the live SchedulerEngine's W1–W5 decision math.

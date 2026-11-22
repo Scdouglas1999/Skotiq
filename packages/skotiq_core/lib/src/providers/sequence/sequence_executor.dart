@@ -411,10 +411,7 @@ class SequenceExecutor {
       );
     }
     // A. Start serialization + admissible-state gate.
-    // Reject a second concurrent start (latch) or a start while the executor
-    // is already busy (running / paused / stopping / recovering). A
-    // completed/failed prior run may start again once its cleanup has settled
-    // (idle / completed / failed are admissible). This gate mutates nothing,
+    // This gate mutates nothing,
     // so a rejected concurrent caller leaves the in-flight run — and its
     // Smart Night / mosaic handoff — completely untouched.
     final admissionState = _ref.read(sequenceExecutionStateProvider);

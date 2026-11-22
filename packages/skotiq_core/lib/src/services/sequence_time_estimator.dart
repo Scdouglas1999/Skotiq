@@ -306,7 +306,6 @@ class SequenceTimeEstimator {
         }
       }
 
-      // Check if the node executes during the target's visibility window
       if (window.neverRises) {
         conflicts.add(
           '${window.targetName}: Target never rises above minimum altitude at this location',

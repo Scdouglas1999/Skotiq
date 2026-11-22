@@ -938,7 +938,7 @@ void main() {
       expect(n.copyWith(), equals(n));
     });
 
-    // Phase B (scheduler-activation): the azimuth horizon mask carried into
+    // The azimuth horizon mask carried into
     // the in-sequence scheduler from the operator's site profile.
     test(
       'horizon_profile_copyWith_keeps_or_replaces_and_participates_in_props',

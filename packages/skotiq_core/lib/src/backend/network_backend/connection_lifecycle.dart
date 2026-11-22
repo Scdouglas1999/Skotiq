@@ -474,10 +474,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       // completes; `ready` resolves only when the server accepts it and
       // throws the refusal otherwise (401/403 auth rejection, 429 auth
       // lockout). Awaiting it is what makes `connected` mean the
-      // handshake actually succeeded — previously we marked the backend
-      // connected while the upgrade was still in flight, so a refused
-      // upgrade surfaced as a connect → hydration fan-out → disconnect
-      // thrash loop on every retry.
+      // handshake actually succeeded.
       await attemptChannel.ready.timeout(requestTimeout);
       if (_isStaleConnect(generation) ||
           !identical(_wsChannel, attemptChannel)) {

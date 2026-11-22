@@ -15,17 +15,6 @@ import '../utils/logging_service.dart';
 /// Scores targets over the night with the app's [TargetScorer] (altitude,
 /// moon distance, transit timing, usable hours and airmass).
 /// Also factors in data collection progress to prioritize incomplete targets.
-///
-/// SCOPE (architecture-unification plan, subsystem 1): this is the whole-night
-/// OUTLOOK supplement — peak altitude, transit timing, imaging-window hours,
-/// framing-fit and human-readable reasoning across the entire dusk→dawn window.
-/// It is NOT the authoritative "what will run tonight" ranker. That authority
-/// belongs solely to the live `SchedulerEngine`, whose pure
-/// `previewDecision`/`previewRanking` the Planner surfaces as the headline pick
-/// (see `schedulerPreviewDecisionProvider`). This service samples the whole
-/// night rather than the imaging instant, so its #1 can legitimately differ
-/// from the autopilot's instantaneous pick; the UI presents it as advisory
-/// outlook beneath the autopilot banner, never as a competing live decider.
 class TargetSuggestionService {
   final LoggingService _logging;
   final TargetScorer _scorer;
@@ -211,7 +200,6 @@ class _TonightSuggestionScorer {
     required double moonIllumination,
     OpticalConfig? opticalConfig,
   }) {
-    // Compute FOV short axis in arcminutes if optical config is available
     double? fovShortAxisArcmin;
     final fov = opticalConfig?.fieldOfView;
     if (fov != null) {
@@ -568,7 +556,6 @@ class _TonightSuggestionScorer {
       }
     }
 
-    // Add warning summary if any significant warnings
     final criticalWarnings = score.warnings
         .where(
           (w) =>
