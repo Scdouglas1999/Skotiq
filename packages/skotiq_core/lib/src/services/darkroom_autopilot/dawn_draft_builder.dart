@@ -39,6 +39,7 @@ import 'dart:convert';
 import '../../models/darkroom/recipe.dart';
 import 'dawn_master_resolver.dart';
 import 'dawn_photometry.dart';
+import 'darkroom_replies.dart';
 import 'darkroom_seam.dart';
 
 /// The pyramid level the draft's colour step is proved at. Level 0 is the
@@ -423,28 +424,27 @@ class DawnDraftBuilder {
     required String renderId,
   }) async {
     final master = base;
-    final draft = reply['draft'];
-    if (draft is! Map<String, dynamic>) {
+    final draft = DarkroomRegistryDraft.of(reply);
+    if (draft == null) {
       throw DawnDraftException(
         'the registry answered for ${master.path} without a draft, '
         'so there are no measured parameters to build one from',
       );
     }
-    final recipe = draft['recipe'];
-    if (recipe is! Map<String, dynamic>) {
+    if (draft.recipe == null) {
       throw const DawnDraftException(
         'the registry draft carries no recipe, so it names no operations',
       );
     }
-    final rawSteps = recipe['steps'];
-    if (rawSteps is! List) {
+    final rawSteps = draft.steps;
+    if (rawSteps == null) {
       throw const DawnDraftException(
         'the registry draft recipe carries no step list',
       );
     }
 
     final notes = <DawnDraftNote>[];
-    _adoptRegistryNotes(draft['notes'], notes);
+    _adoptRegistryNotes(draft.notes, notes);
 
     var steps = <Map<String, dynamic>>[
       for (final step in rawSteps)
@@ -512,21 +512,16 @@ class DawnDraftBuilder {
 
   /// Carry the registry's own omission notes into the draft's account, so a
   /// step the measurement dropped is explained by the words the operation used.
-  static void _adoptRegistryNotes(Object? raw, List<DawnDraftNote> notes) {
-    if (raw is! List) return;
-    for (final entry in raw) {
-      if (entry is! Map<String, dynamic>) continue;
-      final opId = entry['opId'];
-      final reason = entry['reason'];
-      final outcome = entry['outcome'];
-      if (opId is! String) continue;
+  static void _adoptRegistryNotes(
+    List<DarkroomDraftNoteReply> registry,
+    List<DawnDraftNote> notes,
+  ) {
+    for (final note in registry) {
       notes.add(
         DawnDraftNote(
-          opId: opId,
-          outcome: outcome is String ? outcome : 'omitted',
-          reason: reason is String
-              ? reason
-              : 'Skotiq left it out without stating a reason',
+          opId: note.opId,
+          outcome: note.outcome ?? 'omitted',
+          reason: note.reason ?? 'Skotiq left it out without stating a reason',
         ),
       );
     }

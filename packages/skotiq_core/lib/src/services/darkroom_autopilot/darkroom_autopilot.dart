@@ -17,6 +17,7 @@
 ///  * [DawnAutopilotService] — the durable job that runs all of it.
 library;
 
+export 'darkroom_replies.dart';
 export 'darkroom_seam.dart';
 export 'dawn_autopilot_service.dart';
 export 'dawn_draft_builder.dart';

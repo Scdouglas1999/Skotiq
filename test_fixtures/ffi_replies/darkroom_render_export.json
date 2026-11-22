@@ -1,0 +1,65 @@
+{
+  "base": {
+    "channels": 1,
+    "height": 80,
+    "level": 0,
+    "levelCount": 1,
+    "scaleFromMaster": 1.0,
+    "width": 96
+  },
+  "catalogStars": 0,
+  "historyCardCount": 8,
+  "masterPath": "/fixture/M31_L.fits",
+  "outputs": [
+    {
+      "bitsPerSample": 16,
+      "bytes": 15508,
+      "channels": 1,
+      "clampedSamples": 0,
+      "format": "png",
+      "height": 80,
+      "path": "/fixture/M31_L.png",
+      "pixelType": "u16",
+      "width": 96
+    },
+    {
+      "bitsPerSample": 8,
+      "bytes": 2551,
+      "channels": 1,
+      "clampedSamples": 0,
+      "format": "jpeg",
+      "height": 80,
+      "path": "/fixture/M31_L.jpg",
+      "pixelType": "u8",
+      "quality": 90,
+      "width": 96
+    }
+  ],
+  "recipeFingerprint": "ca9ca2e320957dcbf080a40ad4b05210",
+  "recipeSchemaVersion": 1,
+  "renderId": "render-1",
+  "report": {
+    "cacheHits": 0,
+    "cacheMisses": 1,
+    "hasSkips": false,
+    "level": 0,
+    "resumedAt": 0,
+    "steps": [
+      {
+        "index": 0,
+        "opId": "stretch",
+        "opVersion": 1,
+        "outcome": "applied"
+      }
+    ]
+  },
+  "screenTransfer": null,
+  "screenTransferAffectsRecipe": false,
+  "sidecarPath": null,
+  "sidecarSkippedReason": "no FITS output to place the sidecar beside and no sidecarPath given",
+  "sourceDomain": "stretched",
+  "stage": {
+    "index": null,
+    "kind": "final"
+  }
+}

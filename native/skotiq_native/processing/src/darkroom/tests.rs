@@ -1942,3 +1942,58 @@ fn a_render_that_fails_at_a_step_returns_the_failed_step_payload() {
         message
     );
 }
+
+// ---------------------------------------------------------------------------
+// Reply samples for the app's decoders (test_fixtures/ffi_replies/)
+// ---------------------------------------------------------------------------
+
+/// A real reply with the temporary folder written as `/fixture` and the
+/// render id (a fresh one per call) as `render-1`, so the sample is the same
+/// on every run.
+fn stable_reply(reply: &str, dir: &Path) -> Value {
+    let text = reply.replace(dir.to_str().expect("utf-8 temp dir"), "/fixture");
+    let mut value = parse(&text);
+    if value.get("renderId").is_some() {
+        value["renderId"] = json!("render-1");
+    }
+    value
+}
+
+#[test]
+fn darkroom_registry_reply_fixture() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let master = write_master(dir.path(), "M31_L.fits", 96, 80, 1);
+    let reply = darkroom_registry(json!({"masterPath": master, "recipeId": "draft-1"}).to_string())
+        .expect("registry");
+    let mut value = stable_reply(&reply, dir.path());
+    // The operation list is the catalogue fixture's subject
+    // (darkroom_ops/catalog.json); the first three keep its shape here.
+    let ops = value["ops"].as_array_mut().expect("ops");
+    ops.truncate(3);
+    let registered = value["registered"].as_array_mut().expect("registered");
+    registered.truncate(3);
+    crate::reply_fixtures::check_or_write("darkroom_registry", &value);
+}
+
+#[test]
+fn darkroom_render_export_reply_fixture() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let master = write_master(dir.path(), "M31_L.fits", 96, 80, 1);
+    let reply = darkroom_render_export(
+        recipe_json("export-1", "M31_L", json!([stretch_step()])),
+        json!({
+            "masterPath": master,
+            "stage": {"kind": "final"},
+            "outputs": [
+                {"format": "png", "path": dir.path().join("M31_L.png")},
+                {"format": "jpeg", "path": dir.path().join("M31_L.jpg"), "quality": 90},
+            ],
+        })
+        .to_string(),
+    )
+    .expect("export");
+    crate::reply_fixtures::check_or_write(
+        "darkroom_render_export",
+        &stable_reply(&reply, dir.path()),
+    );
+}
