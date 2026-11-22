@@ -2793,9 +2793,6 @@ packages/skotiq_core/lib/src/providers/polar_alignment/polar_ui_state.dart	Polar
 packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_doStop	comment_best_effort	1	V0019	// Best-effort history persistence on a user stop: the run terminated
 packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_doStart	empty_catch	2	V0019	} catch (_) {
 packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	stopAlignment	empty_catch	1	V0019	} catch (_) {
-packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_handleStatusUpdate	literal_null_coalesce	1	V0019	final phaseStr = data['phase'] as String? ?? '';
-packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_handleStatusUpdate	literal_null_coalesce	1	V0019	final point = _wireInt(data['point']) ?? 0;
-packages/skotiq_core/lib/src/providers/polar_alignment_provider.dart	_handleStatusUpdate	literal_null_coalesce	1	V0019	final statusStr = data['status'] as String? ?? '';
 packages/skotiq_core/lib/src/providers/preflight_providers.dart	OpticalTrainBaseline.fromDiagnostics	guessed_now_timestamp	1	V0097	capturedAt: capturedAt ?? DateTime.now(),
 packages/skotiq_core/lib/src/providers/push_notification_provider.dart	build	literal_null_coalesce	1	V0019	map['notifyEquipmentDisconnected'] as bool? ?? false,
 packages/skotiq_core/lib/src/providers/readiness_provider.dart	-	literal_null_coalesce	1	V0246	final locationSet = settings?.isLocationSet ?? false;
@@ -3173,8 +3170,6 @@ packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_se
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	_computeStates	literal_null_coalesce	1	V0121	states[HaEntityKeys.framesTonight] = (liveStats?.framesCaptured ?? 0)
 packages/skotiq_core/lib/src/services/home_assistant/home_assistant_discovery_service.dart	isRunning	literal_null_coalesce	1	V0121	bool get isRunning => _client?.isConnected ?? false;
 packages/skotiq_core/lib/src/services/imaging_service.dart	histogram256FromRawU16	literal_null_coalesce	1	R9-128	if (isCancelled?.call() ?? false) return null;
-packages/skotiq_core/lib/src/services/imaging_service/capture_pipeline.dart	_capture	literal_null_coalesce	1	V0470	final progress = event.data['progress'] as double? ?? 0.0;
-packages/skotiq_core/lib/src/services/imaging_service/capture_pipeline.dart	_capture	literal_null_coalesce	1	V0471	final remainingSecs = event.data['remainingSecs'] as double? ?? 0.0;
 packages/skotiq_core/lib/src/services/imaging_service/exposure_state.dart	_withLiveFilter	empty_catch	1	V0472	} catch (_) {
 packages/skotiq_core/lib/src/services/import/astrobin_importer.dart	_parseIntegration	literal_null_coalesce	1	V0102	? (double.tryParse(hm.group(2)!) ?? 0)
 packages/skotiq_core/lib/src/services/import/astrobin_importer.dart	_parseIntegration	literal_null_coalesce	1	V0102	final h = double.tryParse(colon.group(1)!) ?? 0;
