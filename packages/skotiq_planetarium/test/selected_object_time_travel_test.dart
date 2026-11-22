@@ -1,6 +1,6 @@
 // Regressions for the planetarium HUD stating things that were not true.
 //
-// All three were found live at 40.00N / 75.20W on 2026-07-29:
+// Each pins one way the HUD stated something untrue (at 40.00N / 75.20W):
 //
 //  1. Clicking a star at 11:52 local showed "Selected Alt: 63.6 Az: 136.1" in
 //     above-horizon green. Pressing TONIGHT jumped the clock ~10 hours; the
