@@ -266,11 +266,12 @@ pub(super) struct CenteringFailure {
     pub solved: bool,
 }
 
-/// The post-flip guider restart counts guiding as locked once the guider says
-/// it guides, polled every 2 s up to the settle timeout.
+/// The post-flip guider restart counts guiding as locked at the first
+/// measured guide step, as Start Guiding does, polled every 2 s up to the
+/// settle timeout.
 pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
     crate::instructions::GuidingLockRule {
-        needs_measured_step: false,
+        needs_measured_step: true,
         timeout: std::time::Duration::ZERO,
         poll: std::time::Duration::from_secs(2),
     };
@@ -1965,9 +1966,9 @@ impl MeridianFlipExecutor {
             Err(error) => return Err(error.message().to_string()),
         }
 
-        // Locked once the guider says it guides, then checked over the RMS
-        // window: a guider that never locks, or tracks badly, fails the step,
-        // and the flip's retries and failure action take it from there.
+        // Locked at the first measured guide step, then checked over the RMS
+        // window: a guider that never locks fails the step, and the flip's
+        // retries and failure action take it from there.
         let stop = || self.is_cancelled(ctx).then_some(());
         match crate::instructions::verify_guiding_locked(
             &self.run.device_ops,
@@ -2000,9 +2001,15 @@ impl MeridianFlipExecutor {
             .await
             .map_err(|()| "Abort requested while validating post-flip guiding RMS".to_string())?;
         if sample_count > 0 && max_rms > rms_ceiling {
-            return Err(format!(
+            let problem = format!(
                 "Post-flip guiding RMS too high: {max_rms:.2}px (limit {rms_ceiling:.2}px)"
-            ));
+            );
+            // How well a guiding guider tracks is a judgment: the operator is
+            // told and the run images on, as after Start Guiding.
+            if crate::triggers::stops_on_quality_problems(ctx.trigger_state.as_ref()).await {
+                return Err(problem);
+            }
+            self.notify_quality_problem(ctx, &format!("{problem}. Imaging continues."));
         }
         if sample_count == 0 {
             return Err("Post-flip guiding could not be verified".into());
@@ -2578,6 +2585,8 @@ mod tests {
         move_axis_rates: Mutex<Vec<f64>>,
         /// The RMS the guider reports; `None` reports 0.64 px.
         guider_rms_total: Mutex<Option<f64>>,
+        /// Status reads that report an empty RMS window (0) before the RMS.
+        guider_empty_reads: AtomicI32,
         /// Slewing reads left before a commanded slew reads as done; each
         /// slew that moves the mount reports slewing once.
         slewing_reads_left: AtomicI32,
@@ -2893,12 +2902,22 @@ mod tests {
                 is_guiding: !self.state.guider_stopped.load(Ordering::Relaxed),
                 rms_ra: 0.5,
                 rms_dec: 0.4,
-                rms_total: self
+                rms_total: if self
                     .state
-                    .guider_rms_total
-                    .lock()
-                    .unwrap()
-                    .unwrap_or(FAKE_GUIDER_DEFAULT_RMS),
+                    .guider_empty_reads
+                    .try_update(Ordering::Relaxed, Ordering::Relaxed, |left| {
+                        (left > 0).then_some(left - 1)
+                    })
+                    .is_ok()
+                {
+                    0.0
+                } else {
+                    self.state
+                        .guider_rms_total
+                        .lock()
+                        .unwrap()
+                        .unwrap_or(FAKE_GUIDER_DEFAULT_RMS)
+                },
             })
         }
 
@@ -4779,7 +4798,9 @@ mod tests {
     /// recorded.
     #[tokio::test(start_paused = true)]
     async fn post_flip_quality_problems_notify_and_complete_the_flip() {
-        for (solve_failures, rms_ceiling) in [(100, 3.0), (0, 0.5)] {
+        // A recenter that never solves is retried first; guiding over the RMS
+        // ceiling is told at once, with no retry.
+        for (solve_failures, rms_ceiling, attempts) in [(100, 3.0, 2), (0, 0.5, 1)] {
             let state = Arc::new(MockDeviceOpsState::default());
             state.pier_sides.lock().unwrap().extend([
                 crate::meridian::PierSide::East,
@@ -4810,7 +4831,7 @@ mod tests {
             };
             let result = executor.execute(&ctx).await;
             assert!(matches!(result, FlipResult::Success { .. }), "{result:?}");
-            assert_eq!(executor.attempts_made, 2);
+            assert_eq!(executor.attempts_made, attempts);
             assert_eq!(state.park_calls.load(Ordering::Relaxed), 0);
             assert_eq!(state.slew_calls.load(Ordering::Relaxed), 1);
             assert!(ts.read().await.meridian.has_flipped());
@@ -5792,13 +5813,12 @@ mod tests {
         assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);
     }
 
-    /// The post-flip guider restart counts guiding as locked once the guider
-    /// says it guides, even with an empty RMS window (Start Guiding waits for
-    /// a measured step).
+    /// The post-flip guider restart counts guiding as locked at the first
+    /// measured guide step: an RMS of exactly 0 is PHD2's emptied window.
     #[tokio::test(start_paused = true)]
-    async fn the_post_flip_guider_restart_accepts_guiding_with_no_rms_yet() {
+    async fn the_post_flip_guider_restart_waits_for_a_measured_step() {
         let state = Arc::new(MockDeviceOpsState::default());
-        *state.guider_rms_total.lock().unwrap() = Some(0.0);
+        state.guider_empty_reads.store(2, Ordering::Relaxed);
         let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
         let executor = MeridianFlipExecutor::new(
             MeridianFlipConfig {
@@ -5809,29 +5829,53 @@ mod tests {
         );
         let started = tokio::time::Instant::now();
         assert_eq!(executor.restart_guider(&make_ctx(&state)).await, Ok(()));
-        // The lock poll answers at once; the RMS check samples three times
-        // two seconds apart.
-        assert_eq!(started.elapsed(), std::time::Duration::from_secs(6));
+        // Two empty reads two seconds apart, then the lock; the RMS check
+        // samples three times two seconds apart.
+        assert_eq!(started.elapsed(), std::time::Duration::from_secs(10));
     }
 
-    /// The post-flip RMS check: three samples two seconds apart, over the
-    /// flip's ceiling fails the restart with these words.
+    /// Post-flip guiding over the RMS ceiling is a quality problem: the
+    /// operator is told and the flip goes on, unless they asked quality
+    /// problems to stop the run, which fails the step with these words.
     #[tokio::test(start_paused = true)]
-    async fn the_post_flip_guider_restart_fails_over_the_rms_ceiling() {
-        let state = Arc::new(MockDeviceOpsState::default());
-        *state.guider_rms_total.lock().unwrap() = Some(2.5);
-        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
-        let executor = MeridianFlipExecutor::new(
-            MeridianFlipConfig {
-                settle_time: 0.0,
-                max_post_settle_rms_pixels: 2.0,
-                ..Default::default()
-            },
-            ops,
-        );
-        assert_eq!(
-            executor.restart_guider(&make_ctx(&state)).await,
-            Err("Post-flip guiding RMS too high: 2.50px (limit 2.00px)".to_string())
-        );
+    async fn post_flip_guiding_over_the_rms_ceiling_notifies_and_goes_on() {
+        for stops in [false, true] {
+            let state = Arc::new(MockDeviceOpsState::default());
+            *state.guider_rms_total.lock().unwrap() = Some(2.5);
+            let (event_tx, mut events) = tokio::sync::broadcast::channel(16);
+            let mut run = RunShared::new(Arc::new(MockDeviceOps::new(state.clone())));
+            run.event_tx = Some(event_tx);
+            let executor = MeridianFlipExecutor::in_run(
+                MeridianFlipConfig {
+                    settle_time: 0.0,
+                    max_post_settle_rms_pixels: 2.0,
+                    ..Default::default()
+                },
+                run,
+            );
+            let ctx = if stops {
+                make_ctx_stopping_on_quality_problems(&state)
+            } else {
+                make_ctx(&state)
+            };
+            let result = executor.restart_guider(&ctx).await;
+            let mut notices = Vec::new();
+            while let Ok(event) = events.try_recv() {
+                notices.push(format!("{event:?}"));
+            }
+            let told = notices
+                .iter()
+                .any(|n| n.contains("Post-flip guiding RMS too high: 2.50px (limit 2.00px)"));
+            if stops {
+                assert_eq!(
+                    result,
+                    Err("Post-flip guiding RMS too high: 2.50px (limit 2.00px)".to_string())
+                );
+                assert!(!told, "{notices:?}");
+            } else {
+                assert_eq!(result, Ok(()));
+                assert!(told, "{notices:?}");
+            }
+        }
     }
 }
