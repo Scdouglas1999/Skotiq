@@ -447,8 +447,9 @@ class _TonightSuggestionScorer {
     warnings.add(
       'No twilight boundaries found - using default 21:00-05:00 window',
     );
-    final defaultStart = DateTime(now.year, now.month, now.day, 21);
-    var defaultEnd = DateTime(now.year, now.month, now.day + 1, 5);
+    final local = now.toLocal();
+    final defaultStart = DateTime(local.year, local.month, local.day, 21);
+    var defaultEnd = DateTime(local.year, local.month, local.day + 1, 5);
     if (now.isAfter(defaultEnd)) {
       // If we're past 5 AM, shift to tonight
       defaultEnd = defaultEnd.add(const Duration(days: 1));
