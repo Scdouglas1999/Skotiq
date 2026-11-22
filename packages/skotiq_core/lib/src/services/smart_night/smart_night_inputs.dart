@@ -59,6 +59,8 @@ abstract final class SmartNightInputs {
 
   /// Whether [profile] names a cover calibrator: an id with text in it. A
   /// blank id is no calibrator.
-  static bool hasCoverCalibrator(EquipmentProfileModel profile) =>
-      profile.coverCalibratorId?.trim().isNotEmpty ?? false;
+  static bool hasCoverCalibrator(EquipmentProfileModel profile) {
+    final id = profile.coverCalibratorId;
+    return id != null && id.trim().isNotEmpty;
+  }
 }

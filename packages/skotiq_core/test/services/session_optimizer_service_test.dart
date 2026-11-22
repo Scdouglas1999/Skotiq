@@ -197,7 +197,7 @@ void main() {
       expect(plan.primaryTarget, isNotNull);
       expect(plan.alternates.length, lessThanOrEqualTo(3));
       // No exposure context: no sub is sized from a stand-in rig.
-      expect(plan.recommendedExposureSeconds, 0);
+      expect(plan.recommendedExposureSeconds, isNull);
       expect(plan.rationale, isNotEmpty);
     });
 
@@ -496,7 +496,7 @@ void main() {
           ),
         ], generatedAt: DateTime(2026, 8, 1, 22));
 
-        expect(plan.recommendedExposureSeconds, 0);
+        expect(plan.recommendedExposureSeconds, isNull);
         expect(plan.recommendedFilterName, isNull);
         expect(plan.rationale.any((line) => line.contains('Glover')), isFalse);
         expect(

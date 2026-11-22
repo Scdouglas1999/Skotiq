@@ -194,10 +194,9 @@ FlatLibraryEntry? liveFlatFor(
   int binY = 1,
   double? temperature,
 }) {
-  final wanted = filter?.trim().toLowerCase() ?? '';
   final candidates = [
     for (final row in rows)
-      if ((row.filter?.trim().toLowerCase() ?? '') == wanted) row,
+      if (_sameFilterName(row.filter, filter)) row,
   ];
   final selection = selectFlat(
     candidates.map(flatLibraryRecord),
@@ -214,4 +213,14 @@ FlatLibraryEntry? liveFlatFor(
   );
   if (selection == null) return null;
   return candidates.firstWhere((row) => row.id == selection.record.id);
+}
+
+/// Whether a flat recorded with filter [flat] is the light's [light] filter
+/// by name: the same text ignoring case and surrounding space, or both none.
+bool _sameFilterName(String? flat, String? light) {
+  final a = flat?.trim().toLowerCase();
+  final b = light?.trim().toLowerCase();
+  final aNone = a == null || a.isEmpty;
+  final bNone = b == null || b.isEmpty;
+  return aNone || bNone ? aNone && bNone : a == b;
 }

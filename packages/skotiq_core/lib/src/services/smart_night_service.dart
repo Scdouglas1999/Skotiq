@@ -44,6 +44,15 @@ bool _profileHasGuider(EquipmentProfileModel profile) {
   return id.isNotEmpty || name.isNotEmpty;
 }
 
+/// The optics a plan is computed with ([SmartNightService._planningOptics]).
+typedef _PlanningOptics = ({
+  double pixelSizeUm,
+  double focalLengthMm,
+  double apertureMm,
+  CameraExposureSpec camera,
+  int bortleClass,
+});
+
 /// The auto-builder service.
 ///
 /// Reuses (does NOT reinvent) existing services per the design doc:
@@ -333,10 +342,6 @@ class SmartNightService {
         ? context.recentGuideSamples
         : (exposureContext?.guideSampleCount ?? 0);
 
-    if (_missingOpticsRefusal(profile, optics) case final refusal?) {
-      throw SmartNightBuildException(refusal);
-    }
-
     // Schedule targets into the dark window. We use a deep-first
     // chaining strategy: take the highest-scoring target until its
     // usable window inside the dark window is exhausted, then move to
@@ -624,13 +629,16 @@ class SmartNightService {
     final activeFilters = set.filters;
     if (activeFilters.isEmpty) return null;
 
-    final optics = _planningOptics(profile, exposureContext);
+    final _PlanningOptics optics;
+    try {
+      optics = _planningOptics(profile, exposureContext);
+    } on SmartNightBuildException {
+      return null;
+    }
     final pixelSizeUm = optics.pixelSizeUm;
     final focalLength = optics.focalLengthMm;
     final aperture = optics.apertureMm;
     final cameraSpec = optics.camera;
-
-    if (_missingOpticsRefusal(profile, optics) != null) return null;
 
     final usable = _usableTargetWindow(
       suggestion: suggestion,
@@ -733,10 +741,6 @@ class SmartNightService {
     final focalLength = optics.focalLengthMm;
     final aperture = optics.apertureMm;
     final cameraSpec = optics.camera;
-
-    if (_missingOpticsRefusal(profile, optics) case final refusal?) {
-      throw SmartNightBuildException(refusal);
-    }
 
     final usable = _usableTargetWindow(
       suggestion: suggestion,
@@ -858,9 +862,6 @@ class SmartNightService {
     final pixelSizeUm = optics.pixelSizeUm;
     final focalLength = optics.focalLengthMm;
     final aperture = optics.apertureMm;
-    if (_missingOpticsRefusal(profile, optics) case final refusal?) {
-      throw SmartNightBuildException(refusal);
-    }
     final plans = composeSmartNightFilterPlans(
       shares: filterSet.shares,
       activeFilters: filterSet.filters,
@@ -936,69 +937,62 @@ class SmartNightService {
   /// [exposureContext] when there is one (it already resolves the profile,
   /// the optical config and the user's own entries), else the profile alone
   /// (its train, else its telescope; its camera through the sensor-spec
-  /// chain; Bortle 5). A figure neither knows is 0, which
-  /// [_missingOpticsRefusal] refuses.
-  ({
-    double pixelSizeUm,
-    double focalLengthMm,
-    double apertureMm,
-    CameraExposureSpec camera,
-    int bortleClass,
-  })
-  _planningOptics(
+  /// chain; Bortle 5). Throws a [SmartNightBuildException] naming each
+  /// figure neither knows and the camera when it is the pixel size.
+  /// The sky brightness a plan built from a profile alone assumes.
+  static const int _skyBortleWithoutContext = 5;
+
+  _PlanningOptics _planningOptics(
     EquipmentProfileModel profile,
     SmartNightExposureContext? exposureContext,
-  ) => exposureContext == null
-      ? (
-          pixelSizeUm: _pixelSize(profile),
-          focalLengthMm: profile.focalLength > 0
-              ? profile.focalLength
-              : profile.telescopeFocalLength ?? 0,
-          apertureMm: profile.aperture > 0
-              ? profile.aperture
-              : profile.telescopeAperture ?? 0,
-          camera: _cameraSpecFromProfile(profile),
-          bortleClass: 5,
-        )
-      : (
-          pixelSizeUm: exposureContext.pixelSizeMicrons ?? 0,
-          focalLengthMm: exposureContext.focalLengthMm,
-          apertureMm: exposureContext.apertureMm,
-          camera: exposureContext.camera,
-          bortleClass: exposureContext.bortleClass,
-        );
-
-  /// Why a plan cannot be computed with [optics], naming each missing
-  /// figure; null when none is missing.
-  String? _missingOpticsRefusal(
-    EquipmentProfileModel profile,
-    ({
-      double pixelSizeUm,
-      double focalLengthMm,
-      double apertureMm,
-      CameraExposureSpec camera,
-      int bortleClass,
-    })
-    optics,
   ) {
+    double? known(double? value) => value != null && value > 0 ? value : null;
+    final context = exposureContext;
+    final pixelSizeUm = known(
+      context == null ? _pixelSize(profile) : context.pixelSizeMicrons,
+    );
+    final focalLengthMm = known(
+      context == null ? profile.effectiveFocalLength : context.focalLengthMm,
+    );
+    final apertureMm = known(
+      context == null ? profile.effectiveAperture : context.apertureMm,
+    );
+    if ((pixelSizeUm, focalLengthMm, apertureMm) case (
+      final pixel?,
+      final focal?,
+      final aperture?,
+    )) {
+      return (
+        pixelSizeUm: pixel,
+        focalLengthMm: focal,
+        apertureMm: aperture,
+        camera: context == null
+            ? _cameraSpecFromProfile(profile)
+            : context.camera,
+        bortleClass: context == null
+            ? _skyBortleWithoutContext
+            : context.bortleClass,
+      );
+    }
     final missing = [
-      if (optics.focalLengthMm <= 0) 'focal length',
-      if (optics.apertureMm <= 0) 'aperture',
-      if (optics.pixelSizeUm <= 0) 'camera pixel size',
+      if (focalLengthMm == null) 'focal length',
+      if (apertureMm == null) 'aperture',
+      if (pixelSizeUm == null) 'camera pixel size',
     ];
-    if (missing.isEmpty) return null;
-    final camera = profile.cameraName ?? profile.cameraId ?? '<unknown>';
     final named = missing.length == 1
         ? missing.single
         : '${missing.sublist(0, missing.length - 1).join(', ')} and '
               '${missing.last}';
-    return 'Smart Night cannot compute exposures for equipment profile '
-        '"${profile.name}": it has no $named.'
-        '${optics.pixelSizeUm <= 0 ? ' No pixel size is known for the camera '
-                  '"$camera": it reported none, and none is entered or '
-                  'published for it. Connect the camera so its real pixel size '
-                  'is read, or enter it in the camera sensor specs. Smart '
-                  'Night will not guess a pixel size.' : ''}';
+    final camera = profile.cameraName ?? profile.cameraId ?? '<unknown>';
+    throw SmartNightBuildException(
+      'Smart Night cannot compute exposures for equipment profile '
+      '"${profile.name}": it has no $named.'
+      '${pixelSizeUm == null ? ' No pixel size is known for the camera '
+                '"$camera": it reported none, and none is entered or '
+                'published for it. Connect the camera so its real pixel size '
+                'is read, or enter it in the camera sensor specs. Smart '
+                'Night will not guess a pixel size.' : ''}',
+    );
   }
 
   /// Resolve the camera pixel size (µm) for [profile] WITHOUT a live
@@ -1011,13 +1005,10 @@ class SmartNightService {
   /// container to read them from. The real value normally arrives via
   /// `exposureContext.pixelSizeMicrons`, which does.
   ///
-  /// Returns `0` — a deliberate "unknown" sentinel — when nothing resolves.
-  /// There is no hardcoded fallback pitch: a stand-in figure (3.76µm, say)
-  /// mis-scales the sky-limited exposure math for every camera that does not
-  /// have it, so each caller's `pixelSizeUm <= 0` guard fires loudly instead.
-  /// [build] / [buildSingleTargetSequence] throw a [SmartNightBuildException]
-  /// naming pixel size, and [previewTargetIntegration] returns null.
-  double _pixelSize(EquipmentProfileModel profile) {
+  /// Null when nothing resolves. There is no fallback pitch: a stand-in
+  /// figure mis-scales the sky-limited exposure math for every camera that
+  /// does not have it, so [_planningOptics] refuses instead.
+  double? _pixelSize(EquipmentProfileModel profile) {
     final specs = CameraSensorSpecResolver().resolve(
       CameraSensorSpecInputs(
         cameraName: profile.cameraName,
@@ -1030,7 +1021,7 @@ class SmartNightService {
         ),
       ),
     );
-    return specs.pixelSizeMicrons?.value ?? 0;
+    return specs.pixelSizeMicrons?.value;
   }
 
   /// The filter set for [suggestion] on a rig whose wheel holds

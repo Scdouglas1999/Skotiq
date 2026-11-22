@@ -209,7 +209,10 @@ class SessionOptimizationPlan {
   final DateTime generatedAt;
   final TargetSuggestion? primaryTarget;
   final List<TargetSuggestion> alternates;
-  final double recommendedExposureSeconds;
+
+  /// The primary target's sub length; null when none can be computed (no
+  /// exposure context, or no pixel size).
+  final double? recommendedExposureSeconds;
   final String? recommendedFilterName;
 
   /// The primary target's filter set ([chooseSmartNightFilters]).
@@ -365,7 +368,7 @@ const List<String> _noOpticsCaveats = [
 ];
 
 class _ExposurePlan {
-  final double seconds;
+  final double? seconds;
   final String? filterName;
   final String? rationale;
   final List<String> caveats;
@@ -431,7 +434,7 @@ class SessionOptimizerService {
         generatedAt: planGeneratedAt,
         primaryTarget: null,
         alternates: const [],
-        recommendedExposureSeconds: 0,
+        recommendedExposureSeconds: null,
         recommendedFilterName: null,
         recommendedFilterNames: const [],
         estimatedUsableHours: 0,
@@ -450,10 +453,10 @@ class SessionOptimizerService {
     final filterChoice = chooseSmartNightFilters(
       target: primary,
       availableFilters: exposureContext?.availableFilterNames ?? const [],
-      oneShotColor: exposureContext?.oneShotColor ?? false,
+      oneShotColor: exposureContext != null && exposureContext.oneShotColor,
     );
     final exposurePlan = exposureContext == null
-        ? const _ExposurePlan(seconds: 0, caveats: _noOpticsCaveats)
+        ? const _ExposurePlan(seconds: null, caveats: _noOpticsCaveats)
         : _recommendExposure(filterChoice.filters.first, exposureContext);
     final availableFilters = exposureContext?.availableFilterNames ?? const [];
     final recommendedFilterNames = availableFilters.isEmpty
@@ -520,7 +523,7 @@ class SessionOptimizerService {
       calculator: _exposureCalculator,
     );
     return _ExposurePlan(
-      seconds: recommendation?.seconds ?? 0,
+      seconds: recommendation?.seconds,
       filterName: filterName,
       rationale: recommendation?.rationale,
       caveats: [...context.caveats, ...?recommendation?.caveats],
