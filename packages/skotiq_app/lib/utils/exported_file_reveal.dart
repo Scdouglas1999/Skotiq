@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -27,6 +28,7 @@ Future<void> revealExportedFile(
   String? desktopMessage,
   Duration? desktopDuration,
 }) async {
+  // The host OS, not defaultTargetPlatform: widget tests report Android there.
   if (Platform.isAndroid || Platform.isIOS) {
     await Share.shareXFiles([XFile(filePath)], subject: subject);
     return;
@@ -37,3 +39,16 @@ Future<void> revealExportedFile(
     duration: desktopDuration,
   );
 }
+
+/// Whether this platform has a system share sheet `share_plus` can drive.
+/// Windows and Linux have none. macOS has one; [macOS] says whether the
+/// caller uses it there.
+bool platformHasShareSheet({required bool macOS}) =>
+    switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.android => true,
+      TargetPlatform.macOS => macOS,
+      TargetPlatform.windows ||
+      TargetPlatform.linux ||
+      TargetPlatform.fuchsia =>
+        false,
+    };
