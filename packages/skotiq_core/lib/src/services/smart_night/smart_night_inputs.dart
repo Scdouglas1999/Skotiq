@@ -39,6 +39,20 @@ abstract final class SmartNightInputs {
     ),
   );
 
+  /// The inputs of a night planned on [profile]: [base] with the stored
+  /// wizard defaults ([withWizardDefaults]) and the profile's cool-down
+  /// set-point. Plan tonight, the planner's estimate and the wizard's seed
+  /// all start here.
+  static SmartNightSettings forNight(
+    AppSettingsState app,
+    EquipmentProfileModel? profile, [
+    SmartNightSettings base = const SmartNightSettings(),
+  ]) => withWizardDefaults(app, base).copyWith(
+    coolDownTargetC: profile == null
+        ? defaultCoolDownTargetC
+        : coolDownTargetC(profile),
+  );
+
   /// The camera set-point a night cools to on [profile].
   static double coolDownTargetC(EquipmentProfileModel profile) =>
       profile.defaultCoolingTemp ?? defaultCoolDownTargetC;

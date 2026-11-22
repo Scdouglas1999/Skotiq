@@ -396,7 +396,11 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
     if (_settingsSeededFromAppSettings) return;
     _settingsSeededFromAppSettings = true;
 
-    _settings = SmartNightInputs.withWizardDefaults(app, _settings);
+    _settings = SmartNightInputs.forNight(
+      app,
+      ref.read(activeEquipmentProfileProvider),
+      _settings,
+    );
     _strategy = _strategyFromPersistedName(app.smartNightDefaultStrategy);
     final seed = widget.seedTargetIds;
     if (seed == null || seed.isEmpty) {

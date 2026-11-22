@@ -127,4 +127,29 @@ void main() {
       ['named'],
     );
   });
+
+  test(
+    'a night on a profile cools to its set-point over the wizard defaults',
+    () {
+      for (final app in apps) {
+        for (final profile in profiles) {
+          final night = SmartNightInputs.forNight(app, profile);
+          expect(
+            night.toJson(),
+            SmartNightInputs.withWizardDefaults(app, const SmartNightSettings())
+                .copyWith(coolDownTargetC: profile.defaultCoolingTemp ?? -10.0)
+                .toJson(),
+            reason: profile.name,
+          );
+        }
+      }
+      expect(
+        SmartNightInputs.forNight(
+          const AppSettingsState(),
+          null,
+        ).coolDownTargetC,
+        -10.0,
+      );
+    },
+  );
 }
