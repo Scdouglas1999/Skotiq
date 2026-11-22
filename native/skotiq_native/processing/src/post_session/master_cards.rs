@@ -192,6 +192,41 @@ mod tests {
         reference.set_float("CD1_1", -2.8e-4);
         reference.set_float("CD2_2", 2.8e-4);
         assert_eq!(attach(&reference), (Some(true), false), "CD: inherited");
+        let mut written = FitsHeader::new();
+        SipWcs::from_pointing(10.0, 41.0, 12.0, 1.5, 16, 16).write_to_header(&mut written);
+        assert_eq!(
+            attach(&written),
+            (Some(true), false),
+            "a solution Skotiq wrote: inherited"
+        );
+
+        // A grid reference with no WCS of its own takes the solve ASTAP wrote
+        // beside it.
+        skotiq_imaging::write_fits(&grid, &image, &FitsHeader::new()).unwrap();
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../test-fixtures");
+        for sidecar in [
+            "solver-wcs-2026-11-12/astap-sip.wcs",
+            "rig-2026-09-14/solve-verify.wcs",
+        ] {
+            std::fs::copy(fixtures.join(sidecar), dir.join("grid.wcs")).unwrap();
+            let mut asked = false;
+            let mut header = FitsHeader::new();
+            let attached = attach_wcs_solved_by(
+                &mut header,
+                grid.to_str().unwrap(),
+                &dir.join("master.fits"),
+                (16, 16),
+                |_, _, _| {
+                    asked = true;
+                    None
+                },
+            );
+            assert_eq!(
+                (attached.map(|a| a.inherited), asked),
+                (Some(true), false),
+                "{sidecar}"
+            );
+        }
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

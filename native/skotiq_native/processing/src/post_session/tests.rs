@@ -2462,3 +2462,29 @@ fn integration_rejection_tokens_name_its_rejectors() {
         assert_eq!(auto(subs), esd, "{subs} subs");
     }
 }
+
+/// One night's integration runs the generalized ESD test when asked (it was
+/// refused), and `auto` names PixInsight's pick on the master.
+#[test]
+fn integrate_session_runs_esd_and_names_the_auto_pick() {
+    let (_dir, lights, _bias, master) = lights_with_cards("esd_rejection", 400.0, &[], 950);
+    for (reject, label) in [
+        ("esd", "generalizedEsd(0.3,0.05,1.5)"),
+        ("auto", "percentile(0.2,0.1)"),
+    ] {
+        let args = serde_json::json!({
+            "lightPaths": lights,
+            "reference": lights[0],
+            "exposuresSec": [60.0, 60.0, 60.0],
+            "calibration": {"cosmeticCorrection": false},
+            "settings": {
+                "align": synthetic_align(),
+                "integration": { "reject": reject, "outputBitDepth": "f32" }
+            },
+            "output": { "masterFitsPath": master.to_string_lossy() }
+        });
+        integrate_session(args.to_string()).expect(reject);
+        let (_, header) = read_frame(&master).unwrap();
+        assert_eq!(header.get_string("REJECTM"), Some(label), "{reject}");
+    }
+}
