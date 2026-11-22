@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
-import '../database/database.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';

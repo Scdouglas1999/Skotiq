@@ -485,6 +485,55 @@ class ProfileExportData {
     return data;
   }
 
+  /// The profile this entry describes, saved under [name].
+  EquipmentProfileModel toModel({required String name}) {
+    return EquipmentProfileModel(
+      name: name,
+      description: description,
+      cameraId: cameraId,
+      mountId: mountId,
+      focuserId: focuserId,
+      filterWheelId: filterWheelId,
+      guiderId: guiderId,
+      guideCameraId: guideCameraId,
+      guideFocalLength: guideFocalLength,
+      rotatorId: rotatorId,
+      domeId: domeId,
+      weatherId: weatherId,
+      safetyMonitorId: safetyMonitorId,
+      switchId: switchId,
+      coverCalibratorId: coverCalibratorId,
+      cameraName: cameraName,
+      mountName: mountName,
+      focuserName: focuserName,
+      filterWheelName: filterWheelName,
+      guiderName: guiderName,
+      guideCameraName: guideCameraName,
+      rotatorName: rotatorName,
+      safetyMonitorName: safetyMonitorName,
+      switchName: switchName,
+      telescopeName: telescopeName,
+      telescopeFocalLength: telescopeFocalLength,
+      telescopeAperture: telescopeAperture,
+      focalLength: focalLength,
+      aperture: aperture,
+      focalRatio: focalRatio,
+      defaultGain: defaultGain,
+      defaultOffset: defaultOffset,
+      defaultReadoutMode: defaultReadoutMode,
+      defaultBinX: defaultBinX,
+      defaultBinY: defaultBinY,
+      defaultCoolingTemp: defaultCoolingTemp,
+      coolOnConnect: coolOnConnect,
+      defaultCenteringExposure: defaultCenteringExposure,
+      filterNames: filterNames ?? const [],
+      filterFocusOffsets: filterFocusOffsets ?? const {},
+      meridianFlipOverrides: meridianFlipOverrides,
+      profileIcon: profileIcon,
+      profileColor: profileColor,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'name': name,

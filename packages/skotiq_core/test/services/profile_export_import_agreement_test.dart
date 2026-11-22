@@ -1,10 +1,13 @@
-// Exporting all profiles writes each one as exporting it alone does.
+// Exporting all profiles writes each one as exporting it alone does, and an
+// imported profile is stored as saving the same profile stores it.
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
+import 'package:skotiq_core/src/database/rows/equipment_profile_rows.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/services/profile_service.dart';
 
@@ -42,6 +45,12 @@ Map<String, Object?> _onlyProfile(String document) =>
     ((jsonDecode(document) as Map)['profiles'] as List).single
         as Map<String, Object?>;
 
+Map<String, Object?> _values(Map<String, dynamic> columns) => {
+  for (final entry in columns.entries)
+    if (!const {'id', 'created_at', 'updated_at'}.contains(entry.key))
+      entry.key: (entry.value as Variable).value,
+};
+
 void main() {
   test('exporting all writes a profile as exporting it alone does', () async {
     final container = _container();
@@ -54,5 +63,33 @@ void main() {
 
     expect(all, one);
     expect(all['focalLength'], 800.0);
+  });
+
+  test('an imported profile is stored as saving it stores it', () async {
+    final container = _container();
+    final document = jsonEncode({
+      'format': kProfileExportFormat,
+      'version': kProfileExportVersion,
+      'profiles': [
+        {
+          'name': 'Imported',
+          'focalLength': 500.0,
+          'aperture': 100.0,
+          'filterNames': <String>[],
+          'filterFocusOffsets': <String, int>{},
+        },
+      ],
+    });
+
+    final id =
+        (await container.read(_service).importAllProfilesFromJson(document))
+            .single;
+    final database = container.read(databaseProvider);
+    final row = await (database.select(
+      database.equipmentProfiles,
+    )..where((p) => p.id.equals(id))).getSingle();
+
+    final saved = row.toModel().toCompanion().toColumns(false);
+    expect(_values(row.toCompanion(false).toColumns(false)), _values(saved));
   });
 }
