@@ -150,24 +150,18 @@ class SmartNightService {
   }) {
     final reference = now ?? DateTime.now();
 
-    final night = AstronomyCalculations.nightAt(
+    final window = AstronomyCalculations.darkWindow(
       now: reference,
       latitudeDeg: latitudeDeg,
       longitudeDeg: longitudeDeg,
     );
-    final bounds = _extractNightBounds(night);
-    if (bounds != null) {
-      return (start: bounds.$1, end: bounds.$2, twilight: night);
+    final night = window.twilight;
+    if (window case NightDarkWindow(:final start, :final end)) {
+      return (start: start, end: end, twilight: night);
     }
 
     final local = reference.toLocal();
-    final todayDate = DateTime(local.year, local.month, local.day);
-    final sunVisibility = AstronomyCalculations.calculateSunVisibility(
-      date: todayDate,
-      latitudeDeg: latitudeDeg,
-      longitudeDeg: longitudeDeg,
-    );
-    if (!sunVisibility.neverRises) {
+    if (window case NoDarkWindow(polarNight: false)) {
       _logging.warning(
         'No twilight bounds and the Sun does not remain below the horizon at '
         'lat=$latitudeDeg lon=$longitudeDeg. Smart Night cannot derive a dark '
@@ -220,22 +214,6 @@ class SmartNightService {
         ? reference
         : truncated.add(const Duration(minutes: 1));
     return (start: start, end: night.end, twilight: night.twilight);
-  }
-
-  (DateTime, DateTime)? _extractNightBounds(TwilightTimes tw) {
-    if (tw.astronomicalDusk != null && tw.astronomicalDawn != null) {
-      return (tw.astronomicalDusk!, tw.astronomicalDawn!);
-    }
-    if (tw.nauticalDusk != null && tw.nauticalDawn != null) {
-      return (tw.nauticalDusk!, tw.nauticalDawn!);
-    }
-    if (tw.civilDusk != null && tw.civilDawn != null) {
-      return (tw.civilDusk!, tw.civilDawn!);
-    }
-    if (tw.sunset != null && tw.sunrise != null) {
-      return (tw.sunset!, tw.sunrise!);
-    }
-    return null;
   }
 
   /// Score and rank the catalogue of saved targets for tonight using the

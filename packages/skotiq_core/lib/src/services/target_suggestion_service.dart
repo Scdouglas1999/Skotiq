@@ -447,14 +447,13 @@ class _TonightSuggestionScorer {
     double latitude,
     double longitude,
   ) {
-    final night = AstronomyCalculations.nightAt(
+    final window = AstronomyCalculations.darkWindow(
       now: now,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
-    final bounds = _extractNightBounds(night);
-    if (bounds != null) {
-      return _NightWindow(start: bounds.start, end: bounds.end);
+    if (window case NightDarkWindow(:final start, :final end)) {
+      return _NightWindow(start: start, end: end);
     }
 
     // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
@@ -473,26 +472,6 @@ class _TonightSuggestionScorer {
 
   /// Extract the best available night bounds from twilight times.
   /// Prefers astronomical darkness, falls back to nautical then civil.
-  ({DateTime start, DateTime end})? _extractNightBounds(TwilightTimes tw) {
-    // Prefer astronomical darkness
-    if (tw.astronomicalDusk != null && tw.astronomicalDawn != null) {
-      return (start: tw.astronomicalDusk!, end: tw.astronomicalDawn!);
-    }
-    // Fallback to nautical twilight (high latitudes in summer)
-    if (tw.nauticalDusk != null && tw.nauticalDawn != null) {
-      return (start: tw.nauticalDusk!, end: tw.nauticalDawn!);
-    }
-    // Fallback to civil twilight
-    if (tw.civilDusk != null && tw.civilDawn != null) {
-      return (start: tw.civilDusk!, end: tw.civilDawn!);
-    }
-    // Fallback to sunset/sunrise
-    if (tw.sunset != null && tw.sunrise != null) {
-      return (start: tw.sunset!, end: tw.sunrise!);
-    }
-    return null;
-  }
-
   String _generateNightReasoning(
     TargetScore score,
     double dataProgress,
