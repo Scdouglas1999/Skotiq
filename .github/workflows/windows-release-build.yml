@@ -10,6 +10,9 @@ name: Windows Release Build
 on:
   workflow_dispatch:
 
+env:
+  FLUTTER_VERSION: '3.44.1'
+
 jobs:
   windows-release-build:
     name: Build Windows Release Artifact
@@ -33,9 +36,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Match the modernized toolchain (Dart 3.12 / analyzer 10). The repo's
-          # codegen deps (freezed 3, drift 2.33, etc.) require Flutter 3.4x.
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 

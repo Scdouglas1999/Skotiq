@@ -57,14 +57,14 @@ maps to one or more required status checks in branch protection:
 | `coverage` | Code Coverage | Every PR + push |
 | `test-rust-windows` | Rust Tests (windows) | Conditional — see section 2 |
 
-The `cargo-duplicates` job is **advisory**: it only emits a build warning
-annotation and never exits non-zero, so it should **not** be a required check.
-See the advisory tier in `docs/ci-gates.md`.
+The `cargo-duplicates` job fails when the resolved duplicate-version set
+differs from its baseline, but it is **not** a required check, so a drift does
+not block a merge on its own (see `docs/ci-gates.md`).
 
-The individual gate steps inside `analyze` and `launch-gate` (placeholder
-audit, fail-closed policy, behavioral audit, bridge boundary, dependency
-hygiene, analyzer rollup) are documented gate-by-gate in `docs/ci-gates.md`. Failing any one of
-them fails its job, which turns the corresponding required check red.
+The checks inside `analyze` and `launch-gate` are stages of
+`tools/production/gate.dart` (`melos run gate`), documented check by check in
+`docs/ci-gates.md`. Failing any one of them fails its job, which turns the
+corresponding required check red.
 
 CI also runs on `push` to `main`, `master`, and `develop`, and on a nightly
 `schedule` (cron `0 4 * * *`). Those triggers do not gate merges directly, but

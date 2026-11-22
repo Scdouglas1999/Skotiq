@@ -12,6 +12,9 @@ on:
       - 'tools/production/linux_release_package_metadata.dart'
       - 'melos.yaml'
 
+env:
+  FLUTTER_VERSION: '3.44.1'
+
 jobs:
   linux-release-build:
     name: Build Linux Release Artifact
@@ -29,7 +32,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
