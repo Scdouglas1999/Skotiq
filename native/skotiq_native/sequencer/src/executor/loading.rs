@@ -59,7 +59,8 @@ impl SequenceExecutor {
     /// loops, integration-budget cap engaged) zero out the totals and
     /// clear the ETA so the dashboard renders "?" instead of a
     /// misleading finite number.
-    pub fn load_sequence(&mut self, sequence: SequenceDefinition) -> Result<(), String> {
+    pub fn load_sequence(&mut self, mut sequence: SequenceDefinition) -> Result<(), String> {
+        super::start::night_end::defer_shutdown_warm_up(&mut sequence);
         let root_node = self.build_node_tree(&sequence)?;
 
         self.publish_totals(&sequence);

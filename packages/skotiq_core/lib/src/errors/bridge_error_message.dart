@@ -237,6 +237,16 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
     ),
     // A refusal reads as the variant it was raised as before it had a kind.
     refused: (kind, message) => switch (kind) {
+      bridge.Refusal.liveStackMisaligned ||
+      bridge.Refusal.liveStackOtherFilter ||
+      bridge.Refusal.liveStackUnreadable => payloadOnly(
+        SkotiqError(
+          category: imaging,
+          message: 'Image error: $message',
+          reason: message,
+        ),
+        message,
+      ),
       bridge.Refusal.lightLeak => payloadOnly(
         SkotiqError(
           category: validation,

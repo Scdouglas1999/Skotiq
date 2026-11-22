@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart' show DeviceConnectException;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -125,6 +126,7 @@ class _BusyFocuserBackend implements DeviceBackend {
 class _RecordingDeviceService implements DeviceService {
   final List<(DeviceType, String)> connects = [];
   final List<String> guideCameraConnects = [];
+  Object? connectError;
 
   @override
   Future<void> connect(
@@ -132,7 +134,10 @@ class _RecordingDeviceService implements DeviceService {
     String deviceId, {
     String? host,
     int? port,
-  }) async => connects.add((type, deviceId));
+  }) async {
+    if (connectError case final error?) throw error;
+    connects.add((type, deviceId));
+  }
 
   @override
   Future<void> connectGuideCamera(String deviceId) async =>
@@ -366,8 +371,8 @@ void main() {
     group("a client's connect of the profile's guide camera", () {
       late _RecordingDeviceService service;
 
-      Future<Response> connectCamera(String deviceId) async {
-        service = _RecordingDeviceService();
+      Future<Response> connectCamera(String deviceId, {Object? fail}) async {
+        service = _RecordingDeviceService()..connectError = fail;
         container.dispose();
         container = ProviderContainer(
           overrides: [
@@ -418,6 +423,31 @@ void main() {
         expect(service.connects, [(DeviceType.camera, 'sim_camera_1')]);
         expect(service.guideCameraConnects, isEmpty);
       });
+
+      // A driver that cannot find its device refused the connect like any
+      // other driver refusal; the words "not found" in its reason do not make
+      // the requested device unknown to the host.
+      test(
+        'a driver\'s "device not found" answers as a refused connect',
+        () async {
+          final response = await connectCamera(
+            'indi:Missing CCD',
+            fail: DeviceConnectException(
+              'indi:Missing CCD',
+              const bridge.SkotiqError.connectionFailed(
+                deviceId: 'indi:Missing CCD',
+                reason: 'INDI device not found: Missing CCD',
+              ),
+              reason: 'INDI device not found: Missing CCD',
+            ),
+          );
+
+          expect(response.statusCode, HttpStatus.conflict);
+          final body = jsonDecode(await response.readAsString()) as Map;
+          expect(body['error'], 'device_connect_failed');
+          expect(body['message'], 'INDI device not found: Missing CCD');
+        },
+      );
     });
 
     group('disconnect falls back to the driver registry', () {

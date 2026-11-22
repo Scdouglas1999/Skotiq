@@ -2,7 +2,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 
@@ -265,42 +264,6 @@ void main() {
         isTrue,
       );
       expect(isCalibrationOnlySequence(of([CoolCameraNode(id: 'c')])), isFalse);
-    });
-  });
-
-  group('the plan\'s closing warm-up', () {
-    Sequence plan(List<SequenceNode> steps) {
-      const root = 'root';
-      return Sequence.create(
-        name: 'Night',
-        rootNodeId: root,
-        nodes: {
-          root: InstructionSetNode(
-            id: root,
-            name: 'Night',
-            childIds: [for (final n in steps) n.id],
-          ),
-          for (final n in steps) n.id: n,
-        },
-      );
-    }
-
-    test('only the warm-up among the closing steps is handed over', () {
-      final sequence = plan([
-        WarmCameraNode(id: 'early-warm', name: 'Warm', parentId: 'root'),
-        ExposureNode(id: 'lights', name: 'Lights', parentId: 'root'),
-        StopGuidingNode(id: 'stop', name: 'Stop', parentId: 'root'),
-        HomeMountNode(id: 'home', name: 'Home', parentId: 'root'),
-        WarmCameraNode(id: 'warm', name: 'Warm', parentId: 'root'),
-      ]);
-      expect(shutdownWarmUpIds(sequence), {'warm'});
-    });
-
-    test('a plan that ends on its lights hands nothing over', () {
-      final sequence = plan([
-        ExposureNode(id: 'lights', name: 'Lights', parentId: 'root'),
-      ]);
-      expect(shutdownWarmUpIds(sequence), isEmpty);
     });
   });
 

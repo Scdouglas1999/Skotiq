@@ -97,6 +97,11 @@ final Map<String, (Map<String, Object?>, Object)> _rows = {
   'throws': ({'ra': 12, 'dec': 30}, StateError('mount gone')),
   'ra_out_of_range': ({'ra': 25, 'dec': 30}, _centered),
   'bad_iterations': ({'ra': 1, 'dec': 2, 'maxIterations': 0}, _centered),
+  // A caller that does not mirror the run (the web dashboard) asks the host
+  // to show it.
+  'published': ({'ra': 5.5, 'dec': -5.4, 'publish': true}, _centered),
+  'published_missed': ({'ra': 12, 'dec': 30, 'publish': true}, _missed),
+  'not_published': ({'ra': 5.5, 'dec': -5.4, 'publish': false}, _centered),
 };
 
 /// Framing only: the client cancels the job while the centering runs.

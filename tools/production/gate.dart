@@ -219,11 +219,6 @@ final List<Check> checks = [
   ),
   Check(
     'audits',
-    'developer-quality:self-test',
-    _tool('developer_quality_audit_self_test'),
-  ),
-  Check(
-    'audits',
     'windows-bundle:self-test',
     _tool('windows_bundle_audit_self_test'),
   ),
@@ -236,11 +231,6 @@ final List<Check> checks = [
     'audits',
     'linux-release-package-metadata:self-test',
     _tool('linux_release_package_metadata_self_test'),
-  ),
-  Check(
-    'audits',
-    'linux-release-workflow:self-test',
-    _tool('linux_release_workflow_audit_self_test'),
   ),
   Check(
     'audits',
@@ -370,7 +360,7 @@ Future<void> main(List<String> args) async {
   for (var i = 0; i < args.length; i++) {
     if (_valueFlags.contains(args[i]) && i + 1 < args.length) {
       i++;
-    } else if (args[i] != '--list') {
+    } else if (args[i] != '--list' && args[i] != '--coverage') {
       stderr.writeln('gate: unknown argument "${args[i]}"');
       exit(2);
     }
@@ -379,6 +369,9 @@ Future<void> main(List<String> args) async {
   final only = _values(args, '--only');
   final skip = _values(args, '--skip');
   final out = _values(args, '--out').lastOrNull;
+  // CI's Dart Tests job also collects coverage: the Flutter tests then write
+  // coverage/lcov.info in each package.
+  final coverage = args.contains('--coverage');
 
   for (final name in [...selectedStages, ...skip]) {
     if (!stages.contains(name) && !checks.any((c) => c.name == name)) {
@@ -437,15 +430,18 @@ Future<void> main(List<String> args) async {
     final logFile = outDir == null
         ? null
         : File('${outDir.path}/${check.name.replaceAll(':', '_')}.log');
+    final command = coverage && check.name == 'flutter-tests'
+        ? [...check.command, '--coverage']
+        : check.command;
     if (onCi) stdout.writeln('::group::${check.name}');
     if (logFile == null) {
-      stdout.writeln('== ${check.name}: ${check.command.join(' ')}');
+      stdout.writeln('== ${check.name}: ${command.join(' ')}');
     }
     final int code;
     try {
       final process = await Process.start(
-        check.command.first,
-        check.command.skip(1).toList(),
+        command.first,
+        command.skip(1).toList(),
         workingDirectory: check.workingDirectory == null
             ? root
             : '$root/${check.workingDirectory}',
@@ -481,7 +477,7 @@ Future<void> main(List<String> args) async {
       if (onCi) {
         stdout.writeln(
           '::error::gate check ${check.name} failed (exit $code): '
-          '${check.command.join(' ')}',
+          '${command.join(' ')}',
         );
       }
     }

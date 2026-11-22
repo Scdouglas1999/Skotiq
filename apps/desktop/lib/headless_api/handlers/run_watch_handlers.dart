@@ -162,9 +162,13 @@ class RunWatchHandlers implements RouteSource {
     // to an idle-shaped block: a remote operator must not be told the rig
     // is idle because a read threw mid-run.
     Map<String, Object?> progressBlock;
+    // While paused: whether the step the run was in has finished. Read from
+    // the same run record, so it is unknown (null) when that read fails.
+    bool? pausedIdle;
     try {
       final progress = container.read(sequenceProgressProvider);
       progressBlock = _progressToJson(progress);
+      pausedIdle = container.read(pausedRunIdleProvider);
     } catch (e) {
       _logWarning('snapshot: progress provider read failed: $e');
       progressBlock = _unavailableProgressJson(e);
@@ -284,7 +288,11 @@ class RunWatchHandlers implements RouteSource {
     return jsonOk(
       _jsonSafe(<String, Object?>{
             'serverTime': DateTime.now().toWireTime(),
-            'sequencer': {...sequencerStatus, 'progress': progressBlock},
+            'sequencer': {
+              ...sequencerStatus,
+              'progress': progressBlock,
+              'pausedIdle': pausedIdle,
+            },
             'activeTarget': activeTargetBlock,
             'guiding': guidingBlock,
             'weather': weatherBlock,

@@ -9,7 +9,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_qhy_discovery_timeout_ms`
+// These functions are ignored because they are not marked as `pub`: `api_get_rotator_capabilities`, `get_qhy_discovery_timeout_ms`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Get capabilities for any device by its device ID.
@@ -46,13 +46,6 @@ Future<FocuserCapabilities> apiGetFocuserCapabilities({
 Future<FilterWheelCapabilities> apiGetFilterwheelCapabilities({
   required String deviceId,
 }) => RustLib.instance.api.crateApiDiagnosticsApiGetFilterwheelCapabilities(
-  deviceId: deviceId,
-);
-
-/// Get rotator capabilities for a specific rotator device.
-Future<RotatorCapabilities> apiGetRotatorCapabilities({
-  required String deviceId,
-}) => RustLib.instance.api.crateApiDiagnosticsApiGetRotatorCapabilities(
   deviceId: deviceId,
 );
 

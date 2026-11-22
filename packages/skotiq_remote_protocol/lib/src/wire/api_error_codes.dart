@@ -8,6 +8,16 @@ import 'dart:convert';
 /// clients compare against them, and the browser pages read the same table
 /// from `js/wire-errors.js` ([javaScript]).
 abstract final class ApiErrorCodes {
+  /// A 401 for a request that presents no credential.
+  static const authRequired = 'auth_required';
+
+  /// A 401 for an Authorization header that is not `Bearer <token>`.
+  static const invalidAuthHeader = 'invalid_auth_header';
+
+  /// A 401 for a socket ticket that is unknown, used or expired, or whose
+  /// token no longer exists.
+  static const invalidTicket = 'invalid_ticket';
+
   /// A 403 for a token the host does not know: the client has to pair again.
   static const invalidToken = 'invalid_token';
 
@@ -24,6 +34,10 @@ abstract final class ApiErrorCodes {
   /// A 409 for a mount move refused because the guider does not answer.
   static const guiderNotAnswering = 'guider_not_answering';
 
+  /// A 409 from the embedded API of a window that is linked to another host:
+  /// the request belongs to that host.
+  static const linkedToHost = 'linked_to_host';
+
   /// A 409 for a stop or pause with no sequence running.
   static const sequencerNotRunning = 'sequencer_not_running';
 
@@ -34,11 +48,15 @@ abstract final class ApiErrorCodes {
 
   /// Every code above, by the name a page reads it under.
   static const Map<String, String> all = {
+    'authRequired': authRequired,
+    'invalidAuthHeader': invalidAuthHeader,
+    'invalidTicket': invalidTicket,
     'invalidToken': invalidToken,
     'insufficientScope': insufficientScope,
     'versionMismatch': versionMismatch,
     'releaseRequired': releaseRequired,
     'guiderNotAnswering': guiderNotAnswering,
+    'linkedToHost': linkedToHost,
     'sequencerNotRunning': sequencerNotRunning,
     'invalidPairingCode': invalidPairingCode,
     'pairingCodeExpired': pairingCodeExpired,

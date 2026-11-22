@@ -2465,3 +2465,30 @@ test('seq zero is a real sequence number, not an absence', () => {
   });
   assert.equal(key, 'seq:srv-1:0');
 });
+
+// A paused run whose step is still finishing is not yet free to act on; the
+// host says so with `pausedIdle`.
+test('a paused run reads as pausing until its step has finished', () => {
+  const { doc, api } = loadRunWatch();
+  api.noteLinkOk();
+  const paused = (pausedIdle) => {
+    const snap = runningSnapshot();
+    snap.sequencer = Object.assign({}, snap.sequencer, {
+      state: 'paused',
+      pausedIdle,
+      progress: Object.assign({}, snap.sequencer.progress, { state: 'paused' }),
+    });
+    return snap;
+  };
+  api.applySnapshot(paused(false));
+  const badge = doc.getElementById('state-badge');
+  assert.equal(badge.textContent, 'pausing: step finishing');
+  assert.ok(badge.classList.contains('badge-paused'));
+
+  api.applySnapshot(paused(true));
+  assert.equal(badge.textContent, 'paused');
+
+  // An older host sends no pausedIdle: the badge says what it always said.
+  api.applySnapshot(paused(undefined));
+  assert.equal(badge.textContent, 'paused');
+});

@@ -252,6 +252,8 @@ class AcquisitionSettings {
     this.gain,
     this.offset,
     this.ccdTempC,
+    this.setPointC,
+    this.readMode,
   });
 
   factory AcquisitionSettings.fromJson(Map<String, dynamic> json) =>
@@ -264,6 +266,8 @@ class AcquisitionSettings {
         binX: json['binX'] as int,
         binY: json['binY'] as int,
         ccdTempC: (json['ccdTempC'] as num?)?.toDouble(),
+        setPointC: (json['setPointC'] as num?)?.toDouble(),
+        readMode: json['readMode'] as String?,
       );
 
   final String instrument;
@@ -275,6 +279,12 @@ class AcquisitionSettings {
   final int binY;
   final double? ccdTempC;
 
+  /// `SET-TEMP` of the reference light, when it states one.
+  final double? setPointC;
+
+  /// `READOUTM` of the reference light, when it states one.
+  final String? readMode;
+
   Map<String, dynamic> toJson() => {
     'instrument': instrument,
     'filter': filter,
@@ -284,6 +294,8 @@ class AcquisitionSettings {
     'binX': binX,
     'binY': binY,
     'ccdTempC': ccdTempC,
+    'setPointC': ?setPointC,
+    'readMode': ?readMode,
   };
 }
 

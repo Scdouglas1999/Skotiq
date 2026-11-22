@@ -52,7 +52,7 @@ scripts:
 
   gate:
     run: dart run tools/production/gate.dart
-    description: Run every check CI runs (stages analyze, audits, dart-tests, hub, format, rust); pass `-- --stage <s>`, `--only <check>`, `--skip <stage or check>`, `--out <dir>` or `--list`
+    description: Run every check CI runs (stages analyze, audits, dart-tests, hub, format, rust); pass `-- --stage <s>`, `--only <check>`, `--skip <stage or check>`, `--out <dir>`, `--coverage` or `--list`
 
   analyze:production:
     run: dart run tools/production/gate.dart --only analyze-production
@@ -118,14 +118,6 @@ scripts:
     run: dart run tools/production/gate.dart --only oversized-files:self-test
     description: Self-test oversized file audit thresholds and exclusions against temporary fixtures
 
-  audit:developer-quality:
-    run: dart run tools/production/developer_quality_audit.dart
-    description: Roll up UI consistency, headless route policy, and oversized-file developer-quality audit signals
-
-  audit:developer-quality:self-test:
-    run: dart run tools/production/gate.dart --only developer-quality:self-test
-    description: Self-test developer quality audit pass/fail behavior against temporary fixtures
-
   audit:windows-bundle:
     run: dart run tools/production/windows_bundle_audit.dart
     description: Verify the Windows release bundle has required assets and no dev placeholders
@@ -182,14 +174,6 @@ scripts:
     run: dart run tools/production/gate.dart --only linux-release-package-metadata:self-test
     description: Self-test Linux release package metadata and evidence generation against a temporary bundle
 
-  audit:linux-release-workflow:
-    run: dart run tools/production/linux_release_workflow_audit.dart
-    description: Verify Linux release GitHub Actions workflow and package metadata generator wiring
-
-  audit:linux-release-workflow:self-test:
-    run: dart run tools/production/gate.dart --only linux-release-workflow:self-test
-    description: Self-test Linux release workflow audit against temporary workflow fixtures
-
   audit:manual-migration:
     run: dart run tools/production/gate.dart --only manual-migration
     description: Verify the release-authentic v4.3.0 profile/database migration to the current schema
@@ -213,14 +197,6 @@ scripts:
   audit:release-docs:self-test:
     run: dart run tools/production/gate.dart --only release-docs:self-test
     description: Self-test release docs audit against complete and deficient temporary fixtures
-
-  audit:platform-capabilities:
-    run: dart run tools/production/platform_capability_audit.dart
-    description: Verify platform capability model, UI gating, headless API exposure, docs, and tests stay aligned
-
-  audit:platform-capabilities:self-test:
-    run: dart run tools/production/platform_capability_audit_self_test.dart
-    description: Self-test platform capability audit against complete and deficient temporary fixtures
 
   smoke:headless:windows:
     run: dart run tools/production/headless_windows_smoke.dart

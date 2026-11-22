@@ -341,7 +341,7 @@ Future<void> _expectWebSocketPong(Uri baseUri, String token) async {
     host: baseUri.host,
     port: baseUri.port,
     path: '/events',
-    queryParameters: {'token': token},
+    queryParameters: {'token': token, 'version': _skotiqRelease},
   );
   final socket = await WebSocket.connect(uri.toString());
   try {

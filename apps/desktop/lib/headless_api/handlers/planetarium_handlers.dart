@@ -253,7 +253,7 @@ class PlanetariumHandlers implements RouteSource {
           raHours: ra,
           decDegrees: dec,
           config: centering,
-          publishes: false,
+          publishes: centeringPublishedFor(payload),
         ))!;
 
     return jsonOk(result.toJson());

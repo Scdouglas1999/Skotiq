@@ -187,7 +187,7 @@
     "body": {
       "error": "preflight_rejected",
       "code": "preflight_rejected",
-      "message": "SkotiqError.internal(field0: Task panicked)"
+      "message": "Task panicked"
     }
   },
   "start.dart_error": {
@@ -244,10 +244,10 @@
     }
   },
   "depthlock.raw_reference_missing": {
-    "status": 404,
+    "status": 400,
     "body": {
-      "error": "depthlock_goal_not_found",
-      "code": "depthlock_goal_not_found",
+      "error": "depthlock_invalid_request",
+      "code": "depthlock_invalid_request",
       "message": "Cannot read /data/m42/ref.cr2: /data/m42/ref.cr2 does not exist",
       "requestId": "test-request-id"
     }

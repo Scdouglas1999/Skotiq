@@ -94,7 +94,7 @@ class FramingHandlers implements RouteSource {
       raHours: ra,
       decDegrees: dec,
       config: centering,
-      publishes: false,
+      publishes: centeringPublishedFor(payload),
     ))!;
 
     final job = jobManager.start(

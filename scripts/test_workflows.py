@@ -92,5 +92,24 @@ class BuildOnlyArtifactTest(unittest.TestCase):
             self.assertEqual(build_only.get(step), release[step], step)
 
 
+
+class OneDartTestRunTest(unittest.TestCase):
+    """The Dart suite runs once per PR, instrumented, and that run's lcov is
+    the coverage report."""
+
+    def test_dart_tests_runs_instrumented_and_publishes_coverage(self):
+        text = (WORKFLOWS / "ci.yml").read_text()
+        steps = steps_by_name(text, "test-dart")
+        self.assertIn("--stage dart-tests --coverage", steps["Run Dart tests"])
+        self.assertIn("Merge per-package coverage reports", steps)
+        self.assertIn("Upload coverage to Codecov", steps)
+
+    def test_no_second_job_reruns_the_suite_for_coverage(self):
+        text = (WORKFLOWS / "ci.yml").read_text()
+        reruns = [line for line in text.splitlines()
+                  if "melos run test" in line and "--coverage" in line]
+        self.assertEqual(reruns, [])
+        self.assertNotRegex(text, r"(?m)^  coverage:\s*$")
+
 if __name__ == "__main__":
     unittest.main()

@@ -241,13 +241,6 @@ pub async fn api_disconnect_device(
         .map_err(|e| SkotiqError::OperationFailed(e))
 }
 
-/// Check if a device is connected
-pub async fn api_is_device_connected(device_type: DeviceType, device_id: String) -> bool {
-    get_device_manager()
-        .is_device_connected(device_type, &device_id)
-        .await
-}
-
 /// Get list of connected devices
 pub async fn api_get_connected_devices() -> Vec<DeviceInfo> {
     get_device_manager().get_connected_device_infos().await

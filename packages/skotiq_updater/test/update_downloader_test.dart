@@ -107,6 +107,39 @@ void main() {
     expect(client.requests.last.headers.containsKey('range'), isFalse);
   });
 
+  // A partial that is back after the restart deleted it (a second writer on
+  // the same path) is refused again: one restart, then a clear failure, not a
+  // restart for every 416.
+  test('a 416 after the restart is a failure, not another restart', () async {
+    final tempDir = await Directory.systemTemp.createTemp('skotiq_dl_416x2_');
+    addTearDown(() => tempDir.delete(recursive: true));
+    final destination = File('${tempDir.path}/update.bin');
+    await destination.writeAsBytes([1, 2, 3]);
+    http.StreamedResponse refuseAndRewrite(http.BaseRequest _) {
+      destination.writeAsBytesSync([1, 2, 3]);
+      return http.StreamedResponse(const Stream<List<int>>.empty(), 416);
+    }
+
+    final client = _ScriptedClient([
+      refuseAndRewrite,
+      refuseAndRewrite,
+      refuseAndRewrite,
+    ]);
+    final downloader = UpdateDownloader(client: client);
+    addTearDown(downloader.dispose);
+
+    await expectLater(
+      downloader.download(
+        'https://updates.example.invalid/update.bin',
+        destination.path,
+      ),
+      throwsA(
+        isA<DownloadException>().having((e) => e.statusCode, 'status', 416),
+      ),
+    );
+    expect(client.requests, hasLength(2));
+  });
+
   test(
     'a Content-Range start that misses the local offset deletes the partial',
     () async {

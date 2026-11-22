@@ -32,6 +32,7 @@ export 'src/providers/sequence/run_config_sync.dart'
 export 'src/providers/sequence_stats_provider.dart';
 // The one wording for a target dropped by its own end_when.
 // Sequencer events, typed once at the Dart boundary.
+export 'src/providers/sequence/paused_run_idle.dart';
 export 'src/providers/sequence/plan_run_end.dart';
 export 'src/providers/sequence/plan_timer_provider.dart';
 export 'src/providers/sequence/run_node_times_provider.dart';

@@ -29,3 +29,10 @@ Future<CenteringConfig> centeringForRequest(
     syncMount: optionalBool(payload, 'syncMount') ?? defaults.syncMount,
   );
 }
+
+/// Whether the host shows a center request's run in its own window, as its
+/// centering status and last result. A linked Skotiq client mirrors the run
+/// it started, so a request without the flag publishes nothing; a caller
+/// that does not mirror (the web dashboard) sends `publish: true`.
+bool centeringPublishedFor(Map<String, dynamic> payload) =>
+    optionalBool(payload, 'publish') == true;

@@ -40,7 +40,6 @@ import 'api/polar_alignment/run_loop.dart';
 import 'api/post_session/entrypoints.dart';
 import 'api/secondary_rig.dart';
 import 'api/sequencer.dart';
-import 'api/sequencer/event_bridge.dart';
 import 'api/sequencer/lifecycle.dart';
 import 'api/sequencer/mosaic.dart';
 import 'api/sequencer/runtime_config.dart';
@@ -122,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -915743585;
+  int get rustContentHash => -1686779812;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -234,15 +233,6 @@ abstract class RustLibApi extends BaseApi {
     required String location,
   });
 
-  Future<void> crateApiImagingApiCameraStartExposure({
-    required String deviceId,
-    required double durationSecs,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-  });
-
   Future<void> crateApiImagingApiCameraStartExposureConfigured({
     required String deviceId,
     required double durationSecs,
@@ -317,23 +307,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiDevicesCoverCalibratorApiCoverCalibratorCloseCover({
-    required String deviceId,
-  });
-
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightness({
-    required String deviceId,
-  });
-
-  Future<int>
-  crateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorState({
-    required String deviceId,
-  });
-
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverState({
-    required String deviceId,
-  });
-
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightness({
     required String deviceId,
   });
 
@@ -653,15 +626,9 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  String? crateApiPlateSolveApiGetPlateSolverPath();
-
   List<EquipmentProfile> crateApiStorageApiGetProfiles();
 
   QhyDiscoveryStatus crateApiDiagnosticsApiGetQhyDiscoveryStatus();
-
-  Future<RotatorCapabilities> crateApiDiagnosticsApiGetRotatorCapabilities({
-    required String deviceId,
-  });
 
   Future<RotatorStatus> crateApiDevicesRotatorApiGetRotatorStatus({
     required String deviceId,
@@ -739,11 +706,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiDiscoveryApiInvalidateDiscoveryCache();
-
-  Future<bool> crateApiConnectionApiIsDeviceConnected({
-    required DeviceType deviceType,
-    required String deviceId,
-  });
 
   bool crateApiDiagnosticsApiIsQhyDiscoveryEnabled();
 
@@ -1105,8 +1067,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerLifecycleApiSequencerStop({String? origin});
 
-  Future<void> crateApiSequencerEventBridgeApiSequencerSubscribeEvents();
-
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateCloudMotion({
     double? currentCoverPercent,
     double? predictedArrivalMinutes,
@@ -1148,10 +1108,6 @@ abstract class RustLibApi extends BaseApi {
   void crateApiDiagnosticsApiSetQhyDiscoveryEnabled({required bool enabled});
 
   Future<String> crateApiSkyAtlasApiSkyAtlas({required String argsJson});
-
-  Future<String> crateApiSkyAtlasFramesApiSkyAtlasAddFrame({
-    required String argsJson,
-  });
 
   Future<String> crateApiSkyAtlasRegionsApiSkyAtlasGrowth({
     required String argsJson,
@@ -2136,58 +2092,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiImagingApiCameraStartExposure({
-    required String deviceId,
-    required double durationSecs,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_f_64(durationSecs);
-          var arg2 = cst_encode_i_32(gain);
-          var arg3 = cst_encode_i_32(offset);
-          var arg4 = cst_encode_i_32(binX);
-          var arg5 = cst_encode_i_32(binY);
-          return wire.wire__crate__api__imaging__api_camera_start_exposure(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiCameraStartExposureConstMeta,
-        argValues: [deviceId, durationSecs, gain, offset, binX, binY],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiCameraStartExposureConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_camera_start_exposure",
-        argNames: [
-          "deviceId",
-          "durationSecs",
-          "gain",
-          "offset",
-          "binX",
-          "binY",
-        ],
-      );
-
-  @override
   Future<void> crateApiImagingApiCameraStartExposureConfigured({
     required String deviceId,
     required double durationSecs,
@@ -2742,139 +2646,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiDevicesCoverCalibratorApiCoverCalibratorCloseCoverConstMeta =>
       const TaskConstMeta(
         debugName: "api_cover_calibrator_close_cover",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightness({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightnessConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightnessConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_brightness",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int>
-  crateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorState({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorStateConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorStateConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_calibrator_state",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverState({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverStateConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverStateConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_cover_state",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightness({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightnessConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightnessConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_max_brightness",
         argNames: ["deviceId"],
       );
 
@@ -5267,28 +5038,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  String? crateApiPlateSolveApiGetPlateSolverPath() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          return wire
-              .wire__crate__api__plate_solve__api_get_plate_solver_path();
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_opt_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiPlateSolveApiGetPlateSolverPathConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiPlateSolveApiGetPlateSolverPathConstMeta =>
-      const TaskConstMeta(debugName: "api_get_plate_solver_path", argNames: []);
-
-  @override
   List<EquipmentProfile> crateApiStorageApiGetProfiles() {
     return handler.executeSync(
       SyncTask(
@@ -5332,37 +5081,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_get_qhy_discovery_status",
         argNames: [],
-      );
-
-  @override
-  Future<RotatorCapabilities> crateApiDiagnosticsApiGetRotatorCapabilities({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__diagnostics__api_get_rotator_capabilities(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_rotator_capabilities,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDiagnosticsApiGetRotatorCapabilitiesConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDiagnosticsApiGetRotatorCapabilitiesConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_get_rotator_capabilities",
-        argNames: ["deviceId"],
       );
 
   @override
@@ -6030,39 +5748,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_invalidate_discovery_cache",
         argNames: [],
-      );
-
-  @override
-  Future<bool> crateApiConnectionApiIsDeviceConnected({
-    required DeviceType deviceType,
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_device_type(deviceType);
-          var arg1 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__connection__api_is_device_connected(
-            port_,
-            arg0,
-            arg1,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiConnectionApiIsDeviceConnectedConstMeta,
-        argValues: [deviceType, deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiConnectionApiIsDeviceConnectedConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_is_device_connected",
-        argNames: ["deviceType", "deviceId"],
       );
 
   @override
@@ -8931,35 +8616,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSequencerEventBridgeApiSequencerSubscribeEvents() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiSequencerEventBridgeApiSequencerSubscribeEventsConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiSequencerEventBridgeApiSequencerSubscribeEventsConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_sequencer_subscribe_events",
-        argNames: [],
-      );
-
-  @override
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateCloudMotion({
     double? currentCoverPercent,
     double? predictedArrivalMinutes,
@@ -9282,37 +8938,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSkyAtlasApiSkyAtlasConstMeta =>
       const TaskConstMeta(debugName: "api_sky_atlas", argNames: ["argsJson"]);
-
-  @override
-  Future<String> crateApiSkyAtlasFramesApiSkyAtlasAddFrame({
-    required String argsJson,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(argsJson);
-          return wire
-              .wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
-          decodeErrorData: dco_decode_String,
-        ),
-        constMeta: kCrateApiSkyAtlasFramesApiSkyAtlasAddFrameConstMeta,
-        argValues: [argsJson],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSkyAtlasFramesApiSkyAtlasAddFrameConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_sky_atlas_add_frame",
-        argNames: ["argsJson"],
-      );
 
   @override
   Future<String> crateApiSkyAtlasRegionsApiSkyAtlasGrowth({
@@ -11312,8 +10937,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiAcquisitionSettings dco_decode_api_acquisition_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ApiAcquisitionSettings(
       instrument: dco_decode_String(arr[0]),
       filter: dco_decode_String(arr[1]),
@@ -11323,6 +10948,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: dco_decode_i_32(arr[5]),
       binY: dco_decode_i_32(arr[6]),
       ccdTempC: dco_decode_opt_box_autoadd_f_64(arr[7]),
+      setPointC: dco_decode_opt_box_autoadd_f_64(arr[8]),
+      readMode: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -15660,6 +15287,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_binX = sse_decode_i_32(deserializer);
     var var_binY = sse_decode_i_32(deserializer);
     var var_ccdTempC = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_setPointC = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_readMode = sse_decode_opt_String(deserializer);
     return ApiAcquisitionSettings(
       instrument: var_instrument,
       filter: var_filter,
@@ -15669,6 +15298,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: var_binX,
       binY: var_binY,
       ccdTempC: var_ccdTempC,
+      setPointC: var_setPointC,
+      readMode: var_readMode,
     );
   }
 
@@ -21858,6 +21489,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.binX, serializer);
     sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.ccdTempC, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.setPointC, serializer);
+    sse_encode_opt_String(self.readMode, serializer);
   }
 
   @protected

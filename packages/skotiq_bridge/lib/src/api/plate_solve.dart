@@ -10,10 +10,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 // These functions are ignored because they are not marked as `pub`: `into_pref`, `solve_file`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`
 
-/// Get the path to the installed plate solver
-String? apiGetPlateSolverPath() =>
-    RustLib.instance.api.crateApiPlateSolveApiGetPlateSolverPath();
-
 /// Blind solve of the image file at `file_path`, told the field scale.
 Future<PlateSolveResult> apiPlateSolveBlind({
   required String filePath,

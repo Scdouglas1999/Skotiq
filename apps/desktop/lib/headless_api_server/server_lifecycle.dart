@@ -41,6 +41,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         .addMiddleware(_linkVersionMiddleware())
         .addMiddleware(_pairedTokenHydrationGate())
         .addMiddleware(_authMiddleware())
+        .addMiddleware(_linkedWindowMiddleware())
         .addMiddleware(_chunkedBodyLimitMiddleware())
         .addMiddleware(_rateLimitMiddleware())
         .addMiddleware(_highRiskAuditMiddleware())

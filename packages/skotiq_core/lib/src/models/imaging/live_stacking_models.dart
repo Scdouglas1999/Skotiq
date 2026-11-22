@@ -196,9 +196,10 @@ class LiveStackingConfig {
     demosaicQuality: demosaicQuality,
   );
 
-  /// The engine settings as the `config` object of the host's stacking
-  /// routes. The feeder policy ([separateByFilter], [autoFeedEnabled],
-  /// [maxHfrPx], [minStarCount]) is not part of it.
+  /// The settings as the `config` object of the host's stacking routes: the
+  /// engine's, and the feeder's ([separateByFilter], [autoFeedEnabled], and
+  /// the [maxHfrPx] / [minStarCount] gates, null when off), which the host's
+  /// feeder applies to the frames of its run.
   Map<String, Object?> toWireJson() => {
     'sigmaClipEnabled': sigmaClipEnabled,
     'sigmaClipThreshold': sigmaClipThreshold,
@@ -212,6 +213,10 @@ class LiveStackingConfig {
     'sensorMode': sensorMode,
     if (bayerPattern != null) 'bayerPattern': bayerPattern,
     'demosaicQuality': demosaicQuality,
+    'separateByFilter': separateByFilter,
+    'autoFeedEnabled': autoFeedEnabled,
+    'maxHfrPx': maxHfrPx,
+    'minStarCount': minStarCount,
   };
 
   LiveStackingConfig copyWith({
@@ -557,6 +562,30 @@ class LiveStackFilterSummary {
       stats = LiveStackingStats.fromBridge(s.stats);
 }
 
+/// Why the live stacker left a frame out, by kind, with the engine's
+/// sentence.
+class LiveStackRefusal {
+  const LiveStackRefusal(this.kind, this.message);
+
+  final LiveStackRefusalKind kind;
+  final String message;
+
+  /// The text the refusal carried before it had a kind, which the GUI shows
+  /// and the host's published bodies hold in `reason`.
+  String get legacyText => 'SkotiqError.imageError(field0: $message)';
+}
+
+enum LiveStackRefusalKind {
+  /// The frame did not align to the reference.
+  misaligned,
+
+  /// Taken through another filter than the stack's.
+  otherFilter,
+
+  /// The frame file could not be read.
+  unreadable,
+}
+
 /// Thrown when the stacker refuses the frame it was handed.
 ///
 /// A refusal is a *counted event*: the engine increments
@@ -575,7 +604,14 @@ class LiveStackingFrameRejected implements Exception {
   /// Stacker statistics AFTER the refusal was counted.
   final LiveStackingStats stats;
 
-  const LiveStackingFrameRejected({required this.reason, required this.stats});
+  /// Why the engine left the frame out, when it said by kind.
+  final LiveStackRefusal? refusal;
+
+  const LiveStackingFrameRejected({
+    required this.reason,
+    required this.stats,
+    this.refusal,
+  });
 
   /// Renders as the engine's reason so existing user-facing messages that
   /// interpolate the caught error are unchanged.

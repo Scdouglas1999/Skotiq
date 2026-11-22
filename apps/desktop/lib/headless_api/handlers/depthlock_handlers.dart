@@ -66,7 +66,7 @@ class DepthLockHandlers implements RouteSource {
       return await action();
     } on bridge_error.SkotiqError catch (error, stackTrace) {
       final reason = describeBackendError(error);
-      final status = _depthLockErrorStatus(error, reason);
+      final status = _depthLockErrorStatus(error);
       final code = _depthLockErrorCode(status);
       throw HandlerFailure(
         code: code,
@@ -84,13 +84,9 @@ class DepthLockHandlers implements RouteSource {
   }
 
   /// The store's refusals answer by their kind. Anything else is a
-  /// definition the caller can fix, so it answers 400 rather than claiming a
-  /// host fault, except that a reason saying something does not exist (a
-  /// camera-raw reference file that is missing, say) answers 404.
-  static int _depthLockErrorStatus(
-    bridge_error.SkotiqError error,
-    String reason,
-  ) {
+  /// definition the caller can fix (a reference file that is missing, say),
+  /// so it answers 400 rather than claiming a host fault.
+  static int _depthLockErrorStatus(bridge_error.SkotiqError error) {
     if (error case bridge_error.SkotiqError_Refused(:final kind)) {
       switch (kind) {
         case bridge_error.Refusal.depthLockNoSuchGoal:
@@ -103,7 +99,6 @@ class DepthLockHandlers implements RouteSource {
           break;
       }
     }
-    if (reason.contains('does not exist')) return 404;
     return 400;
   }
 

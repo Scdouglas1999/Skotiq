@@ -74,6 +74,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           return innerHandler(request);
         }
 
+        final scopeRefusal = _Refusal();
         for (final credential in _credentialsFrom(request, route)) {
           final answer = _admit(
             innerHandler,
@@ -82,14 +83,17 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             path,
             route,
             credential,
+            scopeRefusal,
           );
           if (answer != null) return answer;
         }
+        if (scopeRefusal.value case final refusal?) return refusal;
         _logWarning(
           '[AUTH][$requestId] Rejected request to $path - no Authorization header or session cookie',
         );
         return _authenticationRequired(
           requestId,
+          ApiErrorCodes.authRequired,
           'Missing Authorization header or session cookie',
         );
       };
@@ -147,9 +151,10 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
   ///  * a ticket is checked against no failure limiter (it is single use and
   ///    already consumed), its principal must still be active, and its
   ///    device is not marked seen;
-  ///  * `?token=` is limited like a bearer, but when it does not admit (an
-  ///    unknown token or one without the scope) it counts as a failure and the
-  ///    next credential is tried;
+  ///  * `?token=` is limited like a bearer; when it does not admit the next
+  ///    credential is tried. An unknown token counts as a failure; a known
+  ///    one without the scope does not, and is answered with the ticket
+  ///    path's 403 when nothing else admits;
   ///  * a bearer from the cookie must carry the CSRF header on a
   ///    state-changing method (except logout); a recognized bearer clears the
   ///    client's failures and marks its device seen before the scope check.
@@ -160,6 +165,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     String path,
     ApiRoute route,
     _Credential credential,
+    _Refusal scopeRefusal,
   ) {
     switch (credential) {
       case _Ticket(:final ticket):
@@ -172,6 +178,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           );
           return _authenticationRequired(
             requestId,
+            ApiErrorCodes.invalidTicket,
             'Invalid or expired WebSocket ticket',
           );
         }
@@ -183,6 +190,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           );
           return _authenticationRequired(
             requestId,
+            ApiErrorCodes.invalidTicket,
             'Invalid or expired WebSocket ticket',
           );
         }
@@ -205,12 +213,22 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           return _authenticationRateLimited(requestId);
         }
         final grant = _grantForToken(token);
-        if (grant == null ||
-            !HeadlessAuthPolicy.permits(grant: grant, route: route)) {
+        if (grant == null) {
           _tokenResolver.recordFailure(clientKey);
           return null;
         }
         _tokenResolver.clearFailures(clientKey);
+        // A known token without the scope is no failed guess: the next
+        // credential is tried, and with none admitting the route answers
+        // the ticket path's refusal.
+        if (!HeadlessAuthPolicy.permits(grant: grant, route: route)) {
+          _logWarning(
+            '[AUTH][$requestId] WS upgrade to $path - '
+            'insufficient scope for ?token= principal',
+          );
+          scopeRefusal.value = _scopeDenied(requestId, grant, route);
+          return null;
+        }
         // A phone that only holds the event socket open all night must still
         // register as seen.
         _touchPairedDeviceSeen(token);
@@ -232,6 +250,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         );
         return _authenticationRequired(
           requestId,
+          ApiErrorCodes.invalidAuthHeader,
           'Invalid Authorization header format. Expected: Bearer <token>',
         );
 
@@ -341,12 +360,16 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     headers: {HeadlessApiServer._requestIdHeader: requestId},
   );
 
-  /// 401 for a request whose credential is missing or unusable.
-  Response _authenticationRequired(String requestId, String message) =>
-      jsonUnauthorized(
-        {'error': 'Authentication required', 'message': message},
-        headers: {HeadlessApiServer._requestIdHeader: requestId},
-      );
+  /// 401 for a request whose credential is missing or unusable, coded by
+  /// which.
+  Response _authenticationRequired(
+    String requestId,
+    String code,
+    String message,
+  ) => jsonUnauthorized(
+    {'error': 'Authentication required', 'code': code, 'message': message},
+    headers: {HeadlessApiServer._requestIdHeader: requestId},
+  );
 
   /// 429 for a client whose bad tokens tripped the failure limiter.
   Response _authenticationRateLimited(String requestId) => jsonRateLimited(
@@ -588,6 +611,12 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
       }),
     );
   }
+}
+
+/// The refusal a `?token=` without the route's scope earned, answered when no
+/// other credential admits the request.
+final class _Refusal {
+  Response? value;
 }
 
 /// A credential a request presents; see `_credentialsFrom`.

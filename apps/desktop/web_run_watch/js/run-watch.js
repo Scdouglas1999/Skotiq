@@ -1290,7 +1290,11 @@ function renderSnapshot(data) {
   const state = reportedSequencerState(progress, sequencer);
   const unknown = state === 'unknown';
   const badge = $('state-badge');
-  badge.textContent = state;
+  // A paused run whose step is still finishing (an exposure, a slew, a
+  // focuser move) is not yet free to act on: say so until the host reports
+  // it idle.
+  const stepFinishing = state === 'paused' && sequencer.pausedIdle === false;
+  badge.textContent = stepFinishing ? 'pausing: step finishing' : state;
   badge.className = 'badge';
   if (state === 'running') badge.classList.add('badge-running');
   else if (state === 'paused') badge.classList.add('badge-paused');

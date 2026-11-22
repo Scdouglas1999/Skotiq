@@ -18,6 +18,7 @@ import 'mobile_event_notifier.dart';
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
 import 'power_service.dart';
+import 'rig_connection.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// Mobile-specific hooks for sequence execution
@@ -34,6 +35,7 @@ class MobileSequenceHooks {
   MobileEventNotifier? _eventNotifier;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
   ProviderSubscription<HostNotifications?>? _hostNotificationsSubscription;
+  ProviderSubscription<DiscoveredServer?>? _connectedRigSubscription;
 
   // LAN UDP push notification receiver. Lifecycle is tied to the
   // backend — created when the mobile pairs (NetworkBackend with a saved
@@ -124,6 +126,17 @@ class MobileSequenceHooks {
     );
 
     _setupPushNotificationListener(_ref.read(linkedHostNotificationsProvider));
+
+    // The backend is swapped before the connect flow records the rig it
+    // linked to, so the receiver is rebuilt again once it does: its frames
+    // are verified against that rig's fingerprint.
+    _connectedRigSubscription = _ref.listen<DiscoveredServer?>(
+      connectedRigProvider,
+      (previous, next) {
+        if (previous?.fingerprint == next?.fingerprint) return;
+        unawaited(_rebuildLanPushReceiver());
+      },
+    );
 
     // Mark fully wired so anything awaiting [waitUntilInitialized] can
     // safely proceed. Code that depends on the foreground service or
@@ -230,8 +243,10 @@ class MobileSequenceHooks {
       return;
     }
 
-    final saved = await EnhancedSkotiqDiscovery.loadLastServer();
-    final fingerprint = saved?.fingerprint;
+    final fingerprint = lanPushFingerprint(
+      connected: _ref.read(connectedRigProvider),
+      saved: await EnhancedSkotiqDiscovery.loadLastServer(),
+    );
     if (fingerprint == null || fingerprint.isEmpty) {
       Log.warning(
         '[LanPushReceiver] No saved-server fingerprint; LAN UDP push '
@@ -536,6 +551,8 @@ class MobileSequenceHooks {
     _pushNotificationSubscription = null;
     _backendSubscription?.close();
     _backendSubscription = null;
+    _connectedRigSubscription?.close();
+    _connectedRigSubscription = null;
     _hostNotificationsSubscription?.close();
     _hostNotificationsSubscription = null;
     await _eventNotifier?.stop();
@@ -596,3 +613,24 @@ final mobileSequenceHooksProvider = Provider<MobileSequenceHooks>((ref) {
 
   return hooks;
 });
+
+/// The fingerprint LAN push frames are verified against: the rig this phone
+/// is linked to. The saved server's stands in only when it is the same rig
+/// and the link did not carry one (a relay link saves no server, and a phone
+/// that switched rigs still holds the previous rig's).
+@visibleForTesting
+String? lanPushFingerprint({
+  required DiscoveredServer? connected,
+  required DiscoveredServer? saved,
+}) {
+  if (connected == null) return saved?.fingerprint;
+  if (connected.fingerprint case final fingerprint?
+      when fingerprint.isNotEmpty) {
+    return fingerprint;
+  }
+  final sameRig =
+      saved != null &&
+      saved.host == connected.host &&
+      saved.webPort == connected.webPort;
+  return sameRig ? saved.fingerprint : null;
+}

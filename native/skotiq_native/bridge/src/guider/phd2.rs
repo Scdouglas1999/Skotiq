@@ -1414,20 +1414,16 @@ mod connected_devices_registry_tests {
             .iter()
             .map(|d| d.id.clone())
             .collect::<Vec<_>>();
-        let is_connected = crate::api::connection::api_is_device_connected(
-            DeviceType::Guider,
-            DEVICE_ID.to_string(),
-        )
-        .await;
+        let is_connected = crate::device_manager::get_device_manager()
+            .is_device_connected(DeviceType::Guider, DEVICE_ID)
+            .await;
 
         disconnect().await.expect("disconnect PHD2");
 
         let listed_after = phd2_in_connected_devices().await;
-        let is_connected_after = crate::api::connection::api_is_device_connected(
-            DeviceType::Guider,
-            DEVICE_ID.to_string(),
-        )
-        .await;
+        let is_connected_after = crate::device_manager::get_device_manager()
+            .is_device_connected(DeviceType::Guider, DEVICE_ID)
+            .await;
 
         server.join().expect("mock PHD2 server thread finished");
 
@@ -1438,7 +1434,7 @@ mod connected_devices_registry_tests {
         );
         assert!(
             is_connected,
-            "api_is_device_connected must agree that PHD2 is connected"
+            "the device manager must agree that PHD2 is connected"
         );
 
         assert!(
@@ -1447,7 +1443,7 @@ mod connected_devices_registry_tests {
         );
         assert!(
             !is_connected_after,
-            "api_is_device_connected must report a disconnected PHD2 as gone"
+            "the device manager must report a disconnected PHD2 as gone"
         );
     }
 

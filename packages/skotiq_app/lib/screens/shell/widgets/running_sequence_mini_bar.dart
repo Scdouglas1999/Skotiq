@@ -59,8 +59,12 @@ class RunningSequenceMiniBar extends ConsumerWidget {
     // while it's stopping or recovering (transient states the user can't drive).
     final canDrive = isRunning || isPaused;
 
-    final visuals =
-        SequenceStatusVisuals.of(executionState, colors, context.l10n);
+    final visuals = SequenceStatusVisuals.of(
+      executionState,
+      colors,
+      context.l10n,
+      pausedIdle: ref.watch(pausedRunIdleProvider),
+    );
 
     Future<void> stopSequence() async {
       final result = await ref.read(sequenceActionServiceProvider).stop();

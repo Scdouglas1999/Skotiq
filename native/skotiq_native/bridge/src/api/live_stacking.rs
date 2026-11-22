@@ -18,13 +18,14 @@ use rayon::prelude::*;
 use skotiq_imaging::recipe::OpImage;
 use skotiq_imaging::stack_master::{write_stack_master, FrameProvenance};
 use skotiq_imaging::stacking::{
-    debayer_cfa_to_rgb, FrameTelemetry, LiveStackConfig, LiveStacker, SensorMode, StackingStats,
+    debayer_cfa_to_rgb, FrameRefusal, FrameRefusalKind, FrameTelemetry, LiveStackConfig,
+    LiveStacker, SensorMode, StackingStats,
 };
 use skotiq_imaging::{
     read_image, BayerPattern, ColorFilterArray, DebayerAlgorithm, ImageData, StarDetectionConfig,
 };
 
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 
 /// Default filter slot key when no filter is declared.
 pub(crate) const DEFAULT_FILTER_KEY: &str = "Unfiltered";
@@ -697,6 +698,21 @@ enum Admission {
 
 /// Add one frame to the slot `filter_key` names (the active one when `None`),
 /// record its event, and return the stack as it now stands.
+/// A frame the stacker left out, as the bridge raises it: a refusal a
+/// caller answers by kind, or an image error for a frame that cannot join the
+/// stack at all.
+fn frame_refused(refusal: FrameRefusal) -> SkotiqError {
+    match refusal.kind {
+        FrameRefusalKind::Misaligned => {
+            SkotiqError::refused(Refusal::LiveStackMisaligned, refusal.message)
+        }
+        FrameRefusalKind::OtherFilter => {
+            SkotiqError::refused(Refusal::LiveStackOtherFilter, refusal.message)
+        }
+        FrameRefusalKind::Incompatible => SkotiqError::ImageError(refusal.message),
+    }
+}
+
 fn add_to_slot(
     filter_key: Option<&str>,
     raw: ImageData,
@@ -779,11 +795,11 @@ fn add_to_slot(
                         stats.total_frames_attempted,
                         source_label,
                         false,
-                        Some(err.clone()),
+                        Some(err.message.clone()),
                         provenance.exposure_secs,
                     );
                 }
-                Err(SkotiqError::ImageError(err))
+                Err(frame_refused(err))
             }
         }
     };
@@ -819,8 +835,12 @@ pub fn api_stacking_add_frame_for_filter(
         image_path,
         filter_key
     );
-    let read = read_image(std::path::Path::new(&image_path))
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to read frame image: {}", e)))?;
+    let read = read_image(std::path::Path::new(&image_path)).map_err(|e| {
+        SkotiqError::refused(
+            Refusal::LiveStackUnreadable,
+            format!("Failed to read frame image: {}", e),
+        )
+    })?;
     let provenance = FrameProvenance::from_header(&read.header);
     let source_label = source_label_from_path(&image_path);
 

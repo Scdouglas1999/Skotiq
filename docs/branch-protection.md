@@ -18,11 +18,6 @@ They were red on every commit from 2026-11-01 until the 9.0.1 fixes; check the
 live state with `gh run list --workflow ci.yml --branch main`.
 
 Deliberately **not** required:
-- **`Code Coverage`** — currently overruns its 20-minute timeout because it
-  re-runs the full instrumented test suite (it roughly duplicates `Dart Tests`).
-  It is slow, not broken; requiring it would block merges on a timeout rather
-  than a code problem. Re-add it once the timeout is raised or the run is
-  de-duplicated.
 - **`Rust Tests (windows)`** — conditional (push, schedule, `release/*` and
   `fix/*` PRs, `ci:windows-rust` label), so it does not run on most PRs;
   requiring it would block PRs where it never starts. The release gate
@@ -54,7 +49,6 @@ maps to one or more required status checks in branch protection:
 | `test-rust` | Rust Tests (linux) | Every PR + push |
 | `format-check` | Format Check | Every PR + push |
 | `build-test` | Build Test (Desktop) — Ubuntu, Windows, macOS matrix | Every PR + push |
-| `coverage` | Code Coverage | Every PR + push |
 | `test-rust-windows` | Rust Tests (windows) | Conditional — see section 2 |
 
 The `cargo-duplicates` job fails when the resolved duplicate-version set

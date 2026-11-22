@@ -509,9 +509,16 @@ void main() {
       test('$kind', () {
         const words = 'Failed to start sequence: Cannot start: busy';
         final refused = bridge.SkotiqError.refused(kind: kind, message: words);
-        final before = kind == bridge.Refusal.lightLeak
-            ? const bridge.SkotiqError.invalidInput(words)
-            : const bridge.SkotiqError.operationFailed(words);
+        final before = switch (kind) {
+          bridge.Refusal.lightLeak => const bridge.SkotiqError.invalidInput(
+            words,
+          ),
+          bridge.Refusal.liveStackMisaligned ||
+          bridge.Refusal.liveStackOtherFilter ||
+          bridge.Refusal.liveStackUnreadable =>
+            const bridge.SkotiqError.imageError(words),
+          _ => const bridge.SkotiqError.operationFailed(words),
+        };
         // The message of an error read from text is that text itself.
         String core(SkotiqError e) =>
             '${e.category} ${e.isRecoverable} ${e.shouldReconnect} '

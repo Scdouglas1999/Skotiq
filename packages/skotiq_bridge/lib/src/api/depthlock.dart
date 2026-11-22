@@ -155,6 +155,12 @@ class ApiAcquisitionSettings {
   final int binY;
   final double? ccdTempC;
 
+  /// `SET-TEMP`, when the reference states it.
+  final double? setPointC;
+
+  /// `READOUTM`, when the reference states it.
+  final String? readMode;
+
   const ApiAcquisitionSettings({
     required this.instrument,
     required this.filter,
@@ -164,6 +170,8 @@ class ApiAcquisitionSettings {
     required this.binX,
     required this.binY,
     this.ccdTempC,
+    this.setPointC,
+    this.readMode,
   });
 
   @override
@@ -175,7 +183,9 @@ class ApiAcquisitionSettings {
       offset.hashCode ^
       binX.hashCode ^
       binY.hashCode ^
-      ccdTempC.hashCode;
+      ccdTempC.hashCode ^
+      setPointC.hashCode ^
+      readMode.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -189,7 +199,9 @@ class ApiAcquisitionSettings {
           offset == other.offset &&
           binX == other.binX &&
           binY == other.binY &&
-          ccdTempC == other.ccdTempC;
+          ccdTempC == other.ccdTempC &&
+          setPointC == other.setPointC &&
+          readMode == other.readMode;
 }
 
 /// One point of a goal's score history or projection.

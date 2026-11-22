@@ -124,6 +124,14 @@ class _RecordingNotificationService implements MobileNotificationSink {
   }
 
   @override
+  Future<void> notifyHostJobFailed({
+    required String title,
+    required String message,
+  }) async {
+    calls.add(NotifyCall('hostJobFailed', {'title': title, 'error': message}));
+  }
+
+  @override
   Future<void> notifyOwnershipTakenOver({
     String? displacingClientName,
     String? reason,
@@ -733,6 +741,52 @@ void main() {
       await emit(_ev(EventCategory.polarAlignment, 'StatusUpdate'));
       expect(notifications.calls, isEmpty);
     });
+
+    sk.EventPayload status(String text, String phase) =>
+        sk.EventPayload.polarAlignmentStatus(
+          sk.PolarAlignmentStatus(status: text, phase: phase, point: 0),
+        );
+
+    test('a polar alignment that ends in error pages the phone', () async {
+      await emit(
+        _fromHost(
+          sk.EventCategory.polarAlignment,
+          status('Error: Plate solve failed on point 2', 'error'),
+          severity: sk.EventSeverity.info,
+        ),
+      );
+      expect(notifications.calls.single.kind, 'polarAlignmentFailed');
+      expect(
+        notifications.calls.single.data['error'],
+        'Plate solve failed on point 2',
+      );
+    });
+
+    test('a polar alignment status that is not an error stays quiet', () async {
+      await emit(
+        _fromHost(
+          sk.EventCategory.polarAlignment,
+          status('Measuring point 2 of 3', 'measuring'),
+          severity: sk.EventSeverity.info,
+        ),
+      );
+      expect(notifications.calls, isEmpty);
+    });
+
+    test(
+      'a failed polar alignment respects notifyExposureFailed mute',
+      () async {
+        await prefs.setNotifyExposureFailed(false);
+        await emit(
+          _fromHost(
+            sk.EventCategory.polarAlignment,
+            status('Error: mount not responding', 'error'),
+            severity: sk.EventSeverity.info,
+          ),
+        );
+        expect(notifications.calls, isEmpty);
+      },
+    );
   });
 
   group('Job category', () {
@@ -849,49 +903,6 @@ void main() {
       );
     });
 
-    test(
-      'JobFailed for polar-alignment.start -> polarAlignmentFailed',
-      () async {
-        await emit(
-          _ev(
-            EventCategory.job,
-            'JobFailed',
-            data: {
-              'jobId': 'j3',
-              'operation': 'polar-alignment.start',
-              'state': 'failed',
-              'error': {
-                'code': 'mount_not_responding',
-                'message': 'Mount stopped reporting position',
-              },
-            },
-            severity: EventSeverity.error,
-          ),
-        );
-        expect(notifications.calls.single.kind, 'polarAlignmentFailed');
-      },
-    );
-
-    test(
-      'JobFailed for polar-alignment.all-sky.start -> polarAlignmentFailed',
-      () async {
-        await emit(
-          _ev(
-            EventCategory.job,
-            'JobFailed',
-            data: {
-              'jobId': 'j4',
-              'operation': 'polar-alignment.all-sky.start',
-              'state': 'failed',
-              'error': {'message': 'Could not solve any of 4 frames'},
-            },
-            severity: EventSeverity.error,
-          ),
-        );
-        expect(notifications.calls.single.kind, 'polarAlignmentFailed');
-      },
-    );
-
     test('JobFailed for focuser.autofocus is told by the autofocus outcome, '
         'not the job', () async {
       await emit(
@@ -920,6 +931,55 @@ void main() {
         severity: sk.EventSeverity.info,
       );
       expect(notifications.calls.single.kind, 'autofocusFailed');
+    });
+
+    for (final (operation, title) in [
+      ('post-session.integrate', 'Dawn processing failed'),
+      ('post-session.master-accumulate', 'Dawn processing failed'),
+      ('system.update.download', 'Update failed'),
+      ('system.update.apply', 'Update failed'),
+      ('catalog.download', 'Catalog download failed'),
+      ('image.backfill-thumbnails', 'Thumbnail backfill failed'),
+      ('focuser.backlash-calibration', 'Backlash calibration failed'),
+    ]) {
+      test('JobFailed for $operation -> "$title"', () async {
+        await emit(
+          _ev(
+            EventCategory.job,
+            'JobFailed',
+            data: {
+              'jobId': 'j-$operation',
+              'operation': operation,
+              'state': 'failed',
+              'error': {'message': 'disk full'},
+            },
+            severity: EventSeverity.error,
+          ),
+        );
+        expect(notifications.calls.single.kind, 'hostJobFailed');
+        expect(notifications.calls.single.data, {
+          'title': title,
+          'error': 'disk full',
+        });
+      });
+    }
+
+    test('a failed host job respects notifyExposureFailed mute', () async {
+      await prefs.setNotifyExposureFailed(false);
+      await emit(
+        _ev(
+          EventCategory.job,
+          'JobFailed',
+          data: {
+            'jobId': 'j-pi',
+            'operation': 'post-session.integrate',
+            'state': 'failed',
+            'error': {'message': 'disk full'},
+          },
+          severity: EventSeverity.error,
+        ),
+      );
+      expect(notifications.calls, isEmpty);
     });
 
     test('JobFailed for unknown operation -> no notification (but logs '

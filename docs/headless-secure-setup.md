@@ -114,11 +114,16 @@ Equivalent CLI flags are available:
 ```
 
 WebSocket clients may use the same bearer header when the platform supports it.
-Browser-style WebSocket clients can pass the token as a query parameter:
+Browser-style WebSocket clients mint a single-use ticket with
+`POST /api/ws/ticket` (bearer header) and pass it, with the client's release,
+as query parameters:
 
 ```text
-ws://host:8080/events?token=replace-with-a-long-random-token
+ws://host:8080/events?ticket=<ticket>&version=<release>
 ```
+
+The older `?token=<token>&version=<release>` form still works. Every socket
+must name its release in `version`; a host answers 426 without it.
 
 `GET /api/info` and dashboard static files are public so clients can discover
 server metadata and load the local dashboard. Control, status, OpenAPI,

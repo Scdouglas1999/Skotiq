@@ -69,11 +69,18 @@ abstract class MobileNotificationSink {
   /// off-target or pointing is bad enough that the loop won't converge.
   Future<void> notifyCenteringFailed(String errorMessage);
 
-  /// `polar-alignment.start` or `polar-alignment.all-sky.start`
-  /// failed. Operator-driven workflow — they're almost certainly looking at
-  /// the polar align screen when this fires, but we still page them in case
-  /// they're across the field.
+  /// A polar alignment ended in error. Operator-driven workflow — they're
+  /// almost certainly looking at the polar align screen when this fires, but
+  /// we still page them in case they're across the field.
   Future<void> notifyPolarAlignmentFailed(String errorMessage);
+
+  /// A job the imaging host ran for a client failed: dawn processing, an
+  /// update, a catalog download, a thumbnail backfill or a backlash
+  /// calibration. [title] names the job.
+  Future<void> notifyHostJobFailed({
+    required String title,
+    required String message,
+  });
 
   /// another client called `claim?force=true` (or POSTed
   /// `/api/session/take-over`) while we were the operator. Important UX

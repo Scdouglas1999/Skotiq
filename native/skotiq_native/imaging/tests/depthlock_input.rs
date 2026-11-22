@@ -352,6 +352,8 @@ fn light_settings_reads_the_acquisition_and_refuses_processed_or_colour_frames()
             bin_x: 1,
             bin_y: 1,
             ccd_temp_c: Some(-10.2),
+            set_point_c: None,
+            read_mode: None,
         }
     );
     let mut calibrated = light_header();
@@ -702,17 +704,55 @@ fn a_dark_library_master_written_by_earlier_releases_is_accepted() {
 
 /// A dark from the dark library is built by the streamed builder; DepthLock
 /// must accept what that builder writes, not a hand-built header.
+///
+/// The rig's lights and darks state their set-point and read mode, which
+/// DepthLock holds the master to; the library's master must still pass.
 #[test]
 fn a_dark_library_master_is_accepted() {
+    let verdict = library_dark_against(|_| {});
+    assert!(verdict.is_ok(), "{verdict:?}");
+}
+
+/// The rule is not passed by default: a library dark taken at another
+/// set-point or in another read mode is refused.
+#[test]
+fn a_dark_library_master_at_another_set_point_or_read_mode_is_refused() {
+    assert_eq!(
+        library_dark_against(|h| h.set_float("SET-TEMP", -5.0)),
+        Err("Master dark SET-TEMP is -5, goal is -10".to_string())
+    );
+    assert_eq!(
+        library_dark_against(|h| h.set_string("READOUTM", "High Gain")),
+        Err("Master dark READOUTM is High Gain, goal is Normal".to_string())
+    );
+}
+
+/// A light at -10 °C in read mode Normal, the cards a rig frame carries.
+fn rig_light_header() -> FitsHeader {
+    let mut header = light_header();
+    header.set_float("SET-TEMP", -10.0);
+    header.set_string("READOUTM", "Normal");
+    header
+}
+
+/// Build a master with the dark library's streamed builder from darks whose
+/// headers `dark` changes, and vet it for a goal defined on a rig light.
+fn library_dark_against(dark: impl Fn(&mut FitsHeader)) -> Result<(), String> {
     use skotiq_imaging::calibration_master_stream::{
         build_streamed_master, StreamedMasterConfig, StreamedMasterKind,
     };
-    let dir = std::env::temp_dir().join(format!("skotiq-dl-dark-{}", std::process::id()));
+    static RUN: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let dir = std::env::temp_dir().join(format!(
+        "skotiq-dl-dark-{}-{}",
+        std::process::id(),
+        RUN.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     let mut paths = Vec::new();
     for i in 0..10u32 {
-        let mut header = light_header();
+        let mut header = rig_light_header();
         header.set_string("IMAGETYP", "Dark");
+        dark(&mut header);
         let samples: Vec<u16> = (0..64 * 48u32)
             .map(|p| 1_000 + ((p.wrapping_mul(2_654_435_761) ^ i) % 7) as u16)
             .collect();
@@ -729,11 +769,13 @@ fn a_dark_library_master_is_accepted() {
     )
     .unwrap();
     let (dark, header) = skotiq_imaging::read_fits(&output).unwrap();
-    let goal = light_settings(&light_header()).unwrap();
+    let goal = light_settings(&rig_light_header()).unwrap();
+    assert_eq!(goal.set_point_c, Some(-10.0));
+    assert_eq!(goal.read_mode.as_deref(), Some("Normal"));
     let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
     let verdict = validate_master(MasterKind::Dark, &header, &dark, &goal, &geometry);
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(verdict.is_ok(), "{verdict:?}");
+    verdict
 }
 
 /// What `light_settings` reads from the acquisition cards, edge by edge.
@@ -827,8 +869,12 @@ fn a_light_acquisition_is_read_card_by_card() {
         read(&|h| {
             h.keywords.remove("CCD-TEMP");
             h.set_float("SET-TEMP", -10.0);
-            h.set_string("READOUTM", "High Gain");
+            h.set_string("READOUTM", " High Gain ");
         }),
-        with(&|s| s.ccd_temp_c = None)
+        with(&|s| {
+            s.ccd_temp_c = None;
+            s.set_point_c = Some(-10.0);
+            s.read_mode = Some("High Gain".into());
+        })
     );
 }

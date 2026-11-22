@@ -49,11 +49,17 @@ void main() {
     );
   });
 
-  test('the host wire body carries exactly the engine settings', () {
-    expect(
-      _config.toWireJson().keys.toSet(),
-      frbFields('api/live_stacking.dart', 'ApiLiveStackingConfig'),
-    );
+  // The engine's settings, and the feeder's gates the host applies to the
+  // frames of its run.
+  test('the host wire body carries the engine settings and the feeder '
+      'gates', () {
+    expect(_config.toWireJson().keys.toSet(), {
+      ...frbFields('api/live_stacking.dart', 'ApiLiveStackingConfig'),
+      'separateByFilter',
+      'autoFeedEnabled',
+      'maxHfrPx',
+      'minStarCount',
+    });
   });
 
   test('the engine tally reaches the model and its JSON', () {

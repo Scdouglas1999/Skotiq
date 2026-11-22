@@ -175,7 +175,12 @@ class LiveStackingService {
       } catch (_) {
         Error.throwWithStackTrace(error, stackTrace);
       }
-      throw LiveStackingFrameRejected(reason: error.toString(), stats: stats);
+      final refusal = liveStackRefusalOf(error);
+      throw LiveStackingFrameRejected(
+        reason: refusal?.legacyText ?? error.toString(),
+        stats: stats,
+        refusal: refusal,
+      );
     }
   }
 
@@ -617,3 +622,25 @@ class LinkedLiveStackingService extends LiveStackingService {
   @override
   int get frameCount => 0;
 }
+
+/// The kind the engine left a frame out by, read from an add-frame failure:
+/// the native refusal, or the [LiveStackingFrameRejected] it was counted as.
+LiveStackRefusal? liveStackRefusalOf(Object error) => switch (error) {
+  LiveStackingFrameRejected(:final refusal) => refusal,
+  bridge.SkotiqError_Refused(:final kind, :final message) => switch (kind) {
+    bridge.Refusal.liveStackMisaligned => LiveStackRefusal(
+      LiveStackRefusalKind.misaligned,
+      message,
+    ),
+    bridge.Refusal.liveStackOtherFilter => LiveStackRefusal(
+      LiveStackRefusalKind.otherFilter,
+      message,
+    ),
+    bridge.Refusal.liveStackUnreadable => LiveStackRefusal(
+      LiveStackRefusalKind.unreadable,
+      message,
+    ),
+    _ => null,
+  },
+  _ => null,
+};

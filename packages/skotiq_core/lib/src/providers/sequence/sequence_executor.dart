@@ -77,8 +77,7 @@ export 'sequence_executor/run_finalization.dart' show RunFinalization;
 export 'sequence_executor/run_lifecycle.dart';
 export 'sequence_executor/session_diagnostics.dart'
     show kCoolerSetpointBandDegC;
-export 'sequence_executor/sequence_serializer.dart'
-    show SequenceSerializer, shutdownWarmUpIds;
+export 'sequence_executor/sequence_serializer.dart' show SequenceSerializer;
 export 'sequence_executor/stop_confirmation.dart'
     show
         NativeStopConfirmer,

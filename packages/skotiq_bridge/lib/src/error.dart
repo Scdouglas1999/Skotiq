@@ -38,6 +38,17 @@ enum Refusal {
 
   /// Calibration frames brightened during the set: a light leak.
   lightLeak,
+
+  /// The live stacker left a frame out because it did not align to the
+  /// reference.
+  liveStackMisaligned,
+
+  /// The live stacker left a frame out because it was taken through another
+  /// filter than the stack's.
+  liveStackOtherFilter,
+
+  /// The frame file handed to the live stacker could not be read.
+  liveStackUnreadable,
 }
 
 @freezed

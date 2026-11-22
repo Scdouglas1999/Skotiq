@@ -871,7 +871,14 @@ class ProfileHandlers implements RouteSource {
             'nothing was changed.',
       );
     }
-    final mergedJson = <String, dynamic>{...previousJson, ...settingsJson};
+    // With no readable previous settings the posted keys go onto the install
+    // defaults (the settings table's), not the wire model's: those leave the
+    // optional checks that default on (the grading baselines) off. The site
+    // keeps the model's, as the canonical store decides it below.
+    final mergeBase = previous == null
+        ? _installDefaultsWithoutSite()
+        : previousJson;
+    final mergedJson = <String, dynamic>{...mergeBase, ...settingsJson};
 
     // WHAT THIS SAVE MAY DO TO THE OBSERVER SITE.
     //
@@ -1248,3 +1255,10 @@ class ProfileHandlers implements RouteSource {
     });
   }
 }
+
+/// The install defaults as a plain JSON map, without the site: a save with no
+/// readable previous settings takes its site from the canonical store's rule.
+Map<String, dynamic> _installDefaultsWithoutSite() =>
+    (jsonDecode(jsonEncode(AppSettingsNotifier.installDefaults.toJson()))
+          as Map<String, dynamic>)
+      ..remove('location');

@@ -10,8 +10,9 @@ use std::path::Path;
 
 // Named convenience wrappers over the sky_atlas actions
 
-/// The work behind the bridge's `api_sky_atlas_add_frame`, which describes the request
-/// and the reply.
+/// Fold one plate-solved capture into the atlas: the `"fold"` action for a
+/// single frame, its fields given at the top level instead of in a `frames`
+/// array. Replies with the same [`FoldResult`] JSON.
 pub fn sky_atlas_add_frame(args_json: String) -> Result<String, String> {
     let one: AddFrameArgs =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid addFrame args: {e}"))?;
