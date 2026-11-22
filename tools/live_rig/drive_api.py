@@ -69,6 +69,7 @@ class Rig:
             return 'could not read the route table: %s %s' % (
                 entry.get('status'), entry.get('error', ''))
         self.routes = route_patterns(spec)
+        entry['json'] = '(%d paths)' % len(spec.get('paths', {}))
         return None
 
     def has_route(self, method, path):
