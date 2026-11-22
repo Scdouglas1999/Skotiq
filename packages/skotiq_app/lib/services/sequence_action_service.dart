@@ -115,8 +115,8 @@ class SequenceActionService {
   /// A caller with a screen passes [confirm], the pre-flight checks the
   /// editor's own Start shows: the plan is loaded for them, and closing them
   /// gives the editor back and throws [PlanStartCanceled]. Without [confirm]
-  /// the checks run beside the start and their findings are posted as a
-  /// notification; they never hold the start back.
+  /// (no window to show them on) the checks run beside the start and their
+  /// findings are posted as a notification; they never hold the start back.
   Future<void> startOwnedPlan(
     Sequence sequence,
     ActivePlanOwner owner, {
@@ -127,7 +127,14 @@ class SequenceActionService {
     Future<void> report = Future<void>.value();
     if (confirm != null) {
       editor.takeOwnership(sequence, owner);
-      if (!await confirm()) {
+      final bool go;
+      try {
+        go = await confirm();
+      } on Object {
+        editor.releaseOwnership();
+        rethrow;
+      }
+      if (!go) {
         editor.releaseOwnership();
         throw const PlanStartCanceled();
       }

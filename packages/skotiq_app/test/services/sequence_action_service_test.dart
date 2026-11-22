@@ -302,6 +302,30 @@ void main() {
       expect(h.executor.startCount, 0);
     });
 
+    test('a pre-flight that fails gives the editor back', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async => throw StateError('dialog failed'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
     test('Start in the pre-flight starts the plan', () async {
       final h = _harness(state: SequenceExecutionState.idle);
       addTearDown(h.container.dispose);
