@@ -204,6 +204,54 @@ pub enum ExecutorState {
     Recovering,
 }
 
+impl ExecutorState {
+    pub const ALL: [Self; 8] = [
+        Self::Idle,
+        Self::Running,
+        Self::Paused,
+        Self::Stopping,
+        Self::Cancelled,
+        Self::Completed,
+        Self::Failed,
+        Self::Recovering,
+    ];
+
+    /// The word the status API and the app name the state by (the app's
+    /// `NativeRunState`). Not the checkpoint's spelling, which is serde's.
+    pub fn as_wire(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Running => "running",
+            Self::Paused => "paused",
+            Self::Stopping => "stopping",
+            Self::Cancelled => "cancelled",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+            Self::Recovering => "recovering",
+        }
+    }
+}
+
+#[cfg(test)]
+mod executor_state_tests {
+    use super::ExecutorState;
+
+    /// The app parses these words; its `native_run_state_test.dart` reads the
+    /// same file.
+    #[test]
+    fn state_words_match_the_app() {
+        let expected: Vec<String> = serde_json::from_str(include_str!(
+            "../../../../../packages/skotiq_core/test/fixtures/native_run_states.json"
+        ))
+        .expect("the fixture is JSON");
+        let sent: Vec<String> = ExecutorState::ALL
+            .into_iter()
+            .map(|state| state.as_wire().to_string())
+            .collect();
+        assert_eq!(sent, expected);
+    }
+}
+
 /// Progress information for the sequence
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SequenceProgress {

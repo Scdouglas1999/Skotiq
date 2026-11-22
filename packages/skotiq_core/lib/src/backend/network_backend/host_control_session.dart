@@ -10,15 +10,7 @@ mixin HostControlSession on NetworkBackendTransport {
   /// caller deciding whether to offer recovery errs toward leaving it alone.
   Future<bool> hostRunInFlight() async {
     try {
-      final status = await sequencerGetStatus();
-      return !const {
-        'idle',
-        'completed',
-        'failed',
-        'cancelled',
-        'stopped',
-        'error',
-      }.contains(status.state.toLowerCase());
+      return (await sequencerGetStatus()).runState.mayBeInFlight;
     } catch (_) {
       return true;
     }

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../models/backend/sequencer_status.dart' show NativeRunState;
+
 /// How long a finalization waits for the native executor to report an
 /// authoritative terminal state after it accepted a stop command.
 ///
@@ -21,25 +23,6 @@ const Duration kNativeStopConfirmationTimeout = Duration(seconds: 30);
 const Duration kNativeStopConfirmationPollInterval = Duration(
   milliseconds: 250,
 );
-
-/// Native executor states that mean the run is over and the hardware is no
-/// longer being driven by it. Matched case-insensitively.
-///
-/// This is an ALLOW-list of terminals, deliberately the opposite direction to
-/// the deny-list the stop endpoint uses for "was anything running". The two
-/// answer different questions and must fail in opposite directions: that one
-/// must treat an unknown state as running (so a stop still acts); this one must
-/// treat an unknown state as NOT terminal (so an unrecognised state can never
-/// be mistaken for "the camera has stopped exposing"). A new native state added
-/// later therefore keeps us waiting rather than tearing down.
-const Set<String> kNativeTerminalStates = {
-  'idle',
-  'completed',
-  'failed',
-  'cancelled',
-  'stopped',
-  'error',
-};
 
 /// The confirmable stop state a finalization owns, as
 /// [NativeStopConfirmer] needs to see it.
@@ -133,7 +116,7 @@ class NativeStopConfirmer {
           // this timeout exists to prevent.
           final probe = remaining < pollInterval ? remaining : pollInterval;
           final state = await _readNativeState().timeout(probe);
-          if (kNativeTerminalStates.contains(state.toLowerCase())) {
+          if (NativeRunState.parse(state).isTerminal) {
             loggedPollConfirmation = true;
             target.nativeStopConfirmed = true;
             if (!confirmation.isCompleted) confirmation.complete();
