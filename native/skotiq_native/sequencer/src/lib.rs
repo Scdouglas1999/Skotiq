@@ -27,6 +27,8 @@ pub mod expressions;
 pub mod flat_wizard;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
+#[cfg(test)]
+mod autofocus_config_fixture_tests;
 pub mod focuser_calibration;
 mod frame_naming;
 #[cfg(test)]

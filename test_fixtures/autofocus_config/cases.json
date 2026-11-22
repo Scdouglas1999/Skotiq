@@ -1,0 +1,345 @@
+[
+  {
+    "name": "settings defaults, added run",
+    "settings": {},
+    "run": "settings",
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "Hyperbolic",
+      "step_size": 50,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "every setting changed",
+    "settings": {
+      "method": "Star FWHM",
+      "curveFitting": "Parabolic",
+      "stepSize": 37,
+      "exposureTime": 2.5,
+      "initialOffsetSteps": 5,
+      "numberOfAttempts": 3,
+      "useBrightestNStars": 25,
+      "outerCropRatio": 0.8,
+      "innerCropRatio": 0.1,
+      "binning": 2,
+      "rSquaredThreshold": 0.85,
+      "failureHfrToleranceRatio": 2.2,
+      "disableGuidingDuringAf": true,
+      "focuserSettleTimeMs": 750,
+      "exposuresPerPoint": 2,
+      "backlashCompMethod": "Overshoot",
+      "backlashIn": 120,
+      "backlashOut": 40,
+      "autofocusFilterName": " L ",
+      "filterSettings": {
+        "Ha": {
+          "focusOffset": 15,
+          "afExposureTime": 8.0,
+          "afFilterName": "L",
+          "binning": 3,
+          "gain": 200,
+          "offset": 30
+        },
+        "R": {
+          "focusOffset": -4,
+          "binning": 1
+        }
+      }
+    },
+    "run": "settings",
+    "measuredBacklashIn": 88,
+    "config": {
+      "type": "Autofocus",
+      "method": "Quadratic",
+      "step_size": 37,
+      "steps_out": 5,
+      "exposure_duration": 2.5,
+      "filter": "L",
+      "filter_settings": {
+        "Ha": {
+          "af_exposure_time": 8.0,
+          "af_filter_name": "L",
+          "binning": "Three",
+          "gain": 200,
+          "offset": 30
+        },
+        "R": {
+          "af_exposure_time": null,
+          "af_filter_name": null,
+          "binning": "One",
+          "gain": null,
+          "offset": null
+        }
+      },
+      "binning": "Two",
+      "number_of_attempts": 3,
+      "exposures_per_point": 2,
+      "r_squared_threshold": 0.85,
+      "failure_hfr_tolerance_ratio": 2.2,
+      "outer_crop_ratio": 0.8,
+      "inner_crop_ratio": 0.1,
+      "use_brightest_n_stars": 25,
+      "focuser_settle_time_ms": 750,
+      "backlash_compensation": 120,
+      "backlash_out_compensation": 40,
+      "measured_backlash_in": 88,
+      "disable_guiding_during_af": true,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "backlash compensation off",
+    "settings": {
+      "backlashCompMethod": "None",
+      "backlashIn": 120,
+      "backlashOut": 40
+    },
+    "run": "settings",
+    "measuredBacklashIn": 60,
+    "config": {
+      "type": "Autofocus",
+      "method": "Hyperbolic",
+      "step_size": 50,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 0,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": 60,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "curve fitting Hyperbolic",
+    "settings": {
+      "curveFitting": "Hyperbolic"
+    },
+    "run": "settings",
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "Hyperbolic",
+      "step_size": 50,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "curve fitting Trend Lines",
+    "settings": {
+      "curveFitting": "Trend Lines"
+    },
+    "run": "settings",
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "VCurve",
+      "step_size": 50,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "curve fitting Quadratic",
+    "settings": {
+      "curveFitting": "quadratic"
+    },
+    "run": "settings",
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "Quadratic",
+      "step_size": 50,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "unknown curve fitting",
+    "settings": {
+      "curveFitting": "Mystery"
+    },
+    "run": "settings",
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "VCurve",
+      "step_size": 50,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 600.0
+    }
+  },
+  {
+    "name": "node with its own sweep",
+    "settings": {
+      "curveFitting": "Parabolic",
+      "focuserSettleTimeMs": 900
+    },
+    "run": {
+      "useSettingsDefaults": false,
+      "method": "hyperbolic",
+      "stepSize": 60,
+      "stepsOut": 9,
+      "exposuresPerPoint": 3,
+      "exposureDuration": 6.0,
+      "maxDurationSecs": 1200.0
+    },
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "Hyperbolic",
+      "step_size": 60,
+      "steps_out": 9,
+      "exposure_duration": 6.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 3,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 900,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 1200.0
+    }
+  },
+  {
+    "name": "node using the settings",
+    "settings": {
+      "stepSize": 70
+    },
+    "run": {
+      "useSettingsDefaults": true,
+      "method": "quadratic",
+      "stepSize": 60,
+      "stepsOut": 9,
+      "exposuresPerPoint": 3,
+      "exposureDuration": 6.0,
+      "maxDurationSecs": 900.0
+    },
+    "measuredBacklashIn": null,
+    "config": {
+      "type": "Autofocus",
+      "method": "Hyperbolic",
+      "step_size": 70,
+      "steps_out": 4,
+      "exposure_duration": 4.0,
+      "filter": null,
+      "filter_settings": {},
+      "binning": "One",
+      "number_of_attempts": 2,
+      "exposures_per_point": 1,
+      "r_squared_threshold": 0.7,
+      "failure_hfr_tolerance_ratio": 1.6,
+      "outer_crop_ratio": 1.0,
+      "inner_crop_ratio": 0.0,
+      "use_brightest_n_stars": 10,
+      "focuser_settle_time_ms": 500,
+      "backlash_compensation": 350,
+      "backlash_out_compensation": 0,
+      "measured_backlash_in": null,
+      "disable_guiding_during_af": false,
+      "max_duration_secs": 900.0
+    }
+  }
+]
