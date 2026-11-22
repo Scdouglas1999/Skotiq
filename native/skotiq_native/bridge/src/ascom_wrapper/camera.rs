@@ -1257,7 +1257,9 @@ impl CameraDriver for AscomCameraWrapper {
     async fn get_gain(&self) -> Result<i32, DriverError> {
         // Gain is included in status
         let status = self.get_status().await?;
-        Ok(status.gain.unwrap_or_default())
+        status
+            .gain
+            .ok_or_else(|| DriverError::SdkError("the camera did not report its gain".to_string()))
     }
 
     async fn set_offset(&mut self, offset: i32) -> Result<(), DriverError> {
@@ -1272,7 +1274,9 @@ impl CameraDriver for AscomCameraWrapper {
     async fn get_offset(&self) -> Result<i32, DriverError> {
         // Offset is included in status
         let status = self.get_status().await?;
-        Ok(status.offset.unwrap_or_default())
+        status.offset.ok_or_else(|| {
+            DriverError::SdkError("the camera did not report its offset".to_string())
+        })
     }
 
     async fn set_binning(&mut self, bin_x: i32, bin_y: i32) -> Result<(), DriverError> {
