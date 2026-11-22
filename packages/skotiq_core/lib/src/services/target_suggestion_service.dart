@@ -225,14 +225,11 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // A bare star with no angular size is not a deep-sky imaging subject.
-      // Live, tonight's #1 pick (score 96) was "gam Cyg / IC1318" carrying
-      // gamma Cygni's stellar type and mag 2.2 — a naked-eye point source
-      // recommended over every nebula and galaxy in the list, with the
-      // exposure suggestion and the magnitude sort inheriting the error. Rows
-      // typed as a star are only offered when the user asked for them.
+      // A star with no angular size is a point source, not a deep-sky
+      // imaging subject; it is only offered when the user asked for stars.
+      final type = DsoType.parse(target.objectType);
       if (config.preferredObjectTypes.isEmpty &&
-          _parseDsoType(target.objectType) == DsoType.star &&
+          (type == DsoType.star || type == DsoType.doubleStar) &&
           (target.sizeArcmin == null || target.sizeArcmin! <= 0)) {
         continue;
       }
@@ -391,7 +388,7 @@ class _TonightSuggestionScorer {
     // Target.ra is in decimal hours, Target.dec is in decimal degrees
     final coordinate = CelestialCoordinate(ra: target.ra, dec: target.dec);
 
-    final dsoType = _parseDsoType(target.objectType);
+    final dsoType = DsoType.parse(target.objectType) ?? DsoType.other;
 
     return DeepSkyObject(
       id: target.id.toString(),
@@ -403,33 +400,6 @@ class _TonightSuggestionScorer {
       constellation: target.constellation,
       catalogIds: target.catalogId != null ? [target.catalogId!] : [],
     );
-  }
-
-  DsoType _parseDsoType(String? objectType) {
-    if (objectType == null || objectType.isEmpty) {
-      return DsoType.other;
-    }
-
-    final type = objectType.toLowerCase();
-
-    if (type.contains('galaxy')) return DsoType.galaxy;
-    if (type.contains('nebula')) {
-      if (type.contains('planetary')) return DsoType.planetaryNebula;
-      if (type.contains('emission')) return DsoType.emissionNebula;
-      if (type.contains('reflection')) return DsoType.reflectionNebula;
-      if (type.contains('dark')) return DsoType.darkNebula;
-      return DsoType.nebula;
-    }
-    if (type.contains('cluster')) {
-      if (type.contains('globular')) return DsoType.globularCluster;
-      if (type.contains('open')) return DsoType.openCluster;
-      return DsoType.openCluster;
-    }
-    if (type.contains('hii') || type.contains('h ii')) return DsoType.hiiRegion;
-    if (type.contains('supernova')) return DsoType.supernova;
-    if (type.contains('star')) return DsoType.star;
-
-    return DsoType.other;
   }
 
   /// Calculate data collection progress for a target.
