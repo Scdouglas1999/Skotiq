@@ -315,6 +315,29 @@ void main() {
       expect(h.executor.startCount, 1);
     });
 
+    test('a refused plan start answers a joined Start with a failure',
+        () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor
+        ..startGate = gate
+        ..startError = StateError('validation failed');
+
+      final owned =
+          h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+      final pressed = h.service.start();
+      final paused = h.service.pause();
+      gate.complete();
+
+      await expectLater(owned, throwsA(isA<StateError>()));
+      final result = await pressed;
+      expect(result.isSuccess, isFalse);
+      expect(result.message, contains('validation failed'));
+      expect((await paused).isSuccess, isTrue);
+      expect(h.executor.startCount, 1);
+    });
+
     test('an idle executor takes the plan and starts it', () async {
       final h = _harness(state: SequenceExecutionState.idle);
       addTearDown(h.container.dispose);

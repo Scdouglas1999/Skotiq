@@ -110,13 +110,26 @@ class SequenceActionService {
         'is not in an admissible state (state: ${state.name}).',
       );
     }
+    (Object, StackTrace)? refusal;
     await _single(_SequenceCommand.start, () async {
       _ref
           .read(currentSequenceProvider.notifier)
           .takeOwnership(sequence, owner);
-      await _executor.start();
-      return CommandActionResult.ok;
+      try {
+        await _executor.start();
+        return CommandActionResult.ok;
+      } catch (e, stack) {
+        // A Start, Pause or Stop pressed meanwhile waits on this latch and
+        // gets the refusal as a result; the plan's caller gets it thrown.
+        refusal = (e, stack);
+        return CommandActionResult.failure(
+          'The run did not start: ${userFacingError(e)}',
+        );
+      }
     });
+    if (refusal case (final error, final stack)) {
+      Error.throwWithStackTrace(error, stack);
+    }
   }
 
   Future<CommandActionResult> pause() => _single(
