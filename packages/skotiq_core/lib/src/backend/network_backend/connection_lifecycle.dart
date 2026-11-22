@@ -107,11 +107,9 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   /// cannot link to it (another Skotiq release), or null.
   Future<LinkVersionMismatch?> _readHostInfo() async {
     final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
-    final headers = LinkVersion.hostHeaders(
-      headers: {
-        NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
-      },
-    );
+    final headers = {
+      NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
+    };
     // The handshake probe gets a fixed short ceiling regardless of the
     // request-timeout tuning: it runs before we commit to the connection, so a
     // server that can't answer /api/info promptly should surface as
@@ -121,9 +119,12 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     final probeTimeout = isRemoteHost
         ? const Duration(seconds: 6)
         : const Duration(seconds: 3);
-    final response = await _http
-        .get(uri, headers: headers)
-        .timeout(probeTimeout);
+    final response = await getHostInfo(
+      uri,
+      headers: headers,
+      timeout: probeTimeout,
+      client: _http,
+    );
     if (response.statusCode != 200) {
       throw HttpException(
         'GET /api/info failed with HTTP ${response.statusCode}',

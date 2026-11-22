@@ -122,6 +122,35 @@ final class HostInfoFailure extends HostInfoRead {
   final int? httpStatus;
 }
 
+/// A host's `/api/info` address.
+Uri hostInfoUri({
+  required String scheme,
+  required String host,
+  required int port,
+}) => buildSkotiqServerUri(
+  scheme: scheme,
+  host: host,
+  port: port,
+  pathAndQuery: '/api/info',
+);
+
+/// The raw `GET` of [uri] (a host's `/api/info`) with this build's release
+/// in the request. Throws what the transport throws, a [TimeoutException]
+/// after [timeout]; callers sort the outcome themselves ([readHostInfo] for
+/// discovery and pairing, the network backend for its connect).
+Future<http.Response> getHostInfo(
+  Uri uri, {
+  Map<String, String> headers = const {},
+  required Duration timeout,
+  http.Client? client,
+}) {
+  final requestHeaders = LinkVersion.hostHeaders(headers: headers);
+  return (client == null
+          ? http.get(uri, headers: requestHeaders)
+          : client.get(uri, headers: requestHeaders))
+      .timeout(timeout);
+}
+
 /// `GET /api/info` on a host, with this build's release in the request.
 ///
 /// The one place that decides between "unreachable", "refused", "wrong
@@ -136,20 +165,14 @@ Future<HostInfoRead> readHostInfo({
   http.Client? client,
 }) async {
   final address = '$host:$port';
-  final uri = buildSkotiqServerUri(
-    scheme: scheme,
-    host: host,
-    port: port,
-    pathAndQuery: '/api/info',
-  );
-  final requestHeaders = LinkVersion.hostHeaders(headers: headers);
   final http.Response response;
   try {
-    response =
-        await (client == null
-                ? http.get(uri, headers: requestHeaders)
-                : client.get(uri, headers: requestHeaders))
-            .timeout(timeout);
+    response = await getHostInfo(
+      hostInfoUri(scheme: scheme, host: host, port: port),
+      headers: headers,
+      timeout: timeout,
+      client: client,
+    );
   } catch (error) {
     return HostInfoFailure(linkProblemFromError(error, address));
   }
