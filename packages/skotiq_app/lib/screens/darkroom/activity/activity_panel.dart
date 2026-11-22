@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// A titled panel of the Activity tab: surface tone, hairline border, the
@@ -115,29 +116,12 @@ String stepWord(NightEndStepState state) => switch (state) {
 
 /// `Oct 24 to 25`: the observing night [time] belongs to.
 String nightLabel(DateTime time) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
   final local = time.toLocal();
-  final evening = local.hour < 12
-      ? DateTime(local.year, local.month, local.day - 1)
-      : DateTime(local.year, local.month, local.day);
-  final morning = evening.add(const Duration(days: 1));
-  final end = morning.month == evening.month
-      ? '${morning.day}'
-      : '${months[morning.month - 1]} ${morning.day}';
-  return '${months[evening.month - 1]} ${evening.day} to $end';
+  return ClockFormat.nightOf(
+    local.hour < 12
+        ? DateTime(local.year, local.month, local.day - 1)
+        : DateTime(local.year, local.month, local.day),
+  );
 }
 
 /// `1 h 05 min`, `12 min` or `40 s`.
