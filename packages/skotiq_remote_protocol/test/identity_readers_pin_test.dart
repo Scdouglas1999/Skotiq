@@ -206,7 +206,13 @@ void main() {
         request.response
           ..statusCode = HttpStatus.ok
           ..headers.contentType = ContentType.json
-          ..write(jsonEncode(keys));
+          ..write(
+            jsonEncode({
+              ...keys,
+              // This build's release, so only the key under test differs.
+              if (keys['version'] is String) 'version': skotiqRelease,
+            }),
+          );
         await request.response.close();
       });
       final outcome = await EnhancedSkotiqDiscovery.probeServer(

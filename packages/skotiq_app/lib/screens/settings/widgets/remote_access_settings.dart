@@ -174,6 +174,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
           dashboardAvailable: webState.dashboardAvailable,
           lastError: webState.lastError,
           serverFingerprint: webState.serverFingerprint,
+          advert: webState.advert,
         );
   }
 

@@ -3,6 +3,8 @@
 // client: what reached the system picker, or what the host-path dialog asked.
 // Recorded on the code where each screen branched on the link itself.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -160,6 +162,37 @@ const _pinned = <String, String>{
       'openFile {acceptedTypeGroups: [{label: PHD2 executable, extensions: null, mimeTypes: null, uniformTypeIdentifiers: null, webWildCards: null, macUTIs: null}], initialDirectory: null, confirmButtonText: Use this PHD2 executable, multiple: false}',
 };
 
+/// The rows were recorded on Linux. Windows offers `.exe` files for an
+/// executable and opens the PHD2 picker in Program Files, macOS in
+/// Applications.
+String _onThisPlatform(String row) {
+  var out = row;
+  if (Platform.isWindows) {
+    for (final label in [
+      'ASTAP executable',
+      'solve-field',
+      'PHD2 executable'
+    ]) {
+      out = out.replaceFirst(
+        '{label: $label, extensions: null,',
+        '{label: $label, extensions: [exe],',
+      );
+    }
+  }
+  final phd2Start = Platform.isWindows
+      ? r'C:\Program Files'
+      : Platform.isMacOS
+          ? '/Applications'
+          : null;
+  if (phd2Start != null && out.contains('Use this PHD2 executable')) {
+    out = out.replaceFirst(
+      'initialDirectory: null',
+      'initialDirectory: $phd2Start',
+    );
+  }
+  return out;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   registerFallbackValue(const PlateSolverPreference());
@@ -214,7 +247,7 @@ void main() {
           expect(pickerCalls, hasLength(1));
           seen = pickerCalls.single;
         }
-        expect(seen, _pinned[row], reason: row);
+        expect(seen, _onThisPlatform(_pinned[row]!), reason: row);
         expect(tester.takeException(), isNull);
       });
     }
