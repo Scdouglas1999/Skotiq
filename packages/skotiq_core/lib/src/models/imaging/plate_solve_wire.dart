@@ -53,7 +53,11 @@ PlateSolveResult plateSolveResultFromJson(Map<String, dynamic> json) {
     return value is num ? value.toDouble() : double.nan;
   }
 
-  int order(String key) => (json[key] as num?)?.toInt() ?? 0;
+  int order(String key) => switch (json[key]) {
+    final num value => value.toInt(),
+    null => 0,
+    _ => throw FormatException('Plate solve "$key" is not a number'),
+  };
 
   Float64List coeffs(String key) {
     final raw = json[key];

@@ -106,7 +106,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   LiveStackingService? _sessionService;
 
   /// Whether this session's stack is the linked host's.
-  bool get _sessionOnHost => _sessionService?.readsHost ?? false;
+  bool get _sessionOnHost {
+    final service = _sessionService;
+    return service != null && service.readsHost;
+  }
+
   bool _remotePollInFlight = false;
   Future<void>? _startInFlight;
   Future<void>? _stopInFlight;
