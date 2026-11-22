@@ -3,6 +3,7 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/startup/app_overrides.dart';
 import 'package:skotiq_app/startup/location_sync_service.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -30,6 +31,8 @@ Future<PlanetariumObserver> _observerFor(AppSettingsState settings) async {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('a configured site is the planetarium observer', () async {
     final observer = await _observerFor(
       const AppSettingsState(latitude: 42.36, longitude: -71.06, elevation: 43),
@@ -41,5 +44,32 @@ void main() {
   test('the unset sentinel is no site', () async {
     final observer = await _observerFor(const AppSettingsState());
     expect(observer.hasSite, isFalse);
+  });
+
+  test('every process start carries the planetarium overrides', () async {
+    final container = ProviderContainer(
+      overrides: [
+        ...appProviderOverrides(
+          const AppVersionInfo(version: '9.1.0', buildNumber: 0),
+        ),
+        appSettingsProvider.overrideWith(
+          () => _FixedSettings(
+            const AppSettingsState(latitude: 42.36, longitude: -71.06),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    await container.read(appSettingsProvider.future);
+
+    expect(
+      container.read(observerLocationProvider).site,
+      (latitude: 42.36, longitude: -71.06),
+    );
+    expect(
+      container.read(planetariumAltitudeFloorProvider).at(0),
+      container.read(altitudeFloorProvider).asSamples().at(0),
+    );
+    expect(container.read(planetariumNightScorerProvider), isNotNull);
   });
 }

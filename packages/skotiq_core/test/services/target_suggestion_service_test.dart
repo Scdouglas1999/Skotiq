@@ -286,6 +286,31 @@ void main() {
         expect(suggestions.map((s) => s.targetName), ['Star cloud']);
       });
 
+      // Free text that names no catalog type ("Variable Star", a SIMBAD long
+      // name) is not read as a star, so a sizeless row of it stays offered.
+      test('a type no catalog names is not dropped as a star', () async {
+        final suggestions = await service.getSuggestionsForTonight(
+          config: const TargetSuggestionConfig(minScore: 0.0),
+          latitude: 40.0,
+          longitude: -105.0,
+          targets: [
+            createTarget(
+              id: 1,
+              name: 'chi Cyg',
+              ra: 19.84,
+              dec: 32.91,
+              objectType: 'Variable Star',
+              magnitude: 5.0,
+            ),
+          ],
+          sessions: [],
+          observationTime: DateTime(2024, 7, 15, 22),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
+        );
+
+        expect(suggestions.map((s) => s.targetName), ['chi Cyg']);
+      });
+
       // A star the user explicitly asked for is still theirs to image, and a
       // star-typed row with a real angular size (an extended emission region
       // carrying a stellar type) is a legitimate subject.

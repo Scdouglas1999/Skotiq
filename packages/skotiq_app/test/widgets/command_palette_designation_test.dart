@@ -37,7 +37,14 @@ void main() {
       ],
     );
 
-    for (final query in ['M42', 'm 42', 'Messier 42', 'M042', 'NGC 1976']) {
+    for (final query in [
+      'M42',
+      'm 42',
+      'Messier 42',
+      'M042',
+      'NGC 1976',
+      'ngc 19',
+    ]) {
       await tester.enterText(find.byType(TextField), query);
       await tester.pump();
       expect(find.textContaining('M42 (NGC1976)'), findsOneWidget,
