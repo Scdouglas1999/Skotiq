@@ -52,10 +52,11 @@ impl ExecutorHandle {
                 crate::GuidingStopReason::MountFault,
             )
             .await;
-            let mut ts = trigger_state.write().await;
-            ts.set_guiding_enabled(false);
-            ts.set_guide_star_lost(false);
-            ts.guiding.set_resume_pending(true);
+            trigger_state
+                .write()
+                .await
+                .guiding
+                .guiding_stopped_by_motion();
         }
         self.run_state.set_message(format!("Paused: {message}"));
         // No executor error: an error reads as the run failing, and the

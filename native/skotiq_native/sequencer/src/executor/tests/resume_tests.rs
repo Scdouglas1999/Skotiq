@@ -365,3 +365,52 @@ fn a_checkpoint_without_per_step_frames_still_loads() {
         serde_json::from_value(json).expect("an older checkpoint loads");
     assert!(loaded.exposure_frames_done.is_empty());
 }
+
+/// `fixtures/checkpoint_mid_flip.json` was written by `CheckpointManager::save`
+/// for a run stopped while its Meridian Flip step ran: the step Running, the
+/// flip not yet recorded for the target, guiding stopped for the flip. The
+/// persisted types it holds are those of the release it pins.
+const MID_FLIP_CHECKPOINT: &str = include_str!("fixtures/checkpoint_mid_flip.json");
+
+/// A checkpoint taken mid-flip resumes with the flip step to run: it runs
+/// again (only finished imaging steps are kept), the frames before it are
+/// not taken again, the flip is not recorded for the target, and the run's
+/// guiding stays stopped until something starts it.
+#[tokio::test]
+async fn a_checkpoint_taken_mid_flip_resumes_with_the_flip_to_run() {
+    let dir = std::env::temp_dir().join(format!("sk-resume-mid-flip-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(dir.join("checkpoint")).unwrap();
+    std::fs::write(
+        dir.join("checkpoint").join("skotiq_session.checkpoint"),
+        MID_FLIP_CHECKPOINT,
+    )
+    .unwrap();
+    let mut executor = executor_for(&dir);
+    executor
+        .resume_from_checkpoint()
+        .await
+        .expect("resume prepares");
+
+    let root = executor.root_node.as_ref().expect("the plan has a tree");
+    let kept = crate::node::resume::kept_on_resume(root.as_ref());
+    assert!(kept.contains("frames-1"));
+    assert!(!kept.contains("flip"), "the flip step runs again");
+    let NodeType::MeridianFlip(config) = root
+        .children()
+        .iter()
+        .find(|child| child.id() == "flip")
+        .expect("the flip step")
+        .node_type()
+    else {
+        panic!("the flip step is a Meridian Flip");
+    };
+    assert_eq!(config.settle_time, 12.0);
+    assert_eq!(config.max_post_settle_rms_pixels, 1.5);
+
+    let trigger_state = executor.trigger_manager.read().await.state();
+    let state = trigger_state.read().await;
+    assert!(!state.meridian.has_flipped());
+    assert!(!state.guiding.is_enabled());
+    assert!(!state.guiding.star_lost());
+    let _ = std::fs::remove_dir_all(&dir);
+}

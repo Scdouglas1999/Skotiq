@@ -880,3 +880,29 @@ async fn lost_star_rms_does_not_recommend_hundreds_of_pixels_for_settling() {
         .await
         .is_none());
 }
+
+/// When each guider restart counts guiding as locked, and the RMS window both
+/// sample, as each had them in its own loop.
+#[test]
+fn the_guiding_lock_rules() {
+    use crate::meridian_flip_executor::POST_FLIP_GUIDING_LOCK;
+    let two_s = Duration::from_secs(2);
+    let table = [
+        ("Start Guiding", START_GUIDING_LOCK, true),
+        ("post-flip guider restart", POST_FLIP_GUIDING_LOCK, false),
+    ];
+    for (site, rule, needs_measured_step) in table {
+        assert_eq!(rule.needs_measured_step, needs_measured_step, "{site}");
+        assert_eq!(rule.poll, two_s, "{site}");
+        // The timeout is each caller's settle timeout.
+        assert_eq!(
+            rule.with_timeout(Duration::from_secs(90)).timeout,
+            Duration::from_secs(90),
+            "{site}"
+        );
+    }
+    assert_eq!(
+        (POST_SETTLE_RMS_SAMPLES, POST_SETTLE_RMS_INTERVAL),
+        (3, two_s)
+    );
+}

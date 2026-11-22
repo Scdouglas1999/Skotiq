@@ -152,7 +152,14 @@ pub fn calculate_alt_az(
 ) -> (f64, f64) {
     let jd = julian_day(&time);
     let lst = local_sidereal_time(jd, longitude);
-    let ha_rad = (hour_angle(ra_hours, lst) * 15.0).to_radians();
+    alt_az_from_hour_angle(hour_angle(ra_hours, lst), dec_degrees, latitude)
+}
+
+/// Altitude and azimuth (degrees, azimuth from north through east in
+/// `[0, 360)`) of a position at hour angle `ha_hours` and Dec `dec_degrees`,
+/// seen from `latitude`.
+pub fn alt_az_from_hour_angle(ha_hours: f64, dec_degrees: f64, latitude: f64) -> (f64, f64) {
+    let ha_rad = (ha_hours * 15.0).to_radians();
     let dec_rad = dec_degrees.to_radians();
     let lat_rad = latitude.to_radians();
 

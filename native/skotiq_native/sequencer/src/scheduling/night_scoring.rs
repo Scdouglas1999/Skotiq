@@ -14,13 +14,12 @@ use serde::{Deserialize, Serialize};
 use super::astronomy::{airmass, angular_separation};
 use super::scoring::{score_airmass, score_altitude, score_moon_distance, ScoringWeights};
 use super::AltitudeFloor;
-use crate::meridian::{julian_day, local_sidereal_time, wrap_hours};
+use crate::meridian::{
+    alt_az_from_hour_angle, julian_day, local_sidereal_time, wrap_hours, SIDEREAL_PER_SOLAR,
+};
 
 /// How far apart the night's altitude samples are.
 const SAMPLE_STEP: Duration = Duration::minutes(15);
-
-/// Sidereal hours per solar hour.
-const SIDEREAL_RATE: f64 = 1.002_737_909_35;
 
 /// A catalog position to score: J2000, RA in degrees.
 #[derive(Debug, Clone, PartialEq)]
@@ -227,20 +226,6 @@ fn score_with(
     }
 }
 
-/// Altitude and azimuth (degrees) of a position at hour angle `ha_hours`.
-fn alt_az_from_hour_angle(ha_hours: f64, dec_deg: f64, lat_deg: f64) -> (f64, f64) {
-    let ha = (ha_hours * 15.0).to_radians();
-    let dec = dec_deg.to_radians();
-    let lat = lat_deg.to_radians();
-    let sin_alt = lat.sin() * dec.sin() + lat.cos() * dec.cos() * ha.cos();
-    let azimuth =
-        (-ha.sin() * dec.cos()).atan2(dec.sin() * lat.cos() - dec.cos() * lat.sin() * ha.cos());
-    (
-        sin_alt.clamp(-1.0, 1.0).asin().to_degrees(),
-        azimuth.to_degrees().rem_euclid(360.0),
-    )
-}
-
 /// Rise, culmination and set against the horizon nearest `center`, for a
 /// position of date (RA hours, Dec degrees).
 pub fn horizon_pass(
@@ -255,13 +240,14 @@ pub fn horizon_pass(
     let never_rises = transit_altitude_deg < 0.0;
     let is_circumpolar = !never_rises && lowest_altitude_deg >= 0.0;
     let hours_to_transit =
-        -wrap_hours(local_sidereal_time(julian_day(&center), lon_deg) - ra_hours) / SIDEREAL_RATE;
+        -wrap_hours(local_sidereal_time(julian_day(&center), lon_deg) - ra_hours)
+            / SIDEREAL_PER_SOLAR;
     let transit = center + seconds(hours_to_transit);
     let (rise_time, set_time) = if never_rises || is_circumpolar {
         (None, None)
     } else {
         let cos_h0 = -(lat_deg.to_radians().tan() * dec_deg.to_radians().tan());
-        let half_arc = cos_h0.clamp(-1.0, 1.0).acos().to_degrees() / 15.0 / SIDEREAL_RATE;
+        let half_arc = cos_h0.clamp(-1.0, 1.0).acos().to_degrees() / 15.0 / SIDEREAL_PER_SOLAR;
         (
             Some(transit - seconds(half_arc)),
             Some(transit + seconds(half_arc)),

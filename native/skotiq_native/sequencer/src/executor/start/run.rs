@@ -377,7 +377,6 @@ impl Run {
         started: std::time::Instant,
         recovery_requests: mpsc::Sender<RecoveryCause>,
     ) -> ExecutionContext {
-        let config = self.config.snapshot();
         let slots = self.config.slots();
         let mut context = ExecutionContext::new("root".to_string(), self.device_ops.clone());
         context.run = self.instruction_shared(recovery_requests).await;
@@ -401,7 +400,6 @@ impl Run {
         context.depth_goal_ops = self.shared.depth_goal_ops.clone();
         context.default_adaptive_exposure = slots.default_adaptive_exposure.clone();
         context.safety_fail_mode = slots.safety_fail_mode.clone();
-        context.max_sun_altitude_degrees = config.max_sun_altitude();
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),

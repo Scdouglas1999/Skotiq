@@ -278,11 +278,15 @@ pub fn resolve_variable(
         ),
         "session.id" => Ok(VariableValue::Str(ctx.run.identity.session_id.clone())),
         "session.date" => {
-            let dt = frame.session_start.unwrap_or_else(|| ctx.clock.now_utc());
+            let dt = frame
+                .session_start
+                .unwrap_or_else(|| ctx.run.clock.now_utc());
             Ok(VariableValue::Str(dt.format("%Y-%m-%d").to_string()))
         }
         "session.start" => {
-            let dt = frame.session_start.unwrap_or_else(|| ctx.clock.now_utc());
+            let dt = frame
+                .session_start
+                .unwrap_or_else(|| ctx.run.clock.now_utc());
             Ok(VariableValue::Str(
                 dt.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             ))
@@ -290,7 +294,7 @@ pub fn resolve_variable(
         "time.now" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .format("%Y-%m-%dT%H:%M:%SZ")
                 .to_string(),
         )),
@@ -298,7 +302,7 @@ pub fn resolve_variable(
             // chrono::Local applies the system local offset.
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .with_timezone(&chrono::Local)
                 .format("%Y-%m-%d %H:%M:%S %:z")
                 .to_string(),
@@ -306,21 +310,21 @@ pub fn resolve_variable(
         "time.date" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .format("%Y-%m-%d")
                 .to_string(),
         )),
         "time.clock" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .format("%H-%M-%S")
                 .to_string(),
         )),
         "time.local_clock" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .with_timezone(&chrono::Local)
                 .format("%H:%M")
                 .to_string(),
@@ -333,7 +337,9 @@ pub fn resolve_variable(
         "moon.phase" => float_or_unresolvable(
             name,
             frame.moon_phase.or_else(|| {
-                let now = frame.now_override.unwrap_or_else(|| ctx.clock.now_utc());
+                let now = frame
+                    .now_override
+                    .unwrap_or_else(|| ctx.run.clock.now_utc());
                 Some(crate::scheduling::ephemeris::moon_illumination_percent(&now) / 100.0)
             }),
             "moon phase requires a system clock",

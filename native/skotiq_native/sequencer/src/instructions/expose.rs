@@ -1199,16 +1199,7 @@ async fn recenter_after_mount_fault(
             Ok(claim) => claim,
             Err(cancelled) => return MountFaultRecenter::Stop(cancelled),
         };
-    let config = crate::CenterConfig {
-        use_target_coords: true,
-        custom_ra: None,
-        custom_dec: None,
-        accuracy_arcsec: None,
-        max_attempts: 3,
-        exposure_duration: 5.0,
-        filter: None,
-        sync_mount: true,
-    };
+    let config = crate::CenterConfig::run_recenter();
     let result = crate::instructions::execute_center(&config, ctx, None).await;
     claim.release(ctx).await;
     if let Some(cancelled) = ctx.check_cancelled() {

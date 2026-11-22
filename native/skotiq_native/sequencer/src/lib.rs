@@ -1284,19 +1284,19 @@ impl TargetSchedulerConfig {
 }
 
 fn default_scheduler_altitude_weight() -> f64 {
-    0.25
+    crate::scheduling::ScoringWeights::default().altitude_weight
 }
 fn default_scheduler_moon_distance_weight() -> f64 {
-    0.25
+    crate::scheduling::ScoringWeights::default().moon_distance_weight
 }
 fn default_scheduler_transit_proximity_weight() -> f64 {
-    0.20
+    crate::scheduling::ScoringWeights::default().transit_proximity_weight
 }
 fn default_scheduler_darkness_weight() -> f64 {
-    0.15
+    crate::scheduling::ScoringWeights::default().darkness_weight
 }
 fn default_scheduler_airmass_weight() -> f64 {
-    0.15
+    crate::scheduling::ScoringWeights::default().airmass_weight
 }
 fn default_scheduler_min_score_to_run() -> f64 {
     30.0
@@ -1919,6 +1919,25 @@ pub struct CenterConfig {
     /// error and the mount's pointing model is left alone.
     #[serde(default = "default_enabled")]
     pub sync_mount: bool,
+}
+
+impl CenterConfig {
+    /// How a run centers its target again by itself: after a mount fault,
+    /// after a weather hold and when the drift trigger fires. Three attempts
+    /// of 5 s frames at the operator's centering tolerance, syncing each
+    /// correction.
+    pub fn run_recenter() -> Self {
+        Self {
+            use_target_coords: true,
+            custom_ra: None,
+            custom_dec: None,
+            accuracy_arcsec: None,
+            max_attempts: 3,
+            exposure_duration: 5.0,
+            filter: None,
+            sync_mount: true,
+        }
+    }
 }
 
 impl Default for CenterConfig {

@@ -727,7 +727,7 @@ pub(crate) async fn check_exposure_triggers(
                 .remove(&episode_key);
             continue;
         }
-        let now = context.clock.now_utc();
+        let now = context.run.clock.now_utc();
         {
             let mut memory = context.exposure_triggers.lock();
             let new_episode = memory.holding.insert(episode_key.clone());

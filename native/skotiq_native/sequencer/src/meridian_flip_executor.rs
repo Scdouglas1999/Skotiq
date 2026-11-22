@@ -242,6 +242,50 @@ pub struct MeridianFlipExecutor {
 /// Writes the run's one-line status message.
 pub type RunMessageSink = Arc<dyn Fn(String) + Send + Sync>;
 
+/// The flip slew: up to 15 s for the mount to report moving (then waited on
+/// regardless), 10 min to finish (the slowest mounts take 6-8 min for a
+/// full-sky move), and a failed state read fails the slew.
+pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
+    crate::instructions::SlewWaitBounds {
+        start: Some(crate::instructions::SlewStartBound {
+            within: std::time::Duration::from_secs(15),
+            poll: std::time::Duration::from_millis(200),
+            proceed_if_never: true,
+        }),
+        complete: std::time::Duration::from_secs(600),
+        poll: std::time::Duration::from_millis(500),
+        deadline_inclusive: false,
+        read_errors: crate::instructions::SlewReadErrors::Fail,
+    };
+
+/// The post-flip centering: three frames, centered below 30" measured flat at
+/// the target's Dec, every correction synced. Not the operator's centering
+/// tolerance.
+pub(crate) const POST_FLIP_CENTERING: crate::instructions::CenterPolicy =
+    crate::instructions::CenterPolicy {
+        tolerance: crate::instructions::CenterTolerance::Below(30.0),
+        max_attempts: 3,
+        sync_mount: true,
+        separation: crate::instructions::Separation::FlatAtTargetDec,
+    };
+
+/// The post-flip guider restart counts guiding as locked once the guider says
+/// it guides, polled every 2 s up to the settle timeout.
+pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
+    crate::instructions::GuidingLockRule {
+        needs_measured_step: false,
+        timeout: std::time::Duration::ZERO,
+        poll: std::time::Duration::from_secs(2),
+    };
+
+/// A post-flip centering correction: a short move, 5 min to finish.
+pub(crate) const FLIP_CENTERING_SLEW: crate::instructions::SlewWaitBounds =
+    crate::instructions::SlewWaitBounds {
+        start: None,
+        complete: std::time::Duration::from_secs(300),
+        ..FLIP_SLEW
+    };
+
 impl MeridianFlipExecutor {
     /// A flip outside any run, such as the standalone flip the app asks for:
     /// the device layer and nothing to report to.
@@ -1212,81 +1256,46 @@ impl MeridianFlipExecutor {
             .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
             .await?;
 
-        // Wait for the mount to actually BEGIN slewing before polling for
-        // completion. Async slews (ASCOM SlewToCoordinatesAsync, Alpaca) can
-        // take tens-to-hundreds of ms to assert Slewing=true; without this
-        // guard the very first is_slewing poll below can read false (the mount
-        // has not started moving yet), break the completion loop immediately,
-        // and declare the flip slew "done" while the OTA is still on the
-        // pre-flip side — pier-side verification then fails and the flip is
-        // aborted/halted, killing the rest of the night. Mirrors the
-        // NINA/SGP "wait for Slewing==true, then wait for Slewing==false"
-        // pattern. Bounded so an instantaneous slew (already on target) or a
+        // Async slews (ASCOM SlewToCoordinatesAsync, Alpaca) can take tens to
+        // hundreds of ms to assert Slewing; a first poll that reads false
+        // would declare the flip slew done while the mount is still on the
+        // pre-flip side. So the wait is for Slewing, then for not Slewing (as
+        // N.I.N.A. and SGP do), bounded so a mount already on target or a
         // driver that never asserts Slewing does not stall.
+        match crate::instructions::wait_for_slew(&self.run.device_ops, mount_id, FLIP_SLEW, &|| {
+            self.is_cancelled(ctx).then_some(())
+        })
+        .await
         {
-            let start_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
-            loop {
-                if self.is_cancelled(ctx) {
-                    if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
-                        tracing::error!(
+            crate::instructions::SlewWait::Done => Ok(()),
+            crate::instructions::SlewWait::Stopped { phase, abort, .. } => {
+                if let Err(e) = abort {
+                    match phase {
+                        crate::instructions::SlewPhase::Starting => tracing::error!(
                             "[MERIDIAN] mount_abort_slew failed during cancellation before slew start: {}",
                             e
-                        );
+                        ),
+                        crate::instructions::SlewPhase::Moving => tracing::error!(
+                            "[MERIDIAN] mount_abort_slew failed during cancellation of slew: {}",
+                            e
+                        ),
                     }
-                    return Err("Abort requested during slew".to_string());
                 }
-                if self.run.device_ops.mount_is_slewing(mount_id).await? {
-                    break; // slew has begun; fall through to completion poll
-                }
-                if tokio::time::Instant::now() > start_deadline {
-                    tracing::debug!(
-                        "[MERIDIAN] mount did not assert Slewing within 15s of the slew command; \
-                         proceeding to completion/pier-side verification"
-                    );
-                    break;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                Err("Abort requested during slew".to_string())
             }
-        }
-
-        // 10 min timeout covers worst-case meridian-flip slews on the slow
-        // direct-drive mounts in our test matrix (10micron GM1000HPS with
-        // belt drive ~ 6-8 min for full-sky moves); a tighter timeout would
-        // false-alarm legitimate long slews on heavy payloads.
-        let slew_timeout = tokio::time::Instant::now() + std::time::Duration::from_secs(600);
-        loop {
-            if self.is_cancelled(ctx) {
-                // explicit error logging on abort_slew failure during
-                // a cancellation path — silent drop here would mask a stuck mount.
-                if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
-                    tracing::error!(
-                        "[MERIDIAN] mount_abort_slew failed during cancellation of slew: {}",
-                        e
-                    );
-                }
-                return Err("Abort requested during slew".to_string());
-            }
-
-            let is_slewing = self.run.device_ops.mount_is_slewing(mount_id).await?;
-            if !is_slewing {
-                break;
-            }
-
-            if tokio::time::Instant::now() > slew_timeout {
-                // log abort_slew failure during timeout path.
-                if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
+            crate::instructions::SlewWait::Overran { abort } => {
+                if let Err(e) = abort {
                     tracing::error!(
                         "[MERIDIAN] mount_abort_slew failed after slew timeout: {}",
                         e
                     );
                 }
-                return Err("Meridian flip slew timed out after 10 minutes".to_string());
+                Err("Meridian flip slew timed out after 10 minutes".to_string())
             }
-
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            // The flip slew waits on for a mount that never reports moving.
+            crate::instructions::SlewWait::NeverStarted { .. } => Ok(()),
+            crate::instructions::SlewWait::ReadFailed(error) => Err(error.into()),
         }
-
-        Ok(())
     }
 
     /// Whether the flip slew left the mount where it was: a mount stopped at
@@ -1504,7 +1513,8 @@ impl MeridianFlipExecutor {
         let camera_id = ctx.camera_id.as_ref().ok_or("No camera configured")?;
 
         let mut last_failure = String::new();
-        for _ in 0..3 {
+        let policy = POST_FLIP_CENTERING;
+        for _ in 0..policy.max_attempts {
             self.wait_for_mount_to_settle(ctx).await?;
             // The retry ladder increases acquisition exposure after the first attempt.
             let image = crate::instructions::take_run_frame(
@@ -1550,75 +1560,61 @@ impl MeridianFlipExecutor {
                 }
             };
 
-            let ra_offset =
-                crate::meridian::wrap_hours((result.ra_degrees / 15.0) - ctx.target_ra_hours);
-            let dec_offset = result.dec_degrees - ctx.target_dec_degrees;
-
-            // Apply cos(dec) to RA when converting to arcsec for the same reason
-            // as TriggerState::calculate_drift_pixels: at high declinations a
-            // raw degree difference would overstate the on-sky distance.
-            let ra_offset_arcsec =
-                ra_offset * 15.0 * 3600.0 * ctx.target_dec_degrees.to_radians().cos();
-            let dec_offset_arcsec = dec_offset * 3600.0;
-            let total_offset = (ra_offset_arcsec.powi(2) + dec_offset_arcsec.powi(2)).sqrt();
-
+            let target = (ctx.target_ra_hours, ctx.target_dec_degrees);
+            let error = policy
+                .separation
+                .measure(target, (result.ra_degrees, result.dec_degrees));
             tracing::info!(
                 "[MERIDIAN] Plate solve result: offset={:.1}\" (RA={:.1}\", Dec={:.1}\")",
-                total_offset,
-                ra_offset_arcsec,
-                dec_offset_arcsec
+                error.total_arcsec,
+                error.ra_arcsec,
+                error.dec_arcsec
             );
 
-            // Preserve the existing post-flip tolerance, but verify it again
-            // after a correction instead of assuming a completed slew centered.
-            if total_offset < 30.0 {
+            // A correction is verified by the next frame, not assumed.
+            if policy.tolerance.is_met(error.total_arcsec) {
                 tracing::info!("[MERIDIAN] Centering within tolerance");
                 return Ok(());
             }
 
-            // Sync the mount model to the actual position, then re-slew to target.
-            // This corrects mount pointing errors that survived the flip; a bare
-            // re-slew without the sync would land at the same wrong spot.
+            // Synced, the mount model takes the pointing error that survived
+            // the flip; a bare re-slew would land at the same wrong spot.
             self.stop_guider_before_move("post-flip centering correction")
                 .await;
+            let slew_to = crate::instructions::correct_pointing(
+                &self.run.device_ops,
+                &ctx.mount_id,
+                policy.sync_mount,
+                target,
+                target,
+                (result.ra_degrees / 15.0, result.dec_degrees),
+            )
+            .await?;
             self.run
                 .device_ops
-                .mount_sync(&ctx.mount_id, result.ra_degrees / 15.0, result.dec_degrees)
+                .mount_slew_to_coordinates(&ctx.mount_id, slew_to.0, slew_to.1)
                 .await?;
 
-            self.run
-                .device_ops
-                .mount_slew_to_coordinates(
-                    &ctx.mount_id,
-                    ctx.target_ra_hours,
-                    ctx.target_dec_degrees,
-                )
-                .await?;
-
-            // 5 min ceiling is enough for a short corrective slew (the flip has
-            // already done the big move); past that the mount is misbehaving and
-            // the user should know rather than have the sequence stall silently.
-            let slew_timeout = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
-            loop {
-                if self.is_cancelled(ctx) {
-                    // log abort_slew failure during cancellation.
-                    if let Err(e) = self.run.device_ops.mount_abort_slew(&ctx.mount_id).await {
+            match crate::instructions::wait_for_slew(
+                &self.run.device_ops,
+                &ctx.mount_id,
+                FLIP_CENTERING_SLEW,
+                &|| self.is_cancelled(ctx).then_some(()),
+            )
+            .await
+            {
+                crate::instructions::SlewWait::Done => {}
+                crate::instructions::SlewWait::Stopped { abort, .. } => {
+                    if let Err(e) = abort {
                         tracing::error!(
-                        "[MERIDIAN] mount_abort_slew failed during cancellation of centering slew: {}",
-                        e
-                    );
+                            "[MERIDIAN] mount_abort_slew failed during cancellation of centering slew: {}",
+                            e
+                        );
                     }
                     return Err("Abort requested during centering slew".to_string());
                 }
-
-                let is_slewing = self.run.device_ops.mount_is_slewing(&ctx.mount_id).await?;
-                if !is_slewing {
-                    break;
-                }
-
-                if tokio::time::Instant::now() > slew_timeout {
-                    // log abort_slew failure during timeout.
-                    if let Err(e) = self.run.device_ops.mount_abort_slew(&ctx.mount_id).await {
+                crate::instructions::SlewWait::Overran { abort } => {
+                    if let Err(e) = abort {
                         tracing::error!(
                             "[MERIDIAN] mount_abort_slew failed after centering slew timeout: {}",
                             e
@@ -1626,8 +1622,9 @@ impl MeridianFlipExecutor {
                     }
                     return Err("Centering slew timed out after 5 minutes".to_string());
                 }
-
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                // No start phase: the wait never ends this way.
+                crate::instructions::SlewWait::NeverStarted { .. } => {}
+                crate::instructions::SlewWait::ReadFailed(error) => return Err(error.into()),
             }
         }
         if last_failure.is_empty() {
@@ -1919,78 +1916,40 @@ impl MeridianFlipExecutor {
             Err(error) => return Err(error.message().to_string()),
         }
 
-        // guider_start() can return Ok before the guider has actually
-        // re-locked onto a star (PHD2 reports the Start accepted while
-        // re-acquisition / calibration is still in progress). Mirror
-        // execute_start_guiding's verification: poll until is_guiding and fail
-        // closed if it never re-locks — otherwise the post-flip exposures
-        // resume UNGUIDED and the rest of the night trails.
-        let poll_interval = std::time::Duration::from_secs(2);
-        let deadline =
-            tokio::time::Instant::now() + std::time::Duration::from_secs_f64(settle_timeout);
-        let mut relocked = false;
-        while tokio::time::Instant::now() < deadline {
-            if self.is_cancelled(ctx) {
-                return Err("Abort requested while verifying post-flip guiding".to_string());
+        // Locked once the guider says it guides, then checked over the RMS
+        // window: a guider that never locks, or tracks badly, fails the step,
+        // and the flip's retries and failure action take it from there.
+        let stop = || self.is_cancelled(ctx).then_some(());
+        match crate::instructions::verify_guiding_locked(
+            &self.run.device_ops,
+            POST_FLIP_GUIDING_LOCK.with_timeout(std::time::Duration::from_secs_f64(settle_timeout)),
+            &stop,
+        )
+        .await
+        {
+            crate::instructions::GuidingLock::Locked(status) => tracing::info!(
+                "[MERIDIAN] Guiding re-locked after flip: {}",
+                status.rms_summary()
+            ),
+            crate::instructions::GuidingLock::NotLocked => {
+                return Err(format!(
+                    "Guiding did not re-lock within {:.0}s after the meridian flip. \
+                     The guider may have failed to re-acquire a star.",
+                    settle_timeout
+                ))
             }
-            match self.run.device_ops.guider_get_status().await {
-                Ok(status) if status.is_guiding => {
-                    tracing::info!(
-                        "[MERIDIAN] Guiding re-locked after flip: {}",
-                        status.rms_summary()
-                    );
-                    relocked = true;
-                    break;
-                }
-                Ok(status) => {
-                    tracing::debug!(
-                        "[MERIDIAN] Guiding not yet re-locked (is_guiding={}), waiting...",
-                        status.is_guiding
-                    );
-                }
-                Err(e) => {
-                    tracing::warn!("[MERIDIAN] Guider status poll failed: {}", e);
-                }
+            crate::instructions::GuidingLock::Stopped(()) => {
+                return Err("Abort requested while verifying post-flip guiding".to_string())
             }
-            tokio::time::sleep(poll_interval).await;
         }
 
-        if !relocked {
-            return Err(format!(
-                "Guiding did not re-lock within {:.0}s after the meridian flip. \
-                 The guider may have failed to re-acquire a star.",
-                settle_timeout
-            ));
-        }
-
-        // Post-settle RMS sanity — mirror execute_start_guiding's gate. A guider
-        // can report is_guiding while tracking poorly (a re-lock onto a hot
-        // pixel, or drift/over-correction that only blows up after the initial
-        // settle). Sample RMS over a short window and fail closed if the peak
-        // exceeds the ceiling, so a bad post-flip re-lock trips the flip failure
-        // action (default: pause + alert) instead of silently trailing the rest
-        // of the night on subs that look guided but aren't. rms_total is in
-        // pixels here, consistent with StartGuidingConfig::max_post_settle_rms_pixels.
         let rms_ceiling = self.config.max_post_settle_rms_pixels;
-        const RMS_SAMPLES: u32 = 3;
-        let rms_interval = std::time::Duration::from_secs(2);
-        let mut max_rms: f64 = 0.0;
-        let mut sample_count: u32 = 0;
-        for _ in 0..RMS_SAMPLES {
-            if self.is_cancelled(ctx) {
-                return Err("Abort requested while validating post-flip guiding RMS".to_string());
-            }
-            tokio::time::sleep(rms_interval).await;
-            match self.run.device_ops.guider_get_status().await {
-                Ok(status) => {
-                    max_rms = max_rms.max(status.rms_total);
-                    sample_count += 1;
-                }
-                Err(e) => {
-                    tracing::warn!("[MERIDIAN] Post-flip RMS sample failed: {}", e);
-                }
-            }
-        }
+        let crate::instructions::RmsPeak {
+            peak_pixels: max_rms,
+            samples: sample_count,
+        } = crate::instructions::sample_post_settle_rms(&self.run.device_ops, &stop)
+            .await
+            .map_err(|()| "Abort requested while validating post-flip guiding RMS".to_string())?;
         if sample_count > 0 && max_rms > rms_ceiling {
             return Err(format!(
                 "Post-flip guiding RMS too high: {max_rms:.2}px (limit {rms_ceiling:.2}px)"
@@ -2568,6 +2527,8 @@ mod tests {
         stuck_at_limit: AtomicBool,
         /// Rates of the MoveAxis calls on the primary axis.
         move_axis_rates: Mutex<Vec<f64>>,
+        /// The RMS the guider reports; `None` reports 0.64 px.
+        guider_rms_total: Mutex<Option<f64>>,
     }
 
     struct MockDeviceOps {
@@ -2867,7 +2828,10 @@ mod tests {
                 is_guiding: !self.state.guider_stopped.load(Ordering::Relaxed),
                 rms_ra: 0.5,
                 rms_dec: 0.4,
-                rms_total: 0.64,
+                rms_total: match *self.state.guider_rms_total.lock().unwrap() {
+                    Some(rms) => rms,
+                    None => 0.64,
+                },
             })
         }
 
@@ -5511,5 +5475,175 @@ mod tests {
             assert_eq!(executor.attempts_made, 3);
         }
         assert_eq!(elapsed[0], elapsed[1]);
+    }
+
+    /// The post-flip centering a run's flip does: how close counts as
+    /// centered, whether a correction syncs, how many frames it takes. The
+    /// run's centering tolerance is 5"; the flip keeps its own 30" and always
+    /// syncs.
+    #[tokio::test(start_paused = true)]
+    async fn post_flip_centering_keeps_its_own_policy() {
+        struct Case {
+            solved_dec_offsets_arcsec: &'static [f64],
+            centered: bool,
+            solves: i32,
+            syncs: i32,
+            correction_slews: i32,
+        }
+        let cases = [
+            // 20" off: centered for the flip, though the run's 5" is not met.
+            Case {
+                solved_dec_offsets_arcsec: &[20.0],
+                centered: true,
+                solves: 1,
+                syncs: 0,
+                correction_slews: 0,
+            },
+            Case {
+                solved_dec_offsets_arcsec: &[29.9],
+                centered: true,
+                solves: 1,
+                syncs: 0,
+                correction_slews: 0,
+            },
+            // Every correction syncs the mount to the solve and slews again.
+            Case {
+                solved_dec_offsets_arcsec: &[40.0, 0.0],
+                centered: true,
+                solves: 2,
+                syncs: 1,
+                correction_slews: 1,
+            },
+            Case {
+                solved_dec_offsets_arcsec: &[40.0, 40.0, 0.0],
+                centered: true,
+                solves: 3,
+                syncs: 2,
+                correction_slews: 2,
+            },
+            // Three frames, then the step fails.
+            Case {
+                solved_dec_offsets_arcsec: &[40.0, 40.0, 40.0, 0.0],
+                centered: false,
+                solves: 3,
+                syncs: 3,
+                correction_slews: 3,
+            },
+        ];
+        for case in cases {
+            let state = Arc::new(MockDeviceOpsState::default());
+            state.solved_dec_offsets.lock().unwrap().extend(
+                case.solved_dec_offsets_arcsec
+                    .iter()
+                    .map(|arcsec| arcsec / 3600.0),
+            );
+            let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+            let mut run = RunShared::new(ops);
+            run.settings = Some(crate::executor::RunConfigStore::new(
+                crate::executor::RunConfig {
+                    centering_tolerance_arcsec: 5.0,
+                    ..Default::default()
+                },
+            ));
+            let executor = MeridianFlipExecutor::in_run(
+                MeridianFlipConfig {
+                    settle_time: 0.0,
+                    ..Default::default()
+                },
+                run,
+            );
+            let result = executor.plate_solve_and_center(&make_ctx(&state)).await;
+            let offsets = case.solved_dec_offsets_arcsec;
+            assert_eq!(result.is_ok(), case.centered, "{offsets:?}: {result:?}");
+            if !case.centered {
+                assert_eq!(
+                    result.unwrap_err(),
+                    "Post-flip centering did not converge after three solves"
+                );
+            }
+            assert_eq!(
+                state.plate_solve_calls.load(Ordering::Relaxed),
+                case.solves,
+                "{offsets:?}"
+            );
+            assert_eq!(
+                state.sync_calls.load(Ordering::Relaxed),
+                case.syncs,
+                "{offsets:?}"
+            );
+            assert_eq!(
+                state.slew_calls.load(Ordering::Relaxed),
+                case.correction_slews,
+                "{offsets:?}"
+            );
+        }
+    }
+
+    /// Frames that never solve: three, then the step fails with the solve's
+    /// own words.
+    #[tokio::test(start_paused = true)]
+    async fn post_flip_centering_takes_three_frames_that_do_not_solve() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state
+            .plate_solve_failures_remaining
+            .store(5, Ordering::Relaxed);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            ops,
+        );
+        let result = executor.plate_solve_and_center(&make_ctx(&state)).await;
+        assert_eq!(
+            result.unwrap_err(),
+            "Plate solve failed: no solution; target centering is unverified (three frames tried)"
+        );
+        assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 3);
+        assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);
+    }
+
+    /// The post-flip guider restart counts guiding as locked once the guider
+    /// says it guides, even with an empty RMS window (Start Guiding waits for
+    /// a measured step).
+    #[tokio::test(start_paused = true)]
+    async fn the_post_flip_guider_restart_accepts_guiding_with_no_rms_yet() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        *state.guider_rms_total.lock().unwrap() = Some(0.0);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            ops,
+        );
+        let started = tokio::time::Instant::now();
+        assert_eq!(executor.restart_guider(&make_ctx(&state)).await, Ok(()));
+        // The lock poll answers at once; the RMS check samples three times
+        // two seconds apart.
+        assert_eq!(started.elapsed(), std::time::Duration::from_secs(6));
+    }
+
+    /// The post-flip RMS check: three samples two seconds apart, over the
+    /// flip's ceiling fails the restart with these words.
+    #[tokio::test(start_paused = true)]
+    async fn the_post_flip_guider_restart_fails_over_the_rms_ceiling() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        *state.guider_rms_total.lock().unwrap() = Some(2.5);
+        let ops: SharedDeviceOps = Arc::new(MockDeviceOps::new(state.clone()));
+        let executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                settle_time: 0.0,
+                max_post_settle_rms_pixels: 2.0,
+                ..Default::default()
+            },
+            ops,
+        );
+        assert_eq!(
+            executor.restart_guider(&make_ctx(&state)).await,
+            Err("Post-flip guiding RMS too high: 2.50px (limit 2.00px)".to_string())
+        );
     }
 }

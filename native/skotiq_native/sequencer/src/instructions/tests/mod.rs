@@ -1344,7 +1344,7 @@ const TEST_LAT: f64 = 40.0;
 const TEST_LON: f64 = -74.0;
 
 fn live_sun_alt() -> f64 {
-    crate::node::context::current_sun_altitude_degrees(TEST_LAT, TEST_LON)
+    crate::node::context::current_sun_altitude_degrees(TEST_LAT, TEST_LON, chrono::Utc::now())
 }
 
 fn is_daylight_block(result: &InstructionResult) -> bool {
@@ -1365,7 +1365,6 @@ async fn slew_ctx(max_sun_alt: f64) -> InstructionContext {
     ec.run.rig.longitude = Some(TEST_LON);
     ec.target_ra = Some(5.5);
     ec.target_dec = Some(22.0);
-    ec.max_sun_altitude_degrees = max_sun_alt;
     // The gate reads the configured max through the InstructionContext's
     // trigger-state handle (exactly as the live executor seeds it). Install
     // a trigger state so the test exercises that same resolution path.
@@ -1403,7 +1402,6 @@ async fn pointing_ctx(
     ec.target_name = Some(target_name.to_string());
     ec.target_ra = Some(target.0);
     ec.target_dec = Some(target.1);
-    ec.max_sun_altitude_degrees = max_sun_alt;
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
     ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
@@ -1427,7 +1425,6 @@ async fn expose_ctx(
         ec.target_ra = Some(ra);
         ec.target_dec = Some(dec);
     }
-    ec.max_sun_altitude_degrees = max_sun_alt;
     let mut ts = crate::triggers::TriggerState::new();
     ts.set_max_sun_altitude_degrees(max_sun_alt);
     ec.run.trigger_state = Some(std::sync::Arc::new(tokio::sync::RwLock::new(ts)));
@@ -1696,5 +1693,6 @@ mod save_path;
 #[cfg(target_os = "linux")]
 mod script;
 mod slew;
+mod slew_wait;
 mod step_lines;
 mod wait_time;

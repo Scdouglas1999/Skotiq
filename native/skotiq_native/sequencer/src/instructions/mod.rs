@@ -45,6 +45,7 @@ mod rotator;
 mod save_path;
 mod script;
 mod slew;
+mod slew_wait;
 mod wait;
 mod wait_time;
 
@@ -78,6 +79,7 @@ pub use rotator::*;
 pub(crate) use save_path::*;
 pub use script::*;
 pub use slew::*;
+pub(crate) use slew_wait::*;
 pub use wait::*;
 pub use wait_time::*;
 

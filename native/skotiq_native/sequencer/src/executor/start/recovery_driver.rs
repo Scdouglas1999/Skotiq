@@ -815,16 +815,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
                 exit.is_cancelled.clone(),
             )
         };
-        let config = crate::CenterConfig {
-            use_target_coords: true,
-            custom_ra: None,
-            custom_dec: None,
-            accuracy_arcsec: None,
-            max_attempts: 3,
-            exposure_duration: 5.0,
-            filter: None,
-            sync_mount: true,
-        };
+        let config = crate::CenterConfig::run_recenter();
         let result = crate::instructions::execute_center(&config, &ctx, None).await;
         claim.release().await;
         if result.status != NodeStatus::Success {
@@ -862,10 +853,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         crate::GuidingStopReason::MountMove,
     )
     .await;
-    let mut ts = state.write().await;
-    ts.set_guiding_enabled(false);
-    ts.set_guide_star_lost(false);
-    ts.guiding.set_resume_pending(true);
+    state.write().await.guiding.guiding_stopped_by_motion();
 }
 
 struct UnguidedContinuation<'a> {

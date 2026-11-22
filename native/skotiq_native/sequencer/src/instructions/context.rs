@@ -425,6 +425,8 @@ pub struct RunShared {
     /// for work outside a run, whose values are set where its context is
     /// built.
     pub settings: Option<crate::executor::RunConfigStore>,
+    /// The run's clock: the wall clock, or a test's.
+    pub clock: Arc<dyn crate::scheduling::Clock>,
 }
 
 impl RunShared {
@@ -523,6 +525,7 @@ impl RunShared {
             device_retry: super::DeviceRetryHandle::single_attempt(),
             camera_file_saving: crate::CameraFileSaving::default(),
             settings: None,
+            clock: crate::scheduling::default_clock(),
         }
     }
 

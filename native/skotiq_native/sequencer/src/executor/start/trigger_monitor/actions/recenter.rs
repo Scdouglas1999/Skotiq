@@ -60,16 +60,7 @@ pub(in super::super) async fn run(request: RecenterRequest<'_>) -> ActionFlow {
         return ActionFlow::Finished;
     }
     let recenter_ctx = rig.instruction_context(target, run);
-    let center_config = crate::CenterConfig {
-        use_target_coords: true,
-        custom_ra: None,
-        custom_dec: None,
-        accuracy_arcsec: None,
-        max_attempts: 3,
-        exposure_duration: 5.0,
-        filter: None,
-        sync_mount: true,
-    };
+    let center_config = crate::CenterConfig::run_recenter();
     let result = crate::instructions::execute_center(&center_config, &recenter_ctx, None).await;
     // The solve exposures are done; the capture loop may go on.
     camera_claim.release().await;

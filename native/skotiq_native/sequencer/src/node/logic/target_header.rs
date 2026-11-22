@@ -12,7 +12,7 @@
 //! Skipped and the target returns Success.
 
 use crate::node::context::ExecutionContext;
-use crate::node::logic::sequential::execute_children_sequential;
+use crate::node::logic::sequential::{execute_children_sequential, walk_children, ChildBoundaries};
 use crate::node::progress::{ProgressDetail, ProgressUpdate};
 use crate::node::runtime::{Node, RuntimeNode};
 use crate::scheduling::{BudgetEvaluation, BudgetMetReason, TargetTrigger, TriggerObserverContext};
@@ -145,7 +145,7 @@ async fn run_target_body(
     }
 
     // wait for `start_when` to fire. Polls every `poll_interval`
-    // seconds using `ctx.clock.now_utc()` so MockClock-driven tests can
+    // seconds using `ctx.run.clock.now_utc()` so MockClock-driven tests can
     // advance time deterministically.
     if let Some(start) = &start_when {
         match wait_for_trigger(config, context, node.id(), start, poll_interval).await {
@@ -270,7 +270,6 @@ async fn execute_children_with_budget(
     end_when: Option<TargetTrigger>,
     config: &TargetHeaderConfig,
 ) -> NodeStatus {
-    use std::sync::atomic::Ordering;
     let total = node.children.len();
     let node_id = node.id().clone();
 
@@ -291,209 +290,181 @@ async fn execute_children_with_budget(
         }
     }
 
-    for (i, child) in node.children.iter_mut().enumerate() {
-        if context.is_cancelled.load(Ordering::Relaxed) {
-            return NodeStatus::Cancelled;
-        }
-        // honor an operator Pause / recovery freeze at the
-        // child boundary, mirroring `execute_children_sequential` (sequential.rs:52).
-        // Without this, a TargetHeader carrying an integration budget keeps
-        // exposing/slewing while the UI shows "Paused". Block until resumed;
-        // unwind to Cancelled if the sequence is cancelled while paused.
-        if !context.wait_while_paused().await {
-            return NodeStatus::Cancelled;
-        }
-        if context.is_skip_to_next_target_requested() {
-            return NodeStatus::Skipped;
-        }
-
-        // end_when pre-check. If the stop condition is already
-        // true *before* we even start the next child, mark the rest
-        // Skipped and return Success. Doing this *before* the child
-        // executes (in addition to after) means the last frame in a
-        // long burst doesn't get scheduled if dusk arrived during the
-        // previous one.
-        if let Some(end) = &end_when {
-            match trigger_observer_ctx(config, context, end, TriggerRole::EndWhen) {
-                Ok(trig_ctx) => {
-                    if end.is_satisfied(&trig_ctx) {
-                        emit_end_when_met(context, &node_id, display_name, end);
-                        mark_remaining_end_when(node, context, i, total).await;
-                        return NodeStatus::Success;
-                    }
-                }
-                // Reachable when the observer location is cleared after the
-                // target's entry check passed; the same refusal, not a stop
-                // decision taken from an invented altitude.
-                Err(reason) => return refuse_unevaluable_trigger(context, display_name, reason),
-            }
-        }
-
-        // Kept in sync with
-        // `execute_children_sequential`.
-        if let Some(ref skip_target) = context.skip_to_node_target() {
-            if child.id() == skip_target {
-                context.clear_skip_to_node_request();
-            } else if !child.contains_node(skip_target) {
-                let mut update = ProgressUpdate::lifecycle(
-                    child.id().clone(),
-                    NodeStatus::Skipped,
-                    format!("Skipped by SkipToNode request (target: {})", skip_target),
-                );
-                update.current_child = Some(i);
-                update.total_children = Some(total);
-                context.send_progress(update);
-                continue;
-            }
-        }
-
-        let mut step_update = ProgressUpdate::lifecycle(
-            node_id.clone(),
-            NodeStatus::Running,
-            format!("Step {}/{}: {}", i + 1, total, child.name()),
-        );
-        step_update.current_child = Some(i);
-        step_update.total_children = Some(total);
-        context.send_progress(step_update);
-
-        let result = child.execute(context).await;
-
-        if result == NodeStatus::Skipped && context.is_skip_to_next_target_requested() {
-            return NodeStatus::Skipped;
-        }
-        if result == NodeStatus::Failure || result == NodeStatus::Cancelled {
-            return result;
-        }
-
-        // Budget evaluation at child boundary. Done after the child so a
-        // long exposure burst is allowed to land its credit before we
-        // decide to stop — without this, the very last frame in a
-        // burst would be killed mid-flight.
-        if budget.stop_on_budget_met {
-            if let Some(state) = context.budget_registry.state_for(target_id).await {
-                if let BudgetEvaluation::Met { .. } = state.evaluate(budget) {
-                    emit_budget_met(context, &node_id, display_name, &state, budget).await;
-                    mark_remaining_skipped(node, context, i + 1, total).await;
-                    return NodeStatus::Success;
-                }
-            }
-        }
-    }
-
-    NodeStatus::Success
+    let mut boundaries = BudgetBoundaries {
+        node_id,
+        target_id,
+        budget,
+        display_name,
+        end_when,
+        config,
+    };
+    walk_children(node, context, &mut boundaries).await
 }
 
-/// sequential walker that pre-checks `end_when` at every child
-/// boundary. Mirrors `execute_children_sequential` exactly EXCEPT for the
-/// added pre-child end_when probe + lifecycle emission. We don't reuse
-/// `execute_children_sequential` because that function is shared with the
-/// non-target sequential containers (which don't have end_when semantics).
+/// A budgeted target's boundaries: the `end_when` probe before each child
+/// (when the target has one), the budget after it. Checked after the child
+/// so a long burst lands its credit before the target stops; checked before
+/// it so the last frame of a burst is not scheduled when dusk came during the
+/// previous one.
+struct BudgetBoundaries<'a> {
+    node_id: crate::NodeId,
+    target_id: &'a str,
+    budget: &'a crate::IntegrationBudget,
+    display_name: &'a str,
+    end_when: Option<TargetTrigger>,
+    config: &'a TargetHeaderConfig,
+}
+
+#[async_trait::async_trait]
+impl ChildBoundaries for BudgetBoundaries<'_> {
+    async fn before_child(
+        &mut self,
+        node: &mut crate::node::runtime::RuntimeNode,
+        context: &mut ExecutionContext,
+        index: usize,
+        total: usize,
+    ) -> Option<NodeStatus> {
+        let end = self.end_when.as_ref()?;
+        end_when_boundary(
+            node,
+            context,
+            &self.node_id,
+            self.display_name,
+            end,
+            self.config,
+            index,
+            total,
+        )
+        .await
+    }
+
+    async fn after_child(
+        &mut self,
+        node: &mut crate::node::runtime::RuntimeNode,
+        context: &mut ExecutionContext,
+        index: usize,
+        total: usize,
+    ) -> Option<NodeStatus> {
+        if !self.budget.stop_on_budget_met {
+            return None;
+        }
+        let state = context.budget_registry.state_for(self.target_id).await?;
+        let BudgetEvaluation::Met { .. } = state.evaluate(self.budget) else {
+            return None;
+        };
+        emit_budget_met(
+            context,
+            &self.node_id,
+            self.display_name,
+            &state,
+            self.budget,
+        )
+        .await;
+        mark_remaining_skipped(node, context, index + 1, total).await;
+        Some(NodeStatus::Success)
+    }
+}
+
+/// The `end_when` probe at a child boundary: met, the children from `from`
+/// on are marked and the target ends with Success; unevaluable (no site), it
+/// is refused.
+#[allow(clippy::too_many_arguments)]
+async fn end_when_boundary(
+    node: &mut crate::node::runtime::RuntimeNode,
+    context: &mut ExecutionContext,
+    node_id: &crate::NodeId,
+    display_name: &str,
+    end: &TargetTrigger,
+    config: &TargetHeaderConfig,
+    from: usize,
+    total: usize,
+) -> Option<NodeStatus> {
+    match trigger_observer_ctx(config, context, end, TriggerRole::EndWhen) {
+        Ok(trig_ctx) => {
+            if !end.is_satisfied(&trig_ctx) {
+                return None;
+            }
+            emit_end_when_met(context, node_id, display_name, end);
+            mark_remaining_end_when(node, context, from, total).await;
+            Some(NodeStatus::Success)
+        }
+        // Reachable when the observer location is cleared after the target's
+        // entry check passed; the same refusal, not a stop decision taken
+        // from an invented altitude.
+        Err(reason) => Some(refuse_unevaluable_trigger(context, display_name, reason)),
+    }
+}
+
+/// A target's walk with an `end_when` and no budget: the probe before each
+/// child and again after it, so dusk arriving mid-burst stops imaging
+/// promptly.
 async fn execute_children_with_end_when(
     node: &mut crate::node::runtime::RuntimeNode,
     context: &mut ExecutionContext,
     end_when: Option<TargetTrigger>,
     config: &TargetHeaderConfig,
 ) -> NodeStatus {
-    use std::sync::atomic::Ordering;
-
-    // No end_when → just delegate to the standard sequential walker so we
-    // pick up every future enhancement to it.
     let Some(end) = end_when else {
         return execute_children_sequential(node, context).await;
     };
-
-    let total = node.children.len();
-    let node_id = node.id().clone();
-    if total == 0 {
+    if node.children.is_empty() {
         return NodeStatus::Success;
     }
+    let mut boundaries = EndWhenBoundaries {
+        node_id: node.id().clone(),
+        end,
+        config,
+    };
+    walk_children(node, context, &mut boundaries).await
+}
 
-    for (i, child) in node.children.iter_mut().enumerate() {
-        if context.is_cancelled.load(Ordering::Relaxed) {
-            return NodeStatus::Cancelled;
-        }
-        // honor an operator Pause / recovery freeze at the
-        // child boundary, mirroring `execute_children_sequential` (sequential.rs:52).
-        // Without this, a TargetHeader carrying an end_when trigger (exactly
-        // what the autopilot/scheduler builds) keeps exposing/slewing while
-        // the UI shows "Paused". Block until resumed; unwind to Cancelled if
-        // the sequence is cancelled while paused.
-        if !context.wait_while_paused().await {
-            return NodeStatus::Cancelled;
-        }
-        if context.is_skip_to_next_target_requested() {
-            return NodeStatus::Skipped;
-        }
+struct EndWhenBoundaries<'a> {
+    node_id: crate::NodeId,
+    end: TargetTrigger,
+    config: &'a TargetHeaderConfig,
+}
 
-        // Pre-child end_when probe — see comment in
-        // `execute_children_with_budget`.
-        match trigger_observer_ctx(config, context, &end, TriggerRole::EndWhen) {
-            Ok(trig_ctx) => {
-                if end.is_satisfied(&trig_ctx) {
-                    emit_end_when_met(context, &node_id, &config.display_name(), &end);
-                    mark_remaining_end_when(node, context, i, total).await;
-                    return NodeStatus::Success;
-                }
-            }
-            Err(reason) => {
-                return refuse_unevaluable_trigger(context, &config.display_name(), reason)
-            }
-        }
-
-        // Kept in sync with
-        // `execute_children_sequential`.
-        if let Some(ref skip_target) = context.skip_to_node_target() {
-            if child.id() == skip_target {
-                context.clear_skip_to_node_request();
-            } else if !child.contains_node(skip_target) {
-                let mut update = ProgressUpdate::lifecycle(
-                    child.id().clone(),
-                    NodeStatus::Skipped,
-                    format!("Skipped by SkipToNode request (target: {})", skip_target),
-                );
-                update.current_child = Some(i);
-                update.total_children = Some(total);
-                context.send_progress(update);
-                continue;
-            }
-        }
-
-        let mut step_update = ProgressUpdate::lifecycle(
-            node_id.clone(),
-            NodeStatus::Running,
-            format!("Step {}/{}: {}", i + 1, total, child.name()),
-        );
-        step_update.current_child = Some(i);
-        step_update.total_children = Some(total);
-        context.send_progress(step_update);
-
-        let result = child.execute(context).await;
-
-        if result == NodeStatus::Skipped && context.is_skip_to_next_target_requested() {
-            return NodeStatus::Skipped;
-        }
-        if result == NodeStatus::Failure || result == NodeStatus::Cancelled {
-            return result;
-        }
-
-        // Post-child end_when check so dusk arriving mid-burst still
-        // promptly stops imaging.
-        match trigger_observer_ctx(config, context, &end, TriggerRole::EndWhen) {
-            Ok(trig_ctx) => {
-                if end.is_satisfied(&trig_ctx) {
-                    emit_end_when_met(context, &node_id, &config.display_name(), &end);
-                    mark_remaining_end_when(node, context, i + 1, total).await;
-                    return NodeStatus::Success;
-                }
-            }
-            Err(reason) => {
-                return refuse_unevaluable_trigger(context, &config.display_name(), reason)
-            }
-        }
+#[async_trait::async_trait]
+impl ChildBoundaries for EndWhenBoundaries<'_> {
+    async fn before_child(
+        &mut self,
+        node: &mut crate::node::runtime::RuntimeNode,
+        context: &mut ExecutionContext,
+        index: usize,
+        total: usize,
+    ) -> Option<NodeStatus> {
+        end_when_boundary(
+            node,
+            context,
+            &self.node_id,
+            &self.config.display_name(),
+            &self.end,
+            self.config,
+            index,
+            total,
+        )
+        .await
     }
 
-    let _ = Ordering::Relaxed; // touch the imported symbol to keep the import path stable
-    NodeStatus::Success
+    async fn after_child(
+        &mut self,
+        node: &mut crate::node::runtime::RuntimeNode,
+        context: &mut ExecutionContext,
+        index: usize,
+        total: usize,
+    ) -> Option<NodeStatus> {
+        end_when_boundary(
+            node,
+            context,
+            &self.node_id,
+            &self.config.display_name(),
+            &self.end,
+            self.config,
+            index + 1,
+            total,
+        )
+        .await
+    }
 }
 
 /// Which of a target's two triggers is under evaluation. The no-site refusal
@@ -574,7 +545,7 @@ fn trigger_observer_ctx(
         longitude_deg,
         target_ra_hours: config.ra_hours,
         target_dec_degrees: config.dec_degrees,
-        now: context.clock.now_utc(),
+        now: context.run.clock.now_utc(),
         altitude_floor: context.altitude_floor(),
     })
 }
@@ -1470,7 +1441,7 @@ mod tests {
         advancer.await.unwrap();
         assert_eq!(status, NodeStatus::Success);
         // Verify the clock was actually advanced (sanity check).
-        assert!(ctx.clock.now_utc().timestamp() >= target_ts);
+        assert!(ctx.run.clock.now_utc().timestamp() >= target_ts);
     }
 
     /// `wait_for_trigger` honours cancellation while waiting.
@@ -2003,7 +1974,7 @@ mod tests {
             dec_degrees: 41.27,
             ..TargetHeaderConfig::default()
         };
-        let trigger = TargetTrigger::TimeAfter(ctx.clock.now_utc().timestamp() - 1);
+        let trigger = TargetTrigger::TimeAfter(ctx.run.clock.now_utc().timestamp() - 1);
         let trig_ctx = trigger_observer_ctx(&config, &ctx, &trigger, TriggerRole::EndWhen)
             .expect("a time-only trigger needs no site");
         assert!(trigger.is_satisfied(&trig_ctx));
