@@ -50,8 +50,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     );
 
     // Sample apparent altitude across the site's night (solar noon to solar
-    // noon), the same 24h span the twilight gauge and the object-details
-    // altitude chart use, so the on-sky track and the side-panel chart agree.
+    // noon), the same 24h span the twilight gauge uses.
     final nightStart = AstronomyCalculations.nightStartOf(
       observationTime,
       longitudeDeg: longitude,
