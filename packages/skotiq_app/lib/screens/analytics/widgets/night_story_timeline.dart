@@ -1,3 +1,4 @@
+import 'package:skotiq_astro/format.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -199,16 +200,7 @@ NightStorySummary summarizeNightStory(List<NarratorEvent> events) {
   );
 }
 
-String _hourLabel(DateTime hour) {
-  final hh = hour.hour.toString().padLeft(2, '0');
-  return '$hh:00';
-}
-
-String _timeLabel(DateTime local) {
-  final hh = local.hour.toString().padLeft(2, '0');
-  final mm = local.minute.toString().padLeft(2, '0');
-  return '$hh:$mm';
-}
+String _hourLabel(DateTime hour) => ClockFormat.minutesOfDay(hour.hour * 60);
 
 /// The Night Story timeline panel.
 ///
@@ -603,7 +595,7 @@ class _TimelineRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: NarratorCard(
                 event: event,
-                relativeTime: _timeLabel(local),
+                relativeTime: ClockFormat.hm(local),
                 onTap: () => showNarratorDetailSheet(context, event),
               ),
             ),

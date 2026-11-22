@@ -7,6 +7,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_target_provider.dart';
+import '../data/session/session_format.dart' show nightFixed;
 import '../night_control_contracts.dart';
 import 'left_section_frame.dart';
 import 'night_time_format.dart';
@@ -100,7 +101,7 @@ class NightTargetSection extends ConsumerWidget {
           l10n.text('nightCtlAltitude'),
           target.altitudeDeg == null
               ? null
-              : '${_signed(target.altitudeDeg!, 1)}°',
+              : '${nightFixed(target.altitudeDeg!, 1)}°',
         ),
         (
           l10n.text('nightCtlHourAngle'),
@@ -113,11 +114,6 @@ class NightTargetSection extends ConsumerWidget {
           target.airmass?.toStringAsFixed(2),
         ),
       ];
-
-  static String _signed(double value, int decimals) {
-    final text = value.toStringAsFixed(decimals);
-    return text.startsWith('-') ? '−${text.substring(1)}' : text;
-  }
 
   /// `−0h59m`: negative east of the meridian.
   static String _hourAngle(double hours) {

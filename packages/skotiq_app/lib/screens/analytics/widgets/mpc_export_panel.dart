@@ -507,14 +507,8 @@ class _ObservationGroupTile extends StatelessWidget {
     );
   }
 
-  String _formatTimestamp(DateTime ts) {
-    final utc = ts.toUtc();
-    return '${utc.year}-'
-        '${utc.month.toString().padLeft(2, '0')}-'
-        '${utc.day.toString().padLeft(2, '0')} '
-        '${utc.hour.toString().padLeft(2, '0')}:'
-        '${utc.minute.toString().padLeft(2, '0')} UTC';
-  }
+  String _formatTimestamp(DateTime ts) =>
+      '${ClockFormat.dateHm(ts.toUtc())} UTC';
 }
 
 class _SmallActionButton extends StatelessWidget {
