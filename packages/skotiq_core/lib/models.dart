@@ -79,6 +79,7 @@ export 'src/models/focuser_backlash_calibration.dart';
 export 'src/models/focuser_backlash_progress.dart';
 export 'src/models/meridian_flip_settings.dart';
 export 'src/models/meridian_flip_event.dart';
+export 'src/models/meridian_flip_progress.dart';
 export 'src/models/flat_wizard/flat_capture_config.dart';
 export 'src/models/flat_wizard/flat_wizard_settings.dart';
 export 'src/models/flat_wizard/flat_wizard_state.dart';
