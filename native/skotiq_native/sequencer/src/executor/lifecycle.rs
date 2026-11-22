@@ -112,13 +112,7 @@ impl SequenceExecutor {
     /// Whether a run is under way: started and not yet at its end. Such a run
     /// announces its own end.
     pub fn has_run_in_flight(&self) -> bool {
-        matches!(
-            self.run_state.get(),
-            ExecutorState::Running
-                | ExecutorState::Paused
-                | ExecutorState::Recovering
-                | ExecutorState::Stopping
-        )
+        self.run_state.run_in_flight()
     }
 
     /// Stop the sequence. Sets the shared cancellation flag *before* sending
@@ -146,6 +140,8 @@ impl SequenceExecutor {
     /// returned [`RunStopping`] after releasing it, so status reads and other
     /// requests are answered meanwhile and see the run as `Stopping`.
     pub async fn request_stop(&mut self, origin: StopOrigin) -> RunStopping {
+        // A stop with no run under way stops nothing, so it leaves no row.
+        let stops_a_run = self.has_run_in_flight();
         self.is_cancelled.store(true, Ordering::Release);
         // The run's command handler is not listening while a trigger's
         // shutdown steps finish, so the state is turned here as well.
@@ -159,25 +155,28 @@ impl SequenceExecutor {
             let _ = tx.send(ExecutorCommand::Stop).await;
         }
 
-        match &origin {
-            // The one decision that is never silenceable: it is the only
-            // evidence the stop was human rather than a safety abort.
-            // It is never silenced by the decision-logging preference, or a
-            // press with logging off would read the same as an unattended
-            // weather abort.
-            StopOrigin::Operator => {
-                let row = self
-                    .handle()
-                    .manual_intervention_row("stop", serde_json::json!({}))
-                    .with_stop(origin.run_stop());
-                let _ = self.decision_tx.send(row);
+        if stops_a_run {
+            match &origin {
+                // The one decision that is never silenceable: it is the only
+                // evidence the stop was human rather than a safety abort.
+                // It is never silenced by the decision-logging preference, or a
+                // press with logging off would read the same as an unattended
+                // weather abort.
+                StopOrigin::Operator => {
+                    let row = self
+                        .handle()
+                        .manual_intervention_row("stop", serde_json::json!({}))
+                        .with_stop(origin.run_stop());
+                    let _ = self.decision_tx.send(row);
+                }
+                // What the system did, under the normal decision-logging gate.
+                StopOrigin::Scheduler | StopOrigin::System(_) => self
+                    .emit_lifecycle_system_decision(
+                        origin.decision_summary(),
+                        serde_json::json!({ "origin": origin.wire_name(), "action": "stop" }),
+                        origin.run_stop(),
+                    ),
             }
-            // What the system did, under the normal decision-logging gate.
-            StopOrigin::Scheduler | StopOrigin::System(_) => self.emit_lifecycle_system_decision(
-                origin.decision_summary(),
-                serde_json::json!({ "origin": origin.wire_name(), "action": "stop" }),
-                origin.run_stop(),
-            ),
         }
 
         RunStopping {

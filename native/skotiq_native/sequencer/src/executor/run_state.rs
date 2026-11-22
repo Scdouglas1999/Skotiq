@@ -72,6 +72,17 @@ impl RunCell {
         self.inner.progress.read().state
     }
 
+    /// Whether a run is under way: started and not yet at its end.
+    pub(crate) fn run_in_flight(&self) -> bool {
+        matches!(
+            self.get(),
+            ExecutorState::Running
+                | ExecutorState::Paused
+                | ExecutorState::Recovering
+                | ExecutorState::Stopping
+        )
+    }
+
     /// The progress snapshot, state included.
     pub(crate) fn progress(&self) -> SequenceProgress {
         self.inner.progress.read().clone()

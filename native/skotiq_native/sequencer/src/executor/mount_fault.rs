@@ -77,9 +77,9 @@ impl ExecutorHandle {
     }
 
     /// Record an operator's (or the device layer's) action on the run in its
-    /// decision log.
+    /// decision log. With no run under way there is no run to record it in.
     pub(crate) fn emit_manual_intervention(&self, action: &str, details: serde_json::Value) {
-        if !self.settings.read().decision_logging_enabled {
+        if !self.settings.read().decision_logging_enabled || !self.run_state.run_in_flight() {
             return;
         }
         let _ = self
