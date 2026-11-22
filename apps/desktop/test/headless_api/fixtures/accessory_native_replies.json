@@ -1,0 +1,2024 @@
+{
+  "dome.open.ok": {
+    "status": 200,
+    "body": "{\"status\":\"opening\",\"deviceId\":\"dome-1\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeOpenShutter",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.open.unsupported_canSetShutter": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support open shutter (canSetShutter is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canSetShutter\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.open.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.open.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\"}",
+    "native": []
+  },
+  "dome.open.capabilities_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.open.command_busy": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeOpenShutter",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.close.ok": {
+    "status": 200,
+    "body": "{\"status\":\"closing\",\"deviceId\":\"dome-1\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeCloseShutter",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.close.unsupported_canSetShutter": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support close shutter (canSetShutter is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canSetShutter\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.close.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.close.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\"}",
+    "native": []
+  },
+  "dome.close.capabilities_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.close.command_busy": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeCloseShutter",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.park.ok": {
+    "status": 200,
+    "body": "{\"status\":\"parking\",\"deviceId\":\"dome-1\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomePark",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.park.unsupported_canPark": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support park (canPark is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canPark\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.park.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.park.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\"}",
+    "native": []
+  },
+  "dome.park.capabilities_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.park.command_busy": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomePark",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.home.ok": {
+    "status": 200,
+    "body": "{\"status\":\"homing\",\"deviceId\":\"dome-1\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeFindHome",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.home.unsupported_canFindHome": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support find home (canFindHome is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canFindHome\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.home.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.home.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\"}",
+    "native": []
+  },
+  "dome.home.capabilities_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.home.command_busy": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeFindHome",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.halt.ok": {
+    "status": 200,
+    "body": "{\"status\":\"halted\",\"deviceId\":\"dome-1\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeAbortSlew",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.halt.unsupported_canAbort": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support halt (canAbort is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canAbort\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.halt.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.halt.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\"}",
+    "native": []
+  },
+  "dome.halt.capabilities_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.halt.command_busy": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeAbortSlew",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.slew.ok": {
+    "status": 200,
+    "body": "{\"status\":\"slewing\",\"deviceId\":\"dome-1\",\"targetAzimuth\":271.5}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeSlewToAzimuth",
+        "args": {
+          "deviceId": "dome-1",
+          "azimuth": 271.5
+        }
+      }
+    ]
+  },
+  "dome.slew.unsupported": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support slew (canSetAzimuth is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canSetAzimuth\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.slew.out_of_range": {
+    "status": 400,
+    "body": "{\"error\":\"Value must be <= 359.999999\",\"code\":\"invalid_request\",\"field\":\"azimuth\",\"expected\":\"number\",\"message\":\"Value must be <= 359.999999\"}",
+    "native": []
+  },
+  "dome.slew.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.slew.command_fail": {
+    "status": 504,
+    "body": "{\"error\":\"device_timeout\",\"message\":\"slew\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeSlewToAzimuth",
+        "args": {
+          "deviceId": "dome-1",
+          "azimuth": 10.0
+        }
+      }
+    ]
+  },
+  "dome.sync.enable": {
+    "status": 200,
+    "body": "{\"status\":\"sync_enabled\",\"deviceId\":\"dome-1\",\"syncEnabled\":true}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeSetSlaved",
+        "args": {
+          "deviceId": "dome-1",
+          "slaved": true
+        }
+      }
+    ]
+  },
+  "dome.sync.disable": {
+    "status": 200,
+    "body": "{\"status\":\"sync_disabled\",\"deviceId\":\"dome-1\",\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeSetSlaved",
+        "args": {
+          "deviceId": "dome-1",
+          "slaved": false
+        }
+      }
+    ]
+  },
+  "dome.sync.unsupported": {
+    "status": 400,
+    "body": "{\"error\":\"capability_unsupported\",\"code\":\"capability_unsupported\",\"message\":\"Dome dome-1 does not support mount sync (canSlave is false)\",\"requestId\":\"test-request-id\",\"deviceId\":\"dome-1\",\"capability\":\"canSlave\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.sync.bad_enable": {
+    "status": 200,
+    "body": "{\"status\":\"sync_enabled\",\"deviceId\":\"dome-1\",\"syncEnabled\":true}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      },
+      {
+        "fn": "DomeSetSlaved",
+        "args": {
+          "deviceId": "dome-1",
+          "slaved": true
+        }
+      }
+    ]
+  },
+  "dome.status.ok": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"open\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.shutter_open": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"open\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.shutter_closed": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"closed\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.shutter_opening": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"opening\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.shutter_closing": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"closing\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.shutter_error": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"error\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.shutter_unknown": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"unknown\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.no_shutter": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"dome-1\",\"shutterState\":\"closed\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":false,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.reports_disconnected": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"dome-1\",\"shutterState\":\"open\",\"azimuth\":90.25,\"altitude\":null,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"canSetAltitude\":false,\"canSetAzimuth\":true,\"canSetShutter\":true,\"canSyncToMount\":true,\"syncEnabled\":false}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.status.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId query parameter is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\",\"message\":\"deviceId query parameter is required\"}",
+    "native": []
+  },
+  "dome.status.not_connected": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"dome-9\",\"error\":\"Dome not connected\"}",
+    "native": []
+  },
+  "dome.status.native_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeStatus",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.ok": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":true,\"canSetShutter\":true,\"canPark\":true,\"canFindHome\":true,\"canSyncAzimuth\":true,\"canSlave\":true,\"canSetSlave\":true,\"canAbort\":true,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"slaved\":false,\"azimuth\":182.5,\"shutterStatus\":\"closing\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.none": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":false,\"canSetShutter\":false,\"canPark\":false,\"canFindHome\":false,\"canSyncAzimuth\":false,\"canSlave\":false,\"canSetSlave\":false,\"canAbort\":false,\"slewing\":false,\"atHome\":true,\"atPark\":false,\"slaved\":true,\"azimuth\":null,\"shutterStatus\":\"unknown\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.shutter_open": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":true,\"canSetShutter\":true,\"canPark\":true,\"canFindHome\":true,\"canSyncAzimuth\":true,\"canSlave\":true,\"canSetSlave\":true,\"canAbort\":true,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"slaved\":false,\"azimuth\":182.5,\"shutterStatus\":\"open\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.shutter_closed": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":true,\"canSetShutter\":true,\"canPark\":true,\"canFindHome\":true,\"canSyncAzimuth\":true,\"canSlave\":true,\"canSetSlave\":true,\"canAbort\":true,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"slaved\":false,\"azimuth\":182.5,\"shutterStatus\":\"closed\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.shutter_opening": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":true,\"canSetShutter\":true,\"canPark\":true,\"canFindHome\":true,\"canSyncAzimuth\":true,\"canSlave\":true,\"canSetSlave\":true,\"canAbort\":true,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"slaved\":false,\"azimuth\":182.5,\"shutterStatus\":\"opening\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.shutter_closing": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":true,\"canSetShutter\":true,\"canPark\":true,\"canFindHome\":true,\"canSyncAzimuth\":true,\"canSlave\":true,\"canSetSlave\":true,\"canAbort\":true,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"slaved\":false,\"azimuth\":182.5,\"shutterStatus\":\"closing\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.shutter_unknown": {
+    "status": 200,
+    "body": "{\"deviceId\":\"dome-1\",\"canSetAzimuth\":true,\"canSetShutter\":true,\"canPark\":true,\"canFindHome\":true,\"canSyncAzimuth\":true,\"canSlave\":true,\"canSetSlave\":true,\"canAbort\":true,\"slewing\":true,\"atHome\":false,\"atPark\":true,\"slaved\":false,\"azimuth\":182.5,\"shutterStatus\":\"unknown\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "dome.capabilities.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId query parameter is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\",\"message\":\"deviceId query parameter is required\"}",
+    "native": []
+  },
+  "dome.capabilities.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Dome not found or not connected\",\"deviceId\":\"dome-9\"}",
+    "native": []
+  },
+  "dome.capabilities.native_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetDomeCapabilities",
+        "args": {
+          "deviceId": "dome-1"
+        }
+      }
+    ]
+  },
+  "switch.status.none_connected": {
+    "status": 200,
+    "body": "{\"devicesConnected\":0,\"devices\":[],\"message\":\"No switch devices connected\"}",
+    "native": []
+  },
+  "switch.status.all": {
+    "status": 200,
+    "body": "{\"devicesConnected\":2,\"devices\":[{\"connected\":true,\"deviceId\":\"switch-1\",\"deviceName\":\"Power box\",\"switchCount\":3,\"switches\":[{\"id\":0,\"name\":\"Mount\",\"type\":\"boolean\",\"value\":true,\"minValue\":null,\"maxValue\":null,\"step\":null,\"canWrite\":true,\"description\":\"12 V mount\"},{\"id\":1,\"name\":\"Dew A\",\"type\":\"analog\",\"value\":1.0,\"minValue\":0.0,\"maxValue\":100.0,\"step\":1.0,\"canWrite\":true,\"description\":\"PWM heater\"},{\"id\":2,\"name\":\"Sensor\",\"type\":\"analog\",\"value\":1.0,\"minValue\":-10.0,\"maxValue\":10.0,\"step\":0.5,\"canWrite\":false,\"description\":\"read only\"}]},{\"connected\":false,\"deviceId\":\"switch-2\",\"deviceName\":\"Dew box\",\"error\":\"read_failed\",\"message\":\"Switch status read failed\"}]}",
+    "native": [
+      {
+        "fn": "GetSwitchCapabilities",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      },
+      {
+        "fn": "SwitchGetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 0
+        }
+      },
+      {
+        "fn": "SwitchGetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 1
+        }
+      },
+      {
+        "fn": "SwitchGetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 2
+        }
+      },
+      {
+        "fn": "GetSwitchCapabilities",
+        "args": {
+          "deviceId": "switch-2"
+        }
+      }
+    ]
+  },
+  "switch.status.one": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"switch-1\",\"deviceName\":\"Power box\",\"switchCount\":3,\"switches\":[{\"id\":0,\"name\":\"Mount\",\"type\":\"boolean\",\"value\":false,\"minValue\":null,\"maxValue\":null,\"step\":null,\"canWrite\":true,\"description\":\"12 V mount\"},{\"id\":1,\"name\":\"Dew A\",\"type\":\"analog\",\"value\":55.0,\"minValue\":0.0,\"maxValue\":100.0,\"step\":1.0,\"canWrite\":true,\"description\":\"PWM heater\"},{\"id\":2,\"name\":\"Sensor\",\"type\":\"analog\",\"value\":null,\"minValue\":-10.0,\"maxValue\":10.0,\"step\":0.5,\"canWrite\":false,\"description\":\"read only\",\"readError\":\"read_failed\"}]}",
+    "native": [
+      {
+        "fn": "GetSwitchCapabilities",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      },
+      {
+        "fn": "SwitchGetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 0
+        }
+      },
+      {
+        "fn": "SwitchGetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 1
+        }
+      },
+      {
+        "fn": "SwitchGetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 2
+        }
+      }
+    ]
+  },
+  "switch.status.one_capabilities_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "GetSwitchCapabilities",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      }
+    ]
+  },
+  "switch.status.not_connected": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"switch-9\",\"error\":\"Switch device not connected\"}",
+    "native": []
+  },
+  "switch.set.bool": {
+    "status": 200,
+    "body": "{\"status\":\"ok\",\"deviceId\":\"switch-1\",\"switchId\":0,\"value\":true}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      },
+      {
+        "fn": "SwitchSetState",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 0,
+          "state": true
+        }
+      }
+    ]
+  },
+  "switch.set.number": {
+    "status": 200,
+    "body": "{\"status\":\"ok\",\"deviceId\":\"switch-1\",\"switchId\":1,\"value\":42}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      },
+      {
+        "fn": "SwitchSetValue",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 1,
+          "value": 42.0
+        }
+      }
+    ]
+  },
+  "switch.set.string": {
+    "status": 400,
+    "body": "{\"error\":\"Invalid request\",\"code\":\"invalid_request\",\"field\":\"value\",\"expected\":\"boolean or number\"}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      }
+    ]
+  },
+  "switch.set.no_value": {
+    "status": 400,
+    "body": "{\"error\":\"Invalid request\",\"code\":\"invalid_request\",\"field\":\"value\",\"expected\":\"boolean or number\"}",
+    "native": []
+  },
+  "switch.set.out_of_range": {
+    "status": 400,
+    "body": "{\"error\":\"switchId out of range (0..2)\",\"code\":\"invalid_request\",\"field\":\"switchId\",\"expected\":\"integer\",\"message\":\"switchId out of range (0..2)\"}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      }
+    ]
+  },
+  "switch.set.negative": {
+    "status": 400,
+    "body": "{\"error\":\"switchId out of range (0..2)\",\"code\":\"invalid_request\",\"field\":\"switchId\",\"expected\":\"integer\",\"message\":\"switchId out of range (0..2)\"}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      }
+    ]
+  },
+  "switch.set.not_connected": {
+    "status": 404,
+    "body": "{\"error\":\"Switch device not connected\",\"deviceId\":\"switch-9\"}",
+    "native": []
+  },
+  "switch.set.max_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      }
+    ]
+  },
+  "switch.set.write_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "SwitchGetMax",
+        "args": {
+          "deviceId": "switch-1"
+        }
+      },
+      {
+        "fn": "SwitchSetState",
+        "args": {
+          "deviceId": "switch-1",
+          "switchId": 0,
+          "state": false
+        }
+      }
+    ]
+  },
+  "cover.status.ok": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.cover_notPresent": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"notPresent\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":false,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.cover_closed": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"closed\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.cover_moving": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"moving\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.cover_open": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.cover_unknown": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"unknown\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.cover_error": {
+    "status": 200,
+    "body": "{\"connected\":true,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"error\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.calibrator_notPresent": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"notPresent\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":false}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.calibrator_off": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"off\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.calibrator_notReady": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"notReady\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.calibrator_ready": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"ready\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.calibrator_unknown": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"unknown\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.calibrator_error": {
+    "status": 200,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-1\",\"deviceName\":\"Flip-flat\",\"coverState\":\"open\",\"calibratorState\":\"error\",\"brightness\":77,\"maxBrightness\":255,\"hasCover\":true,\"hasCalibrator\":true}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.status.no_device_id": {
+    "status": 400,
+    "body": "{\"error\":\"deviceId query parameter is required\",\"code\":\"invalid_request\",\"field\":\"deviceId\",\"expected\":\"string\",\"message\":\"deviceId query parameter is required\"}",
+    "native": []
+  },
+  "cover.status.not_connected": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "cover.status.native_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "CoverCalibratorGetStatus",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.open.ok1": {
+    "status": 200,
+    "body": "{\"status\":\"opening\",\"deviceId\":\"cover-1\"}",
+    "native": [
+      {
+        "fn": "CoverCalibratorOpenCover",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.open.not_connected1": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "cover.close.ok1": {
+    "status": 200,
+    "body": "{\"status\":\"closing\",\"deviceId\":\"cover-1\"}",
+    "native": [
+      {
+        "fn": "CoverCalibratorCloseCover",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.close.not_connected1": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "cover.brightness.ok2": {
+    "status": 200,
+    "body": "{\"status\":\"ok\",\"deviceId\":\"cover-1\",\"brightness\":12}",
+    "native": [
+      {
+        "fn": "CoverCalibratorCalibratorOn",
+        "args": {
+          "deviceId": "cover-1",
+          "brightness": 12
+        }
+      }
+    ]
+  },
+  "cover.brightness.not_connected2": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "cover.calibrator-on.ok1": {
+    "status": 200,
+    "body": "{\"status\":\"on\",\"deviceId\":\"cover-1\",\"brightness\":128}",
+    "native": [
+      {
+        "fn": "CoverCalibratorCalibratorOn",
+        "args": {
+          "deviceId": "cover-1",
+          "brightness": 128
+        }
+      }
+    ]
+  },
+  "cover.calibrator-on.not_connected1": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "cover.calibrator-on.ok2": {
+    "status": 200,
+    "body": "{\"status\":\"on\",\"deviceId\":\"cover-1\",\"brightness\":200}",
+    "native": [
+      {
+        "fn": "CoverCalibratorCalibratorOn",
+        "args": {
+          "deviceId": "cover-1",
+          "brightness": 200
+        }
+      }
+    ]
+  },
+  "cover.calibrator-on.not_connected2": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "cover.calibrator-off.ok1": {
+    "status": 200,
+    "body": "{\"status\":\"off\",\"deviceId\":\"cover-1\"}",
+    "native": [
+      {
+        "fn": "CoverCalibratorCalibratorOff",
+        "args": {
+          "deviceId": "cover-1"
+        }
+      }
+    ]
+  },
+  "cover.calibrator-off.not_connected1": {
+    "status": 404,
+    "body": "{\"connected\":false,\"deviceId\":\"cover-9\",\"error\":\"Cover calibrator not connected\"}",
+    "native": []
+  },
+  "post.integrate.ok6": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.integrate\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "IntegrateSession",
+        "args": {
+          "argsJson": "{\"lightPaths\":[\"/d/a.fits\",\"/d/b.fits\"],\"exposuresSec\":[60,60],\"calibration\":{},\"settings\":{\"sigmaHigh\":3.0},\"output\":{\"path\":\"/d/out.fits\"},\"extra\":\"kept\"}"
+        }
+      }
+    ]
+  },
+  "post.integrate.native_fail6": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.integrate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "IntegrateSession",
+        "args": {
+          "argsJson": "{\"lightPaths\":[\"/d/a.fits\",\"/d/b.fits\"],\"exposuresSec\":[60,60],\"calibration\":{},\"settings\":{\"sigmaHigh\":3.0},\"output\":{\"path\":\"/d/out.fits\"},\"extra\":\"kept\"}"
+        }
+      }
+    ]
+  },
+  "post.integrate.non_object6": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.integrate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "IntegrateSession",
+        "args": {
+          "argsJson": "{\"lightPaths\":[\"/d/a.fits\",\"/d/b.fits\"],\"exposuresSec\":[60,60],\"calibration\":{},\"settings\":{\"sigmaHigh\":3.0},\"output\":{\"path\":\"/d/out.fits\"},\"extra\":\"kept\"}"
+        }
+      }
+    ]
+  },
+  "post.drizzle.ok5": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.drizzle\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "DrizzleIntegrate",
+        "args": {
+          "argsJson": "{\"frames\":[{\"fitsPath\":\"/d/a.fits\",\"weight\":1}],\"refW\":10,\"refH\":20,\"config\":{\"scale\":2},\"outputFits\":\"/d/dz.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.drizzle.native_fail5": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.drizzle\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "DrizzleIntegrate",
+        "args": {
+          "argsJson": "{\"frames\":[{\"fitsPath\":\"/d/a.fits\",\"weight\":1}],\"refW\":10,\"refH\":20,\"config\":{\"scale\":2},\"outputFits\":\"/d/dz.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.drizzle.non_object5": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.drizzle\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "DrizzleIntegrate",
+        "args": {
+          "argsJson": "{\"frames\":[{\"fitsPath\":\"/d/a.fits\",\"weight\":1}],\"refW\":10,\"refH\":20,\"config\":{\"scale\":2},\"outputFits\":\"/d/dz.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.analyze-night.ok3": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.analyze-night\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "AnalyzeNight",
+        "args": {
+          "argsJson": "{\"qualities\":[{\"noise\":1,\"snr\":2}],\"weights\":[1],\"exposuresS\":[300]}"
+        }
+      }
+    ]
+  },
+  "post.analyze-night.native_fail3": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.analyze-night\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "AnalyzeNight",
+        "args": {
+          "argsJson": "{\"qualities\":[{\"noise\":1,\"snr\":2}],\"weights\":[1],\"exposuresS\":[300]}"
+        }
+      }
+    ]
+  },
+  "post.analyze-night.non_object3": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.analyze-night\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "AnalyzeNight",
+        "args": {
+          "argsJson": "{\"qualities\":[{\"noise\":1,\"snr\":2}],\"weights\":[1],\"exposuresS\":[300]}"
+        }
+      }
+    ]
+  },
+  "post.build-master-flat.ok2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.build-master-flat\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "BuildMasterFlat",
+        "args": {
+          "argsJson": "{\"flatPaths\":[\"/d/f1.fits\"],\"output\":\"/d/mf.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.build-master-flat.native_fail2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.build-master-flat\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "BuildMasterFlat",
+        "args": {
+          "argsJson": "{\"flatPaths\":[\"/d/f1.fits\"],\"output\":\"/d/mf.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.build-master-flat.non_object2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.build-master-flat\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "BuildMasterFlat",
+        "args": {
+          "argsJson": "{\"flatPaths\":[\"/d/f1.fits\"],\"output\":\"/d/mf.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.color-calibrate.ok5": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.color-calibrate\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "ColorCalibrate",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"outputFits\":\"/d/cc.fits\",\"channels\":3,\"matchedStars\":[],\"whiteRefBv\":0.65}"
+        }
+      }
+    ]
+  },
+  "post.color-calibrate.native_fail5": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.color-calibrate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "ColorCalibrate",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"outputFits\":\"/d/cc.fits\",\"channels\":3,\"matchedStars\":[],\"whiteRefBv\":0.65}"
+        }
+      }
+    ]
+  },
+  "post.color-calibrate.non_object5": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.color-calibrate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "ColorCalibrate",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"outputFits\":\"/d/cc.fits\",\"channels\":3,\"matchedStars\":[],\"whiteRefBv\":0.65}"
+        }
+      }
+    ]
+  },
+  "post.detect-stars.ok2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.detect-stars\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "DetectStarsPhotometry",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"maxStars\":50}"
+        }
+      }
+    ]
+  },
+  "post.detect-stars.native_fail2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.detect-stars\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "DetectStarsPhotometry",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"maxStars\":50}"
+        }
+      }
+    ]
+  },
+  "post.detect-stars.non_object2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.detect-stars\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "DetectStarsPhotometry",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"maxStars\":50}"
+        }
+      }
+    ]
+  },
+  "post.extract-background.ok2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.extract-background\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "ExtractBackground",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"outputFits\":\"/d/bg.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.extract-background.native_fail2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.extract-background\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "ExtractBackground",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"outputFits\":\"/d/bg.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.extract-background.non_object2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.extract-background\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "ExtractBackground",
+        "args": {
+          "argsJson": "{\"inputFits\":\"/d/in.fits\",\"outputFits\":\"/d/bg.fits\"}"
+        }
+      }
+    ]
+  },
+  "post.master-accumulate.ok3": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.master-accumulate\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "MasterAccumulate",
+        "args": {
+          "argsJson": "{\"op\":\"add\",\"lightPaths\":[\"/d/a.fits\"],\"exposuresSec\":[120]}"
+        }
+      }
+    ]
+  },
+  "post.master-accumulate.native_fail3": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.master-accumulate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "MasterAccumulate",
+        "args": {
+          "argsJson": "{\"op\":\"add\",\"lightPaths\":[\"/d/a.fits\"],\"exposuresSec\":[120]}"
+        }
+      }
+    ]
+  },
+  "post.master-accumulate.non_object3": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.master-accumulate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "MasterAccumulate",
+        "args": {
+          "argsJson": "{\"op\":\"add\",\"lightPaths\":[\"/d/a.fits\"],\"exposuresSec\":[120]}"
+        }
+      }
+    ]
+  },
+  "post.master-accumulate.ok2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.master-accumulate\"}",
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "outputPath": "/d/x.fits",
+        "n": 2
+      },
+      "error": null
+    },
+    "native": [
+      {
+        "fn": "MasterAccumulate",
+        "args": {
+          "argsJson": "{\"op\":\"info\",\"path\":\"/d/acc\"}"
+        }
+      }
+    ]
+  },
+  "post.master-accumulate.native_fail2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.master-accumulate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "SkotiqError.invalidInput(field0: bad frame list)",
+        "details": {
+          "exceptionType": "SkotiqError_InvalidInput"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "MasterAccumulate",
+        "args": {
+          "argsJson": "{\"op\":\"info\",\"path\":\"/d/acc\"}"
+        }
+      }
+    ]
+  },
+  "post.master-accumulate.non_object2": {
+    "status": 200,
+    "body": "{\"jobId\":\"<job>\",\"status\":\"queued\",\"operation\":\"post-session.master-accumulate\"}",
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "FormatException: post-session native call returned a non-object JSON payload\n[1,2]",
+        "details": {
+          "exceptionType": "FormatException"
+        }
+      }
+    },
+    "native": [
+      {
+        "fn": "MasterAccumulate",
+        "args": {
+          "argsJson": "{\"op\":\"info\",\"path\":\"/d/acc\"}"
+        }
+      }
+    ]
+  },
+  "imaging.fits_dimensions.ok": {
+    "status": 200,
+    "body": "{\"width\":640,\"height\":480}",
+    "native": [
+      {
+        "fn": "ReadFitsFile",
+        "args": {
+          "filePath": "<light>"
+        }
+      }
+    ]
+  },
+  "imaging.fits_dimensions.native_fail": {
+    "status": 500,
+    "body": "{\"error\":\"internal_error\",\"message\":\"truncated\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "ReadFitsFile",
+        "args": {
+          "filePath": "<light>"
+        }
+      }
+    ]
+  },
+  "imaging.calibrate.ok": {
+    "status": 200,
+    "body": "{\"outputPath\":\"<tmp>/out/cal.fits\",\"darkApplied\":true,\"flatApplied\":false,\"biasApplied\":false,\"darkUsed\":\"<light>\",\"flatUsed\":null,\"biasUsed\":null}",
+    "native": [
+      {
+        "fn": "CalibrateImageFile",
+        "args": {
+          "lightPath": "<light>",
+          "darkPath": "<light>",
+          "flatPath": null,
+          "biasPath": null,
+          "outputPath": "<tmp>/out/cal.fits"
+        }
+      }
+    ]
+  },
+  "imaging.calibrate.native_fail": {
+    "status": 400,
+    "body": "{\"error\":\"device_error\",\"message\":\"size mismatch\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "CalibrateImageFile",
+        "args": {
+          "lightPath": "<light>",
+          "darkPath": null,
+          "flatPath": "<light>",
+          "biasPath": "<light>",
+          "outputPath": "<tmp>/out/cal.fits"
+        }
+      }
+    ]
+  },
+  "secondary.status.ok": {
+    "status": 200,
+    "body": "{\"armed\":true,\"running\":true,\"cameraId\":\"cam-2\",\"rigLabel\":\"Wide\",\"framesCaptured\":4,\"framesAborted\":1,\"plannedFrames\":20,\"waitingForDither\":false,\"exposing\":true,\"ditherPending\":false,\"forcedProceeds\":2,\"lastError\":null}",
+    "native": [
+      {
+        "fn": "SecondaryRigGetStatus",
+        "args": {}
+      }
+    ]
+  },
+  "secondary.status.native_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "SecondaryRigGetStatus",
+        "args": {}
+      }
+    ]
+  },
+  "secondary.start.minimal": {
+    "status": 200,
+    "body": "{\"status\":\"started\"}",
+    "native": [
+      {
+        "fn": "SecondaryRigStart",
+        "args": {
+          "config": {
+            "cameraId": "cam-2",
+            "exposureSecs": 30.0,
+            "gain": null,
+            "offset": null,
+            "binX": 1,
+            "binY": 1,
+            "frameCount": null,
+            "filterName": null,
+            "targetTempC": null,
+            "rigLabel": "Secondary",
+            "cameraMake": null,
+            "cameraModel": null,
+            "telescopeName": null,
+            "telescopeFocalLengthMm": null,
+            "telescopeApertureMm": null,
+            "saveBasePath": "/d/w",
+            "saveTo": "${target.name}/light/${target.name}_${filter}_${exposure.duration:.1f}_${frame:04}",
+            "ditherMaxWaitSecs": 30.0,
+            "inFlightPolicy": "complete_if_short",
+            "targetName": null,
+            "targetRaHours": null,
+            "targetDecDegrees": null,
+            "observerName": null,
+            "siteLatitudeDeg": null,
+            "siteLongitudeDeg": null,
+            "siteElevationM": null
+          }
+        }
+      }
+    ]
+  },
+  "secondary.start.full": {
+    "status": 200,
+    "body": "{\"status\":\"started\"}",
+    "native": [
+      {
+        "fn": "SecondaryRigStart",
+        "args": {
+          "config": {
+            "cameraId": "cam-2",
+            "exposureSecs": 120.5,
+            "gain": 100,
+            "offset": 30,
+            "binX": 2,
+            "binY": 2,
+            "frameCount": 12,
+            "filterName": "L",
+            "targetTempC": -10.0,
+            "rigLabel": "Wide",
+            "cameraMake": null,
+            "cameraModel": null,
+            "telescopeName": null,
+            "telescopeFocalLengthMm": null,
+            "telescopeApertureMm": null,
+            "saveBasePath": "/d/w",
+            "saveTo": "${target.name}/light/${target.name}_${filter}_${exposure.duration:.1f}_${frame:04}",
+            "ditherMaxWaitSecs": 45.0,
+            "inFlightPolicy": "abort_immediately",
+            "targetName": "M 31",
+            "targetRaHours": 0.71,
+            "targetDecDegrees": 41.27,
+            "observerName": "Owner",
+            "siteLatitudeDeg": 45.5,
+            "siteLongitudeDeg": -73.6,
+            "siteElevationM": 120.0
+          }
+        }
+      }
+    ]
+  },
+  "secondary.start.native_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"dome-1 is busy: slewing\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "SecondaryRigStart",
+        "args": {
+          "config": {
+            "cameraId": "cam-2",
+            "exposureSecs": 30.0,
+            "gain": null,
+            "offset": null,
+            "binX": 1,
+            "binY": 1,
+            "frameCount": null,
+            "filterName": null,
+            "targetTempC": null,
+            "rigLabel": "Secondary",
+            "cameraMake": null,
+            "cameraModel": null,
+            "telescopeName": null,
+            "telescopeFocalLengthMm": null,
+            "telescopeApertureMm": null,
+            "saveBasePath": "/d/w",
+            "saveTo": "${target.name}/light/${target.name}_${filter}_${exposure.duration:.1f}_${frame:04}",
+            "ditherMaxWaitSecs": 30.0,
+            "inFlightPolicy": "complete_if_short",
+            "targetName": null,
+            "targetRaHours": null,
+            "targetDecDegrees": null,
+            "observerName": null,
+            "siteLatitudeDeg": null,
+            "siteLongitudeDeg": null,
+            "siteElevationM": null
+          }
+        }
+      }
+    ]
+  },
+  "secondary.start.bad_policy": {
+    "status": 400,
+    "body": "{\"error\":\"Invalid request\",\"code\":\"invalid_request\",\"field\":\"inFlightPolicy\",\"expected\":\"complete_if_short or abort_immediately\"}",
+    "native": []
+  },
+  "secondary.stop.ok": {
+    "status": 200,
+    "body": "{\"status\":\"stopped\"}",
+    "native": [
+      {
+        "fn": "SecondaryRigStop",
+        "args": {}
+      }
+    ]
+  },
+  "secondary.stop.native_fail": {
+    "status": 409,
+    "body": "{\"error\":\"device_error\",\"message\":\"Device not connected: dome-1\",\"requestId\":\"test-request-id\"}",
+    "native": [
+      {
+        "fn": "SecondaryRigStop",
+        "args": {}
+      }
+    ]
+  }
+}
