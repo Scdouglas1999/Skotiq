@@ -1,3 +1,6 @@
+import 'package:skotiq_remote_protocol/wire.dart'
+    show WireTime, tryParseWireTime;
+
 import '../settings/app_settings.dart' show SafetyFailMode;
 import 'weather_alert.dart' show AlertLevel;
 import 'sky_star_evidence.dart';
@@ -244,6 +247,102 @@ class WeatherSafetyState {
     safetyMonitorReading: SafetySourceReading.unknown,
   );
 
+  /// The imaging host's verdict as `GET /api/safety/status` reports it and
+  /// a linked client reads it back with [WeatherSafetyState.fromJson].
+  ///
+  /// `isSafe` is true both when conditions were checked and found good and
+  /// when nothing was checked at all; `monitoringEnabled`, `autoParkArmed`
+  /// and `autoResumeArmed` tell a client which, so a phone cannot show
+  /// "conditions safe for imaging" over a host that is not monitoring, or
+  /// claim auto-park protection the composed policy does not arm.
+  Map<String, dynamic> toJson() => {
+    'isSafe': isSafe,
+    'safetyStatus': status.name,
+    'currentAlertLevel': currentAlertLevel.name,
+    'dataSource': dataSource.name,
+    'hardwareWeatherSafe': hardwareWeatherSafe,
+    'safetyMonitorSafe': safetyMonitorSafe,
+    'apiWeatherSafe': apiWeatherSafe,
+    'hardwareWeatherReading': hardwareWeatherReading.name,
+    'safetyMonitorReading': safetyMonitorReading.name,
+    'monitoringEnabled': monitoringEnabled,
+    'autoParkArmed': autoParkArmed,
+    'autoResumeArmed': autoResumeArmed,
+    'actions': {
+      'shouldPause': actions.shouldPause,
+      'shouldPark': actions.shouldPark,
+      'shouldCloseDome': actions.shouldCloseDome,
+      'reason': actions.reason,
+      'resumeCheckTime': actions.resumeCheckTime?.toWireTime(),
+      'advisoryOnly': actions.advisoryOnly,
+    },
+    'decisionSource': decisionSource.name,
+    'advisoryOnly': advisoryOnly,
+    'forecastUnsafe': forecastUnsafe,
+    'forecastHoldsRun': forecastHoldsRun,
+    'starEvidenceOverridesForecast': starEvidenceOverridesForecast,
+    'starEvidence': switch (starEvidence) {
+      final evidence? => {
+        'latestStars': evidence.latestStars,
+        'typicalStars': evidence.typicalStars,
+        'latestAt': evidence.latestAt.toWireTime(),
+        'clear': evidence.clear,
+      },
+      null => null,
+    },
+    'snoozeReason': snoozeReason,
+    'failModeWarning': failModeWarning,
+    'lastEvaluation': lastEvaluation?.toWireTime(),
+    'snoozeUntil': snoozeUntil?.toWireTime(),
+  };
+
+  /// The host verdict [toJson] wrote. Throws when a field is missing or of
+  /// the wrong type: the two ends disagree, and no verdict is shown.
+  factory WeatherSafetyState.fromJson(Map<String, dynamic> json) {
+    final rawActions = json['actions'] as Map;
+    bool actionFlag(String key) => rawActions[key] as bool;
+    String? actionText(String key) => rawActions[key] as String?;
+    DateTime? wireDate(Object? value) =>
+        value is String ? tryParseWireTime(value) : null;
+    SafetySourceReading reading(Object? raw) =>
+        SafetySourceReading.values.byName(raw as String);
+    return WeatherSafetyState(
+      status: WeatherSafetyStatus.values.byName(json['safetyStatus'] as String),
+      actions: WeatherSafetyActions(
+        shouldPause: actionFlag('shouldPause'),
+        shouldPark: actionFlag('shouldPark'),
+        shouldCloseDome: actionFlag('shouldCloseDome'),
+        reason: actionText('reason'),
+        resumeCheckTime: wireDate(actionText('resumeCheckTime')),
+        advisoryOnly: actionFlag('advisoryOnly'),
+      ),
+      snoozeUntil: wireDate(json['snoozeUntil']),
+      currentAlertLevel: AlertLevel.values.byName(
+        json['currentAlertLevel'] as String,
+      ),
+      dataSource: SafetyDataSource.values.byName(json['dataSource'] as String),
+      hardwareWeatherSafe: json['hardwareWeatherSafe'] as bool,
+      safetyMonitorSafe: json['safetyMonitorSafe'] as bool,
+      apiWeatherSafe: json['apiWeatherSafe'] as bool,
+      hardwareWeatherReading: reading(json['hardwareWeatherReading']),
+      safetyMonitorReading: reading(json['safetyMonitorReading']),
+      failModeWarning: json['failModeWarning'] as String?,
+      lastEvaluation: wireDate(json['lastEvaluation']),
+      monitoringEnabled: json['monitoringEnabled'] as bool,
+      autoParkArmed: json['autoParkArmed'] as bool,
+      autoResumeArmed: json['autoResumeArmed'] as bool,
+      decisionSource: WeatherDecisionSource.values.byName(
+        json['decisionSource'] as String,
+      ),
+      forecastUnsafe: json['forecastUnsafe'] as bool,
+      forecastHoldsRun: json['forecastHoldsRun'] as bool,
+      starEvidence: _starEvidenceFromJson(json['starEvidence']),
+      starEvidenceOverridesForecast:
+          json['starEvidenceOverridesForecast'] as bool,
+      snoozeReason: json['snoozeReason'] as String?,
+    );
+  }
+
   bool get isSafe => status == WeatherSafetyStatus.safe;
 
   /// The unsafe verdict rests only on a forecast: it warns, or holds the run
@@ -310,4 +409,23 @@ class WeatherSafetyState {
           hostVerdictUnavailable ?? this.hostVerdictUnavailable,
     );
   }
+}
+
+SkyStarEvidence? _starEvidenceFromJson(Object? raw) {
+  if (raw is! Map) return null;
+  final latest = raw['latestStars'];
+  final typical = raw['typicalStars'];
+  final at = raw['latestAt'] is String
+      ? tryParseWireTime(raw['latestAt'] as String)
+      : null;
+  final clear = raw['clear'];
+  if (latest is! int || typical is! int || at == null || clear is! bool) {
+    return null;
+  }
+  return SkyStarEvidence(
+    latestStars: latest,
+    typicalStars: typical,
+    latestAt: at,
+    clear: clear,
+  );
 }
