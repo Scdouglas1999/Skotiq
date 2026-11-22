@@ -218,16 +218,6 @@ impl SequenceExecutor {
                 );
                 // A setup advisory on the WARNING channel, not the error one.
                 //
-                // It rode `ExecutorEvent::Error`, which is what made it a
-                // run-level ERROR in the log and a red Errors entry in the
-                // Session Report — the same mis-routing the `Warning` variant
-                // was added for, and the same one the meridian-flip advisory
-                // above already uses it to avoid. It is also only ever an
-                // advisory by construction: the sentence next to it says so
-                // ("a warning rather than a hard block so a valid solve-field
-                // / non-standard catalog setup is not falsely rejected"), and
-                // `CenterTarget`'s own fail-closed error is the real gate.
-                //
                 // The copy is hedged to match. This check can only report what
                 // it FOUND, and on 2026-09-15 it found nothing on a rig where
                 // ASTAP was solving to 0.17" — see `detect_astap_catalog`,

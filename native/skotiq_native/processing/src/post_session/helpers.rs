@@ -429,10 +429,10 @@ pub(crate) fn header_string(header: &FitsHeader, key: &str) -> Option<String> {
 
 /// Observation metadata carried from the constituent lights onto the master.
 ///
-/// Every field here was previously absent from batch-integrated masters, which
-/// left all four per-filter masters of a session byte-identical in metadata —
-/// nothing recorded which filter, target, instrument or night a master came
-/// from. The values are read from the subs' own headers, never invented.
+/// Without it all four per-filter masters of a session are byte-identical in
+/// metadata — nothing records which filter, target, instrument or night a
+/// master came from.
+/// The values are read from the subs' own headers, never invented.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MasterProvenance {
     /// `FILTER` from the subs, when they agree.

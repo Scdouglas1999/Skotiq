@@ -2212,7 +2212,6 @@ mod tests {
 
     #[test]
     fn test_affine_translation_only() {
-        // Create matches with a known translation
         let matches = vec![
             StarMatch {
                 ref_star: DetectedStar {

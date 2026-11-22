@@ -217,8 +217,7 @@ impl IndiMount {
     /// parked mount) and is returned as an error. An Ok update already at the
     /// target is a goto to where the mount is. Anything else — the periodic
     /// position updates a tracking mount sends — is not the answer. A driver
-    /// that never answers within `timeout` is logged and let through, which is
-    /// what this did before.
+    /// that never answers within `timeout` is logged and let through.
     async fn wait_for_goto_answer(
         &self,
         coord: EquatorialCoordProperty,

@@ -277,7 +277,7 @@ pub(crate) async fn run_polar_alignment(
 
         // Where the mount's declination axis was for this frame. A rotation
         // step should leave it alone; when it did not (a slewing mount that
-        // rounds, or the double-precessed steps of 2026-11-07), the fit takes
+        // rounds, or a double-precessed step), the fit takes
         // the move out instead of reading it as polar misalignment.
         let mount_dec_degrees = match device_ops.mount_get_coordinates(&mount_id).await {
             Ok((_, dec)) => Some(dec),
@@ -727,7 +727,7 @@ pub(crate) async fn run_polar_alignment(
         // points collapse. The attitude is the field centre AND its roll:
         // this far from the pole the centre alone misjudged each bolt move by
         // a fifth to over a half, and a run that reported 23.8" left the
-        // owner's mount about a degree out (2026-10-17).
+        // owner's mount about a degree out.
         let up_angle = skotiq_sequencer::up_position_angle_deg(
             solve_result.cd1_2,
             solve_result.cd2_2,

@@ -461,7 +461,7 @@ async fn test_weather_unsafe_trigger() {
     assert!(trigger.check(&state).await);
 }
 
-/// Full-night audit 2026-06-04 (defense-in-depth): the Dart-side weather
+/// The Dart-side weather
 /// verdict is an ADDITIONAL unsafe source. It must be able to abort a rig
 /// whose hardware safety device reports SAFE (or has no device), but it
 /// must never suppress a hardware-unsafe reading.
@@ -877,7 +877,6 @@ async fn test_trigger_cooldown() {
     // Immediate second check - should not trigger (cooldown)
     assert!(!trigger.check(&state).await);
 
-    // Wait for cooldown to expire
     tokio::time::sleep(Duration::from_secs(3)).await;
 
     // Should trigger again
@@ -1239,7 +1238,6 @@ async fn test_mount_tracking_lost_defers_to_limit_hit() {
     );
 
     let mut state = make_limit_hit_state();
-    // Set OnTrackingLimitHit as the active method
     state.trigger_config.meridian_trigger_method =
         Some(crate::MeridianTriggerMethod::OnTrackingLimitHit);
 

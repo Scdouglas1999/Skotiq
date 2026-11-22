@@ -52,8 +52,8 @@ fn pulse_directions_form_an_orthogonal_basis() {
 
 /// Direction parsing has to accept what the device layer actually passes.
 /// `mount_pulse_guide` lowercases before dispatching, and the guider sends
-/// full words; a silent no-match would revert this to the old
-/// "pulse does nothing" bug rather than failing loudly.
+/// full words; a silent no-match would leave pulses doing nothing
+/// rather than failing loudly.
 #[test]
 fn pulse_accepts_the_directions_the_guider_sends() {
     for direction in ["north", "south", "east", "west", "n", "s", "e", "w"] {

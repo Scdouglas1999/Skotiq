@@ -189,8 +189,7 @@ async fn a_checkpoint_that_says_triggers_are_off_still_parks_at_dawn() {
 /// A stop that arrives while dawn is putting the rig away is a request: the
 /// executor shared behind a lock is free again at once and reads `Stopping`,
 /// the plan's Warm camera is not cut short, and the stop is confirmed when it
-/// is done. The host's API used to hold the executor for the whole ramp, so
-/// every status read timed out for fifteen minutes.
+/// is done.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_stop_during_the_dawn_shutdown_does_not_hold_the_executor() {
     let ops = Arc::new(ScriptedDeviceOps::new());
@@ -390,8 +389,7 @@ async fn wait_for_step(executor: &super::SequenceExecutor, id: &str) {
     }
 }
 
-/// The operator's Stop ends the guiding the run started; on the rig the
-/// guider went on guiding after the run had stopped.
+/// The operator's Stop ends the guiding the run started.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_stopped_run_stops_the_guiding_it_started() {
     let ops = Arc::new(ScriptedDeviceOps::new());
@@ -641,7 +639,7 @@ fn target_plan(end_when: crate::scheduling::TargetTrigger) -> SequenceDefinition
     sequence
 }
 
-/// The rig on 2026-10-26: a plan whose target stops at 06:00 owns its end, so
+/// A plan whose target stops at 06:00 owns its end, so
 /// the Dawn Approaching trigger stood down, and the run was paused at 05:25.
 /// Paused, the target's stop time is never reached, so the run sat paused and
 /// tracking until a human came. A held run cannot reach its own end: dawn
@@ -1161,9 +1159,7 @@ async fn a_failed_run_still_runs_the_plans_shutdown_steps() {
 }
 
 /// Skip step ends the step that is running and the run goes on: the next
-/// step and the plan's shutdown still run. It used to skip the whole target,
-/// which in a wizard plan (one target holding everything) ended the run as
-/// Completed with no shutdown at all.
+/// step and the plan's shutdown still run.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn skip_step_skips_only_the_running_step() {
     let ops = rig_at_site();

@@ -90,8 +90,7 @@ const SCREEN_MIN_KEPT: usize = 5;
 /// best point on each side and leaves out a point whose HFR falls clearly
 /// below the last trusted point nearer focus, or whose star count collapses
 /// against its neighbors. Nothing nearer focus than a trusted point is ever
-/// judged against a wing, which is how the old symmetric MAD clip deleted the
-/// focus region of a clean sweep. Points come back in their measured order.
+/// judged against a wing. Points come back in their measured order.
 pub fn screen_defocus_dropouts(
     points: &[FocusDataPoint],
 ) -> (Vec<FocusDataPoint>, Vec<RejectedFocusPoint>) {
@@ -589,14 +588,12 @@ impl VCurveAutofocus {
             let intersection = (right_b - left_b) / (left_m - right_m);
             let min_position = sorted
                 .first()
-                // Why: i32 -> f64 is lossless (positions fit in 53-bit mantissa).
                 .map(|p| p.position as f64)
                 // Why: empty branch → use the linear-regression intersection as the
                 // extrapolation target. See module-level policy.
                 .unwrap_or(intersection);
             let max_position = sorted
                 .last()
-                // Why: i32 -> f64 is lossless (positions fit in 53-bit mantissa).
                 .map(|p| p.position as f64)
                 // Why: empty branch → use the linear-regression intersection as the
                 // extrapolation target. See module-level policy.
@@ -612,8 +609,6 @@ impl VCurveAutofocus {
             let mut ss_res = 0.0;
 
             for point in &sorted {
-                // Why: point.position is i32 focuser position; lossless to f64
-                // (i32 fits trivially in f64's 53-bit mantissa).
                 let x = point.position as f64;
                 let predicted = if x <= intersection {
                     left_m * x + left_b
@@ -666,7 +661,6 @@ impl VCurveAutofocus {
         // (Σx⁰, Σx¹, …, Σx⁴ accumulated below). Closed-form is preferred
         // over iterative LSQ for this small problem: it is single-pass,
         // deterministic, and bounded in cost regardless of point count.
-        // Why: points.len() is usize bounded by sweep size (<= a few dozen); lossless to f64.
         let n = points.len() as f64;
         let mut sum_x = 0.0;
         let mut sum_y = 0.0;
@@ -677,7 +671,6 @@ impl VCurveAutofocus {
         let mut sum_x2y = 0.0;
 
         for point in points {
-            // Why: i32 focuser position -> f64 lossless.
             let x = point.position as f64;
             let y = point.hfr;
             sum_x += x;
@@ -735,7 +728,6 @@ impl VCurveAutofocus {
         let mut ss_res = 0.0;
 
         for point in points {
-            // Why: i32 focuser position -> f64 lossless.
             let x = point.position as f64;
             let predicted = a * x * x + b * x + c;
             ss_tot += (point.hfr - mean_y).powi(2);
@@ -765,7 +757,6 @@ impl VCurveAutofocus {
         // iteratively. Iteration count is bounded (10) so a non-converging
         // case cannot stall the sequence.
         let (initial_x0, _) = self.fit_parabola(points)?;
-        // Why: i32 -> f64 lossless.
         let mut x0 = f64::from(initial_x0);
 
         let min_hfr = points
@@ -784,7 +775,6 @@ impl VCurveAutofocus {
             let mut sum_den = 0.0;
 
             for point in points {
-                // Why: i32 focuser position -> f64 lossless.
                 let x = point.position as f64;
                 let dx = x - x0;
                 let y = point.hfr;
@@ -807,13 +797,11 @@ impl VCurveAutofocus {
             if sum_den > 1e-10 {
                 let a = sum_num / sum_den;
 
-                // Update x0 and b
                 let mut new_x0_sum = 0.0;
                 let mut residual_sum = 0.0;
                 let mut count = 0.0;
 
                 for point in points {
-                    // Why: i32 focuser position -> f64 lossless.
                     let x = point.position as f64;
                     let y = point.hfr;
                     let dx = x - x0;
@@ -850,8 +838,6 @@ impl VCurveAutofocus {
             }
         }
 
-        // Calculate R-squared for final fit
-        // Why: points.len() is usize bounded by sweep size (<= a few dozen); lossless to f64.
         let mean_y: f64 = points.iter().map(|p| p.hfr).sum::<f64>() / points.len() as f64;
         let mut ss_tot = 0.0;
         let mut ss_res = 0.0;
@@ -860,7 +846,6 @@ impl VCurveAutofocus {
         let mut sum_num = 0.0;
         let mut sum_den = 0.0;
         for point in points {
-            // Why: i32 focuser position -> f64 lossless.
             let x = point.position as f64;
             let dx = x - x0;
             let y = point.hfr;
@@ -886,7 +871,6 @@ impl VCurveAutofocus {
         };
 
         for point in points {
-            // Why: i32 focuser position -> f64 lossless.
             let x = point.position as f64;
             let dx = x - x0;
             let predicted = ((dx * a).powi(2) + b * b).sqrt();
@@ -911,8 +895,6 @@ fn fit_line(points: &[FocusDataPoint]) -> Option<(f64, f64)> {
         return None;
     }
 
-    // Why: points.len() is usize bounded by sweep size; lossless to f64.
-    // Why: point.position is i32; lossless to f64.
     let n = points.len() as f64;
     let sum_x: f64 = points.iter().map(|point| point.position as f64).sum();
     let sum_y: f64 = points.iter().map(|point| point.hfr).sum();
@@ -1002,7 +984,6 @@ mod tests {
         let points: Vec<FocusDataPoint> = positions
             .iter()
             .map(|&pos| {
-                // Why: test fixture; pos is small i32 literal, lossless to f64.
                 let x = pos as f64 - 5000.0;
                 let hfr = 0.001 * x * x + 2.0;
                 FocusDataPoint {

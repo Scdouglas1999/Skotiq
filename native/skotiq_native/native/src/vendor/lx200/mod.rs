@@ -354,9 +354,6 @@ mod meade_pty_tests {
         );
     }
 
-    /// A goto on a Meade-protocol mount used to latch "slewing" with nothing
-    /// that ever cleared it except an abort, so every sequencer slew waited
-    /// out its 30-minute limit and failed although the mount had arrived.
     #[tokio::test]
     async fn a_meade_goto_stops_reading_as_slewing_once_the_mount_arrives() {
         let path = spawn_meade_pty(2);

@@ -351,7 +351,6 @@ fn test_get_set_state() {
         .unwrap();
 
     rt.block_on(async {
-        // Test state transitions
         assert_eq!(executor.get_state().await, ExecutorState::Idle);
 
         executor.run_state.transition(ExecutorState::Running);
@@ -1022,13 +1021,6 @@ async fn update_location_writes_through_runtime_config() {
     assert_eq!(guard.settings.observer_longitude, Some(-74.0));
 }
 
-/// R2: `update_location` wrote `runtime_config` and the executor's own
-/// fields and stopped there. The live `TriggerState` — the only place
-/// `AltitudeLimit`, `DawnApproaching` and the meridian hour-angle read the
-/// observer's position from — was written by exactly one code path, the
-/// `ExecutorCommand::UpdateLocation` arm, which had no sender anywhere in
-/// the workspace. So a mid-run location change reached nothing, and the
-/// method's own doc comment claimed it did.
 #[tokio::test]
 async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs() {
     const NEW_YORK: (f64, f64) = (40.71, -74.01);
@@ -1319,7 +1311,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     }
 
     // A None / non-finite push resolves to the DEFAULT (-12°) in the live
-    // trigger state so the gate is NEVER weaker than the Dart W1 gate, while
+    // trigger state so the gate is NEVER weaker than the Dart gate, while
     // the runtime config records the raw None (unset).
     executor
         .handle()
@@ -2013,7 +2005,7 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
 }
 
 /// A firing dropped because the run is held must not spend the trigger's
-/// cooldown. On the rig (2026-10-21) the meridian flip fired twice under an
+/// cooldown. On the rig the meridian flip fired twice under an
 /// operator pause, each dropped by the hold filter, and the run resumed with
 /// the flip still cooling down for another four minutes: the next frame went
 /// ahead and the flip never ran. The trigger here has a ten-minute cooldown, so
@@ -2216,7 +2208,7 @@ async fn a_guider_already_guiding_at_start_does_not_arm_the_guiding_triggers() {
 }
 
 /// Run 1 starts guiding and the operator stops it; PHD2 is left looping. Run 2
-/// has no StartGuiding node. On the rig (2026-10-07 01:15 UTC) run 2 fired
+/// has no StartGuiding node. On the rig run 2 fired
 /// Guide Star Lost 1.6 s after Start with no guider event in between, and the
 /// recovery stopped mount tracking: the previous run's latch survived into it.
 #[tokio::test]
@@ -3808,10 +3800,6 @@ async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSe
     (settle, announced)
 }
 
-/// The idle setter used to leave the trigger state's dither settle for the
-/// next start to copy, while the running path wrote it at once, and a running
-/// executor announced the change twice (the setter and the forwarded
-/// command). One path now: same result and one announcement either way.
 #[tokio::test]
 async fn a_dither_push_takes_effect_and_is_announced_once_idle_or_running() {
     let expected = crate::GuiderSettle {

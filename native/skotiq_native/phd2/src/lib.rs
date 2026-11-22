@@ -1673,7 +1673,6 @@ impl Phd2Client {
             None => (0.0, 0.0),
         };
 
-        // Decode base64 pixel data
         let pixels_b64 = result
             .get("pixels")
             .and_then(|v| v.as_str())
@@ -2234,7 +2233,6 @@ pub fn launch_phd2() -> Result<(), String> {
     {
         use std::process::Command;
 
-        // Get install location
         let output = Command::new("reg")
             .args(["query", "HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\PHD 2_is1", "/v", "InstallLocation"])
             .output()

@@ -257,8 +257,7 @@ impl MountOps for UnifiedDeviceOps {
     }
 }
 
-/// Decisions-verify refutation D4 (2026-08-14, corrected by the focused
-/// re-refute): a mount that cannot READ park state (the LX200 family without
+/// A mount that cannot READ park state (the LX200 family without
 /// a cached park entry) reaches the status layer as a fabricated
 /// `parked=false`, marked by `availability[PARKED] = Unsupported`. Surface
 /// that unknowability as an error so callers take their read-failed path

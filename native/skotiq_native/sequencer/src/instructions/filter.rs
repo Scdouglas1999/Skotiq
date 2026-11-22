@@ -15,8 +15,8 @@ const FILTER_CHANGE_EXPECTED_SECS: f64 = 30.0;
 ///
 /// Takes the imaging-train claim for the whole move. The wheel is shared with
 /// the capture loop and with trigger-fired actions that set their own filter,
-/// and unarbitrated those collide in a way that looks like broken hardware: on
-/// 2026-09-14 an autofocus trigger waited out its full 120 s timeout for a
+/// and unarbitrated those collide in a way that looks like broken hardware:
+/// an autofocus trigger waited out its full 120 s timeout for a
 /// position while a healthy, idle, responsive wheel sat at the slot another
 /// caller had commanded. Nothing was wrong with the wheel.
 pub async fn execute_filter_change(
@@ -57,7 +57,6 @@ async fn execute_filter_change_holding_train(
     let timeout = Duration::from_secs(
         config
             .timeout_secs
-            // Why: u32 -> u64 widening is lossless.
             .map(u64::from)
             .unwrap_or(DEFAULT_FILTER_WHEEL_TIMEOUT_SECS),
     );

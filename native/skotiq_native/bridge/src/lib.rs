@@ -198,7 +198,6 @@ fn try_create_runtime_with_fallbacks() -> Result<Runtime, String> {
 }
 
 /// Tracks whether the panic handler has been installed.
-/// Used to prevent installing the panic hook multiple times.
 static PANIC_HANDLER_INSTALLED: AtomicBool = AtomicBool::new(false);
 
 /// Initialize panic handler to catch panics and log them.
@@ -269,10 +268,8 @@ fn init_native_internal(log_directory: Option<String>) -> Result<(), SkotiqError
     let file_filter = EnvFilter::new(format!("debug,{DEFAULT_FILTER}"));
 
     if let Some(log_dir) = log_directory {
-        // Store log directory for later access
         let log_path = PathBuf::from(&log_dir);
 
-        // Create log directory if it doesn't exist
         if let Err(e) = std::fs::create_dir_all(&log_path) {
             eprintln!("Failed to create log directory: {}", e);
             // Fall back to console-only logging.

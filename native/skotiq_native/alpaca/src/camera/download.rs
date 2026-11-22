@@ -96,9 +96,6 @@ impl AlpacaCamera {
         let http_client = self.client.http_client()?;
 
         // Why: estimate is for the timeout-error message, not for allocation.
-        // Why: u32 → u64 widening, exact; subsequent
-        // multiplies use u64 arithmetic which cannot overflow for any
-        // realistic sensor (u64::MAX / 6 ≈ 3.07e18 bytes).
         let estimated_bytes = u64::from(width) * u64::from(height) * 2 * 3;
 
         // Why: include `application/json` as the fallback alternative so

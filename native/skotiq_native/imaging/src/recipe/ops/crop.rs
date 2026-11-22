@@ -28,7 +28,7 @@
 //! a recipe written over a 1920x1080 master and replayed over a 640x480 one asks
 //! for three times the frame and gets the frame. The pixels are not the problem:
 //! a recipe replays bit-identical forever, so the clamp stays exactly as it is.
-//! What the intersection must not do is stay silent, and it no longer does.
+//! What the intersection must not do is stay silent.
 //! [`CropFit::clamped`] separates the two cases — the documented one-pixel
 //! rounding from an intersection that cut real area away — and an application
 //! that was clamped reports the rect it asked for beside the rect it applied

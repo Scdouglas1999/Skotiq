@@ -2,10 +2,7 @@
 //!
 //! The expected values are not this crate's own output: they come from an
 //! independent measurement (elliptical Gaussian fits with scipy, recorded in
-//! `test-fixtures/rig-2026-09-14/manifest.json`). Before `measure_frame_shape`
-//! the frame HFR the grader used was the mean over every detection, which
-//! read 10.8–15.6 px on these crops and 12.7–16.1 px on the full frames,
-//! in focus or not.
+//! `test-fixtures/rig-2026-09-14/manifest.json`).
 //!
 //! The committed fixtures are 1024×1024 crops copied pixel-for-pixel from the
 //! frame centers. The full frames are checked too when they are present under

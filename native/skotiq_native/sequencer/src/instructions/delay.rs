@@ -28,8 +28,6 @@ pub async fn execute_delay(
 
         // Emit progress every second (10 steps)
         if step % 10 == 0 {
-            // Why: u64 step -> f64 lossless under any plausible delay length
-            // (years of seconds fit in 53-bit mantissa).
             let elapsed_secs = step as f64 / 10.0;
             let remaining_secs = config.seconds - elapsed_secs;
             let progress = (elapsed_secs / config.seconds) * 100.0;

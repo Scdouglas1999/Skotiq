@@ -344,7 +344,6 @@ impl IndiCoverCalibrator {
             return IndiCoverState::Open;
         }
 
-        // Check if cover properties exist at all
         let properties = client.get_properties(&self.device_name).await;
         let has_cover = properties.iter().any(|p| {
             p.name == CAP_PARK
@@ -373,7 +372,6 @@ impl IndiCoverCalibrator {
                 &self.device_name,
                 FLAT_LIGHT_INTENSITY,
                 FLAT_LIGHT_INTENSITY_VALUE,
-                // Why: i32 brightness -> f64 (INDI wire); lossless.
                 f64::from(brightness),
             )
             .await?;
@@ -384,7 +382,6 @@ impl IndiCoverCalibrator {
                 &self.device_name,
                 LIGHTBOX_BRIGHTNESS,
                 BRIGHTNESS,
-                // Why: i32 brightness -> f64 (INDI wire); lossless.
                 f64::from(brightness),
             )
             .await?;
@@ -409,7 +406,6 @@ impl IndiCoverCalibrator {
             &self.device_name,
             LIGHTBOX_BRIGHTNESS,
             BRIGHTNESS,
-            // Why: i32 brightness clamped to >= 1, -> f64 (INDI wire); lossless.
             f64::from(brightness.max(1)),
         )
         .await?
@@ -525,7 +521,6 @@ impl IndiCoverCalibrator {
             }
         }
 
-        // Check if calibrator properties exist at all
         let properties = client.get_properties(&self.device_name).await;
         let has_calibrator = properties.iter().any(|p| {
             p.name == FLAT_LIGHT_CONTROL
@@ -583,7 +578,6 @@ impl IndiCoverCalibrator {
             &self.device_name,
             FLAT_LIGHT_INTENSITY,
             FLAT_LIGHT_INTENSITY_VALUE,
-            // Why: i32 brightness -> f64 (INDI wire); lossless.
             f64::from(brightness),
         )
         .await?
@@ -597,7 +591,6 @@ impl IndiCoverCalibrator {
             &self.device_name,
             LIGHTBOX_BRIGHTNESS,
             BRIGHTNESS,
-            // Why: i32 brightness -> f64 (INDI wire); lossless.
             f64::from(brightness),
         )
         .await?

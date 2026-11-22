@@ -167,11 +167,9 @@ fn decode_wire_sample(
     }
     let bytes = &payload[offset..end];
     match elem {
-        // Why: u8 → u16 widening, exact.
         ImageArrayElementType::Byte => Ok(u16::from(bytes[0])),
         ImageArrayElementType::Int16 => {
             let v = i16::from_le_bytes([bytes[0], bytes[1]]);
-            // Why: i16 → i64 widening, exact.
             Ok(clamp_i64_to_u16(i64::from(v)))
         }
         ImageArrayElementType::UInt16 => {
@@ -180,7 +178,6 @@ fn decode_wire_sample(
         }
         ImageArrayElementType::Int32 => {
             let v = i32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-            // Why: i32 → i64 widening, exact.
             Ok(clamp_i64_to_u16(i64::from(v)))
         }
         ImageArrayElementType::UInt64 => {
@@ -211,7 +208,6 @@ fn decode_wire_sample(
                     reason: "non-finite ImageBytes sample (NaN or infinity)".to_string(),
                 });
             }
-            // Why: f32 → f64 widening, exact.
             Ok(clamp_f64_to_u16(f64::from(v)))
         }
         ImageArrayElementType::Double => {
@@ -310,7 +306,6 @@ pub(crate) fn parse_image_bytes(
         3 => (header.dim1, header.dim2, header.dim3),
         other => {
             return Err(AlpacaError::UnsupportedImageArray {
-                // Why: i32 → i64 widening, exact.
                 rank: i64::from(other),
                 image_type: i64::from(header.image_element_type),
                 reason: "only rank 2 (mono) and rank 3 (color) are supported".to_string(),

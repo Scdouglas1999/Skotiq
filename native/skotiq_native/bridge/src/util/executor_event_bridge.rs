@@ -207,7 +207,7 @@ mod tests {
     use crate::event::equipment::EquipmentEvent;
     use skotiq_sequencer::NodeStatus;
 
-    /// On 2026-11-07 an autofocus started through the REST API succeeded and
+    /// An autofocus started through the REST API succeeded and
     /// the host's focus panel read "point 13 of 13" all night: the one-shot
     /// bridge dropped the sweep's end, so only the API caller learned of it.
     #[tokio::test]

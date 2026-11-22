@@ -45,10 +45,6 @@ pub fn calculate_buffer_size(
     width
         .checked_mul(height)
         .and_then(|pixels| pixels.checked_mul(bytes_per_pixel))
-        // Why: u32 → usize widening on every supported
-        // target (≥ 32-bit usize; no 16-bit-usize Rust target exists in std).
-        // The preceding `checked_mul`s already bounded the result to u32::MAX
-        // so it fits trivially.
         .map(|size| size as usize)
         .ok_or_else(|| {
             DriverError::InvalidParameter(format!(

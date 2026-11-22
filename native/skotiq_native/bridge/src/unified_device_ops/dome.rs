@@ -46,7 +46,6 @@ impl DomeOps for UnifiedDeviceOps {
             .await
             .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Dome))?;
 
-        // Convert i32 status to string
         // ASCOM ShutterStatus: 0=Open, 1=Closed, 2=Opening, 3=Closing, 4=Error
         Ok(match status {
             0 => "Open".to_string(),

@@ -37,17 +37,14 @@ pub struct RotationAxisFit {
 /// The points lie on a small circle about the mount's mechanical polar axis,
 /// so the axis is the normal of the plane through them. Returns `None` for
 /// points that do not define a plane — a mount that never rotated, or three
-/// solves of the same field — because the old `(0, 90)` answer for that case
-/// claimed a perfectly aligned mount out of no measurement at all.
+/// solves of the same field.
 ///
 /// `is_north` picks which end of the normal is the axis. It must: a plane
 /// normal has two ends, the cross product's sign follows the DIRECTION the
 /// mount was stepped, and nothing about the sky distinguishes them. Rotating
-/// west instead of east therefore used to hand back the antipode — a run on
-/// the owner's rig fitted a correct axis and reported it as "Dec=-80.64,
-/// 170.6 deg away from expected pole", then aborted with "poor plate solves or
-/// insufficient mount rotation". The mount turns about the pole of the
-/// hemisphere the operator is standing in, whichever way it was stepped.
+/// west instead of east would otherwise hand back the antipode. The mount
+/// turns about the pole of the hemisphere the operator is standing in,
+/// whichever way it was stepped.
 pub fn fit_rotation_axis(points: &[(f64, f64)], is_north: bool) -> Option<RotationAxisFit> {
     fit_rotation_axis_with_dec_moves(points, &[0.0; 3], is_north)
 }
@@ -565,7 +562,7 @@ fn unit_to_radec(v: (f64, f64, f64)) -> (f64, f64) {
 /// is close only when the camera points near the pole. Thirty degrees from the
 /// pole, where three-point alignment adjusts, it misjudged each bolt move by
 /// 22-61% in simulation, and on the owner's rig a run that reported 23.8"
-/// left about a degree of error (2026-10-17). Use
+/// left about a degree of error. Use
 /// [`rotate_axis_by_attitude_change`] whenever the solve has a rotation.
 pub fn rotate_axis_by_star_motion(
     axis: (f64, f64),

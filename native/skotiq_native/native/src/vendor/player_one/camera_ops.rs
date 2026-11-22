@@ -338,7 +338,6 @@ impl CameraDriver for PlayerOneCamera {
         let mut pooled_buffer = global_u8_pool().get_buffer(buffer_size);
         pooled_buffer.resize(buffer_size);
 
-        // Get image data with 30 second timeout
         // SAFETY: the connection was checked at entry; `pooled_buffer` was sized via calculate_buffer_size_i32(width, height, bytes_per_pixel) which uses the SDK-reported dimensions from POAGetImageSize and matches the configured POAImgFormat — we pass the same length as buffer_len so the SDK cannot overrun; pool returns a non-null buffer.
         let result = unsafe {
             (sdk.get_image_data)(
@@ -350,8 +349,6 @@ impl CameraDriver for PlayerOneCamera {
         };
         check_open_poa_error(result, "GetImageData")?;
 
-        // Why: 8-bit -> 16-bit promotion (u8 -> u16 is always lossless; * 256 stays
-        // within u16 because the max product is 255 * 256 = 65280 < u16::MAX).
         let layout = if bytes_per_pixel == 2 {
             SampleLayout::U16Native
         } else {

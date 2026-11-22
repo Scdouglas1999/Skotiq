@@ -1718,8 +1718,7 @@ pub struct FlatWizardConfig {
 }
 
 /// Default for the "Exposure calibration attempts" flat setting. Twilight
-/// skies and dim panels need well over the 3 to 10 tries the paths used to
-/// hard-code.
+/// skies and dim panels need many tries.
 pub const DEFAULT_FLAT_CALIBRATION_ATTEMPTS: u32 = 20;
 
 /// Ceiling on that setting.

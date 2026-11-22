@@ -104,7 +104,6 @@ async fn test_exponential_backoff_with_jitter() {
     };
     let rng = make_jitter_rng("test", 7624);
 
-    // Test exponential growth without jitter
     let delay1 = config.calculate_delay(1, &rng);
     assert_eq!(delay1, Duration::from_secs(1));
 
@@ -120,7 +119,6 @@ async fn test_exponential_backoff_with_jitter() {
     let delay5 = config.calculate_delay(5, &rng);
     assert_eq!(delay5, Duration::from_secs(16));
 
-    // Test capping at max
     let delay6 = config.calculate_delay(6, &rng);
     assert_eq!(delay6, Duration::from_secs(30)); // Capped at max
 }
@@ -435,7 +433,6 @@ async fn test_reader_task_config_delay_calculation() {
     };
     let rng = make_jitter_rng("test", 7624);
 
-    // Test exponential growth
     assert_eq!(
         config.calculate_restart_delay(1, &rng),
         Duration::from_secs(1)
@@ -902,7 +899,6 @@ async fn test_connect_resets_keepalive_state() {
 async fn test_keepalive_atomic_guard_acquire_release() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Acquire the lock
     let acquired = client
         .keepalive_in_progress
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -917,7 +913,6 @@ async fn test_keepalive_atomic_guard_acquire_release() {
         .is_ok();
     assert!(!acquired_again);
 
-    // Release the lock
     client.keepalive_in_progress.store(false, Ordering::SeqCst);
     assert!(!client.is_keepalive_in_progress());
 
@@ -1297,9 +1292,9 @@ async fn test_parser_caches_decoded_blob_for_late_subscribers() {
 
 #[tokio::test]
 async fn test_disconnect_clears_cached_blobs_and_update_timestamps() {
-    // Why: R6.1 — a decoded frame (tens to hundreds of MB) survived
-    // `disconnect()`, and stale `property_updated_ms` entries made every
-    // staleness check read pre-disconnect values as fresh after reconnect.
+    // A decoded frame (tens to hundreds of MB) must not survive
+    // `disconnect()`, and stale `property_updated_ms` entries must not make
+    // staleness checks read pre-disconnect values as fresh after reconnect.
     let mut client = IndiClient::new("localhost", None);
     client.latest_blobs.write().await.insert(
         ("CCD".to_string(), "CCD1".to_string(), "Image".to_string()),
@@ -1328,9 +1323,9 @@ async fn test_disconnect_clears_cached_blobs_and_update_timestamps() {
 
 #[tokio::test]
 async fn test_writer_task_marks_disconnected_on_write_error() {
-    // Why: R6.2 — the writer task broke out of its loop on a socket write
-    // error without touching `connected`, so a half-open connection left
-    // `is_connected()` reporting true while every send failed.
+    // The writer task must mark the client disconnected on a socket write
+    // error, or a half-open connection leaves
+    // `is_connected()` reporting true while every send fails.
     use std::io::ErrorKind;
     use std::pin::Pin;
     use std::task::{Context, Poll};

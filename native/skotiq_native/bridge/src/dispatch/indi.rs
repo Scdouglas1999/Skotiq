@@ -214,7 +214,6 @@ impl DeviceManager {
         Ok((client, device_name))
     }
 
-    /// The heartbeat of an INDI device that has no handle (camera, mount).
     pub(crate) async fn perform_indi_health_check(&self, device_id: &str) -> Result<bool, String> {
         let (client, device_name) = self.indi_device(device_id).await?;
         let healthy = client
@@ -226,7 +225,7 @@ impl DeviceManager {
         Ok(healthy)
     }
 
-    /// Disconnects an INDI device that has no handle (camera, mount) and
+    /// Disconnects an INDI device and
     /// waits for the driver to confirm it.
     pub(crate) async fn release_indi_device(&self, device_id: &str) -> Result<(), String> {
         let (client, device_name) = self.indi_device(device_id).await?;

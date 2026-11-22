@@ -10,11 +10,11 @@
 //! a named scenario that asserts BOTH the device-call sequence AND the final
 //! state.
 //!
-//! Scenario coverage (cluster brief):
+//! Scenario coverage:
 //!   1) USB/comms DISCONNECT during exposure -> recovery promotes -> reconnect
-//!      -> sequence RESUMES & re-runs the failed node (W1 disconnect-resume).
+//!      -> sequence RESUMES & re-runs the failed node.
 //!   2) WEATHER UNSAFE (device safety OR pushed Dart verdict) -> PAUSE +
-//!      mount PARKS + cover/dome CLOSE (W1 ParkAndAbort safe-state).
+//!      mount PARKS + cover/dome CLOSE.
 //!   3) Pushed verdict `Some(true)` that goes STALE -> stays paused fail-closed
 //!      + emits the stale warning, never auto-resumes (staleness observability).
 //!   4) DAWN / end-of-night -> the trigger fires and the park path runs.
@@ -767,7 +767,7 @@ async fn manager_with_state() -> (Arc<RwLock<TriggerManager>>, Arc<RwLock<Trigge
 // SCENARIO 1 — USB/comms DISCONNECT during an exposure -> recovery promotes ->
 // reconnect -> sequence RESUMES (recovery attempt returns Succeeded, which the
 // executor driver turns into `Recovering -> Running`, re-running the failed
-// node). This is the W1 disconnect-resume fix.
+// node).
 
 #[tokio::test]
 async fn scenario1_usb_disconnect_during_exposure_reconnects_and_resumes() {
@@ -2501,9 +2501,7 @@ pub(crate) async fn start_run_in_guide_star_recovery(
     executor
 }
 
-/// The rig on 2026-10-26 03:22 EDT: Guide Star Lost fired with its saved
-/// action Pause, and the recovery it started held the run for 92 min. By
-/// default a lost guide star only notifies: the run keeps running, the
+/// By default a lost guide star only notifies: the run keeps running, the
 /// operator is told, and the run images unguided with a fresh guiding start
 /// due before the next light frame.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -2532,7 +2530,7 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    // Long enough for a recovery to have frozen the run, as it did on the rig.
+    // Long enough for a recovery to have frozen the run.
     tokio::time::sleep(std::time::Duration::from_secs(3)).await;
     while let Ok(event) = events.try_recv() {
         if let super::ExecutorEvent::Warning { message }
@@ -2570,8 +2568,7 @@ async fn a_lost_guide_star_notifies_and_the_run_keeps_imaging() {
     );
 }
 
-/// A transparency drop with no backup plan to switch to used to pause the run
-/// for the operator. Transparency is a quality judgment: it notifies and the
+/// A transparency drop with no backup plan is a quality judgment: it notifies and the
 /// run keeps imaging the current target and filter.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_transparency_drop_with_no_backup_plan_notifies_and_keeps_imaging() {
@@ -3098,7 +3095,7 @@ async fn dawn_ends_the_run_without_parking_when_the_operator_turned_parking_off(
 }
 
 // =============================================================================
-// Camera retries: one failed download no longer ends the run.
+// Camera retries: one failed download does not end the run.
 // =============================================================================
 
 /// A run of `frames` zero-second darks on `cam-1`, saved under a scratch
@@ -3219,7 +3216,7 @@ async fn one_failed_download_is_retried_and_the_run_completes() {
     assert!(warnings[0].contains("retry 1 of 3"), "{}", warnings[0]);
 }
 
-/// Retries set to 0 is the old behavior: the first failed download ends the
+/// Retries set to 0: the first failed download ends the
 /// run, with the device's own error.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn zero_camera_retries_fails_the_run_on_the_first_failed_download() {
@@ -3282,8 +3279,7 @@ async fn guide_star_lost_fires(
 }
 
 /// While the run moves the mount itself (slew, center, sync, flip) the guide
-/// star leaving the guide frame is what the move does. On the rig it fired
-/// Guide Star Lost 1.6 s into a slew and paused the run.
+/// star leaving the guide frame is what the move does.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_star_lost_during_the_runs_own_move_is_not_a_lost_star() {
     let ops = Arc::new(ScriptedDeviceOps::new());
@@ -3312,8 +3308,7 @@ async fn a_star_lost_during_the_runs_own_move_is_not_a_lost_star() {
     );
 }
 
-/// The recovery stopped tracking 40 ms into the run's slew on the rig. It must
-/// leave tracking alone while the mount is moving.
+/// The recovery must leave tracking alone while the mount is moving.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn recovery_leaves_tracking_on_while_the_mount_slews() {
     let ops = Arc::new(ScriptedDeviceOps::new());

@@ -470,8 +470,7 @@ fn run_recovery_attempt_consecutive_rejects_escalates_to_operator_pause() {
 ///
 /// The default must be the action that can be undone. An app that cannot tell
 /// whether a human is present — and nothing here can — must not park a mount on
-/// that guess: on 2026-09-14 this path parked the owner's mount, closed up and
-/// declared the night abandoned while he sat at the telescope.
+/// that guess.
 #[test]
 fn recovery_escalation_defaults_to_holding_and_abandons_only_on_opt_in() {
     assert_eq!(
@@ -1044,10 +1043,6 @@ fn stepping_is_not_guiding() {
 /// A paused run still has a telescope under the open sky, so the triggers that
 /// protect the RIG must keep evaluating — and the ones that drive hardware for
 /// image quality must not.
-///
-/// This is what makes a hold safe enough to be the default. The old code
-/// refused a passive pause precisely because a paused run had no weather, dawn
-/// or altitude evaluation at all, and parked the mount rather than fix that.
 #[test]
 fn only_rig_protecting_triggers_evaluate_while_paused() {
     for trigger_type in [

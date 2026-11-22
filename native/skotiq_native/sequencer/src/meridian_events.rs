@@ -91,14 +91,6 @@ pub enum MeridianFlipEvent {
 
 /// How far the target is from the meridian, and on which side, as a phrase the
 /// flip banner can put in parentheses after the signed hour angle.
-///
-/// The banner used to render every hour angle as "N minutes past meridian",
-/// so a flip that fired east of transit announced itself as "-90.0 minutes
-/// past meridian" — arithmetically honest and unreadable. The trigger can no
-/// longer fire east of transit, but this event is also emitted by an
-/// operator-placed MeridianFlip instruction, where a negative hour angle is a
-/// legitimate (if unusual) thing to command, and the log has to say plainly
-/// which side of the meridian the flip happened on.
 pub(crate) fn meridian_offset_phrase(hour_angle_hours: f64) -> String {
     let minutes = hour_angle_hours * 60.0;
     if minutes < 0.0 {

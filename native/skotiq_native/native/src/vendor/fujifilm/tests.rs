@@ -191,7 +191,6 @@ fn test_sensor_specs_gfx100ii() {
     assert_eq!(pixel_size, 3.76, "GFX100 II pixel size should be 3.76um");
     assert_eq!(bit_depth, 14, "GFX100 II bit depth should be 14");
 
-    // Verify total resolution is approximately 102MP
     let megapixels = (w as u64 * h as u64) as f64 / 1_000_000.0;
     assert!(
         (megapixels - 102.0).abs() < 2.0,
@@ -208,7 +207,6 @@ fn test_sensor_specs_gfx50sii() {
     assert_eq!(pixel_size, 5.3, "GFX 50S II pixel size should be 5.3um");
     assert_eq!(bit_depth, 14, "GFX 50S II bit depth should be 14");
 
-    // Verify total resolution is approximately 51MP
     let megapixels = (w as u64 * h as u64) as f64 / 1_000_000.0;
     assert!(
         (megapixels - 51.0).abs() < 2.0,
@@ -225,7 +223,6 @@ fn test_sensor_specs_26mp_xtrans() {
     assert_eq!(pixel_size, 3.76, "X-H2S pixel size should be 3.76um");
     assert_eq!(bit_depth, 14, "X-H2S bit depth should be 14");
 
-    // Verify total resolution is approximately 26MP
     let megapixels = (w as u64 * h as u64) as f64 / 1_000_000.0;
     assert!(
         (megapixels - 26.0).abs() < 1.0,

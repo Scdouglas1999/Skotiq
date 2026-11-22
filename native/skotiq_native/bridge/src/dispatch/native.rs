@@ -166,7 +166,7 @@ impl DeviceManager {
         Ok(())
     }
 
-    /// Native driver liveness probe for the heartbeat loop (FB-).
+    /// Native driver liveness probe for the heartbeat loop.
     ///
     /// Uses a lightweight SDK read per device class instead of the in-process
     /// `connected` flag, which can stay true after USB unplug.

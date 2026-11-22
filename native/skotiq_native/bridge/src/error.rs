@@ -511,8 +511,6 @@ impl From<&str> for SkotiqError {
     }
 }
 
-// Backward compatibility - conversion to string for legacy APIs
-
 /// Convert SkotiqError to String for backward compatibility with APIs
 /// that return Result<T, String>
 impl From<SkotiqError> for String {

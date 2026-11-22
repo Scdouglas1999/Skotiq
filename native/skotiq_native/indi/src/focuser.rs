@@ -38,7 +38,6 @@ impl IndiFocuser {
                 &self.device_name,
                 ABS_FOCUS_POSITION,
                 FOCUS_ABSOLUTE_POSITION,
-                // Why: i32 focuser position -> f64 (INDI wire); lossless.
                 f64::from(position),
             )
             .await?;
@@ -66,7 +65,7 @@ impl IndiFocuser {
     /// returned as an error. An Ok update already at `target` (or any Ok update
     /// for a relative move, which has no position to compare) is a move that
     /// finished before the first poll. A driver that never answers within
-    /// `timeout` is logged and let through, which is what this did before.
+    /// `timeout` is logged and let through.
     async fn wait_for_move_answer(
         &self,
         property: &str,
@@ -149,7 +148,6 @@ impl IndiFocuser {
                 &self.device_name,
                 REL_FOCUS_POSITION,
                 FOCUS_RELATIVE_POSITION,
-                // Why: i32 steps -> f64 (INDI wire); lossless.
                 f64::from(abs_steps),
             )
             .await?;

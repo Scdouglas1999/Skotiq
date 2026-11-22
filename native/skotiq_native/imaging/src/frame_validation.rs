@@ -144,7 +144,6 @@ pub fn validate_image(
                 );
             }
 
-            // Check for extremely low signal
             if max_value < 100 {
                 validation.add_warning(format!(
                     "Very low signal detected (max value: {})",
@@ -1343,8 +1342,7 @@ mod tests {
 
     #[test]
     fn test_comprehensive_12bit_saturation_detected() {
-        // 12-bit ceiling scaled to 16-bit = 4095 << 4 = 65520. With the old
-        // 65530 threshold this common case (e.g. ASI1600MM) was never flagged.
+        // 12-bit ceiling scaled to 16-bit = 4095 << 4 = 65520 (e.g. ASI1600MM).
         let image = ImageData::from_u16(64, 64, 1, &vec![65520u16; 64 * 64]);
         let v = validate_image_comprehensive(&image, ImageValidationOptions::default());
         assert!(

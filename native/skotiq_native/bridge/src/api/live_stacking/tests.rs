@@ -411,8 +411,7 @@ fn every_demosaic_quality_ingests_with_consistent_geometry() {
 
         // The declared dims must match the demosaiced output (half for
         // superpixel, full otherwise) and the buffer must be exactly
-        // width*height*3 — never the short buffer that the old
-        // input-dims-assumption produced for superpixel.
+        // width*height*3.
         let (expect_w, expect_h) = if quality == "superpixel" {
             (IMG_W / 2, IMG_H / 2)
         } else {

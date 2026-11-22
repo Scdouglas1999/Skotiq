@@ -69,8 +69,8 @@ fn a_missing_schema_version_is_a_decode_error() {
 #[test]
 fn a_payload_that_is_not_an_object_is_refused_for_what_it_is() {
     // Every one of these has no fields at all, so reading `schemaVersion` off
-    // it answers `None` — and each used to be reported as a recipe missing
-    // that field rather than as the payload the caller actually sent.
+    // it answers `None` — and each must be reported as the payload the caller
+    // actually sent, not as a recipe missing that field.
     for (json, kind) in [
         ("[]", "an array"),
         ("[1,2,3]", "an array"),
@@ -430,9 +430,7 @@ fn the_byte_size_counts_four_bytes_per_sample() {
 ///
 /// The struct fields stay 0-based — code indexes the step list with them — so
 /// each sentence is checked against the index it was built from, not against
-/// itself. A recipe whose 4th step is unregistered used to be refused with
-/// "step 3", beside step cards that call that same step "4 of 4" and an export
-/// sheet that writes `step4-stretch` into the exported filename.
+/// itself.
 #[test]
 fn recipe_faults_number_their_steps_the_way_the_editor_does() {
     let unknown = RecipeError::UnknownOp {

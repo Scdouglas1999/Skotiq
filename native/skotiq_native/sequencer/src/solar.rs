@@ -96,9 +96,7 @@ pub fn sun_azimuth_degrees(latitude: f64, longitude: f64, at: &DateTime<Utc>) ->
 /// requested side of solar noon.
 ///
 /// Two sentinels, both of which mean "do not invent a time". They preserve the
-/// dispositions the twilight instruction and the dawn trigger already had (the
-/// legacy comments labelled the two polar cases the wrong way round, but the
-/// branches themselves were right):
+/// dispositions the twilight instruction and the dawn trigger already had:
 /// * [`SUN_ALTITUDE_NEVER_REACHED`] — the Sun's daily maximum is below the
 ///   threshold, so it never rises to it. Polar night for a −18° threshold:
 ///   dawn never comes and a dawn trigger must stay inert.

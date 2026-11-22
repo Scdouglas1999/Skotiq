@@ -214,7 +214,7 @@ pub enum EquipmentEvent {
         after_attempts: u32,
     },
 
-    // Hot-plug discovery events (wave-6b). Emitted by `crate::hotplug` when the
+    // Hot-plug discovery events. Emitted by `crate::hotplug` when the
     // OS bus listener / slow-poll watcher diffs the live device list and detects
     // an arrival or removal. Dart filters these by `EventCategory::Equipment` +
     // the `DeviceDiscovered` / `DeviceLost` event-type strings to refresh the

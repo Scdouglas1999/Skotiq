@@ -230,14 +230,7 @@ async fn run_target_body(
 
     // A skip-to-next-target request names THIS target, so it dies at this
     // boundary whatever the subtree returned — the target it asked to leave is
-    // over either way. It used to be consumed only when the subtree came back
-    // Skipped, so a request that arrived during the target's LAST child (an
-    // exposure burst finishes the frame it is on rather than aborting mid-
-    // download) outlived the target: the next TargetHeader's entry check
-    // consumed it and skipped a target nobody asked to skip, and with no next
-    // target the root Loop reported Skipped for a night that had imaged every
-    // frame it planned — `/api/sequencer/status` answered
-    // `state: "completed"`, 8 frames, `message: "Skipped: Night root"`.
+    // over either way.
     if context.is_skip_to_next_target_requested() {
         context.clear_skip_to_next_target_request();
         tracing::info!(
@@ -520,7 +513,7 @@ fn no_observer_site_reason(trigger: &TargetTrigger, role: TriggerRole) -> String
 /// Every other leaf is measured FROM somewhere, and answering it at latitude 0
 /// / longitude 0 invents the answer: a target 5° up at Null Island was reported
 /// as fact in a run warning and a whole target was skipped without imaging,
-/// while the same trigger type on `start_when` refused. Both call sites now go
+/// while the same trigger type on `start_when` refused. Both call sites go
 /// through this one guard, so neither can state an altitude the rig's location
 /// does not support.
 fn trigger_observer_ctx(
@@ -1842,13 +1835,6 @@ mod tests {
 
     /// An `end_when` that needs the observer site and no site set refuses,
     /// exactly as the same trigger type on `start_when` refuses.
-    ///
-    /// The at-entry check used to evaluate it at latitude 0 / longitude 0: a
-    /// circumpolar target that never drops below 35° at the operator's real
-    /// site never rises above 5° at Null Island, so `AltitudeBelow(10)` read as
-    /// already met, the whole target was dropped without imaging, and the run
-    /// warning stated that altitude as fact without ever mentioning the missing
-    /// site (`state: "completed"`, `framesCaptured: 0`).
     #[tokio::test]
     async fn altitude_end_when_without_observer_refuses_instead_of_skipping() {
         let clock = MockClock::at("2026-01-15T22:00:00Z");
@@ -2012,14 +1998,6 @@ mod tests {
 
     /// A skip-to-next-target request raised while the target's LAST child runs
     /// dies with that target.
-    ///
-    /// The request used to be consumed only when the subtree came back Skipped.
-    /// An exposure burst finishes the frame it is on rather than aborting
-    /// mid-download, so the target returned Success with the request still
-    /// pending and it travelled on: the next TargetHeader's entry check
-    /// consumed it and skipped a target nobody asked to skip, and with no next
-    /// target the root Loop reported Skipped over a night that had imaged every
-    /// frame it planned.
     #[tokio::test]
     async fn skip_request_dies_with_the_target_that_finished() {
         let header_def = NodeDefinition {

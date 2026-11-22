@@ -96,9 +96,7 @@ async fn a_simulated_wheel_reports_the_slots_it_turns_between() {
     assert_eq!(caps.filter_names, names);
 }
 
-/// A device that is registered but not connected has no driver to ask. It
-/// used to be answered from a fixed table (simulators) or by opening a
-/// connection of the capability probe's own (Alpaca, ASCOM, INDI).
+/// A device that is registered but not connected has no driver to ask.
 #[tokio::test]
 async fn a_registered_accessory_that_is_not_connected_answers_not_connected() {
     let id = "sim_rotator_42";

@@ -848,7 +848,7 @@ async fn start_accepts_a_capture_sequence_with_a_writable_save_path() {
     assert!(result.is_ok(), "unexpected refusal: {:?}", result.err());
 }
 
-/// Live-rig L6 (2026-08-09). A capture sequence started with NO camera
+/// A capture sequence started with NO camera
 /// assigned answered `{"status":"started"}` and then sat at
 /// `{"state":"recovering","message":"Recovering: Device disconnected",
 /// "progress":0.0}` writing nothing, because `TakeExposure` failed
@@ -1123,13 +1123,6 @@ async fn start_refuses_an_exposure_that_requests_a_filter_with_no_filter_wheel()
 /// `smart_exposure.rs` fires its ChangeFilter whenever
 /// `current_filter != Some(plan.filter_name)`, and `current_filter` is
 /// `None` at the start of a run — so `""` differs and the change runs.
-/// Reproduced against the Linux appliance on 2026-08-09 with the sim
-/// camera / mount / focuser connected and no wheel:
-/// `POST /api/sequencer/start -> 200 {"status":"started"}`, then
-/// `ERROR Change Filter failed: No filter wheel connected` +
-/// `WARN [RECOVERY] Change Filter promoted device disconnect to recovery`,
-/// five retries, `Failure`. Requiring a wheel only for a plan that NAMES
-/// one left that path open.
 #[tokio::test]
 async fn start_refuses_a_smart_exposure_whose_plan_names_no_filter() {
     let dir = std::env::temp_dir().join(format!("sk-se-gate-{}", uuid::Uuid::new_v4()));
@@ -1165,11 +1158,6 @@ async fn start_refuses_a_smart_exposure_whose_plan_names_no_filter() {
 }
 
 /// An autofocus node pinned to a filter reads the wheel before it sweeps.
-///
-/// Reproduced against the Linux appliance on 2026-08-09 with the sim
-/// camera and focuser connected and no wheel: start answered 200 and the
-/// node then failed `Autofocus is configured to use filter "Ha", but no
-/// filter wheel is connected`.
 #[tokio::test]
 async fn start_refuses_autofocus_pinned_to_a_filter_with_no_filter_wheel() {
     let dir = std::env::temp_dir().join(format!("sk-af-fw-{}", uuid::Uuid::new_v4()));
@@ -1508,7 +1496,7 @@ pub(super) struct ReacquireGuiderOps {
     /// When true, `mount_is_parked` reports the mount as parked.
     parked: bool,
     /// When true, `mount_is_tracking` never returns — the driver that
-    /// accepts the call and then goes away, which is what R1 is about.
+    /// accepts the call and then goes away.
     mount_is_tracking_hangs: bool,
 }
 
@@ -1642,10 +1630,7 @@ crate::forward_device_ops!(ReacquireGuiderOps => inner: CameraOps, FocuserOps, F
 
 /// The terminal message a finished run publishes is the run's own verdict.
 ///
-/// `/api/sequencer/status` returns `state` and `message` side by side, and the
-/// message used to be whatever progress update happened to land last — a night
-/// that finished cleanly answered `state: "completed"` with the last line a
-/// filter-change autofocus had queued ("Autofocus: step 0/9 HFR 2.11 (100%)").
+/// `/api/sequencer/status` returns `state` and `message` side by side.
 #[tokio::test]
 async fn a_finished_run_publishes_its_own_verdict_as_the_terminal_message() {
     let mut sequence = SequenceDefinition::new("Night".to_string());
@@ -1886,10 +1871,6 @@ async fn a_run_failed_by_its_meridian_flip_names_the_flip() {
     );
 }
 
-/// A site changed after a run ended reached nobody: the finished task kept its
-/// command sender, so the update was sent into a closed channel and the
-/// trigger state kept the old site and its cached dawn. The next run then
-/// ended at the old site's dawn (live check, 2026-11-02).
 #[tokio::test]
 async fn a_site_change_after_a_run_reaches_the_dawn_trigger() {
     let executor = SequenceExecutor::new();

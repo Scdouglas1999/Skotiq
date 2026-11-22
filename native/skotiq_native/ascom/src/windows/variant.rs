@@ -301,10 +301,8 @@ pub(super) fn variant_to_f64(var: &VARIANT) -> Option<f64> {
             // (f64 mantissa is 53 bits, covers i32::MIN..=i32::MAX).
             Some(f64::from((*var.Anonymous.Anonymous).Anonymous.lVal))
         } else if vt == VT_I2 {
-            // Why: i16 → f64 widening, exact.
             Some(f64::from((*var.Anonymous.Anonymous).Anonymous.iVal))
         } else if vt == VT_UI2 {
-            // Why: u16 → f64 widening, exact.
             Some(f64::from((*var.Anonymous.Anonymous).Anonymous.uiVal))
         } else {
             tracing::warn!("variant_to_f64: unexpected VARIANT type {}", vt.0);
@@ -337,11 +335,8 @@ pub(super) fn variant_to_i32(var: &VARIANT) -> Option<i32> {
         if vt == VT_I4 {
             Some((*var.Anonymous.Anonymous).Anonymous.lVal)
         } else if vt == VT_I2 {
-            // Why: i16 → i32 widening, exact.
             Some(i32::from((*var.Anonymous.Anonymous).Anonymous.iVal))
         } else if vt == VT_UI2 {
-            // Why: u16 → i32 widening, exact (u16 max
-            // = 65535 < i32::MAX).
             Some(i32::from((*var.Anonymous.Anonymous).Anonymous.uiVal))
         } else if vt == VT_R8 {
             // Why: Rust 1.45+ defines f64 → i32 cast as
@@ -556,11 +551,9 @@ pub(super) unsafe fn extract_safearray_i32(
         Ok(slice.to_vec())
     } else if base_vt == VT_I2.0 {
         let slice = std::slice::from_raw_parts(data_ptr as *const i16, size);
-        // Why: i16 → i32 widening, exact.
         Ok(slice.iter().map(|&x| i32::from(x)).collect())
     } else if base_vt == VT_UI2.0 {
         let slice = std::slice::from_raw_parts(data_ptr as *const u16, size);
-        // Why: u16 → i32 widening, exact.
         Ok(slice.iter().map(|&x| i32::from(x)).collect())
     } else if base_vt == VT_VARIANT.0 {
         let slice = std::slice::from_raw_parts(data_ptr as *const VARIANT, size);
@@ -679,7 +672,6 @@ pub(super) unsafe fn extract_safearray_string(var: &VARIANT) -> Result<Vec<Strin
         ));
     }
 
-    // Check for potential integer overflow
     let diff = upper.saturating_sub(lower);
     if diff > 10_000_000 {
         return Err(format!("Array size too large: {}", diff + 1));

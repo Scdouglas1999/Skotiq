@@ -205,7 +205,6 @@ fn sequencer_autofocus_config(
         }
     };
 
-    // Map binning
     let binning = match config.binning {
         2 => Binning::Two,
         3 => Binning::Three,
@@ -1007,9 +1006,6 @@ pub async fn api_compute_last_capture_quality_maps(
         .await
         .ok_or(SkotiqError::NoImageAvailable)?;
 
-    // Why: raw_info.width/height are u32; widening to usize via `as` is value-preserving
-    // on every Tier 1 target. raw_info.data is Vec<u16>; widening u16 -> f64 is lossless
-    // (53-bit mantissa easily holds 16-bit values).
     let width = raw_info.width as usize;
     let height = raw_info.height as usize;
     let linear_data = raw_info

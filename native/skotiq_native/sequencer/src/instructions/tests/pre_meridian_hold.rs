@@ -501,7 +501,7 @@ fn starts_guiding(call: &str) -> bool {
     call == "guider_start" || call == "guider_select_fresh_star"
 }
 
-/// D4 on the rig (2026-11-16 02:16): the frame held for the flip was let go
+/// On the rig: the frame held for the flip was let go
 /// the moment the flip had turned the mount over and, picking guiding up
 /// after the hold, started it on a fresh star while the flip was still
 /// confirming tracking. The recenter's sync and correction slews then ran

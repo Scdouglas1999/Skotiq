@@ -362,8 +362,7 @@ mod tests {
     }
 
     /// A runaway that ends in a lost position holds the run twice, and a
-    /// trigger can pause a run the operator already paused. Each used to log
-    /// "Sequence paused" again.
+    /// trigger can pause a run the operator already paused.
     #[test]
     fn pausing_a_paused_run_takes_the_new_reason_and_announces_nothing() {
         let (state, mut events) = cell();

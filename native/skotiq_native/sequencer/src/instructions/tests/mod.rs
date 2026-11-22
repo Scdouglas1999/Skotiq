@@ -148,7 +148,7 @@ struct ScriptedDomeRotatorOps {
     /// When true, every plate solve finds no solution (a clouded frame).
     plate_solve_fails: bool,
     no_plate_solver: bool,
-    /// W1 daylight gate — value returned by `mount_is_parked`. Defaults to
+    /// Daylight gate — value returned by `mount_is_parked`. Defaults to
     /// `false` (matching NullDeviceOps); the parked-rig gate test sets it
     /// `true` to prove a parked exposure is never daylight-gated.
     mount_parked: AtomicBool,

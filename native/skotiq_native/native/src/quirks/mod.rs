@@ -116,10 +116,7 @@ pub fn get_connect_delay_ms(vendor: &Vendor, kind: DeviceKind, model: &str) -> O
 mod tests {
     use super::*;
 
-    /// A discovered EAF is `native:zwo:eaf:0`. Its step-size row is keyed on
-    /// the model name, which the app used to pass inside a made-up id
-    /// (`native:zwo:<name>`) that names the ZWO camera family, so the row
-    /// never matched.
+    /// A discovered EAF is `native:zwo:eaf:0`. Its step-size row is keyed on the model name.
     #[test]
     fn a_reported_model_is_looked_up_in_the_family_the_id_names() {
         let step = Quirk::Position(PositionQuirk::FocuserStepSizeMicrons(0.7));
@@ -175,8 +172,7 @@ mod tests {
     }
 
     /// Discovery writes an accessory's id with the family token
-    /// (`native:zwo_efw:0`); the lookup used to know only the bare vendor
-    /// word and showed no quirk for a wheel or a focuser.
+    /// (`native:zwo_efw:0`).
     #[test]
     fn an_id_as_discovery_writes_it_finds_its_familys_quirks() {
         let delay = |id: &str| {

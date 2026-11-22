@@ -472,8 +472,6 @@ async fn execute_smart_exposure(
             // We additionally track a SmartExposure-LOCAL slice here so the
             // per-node `integration_budget_secs` cap is independent of any
             // other node's contributions.
-            // Why: u32 -> f64 widens losslessly; same for the duration_secs
-            // arithmetic.
             state.completed_integration_secs += plan.duration_secs * f64::from(chunk);
             taken += chunk;
             state
