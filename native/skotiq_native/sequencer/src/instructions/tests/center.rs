@@ -446,7 +446,7 @@ fn the_centering_policies() {
             },
         ),
         (
-            "post-flip centering",
+            "post-flip centering (tolerance replaced by the operator's)",
             POST_FLIP_CENTERING,
             CenterPolicy {
                 tolerance: CenterTolerance::Below(30.0),

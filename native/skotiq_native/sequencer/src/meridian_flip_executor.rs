@@ -258,9 +258,9 @@ pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
         read_errors: crate::instructions::SlewReadErrors::Fail,
     };
 
-/// The post-flip centering: three frames, centered below 30" measured flat at
-/// the target's Dec, every correction synced. Not the operator's centering
-/// tolerance.
+/// The post-flip centering: three frames, measured flat at the target's Dec,
+/// every correction synced, centered at the operator's centering tolerance
+/// (which replaces the tolerance here).
 pub(crate) const POST_FLIP_CENTERING: crate::instructions::CenterPolicy =
     crate::instructions::CenterPolicy {
         tolerance: crate::instructions::CenterTolerance::Below(30.0),
@@ -1539,7 +1539,12 @@ impl MeridianFlipExecutor {
         let camera_id = ctx.camera_id.as_ref().ok_or("No camera configured")?;
 
         let mut last_failure = String::new();
-        let policy = POST_FLIP_CENTERING;
+        let policy = crate::instructions::CenterPolicy {
+            tolerance: crate::instructions::CenterTolerance::AtMost(
+                self.run.centering_tolerance_arcsec(),
+            ),
+            ..POST_FLIP_CENTERING
+        };
         for _ in 0..policy.max_attempts {
             self.wait_for_mount_to_settle(ctx).await?;
             // The retry ladder increases acquisition exposure after the first attempt.
@@ -5549,9 +5554,8 @@ mod tests {
     }
 
     /// The post-flip centering a run's flip does: how close counts as
-    /// centered, whether a correction syncs, how many frames it takes. The
-    /// run's centering tolerance is 5"; the flip keeps its own 30" and always
-    /// syncs.
+    /// centered (the run's centering tolerance, 5" here), whether a correction
+    /// syncs, how many frames it takes.
     #[tokio::test(start_paused = true)]
     async fn post_flip_centering_keeps_its_own_policy() {
         struct Case {
@@ -5562,16 +5566,16 @@ mod tests {
             correction_slews: i32,
         }
         let cases = [
-            // 20" off: centered for the flip, though the run's 5" is not met.
+            // 20" off misses the run's 5": corrected and verified.
             Case {
-                solved_dec_offsets_arcsec: &[20.0],
+                solved_dec_offsets_arcsec: &[20.0, 0.0],
                 centered: true,
-                solves: 1,
-                syncs: 0,
-                correction_slews: 0,
+                solves: 2,
+                syncs: 1,
+                correction_slews: 1,
             },
             Case {
-                solved_dec_offsets_arcsec: &[29.9],
+                solved_dec_offsets_arcsec: &[4.9],
                 centered: true,
                 solves: 1,
                 syncs: 0,
