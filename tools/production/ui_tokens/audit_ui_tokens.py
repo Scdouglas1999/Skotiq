@@ -4,7 +4,7 @@ from pathlib import Path
 import re
 import sys
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[3]
 TREES = (
     'packages/skotiq_app/lib', 'apps/desktop/lib', 'apps/mobile/lib',
     'packages/skotiq_ui/lib', 'packages/skotiq_planetarium/lib/src/widgets',

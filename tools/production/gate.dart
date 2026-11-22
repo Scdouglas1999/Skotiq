@@ -60,7 +60,7 @@ final List<Check> checks = [
   // Analyze job.
   Check('analyze', 'ui-tokens', [
     'python3',
-    'docs/design/overhaul/tools/audit_ui_tokens.py',
+    'tools/production/ui_tokens/audit_ui_tokens.py',
   ]),
   Check('analyze', 'ui-tokens:self-test', [
     'python3',
@@ -68,7 +68,7 @@ final List<Check> checks = [
     'unittest',
     'discover',
     '-s',
-    'docs/design/overhaul/tools',
+    'tools/production/ui_tokens',
     '-p',
     'test_audit_ui_tokens.py',
   ]),

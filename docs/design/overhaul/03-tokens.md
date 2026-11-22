@@ -356,7 +356,7 @@ Filter identities use `FilterColors.forName` with the current palette; sky/image
 measurements use the centralized data palettes. These colors describe the data,
 not selection states.
 
-CI runs `tools/audit_ui_tokens.py` against UI consumers, including conditional
+CI runs `tools/production/ui_tokens/audit_ui_tokens.py` against UI consumers, including conditional
 font/radius literals. The foundation and brand artwork define values; screens
 consume them. The guard intentionally leaves geometric scaling, transparent
 paint, and PDF typography alone.
