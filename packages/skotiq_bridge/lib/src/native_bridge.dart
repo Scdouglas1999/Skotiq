@@ -57,11 +57,7 @@ abstract final class NativeBridge {
         await frb.RustLib.init();
       }
 
-      if (host != null) {
-        gen_api.apiInitHost(paths: host);
-      } else {
-        gen_api.apiInit();
-      }
+      if (host == null) gen_api.apiInit();
 
       final version = gen_api.apiGetVersion();
       _log('Native bridge v$version ready', level: 800);
@@ -72,6 +68,11 @@ abstract final class NativeBridge {
     }
 
     _initialized = true;
+
+    // A loaded library whose stores cannot open (an unwritable profile
+    // directory, a store another process still holds) fails with its own
+    // error, not as a missing library.
+    if (_nativeAvailable && host != null) gen_api.apiInitHost(paths: host);
 
     if (!_nativeAvailable) {
       // Warning level: the app keeps running, but every hardware operation
