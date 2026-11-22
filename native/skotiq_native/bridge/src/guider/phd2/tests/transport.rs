@@ -3,6 +3,7 @@ use super::super::*;
 use crate::event::bus::EventPayload;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 #[tokio::test]
 async fn stop_guiding_recovers_the_connection_and_waits_for_stopped() {

@@ -9,12 +9,14 @@ use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::state::get_state;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
+mod link;
 mod watch;
+
+use link::LINK;
 
 /// The event for PHD2's SettleDone. A failed settle (non-zero status) must
 /// not masquerade as a clean "Settled" event, and it is not a lost star
@@ -54,9 +56,6 @@ fn alert_says_equipment_dropped(message: &str) -> bool {
     message.contains("disconnect")
 }
 
-/// A PHD2 equipment reconnect is running.
-static RECONNECTING_EQUIPMENT: AtomicBool = AtomicBool::new(false);
-
 /// [`reconnect_equipment`] on the bridge runtime, for PHD2's event thread.
 fn reconnect_equipment_in_background(reason: &'static str) {
     match crate::get_runtime() {
@@ -79,7 +78,7 @@ fn reconnect_equipment_in_background(reason: &'static str) {
 /// guide-star recovery starts guiding again on a fresh star and settles
 /// before the next frame. One reconnect runs at a time.
 pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError> {
-    if RECONNECTING_EQUIPMENT.swap(true, Ordering::SeqCst) {
+    if !LINK.begin_equipment_reconnect() {
         return Ok(());
     }
     let result = async {
@@ -109,7 +108,7 @@ pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError>
         Ok(())
     }
     .await;
-    RECONNECTING_EQUIPMENT.store(false, Ordering::SeqCst);
+    LINK.end_equipment_reconnect();
     result
 }
 
@@ -154,10 +153,8 @@ pub(crate) fn is_device_id(device_id: &str) -> bool {
 /// answer in time.
 pub(crate) const PHD2_NOT_RESPONDING: &str = "NotResponding";
 
-static CLIENT: OnceLock<Arc<RwLock<Option<skotiq_phd2::Phd2Client>>>> = OnceLock::new();
-
 fn client_slot() -> &'static Arc<RwLock<Option<skotiq_phd2::Phd2Client>>> {
-    CLIENT.get_or_init(|| Arc::new(RwLock::new(None)))
+    LINK.client()
 }
 
 /// The live client under the slot's write lock, or `NotConnected("PHD2")`.
@@ -169,21 +166,6 @@ async fn phd2_client(
     tokio::sync::RwLockWriteGuard::try_map(storage, |slot| slot.as_mut())
         .map_err(|_| SkotiqError::NotConnected("PHD2".to_string()))
 }
-
-/// Bumped by every connect and disconnect the app asks for. A reconnect
-/// started for one link stops when it changes: the user disconnected, or
-/// connected again on their own.
-static LINK_GENERATION: AtomicU64 = AtomicU64::new(0);
-
-/// Where the last connect reached PHD2.
-static ENDPOINT: std::sync::Mutex<Option<(String, u16)>> = std::sync::Mutex::new(None);
-
-/// Numbers each client [`connect_endpoint`] opens, so a lost connection is
-/// recovered once however many times its loss is reported.
-static CLIENT_EPOCH: AtomicU64 = AtomicU64::new(0);
-
-/// The client whose lost connection a reconnect is recovering.
-static RECOVERING_EPOCH: AtomicU64 = AtomicU64::new(0);
 
 /// Waits between attempts to reach a PHD2 whose socket closed. Short first
 /// (PHD2 restarting), then once a minute for as long as it takes: a PHD2
@@ -221,13 +203,11 @@ fn reconnect_server_in_background(client_epoch: u64) {
 /// starts guiding again once PHD2 answers.
 async fn reconnect_server(client_epoch: u64) {
     // Only the current client's loss, and only once.
-    if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
-        || RECOVERING_EPOCH.swap(client_epoch, Ordering::SeqCst) == client_epoch
-    {
+    if !LINK.claim_recovery(client_epoch) {
         return;
     }
-    let link_generation = LINK_GENERATION.load(Ordering::SeqCst);
-    let endpoint = ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let link_generation = LINK.generation();
+    let endpoint = LINK.endpoint();
     let Some((host, port)) = endpoint else {
         return;
     };
@@ -236,9 +216,7 @@ async fn reconnect_server(client_epoch: u64) {
         let mut storage = client_slot().write().await;
         // The app connected or disconnected PHD2 since the loss: that is
         // the link now, and nothing here may touch it.
-        if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
-            || LINK_GENERATION.load(Ordering::SeqCst) != link_generation
-        {
+        if !LINK.unchanged(client_epoch, link_generation) {
             return;
         }
         if let Some(mut dead) = storage.take() {
@@ -250,11 +228,11 @@ async fn reconnect_server(client_epoch: u64) {
     let mut attempt = 0;
     loop {
         tokio::time::sleep(reconnect_delay(attempt)).await;
-        if LINK_GENERATION.load(Ordering::SeqCst) != link_generation {
+        if LINK.generation() != link_generation {
             break;
         }
         attempt += 1;
-        match connect_endpoint(host.clone(), port).await {
+        match bring_back(Launch::Never, Some((host.clone(), port))).await {
             Ok(()) => {
                 tracing::info!("[GUIDING] Reconnected to PHD2 after {attempt} attempt(s)");
                 publish_guiding_notice(
@@ -276,6 +254,49 @@ async fn reconnect_server(client_epoch: u64) {
     }
 }
 
+/// Whether bringing PHD2 back may start the PHD2 program.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Launch {
+    IfNotRunning,
+    Never,
+}
+
+/// Bring PHD2 back: start the program when `launch` allows it and it is not
+/// running, wait up to 10 s for it to start, then, given an endpoint,
+/// connect to it and list it as the connected guider. The app's connect
+/// launches; the reconnect after a lost socket does not.
+pub(crate) async fn bring_back(
+    launch: Launch,
+    endpoint: Option<(String, u16)>,
+) -> Result<(), String> {
+    if launch == Launch::IfNotRunning && !skotiq_phd2::is_phd2_running() {
+        tracing::info!("PHD2 not running, attempting to launch...");
+        if let Err(e) = skotiq_phd2::launch_phd2() {
+            tracing::error!("Failed to launch PHD2: {}", e);
+            return Err(format!("Failed to launch PHD2: {}", e));
+        }
+
+        tracing::info!("Waiting for PHD2 to start...");
+        let mut started = false;
+        for _ in 0..20 {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            if skotiq_phd2::is_phd2_running() {
+                started = true;
+                break;
+            }
+        }
+        if !started {
+            return Err("Timed out waiting for PHD2 to start".to_string());
+        }
+    }
+    match endpoint {
+        Some((host, port)) => connect_endpoint(host, port)
+            .await
+            .map_err(|e| e.to_string()),
+        None => Ok(()),
+    }
+}
+
 /// Connect to PHD2 and list it as the connected guider.
 pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(), SkotiqError> {
     // Why: localhost + PHD2 default port 4400 are the
@@ -285,7 +306,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         skotiq_phd2::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
     let port = port.unwrap_or(skotiq_phd2::PHD2_DEFAULT_PORT);
 
-    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
+    LINK.new_generation();
     connect_endpoint(host, port).await
 }
 
@@ -293,8 +314,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
 /// guider. A loss of the socket this opens starts [`reconnect_server`].
 async fn connect_endpoint(host: String, port: u16) -> Result<(), SkotiqError> {
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
-    let client_epoch = CLIENT_EPOCH.fetch_add(1, Ordering::SeqCst) + 1;
-    *ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()) = Some((host.clone(), port));
+    let client_epoch = LINK.open_client(&host, port);
 
     {
         let mut storage = client_slot().write().await;
@@ -500,8 +520,8 @@ async fn connect_endpoint(host: String, port: u16) -> Result<(), SkotiqError> {
 }
 
 pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
-    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
-    PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
+    LINK.new_generation();
+    LINK.stop();
     let mut storage = client_slot().write().await;
     if let Some(mut client) = storage.take() {
         client.disconnect();
@@ -515,18 +535,6 @@ pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
 
     Ok(())
 }
-
-/// Serializes the PHD2 operations that start guiding or move the guide star:
-/// a fresh star selection, a start with its settle, and a dither with its
-/// settle. PHD2 refuses a `guide` while an earlier guide or dither is still
-/// settling ("Cannot initiate guide while guide is in progress"), and a
-/// selection that stops capture under a running start breaks both. A stop
-/// never waits for this lock: it is how a running settle is ended.
-static PHD2_GUIDE_OPS: Mutex<()> = Mutex::const_new(());
-
-/// Bumped by every stop and disconnect. A settle wait that sees it change
-/// ends at once instead of running out its timeout.
-static PHD2_STOP_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 /// How long a start waits for calibration on top of its settle. PHD2 starts
 /// the settle clock only after calibration, and a calibration of both axes
@@ -622,7 +630,7 @@ async fn await_settle(
         if let Some(result) = waiter.check() {
             return result.map(|_| ()).map_err(SettleEnd::Phd2);
         }
-        if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
+        if LINK.stop_generation() != stop_generation {
             return Err(SettleEnd::Stopped);
         }
         let now = tokio::time::Instant::now();
@@ -691,16 +699,16 @@ pub(crate) async fn start_guiding(
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), SkotiqError> {
-    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let _ops = LINK.guide_ops.lock().await;
     finish_pending_settle().await?;
-    let stop_generation = PHD2_STOP_GENERATION.load(Ordering::SeqCst);
+    let stop_generation = LINK.stop_generation();
     let waiter = phd2_client()
         .await?
         .guide_arm(settle_pixels, settle_time, settle_timeout)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start guiding: {}", e)))?;
     let settle_wait = skotiq_phd2::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     if let Err(error) = await_settle(waiter, settle_wait, stop_generation).await {
-        if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
+        if LINK.stop_generation() != stop_generation {
             return Err(error.into_error("Guiding did not settle"));
         }
         let mut client = phd2_client().await?;
@@ -732,7 +740,7 @@ pub(crate) async fn start_guiding(
 /// is not moved under a guide pulse and the next start is not refused. A
 /// settle another call is waiting on ends at once.
 pub(crate) async fn stop_guiding() -> Result<(), SkotiqError> {
-    PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
+    LINK.stop();
     // Acknowledging stop_capture is not enough: callers may move the mount
     // once this returns, so capture must actually have ended.
     stop_capture_completely(guide_exposure().await?)
@@ -756,9 +764,9 @@ pub(crate) async fn dither(
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), SkotiqError> {
-    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let _ops = LINK.guide_ops.lock().await;
     finish_pending_settle().await?;
-    let stop_generation = PHD2_STOP_GENERATION.load(Ordering::SeqCst);
+    let stop_generation = LINK.stop_generation();
 
     // Issue the dither RPC and arm settle tracking under the client lock, then
     // release it for the settle wait so status polls and stop are not stalled.
@@ -1076,7 +1084,7 @@ async fn wait_for_looping_frame(after: u64, exposure: Duration) -> Result<u64, S
 pub(crate) async fn select_fresh_star(
     floor: Option<skotiq_sequencer::GuideStarFloor>,
 ) -> Result<(f64, f64), SkotiqError> {
-    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let _ops = LINK.guide_ops.lock().await;
     let exposure = guide_exposure().await?;
     tracing::info!(
         "[GUIDING] Selecting a fresh guide star: stopping PHD2's capture, then looping \
@@ -1523,7 +1531,7 @@ mod post_flip_protocol_tests {
     use super::*;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
-    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     fn server(settle_status: i32, deliver_frame: bool) -> (u16, std::thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
