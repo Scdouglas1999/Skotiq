@@ -24,8 +24,9 @@ class _TonightWindow {
   /// The target's altitude in degrees from sunset to sunrise, evenly sampled.
   final List<double> altitudes;
 
-  /// The first and last moment of the longest stretch above the floor; null
-  /// when the target never clears it tonight.
+  /// The first and last moment of the longest stretch above the floor in
+  /// astronomical dark ([AltitudeFloor.windowAbove]); null when the target
+  /// never clears it tonight.
   final DateTime? start;
   final DateTime? end;
 
@@ -42,8 +43,8 @@ class _TonightWindow {
   }
 }
 
-/// Samples from sunset to sunrise: one every ten minutes of a sixteen-hour
-/// night.
+/// Altitude samples from sunset to sunrise for the altitude curve: one every
+/// ten minutes of a sixteen-hour night.
 const int _kWindowSamples = 96;
 
 /// Tonight's window for every saved target, by target id. Empty when no
@@ -70,48 +71,33 @@ final _tonightWindowsProvider =
   return {
     for (final target in targets)
       target.id: () {
-        final altitudes = <double>[];
-        final clear = <bool>[];
-        for (var i = 0; i < _kWindowSamples; i++) {
-          final (alt, az) = AstronomyCalculations.equatorialToHorizontal(
-            raDeg: target.ra * 15.0,
-            decDeg: target.dec,
-            latitudeDeg: location.latitude,
-            lstHours: AstronomyCalculations.localSiderealTime(
-              sunset.add(step * i),
-              location.longitude,
-            ),
-          );
-          altitudes.add(alt);
-          // Only darkness counts toward the window.
-          final at = sunset.add(step * i);
-          clear.add(
-            !at.isBefore(dusk) && !at.isAfter(dawn) && floor.clears(alt, az),
-          );
-        }
-        // The longest unbroken stretch above the floor.
-        var bestStart = -1, bestLength = 0, runStart = -1;
-        for (var i = 0; i <= _kWindowSamples; i++) {
-          final up = i < _kWindowSamples && clear[i];
-          if (up && runStart < 0) runStart = i;
-          if (!up && runStart >= 0) {
-            if (i - runStart > bestLength) {
-              bestStart = runStart;
-              bestLength = i - runStart;
-            }
-            runStart = -1;
-          }
-        }
+        final window = floor.windowAbove(
+          raDeg: target.ra * 15.0,
+          decDeg: target.dec,
+          from: dusk,
+          until: dawn,
+          latitudeDeg: location.latitude,
+          longitudeDeg: location.longitude,
+        );
         return _TonightWindow(
           sunset: sunset,
           dusk: dusk,
           dawn: dawn,
           sunrise: sunrise,
-          altitudes: altitudes,
-          start: bestStart < 0 ? null : sunset.add(step * bestStart),
-          end: bestStart < 0
-              ? null
-              : sunset.add(step * (bestStart + bestLength - 1)),
+          altitudes: [
+            for (var i = 0; i < _kWindowSamples; i++)
+              AstronomyCalculations.equatorialToHorizontal(
+                raDeg: target.ra * 15.0,
+                decDeg: target.dec,
+                latitudeDeg: location.latitude,
+                lstHours: AstronomyCalculations.localSiderealTime(
+                  sunset.add(step * i),
+                  location.longitude,
+                ),
+              ).$1,
+          ],
+          start: window?.start,
+          end: window?.end,
         );
       }(),
   };
