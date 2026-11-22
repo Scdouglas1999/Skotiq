@@ -92,6 +92,7 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
       child: Tooltip(
         message: unverifiedDeviceText(widget.type.noun, fields),
         triggerMode: TooltipTriggerMode.tap,
+        constraints: const BoxConstraints(maxWidth: 360),
         child: Semantics(
           label: 'Not verified at connect',
           child: Icon(

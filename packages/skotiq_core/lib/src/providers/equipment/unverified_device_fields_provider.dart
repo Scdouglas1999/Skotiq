@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../backend/bridge_event_codec.dart' show equipmentEventOf;
 import '../../backend/bridge_events.dart';
 import '../../models/backend/backend_types.dart';
+import '../../utils/logging_service.dart';
 import '../backend_provider.dart';
 
 /// The `PropertyChanged` property the read-only connect check reports under.
@@ -25,8 +26,17 @@ final unverifiedDeviceFieldsProvider =
 class UnverifiedDeviceFields extends Notifier<Map<String, List<String>>> {
   @override
   Map<String, List<String>> build() {
-    final subscription = ref.watch(backendProvider).eventStream.listen(_follow);
-    ref.onDispose(subscription.cancel);
+    final backend = ref.watch(backendProvider);
+    try {
+      final subscription = backend.eventStream.listen(_follow);
+      ref.onDispose(subscription.cancel);
+    } on Object catch (error) {
+      // A backend with no event stream marks nothing; the cards still show.
+      Log.debug(
+        'Connect check marks not followed: $error',
+        source: 'UnverifiedDeviceFields',
+      );
+    }
     return const {};
   }
 
