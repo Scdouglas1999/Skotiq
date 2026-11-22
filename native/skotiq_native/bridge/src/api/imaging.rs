@@ -134,17 +134,13 @@ pub struct AutofocusResultApi {
     pub backlash_applied: bool,
 }
 
-/// Run autofocus
-pub async fn api_run_autofocus(
-    device_id: String, // Focuser ID
-    camera_id: String,
-    config: AutofocusConfigApi,
-) -> Result<AutofocusResultApi, SkotiqError> {
-    tracing::info!(
-        "Starting autofocus with camera {} and focuser {}",
-        camera_id,
-        device_id
-    );
+/// The sequencer's config for an operator-run autofocus, or why the
+/// request is refused. An unknown curve method is refused rather than run as
+/// V-curve.
+fn sequencer_autofocus_config(
+    config: &AutofocusConfigApi,
+) -> Result<skotiq_sequencer::AutofocusConfig, SkotiqError> {
+    use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning};
 
     if !config.exposure_time.is_finite() || config.exposure_time <= 0.0 {
         return Err(SkotiqError::InvalidParameter(
@@ -188,15 +184,6 @@ pub async fn api_run_autofocus(
         ));
     }
 
-    use serde::Deserialize;
-    use skotiq_sequencer::instructions::{
-        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
-    };
-    use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    // Map method string to enum before acquiring the AF gate; reject
-    // unrecognized methods rather than silently falling back to VCurve.
     let method = match config.method.trim().to_ascii_lowercase().as_str() {
         "" | "vcurve" | "v-curve" | "v_curve" => AutofocusMethod::VCurve,
         "hyperbolic" => AutofocusMethod::Hyperbolic,
@@ -208,26 +195,6 @@ pub async fn api_run_autofocus(
             )));
         }
     };
-
-    #[derive(Debug, Deserialize)]
-    struct LegacyAutofocusPayload {
-        best_position: i32,
-        best_hfr: f64,
-        r_squared: f64,
-        focus_data: Vec<(i32, f64)>,
-    }
-
-    let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
-        device_id: device_id.clone(),
-        current_operation: "autofocus".to_string(),
-    })?;
-
-    // Reset cancellation token only after admission. A rejected second Start
-    // must never clear the active run's pending cancellation request.
-    let cancel_token = get_autofocus_cancel_token();
-    cancel_token.store(false, Ordering::Relaxed);
-
-    let method_str = config.method.clone();
 
     // Map binning
     let binning = match config.binning {
@@ -241,7 +208,7 @@ pub async fn api_run_autofocus(
         .backlash_comp_method
         .trim()
         .eq_ignore_ascii_case("none");
-    let af_config = AutofocusConfig {
+    Ok(AutofocusConfig {
         exposure_duration: config.exposure_time,
         step_size: config.step_size,
         steps_out: config.steps_out as u32,
@@ -270,7 +237,49 @@ pub async fn api_run_autofocus(
         },
         measured_backlash_in: config.measured_backlash_in,
         ..AutofocusConfig::default()
+    })
+}
+
+/// Run autofocus
+pub async fn api_run_autofocus(
+    device_id: String, // Focuser ID
+    camera_id: String,
+    config: AutofocusConfigApi,
+) -> Result<AutofocusResultApi, SkotiqError> {
+    tracing::info!(
+        "Starting autofocus with camera {} and focuser {}",
+        camera_id,
+        device_id
+    );
+
+    use serde::Deserialize;
+    use skotiq_sequencer::instructions::{
+        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
     };
+    use skotiq_sequencer::NodeStatus;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let af_config = sequencer_autofocus_config(&config)?;
+
+    #[derive(Debug, Deserialize)]
+    struct LegacyAutofocusPayload {
+        best_position: i32,
+        best_hfr: f64,
+        r_squared: f64,
+        focus_data: Vec<(i32, f64)>,
+    }
+
+    let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
+        device_id: device_id.clone(),
+        current_operation: "autofocus".to_string(),
+    })?;
+
+    // Reset cancellation token only after admission. A rejected second Start
+    // must never clear the active run's pending cancellation request.
+    let cancel_token = get_autofocus_cancel_token();
+    cancel_token.store(false, Ordering::Relaxed);
+
+    let method_str = config.method.clone();
 
     // Create context - use UnifiedDeviceOps which routes through DeviceManager
     let device_ops = create_unified_device_ops();
@@ -871,6 +880,8 @@ pub struct QualityMapsResultApi {
     pub tiles: Vec<QualityTileMetricApi>,
 }
 
+#[cfg(test)]
+mod autofocus_config_tests;
 #[cfg(test)]
 mod linear_decode_tests;
 
