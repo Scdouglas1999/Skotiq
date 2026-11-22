@@ -29,9 +29,8 @@ import 'skotiq_backend.dart';
 import '../models/settings/app_settings.dart' as models;
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../models/backend/device_capabilities.dart' as dart_caps;
-import '../models/backend/device_status.dart' as dart_status;
-import '../models/backend/device_types.dart' as dart_types;
+import '../models/backend/device_capabilities_bridge.dart';
+import '../models/backend/device_status_bridge.dart';
 import '../errors/skotiq_error.dart' as dart_error;
 import 'bridge_event_codec.dart';
 import 'ip_geolocation.dart';
