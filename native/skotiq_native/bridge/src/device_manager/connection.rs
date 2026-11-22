@@ -217,16 +217,34 @@ impl DeviceManager {
                 );
             }
             Err(e) => {
-                let mut devices = self.devices.write().await;
-                if let Some(dev) = devices.get_mut(device_id) {
-                    dev.reconnect_attempts += 1;
-                    tracing::warn!(
-                        "Reconnection attempt {} failed for {}: {}",
-                        dev.reconnect_attempts,
-                        device_id,
-                        e
-                    );
-                    dev.last_error = Some(e.to_string());
+                let exhausted = {
+                    let mut devices = self.devices.write().await;
+                    match devices.get_mut(device_id) {
+                        Some(dev) => {
+                            dev.reconnect_attempts += 1;
+                            tracing::warn!(
+                                "Reconnection attempt {} failed for {}: {}",
+                                dev.reconnect_attempts,
+                                device_id,
+                                e
+                            );
+                            dev.last_error = Some(e.to_string());
+                            self.reconnect_config.max_attempts > 0
+                                && dev.reconnect_attempts >= self.reconnect_config.max_attempts
+                        }
+                        None => false,
+                    }
+                };
+                // The id answers as another device, the SDK no longer lists
+                // it, or the attempts ran out: it may have come back at
+                // another position on the bus.
+                let moved = matches!(
+                    e,
+                    ConnectError::IdentityConflict(_) | ConnectError::NotEnumerated(_)
+                );
+                if moved || exhausted {
+                    // Boxed: the follow connects a device of its own.
+                    Box::pin(self.follow_moved_device(device_id)).await;
                 }
             }
             Ok(()) => {

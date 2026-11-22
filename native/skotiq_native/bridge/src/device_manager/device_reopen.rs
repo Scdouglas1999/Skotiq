@@ -97,6 +97,18 @@ impl DeviceManager {
             .or_default())
     }
 
+    /// What `from` holds for its next connect, moved to `to`: the device
+    /// left one id for the other.
+    pub(crate) fn carry_session(&self, from: &str, to: &str) {
+        let mut sessions = self.sessions.lock().unwrap_or_else(|p| p.into_inner());
+        let commanded = sessions
+            .get_mut(from)
+            .map(|session| std::mem::take(&mut session.commanded));
+        if let Some(commanded) = commanded {
+            sessions.entry(to.to_string()).or_default().commanded = commanded;
+        }
+    }
+
     /// Record a command the device accepted, for the next connect to restore.
     pub(crate) fn note_commanded(&self, device_id: &str, update: impl FnOnce(&mut Commanded)) {
         self.with_session(device_id, |session| update(&mut session.commanded));

@@ -330,7 +330,7 @@ pub(crate) fn drivers_for_device_type(device_type: DeviceType) -> Vec<DriverType
 /// devices on success or a backend-specific error string on failure. Each
 /// branch only scans the backend identified by `driver_type`, so e.g. asking
 /// for (Camera, Ascom) never touches the Alpaca network or the INDI clients.
-async fn scan_devices_for_pair(
+pub(crate) async fn scan_devices_for_pair(
     device_type: DeviceType,
     driver_type: DriverType,
 ) -> Result<Vec<DeviceInfo>, String> {

@@ -324,3 +324,63 @@ async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
     assert_eq!(identity.model.as_deref(), Some("EFW"));
     assert_eq!(identity.serial_number.as_deref(), Some("0E0F0A01"));
 }
+
+/// R1H2-2 (rig, Nov 8 2026: the camera came back at `native:zwo:0` after it
+/// had been `native:zwo:1`): a reconnect refused at the old id finds the
+/// device where it went, by serial or model, connects it there, and carries
+/// what it held (the cooler) with it.
+#[tokio::test]
+async fn a_reconnect_refused_at_the_old_id_follows_the_camera_to_its_new_id() {
+    use crate::simulator::camera::{
+        reset_sim_camera_bus, unplug_sim_camera, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+    };
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+    let manager = build_device_manager();
+    let info = build_sim_info(SIM_IMAGING_CAMERA_ID, DeviceType::Camera);
+    manager.register_device(info.clone(), true).await;
+    manager
+        .connect_device_expecting(SIM_IMAGING_CAMERA_ID, Some("Simulated Camera"))
+        .await
+        .expect("the camera connects");
+    manager
+        .camera_set_cooler(SIM_IMAGING_CAMERA_ID, true, Some(-10.0))
+        .await
+        .expect("cooler on");
+
+    unplug_sim_camera(SIM_IMAGING_CAMERA_ID, true).await;
+    manager
+        .mark_lost(SIM_IMAGING_CAMERA_ID, true, "the camera left the bus")
+        .await;
+    manager
+        .attempt_reconnect(SIM_IMAGING_CAMERA_ID, &info)
+        .await;
+
+    assert!(
+        manager.is_connected(SIM_GUIDE_CAMERA_ID).await,
+        "the camera is reconnected at the id it moved to"
+    );
+    assert_eq!(
+        display_name(&manager, SIM_GUIDE_CAMERA_ID).await.as_deref(),
+        Some("Simulated Camera")
+    );
+    {
+        let devices = manager.devices.read().await;
+        assert!(
+            !devices[SIM_IMAGING_CAMERA_ID].auto_reconnect,
+            "the old id is not retried for the camera that left it"
+        );
+        assert_eq!(
+            devices[SIM_GUIDE_CAMERA_ID].desired_cooler,
+            Some((true, Some(-10.0)))
+        );
+    }
+
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        let _ = manager.disconnect_device(id).await;
+    }
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+}
