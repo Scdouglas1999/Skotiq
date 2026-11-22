@@ -4,7 +4,10 @@
 use crate::error::SkotiqError;
 use skotiq_imaging::PlateSolveResult;
 use skotiq_platesolve::acquire_solve_gate;
+use std::future::Future;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::MutexGuard;
 
 const DEFAULT_SOLVER_TIMEOUT_SECS: u32 = 60;
 const MAX_SOLVER_TIMEOUT_SECS: u32 = 3600;
@@ -142,6 +145,47 @@ pub(super) async fn solve_ladder(
         return Ok(empty_solve_result(skotiq_platesolve::NO_SOLVER_GUIDANCE));
     }
     let total = f64::from(validate_solver_timeout(timeout_secs)?);
+    if !std::path::Path::new(file_path).exists() {
+        return Err(SkotiqError::IoError(format!(
+            "File not found: {}",
+            file_path
+        )));
+    }
+    run_ladder(hint, total, |position, rung_secs, gate| {
+        solve_once(
+            file_path,
+            position,
+            rung_secs,
+            scale_arcsec_per_px,
+            downsample,
+            gate,
+        )
+    })
+    .await
+}
+
+/// The solver gate as one ladder holds it: each rung's worker keeps a share
+/// until it has reaped its child, so a cancelled ladder still keeps other
+/// solvers out until its last process is gone.
+type HeldGate = Arc<MutexGuard<'static, ()>>;
+
+/// The gate for one rung near `position` (or blind).
+async fn take_gate(position: Option<SolvePosition>) -> HeldGate {
+    let label = if position.is_some() { "near" } else { "blind" };
+    Arc::new(acquire_solve_gate(label).await)
+}
+
+/// The ladder itself, with `rung` running one solve (near a position or
+/// blind, with a process timeout in seconds, holding the gate it is given).
+async fn run_ladder<F, Fut>(
+    hint: Option<SolvePosition>,
+    total: f64,
+    mut rung: F,
+) -> Result<PlateSolveResult, SkotiqError>
+where
+    F: FnMut(Option<SolvePosition>, u32, HeldGate) -> Fut,
+    Fut: Future<Output = Result<PlateSolveResult, SkotiqError>>,
+{
     let budget = split_solve_budget(total, hint.is_some());
     let watchdog = Duration::from_secs_f64(total + SOLVE_WATCHDOG_MARGIN_SECS);
 
@@ -158,18 +202,12 @@ pub(super) async fn solve_ladder(
                 if remaining < MIN_LADDER_RUNG_SECS {
                     break;
                 }
-                let rung = SolvePosition {
+                let position = SolvePosition {
                     search_radius_deg: radius,
                     ..hint
                 };
-                let result = solve_once(
-                    file_path,
-                    Some(rung),
-                    rung_timeout(remaining),
-                    scale_arcsec_per_px,
-                    downsample,
-                )
-                .await?;
+                let gate = take_gate(Some(position)).await;
+                let result = rung(Some(position), rung_timeout(remaining), gate).await?;
                 if result.success {
                     tracing::info!(
                         "Plate solve: solved within {:.0}° of RA {:.2}°, Dec {:.2}° in {:.1}s",
@@ -193,14 +231,8 @@ pub(super) async fn solve_ladder(
         }
 
         if budget.blind_secs >= MIN_LADDER_RUNG_SECS {
-            let result = solve_once(
-                file_path,
-                None,
-                rung_timeout(budget.blind_secs),
-                scale_arcsec_per_px,
-                downsample,
-            )
-            .await?;
+            let gate = take_gate(None).await;
+            let result = rung(None, rung_timeout(budget.blind_secs), gate).await?;
             if result.success {
                 tracing::info!(
                     "Plate solve: solved BLIND in {:.1}s after {} hinted attempt(s)",
@@ -266,36 +298,23 @@ async fn solve_once(
     timeout_secs: u32,
     scale_arcsec_per_px: Option<f64>,
     downsample: Option<u32>,
+    gate: HeldGate,
 ) -> Result<PlateSolveResult, SkotiqError> {
-    let label = match position {
-        Some(hint) => {
-            tracing::info!(
-                "Plate solving near RA:{:.2}°, Dec:{:.2}°: {}",
-                hint.ra_degrees,
-                hint.dec_degrees,
-                file_path
-            );
-            "near"
-        }
-        None => {
-            tracing::info!("Blind plate solving: {}", file_path);
-            "blind"
-        }
-    };
-
-    let path = std::path::Path::new(file_path);
-    if !path.exists() {
-        return Err(SkotiqError::IoError(format!(
-            "File not found: {}",
+    match position {
+        Some(hint) => tracing::info!(
+            "Plate solving near RA:{:.2}°, Dec:{:.2}°: {}",
+            hint.ra_degrees,
+            hint.dec_degrees,
             file_path
-        )));
+        ),
+        None => tracing::info!("Blind plate solving: {}", file_path),
     }
 
     // External solvers are blocking subprocesses: off the async runtime, with
     // the timeout passed to the process runner, which kills and reaps the
     // child on expiry.
-    let owned_path = path.to_path_buf();
-    run_solver_worker(label, move || match position {
+    let owned_path = std::path::PathBuf::from(file_path);
+    run_solver_worker(gate, move || match position {
         Some(hint) => skotiq_platesolve::solve_near_with_timeout(
             &owned_path,
             hint.ra_degrees,
@@ -316,14 +335,13 @@ async fn solve_once(
 }
 
 async fn run_solver_worker(
-    label: &str,
+    gate: HeldGate,
     solve: impl FnOnce() -> PlateSolveResult + Send + 'static,
 ) -> Result<PlateSolveResult, SkotiqError> {
-    let guard = acquire_solve_gate(label).await;
     tokio::task::spawn_blocking(move || {
         // Dropping the async waiter cannot stop a blocking solver process.
         // Keep other processes out until this worker has reaped its child.
-        let _guard = guard;
+        let _gate = gate;
         solve()
     })
     .await
@@ -423,7 +441,8 @@ mod tests {
     async fn cancelling_the_waiter_keeps_the_gate_until_its_worker_finishes() {
         let (started, running) = tokio::sync::oneshot::channel();
         let (release, finish) = std::sync::mpsc::channel();
-        let worker = tokio::spawn(run_solver_worker("first", move || {
+        let gate = take_gate(None).await;
+        let worker = tokio::spawn(run_solver_worker(gate, move || {
             started.send(()).unwrap();
             finish.recv().expect("the test releases the solver worker");
             PlateSolveResult::default()
