@@ -26,6 +26,7 @@
 pub(crate) mod camera_core;
 pub mod catalog;
 pub mod discovery;
+pub(crate) mod dslr;
 pub mod quirks;
 pub mod utils;
 pub mod vendor;
