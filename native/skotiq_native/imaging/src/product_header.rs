@@ -7,7 +7,7 @@
 //! place.
 
 use crate::FitsHeader;
-use skotiq_frame::{Acquisition, CardReading, FrameKind, FrameType};
+use skotiq_frame::{Acquisition, CardReading, FrameKind};
 
 /// The identification cards of a master or other product, written
 /// in this order: `IMAGETYP`, `FRAMETYP = MASTER`, `CALSTAT`, `NFRAMES`,
@@ -124,11 +124,19 @@ impl MasterProvenance {
             .is_some_and(|card| FrameKind::card_says_master(card, reading))
     }
 
-    /// Whether `IMAGETYP` says master, read the way `reading` says.
-    pub fn image_type_says_master(&self, reading: CardReading) -> bool {
+    /// The kind of frame `IMAGETYP` names, read by
+    /// [`FrameKind::from_imagetyp`].
+    pub fn kind(&self) -> Option<FrameKind> {
         self.image_type
             .as_deref()
-            .is_some_and(|card| FrameKind::card_says_master(card, reading))
+            .and_then(FrameKind::from_imagetyp)
+    }
+
+    /// Whether the frame is a master: `FRAMETYP = MASTER`, or an `IMAGETYP`
+    /// naming a master of some kind.
+    pub fn says_master(&self) -> bool {
+        self.frame_type_says_master(CardReading::Exact)
+            || self.kind().is_some_and(|kind| kind.master)
     }
 
     /// Whether any card says the frame was integrated from several: `FRAMETYP`
@@ -142,14 +150,6 @@ impl MasterProvenance {
             || says_master(&self.image_type)
             || self.combined.is_some_and(|n| n > 1)
             || self.frames.is_some_and(|n| n > 1)
-    }
-
-    /// Whether `IMAGETYP` names a frame of type `base`, read the way `reading`
-    /// says; a header without the card names none.
-    pub fn image_type_names(&self, base: FrameType, reading: CardReading) -> bool {
-        self.image_type
-            .as_deref()
-            .is_some_and(|card| FrameKind::card_names(card, base, reading))
     }
 }
 
@@ -176,8 +176,6 @@ pub fn acquisition(header: &FitsHeader) -> Acquisition {
 /// The marks a header can carry that its frame was already calibrated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CalibrationMarks {
-    /// A `CALSTAT` card, even an empty one.
-    pub calstat_card: bool,
     /// A `CALSTAT` card with text (Skotiq and MaxIm DL write one).
     pub calstat_text: bool,
     /// The HISTORY line PixInsight's ImageCalibration writes.
@@ -188,7 +186,6 @@ impl CalibrationMarks {
     pub fn from_header(header: &FitsHeader) -> Self {
         let calstat = header.get_string("CALSTAT");
         Self {
-            calstat_card: calstat.is_some(),
             calstat_text: calstat.is_some_and(|value| !value.trim().is_empty()),
             pixinsight_history: header
                 .history
@@ -201,6 +198,7 @@ impl CalibrationMarks {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use skotiq_frame::FrameType;
 
     #[test]
     fn master_cards_are_written_in_order_and_read_back() {
@@ -217,7 +215,14 @@ mod tests {
         let read = MasterProvenance::from_header(&header);
         assert!(read.frame_type_says_master(CardReading::Exact));
         assert!(read.any_card_says_integrated());
-        assert!(read.image_type_names(FrameType::Flat, CardReading::Word));
+        assert_eq!(
+            read.kind(),
+            Some(FrameKind {
+                base: FrameType::Flat,
+                master: false
+            })
+        );
+        assert!(read.says_master());
         assert_eq!((read.frames, read.combined), (Some(20), Some(20)));
     }
 
@@ -228,7 +233,8 @@ mod tests {
         let read = MasterProvenance::from_header(&header);
         assert!(!read.frame_type_says_master(CardReading::Exact));
         assert!(read.any_card_says_integrated());
-        assert!(read.image_type_names(FrameType::Dark, CardReading::Word));
+        assert!(read.says_master());
+        assert_eq!(read.kind().map(|kind| kind.base), Some(FrameType::Dark));
     }
 
     #[test]
@@ -237,14 +243,13 @@ mod tests {
         assert_eq!(
             CalibrationMarks::from_header(&header),
             CalibrationMarks {
-                calstat_card: false,
                 calstat_text: false,
                 pixinsight_history: false
             }
         );
         header.set_string("CALSTAT", " ");
         let marks = CalibrationMarks::from_header(&header);
-        assert!(marks.calstat_card && !marks.calstat_text);
+        assert!(!marks.calstat_text);
         header.add_history("Calibration with ImageCalibration process");
         assert!(CalibrationMarks::from_header(&header).pixinsight_history);
     }

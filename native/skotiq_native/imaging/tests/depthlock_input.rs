@@ -560,54 +560,82 @@ fn suggested_floor_follows_master_noise_and_aperture() {
     assert!(suggest_floor(&dark, &flat, &light, 0.5).is_err());
 }
 
-/// Which `IMAGETYP` spellings DepthLock measures as a light and which headers
-/// it takes as already calibrated or stacked.
+/// Which `IMAGETYP` spellings DepthLock measures as a light (the shared
+/// frame-kind reader) and which headers it takes as already calibrated (the
+/// shared calibrated reader) or stacked.
 #[test]
-fn a_light_is_read_by_its_exact_type_and_unmarked_header() {
+fn a_light_is_read_by_the_shared_kind_and_calibrated_readers() {
     let with = |key: &str, value: &str| {
         let mut h = light_header();
         h.set_string(key, value);
         light_settings(&h)
     };
-    for card in ["Light", "LIGHT", "light frame", "Light Frame"] {
-        assert!(with("IMAGETYP", card).is_ok(), "{card:?}");
-    }
     for card in [
+        "Light",
+        "LIGHT",
+        "light frame",
+        "Light Frame",
         "Light_Frame",
         "LIGHT_FRAME",
         "Science",
         "Object",
-        "MASTER_LIGHT",
-        "",
     ] {
-        assert!(with("IMAGETYP", card).is_err(), "{card:?}");
+        assert!(with("IMAGETYP", card).is_ok(), "{card:?}");
     }
-    assert!(with("CALSTAT", "").is_err(), "any CALSTAT card");
-    assert!(with("FRAMETYP", "Master").is_err());
+    for card in ["Dark", "Flat", "Dark Flat", "Bias", ""] {
+        assert_eq!(
+            with("IMAGETYP", card).unwrap_err(),
+            format!("Only light exposures may be measured; this file is IMAGETYP {card:?}")
+        );
+    }
+    let stacked = Err(
+        "Only unprocessed lights may be measured; this file is already calibrated or stacked"
+            .to_string(),
+    );
+    assert_eq!(with("IMAGETYP", "MASTER_LIGHT"), stacked);
+    assert_eq!(with("CALSTAT", "BDF"), stacked);
+    assert!(
+        with("CALSTAT", "").is_ok(),
+        "an empty CALSTAT is not a mark"
+    );
+    assert_eq!(with("FRAMETYP", "Master"), stacked);
     assert!(with("FRAMETYP", "MASTERFRAME").is_ok());
     let mut history = light_header();
     history.add_history("Calibration with ImageCalibration process");
-    assert!(
-        light_settings(&history).is_ok(),
-        "PixInsight HISTORY is not read here"
+    assert_eq!(
+        light_settings(&history),
+        stacked,
+        "a light PixInsight calibrated is not calibrated again"
     );
 }
 
-/// What `validate_master` takes as a master of the wanted kind, and the count
-/// it reads.
+/// What `validate_master` takes as a master of the wanted kind (the shared
+/// frame-kind reader), and the count it reads.
 #[test]
-fn a_master_is_read_by_frametyp_word_type_and_nframes() {
+fn a_master_is_read_by_frametyp_its_kind_and_nframes() {
     let goal = light_settings(&light_header()).unwrap();
     let geometry = ReferenceGeometry::from_wcs(&reference(), 64, 48).unwrap();
     let dark = f32_image(64, 48, 1_000.0);
     let check =
         |header: &FitsHeader| validate_master(MasterKind::Dark, header, &dark, &goal, &geometry);
-    for card in ["DARK", "Master Dark", "MASTER_DARK", " dark ", "Dark Flat"] {
+    for card in ["DARK", "Master Dark", "MASTER_DARK", " dark ", "MasterDark"] {
         assert!(check(&master_header(card, 20)).is_ok(), "{card:?}");
     }
-    for card in ["DarkFlat", "MasterDark", "Light", ""] {
+    for card in ["DarkFlat", "Dark Flat", "Light", ""] {
         assert!(check(&master_header(card, 20)).is_err(), "{card:?}");
     }
+    let flat = f32_image(64, 48, 1.0);
+    assert_eq!(
+        validate_master(
+            MasterKind::Flat,
+            &master_header("Dark Flat", 20),
+            &flat,
+            &goal,
+            &geometry
+        ),
+        Err("Master flat declares IMAGETYP \"Dark Flat\", not a flat".to_string()),
+        "a dark-flat is not a flat"
+    );
     let mut frametyp = master_header("DARK", 20);
     frametyp.set_string("FRAMETYP", "Master");
     assert!(check(&frametyp).is_ok());
@@ -628,15 +656,15 @@ fn a_master_is_read_by_frametyp_word_type_and_nframes() {
     let mut word_only = master_header("Master Dark", 20);
     word_only.keywords.remove("FRAMETYP");
     assert!(check(&word_only).is_ok(), "IMAGETYP says master");
-    for card in ["MasterDark", "DARK"] {
-        let mut unmarked = master_header(card, 20);
-        unmarked.keywords.remove("FRAMETYP");
-        assert_eq!(
-            check(&unmarked).unwrap_err(),
-            "Master dark is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)",
-            "{card:?}"
-        );
-    }
+    let mut glued = master_header("MasterDark", 20);
+    glued.keywords.remove("FRAMETYP");
+    assert!(check(&glued).is_ok(), "IMAGETYP says master");
+    let mut unmarked = master_header("DARK", 20);
+    unmarked.keywords.remove("FRAMETYP");
+    assert_eq!(
+        check(&unmarked).unwrap_err(),
+        "Master dark is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)"
+    );
 }
 
 /// A dark-library master already on disk: the cards the streamed builder
