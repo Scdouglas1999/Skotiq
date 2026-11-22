@@ -235,20 +235,7 @@ impl FrameCodec for XisfFrames {
         let wanted = u64::from(min_side).min(image.width().max(image.height()));
         match image.thumbnail.as_deref() {
             Some(t) if t.width().max(t.height()) >= wanted => {
-                Ok(unit.read_thumbnail()?.map(|mut preview| {
-                    // Thumbnails may be 16-bit (section 11.12); previews are 8.
-                    if preview.pixel_type == crate::PixelType::U16 {
-                        preview.data = preview
-                            .data
-                            .as_chunks::<2>()
-                            .0
-                            .iter()
-                            .map(|b| b[1])
-                            .collect();
-                        preview.pixel_type = crate::PixelType::U8;
-                    }
-                    preview
-                }))
+                Ok(unit.read_thumbnail()?.map(eight_bit_preview))
             }
             _ => Ok(None),
         }
@@ -537,6 +524,24 @@ impl Drop for FitsCopy {
     }
 }
 
+/// A stored thumbnail as an 8-bit preview: XISF thumbnails may be 16-bit
+/// (section 11.12), and a preview keeps each sample's high byte, with the
+/// 8-bit range.
+fn eight_bit_preview(mut preview: ImageData) -> ImageData {
+    if preview.pixel_type == crate::PixelType::U16 {
+        preview.data = preview
+            .data
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| b[1])
+            .collect();
+        preview.pixel_type = crate::PixelType::U8;
+        preview.range = crate::SampleRange::of(crate::PixelType::U8);
+    }
+    preview
+}
+
 /// Write through a sibling file and move it into place, so no reader sees a
 /// half-written file. The new file is flushed to disk before it takes the
 /// old one's name: the old file is the only copy of the frame.
@@ -555,6 +560,14 @@ fn replace_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sixteen_bit_thumbnail_previews_with_the_eight_bit_range() {
+        let preview = eight_bit_preview(ImageData::from_u16(2, 1, 1, &[0x1234, 0xff00]));
+        assert_eq!(preview.pixel_type, crate::PixelType::U8);
+        assert_eq!(preview.data, vec![0x12, 0xff]);
+        assert_eq!(preview.range, crate::SampleRange::of(crate::PixelType::U8));
+    }
     use crate::PixelType;
 
     /// A header read tells a frame's size without decoding it, the same way
