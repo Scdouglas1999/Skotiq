@@ -407,7 +407,7 @@ class _Server {
   }
 
   Future<bool> pairedSeen() async {
-    for (var attempt = 0; attempt < 20; attempt++) {
+    for (var attempt = 0; attempt < 40; attempt++) {
       final row = await database.getPairedDevice('phone-1');
       if (row?.lastConnectedAt != null) return true;
       await Future<void>.delayed(const Duration(milliseconds: 25));
@@ -444,6 +444,33 @@ void main() {
     if (record) return;
     expect(_rows.keys.toSet(), expected.keys.toSet());
   });
+
+  // The release smokes open their socket this way
+  // (tools/production/headless_*_smoke.dart): `?token=` and no release. It is
+  // refused (426 release_required, row `ws/events.token_no_version`); the
+  // same socket naming its release is admitted.
+  test(
+    'a dart:io socket with ?token= is refused unless it names its release',
+    () async {
+      final server = await _Server.start();
+      addTearDown(server.stop);
+      Uri events(Map<String, String> query) => Uri(
+        scheme: 'ws',
+        host: '127.0.0.1',
+        port: server.server.actualPort,
+        path: '/events',
+        queryParameters: query,
+      );
+      await expectLater(
+        WebSocket.connect(events({'token': _tokens['view']!}).toString()),
+        throwsA(isA<WebSocketException>()),
+      );
+      final socket = await WebSocket.connect(
+        events({'token': _tokens['view']!, 'version': _release}).toString(),
+      );
+      await socket.close();
+    },
+  );
 
   for (final MapEntry(key: id, value: steps) in _rows.entries) {
     test(id, () async {

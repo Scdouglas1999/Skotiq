@@ -1,4 +1,34 @@
 {
+  "framing.cancelled": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "cancelled",
+      "result": null,
+      "error": {
+        "code": "job_cancelled",
+        "message": "Center-on-target cancellation requested by client"
+      }
+    },
+    "centering": [
+      {
+        "ra": 3.0,
+        "dec": 4.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 1,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
   "planetarium.defaults": {
     "status": 200,
     "body": {
@@ -18,7 +48,10 @@
         "syncMount": true,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "planetarium.overrides": {
     "status": 200,
@@ -39,7 +72,10 @@
         "syncMount": false,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "planetarium.missed": {
     "status": 200,
@@ -60,7 +96,10 @@
         "syncMount": true,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "planetarium.throws": {
     "status": 500,
@@ -79,7 +118,10 @@
         "syncMount": true,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "planetarium.ra_out_of_range": {
     "status": 400,
@@ -90,7 +132,10 @@
       "expected": "number",
       "message": "Value must be <= 24.0"
     },
-    "centering": []
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "planetarium.bad_iterations": {
     "status": 400,
@@ -101,7 +146,10 @@
       "expected": "number",
       "message": "Value must be >= 1.0"
     },
-    "centering": []
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "framing.defaults": {
     "status": 200,
@@ -131,7 +179,10 @@
         "syncMount": true,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "framing.overrides": {
     "status": 200,
@@ -161,7 +212,10 @@
         "syncMount": false,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "framing.missed": {
     "status": 200,
@@ -195,7 +249,10 @@
         "syncMount": true,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "framing.throws": {
     "status": 200,
@@ -225,7 +282,10 @@
         "syncMount": true,
         "overallTimeoutSecs": 600
       }
-    ]
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "framing.ra_out_of_range": {
     "status": 400,
@@ -236,7 +296,10 @@
       "expected": "number",
       "message": "Value must be <= 24.0"
     },
-    "centering": []
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   },
   "framing.bad_iterations": {
     "status": 400,
@@ -247,6 +310,9 @@
       "expected": "number",
       "message": "Value must be >= 1.0"
     },
-    "centering": []
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
   }
 }
