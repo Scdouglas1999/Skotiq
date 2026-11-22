@@ -31,12 +31,24 @@ class SequenceStatusVisuals {
   /// what the shell status bar, the sequencer toolbar and the mobile playback
   /// bar all render, and a silent English fallback here is how the bar stayed
   /// English while the rest of the chrome translated.
+  ///
+  /// [pausedIdle] is [pausedRunIdleProvider]: a paused run whose step is
+  /// still finishing reads as pausing, so the operator waits before touching
+  /// the rig.
   static SequenceStatusVisuals of(
     SequenceExecutionState state,
     SkotiqColors colors,
-    SkotiqLocalizations l10n,
-  ) {
+    SkotiqLocalizations l10n, {
+    bool? pausedIdle,
+  }) {
     switch (state) {
+      case SequenceExecutionState.paused when pausedIdle == false:
+        return SequenceStatusVisuals(
+          color: colors.warning,
+          label: l10n.text('sequencePausingStepFinishing'),
+          icon: LucideIcons.pauseCircle,
+          variant: StatusDotVariant.attention,
+        );
       case SequenceExecutionState.idle:
         return SequenceStatusVisuals(
           color: colors.textMuted,

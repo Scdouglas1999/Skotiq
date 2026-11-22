@@ -88,6 +88,9 @@ extension _SequencerLifecycle on SequencerHandlers {
       'currentTarget': currentTarget,
       'progress': _publishedProgress(progressRecord, status),
       'message': status.message,
+      // While paused: whether the step the run was in has finished, so a
+      // client knows when the rig is free to act on. Null when not paused.
+      'pausedIdle': container.read(pausedRunIdleProvider),
       if (runVitals != null) 'runVitals': runVitals,
     });
   }

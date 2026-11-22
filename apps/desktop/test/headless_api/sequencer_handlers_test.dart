@@ -623,6 +623,9 @@ void main() {
       expect(body['currentNodeId'], isNull);
       expect(body['currentNodeName'], isNull);
       expect(body['currentTarget'], isNull);
+      // Only a paused run says whether its step has finished.
+      expect(body.containsKey('pausedIdle'), isTrue);
+      expect(body['pausedIdle'], isNull);
     });
 
     test('a run that has written progress keeps its real figure', () async {

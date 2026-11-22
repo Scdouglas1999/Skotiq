@@ -152,6 +152,7 @@ class MobilePlaybackBar extends ConsumerWidget {
               _StatusBadge(
                   colors: colors,
                   state: executionState,
+                  pausedIdle: ref.watch(pausedRunIdleProvider),
                   isCompact: isVeryNarrow),
             ],
           );
@@ -292,14 +293,22 @@ class _StatusBadge extends StatelessWidget {
   const _StatusBadge({
     required this.colors,
     required this.state,
+    required this.pausedIdle,
     this.isCompact = false,
   });
+
+  final bool? pausedIdle;
 
   @override
   Widget build(BuildContext context) {
     // Single source of truth for color/icon so the mobile badge cannot
     // diverge from the toolbar badge and recovery LED.
-    final visuals = SequenceStatusVisuals.of(state, colors, context.l10n);
+    final visuals = SequenceStatusVisuals.of(
+      state,
+      colors,
+      context.l10n,
+      pausedIdle: pausedIdle,
+    );
     final badgeColor = visuals.color;
     final icon = visuals.icon;
 
