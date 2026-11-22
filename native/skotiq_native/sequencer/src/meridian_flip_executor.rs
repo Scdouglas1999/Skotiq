@@ -242,6 +242,30 @@ pub struct MeridianFlipExecutor {
 /// Writes the run's one-line status message.
 pub type RunMessageSink = Arc<dyn Fn(String) + Send + Sync>;
 
+/// The flip slew: up to 15 s for the mount to report moving (then waited on
+/// regardless), 10 min to finish (the slowest mounts take 6-8 min for a
+/// full-sky move), and a failed state read fails the slew.
+pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
+    crate::instructions::SlewWaitBounds {
+        start: Some(crate::instructions::SlewStartBound {
+            within: std::time::Duration::from_secs(15),
+            poll: std::time::Duration::from_millis(200),
+            proceed_if_never: true,
+        }),
+        complete: std::time::Duration::from_secs(600),
+        poll: std::time::Duration::from_millis(500),
+        deadline_inclusive: false,
+        read_errors: crate::instructions::SlewReadErrors::Fail,
+    };
+
+/// A post-flip centering correction: a short move, 5 min to finish.
+pub(crate) const FLIP_CENTERING_SLEW: crate::instructions::SlewWaitBounds =
+    crate::instructions::SlewWaitBounds {
+        start: None,
+        complete: std::time::Duration::from_secs(300),
+        ..FLIP_SLEW
+    };
+
 impl MeridianFlipExecutor {
     /// A flip outside any run, such as the standalone flip the app asks for:
     /// the device layer and nothing to report to.
@@ -1212,81 +1236,46 @@ impl MeridianFlipExecutor {
             .mount_slew_to_coordinates(mount_id, ra_hours, dec_degrees)
             .await?;
 
-        // Wait for the mount to actually BEGIN slewing before polling for
-        // completion. Async slews (ASCOM SlewToCoordinatesAsync, Alpaca) can
-        // take tens-to-hundreds of ms to assert Slewing=true; without this
-        // guard the very first is_slewing poll below can read false (the mount
-        // has not started moving yet), break the completion loop immediately,
-        // and declare the flip slew "done" while the OTA is still on the
-        // pre-flip side — pier-side verification then fails and the flip is
-        // aborted/halted, killing the rest of the night. Mirrors the
-        // NINA/SGP "wait for Slewing==true, then wait for Slewing==false"
-        // pattern. Bounded so an instantaneous slew (already on target) or a
+        // Async slews (ASCOM SlewToCoordinatesAsync, Alpaca) can take tens to
+        // hundreds of ms to assert Slewing; a first poll that reads false
+        // would declare the flip slew done while the mount is still on the
+        // pre-flip side. So the wait is for Slewing, then for not Slewing (as
+        // N.I.N.A. and SGP do), bounded so a mount already on target or a
         // driver that never asserts Slewing does not stall.
+        match crate::instructions::wait_for_slew(&self.run.device_ops, mount_id, FLIP_SLEW, &|| {
+            self.is_cancelled(ctx).then_some(())
+        })
+        .await
         {
-            let start_deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
-            loop {
-                if self.is_cancelled(ctx) {
-                    if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
-                        tracing::error!(
+            crate::instructions::SlewWait::Done => Ok(()),
+            crate::instructions::SlewWait::Stopped { phase, abort, .. } => {
+                if let Err(e) = abort {
+                    match phase {
+                        crate::instructions::SlewPhase::Starting => tracing::error!(
                             "[MERIDIAN] mount_abort_slew failed during cancellation before slew start: {}",
                             e
-                        );
+                        ),
+                        crate::instructions::SlewPhase::Moving => tracing::error!(
+                            "[MERIDIAN] mount_abort_slew failed during cancellation of slew: {}",
+                            e
+                        ),
                     }
-                    return Err("Abort requested during slew".to_string());
                 }
-                if self.run.device_ops.mount_is_slewing(mount_id).await? {
-                    break; // slew has begun; fall through to completion poll
-                }
-                if tokio::time::Instant::now() > start_deadline {
-                    tracing::debug!(
-                        "[MERIDIAN] mount did not assert Slewing within 15s of the slew command; \
-                         proceeding to completion/pier-side verification"
-                    );
-                    break;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                Err("Abort requested during slew".to_string())
             }
-        }
-
-        // 10 min timeout covers worst-case meridian-flip slews on the slow
-        // direct-drive mounts in our test matrix (10micron GM1000HPS with
-        // belt drive ~ 6-8 min for full-sky moves); a tighter timeout would
-        // false-alarm legitimate long slews on heavy payloads.
-        let slew_timeout = tokio::time::Instant::now() + std::time::Duration::from_secs(600);
-        loop {
-            if self.is_cancelled(ctx) {
-                // explicit error logging on abort_slew failure during
-                // a cancellation path — silent drop here would mask a stuck mount.
-                if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
-                    tracing::error!(
-                        "[MERIDIAN] mount_abort_slew failed during cancellation of slew: {}",
-                        e
-                    );
-                }
-                return Err("Abort requested during slew".to_string());
-            }
-
-            let is_slewing = self.run.device_ops.mount_is_slewing(mount_id).await?;
-            if !is_slewing {
-                break;
-            }
-
-            if tokio::time::Instant::now() > slew_timeout {
-                // log abort_slew failure during timeout path.
-                if let Err(e) = self.run.device_ops.mount_abort_slew(mount_id).await {
+            crate::instructions::SlewWait::Overran { abort } => {
+                if let Err(e) = abort {
                     tracing::error!(
                         "[MERIDIAN] mount_abort_slew failed after slew timeout: {}",
                         e
                     );
                 }
-                return Err("Meridian flip slew timed out after 10 minutes".to_string());
+                Err("Meridian flip slew timed out after 10 minutes".to_string())
             }
-
-            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            // The flip slew waits on for a mount that never reports moving.
+            crate::instructions::SlewWait::NeverStarted { .. } => Ok(()),
+            crate::instructions::SlewWait::ReadFailed(error) => Err(error.into()),
         }
-
-        Ok(())
     }
 
     /// Whether the flip slew left the mount where it was: a mount stopped at
@@ -1595,30 +1584,26 @@ impl MeridianFlipExecutor {
                 )
                 .await?;
 
-            // 5 min ceiling is enough for a short corrective slew (the flip has
-            // already done the big move); past that the mount is misbehaving and
-            // the user should know rather than have the sequence stall silently.
-            let slew_timeout = tokio::time::Instant::now() + std::time::Duration::from_secs(300);
-            loop {
-                if self.is_cancelled(ctx) {
-                    // log abort_slew failure during cancellation.
-                    if let Err(e) = self.run.device_ops.mount_abort_slew(&ctx.mount_id).await {
+            match crate::instructions::wait_for_slew(
+                &self.run.device_ops,
+                &ctx.mount_id,
+                FLIP_CENTERING_SLEW,
+                &|| self.is_cancelled(ctx).then_some(()),
+            )
+            .await
+            {
+                crate::instructions::SlewWait::Done => {}
+                crate::instructions::SlewWait::Stopped { abort, .. } => {
+                    if let Err(e) = abort {
                         tracing::error!(
-                        "[MERIDIAN] mount_abort_slew failed during cancellation of centering slew: {}",
-                        e
-                    );
+                            "[MERIDIAN] mount_abort_slew failed during cancellation of centering slew: {}",
+                            e
+                        );
                     }
                     return Err("Abort requested during centering slew".to_string());
                 }
-
-                let is_slewing = self.run.device_ops.mount_is_slewing(&ctx.mount_id).await?;
-                if !is_slewing {
-                    break;
-                }
-
-                if tokio::time::Instant::now() > slew_timeout {
-                    // log abort_slew failure during timeout.
-                    if let Err(e) = self.run.device_ops.mount_abort_slew(&ctx.mount_id).await {
+                crate::instructions::SlewWait::Overran { abort } => {
+                    if let Err(e) = abort {
                         tracing::error!(
                             "[MERIDIAN] mount_abort_slew failed after centering slew timeout: {}",
                             e
@@ -1626,8 +1611,9 @@ impl MeridianFlipExecutor {
                     }
                     return Err("Centering slew timed out after 5 minutes".to_string());
                 }
-
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                // No start phase: the wait never ends this way.
+                crate::instructions::SlewWait::NeverStarted { .. } => {}
+                crate::instructions::SlewWait::ReadFailed(error) => return Err(error.into()),
             }
         }
         if last_failure.is_empty() {

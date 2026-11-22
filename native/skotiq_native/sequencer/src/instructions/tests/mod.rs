@@ -1693,5 +1693,6 @@ mod save_path;
 #[cfg(target_os = "linux")]
 mod script;
 mod slew;
+mod slew_wait;
 mod step_lines;
 mod wait_time;

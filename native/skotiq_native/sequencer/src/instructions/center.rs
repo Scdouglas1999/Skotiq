@@ -68,9 +68,25 @@ impl CenterProgress {
     }
 }
 
-pub(crate) const CENTER_CORRECTION_SLEW_START_TIMEOUT: Duration = Duration::from_secs(5);
-pub(crate) const CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT: Duration = Duration::from_secs(300);
-pub(crate) const CENTER_CORRECTION_SLEW_POLL_INTERVAL: Duration = Duration::from_millis(500);
+/// A Center's correction slew: the mount must report moving within 5 s and
+/// stop within 300 s; a failed state read is polled again.
+pub(crate) const CENTER_CORRECTION_SLEW: SlewWaitBounds = SlewWaitBounds {
+    start: Some(SlewStartBound {
+        within: Duration::from_secs(5),
+        poll: Duration::from_millis(500),
+        proceed_if_never: false,
+    }),
+    ..CENTER_SLEW_IN_PROGRESS
+};
+
+/// A slew already under way when a Center starts.
+pub(crate) const CENTER_SLEW_IN_PROGRESS: SlewWaitBounds = SlewWaitBounds {
+    start: None,
+    complete: Duration::from_secs(300),
+    poll: Duration::from_millis(500),
+    deadline_inclusive: true,
+    read_errors: SlewReadErrors::Retry { label: "Centering" },
+};
 
 /// Wait for an asynchronous correction slew to first report motion and then
 /// report idle. The startup phase is essential for ASCOM/Alpaca/INDI drivers
@@ -79,45 +95,7 @@ pub(crate) async fn wait_for_centering_correction_slew(
     mount_id: &str,
     ctx: &InstructionContext,
 ) -> Result<(), InstructionResult> {
-    let start_deadline = tokio::time::Instant::now() + CENTER_CORRECTION_SLEW_START_TIMEOUT;
-    loop {
-        if let Some(result) = ctx.check_cancelled() {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
-                tracing::warn!(
-                    "Centering: abort-slew failed while cancelling before the correction slew \
-                     started ({}); the mount may still be moving",
-                    error
-                );
-            }
-            return Err(result);
-        }
-
-        match ctx.run.device_ops.mount_is_slewing(mount_id).await {
-            Ok(true) => break,
-            Ok(false) => {}
-            Err(error) => tracing::warn!(
-                "Centering: slew-state read failed while waiting for startup ({}); retrying",
-                error
-            ),
-        }
-
-        if tokio::time::Instant::now() >= start_deadline {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
-                tracing::warn!(
-                    "Centering: abort-slew failed after the correction slew never reported \
-                     startup ({}); the mount may still be moving",
-                    error
-                );
-            }
-            return Err(InstructionResult::failure(format!(
-                "Centering correction slew did not report startup within {}s",
-                CENTER_CORRECTION_SLEW_START_TIMEOUT.as_secs()
-            )));
-        }
-        sleep(CENTER_CORRECTION_SLEW_POLL_INTERVAL).await;
-    }
-
-    wait_until_mount_stops(mount_id, ctx).await
+    centering_slew_wait(mount_id, ctx, CENTER_CORRECTION_SLEW).await
 }
 
 /// Wait for the mount to report it is no longer slewing, aborting the slew
@@ -126,43 +104,72 @@ pub(crate) async fn wait_until_mount_stops(
     mount_id: &str,
     ctx: &InstructionContext,
 ) -> Result<(), InstructionResult> {
-    let complete_deadline = tokio::time::Instant::now() + CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT;
-    loop {
-        if let Some(result) = ctx.check_cancelled() {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
+    centering_slew_wait(mount_id, ctx, CENTER_SLEW_IN_PROGRESS).await
+}
+
+async fn centering_slew_wait(
+    mount_id: &str,
+    ctx: &InstructionContext,
+    bounds: SlewWaitBounds,
+) -> Result<(), InstructionResult> {
+    match wait_for_slew(&ctx.run.device_ops, mount_id, bounds, &|| {
+        ctx.check_cancelled()
+    })
+    .await
+    {
+        SlewWait::Done => Ok(()),
+        SlewWait::Stopped {
+            reason,
+            phase,
+            abort,
+        } => {
+            if let Err(error) = abort {
+                match phase {
+                    SlewPhase::Starting => tracing::warn!(
+                        "Centering: abort-slew failed while cancelling before the correction \
+                         slew started ({}); the mount may still be moving",
+                        error
+                    ),
+                    SlewPhase::Moving => tracing::warn!(
+                        "Centering: abort-slew failed while cancelling the in-progress \
+                         slew ({}); the mount may still be moving",
+                        error
+                    ),
+                }
+            }
+            Err(reason)
+        }
+        SlewWait::NeverStarted { abort } => {
+            if let Err(error) = abort {
                 tracing::warn!(
-                    "Centering: abort-slew failed while cancelling the in-progress \
-                     slew ({}); the mount may still be moving",
+                    "Centering: abort-slew failed after the correction slew never reported \
+                     startup ({}); the mount may still be moving",
                     error
                 );
             }
-            return Err(result);
+            Err(InstructionResult::failure(format!(
+                "Centering correction slew did not report startup within {}s",
+                bounds.start.map_or(0, |start| start.within.as_secs())
+            )))
         }
-
-        match ctx.run.device_ops.mount_is_slewing(mount_id).await {
-            Ok(false) => return Ok(()),
-            Ok(true) => {}
-            Err(error) => tracing::warn!(
-                "Centering: slew-state read failed while waiting for completion ({}); retrying",
-                error
-            ),
-        }
-
-        if tokio::time::Instant::now() >= complete_deadline {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
+        SlewWait::Overran { abort } => {
+            if let Err(error) = abort {
                 tracing::warn!(
                     "Centering: abort-slew failed after the correction slew overran its \
                      completion timeout ({}); the mount may still be moving",
                     error
                 );
             }
-            return Err(InstructionResult::failure(format!(
+            Err(InstructionResult::failure(format!(
                 "The mount was still slewing after {}s; centering stopped instead of \
                  taking a frame while it moved",
-                CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT.as_secs()
-            )));
+                bounds.complete.as_secs()
+            )))
         }
-        sleep(CENTER_CORRECTION_SLEW_POLL_INTERVAL).await;
+        SlewWait::ReadFailed(error) => Err(InstructionResult::failure(format!(
+            "The mount's slewing state could not be read: {error}"
+        ))
+        .caused_by(&error)),
     }
 }
 
