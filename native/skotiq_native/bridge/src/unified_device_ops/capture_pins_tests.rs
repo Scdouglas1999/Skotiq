@@ -644,11 +644,11 @@ async fn frame_path_stage_times() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Which frames may be uniform: today the frame's length decides, not its
-/// type. A uniform 0.05 s flat passes as a bias would; the same flat at
-/// 0.5 s is refused (owner item P8-3 would decide by the frame type).
+/// Which frames may be uniform: any frame under 0.1 s, and a bias at any
+/// length. A uniform 0.05 s flat passes as a bias would; the same flat at
+/// 0.5 s is refused.
 #[tokio::test]
-async fn a_uniform_frame_passes_validation_by_its_length_today() {
+async fn a_uniform_frame_passes_validation_by_its_length() {
     let uniform = Arc::new((64, 64, vec![1000u16; 64 * 64]));
     let device_id = "native:pin_uniform";
     connect_fixed_camera(device_id, uniform, None).await;
@@ -670,4 +670,23 @@ async fn a_uniform_frame_passes_validation_by_its_length_today() {
         matches!(long, Err(skotiq_sequencer::DeviceError::InvalidFrame(_))),
         "{long:?}"
     );
+}
+
+/// P8-3: a bias may be uniform at any length (a camera whose shortest
+/// exposure is 0.1 s or more still takes biases); nothing accepted before is
+/// refused.
+#[tokio::test]
+async fn a_uniform_bias_passes_validation_at_any_length() {
+    let uniform = Arc::new((64, 64, vec![1000u16; 64 * 64]));
+    let device_id = "native:pin_uniform_bias";
+    connect_fixed_camera(device_id, uniform, None).await;
+    let ops = create_unified_device_ops();
+    let long_bias = ops
+        .camera_start_exposure(
+            skotiq_sequencer::ExposureRequest::new(device_id, 0.5)
+                .frame_type(skotiq_sequencer::FrameType::Bias),
+        )
+        .await;
+    disconnect_fixed_camera(device_id).await;
+    assert!(long_bias.is_ok(), "{long_bias:?}");
 }
