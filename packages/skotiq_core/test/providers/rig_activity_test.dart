@@ -15,6 +15,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/src/models/rig_activity.dart';
 import 'package:skotiq_core/src/providers/rig_activity.dart';
 import 'package:skotiq_core/src/providers/sequence/run_record.dart';
+import 'package:skotiq_core/src/services/imaging_service.dart';
 
 import '../mocks/mock_backend.dart';
 
@@ -28,6 +29,25 @@ class _PermissiveBackend extends MockBackend {
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
     state = backend;
+  }
+}
+
+/// A Loop the operator left running: it ends when its exposure is canceled,
+/// as the manual capture controller does.
+class _LoopingImagingService extends ImagingService {
+  _LoopingImagingService(Ref ref, this._ended)
+    : super(
+        ref,
+        rigHeld: () => rigHeldBy(ref.read, starting: RigActivity.manualCapture),
+      );
+
+  final void Function() _ended;
+  int cancels = 0;
+
+  @override
+  void cancelExposure() {
+    cancels++;
+    _ended();
   }
 }
 
@@ -80,6 +100,12 @@ void main() {
         ),
         appSettingsProvider.overrideWith(() => _FixedSettings()),
         sequenceValidatorProvider.overrideWith(_passing),
+        imagingServiceProvider.overrideWith(
+          (ref) => _LoopingImagingService(
+            ref,
+            () => ref.read(sessionStateProvider.notifier).setCapturing(false),
+          ),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -225,6 +251,27 @@ void main() {
           ),
         ),
       );
+    });
+  });
+
+  group('a manual capture left running at an unattended start', () {
+    test('an interactive Start refuses it', () async {
+      manualCapture(true);
+      await expectLater(
+        container.read(sequenceExecutorProvider).start(),
+        throwsA(isA<StateError>()),
+      );
+      verifyNever(() => backend.sequencerStart());
+    });
+
+    test('the autopilot, end-of-night calibration and Start at dark end it '
+        'and start the run', () async {
+      manualCapture(true);
+      await container.read(sequenceExecutorProvider).startUnattended();
+      final loop =
+          container.read(imagingServiceProvider) as _LoopingImagingService;
+      expect(loop.cancels, 1);
+      verify(() => backend.sequencerStart()).called(1);
     });
   });
 

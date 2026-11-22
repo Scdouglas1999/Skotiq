@@ -27,6 +27,7 @@ import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
 import '../meridian_flip_provider.dart';
 import '../rig_activity.dart';
+import '../imaging_service_providers.dart' show imagingServiceProvider;
 import '../../models/rig_activity.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
@@ -395,6 +396,31 @@ class SequenceExecutor {
     final validator = _ref.read(validation.sequenceValidatorProvider);
     return validator.validate(sequence);
   }
+
+  /// A start nobody is at the keyboard for: the autopilot, end-of-night
+  /// calibration, Start at dark. A manual capture left running (a Loop left
+  /// on at dusk) is ended first, so it does not cost the night; any other
+  /// activity holding the rig still refuses the start.
+  Future<void> startUnattended() async {
+    bool captureHolds() =>
+        rigHeldBy(_ref.read, starting: RigActivity.sequence) ==
+        RigActivity.manualCapture;
+    if (captureHolds()) {
+      _logger.warning(
+        'Ending the manual capture so the run can start',
+        source: 'SequenceExecutor',
+      );
+      _ref.read(imagingServiceProvider).cancelExposure();
+      final deadline = DateTime.now().add(_manualCaptureYield);
+      while (captureHolds() && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+    await start();
+  }
+
+  /// How long an unattended start waits for a manual capture to end.
+  static const _manualCaptureYield = Duration(seconds: 30);
 
   Future<void> start() async {
     _ensureBackendAuthority();

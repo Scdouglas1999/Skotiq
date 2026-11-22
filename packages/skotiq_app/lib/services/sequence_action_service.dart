@@ -68,13 +68,21 @@ class SequenceActionService {
   /// async disk-space check — so it MUST be awaited. Without the await this
   /// returns `ok` before validation completes and swallows any
   /// [SequenceValidationException].
-  Future<CommandActionResult> start() =>
+  Future<CommandActionResult> start() => _start(_executor.start);
+
+  /// Starts the sequence for a start nobody is at the keyboard for (Start
+  /// at dark): a manual capture left running is ended first
+  /// ([SequenceExecutor.startUnattended]).
+  Future<CommandActionResult> startUnattended() =>
+      _start(_executor.startUnattended);
+
+  Future<CommandActionResult> _start(Future<void> Function() run) =>
       _single(_SequenceCommand.start, () async {
         if (!_ref.read(sequenceExecutionStateProvider).canStart) {
           return CommandActionResult.ok;
         }
         try {
-          await _executor.start();
+          await run();
           return CommandActionResult.ok;
         } catch (e) {
           // The Start control that asked may be gone by the time the refusal
