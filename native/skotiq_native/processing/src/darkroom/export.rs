@@ -256,9 +256,10 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
             return Err(format!("output '{format}' has no path"));
         }
         let path = PathBuf::from(path);
-        let entry = match format.as_str() {
-            "png" | "tiff" | "jpeg" => write_raster(&path, &raster_image, &format, output.quality)?,
-            other => {
+        let entry = match RasterFormat::from_extension(&format) {
+            Some(raster) => write_raster(&path, &raster_image, &format, raster, output.quality)?,
+            None => {
+                let other = format.as_str();
                 let frame_format = frame_format_of(other).ok_or_else(|| {
                     format!("unknown export format '{other}'; expected fits/xisf/png/jpeg/tiff")
                 })?;
@@ -450,6 +451,7 @@ fn write_raster(
     path: &Path,
     image: &OpImage,
     format: &str,
+    raster: RasterFormat,
     quality: Option<u8>,
 ) -> Result<Value, String> {
     let channels = image.channels();
@@ -459,14 +461,16 @@ fn write_raster(
         ));
     }
     let mut clamped = 0usize;
-    let (pixel_type, bits) = match format {
-        "jpeg" => ("u8", 8u32),
-        _ => ("u16", 16u32),
+    let is_jpeg = matches!(raster, RasterFormat::Jpeg { .. });
+    let (pixel_type, bits) = if is_jpeg {
+        ("u8", 8u32)
+    } else {
+        ("u16", 16u32)
     };
     let quality = quality.unwrap_or(DEFAULT_JPEG_QUALITY).clamp(1, 100);
 
-    write_atomic(path, |temp| match format {
-        "jpeg" => {
+    write_atomic(path, |temp| match raster {
+        RasterFormat::Jpeg { .. } => {
             let samples: Vec<u8> = image
                 .data()
                 .iter()
@@ -483,23 +487,15 @@ fn write_raster(
             skotiq_imaging::write_raster(temp, &data, RasterFormat::Jpeg { quality })
                 .map_err(|e| e.to_string())
         }
-        "png" | "tiff" => {
+        RasterFormat::Png | RasterFormat::Tiff => {
             let samples: Vec<u16> = image
                 .data()
                 .iter()
                 .map(|value| quantise_unit(*value, 65535.0, &mut clamped) as u16)
                 .collect();
             let data = ImageData::from_u16(image.width(), image.height(), channels, &samples);
-            let format = if format == "png" {
-                RasterFormat::Png
-            } else {
-                RasterFormat::Tiff
-            };
-            skotiq_imaging::write_raster(temp, &data, format).map_err(|e| e.to_string())
+            skotiq_imaging::write_raster(temp, &data, raster).map_err(|e| e.to_string())
         }
-        other => Err(format!(
-            "unknown raster format '{other}'; expected png/jpeg/tiff"
-        )),
     })?;
 
     let mut entry = json!({
@@ -513,7 +509,7 @@ fn write_raster(
         "bitsPerSample": bits,
         "clampedSamples": clamped,
     });
-    if format == "jpeg" {
+    if is_jpeg {
         entry["quality"] = json!(quality);
     }
     Ok(entry)

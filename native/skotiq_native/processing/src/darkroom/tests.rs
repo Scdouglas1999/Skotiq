@@ -1313,6 +1313,34 @@ fn export_writes_every_raster_format_from_the_engines_own_pixels() {
     );
 }
 
+/// Formats are named as their file extensions are: "jpg" and "tif" too.
+#[test]
+fn export_takes_the_extension_spellings_of_raster_formats() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let master = write_master(dir.path(), "spelling-source.fits", 32, 32, 1);
+    let jpeg = dir.path().join("out.jpg");
+    let tiff = dir.path().join("out.tif");
+    let recipe = recipe_json("r-spelling", "master:spelling", json!([stretch_step()]));
+    let reply = parse(
+        &darkroom_render_export(
+            recipe,
+            json!({
+                "masterPath": master.to_string_lossy(),
+                "stage": {"kind": "final"},
+                "outputs": [
+                    {"format": "JPG", "path": jpeg.to_string_lossy()},
+                    {"format": "tif", "path": tiff.to_string_lossy()},
+                ],
+            })
+            .to_string(),
+        )
+        .expect("the export must run"),
+    );
+    assert!(jpeg.exists() && tiff.exists());
+    assert_eq!(reply["outputs"][0]["bitsPerSample"], json!(8));
+    assert_eq!(reply["outputs"][1]["bitsPerSample"], json!(16));
+}
+
 #[test]
 fn export_with_a_screen_transfer_names_the_transfer_it_used() {
     let dir = tempfile::tempdir().expect("temp dir");
