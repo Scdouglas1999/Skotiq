@@ -558,7 +558,6 @@ class HeadlessApiServer {
         upper == 'PATCH';
   }
 
-  /// Generates a cryptographically secure random token.
   static String _generateRandomToken({int length = 32}) {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
