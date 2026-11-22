@@ -6,8 +6,10 @@ import '../backend/bridge_events.dart' show SequencerEvent_InstructionProgress;
 import '../backend/remote_host.dart';
 import '../backend/sequencer_run_events.dart' show sequencerEventOf;
 import '../models/meridian_flip_event.dart';
+import '../models/sequence/sequence_models.dart';
 import 'backend_provider.dart';
 import 'meridian_flip_provider.dart';
+import 'sequence/sequence_progress.dart' show sequenceExecutionStateProvider;
 import '../models/meridian_flip_progress.dart';
 import '../utils/logging_service.dart';
 
@@ -35,6 +37,29 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
     },
   );
   ref.onDispose(subscription.cancel);
+  // The native run ends a flip before it lets go of the rig, but a flip it
+  // drops (a stop whose cleanup ran out of time) sends no end. A flip still
+  // in progress once the run lets go of the rig has ended.
+  ref.listen<SequenceExecutionState>(sequenceExecutionStateProvider, (
+    previous,
+    next,
+  ) {
+    if (previous == null || !previous.ownsHardware || next.ownsHardware) {
+      return;
+    }
+    if (!ref.read(isFlipInProgressProvider)) return;
+    Log.warning(
+      'The run ended while its meridian flip was in progress; '
+      'ending the flip as aborted',
+      source: 'MeridianFlip',
+    );
+    ref
+        .read(flipMonitorProgressProvider.notifier)
+        .end(
+          FlipExecutionState.aborted,
+          'The run ended during the meridian flip',
+        );
+  });
 });
 
 void _applyFlipStep(Ref ref, String raw) {
