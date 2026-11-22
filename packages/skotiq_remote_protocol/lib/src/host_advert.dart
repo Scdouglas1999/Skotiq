@@ -153,6 +153,11 @@ class HostTxt {
       return value == null || value.isEmpty ? null : value;
     }
 
+    String? filled(String key) {
+      final value = txt[key]?.trim();
+      return value == null || value.isEmpty ? null : value;
+    }
+
     final scheme = txt['scheme']?.toLowerCase();
     final pairing = txt['pairingSupported'];
     final signaling = txt['signaling_port'];
@@ -164,8 +169,8 @@ class HostTxt {
       pairingSupported:
           pairing != null &&
           (pairing.toLowerCase() == 'true' || pairing == '1'),
-      hostName: txt['hostName'],
-      hostMode: txt['hostMode'],
+      hostName: filled('hostName'),
+      hostMode: filled('hostMode'),
       signalingPort: signaling == null ? null : int.tryParse(signaling),
     );
   }
@@ -179,6 +184,8 @@ class HostTxt {
 
   /// False when the record does not say `true`.
   final bool pairingSupported;
+
+  /// The computer's name and `gui`/`headless`, trimmed; null when blank.
   final String? hostName;
   final String? hostMode;
   final int? signalingPort;

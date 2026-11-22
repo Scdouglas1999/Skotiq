@@ -138,15 +138,26 @@ final _txtRows = <String, Map<String, String>>{
     'name': 'Skotiq',
     'hostName': ' ',
   },
+  'product name, computer name in its own key': {
+    'version': '9.1.0',
+    'name': 'Skotiq',
+    'hostName': 'observatory-pi',
+    'hostMode': 'headless',
+  },
 };
 
+/// The record's computer name and host mode are carried, as the beacon and
+/// /api/info carry theirs, so a host whose /api/info cannot be read is still
+/// named and marked headless.
 const _nsd = <String, String>{
   'current host':
-      'name=OBS-PC version=9.1.0 mode=desktop auth=false/none pairing=true fp=abcdef0123456789 scheme=https hostName=null hostMode=null display=OBS-PC',
+      'name=OBS-PC version=9.1.0 mode=desktop auth=false/none pairing=true fp=abcdef0123456789 scheme=https hostName=OBS-PC hostMode=gui display=OBS-PC',
   'older host':
       'name=Skotiq version=9.1.0 mode=desktop auth=false/none pairing=true fp=abcdef0123456789 scheme=http hostName=null hostMode=null display=192.168.1.50',
   'blank computer name':
       'name=Skotiq version=9.1.0 mode=desktop auth=false/none pairing=false fp=null scheme=http hostName=null hostMode=null display=192.168.1.50',
+  'product name, computer name in its own key':
+      'name=Skotiq version=9.1.0 mode=desktop auth=false/none pairing=false fp=null scheme=http hostName=observatory-pi hostMode=headless display=observatory-pi',
 };
 
 Uint8List _bytes(String value) => Uint8List.fromList(utf8.encode(value));

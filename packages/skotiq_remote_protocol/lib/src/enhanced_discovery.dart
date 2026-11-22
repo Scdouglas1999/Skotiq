@@ -926,6 +926,8 @@ class EnhancedSkotiqDiscovery {
       scheme: advert.scheme ?? 'http',
       fingerprint: advert.fingerprint,
       pairingSupported: advert.pairingSupported,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode,
     );
   }
 
