@@ -178,6 +178,12 @@ final List<AlwaysOnService> alwaysOnServices = [
         "Tonight's session numbers",
   ),
   AlwaysOnService(
+    'connect check marks',
+    unverifiedDeviceFieldsProvider,
+    _everyRole,
+    'the device cards marking what the connect check could not verify',
+  ),
+  AlwaysOnService(
     'hotplug discovery refresh',
     hotplugEventBridgeProvider,
     _everyRole,

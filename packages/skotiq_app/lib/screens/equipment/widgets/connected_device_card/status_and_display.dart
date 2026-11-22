@@ -71,8 +71,36 @@ extension _ConnectedDeviceStatusAndDisplay on _ConnectedDeviceCardState {
           ),
         ),
         const SizedBox(width: SkotiqTokens.spaceSm),
+        if (state == DeviceConnectionState.connected)
+          _buildUnverifiedMarker(colors),
         _buildConnectionBadge(state, colors),
       ],
+    );
+  }
+
+  /// A warning mark beside the status chip when the read-only connect check
+  /// could not verify part of what this device reports; hover or tap for
+  /// which fields.
+  Widget _buildUnverifiedMarker(SkotiqColors colors) {
+    final deviceId = _slot.deviceId;
+    final fields = deviceId == null
+        ? null
+        : ref.watch(unverifiedDeviceFieldsProvider)[deviceId];
+    if (fields == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(right: SkotiqTokens.spaceXs),
+      child: Tooltip(
+        message: unverifiedDeviceText(widget.type.noun, fields),
+        triggerMode: TooltipTriggerMode.tap,
+        child: Semantics(
+          label: 'Not verified at connect',
+          child: Icon(
+            LucideIcons.alertTriangle,
+            size: 16,
+            color: colors.warning,
+          ),
+        ),
+      ),
     );
   }
 
