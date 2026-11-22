@@ -362,26 +362,13 @@ final List<AlwaysOnService> alwaysOnServices = [
     // A daemon's linked clients read the site from the native store, so it
     // must follow the stored settings there too.
     _everyRole,
-    "the planetarium and the host's native site following the site in "
-        'Settings',
+    "the host's native site following the site in Settings",
   ),
   AlwaysOnService(
     'weather notices',
     weatherNoticesProvider,
     _hosts,
     'unsafe weather, its end, and clouds coming and clearing told once each',
-  ),
-  AlwaysOnService(
-    'planetarium altitude floor',
-    planetariumAltitudeFloorSyncProvider,
-    _everyRole,
-    "the planetarium's rise and set times using the site's altitude floor",
-  ),
-  AlwaysOnService(
-    'planetarium target scorer',
-    planetariumNightScorerSyncProvider,
-    _everyRole,
-    "the planetarium's Best Targets ranked by the app's one target scorer",
   ),
 ];
 

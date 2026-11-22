@@ -13,8 +13,7 @@ const String fovPresetsPrefsKey = 'planetarium.fovPresets';
 ///
 /// The planetarium package is deliberately platform-dependency-free (no
 /// `shared_preferences`), so it cannot persist its own state. This app-layer
-/// provider closes that gap exactly like [locationSyncProvider] does for the
-/// observer location:
+/// provider closes that gap:
 ///
 ///  1. on first read it hydrates the provider from SharedPreferences;
 ///  2. it listens for any change to the preset collection and writes the new
