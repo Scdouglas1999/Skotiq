@@ -2881,7 +2881,6 @@ packages/skotiq_core/lib/src/providers/sequence/sequence_editor/snippet_editing.
 packages/skotiq_core/lib/src/providers/sequence/sequence_editor/snippet_editing.dart	_deserializeSnippetNode	literal_null_coalesce	1	U2-09	'decDegrees': json['decDegrees'] ?? 0.0,
 packages/skotiq_core/lib/src/providers/sequence/sequence_editor/snippet_editing.dart	_deserializeSnippetNode	literal_null_coalesce	1	U2-09	'raHours': json['raHours'] ?? 0.0,
 packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart	_rollbackStart	empty_catch	2	V0021	} catch (_) {
-packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart	_stopOnHost	empty_catch	1	V0021	} catch (_) {
 packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart	_yieldToClaimedFinalization	empty_catch	1	V0021	} catch (_) {
 packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart	liveStackingFeedSettledForTest	empty_catch	1	V0021	} catch (_) {
 packages/skotiq_core/lib/src/providers/sequence/sequence_executor.dart	start	empty_catch	1	V0021	} catch (_) {
@@ -3487,18 +3486,10 @@ packages/skotiq_core/lib/src/services/smart_night_service.dart	_pixelSize	litera
 packages/skotiq_core/lib/src/services/smart_night_service.dart	_profileHasGuider	literal_null_coalesce	1	V0110	final id = profile.guiderId?.trim() ?? '';
 packages/skotiq_core/lib/src/services/smart_night_service.dart	_profileHasGuider	literal_null_coalesce	1	V0110	final name = profile.guiderName?.trim() ?? '';
 packages/skotiq_core/lib/src/services/smart_night_service.dart	build	literal_null_coalesce	1	V0110	.where((f) => (flatPlan?.perFilter[f]?.exposureSecs ?? 0) <= 0)
-packages/skotiq_core/lib/src/services/smart_night_service.dart	build	literal_null_coalesce	1	V0110	: (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-packages/skotiq_core/lib/src/services/smart_night_service.dart	build	literal_null_coalesce	1	V0110	: (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
 packages/skotiq_core/lib/src/services/smart_night_service.dart	build	literal_null_coalesce	1	V0110	: (exposureContext?.guideSampleCount ?? 0);
-packages/skotiq_core/lib/src/services/smart_night_service.dart	buildSingleTargetSequence	literal_null_coalesce	1	V0110	: (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-packages/skotiq_core/lib/src/services/smart_night_service.dart	buildSingleTargetSequence	literal_null_coalesce	1	V0110	: (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
 packages/skotiq_core/lib/src/services/smart_night_service.dart	buildSingleTargetSequence	literal_null_coalesce	2	V0110	recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
 packages/skotiq_core/lib/src/services/smart_night_service.dart	chooseFilters	literal_null_coalesce	1	O10-02	oneShotColor: exposureContext?.oneShotColor ?? false,
-packages/skotiq_core/lib/src/services/smart_night_service.dart	previewTargetIntegration	literal_null_coalesce	1	V0110	: (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-packages/skotiq_core/lib/src/services/smart_night_service.dart	previewTargetIntegration	literal_null_coalesce	1	V0110	: (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
 packages/skotiq_core/lib/src/services/smart_night_service.dart	previewTargetIntegration	literal_null_coalesce	1	V0110	recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
-packages/skotiq_core/lib/src/services/smart_night_service.dart	smartExposureRows	literal_null_coalesce	1	O10-04	: (exposureContext?.apertureMm ?? profile.telescopeAperture ?? 0);
-packages/skotiq_core/lib/src/services/smart_night_service.dart	smartExposureRows	literal_null_coalesce	1	O10-04	: (exposureContext?.focalLengthMm ?? profile.telescopeFocalLength ?? 0);
 packages/skotiq_core/lib/src/services/smart_night_service.dart	smartExposureRows	literal_null_coalesce	1	O10-04	recentGuideSamples: exposureContext?.guideSampleCount ?? 0,
 packages/skotiq_core/lib/src/services/smart_night_service/sequence_emitter.dart	_integrationWindowSecs	literal_null_coalesce	1	V0121	final sampledSecs = (suggestion.visibility.hoursAboveMinAlt ?? 0) * 3600;
 packages/skotiq_core/lib/src/services/smart_project_service.dart	_decodeCurve	empty_catch	1	V0121	} catch (_) {
