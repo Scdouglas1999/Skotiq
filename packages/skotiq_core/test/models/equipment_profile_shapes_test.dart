@@ -416,8 +416,8 @@ Future<Map<String, Object?>> _snapshot() async {
       saved.add(
         Map<String, Object?>.from(_wireJson(profile))..remove('updatedAt'),
       );
+      return 5;
     });
-    when(() => host.lastSavedProfileId).thenReturn('5');
     final container = ProviderContainer(
       overrides: [inMemoryDatabaseOverride()],
     );

@@ -154,13 +154,6 @@ abstract class NetworkBackendTransport {
   final int serverPort;
   final int webSocketPort;
 
-  /// ID returned by the most recent successful profile save. The backend role
-  /// method returns `Future<void>`; this client also exposes the saved id so
-  /// remote creates never have to rediscover a row by a non-unique profile
-  /// name.
-  String? _lastSavedProfileId;
-  String? get lastSavedProfileId => _lastSavedProfileId;
-
   /// URL scheme for the REST/SSE transport: `'http'` (plaintext, the LAN
   /// default) or `'https'` (TLS, used when the server is exposed over a
   /// tailnet / the wider Internet and presents a certificate). The WebSocket

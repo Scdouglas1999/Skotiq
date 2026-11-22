@@ -45,8 +45,7 @@ void main() {
     when(() => backend.getProfiles()).thenAnswer((_) async => [_hosted]);
     when(() => backend.getActiveProfile()).thenAnswer((_) async => _hosted);
     when(() => backend.saveProfileFields(any(), fields: any(named: 'fields')))
-        .thenAnswer((_) async {});
-    when(() => backend.lastSavedProfileId).thenReturn('7');
+        .thenAnswer((_) async => 7);
     when(() => backend.clearDefaultProfileRemote()).thenAnswer((_) async {});
     final database = mockDatabase();
     addTearDown(database.close);

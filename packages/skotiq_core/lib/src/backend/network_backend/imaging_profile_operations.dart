@@ -809,7 +809,7 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
   }
 
   @override
-  Future<void> saveProfile(EquipmentProfile profile) =>
+  Future<int> saveProfile(EquipmentProfile profile) =>
       saveProfileFields(profile, fields: null);
 
   @override
@@ -843,14 +843,14 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
     );
   }
 
-  /// Save [profile]; when [fields] is given, ask the host to update only those
-  /// fields of its existing row, so edits made elsewhere to the other fields
-  /// survive.
-  Future<void> saveProfileFields(
+  /// Save [profile] and return the id of the row the host saved; when
+  /// [fields] is given, ask the host to update only those fields of its
+  /// existing row, so edits made elsewhere to the other fields survive.
+  @override
+  Future<int> saveProfileFields(
     EquipmentProfile profile, {
     required Set<String>? fields,
   }) async {
-    _lastSavedProfileId = null;
     final response = await _post(
       ProfileApi.saveProfile,
       body: {
@@ -859,13 +859,13 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
       },
     );
     final rawId = response['id'];
-    final id = rawId?.toString();
-    if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
+    final id = rawId == null ? null : int.tryParse('$rawId');
+    if (id == null || id <= 0) {
       throw const FormatException(
         'Profile save response did not contain a valid positive id',
       );
     }
-    _lastSavedProfileId = id;
+    return id;
   }
 }
 

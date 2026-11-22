@@ -162,27 +162,10 @@ extension _ProfileServiceBackends on ProfileService {
     final model = data.toModel(name: name);
 
     if (host != null) {
-      await host.saveProfile(model.toRemoteProfile());
+      final savedId = await host.saveProfile(model.toRemoteProfile());
       _requireAuthority(authority);
       _ref.invalidate(equipmentProfilesProvider);
-      final savedText = host.lastSavedProfileId;
-      final savedId = savedText == null ? null : int.tryParse(savedText);
-      if (savedId != null && savedId > 0) {
-        return savedId;
-      }
-      final refreshed = await host.getProfiles();
-      _requireAuthority(authority);
-      for (final profile in refreshed) {
-        if (profile.name == name) {
-          final id = int.tryParse(profile.id);
-          if (id != null) {
-            return id;
-          }
-        }
-      }
-      throw StateError(
-        'Host saved imported profile "$name" but id was not resolved',
-      );
+      return savedId;
     }
 
     final id = await _ref

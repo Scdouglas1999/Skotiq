@@ -254,8 +254,8 @@ void main() {
       () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
     ).thenAnswer((invocation) async {
       sentFields = invocation.namedArguments[#fields] as Set<String>?;
+      return 3;
     });
-    when(() => backend.lastSavedProfileId).thenReturn('3');
     final container = ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),
