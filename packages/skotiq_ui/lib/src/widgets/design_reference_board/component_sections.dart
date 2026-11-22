@@ -248,7 +248,7 @@ class _StatusAndFeedbackSection extends StatelessWidget {
   }
 }
 
-// Layout primitives (SectionHeader / SectionWell)
+// Layout primitives (SectionTitle / SectionWell)
 
 class _LayoutPrimitivesSection extends StatelessWidget {
   const _LayoutPrimitivesSection({required this.colors});
@@ -260,13 +260,13 @@ class _LayoutPrimitivesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SubLabel('SectionHeader + SectionWell', colors: colors),
+        _SubLabel('SectionTitle + SectionWell', colors: colors),
         const SizedBox(height: SkotiqTokens.spaceSm),
         SectionWell(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionHeader(
+              const SectionTitle(
                 title: 'Cooling',
                 subtitle: 'Set point and ramp behavior',
               ),

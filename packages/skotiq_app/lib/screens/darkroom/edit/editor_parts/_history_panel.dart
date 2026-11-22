@@ -153,7 +153,7 @@ class _DarkroomHistoryPanelState extends State<_DarkroomHistoryPanel> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Inset to the same gutter the step cards and the alerts below use.
-        // SectionHeader pads vertically only, and on the phone's segmented
+        // SectionTitle adds no side padding, and on the phone's segmented
         // layout this panel IS the screen — nothing outside it supplies a
         // margin, so without this the heading and its subtitle start at the
         // window edge while every card under them is indented.

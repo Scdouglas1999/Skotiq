@@ -242,7 +242,7 @@ class _Body extends ConsumerWidget {
           _JoinMosaicButton(mosaic: mosaic),
         ],
         const SizedBox(height: SkotiqTokens.spaceLg),
-        const SectionHeader(
+        const SectionTitle(
           title: 'Panels',
           subtitle: 'Each panel is a claimable work item across the club',
         ),

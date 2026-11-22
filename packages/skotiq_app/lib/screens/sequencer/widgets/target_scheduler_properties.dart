@@ -69,7 +69,7 @@ class TargetSchedulerProperties extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          const SectionHeader(title: 'Scoring weights'),
+          const SectionTitle(title: 'Scoring weights'),
           const SizedBox(height: 8),
           _WeightSlider(
             colors: colors,
@@ -106,7 +106,7 @@ class TargetSchedulerProperties extends ConsumerWidget {
           const SizedBox(height: 8),
           _WeightSumIndicator(colors: colors, node: node, ref: ref),
           const SizedBox(height: 16),
-          const SectionHeader(title: 'Decision policy'),
+          const SectionTitle(title: 'Decision policy'),
           const SizedBox(height: 8),
           NodePropertyField(
             colors: colors,
@@ -231,7 +231,7 @@ class TargetSchedulerProperties extends ConsumerWidget {
             onUpdate: (updated) => _update(ref, updated),
           ),
           const SizedBox(height: 16),
-          const SectionHeader(title: 'Live ranking preview'),
+          const SectionTitle(title: 'Live ranking preview'),
           const SizedBox(height: 8),
           if (sequence == null)
             _PreviewPlaceholder(
@@ -475,7 +475,7 @@ class _AdaptiveSwapSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const SectionTitle(
           title: 'Adaptive swap',
           subtitle: 'When live sky-conditions deteriorate, swap from the faint '
               'target to a brighter backup that still accepts the score.',

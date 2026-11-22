@@ -706,7 +706,7 @@ class _PlanSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Tonight: ${plan.plannedTargets.length} '
               'target${plan.plannedTargets.length == 1 ? '' : 's'}, '
               '${(plan.totalIntegrationSecs / 3600).toStringAsFixed(1)}h '

@@ -70,7 +70,7 @@ class FirstLightDetailScreen extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceMd),
             CutoutStrip(detection: detection),
             const SizedBox(height: SkotiqTokens.spaceLg),
-            const SectionHeader(
+            const SectionTitle(
               title: 'Light curve',
               subtitle: 'Δmag across every night this position was detected',
             ),
@@ -194,7 +194,7 @@ class _History extends StatelessWidget {
             ),
           ),
         const SizedBox(height: SkotiqTokens.spaceLg),
-        const SectionHeader(title: 'Detections'),
+        const SectionTitle(title: 'Detections'),
         const SizedBox(height: SkotiqTokens.spaceSm),
         for (final r in points.reversed)
           Padding(

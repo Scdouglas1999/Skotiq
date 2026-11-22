@@ -140,7 +140,7 @@ class _YourSkyAtlas extends ConsumerWidget {
                 totals: ref.watch(skyAtlasTotalsProvider).valueOrNull,
               ),
               const SizedBox(height: SkotiqTokens.spaceLg),
-              SectionHeader(
+              SectionTitle(
                 title: 'Regions',
                 subtitle: regions.isEmpty
                     ? 'Tiles are accumulating: name a region to track its depth.'

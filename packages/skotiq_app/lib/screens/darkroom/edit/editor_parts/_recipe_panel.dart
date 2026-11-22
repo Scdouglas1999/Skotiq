@@ -279,8 +279,8 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Inset to the same gutter the panel's own content uses. SectionHeader
-        // pads vertically only, and on the phone's segmented layout this panel
+        // Inset to the same gutter the panel's own content uses. SectionTitle
+        // adds no side padding, and on the phone's segmented layout this panel
         // IS the screen — nothing outside it supplies a margin, so without this
         // the heading starts at the window edge while every card under it is
         // indented.
