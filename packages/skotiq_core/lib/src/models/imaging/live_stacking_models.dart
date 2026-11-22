@@ -340,6 +340,49 @@ class LiveStackingStats {
       otherFilterFrames = s.otherFilterFrames,
       lastOtherFilter = s.lastOtherFilter;
 
+  /// The JSON form the host's stacking routes and its runtime channel send.
+  Map<String, Object?> toJson() => {
+    'stackedFrameCount': stackedFrameCount,
+    'totalFramesAttempted': totalFramesAttempted,
+    'rejectedAlignmentFailures': rejectedAlignmentFailures,
+    'avgMatchedPairs': avgMatchedPairs,
+    'avgAlignmentResidual': avgAlignmentResidual,
+    'totalSigmaRejectedPixels': totalSigmaRejectedPixels,
+    'totalIntegrationSecs': totalIntegrationSecs,
+    'filter': filter,
+    'otherFilterFrames': otherFilterFrames,
+    'lastOtherFilter': lastOtherFilter,
+  };
+
+  /// Reads [toJson]. Throws [FormatException] when a frame count is missing.
+  factory LiveStackingStats.fromJson(Map<String, dynamic> json) {
+    int count(String key) {
+      final value = json[key];
+      if (value is num) return value.toInt();
+      throw FormatException('Live stack stats have no integer "$key"');
+    }
+
+    double measure(String key) {
+      final value = json[key];
+      return value is num ? value.toDouble() : 0.0;
+    }
+
+    final filter = json['filter'];
+    final lastOtherFilter = json['lastOtherFilter'];
+    return LiveStackingStats(
+      stackedFrameCount: count('stackedFrameCount'),
+      totalFramesAttempted: count('totalFramesAttempted'),
+      rejectedAlignmentFailures: count('rejectedAlignmentFailures'),
+      avgMatchedPairs: measure('avgMatchedPairs'),
+      avgAlignmentResidual: measure('avgAlignmentResidual'),
+      totalSigmaRejectedPixels: count('totalSigmaRejectedPixels'),
+      totalIntegrationSecs: measure('totalIntegrationSecs'),
+      filter: filter is String ? filter : null,
+      otherFilterFrames: count('otherFilterFrames'),
+      lastOtherFilter: lastOtherFilter is String ? lastOtherFilter : null,
+    );
+  }
+
   /// Why frames were left out of the stack for their filter and what to do
   /// about it; null when none were.
   String? get otherFilterNote {

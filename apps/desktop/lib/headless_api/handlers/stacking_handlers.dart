@@ -743,16 +743,5 @@ class StackingHandlers implements RouteSource {
     );
   }
 
-  Map<String, Object?> _statsToJson(LiveStackingStats s) => {
-    'stackedFrameCount': s.stackedFrameCount,
-    'totalFramesAttempted': s.totalFramesAttempted,
-    'rejectedAlignmentFailures': s.rejectedAlignmentFailures,
-    'avgMatchedPairs': s.avgMatchedPairs,
-    'avgAlignmentResidual': s.avgAlignmentResidual,
-    'totalSigmaRejectedPixels': s.totalSigmaRejectedPixels,
-    'totalIntegrationSecs': s.totalIntegrationSecs,
-    'filter': s.filter,
-    'otherFilterFrames': s.otherFilterFrames,
-    'lastOtherFilter': s.lastOtherFilter,
-  };
+  Map<String, Object?> _statsToJson(LiveStackingStats s) => s.toJson();
 }
