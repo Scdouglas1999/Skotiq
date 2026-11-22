@@ -351,7 +351,7 @@ void main() {
         await expectLater(
           registerPluginDescriptors(
             host: host,
-            store: const AllEnabledPluginEnablementStore(),
+            store: const DefaultPluginEnablementStore(),
             descriptors: descriptors,
           ),
           throwsA(isA<PluginException>()),
@@ -365,7 +365,7 @@ void main() {
 
         await registerPluginDescriptors(
           host: host,
-          store: const AllEnabledPluginEnablementStore(),
+          store: const DefaultPluginEnablementStore(),
           descriptors: descriptors,
         );
 
@@ -376,10 +376,13 @@ void main() {
       },
     );
 
-    test('default enablement store enables every plugin', () async {
-      const store = AllEnabledPluginEnablementStore();
+    test('default enablement store gives each plugin its default', () async {
+      const store = DefaultPluginEnablementStore();
       for (final descriptor in kUserFacingExamplePlugins) {
-        expect(await store.isEnabled(descriptor.id), isTrue);
+        expect(
+          await store.isEnabled(descriptor.id),
+          descriptor.enabledByDefault,
+        );
       }
     });
   });

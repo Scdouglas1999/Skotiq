@@ -29,6 +29,13 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
         ),
       );
     }
+    if (payload.containsKey('autoFlatFromLibrary')) {
+      updates.addAll(
+        StoreSettings.calibrationAutoFlatFromLibrary.toRows(
+          requireBool(payload, 'autoFlatFromLibrary'),
+        ),
+      );
+    }
     for (final entry in const {
       'masterFlatPath': StoreSettings.calibrationMasterFlatPath,
       'masterBiasPath': StoreSettings.calibrationMasterBiasPath,
@@ -724,6 +731,27 @@ extension CalibrationDarkLibraryHandlers on CalibrationHandlers {
       '(exposure=${match.exposureTime}s, temp=${match.temperature}C)',
     );
     return jsonOk({'matched': match.calibrationPath});
+  }
+
+  /// POST /api/calibration/match-flat
+  ///
+  /// A linked client's live calibration asks the host for the master flat of
+  /// a light's filter and capture parameters (`FlatLibraryService.findLiveFlat`
+  /// on the host's library). Always 200 with `{matched: <hostPath>|null}`.
+  Future<Response> handleMatchFlat(Request request) async {
+    _logInfo('[API] POST /api/calibration/match-flat');
+    final payload = await readJsonObject(request);
+    final match = await container
+        .read(flatLibraryServiceProvider)
+        .findLiveFlat(
+          filter: optionalString(payload, 'filter'),
+          gain: optionalInt(payload, 'gain'),
+          offset: optionalInt(payload, 'offset'),
+          binX: optionalInt(payload, 'binX', min: 1) ?? 1,
+          binY: optionalInt(payload, 'binY', min: 1) ?? 1,
+          temperature: optionalDouble(payload, 'temperature'),
+        );
+    return jsonOk({'matched': match?.filePath});
   }
 
   /// POST /api/calibration/darks/backfill-sizes

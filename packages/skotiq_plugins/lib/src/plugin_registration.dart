@@ -41,10 +41,16 @@ class ExamplePluginDescriptor {
   /// discrete signal.
   final String? firedEvent;
 
+  /// Whether the plugin starts enabled on an install that has no stored
+  /// choice for it. False for a plugin that writes in the background all
+  /// night (the Weather Logger): heavy background features are opt-in.
+  final bool enabledByDefault;
+
   const ExamplePluginDescriptor({
     required this.id,
     required this.create,
     required this.firedEvent,
+    this.enabledByDefault = true,
   });
 }
 
@@ -76,13 +82,14 @@ final List<ExamplePluginDescriptor> kUserFacingExamplePlugins =
         id: 'com.skotiq.weatherlogger',
         create: WeatherLoggerPlugin.new,
         firedEvent: null,
+        enabledByDefault: false,
       ),
     ]);
 
 /// Resolves which plugins should start enabled.
 ///
 /// The application supplies the persisted implementation through
-/// [pluginEnablementStoreProvider]; [AllEnabledPluginEnablementStore] is the
+/// [pluginEnablementStoreProvider]; [DefaultPluginEnablementStore] is the
 /// default when nothing is installed (tests, the package alone).
 abstract class PluginEnablementStore {
   /// Whether [pluginId] should be registered in the enabled state.
@@ -92,23 +99,32 @@ abstract class PluginEnablementStore {
   Future<bool> isEnabled(String pluginId);
 }
 
-/// Default enablement policy: every plugin starts enabled.
-///
-/// This is the behaviour a fresh install wants (the user can then disable
-/// integrations they don't use on the Plugins page). The app layer overrides
+/// Whether [pluginId] starts enabled with no stored choice: its descriptor's
+/// [ExamplePluginDescriptor.enabledByDefault], true for an id that is not
+/// bundled.
+bool pluginEnabledByDefault(String pluginId) {
+  for (final descriptor in kUserFacingExamplePlugins) {
+    if (descriptor.id == pluginId) return descriptor.enabledByDefault;
+  }
+  return true;
+}
+
+/// Default enablement policy with nothing stored: each plugin's
+/// [pluginEnabledByDefault]. The app layer overrides
 /// [pluginEnablementStoreProvider] with a settings-backed store that
 /// remembers the user's choices.
-class AllEnabledPluginEnablementStore implements PluginEnablementStore {
-  const AllEnabledPluginEnablementStore();
+class DefaultPluginEnablementStore implements PluginEnablementStore {
+  const DefaultPluginEnablementStore();
 
   @override
-  Future<bool> isEnabled(String pluginId) async => true;
+  Future<bool> isEnabled(String pluginId) async =>
+      pluginEnabledByDefault(pluginId);
 }
 
 /// The enabled-set policy. Each application overrides it with its
-/// settings-backed store; the default enables everything.
+/// settings-backed store; the default is each plugin's own default.
 final pluginEnablementStoreProvider = Provider<PluginEnablementStore>(
-  (ref) => const AllEnabledPluginEnablementStore(),
+  (ref) => const DefaultPluginEnablementStore(),
 );
 
 /// Registers the user-facing example plugins into [pluginHostProvider].

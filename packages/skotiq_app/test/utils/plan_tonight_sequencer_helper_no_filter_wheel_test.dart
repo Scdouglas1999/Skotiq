@@ -28,6 +28,16 @@ class _ConfiguredSettingsNotifier extends AppSettingsNotifier {
       const AppSettingsState(latitude: 40, longitude: -75);
 }
 
+/// Stored Smart Night wizard defaults that differ from the built-in ones.
+class _WizardDefaultsSettingsNotifier extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async => const AppSettingsState(
+        latitude: 40,
+        longitude: -75,
+        smartNightDefaultAfCadenceFrames: 12,
+      );
+}
+
 class _FakeGoalService extends Mock implements IntegrationGoalService {}
 
 /// 20:00 at the test site (latitude 40, longitude -75) on a November evening,
@@ -239,6 +249,24 @@ void main() {
     expect(lights.single.filter, isNull);
     expect(lights.single.filterIndex, isNull);
     expect(lights.single.count, greaterThan(0));
+  });
+
+  testWidgets('a one-target plan follows the stored wizard defaults', (
+    tester,
+  ) async {
+    final result = await _withRef(
+      tester,
+      [
+        ..._overrides(),
+        appSettingsProvider.overrideWith(_WizardDefaultsSettingsNotifier.new),
+      ],
+      (ref) => buildPlanTonightTargetSequenceFromSuggestion(
+        ref: ref,
+        target: _suggestion(),
+      ),
+    );
+    expect(
+        result.sequence.description, contains('AF cadence: every 12 frames'));
   });
 
   testWidgets('summary names the unfiltered plan instead of an empty label', (

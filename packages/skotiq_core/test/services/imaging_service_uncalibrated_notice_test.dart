@@ -71,6 +71,7 @@ class _ScriptedCalibration extends CalibrationService {
     int binX = 1,
     int binY = 1,
     double? sensorTemperature,
+    String? filter,
   }) async {
     final reason = failure;
     if (reason != null) throw StateError(reason);

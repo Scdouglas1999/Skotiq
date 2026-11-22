@@ -193,14 +193,26 @@ class CalibrationSettingsPanel extends ConsumerWidget {
               ],
             ),
           ),
-          CalibrationFileRow(
-            fileType: CalibrationFileType.flat,
-            label: 'Flat file',
-            note: 'Used when no library flat matches the filter',
-            path: cal.masterFlatPath,
-            onClear: () =>
-                _save(context, () => notifier.setMasterFlatPath(null)),
+          CalibrationRow(
+            child: SkotiqSwitchRow(
+              label: 'Pick the flat from the library',
+              subtitle:
+                  "Takes the flat of the light's own filter, gain, offset and "
+                  'binning. A light with no such flat gets none. Off uses the '
+                  'flat file below for every light.',
+              value: cal.autoFlatFromLibrary,
+              onChanged: (v) =>
+                  _save(context, () => notifier.setAutoFlatFromLibrary(v)),
+            ),
           ),
+          if (!cal.autoFlatFromLibrary)
+            CalibrationFileRow(
+              fileType: CalibrationFileType.flat,
+              label: 'Flat file',
+              path: cal.masterFlatPath,
+              onClear: () =>
+                  _save(context, () => notifier.setMasterFlatPath(null)),
+            ),
           CalibrationFileRow(
             fileType: CalibrationFileType.bias,
             label: 'Bias file',

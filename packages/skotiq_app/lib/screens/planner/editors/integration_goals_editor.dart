@@ -634,7 +634,7 @@ class _AddGoalRowState extends State<_AddGoalRow> {
     setState(() {
       _selectedFilter = filter;
       final seconds =
-          widget.exposureContext?.recommendForFilter(filter).seconds;
+          widget.exposureContext?.recommendForFilter(filter)?.seconds;
       if (seconds != null && seconds.isFinite && seconds > 0) {
         _exposureCtl.text = QuantityFormat.trimmed(seconds);
       }

@@ -129,7 +129,7 @@ void main() {
             bortleClass: exposureContext.bortleClass,
             focalLengthMm: exposureContext.focalLengthMm,
             apertureMm: exposureContext.apertureMm,
-            pixelSizeMicrons: exposureContext.pixelSizeMicrons,
+            pixelSizeMicrons: exposureContext.pixelSizeMicrons!,
             userCapSeconds: exposureContext.userCapSeconds,
             floorSeconds: exposureContext.floorSeconds,
           ),

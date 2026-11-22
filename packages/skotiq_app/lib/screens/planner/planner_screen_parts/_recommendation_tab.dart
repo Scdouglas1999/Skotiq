@@ -140,11 +140,12 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       );
     }
 
-    // With no site or no catalog the tab is one empty state with its fix;
+    // With no site, no catalog or no night the tab is one empty state;
     // filters over nothing would only be dead controls (§1: an empty page
     // hides its filters).
     final nothingToFilter =
         plannerSiteUnset(ref.watch(appObserverLocationProvider)) ||
+            ref.watch(tonightSunStaysUpProvider) ||
             (candidatesAsync.valueOrNull?.isEmpty == true &&
                 _plannerCatalogMissing(ref));
 

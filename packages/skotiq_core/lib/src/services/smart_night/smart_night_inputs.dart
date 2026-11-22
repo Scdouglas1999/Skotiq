@@ -2,15 +2,6 @@ import '../../models/equipment_profile_model.dart';
 import '../../settings/app_settings_state.g.dart';
 import '../smart_night_models.dart';
 
-/// How a site decides that the rig has a cover calibrator from the profile.
-enum CoverCalibratorRule {
-  /// Any calibrator id counts, a blank one included (the Smart Night wizard).
-  anyId,
-
-  /// Only an id with text in it counts (Plan tonight and the planners).
-  namedId,
-}
-
 /// The Smart Night inputs that come from the app settings and the active
 /// equipment profile, for every place that plans a night.
 abstract final class SmartNightInputs {
@@ -48,20 +39,28 @@ abstract final class SmartNightInputs {
     ),
   );
 
+  /// The inputs of a night planned on [profile]: [base] with the stored
+  /// wizard defaults ([withWizardDefaults]) and the profile's cool-down
+  /// set-point. Plan tonight, the planner's estimate and the wizard's seed
+  /// all start here.
+  static SmartNightSettings forNight(
+    AppSettingsState app,
+    EquipmentProfileModel? profile, [
+    SmartNightSettings base = const SmartNightSettings(),
+  ]) => withWizardDefaults(app, base).copyWith(
+    coolDownTargetC: profile == null
+        ? defaultCoolDownTargetC
+        : coolDownTargetC(profile),
+  );
+
   /// The camera set-point a night cools to on [profile].
   static double coolDownTargetC(EquipmentProfileModel profile) =>
       profile.defaultCoolingTemp ?? defaultCoolDownTargetC;
 
-  /// Whether [profile] names a cover calibrator, by [rule].
-  static bool hasCoverCalibrator(
-    EquipmentProfileModel profile, {
-    required CoverCalibratorRule rule,
-  }) {
+  /// Whether [profile] names a cover calibrator: an id with text in it. A
+  /// blank id is no calibrator.
+  static bool hasCoverCalibrator(EquipmentProfileModel profile) {
     final id = profile.coverCalibratorId;
-    if (id == null) return false;
-    return switch (rule) {
-      CoverCalibratorRule.anyId => true,
-      CoverCalibratorRule.namedId => id.trim().isNotEmpty,
-    };
+    return id != null && id.trim().isNotEmpty;
   }
 }

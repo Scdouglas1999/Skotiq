@@ -1,0 +1,4 @@
+{
+  "comment": "How long a GoTo may take to arrive. The native bridge waits Timeouts::long_slew (bridge/src/timeout_ops.rs) and the app's manual GoTo watcher waits MountSlewWatcher.defaultCompletionTimeout (skotiq_core services/mount_slew_watcher.dart); both tests read this file, so the two cannot drift apart.",
+  "long_slew_seconds": 300
+}

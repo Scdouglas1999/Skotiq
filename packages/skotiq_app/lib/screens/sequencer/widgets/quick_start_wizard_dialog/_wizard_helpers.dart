@@ -161,7 +161,7 @@ extension _QuickStartWizardHelpers on _QuickStartWizardDialogState {
   }
 
   double _defaultExposureForFilter(String name) {
-    final smartExposure = _exposureContext?.recommendForFilter(name).seconds;
+    final smartExposure = _exposureContext?.recommendForFilter(name)?.seconds;
     if (smartExposure != null && smartExposure.isFinite && smartExposure > 0) {
       return smartExposure;
     }

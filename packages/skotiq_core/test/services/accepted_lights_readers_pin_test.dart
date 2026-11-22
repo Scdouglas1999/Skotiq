@@ -116,28 +116,47 @@ void main() {
     );
   });
 
-  test('the project page groups filters by case and names no filter '
-      'Unfiltered', () {
+  test('the project page groups filters by case, and counts a goal as the '
+      'scheduler does', () {
     final accepted = acceptedLightsByFilter(rows);
     expect(
-      [for (final f in accepted) '${f.filter}:${f.frames}:${f.seconds}'],
       [
-        ' :1:60.0',
+        for (final f in accepted)
+          '${f.filter}:${f.frames}:${f.seconds}${f.noFilter ? ' (none)' : ''}',
+      ],
+      [
         'Ha:1:300.0',
         'Ha 7nm:2:600.0',
         'L:3:180.0',
         'R:1:60.0',
-        'Unfiltered:3:150.0',
+        // Frames filed blank (null, '' and ' ') are no filter; a frame filed
+        // "Unfiltered" is a filter of that name, as the scheduler reads it.
+        'Unfiltered:3:180.0 (none)',
+        'Unfiltered:1:30.0',
       ],
     );
     expect(
       [for (final f in _goalFilters) acceptedInGoalFilter(accepted, f).frames],
-      // Where the two rules part: the scheduler's no-filter goal counts the
-      // frames filed blank (null, '' and ' ') and its "Unfiltered" goal the
-      // frame filed with that name; the project page's no-filter goal counts
-      // null, '' and the frame filed "Unfiltered", and its "Unfiltered" goal
-      // nothing.
-      [3, 3, 3, 1, 0, 0],
+      [
+        for (final f in _goalFilters)
+          goalFrameCount(
+            f,
+            {
+              for (final (filter, type, ok, _, _) in _frames)
+                if (ok && type == 'light') filter ?? '': 0,
+            }..updateAll((key, _) => _countFiled(key)),
+          ),
+      ],
+    );
+    expect(
+      [for (final f in _goalFilters) acceptedInGoalFilter(accepted, f).frames],
+      [3, 3, 3, 1, 1, 0],
     );
   });
 }
+
+/// Accepted lights filed exactly as [filed] ('' for none).
+int _countFiled(String filed) => [
+  for (final (filter, type, ok, _, n) in _frames)
+    if (ok && type == 'light' && (filter ?? '') == filed) n,
+].fold(0, (a, b) => a + b);

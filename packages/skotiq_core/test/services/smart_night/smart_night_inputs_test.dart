@@ -41,9 +41,6 @@ SmartNightSettings _dialogSeedBefore(
   );
 }
 
-bool _dialogCoverBefore(SmartNightSettings s, EquipmentProfileModel p) =>
-    s.hasCoverCalibrator || p.coverCalibratorId != null;
-
 SmartNightSettings _optimizerBefore(AppSettingsState settings) =>
     SmartNightSettings(
       targetSnr: settings.smartNightTargetSnr,
@@ -89,10 +86,7 @@ void main() {
           app,
           SmartNightSettings(
             coolDownTargetC: SmartNightInputs.coolDownTargetC(profile),
-            hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(
-              profile,
-              rule: CoverCalibratorRule.namedId,
-            ),
+            hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(profile),
           ),
         );
         expect(
@@ -104,24 +98,13 @@ void main() {
     }
   });
 
-  test('the wizard seed and its cover calibrator are unchanged', () {
+  test('the wizard seed is unchanged', () {
     for (final app in apps) {
       for (final wizard in wizardStates) {
         expect(
           SmartNightInputs.withWizardDefaults(app, wizard).toJson(),
           _dialogSeedBefore(app, wizard).toJson(),
         );
-        for (final profile in profiles) {
-          expect(
-            wizard.hasCoverCalibrator ||
-                SmartNightInputs.hasCoverCalibrator(
-                  profile,
-                  rule: CoverCalibratorRule.anyId,
-                ),
-            _dialogCoverBefore(wizard, profile),
-            reason: profile.name,
-          );
-        }
       }
     }
   });
@@ -135,19 +118,38 @@ void main() {
     }
   });
 
-  test('the two cover calibrator rules differ only on a blank id', () {
-    final differ = [
-      for (final p in profiles)
-        if (SmartNightInputs.hasCoverCalibrator(
-              p,
-              rule: CoverCalibratorRule.anyId,
-            ) !=
-            SmartNightInputs.hasCoverCalibrator(
-              p,
-              rule: CoverCalibratorRule.namedId,
-            ))
-          p.name,
-    ];
-    expect(differ, ['blank', 'spaces']);
+  test('a blank cover calibrator id is no calibrator, at every site', () {
+    expect(
+      [
+        for (final p in profiles)
+          if (SmartNightInputs.hasCoverCalibrator(p)) p.name,
+      ],
+      ['named'],
+    );
   });
+
+  test(
+    'a night on a profile cools to its set-point over the wizard defaults',
+    () {
+      for (final app in apps) {
+        for (final profile in profiles) {
+          final night = SmartNightInputs.forNight(app, profile);
+          expect(
+            night.toJson(),
+            SmartNightInputs.withWizardDefaults(app, const SmartNightSettings())
+                .copyWith(coolDownTargetC: profile.defaultCoolingTemp ?? -10.0)
+                .toJson(),
+            reason: profile.name,
+          );
+        }
+      }
+      expect(
+        SmartNightInputs.forNight(
+          const AppSettingsState(),
+          null,
+        ).coolDownTargetC,
+        -10.0,
+      );
+    },
+  );
 }

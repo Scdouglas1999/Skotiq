@@ -193,7 +193,7 @@ extension _ReviewStep on _QuickStartWizardDialogState {
     final context = _exposureContext;
     if (context == null) return const SizedBox.shrink();
     final rec = context.recommendForFilter(config.filterName);
-    if (rec.rationale.isEmpty) return const SizedBox.shrink();
+    if (rec == null || rec.rationale.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(left: 120, bottom: 4),
       child: Text(
