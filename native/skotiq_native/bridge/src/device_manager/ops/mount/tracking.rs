@@ -18,10 +18,11 @@ impl DeviceManager {
         if result.is_ok() {
             let mut devices = self.devices.write().await;
             if let Some(dev) = devices.get_mut(device_id) {
-                let rate = dev.held_tracking.and_then(|held| held.rate);
+                let held = dev.held_tracking;
                 dev.held_tracking = Some(crate::device_manager::HeldTracking {
                     tracking: enabled,
-                    rate,
+                    rate: held.and_then(|held| held.rate),
+                    at_home: held.and_then(|held| held.at_home),
                 });
             }
             drop(devices);

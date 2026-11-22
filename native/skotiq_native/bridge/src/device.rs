@@ -383,6 +383,18 @@ impl TrackingRate {
             _ => return None,
         })
     }
+
+    /// [`Self::from_wire`] the other way; `None` for a custom rate, which
+    /// has no value to set it back with.
+    pub(crate) fn to_wire(self) -> Option<i32> {
+        match self {
+            Self::Sidereal => Some(0),
+            Self::Lunar => Some(1),
+            Self::Solar => Some(2),
+            Self::King => Some(3),
+            Self::Custom => None,
+        }
+    }
 }
 
 /// Current status of a focuser

@@ -3,13 +3,11 @@ use crate::device::DriverType;
 
 // Hot-plug reconnect: re-apply essential device state.
 //
-// After an *unplanned* reconnect (the device's connection_state was Error,
-// i.e. heartbeat-lost), `connect_device_internal` must
-// re-apply the last commanded camera cooling setpoint and mount tracking
-// state — the driver comes back in power-on defaults and would otherwise
-// silently warm the sensor / leave the mount parked while the sequence
-// "resumes". A *fresh* connect (from Disconnected) must NOT re-apply mount
-// tracking; a camera restores what it held on any connect (camera_reopen.rs).
+// After a reconnect `connect_device_internal` re-applies the camera cooling
+// setpoint and the mount tracking the device held: the driver comes back in
+// power-on defaults and would otherwise silently warm the sensor or leave the
+// mount still while the sequence "resumes". A manual disconnect and connect
+// keeps them too (keep_state.rs).
 
 /// Setting tracking records the held tracking; an Error->reconnect replays it.
 #[tokio::test]
@@ -135,57 +133,6 @@ async fn reconnect_reapplies_camera_cooler() {
 
     let mut cam = get_sim_camera().write().await;
     cam.status.connected = false;
-}
-
-/// A *fresh* connect (state was Disconnected, not Error) must NOT replay any
-/// recorded desired state — only an unplanned reconnect re-applies.
-#[tokio::test]
-async fn fresh_connect_does_not_reapply_state() {
-    use crate::simulator::mount::get_sim_mount;
-
-    let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = build_device_manager();
-    let device_id = "sim_mount_fresh";
-    let info = build_sim_info(device_id, DeviceType::Mount);
-    manager.register_device(info.clone(), false).await;
-    manager
-        .connect_device(device_id)
-        .await
-        .expect("initial connect should succeed");
-    manager
-        .mount_set_tracking(device_id, true)
-        .await
-        .expect("set_tracking should succeed");
-
-    // A clean disconnect (NOT an error): state goes to Disconnected.
-    manager
-        .disconnect_device(device_id)
-        .await
-        .expect("disconnect should succeed");
-    assert_ne!(
-        manager
-            .devices
-            .read()
-            .await
-            .get(device_id)
-            .unwrap()
-            .connection_state,
-        ConnectionState::Error,
-        "a clean disconnect must not leave the device in Error"
-    );
-    get_sim_mount().write().await.status.tracking = false;
-
-    // Fresh connect from Disconnected — must NOT auto-resume tracking.
-    manager
-        .connect_device(device_id)
-        .await
-        .expect("fresh connect should succeed");
-    assert!(
-        !get_sim_mount().read().await.status.tracking,
-        "a fresh connect must not silently re-apply tracking the user did not re-request"
-    );
-
-    get_sim_mount().write().await.status.connected = false;
 }
 
 // Cooler setpoint: what actually reaches the driver
