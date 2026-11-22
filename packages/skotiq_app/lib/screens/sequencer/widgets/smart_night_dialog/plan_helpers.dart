@@ -376,15 +376,8 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     };
     final newNodes = <String, SequenceNode>{...seq.nodes};
 
-    String? targetNameFor(SequenceNode node) {
-      String? parentId = node.parentId;
-      while (parentId != null) {
-        final parent = seq.nodes[parentId];
-        if (parent is TargetHeaderNode) return parent.targetName;
-        parentId = parent?.parentId;
-      }
-      return null;
-    }
+    String? targetNameFor(SequenceNode node) =>
+        seq.enclosingTarget(node.id)?.targetName;
 
     for (final entry in seq.nodes.entries) {
       final node = entry.value;
