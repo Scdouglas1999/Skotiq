@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../backend/device_capabilities.dart' show TrackingRate;
+import '../../errors/device_connect_exception.dart';
 import '../../errors/error_text.dart';
 import '../../errors/error_text_kind.dart';
 import '../../errors/skotiq_error.dart';
@@ -103,6 +104,19 @@ class DeviceError extends Equatable {
     int retryAttempts = 0,
   }) {
     if (error is DeviceError) return error;
+    // A failed connect carries the native failure typed; the driver's own
+    // sentence stays the message.
+    if (error is DeviceConnectException) {
+      final native = error.nativeError;
+      if (native != null) {
+        return DeviceError.fromSkotiqError(
+          native,
+          deviceId: deviceId ?? error.deviceId,
+          retryAttempts: retryAttempts,
+          message: userFacingError(error),
+        );
+      }
+    }
     if (error is SkotiqError && error is! SkotiqException) {
       return DeviceError.fromSkotiqError(
         error,
@@ -141,10 +155,11 @@ class DeviceError extends Equatable {
     SkotiqError error, {
     String? deviceId,
     int retryAttempts = 0,
+    String? message,
   }) {
     return DeviceError(
       type: _typeOfCategory(error.category),
-      message: error.userMessage,
+      message: message ?? error.userMessage,
       code: error.errorCode?.toString(),
       timestamp: DateTime.now(),
       deviceId: deviceId ?? error.deviceId,
