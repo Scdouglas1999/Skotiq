@@ -155,12 +155,18 @@ class SequenceTreeIndex {
   TargetHeaderNode? enclosingTarget(String nodeId) =>
       ancestorsOf(nodeId).whereType<TargetHeaderNode>().firstOrNull;
 
-  /// Whether a target step above [nodeId] has an end condition (`endWhen`
-  /// or the wall-clock `endBefore`). That window is what stops a Smart
-  /// Exposure that loops until stopped.
-  bool isBoundedByTargetWindow(String nodeId) => ancestorsOf(nodeId).any(
-    (n) => n is TargetHeaderNode && (n.endWhen != null || n.endBefore != null),
-  );
+  /// Whether the nearest target step above [nodeId] has an end condition
+  /// (`endWhen`, the wall-clock `endBefore` or a maximum altitude). That
+  /// window is what stops a Smart Exposure that loops until stopped; the
+  /// native run installs the nearest target's end over any outer one.
+  bool isBoundedByTargetWindow(String nodeId) =>
+      switch (enclosingTarget(nodeId)) {
+        null => false,
+        final target =>
+          target.endWhen != null ||
+              target.endBefore != null ||
+              target.maxAltitude != null,
+      };
 
   /// Whether a run executes [nodeId]: the node and every ancestor are
   /// enabled. A disabled container switches off everything under it, the way

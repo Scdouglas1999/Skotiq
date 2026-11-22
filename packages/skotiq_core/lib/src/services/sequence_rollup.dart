@@ -248,21 +248,10 @@ double _computeRollupSecs(
 
 /// What ends an open-ended [node]: the end condition of the target it runs
 /// under, or nothing but a stop.
-NodeOpenEnd _openEndOf(Sequence sequence, SequenceNode node) {
-  String? parentId = node.parentId;
-  while (parentId != null) {
-    final parent = sequence.nodes[parentId];
-    if (parent is TargetHeaderNode) {
-      final ends =
-          parent.endWhen != null ||
-          parent.endBefore != null ||
-          parent.maxAltitude != null;
-      return ends ? NodeOpenEnd.targetWindow : NodeOpenEnd.stopped;
-    }
-    parentId = parent?.parentId;
-  }
-  return NodeOpenEnd.stopped;
-}
+NodeOpenEnd _openEndOf(Sequence sequence, SequenceNode node) =>
+    sequence.isBoundedByTargetWindow(node.id)
+    ? NodeOpenEnd.targetWindow
+    : NodeOpenEnd.stopped;
 
 /// untilTime loop rollup: the time until the earlier of the loop's own
 /// deadline and the parent target's end, or the walked length when tonight's
