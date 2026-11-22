@@ -62,11 +62,7 @@ class PlateSolveFocalLengthRule implements RefAwareSequenceValidator {
       return const [];
     }
     final profile = ctx.ref.read(activeEquipmentProfileProvider);
-    final focal = profile == null
-        ? null
-        : (profile.focalLength > 0
-              ? profile.focalLength
-              : profile.telescopeFocalLength);
+    final focal = profile?.effectiveFocalLength;
     if (focal != null && focal.isFinite && focal > 0) return const [];
     return const [
       ValidationIssue(

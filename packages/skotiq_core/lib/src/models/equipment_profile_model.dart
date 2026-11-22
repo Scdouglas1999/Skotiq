@@ -394,6 +394,16 @@ class EquipmentProfileModel {
       (guideCameraId ?? '').isNotEmpty ||
       DeviceType.values.any((type) => (deviceIdFor(type) ?? '').isNotEmpty);
 
+  /// The focal length the train images at: [focalLength], or the
+  /// telescope's own when that is not set; 0 when neither is.
+  double get effectiveFocalLength =>
+      focalLength > 0 ? focalLength : (telescopeFocalLength ?? 0);
+
+  /// The aperture: [aperture], or the telescope's own when that is not set;
+  /// 0 when neither is.
+  double get effectiveAperture =>
+      aperture > 0 ? aperture : (telescopeAperture ?? 0);
+
   /// Calculate f/ratio from focal length and aperture, or null when the numbers
   /// cannot describe a real optical system.
   ///
