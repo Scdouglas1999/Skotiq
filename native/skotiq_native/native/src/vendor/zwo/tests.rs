@@ -384,8 +384,16 @@ fn the_rig_errors_after_a_usb_drop_mean_a_broken_session() {
         "Failed to start native SDK camera exposure on native:zwo:1: SDK error: \
          ASI_ERROR_GENERAL_ERROR: General error - camera may be in use by another application"
     ));
-    let started = check_asi_error(16).unwrap_err().to_string();
-    assert!(crate::camera_session_broken(&started), "{started}");
+    let started = check_asi_error(16).unwrap_err();
+    assert!(
+        matches!(started, DriverError::SessionLost(_)),
+        "{started:?}"
+    );
+    assert!(
+        crate::camera_session_broken(&started.to_string()),
+        "{started}"
+    );
+    assert!(matches!(check_asi_error(11), Err(DriverError::Timeout(_))));
     assert!(!crate::camera_session_broken(
         "Operation timeout: ASI_ERROR_TIMEOUT: Operation timed out"
     ));

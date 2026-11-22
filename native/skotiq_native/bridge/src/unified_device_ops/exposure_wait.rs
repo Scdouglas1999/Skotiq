@@ -87,10 +87,8 @@ where
         match tokio::time::timeout(remaining, is_complete()).await {
             Ok(Ok(true)) => return Ok(()),
             Ok(Ok(false)) => {}
-            Ok(Err(DeviceError::Failed(message))) => {
-                return Err(DeviceError::Failed(format!(
-                    "Failed to check exposure status: {message}"
-                )))
+            Ok(Err(error @ (DeviceError::Failed(_) | DeviceError::SessionLost(_)))) => {
+                return Err(error.context("Failed to check exposure status"))
             }
             Ok(Err(other)) => return Err(other),
             Err(_) => {

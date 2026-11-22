@@ -723,9 +723,9 @@ fn classify_exposure_failure(device_id: &str, error: skotiq_sequencer::DeviceErr
         DeviceError::Rejected(reason) => SkotiqError::InvalidParameter(reason),
         DeviceError::Timeout(reason) => SkotiqError::Timeout(reason),
         DeviceError::Cancelled(_) => SkotiqError::ExposureCancelled,
-        other @ (DeviceError::NotConfigured { .. } | DeviceError::Failed(_)) => {
-            SkotiqError::OperationFailed(other.to_string())
-        }
+        other @ (DeviceError::NotConfigured { .. }
+        | DeviceError::Failed(_)
+        | DeviceError::SessionLost(_)) => SkotiqError::OperationFailed(other.to_string()),
     }
 }
 

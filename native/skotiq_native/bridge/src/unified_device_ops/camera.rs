@@ -277,8 +277,8 @@ impl UnifiedDeviceOps {
             }
             Ok(Err(e)) => {
                 let error = match device_error(skotiq_sequencer::DeviceKind::Camera)(e) {
-                    DeviceError::Failed(message) => {
-                        DeviceError::Failed(format!("Failed to download image: {message}"))
+                    error @ (DeviceError::Failed(_) | DeviceError::SessionLost(_)) => {
+                        error.context("Failed to download image")
                     }
                     other => other,
                 };
