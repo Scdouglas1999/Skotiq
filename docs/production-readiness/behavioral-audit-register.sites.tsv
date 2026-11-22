@@ -1481,11 +1481,9 @@ native/skotiq_native/sequencer/src/node/logic/loop_node.rs	execute_loop	unwrap_o
 native/skotiq_native/sequencer/src/node/logic/recovery.rs	execute_custom_branch_children	rust_let_underscore	1	V0075	let _ = tx.send(ExecutorEvent::Error { message });
 native/skotiq_native/sequencer/src/node/logic/recovery.rs	execute_recovery	rust_let_underscore	2	V0075	let _ = tx.send(ExecutorEvent::Error {
 native/skotiq_native/sequencer/src/node/logic/recovery.rs	execute_recovery	rust_let_underscore	1	V0075	let _ = tx.send(line.into_event());
-native/skotiq_native/sequencer/src/node/logic/sequential.rs	wait_until_timestamp_or_cancel	unwrap_or_literal	1	V0077	let sleep_secs = u64::try_from((target_timestamp - now).min(1)).unwrap_or(0);
 native/skotiq_native/sequencer/src/node/logic/target_header.rs	altitude_start_when_without_observer_fails	comment_best_effort	1	V0073	// placeholder while the reason stays in the Rust log.
 native/skotiq_native/sequencer/src/node/logic/target_header.rs	emit_below_floor_skipped	rust_let_underscore	1	V0073	let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
 native/skotiq_native/sequencer/src/node/logic/target_header.rs	emit_end_when_skipped_at_entry	rust_let_underscore	1	V0073	let _ = event_tx.send(crate::executor::ExecutorEvent::TriggerFired {
-native/skotiq_native/sequencer/src/node/logic/target_header.rs	execute_children_with_end_when	rust_let_underscore	1	V0073	let _ = Ordering::Relaxed; // touch the imported symbol to keep the import path stable
 native/skotiq_native/sequencer/src/node/logic/target_header.rs	refuse_unevaluable_trigger	rust_let_underscore	1	V0073	let _ = event_tx.send(crate::executor::ExecutorEvent::InstructionFailed {
 native/skotiq_native/sequencer/src/node/logic/target_header.rs	target_header_populates_context_fields_at_entry	rust_let_underscore	1	V0073	let _ = captured_clone; // unused: callback can't see ctx.
 native/skotiq_native/sequencer/src/node/logic/target_scheduler.rs	execute_target_scheduler	rust_let_underscore	1	V0082	let _ = config.finish_iteration_on_switch;
