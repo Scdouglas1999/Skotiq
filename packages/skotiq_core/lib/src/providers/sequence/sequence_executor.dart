@@ -422,12 +422,19 @@ class SequenceExecutor {
   /// How long an unattended start waits for a manual capture to end.
   static const _manualCaptureYield = Duration(seconds: 30);
 
-  Future<void> start() async {
-    _ensureBackendAuthority();
-    // Another activity holds the camera or the mount. Refuse before the
-    // launch latch, so this start opens no session and no run.
+  /// Throws when another activity holds the camera or the mount, so a run
+  /// cannot start now. A caller that hands the run its plan asks first, so a
+  /// refused plan never replaces the operator's sequence.
+  void ensureRigFreeForStart() {
     final held = rigHeldBy(_ref.read, starting: RigActivity.sequence);
     if (held != null) throw StateError('Cannot start: ${held.busy}.');
+  }
+
+  Future<void> start() async {
+    _ensureBackendAuthority();
+    // Refuse before the launch latch, so this start opens no session and no
+    // run.
+    ensureRigFreeForStart();
     // A. Start serialization + admissible-state gate.
     // This gate mutates nothing,
     // so a rejected concurrent caller leaves the in-flight run — and its
