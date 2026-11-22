@@ -367,8 +367,8 @@ class _LoopIterationsEditor extends ConsumerWidget {
       icon: LucideIcons.repeat,
       child: SkotiqStepper(
         value: node.repeatCount ?? 1,
-        min: 1,
-        max: 9999,
+        min: NodeFieldLimits.loopRepeatCount.min,
+        max: NodeFieldLimits.loopRepeatCount.max,
         semanticLabel: 'Loop iterations',
         // Loop iterations are NOT an exposure default — no defaults mirror.
         onChanged: (count) => ref
@@ -411,8 +411,8 @@ class _DelaySecondsEditor extends ConsumerWidget {
       title: 'Delay',
       icon: LucideIcons.timer,
       initialValue: node.seconds,
-      min: 0,
-      max: 86400,
+      min: NodeFieldLimits.delaySecsInline.min,
+      max: NodeFieldLimits.delaySecsInline.max,
       decimals: 0,
       suffix: 's',
       onCommit: (value) => ref
@@ -432,8 +432,8 @@ class _CoolTargetTempEditor extends ConsumerWidget {
       title: 'Target temperature',
       icon: LucideIcons.snowflake,
       initialValue: node.targetTemp,
-      min: -50,
-      max: 30,
+      min: NodeFieldLimits.coolTargetC.min,
+      max: NodeFieldLimits.coolTargetC.max,
       decimals: 1,
       suffix: '°C',
       onCommit: (value) => ref
@@ -453,8 +453,8 @@ class _DitherPixelsEditor extends ConsumerWidget {
       title: 'Dither amount',
       icon: LucideIcons.shuffle,
       initialValue: node.pixels,
-      min: 0,
-      max: 50,
+      min: NodeFieldLimits.ditherPixelsInline.min,
+      max: NodeFieldLimits.ditherPixelsInline.max,
       decimals: 1,
       suffix: 'px',
       onCommit: (value) => ref

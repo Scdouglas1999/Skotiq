@@ -52,8 +52,8 @@ class _LoopProperties extends ConsumerWidget {
             child: NodeNumberInput(
               colors: colors,
               value: (node.repeatCount ?? 1).toDouble(),
-              min: 1,
-              max: 9999,
+              min: NodeFieldLimits.loopRepeatCount.min.toDouble(),
+              max: NodeFieldLimits.loopRepeatCount.max.toDouble(),
               onChanged: (value) {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(repeatCount: value.toInt()),
@@ -280,8 +280,8 @@ class _DelayProperties extends ConsumerWidget {
             colors: colors,
             value: node.seconds,
             suffix: 's',
-            min: 0.1,
-            max: 3600,
+            min: NodeFieldLimits.delaySecsInspector.min,
+            max: NodeFieldLimits.delaySecsInspector.max,
             decimals: 1,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(

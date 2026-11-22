@@ -20,8 +20,8 @@ class _CoolCameraProperties extends ConsumerWidget {
             colors: colors,
             value: node.targetTemp,
             suffix: '\u00B0C',
-            min: -50,
-            max: 30,
+            min: NodeFieldLimits.coolTargetC.min,
+            max: NodeFieldLimits.coolTargetC.max,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
                     node.copyWith(targetTemp: value),
