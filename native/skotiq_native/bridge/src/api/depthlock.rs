@@ -30,7 +30,7 @@ fn service() -> Result<&'static Arc<DepthLockService>, SkotiqError> {
 fn failed(e: impl Into<StoreError>) -> SkotiqError {
     match e.into() {
         StoreError::GoalNotFound(message) => {
-            SkotiqError::refused(Refusal::DepthLockGoalNotFound, message)
+            SkotiqError::refused(Refusal::DepthLockNoSuchGoal, message)
         }
         StoreError::StaleRevision(message) => {
             SkotiqError::refused(Refusal::DepthLockStaleRevision, message)
@@ -776,7 +776,7 @@ mod refusal_tests {
         let cases = [
             (
                 StoreError::GoalNotFound("DepthLock goal m42 does not exist".into()),
-                Some(Refusal::DepthLockGoalNotFound),
+                Some(Refusal::DepthLockNoSuchGoal),
             ),
             (
                 StoreError::StaleRevision("stale revision for DepthLock goal m42".into()),

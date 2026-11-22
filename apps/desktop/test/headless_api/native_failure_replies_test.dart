@@ -8,7 +8,10 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_desktop/headless_api/handlers/depthlock_handlers.dart';
+import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:skotiq_desktop/headless_api/handlers/guiding_handlers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
@@ -104,7 +107,7 @@ final Map<String, Object> _failures = {
   'start.dart_error': StateError('bridge is gone'),
   // GET /api/depthlock/goals/<id>
   'depthlock.not_found': const bridge.SkotiqError.refused(
-    kind: bridge.Refusal.depthLockGoalNotFound,
+    kind: bridge.Refusal.depthLockNoSuchGoal,
     message: 'DepthLock goal m42-ha does not exist',
   ),
   'depthlock.stale': const bridge.SkotiqError.refused(
@@ -131,6 +134,27 @@ final Map<String, Object> _failures = {
   ),
   'depthlock.io': const bridge.SkotiqError.ioError('disk gone'),
   'depthlock.dart_error': StateError('store gone'),
+  // POST /api/focuser/move-to (driver words; no Skotiq producer)
+  'focuser.ascom_move_failure': const bridge.SkotiqError.operationFailed(
+    'Failed to call method Move: Move Failure',
+  ),
+  'focuser.already_moving': const bridge.SkotiqError.ascomError(
+    progId: 'ASCOM.Focuser',
+    message: 'Focuser already moving',
+    errorCode: 1035,
+  ),
+  'focuser.device_busy_words': const bridge.SkotiqError.operationFailed(
+    'Device busy, try later',
+  ),
+  'focuser.focuser_is_busy': const bridge.SkotiqError.operationFailed(
+    'The focuser is busy',
+  ),
+  'focuser.device_busy_variant': const bridge.SkotiqError.deviceBusy(
+    deviceId: 'focuser-1',
+    currentOperation: 'moving',
+  ),
+  'focuser.other': const bridge.SkotiqError.operationFailed('sdk blew up'),
+  'focuser.dart_busy': StateError('focuser is busy'),
 };
 
 class _MockBackend extends Mock implements SkotiqBackend {}
@@ -269,8 +293,51 @@ Future<Response> _start(Object failure) {
   );
 }
 
+class _FailingFocuser implements DeviceBackend {
+  _FailingFocuser(this.failure);
+
+  final Object failure;
+
+  @override
+  Future<void> focuserMoveTo(String deviceId, int position) async =>
+      throw failure;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+Future<Response> _focuser(Object failure) async {
+  final logs = await Directory.systemTemp.createTemp('sk_pin_logs_');
+  final logger = LoggingService(
+    applicationSupportDirectoryProvider: () async => logs,
+    nativeInitWithLogging: ({logDirectory}) {},
+    nativeInit: () {},
+    currentLogFileProvider: () => null,
+  );
+  await logger.ensureInitialized();
+  addTearDown(logger.dispose);
+  final container = createHeadlessTestContainer(
+    overrides: [
+      loggingServiceProvider.overrideWithValue(logger),
+      deviceBackendProvider.overrideWithValue(_FailingFocuser(failure)),
+    ],
+  );
+  addTearDown(container.dispose);
+  return DeviceHandlers(
+    container,
+    jobManager: JobManager(emitEvent: (_) {}),
+  ).handleFocuserMoveTo(
+    Request(
+      'POST',
+      Uri.parse('http://localhost/api/focuser/move-to'),
+      body: jsonEncode({'deviceId': 'focuser-1', 'position': 100}),
+    ),
+  );
+}
+
 Future<Response> _call(String id, Object failure) =>
     switch (id.split('.').first) {
+      'focuser' => _focuser(failure),
       'lock' || 'star_image' || 'find_star' => _guiding(id, failure),
       'depthlock' => _depthLock(failure),
       'start' => _start(failure),

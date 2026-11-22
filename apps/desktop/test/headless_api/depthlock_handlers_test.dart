@@ -94,7 +94,7 @@ class _FakeDepthLockBackend extends DisconnectedBackend {
   var _generated = 0;
 
   Never _missing(String goalId) => throw bridge.SkotiqError.refused(
-    kind: bridge.Refusal.depthLockGoalNotFound,
+    kind: bridge.Refusal.depthLockNoSuchGoal,
     message: 'DepthLock goal $goalId does not exist',
   );
 

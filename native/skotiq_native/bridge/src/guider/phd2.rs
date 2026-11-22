@@ -994,6 +994,16 @@ pub(crate) async fn find_star() -> Result<(f64, f64), SkotiqError> {
     })
 }
 
+fn lock_position_failed(e: skotiq_phd2::Phd2Error) -> SkotiqError {
+    let message = format!("Failed to get lock position: {e}");
+    match e {
+        skotiq_phd2::Phd2Error::NoLockPosition(_) => {
+            SkotiqError::refused(Refusal::NoLockPosition, message)
+        }
+        _ => SkotiqError::OperationFailed(message),
+    }
+}
+
 /// PHD2 states some refusals only in the words of its reply: `message` is
 /// refused as `kind` when PHD2's words contain `words` (any case), and is an
 /// `OperationFailed` otherwise.
@@ -1021,15 +1031,7 @@ pub(crate) async fn set_lock_position(x: f64, y: f64, exact: bool) -> Result<(),
 pub(crate) async fn lock_position() -> Result<(f64, f64), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client.get_lock_position().map_err(|e| {
-        let message = format!("Failed to get lock position: {e}");
-        match e {
-            skotiq_phd2::Phd2Error::NoLockPosition(_) => {
-                SkotiqError::refused(Refusal::NoLockPosition, message)
-            }
-            _ => SkotiqError::OperationFailed(message),
-        }
-    })
+    client.get_lock_position().map_err(lock_position_failed)
 }
 
 pub(crate) async fn loop_exposures() -> Result<(), SkotiqError> {
@@ -1248,6 +1250,25 @@ mod refusal_tests {
             message(),
         );
         assert!(matches!(other, SkotiqError::OperationFailed(m) if m == message()));
+    }
+
+    #[test]
+    fn only_a_missing_lock_position_is_refused_as_one() {
+        let words = "Failed to get lock position: get_lock_position: expected array, got null";
+        match lock_position_failed(Phd2Error::NoLockPosition(
+            "get_lock_position: expected array, got null".into(),
+        )) {
+            SkotiqError::Refused { kind, message } => {
+                assert_eq!(kind, Refusal::NoLockPosition);
+                assert_eq!(message, words);
+            }
+            other => panic!("{other:?}"),
+        }
+        let other = lock_position_failed(Phd2Error::Protocol(
+            "get_lock_position: expected array, got 5".into(),
+        ));
+        assert!(matches!(other, SkotiqError::OperationFailed(m)
+            if m == "Failed to get lock position: get_lock_position: expected array, got 5"));
     }
 }
 

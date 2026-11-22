@@ -26,8 +26,9 @@ enum Refusal {
   /// The sequencer has no sequence loaded.
   noSequenceLoaded,
 
-  /// No DepthLock goal has the id.
-  depthLockGoalNotFound,
+  /// No DepthLock goal has the id. Named so its rendering holds none of the
+  /// words error text is classified by ("not found", "busy", ...).
+  depthLockNoSuchGoal,
 
   /// The caller's DepthLock goal revision is not the current one.
   depthLockStaleRevision,

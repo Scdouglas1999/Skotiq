@@ -93,7 +93,7 @@ class DepthLockHandlers implements RouteSource {
   ) {
     if (error case bridge_error.SkotiqError_Refused(:final kind)) {
       switch (kind) {
-        case bridge_error.Refusal.depthLockGoalNotFound:
+        case bridge_error.Refusal.depthLockNoSuchGoal:
           return 404;
         case bridge_error.Refusal.depthLockStaleRevision:
           return 409;

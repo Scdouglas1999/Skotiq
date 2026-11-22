@@ -277,5 +277,67 @@
       "message": "store gone",
       "requestId": "test-request-id"
     }
+  },
+  "focuser.ascom_move_failure": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.already_moving": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.device_busy_words": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.focuser_is_busy": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.device_busy_variant": {
+    "status": 409,
+    "body": {
+      "error": "device_error",
+      "message": "focuser-1 is busy: moving",
+      "requestId": "test-request-id"
+    }
+  },
+  "focuser.other": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "sdk blew up",
+      "requestId": "test-request-id"
+    }
+  },
+  "focuser.dart_busy": {
+    "status": 409,
+    "body": {
+      "error": "device_busy",
+      "code": "device_busy",
+      "message": "focuser is busy",
+      "requestId": "test-request-id",
+      "deviceId": "focuser-1"
+    }
   }
 }

@@ -70,14 +70,19 @@ pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
 /// light leak is refused as `Refusal::LightLeak`; a master that could not be
 /// written is `OperationFailed`.
 pub fn api_build_calibration_master(args_json: String) -> Result<String, SkotiqError> {
+    skotiq_processing::post_session::entrypoints::build_calibration_master(args_json)
+        .map_err(master_build_failed)
+}
+
+fn master_build_failed(
+    e: skotiq_imaging::calibration_master_stream::MasterBuildError,
+) -> SkotiqError {
     use skotiq_imaging::calibration_master_stream::MasterBuildError;
-    skotiq_processing::post_session::entrypoints::build_calibration_master(args_json).map_err(|e| {
-        match e {
-            MasterBuildError::Refused(reason) => SkotiqError::InvalidInput(reason),
-            MasterBuildError::LightLeak(reason) => SkotiqError::refused(Refusal::LightLeak, reason),
-            MasterBuildError::Failed(reason) => SkotiqError::OperationFailed(reason),
-        }
-    })
+    match e {
+        MasterBuildError::Refused(reason) => SkotiqError::InvalidInput(reason),
+        MasterBuildError::LightLeak(reason) => SkotiqError::refused(Refusal::LightLeak, reason),
+        MasterBuildError::Failed(reason) => SkotiqError::OperationFailed(reason),
+    }
 }
 
 /// Re-export an in-memory pixel buffer as a 16-bit or float FITS master with
@@ -110,4 +115,27 @@ pub fn api_save_fits_master(args_json: String) -> Result<String, String> {
 /// live run surface as `Err(String)`.
 pub fn api_post_session_cancel(args_json: String) -> Result<String, String> {
     skotiq_processing::post_session::entrypoints::post_session_cancel(args_json)
+}
+
+#[cfg(test)]
+mod master_build_failed_tests {
+    use super::*;
+    use skotiq_imaging::calibration_master_stream::MasterBuildError;
+
+    #[test]
+    fn a_light_leak_is_refused_by_kind_and_reads_as_invalid_input() {
+        let leak = master_build_failed(MasterBuildError::LightLeak("light leak: 3 of 9".into()));
+        assert!(
+            matches!(&leak, SkotiqError::Refused { kind: Refusal::LightLeak, message }
+            if message == "light leak: 3 of 9")
+        );
+        assert_eq!(
+            leak.to_string(),
+            SkotiqError::InvalidInput("light leak: 3 of 9".into()).to_string()
+        );
+        assert!(matches!(
+            master_build_failed(MasterBuildError::Refused("too few".into())),
+            SkotiqError::InvalidInput(m) if m == "too few"
+        ));
+    }
 }

@@ -458,6 +458,13 @@ void main() {
         const bridge.SkotiqError.resourceExhausted(resource: 'r', message: 'm'),
         'm',
       ),
+      (
+        const bridge.SkotiqError.refused(
+          kind: bridge.Refusal.noLockPosition,
+          message: 'm',
+        ),
+        'm',
+      ),
     ];
     for (final (error, expected) in rows) {
       test('${error.runtimeType}', () {
@@ -465,7 +472,41 @@ void main() {
       });
     }
     test('every variant has a row', () {
-      expect(rows.map((r) => r.$1.runtimeType).toSet(), hasLength(37));
+      expect(rows.map((r) => r.$1.runtimeType).toSet(), hasLength(38));
     });
+  });
+
+  // A refusal is classified as the variant it was raised as before it had a
+  // kind, whether read typed or after something turned it into text.
+  group('a refusal classifies as the variant it replaced', () {
+    for (final kind in bridge.Refusal.values) {
+      test('$kind', () {
+        const words = 'Failed to start sequence: Cannot start: busy';
+        final refused = bridge.SkotiqError.refused(kind: kind, message: words);
+        final before = kind == bridge.Refusal.lightLeak
+            ? const bridge.SkotiqError.invalidInput(words)
+            : const bridge.SkotiqError.operationFailed(words);
+        // The message of an error read from text is that text itself.
+        String core(SkotiqError e) =>
+            '${e.category} ${e.isRecoverable} ${e.shouldReconnect} '
+            '${e.isTimeout}';
+        String device(DeviceError e) =>
+            '${e.type} ${e.message} ${e.recoverable}';
+        expect(classifyErrorText('$refused'), classifyErrorText('$before'));
+        expect(
+          core(SkotiqError.fromString('$refused')),
+          core(SkotiqError.fromString('$before')),
+        );
+        expect(
+          device(DeviceError.fromException(refused)),
+          device(DeviceError.fromException(before)),
+        );
+        expect(
+          device(DeviceError.fromException(Exception('$refused'))),
+          device(DeviceError.fromException(Exception('$before'))),
+        );
+        expect(userFacingError(refused), userFacingError(before));
+      });
+    }
   });
 }
