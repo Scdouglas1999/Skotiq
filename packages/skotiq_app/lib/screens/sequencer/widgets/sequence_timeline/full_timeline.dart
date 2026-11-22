@@ -139,32 +139,32 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
 
   /// Calculate target visibility windows for rise/set markers.
   ///
-  /// [date] is the timeline's start INSTANT, so it is resolved to the night
-  /// that contains it: the visibility scan runs local noon to noon, and a run
-  /// starting after midnight otherwise drew its rise/set markers from the
-  /// following night.
+  /// [date] is the timeline's start INSTANT, so it is resolved to the site's
+  /// night that contains it: a run starting after midnight otherwise drew its
+  /// rise/set markers from the following night.
   Map<String, ObjectVisibility> _getTargetWindows(
     double lat,
     double lon,
     DateTime date,
   ) {
     final windows = <String, ObjectVisibility>{};
-    final nightDate = AstronomyCalculations.nightDateOf(date);
+    final nightDate = AstronomyCalculations.nightDateOf(
+      date,
+      longitudeDeg: lon,
+    );
     final floor = ref.read(altitudeFloorProvider);
 
     for (final node in widget.sequence.nodes.values) {
       if (node is TargetHeaderNode && node.isEnabled) {
         // When it clears and leaves the site's altitude floor (and its own
-        // minimum), over that night's local noon to noon.
+        // minimum), over that night.
         final visibility =
             floor.forTargetMinimum(node.minAltitude).visibilityAround(
                   raDeg: node.raHours * 15.0,
                   decDeg: node.decDegrees,
-                  center: DateTime(
-                    nightDate.year,
-                    nightDate.month,
-                    nightDate.day,
-                    24,
+                  center: AstronomyCalculations.nightMiddleOf(
+                    nightDate,
+                    longitudeDeg: lon,
                   ),
                   latitudeDeg: lat,
                   longitudeDeg: lon,

@@ -175,8 +175,8 @@ class SequenceTimeEstimator {
   ///
   /// [sequence] - The sequence containing target headers
   /// [date] - An instant within the observing night (in practice the run's
-  ///   start time, via [analyzeSequence]). Resolved to the night that CONTAINS
-  ///   it because the visibility scan runs local noon to noon.
+  ///   start time, via [analyzeSequence]). Resolved to the site's night that
+  ///   CONTAINS it, which runs from the site's solar noon to the next.
   /// [latitude] - Observer latitude in degrees
   /// [longitude] - Observer longitude in degrees
   ///
@@ -191,7 +191,10 @@ class SequenceTimeEstimator {
     required double longitude,
   }) {
     final windows = <String, TargetWindow>{};
-    final nightDate = AstronomyCalculations.nightDateOf(date);
+    final nightDate = AstronomyCalculations.nightDateOf(
+      date,
+      longitudeDeg: longitude,
+    );
     final siteFloor =
         floor ?? const AltitudeFloor(horizon: null, minimumDeg: 0);
 
@@ -215,12 +218,10 @@ class SequenceTimeEstimator {
         var neverRises = visibility.neverRises;
         if (!targetFloor.isFlat) {
           // A floor that changes with direction has no closed-form crossing:
-          // the night is searched, local noon to noon.
-          final from = DateTime(
-            nightDate.year,
-            nightDate.month,
-            nightDate.day,
-            12,
+          // the whole night is searched.
+          final from = AstronomyCalculations.nightStartOf(
+            nightDate,
+            longitudeDeg: longitude,
           );
           final until = from.add(const Duration(hours: 24));
           final above = targetFloor.windowAbove(

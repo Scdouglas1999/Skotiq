@@ -1,8 +1,8 @@
 // A sequence that starts AFTER local midnight is scored against the night it
 // runs in.
 //
-// `calculateObjectVisibility` scans one local-noon-to-noon window and reads only
-// the calendar day of the instant it is given. A run beginning at 01:00
+// `calculateObjectVisibility` scans one window from the site's solar noon and
+// reads only the calendar day of the date it is given. A run beginning at 01:00
 // otherwise has its rise/transit/set solved for the night that starts twelve
 // hours LATER, so every set time comes back roughly a day late and the "target
 // sets before this block finishes" conflicts pre-flight exists to raise become
@@ -49,9 +49,10 @@ void main() {
   test('a run starting after midnight is scored on the night it is IN', () {
     final sequence = buildSequence();
 
-    // 22:00 on the 15th and 01:00 on the 16th are the same observing night.
-    final evening = DateTime(2024, 1, 15, 22, 0);
-    final afterMidnight = DateTime(2024, 1, 16, 1, 0);
+    // 22:00 on the 15th and 01:00 on the 16th, site solar time (UTC at
+    // longitude 0), are the same observing night.
+    final evening = DateTime.utc(2024, 1, 15, 22, 0).toLocal();
+    final afterMidnight = DateTime.utc(2024, 1, 16, 1, 0).toLocal();
 
     final eveningWindow = estimator.calculateTargetWindows(
       sequence,
@@ -73,7 +74,7 @@ void main() {
     expect(afterMidnightWindow.setTime, eveningWindow.setTime);
   });
 
-  test('the night boundary is local noon, not midnight', () {
+  test('the night boundary is the site\'s solar noon, not midnight', () {
     final sequence = buildSequence();
 
     Duration? spanFrom(DateTime start) {
@@ -86,10 +87,11 @@ void main() {
       return window.transitTime?.difference(start);
     }
 
-    // 11:59 belongs to the night that began the previous evening; 12:00 opens
-    // the next one. The transit they name must therefore differ by about a day.
-    final before = spanFrom(DateTime(2024, 1, 16, 11, 59))!;
-    final after = spanFrom(DateTime(2024, 1, 16, 12, 0))!;
+    // 11:59 solar time belongs to the night that began the previous evening;
+    // 12:00 opens the next one. The transit they name must therefore differ by
+    // about a day.
+    final before = spanFrom(DateTime.utc(2024, 1, 16, 11, 59).toLocal())!;
+    final after = spanFrom(DateTime.utc(2024, 1, 16, 12, 0).toLocal())!;
     expect((after - before).inHours, greaterThanOrEqualTo(23));
   });
 }

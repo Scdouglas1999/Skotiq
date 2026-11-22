@@ -75,8 +75,16 @@ double? airmassForTrueAltitude(double altitudeDegrees) {
 /// The evening date, in the host's local time, of the observing night [time]
 /// belongs to. A night runs from local noon to local noon, so a frame taken
 /// after midnight stays with the evening it started on.
-DateTime observingNightOf(DateTime time) =>
-    AstronomyCalculations.nightDateOf(time.toLocal());
+///
+/// This groups what one computer recorded by its own clock. For the sky at a
+/// site, use [AstronomyCalculations.nightDateOf].
+DateTime observingNightOf(DateTime time) {
+  final local = time.toLocal();
+  // Calendar arithmetic, not `subtract(24 h)`: the day after a spring-forward
+  // change is 23 hours behind, and 00:30 minus 24 hours lands two dates back.
+  final day = local.hour < 12 ? local.day - 1 : local.day;
+  return DateTime(local.year, local.month, day);
+}
 
 /// The observing night [time] falls in, as the local noon it starts at and the
 /// next local noon: the night [observingNightOf] names.
@@ -443,21 +451,42 @@ class AstronomyCalculations {
     longitudeDeg: longitudeDeg,
   );
 
-  /// The calendar date of the night that CONTAINS [instant] — the value to pass
-  /// as `date` to [calculateObjectVisibility] when all you hold is a timestamp.
+  /// The date of the night at a site at [longitudeDeg] that CONTAINS
+  /// [instant]: the value to pass as `date` to [calculateObjectVisibility],
+  /// [nightStartOf] or [nightMiddleOf] when all you hold is a timestamp.
   ///
-  /// The observing night runs local noon to local noon, so anything before noon
-  /// belongs to the night that started the previous day. Handing `date` a raw
-  /// instant that has crossed midnight describes the FOLLOWING night — a whole
-  /// sidereal day (~4 min) of error in every rise/transit/set time.
-  static DateTime nightDateOf(DateTime instant) => _nightDateOf(instant);
+  /// The night runs from the site's solar noon to the next, so anything before
+  /// that noon belongs to the night that started the previous day. Handing
+  /// `date` a raw instant that has crossed midnight describes the FOLLOWING
+  /// night, a whole sidereal day (~4 min) of error in every rise/transit/set
+  /// time. The date is the site's, not the computer's: a computer in another
+  /// zone gets the same night. UTC in, UTC out.
+  static DateTime nightDateOf(
+    DateTime instant, {
+    required double longitudeDeg,
+  }) => _nightDateOf(instant, longitudeDeg);
+
+  /// The instant the night of [date] opens at a site at [longitudeDeg]: the
+  /// start of the window [calculateObjectVisibility] scans. Only the calendar
+  /// day of [date] is read.
+  static DateTime nightStartOf(DateTime date, {required double longitudeDeg}) =>
+      _nightStartOf(date, longitudeDeg);
+
+  /// The middle of the night of [date] at a site at [longitudeDeg], halfway
+  /// through the window [nightStartOf] opens. Pass it as the `center` of a
+  /// search that spans the night of [date].
+  static DateTime nightMiddleOf(
+    DateTime date, {
+    required double longitudeDeg,
+  }) => _nightMiddleOf(date, longitudeDeg);
 
   /// Calculate rise, transit, and set times for an object.
   ///
-  /// The window scanned is the local day of [date] from noon to the following
-  /// noon. [date] is therefore the DATE of the night, not an instant within it —
-  /// only its calendar day is read, and a timestamp past local midnight selects
-  /// the NEXT night. Convert an instant with [nightDateOf].
+  /// The window scanned is the night of [date] at the site, from its solar
+  /// noon ([nightStartOf]) to the next. [date] is therefore the DATE of the
+  /// night, not an instant within it: only its calendar day is read, and a
+  /// timestamp past midnight selects the NEXT night. Convert an instant with
+  /// [nightDateOf].
   ///
   /// The three times describe ONE pass of the sky: rise < transit < set, and
   /// the rise may fall before the window when the body is already up as it
@@ -495,10 +524,8 @@ class AstronomyCalculations {
   /// Rise, transit and set for the pass culminating closest to [center]:
   /// the window runs from 12 hours before [center] to 12 hours after.
   ///
-  /// Use this with a night's midpoint when the observing site is not in the
-  /// host computer's time zone. [calculateObjectVisibility] opens its window
-  /// at the host's local noon, which for a distant site can cut the night in
-  /// two and report the previous day's culmination.
+  /// Use this when the night is known as a window (a dark window's middle)
+  /// rather than as a date; [nightMiddleOf] gives the middle of a dated night.
   static ObjectVisibility calculateObjectVisibilityAround({
     required double raDeg,
     required double decDeg,
@@ -516,8 +543,9 @@ class AstronomyCalculations {
     windowStart: center.subtract(const Duration(hours: 12)),
   );
 
-  /// Sun rise/transit/set for the local day of [date], tracking the Sun's
-  /// motion and using the standard -0.833° limb altitude.
+  /// Sun rise/transit/set for the site's solar day of [date] (solar midnight
+  /// to solar midnight), tracking the Sun's motion and using the standard
+  /// -0.833° limb altitude.
   ///
   /// One daytime pass: rise, culmination and set all belong to [date]. For the
   /// dusk-tonight → dawn-tomorrow span the night strip draws, use
@@ -532,8 +560,9 @@ class AstronomyCalculations {
     longitudeDeg: longitudeDeg,
   );
 
-  /// Moon rise/transit/set for the local day of [date], tracking the Moon's
-  /// fast motion and using the approximate -0.7° limb altitude.
+  /// Moon rise/transit/set for the night of [date] at the site (the window
+  /// [nightStartOf] opens), tracking the Moon's fast motion and using the
+  /// approximate -0.7° limb altitude.
   static ObjectVisibility calculateMoonVisibility({
     required DateTime date,
     required double latitudeDeg,
@@ -624,7 +653,7 @@ class AstronomyCalculations {
     required double longitudeDeg,
   }) => _hourAngleDeg(raDeg: raDeg, dt: dt, longitudeDeg: longitudeDeg);
 
-  /// The meridian-flip window for a target on the local day of [date].
+  /// The meridian-flip window for a target on the night of [date] at the site.
   ///
   /// The flip itself happens at the target's meridian transit (hour angle 0),
   /// which is exactly the transit returned by [calculateObjectVisibility]. A

@@ -430,12 +430,12 @@ class _PlanningAstronomyCache {
   ({int day, double lat, double lon})? _twilightKey;
   TwilightTimes? _twilight;
 
-  /// The sampled altitude track for [raDeg]/[decDeg] over the local noon→noon
-  /// window, computed by [compute] only on a key miss.
+  /// The sampled altitude track for [raDeg]/[decDeg] over the 24 hours from
+  /// [nightStart], computed by [compute] only on a key miss.
   (List<double>, double) altitudeTrack({
     required double raDeg,
     required double decDeg,
-    required DateTime localNoon,
+    required DateTime nightStart,
     required double latitudeDeg,
     required double longitudeDeg,
     required (List<double>, double) Function() compute,
@@ -443,7 +443,7 @@ class _PlanningAstronomyCache {
     final key = (
       raDeg: raDeg,
       decDeg: decDeg,
-      day: _dayKey(localNoon),
+      day: _dayKey(nightStart),
       lat: latitudeDeg,
       lon: longitudeDeg,
     );

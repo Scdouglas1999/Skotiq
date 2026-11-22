@@ -1,7 +1,15 @@
 part of '../astronomy_calculations.dart';
 
-DateTime _localNoonOf(DateTime date) =>
-    DateTime(date.year, date.month, date.day, 12);
+/// The instant the night of [date] opens at a site at [longitudeDeg]: the
+/// site's mean solar noon on the calendar day of [date]. Only the calendar day
+/// of [date] is read, and the result does not depend on the computer's zone.
+DateTime _nightStartOf(DateTime date, double longitudeDeg) =>
+    _siteSolarNoonOfDate(date, longitudeDeg);
+
+/// The middle of the night of [date] at a site at [longitudeDeg]: the site's
+/// mean solar midnight.
+DateTime _nightMiddleOf(DateTime date, double longitudeDeg) =>
+    _nightStartOf(date, longitudeDeg).add(const Duration(hours: 12));
 
 /// Apparent altitude (degrees, including refraction) of a body at [dt].
 ///
@@ -106,13 +114,16 @@ DateTime? _findRiseBefore({
   return null;
 }
 
-DateTime _nightDateOf(DateTime instant) {
-  // Calendar arithmetic, not `subtract(24 h)`: the day after a spring-forward
-  // change is 23 hours behind, and 00:30 minus 24 hours lands two dates back.
-  final day = instant.hour < 12 ? instant.day - 1 : instant.day;
+/// The date D whose night at [longitudeDeg] contains [instant]: the site's
+/// mean solar date twelve hours before [instant], so the night of D runs from
+/// [_nightStartOf] D to [_nightStartOf] D + 1. UTC in, UTC out.
+DateTime _nightDateOf(DateTime instant, double longitudeDeg) {
+  final solar = instant.toUtc().add(
+    Duration(minutes: ((longitudeDeg / 15.0 - 12.0) * 60).round()),
+  );
   return instant.isUtc
-      ? DateTime.utc(instant.year, instant.month, day)
-      : DateTime(instant.year, instant.month, day);
+      ? DateTime.utc(solar.year, solar.month, solar.day)
+      : DateTime(solar.year, solar.month, solar.day);
 }
 
 ObjectVisibility _calculateObjectVisibility({
@@ -126,7 +137,7 @@ ObjectVisibility _calculateObjectVisibility({
   EquatorialPositionAt? positionAt,
   DateTime? windowStart,
 }) {
-  final localNoon = windowStart ?? _localNoonOf(date);
+  final localNoon = windowStart ?? _nightStartOf(date, longitudeDeg);
   final windowEnd = localNoon.add(const Duration(hours: 24));
   final crossingAlt = standardAltitude ?? minAltitude;
 
@@ -337,6 +348,10 @@ ObjectVisibility _calculateSunVisibility({
     longitudeDeg: longitudeDeg,
     standardAltitude: _apparentLimb(_sunRiseSetAltitude),
     positionAt: (dt) => _sunPosition(dt),
+    windowStart: _nightStartOf(
+      date,
+      longitudeDeg,
+    ).subtract(const Duration(hours: 12)),
   );
 }
 

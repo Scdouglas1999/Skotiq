@@ -175,13 +175,13 @@ _TargetVisibility _computeVisibility({
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   );
-  // The night containing [now], local noon to noon, against the site's
-  // altitude floor in the direction the target stands.
-  final night = AstronomyCalculations.nightDateOf(now);
+  // The night containing [now] at the site, against the site's altitude floor
+  // in the direction the target stands.
+  final night = AstronomyCalculations.nightDateOf(now, longitudeDeg: longitude);
   final visibility = floor.visibilityAround(
     raDeg: raDeg,
     decDeg: decDeg,
-    center: DateTime(night.year, night.month, night.day, 24),
+    center: AstronomyCalculations.nightMiddleOf(night, longitudeDeg: longitude),
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   );

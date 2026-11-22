@@ -41,19 +41,19 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
       decDeg: decDeg,
       // The night containing the clock, not its calendar day: after local
       // midnight those differ and the overlay would describe tomorrow night.
-      date: AstronomyCalculations.nightDateOf(observationTime),
+      date: AstronomyCalculations.nightDateOf(
+        observationTime,
+        longitudeDeg: longitude,
+      ),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
 
-    // Sample apparent altitude across the local night window (noon→noon), the
-    // same 24h span the object-details altitude chart uses, so the on-sky track
-    // and the side-panel chart agree.
-    final localNoon = DateTime(
-      observationTime.year,
-      observationTime.month,
-      observationTime.day,
-      12,
+    // Sample apparent altitude across the site's night (solar noon to solar
+    // noon), the same 24h span the twilight gauge uses.
+    final nightStart = AstronomyCalculations.nightStartOf(
+      observationTime,
+      longitudeDeg: longitude,
     );
     const samples = 48; // every 30 minutes
     // Memoized on (target, day, site): this runs on the animated overlay layer,
@@ -61,14 +61,14 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final (altitudes, maxAlt) = _planningAstronomyCache.altitudeTrack(
       raDeg: raDeg,
       decDeg: decDeg,
-      localNoon: localNoon,
+      nightStart: nightStart,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       compute: () {
         final result = <double>[];
         var peak = -90.0;
         for (var i = 0; i <= samples; i++) {
-          final t = localNoon.add(Duration(minutes: (24 * 60 * i ~/ samples)));
+          final t = nightStart.add(Duration(minutes: (24 * 60 * i ~/ samples)));
           final lst = AstronomyCalculations.localSiderealTime(t, longitude);
           final (alt, _) = AstronomyCalculations.equatorialToHorizontal(
             raDeg: raDeg,
@@ -154,7 +154,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     );
 
     // "Now" marker on the curve.
-    final nowFrac = observationTime.difference(localNoon).inMinutes / (24 * 60);
+    final nowFrac =
+        observationTime.difference(nightStart).inMinutes / (24 * 60);
     if (nowFrac >= 0 && nowFrac <= 1) {
       final nowX = o.dx + nowFrac * trackWidth;
       canvas.drawLine(
@@ -169,7 +170,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // Transit (meridian-flip) tick + label.
     final transit = visibility.transitTime;
     if (transit != null) {
-      final tFrac = transit.difference(localNoon).inMinutes / (24 * 60);
+      final tFrac = transit.difference(nightStart).inMinutes / (24 * 60);
       if (tFrac >= 0 && tFrac <= 1) {
         final tx = o.dx + tFrac * trackWidth;
         canvas.drawLine(
@@ -233,17 +234,16 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final dawn = twilight.astronomicalDawn ?? twilight.nauticalDawn;
     if (dusk == null || dawn == null) return;
 
-    // Gauge spans the local night window (noon→noon) so "now" and the band map
-    // consistently with the altitude track.
-    final localNoon = DateTime(
-      observationTime.year,
-      observationTime.month,
-      observationTime.day,
-      12,
+    // Gauge spans the site's night (solar noon to solar noon), the window the
+    // twilight times are read from, so "now" and the band map consistently
+    // with the altitude track.
+    final nightStart = AstronomyCalculations.nightStartOf(
+      observationTime,
+      longitudeDeg: longitude,
     );
     const windowMinutes = 24 * 60;
     double frac(DateTime t) =>
-        (t.difference(localNoon).inMinutes / windowMinutes).clamp(0.0, 1.0);
+        (t.difference(nightStart).inMinutes / windowMinutes).clamp(0.0, 1.0);
 
     const double left = 16;
     const double top = 16;

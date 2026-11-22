@@ -33,8 +33,9 @@ void main() {
   };
 
   Future<({int start, int end, List<String> warnings})> suggestionWindow(
-    _Site site,
-  ) async {
+    _Site site, {
+    bool utcClock = false,
+  }) async {
     final scoring = FakeTargetScoring();
     final log = _Log();
     final warnings = <String>[];
@@ -67,7 +68,7 @@ void main() {
         ),
       ],
       sessions: const [],
-      observationTime: _localNow(site),
+      observationTime: utcClock ? DateTime.parse(site.now) : _localNow(site),
       floor: const AltitudeFloor(horizon: null, minimumDeg: 0.0),
     );
     final sky = scoring.nightRequests.single.sky;
@@ -159,5 +160,21 @@ void main() {
     final smart = smartNightWindow(site) as ({DateTime start, DateTime end});
     expect(smart.start, _clockOn(site, 0, 21));
     expect(smart.end, _clockOn(site, 1, 5));
+  });
+
+  // The clock window is read off the machine's local day. A UTC instant for
+  // the same moment used to build it from the UTC date's fields, a day off on
+  // a computer whose local date differs from the UTC one.
+  test('a UTC clock gives the same fallback window as the local one', () async {
+    for (final key in ['midnight sun', 'polar night']) {
+      final site = sites[key]!;
+      final local = await suggestionWindow(site);
+      final utc = await suggestionWindow(site, utcClock: true);
+      expect(
+        (start: utc.start, end: utc.end),
+        (start: local.start, end: local.end),
+        reason: key,
+      );
+    }
   });
 }
