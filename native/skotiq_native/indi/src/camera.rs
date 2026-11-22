@@ -97,7 +97,7 @@ impl IndiCamera {
     ///   implementation never errors.
     ///
     /// Why: substituting `(1, 1)` for
-    /// any driver that hadn't sent `defNumberVector` for `CCD_BINNING`,
+    /// any driver that hadn't sent `defNumberVector` for `CCD_BINNING`
     /// would produce wrong-but-plausible values.
     pub async fn try_get_binning(&self) -> Result<Option<(i32, i32)>, IndiError> {
         let client = self.client.read().await;
