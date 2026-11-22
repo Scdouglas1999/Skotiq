@@ -65,3 +65,27 @@ pub(crate) async fn register_connected(
         .expect("simulator connects");
     manager.register_device(info, false).await;
 }
+
+/// The simulator a type's discovery offers first: its id and the name every
+/// screen shows for it.
+pub(crate) fn listed_simulator(
+    device_type: crate::device::DeviceType,
+) -> Option<(&'static str, &'static str)> {
+    use crate::device::DeviceType;
+    Some(match device_type {
+        DeviceType::Camera if camera::sim_imaging_camera_is_dslr() => {
+            (camera::SIM_IMAGING_CAMERA_ID, camera::SIM_DSLR_NAME)
+        }
+        DeviceType::Camera => (camera::SIM_IMAGING_CAMERA_ID, "Simulated Camera"),
+        DeviceType::Mount => ("sim_mount_1", "Simulated Mount"),
+        DeviceType::Focuser => ("sim_focuser_1", "Simulated Focuser"),
+        DeviceType::FilterWheel => ("sim_filterwheel_1", "Simulated Filter Wheel"),
+        DeviceType::Rotator => ("sim_rotator_1", "Simulated Rotator"),
+        DeviceType::Dome => ("sim_dome_1", "Simulated Dome"),
+        DeviceType::Weather => ("sim_weather_1", "Simulated Weather Station"),
+        DeviceType::SafetyMonitor => ("sim_safety_monitor_1", "Simulated Safety Monitor"),
+        DeviceType::Switch => ("sim_switch_1", "Simulated Power Switch"),
+        DeviceType::CoverCalibrator => ("sim_cover_calibrator_1", "Simulated Flat Panel"),
+        _ => return None,
+    })
+}

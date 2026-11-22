@@ -283,17 +283,17 @@ where
         );
 
         let taken_at = polar_mid_exposure(chrono::Utc::now(), self.config.exposure_time);
-        let image_data = match ctx
-            .run
-            .device_ops
-            .camera_start_exposure(
-                crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
-                    .binning(
-                        self.config.binning.unwrap_or(1),
-                        self.config.binning.unwrap_or(1),
-                    ),
-            )
-            .await
+        let image_data = match crate::instructions::take_frame(
+            ctx,
+            crate::instructions::CaptureSite::PolarAlignMeasure,
+            crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
+                .binning(
+                    self.config.binning.unwrap_or(1),
+                    self.config.binning.unwrap_or(1),
+                ),
+            "on a polar alignment point",
+        )
+        .await
         {
             Ok(data) => data,
             Err(e) => {
@@ -485,20 +485,17 @@ where
             }
 
             let frame_time = polar_mid_exposure(chrono::Utc::now(), self.config.exposure_time);
-            let image_data = match ctx
-                .run
-                .device_ops
-                .camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(
-                        &self.camera_id,
-                        self.config.exposure_time,
-                    )
+            let image_data = match crate::instructions::take_frame(
+                ctx,
+                crate::instructions::CaptureSite::PolarAlignAdjust,
+                crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
                     .binning(
                         self.config.binning.unwrap_or(1),
                         self.config.binning.unwrap_or(1),
                     ),
-                )
-                .await
+                "on a polar alignment adjustment frame",
+            )
+            .await
             {
                 Ok(data) => data,
                 Err(e) => {

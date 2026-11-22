@@ -1,5 +1,4 @@
 use super::UnifiedDeviceOps;
-use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_sequencer::{DeviceResult, ImageData, PlateSolveOps, PlateSolveResult};
@@ -57,9 +56,11 @@ impl PlateSolveOps for UnifiedDeviceOps {
         .await
         .map_err(|e| format!("Failed to save temp FITS for plate solve: {}", e))?;
 
-        let mount_id = self
-            .app_state
-            .get_profile_device_id(DeviceType::Mount)
+        let mount_id = get_device_manager()
+            .rig_device(
+                crate::device_manager::roles::RigRole::SolveDiagnosticsMount,
+                None,
+            )
             .await;
         let mount_before_solve = if let Some(id) = mount_id.as_ref() {
             match tokio::time::timeout(

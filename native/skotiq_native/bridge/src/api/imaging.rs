@@ -790,14 +790,9 @@ pub async fn api_clear_device_image(device_id: String) -> Result<(), SkotiqError
 }
 
 /// Cancel current exposure.
-///
-/// The abort generation moves first: it is what stops the exposure waiting
-/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
-/// the stop, which must not be downloaded as a frame.
 pub async fn api_camera_cancel_exposure(device_id: String) -> Result<(), SkotiqError> {
-    crate::unified_device_ops::exposure_wait::mark_camera_exposure_aborted(&device_id).await;
     get_device_manager()
-        .camera_abort_exposure(&device_id)
+        .abort_capture(&device_id)
         .await
         .map_err(SkotiqError::from)
 }

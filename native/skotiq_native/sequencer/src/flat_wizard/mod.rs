@@ -337,19 +337,20 @@ impl<'a> FlatWizardRun<'a> {
         );
 
         let (bin_x, bin_y) = binning_dimensions(ctx.current_binning);
-        let image_data = match ctx
-            .run
-            .device_ops
-            .camera_start_exposure(
-                crate::device_ops::ExposureRequest::new(camera_id, test_exposure)
-                    .binning(bin_x, bin_y),
-            )
-            .await
+        let image_data = match crate::instructions::take_frame(
+            ctx,
+            crate::instructions::CaptureSite::FlatWizardTest,
+            crate::device_ops::ExposureRequest::new(camera_id, test_exposure).binning(bin_x, bin_y),
+            "on the flat test exposure",
+        )
+        .await
         {
             Ok(data) => data,
-            Err(e) => {
-                let message = format!("Test exposure failed: {}", e);
-                self.cause = Some(e);
+            Err(end) => {
+                let message = format!("Test exposure failed: {}", end);
+                if let crate::instructions::FrameEnd::Failed(failure) = end {
+                    self.cause = Some(failure.error);
+                }
                 return WizardStepOutcome::Failed(message);
             }
         };

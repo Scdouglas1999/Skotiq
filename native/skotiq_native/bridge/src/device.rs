@@ -23,6 +23,44 @@ pub enum DeviceType {
 }
 
 impl DeviceType {
+    /// Every device type, in declaration order.
+    pub(crate) const ALL: [DeviceType; 11] = [
+        DeviceType::Camera,
+        DeviceType::Mount,
+        DeviceType::Focuser,
+        DeviceType::FilterWheel,
+        DeviceType::Guider,
+        DeviceType::Dome,
+        DeviceType::Rotator,
+        DeviceType::Weather,
+        DeviceType::SafetyMonitor,
+        DeviceType::Switch,
+        DeviceType::CoverCalibrator,
+    ];
+
+    /// The type as the hotplug events name it (`device_class`), which the
+    /// app keys off.
+    pub(crate) fn wire_name(self) -> &'static str {
+        match self {
+            DeviceType::Camera => "camera",
+            DeviceType::Mount => "mount",
+            DeviceType::Focuser => "focuser",
+            DeviceType::FilterWheel => "filterWheel",
+            DeviceType::Rotator => "rotator",
+            DeviceType::Dome => "dome",
+            DeviceType::Weather => "weather",
+            DeviceType::SafetyMonitor => "safetyMonitor",
+            DeviceType::CoverCalibrator => "coverCalibrator",
+            DeviceType::Switch => "switch",
+            DeviceType::Guider => "guider",
+        }
+    }
+
+    /// The type in a sentence: "dome", "safety monitor".
+    pub(crate) fn noun(self) -> String {
+        self.as_str().to_lowercase()
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             DeviceType::Camera => "Camera",
@@ -134,6 +172,30 @@ pub enum DriverType {
     Indi,
     Native,
     Simulator,
+}
+
+impl DriverType {
+    /// The protocol as the hotplug events name it (`driver`).
+    pub(crate) fn wire_name(self) -> &'static str {
+        match self {
+            DriverType::Native => "native",
+            DriverType::Ascom => "ascom",
+            DriverType::Alpaca => "alpaca",
+            DriverType::Indi => "indi",
+            DriverType::Simulator => "simulator",
+        }
+    }
+
+    /// How the protocol names itself in messages.
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            DriverType::Ascom => "ASCOM",
+            DriverType::Alpaca => "Alpaca",
+            DriverType::Indi => "INDI",
+            DriverType::Native => "Native",
+            DriverType::Simulator => "Simulator",
+        }
+    }
 }
 
 /// Current status of a camera

@@ -17,7 +17,7 @@ async fn reconnect_reapplies_mount_tracking() {
     use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_mount_reapply";
     let info = build_sim_info(device_id, DeviceType::Mount);
     manager.register_device(info.clone(), false).await;
@@ -80,7 +80,7 @@ async fn reconnect_reapplies_camera_cooler() {
     use crate::simulator::camera::get_sim_camera;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_camera_reapply";
     let info = build_sim_info(device_id, DeviceType::Camera);
     manager.register_device(info.clone(), false).await;
@@ -143,7 +143,7 @@ async fn fresh_connect_does_not_reapply_state() {
     use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_mount_fresh";
     let info = build_sim_info(device_id, DeviceType::Mount);
     manager.register_device(info.clone(), false).await;
@@ -559,7 +559,7 @@ async fn an_undecodable_camera_file_is_saved_at_once() {
 /// safe-rig shutdown both need to do.
 #[tokio::test]
 async fn turning_the_cooler_off_sends_no_setpoint_to_the_driver() {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "native:test:cooler_off";
     manager
         .register_device(build_native_camera_info(device_id), false)
@@ -589,7 +589,7 @@ async fn turning_the_cooler_off_sends_no_setpoint_to_the_driver() {
 /// the write is a separate property that may not exist.
 #[tokio::test]
 async fn a_setpoint_supplied_with_a_cooler_off_command_is_dropped() {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "native:test:cooler_off_with_target";
     manager
         .register_device(build_native_camera_info(device_id), false)
@@ -627,7 +627,7 @@ async fn a_setpoint_supplied_with_a_cooler_off_command_is_dropped() {
 /// through verbatim, and an absent one is still not invented.
 #[tokio::test]
 async fn enabling_passes_the_callers_setpoint_through_unchanged() {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "native:test:cooler_on";
     manager
         .register_device(build_native_camera_info(device_id), false)
@@ -715,7 +715,7 @@ fn spawn_fake_onstep_pty() -> String {
 #[tokio::test]
 async fn a_native_serial_mount_reconnects_after_a_heartbeat_loss() {
     let path = spawn_fake_onstep_pty();
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = format!("native:onstep:{}:9600", path);
     let info = build_mount_info(&device_id, DriverType::Native);
     manager.register_device(info.clone(), false).await;

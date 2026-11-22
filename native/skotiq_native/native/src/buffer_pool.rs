@@ -15,7 +15,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use skotiq_imaging::buffer_pool::{BufferPool, BufferPoolConfig};
+//! use skotiq_native::buffer_pool::{BufferPool, BufferPoolConfig};
 //!
 //! // Create a pool for 16-bit image data
 //! let config = BufferPoolConfig {

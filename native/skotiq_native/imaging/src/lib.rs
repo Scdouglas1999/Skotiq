@@ -11,7 +11,6 @@
 mod airmass;
 pub mod atomic_file;
 pub mod background_extraction;
-pub mod buffer_pool;
 pub mod calibration;
 pub mod calibration_master_stream;
 pub mod calibration_masters;
@@ -63,7 +62,6 @@ pub mod xisf;
 
 pub use airmass::calculate_airmass;
 pub use background_extraction::*;
-pub use buffer_pool::*;
 pub use calibration::*;
 pub use calibration_masters::*;
 pub use color_calibration::*;

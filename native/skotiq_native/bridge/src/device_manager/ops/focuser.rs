@@ -2,6 +2,7 @@
 //! bookkeeping around the focuser's handle (see
 //! [`crate::device_manager::rig::focuser`]).
 
+use crate::device_manager::busy::Busy;
 use std::time::{Duration, Instant};
 
 use crate::device_manager::DeviceManager;
@@ -30,7 +31,7 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         self.publish_state_event(EquipmentEvent::FocuserMoveStarted {
             device_id: device_id.to_string(),
             target_position: position,
@@ -53,7 +54,7 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         let target = self
             .focuser_get_position(device_id)
             .await
@@ -76,7 +77,7 @@ impl DeviceManager {
 
     /// Stop the focuser and publish where it stopped.
     pub async fn focuser_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         let result = match self.focuser(device_id).await {
             Ok(focuser) => focuser.halt().await,
             Err(e) => Err(e),
@@ -129,7 +130,7 @@ impl DeviceManager {
         position: i32,
     ) -> Result<(), DeviceOpError> {
         let focuser = self.focuser(device_id).await?;
-        let _op = self.begin_operation(device_id);
+        let _op = self.busy(device_id, Busy::BlockingCall);
         focuser.move_to(position).await
     }
 
@@ -139,7 +140,7 @@ impl DeviceManager {
         steps: i32,
     ) -> Result<(), DeviceOpError> {
         let focuser = self.focuser(device_id).await?;
-        let _op = self.begin_operation(device_id);
+        let _op = self.busy(device_id, Busy::BlockingCall);
         focuser.move_by(steps).await
     }
 

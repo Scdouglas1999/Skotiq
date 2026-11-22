@@ -54,13 +54,13 @@
 //!   `sequencer/src/meridian.rs::julian_day`, where the per-site reasoning
 //!   lives.
 
-use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
-use crate::dispatch::error::DeviceOpError;
 use crate::state::SharedAppState;
 use crate::unified_device_ops::pointing::{altitude_degrees, MountPointing};
 // Julian Day and local sidereal time come from the sequencer; this file keeps
 // no copy of either.
+pub(crate) use crate::device_manager::capture::sequencer_error;
+use crate::device_manager::roles::RigRole;
 use skotiq_sequencer::{DeviceError, DeviceResult, SiteOps};
 use std::sync::Arc;
 
@@ -70,7 +70,6 @@ mod capture_pins_tests;
 mod connection;
 mod cover_calibrator;
 mod dome;
-pub(crate) mod exposure_wait;
 mod filter_wheel;
 mod focuser;
 #[cfg(test)]
@@ -88,6 +87,8 @@ mod plate_solve;
 pub(crate) mod pointing;
 #[cfg(test)]
 mod pointing_tests;
+#[cfg(test)]
+mod reopen_reach_tests;
 pub(crate) mod rich_header;
 #[cfg(test)]
 mod rig_grading_tests;
@@ -97,30 +98,6 @@ mod site;
 mod solve_diagnostics;
 #[cfg(test)]
 mod tests;
-
-/// What the sequencer is told about a failed operation on its `device`: the
-/// same kind of failure, in the device layer's words.
-fn device_error<E: Into<DeviceOpError>>(
-    device: skotiq_sequencer::DeviceKind,
-) -> impl Fn(E) -> DeviceError {
-    move |error| {
-        let error = error.into();
-        let message = error.to_string();
-        match error {
-            DeviceOpError::NotConnected { .. } => DeviceError::NotConnected { device, message },
-            DeviceOpError::Unsupported { .. } => DeviceError::Unsupported(message),
-            DeviceOpError::Timeout { .. } => DeviceError::Timeout(message),
-            DeviceOpError::DeviceNotFound(_)
-            | DeviceOpError::InvalidDeviceId { .. }
-            | DeviceOpError::InvalidParameter { .. }
-            | DeviceOpError::InvalidState { .. } => DeviceError::Rejected(message),
-            DeviceOpError::SessionLost { .. } => DeviceError::SessionLost(message),
-            DeviceOpError::Hardware { .. } | DeviceOpError::Message(_) => {
-                DeviceError::Failed(message)
-            }
-        }
-    }
-}
 
 /// Unified device operations implementation
 ///
@@ -139,38 +116,10 @@ impl UnifiedDeviceOps {
     }
 
     async fn resolve_safety_device_id(&self, explicit_id: Option<&str>) -> DeviceResult<String> {
-        if let Some(id) = explicit_id {
-            return Ok(id.to_string());
-        }
-
-        if let Some(id) = get_device_manager()
-            .first_connected_device_id(DeviceType::SafetyMonitor)
+        get_device_manager()
+            .rig_device(RigRole::RunSafety, explicit_id)
             .await
-        {
-            return Ok(id);
-        }
-
-        // Audit C1: the profile now persists a SafetyMonitor selection. Prefer
-        // that over falling through to a weather device so sequencer safety
-        // checks consult the dedicated sensor instead of inferring safe/unsafe
-        // from a weather station.
-        if let Some(id) = self
-            .app_state
-            .get_profile_device_id(DeviceType::SafetyMonitor)
-            .await
-        {
-            return Ok(id);
-        }
-
-        if let Some(id) = self
-            .app_state
-            .get_profile_device_id(DeviceType::Weather)
-            .await
-        {
-            return Ok(id);
-        }
-
-        Err(DeviceError::NO_SAFETY_DEVICE)
+            .ok_or(DeviceError::NO_SAFETY_DEVICE)
     }
 
     /// Where the telescope is actually pointing, sampled for the FITS header.
@@ -202,7 +151,7 @@ impl UnifiedDeviceOps {
         when: chrono::DateTime<chrono::Utc>,
     ) -> Option<MountPointing> {
         let mount_id = get_device_manager()
-            .first_connected_device_id(DeviceType::Mount)
+            .rig_device(RigRole::FramePointingMount, None)
             .await?;
 
         match get_device_manager().mount_get_coordinates(&mount_id).await {

@@ -656,19 +656,16 @@ async fn scan_one_direction(
             if ctx.cancellation_token.load(Ordering::Relaxed) {
                 return Err(BACKLASH_CALIBRATION_CANCELLED.to_string());
             }
-            let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.to_string());
-            let exposure = ctx
-                .run
-                .device_ops
-                .camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(camera_id, config.exposure_duration)
-                        .gain(config.gain)
-                        .offset(config.offset)
-                        .binning(bin_x, bin_y),
-                )
-                .await;
-            abort_guard.disarm();
+            let exposure = take_frame(
+                ctx,
+                CaptureSite::BacklashCalibration,
+                crate::device_ops::ExposureRequest::new(camera_id, config.exposure_duration)
+                    .gain(config.gain)
+                    .offset(config.offset)
+                    .binning(bin_x, bin_y),
+                "on a backlash calibration sample",
+            )
+            .await;
             let image = exposure.map_err(|error| {
                 format!("Calibration exposure at {} failed: {}", position, error)
             })?;

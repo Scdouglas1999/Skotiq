@@ -142,7 +142,7 @@ impl DeviceManager {
             crate::device_manager::policy::policy(device_type)
                 .heartbeat
                 .auto_reconnect,
-            &format!("Stopped answering: {error}"),
+            crate::device_manager::connection::Loss::StoppedAnswering(&error.to_string()),
         )
         .await;
     }

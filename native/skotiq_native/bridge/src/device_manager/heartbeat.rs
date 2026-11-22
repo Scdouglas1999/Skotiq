@@ -208,7 +208,7 @@ impl DeviceManager {
             // handle.
             DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => Err(format!(
                 "No {} heartbeat implementation for device {} ({:?})",
-                crate::device_manager::handle::protocol_label(*driver_type),
+                driver_type.label(),
                 device_id,
                 device_type
             )),
@@ -281,8 +281,10 @@ impl DeviceManager {
         // kill heartbeat for the whole session.
         let device_id_clone = device_id.to_string();
         let app_state = self.app_state.clone();
-        // We need a reference to perform health checks - clone Arc pointer from the global singleton
-        let manager = crate::device_manager::get_device_manager().clone();
+        let manager = self
+            .me
+            .upgrade()
+            .ok_or_else(|| format!("Heartbeat for {device_id}: the device manager is gone"))?;
 
         let give_up_app_state = app_state.clone();
         let give_up_device_type_str = device_type_str.clone();
@@ -540,54 +542,22 @@ impl DeviceManager {
                                 );
 
                                 if manager
-                                    .mark_lost(
+                                    .record_lost(
                                         &device_id_clone,
+                                        device_type,
                                         config.auto_reconnect,
-                                        &format!(
-                                            "Unresponsive after {consecutive_failures} heartbeat failures: {error_msg}"
-                                        ),
+                                        crate::device_manager::connection::Loss::Unresponsive {
+                                            failures: consecutive_failures,
+                                            error: &error_msg,
+                                        },
                                     )
                                     .await
-                                    .is_some()
+                                    && config.auto_reconnect
                                 {
-                                    // De-dupe: emit exactly two events on
-                                    // disconnect — one canonical status change
-                                    // (drives the UI/health state) plus one
-                                    // Error carrying the human message (drives
-                                    // the notification toast). The standalone
-                                    // EquipmentEvent::Disconnected was redundant
-                                    // with the HeartbeatStatusChanged{Disconnected}
-                                    // status and produced a third, duplicate
-                                    // user-facing toast.
-                                    app_state.publish_equipment_event(
-                                        EquipmentEvent::HeartbeatStatusChanged {
-                                            device_type: device_type_str.clone(),
-                                            device_id: device_id_clone.clone(),
-                                            status: crate::event::equipment::HeartbeatStatus::Disconnected,
-                                            consecutive_failures,
-                                            last_rtt_ms: None,
-                                        },
-                                        EventSeverity::Error,
+                                    tracing::info!(
+                                        "Device {} marked for reconnection via reconnection_loop (heartbeat auto_reconnect)",
+                                        device_id_clone
                                     );
-
-                                    app_state.publish_equipment_event(
-                                        EquipmentEvent::Error {
-                                            device_type: device_type_str.clone(),
-                                            device_id: device_id_clone.clone(),
-                                            message: format!(
-                                                "Device unresponsive after {} heartbeat failures: {}",
-                                                consecutive_failures, error_msg
-                                            ),
-                                        },
-                                        EventSeverity::Error,
-                                    );
-
-                                    if config.auto_reconnect {
-                                        tracing::info!(
-                                            "Device {} marked for reconnection via reconnection_loop (heartbeat auto_reconnect)",
-                                            device_id_clone
-                                        );
-                                    }
                                 }
                             }
                         }

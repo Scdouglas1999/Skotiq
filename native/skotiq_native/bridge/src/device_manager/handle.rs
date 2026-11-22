@@ -4,7 +4,6 @@
 //! operation looks the handle up, calls the trait method and converts the
 //! error. Which protocol answers is decided once, at connect.
 
-use crate::device::{DeviceType, DriverType};
 use crate::device_capabilities::types::DeviceCapabilities;
 use crate::device_manager::accessory::{Dome, Rotator, SafetyMonitor, Weather};
 use crate::device_manager::identity::DeviceIdentity;
@@ -165,22 +164,6 @@ impl Handles {
     }
 }
 
-/// How a protocol names itself in messages.
-pub(crate) fn protocol_label(driver_type: DriverType) -> &'static str {
-    match driver_type {
-        DriverType::Ascom => "ASCOM",
-        DriverType::Alpaca => "Alpaca",
-        DriverType::Indi => "INDI",
-        DriverType::Native => "Native",
-        DriverType::Simulator => "Simulator",
-    }
-}
-
-/// The device type in a sentence: "dome", "safety monitor".
-pub(crate) fn device_noun(device_type: DeviceType) -> String {
-    device_type.as_str().to_lowercase()
-}
-
 /// A driver failure on `device_id`. A not-connected answer names the device,
 /// so the FFI edge reports which device it is.
 pub(crate) fn device_error(device_id: &str, error: DriverError) -> DeviceOpError {
@@ -211,8 +194,8 @@ impl DeviceManager {
                 Some(device_id.to_string()),
                 format!(
                     "{} {} not connected",
-                    protocol_label(info.driver_type),
-                    device_noun(info.device_type)
+                    info.driver_type.label(),
+                    info.device_type.noun()
                 ),
             )
         })

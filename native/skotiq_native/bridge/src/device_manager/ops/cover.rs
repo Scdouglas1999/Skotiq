@@ -44,7 +44,7 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         self.cover_calibrator_calibrator_on_dispatch(device_id, brightness)
             .await?;
-        crate::device_manager::device_reopen::note_commanded(device_id, |held| {
+        self.note_commanded(device_id, |held| {
             held.calibrator = Some(Some(brightness));
         });
         self.publish_cover(device_id, property::CALIBRATOR, format!("on {brightness}"));
@@ -58,7 +58,7 @@ impl DeviceManager {
     ) -> Result<(), DeviceOpError> {
         self.cover_calibrator_calibrator_off_dispatch(device_id)
             .await?;
-        crate::device_manager::device_reopen::note_commanded(device_id, |held| {
+        self.note_commanded(device_id, |held| {
             held.calibrator = Some(None);
         });
         self.publish_cover(device_id, property::CALIBRATOR, "off".to_string());

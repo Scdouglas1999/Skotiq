@@ -44,13 +44,13 @@
 #![allow(clippy::unnecessary_cast)]
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
+use crate::buffer_pool::global_u8_pool;
 use crate::camera_core::{bayer_from_asi_index, raw16_container_max_adu, CameraCore};
 use crate::utils::{calculate_buffer_size_i32, safe_cstr_to_string, CleanupGuard};
 use async_trait::async_trait;
 use skotiq_device::camera::*;
 use skotiq_device::Vendor;
 use skotiq_device::*;
-use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_int, c_long, CStr};
 
 mod camera;

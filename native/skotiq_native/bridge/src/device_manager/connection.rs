@@ -7,7 +7,6 @@
 //! below.
 
 use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::handle::{device_noun, protocol_label};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
@@ -366,49 +365,49 @@ impl DeviceManager {
             device_id,
             device_type,
             false,
-            &format!("Stopped answering: {reason}"),
+            Loss::StoppedAnswering(&reason),
         )
         .await;
         false
     }
 
-    /// Record a device that was connected as lost, with `last_error` as the
-    /// reason, and announce it the way a lost heartbeat does: one status
-    /// change and one error. `auto_reconnect` hands it to the reconnection
-    /// loop.
+    /// Record a device that was connected as lost, for `loss`, and announce
+    /// it: one status change and one error. `auto_reconnect` hands it to the
+    /// reconnection loop. False when it was not recorded as connected.
     pub(crate) async fn record_lost(
         &self,
         device_id: &str,
         device_type: DeviceType,
         auto_reconnect: bool,
-        last_error: &str,
-    ) {
-        let last_error = last_error.to_string();
+        loss: Loss<'_>,
+    ) -> bool {
         if self
-            .mark_lost(device_id, auto_reconnect, &last_error)
+            .mark_lost(device_id, auto_reconnect, &loss.recorded())
             .await
-            .is_some()
+            .is_none()
         {
-            let device_type = device_type.as_str().to_string();
-            self.app_state.publish_equipment_event(
-                EquipmentEvent::HeartbeatStatusChanged {
-                    device_type: device_type.clone(),
-                    device_id: device_id.to_string(),
-                    status: crate::event::equipment::HeartbeatStatus::Disconnected,
-                    consecutive_failures: 1,
-                    last_rtt_ms: None,
-                },
-                EventSeverity::Error,
-            );
-            self.app_state.publish_equipment_event(
-                EquipmentEvent::Error {
-                    device_type,
-                    device_id: device_id.to_string(),
-                    message: last_error,
-                },
-                EventSeverity::Error,
-            );
+            return false;
         }
+        let device_type = device_type.as_str().to_string();
+        self.app_state.publish_equipment_event(
+            EquipmentEvent::HeartbeatStatusChanged {
+                device_type: device_type.clone(),
+                device_id: device_id.to_string(),
+                status: crate::event::equipment::HeartbeatStatus::Disconnected,
+                consecutive_failures: loss.failures(),
+                last_rtt_ms: None,
+            },
+            EventSeverity::Error,
+        );
+        self.app_state.publish_equipment_event(
+            EquipmentEvent::Error {
+                device_type,
+                device_id: device_id.to_string(),
+                message: loss.announced(),
+            },
+            EventSeverity::Error,
+        );
+        true
     }
 
     /// Recovery restores a device that does not answer and leaves one that
@@ -1081,8 +1080,8 @@ impl DeviceManager {
         if let Some(handle) = self.handles.remove(device_id) {
             let label = format!(
                 "{} {}",
-                protocol_label(device_info.driver_type),
-                device_noun(device_info.device_type)
+                device_info.driver_type.label(),
+                device_info.device_type.noun()
             );
             record_disconnect!(label, handle.disconnect().await);
         } else {
@@ -1250,5 +1249,44 @@ mod connect_error_tests {
     fn a_canceled_connect_keeps_its_sentence() {
         assert_eq!(ConnectError::Canceled.to_string(), RECONNECT_CANCELED_MSG);
         assert_eq!(String::from(ConnectError::from("boom")), "boom");
+    }
+}
+
+/// Why a connected device is recorded lost, with the words it is recorded
+/// and announced in.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Loss<'a> {
+    /// A probe or an operation found it gone.
+    StoppedAnswering(&'a str),
+    /// Its heartbeat failed `failures` times in a row.
+    Unresponsive { failures: u32, error: &'a str },
+}
+
+impl Loss<'_> {
+    /// The reason stored on the device.
+    fn recorded(&self) -> String {
+        match self {
+            Self::StoppedAnswering(error) => format!("Stopped answering: {error}"),
+            Self::Unresponsive { failures, error } => {
+                format!("Unresponsive after {failures} heartbeat failures: {error}")
+            }
+        }
+    }
+
+    /// The message of the error event.
+    fn announced(&self) -> String {
+        match self {
+            Self::StoppedAnswering(_) => self.recorded(),
+            Self::Unresponsive { failures, error } => {
+                format!("Device unresponsive after {failures} heartbeat failures: {error}")
+            }
+        }
+    }
+
+    fn failures(&self) -> u32 {
+        match self {
+            Self::StoppedAnswering(_) => 1,
+            Self::Unresponsive { failures, .. } => *failures,
+        }
     }
 }

@@ -1430,56 +1430,39 @@ pub(crate) async fn execute_autofocus_sweep_around(
                 }
                 // A failed frame is taken again under the run's camera retries,
                 // as a light frame is: one bad download must not end the sweep.
-                let mut camera_retries = CameraRetries::new(&camera_id);
-                let image_data = loop {
-                    let mut abort_guard = CameraExposureAbortGuard::new(
-                        ctx.run.device_ops.clone(),
-                        camera_id.clone(),
-                    );
-                    let exposure_result = ctx
-                        .run
-                        .device_ops
-                        .camera_start_exposure(
-                            crate::device_ops::ExposureRequest::new(
-                                &camera_id,
-                                config.exposure_duration,
-                            )
-                            .gain(config.gain)
-                            .offset(config.offset)
-                            .binning(bin_x, bin_y),
-                        )
-                        .await;
-                    abort_guard.disarm();
-                    match exposure_result {
-                        Ok(data) => {
-                            tracing::info!(
-                                "[SEQ] Autofocus point {} sample {}/{} completed: {}x{} ({} pixels)",
-                                point + 1,
-                                sample + 1,
-                                config.exposures_per_point,
-                                data.width,
-                                data.height,
-                                data.data.len()
-                            );
-                            break data;
-                        }
-                        Err(e) => match camera_retries
-                            .after_failure(ctx, e, &format!("on autofocus point {}", point + 1))
-                            .await
-                        {
-                            RetryOutcome::Retry => {}
-                            RetryOutcome::GiveUp(failure) => {
-                                return InstructionResult::failure(format!(
-                                    "Autofocus exposure failed: {failure}"
-                                ))
-                                .caused_by(&failure.error)
-                            }
-                            RetryOutcome::Cancelled => {
-                                return ctx.check_cancelled().unwrap_or_else(|| {
-                                    InstructionResult::cancelled("Operation cancelled")
-                                })
-                            }
-                        },
+                let image_data = match take_frame(
+                    ctx,
+                    CaptureSite::AutofocusSample,
+                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration)
+                        .gain(config.gain)
+                        .offset(config.offset)
+                        .binning(bin_x, bin_y),
+                    &format!("on autofocus point {}", point + 1),
+                )
+                .await
+                {
+                    Ok(data) => {
+                        tracing::info!(
+                            "[SEQ] Autofocus point {} sample {}/{} completed: {}x{} ({} pixels)",
+                            point + 1,
+                            sample + 1,
+                            config.exposures_per_point,
+                            data.width,
+                            data.height,
+                            data.data.len()
+                        );
+                        data
+                    }
+                    Err(FrameEnd::Failed(failure)) => {
+                        return InstructionResult::failure(format!(
+                            "Autofocus exposure failed: {failure}"
+                        ))
+                        .caused_by(&failure.error)
+                    }
+                    Err(FrameEnd::Cancelled | FrameEnd::Stopped { .. }) => {
+                        return ctx
+                            .check_cancelled()
+                            .unwrap_or_else(|| InstructionResult::cancelled("Operation cancelled"))
                     }
                 };
                 measurements.push(calculate_hfr_with_crops(
@@ -1795,19 +1778,16 @@ pub(crate) async fn execute_autofocus_sweep_around(
         // the final move. One frame closes that gap, and it is the only number
         // here an operator can check against their own screen.
         let verified_hfr = {
-            let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.clone());
-            let exposure_result = ctx
-                .run
-                .device_ops
-                .camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration)
-                        .gain(config.gain)
-                        .offset(config.offset)
-                        .binning(bin_x, bin_y),
-                )
-                .await;
-            abort_guard.disarm();
+            let exposure_result = take_frame(
+                ctx,
+                CaptureSite::AutofocusVerify,
+                crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration)
+                    .gain(config.gain)
+                    .offset(config.offset)
+                    .binning(bin_x, bin_y),
+                "on the autofocus verify frame",
+            )
+            .await;
             match exposure_result {
                 Ok(image_data) => {
                     let measurement = calculate_hfr_with_crops(

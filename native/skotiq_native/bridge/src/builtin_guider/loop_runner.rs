@@ -12,6 +12,7 @@ use crate::builtin_guider::state::{
 };
 use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
+use crate::device_manager::roles::RigRole;
 use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
@@ -82,10 +83,9 @@ pub(crate) fn choose_guide_camera(
 
 pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     let app_state = get_state();
-    let imaging_camera = match app_state.get_profile_device_id(DeviceType::Camera).await {
-        Some(id) => Some(id),
-        None => first_connected_device(DeviceType::Camera).await,
-    };
+    let imaging_camera = get_device_manager()
+        .rig_device(RigRole::GuiderImagingCamera, None)
+        .await;
     let profile_guide_camera = app_state
         .get_profile()
         .await
@@ -104,12 +104,10 @@ pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     )
     .map_err(SkotiqError::OperationFailed)?;
 
-    let mount_id = if let Some(device_id) = app_state.get_profile_device_id(DeviceType::Mount).await
-    {
-        device_id
-    } else if let Some(device_id) = first_connected_device(DeviceType::Mount).await {
-        device_id
-    } else {
+    let Some(mount_id) = get_device_manager()
+        .rig_device(RigRole::GuiderMount, None)
+        .await
+    else {
         return Err(SkotiqError::OperationFailed(
             "Built-in guider requires a connected mount in the active profile".to_string(),
         ));
@@ -130,12 +128,6 @@ pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     }
 
     Ok((camera_id, mount_id))
-}
-
-pub(crate) async fn first_connected_device(device_type: DeviceType) -> Option<String> {
-    get_device_manager()
-        .first_connected_device_id(device_type)
-        .await
 }
 
 /// Focal length the guide camera sees through: the guide scope's when the
