@@ -1804,7 +1804,6 @@ packages/skotiq_app/lib/screens/planner/targets/target_list.dart	build	literal_n
 packages/skotiq_app/lib/screens/planner/targets/target_list.dart	upTonight	literal_null_coalesce	1	O7-06	bool get upTonight => window?.isUp ?? false;
 packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen.dart	build	literal_null_coalesce	1	V0002	final wasRunning = prev?.isRunning ?? false;
 packages/skotiq_app/lib/screens/polar_alignment/polar_alignment_screen_parts/_completion_panel.dart	_buildCompletionSummary	literal_null_coalesce	1	V0121	final improvementPercent = state.improvementPercent ?? 0.0;
-packages/skotiq_app/lib/screens/sequencer/sequence_fold_model.dart	-	literal_null_coalesce	1	V0735	progress.nodeProgressDetail[nodeId] ?? '',
 packages/skotiq_app/lib/screens/sequencer/sequence_fold_model.dart	foldProgressText	literal_null_coalesce	1	V0735	'${group.memberLabels[i]} ${frames[i]?.captured ?? 0}'
 packages/skotiq_app/lib/screens/sequencer/sequence_fold_model.dart	foldProgressText	literal_null_coalesce	1	V0735	final fallbackPlanned = group.count ?? 0;
 packages/skotiq_app/lib/screens/sequencer/sequence_mutator_helper.dart	showValidationIssueDialog	literal_null_coalesce	1	V0089	return result ?? false;
@@ -1821,9 +1820,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_co
 packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_controls.dart	_NumberField	comment_best_effort	1	V0153	/// placeholder as fact.
 packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_controls.dart	build	literal_null_coalesce	1	V0153	widget.row.enabled = v ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/mosaic_wizard_dialog/config_controls.dart	initState	literal_null_coalesce	1	V0153	text: widget.value?.toStringAsFixed(widget.decimals) ?? '',
-packages/skotiq_app/lib/screens/sequencer/widgets/node_activity_tab.dart	_resolve	literal_null_coalesce	1	V0736	exposureDetail == null && (parsed?.frameCompleted ?? false);
-packages/skotiq_app/lib/screens/sequencer/widgets/node_activity_tab.dart	_resolve	literal_null_coalesce	1	V0736	final liveFrame = exposureDetail?.frame ?? parsed?.frame ?? 0;
-packages/skotiq_app/lib/screens/sequencer/widgets/node_activity_tab.dart	_resolve	literal_null_coalesce	1	V0736	final parsed = parseExposureProgressDetail(widget.detail ?? '');
 packages/skotiq_app/lib/screens/sequencer/widgets/node_activity_tab.dart	build	literal_null_coalesce	1	V0736	progressPercent: percent ?? 0,
 packages/skotiq_app/lib/screens/sequencer/widgets/node_activity_tab.dart	visit	literal_null_coalesce	1	V0736	(progress.nodeProgressPercent[node.id] ?? 0).clamp(0, 100);
 packages/skotiq_app/lib/screens/sequencer/widgets/node_notes_tab.dart	_commit	literal_null_coalesce	1	V0737	ref.read(currentSequenceProvider)?.nodes[node.id]?.comment ?? '';
@@ -1831,8 +1827,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/node_notes_tab.dart	_commitTex
 packages/skotiq_app/lib/screens/sequencer/widgets/node_notes_tab.dart	didUpdateWidget	literal_null_coalesce	2	V0737	_controller.text = widget.node.comment ?? '';
 packages/skotiq_app/lib/screens/sequencer/widgets/node_notes_tab.dart	initState	literal_null_coalesce	1	V0737	_controller = TextEditingController(text: widget.node.comment ?? '');
 packages/skotiq_app/lib/screens/sequencer/widgets/node_progress_panels.dart	getProgressPanelForNode	literal_null_coalesce	1	V0002	final detail = progressDetail ?? '';
-packages/skotiq_app/lib/screens/sequencer/widgets/node_progress_panels/exposure_progress_panel.dart	build	literal_null_coalesce	1	V0121	exposureDetail == null && (parsedDetail?.frameCompleted ?? false);
-packages/skotiq_app/lib/screens/sequencer/widgets/node_progress_panels/exposure_progress_panel.dart	build	literal_null_coalesce	1	V0121	final liveFrame = exposureDetail?.frame ?? parsedDetail?.frame ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/node_progress_panels/last_known_node_progress.dart	LastKnownNodeActivityNotifier	literal_null_coalesce	1	V0738	next == SequenceExecutionState.running && (prev?.canStart ?? false);
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel.dart	_buildInspectorTabBar	literal_null_coalesce	1	V0002	final hasComment = node.comment?.trim().isNotEmpty ?? false;
 packages/skotiq_app/lib/screens/sequencer/widgets/node_properties_panel_parts/_adaptive_exposure_section.dart	build	literal_null_coalesce	1	V0121	next[filter] = v ?? false;
@@ -2302,6 +2296,7 @@ packages/skotiq_core/lib/src/database/daos/stacked_results_dao.dart	_mapRow	lite
 packages/skotiq_core/lib/src/database/daos/targets_dao.dart	_untrackedTargetIds	literal_null_coalesce	1	O10-03	TargetCaptures(frames: frames[t.id] ?? 0),
 packages/skotiq_core/lib/src/database/integrity_check.dart	acknowledgeRecoveryMarker	comment_best_effort	1	V0013	// Best effort: an undeletable marker can repeat the warning, but the
 packages/skotiq_core/lib/src/database/integrity_check.dart	readRecoveryMarker	literal_null_coalesce	1	V0013	DateTime.tryParse(fields['recovered_at_utc'] ?? '') ??
+packages/skotiq_core/lib/src/database/rows/accepted_lights.dart	acceptedLightsAsFiled	literal_null_coalesce	1	R9-116	final filter = frame.filter ?? '';
 packages/skotiq_core/lib/src/database/rows/equipment_profile_remote_mapping.dart	remoteProfileToDbRow	guessed_now_timestamp	1	V0183	final writeStamp = now ?? DateTime.now().toUtc();
 packages/skotiq_core/lib/src/database/rows/equipment_profile_remote_mapping.dart	dbProfileToRemote	literal_null_coalesce	1	V0183	telescopeAperture: row.telescopeAperture ?? 0.0,
 packages/skotiq_core/lib/src/database/rows/equipment_profile_remote_mapping.dart	dbProfileToRemote	literal_null_coalesce	1	V0183	telescopeFocalLength: row.telescopeFocalLength ?? 0.0,
@@ -3317,11 +3312,8 @@ packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	P
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	_profileFromExportJson	literal_null_coalesce	1	V0121	aperture: _profileDouble(json['aperture'], 'aperture') ?? 0.0,
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	_profileFromExportJson	literal_null_coalesce	1	V0014	coolOnConnect: _profileBool(json['coolOnConnect'], 'coolOnConnect') ?? false,
 packages/skotiq_core/lib/src/services/profile_service/profile_export_data.dart	_profileFromExportJson	literal_null_coalesce	1	V0121	focalLength: _profileDouble(json['focalLength'], 'focalLength') ?? 0.0,
-packages/skotiq_core/lib/src/services/project_tracking_service.dart	acceptedLightsByFilter	literal_null_coalesce	1	U2-20	bucket.labelCounts[label] = (bucket.labelCounts[label] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final aLast = a.lastImagedAt?.millisecondsSinceEpoch ?? 0;
 packages/skotiq_core/lib/src/services/project_tracking_service.dart	summarize	literal_null_coalesce	1	U2-20	final bLast = b.lastImagedAt?.millisecondsSinceEpoch ?? 0;
-packages/skotiq_core/lib/src/services/scheduler/target_progress_service.dart	_captureAggregatesFromImageList	literal_null_coalesce	1	R9-116	final filter = frame.filter ?? '';
-packages/skotiq_core/lib/src/services/scheduler/target_progress_service.dart	_captureAggregatesFromImageList	literal_null_coalesce	1	R9-116	framesByFilter[filter] = (framesByFilter[filter] ?? 0) + 1;
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	_recordSolveFailure	empty_catch	1	V0161	} catch (_) {
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	calibrateFramePhotometry	literal_null_coalesce	1	V0161	calibrationRms: fit.rms ?? 0.0,
 packages/skotiq_core/lib/src/services/science/default_science_backend.dart	solveForScience	literal_null_coalesce	1	V0161	final forceBlind = settings?.blindSolve ?? false;
