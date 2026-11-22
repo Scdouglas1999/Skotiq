@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart'
-    show SequenceRunStatus, SessionStatus, isSequenceCancelledNotice;
+    show SequenceRunStatus, SessionStatus, isStoredRunStopNotice;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Human label for a run status.
@@ -126,34 +126,6 @@ IconData runStatusIcon(SequenceRunStatus? status) => switch (status) {
         LucideIcons.circle,
     };
 
-/// True when [message] is the run-cancelled notice rather than a fault.
-///
-/// The executor records "Sequence cancelled" in the run's error list because
-/// that is how the native run ends on a Stop. Rendered verbatim under a red
-/// "Errors" heading — in a report titled "Stopped (resumable)" — it reports the
-/// operator's own button press as a critical failure. Recognised here so the
-/// outcome-aware surfaces can drop it; it is never dropped for a run that
-/// failed or aborted on its own.
-///
-/// The match is EXACT, and that is the whole point. A substring test on
-/// "cancelled" also swallows real faults the stack emits — "Temperature
-/// compensation cancelled", "Cancelled: Target", "focuser move was canceled by
-/// the driver", "slew canceled by the mount (limit switch)" — so a Stop after
-/// any of those would hide the Errors section entirely. The notice is a fixed
-/// string, so nothing is lost by recognising only the fixed strings.
-///
-/// [isSequenceCancelledNotice] (skotiq_core) is the shared spelling test;
-/// this adds the operator-phrased variants the durable run rows can also carry.
-bool isRunCancellationNotice(String message) {
-  if (isSequenceCancelledNotice(message)) return true;
-  final m = message.trim().toLowerCase();
-  return m == 'stopped by user' ||
-      m == 'stopped by the user' ||
-      m == 'stopped by operator' ||
-      m == 'stopped by the operator' ||
-      m == 'stopped by request';
-}
-
 /// The messages worth showing as errors for a run that ended with [status].
 ///
 /// Identity in, identity out for every outcome but an operator stop.
@@ -162,7 +134,7 @@ List<String> runErrorMessagesFor(
   List<String> messages,
 ) {
   if (status == null || !status.stoppedByOperator) return messages;
-  return messages.where((m) => !isRunCancellationNotice(m)).toList();
+  return messages.where((m) => !isStoredRunStopNotice(m)).toList();
 }
 
 /// The one message that explains why a failed run ended.
