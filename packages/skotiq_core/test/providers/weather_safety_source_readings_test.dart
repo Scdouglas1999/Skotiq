@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/equipment/safety_monitor_state_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 class _SeedableMonitorNotifier extends SafetyMonitorStateNotifier {
   _SeedableMonitorNotifier(super.ref);

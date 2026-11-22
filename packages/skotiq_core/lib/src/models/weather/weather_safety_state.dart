@@ -1,4 +1,6 @@
-part of '../weather_safety_provider.dart';
+import '../settings/app_settings.dart' show SafetyFailMode;
+import 'weather_alert.dart' show AlertLevel;
+import 'sky_star_evidence.dart';
 
 /// How a [SafetyFailMode] resolves the "no usable safety/weather data"
 /// situation (no connected source on the Dart side; poll error on the Rust

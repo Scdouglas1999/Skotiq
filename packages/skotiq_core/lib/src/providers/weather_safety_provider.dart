@@ -37,13 +37,13 @@ import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
 import '../settings/app_settings_state.g.dart';
 import '../utils/logging_service.dart';
+import '../models/weather/weather_safety_state.dart';
+import '../models/weather/sky_star_evidence.dart';
 
-part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';
 part 'weather_safety/weather_safety_remote.dart';
 part 'weather_safety/weather_safety_enforcement.dart';
 part 'weather_safety/weather_safety_executor_push.dart';
-part 'weather_safety/weather_star_evidence.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.

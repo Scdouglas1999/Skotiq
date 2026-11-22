@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/weather/weather_models.dart';
-import 'package:skotiq_core/src/providers/weather_safety_provider.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 void main() {
   test('weather safety starts unavailable and fail-closed', () {

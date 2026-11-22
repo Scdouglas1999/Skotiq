@@ -4,6 +4,7 @@ import '../models/notification/notification_categories.dart';
 import '../models/weather/weather_alert.dart';
 import 'notification_router_provider.dart';
 import 'weather_safety_provider.dart';
+import '../models/weather/weather_safety_state.dart';
 
 /// The weather notices one weather-safety verdict after another raises: unsafe
 /// weather and its end, and clouds on the way and their clearing, each told
