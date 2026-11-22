@@ -278,10 +278,6 @@ class _ShaderCache {
 
 final StarPsfShaderCache _starPsfShaderCache = StarPsfShaderCache();
 
-/// Cached constellation line rendering.
-/// Since constellation lines don't change unless the view moves significantly,
-/// we record them into a ui.Picture and replay it each frame.
-/// Cache invalidates when view center moves >0.5 degrees or zoom changes >5%.
 /// The full set of view parameters a cached [ui.Picture] was projected with.
 ///
 /// The key must carry every input the projection reads, or a replayed picture
