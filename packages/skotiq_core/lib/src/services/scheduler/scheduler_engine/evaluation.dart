@@ -13,23 +13,26 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
 
   /// Run one evaluation. A caller that arrives while another is in flight
   /// is queued behind it, without dropping the triggering event, and gets an
-  /// evaluation of its own once those ahead of it have finished.
+  /// evaluation of its own once those ahead of it have finished. A failure
+  /// reaches only this caller's future.
   Future<void> _evaluateWithReason(
     String reason, {
     List<SchedulerCandidate>? candidates,
-  }) {
+  }) async {
     final ahead = _evaluationQueue;
-    final run = ahead == null
-        ? _evaluateOnce(reason, candidates: candidates)
-        : ahead.then((_) => _evaluateOnce('coalesced'));
-    // The evaluation's own failure is reported through its caller; the queue
-    // only tracks that it is no longer in flight.
-    final settled = run.then<void>((_) {}, onError: (Object _) {});
-    _evaluationQueue = settled;
-    settled.then((_) {
-      if (identical(_evaluationQueue, settled)) _evaluationQueue = null;
-    });
-    return run;
+    final done = Completer<void>();
+    _evaluationQueue = done.future;
+    try {
+      if (ahead == null) {
+        await _evaluateOnce(reason, candidates: candidates);
+      } else {
+        await ahead;
+        await _evaluateOnce('coalesced');
+      }
+    } finally {
+      done.complete();
+      if (identical(_evaluationQueue, done.future)) _evaluationQueue = null;
+    }
   }
 
   Future<void> _evaluateOnce(
