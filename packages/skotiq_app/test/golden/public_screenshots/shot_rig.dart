@@ -25,6 +25,7 @@ import '../../harness/mock_backend.dart';
 import '../../harness/pump_app_screen.dart' show TestBackendNotifier;
 import '../surface_golden_harness.dart';
 import 'shot_night.dart';
+import 'shot_scores.dart';
 import 'shot_weather.dart';
 
 int _gb(int value) => value * 1024 * 1024 * 1024;
@@ -662,12 +663,15 @@ const _solver = PlateSolverDetection(
   catalogPath: 'C:\\Program Files\\astap',
 );
 
+final _nightScoring = RecordedNightScoring.load();
+
 /// The shared overrides: the rig, the run and the site.
 List<Override> rigOverrides() => <Override>[
       clockProvider.overrideWithValue(const ShotClock()),
       planetarium.skyNowProvider.overrideWithValue(() => ShotNight.now),
       // A debug build shows the frame-time readout; a release build does not.
       planetarium.showPerfHudProvider.overrideWith((ref) => false),
+      targetScorerProvider.overrideWithValue(TargetScorer(_nightScoring)),
       appSettingsProvider.overrideWith(_Settings.new),
       planetarium.observerLocationProvider.overrideWith((ref) => _Observer()),
       equipmentProfilesProvider.overrideWith(_Profiles.new),

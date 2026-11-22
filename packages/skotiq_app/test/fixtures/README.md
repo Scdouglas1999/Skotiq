@@ -48,3 +48,22 @@ its SDSS Color survey. On 2026-11-16 neither CDS (hips2fits answered 404) nor
 NASA SkyView (its SDSS and 2MASS back ends failed) served it, so it was taken
 from the SDSS SkyServer DR18 JPEG cutout service, the same SDSS imaging.
 Credit: Sloan Digital Sky Survey (SDSS).
+
+## `night_scores.json.gz`
+
+The native scorer's night scores for the screenshots' Best tonight request:
+the site, night, moon and altitude floor of the scene in
+`test/golden/public_screenshots/shot_night.dart`, and the 5,012 OpenNGC
+objects the planner sends. `flutter test` has no native library to score
+with, so `shot_scores.dart` replays these, matched by catalog position. Each
+score carries the target's `raDeg` and `decDeg` and the fields of the scoring
+wire's night response (`TargetScoringWire.nightResponse`); `request` is the
+wire's night request without the target arrays.
+
+Recorded on 2026-11-22 from a debug build of `skotiq_bridge` at the tree's
+own Rust, by running the screenshots with a `TargetScoring` that loaded
+`native/skotiq_native/target/debug/libskotiq_bridge.so` (`RustLib.init` with
+that `ExternalLibrary`) and wrote each request and its response. The replay
+refuses a request that differs from the recorded one, so a change to the
+scene, the catalog or the scoring weights asks for a new recording. A change
+to the scorer itself does not; record again when the scoring changes.

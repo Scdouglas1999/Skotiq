@@ -45,9 +45,10 @@ import 'public_screenshots/shot_weather.dart';
 ///
 /// What a widget test has no network or disk for comes from fixtures, as an
 /// install would have it: the HYG star catalog in the catalog folder, recorded
-/// basemap tiles for the Weather map, an SDSS cutout for Framing, the rig's
-/// `D:` drive as a scratch folder, and Darkroom previews from the owner's subs
-/// (see `test/fixtures/README.md`).
+/// basemap tiles for the Weather map, an SDSS cutout for Framing, the native
+/// scorer's recorded night scores for Best tonight, the rig's `D:` drive as a
+/// scratch folder, and Darkroom previews from the owner's subs (see
+/// `test/fixtures/README.md`).
 final shots = <Shot>[
   Shot(
     fileName: 'tonight.png',
