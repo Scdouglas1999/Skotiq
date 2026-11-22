@@ -25,6 +25,11 @@ class WeatherSafetyChannel extends RuntimeMirrorChannel<WeatherSafetyState> {
   @override
   Duration get minInterval => const Duration(seconds: 1);
 
+  /// A failed poll can mark the verdict unavailable while the host's value
+  /// has not changed; the re-read after a reconnect then shows it again.
+  @override
+  bool get reappliesOnReread => true;
+
   /// Reading the verdict must not start the safety poll of a client that
   /// shows none.
   @override

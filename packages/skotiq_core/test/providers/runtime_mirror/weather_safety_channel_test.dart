@@ -56,6 +56,38 @@ void main() {
     expect(shown.hostVerdictUnavailable, isFalse);
   });
 
+  test('a reconnect shows the host verdict again after a failed poll marked '
+      'it unavailable', () async {
+    final client = mirrorClient(
+      null,
+      snapshot: () => [
+        HostRuntimeUpdate(
+          channel: 'weatherSafety',
+          revision: 1,
+          value: _hostVerdict.toJson(),
+        ),
+      ],
+    );
+    final poll = Completer<Map<String, dynamic>>();
+    when(() => client.backend.isAuthTokenRejected).thenReturn(false);
+    when(() => client.backend.getSafetyStatus()).thenAnswer((_) => poll.future);
+    client.container.read(weatherSafetyProvider);
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    poll.completeError(StateError('host unreachable'));
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      client.container.read(weatherSafetyProvider).hostVerdictUnavailable,
+      isTrue,
+    );
+
+    await hydrateHostRuntimeState(client.container, client.backend);
+
+    final shown = client.container.read(weatherSafetyProvider);
+    expect(shown.hostVerdictUnavailable, isFalse);
+    expect(shown.toJson(), _hostVerdict.toJson());
+  });
+
   test('the host keeps its own verdict', () {
     final host = mirrorHost();
     final before = host.container.read(weatherSafetyProvider);

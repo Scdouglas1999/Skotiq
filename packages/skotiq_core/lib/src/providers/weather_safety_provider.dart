@@ -1,5 +1,6 @@
 import '../database/rows/frame_type_record.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
@@ -171,6 +172,10 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// Only a linked client takes one; the host keeps its own evaluation.
   void applyHostVerdict(WeatherSafetyState verdict) {
     if (!mounted || _ref.read(linkedHostWeatherProvider) == null) return;
+    if (jsonEncode(verdict.toJson()) == jsonEncode(state.toJson()) &&
+        !state.hostVerdictUnavailable) {
+      return;
+    }
     state = verdict;
   }
 
