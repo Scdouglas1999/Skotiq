@@ -34,6 +34,10 @@ abstract final class ApiErrorCodes {
   /// A 409 for a mount move refused because the guider does not answer.
   static const guiderNotAnswering = 'guider_not_answering';
 
+  /// A 409 from the embedded API of a window that is linked to another host:
+  /// the request belongs to that host.
+  static const linkedToHost = 'linked_to_host';
+
   /// A 409 for a stop or pause with no sequence running.
   static const sequencerNotRunning = 'sequencer_not_running';
 
@@ -52,6 +56,7 @@ abstract final class ApiErrorCodes {
     'versionMismatch': versionMismatch,
     'releaseRequired': releaseRequired,
     'guiderNotAnswering': guiderNotAnswering,
+    'linkedToHost': linkedToHost,
     'sequencerNotRunning': sequencerNotRunning,
     'invalidPairingCode': invalidPairingCode,
     'pairingCodeExpired': pairingCodeExpired,

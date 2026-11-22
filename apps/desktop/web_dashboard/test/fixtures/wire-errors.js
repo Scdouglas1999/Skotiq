@@ -11,6 +11,7 @@ const WIRE_ERROR_CODES = Object.freeze({
   versionMismatch: "version_mismatch",
   releaseRequired: "release_required",
   guiderNotAnswering: "guider_not_answering",
+  linkedToHost: "linked_to_host",
   sequencerNotRunning: "sequencer_not_running",
   invalidPairingCode: "invalid_pairing_code",
   pairingCodeExpired: "pairing_code_expired",
