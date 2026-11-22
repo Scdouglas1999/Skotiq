@@ -5,6 +5,8 @@
 
 use super::*;
 use crate::device_ops::DeviceError;
+use crate::slew_arrival::{watch_slew, SlewArrivalTimings, SlewEnd, SlewSample};
+pub(crate) use crate::slew_arrival::{SlewPhase, SlewStartBound};
 
 /// How a caller waits for a slew.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -21,15 +23,6 @@ pub(crate) struct SlewWaitBounds {
     pub read_errors: SlewReadErrors,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct SlewStartBound {
-    pub within: Duration,
-    pub poll: Duration,
-    /// A mount that never reports moving within the bound: wait for it to
-    /// stop anyway (`true`), or end the wait (`false`).
-    pub proceed_if_never: bool,
-}
-
 /// What a failed read of the slewing state does.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum SlewReadErrors {
@@ -38,13 +31,6 @@ pub(crate) enum SlewReadErrors {
     /// Logged as `"<label>: slew-state read failed while waiting for
     /// startup|completion (<error>); retrying"` and polled again.
     Retry { label: &'static str },
-}
-
-/// Which part of the wait an outcome came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SlewPhase {
-    Starting,
-    Moving,
 }
 
 /// How a slew wait ended. The outcomes that abort the slew carry the abort's
@@ -69,6 +55,28 @@ pub(crate) enum SlewWait<S> {
     ReadFailed(DeviceError),
 }
 
+impl SlewWaitBounds {
+    /// The watch these bounds describe: no target, and the first idle read
+    /// after the start phase ends the slew.
+    pub(crate) fn timings(&self) -> SlewArrivalTimings {
+        SlewArrivalTimings {
+            poll_interval: self.poll,
+            start_grace: Duration::ZERO,
+            motion_start_window: self.complete,
+            timeout: self.complete,
+            idle_confirm_polls: 1,
+            arrival_tolerance_deg: 0.0,
+            max_consecutive_failures: match self.read_errors {
+                SlewReadErrors::Fail => 1,
+                SlewReadErrors::Retry { .. } => 0,
+            },
+            start: self.start,
+            deadline_inclusive: self.deadline_inclusive,
+            stop_after_read: false,
+        }
+    }
+}
+
 /// Wait for the slew `mount_id` was sent to finish. `stop` is checked before
 /// every read.
 pub(crate) async fn wait_for_slew<S>(
@@ -77,79 +85,55 @@ pub(crate) async fn wait_for_slew<S>(
     bounds: SlewWaitBounds,
     stop: &(dyn Fn() -> Option<S> + Send + Sync),
 ) -> SlewWait<S> {
-    let overran = |deadline: tokio::time::Instant| {
-        let now = tokio::time::Instant::now();
-        if bounds.deadline_inclusive {
-            now >= deadline
-        } else {
-            now > deadline
+    let probe = |phase: SlewPhase| async move {
+        let slewing = device_ops.mount_is_slewing(mount_id).await;
+        if let (Err(error), SlewReadErrors::Retry { label }) = (&slewing, bounds.read_errors) {
+            let waiting_for = match phase {
+                SlewPhase::Starting => "startup",
+                SlewPhase::Moving => "completion",
+            };
+            tracing::warn!(
+                "{}: slew-state read failed while waiting for {} ({}); retrying",
+                label,
+                waiting_for,
+                error
+            );
         }
+        slewing.map(|slewing| SlewSample {
+            slewing: Some(slewing),
+            position: None,
+        })
     };
-    if let Some(start) = bounds.start {
-        let deadline = tokio::time::Instant::now() + start.within;
-        loop {
-            if let Some(reason) = stop() {
-                return SlewWait::Stopped {
-                    reason,
-                    phase: SlewPhase::Starting,
-                    abort: device_ops.mount_abort_slew(mount_id).await,
-                };
-            }
-            match device_ops.mount_is_slewing(mount_id).await {
-                Ok(true) => break,
-                Ok(false) => {}
-                Err(error) => match bounds.read_errors {
-                    SlewReadErrors::Fail => return SlewWait::ReadFailed(error),
-                    SlewReadErrors::Retry { label } => tracing::warn!(
-                        "{}: slew-state read failed while waiting for startup ({}); retrying",
-                        label,
-                        error
-                    ),
-                },
-            }
-            if overran(deadline) {
-                if start.proceed_if_never {
-                    tracing::debug!(
-                        "The mount did not report slewing within {}s of the slew command; \
-                         waiting for it to stop",
-                        start.within.as_secs()
-                    );
-                    break;
-                }
-                return SlewWait::NeverStarted {
-                    abort: device_ops.mount_abort_slew(mount_id).await,
-                };
-            }
-            sleep(start.poll).await;
+    let ended = watch_slew(
+        None,
+        &bounds.timings(),
+        probe,
+        stop,
+        || device_ops.mount_abort_slew(mount_id),
+        |_| {},
+    )
+    .await;
+    match ended {
+        Ok(_) => SlewWait::Done,
+        Err(SlewEnd::Stopped {
+            reason,
+            phase,
+            abort,
+        }) => SlewWait::Stopped {
+            reason,
+            phase,
+            abort,
+        },
+        Err(SlewEnd::NeverStarted { abort }) => SlewWait::NeverStarted { abort },
+        Err(SlewEnd::TimedOut { abort }) => SlewWait::Overran { abort },
+        Err(SlewEnd::LostContact { error, .. }) => {
+            SlewWait::ReadFailed(error.unwrap_or_else(|| {
+                "the mount's slewing state could not be read"
+                    .to_string()
+                    .into()
+            }))
         }
-    }
-
-    let deadline = tokio::time::Instant::now() + bounds.complete;
-    loop {
-        if let Some(reason) = stop() {
-            return SlewWait::Stopped {
-                reason,
-                phase: SlewPhase::Moving,
-                abort: device_ops.mount_abort_slew(mount_id).await,
-            };
-        }
-        match device_ops.mount_is_slewing(mount_id).await {
-            Ok(false) => return SlewWait::Done,
-            Ok(true) => {}
-            Err(error) => match bounds.read_errors {
-                SlewReadErrors::Fail => return SlewWait::ReadFailed(error),
-                SlewReadErrors::Retry { label } => tracing::warn!(
-                    "{}: slew-state read failed while waiting for completion ({}); retrying",
-                    label,
-                    error
-                ),
-            },
-        }
-        if overran(deadline) {
-            return SlewWait::Overran {
-                abort: device_ops.mount_abort_slew(mount_id).await,
-            };
-        }
-        sleep(bounds.poll).await;
+        // Only a watch with a target can find a mount that did not move.
+        Err(SlewEnd::DidNotMove) => SlewWait::Done,
     }
 }
