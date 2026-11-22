@@ -274,7 +274,6 @@ class CameraPresetsNotifier
     // exposure settings dirty so profile hydration does not overwrite the
     // (syncExposureFromProfileProvider) does not immediately overwrite the
     // values the user just selected.
-    // Update exposure settings
     final currentSettings = _ref.read(exposureSettingsProvider);
     _ref
         .read(manualExposureSettingsUpdaterProvider)

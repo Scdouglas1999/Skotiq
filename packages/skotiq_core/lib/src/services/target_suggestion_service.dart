@@ -410,8 +410,6 @@ class _TonightSuggestionScorer {
 
     final plannedSubs = target.totalPlannedSubs;
     if (plannedSubs <= 0) {
-      // If no planned subs, we can't calculate progress
-      // Return 0 if no data, or a small value if we have some data
       if (totalIntegrationSecs > 0) {
         // We have data but no plan - show as partially complete
         return 0.1; // 10% to indicate some data exists

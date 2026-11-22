@@ -256,7 +256,6 @@ class DeviceMatchingService {
     if (s1.isEmpty) return s2.length;
     if (s2.isEmpty) return s1.length;
 
-    // Create two rows for the DP table
     var previousRow = List<int>.generate(s2.length + 1, (i) => i);
     var currentRow = List<int>.filled(s2.length + 1, 0);
 

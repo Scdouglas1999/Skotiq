@@ -49,8 +49,6 @@ class OpenMeteoCloudProvider extends RadarProvider {
     double radiusKm = 100.0,
   }) async {
     try {
-      // Build the API URL.
-      //
       // `timezone=UTC` is REQUIRED, not cosmetic: without it Open-Meteo returns
       // hourly timestamps in the location's local time as naive ISO-8601
       // strings (e.g. "2026-05-30T18:00", no zone designator). `DateTime.parse`

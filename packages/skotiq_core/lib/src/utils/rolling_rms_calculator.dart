@@ -14,14 +14,8 @@ class RollingRmsCalculator {
   final Queue<double> _values = Queue();
   final int windowSize;
 
-  /// Create a rolling RMS calculator with specified window size
-  ///
-  /// [windowSize] determines how many samples to keep (default: 100)
   RollingRmsCalculator({this.windowSize = 100});
 
-  /// Add a new value to the rolling window
-  ///
-  /// If the window is full, the oldest value is removed.
   void add(double value) {
     _values.addLast(value);
     while (_values.length > windowSize) {
@@ -29,8 +23,6 @@ class RollingRmsCalculator {
     }
   }
 
-  /// Calculate the RMS of all values in the window
-  ///
   /// Returns 0 if no values are present.
   ///
   /// Formula: sqrt(sum(x²) / n)
