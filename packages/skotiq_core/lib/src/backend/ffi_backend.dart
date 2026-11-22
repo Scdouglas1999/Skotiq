@@ -7,6 +7,8 @@ import '../database/daos/images_dao.dart';
 import '../database/database.dart';
 import '../models/autofocus_progress.dart';
 import '../models/depthlock/depthlock_models.dart';
+import '../models/equipment/equipment_models.dart'
+    show CalibratorStatus, CoverStatus, ShutterStatus;
 import '../models/equipment/guider_for_move.dart';
 import '../models/equipment_profile.dart';
 import '../models/imaging/autofocus_request.dart';
@@ -47,6 +49,7 @@ part 'ffi_backend/session_heartbeat_operations.dart';
 part 'ffi_backend/bridge_model_mappers.dart';
 part 'ffi_backend/depthlock_operations.dart';
 part 'ffi_backend/mount_guard_operations.dart';
+part 'ffi_backend/accessory_operations.dart';
 
 /// Map user-facing curve-fitting labels onto the native bridge's actual
 /// autofocus method enum strings. "Trend Lines" is the V-curve/trend-line
@@ -249,7 +252,8 @@ class FfiBackend extends _FfiBackendBase
         _FfiImagePolarOperations,
         _FfiSessionHeartbeatOperations,
         _FfiDepthLockOperations,
-        _FfiMountGuardOperations
+        _FfiMountGuardOperations,
+        _FfiAccessoryOperations
     implements
         SkotiqBackend,
         EnvironmentalStatusBackend,
