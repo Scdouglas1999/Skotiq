@@ -153,7 +153,10 @@ extension _DeviceServiceEnvironmentConnections on DeviceService {
           _ref.read(safetyMonitorStateProvider.notifier).setError(error);
           if (++_safetyMonitorFailedReads >=
               DeviceService._safetyMonitorDropReads) {
-            unawaited(_attemptReconnect(DeviceType.safetyMonitor, safetyId));
+            _reconnectCoordinator.onDeviceLost(
+              DeviceType.safetyMonitor,
+              safetyId,
+            );
           }
         }
       }

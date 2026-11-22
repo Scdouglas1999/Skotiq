@@ -351,19 +351,6 @@ extension _DeviceServiceEventHandling on DeviceService {
         );
         break;
 
-      // A device came onto the bus. A profile device whose automatic
-      // reconnects ran out (a hub that took minutes to come back) gets
-      // another attempt now, which also finds it if it came back at another
-      // position.
-      case 'DeviceDiscovered':
-        final arrivedType = deviceTypeFromWireName(
-          (data['device_class'] as String?) ?? '',
-        );
-        if (arrivedType != null) {
-          _reconnectCoordinator.onDeviceArrived(arrivedType);
-        }
-        break;
-
       case 'HeartbeatStopped':
         // Heartbeat monitoring intentionally stopped (e.g. user
         // disconnected the device through the UI). Clear the entry so
@@ -600,7 +587,7 @@ extension _DeviceServiceEventHandling on DeviceService {
       }
       readDeviceConnectionNotifier(_ref.container, type).setDisconnected();
     }
-    unawaited(_attemptReconnect(type, deviceId));
+    _reconnectCoordinator.onDeviceLost(type, deviceId);
   }
 
   /// Handle a driver/heartbeat error event published from Rust.
@@ -754,10 +741,6 @@ extension _DeviceServiceEventHandling on DeviceService {
       }
     }
   }
-
-  /// Schedule a reconnection attempt via the [DeviceReconnectCoordinator].
-  Future<void> _attemptReconnect(DeviceType type, String deviceId) =>
-      _reconnectCoordinator.attemptReconnect(type, deviceId);
 
   Future<void> _handleCriticalDeviceDisconnect(
     String deviceType,
