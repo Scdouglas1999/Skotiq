@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/equipment/utils/connect_all_summary.dart';
+import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 
 void main() {
@@ -31,16 +32,24 @@ void main() {
       expect(text, contains('mount: timeout'));
     });
 
-    test('fromProgress uses pretty error pipeline', () {
+    test('a failed device reads as its device card does', () {
+      const raw = 'USB device not found (0x80040403)';
       final failure = ConnectAllFailure.fromProgress(
         const DeviceConnectProgress(
-          deviceType: 'camera',
-          deviceId: 'native:camera:1',
+          deviceType: 'filter wheel',
+          deviceId: 'ascom:ASCOM.EFW.FilterWheel',
           status: DeviceConnectProgressStatus.failed,
-          errorMessage: '0x80040403',
+          errorMessage: raw,
         ),
       );
-      expect(failure.message, isNotEmpty);
+      final card = diagnoseConnectionFailure(
+        deviceType: DeviceType.filterWheel,
+        driverType: DriverType.ascom,
+        rawError: raw,
+      );
+      expect(failure.message, card.headline);
+      expect(failure.detail, contains(card.headline));
+      expect(failure.detail, contains(raw));
     });
   });
 }
