@@ -208,14 +208,12 @@ class OpenNgcDsoCatalog {
       }
     }
 
-    // Get common names
     // Column 28 is Common names
     String? commonNames;
     if (parts.length > 28 && parts[28].isNotEmpty) {
       commonNames = parts[28];
     }
 
-    // Get identifiers for catalog IDs
     // Column 27 is Identifiers
     final catalogIds = <String>[];
     if (parts.length > 27 && parts[27].isNotEmpty) {
