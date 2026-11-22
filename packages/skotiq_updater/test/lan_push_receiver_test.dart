@@ -22,6 +22,29 @@ Future<UpdateVerifier> _verifierWithKey() async {
 }
 
 void main() {
+  test('a build with no trusted key refuses LAN pushes by name', () async {
+    final receiver = LanPushReceiver(
+      currentVersion: '2.0.0',
+      currentBuildNumber: 1,
+      dataDirectory: tempDataDirectory(),
+      pushSecret: 'secret',
+      serverPort: 45699,
+      verifier: UpdateVerifier(trustedPublicKeyBase64: ''),
+    );
+    await expectLater(
+      receiver.startServer(),
+      throwsA(
+        isA<LanPushKeyMissing>()
+            .having((e) => e, 'a StateError', isA<StateError>())
+            .having(
+              (e) => e.message,
+              'message',
+              contains('no trusted public key compiled in'),
+            ),
+      ),
+    );
+  });
+
   test(
     'rejects concurrent connections while authentication is in progress',
     () async {
