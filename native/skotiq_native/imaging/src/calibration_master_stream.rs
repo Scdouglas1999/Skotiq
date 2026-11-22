@@ -25,6 +25,7 @@
 //! reads brighter than the first frames of its group. Such frames are left out
 //! of the master and reported.
 
+use crate::atomic_file::{replace_file, Replace, ReplaceError};
 use crate::fits::{copy_header_cards, write_fits, FitsError, FitsHeader};
 use crate::fits_reader::FitsReader;
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
@@ -683,10 +684,20 @@ fn build_with_free_space(
     let image = ImageData::from_u16(width as u32, height as u32, 1, &master);
     drop(master);
     let partial = output.with_extension("partial.fits");
-    write_fits(&partial, &image, &header)
-        .map_err(|e| Failed(format!("writing {}: {e}", partial.display())))?;
-    std::fs::rename(&partial, output)
-        .map_err(|e| Failed(format!("moving master into {}: {e}", output.display())))?;
+    let how = Replace {
+        sync: false,
+        clean_after_write_error: false,
+        clean_after_place_error: false,
+    };
+    replace_file(output, &partial, how, |partial| {
+        write_fits(partial, &image, &header)
+    })
+    .map_err(|e| match e {
+        ReplaceError::Write(e) => Failed(format!("writing {}: {e}", partial.display())),
+        ReplaceError::Place { error, .. } => {
+            Failed(format!("moving master into {}: {error}", output.display()))
+        }
+    })?;
 
     Ok(StreamedMasterResult {
         output_path: output.to_path_buf(),

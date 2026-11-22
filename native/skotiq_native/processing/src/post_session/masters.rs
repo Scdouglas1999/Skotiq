@@ -14,6 +14,7 @@ use crate::post_session::light_calibration::{LightCalibration, FLOAT_CALIBRATION
 use crate::post_session::multi_night::{calibrate_for_fold, OnGrid};
 use crate::run_cancel::CancelToken;
 use serde::{Deserialize, Serialize};
+use skotiq_imaging::atomic_file::{replace_file, Replace, ReplaceError};
 use skotiq_imaging::calibration_masters::{build_master_flat, MasterFlatConfig};
 use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQuality, FrameQualityConfig};
 use skotiq_imaging::integration::IntegrationFrame;
@@ -288,9 +289,19 @@ impl OpenMaster {
             return Ok(());
         }
         let tmp = self.sidecar.with_extension("saving");
-        std::fs::write(&tmp, self.master.serialize())
-            .and_then(|_| std::fs::rename(&tmp, &self.sidecar))
-            .map_err(|e| format!("failed to write sidecar: {e}"))?;
+        let how = Replace {
+            sync: false,
+            clean_after_write_error: false,
+            clean_after_place_error: false,
+        };
+        replace_file(&self.sidecar, &tmp, how, |tmp| {
+            std::fs::write(tmp, self.master.serialize())
+        })
+        .map_err(|e| match e {
+            ReplaceError::Write(error) | ReplaceError::Place { error, .. } => {
+                format!("failed to write sidecar: {error}")
+            }
+        })?;
         // A journal line whose foldsBefore is below the saved fold count is
         // skipped on replay, so a crash before this removal is harmless.
         let _ = std::fs::remove_file(journal_path(&self.sidecar));

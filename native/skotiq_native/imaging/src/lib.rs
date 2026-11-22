@@ -8,6 +8,7 @@
 //! - Auto-stretch algorithms
 //! - Buffer pooling for efficient image capture
 
+pub mod atomic_file;
 pub mod background_extraction; // NEW: DBE/ABE-style background gradient extraction
 pub mod buffer_pool;
 pub mod calibration;

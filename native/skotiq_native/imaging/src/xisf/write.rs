@@ -10,6 +10,7 @@ use super::{
     ByteOrder, ColorSpace, PixelStorage, SampleFormat, UnitSource, XisfError, XisfImageHeader,
     XisfUnit, XISF_SIGNATURE,
 };
+use crate::atomic_file::{replace_file, Replace, ReplaceError};
 use crate::ImageData;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::Writer;
@@ -524,8 +525,8 @@ pub(crate) fn rewrite_unit_metadata(path: &Path, unit: &XisfUnit) -> Result<(), 
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "image.xisf".to_string());
     let staged = path.with_file_name(format!(".{name}.rewrite-tmp"));
-    let result = (|| -> Result<(), XisfError> {
-        let mut out = BufWriter::with_capacity(1 << 20, File::create(&staged)?);
+    let rewrite = |staged: &Path| -> Result<(), XisfError> {
+        let mut out = BufWriter::with_capacity(1 << 20, File::create(staged)?);
         out.write_all(XISF_SIGNATURE)?;
         out.write_all(&(xml.len() as u32).to_le_bytes())?;
         out.write_all(&[0u8; 4])?;
@@ -534,17 +535,13 @@ pub(crate) fn rewrite_unit_metadata(path: &Path, unit: &XisfUnit) -> Result<(), 
         pad_to(&mut out, &mut written, new_start)?;
         source.seek(SeekFrom::Start(tail_start))?;
         std::io::copy(&mut source.take(file_len - tail_start), &mut out)?;
-        // On disk before it takes the name of the only copy of the frame.
-        out.into_inner().map_err(|e| e.into_error())?.sync_all()?;
+        out.into_inner().map_err(|e| e.into_error())?;
         Ok(())
-    })();
-    if let Err(e) = result {
-        let _ = std::fs::remove_file(&staged);
-        return Err(e);
-    }
-    std::fs::rename(&staged, path).map_err(|e| {
-        let _ = std::fs::remove_file(&staged);
-        XisfError::Io(e)
+    };
+    // On disk before it takes the name of the only copy of the frame.
+    replace_file(path, &staged, Replace::DURABLE, rewrite).map_err(|e| match e {
+        ReplaceError::Write(e) => e,
+        ReplaceError::Place { error, .. } => XisfError::Io(error),
     })
 }
 

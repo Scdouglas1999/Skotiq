@@ -7,6 +7,7 @@
 //! first bytes (its extension when they say nothing). Each format is one
 //! [`FrameCodec`]; supporting another format is one more codec in [`CODECS`].
 
+use crate::atomic_file::{Replace, ReplaceError};
 use crate::xisf::{self, XisfError, XisfWriteOptions};
 use crate::{FitsError, FitsHeader, ImageData, Maker};
 use std::io::Read;
@@ -539,20 +540,10 @@ fn replace_file(
 ) -> Result<(), FrameIoError> {
     let name = display_name(path);
     let staged = path.with_file_name(format!(".{name}.tmp"));
-    if let Err(e) = write(&staged) {
-        let _ = std::fs::remove_file(&staged);
-        return Err(e);
-    }
-    // Opened for writing: Windows flushes only a handle that may write.
-    std::fs::OpenOptions::new()
-        .write(true)
-        .open(&staged)
-        .and_then(|file| file.sync_all())
-        .and_then(|()| std::fs::rename(&staged, path))
-        .map_err(|e| {
-            let _ = std::fs::remove_file(&staged);
-            FrameIoError::Io(e)
-        })
+    crate::atomic_file::replace_file(path, &staged, Replace::DURABLE, write).map_err(|e| match e {
+        ReplaceError::Write(e) => e,
+        ReplaceError::Place { error, .. } => FrameIoError::Io(error),
+    })
 }
 
 #[cfg(test)]
