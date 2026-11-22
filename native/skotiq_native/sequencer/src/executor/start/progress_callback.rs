@@ -126,7 +126,6 @@ pub(super) fn build_progress_callback(
                 // Announce the node's terminal status, exactly once, and only
                 // for a node we actually announced as started. `RuntimeNode::execute`
                 // emits the terminal `ProgressUpdate` for every node it ran —
-                // emits the terminal `ProgressUpdate` for every node it ran —
                 // leaf AND container, the root sequence node included.
                 //
                 // `started.remove` returning true is the pairing check: it is

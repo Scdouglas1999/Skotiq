@@ -4534,7 +4534,7 @@ mod tests {
 
     /// Owner decision 2026-10-06: a failed autofocus never parks the rig, and
     /// the post-flip refocus is named in it. A refocus that did not converge
-    /// The flip completes and the run carries on at the previous focus, and says so.
+    /// leaves the flip complete; the run carries on at the previous focus, and says so.
     #[tokio::test(start_paused = true)]
     async fn a_failed_post_flip_refocus_notifies_and_the_flip_completes() {
         let _serial = crate::AF_GATE_TEST_LOCK.lock().await;
