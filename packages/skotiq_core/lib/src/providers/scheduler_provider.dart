@@ -87,7 +87,7 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
     next,
   ) {
     next.whenData((event) {
-      final mapped = _mapEventToTrigger(event);
+      final mapped = schedulerTriggerFor(event);
       if (mapped != null) controller.add(mapped);
     });
   });
@@ -98,7 +98,8 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
   return controller.stream;
 });
 
-SchedulerTriggerEvent? _mapEventToTrigger(SkotiqEvent event) {
+/// The scheduler trigger [event] raises, or null when it raises none.
+SchedulerTriggerEvent? schedulerTriggerFor(SkotiqEvent event) {
   switch (event.category) {
     case EventCategory.safety:
       return SchedulerTriggerEvent.weatherChange;
