@@ -67,6 +67,102 @@ void main() {
       'Turning tracking on',
     );
   });
+
+  // P10 left: a native Failed set the state and the error and left the step
+  // and percent, so a flip refused before it started (a configuration error
+  // is reported before Starting) read "Failed, attempt 1, 100%" from the flip
+  // before it.
+  group('a flip that ends', () {
+    late ProviderContainer container;
+    late StreamController<SkotiqEvent> events;
+
+    setUp(() {
+      final backend = MockBackend();
+      events = StreamController<SkotiqEvent>.broadcast();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith((ref) => _Backend(ref, backend)),
+        ],
+      );
+      container.listen(meridianFlipTelemetryProvider, (_, __) {});
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await events.close();
+    });
+
+    Future<void> send(List<String> details) async {
+      for (final detail in details) {
+        events.add(_progress(detail));
+      }
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    FlipMonitorProgress shown() => FlipMonitorProgress(
+      state: container.read(flipExecutionStateProvider),
+      attempt: container.read(flipCurrentAttemptProvider),
+      step: container.read(flipCurrentStepProvider),
+      percent: container.read(flipProgressProvider),
+      error: container.read(flipLastErrorProvider),
+    );
+
+    const completedFlip = [
+      '{"Starting":{"target_name":"M31","from_pier_side":"East","hour_angle":0.25}}',
+      '{"StepStarted":{"step":"SlewingToTarget","step_index":2,"total_steps":9}}',
+      '{"Progress":{"percent":40}}',
+      '{"Completed":{"new_pier_side":"West","duration_secs":185.0}}',
+    ];
+
+    test('before it started shows no step or progress of the flip before '
+        'it', () async {
+      await send(completedFlip);
+      await send([
+        '{"Failed":{"error":"retry delays missing","action_taken":"parked"}}',
+      ]);
+
+      expect(shown().toJson(), {
+        'state': 'failed',
+        'attempt': 0,
+        'step': null,
+        'progress': 0,
+        'error': 'retry delays missing',
+      });
+    });
+
+    test('aborted before it started shows none either', () async {
+      await send(completedFlip);
+      await send(['{"Aborted":{"reason":"a sequence owns the mount"}}']);
+
+      expect(shown().toJson(), {
+        'state': 'aborted',
+        'attempt': 0,
+        'step': null,
+        'progress': 0,
+        'error': 'a sequence owns the mount',
+      });
+    });
+
+    test('mid-way keeps the step, attempt and progress it reached', () async {
+      await send([
+        completedFlip[0],
+        completedFlip[1],
+        completedFlip[2],
+        '{"StepFailed":{"step":"SlewingToTarget","error":"slew timed out"}}',
+        '{"Failed":{"error":"pier side did not change","action_taken":"parked"}}',
+      ]);
+
+      expect(shown().toJson(), {
+        'state': 'failed',
+        'attempt': 1,
+        'step': 'slewingToTarget',
+        'progress': 40,
+        'error': 'pier side did not change',
+      });
+    });
+  });
 }
 
 SkotiqEvent _progress(String detailJson) => SkotiqEvent(
