@@ -4250,7 +4250,7 @@
 
     if (statusEl) {
       const guidingState = g.state || g.appState || 'unknown';
-      const isGuiding = String(guidingState).toLowerCase().includes('guid');
+      const isGuiding = String(guidingState).toLowerCase() === 'guiding';
       const badgeClass = isGuiding ? 'badge-running' : 'badge-idle';
       renderBadge(statusEl, guidingState, badgeClass);
     }
@@ -4283,7 +4283,7 @@
       if (el) el.disabled = !enabled;
     };
     const disconnected = s === 'disconnected' || s === 'unknown';
-    const guiding = s.includes('guid') && !s.includes('stop');
+    const guiding = s === 'guiding';
     const paused = s === 'paused';
     set('btn-guide-connect', disconnected);
     set('btn-guide-start', !disconnected && !guiding);
