@@ -636,6 +636,8 @@ void main() {
           exposureTime: 2,
           stepSize: 50,
           stepsOut: 4,
+          method: 'VCurve',
+          binning: 1,
           gain: 123,
           offset: 17,
           curveFitting: 'Parabolic',
@@ -649,6 +651,7 @@ void main() {
           backlashCompMethod: 'Inward',
           backlashIn: 120,
           backlashOut: 30,
+          measuredBacklashIn: null,
           failureHfrToleranceRatio: 2.4,
         ),
       );

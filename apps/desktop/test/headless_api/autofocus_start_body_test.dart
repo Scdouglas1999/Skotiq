@@ -250,7 +250,7 @@ Future<Map<String, Object?>> _answer(Map<String, Object?> body) async {
     backend.pending.completeError(StateError('test over'));
     return {'request': _fields(backend.request!)};
   } finally {
-    jobs.dispose();
+    await jobs.dispose();
     container.dispose();
   }
 }
