@@ -3,7 +3,7 @@
 
 use skotiq_imaging::{
     copy_header_cards, is_instrument_keyword, read_frame_header, replace_astrometry_headers,
-    FitsHeader,
+    FitsHeader, PlateSolveResult,
 };
 use std::path::Path;
 
@@ -52,6 +52,24 @@ pub(crate) fn attach_wcs(
     master_path: &Path,
     size: (u32, u32),
 ) -> Option<WcsAttachment> {
+    attach_wcs_solved_by(header, grid_path, master_path, size, solve_with_astap)
+}
+
+/// ASTAP's solve of `path` near the `RA`/`DEC` hint, or `None` when ASTAP
+/// is not installed.
+fn solve_with_astap(path: &Path, ra: Option<f64>, dec: Option<f64>) -> Option<PlateSolveResult> {
+    let solver = skotiq_platesolve::AstapSolver::with_default_config()?;
+    Some(solver.solve(path, ra, dec, None))
+}
+
+/// [`attach_wcs`], with `solve` standing in for the solver.
+fn attach_wcs_solved_by(
+    header: &mut FitsHeader,
+    grid_path: &str,
+    master_path: &Path,
+    size: (u32, u32),
+    solve: impl FnOnce(&Path, Option<f64>, Option<f64>) -> Option<PlateSolveResult>,
+) -> Option<WcsAttachment> {
     if let Some(grid) = fits_header_of(grid_path).filter(has_wcs) {
         replace_astrometry_headers(header, &grid);
         return Some(WcsAttachment {
@@ -67,9 +85,8 @@ pub(crate) fn attach_wcs(
             inherited: true,
         });
     }
-    let solver = skotiq_platesolve::AstapSolver::with_default_config()?;
     let hint = |key: &str| header.get_float(key);
-    let result = solver.solve(master_path, hint("RA"), hint("DEC"), None);
+    let result = solve(master_path, hint("RA"), hint("DEC"))?;
     if !result.success || result.cd1_1 == 0.0 {
         tracing::info!(
             "no WCS for '{}': ASTAP could not solve it ({})",
