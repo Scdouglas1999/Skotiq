@@ -12,12 +12,12 @@
 //! degrees; calibrated intensities are signed ADU per native pixel.
 
 use super::ApertureFrame;
+use crate::calibration::is_calibrated;
 use crate::fits::FitsHeader;
 use crate::registration::{RegistrationStats, TransformKind, TransformModel};
 use crate::{
-    detect_stars, Acquisition, AgreementPolicy, CalibrationMarks, CardReading, ExposureTolerance,
-    FrameKind, FrameType, ImageData, MasterProvenance, NumberMatch, PixelType, Setting, SipWcs,
-    StarDetectionConfig,
+    detect_stars, Acquisition, AgreementPolicy, ExposureTolerance, FrameType, ImageData,
+    MasterProvenance, NumberMatch, PixelType, Setting, SipWcs, StarDetectionConfig,
 };
 use serde::{Deserialize, Serialize};
 
@@ -464,18 +464,23 @@ pub struct AcquisitionSettings {
     pub ccd_temp_c: Option<f64>,
 }
 
+/// The binning of a light whose header does not state it: unbinned.
+const UNSTATED_BINNING: i32 = 1;
+
 /// Read and vet a light's header: an unprocessed monochrome `Light` with the
 /// cards the compatibility checks need.
 pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String> {
-    let image_type = header.get_string("IMAGETYP").unwrap_or("");
-    if !FrameKind::card_names(image_type, FrameType::Light, CardReading::Exact) {
+    let provenance = MasterProvenance::from_header(header);
+    if !provenance
+        .kind()
+        .is_some_and(|kind| kind.base == FrameType::Light)
+    {
+        let image_type = header.get_string("IMAGETYP").unwrap_or("");
         return Err(format!(
             "Only light exposures may be measured; this file is IMAGETYP {image_type:?}"
         ));
     }
-    if CalibrationMarks::from_header(header).calstat_card
-        || MasterProvenance::from_header(header).frame_type_says_master(CardReading::Exact)
-    {
+    if is_calibrated(header) || provenance.says_master() {
         return Err(
             "Only unprocessed lights may be measured; this file is already calibrated or stacked"
                 .into(),
@@ -486,39 +491,36 @@ pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String
             "DepthLock measures monochrome data; this light carries a Bayer pattern".into(),
         );
     }
-    let instrument = header
-        .get_string("INSTRUME")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("Light has no camera identity (INSTRUME)")?
-        .to_string();
-    let filter = header
-        .get_string("FILTER")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("Light has no filter identity (FILTER)")?
-        .to_string();
-    let exposure_secs = numeric(header, "EXPTIME")?;
+    let taken = crate::acquisition(header);
+    let name = |card: Option<String>| {
+        card.map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    let instrument = name(taken.instrument).ok_or("Light has no camera identity (INSTRUME)")?;
+    let filter = name(taken.filter).ok_or("Light has no filter identity (FILTER)")?;
+    let exposure_secs = taken
+        .exposure_s
+        .filter(|v| v.is_finite())
+        .ok_or("DepthLock requires a finite EXPTIME FITS keyword")?;
     if exposure_secs <= 0.0 {
         return Err("Light has a non-positive EXPTIME".into());
     }
-    let int_card = |key: &str| -> Result<Option<i32>, String> {
-        match header.get_int(key) {
-            None => Ok(None),
-            Some(v) => i32::try_from(v)
-                .map(Some)
-                .map_err(|_| format!("{key} is out of range")),
-        }
+    let whole = |card: Setting, value: Option<f64>| -> Result<Option<i32>, String> {
+        value
+            .map(|v| {
+                i32::try_from(v as i64).map_err(|_| format!("{} is out of range", card.card()))
+            })
+            .transpose()
     };
     Ok(AcquisitionSettings {
         instrument,
         filter,
         exposure_secs,
-        gain: int_card("GAIN")?,
-        offset: int_card("OFFSET")?,
-        bin_x: int_card("XBINNING")?.unwrap_or(1),
-        bin_y: int_card("YBINNING")?.unwrap_or(1),
-        ccd_temp_c: header.get_float("CCD-TEMP").filter(|v| v.is_finite()),
+        gain: whole(Setting::Gain, taken.gain)?,
+        offset: whole(Setting::Offset, taken.offset)?,
+        bin_x: whole(Setting::BinX, taken.bin_x)?.unwrap_or(UNSTATED_BINNING),
+        bin_y: whole(Setting::BinY, taken.bin_y)?.unwrap_or(UNSTATED_BINNING),
+        ccd_temp_c: taken.sensor_temp_c.filter(|v| v.is_finite()),
     })
 }
 
@@ -668,10 +670,10 @@ pub enum MasterKind {
 }
 
 /// Vet a master frame's header and geometry against the light it will
-/// calibrate. Skotiq's own masters declare `FRAMETYP = MASTER`,
-/// `IMAGETYP = DARK|FLAT` and `NFRAMES`, and nothing about the acquisition
-/// — that part of the provenance comes from the frozen goal settings. When a
-/// master does carry acquisition cards they must agree.
+/// calibrate. A master says so by `FRAMETYP = MASTER` or in `IMAGETYP` (the
+/// dark library writes `IMAGETYP = 'Master Dark'`), names its kind in
+/// `IMAGETYP`, and counts its frames in `NFRAMES`, else `NCOMBINE`. Acquisition cards a master carries must agree with the
+/// frozen goal settings.
 pub fn validate_master(
     kind: MasterKind,
     header: &FitsHeader,
@@ -688,13 +690,13 @@ pub fn validate_master(
         MasterKind::Flat => ("flat", FrameType::Flat),
     };
     let provenance = MasterProvenance::from_header(header);
-    if !provenance.frame_type_says_master(CardReading::Exact) {
+    if !provenance.says_master() {
         return Err(format!(
-            "{label} is not a master frame (FRAMETYP is not MASTER)"
+            "{label} is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)"
         ));
     }
     let image_type = header.get_string("IMAGETYP").unwrap_or("").trim();
-    if !provenance.image_type_names(base, CardReading::Word) {
+    if !provenance.kind().is_some_and(|kind| kind.base == base) {
         return Err(format!(
             "{label} declares IMAGETYP {image_type:?}, not a {wanted}"
         ));
@@ -704,11 +706,19 @@ pub fn validate_master(
             "{label} carries a Bayer pattern; DepthLock is monochrome only"
         ));
     }
-    let frames = provenance.frames.unwrap_or(0);
-    if frames < MIN_MASTER_FRAMES {
-        return Err(format!(
+    match provenance.frames.or(provenance.combined) {
+        Some(frames) if frames >= MIN_MASTER_FRAMES => {}
+        Some(frames) => {
+            return Err(format!(
             "{label} was built from {frames} frames; DepthLock needs at least {MIN_MASTER_FRAMES}"
-        ));
+        ))
+        }
+        None => {
+            return Err(format!(
+                "{label} does not say how many frames it was built from (NFRAMES or NCOMBINE); \
+                 DepthLock needs at least {MIN_MASTER_FRAMES}"
+            ))
+        }
     }
     if image.width != reference.width || image.height != reference.height {
         return Err(format!(

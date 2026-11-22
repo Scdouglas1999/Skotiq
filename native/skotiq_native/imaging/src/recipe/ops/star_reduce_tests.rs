@@ -371,3 +371,37 @@ fn a_preview_level_scales_the_pixel_parameters_with_it() {
         }
     }
 }
+
+/// Over a real rig frame the finishing entry shrinks stars: every sample is
+/// at or below the input (an erosion blended in), some strictly, most of the
+/// frame untouched, and the frame stays 16-bit with its samples whole.
+#[test]
+fn reduce_stars_in_frame_shrinks_the_stars_of_a_rig_frame() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../test-fixtures/rig-2026-09-14/focused_L_0005.fits");
+    let (frame, _) = crate::read_fits(&path).expect("rig fixture");
+    let (side, x0, y0) = (
+        384usize,
+        frame.width as usize / 2 - 192,
+        frame.height as usize / 2 - 192,
+    );
+    let full = frame.as_u16().expect("16-bit rig frame");
+    let crop: Vec<u16> = (0..side)
+        .flat_map(|y| {
+            let row = (y0 + y) * frame.width as usize + x0;
+            full[row..row + side].to_vec()
+        })
+        .collect();
+    let image = ImageData::from_u16(side as u32, side as u32, 1, &crop);
+    let reduced = reduce_stars_in_frame(&image, 0.5, 2.0).expect("reduce");
+    assert_eq!(reduced.pixel_type, crate::PixelType::U16);
+    let out = reduced.as_u16().unwrap();
+    assert!(out.iter().zip(&crop).all(|(o, i)| o <= i));
+    let changed = out.iter().zip(&crop).filter(|(o, i)| o != i).count();
+    assert!(changed > 0, "no star was reduced");
+    assert!(
+        changed < crop.len() / 4,
+        "{changed} of {} samples changed",
+        crop.len()
+    );
+}

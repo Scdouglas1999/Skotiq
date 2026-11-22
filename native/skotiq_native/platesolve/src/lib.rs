@@ -25,7 +25,7 @@
 mod gate;
 mod paths;
 
-pub use gate::acquire_solve_gate;
+pub use gate::{acquire_solve_gate, acquire_solve_gate_blocking};
 pub use paths::CatalogInfo;
 use paths::{
     astap_candidates, astrometry_candidates, catalog_dir_candidates, first_existing,

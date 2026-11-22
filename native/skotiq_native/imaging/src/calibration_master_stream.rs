@@ -626,7 +626,12 @@ fn build_with_free_space(
     };
 
     let mut header = FitsHeader::new();
-    ProductCards::image_type(config.kind.image_type()).write_to(&mut header);
+    ProductCards {
+        frame_type: true,
+        frames: Some(kept.len() as i64),
+        ..ProductCards::image_type(config.kind.image_type())
+    }
+    .write_to(&mut header);
     if let Some(v) = exposure_secs {
         header.set_float("EXPTIME", v);
         header.set_float("EXPOSURE", v);
@@ -841,6 +846,8 @@ mod tests {
         assert_eq!(header.get_float("CCD-TEMP"), Some(-10.0));
         assert_eq!(header.get_float("SET-TEMP"), Some(-10.0));
         assert_eq!(header.get_int("NCOMBINE"), Some(9));
+        assert_eq!(header.get_string("FRAMETYP"), Some("MASTER"));
+        assert_eq!(header.get_int("NFRAMES"), Some(9));
         assert!(header.history.iter().any(|h| h.contains("Winsorized")));
         assert!(!dir.path().join("master.partial.fits").exists());
     }

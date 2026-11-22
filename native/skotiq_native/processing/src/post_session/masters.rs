@@ -830,13 +830,14 @@ fn flat_metadata(path: &str) -> Result<FitsHeader, String> {
     })
 }
 
-/// How closely the raw flats of one master flat must agree.
+/// How closely the raw flats of one master flat must agree. The set-point is
+/// not compared: flats are short and often taken uncooled.
 const FLAT_AGREEMENT: AgreementPolicy = AgreementPolicy {
     instrument: true,
     filter: true,
     exposure: None,
     set_point_c: None,
-    read_mode: false,
+    read_mode: true,
     numbers: NumberMatch::Within(1e-6),
     text_ignores_case: false,
     first_states_numbers: false,
@@ -847,6 +848,7 @@ const FLAT_AGREEMENT: AgreementPolicy = AgreementPolicy {
 /// The dark-flat's exposure is held to its own rule.
 const FLAT_PEDESTAL_AGREEMENT: AgreementPolicy = AgreementPolicy {
     filter: false,
+    read_mode: false,
     ..FLAT_AGREEMENT
 };
 
@@ -937,12 +939,18 @@ pub(crate) fn build_master_flat_impl(
     // Exposure may vary: Skotiq's flat capture adjusts it frame by frame, and
     // each flat is scaled to its own median before combining.
     let first = acquisition(&source_headers[0]);
-    for header in &source_headers[1..] {
+    for (path, header) in args.flat_paths.iter().zip(&source_headers).skip(1) {
         if let Some(d) = first.disagreement(&acquisition(header), &FLAT_AGREEMENT) {
-            return Err(format!(
-                "Raw flats have different {}; build each calibration group separately",
-                d.setting.card()
-            ));
+            return Err(match d.setting {
+                Setting::ReadMode => format!(
+                    "{path} was read out in mode {} but {} in mode {}",
+                    d.other, args.flat_paths[0], d.first
+                ),
+                setting => format!(
+                    "Raw flats have different {}; build each calibration group separately",
+                    setting.card()
+                ),
+            });
         }
     }
     let exposures: Vec<f64> = source_headers

@@ -38,7 +38,7 @@ use serde_json::Value;
 
 use crate::recipe::ops::star_detect;
 use crate::recipe::{DarkroomOp, OpContext, OpError, OpImage, OpStage, Params};
-use crate::{DetectedStar, StarDetectionConfig};
+use crate::{DetectedStar, FitsHeader, ImageData, StarDetectionConfig};
 
 const OP_ID: &str = "star_reduce";
 const OP_VERSION: u32 = 1;
@@ -193,6 +193,24 @@ impl DarkroomOp for StarReduceV1 {
 
         image.with_data(out)
     }
+}
+
+/// Run the star reduction over a whole frame outside a render (the
+/// post-session finishing step): `amount` and `mask_dilate_px` are the step's
+/// `amount` and `maskDilatePx`, at full resolution. The frame keeps its pixel
+/// type and sample range; an integer frame's reduced samples are rounded.
+pub fn reduce_stars_in_frame(
+    image: &ImageData,
+    amount: f64,
+    mask_dilate_px: f64,
+) -> Result<ImageData, OpError> {
+    let input = OpImage::from_image_data(image, FitsHeader::new())?;
+    let params = serde_json::json!({ "amount": amount, "maskDilatePx": mask_dilate_px });
+    let reduced = StarReduceV1.apply(&input, &params, &OpContext::new())?;
+    Ok(reduced
+        .to_image_data()
+        .converted_to(image.pixel_type, image.range)
+        .into_owned())
 }
 
 /// Read and range-check one step's payload. `validate_params` and `apply` share
