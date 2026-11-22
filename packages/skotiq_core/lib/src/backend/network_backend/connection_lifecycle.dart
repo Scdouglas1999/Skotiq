@@ -107,10 +107,11 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   /// cannot link to it (another Skotiq release), or null.
   Future<LinkVersionMismatch?> _readHostInfo() async {
     final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
-    final headers = <String, String>{
-      LinkVersion.header: skotiqRelease,
-      NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
-    };
+    final headers = LinkVersion.hostHeaders(
+      headers: {
+        NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
+      },
+    );
     // The handshake probe gets a fixed short ceiling regardless of the
     // request-timeout tuning: it runs before we commit to the connection, so a
     // server that can't answer /api/info promptly should surface as
@@ -304,7 +305,6 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
         queryParameters['ticket'] = wsTicket;
         upgradeUsedTicket = true;
       }
-      queryParameters[LinkVersion.queryParameter] = skotiqRelease;
       // If we've previously attached to this server instance and have
       // a seq cursor to ask replay from, include both. The server-side
       // /events handler treats omitting either parameter as "fresh

@@ -1,11 +1,12 @@
 // job model for long-running headless operations.
 //
-// Autofocus, plate-solve, center-on-target, mosaic plan, and polar alignment
-// would otherwise hold an HTTP connection open for the entire run. A
+// Autofocus, plate-solve, center-on-target, updates, catalog downloads and the
+// post-session steps ([JobOperation]) would otherwise hold an HTTP connection
+// open for the entire run. A
 // client-side 30s timeout (or an OS-level background TCP teardown on mobile)
 // kills the connection while the server-side op continues unobserved — with
 // no job handle to re-query and no way for a second client to cancel the run.
-// Polar-alignment Start is excluded: the backend call only admits an async
+// Polar alignment is not a job: the backend call only admits an async
 // run and returns quickly, while its progress and Stop command have dedicated
 // protocol surfaces. Queuing that admission would hide immediate failures.
 //
@@ -26,26 +27,8 @@ import 'dart:math';
 
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
-
-/// Lifecycle states for a [Job]. Transitions:
-///   queued  -> running -> succeeded | failed | cancelled
-///   queued  -> cancelled (when cancelled before the executor picks it up)
-enum JobState { queued, running, succeeded, failed, cancelled }
-
-extension JobStateX on JobState {
-  String get wireName => name;
-  bool get isTerminal =>
-      this == JobState.succeeded ||
-      this == JobState.failed ||
-      this == JobState.cancelled;
-}
-
-JobState? parseJobState(String raw) {
-  for (final state in JobState.values) {
-    if (state.name == raw) return state;
-  }
-  return null;
-}
+import 'package:skotiq_remote_protocol/wire_models.dart'
+    show JobOperation, JobState;
 
 /// Snapshot of a single long-running operation. Instances are immutable;
 /// mutation goes through [JobManager] which builds a new snapshot on each
@@ -56,16 +39,19 @@ class Job {
   /// `GET /api/jobs/{jobId}` / `POST /api/jobs/{jobId}/cancel`.
   final String jobId;
 
+  /// What the job does.
+  final JobOperation kind;
+
   /// Dotted-path operation identifier, e.g. `focuser.autofocus`,
   /// `plate-solve`, `framing.center-on-target`. Used by clients that
   /// subscribe to a specific kind of work and by the operations-filtered
   /// `GET /api/jobs?operation=...` query.
-  final String operation;
+  String get operation => kind.wire;
 
   /// Optional device id this job operates against. Used to derive a
   /// best-effort correlation between a job and the underlying driver's
   /// device-status events. Null for jobs that are not device-scoped
-  /// (mosaic plan, polar alignment).
+  /// (centering, updates, post-session steps).
   final String? deviceId;
 
   /// correlation: the commandId returned in the action POST response
@@ -101,7 +87,7 @@ class Job {
 
   const Job({
     required this.jobId,
-    required this.operation,
+    required this.kind,
     required this.deviceId,
     required this.commandId,
     required this.createdAt,
@@ -125,7 +111,7 @@ class Job {
   }) {
     return Job(
       jobId: jobId,
-      operation: operation,
+      kind: kind,
       deviceId: deviceId,
       commandId: commandId,
       createdAt: createdAt,
@@ -305,7 +291,7 @@ class JobManager {
   /// message and details. Any other exception transitions to `failed` with
   /// `error: {code: 'job_failed', message: e.toString()}`.
   Job start({
-    required String operation,
+    required JobOperation operation,
     String? deviceId,
     String? commandId,
     required Future<Map<String, Object?>> Function(
@@ -318,7 +304,7 @@ class JobManager {
     final now = _now();
     final initial = Job(
       jobId: jobId,
-      operation: operation,
+      kind: operation,
       deviceId: deviceId,
       commandId: commandId ?? jobId,
       createdAt: now,

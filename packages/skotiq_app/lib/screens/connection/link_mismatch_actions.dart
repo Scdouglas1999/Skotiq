@@ -49,14 +49,11 @@ class _LinkMismatchActionsState extends ConsumerState<LinkMismatchActions> {
   Future<String?> _tokenForHost() async {
     final given = widget.authToken ?? widget.host.authToken;
     if (given != null && given.isNotEmpty) return given;
-    final store = ref.read(linkedRigStoreProvider);
-    final rig = await store.load();
-    if (rig == null) return null;
-    final sameRig = rig.fingerprint != null && widget.host.fingerprint != null
-        ? rig.fingerprint!.toLowerCase() ==
-            widget.host.fingerprint!.toLowerCase()
-        : rig.host == widget.host.host && rig.port == widget.host.webPort;
-    return sameRig ? store.readToken() : null;
+    return ref.read(linkedRigStoreProvider).tokenFor(
+          host: widget.host.host,
+          port: widget.host.webPort,
+          fingerprint: widget.host.fingerprint,
+        );
   }
 
   Future<void> _updateHost() async {

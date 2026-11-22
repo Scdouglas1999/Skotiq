@@ -7,6 +7,7 @@ import 'package:multicast_dns/multicast_dns.dart';
 
 import 'discovery.dart';
 import 'enhanced_discovery.dart';
+import 'host_advert.dart';
 
 /// The DNS-SD service type every Skotiq host registers (GUI and headless).
 const String skotiqMdnsServiceType = '_skotiq._tcp';
@@ -248,18 +249,18 @@ class RigDiscovery {
         }
         final address = await pickReachableAddress(addresses);
         if (address != null) {
-          final scheme = (txt['scheme'] ?? 'http').toLowerCase();
+          final advert = HostTxt.parse(txt);
           onFound(
             DiscoveredServer(
               host: address.address,
               webPort: srv.port,
-              name: txt['name'] ?? instance.split('.').first,
-              version: txt['version'],
-              scheme: scheme == 'https' ? 'https' : 'http',
-              fingerprint: _nonEmpty(txt['fingerprint']),
-              pairingSupported: txt['pairingSupported'] == 'true',
-              hostName: txt['hostName'] ?? computer,
-              hostMode: txt['hostMode'],
+              name: advert.name ?? instance.split('.').first,
+              version: advert.version,
+              scheme: advert.scheme ?? 'http',
+              fingerprint: advert.fingerprint,
+              pairingSupported: advert.pairingSupported,
+              hostName: advert.hostName ?? computer,
+              hostMode: advert.hostMode,
             ),
           );
         }
@@ -332,9 +333,6 @@ class RigDiscovery {
       return const [];
     }
   }
-
-  static String? _nonEmpty(String? value) =>
-      (value == null || value.isEmpty) ? null : value;
 
   /// `multicast_dns` hands a TXT record's strings joined by newlines.
   static Map<String, String> parseTxtRecord(String text) {

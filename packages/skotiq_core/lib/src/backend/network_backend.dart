@@ -59,6 +59,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
         TailnetDetector,
         buildSkotiqServerUri,
         kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/json_fields.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
@@ -448,21 +449,23 @@ abstract class NetworkBackendTransport {
     );
   }
 
-  /// The WebSocket URI of [endpoint], with the scheme derived from [scheme].
+  /// The WebSocket URI of [endpoint], with the scheme derived from [scheme]
+  /// and this build's release in the query, which the host requires on every
+  /// upgrade.
   Uri _wsUri(ApiEndpoint endpoint, [Map<String, String>? queryParameters]) {
     final route = endpoint.route;
     if (route.method != ApiMethod.ws) {
       throw StateError('${route.signature} is not a WebSocket route');
     }
-    final path = route.path;
     return Uri(
       scheme: _wsScheme,
       host: serverHost,
       port: webSocketPort,
-      path: path,
-      queryParameters: (queryParameters == null || queryParameters.isEmpty)
-          ? null
-          : queryParameters,
+      path: route.path,
+      queryParameters: {
+        ...?queryParameters,
+        LinkVersion.queryParameter: skotiqRelease,
+      },
     );
   }
 

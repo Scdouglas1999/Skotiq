@@ -6,6 +6,15 @@ import 'mobile_preferences.dart';
 import 'notification_service.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobOperation;
+
+/// Operation names a polar alignment job once carried. No host runs polar
+/// alignment as a job, so these never arrive; whether the phone alerts a
+/// failed polar alignment another way waits on the owner (OWNER_LIST P2).
+const _polarAlignmentOperations = {
+  'polar-alignment.start',
+  'polar-alignment.all-sky.start',
+};
 
 /// Subscribes to the backend's `SkotiqEvent` stream and converts critical
 /// events into local OS notifications via [MobileNotificationService].
@@ -296,25 +305,21 @@ class MobileEventNotifier {
     if (_firedRecently(key, _repeatWindow)) return;
     if (_pushAlreadyCovered(event.eventType)) return;
 
-    switch (operation) {
+    switch (JobOperation.fromWire(operation)) {
       // Every autofocus sweep publishes its outcome, which
       // [NotificationEventClassifier] tells; the job's end would tell it
       // twice.
-      case 'focuser.autofocus':
-      case 'focuser.autofocus.start':
+      case JobOperation.autofocus:
         return;
-      case 'plate-solve':
+      case JobOperation.plateSolve:
         if (!_preferences.notifyExposureFailed) return;
         await _notifications.notifyPlateSolveFailed(errorMessage);
         _markFired(key);
-        break;
-      case 'framing.center-on-target':
+      case JobOperation.centerOnTarget:
         if (!_preferences.notifyExposureFailed) return;
         await _notifications.notifyCenteringFailed(errorMessage);
         _markFired(key);
-        break;
-      case 'polar-alignment.start':
-      case 'polar-alignment.all-sky.start':
+      case null when _polarAlignmentOperations.contains(operation):
         // Polar alignment failure is operator-facing: even if the user is
         // staring at the polar-align screen, a notification helps when
         // they wandered off to fetch coffee mid-routine. Gate on the same
@@ -323,17 +328,29 @@ class MobileEventNotifier {
         if (!_preferences.notifyExposureFailed) return;
         await _notifications.notifyPolarAlignmentFailed(errorMessage);
         _markFired(key);
-        break;
-      default:
-        // Unknown operation. Log loudly so the next time a job type is
-        // added server-side, the gap is visible in mobile logs instead
-        // of silently swallowed.
+      case JobOperation.backlashCalibration ||
+          JobOperation.catalogDownload ||
+          JobOperation.backfillThumbnails ||
+          JobOperation.updateCheck ||
+          JobOperation.updateDownload ||
+          JobOperation.updateApply ||
+          JobOperation.updateRollback ||
+          JobOperation.postSessionIntegrate ||
+          JobOperation.postSessionDrizzle ||
+          JobOperation.postSessionAnalyzeNight ||
+          JobOperation.postSessionBuildMasterFlat ||
+          JobOperation.postSessionColorCalibrate ||
+          JobOperation.postSessionDetectStars ||
+          JobOperation.postSessionExtractBackground ||
+          JobOperation.postSessionMasterAccumulate ||
+          null:
+        // No alert for these. Logged so a failure the phone does not alert
+        // is still visible in mobile logs.
         Log.warning(
           '[MobileEventNotifier] JobFailed for unhandled operation '
           '"$operation": $errorMessage',
           source: 'MobileEventNotifier',
         );
-        break;
     }
   }
 

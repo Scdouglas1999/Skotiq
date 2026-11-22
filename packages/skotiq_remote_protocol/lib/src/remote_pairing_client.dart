@@ -170,11 +170,12 @@ class RemotePairingClient {
     pathAndQuery: path,
   );
 
-  Map<String, String> get _headers => {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    LinkVersion.header: skotiqRelease,
-  };
+  Map<String, String> get _headers => LinkVersion.hostHeaders(
+    headers: const {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    },
+  );
 
   /// Asks the host to make a pairing code. The code stays on the host (its
   /// screen, its data folder, its console); the answer says only where it went

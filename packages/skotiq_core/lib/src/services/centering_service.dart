@@ -11,6 +11,8 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         ApiCenteringStep_Solved,
         apiCancelCentering,
         apiCenterOnTarget;
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobState;
+
 import '../backend/remote_host.dart';
 import '../models/app_screen.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
@@ -78,34 +80,34 @@ final class HostCenteringRunner implements CenteringRunner {
       }
       final job = await _host.awaitJobCompletion(
         jobId,
-        timeout: const Duration(minutes: 10),
+        timeout: CenteringConfig.defaultOverallTimeout,
         pollInterval: const Duration(seconds: 1),
       );
       final outcome = job.result ?? job.error?['details'];
-      for (final attempt
-          in (outcome is Map ? outcome['iterationHistory'] : null)
-                  as List<dynamic>? ??
-              const []) {
-        if (attempt case {
-          'iterationNumber': final int number,
-          'solvedRa': final num ra,
-          'solvedDec': final num dec,
-          'offsetArcsec': final num separation,
-        }) {
+      final attempts = outcome is Map
+          ? CenteringResult.iterationsFromJson(outcome)
+          : const <CenteringIteration>[];
+      for (final attempt in attempts) {
+        if (attempt case CenteringIteration(
+          iterationNumber: final number,
+          solvedRa: final ra?,
+          solvedDec: final dec?,
+          offsetArcsec: final separation?,
+        )) {
           yield ApiCenteringStep.solved(
             attempt: number,
-            raHours: ra.toDouble(),
-            decDegrees: dec.toDouble(),
-            separationArcsec: separation.toDouble(),
+            raHours: ra,
+            decDegrees: dec,
+            separationArcsec: separation,
           );
         }
       }
       yield ApiCenteringStep.finished(
-        centered: job.state == 'succeeded',
-        cancelled: job.state == 'cancelled',
-        message: switch (job.state) {
-          'succeeded' => 'Centered on the imaging host',
-          'cancelled' => 'Centering stopped',
+        centered: job.knownState == JobState.succeeded,
+        cancelled: job.knownState == JobState.cancelled,
+        message: switch (job.knownState) {
+          JobState.succeeded => 'Centered on the imaging host',
+          JobState.cancelled => 'Centering stopped',
           _ =>
             job.error?['message'] as String? ??
                 'Centering did not reach the target.',
@@ -176,7 +178,7 @@ class CenteringService {
   Future<CenteringResult> centerOnTarget({
     required double targetRa,
     required double targetDec,
-    CenteringConfig config = const CenteringConfig(),
+    required CenteringConfig config,
     void Function(CenteringStatus)? onStatusUpdate,
   }) async {
     final refusal = _refusal(targetRa, targetDec, config);

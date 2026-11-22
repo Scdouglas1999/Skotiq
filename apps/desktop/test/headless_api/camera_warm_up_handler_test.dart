@@ -14,6 +14,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 class _MockDeviceService extends Mock implements DeviceService {}
 
@@ -62,7 +63,10 @@ void main() {
     final camera = container.read(cameraStateProvider.notifier);
     camera.setConnecting('sim_camera_1');
     camera.setConnected();
-    handlers = DeviceHandlers(container);
+    handlers = DeviceHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    );
   });
 
   tearDown(() => container.dispose());

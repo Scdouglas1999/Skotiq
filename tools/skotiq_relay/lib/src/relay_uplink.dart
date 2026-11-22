@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import 'mux/mux_session.dart';
 import 'relay_credentials.dart';
+import 'relay_url.dart';
 import 'socket_bridge.dart';
 
 enum RelayUplinkState {
@@ -86,22 +87,6 @@ class RelayUplink {
 
   RelayUplinkStatus get status => _status;
   String? get applianceId => _applianceId;
-
-  /// Map http(s) onto ws(s) and strip trailing slashes so endpoint paths
-  /// can be appended uniformly. Throws [ArgumentError] on anything else.
-  static Uri normalizeRelayUrl(Uri url) {
-    final scheme = switch (url.scheme) {
-      'ws' || 'http' => 'ws',
-      'wss' || 'https' => 'wss',
-      _ => throw ArgumentError.value(
-        url,
-        'relayUrl',
-        'scheme must be ws, wss, http, or https',
-      ),
-    };
-    final path = url.path.replaceAll(RegExp(r'/+$'), '');
-    return url.replace(scheme: scheme, path: path);
-  }
 
   Uri _endpoint(String suffix) =>
       relayUrl.replace(path: '${relayUrl.path}$suffix');

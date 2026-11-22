@@ -11,6 +11,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 class _FakeDeviceBackend implements DeviceBackend {
   int angleReads = 0;
@@ -65,7 +66,10 @@ void main() {
     });
 
     final response = await translateHandlerErrors(
-      DeviceHandlers(container).handleRotatorGetStatus(
+      DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      ).handleRotatorGetStatus(
         Request(
           'GET',
           Uri.parse('http://localhost/api/rotator/status?deviceId=rot-1'),

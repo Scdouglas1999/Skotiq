@@ -573,7 +573,10 @@ Future<void> _startUpdateReceiver(HostStartup host) async {
     return;
   }
   host.onStop('LAN push receiver', receiver.stopServer);
-  logger.info('LAN push receiver started on port 45680', source: source);
+  logger.info(
+    'LAN push receiver started on port ${LanPushReceiver.pushPort}',
+    source: source,
+  );
   bool isReceiving() => receiver.versionInfo['isReceiving'] == true;
 
   if (host.daemonConfig?.bindLocalOnly ?? false) {

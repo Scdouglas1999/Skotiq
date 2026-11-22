@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/handlers/job_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart'
+    show JobOperation, JobState;
 
 import 'handler_test_helpers.dart';
 
@@ -38,7 +40,7 @@ void main() {
 
     test('GET /api/jobs/{jobId} returns the snapshot', () async {
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async => {'ok': true},
       );
       await _pumpUntil(
@@ -73,11 +75,11 @@ void main() {
     test('GET /api/jobs lists jobs and supports state filter', () async {
       final completer = Completer<Map<String, Object?>>();
       final running = manager.start(
-        operation: 'op.a',
+        operation: JobOperation.autofocus,
         work: (sink, cancellation) => completer.future,
       );
       manager.start(
-        operation: 'op.b',
+        operation: JobOperation.catalogDownload,
         work: (sink, cancellation) async => {'ok': true},
       );
       await _pumpUntil(
@@ -117,7 +119,7 @@ void main() {
       'POST /api/jobs/{id}/cancel succeeds then GET shows canceled',
       () async {
         final job = manager.start(
-          operation: 'test.op',
+          operation: JobOperation.plateSolve,
           work: (sink, cancellation) async {
             await cancellation.whenCancelled;
             throw const JobCancelledException('test');
@@ -156,7 +158,7 @@ void main() {
       'POST /api/jobs/{id}/cancel returns 409 when already terminated',
       () async {
         final job = manager.start(
-          operation: 'test.op',
+          operation: JobOperation.plateSolve,
           work: (sink, cancellation) async => {'ok': true},
         );
         await _pumpUntil(
@@ -193,7 +195,7 @@ void main() {
 
     test('DELETE /api/jobs/{id} purges a terminated job', () async {
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async => {'ok': true},
       );
       await _pumpUntil(
@@ -216,7 +218,7 @@ void main() {
     test('DELETE /api/jobs/{id} 409 when the job is still running', () async {
       final completer = Completer<Map<String, Object?>>();
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) => completer.future,
       );
       await _pumpUntil(() => manager.get(job.jobId)?.state == JobState.running);

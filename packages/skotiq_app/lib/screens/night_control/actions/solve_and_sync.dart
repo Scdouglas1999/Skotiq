@@ -213,16 +213,15 @@ class SolveAndSync {
 }
 
 /// Exposure settings for a solve frame: the manual settings with the
-/// profile's centering exposure, binning, gain and offset, as the centering
-/// flow uses (`slew_dropdown_button.dart` `_centeringConfig`).
+/// profile's centering exposure ([ManualCentering.exposureFor]), binning, gain
+/// and offset.
 ExposureSettings solveFrameSettings({
   required ExposureSettings manual,
   required EquipmentProfileModel? profile,
 }) {
-  final exposure = profile?.defaultCenteringExposure;
   final binning = profile?.defaultBinX ?? 2;
   var settings = manual.copyWith(
-    exposureTime: exposure != null && exposure > 0 ? exposure : 5.0,
+    exposureTime: ManualCentering.exposureFor(profile),
     binningX: binning,
     binningY: binning,
   );

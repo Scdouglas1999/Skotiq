@@ -17,6 +17,7 @@ import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 class _CancelledExposureBackend implements DeviceBackend {
   @override
@@ -187,7 +188,10 @@ void main() {
           databaseProvider.overrideWithValue(db),
         ],
       );
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     tearDown(() async {
@@ -288,7 +292,10 @@ void main() {
         ],
       );
       addTearDown(busyContainer.dispose);
-      final busyHandlers = DeviceHandlers(busyContainer);
+      final busyHandlers = DeviceHandlers(
+        busyContainer,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
 
       for (final request in [
         Request(
@@ -325,7 +332,10 @@ void main() {
             ),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
 
         final response = await translateHandlerErrors(
           handlers.handleCameraExpose(
@@ -374,7 +384,10 @@ void main() {
               ),
             );
         await container.read(equipmentProfilesProvider.future);
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         return translateHandlerErrors(
           handlers.handleConnectDevice(
             Request(
@@ -417,7 +430,10 @@ void main() {
             deviceBackendProvider.overrideWithValue(backend),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         final response = await translateHandlerErrors(
           handlers.handleDisconnectDevice(
             Request(
@@ -470,7 +486,10 @@ void main() {
             deviceBackendProvider.overrideWithValue(backend),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         // Equipment state tracks `tracked`, so `orphan` mismatches it.
         container.read(focuserStateProvider.notifier).setConnecting(tracked);
         container.read(focuserStateProvider.notifier).setConnected();
@@ -628,7 +647,10 @@ void main() {
             ),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         final translated = errorTranslationMiddleware(
           logError: (_, {fields}) {},
           requestIdFor: (_) => 'test-request-id',

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_app/services/app_update.dart'
@@ -250,25 +251,25 @@ Future<RunningHostServer> startHostServer({
 
   final scheme = server.isTlsActive ? 'https' : 'http';
   final hostName = hostComputerName();
+  final advert = HostAdvert(
+    hostName: hostName,
+    hostMode: config.hostMode,
+    version: appVersion.version,
+    scheme: scheme,
+    fingerprint: server.serverFingerprint,
+    authRequired: server.isAuthRequired,
+  );
 
   if (!config.bindLocalOnly) {
     try {
       final beacons = await SkotiqDiscovery.startBroadcasting(
+        advert: advert,
         webPort: server.actualPort,
         signalingPort: server.actualPort,
-        name: hostName,
-        hostName: hostName,
-        hostMode: config.hostMode.wire,
-        version: appVersion.version,
-        scheme: scheme,
-        fingerprint: server.serverFingerprint,
-        authRequired: server.isAuthRequired,
-        authenticationMode: server.isAuthRequired ? 'token' : 'none',
-        pairingSupported: true,
       );
       stops.add((name: 'discovery socket', action: () async => beacons.stop()));
       logger.info(
-        'UDP discovery broadcasting on port 45679 '
+        'UDP discovery broadcasting on port ${SkotiqDiscovery.discoveryPort} '
         '(advertising ${server.actualPort})',
         source: logSource,
       );
@@ -296,15 +297,7 @@ Future<RunningHostServer> startHostServer({
       final registration = MdnsServiceRegistration(
         name: 'Skotiq on $hostName',
         port: server.actualPort,
-        txt: {
-          'version': appVersion.version,
-          'scheme': scheme,
-          'fingerprint': server.serverFingerprint,
-          'pairingSupported': 'true',
-          'name': hostName,
-          'hostName': hostName,
-          'hostMode': config.hostMode.wire,
-        },
+        txt: advert.toTxt(),
         onWarning: (msg) => logger.warning(msg, source: logSource),
       );
       await registration.start();
@@ -314,7 +307,7 @@ Future<RunningHostServer> startHostServer({
           'mDNS advertisement active',
           source: logSource,
           fields: {
-            'service': '_skotiq._tcp',
+            'service': skotiqMdnsServiceType,
             'port': server.actualPort,
             'scheme': scheme,
             'fingerprint': server.serverFingerprint,
@@ -478,13 +471,18 @@ Future<RunningHostServer> startHostServer({
 }
 
 /// The LAN address a phone on the same network would use, when there is one.
-Future<String?> firstLanAddress() async {
-  for (final interface in await NetworkInterface.list()) {
-    if (interface.name.contains('lo') || interface.name.contains('Loopback')) {
-      continue;
-    }
+Future<String?> firstLanAddress() async =>
+    pickLanAddress(await NetworkInterface.list());
+
+/// The first IPv4 address of [interfaces] that is not a loopback address.
+/// Interface names do not decide it: Linux names Wi-Fi `wlo1`.
+@visibleForTesting
+String? pickLanAddress(List<NetworkInterface> interfaces) {
+  for (final interface in interfaces) {
     for (final addr in interface.addresses) {
-      if (addr.type == InternetAddressType.IPv4) return addr.address;
+      if (addr.type == InternetAddressType.IPv4 && !addr.isLoopback) {
+        return addr.address;
+      }
     }
   }
   return null;

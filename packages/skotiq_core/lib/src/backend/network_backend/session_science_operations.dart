@@ -126,8 +126,8 @@ mixin _NetworkBackendSessionScienceOperations on NetworkBackendTransport {
     return response;
   }
 
-  // Only the currently viewed sessions retain spatial maps. Old hosts return
-  // no versions and continue using their full GET response.
+  // Only the currently viewed sessions retain spatial maps. A response
+  // without versions is used whole.
   final _scienceSessionCache =
       <int, ({Map<String, dynamic> versions, RemoteScienceBundle bundle})>{};
 

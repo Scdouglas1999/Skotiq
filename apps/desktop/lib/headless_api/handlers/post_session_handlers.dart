@@ -263,14 +263,14 @@ class PostSessionHandlers implements RouteSource {
 
   /// Register [work] as a JobManager job and return the queued-job envelope.
   Future<Response> _startJob(
-    String operation,
+    JobOperation operation,
     Future<Map<String, Object?>> Function() work,
   ) async {
     final job = jobManager.start(
       operation: operation,
       deviceId: null,
       work: (sink, cancellation) async {
-        sink.update(null, operation);
+        sink.update(null, operation.wire);
         final started = DateTime.now();
         // The native pipeline has no cancellation hook. Do not transition the
         // job to cancelled while host CPU work is still running; await its real
@@ -281,7 +281,7 @@ class PostSessionHandlers implements RouteSource {
           result = await work();
         } catch (e) {
           _logger.error(
-            '[API] $operation failed after '
+            '[API] ${operation.wire} failed after '
             '${DateTime.now().difference(started).inSeconds} s: $e',
             source: 'PostSessionHandlers',
           );
@@ -289,14 +289,14 @@ class PostSessionHandlers implements RouteSource {
         }
         if (cancellation.isCancelled) {
           _logInfo(
-            '[API] $operation finished after cancellation was requested',
+            '[API] ${operation.wire} finished after cancellation was requested',
           );
           throw const JobCancelledException(
             'Post-session operation cancellation requested by client',
           );
         }
         _logInfo(
-          '[API] $operation succeeded after '
+          '[API] ${operation.wire} succeeded after '
           '${DateTime.now().difference(started).inSeconds} s: '
           '${_outcomeSummary(result)}',
         );
@@ -323,7 +323,7 @@ class PostSessionHandlers implements RouteSource {
     final args = await readJsonObject(request);
     _refuseExposuresSec(args, lightsField: 'lightPaths');
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.integrate', () async {
+    return _startJob(JobOperation.postSessionIntegrate, () async {
       final out = await bridge.apiIntegrateSession(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -344,7 +344,7 @@ class PostSessionHandlers implements RouteSource {
     _logInfo('[API] POST /api/post-session/drizzle');
     final args = await readJsonObject(request);
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.drizzle', () async {
+    return _startJob(JobOperation.postSessionDrizzle, () async {
       final out = await bridge.apiDrizzleIntegrate(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -366,7 +366,7 @@ class PostSessionHandlers implements RouteSource {
     requireList<dynamic>(args, 'weights');
     requireList<dynamic>(args, 'exposuresS');
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.analyze-night', () async {
+    return _startJob(JobOperation.postSessionAnalyzeNight, () async {
       final out = await bridge.apiAnalyzeNight(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -382,7 +382,7 @@ class PostSessionHandlers implements RouteSource {
     _logInfo('[API] POST /api/post-session/build-master-flat');
     final args = await readJsonObject(request);
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.build-master-flat', () async {
+    return _startJob(JobOperation.postSessionBuildMasterFlat, () async {
       final out = await bridge.apiBuildMasterFlat(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -403,7 +403,7 @@ class PostSessionHandlers implements RouteSource {
     requireInt(args, 'channels');
     requireList<dynamic>(args, 'matchedStars');
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.color-calibrate', () async {
+    return _startJob(JobOperation.postSessionColorCalibrate, () async {
       final out = await bridge.apiColorCalibrate(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -421,7 +421,7 @@ class PostSessionHandlers implements RouteSource {
     final args = await readJsonObject(request);
     requireString(args, 'inputFits');
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.detect-stars', () async {
+    return _startJob(JobOperation.postSessionDetectStars, () async {
       final out = await bridge.apiDetectStarsPhotometry(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -439,7 +439,7 @@ class PostSessionHandlers implements RouteSource {
     requireString(args, 'inputFits');
     requireString(args, 'outputFits');
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.extract-background', () async {
+    return _startJob(JobOperation.postSessionExtractBackground, () async {
       final out = await bridge.apiExtractBackground(argsJson: argsJson);
       return _decodeObject(out);
     });
@@ -466,7 +466,7 @@ class PostSessionHandlers implements RouteSource {
       _refuseExposuresSec(args, lightsField: 'lightPaths');
     }
     final argsJson = _encodeArgs(args);
-    return _startJob('post-session.master-accumulate', () async {
+    return _startJob(JobOperation.postSessionMasterAccumulate, () async {
       final out = await bridge.apiMasterAccumulate(argsJson: argsJson);
       return _decodeObject(out);
     });

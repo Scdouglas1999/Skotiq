@@ -222,7 +222,7 @@ class CatalogHandlers implements RouteSource {
     final catalog = _requireCatalog(name);
 
     final job = jobManager.start(
-      operation: 'catalog.download',
+      operation: JobOperation.catalogDownload,
       work: (sink, cancellation) async {
         try {
           final result = await _manager.install(

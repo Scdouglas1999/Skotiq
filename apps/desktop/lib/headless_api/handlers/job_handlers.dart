@@ -58,7 +58,7 @@ class JobHandlers implements RouteSource {
     JobState? state;
     final stateParam = query['state'];
     if (stateParam != null && stateParam.isNotEmpty) {
-      state = parseJobState(stateParam);
+      state = JobState.fromWire(stateParam);
       if (state == null) {
         return jsonBadRequest({
           'error': 'invalid_state',

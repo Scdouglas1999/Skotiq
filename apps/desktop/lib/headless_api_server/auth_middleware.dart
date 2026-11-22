@@ -108,12 +108,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
                   '[AUTH][$requestId] Rejected WS upgrade to $path - '
                   'ticket principal is no longer active',
                 );
-                return jsonUnauthorized(
-                  {
-                    'error': 'Authentication required',
-                    'message': 'Invalid or expired WebSocket ticket',
-                  },
-                  headers: {HeadlessApiServer._requestIdHeader: requestId},
+                return _authenticationRequired(
+                  requestId,
+                  'Invalid or expired WebSocket ticket',
                 );
               }
               if (!HeadlessAuthPolicy.permits(
@@ -147,12 +144,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             _logWarning(
               '[AUTH][$requestId] Rejected WS upgrade to $path - invalid or expired ticket',
             );
-            return jsonUnauthorized(
-              {
-                'error': 'Authentication required',
-                'message': 'Invalid or expired WebSocket ticket',
-              },
-              headers: {HeadlessApiServer._requestIdHeader: requestId},
+            return _authenticationRequired(
+              requestId,
+              'Invalid or expired WebSocket ticket',
             );
           }
 
@@ -170,17 +164,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
                 '[AUTH][$requestId] Rate-limited WS ?token= attempts from '
                 '$wsClientKey on $path',
               );
-              return jsonRateLimited(
-                {
-                  'error': 'Rate limit exceeded',
-                  'message': 'Too many authentication failures',
-                  'requestId': requestId,
-                },
-                headers: {
-                  HeadlessApiServer._requestIdHeader: requestId,
-                  'retry-after': '60',
-                },
-              );
+              return _authenticationRateLimited(requestId);
             }
             final queryGrant = _grantForToken(queryToken);
             if (queryGrant != null &&
@@ -253,13 +237,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             _logWarning(
               '[AUTH][$requestId] Rejected request to $path - invalid auth format',
             );
-            return jsonUnauthorized(
-              {
-                'error': 'Authentication required',
-                'message':
-                    'Invalid Authorization header format. Expected: Bearer <token>',
-              },
-              headers: {HeadlessApiServer._requestIdHeader: requestId},
+            return _authenticationRequired(
+              requestId,
+              'Invalid Authorization header format. Expected: Bearer <token>',
             );
           }
           token = authHeader.substring(7); // Remove 'Bearer ' prefix
@@ -276,12 +256,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           _logWarning(
             '[AUTH][$requestId] Rejected request to $path - no Authorization header or session cookie',
           );
-          return jsonUnauthorized(
-            {
-              'error': 'Authentication required',
-              'message': 'Missing Authorization header or session cookie',
-            },
-            headers: {HeadlessApiServer._requestIdHeader: requestId},
+          return _authenticationRequired(
+            requestId,
+            'Missing Authorization header or session cookie',
           );
         }
 
@@ -337,17 +314,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           _logWarning(
             '[AUTH][$requestId] Rate-limited token comparisons from $clientKey on $path',
           );
-          return jsonRateLimited(
-            {
-              'error': 'Rate limit exceeded',
-              'message': 'Too many authentication failures',
-              'requestId': requestId,
-            },
-            headers: {
-              HeadlessApiServer._requestIdHeader: requestId,
-              'retry-after': '60',
-            },
-          );
+          return _authenticationRateLimited(requestId);
         }
         final tokenGrant = _grantForToken(token);
         if (tokenGrant == null) {
@@ -407,6 +374,26 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
       };
     };
   }
+
+  /// 401 for a request whose credential is missing or unusable.
+  Response _authenticationRequired(String requestId, String message) =>
+      jsonUnauthorized(
+        {'error': 'Authentication required', 'message': message},
+        headers: {HeadlessApiServer._requestIdHeader: requestId},
+      );
+
+  /// 429 for a client whose bad tokens tripped the failure limiter.
+  Response _authenticationRateLimited(String requestId) => jsonRateLimited(
+    {
+      'error': 'Rate limit exceeded',
+      'message': 'Too many authentication failures',
+      'requestId': requestId,
+    },
+    headers: {
+      HeadlessApiServer._requestIdHeader: requestId,
+      'retry-after': '60',
+    },
+  );
 
   /// stash the authenticated principal's digest + the
   /// classified route class on the shelf request context so downstream

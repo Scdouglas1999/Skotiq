@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart'
+    show JobOperation, JobState;
 
 /// Test harness that records every event emitted by the manager so
 /// assertions can verify the wire-format payload directly.
@@ -53,12 +55,12 @@ void main() {
 
       final completer = Completer<Map<String, Object?>>();
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) => completer.future,
       );
 
       expect(job.state, JobState.queued);
-      expect(job.operation, 'test.op');
+      expect(job.operation, 'plate-solve');
       expect(job.commandId, job.jobId);
       expect(recorder.events, hasLength(1));
       expect(recorder.events.first.eventType, 'JobStarted');
@@ -78,7 +80,7 @@ void main() {
 
       final completer = Completer<Map<String, Object?>>();
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) => completer.future,
       );
       await _pumpUntil(() => manager.get(job.jobId)?.state == JobState.running);
@@ -101,7 +103,7 @@ void main() {
         addTearDown(manager.dispose);
 
         final job = manager.start(
-          operation: 'test.op',
+          operation: JobOperation.plateSolve,
           work: (sink, cancellation) async => {'value': 42},
         );
         await _pumpUntil(
@@ -123,7 +125,7 @@ void main() {
 
       final completer = Completer<Map<String, Object?>>();
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async {
           sink.update(0.25, 'one quarter');
           sink.update(0.5, 'half');
@@ -160,7 +162,7 @@ void main() {
       addTearDown(manager.dispose);
 
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async {
           throw StateError('boom');
         },
@@ -189,7 +191,7 @@ void main() {
         addTearDown(manager.dispose);
 
         final job = manager.start(
-          operation: 'test.op',
+          operation: JobOperation.plateSolve,
           work: (sink, cancellation) async {
             await cancellation.whenCancelled;
             throw const JobCancelledException('client asked');
@@ -220,7 +222,7 @@ void main() {
       // Work that never starts. We cancel synchronously before any
       // scheduleMicrotask gets to flip the state to running.
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async => {'never': 'runs'},
       );
       expect(job.state, JobState.queued);
@@ -246,7 +248,7 @@ void main() {
       addTearDown(manager.dispose);
 
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async => {'done': true},
       );
       await _pumpUntil(
@@ -267,11 +269,11 @@ void main() {
         final completerA = Completer<Map<String, Object?>>();
         final completerB = Completer<Map<String, Object?>>();
         final jobA = manager.start(
-          operation: 'test.a',
+          operation: JobOperation.autofocus,
           work: (sink, cancellation) => completerA.future,
         );
         final jobB = manager.start(
-          operation: 'test.b',
+          operation: JobOperation.catalogDownload,
           work: (sink, cancellation) => completerB.future,
         );
 
@@ -309,7 +311,7 @@ void main() {
       addTearDown(manager.dispose);
 
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async => {'ok': true},
       );
       await _pumpUntil(
@@ -337,7 +339,7 @@ void main() {
 
       final completer = Completer<Map<String, Object?>>();
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) => completer.future,
       );
       await _pumpUntil(() => manager.get(job.jobId)?.state == JobState.running);
@@ -361,11 +363,11 @@ void main() {
 
       final completer = Completer<Map<String, Object?>>();
       final running = manager.start(
-        operation: 'test.a',
+        operation: JobOperation.autofocus,
         work: (sink, cancellation) => completer.future,
       );
       final done = manager.start(
-        operation: 'test.b',
+        operation: JobOperation.catalogDownload,
         work: (sink, cancellation) async => {'ok': true},
       );
       await _pumpUntil(
@@ -395,18 +397,30 @@ void main() {
       addTearDown(manager.dispose);
 
       manager.start(
-        operation: 'op.alpha',
+        operation: JobOperation.autofocus,
         work: (sink, cancellation) async => {'ok': true},
       );
       manager.start(
-        operation: 'op.beta',
+        operation: JobOperation.catalogDownload,
         work: (sink, cancellation) async => {'ok': true},
       );
-      await _pumpUntil(() => manager.list(operation: 'op.alpha').isNotEmpty);
-      await _pumpUntil(() => manager.list(operation: 'op.beta').isNotEmpty);
+      await _pumpUntil(
+        () => manager.list(operation: JobOperation.autofocus.wire).isNotEmpty,
+      );
+      await _pumpUntil(
+        () => manager
+            .list(operation: JobOperation.catalogDownload.wire)
+            .isNotEmpty,
+      );
 
-      expect(manager.list(operation: 'op.alpha'), hasLength(1));
-      expect(manager.list(operation: 'op.beta'), hasLength(1));
+      expect(
+        manager.list(operation: JobOperation.autofocus.wire),
+        hasLength(1),
+      );
+      expect(
+        manager.list(operation: JobOperation.catalogDownload.wire),
+        hasLength(1),
+      );
       expect(manager.list(operation: 'op.gamma'), isEmpty);
     });
 
@@ -424,7 +438,7 @@ void main() {
       addTearDown(manager.dispose);
 
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) async => {'ok': true},
       );
       await _pumpUntil(
@@ -442,7 +456,7 @@ void main() {
 
       final completer = Completer<Map<String, Object?>>();
       final job = manager.start(
-        operation: 'test.op',
+        operation: JobOperation.plateSolve,
         work: (sink, cancellation) => completer.future,
       );
       await _pumpUntil(() => manager.get(job.jobId)?.state == JobState.running);
@@ -467,7 +481,7 @@ void main() {
       addTearDown(manager.dispose);
 
       final job = manager.start(
-        operation: 'plate-solve',
+        operation: JobOperation.plateSolve,
         deviceId: 'camera-1',
         work: (sink, cancellation) async => {'ra': 1.0},
       );

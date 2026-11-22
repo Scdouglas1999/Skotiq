@@ -4,6 +4,72 @@ library;
 
 import '../wire_time.dart';
 
+/// Where a job is in its life. Transitions:
+///   queued  -> running -> succeeded | failed | cancelled
+///   queued  -> cancelled (when cancelled before the host picks it up)
+enum JobState {
+  queued,
+  running,
+  succeeded,
+  failed,
+  cancelled;
+
+  String get wireName => name;
+
+  bool get isTerminal =>
+      this == succeeded || this == failed || this == cancelled;
+
+  /// The state [wire] names, or null for one this build does not know.
+  static JobState? fromWire(String wire) {
+    for (final state in values) {
+      if (state.wireName == wire) return state;
+    }
+    return null;
+  }
+}
+
+/// The work the host runs as a job, by its wire name. The host starts jobs
+/// only from this list, and clients that react to a job's end switch on it.
+enum JobOperation {
+  plateSolve('plate-solve'),
+  centerOnTarget('framing.center-on-target'),
+  autofocus('focuser.autofocus'),
+  backlashCalibration('focuser.backlash-calibration'),
+  catalogDownload('catalog.download'),
+  backfillThumbnails('image.backfill-thumbnails'),
+  updateCheck('system.update.check'),
+  updateDownload('system.update.download'),
+  updateApply('system.update.apply'),
+  updateRollback('system.update.rollback'),
+  postSessionIntegrate('post-session.integrate'),
+  postSessionDrizzle('post-session.drizzle'),
+  postSessionAnalyzeNight('post-session.analyze-night'),
+  postSessionBuildMasterFlat('post-session.build-master-flat'),
+  postSessionColorCalibrate('post-session.color-calibrate'),
+  postSessionDetectStars('post-session.detect-stars'),
+  postSessionExtractBackground('post-session.extract-background'),
+  postSessionMasterAccumulate('post-session.master-accumulate');
+
+  const JobOperation(this.wire);
+
+  final String wire;
+
+  /// True for the update jobs, which run one at a time.
+  bool get isUpdate =>
+      this == updateCheck ||
+      this == updateDownload ||
+      this == updateApply ||
+      this == updateRollback;
+
+  /// The operation [wire] names, or null for one this build does not know.
+  static JobOperation? fromWire(String wire) {
+    for (final operation in values) {
+      if (operation.wire == wire) return operation;
+    }
+    return null;
+  }
+}
+
 /// One job. [state] stays a string so a host that adds a lifecycle phase
 /// does not break older clients.
 class RemoteJob {
@@ -33,8 +99,10 @@ class RemoteJob {
     this.updatedAt,
   });
 
-  bool get isTerminal =>
-      state == 'succeeded' || state == 'failed' || state == 'cancelled';
+  /// [state] as this build knows it; null for a phase it does not know.
+  JobState? get knownState => JobState.fromWire(state);
+
+  bool get isTerminal => knownState?.isTerminal == true;
 
   factory RemoteJob.fromJson(
     Map<String, dynamic> json, {

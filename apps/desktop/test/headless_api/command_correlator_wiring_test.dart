@@ -4,7 +4,7 @@
 // `HeadlessApiServer` can build its correlator, expose it, sweep it on a timer,
 // and have `_stampEventForBroadcast` ready to stamp outgoing events, and still
 // correlate nothing if `_initializeHandlers()` constructs
-// `DeviceHandlers(container, ...)` and `SequencerHandlers(container)` without
+// `DeviceHandlers(container, ..., jobManager: JobManager(emitEvent: (_) {}))` and `SequencerHandlers(container)` without
 // passing it. `commandCorrelator` is an optional named parameter and every call
 // site guards with `commandCorrelator?.beginCommand(...)`, so the omission
 // fails silently and in the pass-making direction: action POSTs return no

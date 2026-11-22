@@ -19,7 +19,6 @@ import '../job_manager.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
-import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'filesystem_handlers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
@@ -46,11 +45,9 @@ class ImagingHandlers implements RouteSource {
 
   final ProviderContainer container;
 
-  /// optional job manager. When wired, plate-solve returns
-  /// `{jobId, status: queued}` immediately and the actual solve runs in
-  /// the background. Null in legacy callers / tests that exercise the
-  /// blocking shape.
-  final JobManager? jobManager;
+  /// Runs plate-solve requests: they answer `{jobId, status: queued}` at
+  /// once and the solve runs in the background.
+  final JobManager jobManager;
 
   /// Whether a frame a remote client saves here is also shown in this
   /// process's own image view. Only a desktop host has one; a headless host
@@ -59,7 +56,7 @@ class ImagingHandlers implements RouteSource {
 
   ImagingHandlers(
     this.container, {
-    this.jobManager,
+    required this.jobManager,
     this.showApiCapturesInPreview = false,
   });
 
@@ -123,46 +120,38 @@ class ImagingHandlers implements RouteSource {
           );
     }
 
-    final mgr = jobManager;
-    final preferLegacy = requestPrefersLegacyBlocking(request);
-    if (mgr != null && !preferLegacy) {
-      final job = mgr.start(
-        operation: 'plate-solve',
-        deviceId: null,
-        work: (sink, cancellation) async {
-          sink.update(null, 'Solving $imagePath');
-          final solve = await runSolve();
-          // There is no solver-process cancellation hook yet. Keep the job
-          // running until the solver really exits; JobManager observes the
-          // cancellation flag after this callback returns and transitions it
-          // to cancelled instead of falsely orphaning live host work.
-          if (cancellation.isCancelled) {
-            throw const JobCancelledException(
-              'Plate-solve cancellation requested by client',
-            );
-          }
-          // A job whose work failed ends `failed`: the job's state is what
-          // the job list, the failure notices and the clients go by.
-          if (!solve.success) {
-            throw JobFailedException(
-              code: 'plate_solve_failed',
-              message: solve.error ?? 'The solver found no solution.',
-              details: _plateSolveJson(solve),
-            );
-          }
-          return _plateSolveJson(solve);
-        },
-      );
-      return jsonOk({
-        'jobId': job.jobId,
-        'status': job.state.wireName,
-        'operation': job.operation,
-      });
-    }
-
-    final result = await runSolve();
-
-    return jsonOk(_plateSolveJson(result));
+    final job = jobManager.start(
+      operation: JobOperation.plateSolve,
+      deviceId: null,
+      work: (sink, cancellation) async {
+        sink.update(null, 'Solving $imagePath');
+        final solve = await runSolve();
+        // There is no solver-process cancellation hook yet. Keep the job
+        // running until the solver really exits; JobManager observes the
+        // cancellation flag after this callback returns and transitions it
+        // to cancelled instead of falsely orphaning live host work.
+        if (cancellation.isCancelled) {
+          throw const JobCancelledException(
+            'Plate-solve cancellation requested by client',
+          );
+        }
+        // A job whose work failed ends `failed`: the job's state is what
+        // the job list, the failure notices and the clients go by.
+        if (!solve.success) {
+          throw JobFailedException(
+            code: 'plate_solve_failed',
+            message: solve.error ?? 'The solver found no solution.',
+            details: _plateSolveJson(solve),
+          );
+        }
+        return _plateSolveJson(solve);
+      },
+    );
+    return jsonOk({
+      'jobId': job.jobId,
+      'status': job.state.wireName,
+      'operation': job.operation,
+    });
   }
 
   /// Serializes a [PlateSolveResult] to the wire shape, including the WCS CD

@@ -218,24 +218,17 @@ class SystemHandlers implements RouteSource {
 
     final headless = view.hostMode == SkotiqHostMode.headless;
     return jsonOk({
-      // The computer's own name. It used to be the constant "Skotiq Headless"
-      // even from the desktop app, so every host in a client's list looked the
-      // same and a GUI host described itself as a daemon.
-      'name': view.hostName,
-      'hostName': view.hostName,
-      'product': 'Skotiq',
-      // `gui`: the desktop app with its window serves this API. `headless`:
-      // the daemon. Before 8.2.2 both said `headless`.
-      'hostMode': view.hostMode.wire,
-      // The release a client must run to link ([LinkVersion]).
-      'version': versionInfo.version,
-      'mode': view.hostMode.wire,
+      ...HostAdvert(
+        hostName: view.hostName,
+        hostMode: view.hostMode,
+        version: versionInfo.version,
+        scheme: request.requestedUri.scheme,
+        fingerprint: view.fingerprint(),
+        authRequired: view.authRequired(),
+      ).toInfoJson(),
       'platform': platformCapabilities.platform,
       'platformCapabilities': platformCapabilities.toJson(),
-      'authRequired': view.authRequired(),
-      'authenticationMode': view.authRequired() ? 'token' : 'none',
       'authScopes': view.availableAuthScopes(),
-      'pairingSupported': true,
       // Pairing policy so the client knows whether to one-tap LAN-claim or
       // prompt for a code. `lanPairing` is the convenience boolean.
       'pairingMode': view.pairingModeWire(),
@@ -245,7 +238,6 @@ class SystemHandlers implements RouteSource {
       if (view.tailscaleHost() != null) 'tailscaleHost': view.tailscaleHost(),
       if (view.relayApplianceId() != null)
         'relayApplianceId': view.relayApplianceId(),
-      'fingerprint': view.fingerprint(),
       // surface the sequencing + replay state so a reconnecting
       // client can decide between `?since=` replay and a full
       // `/api/run-watch/snapshot` rehydrate without guessing.

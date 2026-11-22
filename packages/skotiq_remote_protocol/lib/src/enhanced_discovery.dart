@@ -2,15 +2,19 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nsd/nsd.dart';
 
 import 'discovery.dart';
+import 'host_advert.dart';
 import 'host_info.dart';
 import 'network_uri.dart';
+import 'ports.dart';
 import 'link_version.dart';
+import 'rig_discovery.dart' show skotiqMdnsServiceType;
 import 'tailnet_detector.dart';
 import 'wire/routes/system_api.dart';
 
@@ -153,7 +157,7 @@ class QrConnectionData {
     required this.webPort,
     required this.version,
     required this.fingerprint,
-    this.signalingPort = 45678,
+    this.signalingPort = kDefaultSignalingPort,
     this.serverName,
     this.mode = 'desktop',
     this.authRequired = false,
@@ -290,7 +294,7 @@ class QrConnectionData {
     final signalingPort = decoded['signalingPort'];
     final int parsedSignalingPort;
     if (signalingPort == null) {
-      parsedSignalingPort = 45678;
+      parsedSignalingPort = kDefaultSignalingPort;
     } else if (signalingPort is int &&
         signalingPort > 0 &&
         signalingPort <= 65535) {
@@ -517,7 +521,8 @@ class EnhancedSkotiqDiscovery {
       host: host,
       webPort: port,
       signalingPort:
-          prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ?? 45678,
+          prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ??
+          kDefaultSignalingPort,
       name: prefs.getString(_DiscoveryPrefs.lastServerName) ?? 'Skotiq',
       version: prefs.getString(_DiscoveryPrefs.lastServerVersion),
       mode: prefs.getString(_DiscoveryPrefs.lastServerMode) ?? 'desktop',
@@ -556,13 +561,8 @@ class EnhancedSkotiqDiscovery {
     developer.log('Cleared saved server', name: 'EnhancedDiscovery');
   }
 
-  static Map<String, String> _authHeaders(String? authToken) {
-    final headers = {LinkVersion.header: skotiqRelease};
-    if (authToken == null || authToken.isEmpty) {
-      return headers;
-    }
-    return {...headers, 'Authorization': 'Bearer $authToken'};
-  }
+  static Map<String, String> _authHeaders(String? authToken) =>
+      LinkVersion.hostHeaders(token: authToken);
 
   static DiscoveredServer _mergeServerInfo(
     DiscoveredServer seed,
@@ -818,7 +818,7 @@ class EnhancedSkotiqDiscovery {
     Timer? timeoutTimer;
 
     try {
-      discovery = await startDiscovery('_skotiq._tcp');
+      discovery = await startDiscovery(skotiqMdnsServiceType);
 
       // Collect discovered services
       final completer = Completer<List<DiscoveredServer>>();
@@ -842,59 +842,11 @@ class EnhancedSkotiqDiscovery {
               // broadcast) lands on the right scheme and can cross-check the
               // fingerprint against a previously-saved value before sending
               // its bearer token.
-              String serverName = resolvedService.name ?? 'Skotiq';
-              String version = '2.0.0';
-              int signalingPort = 45678;
-              String scheme = 'http';
-              String? fingerprint;
-              bool pairingSupported = false;
-
-              final txtRecords = resolvedService.txt;
-              if (txtRecords != null && txtRecords.isNotEmpty) {
-                for (final record in txtRecords.entries) {
-                  final key = record.key;
-                  final rawValue = record.value;
-                  final value = _decodeTxtValue(rawValue);
-                  if (value == null) continue;
-
-                  switch (key) {
-                    case 'version':
-                      version = value;
-                      break;
-                    case 'name':
-                      serverName = value;
-                      break;
-                    case 'signaling_port':
-                      signalingPort = int.tryParse(value) ?? signalingPort;
-                      break;
-                    case 'scheme':
-                      final lowered = value.toLowerCase();
-                      if (lowered == 'http' || lowered == 'https') {
-                        scheme = lowered;
-                      }
-                      break;
-                    case 'fingerprint':
-                      if (value.isNotEmpty) {
-                        fingerprint = value;
-                      }
-                      break;
-                    case 'pairingSupported':
-                      pairingSupported =
-                          value.toLowerCase() == 'true' || value == '1';
-                      break;
-                  }
-                }
-              }
-
-              final server = DiscoveredServer(
+              final server = serverFromNsd(
                 host: host,
-                webPort: port,
-                signalingPort: signalingPort,
-                name: serverName,
-                version: version,
-                scheme: scheme,
-                fingerprint: fingerprint,
-                pairingSupported: pairingSupported,
+                port: port,
+                serviceName: resolvedService.name,
+                txt: resolvedService.txt,
               );
 
               // Avoid duplicates
@@ -949,6 +901,31 @@ class EnhancedSkotiqDiscovery {
         }
       }
     }
+  }
+
+  /// The server an nsd-resolved `_skotiq._tcp` service at [host]:[port]
+  /// describes, before its `/api/info` is read.
+  @visibleForTesting
+  static DiscoveredServer serverFromNsd({
+    required String host,
+    required int port,
+    String? serviceName,
+    Map<String, Object?>? txt,
+  }) {
+    final advert = HostTxt.parse({
+      for (final record in (txt ?? const <String, Object?>{}).entries)
+        if (_decodeTxtValue(record.value) case final value?) record.key: value,
+    });
+    return DiscoveredServer(
+      host: host,
+      webPort: port,
+      signalingPort: advert.signalingPort ?? kDefaultSignalingPort,
+      name: advert.name ?? serviceName ?? 'Skotiq',
+      version: advert.version,
+      scheme: advert.scheme ?? 'http',
+      fingerprint: advert.fingerprint,
+      pairingSupported: advert.pairingSupported,
+    );
   }
 
   static Future<List<DiscoveredServer>> discoverViaUdp({
@@ -1029,7 +1006,7 @@ class EnhancedSkotiqDiscovery {
     required int webPort,
     required String version,
     required String fingerprint,
-    int signalingPort = 45678,
+    int signalingPort = kDefaultSignalingPort,
     String? serverName,
     String mode = 'desktop',
     bool authRequired = false,
