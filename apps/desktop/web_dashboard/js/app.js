@@ -4221,6 +4221,7 @@
     const s = stateStr.toLowerCase();
     if (s === 'running' || s === 'executing') return 'badge-running';
     if (s === 'paused') return 'badge-paused';
+    if (s === 'recovering') return 'badge-recovering';
     if (s === 'error' || s === 'failed') return 'badge-error';
     if (s === 'completed' || s === 'done') return 'badge-completed';
     return 'badge-idle';

@@ -3302,7 +3302,7 @@ const DASHBOARD_RUN_STATE = {
   'cancelled': ['cancelled', 'badge-idle', 'start'],
   'completed': ['completed', 'badge-completed', 'start'],
   'failed': ['failed', 'badge-error', 'start'],
-  'recovering': ['recovering', 'badge-idle', 'stop'],
+  'recovering': ['recovering', 'badge-recovering', 'stop'],
   'stopFailed': ['stopFailed', 'badge-idle', 'stop'],
   'cleanupFailed': ['cleanupFailed', 'badge-idle', 'stop'],
   'finalizing': ['finalizing', 'badge-idle'],
@@ -3388,4 +3388,15 @@ test('a paused run reads as pausing on the dashboard until its step has finished
   assert.equal(label(true), 'paused');
   // An older host sends no pausedIdle: the badge says what it always said.
   assert.equal(dashboardRunState({ state: 'paused' })[0], 'paused');
+});
+
+// A run inside a recovery (a lost guide star, a failed slew, unsafe weather)
+// is a live run waiting on the rig, not a parked one: it must not wear the
+// idle badge. dashboard.css styles the class.
+test('a recovering run is not painted idle on the dashboard', () => {
+  const [label, badge] = dashboardRunState({ state: 'recovering' });
+  assert.equal(label, 'recovering');
+  assert.equal(badge, 'badge-recovering');
+  const css = fs.readFileSync(path.join(ROOT, 'css', 'dashboard.css'), 'utf8');
+  assert.match(css, /\.badge-recovering\s*\{[^}]*background:/);
 });
