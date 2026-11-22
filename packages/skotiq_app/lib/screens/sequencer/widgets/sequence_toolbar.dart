@@ -506,9 +506,6 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               'from the sequencer toolbar.',
               source: 'Sequencer',
             );
-            if (context.mounted) {
-              context.showInfoSnackBar('Slewing to ${target.targetName}…');
-            }
             final result = await ref.read(mountCommandServiceProvider).slewTo(
                   target.raHours,
                   target.decDegrees,
