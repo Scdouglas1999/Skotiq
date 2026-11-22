@@ -588,8 +588,7 @@ impl OpImage {
     ///
     /// `F32` samples carry over verbatim and `U16` samples as their ADU value,
     /// with the image's sample range kept beside them. Any other pixel type is
-    /// [`OpError::UnsupportedPixelType`] — silently reinterpreting the bytes is
-    /// how a `U16` reader once ate an `F32` master.
+    /// [`OpError::UnsupportedPixelType`]; the bytes are never silently reinterpreted.
     pub fn from_image_data(image: &ImageData, header: FitsHeader) -> Result<Self, OpError> {
         if image.is_empty() || image.channels == 0 {
             return Err(OpError::EmptyImage);

@@ -210,7 +210,7 @@ fn a_rect_reaching_past_the_frame_is_cropped_to_what_exists() {
 fn a_clamped_rect_keeps_its_pixels_and_states_the_adjustment() {
     // A recipe written over a 1920x1080 master, replayed over a 64x48 one. The
     // pixels are the determinism contract and do not move; what changes is that
-    // the step no longer reports "applied" and nothing else.
+    // the step does not report "applied" and nothing else.
     let base = synthetic_star_field(64, 48, 1, 61);
     let applied = CropV1
         .apply_measured(

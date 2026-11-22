@@ -240,7 +240,7 @@ pub struct NormalizationConfig {
     /// Used **only** by [`NormEstimator::CoLocatedPairFit`], where bright stars
     /// really would dominate a least-squares slope. The additive-with-scaling
     /// estimator ignores it: median and MAD are already star-resistant, and
-    /// restricting them to background pixels is precisely what broke the old
+    /// restricting them to background pixels breaks the
     /// estimator. Default 0.92.
     pub high_reject_percentile: f64,
     /// Sigma-clip threshold (κ) — for the pair fit, the residual cut; for
@@ -297,8 +297,8 @@ pub struct LocalGrid {
 /// A recoverable problem met while fitting, surfaced instead of being absorbed
 /// into a silently degenerate coefficient.
 ///
-/// The old estimator's failure mode was to return `scale ≈ 0.002` with no
-/// complaint whatsoever, so every fallback here is *named* and travels out on
+/// A degenerate scale must never pass silently, so every fallback here is
+/// *named* and travels out on
 /// [`NormalizationCoeffs::warning`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NormalizationWarning {
@@ -1166,8 +1166,7 @@ mod tests {
     #[test]
     fn too_few_samples_falls_back_to_identity_and_says_so() {
         // A tiny frame with fewer valid pixels than min_samples must not fabricate
-        // a transform — it returns identity AND names the reason. The old
-        // estimator's failure mode was a silent degenerate scale, so the warning
+        // a transform — it returns identity AND names the reason. The warning
         // is part of the contract, not decoration.
         let (w, h) = (4usize, 4usize);
         let reference = vec![1000.0; w * h];
