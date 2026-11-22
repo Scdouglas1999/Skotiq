@@ -1296,10 +1296,11 @@ function renderSnapshot(data) {
   const stepFinishing = state === 'paused' && sequencer.pausedIdle === false;
   badge.textContent = stepFinishing ? 'pausing: step finishing' : state;
   badge.className = 'badge';
-  if (state === 'running') badge.classList.add('badge-running');
+  if (state === 'running' || state === 'executing') badge.classList.add('badge-running');
   else if (state === 'paused') badge.classList.add('badge-paused');
   else if (state === 'recovering') badge.classList.add('badge-recovering');
   else if (state === 'error' || state === 'failed') badge.classList.add('badge-error');
+  else if (state === 'completed' || state === 'done') badge.classList.add('badge-completed');
   else if (unknown) badge.classList.add('badge-error');
   else badge.classList.add('badge-idle');
   lastKnownState = state;

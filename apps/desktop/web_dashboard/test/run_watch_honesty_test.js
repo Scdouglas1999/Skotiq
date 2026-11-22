@@ -2528,19 +2528,19 @@ const RUN_WATCH_RUN_STATE = {
   'paused, step finished': ['paused', 'badge-paused', 'resume', 'skip', 'stop'],
   'stopping': ['stopping', 'badge-idle'],
   'cancelled': ['cancelled', 'badge-idle'],
-  'completed': ['completed', 'badge-idle'],
+  'completed': ['completed', 'badge-completed'],
   'failed': ['failed', 'badge-error'],
   'recovering': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
   'stopFailed': ['stopfailed', 'badge-idle', 'stop'],
   'cleanupFailed': ['cleanupfailed', 'badge-idle', 'stop'],
   'finalizing': ['finalizing', 'badge-idle'],
-  'executing': ['executing', 'badge-idle', 'pause', 'skip', 'stop'],
-  'done': ['done', 'badge-idle'],
+  'executing': ['executing', 'badge-running', 'pause', 'skip', 'stop'],
+  'done': ['done', 'badge-completed'],
   'error': ['error', 'badge-error'],
   'stopped': ['stopped', 'badge-idle'],
   'no state': ['unknown', 'badge-error'],
   'cancelled over an idle executor': ['cancelled', 'badge-idle'],
-  'completed over a running executor': ['completed', 'badge-idle'],
+  'completed over a running executor': ['completed', 'badge-completed'],
   'recovering executor over a running status': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
 };
 
@@ -2548,4 +2548,12 @@ test('run-watch shows each run state with its badge and controls', () => {
   const seen = {};
   for (const c of RUN_STATE_CASES) seen[c.name] = runWatchRunState(c);
   assert.deepEqual(seen, RUN_WATCH_RUN_STATE);
+});
+
+// The two pages badge a finished run alike: a completed run is not an idle
+// rig, and style.css styles the class.
+test('a completed run wears the completed badge on run-watch too', () => {
+  assert.equal(runWatchRunState({ state: 'completed' })[1], 'badge-completed');
+  const css = fs.readFileSync(path.join(RUN_WATCH, 'css', 'style.css'), 'utf8');
+  assert.match(css, /\.badge-completed\s*\{[^}]*background:/);
 });
