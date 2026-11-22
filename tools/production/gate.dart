@@ -337,6 +337,11 @@ final List<Check> checks = [
     'scripts/rust_checks.sh',
     'duplicates',
   ], requires: 'jq'),
+  // Not run in CI (the runners have no codegen installed).
+  Check('codegen', 'bridge-codegen', [
+    'bash',
+    'scripts/check_bridge_codegen.sh',
+  ], requires: 'flutter_rust_bridge_codegen'),
   // CI runs this through EmbarkStudios/cargo-deny-action (Rust License Audit).
   Check('rust', 'rust-licenses', [
     'cargo',

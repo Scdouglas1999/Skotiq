@@ -29,6 +29,7 @@ call `scripts/rust_checks.sh`, which the gate's `rust` stage runs too.
 | Constellation Hub | `hub` |
 | Format Check | `format` |
 | Rust Tests (linux), Rust Tests (windows), Cargo Duplicate Versions | `rust` (via `scripts/rust_checks.sh`) |
+| (none: the runners have no codegen) | `codegen`: `scripts/check_bridge_codegen.sh` regenerates the bridge and fails when that changed the generated files or the event wire codec is stale; skipped where `flutter_rust_bridge_codegen` is not installed |
 | Rust License Audit | `rust` → `rust-licenses` (CI uses cargo-deny-action; the gate skips it, saying so, where cargo-deny is not installed) |
 
 Build Test (Desktop) and Code Coverage are CI only. Not in the gate because
