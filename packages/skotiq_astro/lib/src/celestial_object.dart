@@ -171,7 +171,8 @@ enum DsoType {
   /// or a SIMBAD object-type code ([kSimbadTypeCodes]). Null for anything
   /// else; free text is not guessed at.
   static DsoType? parse(String? text) {
-    final trimmed = text?.trim() ?? '';
+    if (text == null) return null;
+    final trimmed = text.trim();
     if (trimmed.isEmpty) return null;
     return _byDisplayName[trimmed.toLowerCase()] ??
         kOpenNgcTypeCodes[trimmed] ??
