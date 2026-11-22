@@ -107,10 +107,11 @@ jobs:
   test-dart:
     name: Dart Tests
     runs-on: ubuntu-latest
-    # The serialized 9.1 suite was still completing UI tests at 60 minutes
-    # on a hosted runner. Leave time for the remaining packages, relay and
-    # production migration probe on a slower runner.
-    timeout-minutes: 90
+    # The serialized suite, instrumented for coverage (one run gives both the
+    # results and the report), reached 75 minutes on a hosted runner. Leave
+    # time for the remaining packages, relay and production migration probe
+    # on a slower runner.
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -133,7 +134,45 @@ jobs:
         # the console reporter does not attribute to a test can be named), the
         # pure Dart packages, and the v4.3.0 database migration to the current
         # schema. Each runs even when an earlier one failed.
-        run: melos run gate -- --stage dart-tests
+        run: melos run gate -- --stage dart-tests --coverage
+
+      - name: Merge per-package coverage reports
+        # The gate's --coverage writes coverage/lcov.info into each Flutter
+        # package; rebase each file's SF: paths from package-relative to
+        # repo-relative and concatenate.
+        run: |
+          rm -f coverage.lcov
+          found=0
+          for f in packages/*/coverage/lcov.info apps/*/coverage/lcov.info tools/*/coverage/lcov.info; do
+            [ -f "$f" ] || continue
+            found=1
+            pkg_dir=$(dirname "$(dirname "$f")")
+            sed "s|^SF:|SF:$pkg_dir/|" "$f" >> coverage.lcov
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No per-package lcov.info files found" >&2
+            exit 1
+          fi
+          echo "Merged $(grep -c '^SF:' coverage.lcov) source-file records"
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: lcov-coverage
+          path: coverage.lcov
+
+      - name: Upload coverage to Codecov
+        # Best-effort until a CODECOV_TOKEN repo secret is provisioned
+        # (none exists today, so a hard-fail here would keep CI red on a
+        # missing credential rather than a code problem). The merged lcov
+        # is always archived as a build artifact above; flip
+        # fail_ci_if_error to true once the token is added.
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.lcov
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
 
       - name: Name the failed Dart tests
         if: failure()
@@ -362,73 +401,3 @@ jobs:
 
       - name: Test build Flutter app
         run: dart scripts/build.dart flutter ${{ matrix.platform }} --debug
-
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    # Coverage instruments the same serialized workspace suite. Hosted runs
-    # reached the old 75-minute limit before producing the merged report.
-    timeout-minutes: 120
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: 'stable'
-          cache: true
-
-      - name: Install Melos
-        run: dart pub global activate melos
-
-      - name: Bootstrap workspace
-        run: melos bootstrap
-
-      - name: Install coverage tools
-        run: dart pub global activate coverage
-
-      - name: Run tests with coverage
-        run: melos run test -- --coverage
-
-      - name: Merge per-package coverage reports
-        # `melos run test -- --coverage` writes coverage/lcov.info into EACH
-        # package directory; the old step ran format_coverage against a
-        # nonexistent repo-root coverage/ dir and the job had never passed.
-        # flutter test --coverage already emits lcov, so no format step is
-        # needed — just rebase each file's SF: paths from package-relative
-        # to repo-relative and concatenate.
-        run: |
-          rm -f coverage.lcov
-          found=0
-          for f in packages/*/coverage/lcov.info apps/*/coverage/lcov.info tools/*/coverage/lcov.info; do
-            [ -f "$f" ] || continue
-            found=1
-            pkg_dir=$(dirname "$(dirname "$f")")
-            sed "s|^SF:|SF:$pkg_dir/|" "$f" >> coverage.lcov
-          done
-          if [ "$found" -eq 0 ]; then
-            echo "No per-package lcov.info files found" >&2
-            exit 1
-          fi
-          echo "Merged $(grep -c '^SF:' coverage.lcov) source-file records"
-
-      - name: Archive coverage report
-        uses: actions/upload-artifact@v7
-        with:
-          name: lcov-coverage
-          path: coverage.lcov
-
-      - name: Upload coverage to Codecov
-        # Best-effort until a CODECOV_TOKEN repo secret is provisioned
-        # (none exists today, so a hard-fail here would keep CI red on a
-        # missing credential rather than a code problem). The merged lcov
-        # is always archived as a build artifact above; flip
-        # fail_ci_if_error to true once the token is added.
-        uses: codecov/codecov-action@v7
-        with:
-          files: coverage.lcov
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true

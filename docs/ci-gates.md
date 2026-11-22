@@ -32,7 +32,7 @@ call `scripts/rust_checks.sh`, which the gate's `rust` stage runs too.
 | (none: the runners have no codegen) | `codegen`: `scripts/check_bridge_codegen.sh` regenerates the bridge and fails when that changed the generated files or the event wire codec is stale; skipped where `flutter_rust_bridge_codegen` is not installed |
 | Rust License Audit | `rust` → `rust-licenses` (CI uses cargo-deny-action; the gate skips it, saying so, where cargo-deny is not installed) |
 
-Build Test (Desktop) and Code Coverage are CI only. Not in the gate because
+Build Test (Desktop) is CI only. Not in the gate because
 they fail on the current tree for reasons outside the code they check:
 `audit:developer-quality`, `audit:platform-capabilities` and
 `audit:linux-release-workflow` (each reads a report file that
@@ -56,7 +56,7 @@ built Windows bundle.
 | Dart format | `Format Check` → `dart-format` | `dart format --set-exit-if-changed` clean on every package. | `melos run gate -- --only dart-format` |
 | Rust format | `Format Check` → `rust-format` | `cargo fmt --all -- --check` clean. | `bash scripts/rust_checks.sh fmt` |
 | Build test | `build-test` → "Test build Flutter app" | Flutter debug build succeeds on Ubuntu, Windows, and macOS runners. Catches platform-specific build regressions before they reach release. | `cd apps/desktop && flutter build <platform> --debug` |
-| Coverage upload | `Code Coverage` → "Upload coverage to Codecov" (not a required check) | Runs the instrumented suite and archives the merged lcov (packages, apps and tools). The Codecov upload has `fail_ci_if_error: false` and `continue-on-error` until a `CODECOV_TOKEN` secret exists. | `melos run test -- --coverage` |
+| Coverage upload | `Dart Tests` → "Upload coverage to Codecov" | The Dart Tests run is instrumented (`--coverage`); it merges and archives the lcov of every Flutter package. The Codecov upload has `fail_ci_if_error: false` and `continue-on-error` until a `CODECOV_TOKEN` secret exists. | `melos run gate -- --stage dart-tests --coverage` |
 
 ---
 

@@ -52,7 +52,7 @@ scripts:
 
   gate:
     run: dart run tools/production/gate.dart
-    description: Run every check CI runs (stages analyze, audits, dart-tests, hub, format, rust); pass `-- --stage <s>`, `--only <check>`, `--skip <stage or check>`, `--out <dir>` or `--list`
+    description: Run every check CI runs (stages analyze, audits, dart-tests, hub, format, rust); pass `-- --stage <s>`, `--only <check>`, `--skip <stage or check>`, `--out <dir>`, `--coverage` or `--list`
 
   analyze:production:
     run: dart run tools/production/gate.dart --only analyze-production
