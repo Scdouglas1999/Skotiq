@@ -11,6 +11,7 @@ import '../backend/skotiq_backend.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import 'frame_watch_settings_provider.dart';
+import 'host_reread.dart';
 import 'host_settings/host_settings_providers.dart';
 import '../models/plate_solver.dart';
 import '../models/site/learned_obstruction.dart';

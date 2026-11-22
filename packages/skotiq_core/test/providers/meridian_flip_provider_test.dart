@@ -688,12 +688,18 @@ void main() {
         container.read(meridianFlipDisconnectGuardProvider);
 
         // Simulate an in-flight flip by setting state to executing.
-        container.read(flipExecutionStateProvider.notifier).state =
-            FlipExecutionState.executing;
-        container.read(flipCurrentStepProvider.notifier).state =
-            FlipStep.slewingToTarget;
-        container.read(flipProgressProvider.notifier).state = 42;
-        container.read(flipCurrentAttemptProvider.notifier).state = 1;
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(state: FlipExecutionState.executing));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(step: FlipStep.slewingToTarget));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(percent: 42));
+        container
+            .read(flipMonitorProgressProvider.notifier)
+            .update((p) => p.copyWith(attempt: 1));
 
         // Now disconnect; the listener should see the connected->disconnected
         // delta and run the abort path.

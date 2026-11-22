@@ -13,6 +13,7 @@ import '../database/daos/session_diagnostics_dao.dart';
 import 'package:skotiq_astro/format.dart';
 import '../database/stores/host_records.dart';
 import 'database_provider.dart';
+import 'host_reread.dart';
 import 'sequence/run_record.dart';
 import '../models/sequence/run_stop_classification.dart';
 
@@ -510,6 +511,7 @@ final runHistoryProvider = hostRoleProvider<RunHistory>(
 /// Every sequence run on the imaging host, newest first. The dashboard recap,
 /// the Morning Report and the History tab read this.
 final sequenceRunsProvider = StreamProvider<List<SequenceRun>>((ref) {
+  ref.rereadsWithTheHost();
   return ref.watch(runHistoryProvider).watchAllRuns();
 });
 

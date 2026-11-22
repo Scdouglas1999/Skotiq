@@ -6,6 +6,7 @@ part of '../scheduler_provider.dart';
 final integrationGoalsStreamProvider = StreamProvider<List<IntegrationGoal>>((
   ref,
 ) {
+  ref.rereadsWithTheHost();
   return ref.watch(integrationGoalServiceProvider).watchAll();
 });
 
@@ -14,6 +15,7 @@ final integrationGoalsStreamProvider = StreamProvider<List<IntegrationGoal>>((
 final targetConstraintsStreamProvider = StreamProvider<List<TargetConstraint>>((
   ref,
 ) {
+  ref.rereadsWithTheHost();
   return ref.watch(targetConstraintServiceProvider).watchAll();
 });
 

@@ -15,7 +15,6 @@ import 'live_stacking_service_provider.dart';
 import 'logging_service_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
 import '../models/imaging/live_stacking_state.dart';
-import '../errors/server_error.dart';
 
 /// StateNotifier that manages the live stacking session.
 ///
@@ -83,20 +82,13 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   LoggingService get _logger => _ref.read(loggingServiceProvider);
   LiveStackingService get _service => _ref.read(liveStackingServiceProvider);
 
-  /// Polls the host's stacked result while remote stacking is active. The host
-  /// auto-feeds captured frames into its stacker, so the client has nothing to
-  /// react to except the wall clock — it refreshes the preview/stats on a
-  /// cadence. Null when local (frames update the preview synchronously) or idle.
-  Timer? _remotePollTimer;
+  /// On a linked client, fetches the viewed slot's pixels again after a
+  /// failed fetch. Null while nothing failed.
+  Timer? _fetchRetryTimer;
 
-  /// True once a remote poll has returned a stacked result. Before the host's
-  /// first frame the poll legitimately 404s, so a failure only signals a lost
-  /// host after we have seen at least one frame.
-  bool _hadRemoteResult = false;
-
-  /// Consecutive remote poll failures after the first frame. Flips to error
-  /// once sustained (not on a single transient blip).
-  int _consecutivePollFailures = 0;
+  /// Consecutive failed fetches of the host's pixels. Flips to error once
+  /// sustained (not on a single transient blip).
+  int _consecutiveFetchFailures = 0;
 
   /// Monotonically identifies the currently displayed stacking session.
   /// Cancelling a timer cannot cancel an HTTP/FFI Future already in flight, so
@@ -113,10 +105,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
 
   /// On a linked client, the pixel revision of each slot of the host's stack
   /// as the host's runtime channel last described it. Null until the channel
-  /// has described a stack; the poll then reads the host's active slot.
+  /// has described a stack; nothing is fetched before.
   Map<String, int>? _hostRevisions;
 
-  bool _remotePollInFlight = false;
+  bool _fetchInFlight = false;
   Future<void>? _startInFlight;
   Future<void>? _stopInFlight;
   Future<void>? _resetInFlight;
@@ -137,13 +129,16 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   void _invalidateSession() {
     _hostRevisions = null;
     _sessionGeneration++;
-    _remotePollTimer?.cancel();
-    _remotePollTimer = null;
-    _remotePollInFlight = false;
-    _hadRemoteResult = false;
-    _consecutivePollFailures = 0;
+    _cancelFetchRetry();
+    _fetchInFlight = false;
+    _consecutiveFetchFailures = 0;
     _sessionAuthority = null;
     _sessionService = null;
+  }
+
+  void _cancelFetchRetry() {
+    _fetchRetryTimer?.cancel();
+    _fetchRetryTimer = null;
   }
 
   Future<void> _trackStart(Future<void> Function() operation) {
@@ -159,7 +154,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     return future;
   }
 
-  /// Arm host-side live stacking and begin polling its preview/stats.
+  /// Arm host-side live stacking. The host's runtime channel then describes
+  /// its stack and this client fetches each new revision of the viewed slot.
   ///
   /// The remote entry point: the tablet has no local reference frame, so the
   /// host arms its stacker and the next captured frame becomes the reference.
@@ -190,8 +186,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final generation = ++_sessionGeneration;
     _sessionAuthority = backend;
     _sessionService = service;
-    _hadRemoteResult = false;
-    _consecutivePollFailures = 0;
+    _consecutiveFetchFailures = 0;
     state = LiveStackingState(
       status: LiveStackingStatus.running,
       isArmed: true,
@@ -205,7 +200,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         'Remote live stacking armed on host',
         source: 'LiveStackingNotifier',
       );
-      _startRemotePolling(generation, backend);
+      unawaited(_fetchHostSlot(generation, backend));
     } catch (e) {
       if (!_isCurrentSession(generation, backend)) return;
       state = state.copyWith(
@@ -219,80 +214,48 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
   }
 
-  void _startRemotePolling(int generation, SkotiqBackend backend) {
-    if (!_isCurrentSession(generation, backend)) return;
-    _remotePollTimer?.cancel();
-    // 2.5s cadence: brisk enough that the preview tracks a typical sub-minute
-    // EAA exposure within a frame or two, cheap enough not to flood the LAN
-    // with full-frame u16 downloads. Each tick pulls the latest host result.
-    _remotePollTimer = pacedPeriodicTimer(
-      const Duration(milliseconds: 2500),
-      () => _pollRemoteResult(generation, backend),
-    );
-    unawaited(_pollRemoteResult(generation, backend));
-  }
-
-  Future<void> _pollRemoteResult(int generation, SkotiqBackend backend) async {
+  /// Fetch the pixels of the viewed slot of the host's stack when the
+  /// host's channel says they changed since this client last showed them,
+  /// and again after the download while they keep changing. A failed fetch
+  /// is retried after a pause; the third failure in a row is shown and the
+  /// retries stop ([retryHostFetch] starts them again).
+  Future<void> _fetchHostSlot(int generation, SkotiqBackend backend) async {
     final service = _sessionService;
     if (service == null ||
         !service.readsHost ||
-        _remotePollInFlight ||
+        _fetchInFlight ||
         !_isCurrentSession(generation, backend) ||
         state.status != LiveStackingStatus.running) {
       return;
     }
-    // With the host's slots known, fetch the viewed slot's pixels only when
-    // they changed, and nothing before the slot's first frame.
-    final hostRevisions = _hostRevisions;
-    String? slotKey;
-    int? slotRevision;
-    if (hostRevisions != null) {
-      slotKey = state.viewedFilterKey;
-      slotRevision = hostRevisions[slotKey];
-      final shown = state.filterStacks[slotKey];
-      if (slotRevision == null ||
-          (shown != null &&
-              shown.hasPixels &&
-              shown.revision == slotRevision)) {
-        return;
-      }
+    final slotKey = state.viewedFilterKey;
+    final slotRevision = _hostRevisions?[slotKey];
+    final shown = state.filterStacks[slotKey];
+    if (slotRevision == null ||
+        shown == null ||
+        (shown.hasPixels && shown.revision == slotRevision)) {
+      _cancelFetchRetry();
+      return;
     }
-    _remotePollInFlight = true;
+    _cancelFetchRetry();
+    _fetchInFlight = true;
     try {
       final result = await service.getCurrentResult(filterKey: slotKey);
+      _fetchInFlight = false;
       if (!_isCurrentSession(generation, backend) ||
           state.status != LiveStackingStatus.running) {
         return;
       }
-      _hadRemoteResult = true;
-      _consecutivePollFailures = 0;
-      if (slotKey != null && slotRevision != null) {
-        _showHostSlot(slotKey, slotRevision, result);
-        return;
-      }
-      state = state.copyWith(
-        stats: result.stats,
-        previewData: _asUint16List(result.data),
-        previewWidth: result.width,
-        previewHeight: result.height,
-        lastFrameTotalPixels: result.width * result.height,
-        clearErrorMessage: true,
-      );
+      _consecutiveFetchFailures = 0;
+      _showHostSlot(slotKey, slotRevision, result);
     } catch (e) {
+      _fetchInFlight = false;
       if (!_isCurrentSession(generation, backend) ||
           state.status != LiveStackingStatus.running) {
         return;
       }
-      // Before the host's first frame lands there is no result yet (404
-      // no_active_stack). Only that exact response is expected; authentication,
-      // transport, and malformed-payload failures must not be hidden forever.
-      final isWaitingForFirstFrame =
-          !_hadRemoteResult && e is ServerError && e.code == 'no_active_stack';
-      if (isWaitingForFirstFrame) return;
-      _consecutivePollFailures++;
-      if (_consecutivePollFailures >= 3) {
-        _remotePollTimer?.cancel();
-        _remotePollTimer = null;
+      _consecutiveFetchFailures++;
+      if (_consecutiveFetchFailures >= 3) {
         _logger.error(
           'Lost contact with host stacker: $e',
           source: 'LiveStackingNotifier',
@@ -300,9 +263,17 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         // The host may still be stacking. Keep the session active so Stop is
         // available, but make the stale preview failure explicit and retryable.
         state = state.copyWith(errorMessage: 'Lost contact with host stacker');
+        return;
       }
-    } finally {
-      _remotePollInFlight = false;
+      _fetchRetryTimer = Timer(
+        PollPace.stretch(const Duration(milliseconds: 2500)),
+        () => unawaited(_fetchHostSlot(generation, backend)),
+      );
+      return;
+    }
+    if (state.viewedFilterKey != slotKey ||
+        _hostRevisions?[slotKey] != slotRevision) {
+      await _fetchHostSlot(generation, backend);
     }
   }
 
@@ -330,17 +301,15 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       return;
     }
     if (!onThisHost) {
-      final generation = ++_sessionGeneration;
+      ++_sessionGeneration;
       _sessionAuthority = backend;
       _sessionService = service;
-      _hadRemoteResult = false;
-      _consecutivePollFailures = 0;
+      _consecutiveFetchFailures = 0;
       state = LiveStackingState(
         status: LiveStackingStatus.running,
         isArmed: host.armed,
         config: state.config,
       );
-      _startRemotePolling(generation, backend);
     }
     final stacks = <String, FilterStackSnapshot>{
       for (final slot in host.slots)
@@ -369,7 +338,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         : _mirrorSelectedFilter(next, stacks[selected]!);
     final authority = _sessionAuthority;
     if (authority != null) {
-      unawaited(_pollRemoteResult(_sessionGeneration, authority));
+      unawaited(_fetchHostSlot(_sessionGeneration, authority));
     }
   }
 
@@ -398,8 +367,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         : next;
   }
 
-  /// Retry a failed remote preview poll without restarting the host stack.
-  void retryRemotePolling() {
+  /// Fetch the host's pixels again after they could not be fetched, without
+  /// restarting the host stack.
+  void retryHostFetch() {
     final service = _sessionService;
     final authority = _sessionAuthority;
     if (service == null ||
@@ -410,10 +380,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         _ref.backendScopeOver(authority).isStale) {
       return;
     }
-    _consecutivePollFailures = 0;
+    _consecutiveFetchFailures = 0;
     state = state.copyWith(clearErrorMessage: true);
-    final generation = _sessionGeneration;
-    _startRemotePolling(generation, authority);
+    unawaited(_fetchHostSlot(_sessionGeneration, authority));
   }
 
   /// Arm live stacking to automatically stack incoming captured frames without
@@ -467,7 +436,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     );
     final authority = _sessionAuthority;
     if (_sessionOnHost && authority != null) {
-      unawaited(_pollRemoteResult(_sessionGeneration, authority));
+      unawaited(_fetchHostSlot(_sessionGeneration, authority));
     }
   }
 
@@ -1595,8 +1564,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final authority = _sessionAuthority;
     if (authority == null || state.status != LiveStackingStatus.running) return;
     final generation = ++_sessionGeneration;
-    _remotePollTimer?.cancel();
-    _remotePollTimer = null;
+    _cancelFetchRetry();
     try {
       final service = _sessionService!;
       final onHost = service.readsHost;
@@ -1623,7 +1591,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         isArmed: state.isArmed,
         config: state.config,
       );
-      if (onHost) _startRemotePolling(generation, authority);
+      if (onHost) unawaited(_fetchHostSlot(generation, authority));
     } catch (e) {
       if (!_isCurrentSession(generation, authority)) return;
       _logger.error(
@@ -1633,7 +1601,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       state = state.copyWith(
         errorMessage: 'Failed to reset stack: ${userFacingError(e)}',
       );
-      if (_sessionOnHost) _startRemotePolling(generation, authority);
+      if (_sessionOnHost) unawaited(_fetchHostSlot(generation, authority));
     }
   }
 
@@ -1664,11 +1632,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final service = _sessionService;
     final onHost = _sessionOnHost;
     final generation = ++_sessionGeneration;
-    _remotePollTimer?.cancel();
-    _remotePollTimer = null;
-    _remotePollInFlight = false;
-    _hadRemoteResult = false;
-    _consecutivePollFailures = 0;
+    _cancelFetchRetry();
+    _fetchInFlight = false;
+    _consecutiveFetchFailures = 0;
     try {
       // A Stop racing Start or an in-flight frame ingest must be ordered after
       // both settle; otherwise Start/ingest can create a native stacker after
@@ -1701,7 +1667,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           if (onHost &&
               authority != null &&
               state.status == LiveStackingStatus.running) {
-            _startRemotePolling(generation, authority);
+            unawaited(_fetchHostSlot(generation, authority));
           }
         }
         if (throwOnFailure) Error.throwWithStackTrace(e, stackTrace);
