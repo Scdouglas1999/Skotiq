@@ -3162,8 +3162,6 @@ packages/skotiq_core/lib/src/services/device_heartbeat_router.dart	onReconnectin
 packages/skotiq_core/lib/src/services/device_heartbeat_router.dart	onReconnecting	literal_null_coalesce	1	V0121	maxAttempts: maxAttempts ?? 0,
 packages/skotiq_core/lib/src/services/device_heartbeat_router.dart	onStatusChanged	literal_null_coalesce	1	V0121	consecutiveFailures: consecutiveFailures ?? 0,
 packages/skotiq_core/lib/src/services/device_matching_service.dart	normalizeName	literal_null_coalesce	1	V0102	instanceStr = instanceMatch.group(0) ?? '';
-packages/skotiq_core/lib/src/services/device_reconnect_coordinator.dart	attemptReconnect	literal_null_coalesce	1	V0121	final attemptCount = _reconnectionAttempts[reconnectKey] ?? 0;
-packages/skotiq_core/lib/src/services/device_reconnect_coordinator.dart	attemptReconnect	literal_null_coalesce	1	V0121	final completedAttempts = _reconnectionAttempts[reconnectKey] ?? 0;
 packages/skotiq_core/lib/src/services/device_service.dart	_appVersionForCalibrationRecord	empty_catch	1	V0028	} catch (_) {
 packages/skotiq_core/lib/src/services/device_service/autofocus_controls.dart	_cancelAutofocus	empty_catch	1	V0144	} catch (_) {
 packages/skotiq_core/lib/src/services/device_service/autofocus_controls.dart	_runAutofocus	literal_null_coalesce	1	V0144	final defaultAfName = appSettings?.afAutofocusFilterName.trim() ?? '';
@@ -3179,7 +3177,6 @@ packages/skotiq_core/lib/src/services/device_service/control_helpers.dart	_apply
 packages/skotiq_core/lib/src/services/device_service/control_helpers.dart	_resolveConfiguredFilterOffset	literal_null_coalesce	1	V0121	return filterOffsetState.offsets[filterName] ?? 0;
 packages/skotiq_core/lib/src/services/device_service/event_handling.dart	_watchFocuserMoveSettle	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_core/lib/src/services/device_service/event_handling.dart	_handleDeviceError	literal_null_coalesce	1	V0121	final type = deviceTypeFromWireName(deviceType ?? '');
-packages/skotiq_core/lib/src/services/device_service/event_handling.dart	_handleEquipmentEvent	literal_null_coalesce	1	V0121	(data['device_class'] as String?) ?? '',
 packages/skotiq_core/lib/src/services/device_service/event_handling.dart	_isGuideCameraEvent	literal_null_coalesce	1	V0121	if (deviceTypeFromWireName(deviceType ?? '') != DeviceType.camera ||
 packages/skotiq_core/lib/src/services/device_service/filter_wheel_controls.dart	_setFilterWheelPosition	literal_null_coalesce	1	V0249	final positionCount = capabilities?.positionCount ?? 0;
 packages/skotiq_core/lib/src/services/device_service/focuser_rotator_controls.dart	_moveFocuserRelative	literal_null_coalesce	1	V0250	final maxIncrement = capabilities?.maxIncrement ?? 0;
