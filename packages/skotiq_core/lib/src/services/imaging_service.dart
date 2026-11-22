@@ -21,6 +21,14 @@ import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
 import 'local_imaging_records.dart';
 import '../providers/ui_notification_provider.dart';
+import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_events.dart'
+    show
+        ImagingEvent_ExposureCancelled,
+        ImagingEvent_ExposureComplete,
+        ImagingEvent_ExposureFailed,
+        ImagingEvent_ExposureFailedOld,
+        ImagingEvent_ExposureProgress;
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/skotiq_exception.dart'

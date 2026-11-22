@@ -443,7 +443,8 @@ void main() {
           'depthLock goalChanged': 'host reread=0 client reread=0 fetch=0',
           'sequencer ExposureCompleted':
               'host reread=0 client reread=0 fetch=0',
-          'wire ImageCaptured': 'host reread=1 client reread=1 fetch=1',
+          // No producer sends ImageCaptured.
+        'wire ImageCaptured': 'host reread=0 client reread=0 fetch=0',
         });
       },
     );

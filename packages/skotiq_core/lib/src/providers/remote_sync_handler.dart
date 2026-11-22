@@ -117,9 +117,9 @@ void applyHostEventOnClient(
       // The capture publisher runs only on the host, so the host's frame is
       // fetched here when it says one is ready; a saved or captured frame
       // counts too, in case the ready event was missed.
-      if (event.eventType == 'ImageReady' ||
-          event.eventType == 'ImageSaved' ||
-          event.eventType == 'ImageCaptured') {
+      if (imagingEventOf(event)
+          case bridge.ImagingEvent_ImageReady() ||
+              bridge.ImagingEvent_ImageSaved()) {
         unawaited(_publishRemoteCurrentFrame(container, backend));
       }
     case EventCategory.equipment:
@@ -134,7 +134,7 @@ void applyHostEventOnClient(
 }
 
 void _rereadImagesAfter(ProviderContainer container, SkotiqEvent event) {
-  if (event.eventType == 'ImageCaptured' || event.eventType == 'ImageSaved') {
+  if (imagingEventOf(event) is bridge.ImagingEvent_ImageSaved) {
     _invalidateHostCapturedImages(container);
   }
 }
