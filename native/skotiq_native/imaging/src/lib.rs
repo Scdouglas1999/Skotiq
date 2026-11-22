@@ -35,6 +35,7 @@ pub mod mosaic_stitch; // NEW: WCS-driven panel mosaic stitching
 pub mod normalization; // NEW: Light-frame normalization to a reference (batch integration)
 mod numeric;
 pub mod optimizer; // NEW: Marginal-SNR integration optimizer (subset recommendation)
+pub mod product_header;
 mod raster;
 mod raw;
 mod raw_exif;
@@ -76,6 +77,7 @@ pub use master_accumulation::*; // NEW: Export accumulating-master types
 pub use mosaic_stitch::*; // NEW: Export mosaic-stitching types
 pub use normalization::*; // NEW: Export normalization types
 pub use optimizer::*; // NEW: Export integration-optimizer types
+pub use product_header::{acquisition, CalibrationMarks, MasterCards, MasterProvenance};
 pub use raster::{write_raster, RasterError, RasterFormat, DEFAULT_JPEG_QUALITY};
 pub use raw::*;
 /// The color-composite stages, under the name the bridge imports them by.
@@ -83,7 +85,8 @@ pub use recipe::composite as color_composite;
 pub use registration::*; // NEW: Export registration types
 pub use sample_range::{SampleRange, ADU_FULL_SCALE};
 pub use skotiq_frame::{
-    BayerColor, BayerPattern, ColorFilterArray, FrameKind, FrameType, XTransPattern,
+    Acquisition, AgreementPolicy, BayerColor, BayerPattern, CardReading, ColorFilterArray,
+    Disagreement, ExposureTolerance, FrameKind, FrameType, NumberMatch, Setting, XTransPattern,
 };
 pub use sky_atlas::*; // NEW: Export sky-atlas (keystone) types
 pub use star_reduction::*; // NEW: Export star-reduction types

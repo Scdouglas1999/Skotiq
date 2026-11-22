@@ -23,7 +23,10 @@ use skotiq_imaging::master_accumulation::{
 use skotiq_imaging::normalization::{apply_normalization, estimate_normalization, CoverageMask};
 use skotiq_imaging::registration::RegistrationConfig;
 use skotiq_imaging::stacking::{CombineMethod, MasterOutputType};
-use skotiq_imaging::{read_frame_header, read_image, write_fits, FitsHeader, ImageData, PixelType};
+use skotiq_imaging::{
+    acquisition, read_frame_header, read_image, write_fits, AgreementPolicy, FitsHeader, ImageData,
+    NumberMatch, PixelType, Setting,
+};
 use std::path::Path;
 
 /// Turn a sidecar deserialize failure into an operator-honest message.
@@ -817,18 +820,31 @@ fn flat_metadata(path: &str) -> Result<FitsHeader, String> {
     })
 }
 
+/// How closely the raw flats of one master flat must agree.
+const FLAT_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    instrument: true,
+    filter: true,
+    exposure: None,
+    set_point_c: None,
+    read_mode: false,
+    numbers: NumberMatch::Within(1e-6),
+};
+
+/// How closely a raw flat and the bias or dark-flat taken out of it must agree.
+/// The dark-flat's exposure is held to its own rule.
+const FLAT_PEDESTAL_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    filter: false,
+    ..FLAT_AGREEMENT
+};
+
 fn validate_flat_pedestal(flat: &FitsHeader, pedestal: &FitsHeader) -> Result<(), String> {
-    if let (Some(a), Some(b)) = (flat.get_string("INSTRUME"), pedestal.get_string("INSTRUME")) {
-        if a != b {
-            return Err("Flat and bias/dark-flat cameras differ (INSTRUME)".into());
-        }
-    }
-    for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
-        if let (Some(a), Some(b)) = (flat.get_float(key), pedestal.get_float(key)) {
-            if (a - b).abs() > 1e-6 {
-                return Err(format!("Flat and bias/dark-flat {key} differ"));
-            }
-        }
+    if let Some(d) =
+        acquisition(flat).disagreement(&acquisition(pedestal), &FLAT_PEDESTAL_AGREEMENT)
+    {
+        return Err(match d.setting {
+            Setting::Instrument => "Flat and bias/dark-flat cameras differ (INSTRUME)".into(),
+            setting => format!("Flat and bias/dark-flat {} differ", setting.card()),
+        });
     }
     let is_bias = pedestal
         .get_string("IMAGETYP")
@@ -875,17 +891,7 @@ pub(crate) fn flat_pedestal_state(
             FlatPedestal::Included
         };
     }
-    let upper = |key: &str| {
-        header
-            .get_string(key)
-            .unwrap_or_default()
-            .to_ascii_uppercase()
-    };
-    let master = upper("FRAMETYP").contains("MASTER")
-        || upper("IMAGETYP").contains("MASTER")
-        || header.get_int("NCOMBINE").is_some_and(|n| n > 1)
-        || header.get_int("NFRAMES").is_some_and(|n| n > 1);
-    if master {
+    if skotiq_imaging::MasterProvenance::from_header(header).any_card_says_integrated() {
         FlatPedestal::Removed
     } else {
         FlatPedestal::Included
@@ -917,28 +923,13 @@ pub(crate) fn build_master_flat_impl(
         .collect::<Result<Vec<_>, _>>()?;
     // Exposure may vary: Skotiq's flat capture adjusts it frame by frame, and
     // each flat is scaled to its own median before combining.
+    let first = acquisition(&source_headers[0]);
     for header in &source_headers[1..] {
-        for key in ["INSTRUME", "FILTER"] {
-            if let (Some(first), Some(next)) =
-                (source_headers[0].get_string(key), header.get_string(key))
-            {
-                if first != next {
-                    return Err(format!(
-                        "Raw flats have different {key}; build each calibration group separately"
-                    ));
-                }
-            }
-        }
-        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
-            if let (Some(first), Some(next)) =
-                (source_headers[0].get_float(key), header.get_float(key))
-            {
-                if (first - next).abs() > 1e-6 {
-                    return Err(format!(
-                        "Raw flats have different {key}; build each calibration group separately"
-                    ));
-                }
-            }
+        if let Some(d) = first.disagreement(&acquisition(header), &FLAT_AGREEMENT) {
+            return Err(format!(
+                "Raw flats have different {}; build each calibration group separately",
+                d.setting.card()
+            ));
         }
     }
     let exposures: Vec<f64> = source_headers

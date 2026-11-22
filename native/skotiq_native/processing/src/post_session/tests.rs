@@ -2254,3 +2254,99 @@ fn integrate_session_takes_a_light_pedestal_out_before_calibration() {
         "the subs less a 50 ADU pedestal less a 950 ADU bias read {expected}; the master reads {median}"
     );
 }
+
+/// Raw flats agree on camera, filter, gain, offset and binning (within 1e-6);
+/// read mode and set-point are not compared. A bias or dark-flat agrees with
+/// each flat on camera, gain, offset and binning.
+#[test]
+fn flat_agreement_reads_the_cards_it_reads_today() {
+    let dir = temp_dir("flat_agreement");
+    let image = ImageData::from_u16(48, 48, 1, &vec![20000; 48 * 48]);
+    let pedestal = ImageData::from_u16(48, 48, 1, &vec![100; 48 * 48]);
+    let mut header = FitsHeader::new();
+    header.set_string("INSTRUME", "Camera A");
+    header.set_string("FILTER", "L");
+    header.set_string("IMAGETYP", "FLAT");
+    header.set_float("GAIN", 100.0);
+    header.set_float("EXPTIME", 2.0);
+    header.set_string("READOUTM", "Mode 0");
+    header.set_float("SET-TEMP", -10.0);
+    header.set_float("XBINNING", 1.0);
+    let first = dir.join("flat1.fits");
+    let second = dir.join("flat2.fits");
+    let bias = dir.join("bias.fits");
+    let out = dir.join("master.fits");
+    write_fits(&first, &image, &header).unwrap();
+    let mut other = header.clone();
+    other.set_string("READOUTM", "Mode 1");
+    other.set_float("SET-TEMP", 0.0);
+    write_fits(&second, &image, &other).unwrap();
+    let args = serde_json::json!({"flatPaths":[first,second],"outputPath":out});
+    build_master_flat(args.to_string()).unwrap();
+
+    other.set_float("GAIN", 100.5);
+    write_fits(&second, &image, &other).unwrap();
+    assert_eq!(
+        build_master_flat(args.to_string()).unwrap_err(),
+        "Raw flats have different GAIN; build each calibration group separately"
+    );
+    write_fits(&second, &image, &header).unwrap();
+    let mut bias_header = header.clone();
+    bias_header.set_string("IMAGETYP", "BIAS");
+    bias_header.set_float("EXPTIME", 0.001);
+    bias_header.set_float("XBINNING", 2.0);
+    write_fits(&bias, &pedestal, &bias_header).unwrap();
+    let with_bias =
+        serde_json::json!({"flatPaths":[first,second],"biasOrDarkFlat":bias,"outputPath":out});
+    assert_eq!(
+        build_master_flat(with_bias.to_string()).unwrap_err(),
+        "Flat and bias/dark-flat XBINNING differ"
+    );
+}
+
+/// An integer flat read from disk counts as bias-removed when PEDSUB says so,
+/// else when any card says it was integrated from several frames.
+#[test]
+fn flat_pedestal_state_reads_the_cards_it_reads_today() {
+    use crate::post_session::masters::flat_pedestal_state;
+    use skotiq_imaging::calibration::FlatPedestal;
+    let flat = ImageData::from_u16(2, 2, 1, &[1000; 4]);
+    let state = |cards: &[(&str, &str)], ints: &[(&str, i64)]| {
+        let mut header = FitsHeader::new();
+        for (key, value) in cards {
+            header.set_string(key, value);
+        }
+        for (key, value) in ints {
+            header.set_int(key, *value);
+        }
+        flat_pedestal_state(&flat, Some(&header))
+    };
+    assert_eq!(flat_pedestal_state(&flat, None), FlatPedestal::Included);
+    assert_eq!(state(&[], &[]), FlatPedestal::Included);
+    assert_eq!(state(&[("FRAMETYP", "Master")], &[]), FlatPedestal::Removed);
+    assert_eq!(
+        state(&[("IMAGETYP", "MasterFlat")], &[]),
+        FlatPedestal::Removed
+    );
+    assert_eq!(
+        state(&[("IMAGETYP", "FLAT")], &[("NCOMBINE", 1)]),
+        FlatPedestal::Included
+    );
+    assert_eq!(
+        state(&[("IMAGETYP", "FLAT")], &[("NFRAMES", 2)]),
+        FlatPedestal::Removed
+    );
+    assert_eq!(state(&[], &[("FRAMETYP", 5)]), FlatPedestal::Included);
+    let mut header = FitsHeader::new();
+    header.set_string("FRAMETYP", "MASTER");
+    header.set_bool("PEDSUB", false);
+    assert_eq!(
+        flat_pedestal_state(&flat, Some(&header)),
+        FlatPedestal::Included
+    );
+    let float_flat = ImageData::from_f32(2, 2, 1, &[1.0; 4]);
+    assert_eq!(
+        flat_pedestal_state(&float_flat, None),
+        FlatPedestal::Removed
+    );
+}

@@ -30,7 +30,7 @@ use crate::fits_reader::FitsReader;
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::{frame_format, FitsCopy, ImageFormat};
-use crate::{ImageData, PixelType};
+use crate::{AgreementPolicy, ExposureTolerance, ImageData, NumberMatch, PixelType, Setting};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -383,6 +383,19 @@ fn card_i64(header: &FitsHeader, keys: &[&str]) -> Option<i64> {
     })
 }
 
+/// How closely the frames of one dark or bias master must agree.
+const STREAMED_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    instrument: false,
+    filter: false,
+    exposure: Some(ExposureTolerance {
+        absolute_s: 1e-3,
+        relative: 1e-4,
+    }),
+    set_point_c: Some(0.05),
+    read_mode: true,
+    numbers: NumberMatch::Whole,
+};
+
 /// Every source must agree with the first on a card, when both carry it: size,
 /// exposure, set-point, read mode, gain, offset and binning.
 fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
@@ -399,49 +412,27 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
                 first.height
             ));
         }
-        let exposure = |h: &FitsHeader| card_f64(h, &["EXPTIME", "EXPOSURE"]);
-        if let (Some(a), Some(b)) = (exposure(first.header()), exposure(source.header())) {
-            if (a - b).abs() > 1e-3_f64.max(a.abs() * 1e-4) {
-                return Err(format!(
-                    "{} was exposed {b} s but {} was exposed {a} s",
-                    source.path.display(),
-                    first.path.display()
-                ));
-            }
-        }
-        let set_point = |h: &FitsHeader| card_f64(h, &["SET-TEMP", "SET_TEMP"]);
-        if let (Some(a), Some(b)) = (set_point(first.header()), set_point(source.header())) {
-            if (a - b).abs() > 0.05 {
-                return Err(format!(
-                    "{} was taken at a {b} °C set-point but {} at {a} °C",
-                    source.path.display(),
-                    first.path.display()
-                ));
-            }
-        }
-        let mode = |h: &FitsHeader| h.get_string("READOUTM").map(str::to_string);
-        if let (Some(a), Some(b)) = (mode(first.header()), mode(source.header())) {
-            if a != b {
-                return Err(format!(
-                    "{} was read out in mode {b} but {} in mode {a}",
-                    source.path.display(),
-                    first.path.display()
-                ));
-            }
-        }
-        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
-            if let (Some(a), Some(b)) = (
-                card_i64(first.header(), &[key]),
-                card_i64(source.header(), &[key]),
-            ) {
-                if a != b {
-                    return Err(format!(
-                        "{} has {key}={b} but {} has {key}={a}",
-                        source.path.display(),
-                        first.path.display()
-                    ));
+        let taken = crate::acquisition(source.header());
+        if let Some(d) =
+            crate::acquisition(first.header()).disagreement(&taken, &STREAMED_AGREEMENT)
+        {
+            let (this, other) = (source.path.display(), first.path.display());
+            let (a, b) = (d.first, d.other);
+            return Err(match d.setting {
+                Setting::Exposure => {
+                    format!("{this} was exposed {b} s but {other} was exposed {a} s")
                 }
-            }
+                Setting::SetPoint => {
+                    format!("{this} was taken at a {b} °C set-point but {other} at {a} °C")
+                }
+                Setting::ReadMode => {
+                    format!("{this} was read out in mode {b} but {other} in mode {a}")
+                }
+                setting => {
+                    let key = setting.card();
+                    format!("{this} has {key}={b} but {other} has {key}={a}")
+                }
+            });
         }
     }
     Ok(())
@@ -1116,6 +1107,42 @@ mod tests {
         assert!(
             matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")),
             "{err}"
+        );
+    }
+
+    /// Gain, offset and binning agree when their whole parts do; the refusal
+    /// names the card and both frames' values.
+    #[test]
+    fn whole_number_cards_agree_on_their_whole_part() {
+        let dir = tempdir();
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let with_gain = |name: &str, seed: u64, gain: f64| {
+            let path = write_frame(dir.path(), name, &noisy(seed, 4, 4, 300.0), 4, 4, CARDS);
+            crate::rewrite_frame_header(&path, |h| h.set_float("GAIN", gain)).unwrap();
+            path
+        };
+        let a = with_gain("a.fits", 1, 76.0);
+        let fractional = with_gain("b.fits", 2, 76.9);
+        build_streamed_master(
+            &[a.clone(), fractional],
+            &dir.path().join("m.fits"),
+            &config,
+        )
+        .unwrap();
+        let other = with_gain("c.fits", 3, 77.2);
+        let err = build_streamed_master(
+            &[a.clone(), other.clone()],
+            &dir.path().join("n.fits"),
+            &config,
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            MasterBuildError::Refused(format!(
+                "{} has GAIN=77 but {} has GAIN=76",
+                other.display(),
+                a.display()
+            ))
         );
     }
 

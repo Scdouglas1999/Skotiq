@@ -14,7 +14,10 @@
 use super::ApertureFrame;
 use crate::fits::FitsHeader;
 use crate::registration::{RegistrationStats, TransformKind, TransformModel};
-use crate::{detect_stars, ImageData, PixelType, SipWcs, StarDetectionConfig};
+use crate::{
+    detect_stars, CalibrationMarks, CardReading, FrameKind, FrameType, ImageData, MasterProvenance,
+    PixelType, SipWcs, StarDetectionConfig,
+};
 use serde::{Deserialize, Serialize};
 
 /// U16 lights at or above this level are treated as saturated. Two-thirds of
@@ -464,16 +467,13 @@ pub struct AcquisitionSettings {
 /// cards the compatibility checks need.
 pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String> {
     let image_type = header.get_string("IMAGETYP").unwrap_or("");
-    if !image_type.eq_ignore_ascii_case("light") && !image_type.eq_ignore_ascii_case("light frame")
-    {
+    if !FrameKind::card_names(image_type, FrameType::Light, CardReading::Exact) {
         return Err(format!(
             "Only light exposures may be measured; this file is IMAGETYP {image_type:?}"
         ));
     }
-    if header.get_string("CALSTAT").is_some()
-        || header
-            .get_string("FRAMETYP")
-            .is_some_and(|v| v.eq_ignore_ascii_case("master"))
+    if CalibrationMarks::from_header(header).calstat_card
+        || MasterProvenance::from_header(header).frame_type_says_master(CardReading::Exact)
     {
         return Err(
             "Only unprocessed lights may be measured; this file is already calibrated or stacked"
@@ -619,25 +619,18 @@ pub fn validate_master(
         MasterKind::Dark => "Master dark",
         MasterKind::Flat => "Master flat",
     };
-    let wanted = match kind {
-        MasterKind::Dark => "dark",
-        MasterKind::Flat => "flat",
+    let (wanted, base) = match kind {
+        MasterKind::Dark => ("dark", FrameType::Dark),
+        MasterKind::Flat => ("flat", FrameType::Flat),
     };
-    if !header
-        .get_string("FRAMETYP")
-        .is_some_and(|v| v.eq_ignore_ascii_case("master"))
-    {
+    let provenance = MasterProvenance::from_header(header);
+    if !provenance.frame_type_says_master(CardReading::Exact) {
         return Err(format!(
             "{label} is not a master frame (FRAMETYP is not MASTER)"
         ));
     }
     let image_type = header.get_string("IMAGETYP").unwrap_or("").trim();
-    let is_kind = image_type.eq_ignore_ascii_case(wanted)
-        || image_type
-            .to_ascii_lowercase()
-            .split(|c: char| !c.is_ascii_alphanumeric())
-            .any(|w| w == wanted);
-    if !is_kind {
+    if !provenance.image_type_names(base, CardReading::Word) {
         return Err(format!(
             "{label} declares IMAGETYP {image_type:?}, not a {wanted}"
         ));
@@ -647,7 +640,7 @@ pub fn validate_master(
             "{label} carries a Bayer pattern; DepthLock is monochrome only"
         ));
     }
-    let frames = header.get_int("NFRAMES").unwrap_or(0);
+    let frames = provenance.frames.unwrap_or(0);
     if frames < MIN_MASTER_FRAMES {
         return Err(format!(
             "{label} was built from {frames} frames; DepthLock needs at least {MIN_MASTER_FRAMES}"
