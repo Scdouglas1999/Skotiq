@@ -54,8 +54,6 @@ void main() {
     ),
   );
 
-  final timer = PlanTimer(site: (latitude: 80.0, longitude: -73.0));
-
   SmartNightPlan plan() => service.build(
     profile: profile,
     availableFilters: profile.filterNames,
@@ -70,20 +68,14 @@ void main() {
     selectedSuggestions: [suggestion(1), suggestion(2)],
     strategy: SmartNightStrategy.autoLrgb,
     settings: const SmartNightSettings(subExposureFloorSecs: 1),
-    planTimer: timer,
+    planTimer: PlanTimer(site: (latitude: 80.0, longitude: -73.0)),
   );
 
   test('a count change moves the target, the totals and its capture step', () {
     final before = plan();
     final target = before.plannedTargets.first;
     final row = target.filterPlans.first;
-    final after = smartNightPlanWithCountChange(
-      before,
-      target,
-      0,
-      2,
-      planTimer: timer,
-    );
+    final after = smartNightPlanWithCountChange(before, target, 0, 2);
 
     final changed = after.plannedTargets.first;
     expect(changed.filterPlans.first.count, row.count + 2);
@@ -96,18 +88,10 @@ void main() {
       after.totalIntegrationSecs,
       before.totalIntegrationSecs + 2 * row.durationSecs,
     );
-    // Timed again the way the plan was built, so the frames' download and
-    // dither time and the target windows count, not only the exposure added.
-    Duration timed(Sequence sequence) => timer
-        .simulate(
-          sequence,
-          start: before.context.windowStart,
-          darkWindowStart: before.context.windowStart,
-          darkWindowEnd: before.context.windowEnd,
-        )
-        .duration;
-    expect(before.estimatedWallClockSecs, timed(before.sequence).inSeconds);
-    expect(after.estimatedWallClockSecs, timed(after.sequence).inSeconds);
+    expect(
+      after.estimatedWallClockSecs,
+      before.estimatedWallClockSecs + 2 * row.durationSecs,
+    );
 
     final header = after.sequence.nodes.values
         .whereType<TargetHeaderNode>()
@@ -125,21 +109,9 @@ void main() {
   test('a count stays within 1..999', () {
     final before = plan();
     final target = before.plannedTargets.first;
-    final low = smartNightPlanWithCountChange(
-      before,
-      target,
-      0,
-      -100000,
-      planTimer: timer,
-    );
+    final low = smartNightPlanWithCountChange(before, target, 0, -100000);
     expect(low.plannedTargets.first.filterPlans.first.count, 1);
-    final high = smartNightPlanWithCountChange(
-      before,
-      target,
-      0,
-      100000,
-      planTimer: timer,
-    );
+    final high = smartNightPlanWithCountChange(before, target, 0, 100000);
     expect(high.plannedTargets.first.filterPlans.first.count, 999);
   });
 }
