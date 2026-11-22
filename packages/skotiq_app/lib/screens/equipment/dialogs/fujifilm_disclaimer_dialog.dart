@@ -49,9 +49,8 @@ Future<bool> askCameraConsentBeforeConnect(
 Future<void> showFujifilmNoticeAfterConnect(BuildContext context) async {
   final prefs = await SharedPreferences.getInstance();
   if (prefs.getBool(_prefKey) == true || !context.mounted) return;
-  await prefs.setBool(_prefKey, true);
-  if (!context.mounted) return;
   await _showNotice(context, afterConnect: true);
+  await prefs.setBool(_prefKey, true);
 }
 
 Future<bool?> _showNotice(BuildContext context, {required bool afterConnect}) {

@@ -33,7 +33,11 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
     final retryId = _slot.retryDeviceId;
     if (widget.type == DeviceType.camera &&
         retryId != null &&
-        !await askCameraConsentBeforeConnect(context, deviceId: retryId)) {
+        !await askCameraConsentBeforeConnect(
+          context,
+          deviceId: retryId,
+          deviceName: _slot.deviceName,
+        )) {
       return;
     }
     if (!mounted) return;

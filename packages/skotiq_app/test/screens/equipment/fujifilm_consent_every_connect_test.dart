@@ -111,4 +111,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(_notice), findsNothing);
   });
+
+  testWidgets('a camera already up when the app shows gets the notice too', (
+    tester,
+  ) async {
+    await pumpAppScreen(
+      tester,
+      const FujifilmNoticeAfterConnect(child: SizedBox.shrink()),
+      extraOverrides: [
+        cameraStateProvider.overrideWith(
+          (ref) => _CameraNotifier(ref)
+            ..connectAs('fujifilm:camera:x-t5', 'Fujifilm X-T5'),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(_notice), findsOneWidget);
+    await tester.tap(find.text('I understand'));
+    await tester.pumpAndSettle();
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('fujifilm_disclaimer_acknowledged'), isTrue);
+  });
 }
