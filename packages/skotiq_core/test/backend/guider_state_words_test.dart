@@ -9,6 +9,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/src/backend/ffi_backend.dart';
 
 const _fixturePath = '../../test_fixtures/guider_state/words.json';
@@ -87,5 +88,19 @@ void main() {
   test("PHD2's own Selected word is a guider state", () {
     expect(phd2StateFromGuiderWord('Selected'), Phd2State.selected);
     expect(phd2StateFromGuiderWord(null), isNull);
+  });
+
+  test('an AppState event reads through the same word table', () {
+    // Before one table, an AppState of Connected or Settling read as unknown;
+    // nothing on the native side sends GuidingEvent::AppState, so no host
+    // ever carried those two words in one.
+    for (final row in rows) {
+      final word = row['word'] as String;
+      expect(
+        phd2StateAfterEvent(bridge.GuidingEvent.appState(state: word)),
+        _stateOfWord[word] ?? Phd2State.unknown,
+        reason: word,
+      );
+    }
   });
 }

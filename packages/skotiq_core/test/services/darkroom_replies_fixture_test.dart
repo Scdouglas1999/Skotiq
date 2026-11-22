@@ -135,4 +135,12 @@ void main() {
     expect(outcome.phase, payload['stage']);
     expect(outcome.payload, payload);
   });
+
+  test('a registration preview reads back to the native reply', () {
+    final reply = replyFixtureObject('registration_preview');
+    final preview = DarkroomRegistrationPreview.fromJson(reply);
+    expect(jsonDecode(jsonEncode(preview.toJson())), reply);
+    expect(preview.meetsMinimum, reply['meetsMinimum']);
+    expect(preview.limiting, hasLength((reply['limiting'] as List).length));
+  });
 }
