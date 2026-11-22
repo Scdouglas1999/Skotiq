@@ -83,12 +83,12 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           .map((p) => p.goal.filter)
           .toSet()
           .toList();
-      // Read back from its words, as before: a filter whose name says
-      // "moon" reads as a Moon constraint.
       rejections.add(
-        SchedulerRejection.fromSentence(
-          'required filter${missingFilters.length == 1 ? '' : 's'} not in '
-          'equipment wheel (${missingFilters.join(", ")})',
+        SchedulerRejection(
+          kind: SchedulerRejectionKind.filterMissing,
+          reason:
+              'required filter${missingFilters.length == 1 ? '' : 's'} not in '
+              'equipment wheel (${missingFilters.join(", ")})',
         ),
       );
     }

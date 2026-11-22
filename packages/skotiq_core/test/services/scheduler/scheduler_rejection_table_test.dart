@@ -351,4 +351,18 @@ void main() {
       curedByRising: true,
     ));
   });
+
+  // Baader sells a "Moon & Skyglow" filter. Read back from the sentence, the
+  // filter's name made a missing filter read as a Moon constraint.
+  test('a missing filter named for the Moon is a missing filter', () async {
+    final decision = await _decide([
+      _candidate(1, goals: [_goal(1, 'Moon & Skyglow')], captured: [0]),
+    ]);
+    final rejected = decision.rejected.firstWhere((r) => r.targetId == 1);
+    expect(rejected.primaryReason, 'required filter not in wheel');
+    expect(
+      decision.scoredCandidates.first.rejections.first.kind,
+      SchedulerRejectionKind.filterMissing,
+    );
+  });
 }
