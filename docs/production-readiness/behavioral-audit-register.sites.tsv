@@ -142,10 +142,6 @@ apps/desktop/lib/headless_api_server.dart	wireRemotePushDelivery	empty_catch	1	V
 apps/desktop/lib/headless_api_server/event_forwarding.dart	_HeadlessApiServerEventForwarding	comment_best_effort	1	R9-002	/// best-effort basis.
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_startServer	comment_best_effort	1	V0121	// Best-effort: learn our own tailnet address so /api/info can hand it to a
 apps/desktop/lib/headless_api_server/server_lifecycle.dart	_stopServer	comment_best_effort	1	V0121	// Best-effort: if the underlying LazyDatabase never opened (e.g. startup
-apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final configJson = event.data['config_json'] as String? ?? '';
-apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final nodeId = event.data['node_id'] as String? ?? '';
-apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final nodeTypeId = event.data['node_type_id'] as String? ?? '';
-apps/desktop/lib/headless_api_server/server_lifecycle.dart	_dispatchPluginNodeIfRequested	literal_null_coalesce	1	V0121	final pluginId = event.data['plugin_id'] as String? ?? '';
 apps/desktop/lib/host/host_checkpoint_directory.dart	configured	literal_null_coalesce	1	R9-003	bool configured(String name) => (environment[name]?.trim() ?? '').isNotEmpty;
 apps/desktop/lib/host/host_server.dart	startHostServer	empty_catch	1	U2-03	} catch (_) {
 apps/desktop/lib/host/host_steps.dart	_startUpdateReceiver	literal_null_coalesce	1	U2-03	if (host.daemonConfig?.bindLocalOnly ?? false) {
