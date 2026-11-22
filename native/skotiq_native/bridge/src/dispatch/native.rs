@@ -160,15 +160,24 @@ impl DeviceManager {
                 tracing::info!("Connected to native mount: {}", info.name);
             }
             // A camera registered as another kind of device (a guide camera
-            // as a guider) is held as a plain device.
-            (NativeHandle::Camera(camera), _) => {
-                let mut device: Box<dyn DeviceDriver> = camera;
-                device.connect().await.map_err(ConnectError::from_driver)?;
-                self.native_devices
-                    .write()
-                    .await
-                    .insert(info.id.clone(), device);
-                tracing::info!("Connected to native device: {}", info.name);
+            // as a guider) is held as a camera, so its heartbeat reads the
+            // camera's status, not the driver's connected flag, which stays
+            // true after the camera is unplugged.
+            (NativeHandle::Camera(mut camera), _) => {
+                if let Some(old) = self.handles.remove(&info.id) {
+                    let _ = old.disconnect().await;
+                    tracing::info!("Closed the previous native camera for {}", info.id);
+                }
+                camera.connect().await.map_err(ConnectError::from_driver)?;
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Camera(Arc::new(DriverCamera::vendor(&info.id, camera))),
+                );
+                tracing::info!(
+                    "Connected to native camera as a {}: {}",
+                    info.device_type.noun(),
+                    info.name
+                );
             }
         }
         Ok(())

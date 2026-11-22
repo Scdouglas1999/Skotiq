@@ -18,6 +18,7 @@ mod capabilities;
 mod device_reopen;
 mod focuser_busy;
 mod guards;
+mod guide_camera_heartbeat;
 mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
