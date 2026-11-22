@@ -576,9 +576,9 @@ const PARENT_EXIT_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Wait for a process to exit, or fail once `timeout` has passed.
 ///
-/// Both platforms used to treat a timeout as success, so a parent that was
-/// still running (or a wait that failed) let the swap start against files the
-/// old process still had open.
+/// A timeout is an error, so a parent that is
+/// still running (or a wait that failed) never lets the swap start against
+/// files the old process still has open.
 fn wait_for_process_exit(pid: u32, timeout: Duration) -> Result<()> {
     #[cfg(windows)]
     {
@@ -1953,8 +1953,7 @@ mod tests {
         child.unwrap()
     }
 
-    /// The parent must actually be gone before the swap starts. Both
-    /// platforms used to treat a timeout as success.
+    /// The parent must actually be gone before the swap starts.
     #[test]
     fn waiting_for_a_process_that_does_not_exit_times_out() {
         let mut child = long_running_child();
@@ -2039,7 +2038,7 @@ mod tests {
 
     /// Windows only (runs in the Windows CI job): renaming a file that is
     /// open without sharing fails after the retries and leaves NO rename
-    /// queued for the next reboot. A queued MOVEFILE_DELAY_UNTIL_REBOOT used to
+    /// queued for the next reboot: a queued MOVEFILE_DELAY_UNTIL_REBOOT would
     /// outlive the rollback and move the restored file aside at boot.
     #[cfg(windows)]
     #[test]
