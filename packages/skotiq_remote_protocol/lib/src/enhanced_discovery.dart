@@ -151,6 +151,12 @@ class QrConnectionData {
   /// compatibility with pre-2.6 QR payloads that omit the field.
   final String scheme;
 
+  /// The computer's name and `gui`/`headless`, as `/api/info` says them.
+  /// Codes printed before these keys existed carry neither; [serverName] and
+  /// [mode] keep the values every release printed.
+  final String? hostName;
+  final String? hostMode;
+
   QrConnectionData({
     this.service = kQrServiceMarker,
     required this.host,
@@ -166,6 +172,8 @@ class QrConnectionData {
     this.authToken,
     this.pairingCode,
     this.scheme = 'http',
+    this.hostName,
+    this.hostMode,
   });
 
   /// `true` when the QR advertised a TLS endpoint.
@@ -191,6 +199,8 @@ class QrConnectionData {
     if (authToken != null && authToken!.isNotEmpty) 'authToken': authToken,
     if (pairingCode != null && pairingCode!.isNotEmpty)
       'pairingCode': pairingCode,
+    if (hostName != null) 'hostName': hostName,
+    if (hostMode != null) 'hostMode': hostMode,
   };
 
   String toQrString() => jsonEncode(toJson());
@@ -325,6 +335,7 @@ class QrConnectionData {
       );
     }
 
+    final advert = HostAdvertRead.fromJson(decoded);
     return QrConnectionData(
       service: service,
       host: host,
@@ -350,6 +361,8 @@ class QrConnectionData {
       pairingCode: decoded['pairingCode'] is String
           ? decoded['pairingCode'] as String
           : null,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode,
     );
   }
 
@@ -366,6 +379,8 @@ class QrConnectionData {
     authToken: authToken,
     fingerprint: fingerprint,
     scheme: scheme,
+    hostName: hostName,
+    hostMode: hostMode,
   );
 }
 
@@ -1004,7 +1019,8 @@ class EnhancedSkotiqDiscovery {
   /// [host]:[webPort]. [pairingCode] enrolls the phone in one scan.
   ///
   /// `name` and `mode` keep the values every release has printed (`Skotiq`,
-  /// `desktop`), because printed codes and older phones read them.
+  /// `desktop`), because printed codes and older phones read them; the
+  /// computer's name and `gui`/`headless` are in `hostName` and `hostMode`.
   static String generateQrData(
     HostAdvert advert, {
     required String host,
@@ -1035,6 +1051,8 @@ class EnhancedSkotiqDiscovery {
       authToken: authToken,
       pairingCode: pairingCode,
       scheme: scheme,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode.wire,
     );
     return data.toQrString();
   }
