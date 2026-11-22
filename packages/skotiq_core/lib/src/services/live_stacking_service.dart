@@ -534,7 +534,7 @@ class LinkedLiveStackingService extends LiveStackingService {
     double pedestal = 0.0,
     LiveStackingConfig config = const LiveStackingConfig(),
     String? filterKey,
-  }) {
+  }) async {
     throw StateError(
       'startFromData is not available on a remote connection; the imaging '
       'host stacks the frames it captures. Arm the host instead.',
@@ -556,7 +556,7 @@ class LinkedLiveStackingService extends LiveStackingService {
     required List<int> data,
     double pedestal = 0.0,
     String? filterKey,
-  }) {
+  }) async {
     throw StateError(
       'addFrameFromData is not available on a remote connection; the imaging '
       'host stacks the frames it captures.',
@@ -571,7 +571,7 @@ class LinkedLiveStackingService extends LiveStackingService {
   Future<StretchedPreviewFrame> renderStackPreviewRgba({
     String? filterKey,
     int maxDimension = 2048,
-  }) {
+  }) async {
     throw StateError(
       'renderStackPreviewRgba reads the local native stacker and is not '
       'available on a remote connection.',
