@@ -157,6 +157,10 @@ extension _DeviceServiceAutofocusControls on DeviceService {
         }
       }
 
+      final failureHfrToleranceRatio =
+          appSettings?.afFailureHfrToleranceRatio ??
+          const AutofocusSettings().failureHfrToleranceRatio;
+
       // Read for THIS focuser's id rather than through a provider keyed on
       // "the connected focuser": the run is about to drive `focuserDeviceId`,
       // and a figure measured on any other drive train says nothing about it.
@@ -308,27 +312,30 @@ extension _DeviceServiceAutofocusControls on DeviceService {
         StackTrace? runStackTrace;
         try {
           result = await _backend.autofocusStart(
-            deviceId: focuserDeviceId,
-            cameraId: cameraDeviceId,
-            exposureTime: effectiveExposureTime,
-            stepSize: effectiveStepSize,
-            stepsOut: effectiveStepsOut,
-            method: effectiveMethod,
-            binning: effectiveBinning,
-            gain: effectiveGain,
-            offset: effectiveOffset,
-            curveFitting: effectiveCurveFitting,
-            numberOfAttempts: effectiveNumberOfAttempts,
-            exposuresPerPoint: effectiveExposuresPerPoint,
-            rSquaredThreshold: effectiveRSquaredThreshold,
-            outerCropRatio: effectiveOuterCropRatio,
-            innerCropRatio: effectiveInnerCropRatio,
-            useBrightestNStars: effectiveUseBrightestNStars,
-            focuserSettleTimeMs: effectiveFocuserSettleTimeMs,
-            backlashCompMethod: effectiveBacklashCompMethod,
-            backlashIn: effectiveBacklashIn,
-            backlashOut: effectiveBacklashOut,
-            measuredBacklashIn: measuredBacklashIn,
+            AutofocusRequest(
+              deviceId: focuserDeviceId,
+              cameraId: cameraDeviceId,
+              exposureTime: effectiveExposureTime,
+              stepSize: effectiveStepSize,
+              stepsOut: effectiveStepsOut,
+              method: effectiveMethod,
+              binning: effectiveBinning,
+              gain: effectiveGain,
+              offset: effectiveOffset,
+              curveFitting: effectiveCurveFitting,
+              numberOfAttempts: effectiveNumberOfAttempts,
+              exposuresPerPoint: effectiveExposuresPerPoint,
+              rSquaredThreshold: effectiveRSquaredThreshold,
+              outerCropRatio: effectiveOuterCropRatio,
+              innerCropRatio: effectiveInnerCropRatio,
+              useBrightestNStars: effectiveUseBrightestNStars,
+              focuserSettleTimeMs: effectiveFocuserSettleTimeMs,
+              backlashCompMethod: effectiveBacklashCompMethod,
+              backlashIn: effectiveBacklashIn,
+              backlashOut: effectiveBacklashOut,
+              measuredBacklashIn: measuredBacklashIn,
+              failureHfrToleranceRatio: failureHfrToleranceRatio,
+            ),
           );
         } catch (error, stackTrace) {
           runError = error;

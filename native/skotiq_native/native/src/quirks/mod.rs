@@ -25,6 +25,23 @@ pub fn get_quirks_for_device(device_id: &str) -> Vec<Quirk> {
     }
 }
 
+/// [`get_quirks_for_device`], plus the rows for the `model` the driver
+/// reported, looked up in the family and kind the id names: an id carries a
+/// scan position, not the model name model rows are keyed on.
+pub fn get_quirks_for_device_model(device_id: &str, model: Option<&str>) -> Vec<Quirk> {
+    let Some((family, address)) = catalog::family_of_id(device_id) else {
+        return Vec::new();
+    };
+    let vendor = (family.vendor)();
+    let mut quirks = quirks_for(&vendor, family.kind, address);
+    for quirk in model.map_or_else(Vec::new, |model| quirks_for(&vendor, family.kind, model)) {
+        if !quirks.contains(&quirk) {
+            quirks.push(quirk);
+        }
+    }
+    quirks
+}
+
 /// Vendor-wide quirks, applying to every device from that vendor.
 pub fn get_quirks_for_vendor(vendor: &Vendor) -> Vec<Quirk> {
     database::get_vendor_quirks(vendor)
@@ -98,6 +115,34 @@ pub fn get_connect_delay_ms(vendor: &Vendor, kind: DeviceKind, model: &str) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A discovered EAF is `native:zwo:eaf:0`. Its step-size row is keyed on
+    /// the model name, which the app used to pass inside a made-up id
+    /// (`native:zwo:<name>`) that names the ZWO camera family, so the row
+    /// never matched.
+    #[test]
+    fn a_reported_model_is_looked_up_in_the_family_the_id_names() {
+        let step = Quirk::Position(PositionQuirk::FocuserStepSizeMicrons(0.7));
+        let quirks = get_quirks_for_device_model("native:zwo:eaf:0", Some("ZWO EAF-S"));
+        assert!(quirks.contains(&step), "{quirks:?}");
+        assert!(!get_quirks_for_device("native:zwo:ZWO EAF-S").contains(&step));
+        assert_eq!(
+            get_quirks_for_device_model("native:zwo:0", None),
+            get_quirks_for_device("native:zwo:0")
+        );
+        assert!(get_quirks_for_device_model("sim_camera_1", Some("ZWO EAF-S")).is_empty());
+    }
+
+    #[test]
+    fn a_quirk_the_id_and_the_model_share_is_listed_once() {
+        let quirks = get_quirks_for_device_model("native:zwo:efw:0", Some("ZWO EFW"));
+        let wheel = Quirk::Position(PositionQuirk::DelayAfterMoveMs(500));
+        assert_eq!(
+            quirks.iter().filter(|q| **q == wheel).count(),
+            1,
+            "{quirks:?}"
+        );
+    }
 
     #[test]
     fn a_reader_gets_the_value_of_its_own_sort_of_quirk() {

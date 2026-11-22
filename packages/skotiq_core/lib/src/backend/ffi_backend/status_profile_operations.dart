@@ -7,7 +7,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getCameraStatus',
       () => bridge.getCameraStatus(deviceId: deviceId),
     );
-    return _fromBridgeCameraStatus(bridgeStatus);
+    return cameraStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -16,7 +16,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getMountStatus',
       () => bridge.apiGetMountStatus(deviceId: deviceId),
     );
-    return _fromBridgeMountStatus(bridgeStatus);
+    return mountStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -25,7 +25,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getFocuserStatus',
       () => bridge.apiGetFocuserStatus(deviceId: deviceId),
     );
-    return _fromBridgeFocuserStatus(bridgeStatus);
+    return focuserStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -34,13 +34,13 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getFilterWheelStatus',
       () => bridge.apiGetFilterwheelStatus(deviceId: deviceId),
     );
-    return _fromBridgeFilterWheelStatus(bridgeStatus);
+    return filterWheelStatusFromBridge(bridgeStatus);
   }
 
   @override
   Future<RotatorStatus> getRotatorStatus(String deviceId) async {
     final bridgeStatus = await bridge.apiGetRotatorStatus(deviceId: deviceId);
-    return _fromBridgeRotatorStatus(bridgeStatus);
+    return rotatorStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -115,7 +115,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetCameraCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeCameraCapabilities(bridgeCaps);
+      return cameraCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
       _logger.warning('Failed to get camera capabilities: $e');
       return null;
@@ -128,7 +128,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetMountCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeMountCapabilities(bridgeCaps);
+      return mountCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
       _logger.warning('Failed to get mount capabilities: $e');
       return null;
@@ -141,7 +141,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetFocuserCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeFocuserCapabilities(bridgeCaps);
+      return focuserCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
       _logger.warning('Failed to get focuser capabilities: $e');
       return null;
@@ -156,7 +156,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetFilterwheelCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeFilterWheelCapabilities(bridgeCaps);
+      return filterWheelCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
       _logger.warning('Failed to get filter wheel capabilities: $e');
       return null;
@@ -168,7 +168,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
     try {
       final result = await bridge.apiGetDeviceCapabilities(deviceId: deviceId);
       if (result is bridge.DeviceCapabilities_Rotator) {
-        return _fromBridgeRotatorCapabilities(result.field0);
+        return rotatorCapabilitiesFromBridge(result.field0);
       }
       return null;
     } catch (e) {

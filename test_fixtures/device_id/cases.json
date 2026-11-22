@@ -1,0 +1,742 @@
+[
+  {
+    "bridge": {
+      "connection_info": {
+        "Ascom": {
+          "prog_id": "ASCOM.Simulator.Camera"
+        }
+      },
+      "driver_type": "Ascom"
+    },
+    "dart": {
+      "canonical": "ascom:ascom.simulator.camera",
+      "displayName": "Simulator",
+      "friendlyName": "Simulator Camera",
+      "kind": "ascom",
+      "valid": true
+    },
+    "id": "ascom:ASCOM.Simulator.Camera"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "ascom:",
+      "displayName": "ascom:",
+      "friendlyName": "",
+      "kind": "ascom",
+      "valid": false
+    },
+    "id": "ascom:"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Ascom": {
+          "prog_id": "ASCOM.Simulator.Telescope"
+        }
+      },
+      "driver_type": "Ascom"
+    },
+    "dart": {
+      "canonical": "ascom.simulator.telescope",
+      "displayName": "Simulator",
+      "friendlyName": "ASCOM.Simulator.Telescope",
+      "kind": "unknown",
+      "valid": false
+    },
+    "id": "ASCOM.Simulator.Telescope"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Alpaca": {
+          "base_url": "http://192.168.1.100:11111",
+          "device_num": 0,
+          "device_type": "camera",
+          "host": "192.168.1.100",
+          "port": 11111,
+          "protocol": "http"
+        }
+      },
+      "driver_type": "Alpaca"
+    },
+    "dart": {
+      "canonical": "alpaca:http://192.168.1.100:11111:camera:0",
+      "displayName": "Alpaca: http://192.168.1.100:11111:camera:0",
+      "friendlyName": "Alpaca Camera",
+      "kind": "alpaca",
+      "valid": true
+    },
+    "id": "alpaca:http://192.168.1.100:11111:camera:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Alpaca": {
+          "base_url": "https://rig.local:443",
+          "device_num": 1,
+          "device_type": "telescope",
+          "host": "rig.local",
+          "port": 443,
+          "protocol": "https"
+        }
+      },
+      "driver_type": "Alpaca"
+    },
+    "dart": {
+      "canonical": "alpaca:https://rig.local:443:telescope:1",
+      "displayName": "Alpaca: https://rig.local:443:telescope:1",
+      "friendlyName": "Alpaca Mount",
+      "kind": "alpaca",
+      "valid": true
+    },
+    "id": "alpaca:https://rig.local:443:telescope:1"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "alpaca:http://host:notaport:camera:0",
+      "displayName": "Alpaca: http://host:notaport:camera:0",
+      "friendlyName": "Alpaca Camera",
+      "kind": "alpaca",
+      "valid": true
+    },
+    "id": "alpaca:http://host:notaport:camera:0"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "alpaca:http://host:11111:camera",
+      "displayName": "Alpaca: http://host:11111:camera",
+      "friendlyName": "Alpaca Device",
+      "kind": "alpaca",
+      "valid": true
+    },
+    "id": "alpaca:http://host:11111:camera"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Alpaca": {
+          "base_url": "http://192.168.1.5:11111",
+          "device_num": 0,
+          "device_type": "focuser",
+          "host": "192.168.1.5",
+          "port": 11111,
+          "protocol": "http"
+        }
+      },
+      "driver_type": "Alpaca"
+    },
+    "dart": {
+      "canonical": "http://192.168.1.5:11111:focuser:0",
+      "displayName": "Http://192 168 1 5:11111:focuser",
+      "friendlyName": "http://192.168.1.5:11111:focuser:0",
+      "kind": "unknown",
+      "valid": false
+    },
+    "id": "http://192.168.1.5:11111:focuser:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Indi": {
+          "device_name": "ZWO CCD ASI294MC Pro",
+          "host": "localhost",
+          "port": 7624
+        }
+      },
+      "driver_type": "Indi"
+    },
+    "dart": {
+      "canonical": "indi:localhost:7624:zwo ccd asi294mc pro",
+      "displayName": "Indi:localhost:7624:ZWO CCD ASI294MC Pro",
+      "friendlyName": "indi:localhost:7624:ZWO CCD ASI294MC Pro",
+      "kind": "indi",
+      "valid": true
+    },
+    "id": "indi:localhost:7624:ZWO CCD ASI294MC Pro"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "indi:localhost:7624",
+      "displayName": "Indi:localhost",
+      "friendlyName": "indi:localhost:7624",
+      "kind": "indi",
+      "valid": true
+    },
+    "id": "indi:localhost:7624"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "indi:host:99999:ccd",
+      "displayName": "Indi:host:99999:CCD",
+      "friendlyName": "indi:host:99999:CCD",
+      "kind": "indi",
+      "valid": true
+    },
+    "id": "indi:host:99999:CCD"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": null,
+          "vendor": "zwo",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:zwo:0",
+      "displayName": "ZWO #1",
+      "friendlyName": "native:zwo:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:zwo:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "1",
+          "device_index": 1,
+          "device_subtype": null,
+          "vendor": "zwo",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:zwo:1",
+      "displayName": "ZWO #2",
+      "friendlyName": "native:ZWO:1",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:ZWO:1"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": "eaf",
+          "vendor": "zwo",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:zwo:eaf:0",
+      "displayName": "ZWO",
+      "friendlyName": "native:zwo:eaf:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:zwo:eaf:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": null,
+          "vendor": "zwo_eaf",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:zwo_eaf:0",
+      "displayName": "ZWO EAF",
+      "friendlyName": "native:zwo_eaf:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:zwo_eaf:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "2",
+          "device_index": 2,
+          "device_subtype": "efw",
+          "vendor": "zwo",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:zwo:efw:2",
+      "displayName": "ZWO",
+      "friendlyName": "native:zwo:efw:2",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:zwo:efw:2"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": "cfw",
+          "vendor": "qhy",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:qhy:cfw:0",
+      "displayName": "QHY",
+      "friendlyName": "native:qhy:cfw:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:qhy:cfw:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "QHY268M-abc123",
+          "device_index": null,
+          "device_subtype": null,
+          "vendor": "qhy",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:qhy:qhy268m-abc123",
+      "displayName": "QHY",
+      "friendlyName": "native:qhy:QHY268M-abc123",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:qhy:QHY268M-abc123"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": null,
+          "vendor": "touptek",
+          "vendor_brand": "ogma"
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:touptek:ogma:0",
+      "displayName": "Touptek",
+      "friendlyName": "native:touptek:ogma:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:touptek:ogma:0"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "native:touptek:0",
+      "displayName": "Touptek #1",
+      "friendlyName": "native:touptek:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:touptek:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": null,
+          "vendor": "playerone",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:playerone:0",
+      "displayName": "PlayerOne #1",
+      "friendlyName": "native:playerone:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:playerone:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": null,
+          "vendor": "svbony",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:svbony:0",
+      "displayName": "SVBony #1",
+      "friendlyName": "native:svbony:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:svbony:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": "focuser",
+          "vendor": "fli",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:fli:focuser:0",
+      "displayName": "FLI",
+      "friendlyName": "native:fli:focuser:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:fli:focuser:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "0",
+          "device_index": 0,
+          "device_subtype": null,
+          "vendor": "builtin_guider",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:builtin_guider:0",
+      "displayName": "Built-in Multi-Star Guider",
+      "friendlyName": "Built-in Multi-Star Guider",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:builtin_guider:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Native": {
+          "device_id": "ASCOM.Simulator.Camera",
+          "device_index": null,
+          "device_subtype": null,
+          "vendor": "ascom",
+          "vendor_brand": null
+        }
+      },
+      "driver_type": "Native"
+    },
+    "dart": {
+      "canonical": "native:ascom:ascom.simulator.camera",
+      "displayName": "Ascom",
+      "friendlyName": "native:ascom:ASCOM.Simulator.Camera",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:ascom:ASCOM.Simulator.Camera"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "native:",
+      "displayName": "",
+      "friendlyName": "native:",
+      "kind": "native",
+      "valid": false
+    },
+    "id": "native:"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "native:nosuchvendor:0",
+      "displayName": "Nosuchvendor #1",
+      "friendlyName": "native:nosuchvendor:0",
+      "kind": "native",
+      "valid": true
+    },
+    "id": "native:nosuchvendor:0"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Simulator": {
+          "device_type": "camera",
+          "instance": 0
+        }
+      },
+      "driver_type": "Simulator"
+    },
+    "dart": {
+      "canonical": "simulator:camera",
+      "displayName": "Simulator:camera",
+      "friendlyName": "simulator:camera",
+      "kind": "simulator",
+      "valid": true
+    },
+    "id": "simulator:camera"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Simulator": {
+          "device_type": "camera",
+          "instance": 2
+        }
+      },
+      "driver_type": "Simulator"
+    },
+    "dart": {
+      "canonical": "simulator:camera:2",
+      "displayName": "Simulator:camera",
+      "friendlyName": "simulator:camera:2",
+      "kind": "simulator",
+      "valid": true
+    },
+    "id": "simulator:camera:2"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Simulator": {
+          "device_type": "mount",
+          "instance": 1
+        }
+      },
+      "driver_type": "Simulator"
+    },
+    "dart": {
+      "canonical": "sim:mount:1",
+      "displayName": "Sim:mount",
+      "friendlyName": "sim:mount:1",
+      "kind": "simulator",
+      "valid": false
+    },
+    "id": "sim:mount:1"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Simulator": {
+          "device_type": "camera",
+          "instance": 1
+        }
+      },
+      "driver_type": "Simulator"
+    },
+    "dart": {
+      "canonical": "sim_camera_1",
+      "displayName": "Simulated Camera",
+      "friendlyName": "Simulated Camera",
+      "kind": "simulator",
+      "valid": true
+    },
+    "id": "sim_camera_1"
+  },
+  {
+    "bridge": {
+      "connection_info": {
+        "Simulator": {
+          "device_type": "",
+          "instance": 0
+        }
+      },
+      "driver_type": "Simulator"
+    },
+    "dart": {
+      "canonical": "simulator:",
+      "displayName": "Simulator:",
+      "friendlyName": "simulator:",
+      "kind": "simulator",
+      "valid": false
+    },
+    "id": "simulator:"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "phd2_guider",
+      "displayName": "PHD2",
+      "friendlyName": "phd2",
+      "kind": "phd2",
+      "valid": true
+    },
+    "id": "phd2"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "phd2_guider",
+      "displayName": "PHD2",
+      "friendlyName": "phd2_guider",
+      "kind": "phd2",
+      "valid": true
+    },
+    "id": "phd2_guider"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "phd2_guider",
+      "displayName": "PHD2",
+      "friendlyName": "PHD2",
+      "kind": "phd2",
+      "valid": false
+    },
+    "id": "PHD2"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "phd2_guider",
+      "displayName": "PHD2",
+      "friendlyName": "phd2:localhost:4400",
+      "kind": "phd2",
+      "valid": true
+    },
+    "id": "phd2:localhost:4400"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "phd2_guider",
+      "displayName": "PHD2",
+      "friendlyName": "phd2://192.168.1.10:4400",
+      "kind": "phd2",
+      "valid": true
+    },
+    "id": "phd2://192.168.1.10:4400"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "builtin_guider",
+      "displayName": "Builtin Guider",
+      "friendlyName": "builtin_guider",
+      "kind": "builtinGuider",
+      "valid": true
+    },
+    "id": "builtin_guider"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "",
+      "displayName": "",
+      "friendlyName": "",
+      "kind": "unknown",
+      "valid": false
+    },
+    "id": ""
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "",
+      "displayName": "   ",
+      "friendlyName": "   ",
+      "kind": "unknown",
+      "valid": false
+    },
+    "id": "   "
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "garbage",
+      "displayName": "Garbage",
+      "friendlyName": "garbage",
+      "kind": "unknown",
+      "valid": false
+    },
+    "id": "garbage"
+  },
+  {
+    "bridge": {
+      "refused": true
+    },
+    "dart": {
+      "canonical": "native:zwo:0",
+      "displayName": "  Native:zwo:0  ",
+      "friendlyName": "  native:zwo:0  ",
+      "kind": "native",
+      "valid": false
+    },
+    "id": "  native:zwo:0  "
+  }
+]

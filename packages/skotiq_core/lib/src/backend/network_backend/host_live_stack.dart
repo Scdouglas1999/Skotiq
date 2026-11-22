@@ -94,7 +94,7 @@ mixin HostLiveStack on NetworkBackendTransport {
       key == null ? StackingApi.start : StackingApi.startFilter,
       path: {if (key != null) 'filterKey': key},
       body: {
-        'config': _stackingConfigToJson(config),
+        'config': config.toWireJson(),
         if (referencePath != null) 'referencePath': referencePath,
       },
     );

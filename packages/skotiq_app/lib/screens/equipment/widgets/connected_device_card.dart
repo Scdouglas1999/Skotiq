@@ -14,7 +14,7 @@ import 'package:skotiq_core/settings.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/cooled_camera_guard.dart';
-import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show formatDeviceId;
 import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../focuser_backlash/effective_backlash_readout.dart';

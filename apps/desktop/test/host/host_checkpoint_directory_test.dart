@@ -3,6 +3,7 @@
 // database whose run wrote it. Checkpoints earlier builds kept in the data
 // directory are carried over when that directory is this instance's own.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -14,6 +15,17 @@ import 'package:skotiq_desktop/host/host_checkpoint_directory.dart';
 const _checkpoint = 'skotiq_session.checkpoint';
 
 void main() {
+  test('the checkpoint file names are the engine\'s', () {
+    final names =
+        jsonDecode(
+              File(
+                '../../test_fixtures/checkpoint/file_names.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    expect(hostCheckpointFileNames, [names['primary'], names['backup']]);
+  });
+
   late Directory root;
   late Directory support;
   late Directory documents;

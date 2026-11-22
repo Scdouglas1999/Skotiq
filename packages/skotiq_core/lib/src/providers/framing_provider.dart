@@ -23,6 +23,7 @@ import '../models/target/target_models.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import '../services/target_library_service.dart';
 import '../utils/coordinate_parser.dart';
+import '../utils/device_display_name.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'camera_sensor_specs_provider.dart';

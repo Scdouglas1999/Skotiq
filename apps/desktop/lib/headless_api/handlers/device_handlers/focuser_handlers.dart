@@ -227,6 +227,10 @@ extension FocuserDeviceHandlers on DeviceHandlers {
         optionalInt(payload, 'backlashIn', min: 0, max: 10000) ?? 0;
     final backlashOut =
         optionalInt(payload, 'backlashOut', min: 0, max: 10000) ?? 0;
+    // A client that predates this key gets the engine's shipped ratio.
+    final failureHfrToleranceRatio =
+        optionalDouble(payload, 'failureHfrToleranceRatio', min: 0, max: 100) ??
+        const AutofocusSettings().failureHfrToleranceRatio;
     // A figure this app measured on the focuser, from a stored calibration.
     // Never overrides `backlashIn`: native applies it only when the operator
     // has left theirs at 0.
@@ -262,27 +266,30 @@ extension FocuserDeviceHandlers on DeviceHandlers {
         // the job cancelled; otherwise the REST job would disappear while
         // the camera and focuser continued a physical autofocus sweep.
         final workFuture = backend.autofocusStart(
-          deviceId: deviceId,
-          cameraId: cameraId,
-          exposureTime: exposureTime,
-          stepSize: stepSize,
-          stepsOut: stepsOut,
-          method: method,
-          binning: binning,
-          gain: gain,
-          offset: offset,
-          curveFitting: curveFitting,
-          numberOfAttempts: numberOfAttempts,
-          exposuresPerPoint: exposuresPerPoint,
-          rSquaredThreshold: rSquaredThreshold,
-          outerCropRatio: outerCropRatio,
-          innerCropRatio: innerCropRatio,
-          useBrightestNStars: useBrightestNStars,
-          focuserSettleTimeMs: focuserSettleTimeMs,
-          backlashCompMethod: backlashCompMethod,
-          backlashIn: backlashIn,
-          backlashOut: backlashOut,
-          measuredBacklashIn: measuredBacklashIn,
+          AutofocusRequest(
+            deviceId: deviceId,
+            cameraId: cameraId,
+            exposureTime: exposureTime,
+            stepSize: stepSize,
+            stepsOut: stepsOut,
+            method: method,
+            binning: binning,
+            gain: gain,
+            offset: offset,
+            curveFitting: curveFitting,
+            numberOfAttempts: numberOfAttempts,
+            exposuresPerPoint: exposuresPerPoint,
+            rSquaredThreshold: rSquaredThreshold,
+            outerCropRatio: outerCropRatio,
+            innerCropRatio: innerCropRatio,
+            useBrightestNStars: useBrightestNStars,
+            focuserSettleTimeMs: focuserSettleTimeMs,
+            backlashCompMethod: backlashCompMethod,
+            backlashIn: backlashIn,
+            backlashOut: backlashOut,
+            measuredBacklashIn: measuredBacklashIn,
+            failureHfrToleranceRatio: failureHfrToleranceRatio,
+          ),
         );
         final result = await Future.any<dynamic>([
           workFuture,

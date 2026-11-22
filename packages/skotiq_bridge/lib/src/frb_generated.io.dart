@@ -4296,6 +4296,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     wireObj.measured_backlash_in = cst_encode_opt_box_autoadd_i_32(
       apiObj.measuredBacklashIn,
     );
+    wireObj.failure_hfr_tolerance_ratio = cst_encode_f_64(
+      apiObj.failureHfrToleranceRatio,
+    );
   }
 
   @protected
@@ -12680,14 +12683,19 @@ class RustLibWire implements BaseWire {
 
   WireSyncRust2DartDco wire__crate__api__diagnostics__api_get_device_quirks(
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
+    ffi.Pointer<wire_cst_list_prim_u_8_strict> model,
   ) {
-    return _wire__crate__api__diagnostics__api_get_device_quirks(device_id);
+    return _wire__crate__api__diagnostics__api_get_device_quirks(
+      device_id,
+      model,
+    );
   }
 
   late final _wire__crate__api__diagnostics__api_get_device_quirksPtr =
       _lookup<
         ffi.NativeFunction<
           WireSyncRust2DartDco Function(
+            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             ffi.Pointer<wire_cst_list_prim_u_8_strict>,
           )
         >
@@ -12698,6 +12706,7 @@ class RustLibWire implements BaseWire {
       _wire__crate__api__diagnostics__api_get_device_quirksPtr
           .asFunction<
             WireSyncRust2DartDco Function(
+              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
               ffi.Pointer<wire_cst_list_prim_u_8_strict>,
             )
           >();
@@ -19737,6 +19746,9 @@ final class wire_cst_autofocus_config_api extends ffi.Struct {
   external int backlash_out;
 
   external ffi.Pointer<ffi.Int32> measured_backlash_in;
+
+  @ffi.Double()
+  external double failure_hfr_tolerance_ratio;
 }
 
 final class wire_cst_fits_write_header extends ffi.Struct {

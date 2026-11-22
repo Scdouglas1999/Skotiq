@@ -110,6 +110,10 @@ pub struct AutofocusConfigApi {
     /// make that unavoidable move shorter and aimed at a known clearance
     /// instead of running all the way back to the sweep's start.
     pub measured_backlash_in: Option<i32>,
+    /// The operator's `afFailureHfrToleranceRatio`: how far above the
+    /// reference HFR a failed autofocus may leave the frames and still be
+    /// called usable, and the sweep's landing tolerance.
+    pub failure_hfr_tolerance_ratio: f64,
 }
 
 /// A single focus data point (position and HFR)
@@ -134,17 +138,13 @@ pub struct AutofocusResultApi {
     pub backlash_applied: bool,
 }
 
-/// Run autofocus
-pub async fn api_run_autofocus(
-    device_id: String, // Focuser ID
-    camera_id: String,
-    config: AutofocusConfigApi,
-) -> Result<AutofocusResultApi, SkotiqError> {
-    tracing::info!(
-        "Starting autofocus with camera {} and focuser {}",
-        camera_id,
-        device_id
-    );
+/// The sequencer's config for an operator-run autofocus, or why the
+/// request is refused. An unknown curve method is refused rather than run as
+/// V-curve.
+fn sequencer_autofocus_config(
+    config: &AutofocusConfigApi,
+) -> Result<skotiq_sequencer::AutofocusConfig, SkotiqError> {
+    use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning};
 
     if !config.exposure_time.is_finite() || config.exposure_time <= 0.0 {
         return Err(SkotiqError::InvalidParameter(
@@ -182,21 +182,17 @@ pub async fn api_run_autofocus(
             "autofocus settle/backlash settings are out of range".to_string(),
         ));
     }
+    if !config.failure_hfr_tolerance_ratio.is_finite() || config.failure_hfr_tolerance_ratio < 0.0 {
+        return Err(SkotiqError::InvalidParameter(
+            "autofocus failure HFR tolerance must be finite and not negative".to_string(),
+        ));
+    }
     if config.gain.is_some_and(|gain| gain < 0) || config.offset.is_some_and(|offset| offset < 0) {
         return Err(SkotiqError::InvalidParameter(
             "autofocus gain and offset cannot be negative".to_string(),
         ));
     }
 
-    use serde::Deserialize;
-    use skotiq_sequencer::instructions::{
-        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
-    };
-    use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    // Map method string to enum before acquiring the AF gate; reject
-    // unrecognized methods rather than silently falling back to VCurve.
     let method = match config.method.trim().to_ascii_lowercase().as_str() {
         "" | "vcurve" | "v-curve" | "v_curve" => AutofocusMethod::VCurve,
         "hyperbolic" => AutofocusMethod::Hyperbolic,
@@ -208,26 +204,6 @@ pub async fn api_run_autofocus(
             )));
         }
     };
-
-    #[derive(Debug, Deserialize)]
-    struct LegacyAutofocusPayload {
-        best_position: i32,
-        best_hfr: f64,
-        r_squared: f64,
-        focus_data: Vec<(i32, f64)>,
-    }
-
-    let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
-        device_id: device_id.clone(),
-        current_operation: "autofocus".to_string(),
-    })?;
-
-    // Reset cancellation token only after admission. A rejected second Start
-    // must never clear the active run's pending cancellation request.
-    let cancel_token = get_autofocus_cancel_token();
-    cancel_token.store(false, Ordering::Relaxed);
-
-    let method_str = config.method.clone();
 
     // Map binning
     let binning = match config.binning {
@@ -241,7 +217,7 @@ pub async fn api_run_autofocus(
         .backlash_comp_method
         .trim()
         .eq_ignore_ascii_case("none");
-    let af_config = AutofocusConfig {
+    Ok(AutofocusConfig {
         exposure_duration: config.exposure_time,
         step_size: config.step_size,
         steps_out: config.steps_out as u32,
@@ -269,8 +245,42 @@ pub async fn api_run_autofocus(
             0
         },
         measured_backlash_in: config.measured_backlash_in,
+        failure_hfr_tolerance_ratio: config.failure_hfr_tolerance_ratio,
         ..AutofocusConfig::default()
+    })
+}
+
+/// Run autofocus
+pub async fn api_run_autofocus(
+    device_id: String, // Focuser ID
+    camera_id: String,
+    config: AutofocusConfigApi,
+) -> Result<AutofocusResultApi, SkotiqError> {
+    tracing::info!(
+        "Starting autofocus with camera {} and focuser {}",
+        camera_id,
+        device_id
+    );
+
+    use skotiq_sequencer::instructions::{
+        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
     };
+    use skotiq_sequencer::NodeStatus;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let af_config = sequencer_autofocus_config(&config)?;
+
+    let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
+        device_id: device_id.clone(),
+        current_operation: "autofocus".to_string(),
+    })?;
+
+    // Reset cancellation token only after admission. A rejected second Start
+    // must never clear the active run's pending cancellation request.
+    let cancel_token = get_autofocus_cancel_token();
+    cancel_token.store(false, Ordering::Relaxed);
+
+    let method_str = config.method.clone();
 
     // Create context - use UnifiedDeviceOps which routes through DeviceManager
     let device_ops = create_unified_device_ops();
@@ -330,60 +340,34 @@ pub async fn api_run_autofocus(
                 )
             })?;
 
-            // Canonical payload (skotiq_sequencer::AutofocusResult)
-            if let Ok(af_result) =
-                serde_json::from_value::<skotiq_sequencer::AutofocusResult>(data.clone())
-            {
-                let focus_data: Vec<FocusDataPoint> = af_result
-                    .data_points
-                    .iter()
-                    .map(|dp| FocusDataPoint {
-                        position: dp.position,
-                        hfr: dp.hfr,
-                        fwhm: dp.fwhm,
-                        star_count: dp.star_count,
-                    })
-                    .collect();
+            let af_result = serde_json::from_value::<skotiq_sequencer::AutofocusResult>(data)
+                .map_err(|_| {
+                    SkotiqError::OperationFailed(
+                        "Autofocus completed but returned an unrecognized payload format"
+                            .to_string(),
+                    )
+                })?;
+            let focus_data: Vec<FocusDataPoint> = af_result
+                .data_points
+                .iter()
+                .map(|dp| FocusDataPoint {
+                    position: dp.position,
+                    hfr: dp.hfr,
+                    fwhm: dp.fwhm,
+                    star_count: dp.star_count,
+                })
+                .collect();
 
-                return Ok(AutofocusResultApi {
-                    best_position: af_result.best_position,
-                    best_hfr: af_result.best_hfr,
-                    focus_data,
-                    method: method_str,
-                    temperature: af_result.temperature_celsius.or(temperature),
-                    timestamp,
-                    curve_fit_quality: af_result.curve_fit_quality,
-                    backlash_applied: af_result.backlash_applied,
-                });
-            }
-
-            // Backward compatibility for legacy tuple payloads
-            if let Ok(legacy) = serde_json::from_value::<LegacyAutofocusPayload>(data.clone()) {
-                let focus_data = legacy
-                    .focus_data
-                    .into_iter()
-                    .map(|(position, hfr)| FocusDataPoint {
-                        position,
-                        hfr,
-                        fwhm: None,
-                        star_count: 0,
-                    })
-                    .collect();
-                return Ok(AutofocusResultApi {
-                    best_position: legacy.best_position,
-                    best_hfr: legacy.best_hfr,
-                    focus_data,
-                    method: method_str,
-                    temperature,
-                    timestamp,
-                    curve_fit_quality: legacy.r_squared,
-                    backlash_applied: false,
-                });
-            }
-
-            Err(SkotiqError::OperationFailed(
-                "Autofocus completed but returned an unrecognized payload format".to_string(),
-            ))
+            Ok(AutofocusResultApi {
+                best_position: af_result.best_position,
+                best_hfr: af_result.best_hfr,
+                focus_data,
+                method: method_str,
+                temperature: af_result.temperature_celsius.or(temperature),
+                timestamp,
+                curve_fit_quality: af_result.curve_fit_quality,
+                backlash_applied: af_result.backlash_applied,
+            })
         }
         NodeStatus::Failure => Err(SkotiqError::OperationFailed(
             result.message.unwrap_or("Autofocus failed".to_string()),
@@ -871,6 +855,8 @@ pub struct QualityMapsResultApi {
     pub tiles: Vec<QualityTileMetricApi>,
 }
 
+#[cfg(test)]
+mod autofocus_config_tests;
 #[cfg(test)]
 mod linear_decode_tests;
 
@@ -2029,6 +2015,7 @@ mod autofocus_validation_tests {
             backlash_in: 0,
             backlash_out: 0,
             measured_backlash_in: None,
+            failure_hfr_tolerance_ratio: 1.6,
         };
         let err = api_run_autofocus("foc-1".to_string(), "cam-1".to_string(), config)
             .await

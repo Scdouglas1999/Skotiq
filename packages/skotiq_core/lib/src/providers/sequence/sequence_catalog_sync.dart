@@ -12,10 +12,10 @@ import '../backend_provider.dart';
 import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
 import '../../models/backend/backend_types.dart';
+import '../../models/backend/event_types.dart' show sequenceUpdatedEventType;
 import '../sequence_repository_provider.dart';
 import '../../utils/logging_service.dart';
 
-const sequenceUpdatedEventType = 'SequenceUpdated';
 const _logSource = 'SequenceCatalogSync';
 
 /// Describes a change to the persisted sequence catalog (library / templates).

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/imaging/autofocus_request.dart';
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
@@ -263,29 +264,7 @@ class _FocuserBackend extends DisconnectedBackend {
   }
 
   @override
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 0,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-    int? measuredBacklashIn,
-  }) async {
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request) async {
     if (!autofocusStarted.isCompleted) autofocusStarted.complete();
     if (blockAutofocus) await releaseAutofocus.future;
     return const AutofocusResult(

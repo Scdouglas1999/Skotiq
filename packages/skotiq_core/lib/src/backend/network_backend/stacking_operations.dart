@@ -21,7 +21,7 @@ mixin _NetworkBackendStackingOperations on NetworkBackendTransport {
   Future<void> stackingUpdateConfig(LiveStackingConfig config) async {
     await _post(
       StackingApi.updateConfig,
-      body: {'config': _stackingConfigToJson(config)},
+      body: {'config': config.toWireJson()},
     );
   }
 
@@ -41,21 +41,6 @@ mixin _NetworkBackendStackingOperations on NetworkBackendTransport {
 }
 
 extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
-  Map<String, Object?> _stackingConfigToJson(LiveStackingConfig c) => {
-    'sigmaClipEnabled': c.sigmaClipEnabled,
-    'sigmaClipThreshold': c.sigmaClipThreshold,
-    'maxMatchStars': c.maxMatchStars,
-    'matchRadiusPx': c.matchRadiusPx,
-    'matchFluxTolerance': c.matchFluxTolerance,
-    'minMatchedPairs': c.minMatchedPairs,
-    'maxAlignmentResidualPx': c.maxAlignmentResidualPx,
-    'starDetectionSigma': c.starDetectionSigma,
-    'starDetectionMinSnr': c.starDetectionMinSnr,
-    'sensorMode': c.sensorMode,
-    if (c.bayerPattern != null) 'bayerPattern': c.bayerPattern,
-    'demosaicQuality': c.demosaicQuality,
-  };
-
   /// Require an integral [key] on [json] that is at least [min]. JSON numbers
   /// decode to `int` or `double`; a double is accepted only when it carries no
   /// fractional part (so a genuinely non-integral count like `1.5` is rejected,

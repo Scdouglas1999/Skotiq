@@ -323,4 +323,25 @@ void main() {
       expect(isValidDeviceIdFormat('native:'), isFalse);
     });
   });
+
+  group('phd2Endpoint', () {
+    test('reads the host and port each PHD2 form names', () {
+      expect(phd2Endpoint('phd2'), (host: 'localhost', port: 4400));
+      expect(phd2Endpoint('phd2_guider'), (host: 'localhost', port: 4400));
+      expect(phd2Endpoint('phd2:rig.local:4401'), (
+        host: 'rig.local',
+        port: 4401,
+      ));
+      expect(phd2Endpoint('phd2:rig.local:x'), (host: 'rig.local', port: 4400));
+      expect(phd2Endpoint('phd2:rig.local'), (host: 'localhost', port: 4400));
+      expect(phd2Endpoint('phd2://192.168.1.10:4402'), (
+        host: '192.168.1.10',
+        port: 4402,
+      ));
+      expect(phd2Endpoint('phd2://192.168.1.10'), (
+        host: '192.168.1.10',
+        port: 4400,
+      ));
+    });
+  });
 }

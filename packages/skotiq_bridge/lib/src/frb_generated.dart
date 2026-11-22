@@ -609,6 +609,7 @@ abstract class RustLibApi extends BaseApi {
 
   List<QuirkInfo> crateApiDiagnosticsApiGetDeviceQuirks({
     required String deviceId,
+    String? model,
   });
 
   Future<DomeCapabilities> crateApiDiagnosticsApiGetDomeCapabilities({
@@ -4910,13 +4911,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   List<QuirkInfo> crateApiDiagnosticsApiGetDeviceQuirks({
     required String deviceId,
+    String? model,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_opt_String(model);
           return wire.wire__crate__api__diagnostics__api_get_device_quirks(
             arg0,
+            arg1,
           );
         },
         codec: DcoCodec(
@@ -4924,7 +4928,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiDiagnosticsApiGetDeviceQuirksConstMeta,
-        argValues: [deviceId],
+        argValues: [deviceId, model],
         apiImpl: this,
       ),
     );
@@ -4933,7 +4937,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDiagnosticsApiGetDeviceQuirksConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_device_quirks",
-        argNames: ["deviceId"],
+        argNames: ["deviceId", "model"],
       );
 
   @override
@@ -11895,8 +11899,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AutofocusConfigApi dco_decode_autofocus_config_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return AutofocusConfigApi(
       exposureTime: dco_decode_f_64(arr[0]),
       stepSize: dco_decode_i_32(arr[1]),
@@ -11916,6 +11920,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       backlashIn: dco_decode_i_32(arr[15]),
       backlashOut: dco_decode_i_32(arr[16]),
       measuredBacklashIn: dco_decode_opt_box_autoadd_i_32(arr[17]),
+      failureHfrToleranceRatio: dco_decode_f_64(arr[18]),
     );
   }
 
@@ -16433,6 +16438,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_backlashIn = sse_decode_i_32(deserializer);
     var var_backlashOut = sse_decode_i_32(deserializer);
     var var_measuredBacklashIn = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_failureHfrToleranceRatio = sse_decode_f_64(deserializer);
     return AutofocusConfigApi(
       exposureTime: var_exposureTime,
       stepSize: var_stepSize,
@@ -16452,6 +16458,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       backlashIn: var_backlashIn,
       backlashOut: var_backlashOut,
       measuredBacklashIn: var_measuredBacklashIn,
+      failureHfrToleranceRatio: var_failureHfrToleranceRatio,
     );
   }
 
@@ -22305,6 +22312,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.backlashIn, serializer);
     sse_encode_i_32(self.backlashOut, serializer);
     sse_encode_opt_box_autoadd_i_32(self.measuredBacklashIn, serializer);
+    sse_encode_f_64(self.failureHfrToleranceRatio, serializer);
   }
 
   @protected

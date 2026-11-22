@@ -2724,6 +2724,7 @@ fn wire__crate__api__heartbeat__api_get_device_health_impl(
 }
 fn wire__crate__api__diagnostics__api_get_device_quirks_impl(
     device_id: impl CstDecode<String>,
+    model: impl CstDecode<Option<String>>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -2733,9 +2734,10 @@ fn wire__crate__api__diagnostics__api_get_device_quirks_impl(
         },
         move || {
             let api_device_id = device_id.cst_decode();
+            let api_model = model.cst_decode();
             transform_result_dco::<_, _, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::diagnostics::api_get_device_quirks(api_device_id),
+                    crate::api::diagnostics::api_get_device_quirks(api_device_id, api_model),
                 )?;
                 Ok(output_ok)
             })())
@@ -8905,6 +8907,7 @@ impl SseDecode for crate::api::imaging::AutofocusConfigApi {
         let mut var_backlashIn = <i32>::sse_decode(deserializer);
         let mut var_backlashOut = <i32>::sse_decode(deserializer);
         let mut var_measuredBacklashIn = <Option<i32>>::sse_decode(deserializer);
+        let mut var_failureHfrToleranceRatio = <f64>::sse_decode(deserializer);
         return crate::api::imaging::AutofocusConfigApi {
             exposure_time: var_exposureTime,
             step_size: var_stepSize,
@@ -8924,6 +8927,7 @@ impl SseDecode for crate::api::imaging::AutofocusConfigApi {
             backlash_in: var_backlashIn,
             backlash_out: var_backlashOut,
             measured_backlash_in: var_measuredBacklashIn,
+            failure_hfr_tolerance_ratio: var_failureHfrToleranceRatio,
         };
     }
 }
@@ -14803,6 +14807,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::AutofocusConfigApi {
             self.backlash_in.into_into_dart().into_dart(),
             self.backlash_out.into_into_dart().into_dart(),
             self.measured_backlash_in.into_into_dart().into_dart(),
+            self.failure_hfr_tolerance_ratio
+                .into_into_dart()
+                .into_dart(),
         ]
         .into_dart()
     }
@@ -19557,6 +19564,7 @@ impl SseEncode for crate::api::imaging::AutofocusConfigApi {
         <i32>::sse_encode(self.backlash_in, serializer);
         <i32>::sse_encode(self.backlash_out, serializer);
         <Option<i32>>::sse_encode(self.measured_backlash_in, serializer);
+        <f64>::sse_encode(self.failure_hfr_tolerance_ratio, serializer);
     }
 }
 
@@ -24088,6 +24096,7 @@ mod io {
                 backlash_in: self.backlash_in.cst_decode(),
                 backlash_out: self.backlash_out.cst_decode(),
                 measured_backlash_in: self.measured_backlash_in.cst_decode(),
+                failure_hfr_tolerance_ratio: self.failure_hfr_tolerance_ratio.cst_decode(),
             }
         }
     }
@@ -28247,6 +28256,7 @@ mod io {
                 backlash_in: Default::default(),
                 backlash_out: Default::default(),
                 measured_backlash_in: core::ptr::null_mut(),
+                failure_hfr_tolerance_ratio: Default::default(),
             }
         }
     }
@@ -31068,8 +31078,9 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_device_quirks(
         device_id: *mut wire_cst_list_prim_u_8_strict,
+        model: *mut wire_cst_list_prim_u_8_strict,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__diagnostics__api_get_device_quirks_impl(device_id)
+        wire__crate__api__diagnostics__api_get_device_quirks_impl(device_id, model)
     }
 
     #[unsafe(no_mangle)]
@@ -34372,6 +34383,7 @@ mod io {
         backlash_in: i32,
         backlash_out: i32,
         measured_backlash_in: *mut i32,
+        failure_hfr_tolerance_ratio: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

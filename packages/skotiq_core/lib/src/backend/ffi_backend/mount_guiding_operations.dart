@@ -209,56 +209,12 @@ mixin _FfiMountGuidingOperations on _FfiBackendBase {
   }
 
   @override
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 10,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-    int? measuredBacklashIn,
-  }) async {
-    final config = bridge.AutofocusConfigApi(
-      exposureTime: exposureTime,
-      stepSize: stepSize,
-      stepsOut: stepsOut,
-      // `AutofocusConfigApi.method` selects the curve-fitting algorithm. The
-      // separate Dart `method` value describes the star metric and is not a
-      // native curve enum.
-      method: autofocusCurveMethodForNativeBridge(curveFitting),
-      binning: binning,
-      gain: gain,
-      offset: offset,
-      numberOfAttempts: numberOfAttempts,
-      exposuresPerPoint: exposuresPerPoint,
-      rSquaredThreshold: rSquaredThreshold,
-      outerCropRatio: outerCropRatio,
-      innerCropRatio: innerCropRatio,
-      useBrightestNStars: useBrightestNStars,
-      focuserSettleTimeMs: BigInt.from(focuserSettleTimeMs),
-      backlashCompMethod: backlashCompMethod,
-      backlashIn: backlashIn,
-      backlashOut: backlashOut,
-      measuredBacklashIn: measuredBacklashIn,
-    );
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request) async {
+    final config = autofocusConfigForBridge(request);
     try {
       final bridgeResult = await bridge.apiRunAutofocus(
-        deviceId: deviceId,
-        cameraId: cameraId,
+        deviceId: request.deviceId,
+        cameraId: request.cameraId,
         config: config,
       );
       return _fromBridgeAutofocusResult(bridgeResult);

@@ -1,4 +1,4 @@
-import 'package:skotiq_core/utils.dart';
+import 'device_id.dart';
 
 /// Format a device ID into a user-friendly display name.
 ///
@@ -10,8 +10,8 @@ import 'package:skotiq_core/utils.dart';
 /// - INDI: `indi:host:port:device_name`
 ///
 /// This is the rich UI display formatter (vendor capitalization, indexing).
-/// It is intentionally distinct from `friendlyNameFromDeviceId` in
-/// skotiq_core (the no-discovery fallback used by `DeviceService`); the
+/// It is intentionally distinct from `friendlyNameFromDeviceId` (the
+/// no-discovery fallback used by `DeviceService`); the
 /// canonical PHD2 recognition, however, is shared via [isPhd2DeviceId] so the
 /// strict id forms are classified identically everywhere.
 String formatDeviceId(String id) {
@@ -19,14 +19,14 @@ String formatDeviceId(String id) {
 
   // Built-in multi-star guider has a fixed canonical ID. Recognize it before
   // the generic native:vendor:index path so the display name reads cleanly.
-  // The name is the constant skotiq_core and the Rust discovery record
+  // The name is the constant `device_id.dart` and the Rust discovery record
   // share, so the two Dart formatters cannot drift.
   if (lowerId.startsWith(kBuiltinGuiderIdPrefix)) {
     return kBuiltinGuiderDisplayName;
   }
 
-  // Simulator ids (`sim_filterwheel_1`) are named by skotiq_core from the
-  // same table the backend's discovery uses. Without this the fallback
+  // Simulator ids (`sim_filterwheel_1`) are named by
+  // `friendlyNameFromDeviceId` from the same table the backend's discovery uses. Without this the fallback
   // `cleanupDeviceId` produced "Sim Filterwheel 1" here while the run
   // dashboard said "Simulated Filter Wheel" — one device, two names.
   if (lowerId.startsWith('sim_')) {
@@ -148,10 +148,13 @@ String cleanupDeviceId(String id) {
   cleaned = cleaned.replaceAll(RegExp(r'\s*:\s*\d+$'), '');
 
   if (cleaned.isNotEmpty) {
-    cleaned = cleaned.split(' ').map((word) {
-      if (word.isEmpty) return word;
-      return word[0].toUpperCase() + word.substring(1);
-    }).join(' ');
+    cleaned = cleaned
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          return word[0].toUpperCase() + word.substring(1);
+        })
+        .join(' ');
   }
 
   return cleaned.isEmpty ? id : cleaned;

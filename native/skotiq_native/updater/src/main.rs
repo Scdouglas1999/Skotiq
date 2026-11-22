@@ -41,13 +41,14 @@ const BAK_SUFFIX: &str = ".skotiq-bak";
 // the original under its name (see `restore_file`).
 const ASIDE_SUFFIX: &str = ".skotiq-old";
 
-// File written to the install root after a successful apply. The Dart-side
-// boot-time `verifyPendingInstall` re-hashes the executable and compares to
-// what is recorded here.
+// File written to the install root after a successful apply, recording the
+// hash of every file it placed. Nothing reads it: the app's boot check
+// (`verifyPendingInstall`) compares the pending marker's version with the
+// running build.
 const POST_INSTALL_HASH_FILE: &str = "post_install_hashes.json";
 
 // File where rollback metadata is persisted while apply is in progress.
-// Lives under install_dir so an updater crash doesn't leave the install in
+// Lives under `--backup-dir` so an updater crash doesn't leave the install in
 // a half-migrated state — next-launch recovery reads this file and finishes
 // rolling back. The updater's job is only to leave the artifact on disk.
 const ROLLBACK_LOG_FILE: &str = "rollback_log.json";
@@ -92,8 +93,7 @@ struct Args {
     pending_file: PathBuf,
 
     /// JSON file mapping relative install path -> expected SHA-256 hex digest.
-    /// Dart side writes this from the verified manifest. The same file
-    /// is consumed by next-launch verification.
+    /// Dart side writes this from the verified manifest.
     #[arg(long)]
     expected_hashes: PathBuf,
 
@@ -2544,5 +2544,98 @@ mod tests {
             verify_against_manifest(&install, &hashes).is_err(),
             "verify_against_manifest must reject traversal keys even when hashes match"
         );
+    }
+
+    /// The command lines the app starts this updater with and the layout it
+    /// reads back, from `test_fixtures/updater_cli/contract.json`
+    /// (`updater_cli_contract_test.dart` holds the app to the same file). The
+    /// updater and the app that calls it ship separately, so a flag or file
+    /// name changed here strands every installed app.
+    mod cli_contract {
+        use super::super::*;
+
+        fn contract() -> serde_json::Value {
+            let path = concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../../test_fixtures/updater_cli/contract.json"
+            );
+            serde_json::from_str(&fs::read_to_string(path).expect("fixture")).expect("JSON")
+        }
+
+        fn argv(contract: &serde_json::Value, key: &str) -> Vec<String> {
+            let values = &contract["values"];
+            let mut argv = vec!["updater".to_string()];
+            for arg in contract[key].as_array().expect(key) {
+                let mut arg = arg.as_str().expect("arg").to_string();
+                for name in ["pid", "staging", "install", "backup", "pending", "hashes"] {
+                    arg = arg.replace(&format!("{{{name}}}"), values[name].as_str().expect(name));
+                }
+                argv.push(arg);
+            }
+            argv
+        }
+
+        fn relaunch(contract: &serde_json::Value) -> Vec<String> {
+            contract["values"]["relaunch"]
+                .as_array()
+                .expect("relaunch")
+                .iter()
+                .map(|a| a.as_str().expect("arg").to_string())
+                .collect()
+        }
+
+        #[test]
+        fn the_apply_command_line_parses() {
+            let contract = contract();
+            let values = &contract["values"];
+            let args = Args::try_parse_from(argv(&contract, "apply")).expect("apply parses");
+            assert_eq!(args.parent_pid.to_string(), values["pid"].as_str().unwrap());
+            assert_eq!(
+                args.staging_dir,
+                PathBuf::from(values["staging"].as_str().unwrap())
+            );
+            assert_eq!(
+                args.install_dir,
+                PathBuf::from(values["install"].as_str().unwrap())
+            );
+            assert_eq!(
+                args.backup_dir,
+                PathBuf::from(values["backup"].as_str().unwrap())
+            );
+            assert_eq!(
+                args.pending_file,
+                PathBuf::from(values["pending"].as_str().unwrap())
+            );
+            assert_eq!(
+                args.expected_hashes,
+                PathBuf::from(values["hashes"].as_str().unwrap())
+            );
+            assert_eq!(args.relaunch_args, relaunch(&contract));
+            assert!(args.launch_after);
+            assert!(!args.rollback);
+        }
+
+        #[test]
+        fn the_rollback_command_line_parses() {
+            let contract = contract();
+            let args = Args::try_parse_from(argv(&contract, "rollback")).expect("rollback parses");
+            assert!(args.rollback);
+            assert!(args.launch_after);
+            assert_eq!(args.relaunch_args, relaunch(&contract));
+        }
+
+        #[test]
+        fn the_layout_matches() {
+            let layout = &contract()["layout"];
+            let name = |key: &str| layout[key].as_str().expect(key).to_string();
+            assert_eq!(ROLLBACK_LOG_FILE, name("rollbackLogFile"));
+            assert_eq!(RESTORE_POINT_DIR, name("restorePointDir"));
+            assert_eq!(POST_INSTALL_HASH_FILE, name("postInstallHashFile"));
+            assert_eq!(BAK_SUFFIX, name("backupSuffix"));
+            assert_eq!(
+                Path::new("updates").join(LOCK_FILE_NAME),
+                PathBuf::from(name("lockFile"))
+            );
+        }
     }
 }

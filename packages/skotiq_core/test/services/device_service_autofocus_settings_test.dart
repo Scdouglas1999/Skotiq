@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/imaging/autofocus_request.dart';
 import 'package:skotiq_core/src/backend/disconnected_backend.dart';
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
@@ -122,6 +123,34 @@ void main() {
     },
   );
 
+  for (final useSettingsDefaults in [true, false]) {
+    test('manual autofocus runs with the operator\'s failure HFR tolerance '
+        '(useSettingsDefaults: $useSettingsDefaults)', () async {
+      final backend = _AutofocusCaptureBackend();
+      final container = _buildContainer(
+        backend,
+        const AppSettingsState(
+          useFilterFocusOffsets: false,
+          afFailureHfrToleranceRatio: 2.4,
+        ),
+      );
+      addTearDown(container.dispose);
+      await container.read(appSettingsProvider.future);
+      _seedConnectedEquipment(container);
+
+      await container
+          .read(deviceServiceProvider)
+          .runAutofocus(
+            exposureTime: 2,
+            stepSize: 50,
+            stepsOut: 4,
+            useSettingsDefaults: useSettingsDefaults,
+          );
+
+      expect(backend.request?.failureHfrToleranceRatio, 2.4);
+    });
+  }
+
   test('moving filter-wheel sentinel has no current filter name', () {
     const state = FilterWheelState(
       currentPosition: -1,
@@ -190,6 +219,7 @@ class _AutofocusCaptureBackend extends DisconnectedBackend {
   int? offset;
   String? curveFitting;
   int? numberOfAttempts;
+  AutofocusRequest? request;
 
   @override
   Future<void> filterWheelSetPosition(String deviceId, int position) async {
@@ -209,37 +239,16 @@ class _AutofocusCaptureBackend extends DisconnectedBackend {
   }
 
   @override
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 0,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-    int? measuredBacklashIn,
-  }) async {
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request) async {
     events.add('autofocus');
-    this.exposureTime = exposureTime;
-    this.stepSize = stepSize;
-    this.binning = binning;
-    this.gain = gain;
-    this.offset = offset;
-    this.curveFitting = curveFitting;
-    this.numberOfAttempts = numberOfAttempts;
+    this.request = request;
+    exposureTime = request.exposureTime;
+    stepSize = request.stepSize;
+    binning = request.binning;
+    gain = request.gain;
+    offset = request.offset;
+    curveFitting = request.curveFitting;
+    numberOfAttempts = request.numberOfAttempts;
     return const AutofocusResult(
       bestPosition: 12345,
       bestHfr: 1.8,

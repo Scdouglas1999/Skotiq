@@ -80,11 +80,13 @@ Future<SwitchCapabilities> apiGetSwitchCapabilities({
 ///
 /// Returns a list of known device characteristics and workarounds that are
 /// automatically applied. This information can be displayed in the equipment
-/// screen to inform users about device-specific behaviors.
-List<QuirkInfo> apiGetDeviceQuirks({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDiagnosticsApiGetDeviceQuirks(deviceId: deviceId);
+/// screen to inform users about device-specific behaviors. `model` is the
+/// name the driver reported for it, when it is connected.
+List<QuirkInfo> apiGetDeviceQuirks({required String deviceId, String? model}) =>
+    RustLib.instance.api.crateApiDiagnosticsApiGetDeviceQuirks(
+      deviceId: deviceId,
+      model: model,
+    );
 
 /// Check if QHY camera discovery is enabled.
 ///

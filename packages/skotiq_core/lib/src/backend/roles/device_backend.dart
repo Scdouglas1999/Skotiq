@@ -10,6 +10,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 
 import '../../models/backend/backend_types.dart';
 import '../../models/equipment/guider_for_move.dart';
+import '../../models/imaging/autofocus_request.dart';
 import '../../models/imaging/imaging_models.dart' show FrameType;
 
 /// Typed environmental telemetry shared by local FFI and remote HTTP
@@ -356,33 +357,7 @@ abstract class DeviceBackend {
 
   /// Run autofocus
   /// Returns the full autofocus result including focus curve data
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 10,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-
-    /// Backlash this app measured on [deviceId], from its stored calibration,
-    /// or null when it has never been calibrated. Never overrides
-    /// [backlashIn]: a figure the operator typed outranks a measured one.
-    int? measuredBacklashIn,
-  });
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request);
 
   Future<void> autofocusCancel();
 

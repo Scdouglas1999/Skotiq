@@ -79,14 +79,14 @@ final framingFOVProvider = FutureProvider<FramingEquipmentResult>((ref) async {
   );
 
   // Use friendly name from profile first, then connected camera's device name,
-  // then fall back to device ID extraction
+  // then the name the app gives the camera's id
   final cameraName =
       profile.cameraName ??
       (cameraConnectionState == DeviceConnectionState.connected &&
               cameraDeviceName != null
           ? cameraDeviceName
           : (profile.cameraId != null
-                ? _extractDeviceName(profile.cameraId!)
+                ? formatDeviceId(profile.cameraId!)
                 : 'Unknown Camera'));
 
   final telescopeName = profile.telescopeName ?? profile.name;
@@ -237,32 +237,6 @@ String? _framingSensorProvenance(ResolvedCameraSensorSpecs specs) {
       return 'Sensor size from the published specification for $model. '
           'Connect the camera once to use its own reading instead.';
   }
-}
-
-/// Extract a human-readable device name from a raw device identifier.
-///
-/// Handles several formats:
-/// - ASCOM IDs: "ASCOM.Simulator.Camera" -> "Camera"
-/// - Native IDs: "zwo:native:0" -> "ZWO #0"
-/// - Plain names are returned as-is.
-String _extractDeviceName(String deviceId) {
-  // ASCOM IDs are typically like "ASCOM.Simulator.Camera" or just a name
-  if (deviceId.contains('.')) {
-    final parts = deviceId.split('.');
-    return parts.length > 1 ? parts.last : deviceId;
-  }
-  // Native driver IDs use colon separator: "vendor:driver:index"
-  if (deviceId.contains(':')) {
-    final parts = deviceId.split(':');
-    if (parts.length >= 3) {
-      final vendor = parts[0].toUpperCase();
-      final index = parts[2];
-      return '$vendor #$index';
-    }
-    // Fallback for 2-part colon IDs
-    return parts[0].toUpperCase();
-  }
-  return deviceId;
 }
 
 class CoordinateUtils {

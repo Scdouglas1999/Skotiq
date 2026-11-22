@@ -21,6 +21,7 @@ import '../models/depthlock/depthlock_models.dart';
 import '../models/equipment/guider_for_move.dart';
 import '../models/equipment/known_devices.dart';
 import '../models/equipment_profile.dart';
+import '../models/imaging/autofocus_request.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../models/live_view/live_view_frame.dart';

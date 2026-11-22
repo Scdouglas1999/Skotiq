@@ -29,6 +29,8 @@ use serde::{Deserialize, Serialize};
 
 pub mod cache;
 #[cfg(test)]
+mod fixture_tests;
+#[cfg(test)]
 // `unwrap_or` policy: the test helpers in this module
 // use `unwrap_or_else(|e| panic!(...))` as a richer-message replacement
 // for `expect`. These are NOT silent fallbacks — they fail the test loud
