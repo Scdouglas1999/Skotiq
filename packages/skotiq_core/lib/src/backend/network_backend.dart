@@ -59,6 +59,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
         TailnetDetector,
         buildSkotiqServerUri,
         kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/json_fields.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
