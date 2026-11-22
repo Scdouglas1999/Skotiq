@@ -8,7 +8,9 @@ import 'package:skotiq_core/src/database/daos/recipes_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_state.dart';
+import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:skotiq_core/src/services/live_stack_darkroom_promotion.dart';
+import 'package:skotiq_core/src/services/live_stack_master_library.dart';
 
 void main() {
   late SkotiqDatabase db;
@@ -29,26 +31,39 @@ void main() {
     temp.deleteSync(recursive: true);
   });
 
+  LiveStackingMasterSave fits(String path) => LiveStackingMasterSave(
+    filePath: path,
+    stackedFrameCount: 12,
+    format: LiveStackingMasterFormat.fitsMaster,
+    totalIntegrationSecs: 1440,
+  );
+
+  const result = LiveStackingResult(
+    width: 4,
+    height: 3,
+    data: [],
+    stats: LiveStackingStats(stackedFrameCount: 12),
+  );
+
   LiveStackDarkroomPromoter promoter() => LiveStackDarkroomPromoter(
-    saveMaster: (path) async {
-      saves.add('active $path');
-      return LiveStackingMasterSave(
-        filePath: path,
-        stackedFrameCount: 12,
-        format: LiveStackingMasterFormat.fitsMaster,
-        totalIntegrationSecs: 1440,
-      );
-    },
-    saveMasterForFilter: (filterKey, path) async {
-      saves.add('$filterKey $path');
-      return LiveStackingMasterSave(
-        filePath: path,
-        stackedFrameCount: 12,
-        format: LiveStackingMasterFormat.fitsMaster,
-        totalIntegrationSecs: 1440,
-      );
-    },
-    masters: masters,
+    library: LiveStackMasterLibrary(
+      currentResult: () async => result,
+      currentResultForFilter: (_) async => result,
+      saveMaster: (path) async {
+        saves.add('active $path');
+        return fits(path);
+      },
+      saveMasterForFilter: (filterKey, path) async {
+        saves.add('$filterKey $path');
+        return fits(path);
+      },
+      writePreview: (path, _) async => saves.add('preview $path'),
+      masters: masters,
+      // The frames name another target and filter; Open in Darkroom keeps
+      // the session's names.
+      readHeader: (_) async =>
+          FrameHeader(const {'OBJECT': 'NGC 891', 'FILTER': 'Ha'}),
+    ),
     recipes: recipes,
     now: () => DateTime.utc(2026, 11, 22, 3, 4, 5),
     tempDir: () => temp.path,
@@ -84,8 +99,9 @@ void main() {
 
     final path =
         '${temp.path}/lights/masters/M31_L_2026-11-22T03-04-05Z_12f.fits';
-    expect(saves, ['L $path']);
+    expect(saves, ['L $path', 'preview ${path.replaceAll('.fits', '.png')}']);
     final row = (await masters.getAll()).single;
+    expect(row.previewPngPath, path.replaceAll('.fits', '.png'));
     expect(row.id, promoted.masterId);
     expect(row.name, 'M31 · L · (12 frames)');
     expect(row.filter, 'L');
