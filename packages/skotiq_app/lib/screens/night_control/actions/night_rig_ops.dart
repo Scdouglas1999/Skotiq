@@ -223,34 +223,19 @@ class ServiceNightRigOps implements NightRigOps {
 
   @override
   Future<CenteringResult> center(NightCenterTarget target) async {
-    final centering = ManualCentering.of(
-      await _ref.read(appSettingsProvider.future),
-      _ref.read(activeEquipmentProfileProvider),
-    );
-    final result = await _ref.read(centeringServiceProvider).centerOnTarget(
-          targetRa: target.raHours,
-          targetDec: target.decDegrees,
-          config: centering.config,
-          onStatusUpdate: (status) =>
-              _ref.read(centeringStatusProvider.notifier).state = status,
+    final result = await _ref.read(centeringRunProvider).center(
+          raHours: target.raHours,
+          decDegrees: target.decDegrees,
+          policy: const CenteringRunPolicy(
+            publishOutcome: true,
+            recordResult: true,
+          ),
         );
-    // The loop's last status update is its last move, not its outcome: the
-    // run ends on the result, which the recent-solves list and every linked
-    // window read from these two providers.
-    final last = _ref.read(centeringStatusProvider);
-    _ref.read(centeringStatusProvider.notifier).state = last.copyWith(
-      state: result.success ? CenteringState.completed : CenteringState.error,
-      currentIteration: result.iterations,
-      currentOffsetArcsec: result.finalOffsetArcsec,
-      message: result.success ? 'Centered' : result.errorMessage,
-      iterationHistory: result.iterationHistory,
-    );
-    _ref.read(lastCenteringResultProvider.notifier).state = result;
-    return result;
+    return result!;
   }
 
   @override
-  Future<void> cancelCenter() => _ref.read(centeringServiceProvider).stop();
+  Future<void> cancelCenter() => _ref.read(centeringRunProvider).cancel();
 
   @override
   bool get isGuiding => _ref.read(guiderStateProvider).isGuiding;

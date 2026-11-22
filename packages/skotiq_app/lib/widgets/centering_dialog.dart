@@ -436,7 +436,7 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
   Future<void> _abortCentering() async {
     setState(() => _abortInFlight = true);
     try {
-      await ref.read(centeringServiceProvider).stop();
+      await ref.read(centeringRunProvider).cancel();
     } catch (e) {
       // Surface the failure rather than swallow it: a silent abort failure
       // leaves the mount slewing after the user thinks they aborted.
@@ -487,8 +487,6 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
   }
 
   Future<void> _runCentering(double exposureTime) async {
-    final centeringService = ref.read(centeringServiceProvider);
-
     // Pre-flight the user's actual selection (including ASTAP's catalog), not
     // merely whether any solver happens to be installed.
     final solveService = ref.read(plateSolveServiceProvider);
@@ -514,30 +512,23 @@ class _CenteringDialogState extends ConsumerState<CenteringDialog>
     }
 
     try {
-      final centering = ManualCentering.of(
-        await ref.read(appSettingsProvider.future),
-        ref.read(activeEquipmentProfileProvider),
-        exposureSeconds: exposureTime,
-      );
-      if (host.isStale) return;
-      final result = await centeringService.centerOnTarget(
-        targetRa: widget.targetRa!,
-        targetDec: widget.targetDec!,
-        config: centering.config,
-        onStatusUpdate: (status) {
-          if (host.isCurrent) {
-            ref.read(centeringStatusProvider.notifier).state = status;
-          }
-        },
-      );
+      final result = await ref.read(centeringRunProvider).center(
+            raHours: widget.targetRa!,
+            decDegrees: widget.targetDec!,
+            exposureSeconds: exposureTime,
+            policy: const CenteringRunPolicy(
+              publishOutcome: false,
+              recordResult: true,
+            ),
+            isCurrent: () => host.isCurrent,
+          );
+      if (result == null) return;
 
       if (host.isCurrent) {
         setState(() {
           _result = result;
           _isCentering = false;
         });
-
-        ref.read(lastCenteringResultProvider.notifier).state = result;
       }
     } on SolverNotAvailableError catch (e) {
       // Path the centering service can throw if a deeper layer surfaces
