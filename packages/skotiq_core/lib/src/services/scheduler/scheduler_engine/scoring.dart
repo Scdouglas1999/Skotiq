@@ -2,7 +2,7 @@ part of '../scheduler_engine.dart';
 
 extension _SchedulerEngineScoring on SchedulerEngine {
   TargetScore _scoreCandidate(SchedulerCandidate c, DateTime now) {
-    final rejections = <String>[];
+    final rejections = <SchedulerRejection>[];
 
     final (alt, az) = AstronomyCalculations.objectAltAz(
       raDeg: c.raHours * 15.0,
@@ -16,10 +16,19 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     final floor = _floor;
     final floorDeg = floor.atAzimuth(az);
     if (alt < floorDeg) {
+      final printedAlt = alt.toStringAsFixed(1);
       rejections.add(
         floor.followsHorizon
-            ? 'altitude ${alt.toStringAsFixed(1)}° below horizon profile "Site horizon" (${floorDeg.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)'
-            : 'altitude ${alt.toStringAsFixed(1)}° below site minimum ${floorDeg.toStringAsFixed(1)}°',
+            ? SchedulerRejection(
+                kind: SchedulerRejectionKind.behindHorizonProfile,
+                reason:
+                    'altitude $printedAlt° below horizon profile "Site horizon" (${floorDeg.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)',
+              )
+            : SchedulerRejection.belowFloor(
+                printedAltitude: double.parse(printedAlt),
+                reason:
+                    'altitude $printedAlt° below site minimum ${floorDeg.toStringAsFixed(1)}°',
+              ),
       );
     }
 
@@ -35,7 +44,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
     if (sunAlt > _config.maxSunAltitudeDegrees) {
       rejections.add(
-        'Sun ${sunAlt.toStringAsFixed(1)}° above darkness limit ${_config.maxSunAltitudeDegrees.toStringAsFixed(1)}°: too bright to image',
+        SchedulerRejection(
+          kind: SchedulerRejectionKind.other,
+          reason:
+              'Sun ${sunAlt.toStringAsFixed(1)}° above darkness limit ${_config.maxSunAltitudeDegrees.toStringAsFixed(1)}°: too bright to image',
+        ),
       );
     }
 
@@ -53,7 +66,12 @@ extension _SchedulerEngineScoring on SchedulerEngine {
         .where((p) => p.remainingFrames > 0)
         .toList();
     if (stillNeeded.isEmpty && c.goals.isNotEmpty) {
-      rejections.add('all integration goals complete');
+      rejections.add(
+        const SchedulerRejection(
+          kind: SchedulerRejectionKind.goalsComplete,
+          reason: 'all integration goals complete',
+        ),
+      );
     }
     final hasUsableGoal = stillNeeded.isEmpty
         ? c
@@ -65,9 +83,13 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           .map((p) => p.goal.filter)
           .toSet()
           .toList();
+      // Read back from its words, as before: a filter whose name says
+      // "moon" reads as a Moon constraint.
       rejections.add(
-        'required filter${missingFilters.length == 1 ? '' : 's'} not in '
-        'equipment wheel (${missingFilters.join(", ")})',
+        SchedulerRejection.fromSentence(
+          'required filter${missingFilters.length == 1 ? '' : 's'} not in '
+          'equipment wheel (${missingFilters.join(", ")})',
+        ),
       );
     }
 
@@ -80,7 +102,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           if (ct.timeWindow != null &&
               !ct.timeWindow!.containsLocal(localTime)) {
             rejections.add(
-              'outside time window ${ct.timeWindow!.startMinutes ~/ 60}:${(ct.timeWindow!.startMinutes % 60).toString().padLeft(2, '0')}-${ct.timeWindow!.endMinutes ~/ 60}:${(ct.timeWindow!.endMinutes % 60).toString().padLeft(2, '0')}',
+              SchedulerRejection(
+                kind: SchedulerRejectionKind.outsideTimeWindow,
+                reason:
+                    'outside time window ${ct.timeWindow!.startMinutes ~/ 60}:${(ct.timeWindow!.startMinutes % 60).toString().padLeft(2, '0')}-${ct.timeWindow!.endMinutes ~/ 60}:${(ct.timeWindow!.endMinutes % 60).toString().padLeft(2, '0')}',
+              ),
             );
           }
           break;
@@ -89,7 +115,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           if (ct.moonIlluminationMax != null &&
               moonLitPercent / 100.0 > ct.moonIlluminationMax!) {
             rejections.add(
-              'moon illumination ${moonLitPercent.toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
+              SchedulerRejection(
+                kind: SchedulerRejectionKind.moonIllumination,
+                reason:
+                    'moon illumination ${moonLitPercent.toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
+              ),
             );
           }
           break;
@@ -103,9 +133,13 @@ extension _SchedulerEngineScoring on SchedulerEngine {
             );
             if (sep < minSep) {
               rejections.add(
-                'moon separation ${sep.toStringAsFixed(0)}° below minimum '
-                '${minSep.toStringAsFixed(0)}° '
-                '(moon ${AstronomyCalculations.moonIllumination(now).toStringAsFixed(0)}% lit)',
+                SchedulerRejection(
+                  kind: SchedulerRejectionKind.moonSeparation,
+                  reason:
+                      'moon separation ${sep.toStringAsFixed(0)}° below minimum '
+                      '${minSep.toStringAsFixed(0)}° '
+                      '(moon ${AstronomyCalculations.moonIllumination(now).toStringAsFixed(0)}% lit)',
+                ),
               );
             }
           }
@@ -114,13 +148,21 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           final profile = c.horizonProfiles[ct.customHorizonId];
           if (profile == null) {
             rejections.add(
-              'horizon profile ${ct.customHorizonId} not loaded (orchestrator bug)',
+              SchedulerRejection(
+                kind: SchedulerRejectionKind.behindHorizonProfile,
+                reason:
+                    'horizon profile ${ct.customHorizonId} not loaded (orchestrator bug)',
+              ),
             );
           } else {
             final minAlt = profile.minAltitudeAt(az);
             if (alt < minAlt) {
               rejections.add(
-                'altitude ${alt.toStringAsFixed(1)}° below horizon profile "${profile.name}" (${minAlt.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)',
+                SchedulerRejection(
+                  kind: SchedulerRejectionKind.behindHorizonProfile,
+                  reason:
+                      'altitude ${alt.toStringAsFixed(1)}° below horizon profile "${profile.name}" (${minAlt.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)',
+                ),
               );
             }
           }
@@ -219,7 +261,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
       totalScore: total,
       factors: factors,
       hardConstraintFailed: rejections.isNotEmpty,
-      rejectionReasons: rejections,
+      rejections: rejections,
     );
   }
 

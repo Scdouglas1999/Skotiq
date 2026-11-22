@@ -245,7 +245,7 @@ void main() {
                     totalScore: 0,
                     factors: const [],
                     hardConstraintFailed: true,
-                    rejectionReasons: [reason],
+                    rejections: [SchedulerRejection.fromSentence(reason)],
                   ),
                 ],
               ),
@@ -253,7 +253,10 @@ void main() {
           ),
         ],
       );
-      expect(schedulerRejectionChipLabel(reason), chip);
+      expect(
+        schedulerRejectionChipLabel(SchedulerRejection.fromSentence(reason)),
+        chip,
+      );
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('plan-target-row-2')),

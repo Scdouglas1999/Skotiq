@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_core/src/models/scheduler/integration_goal.dart';
 import 'package:skotiq_core/src/models/scheduler/scheduler_decision.dart';
+import 'package:skotiq_core/src/models/scheduler/scheduler_rejection.dart';
 import 'package:skotiq_core/src/models/scheduler/target_constraint.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/models/site/horizon_profile.dart';
@@ -99,14 +100,13 @@ Future<SchedulerDecision> _decide(
 _Row _rowFor(SchedulerDecision decision, int id) {
   final score = decision.scoredCandidates.firstWhere((s) => s.targetId == id);
   final rejected = decision.rejected.firstWhere((r) => r.targetId == id);
-  final sentence = score.rejectionReasons.first;
-  final kind = classifySchedulerRejection(sentence);
+  final rejection = score.rejections.first;
   return (
-    sentence: sentence,
-    kind: kind,
-    chip: schedulerRejectionChipLabel(sentence),
+    sentence: rejection.reason,
+    kind: rejection.kind,
+    chip: schedulerRejectionChipLabel(rejection),
     summary: rejected.primaryReason,
-    curedByRising: kind.curedByRising,
+    curedByRising: rejection.kind.curedByRising,
   );
 }
 
@@ -254,6 +254,28 @@ void main() {
     };
     for (final MapEntry(key: id, value: row) in expected.entries) {
       expect(_rowFor(decision, id), row, reason: 'T$id');
+    }
+
+    // A linked client reads the decision from the host's JSON. The sentences
+    // stay on the wire under their old key; a host from before the kinds
+    // sends only those, and they read as the same kinds.
+    final wire = decision.toJson();
+    expect(SchedulerDecision.fromJson(wire), decision);
+    final legacy = SchedulerDecision.fromJson({
+      ...wire,
+      'scoredCandidates': [
+        for (final s in wire['scoredCandidates'] as List)
+          Map<String, dynamic>.from(s as Map)..remove('rejections'),
+      ],
+    });
+    for (final MapEntry(key: id, value: row) in expected.entries) {
+      expect(_rowFor(legacy, id), row, reason: 'T$id from an older host');
+      expect(
+        legacy.scoredCandidates
+            .firstWhere((s) => s.targetId == id)
+            .toJson()['rejectionReasons'],
+        [row.sentence],
+      );
     }
   });
 

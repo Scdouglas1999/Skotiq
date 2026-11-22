@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:skotiq_astro/filters.dart';
 import '../../models/scheduler/integration_goal.dart';
 import '../../models/scheduler/scheduler_decision.dart';
+import '../../models/scheduler/scheduler_rejection.dart';
 import '../../models/scheduler/scheduler_status.dart';
 import '../../models/scheduler/target_constraint.dart';
 import '../../models/sequence/sequence_models.dart';
