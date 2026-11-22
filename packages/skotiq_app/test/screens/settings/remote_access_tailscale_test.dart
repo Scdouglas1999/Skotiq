@@ -31,6 +31,7 @@ import 'package:skotiq_app/screens/settings/paired_devices.dart';
 import 'package:skotiq_app/screens/settings/widgets/remote_access_settings.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -123,6 +124,7 @@ class _StubWebServerNotifier extends WebServerStateNotifier {
     bool? dashboardAvailable,
     String? lastError,
     String? serverFingerprint,
+    HostAdvert? advert,
   }) {
     setRunningCalls++;
     final next = state.copyWith(
@@ -134,6 +136,7 @@ class _StubWebServerNotifier extends WebServerStateNotifier {
       dashboardAvailable: dashboardAvailable,
       lastError: lastError,
       serverFingerprint: serverFingerprint,
+      advert: advert,
     );
     final wasLocked = _locked;
     _locked = false;
@@ -174,6 +177,14 @@ const _runningTailnet = WebServerState(
   localIp: '192.168.1.50',
   tailscaleIp: '100.96.0.7',
   tailscaleReachable: true,
+  advert: HostAdvert(
+    hostName: 'OBS-PC',
+    hostMode: SkotiqHostMode.gui,
+    version: '9.1.0',
+    scheme: 'http',
+    fingerprint: 'abcdef0123456789abcdef0123456789',
+    authRequired: true,
+  ),
 );
 
 const _runningNoTailnet = WebServerState(
@@ -187,6 +198,14 @@ const _runningNoTailnet = WebServerState(
   localIp: '192.168.1.50',
   tailscaleIp: '',
   tailscaleReachable: false,
+  advert: HostAdvert(
+    hostName: 'OBS-PC',
+    hostMode: SkotiqHostMode.gui,
+    version: '9.1.0',
+    scheme: 'http',
+    fingerprint: 'abcdef0123456789abcdef0123456789',
+    authRequired: true,
+  ),
 );
 
 void main() {

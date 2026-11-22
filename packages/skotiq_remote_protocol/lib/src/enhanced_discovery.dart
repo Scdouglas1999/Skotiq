@@ -996,43 +996,41 @@ class EnhancedSkotiqDiscovery {
     return null;
   }
 
-  /// Generate QR code data string for a server.
+  /// The pairing QR of the host that publishes [advert], reached at
+  /// [host]:[webPort]. [pairingCode] enrolls the phone in one scan.
   ///
-  /// `version` and `fingerprint` are mandatory — the mobile scanner refuses
-  /// payloads without them.
-  static String generateQrData({
+  /// `name` and `mode` keep the values every release has printed (`Skotiq`,
+  /// `desktop`), because printed codes and older phones read them.
+  static String generateQrData(
+    HostAdvert advert, {
     required String host,
     required int webPort,
-    required String version,
-    required String fingerprint,
     int signalingPort = kDefaultSignalingPort,
-    String? serverName,
-    String mode = 'desktop',
-    bool authRequired = false,
-    String authenticationMode = 'none',
-    bool pairingSupported = false,
     String? authToken,
     String? pairingCode,
-    String scheme = 'http',
   }) {
-    final lowered = scheme.toLowerCase();
-    if (lowered != 'http' && lowered != 'https') {
-      throw ArgumentError.value(scheme, 'scheme', 'must be "http" or "https"');
+    final scheme = advert.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      throw ArgumentError.value(
+        advert.scheme,
+        'advert.scheme',
+        'must be "http" or "https"',
+      );
     }
     final data = QrConnectionData(
       host: host,
       webPort: webPort,
       signalingPort: signalingPort,
-      version: version,
-      fingerprint: fingerprint,
-      serverName: serverName,
-      mode: mode,
-      authRequired: authRequired,
-      authenticationMode: authenticationMode,
-      pairingSupported: pairingSupported,
+      version: advert.version,
+      fingerprint: advert.fingerprint,
+      serverName: 'Skotiq',
+      mode: 'desktop',
+      authRequired: advert.authRequired,
+      authenticationMode: advert.authenticationMode,
+      pairingSupported: advert.pairingSupported,
       authToken: authToken,
       pairingCode: pairingCode,
-      scheme: lowered,
+      scheme: scheme,
     );
     return data.toQrString();
   }

@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../connection/linked_rig_panel.dart';
+import '../pairing_qr.dart';
 import '../paired_devices.dart' show PairingSettings, pairingProvider;
 import 'admin_only.dart';
 import 'settings_widgets.dart';
@@ -181,7 +182,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
     final webState = ref.watch(webServerStateProvider);
     final pairingState = ref.watch(pairingProvider);
-    final appVersion = ref.watch(appVersionProvider);
     // On a remote client (phone/tablet paired to a host) the local
     // webServerStateProvider never runs, while `webServerEnabled` mirrors the
     // HOST's setting — without this the pane shows "Starting remote access"
@@ -393,7 +393,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               _RemoteTailscalePanel(
                 webState: webState,
                 pairingCode: pairingState.pairingCode,
-                appVersion: appVersion.version,
                 onStartPairing: pairingState.pairingCode == null
                     ? () => ref.read(pairingProvider.notifier).startPairing()
                     : null,

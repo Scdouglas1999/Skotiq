@@ -21,14 +21,12 @@ part of '../remote_access_settings.dart';
 class _RemoteTailscalePanel extends ConsumerStatefulWidget {
   final WebServerState webState;
   final String? pairingCode;
-  final String appVersion;
   final VoidCallback? onStartPairing;
   final VoidCallback onRecheck;
 
   const _RemoteTailscalePanel({
     required this.webState,
     required this.pairingCode,
-    required this.appVersion,
     required this.onRecheck,
     this.onStartPairing,
   });
@@ -83,17 +81,9 @@ class _RemoteTailscalePanelState extends ConsumerState<_RemoteTailscalePanel> {
     // The QR carries the bare host string (the client reconstructs the URL and
     // brackets an IPv6 literal itself), so a tailnet `fd7a:…` is stored
     // unbracketed exactly as `isLocalNetworkHost` / TailnetDetector expect.
-    return EnhancedSkotiqDiscovery.generateQrData(
+    return pairingQrData(
+      widget.webState,
       host: host,
-      webPort: widget.webState.actualPort,
-      version: widget.appVersion,
-      fingerprint: widget.webState.serverFingerprint,
-      serverName: 'Skotiq',
-      mode: 'desktop',
-      authRequired: widget.webState.requiresAuthentication,
-      authenticationMode:
-          widget.webState.requiresAuthentication ? 'token' : 'none',
-      pairingSupported: true,
       pairingCode: widget.pairingCode,
     );
   }
