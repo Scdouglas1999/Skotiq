@@ -22,8 +22,10 @@
 //! * `output_dir.parent().unwrap_or_else(|| Path::new("."))` — root-path
 //!   case for the temp/work directory; current-dir is the safe fallback.
 
+mod gate;
 mod paths;
 
+pub use gate::acquire_solve_gate;
 pub use paths::CatalogInfo;
 use paths::{
     astap_candidates, astrometry_candidates, catalog_dir_candidates, first_existing,
