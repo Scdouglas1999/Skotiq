@@ -643,7 +643,6 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       }
       final name = calibrationMasterFileName(
         kind: isBias ? 'bias' : 'dark',
-        style: CalibrationMasterNameStyle.endOfNight,
         builtAt: report.startedAt,
         exposureSeconds: s.exposureSecs,
         gain: s.gain,

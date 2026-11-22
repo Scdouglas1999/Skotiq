@@ -61,13 +61,18 @@ class FakeRig implements EonRig {
   Map<String, Object?>? saved;
   Completer<void>? runGate;
 
+  DateTime clock = DateTime(2026, 10, 22, 6, 30);
+
   @override
-  DateTime now() => DateTime(2026, 10, 22, 6, 30);
+  DateTime now() => clock;
 
   @override
   Future<List<db.DbCapturedImage>> lightFramesSince(DateTime since) async {
     calls.add('lights since $since');
-    return lights;
+    return [
+      for (final light in lights)
+        if (!light.capturedAt.isBefore(since)) light,
+    ];
   }
 
   @override
@@ -280,7 +285,7 @@ void main() {
       p.join(
         '/n/Dark',
         'Masters',
-        'MasterDark_90s_g76_o15_m10C_bin1_20261022-0630.fits',
+        'MasterDark_90s_g76_o15_m10C_bin1_20261022-063000.fits',
       ),
     );
     expect(report.masters.where((m) => m.built), hasLength(3));
@@ -330,8 +335,8 @@ void main() {
             b.outputPath.split('/').last: b.framePaths.length,
         },
         {
-          'MasterDark_3s_g76_o15_p1C_bin1_20261022-0630.fits': 5,
-          'MasterDark_3s_g76_o15_p0C_bin1_20261022-0630.fits': 4,
+          'MasterDark_3s_g76_o15_p1C_bin1_20261022-063000.fits': 5,
+          'MasterDark_3s_g76_o15_p0C_bin1_20261022-063000.fits': 4,
         },
       );
       expect(
@@ -497,7 +502,7 @@ void main() {
             b.outputPath
                     .split('/')
                     .last
-                    .replaceFirst('_20261022-0630.fits', ''):
+                    .replaceFirst('_20261022-063000.fits', ''):
                 b.framePaths.length,
         };
         expect(built, {
