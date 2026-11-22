@@ -492,7 +492,7 @@ fn push_unique(paths: &mut Vec<PathBuf>, path: PathBuf) {
 /// can resolve them. Best-effort and idempotent: if libusb is absent, SDKs
 /// that don't need it still load, and ones that do were already unusable.
 ///
-/// Called at the top of `discover_all_devices` (before ANY vendor SDK loads —
+/// Called at the top of `discover_native_devices` (before ANY vendor SDK loads —
 /// most vendors use their own `Library::new`, not `open_vendor_library`).
 pub fn ensure_libusb_global() {
     use std::sync::OnceLock;
