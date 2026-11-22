@@ -252,51 +252,43 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     return '${ClockFormat.hm(time)} on $month-$day';
   }
 
-  /// Calculate when the specified twilight type will occur.
-  ///
-  /// Returns the next occurrence of the specified twilight (dusk or dawn),
-  /// or null if it can't be calculated (e.g., polar regions in summer).
+  /// When a wait for [twilightType] reached at [currentTime] ends: the
+  /// evening twilight of the site's night under way while it is still to
+  /// come, null once that night is dark (no wait), and the next evening's
+  /// after that night's matching dawn. Null as well when the Sun never
+  /// crosses that altitude (polar summer).
   DateTime? _calculateTwilightWaitTime(
     DateTime currentTime,
     TwilightType twilightType,
     _LocationContext locationContext,
   ) {
-    final twilightTimes = AstronomyCalculations.calculateTwilightTimes(
-      date: locationContext.date,
-      latitudeDeg: locationContext.latitude,
+    TwilightTimes nightOf(DateTime date) =>
+        AstronomyCalculations.calculateTwilightTimes(
+          date: date,
+          latitudeDeg: locationContext.latitude,
+          longitudeDeg: locationContext.longitude,
+        );
+    (DateTime?, DateTime?) duskAndDawn(TwilightTimes t) =>
+        switch (twilightType) {
+          TwilightType.civil => (t.civilDusk, t.civilDawn),
+          TwilightType.nautical => (t.nauticalDusk, t.nauticalDawn),
+          TwilightType.astronomical => (t.astronomicalDusk, t.astronomicalDawn),
+        };
+
+    final night = AstronomyCalculations.nightDateOf(
+      currentTime,
       longitudeDeg: locationContext.longitude,
     );
-
-    // Determine which twilight time to use based on type
-    // For imaging, we typically wait for evening twilight (dusk)
-    DateTime? targetTime;
-    switch (twilightType) {
-      case TwilightType.civil:
-        // Civil twilight: sun 6° below horizon
-        targetTime = twilightTimes.civilDusk;
-        break;
-      case TwilightType.nautical:
-        // Nautical twilight: sun 12° below horizon
-        targetTime = twilightTimes.nauticalDusk;
-        break;
-      case TwilightType.astronomical:
-        // Astronomical twilight: sun 18° below horizon (truly dark)
-        targetTime = twilightTimes.astronomicalDusk;
-        break;
-    }
-
-    if (targetTime == null) {
-      // Twilight doesn't occur (e.g., polar summer)
-      return null;
-    }
-
-    // If the twilight time has already passed today, it means we're
-    // already past dusk - no wait needed
-    if (targetTime.isBefore(currentTime)) {
-      return null;
-    }
-
-    return targetTime;
+    final (dusk, dawn) = duskAndDawn(nightOf(night));
+    if (dusk == null) return null;
+    if (!dusk.isBefore(currentTime)) return dusk;
+    if (dawn == null || currentTime.isBefore(dawn)) return null;
+    // The next calendar day, not 24 hours on (a DST change).
+    final next = night.isUtc
+        ? DateTime.utc(night.year, night.month, night.day + 1)
+        : DateTime(night.year, night.month, night.day + 1);
+    final (nextDusk, _) = duskAndDawn(nightOf(next));
+    return nextDusk;
   }
 
   Duration _estimateNodeDuration(

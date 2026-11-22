@@ -116,7 +116,6 @@ class SequenceTimeEstimator {
         ? _LocationContext(
             latitude: latitude,
             longitude: longitude,
-            date: startTime,
             runEndsBy: runEndsBy,
           )
         : null;
