@@ -208,7 +208,7 @@ impl DeviceManager {
             // handle.
             DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => Err(format!(
                 "No {} heartbeat implementation for device {} ({:?})",
-                crate::device_manager::handle::protocol_label(*driver_type),
+                driver_type.label(),
                 device_id,
                 device_type
             )),

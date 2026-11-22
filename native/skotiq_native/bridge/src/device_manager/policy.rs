@@ -204,24 +204,10 @@ pub(crate) fn policy(device_type: DeviceType) -> DevicePolicy {
     }
 }
 
-const DEVICE_TYPES: [DeviceType; 11] = [
-    DeviceType::Camera,
-    DeviceType::Mount,
-    DeviceType::Focuser,
-    DeviceType::FilterWheel,
-    DeviceType::Guider,
-    DeviceType::Dome,
-    DeviceType::Rotator,
-    DeviceType::Weather,
-    DeviceType::SafetyMonitor,
-    DeviceType::Switch,
-    DeviceType::CoverCalibrator,
-];
-
 /// The device types a lost heartbeat hands to the reconnection loop. Whoever
 /// else reconnects devices leaves these alone.
 pub(crate) fn reconnected_by_heartbeat() -> Vec<DeviceType> {
-    DEVICE_TYPES
+    DeviceType::ALL
         .into_iter()
         .filter(|device_type| policy(*device_type).heartbeat.auto_reconnect)
         .collect()
@@ -236,6 +222,6 @@ mod tests {
     /// focuser lost behind a power box stayed lost until reconnected by hand.
     #[test]
     fn the_heartbeat_reconnects_every_device_type() {
-        assert_eq!(reconnected_by_heartbeat(), DEVICE_TYPES);
+        assert_eq!(reconnected_by_heartbeat(), DeviceType::ALL);
     }
 }

@@ -7,7 +7,6 @@
 //! below.
 
 use crate::device::{ConnectionState, DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::handle::{device_noun, protocol_label};
 use crate::device_manager::identity::{DeviceIdentity, IDENTITY_CONFLICT_MARKER};
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, ManagedDevice};
@@ -1081,8 +1080,8 @@ impl DeviceManager {
         if let Some(handle) = self.handles.remove(device_id) {
             let label = format!(
                 "{} {}",
-                protocol_label(device_info.driver_type),
-                device_noun(device_info.device_type)
+                device_info.driver_type.label(),
+                device_info.device_type.noun()
             );
             record_disconnect!(label, handle.disconnect().await);
         } else {

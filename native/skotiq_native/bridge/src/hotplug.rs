@@ -307,8 +307,8 @@ async fn poll_once(asker: Asker) {
         );
         get_state().publish_equipment_event(
             EquipmentEvent::DeviceDiscovered {
-                device_class: device_type_str(dev.device_type).to_string(),
-                driver: driver_type_str(driver).to_string(),
+                device_class: dev.device_type.wire_name().to_string(),
+                driver: driver.wire_name().to_string(),
                 id,
                 name: dev.name,
                 display_name: dev.display_name,
@@ -328,38 +328,12 @@ async fn poll_once(asker: Asker) {
         );
         get_state().publish_equipment_event(
             EquipmentEvent::DeviceLost {
-                device_class: device_type_str(dev.device_type).to_string(),
-                driver: driver_type_str(driver).to_string(),
+                device_class: dev.device_type.wire_name().to_string(),
+                driver: driver.wire_name().to_string(),
                 id,
             },
             EventSeverity::Warning,
         );
-    }
-}
-
-fn device_type_str(t: DeviceType) -> &'static str {
-    match t {
-        DeviceType::Camera => "camera",
-        DeviceType::Mount => "mount",
-        DeviceType::Focuser => "focuser",
-        DeviceType::FilterWheel => "filterWheel",
-        DeviceType::Rotator => "rotator",
-        DeviceType::Dome => "dome",
-        DeviceType::Weather => "weather",
-        DeviceType::SafetyMonitor => "safetyMonitor",
-        DeviceType::CoverCalibrator => "coverCalibrator",
-        DeviceType::Switch => "switch",
-        DeviceType::Guider => "guider",
-    }
-}
-
-fn driver_type_str(d: DriverType) -> &'static str {
-    match d {
-        DriverType::Native => "native",
-        DriverType::Ascom => "ascom",
-        DriverType::Alpaca => "alpaca",
-        DriverType::Indi => "indi",
-        DriverType::Simulator => "simulator",
     }
 }
 
@@ -761,13 +735,13 @@ mod tests {
     fn driver_and_device_type_strings_are_stable() {
         // The Dart side keys off these strings — keep them lowercase and
         // matching the canonical enum names the rest of the bridge uses.
-        assert_eq!(driver_type_str(DriverType::Native), "native");
-        assert_eq!(driver_type_str(DriverType::Ascom), "ascom");
-        assert_eq!(driver_type_str(DriverType::Alpaca), "alpaca");
-        assert_eq!(driver_type_str(DriverType::Indi), "indi");
-        assert_eq!(device_type_str(DeviceType::Camera), "camera");
-        assert_eq!(device_type_str(DeviceType::FilterWheel), "filterWheel");
-        assert_eq!(device_type_str(DeviceType::Mount), "mount");
+        assert_eq!(DriverType::Native.wire_name(), "native");
+        assert_eq!(DriverType::Ascom.wire_name(), "ascom");
+        assert_eq!(DriverType::Alpaca.wire_name(), "alpaca");
+        assert_eq!(DriverType::Indi.wire_name(), "indi");
+        assert_eq!(DeviceType::Camera.wire_name(), "camera");
+        assert_eq!(DeviceType::FilterWheel.wire_name(), "filterWheel");
+        assert_eq!(DeviceType::Mount.wire_name(), "mount");
     }
 
     #[test]
