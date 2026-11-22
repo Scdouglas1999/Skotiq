@@ -191,7 +191,7 @@ extension _FramingSurveyOperations on FramingNotifier {
   /// only when both the cached image file and its FOV companion sidecar exist.
   /// A miss — including the case where the sidecar is absent and the recorded
   /// FOV cannot be recovered — returns `false` so the caller falls through to
-  /// the network. Any IO/decode error is surfaced via [developer.log] and also
+  /// the network. Any IO/decode error goes to the app log and also
   /// returns `false` rather than masking a real fetch failure.
   Future<bool> _tryServeFromCache({
     required Object token,

@@ -40,7 +40,7 @@
 // ## Tile failures
 //
 // The loader surfaces every genuine (non-cancellation) tile failure to its
-// injected [HipsTileLoaderErrorSink] (defaulting to `dart:developer` logging)
+// injected [HipsTileLoaderErrorSink] (defaulting to the app log)
 // *and* records it in [HipsResidentSnapshot.failures], so a missing tile is
 // distinguishable from an empty one. Cancellations — the expected outcome of a
 // superseded pan/zoom generation — are dropped quietly.

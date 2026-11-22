@@ -485,7 +485,7 @@ final recoveryAudibleBridgeProvider = Provider<void>((ref) {
             'sound': settings.criticalAlertSound,
           },
         );
-    // Fire-and-forget; surface platform failures in developer.log.
+    // Fire-and-forget; a platform failure goes to the app log.
     // ignore: discarded_futures
     player.play(sound: settings.criticalAlertSound).catchError((Object e) {
       Log.debug(
