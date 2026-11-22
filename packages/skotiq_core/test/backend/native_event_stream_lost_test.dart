@@ -82,6 +82,26 @@ void main() {
     expect(errorsLogged().single, contains('decode failed'));
   });
 
+  test('a report that throws is logged and the stream still closes', () async {
+    final backend = FfiBackend(
+      nativeEvents: () => native.stream,
+      onEventsLost: (_) => throw StateError('container disposed'),
+    );
+    addTearDown(backend.dispose);
+    var listenerSawDone = false;
+    backend.eventStream.listen((_) {}, onDone: () => listenerSawDone = true);
+
+    await native.close();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(listenerSawDone, isTrue);
+    expect(errorsLogged(), [
+      'The native event stream ended',
+      'The lost native event stream could not be reported: '
+          'Bad state: container disposed',
+    ]);
+  });
+
   test('the stream ending after dispose is not a loss', () async {
     final backend = FfiBackend(
       nativeEvents: () => native.stream,
@@ -120,6 +140,7 @@ void main() {
         expect(event.severity, EventSeverity.error);
         expect(event.data['title'], nativeEventsLostTitle);
         expect(event.data['message'], nativeEventsLostMessage);
+        expect(event.data['level'], 'error');
       }
       expect(notifications.state, hasLength(1));
       expect(notifications.state.single.level, UiNotificationLevel.error);

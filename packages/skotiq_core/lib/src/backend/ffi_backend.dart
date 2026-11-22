@@ -206,10 +206,26 @@ abstract class _FfiBackendBase implements SkotiqBackend {
     );
   }
 
+  /// Runs [_onEventsLost] in its own microtask: the loss can be found inside
+  /// the [eventStream] getter while a provider builds, and a failing report
+  /// must not break the stream it reports on.
   void _reportEventsLost(String reason) {
     if (_eventsLostReported) return;
     _eventsLostReported = true;
-    _onEventsLost?.call(reason);
+    final report = _onEventsLost;
+    if (report == null) return;
+    scheduleMicrotask(() {
+      try {
+        report(reason);
+      } on Object catch (e, stackTrace) {
+        Log.error(
+          'The lost native event stream could not be reported',
+          source: _logSource,
+          error: e,
+          stackTrace: stackTrace,
+        );
+      }
+    });
   }
 }
 

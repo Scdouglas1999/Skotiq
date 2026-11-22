@@ -91,9 +91,8 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
         );
       } catch (e, stackTrace) {
         Log.warning(
-          'Remote equipment profile fetch failed: $e',
+          'Remote equipment profile fetch failed: $e\n$stackTrace',
           source: 'ProfilesProvider',
-          stackTrace: stackTrace,
         );
         Error.throwWithStackTrace(
           StateError('Could not load equipment profiles from host: $e'),
