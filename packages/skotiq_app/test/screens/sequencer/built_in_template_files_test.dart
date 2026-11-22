@@ -1,73 +1,60 @@
-// The bundled template files must read back as the hand-built template trees
-// they were written from: same ids, order, names, nodes and every node field.
-//
-// Write the files (only to regenerate them from the trees):
-//   WRITE_TEMPLATE_FILES=1 flutter test test/screens/sequencer/built_in_template_files_test.dart
+// The built-in templates are bundled sequence files. They load in catalog
+// order, dated by their age, and every file reads back to exactly what it
+// says: nothing the parser fills in or drops.
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/sequencer/tabs/templates_tab.dart';
 import 'package:skotiq_core/services.dart';
 
 const _dir = '../skotiq_core/assets/sample_sequences/templates';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final parser = SequenceFileService();
 
-  if (Platform.environment['WRITE_TEMPLATE_FILES'] == '1') {
-    test('write the template files', () {
-      for (final template in handBuiltTemplates()) {
-        final map = parser.sequenceToMap(template)
-          ..remove('createdAt')
-          ..remove('modifiedAt');
-        final name = template.id.replaceFirst('template-', '');
-        File('$_dir/$name.json').writeAsStringSync(
-          '${const JsonEncoder.withIndent('  ').convert(map)}\n',
-        );
-      }
-    });
-    return;
-  }
+  test('the catalog loads every template in order', () async {
+    final now = DateTime.utc(2026, 11, 21, 12);
+    final templates = await const BuiltInTemplateService().load(now: now);
+    expect(templates.map((t) => t.name), [
+      'First Light',
+      'One-Shot Color (OSC)',
+      'Quick Capture',
+      'DSO Beginner',
+      'Basic LRGB Sequence',
+      'Narrowband (SHO)',
+      'Mosaic Panel',
+      'Ha-OIII Bicolor',
+      'SHO Hubble Palette',
+      'LRGB + Ha Enhanced',
+      'Multi-Target Night',
+      'Planetary Capture',
+      'Unattended All-Night',
+      'Comet/Asteroid Tracking',
+      'Solar Ha',
+      'Lunar Surface',
+      'Remote Observatory',
+    ]);
+    for (final (i, t) in templates.indexed) {
+      final entry = BuiltInTemplateService.catalog[i];
+      expect(t.id, entry.id);
+      expect(t.isTemplate, isTrue);
+      expect(t.databaseId, isNull);
+      expect(t.createdAt, now.subtract(Duration(days: entry.ageDays)));
+      expect(t.nodes, contains(t.rootNodeId));
+    }
+  });
 
-  test('the template files read back as the hand-built trees', () {
-    final now = DateTime.now();
-    final built = handBuiltTemplates();
-    expect(
-      BuiltInTemplateService.catalog.map((e) => e.id),
-      built.map((t) => t.id),
-    );
-    for (final (i, entry) in BuiltInTemplateService.catalog.indexed) {
-      final expected = built[i];
-      final file = File(
-        BuiltInTemplateService.assetPathFor(entry.id)
-            .replaceFirst(BuiltInTemplateService.assetDirectory, _dir),
-      );
-      final loaded = BuiltInTemplateService.templateFromMap(
-        entry,
-        jsonDecode(file.readAsStringSync()) as Map<String, dynamic>,
-        parser: parser,
-        now: now,
-      );
-      expect(loaded.id, expected.id);
-      expect(loaded.name, expected.name);
-      expect(loaded.description, expected.description);
-      expect(loaded.isTemplate, expected.isTemplate);
-      expect(loaded.rootNodeId, expected.rootNodeId);
-      expect(loaded.databaseId, isNull);
-      expect(loaded.nodes.keys.toList(), expected.nodes.keys.toList());
-      for (final id in expected.nodes.keys) {
-        expect(loaded.nodes[id]!.runtimeType, expected.nodes[id]!.runtimeType);
-        expect(loaded.nodes[id]!.props, expected.nodes[id]!.props,
-            reason: '${expected.id} node $id');
-      }
-      expect(
-        loaded.createdAt.difference(expected.createdAt).inMinutes.abs(),
-        0,
-      );
-      expect(loaded.modifiedAt, loaded.createdAt);
+  test('every template file reads back unchanged', () {
+    final parser = SequenceFileService();
+    final files = Directory(_dir).listSync().whereType<File>().toList();
+    expect(files, hasLength(BuiltInTemplateService.catalog.length));
+    for (final file in files) {
+      final json = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+      final again = parser.sequenceToMap(parser.parseFromMap(json))
+        ..remove('createdAt')
+        ..remove('modifiedAt');
+      expect(jsonEncode(again), jsonEncode(json), reason: file.path);
     }
   });
 }

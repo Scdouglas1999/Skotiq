@@ -15,16 +15,10 @@ import '../widgets/quick_start_wizard_dialog.dart';
 import '../../../utils/count_label.dart';
 import '../sequence_counts.dart';
 
-// File split: the rest of this library lives in `templates_tab_parts/`.
-// Built-in template data (large hand-built node-tree literals) is kept in
-// `_builtin_templates.dart` because it is data, not widgets; the remaining
-// part files group widgets by purpose. All parts share this file's library
-// scope via the `part` mechanism.
+// File split: the rest of this library lives in `templates_tab_parts/`,
+// grouped by purpose. The built-in templates are bundled sequence files in
+// skotiq_core ([BuiltInTemplateService]).
 
-part 'templates_tab_parts/_builtin_templates.dart';
-part 'templates_tab_parts/_builtin_core_nodes.dart';
-part 'templates_tab_parts/_builtin_advanced_nodes.dart';
-part 'templates_tab_parts/_builtin_specialty_nodes.dart';
 part 'templates_tab_parts/_toolbar.dart';
 part 'templates_tab_parts/_template_card.dart';
 part 'templates_tab_parts/_save_template_dialog.dart';
@@ -40,13 +34,8 @@ final sequenceTemplatesProvider =
   final dbTemplates = await repository.loadAllTemplates();
   // Built-ins are part of the product catalog, not an empty-database
   // placeholder, so they stay listed alongside the user's own.
-  return [...dbTemplates, ..._getBuiltInTemplates()];
+  return [...dbTemplates, ...await ref.watch(builtInTemplatesProvider.future)];
 });
-
-/// The hand-built template trees, for the test that checks the bundled
-/// template files against them.
-@visibleForTesting
-List<Sequence> handBuiltTemplates() => _getBuiltInTemplates();
 
 /// Search provider for templates
 // autoDispose: filter input is tab-scoped.
