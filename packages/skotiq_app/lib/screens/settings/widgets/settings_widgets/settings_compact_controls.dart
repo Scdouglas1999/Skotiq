@@ -134,10 +134,6 @@ class _SettingsCompactSliderState extends State<SettingsCompactSlider> {
 class ObjectTypeToggle extends StatelessWidget {
   final String title;
 
-  final IconData icon;
-
-  final Color color;
-
   final bool isEnabled;
 
   final ValueChanged<bool> onChanged;
@@ -145,8 +141,6 @@ class ObjectTypeToggle extends StatelessWidget {
   const ObjectTypeToggle({
     super.key,
     required this.title,
-    required this.icon,
-    required this.color,
     required this.isEnabled,
     required this.onChanged,
   });
@@ -154,8 +148,6 @@ class ObjectTypeToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingRow(
-      icon: icon,
-      iconColor: color,
       title: title,
       subtitle: isEnabled ? 'Visible' : 'Hidden',
       trailing: SettingsSwitch(

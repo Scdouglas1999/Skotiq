@@ -332,16 +332,6 @@ String foldProgressText(FoldGroup group, SequenceProgress progress) {
   ].join(' · ');
 }
 
-/// Ids of every node hidden inside the folded groups of [entries] — the set
-/// a tree renderer must NOT draw as individual rows. Includes the members'
-/// representative (member 0) too: callers that need "draw these ids" vs "hide
-/// these ids" distinguish via [FoldedEntry] itself; this is the membership
-/// set, used for selection expands ("click selects all members").
-Set<String> foldedMemberIds(List<TreeEntry> entries) => <String>{
-      for (final entry in entries)
-        if (entry is FoldedEntry) ...entry.group.memberIds,
-    };
-
 /// Filter runs fold frames the night will actually shoot: a disabled node
 /// breaks the run, and a non-leaf is excluded because a folded row cannot
 /// show its subtree.

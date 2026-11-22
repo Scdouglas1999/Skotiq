@@ -66,7 +66,6 @@ class AppearanceSettings extends ConsumerWidget {
               title: 'Theme',
               children: [
                 SettingRow(
-                  icon: LucideIcons.moon,
                   title: 'Theme',
                   subtitle: 'Dark is the default at the telescope. Light suits '
                       'daytime planning. Red night for the field.',
@@ -91,7 +90,6 @@ class AppearanceSettings extends ConsumerWidget {
                 // scope instead of rendering a control that does nothing.
                 if (mode == AppThemeMode.redNight)
                   const SettingRow(
-                    icon: LucideIcons.palette,
                     title: 'Accent',
                     subtitle: 'Red night is monochrome red, so the accent has '
                         'no effect while it is selected. Your accent applies '
@@ -100,7 +98,6 @@ class AppearanceSettings extends ConsumerWidget {
                   )
                 else
                   SettingRow(
-                    icon: LucideIcons.palette,
                     title: 'Accent',
                     subtitle: 'Used for the primary action, selection and '
                         'links. Nothing else.',
@@ -121,7 +118,6 @@ class AppearanceSettings extends ConsumerWidget {
               title: 'Display',
               children: [
                 SettingRow(
-                  icon: LucideIcons.type,
                   title: 'Text size',
                   subtitle: 'Scales every label and readout.',
                   trailing: SettingsDropdown(
@@ -133,7 +129,6 @@ class AppearanceSettings extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.zoomIn,
                   title: 'UI scale',
                   subtitle: 'Auto follows the display. Compact (0.8×) for a '
                       'laptop at the scope, Large (1.2×) or Extra large (1.4×) '
@@ -151,7 +146,6 @@ class AppearanceSettings extends ConsumerWidget {
                 // hide the row over a remote session so it can't throw.
                 if (!isRemoteMode)
                   SettingRow(
-                    icon: LucideIcons.panelLeft,
                     title: 'Start with the navigation rail collapsed',
                     trailing: SettingsSwitch(
                       value: settings.sidebarCollapsed,
@@ -164,7 +158,6 @@ class AppearanceSettings extends ConsumerWidget {
                 // preference, and it applied to the sequencer run panels too,
                 // so a toggle living on one screen was already the wrong home.
                 SettingRow(
-                  icon: LucideIcons.eye,
                   title: 'Glance mode',
                   subtitle:
                       'Enlarges status readouts so they read from across the '

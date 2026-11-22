@@ -41,9 +41,8 @@ class SessionPickerEntry<T> {
 /// "name · date · count", and whose open list shows the name with the date and
 /// count right-aligned beside it.
 ///
-/// Every screen that analyzes one night (Analytics > Session, Science,
-/// Diagnostics) picks it with this, so a session reads the same wherever it is
-/// chosen.
+/// Analytics picks its session with this; a new screen that analyzes one
+/// night should too, so a session reads the same wherever it is chosen.
 class SessionPicker<T> extends StatelessWidget {
   const SessionPicker({
     super.key,

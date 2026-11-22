@@ -32,7 +32,7 @@ class _TargetRow {
 /// Joins [targets] with tonight's windows and the autopilot's view of each.
 List<_TargetRow> _rows(
   List<PlanTarget> targets,
-  _AutopilotView autopilot,
+  AutopilotView autopilot,
   Map<int, _TonightWindow> windows,
   DateTime now, {
   TargetHeaderNode? runTarget,
@@ -68,17 +68,7 @@ List<_TargetRow> _rows(
             final reason = score.rejectionReasons.firstOrNull;
             final kind =
                 reason == null ? null : classifySchedulerRejection(reason);
-            // Rising cures being too low or the sky being too bright; it
-            // does not cure the moon, a missing filter or a time window.
-            final waitsForSky = switch (kind) {
-              null ||
-              SchedulerRejectionKind.belowHorizon ||
-              SchedulerRejectionKind.tooLowForSite ||
-              SchedulerRejectionKind.behindHorizonProfile ||
-              SchedulerRejectionKind.other =>
-                true,
-              _ => false,
-            };
+            final waitsForSky = kind == null || kind.curedByRising;
             if (waitsForSky && rises != null && rises.isAfter(now)) {
               return (
                 'Up ${ClockFormat.hm(rises.toLocal())}',
@@ -139,7 +129,7 @@ int _byNextUp(_TargetRow a, _TargetRow b) {
 
 /// What the autopilot will do next, in one line.
 String _nextLine(
-  _AutopilotView view,
+  AutopilotView view,
   List<_TargetRow> rows,
   Project? group,
   DateTime now,

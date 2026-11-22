@@ -64,7 +64,7 @@ class NightSummaryView extends ConsumerWidget {
             SkotiqBanner(
               tone: endedBadly ? BannerTone.error : BannerTone.warning,
               title: endedBadly ? 'Why the run ended' : 'Reported by the run',
-              message: runFailureMessage(cause),
+              message: userFacingError(cause),
             ),
             const SizedBox(height: _gap),
           ],
@@ -343,7 +343,7 @@ class _ProblemsPanel extends StatelessWidget {
                 child: Container(height: 1, color: colors.border),
               ),
             SelectableText(
-              runFailureMessage(problem),
+              userFacingError(problem),
               style:
                   SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),

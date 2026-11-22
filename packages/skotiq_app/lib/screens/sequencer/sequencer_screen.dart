@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -48,8 +49,6 @@ import '../../router/app_routes.dart';
 import '../../router/sequencer_route.dart';
 import '../../utils/guide_distance.dart';
 import 'widgets/tree_insert.dart';
-
-export '../../router/sequencer_route.dart' show SequencerTab;
 
 part 'sequencer_screen_parts/tab_bar.dart';
 part 'sequencer_screen_parts/builder_layout.dart';
@@ -518,7 +517,7 @@ class _SequencerScreenState extends ConsumerState<SequencerScreen>
                       title: 'Sequence failed',
                       message: failure == null
                           ? 'Analytics > History has the recorded outcome.'
-                          : runFailureMessage(failure),
+                          : userFacingError(failure),
                       tone: BannerTone.error,
                       action: SkotiqButton(
                         label: 'See details',

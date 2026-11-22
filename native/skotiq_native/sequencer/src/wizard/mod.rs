@@ -22,9 +22,9 @@
 //!   handling cancellation and step-level checkpointing.
 //! * The [`WizardCheckpoint`] schema — JSON-serializable record of
 //!   completed step indices for a given wizard instance, lifted into
-//!   [`crate::checkpoint::SessionCheckpoint::wizard_states`] so a
-//!   sequence that was killed mid-wizard can pick up at the next
-//!   uncompleted step on resume.
+//!   [`crate::checkpoint::SessionCheckpoint::wizard_states`], meant to let
+//!   a sequence killed mid-wizard pick up at the next uncompleted step.
+//!   No wizard is run with a sink that writes the session checkpoint yet.
 //!
 //! # User-visible behavior
 //!
@@ -192,8 +192,8 @@ impl<'a> WizardProgressReporter for BorrowedProgressReporter<'a> {
 }
 
 /// Interface the executor uses to persist wizard-internal step state.
-/// Production wires this to the session checkpoint manager; tests
-/// substitute an in-memory implementation.
+/// Nothing connects it to the session checkpoint yet: every wizard runs
+/// with [`NullCheckpointSink`], and tests use [`MemoryCheckpointSink`].
 pub trait WizardCheckpointSink: Send + Sync {
     /// Persist that the wizard identified by `checkpoint_key` has
     /// completed steps 0..completed_steps within the current plan.
@@ -207,7 +207,7 @@ pub trait WizardCheckpointSink: Send + Sync {
     fn clear(&self, checkpoint_key: &str);
 }
 
-/// In-memory checkpoint sink for tests and headless headless runs.
+/// In-memory checkpoint sink for tests.
 #[derive(Default)]
 pub struct MemoryCheckpointSink {
     inner: std::sync::Mutex<std::collections::HashMap<String, WizardCheckpoint>>,

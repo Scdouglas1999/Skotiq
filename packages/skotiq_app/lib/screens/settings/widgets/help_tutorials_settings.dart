@@ -19,7 +19,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = SkotiqColors.of(context);
     final run = ref.watch(tourRunnerProvider);
     final runner = ref.read(tourRunnerProvider.notifier);
     // A tour left part-way resumes where it stopped; anything else starts.
@@ -48,8 +47,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
           title: 'Guided flows',
           children: [
             SettingRow(
-              icon: LucideIcons.sparkles,
-              iconColor: colors.primary,
               title: 'First night walkthrough',
               subtitle: '7-step guided wizard for your first imaging session. '
                   'Connect, polar align, focus, frame, guide, sequence.',
@@ -64,8 +61,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.aperture,
-              iconColor: colors.primary,
               title: 'Capture your first light',
               subtitle:
                   'Run the one-click first-light flow again. Short exposure, '
@@ -84,8 +79,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.wrench,
-              iconColor: colors.primary,
               title: 'Re-run equipment setup',
               subtitle:
                   'Walk back through the equipment onboarding wizard to scan '
@@ -112,8 +105,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.compass,
-              iconColor: colors.primary,
               title: 'Re-run onboarding tour',
               subtitle:
                   'Replay the first-launch spotlight tour that highlights '
@@ -130,8 +121,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.archive,
-              iconColor: colors.warning,
               title: 'Generate diagnostic dump',
               subtitle:
                   'Package logs, settings, profile metadata, and system details for support.',
@@ -165,8 +154,6 @@ class HelpTutorialsSettings extends ConsumerWidget {
           title: 'Reset progress',
           children: [
             SettingRow(
-              icon: LucideIcons.refreshCw,
-              iconColor: colors.error,
               title: 'Reset all progress',
               subtitle: 'Clear all tutorial progress and start fresh',
               trailing: SkotiqButton(

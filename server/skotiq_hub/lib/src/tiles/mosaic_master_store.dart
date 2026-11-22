@@ -40,21 +40,6 @@ class MosaicMasterStore {
   /// Persist [bytes] as a panel master for `(mosaicId, panelIndex)` under
   /// [masterId]. Writes to a temp file in the same directory then renames.
   /// Returns the absolute path written.
-  String savePanelMaster({
-    required String mosaicId,
-    required int panelIndex,
-    required String masterId,
-    required Uint8List bytes,
-  }) => _saveAt(panelPath(mosaicId, panelIndex, masterId), bytes);
-
-  /// Persist [bytes] as the finished stitched mosaic output under [masterId].
-  /// Returns the absolute path written.
-  String saveOutput({
-    required String mosaicId,
-    required String masterId,
-    required Uint8List bytes,
-  }) => _saveAt(outputPath(mosaicId, masterId), bytes);
-
   Future<String> savePanelMasterAsync({
     required String mosaicId,
     required int panelIndex,
@@ -62,20 +47,13 @@ class MosaicMasterStore {
     required Uint8List bytes,
   }) => _saveAtAsync(panelPath(mosaicId, panelIndex, masterId), bytes);
 
+  /// Persist [bytes] as the finished stitched mosaic output under [masterId].
+  /// Returns the absolute path written.
   Future<String> saveOutputAsync({
     required String mosaicId,
     required String masterId,
     required Uint8List bytes,
   }) => _saveAtAsync(outputPath(mosaicId, masterId), bytes);
-
-  String _saveAt(String dest, Uint8List bytes) {
-    final dir = Directory(p.dirname(dest));
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    final tmp = File('$dest.tmp');
-    tmp.writeAsBytesSync(bytes, flush: true);
-    tmp.renameSync(dest);
-    return dest;
-  }
 
   Future<String> _saveAtAsync(String dest, Uint8List bytes) async {
     final dir = Directory(p.dirname(dest));

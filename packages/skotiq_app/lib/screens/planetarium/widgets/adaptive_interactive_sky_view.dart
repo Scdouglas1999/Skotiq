@@ -25,7 +25,6 @@ class AdaptiveInteractiveSkyView extends ConsumerWidget {
     this.horizonAltitudes,
     this.measurementMode = false,
     this.backgroundLayer,
-    this.syncViewPoseFromV1 = false,
   });
 
   final ValueChanged<planetarium_v1.CelestialObject?>? onObjectSelected;
@@ -58,10 +57,6 @@ class AdaptiveInteractiveSkyView extends ConsumerWidget {
   /// does not have to override [build] and re-forward every parameter — a field
   /// added here but missed there would be silently dropped.
   final planetarium_v1.SkyBackgroundLayer? backgroundLayer;
-
-  /// Ignored: the v1 widget owns its own pose. Accepted only so existing
-  /// callers keep compiling.
-  final bool syncViewPoseFromV1;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

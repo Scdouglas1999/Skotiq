@@ -63,7 +63,6 @@ class _DiscordRoutingSectionState
           title: 'Discord',
           children: [
             _SecretFieldRow(
-              icon: LucideIcons.link,
               title: 'Webhook URL',
               subtitle:
                   'The URL itself authenticates the request, so it is stored securely.',
@@ -74,7 +73,6 @@ class _DiscordRoutingSectionState
               onClear: () => setState(() => _clearWebhook = true),
             ),
             SettingRow(
-              icon: LucideIcons.user,
               title: 'Username override',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -83,7 +81,6 @@ class _DiscordRoutingSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save Discord config',
               trailing: _SaveButton(
                 successMessage: 'Discord settings saved',
@@ -91,7 +88,6 @@ class _DiscordRoutingSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.send,
               title: 'Test Discord',
               trailing: _TestSendButton(
                 kind: NotificationTransportKind.discord,

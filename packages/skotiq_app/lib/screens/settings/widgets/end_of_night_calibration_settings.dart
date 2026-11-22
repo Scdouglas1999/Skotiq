@@ -103,7 +103,6 @@ class _EndOfNightCalibrationSettingsState
           title: 'When imaging ends',
           children: [
             SettingRow(
-              icon: LucideIcons.moonStar,
               title: 'Take darks and bias when imaging ends',
               subtitle:
                   'Starts when a run that took light frames completes, is '
@@ -115,7 +114,6 @@ class _EndOfNightCalibrationSettingsState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.home,
               title: 'Mount before the darks',
               subtitle: 'Guiding is stopped first. A mount the night already '
                   'parked is left parked.',
@@ -129,7 +127,6 @@ class _EndOfNightCalibrationSettingsState
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.thermometerSnowflake,
               title: 'Warm the camera up afterwards',
               subtitle: 'Raises the set-point gradually once the frames are '
                   'taken, then switches the cooler off.',
@@ -144,7 +141,6 @@ class _EndOfNightCalibrationSettingsState
           title: 'Frames',
           children: [
             SettingRow(
-              icon: LucideIcons.layers,
               title: 'Darks per light setting',
               subtitle: 'One set for each exposure, gain, offset, binning and '
                   'set-point used tonight, at that set-point.',
@@ -160,7 +156,6 @@ class _EndOfNightCalibrationSettingsState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.layers,
               title: 'Bias frames',
               subtitle: 'One set for each gain, offset, binning and '
                   'set-point.',
@@ -181,7 +176,6 @@ class _EndOfNightCalibrationSettingsState
           title: 'Reusing the library',
           children: [
             SettingRow(
-              icon: LucideIcons.library,
               title: 'Keep library darks for',
               subtitle: 'A set the dark library already holds at the same '
                   'gain, offset, binning, read mode and set-point is not '
@@ -204,7 +198,6 @@ class _EndOfNightCalibrationSettingsState
           title: 'Blocking the light',
           children: [
             SettingRow(
-              icon: LucideIcons.circleSlash,
               title: 'Without a dark slot in the filter wheel',
               subtitle: 'The frames are taken through a wheel slot named Dark, '
                   'Blank, Opaque, Closed, Shutter, Cap or Blocked. Without '
@@ -221,7 +214,6 @@ class _EndOfNightCalibrationSettingsState
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.timer,
               title: 'Wait for the cap',
               subtitle: 'How long to wait for you to confirm the telescope is '
                   'capped before skipping the darks and bias.',

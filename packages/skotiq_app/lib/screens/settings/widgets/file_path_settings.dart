@@ -254,7 +254,6 @@ class FilePathSettings extends ConsumerWidget {
                   // input gets the row's full width and the path ellipsizes
                   // inside it instead of pushing past the card.
                   stackWhenNarrow: true,
-                  icon: LucideIcons.image,
                   title: 'Image output$hostHint',
                   subtitle: settings.imageOutputPath.isEmpty
                       ? 'Not configured'
@@ -271,7 +270,6 @@ class FilePathSettings extends ConsumerWidget {
                 ),
                 SettingRow(
                   stackWhenNarrow: true,
-                  icon: LucideIcons.listOrdered,
                   title: 'Sequences$hostHint',
                   subtitle: settings.sequencesPath.isEmpty
                       ? 'Not configured'
@@ -350,7 +348,6 @@ class _AppDataFolderRow extends ConsumerWidget {
         Platform.isAndroid || Platform.isIOS ? 'Copy logs path' : 'Open logs';
 
     return SettingRow(
-      icon: LucideIcons.database,
       title: 'Database and logs',
       subtitle: subtitle,
       stackWhenNarrow: true,
@@ -461,7 +458,6 @@ class _BackupFolderRow extends ConsumerWidget {
     };
 
     return SettingRow(
-      icon: LucideIcons.archive,
       title: 'Backups',
       subtitle: subtitle,
       stackWhenNarrow: true,

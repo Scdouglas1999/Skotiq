@@ -33,7 +33,6 @@ class _ProbeLeaf extends StatelessWidget {
           title: 'Probe section',
           children: [
             SettingRow(
-              icon: Icons.settings,
               title: 'Probe row',
               subtitle: 'A short label',
               trailing: SizedBox(

@@ -872,19 +872,6 @@ List<RunDashboardEvent> runDashboardFeedRows(
       ),
     );
 
-/// Last N events (default 5) classified for the trigger feed.
-///
-/// Built off the existing `eventHistoryProvider` so we don't run a second
-/// subscription. The rendering layer can configure how many to show.
-final runDashboardRecentEventsProvider =
-    Provider.family<List<RunDashboardEvent>, int>((ref, limit) {
-  final history = ref.watch(eventHistoryProvider);
-  // Collapse BEFORE taking `limit`, so squashing a repeated condition actually
-  // frees slots for the different events behind it. Taking first would leave
-  // the panel showing one collapsed row and four blanks' worth of lost history.
-  return runDashboardFeedRows(history).take(limit).toList(growable: false);
-});
-
 /// State of critical events that the user has *not* dismissed yet.
 ///
 /// A user who walks away from the laptop for an hour and comes back needs

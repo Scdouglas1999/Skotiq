@@ -2,34 +2,6 @@ part of 'plan_targets_tab.dart';
 
 enum _AutopilotAction { start, pause, resume, stop, evaluate }
 
-/// The autopilot as the tab shows it: from this machine's engine, or from the
-/// linked host's last answer. [status] is null while neither has answered.
-@immutable
-class _AutopilotView {
-  const _AutopilotView({
-    required SchedulerStatus this.status,
-    required this.decision,
-    required SchedulerConfig this.config,
-    required SchedulerStartReadiness this.readiness,
-  })  : error = null,
-        retry = null;
-
-  const _AutopilotView.unavailable({this.error, this.retry})
-      : status = null,
-        decision = null,
-        config = null,
-        readiness = null;
-
-  final SchedulerStatus? status;
-  final SchedulerDecision? decision;
-  final SchedulerConfig? config;
-  final SchedulerStartReadiness? readiness;
-  final Object? error;
-  final VoidCallback? retry;
-
-  bool get hasCandidates => decision?.scoredCandidates.isNotEmpty ?? false;
-}
-
 /// The autopilot in one row: its state, what it does next, why, and the
 /// tab's one primary button.
 class _AutopilotBar extends StatelessWidget {
@@ -45,7 +17,7 @@ class _AutopilotBar extends StatelessWidget {
     required this.onSettings,
   });
 
-  final _AutopilotView view;
+  final AutopilotView view;
   final String? groupName;
   final bool busy;
   final bool compact;

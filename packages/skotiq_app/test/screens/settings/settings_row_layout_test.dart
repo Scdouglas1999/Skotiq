@@ -2,7 +2,6 @@
 // navigation marks the entries that take you out of Settings.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/settings/settings_screen.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_core/providers.dart';
@@ -30,7 +29,6 @@ Widget _row(Widget trailing) => MaterialApp(
               trailing: const [Text('group action')],
               children: [
                 SettingRow(
-                  icon: LucideIcons.bell,
                   title: 'Ring on this computer',
                   subtitle: _description,
                   trailing: trailing,

@@ -386,7 +386,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           title: 'ASTAP',
           children: [
             SettingRow(
-              icon: LucideIcons.fileCode,
               title: 'ASTAP executable',
               subtitle: preference.astapPath.isEmpty
                   ? (detection.astapPath ?? 'Auto-detect: not found')
@@ -401,7 +400,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.folder,
               title: 'ASTAP catalog directory',
               subtitle: preference.catalogPath.isEmpty
                   ? (detection.catalogPath ?? 'Auto-detect: not found')
@@ -414,7 +412,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shieldCheck,
               title: 'Verify ASTAP',
               subtitle: _verifyAstapSubtitle(
                   detection: detection,
@@ -439,7 +436,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           title: 'Astrometry.net',
           children: [
             SettingRow(
-              icon: LucideIcons.fileCode,
               title: 'solve-field executable',
               subtitle: preference.astrometryPath.isEmpty
                   ? (detection.astrometryPath ?? 'Auto-detect: not found')
@@ -454,7 +450,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shieldCheck,
               title: 'Verify Astrometry.net',
               subtitle: _verifyAstrometrySubtitle(
                   detection: detection,
@@ -483,7 +478,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               label: 'ASTAP',
               subtitle:
                   'Fast offline solver: recommended for almost all setups.',
-              icon: LucideIcons.zap,
               value: PlateSolverChoice.astap,
               groupValue: preference.choice,
               onChanged: (next) async {
@@ -494,7 +488,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
             _ChoiceRow(
               label: 'Astrometry.net',
               subtitle: 'Local solve-field. Slower but useful on Linux/macOS.',
-              icon: LucideIcons.globe,
               value: PlateSolverChoice.astrometry,
               groupValue: preference.choice,
               onChanged: (next) async {
@@ -506,7 +499,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               label: 'Auto-fallback',
               subtitle: 'Try ASTAP first; fall back to Astrometry.net if ASTAP '
                   'fails or is missing.',
-              icon: LucideIcons.shuffle,
               value: PlateSolverChoice.auto,
               groupValue: preference.choice,
               onChanged: (next) async {
@@ -841,7 +833,6 @@ class _CatalogMissingHint extends StatelessWidget {
 class _ChoiceRow extends StatelessWidget {
   final String label;
   final String subtitle;
-  final IconData icon;
   final PlateSolverChoice value;
   final PlateSolverChoice groupValue;
   final ValueChanged<PlateSolverChoice?> onChanged;
@@ -849,7 +840,6 @@ class _ChoiceRow extends StatelessWidget {
   const _ChoiceRow({
     required this.label,
     required this.subtitle,
-    required this.icon,
     required this.value,
     required this.groupValue,
     required this.onChanged,
@@ -862,7 +852,6 @@ class _ChoiceRow extends StatelessWidget {
     return InkWell(
       onTap: () => onChanged(value),
       child: SettingRow(
-        icon: icon,
         title: label,
         subtitle: subtitle,
         trailing: _ChoiceIndicator(selected: selected, colors: colors),

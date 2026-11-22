@@ -102,19 +102,13 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
   bool _showMosaics = false;
   int? _selectedTargetId;
 
-  // A linked client reads the host's autopilot by polling.
-  Timer? _remotePoll;
-  Future<void> _configSaveTail = Future<void>.value();
-  bool _configSaveErrorVisible = false;
   bool _autopilotBusy = false;
   bool _groupBusy = false;
   int? _staleGroupDropped;
 
-  /// Autopilot actions and settings sent to the host; a host change drops
-  /// what the old host answers.
+  /// Autopilot actions sent to the host; a host change drops what the old
+  /// host answers.
   late final _hostScopes = ref.backendScopes(alive: () => mounted);
-  SchedulerConfig? _confirmedConfig;
-  SchedulerConfig? _requestedConfig;
   ProviderSubscription<SkotiqBackend>? _backendSubscription;
 
   /// The settings in force as the tab shows them, for the settings dialog,
@@ -132,10 +126,6 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
         if (previous == null || identical(previous, next)) return;
         // Nothing asked of the old host carries over to the new one.
         _hostScopes.cancelAll();
-        _configSaveErrorVisible = false;
-        _confirmedConfig = null;
-        _requestedConfig = null;
-        _configSaveTail = Future<void>.value();
         if (mounted) {
           setState(() {
             _autopilotBusy = false;
@@ -144,7 +134,6 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
         }
       },
     );
-    _startRemotePoll();
     WidgetsBinding.instance.addPostFrameCallback((_) => _applyLinkGroup());
   }
 
@@ -177,22 +166,14 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     }
   }
 
-  void _startRemotePoll() {
-    _remotePoll?.cancel();
-    _remotePoll = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (!mounted || !ref.read(isRemoteModeProvider)) return;
-      ref.invalidate(schedulerRemoteSnapshotProvider);
-    });
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = ref.read(autopilotControllerProvider.notifier);
     if (state == AppLifecycleState.resumed) {
-      if (!(_remotePoll?.isActive ?? false)) _startRemotePoll();
+      controller.resumePolling();
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
-      _remotePoll?.cancel();
-      _remotePoll = null;
+      controller.pausePolling();
     }
   }
 
@@ -200,7 +181,6 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _backendSubscription?.close();
-    _remotePoll?.cancel();
     _shownConfig.dispose();
     super.dispose();
   }
@@ -288,88 +268,17 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
     }
   }
 
-  SchedulerConfig get _baseConfig =>
-      _requestedConfig ?? _confirmedConfig ?? SchedulerConfig.defaults;
-
-  /// Shows [config] at once and saves it to the host; saves run one after
-  /// another, and a failed save puts the confirmed settings back.
+  /// Shows [config] at once and saves it to the host.
   void _applyConfig(SchedulerConfig config) {
-    final host = _hostScopes.begin();
-    final scheduler = ref.read(schedulerControlProvider);
-    setState(() => _requestedConfig = config);
     _shownConfig.value = config;
-    scheduler.preview(config);
-
-    _configSaveTail = _configSaveTail.then((_) async {
-      try {
-        final confirmed = await scheduler.save(config);
-        if (!mounted || host.isStale) return;
-        setState(() {
-          _confirmedConfig = confirmed;
-          if (_requestedConfig == config) _requestedConfig = null;
-        });
-        ref.invalidate(schedulerRemoteSnapshotProvider);
-        _configSaveErrorVisible = false;
-      } catch (error) {
-        if (mounted && host.isCurrent) {
-          if (_requestedConfig == config) {
-            scheduler.preview(_confirmedConfig ?? SchedulerConfig.defaults);
-            setState(() => _requestedConfig = null);
-          }
-          ref.invalidate(schedulerRemoteSnapshotProvider);
-        }
-        if (mounted && host.isCurrent && !_configSaveErrorVisible) {
-          _configSaveErrorVisible = true;
-          context.showErrorSnackBar(
-            'Could not save the autopilot settings: ${userFacingError(error)}',
-          );
-        }
-      }
-    });
-  }
-
-  /// The autopilot as this machine or the linked host reports it.
-  _AutopilotView _watchAutopilot() {
-    if (ref.watch(isRemoteModeProvider)) {
-      final remoteAsync = ref.watch(schedulerRemoteSnapshotProvider);
-      final remote = remoteAsync.valueOrNull;
-      if (remote == null) {
-        return _AutopilotView.unavailable(
-          error: remoteAsync.hasError ? remoteAsync.error : null,
-          retry: () => ref.invalidate(schedulerRemoteSnapshotProvider),
+    ref.read(autopilotControllerProvider.notifier).apply(
+      config,
+      onSaveFailed: (error) {
+        if (!mounted) return;
+        context.showErrorSnackBar(
+          'Could not save the autopilot settings: ${userFacingError(error)}',
         );
-      }
-      return _AutopilotView(
-        status: remote.status,
-        decision: remote.decision,
-        config: remote.config,
-        readiness: remote.readiness,
-      );
-    }
-    final readyAsync = ref.watch(schedulerEngineReadyProvider);
-    final engine = readyAsync.valueOrNull;
-    if (engine == null) {
-      return _AutopilotView.unavailable(
-        error: readyAsync.hasError ? readyAsync.error : null,
-        retry: () {
-          ref.invalidate(appSettingsProvider);
-          ref.invalidate(schedulerPersistedConfigProvider);
-          ref.invalidate(schedulerEngineReadyProvider);
-        },
-      );
-    }
-    final status = ref.watch(schedulerStatusProvider);
-    final live = ref.watch(currentSchedulerDecisionProvider);
-    final preview = ref.watch(schedulerPreviewDecisionProvider).valueOrNull;
-    // Only the machine that owns the autopilot rescoring on data changes.
-    ref.watch(schedulerAutoReevalProvider);
-    return _AutopilotView(
-      status: status,
-      decision: status.state == SchedulerState.idle
-          ? preview ?? live
-          : live ?? preview,
-      config: engine.config,
-      readiness: ref.watch(schedulerStartReadinessProvider),
+      },
     );
   }
 
@@ -607,11 +516,10 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
 
   @override
   Widget build(BuildContext context) {
-    final autopilot = _watchAutopilot();
-    if (_requestedConfig == null && autopilot.config != null) {
-      _confirmedConfig = autopilot.config;
-    }
-    final shownConfig = _requestedConfig ?? autopilot.config ?? _baseConfig;
+    final autopilot = ref.watch(autopilotViewProvider);
+    ref.watch(autopilotControllerProvider);
+    final shownConfig =
+        ref.read(autopilotControllerProvider.notifier).shownConfig(autopilot);
     if (shownConfig != _shownConfig.value) {
       // The dialog listening to this is outside this build.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -796,7 +704,7 @@ class _PlanTargetsTabState extends ConsumerState<PlanTargetsTab>
 
   /// The one thing that stops the autopilot, with its way out; null when
   /// nothing does.
-  Widget? _blockerBanner(_AutopilotView view) {
+  Widget? _blockerBanner(AutopilotView view) {
     final status = view.status;
     final readiness = view.readiness;
     if (status == null || readiness == null) return null;

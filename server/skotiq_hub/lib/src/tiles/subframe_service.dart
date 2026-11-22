@@ -25,8 +25,9 @@ class SubframeService {
   final SubframeStore _store;
   final Uuid _uuid = const Uuid();
 
-  /// Asynchronous variant of [store] for HTTP upload handlers so large FITS
-  /// payloads do not block the hub event loop.
+  /// Store one raw FITS subframe for [accountId] under [tileId]/[order] and
+  /// record its ledger row, without blocking the hub event loop on a large
+  /// payload. Returns the receipt the handler echoes back.
   Future<SubframeReceipt> storeAsync({
     required String accountId,
     required int tileId,
@@ -99,42 +100,6 @@ class SubframeService {
       contributionId: contributionId,
       accepted: true,
       storedBytes: byteCount,
-    );
-  }
-
-  /// Store one raw FITS subframe for [accountId] under [tileId]/[order] and
-  /// record its ledger row. Returns the receipt the handler echoes back.
-  SubframeReceipt store({
-    required String accountId,
-    required int tileId,
-    required int order,
-    required Uint8List bytes,
-    int? capturedImageId,
-    String? instrument,
-    double? exposureSeconds,
-    String? license,
-    String? consentId,
-  }) {
-    final contributionId = _uuid.v4();
-    final path = _store.save(
-      accountId: accountId,
-      tileId: tileId,
-      order: order,
-      contributionId: contributionId,
-      bytes: bytes,
-    );
-    return _recordStored(
-      contributionId: contributionId,
-      accountId: accountId,
-      tileId: tileId,
-      order: order,
-      path: path,
-      byteCount: bytes.length,
-      capturedImageId: capturedImageId,
-      instrument: instrument,
-      exposureSeconds: exposureSeconds,
-      license: license,
-      consentId: consentId,
     );
   }
 

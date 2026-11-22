@@ -16,9 +16,9 @@
 //!
 //! ## Implementation
 //!
-//! The wizard is implemented on top of [`crate::wizard::Wizard`] so the
-//! binary-search iterations are step-checkpointable: a sequence killed
-//! mid-search resumes on the next iteration. The cover/calibrator
+//! The wizard is implemented on top of [`crate::wizard::Wizard`], so each
+//! binary-search iteration is a plan step. It runs with no checkpoint sink,
+//! so a sequence killed mid-search starts the search again. The cover/calibrator
 //! device dance lives in [`panel`].
 //!
 //! Final frames use the sequencer's normal exposure pipeline so their

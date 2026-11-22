@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_app/screens/settings/widgets/settings_widgets.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -31,7 +30,6 @@ void main() {
     await tester.pumpWidget(
       wrap(
         SettingRow(
-          icon: LucideIcons.power,
           title: 'Start minimized',
           subtitle: 'Launch app minimized to system tray',
           trailing: SkotiqSwitch(value: true, onChanged: (_) {}),
@@ -65,7 +63,6 @@ void main() {
     await tester.pumpWidget(
       wrap(
         SettingRow(
-          icon: LucideIcons.power,
           title: 'Confirm before closing',
           trailing: SkotiqSwitch(value: false, onChanged: (_) {}),
         ),
@@ -100,7 +97,6 @@ void main() {
     await tester.pumpWidget(
       wrap(
         SettingRow(
-          icon: LucideIcons.palette,
           title: 'Theme',
           trailing: SettingsDropdown(
             value: 'Dark',

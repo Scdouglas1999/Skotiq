@@ -103,11 +103,10 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
         return SettingsSection(
           title: 'MQTT broker',
           children: [
-            _row(LucideIcons.server, 'Broker host', _host, 'mqtt.example.com'),
-            _row(LucideIcons.hash, 'Port', _port, '1883', isNumber: true),
-            _row(LucideIcons.user, 'Username (optional)', _user, ''),
+            _row('Broker host', _host, 'mqtt.example.com'),
+            _row('Port', _port, '1883', isNumber: true),
+            _row('Username (optional)', _user, ''),
             _SecretFieldRow(
-              icon: LucideIcons.key,
               title: 'Password (optional)',
               controller: _pass,
               hasStoredValue: (cfg.password ?? '').isNotEmpty,
@@ -115,10 +114,9 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
               onChanged: (_) => _clearPassword = false,
               onClear: () => setState(() => _clearPassword = true),
             ),
-            _row(LucideIcons.hash, 'Topic', _topic, 'skotiq/notifications'),
-            _row(LucideIcons.tag, 'Client ID', _clientId, 'skotiq'),
+            _row('Topic', _topic, 'skotiq/notifications'),
+            _row('Client ID', _clientId, 'skotiq'),
             SettingRow(
-              icon: LucideIcons.lock,
               title: 'Use TLS',
               trailing: SettingsSwitch(
                 value: _tls,
@@ -126,7 +124,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shield,
               title: 'QoS',
               trailing: AccessibleDropdown<int>(
                 value: _qos,
@@ -140,7 +137,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.archive,
               title: 'Retain',
               trailing: SettingsSwitch(
                 value: _retain,
@@ -148,7 +144,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save MQTT config',
               trailing: _SaveButton(
                 successMessage: 'MQTT config saved',
@@ -156,7 +151,6 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.send,
               title: 'Test MQTT publish',
               trailing: _TestSendButton(
                 kind: NotificationTransportKind.mqtt,
@@ -169,10 +163,9 @@ class _MqttTransportSectionState extends ConsumerState<_MqttTransportSection> {
     );
   }
 
-  Widget _row(IconData icon, String title, TextEditingController c, String hint,
+  Widget _row(String title, TextEditingController c, String hint,
       {bool obscure = false, bool isNumber = false}) {
     return SettingRow(
-      icon: icon,
       title: title,
       trailing: settingsTrailingTextInput(
         context: context,

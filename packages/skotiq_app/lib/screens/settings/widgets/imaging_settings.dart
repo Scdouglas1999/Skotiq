@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -89,7 +88,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
     final isXisf = format == kCaptureImageFormatXisf;
     return [
       SettingRow(
-        icon: LucideIcons.file,
         title: 'Archive format',
         subtitle: isXisf
             ? 'Lossless $kCaptureBitDepth XISF, the format PixInsight works in; '
@@ -107,7 +105,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
       ),
       if (isXisf) ...[
         SettingRow(
-          icon: LucideIcons.archive,
           title: 'XISF compression',
           subtitle:
               'Smaller files at no cost to the pixels. Byte shuffling helps '
@@ -124,7 +121,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
           stackWhenNarrow: true,
         ),
         SettingRow(
-          icon: LucideIcons.shieldCheck,
           title: 'XISF checksums',
           subtitle:
               'Store a SHA-1 checksum with each frame so damage on disk is '
@@ -161,7 +157,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
               children: [
                 ..._formatRows(settings),
                 SettingRow(
-                  icon: LucideIcons.camera,
                   title: 'Camera raw files',
                   subtitle: 'For DSLR and mirrorless cameras. The raw file is '
                       'kept exactly as the camera made it; the archive file '
@@ -188,7 +183,6 @@ class _ImagingSettingsState extends ConsumerState<ImagingSettings> {
                   stackWhenNarrow: true,
                 ),
                 SettingRow(
-                  icon: LucideIcons.fileText,
                   title: 'File naming pattern',
                   subtitle: 'Folders and file name, separated by /. '
                       'Variables: ${NamingToken.values.map((t) => t.text).join(', ')}',

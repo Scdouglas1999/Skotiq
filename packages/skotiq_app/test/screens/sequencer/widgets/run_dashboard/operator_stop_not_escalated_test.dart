@@ -128,7 +128,9 @@ void main() {
 
     container.read(eventHistoryProvider.notifier).addEvent(_cancellation(1));
 
-    final recent = container.read(runDashboardRecentEventsProvider(5));
+    final recent = runDashboardFeedRows(container.read(eventHistoryProvider))
+        .take(5)
+        .toList();
     expect(recent, hasLength(1));
     expect(recent.first.title, 'Sequence stopped');
     expect(recent.first.title, isNot(contains('error')));

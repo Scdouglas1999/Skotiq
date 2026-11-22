@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -263,8 +262,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
     // Real delivery state, so the critical-alert row can stop asserting a
     // capability the system may not have.
     final pushTargetsAsync = ref.watch(pushDeliveryTargetsProvider);
-    final pushTargets =
-        pushTargetsAsync.valueOrNull ?? PushDeliveryTargets.none;
 
     return settingsAsync.when(
       loading: () => const SettingsLoadingState(),
@@ -290,7 +287,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               title: "Skotiq's own alerts",
               children: [
                 SettingRow(
-                  icon: LucideIcons.bell,
                   title: 'Send these alerts',
                   subtitle: 'The end of the night, errors and meridian flips, '
                       'below. Off sends none of them. Run events further '
@@ -305,7 +301,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.volume2,
                   title: 'Sound',
                   subtitle: 'Play a short sound in the app with each of them.',
                   trailing: SettingsSwitch(
@@ -318,7 +313,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.checkCircle,
                   title: 'End of the night',
                   subtitle: builtInEventAlertSubtitle(
                     'The morning message, finished masters and the '
@@ -335,7 +329,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.alertCircle,
                   title: 'Errors',
                   subtitle: builtInEventAlertSubtitle(
                     'A capture that failed, or a device that would not '
@@ -352,7 +345,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.rotateCw,
                   title: 'Meridian flip',
                   subtitle: builtInEventAlertSubtitle(
                     'When the mount starts and finishes a flip.',
@@ -376,7 +368,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
               title: 'Critical problems during a run',
               children: [
                 SettingRow(
-                  icon: LucideIcons.bellRing,
                   title: 'Ring on this computer',
                   subtitle: 'Sound an alarm here when a run hits a critical '
                       'problem, such as a mount fault or a failed recovery.',
@@ -390,7 +381,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.volume2,
                   title: 'Alarm sound',
                   subtitle: 'What rings.',
                   trailing: SettingsDropdown(
@@ -411,9 +401,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 // subtitle therefore reports the host's ACTUAL delivery state
                 // rather than the intent.
                 SettingRow(
-                  icon: pushTargets.canDeliver
-                      ? LucideIcons.smartphone
-                      : LucideIcons.smartphoneNfc,
                   title: 'Send to paired phones',
                   subtitle: pushDeliverySubtitleFor(pushTargetsAsync),
                   trailing: SettingsSwitch(
@@ -432,7 +419,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 title: 'Push to phones',
                 children: [
                   SettingRow(
-                    icon: LucideIcons.server,
                     title: 'Set on the imaging computer',
                     subtitle: 'Which events reach phones is set on the '
                         'computer that runs the rig.',
@@ -445,7 +431,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 title: 'Push to phones',
                 children: [
                   SettingRow(
-                    icon: LucideIcons.smartphone,
                     title: 'Loading',
                     subtitle: 'The phone settings appear once they have '
                         'loaded.',
@@ -463,7 +448,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 title: 'Push to phones',
                 children: [
                   SettingRow(
-                    icon: LucideIcons.alertTriangle,
                     title: 'Could not load the phone settings',
                     subtitle: userFacingError(pushConfigAsync.error),
                     trailing: SkotiqButton(
@@ -481,7 +465,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 title: 'Push to phones',
                 children: [
                   SettingRow(
-                    icon: LucideIcons.smartphone,
                     title: 'Push to phones',
                     subtitle: 'Send these events to phones paired with this '
                         'computer. Each one can be turned off here.',
@@ -495,7 +478,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.checkCircle,
                     title: 'Sequence completed',
                     subtitle: 'When a run finishes.',
                     trailing: SettingsSwitch(
@@ -509,7 +491,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.alertTriangle,
                     title: 'Sequence failed',
                     subtitle: 'When a run fails or is stopped.',
                     trailing: SettingsSwitch(
@@ -523,7 +504,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.rotateCw,
                     title: 'Meridian flip',
                     subtitle: 'When the mount flips.',
                     trailing: SettingsSwitch(
@@ -537,7 +517,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.cloudRain,
                     title: 'Weather unsafe',
                     subtitle: 'When the weather turns unsafe.',
                     trailing: SettingsSwitch(
@@ -551,7 +530,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.crosshair,
                     title: 'Guiding lost',
                     subtitle: 'When the guide star stays lost.',
                     trailing: SettingsSwitch(
@@ -565,7 +543,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.cameraOff,
                     title: 'Exposure failed',
                     subtitle: 'When an exposure fails.',
                     trailing: SettingsSwitch(
@@ -579,7 +556,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.focus,
                     title: 'Autofocus failed',
                     subtitle: 'When autofocus fails.',
                     trailing: SettingsSwitch(
@@ -593,7 +569,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.unplug,
                     title: 'Equipment disconnected',
                     subtitle: 'When a device drops.',
                     trailing: SettingsSwitch(
@@ -607,7 +582,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.send,
                     title: 'Send a test',
                     subtitle: 'Sends a test to paired phones. If it does not '
                         'arrive, the log says why.',
@@ -633,7 +607,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 title: 'Discord',
                 children: [
                   SettingRow(
-                    icon: LucideIcons.messageSquare,
                     title: 'Webhook URL',
                     subtitle: 'The Discord channel alerts are posted to.',
                     trailing: AdminOnlyControl(
@@ -657,7 +630,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   // which a link without admin access never has.
                   if (!credentialsHidden)
                     SettingRow(
-                      icon: LucideIcons.send,
                       title: 'Test Discord',
                       subtitle: 'Post a test message to the channel.',
                       trailing: SkotiqButton(
@@ -675,7 +647,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                 title: 'Pushover',
                 children: [
                   SettingRow(
-                    icon: LucideIcons.key,
                     title: 'API key',
                     subtitle: 'The key of your Pushover application.',
                     trailing: AdminOnlyControl(
@@ -696,7 +667,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.user,
                     title: 'User key',
                     subtitle: 'Your Pushover user or group key.',
                     trailing: AdminOnlyControl(
@@ -718,7 +688,6 @@ class _NotificationSettingsState extends ConsumerState<NotificationSettings> {
                   ),
                   if (!credentialsHidden)
                     SettingRow(
-                      icon: LucideIcons.send,
                       title: 'Test Pushover',
                       subtitle: 'Send a test to your phone.',
                       trailing: SkotiqButton(

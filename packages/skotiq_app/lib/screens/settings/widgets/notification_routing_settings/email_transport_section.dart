@@ -100,13 +100,10 @@ class _EmailTransportSectionState
         return SettingsSection(
           title: 'Email (SMTP)',
           children: [
-            _textRow(LucideIcons.server, 'SMTP host', _host,
-                hint: 'smtp.gmail.com'),
-            _textRow(LucideIcons.hash, 'SMTP port', _port,
-                hint: '587', isNumber: true),
-            _textRow(LucideIcons.user, 'Username', _user, hint: 'optional'),
+            _textRow('SMTP host', _host, hint: 'smtp.gmail.com'),
+            _textRow('SMTP port', _port, hint: '587', isNumber: true),
+            _textRow('Username', _user, hint: 'optional'),
             _SecretFieldRow(
-              icon: LucideIcons.key,
               title: 'Password',
               subtitle: 'Stored securely in the OS keyring.',
               controller: _pass,
@@ -116,7 +113,6 @@ class _EmailTransportSectionState
               onClear: () => setState(() => _clearPassword = true),
             ),
             SettingRow(
-              icon: LucideIcons.lock,
               title: 'Use STARTTLS',
               subtitle: 'Recommended for ports 25/587',
               trailing: SettingsSwitch(
@@ -124,12 +120,9 @@ class _EmailTransportSectionState
                 onChanged: (v) => setState(() => _useTls = v),
               ),
             ),
-            _textRow(LucideIcons.atSign, 'From address', _from,
-                hint: 'you@example.com'),
-            _textRow(LucideIcons.send, 'To address', _to,
-                hint: 'you@example.com'),
+            _textRow('From address', _from, hint: 'you@example.com'),
+            _textRow('To address', _to, hint: 'you@example.com'),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save SMTP settings',
               trailing: _SaveButton(
                 successMessage: 'Email config saved',
@@ -137,7 +130,6 @@ class _EmailTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.send,
               title: 'Test email',
               subtitle: 'Send a test email through the configured SMTP server',
               trailing: _TestSendButton(
@@ -151,10 +143,9 @@ class _EmailTransportSectionState
     );
   }
 
-  Widget _textRow(IconData icon, String title, TextEditingController c,
+  Widget _textRow(String title, TextEditingController c,
       {String? hint, bool obscure = false, bool isNumber = false}) {
     return SettingRow(
-      icon: icon,
       title: title,
       trailing: settingsTrailingTextInput(
         context: context,

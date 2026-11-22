@@ -534,9 +534,11 @@ async fn test_qhy_cfw_operations() {
 #[tokio::test]
 async fn test_unified_discovery() {
     use skotiq_device::DeviceKind as DeviceType;
-    use skotiq_native::discovery::discover_all_devices;
+    use skotiq_native::{discover_native_devices, DiscoveryScope};
 
-    let devices = discover_all_devices().await.expect("Discovery should work");
+    let devices = discover_native_devices(&DiscoveryScope::default())
+        .await
+        .expect("Discovery should work");
     println!("Unified discovery found {} total devices:", devices.len());
 
     let cameras: Vec<_> = devices
@@ -620,9 +622,11 @@ async fn test_lx200_mount_discovery_no_crash() {
 #[tokio::test]
 async fn test_unified_discovery_includes_mounts() {
     use skotiq_device::DeviceKind as DeviceType;
-    use skotiq_native::discovery::discover_all_devices;
+    use skotiq_native::{discover_native_devices, DiscoveryScope};
 
-    let devices = discover_all_devices().await.expect("Discovery should work");
+    let devices = discover_native_devices(&DiscoveryScope::default())
+        .await
+        .expect("Discovery should work");
     let mounts: Vec<_> = devices
         .iter()
         .filter(|d| d.device_type == DeviceType::Mount)

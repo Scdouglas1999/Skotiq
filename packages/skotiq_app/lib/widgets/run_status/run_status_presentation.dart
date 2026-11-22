@@ -5,7 +5,6 @@ library;
 
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/models.dart'
     show SequenceRunStatus, SessionStatus, isStoredRunStopNotice;
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -151,6 +150,3 @@ String? runFailureHeadline({String? terminalCause, List<String>? errors}) {
   if (errors != null && errors.isNotEmpty) return errors.last;
   return null;
 }
-
-/// A failure as recorded on a run, in words for the operator.
-String runFailureMessage(String raw) => userFacingError(raw);

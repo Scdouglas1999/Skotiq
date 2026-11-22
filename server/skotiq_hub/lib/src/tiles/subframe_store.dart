@@ -33,24 +33,6 @@ class SubframeStore {
   /// Persist [bytes] as the raw subframe for [contributionId]. Writes to a temp
   /// file in the same directory then renames, so a crash mid-write never leaves
   /// a torn FITS. Returns the absolute path written.
-  String save({
-    required String accountId,
-    required int tileId,
-    required int order,
-    required String contributionId,
-    required Uint8List bytes,
-  }) {
-    final dest = pathFor(accountId, tileId, order, contributionId);
-    final dir = Directory(p.dirname(dest));
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    final tmp = File('$dest.tmp');
-    tmp.writeAsBytesSync(bytes, flush: true);
-    tmp.renameSync(dest);
-    return dest;
-  }
-
-  /// Asynchronous variant of [save] for HTTP upload handlers so large FITS
-  /// payloads do not block the hub event loop.
   Future<String> saveAsync({
     required String accountId,
     required int tileId,

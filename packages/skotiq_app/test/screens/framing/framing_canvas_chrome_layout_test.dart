@@ -95,7 +95,7 @@ void main() {
   Future<Rect> pumpScene(WidgetTester tester, Size size, _Scene scene) async {
     await pumpAppScreen(
       tester,
-      const FramingScreen(),
+      _framingPage(),
       size: size,
       settle: false,
       extraOverrides: [
@@ -309,3 +309,12 @@ void main() {
     expect(container.read(imagingViewerStateProvider).showCrosshair, isTrue);
   });
 }
+
+/// The standalone framing page as the app showed it: [FramingView] on the
+/// theme background.
+Widget _framingPage() => Builder(
+      builder: (context) => Scaffold(
+        backgroundColor: SkotiqColors.of(context).background,
+        body: const FramingView(),
+      ),
+    );
