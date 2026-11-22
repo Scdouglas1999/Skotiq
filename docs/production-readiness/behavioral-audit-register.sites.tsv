@@ -1911,7 +1911,6 @@ packages/skotiq_app/lib/screens/sequencer/widgets/science_photometry_properties.
 packages/skotiq_app/lib/screens/sequencer/widgets/science_photometry_properties.dart	initState	literal_null_coalesce	1	V0086	_gainCtl = TextEditingController(text: widget.node.gain?.toString() ?? '');
 packages/skotiq_app/lib/screens/sequencer/widgets/secondary_rig_card.dart	build	literal_null_coalesce	1	V0121	final trimmed = text?.trim() ?? '';
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_progress_bar.dart	debugElapsedTickerActiveForTesting	literal_null_coalesce	1	V0723	_elapsedTicker?.isActive ?? false;
-packages/skotiq_app/lib/screens/sequencer/widgets/sequence_timeline.dart	build	guessed_now_timestamp	1	V0002	final timelineStart = startTime ?? sessionStart ?? DateTime.now();
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_timeline/full_timeline.dart	DateTime.now	guessed_now_timestamp	1	V0121	widget.startTime ?? _sessionRunStart ?? DateTime.now();
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar.dart	build	literal_null_coalesce	1	R9-095	ref.watch(currentPlanTimingProvider)?.total.inSeconds ?? 0;
 packages/skotiq_app/lib/screens/sequencer/widgets/sequence_toolbar.dart	build	literal_null_coalesce	1	V0005	ref.watch(executorSimulationModeProvider).valueOrNull ?? false;
@@ -2135,6 +2134,7 @@ packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLin
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0293	final compPrimary = parts.length > 31 ? (int.tryParse(parts[31]) ?? 0) : 0;
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0290	final hygId = int.tryParse(parts[0]) ?? 0;
 packages/skotiq_astro/lib/src/catalogs/star_catalog/hyg_parser.dart	_parseHygLine	literal_null_coalesce	1	V0292	starName = '$flamsteedNumber ${constellationFullName(constellation ?? '')}';
+packages/skotiq_astro/lib/src/catalogs/target_light.dart	targetLight	literal_null_coalesce	1	O10-02	final type = (objectType ?? '').toLowerCase();
 packages/skotiq_astro/lib/src/catalogs/variable_star_catalog.dart	search	literal_null_coalesce	1	V0135	(s.designation?.toLowerCase().contains(lower) ?? false) ||
 packages/skotiq_astro/lib/src/format/relative_time.dart	RelativeTime	guessed_now_timestamp	1	U2-07	}) => agoFor((now ?? DateTime.now()).difference(then), style: style);
 packages/skotiq_bridge/lib/src/event/sequencer.dart	SequencerEvent.frameRejected	nonconvergence_best_guess	1	V0288	/// consulted or could not pick a single best guess. Dart maps
@@ -3454,6 +3454,7 @@ packages/skotiq_core/lib/src/services/session_report_service.dart	_filterReportF
 packages/skotiq_core/lib/src/services/session_report_service.dart	renderMarkdown	literal_null_coalesce	1	V0105	(rejectionTotals[entry.key] ?? 0) + entry.value;
 packages/skotiq_core/lib/src/services/session_service.dart	findIncompleteSessionsForRecovery	empty_catch	1	V0025	} catch (_) {
 packages/skotiq_core/lib/src/services/share_card_renderer.dart	ShareCardRenderer	literal_null_coalesce	1	V0121	counts[v] = (counts[v] ?? 0) + 1;
+packages/skotiq_core/lib/src/services/site_positioning/geolocation_service.dart	done	literal_null_coalesce	1	V0497	bool done() => best?.isPrecise ?? false;
 packages/skotiq_core/lib/src/services/sky_atlas/sky_atlas_models.dart	AtlasFoldSummary.fromJson	literal_null_coalesce	1	V0174	(json['framesSkippedNoCoverage'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/services/sky_atlas/sky_atlas_models.dart	AtlasFoldTile.fromJson	literal_null_coalesce	1	V0174	(json['integrationSecondsAdded'] as num?)?.toDouble() ?? 0.0,
 packages/skotiq_core/lib/src/services/sky_atlas/sky_atlas_models.dart	AtlasFoldTile.fromJson	literal_null_coalesce	1	V0174	centerDecDeg: (json['centerDec'] as num?)?.toDouble() ?? 0.0,
@@ -3513,7 +3514,6 @@ packages/skotiq_core/lib/src/services/smart_night/exposure_calculator.dart	Filte
 packages/skotiq_core/lib/src/services/smart_night/guide_rms_collector.dart	collectSession	guessed_now_timestamp	1	V0109	recordedAt: recordedAt ?? DateTime.now(),
 packages/skotiq_core/lib/src/services/smart_night_models/context_and_plan.dart	SmartNightContext.fromJson	literal_null_coalesce	1	V0121	json['adaptiveExposuresRecommended'] as bool? ?? false,
 packages/skotiq_core/lib/src/services/smart_night_models/filter_choice.dart	_objectKindPhrase	literal_null_coalesce	1	O10-02	final type = objectType?.trim() ?? '';
-packages/skotiq_core/lib/src/services/smart_night_models/filter_choice.dart	targetLight	literal_null_coalesce	1	O10-02	final type = (objectType ?? '').toLowerCase();
 packages/skotiq_core/lib/src/services/smart_night_models/filter_sets.dart	shares	guessed_numeric_fallback	1	O10-04	for (final filter in filters) filter: _shares[filter] ?? 1.0,
 packages/skotiq_core/lib/src/services/smart_night_models/json_helpers.dart	_recommendationFromJson	literal_null_coalesce	1	V0121	rationale: json['rationale'] as String? ?? '',
 packages/skotiq_core/lib/src/services/smart_night_models/planned_target_results.dart	SmartNightPlannedTarget.fromJson	literal_null_coalesce	1	O10-02	filterReason: json['filterReason'] as String? ?? '',
@@ -3632,7 +3632,6 @@ packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final majorPx = (dso.sizeArcMin ?? 0) / 60 * scale;
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final minorPx = (dso.minorAxisArcMin ?? dso.sizeArcMin ?? 0) / 60 * scale;
 packages/skotiq_planetarium/lib/src/rendering/sky_renderer/stellar_objects.dart	_drawDSOs	literal_null_coalesce	1	V0121	final paRad = -((dso.positionAngle ?? 0) * SkyCanvasPainter._deg2rad);
-packages/skotiq_planetarium/lib/src/services/geolocation_service.dart	done	literal_null_coalesce	1	V0497	bool done() => best?.isPrecise ?? false;
 packages/skotiq_planetarium/lib/src/util/aligned_ticker.dart	delayToNextBoundary	guessed_now_timestamp	1	V0722	final nowUs = (now ?? DateTime.now()).toUtc().microsecondsSinceEpoch;
 packages/skotiq_planetarium/lib/src/widgets/fov_presets.dart	fromJson	literal_null_coalesce	1	V0121	color: Color((json['color'] as num?)?.toInt() ?? 0xFF00E676),
 packages/skotiq_planetarium/lib/src/widgets/fov_presets.dart	fromJson	literal_null_coalesce	1	V0121	positionAngleDeg: (json['positionAngleDeg'] as num?)?.toDouble() ?? 0,
