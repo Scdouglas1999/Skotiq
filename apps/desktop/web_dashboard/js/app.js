@@ -4284,11 +4284,14 @@
     };
     const disconnected = s === 'disconnected' || s === 'unknown';
     const guiding = s === 'guiding';
+    // PHD2 settles after every dither and may lose the star; guiding is still
+    // switched on in both, so Stop must stay reachable.
+    const guidingOn = guiding || s === 'settling' || s === 'lostlock';
     const paused = s === 'paused';
     set('btn-guide-connect', disconnected);
     set('btn-guide-start', !disconnected && !guiding);
     set('btn-guide-pause', guiding && !paused);
-    set('btn-guide-stop', guiding || paused);
+    set('btn-guide-stop', guidingOn || paused);
     set('btn-guide-dither', guiding && !paused);
   }
 

@@ -3364,8 +3364,8 @@ const DASHBOARD_GUIDER_STATE = {
   'Guiding': ['Guiding', 'badge-running', 'pause', 'stop', 'dither'],
   'Looping': ['Looping', 'badge-idle', 'start'],
   'Paused': ['Paused', 'badge-idle', 'start', 'stop'],
-  'Settling': ['Settling', 'badge-idle', 'start'],
-  'LostLock': ['LostLock', 'badge-idle', 'start'],
+  'Settling': ['Settling', 'badge-idle', 'start', 'stop'],
+  'LostLock': ['LostLock', 'badge-idle', 'start', 'stop'],
   'Selected': ['Selected', 'badge-idle', 'start'],
 };
 
@@ -3399,4 +3399,12 @@ test('a recovering run is not painted idle on the dashboard', () => {
   assert.equal(badge, 'badge-recovering');
   const css = fs.readFileSync(path.join(ROOT, 'css', 'dashboard.css'), 'utf8');
   assert.match(css, /\.badge-recovering\s*\{[^}]*background:/);
+});
+
+// PHD2 settles after every dither and loses the star now and then. Guiding is
+// still on in both, and Stop is how the operator turns it off from here.
+test('Stop stays enabled while guiding settles or has lost the star', () => {
+  for (const word of ['Settling', 'LostLock']) {
+    assert.ok(dashboardGuiderState(word).includes('stop'), word);
+  }
 });
