@@ -756,7 +756,7 @@ mod heartbeat_event_tests {
         ));
         let result = with_status_reads(Ok(true), reads.clone());
         assert!(
-            matches!(&result, Err(e) if e.message().contains("Failed to get RA")),
+            matches!(&result, Err(e) if e.to_string().contains("Failed to get RA")),
             "{result:?}"
         );
         assert_eq!(with_status_reads(Ok(true), None), Ok(true));

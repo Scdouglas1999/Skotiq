@@ -33,10 +33,6 @@ impl DeviceFailure {
         }
     }
 
-    pub(crate) fn message(&self) -> &str {
-        &self.message
-    }
-
     /// The same failure in other words.
     pub(crate) fn reworded(self, words: impl FnOnce(String) -> String) -> Self {
         Self {

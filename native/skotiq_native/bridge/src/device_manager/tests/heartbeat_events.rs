@@ -357,7 +357,7 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
     let reason = manager
         .failing_status_reads(device_id)
         .expect("three failed reads must count");
-    assert!(reason.message().contains("0x80040401"), "{reason}");
+    assert!(reason.to_string().contains("0x80040401"), "{reason}");
 
     faults::clear_all();
     manager.mount_get_status(device_id).await.unwrap();

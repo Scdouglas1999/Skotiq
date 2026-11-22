@@ -178,7 +178,7 @@ mod tests {
         assert_eq!(health.failing("m", t), None);
         health.record_failure("m", "Failed to get RA: 0x80040401", t);
         let reason = health.failing("m", t).expect("three failures count");
-        assert!(reason.message().contains("0x80040401"), "{reason}");
+        assert!(reason.to_string().contains("0x80040401"), "{reason}");
 
         health.record_success("m");
         assert_eq!(health.failing("m", t), None);
