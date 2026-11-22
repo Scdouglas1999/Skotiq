@@ -11,7 +11,7 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
     required List<DbCapturedImage> subs,
     required List<String> calibrationWarnings,
   }) async {
-    final name = _masterName(targetName: targetName, filter: filter);
+    final name = integratedMasterName(targetName: targetName, filter: filter);
     final masterId = await _mastersDao.insertMaster(
       targetId: targetId,
       name: name,
@@ -181,16 +181,6 @@ extension _PostSessionIntegrationHelpers on PostSessionIntegrationService {
       if (cH != curH) return cH < curH;
     }
     return candidate.capturedAt.isAfter(current.capturedAt);
-  }
-
-  String _masterName({String? targetName, String? filter}) {
-    final base = (targetName != null && targetName.trim().isNotEmpty)
-        ? targetName.trim()
-        : 'Master';
-    if (filter != null && filter.trim().isNotEmpty) {
-      return '$base · ${filter.trim()}';
-    }
-    return base;
   }
 
   /// The `integrated_masters.stats_json` payload.

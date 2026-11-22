@@ -429,21 +429,7 @@ String darkroomMasterTargetName(
   } on FormatException {
     // Settings that are not JSON name no target; the master's name does.
   }
-  var name = master.name.trim();
-  final filter = master.filter?.trim();
-  if (filter != null && filter.isNotEmpty) {
-    for (final separator in const [' · ', ' - ', ' ']) {
-      final suffix = '$separator$filter';
-      if (name.toLowerCase().endsWith(suffix.toLowerCase())) {
-        name = name.substring(0, name.length - suffix.length).trim();
-        break;
-      }
-    }
-  }
-  // Session Review names a master "<target> · <filter>"; what follows the dot
-  // is never part of the target.
-  final dot = name.indexOf(' · ');
-  if (dot > 0) name = name.substring(0, dot).trim();
+  final name = targetInMasterName(master.name, master.filter);
   return name.isEmpty ? 'Unnamed target' : name;
 }
 

@@ -7,6 +7,7 @@ import '../database/daos/integrated_masters_dao.dart';
 import '../database/database.dart';
 import '../models/calibration/calibration_library_models.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
+import '../models/darkroom/master_naming.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/imaging/integration_settings.dart';
 import '../providers/dark_library_provider.dart';
@@ -143,7 +144,7 @@ class MasterAccumulationService {
 
     return _mastersDao.insertMaster(
       targetId: targetId,
-      name: _masterName(targetName: targetName, filter: filter),
+      name: integratedMasterName(targetName: targetName, filter: filter),
       masterFitsPath: null,
       previewPngPath: null,
       sidecarPath: result.sidecarPath,
@@ -532,15 +533,5 @@ class MasterAccumulationService {
       if (biasPath != null && biasPath.trim().isNotEmpty) 'bias': biasPath,
       'cosmeticCorrection': cosmeticCorrection,
     };
-  }
-
-  String _masterName({String? targetName, String? filter}) {
-    final base = (targetName != null && targetName.trim().isNotEmpty)
-        ? targetName.trim()
-        : 'Master';
-    final f = (filter != null && filter.trim().isNotEmpty)
-        ? filter.trim()
-        : null;
-    return f != null ? '$base · $f' : base;
   }
 }

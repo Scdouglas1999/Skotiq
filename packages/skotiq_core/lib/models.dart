@@ -185,6 +185,7 @@ export 'src/models/collaboration/collaboration_models.dart';
 // dawn-job queue, and the delivery destinations + journal.
 export 'src/models/darkroom/darkroom_models.dart';
 export 'src/models/darkroom/target_standing.dart';
+export 'src/models/darkroom/master_naming.dart';
 // Calibration Library Manager (v46): unified browse / tag / auto-match over
 // dark_library, flat_library, and defect_maps + the calibration_tags layer.
 export 'src/models/calibration/calibration_library_models.dart';

@@ -87,9 +87,6 @@ Future<bool> applyDarkroomTargetEdit(
 /// "6 min", "1.1 h": kept light the way the target rows print it.
 String _kept(double seconds) => describeIntegration(seconds);
 
-String _minutes(int minutes) =>
-    minutes >= 60 && minutes % 60 == 0 ? '${minutes ~/ 60} h' : '$minutes min';
-
 /// Opens the project rule settings.
 class DarkroomProjectRuleButton extends StatelessWidget {
   const DarkroomProjectRuleButton({super.key});
@@ -735,7 +732,7 @@ class DarkroomTargetSuggestions extends ConsumerWidget {
               ? 'It stays there until you list it as a project.'
               : 'It moves to the projects by itself once it has at least '
                   '${t.rule.minKeptFrames} kept subs adding up to '
-                  '${_minutes(t.rule.minKeptMinutes)}.',
+                  '${describeRuleMinutes(t.rule.minKeptMinutes)}.',
           action: SkotiqButton(
             key: const ValueKey('darkroom_list_as_project'),
             label: 'List as a project',
