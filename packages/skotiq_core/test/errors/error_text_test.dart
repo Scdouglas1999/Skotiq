@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_core/errors.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 /// How the operating system words a refused connection; the error text passes
 /// the system's own words through.
@@ -348,5 +349,28 @@ void main() {
       ),
       'Failed to start: No plate solver (ASTAP) configured',
     );
+  });
+
+  test('a refusal reads as the words it carries, as an operation failure '
+      'does', () {
+    const refused = bridge.SkotiqError.refused(
+      kind: bridge.Refusal.noLockPosition,
+      message: 'Failed to get lock position: no lock',
+    );
+    const failed = bridge.SkotiqError.operationFailed(
+      'Failed to get lock position: no lock',
+    );
+    for (final text in [
+      '$refused',
+      'Guiding stopped: $refused',
+      'Exception: $refused',
+    ]) {
+      expect(
+        userFacingError(text),
+        userFacingError(text.replaceAll('$refused', '$failed')),
+        reason: text,
+      );
+    }
+    expect(userFacingError(refused), userFacingError(failed));
   });
 }

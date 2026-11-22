@@ -618,8 +618,9 @@ void main() {
     test('the native executor refusing the start closes the row', () async {
       await load(_wireSequence());
       when(() => sequencer.sequencerStart()).thenThrow(
-        const bridge_error.SkotiqError.operationFailed(
-          'Failed to start sequence: No sequence loaded',
+        const bridge_error.SkotiqError.refused(
+          kind: bridge_error.Refusal.noSequenceLoaded,
+          message: 'Failed to start sequence: No sequence loaded',
         ),
       );
 

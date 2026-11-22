@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/errors/device_connect_exception.dart';
 import 'package:skotiq_core/src/errors/error_text.dart';
 import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
@@ -8,6 +10,24 @@ import 'package:skotiq_core/src/errors/server_error.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
 void main() {
+  test('the native failure travels typed with the connect failure', () {
+    const native = bridge.SkotiqError.connectionFailed(
+      deviceId: 'native:zwo:0',
+      reason: 'USB device busy',
+    );
+    const error = DeviceConnectException(
+      'native:zwo:0',
+      native,
+      reason: 'USB device busy',
+    );
+    final typed = error.nativeError!;
+    expect(typed.category, BackendErrorCategory.connection);
+    expect(typed.isRecoverable, isTrue);
+    expect(typed.shouldReconnect, isTrue);
+    expect(typed.reason, 'USB device busy');
+    expect(const DeviceConnectException('x', 'boom').nativeError, isNull);
+  });
+
   test('a failed connect is explained in the driver\'s own words', () {
     const error = DeviceConnectException(
       'native:builtin_guider:multi_star',

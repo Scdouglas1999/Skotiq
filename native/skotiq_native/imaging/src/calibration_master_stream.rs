@@ -448,10 +448,14 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum MasterBuildError {
     /// The frames cannot make one master: too few, unreadable, not a single
-    /// plane, disagreeing on how they were taken, or leaking light. Nothing
-    /// was written; other frames would do.
+    /// plane, or disagreeing on how they were taken. Nothing was written;
+    /// other frames would do.
     #[error("{0}")]
     Refused(String),
+    /// The frames brightened during the set (a light leak): a refusal too,
+    /// told apart for the report that names it.
+    #[error("{0}")]
+    LightLeak(String),
     /// The master could not be combined or written.
     #[error("{0}")]
     Failed(String),
@@ -538,7 +542,7 @@ fn build_with_free_space(
     // When most of the group brightened, the opening frames are suspect too:
     // the light was already climbing when the baseline was taken.
     if kept.len() < 2 || leaking_frames.len() * 2 > paths.len() {
-        return Err(Refused(format!(
+        return Err(MasterBuildError::LightLeak(format!(
             "light leak: {} of {} frames read more than {:.1} ADU above the first frames \
              ({:.1} ADU); no master was written",
             leaking_frames.len(),
@@ -1102,7 +1106,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            matches!(&err, MasterBuildError::Refused(m) if m.contains("light leak")),
+            matches!(&err, MasterBuildError::LightLeak(m) if m.starts_with("light leak")),
             "{err}"
         );
         assert!(!out.exists());

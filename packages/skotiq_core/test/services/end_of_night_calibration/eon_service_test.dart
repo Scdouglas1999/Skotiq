@@ -158,8 +158,11 @@ class FakeRig implements EonRig {
     built.add(request);
     final first = lightsOrFrame(request.framePaths.first);
     if (leakyExposures.contains(first)) {
-      throw 'light leak: 15 of 20 frames read more than 5.0 ADU above the '
-          'first frames (233.0 ADU); no master was written';
+      throw const CalibrationMasterRefused(
+        'light leak: 15 of 20 frames read more than 5.0 ADU above the '
+        'first frames (233.0 ADU); no master was written',
+        lightLeak: true,
+      );
     }
     return CalibrationMasterBuildResult(
       outputPath: request.outputPath,

@@ -698,7 +698,7 @@ class EndOfNightCalibrationService extends StateNotifier<EonStatus> {
       } catch (e) {
         final message = '$e';
         report.problems.add(
-          message.contains('light leak')
+          e is CalibrationMasterRefused && e.lightLeak
               ? 'Light leak in the $label: $message'
               : 'The $label master failed: $message',
         );

@@ -15,10 +15,24 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import 'skotiq_error.dart';
 
+/// A bridge error as the GUI reads it and as a remote client reads it.
+typedef BridgeErrorTexts = ({SkotiqError error, String remote});
+
 /// [error] as the core error: its category, whether trying again or
 /// reconnecting can help, the technical and the user message, and the
 /// sentence the driver authored ([SkotiqError.reason]).
-SkotiqError skotiqErrorFromBridge(bridge.SkotiqError error) {
+SkotiqError skotiqErrorFromBridge(bridge.SkotiqError error) =>
+    bridgeErrorTexts(error).error;
+
+/// The one table over the bridge's error union: [error] as the core error
+/// (what the GUI reads), and [BridgeErrorTexts.remote], the sentence a remote
+/// client reads in the host's reply. The two are worded apart today; a
+/// rewording of either lands here.
+BridgeErrorTexts bridgeErrorTexts(bridge.SkotiqError error) {
+  // `deviceId` is empty on the arms where the driver did not scope the
+  // failure to one device; appending "(device )" there would be noise.
+  String scoped(String sentence, String deviceId) =>
+      deviceId.isEmpty ? sentence : '$sentence (device $deviceId)';
   const connection = BackendErrorCategory.connection;
   const validation = BackendErrorCategory.validation;
   const imaging = BackendErrorCategory.imaging;
@@ -43,222 +57,345 @@ SkotiqError skotiqErrorFromBridge(bridge.SkotiqError error) {
     userMessage: 'Operation canceled',
   );
   return error.when(
-    deviceNotFound: (deviceId) => SkotiqError(
-      category: connection,
-      message: 'Device not found: $deviceId',
-      userMessage: "Device '$deviceId' not found",
-      deviceId: deviceId,
-      reason: "Device '$deviceId' was not found",
+    deviceNotFound: (deviceId) => (
+      error: SkotiqError(
+        category: connection,
+        message: 'Device not found: $deviceId',
+        userMessage: "Device '$deviceId' not found",
+        deviceId: deviceId,
+        reason: "Device '$deviceId' was not found",
+      ),
+      remote: 'Device not found: $deviceId',
     ),
-    connectionFailed: (deviceId, reason) => SkotiqError(
-      category: connection,
-      message: 'Device connection failed: $deviceId - $reason',
-      userMessage: "Could not connect to '$deviceId'",
-      isRecoverable: true,
-      shouldReconnect: true,
-      deviceId: deviceId,
-      reason: reason,
+    connectionFailed: (deviceId, reason) => (
+      error: SkotiqError(
+        category: connection,
+        message: 'Device connection failed: $deviceId - $reason',
+        userMessage: "Could not connect to '$deviceId'",
+        isRecoverable: true,
+        shouldReconnect: true,
+        deviceId: deviceId,
+        reason: reason,
+      ),
+      remote: 'Could not connect to $deviceId: $reason',
     ),
-    alreadyConnected: (deviceId) => SkotiqError(
-      category: connection,
-      message: 'Device already connected: $deviceId',
-      userMessage: "'$deviceId' is already connected",
-      deviceId: deviceId,
-      reason: "'$deviceId' is already connected",
+    alreadyConnected: (deviceId) => (
+      error: SkotiqError(
+        category: connection,
+        message: 'Device already connected: $deviceId',
+        userMessage: "'$deviceId' is already connected",
+        deviceId: deviceId,
+        reason: "'$deviceId' is already connected",
+      ),
+      remote: 'Device already connected: $deviceId',
     ),
-    notConnected: (deviceId) => SkotiqError(
-      category: connection,
-      message: 'Device not connected: $deviceId',
-      userMessage: "'$deviceId' is not connected",
-      shouldReconnect: true,
-      deviceId: deviceId,
-      reason: "'$deviceId' is not connected",
+    notConnected: (deviceId) => (
+      error: SkotiqError(
+        category: connection,
+        message: 'Device not connected: $deviceId',
+        userMessage: "'$deviceId' is not connected",
+        shouldReconnect: true,
+        deviceId: deviceId,
+        reason: "'$deviceId' is not connected",
+      ),
+      remote: 'Device not connected: $deviceId',
     ),
-    deviceDisconnected: (deviceId, reason) => SkotiqError(
-      category: connection,
-      message: 'Device disconnected unexpectedly: $deviceId - $reason',
-      userMessage: "'$deviceId' disconnected unexpectedly",
-      isRecoverable: true,
-      shouldReconnect: true,
-      deviceId: deviceId,
-      reason: reason,
+    deviceDisconnected: (deviceId, reason) => (
+      error: SkotiqError(
+        category: connection,
+        message: 'Device disconnected unexpectedly: $deviceId - $reason',
+        userMessage: "'$deviceId' disconnected unexpectedly",
+        isRecoverable: true,
+        shouldReconnect: true,
+        deviceId: deviceId,
+        reason: reason,
+      ),
+      remote: 'Device $deviceId disconnected: $reason',
     ),
-    hardwareError: (deviceId, message, errorCode) => SkotiqError(
-      category: BackendErrorCategory.hardware,
-      message: 'Hardware error: $deviceId - $message',
-      userMessage: "Hardware error on '$deviceId': $message",
-      isRecoverable: true,
-      deviceId: deviceId,
-      errorCode: errorCode,
-      reason: message,
+    hardwareError: (deviceId, message, errorCode) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.hardware,
+        message: 'Hardware error: $deviceId - $message',
+        userMessage: "Hardware error on '$deviceId': $message",
+        isRecoverable: true,
+        deviceId: deviceId,
+        errorCode: errorCode,
+        reason: message,
+      ),
+      remote: 'Hardware error on $deviceId: $message',
     ),
-    communicationError: (deviceId, message) => SkotiqError(
-      category: BackendErrorCategory.hardware,
-      message: 'Communication error: $deviceId - $message',
-      userMessage: "Communication error with '$deviceId'",
-      isRecoverable: true,
-      shouldReconnect: true,
-      deviceId: deviceId,
-      reason: message,
+    communicationError: (deviceId, message) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.hardware,
+        message: 'Communication error: $deviceId - $message',
+        userMessage: "Communication error with '$deviceId'",
+        isRecoverable: true,
+        shouldReconnect: true,
+        deviceId: deviceId,
+        reason: message,
+      ),
+      remote: 'Communication error with $deviceId: $message',
     ),
-    timeout: (message) => timedOut(message, null, null),
-    deviceTimeout: (deviceId, operation, timeoutSecs) =>
-        timedOut(operation, deviceId, timeoutSecs),
-    connectionTimeout: (deviceId, timeoutSecs) => SkotiqError(
-      category: BackendErrorCategory.timeout,
-      message:
-          'Connection timeout: $deviceId after '
-          '${timeoutSecs.toStringAsFixed(1)}s',
-      userMessage: "Connection to '$deviceId' timed out",
-      isRecoverable: true,
-      isTimeout: true,
-      shouldReconnect: true,
-      deviceId: deviceId,
+    timeout: (message) =>
+        (error: timedOut(message, null, null), remote: message),
+    deviceTimeout: (deviceId, operation, timeoutSecs) => (
+      error: timedOut(operation, deviceId, timeoutSecs),
+      remote: '$deviceId timed out after ${timeoutSecs}s during $operation',
     ),
-    invalidParameter: (message) => SkotiqError(
-      category: validation,
-      message: 'Invalid parameter: $message',
-      reason: message,
+    connectionTimeout: (deviceId, timeoutSecs) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.timeout,
+        message:
+            'Connection timeout: $deviceId after '
+            '${timeoutSecs.toStringAsFixed(1)}s',
+        userMessage: "Connection to '$deviceId' timed out",
+        isRecoverable: true,
+        isTimeout: true,
+        shouldReconnect: true,
+        deviceId: deviceId,
+      ),
+      remote: 'Connecting to $deviceId timed out after ${timeoutSecs}s',
     ),
-    invalidInput: (message) => SkotiqError(
-      category: validation,
-      message: 'Invalid input: $message',
-      reason: message,
+    invalidParameter: (message) => (
+      error: SkotiqError(
+        category: validation,
+        message: 'Invalid parameter: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    invalidDeviceId: (deviceId, reason) => SkotiqError(
-      category: validation,
-      message: 'Invalid device ID: $deviceId - $reason',
-      deviceId: deviceId,
-      reason: reason,
+    invalidInput: (message) => (
+      error: SkotiqError(
+        category: validation,
+        message: 'Invalid input: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    parameterOutOfRange: (paramName, value, min, max) => SkotiqError(
-      category: validation,
-      message:
-          'Parameter out of range: $paramName = $value (valid: $min to $max)',
-      userMessage: '$paramName value $value is out of range ($min to $max)',
+    invalidDeviceId: (deviceId, reason) => (
+      error: SkotiqError(
+        category: validation,
+        message: 'Invalid device ID: $deviceId - $reason',
+        deviceId: deviceId,
+        reason: reason,
+      ),
+      remote: scoped(reason, deviceId),
     ),
-    operationFailed: (message) => SkotiqError(
-      category: system,
-      message: 'Operation failed: $message',
-      isRecoverable: true,
-      reason: message,
+    parameterOutOfRange: (paramName, value, min, max) => (
+      error: SkotiqError(
+        category: validation,
+        message:
+            'Parameter out of range: $paramName = $value (valid: $min to $max)',
+        userMessage: '$paramName value $value is out of range ($min to $max)',
+      ),
+      remote: '$paramName $value is outside the valid range $min to $max',
     ),
-    notSupported: (deviceId, operation) => SkotiqError(
-      category: BackendErrorCategory.unsupported,
-      message: 'Operation not supported: $operation on device $deviceId',
-      userMessage: "'$deviceId' does not support: $operation",
-      deviceId: deviceId,
-      reason: "'$deviceId' does not support $operation",
+    operationFailed: (message) => (
+      error: SkotiqError(
+        category: system,
+        message: 'Operation failed: $message',
+        isRecoverable: true,
+        reason: message,
+      ),
+      remote: message,
     ),
-    deviceBusy: (deviceId, currentOperation) => SkotiqError(
-      category: BackendErrorCategory.busy,
-      message: 'Device busy: $deviceId - $currentOperation',
-      userMessage: "'$deviceId' is busy: $currentOperation",
-      isRecoverable: true,
-      deviceId: deviceId,
-      reason: "'$deviceId' is busy with $currentOperation",
+    notSupported: (deviceId, operation) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.unsupported,
+        message: 'Operation not supported: $operation on device $deviceId',
+        userMessage: "'$deviceId' does not support: $operation",
+        deviceId: deviceId,
+        reason: "'$deviceId' does not support $operation",
+      ),
+      remote: scoped(operation, deviceId),
     ),
-    invalidState: (message) => SkotiqError(
-      category: BackendErrorCategory.busy,
-      message: message,
-      reason: message,
+    // A refusal reads as the variant it was raised as before it had a kind.
+    refused: (kind, message) => (
+      error: switch (kind) {
+        bridge.Refusal.lightLeak => SkotiqError(
+          category: validation,
+          message: 'Invalid input: $message',
+          reason: message,
+        ),
+        _ => SkotiqError(
+          category: system,
+          message: 'Operation failed: $message',
+          isRecoverable: true,
+          reason: message,
+        ),
+      },
+      remote: message,
     ),
-    imageError: (message) => SkotiqError(
-      category: imaging,
-      message: 'Image error: $message',
-      reason: message,
+    deviceBusy: (deviceId, currentOperation) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.busy,
+        message: 'Device busy: $deviceId - $currentOperation',
+        userMessage: "'$deviceId' is busy: $currentOperation",
+        isRecoverable: true,
+        deviceId: deviceId,
+        reason: "'$deviceId' is busy with $currentOperation",
+      ),
+      remote: '$deviceId is busy: $currentOperation',
     ),
-    cameraError: (message) => SkotiqError(
-      category: imaging,
-      message: 'Camera error: $message',
-      reason: message,
+    invalidState: (message) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.busy,
+        message: message,
+        reason: message,
+      ),
+      remote: message,
     ),
-    noImageAvailable: () =>
-        const SkotiqError(category: imaging, message: 'No image available'),
-    exposureCancelled: () => canceled,
-    exposureFailed: (cameraId, reason) => SkotiqError(
-      category: imaging,
-      message: 'Exposure failed: $cameraId - $reason',
-      userMessage: "Exposure failed on '$cameraId'",
-      deviceId: cameraId,
-      reason: reason,
+    imageError: (message) => (
+      error: SkotiqError(
+        category: imaging,
+        message: 'Image error: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    downloadFailed: (cameraId, reason) => SkotiqError(
-      category: imaging,
-      message: 'Image download failed: $cameraId - $reason',
-      deviceId: cameraId,
-      reason: reason,
+    cameraError: (message) => (
+      error: SkotiqError(
+        category: imaging,
+        message: 'Camera error: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    ioError: (message) => SkotiqError(
-      category: io,
-      message: 'I/O error: $message',
-      reason: message,
+    noImageAvailable: () => (
+      error: const SkotiqError(
+        category: imaging,
+        message: 'No image available',
+      ),
+      remote: 'No image is available yet — capture an exposure first',
     ),
-    serializationError: (message) => SkotiqError(
-      category: io,
-      message: 'Serialization error: $message',
-      reason: message,
+    exposureCancelled: () => (error: canceled, remote: 'Exposure cancelled'),
+    exposureFailed: (cameraId, reason) => (
+      error: SkotiqError(
+        category: imaging,
+        message: 'Exposure failed: $cameraId - $reason',
+        userMessage: "Exposure failed on '$cameraId'",
+        deviceId: cameraId,
+        reason: reason,
+      ),
+      remote: reason,
     ),
-    plateSolveError: (message) => SkotiqError(
-      category: io,
-      message: 'Plate solve failed: $message',
-      reason: message,
+    downloadFailed: (cameraId, reason) => (
+      error: SkotiqError(
+        category: imaging,
+        message: 'Image download failed: $cameraId - $reason',
+        deviceId: cameraId,
+        reason: reason,
+      ),
+      remote: 'Image download failed: $cameraId - $reason',
     ),
-    sequenceError: (message) => SkotiqError(
-      category: BackendErrorCategory.sequence,
-      message: 'Sequence error: $message',
-      reason: message,
+    ioError: (message) => (
+      error: SkotiqError(
+        category: io,
+        message: 'I/O error: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    ascomError: (progId, message, errorCode) => SkotiqError(
-      category: driver,
-      message: 'ASCOM error: $progId - $message (code: $errorCode)',
-      errorCode: errorCode,
-      reason: message,
+    serializationError: (message) => (
+      error: SkotiqError(
+        category: io,
+        message: 'Serialization error: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    alpacaError: (baseUrl, deviceNumber, message, errorCode) => SkotiqError(
-      category: driver,
-      message:
-          'Alpaca error: $baseUrl device $deviceNumber - $message '
-          '(code: $errorCode)',
-      errorCode: errorCode,
-      reason: message,
+    plateSolveError: (message) => (
+      error: SkotiqError(
+        category: io,
+        message: 'Plate solve failed: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    indiError: (server, port, deviceName, message) => SkotiqError(
-      category: driver,
-      message: 'INDI error: $server:$port device $deviceName - $message',
-      reason: message,
+    sequenceError: (message) => (
+      error: SkotiqError(
+        category: BackendErrorCategory.sequence,
+        message: 'Sequence error: $message',
+        reason: message,
+      ),
+      remote: message,
     ),
-    nativeError: (vendor, message, errorCode) => SkotiqError(
-      category: driver,
-      message: 'Native SDK error: $vendor - $message (code: $errorCode)',
-      errorCode: errorCode,
-      reason: message,
+    ascomError: (progId, message, errorCode) => (
+      error: SkotiqError(
+        category: driver,
+        message: 'ASCOM error: $progId - $message (code: $errorCode)',
+        errorCode: errorCode,
+        reason: message,
+      ),
+      remote: 'ASCOM driver $progId reported: $message (code $errorCode)',
     ),
-    comError: (message, hresult) => SkotiqError(
-      category: driver,
-      message:
-          'COM error: $message '
-          '(HRESULT: 0x${hresult.toRadixString(16).padLeft(8, '0')})',
-      errorCode: hresult,
-      shouldReconnect: true,
-      reason: message,
+    alpacaError: (baseUrl, deviceNumber, message, errorCode) => (
+      error: SkotiqError(
+        category: driver,
+        message:
+            'Alpaca error: $baseUrl device $deviceNumber - $message '
+            '(code: $errorCode)',
+        errorCode: errorCode,
+        reason: message,
+      ),
+      remote:
+          'Alpaca device $deviceNumber at $baseUrl reported: $message (code $errorCode)',
     ),
-    internal: (message) => SkotiqError(
-      category: system,
-      message: 'Internal error: $message',
-      reason: message,
+    indiError: (server, port, deviceName, message) => (
+      error: SkotiqError(
+        category: driver,
+        message: 'INDI error: $server:$port device $deviceName - $message',
+        reason: message,
+      ),
+      remote: 'INDI device $deviceName on $server:$port reported: $message',
     ),
-    cancelled: () => canceled,
-    runtimeInitFailed: (message) => SkotiqError(
-      category: system,
-      message: 'Runtime initialization failed: $message',
-      reason: message,
+    nativeError: (vendor, message, errorCode) => (
+      error: SkotiqError(
+        category: driver,
+        message: 'Native SDK error: $vendor - $message (code: $errorCode)',
+        errorCode: errorCode,
+        reason: message,
+      ),
+      remote: '$vendor SDK reported: $message (code $errorCode)',
     ),
-    resourceExhausted: (resource, message) => SkotiqError(
-      category: system,
-      message: 'Resource exhausted: $resource - $message',
-      isRecoverable: true,
-      reason: message,
+    comError: (message, hresult) => (
+      error: SkotiqError(
+        category: driver,
+        message:
+            'COM error: $message '
+            '(HRESULT: 0x${hresult.toRadixString(16).padLeft(8, '0')})',
+        errorCode: hresult,
+        shouldReconnect: true,
+        reason: message,
+      ),
+      remote:
+          'Windows COM call failed: $message (HRESULT 0x${hresult.toUnsigned(32).toRadixString(16)})',
+    ),
+    internal: (message) => (
+      error: SkotiqError(
+        category: system,
+        message: 'Internal error: $message',
+        reason: message,
+      ),
+      remote: message,
+    ),
+    cancelled: () => (error: canceled, remote: 'Operation cancelled'),
+    runtimeInitFailed: (message) => (
+      error: SkotiqError(
+        category: system,
+        message: 'Runtime initialization failed: $message',
+        reason: message,
+      ),
+      remote: message,
+    ),
+    resourceExhausted: (resource, message) => (
+      error: SkotiqError(
+        category: system,
+        message: 'Resource exhausted: $resource - $message',
+        isRecoverable: true,
+        reason: message,
+      ),
+      remote: '$resource exhausted: $message',
     ),
   );
 }

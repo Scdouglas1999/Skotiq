@@ -7,8 +7,8 @@
 //! thread: ingestion and replay go through the service's bounded queue.
 
 use crate::depthlock_service::engine::{state_label, DepthLockService, IngestOutcome};
-use crate::depthlock_service::store::{GoalDefinition, GoalRecord};
-use crate::error::SkotiqError;
+use crate::depthlock_service::store::{GoalDefinition, GoalRecord, StoreError};
+use crate::error::{Refusal, SkotiqError};
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::depthlock::input::{
     AcquisitionSettings, CompatibilityPolicy, ReferenceGeometry,
@@ -20,15 +20,23 @@ use std::sync::Arc;
 
 fn service() -> Result<&'static Arc<DepthLockService>, SkotiqError> {
     crate::depthlock_service::service().ok_or_else(|| {
-        SkotiqError::OperationFailed(
-            "DepthLock storage is not initialized; settings storage must be initialized first"
-                .to_string(),
+        SkotiqError::refused(
+            Refusal::DepthLockUnavailable,
+            "DepthLock storage is not initialized; settings storage must be initialized first",
         )
     })
 }
 
-fn failed(e: String) -> SkotiqError {
-    SkotiqError::OperationFailed(e)
+fn failed(e: impl Into<StoreError>) -> SkotiqError {
+    match e.into() {
+        StoreError::GoalNotFound(message) => {
+            SkotiqError::refused(Refusal::DepthLockNoSuchGoal, message)
+        }
+        StoreError::StaleRevision(message) => {
+            SkotiqError::refused(Refusal::DepthLockStaleRevision, message)
+        }
+        StoreError::Other(message) => SkotiqError::OperationFailed(message),
+    }
 }
 
 /// A tangent-plane rectangle on the sky. Center in ICRS degrees, sides in
@@ -623,7 +631,7 @@ pub fn api_depthlock_sky_rectangle(
     let geometry: ReferenceGeometry = (&reference).into();
     geometry.validate().map_err(failed)?;
     if ![x0, y0, x1, y1].iter().all(|v| v.is_finite()) {
-        return Err(failed("Rectangle corners must be finite".into()));
+        return Err(failed("Rectangle corners must be finite"));
     }
     let wcs = geometry.wcs();
     let (ra, dec) = wcs.pixel_to_world((x0 + x1) / 2.0, (y0 + y1) / 2.0);
@@ -757,6 +765,37 @@ fn new_goal_id() -> String {
         nanos,
         COUNTER.fetch_add(1, Ordering::Relaxed)
     )
+}
+
+#[cfg(test)]
+mod refusal_tests {
+    use super::*;
+
+    #[test]
+    fn store_refusals_carry_their_kind_and_keep_their_words() {
+        let cases = [
+            (
+                StoreError::GoalNotFound("DepthLock goal m42 does not exist".into()),
+                Some(Refusal::DepthLockNoSuchGoal),
+            ),
+            (
+                StoreError::StaleRevision("stale revision for DepthLock goal m42".into()),
+                Some(Refusal::DepthLockStaleRevision),
+            ),
+            (StoreError::Other("label must not be empty".into()), None),
+        ];
+        for (error, kind) in cases {
+            let words = error.to_string();
+            match (failed(error), kind) {
+                (SkotiqError::Refused { kind: got, message }, Some(kind)) => {
+                    assert_eq!(got, kind);
+                    assert_eq!(message, words);
+                }
+                (SkotiqError::OperationFailed(message), None) => assert_eq!(message, words),
+                (other, kind) => panic!("{other:?} for {kind:?}"),
+            }
+        }
+    }
 }
 
 #[cfg(test)]

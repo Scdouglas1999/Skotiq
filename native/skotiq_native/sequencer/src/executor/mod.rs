@@ -94,6 +94,7 @@ mod mount_fault;
 mod preflight;
 mod recovery_ops;
 mod start;
+pub use start::StartError;
 mod trigger_context;
 mod types;
 

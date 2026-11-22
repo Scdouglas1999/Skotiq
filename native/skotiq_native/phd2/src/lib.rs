@@ -27,6 +27,9 @@ pub enum Phd2Error {
     Protocol(String),
     /// Guiding did not settle after a guide or dither.
     Settle(String),
+    /// PHD2 answered `get_lock_position` without a numeric x and y: it has no
+    /// lock position.
+    NoLockPosition(String),
 }
 
 impl Phd2Error {
@@ -37,7 +40,8 @@ impl Phd2Error {
             | Self::Timeout(message)
             | Self::Refused(message)
             | Self::Protocol(message)
-            | Self::Settle(message) => message,
+            | Self::Settle(message)
+            | Self::NoLockPosition(message) => message,
         }
     }
 
@@ -50,6 +54,7 @@ impl Phd2Error {
             Self::Refused(message) => Self::Refused(words(message)),
             Self::Protocol(message) => Self::Protocol(words(message)),
             Self::Settle(message) => Self::Settle(words(message)),
+            Self::NoLockPosition(message) => Self::NoLockPosition(words(message)),
         }
     }
 }
@@ -1565,21 +1570,22 @@ impl Phd2Client {
     /// Get current guide star position
     pub fn get_lock_position(&mut self) -> Result<(f64, f64), Phd2Error> {
         let result = self.send_request("get_lock_position", None)?;
-        let arr = result
-            .as_array()
-            .ok_or_else(|| format!("get_lock_position: expected array, got {}", result))?;
+        let words = format!("get_lock_position: expected array, got {}", result);
+        let arr = match result.as_array() {
+            Some(arr) => arr,
+            None if result.is_null() => return Err(Phd2Error::NoLockPosition(words)),
+            None => return Err(Phd2Error::Protocol(words)),
+        };
 
         // PHD2 contract: `[x, y]` floats. A missing element
         // or non-numeric value means schema drift or no star locked; surface
         // it instead of silently reporting "guide star at origin (0, 0)".
-        let x = arr
-            .first()
-            .and_then(|v| v.as_f64())
-            .ok_or_else(|| "get_lock_position: missing or non-numeric X".to_string())?;
-        let y = arr
-            .get(1)
-            .and_then(|v| v.as_f64())
-            .ok_or_else(|| "get_lock_position: missing or non-numeric Y".to_string())?;
+        let x = arr.first().and_then(|v| v.as_f64()).ok_or_else(|| {
+            Phd2Error::NoLockPosition("get_lock_position: missing or non-numeric X".into())
+        })?;
+        let y = arr.get(1).and_then(|v| v.as_f64()).ok_or_else(|| {
+            Phd2Error::NoLockPosition("get_lock_position: missing or non-numeric Y".into())
+        })?;
 
         Ok((x, y))
     }
@@ -2906,6 +2912,67 @@ mod tests {
         assert!(matches!(refused, Phd2Error::Refused(_)), "{refused:?}");
         assert!(refused.message().contains("no star"));
         assert_eq!(client.get_app_state().unwrap(), Phd2State::Guiding);
+        client.disconnect();
+        server.join().unwrap();
+    }
+
+    /// PHD2 answering `get_lock_position` with null or without a numeric x
+    /// and y has no lock position; any other answer that is not an array is
+    /// a protocol fault. The words are the ones the operator has always read.
+    #[test]
+    fn lock_position_answers_without_a_position_are_no_lock_position() {
+        let answers = [
+            (
+                serde_json::Value::Null,
+                "get_lock_position: expected array, got null",
+                true,
+            ),
+            (
+                serde_json::json!([]),
+                "get_lock_position: missing or non-numeric X",
+                true,
+            ),
+            (
+                serde_json::json!([1.5]),
+                "get_lock_position: missing or non-numeric Y",
+                true,
+            ),
+            (
+                serde_json::json!(5),
+                "get_lock_position: expected array, got 5",
+                false,
+            ),
+        ];
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let replies: Vec<serde_json::Value> = answers.iter().map(|a| a.0.clone()).collect();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(3)))
+                .unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            for result in replies {
+                let request = read_rpc(&mut reader);
+                writeln!(
+                    stream,
+                    "{}",
+                    serde_json::json!({"jsonrpc": "2.0", "result": result, "id": request["id"]})
+                )
+                .unwrap();
+            }
+        });
+        let mut client = Phd2Client::new("127.0.0.1", port);
+        client.connect().unwrap();
+        for (_, words, no_lock) in answers {
+            let error = client.get_lock_position().unwrap_err();
+            assert_eq!(error.to_string(), words);
+            assert_eq!(
+                matches!(error, Phd2Error::NoLockPosition(_)),
+                no_lock,
+                "{error:?}"
+            );
+        }
         client.disconnect();
         server.join().unwrap();
     }

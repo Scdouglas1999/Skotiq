@@ -5,7 +5,7 @@
 use super::{stop_reason, GuideStarImage, GuiderCalibration, GuiderStatus};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::guider::GuiderState;
@@ -860,9 +860,14 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
 pub(crate) async fn star_image(size: u32) -> Result<GuideStarImage, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    let image_data = client
-        .get_star_image_data(size)
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get star image: {}", e)))?;
+    let image_data = client.get_star_image_data(size).map_err(|e| {
+        refused_in_phd2_words(
+            &e,
+            "no star selected",
+            Refusal::NoStarSelected,
+            format!("Failed to get star image: {e}"),
+        )
+    })?;
 
     Ok(GuideStarImage {
         frame: image_data.frame,
@@ -979,9 +984,40 @@ pub(crate) async fn calibration() -> Result<GuiderCalibration, SkotiqError> {
 pub(crate) async fn find_star() -> Result<(f64, f64), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client
-        .find_star()
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to find star: {}", e)))
+    client.find_star().map_err(|e| {
+        refused_in_phd2_words(
+            &e,
+            "no guide star found",
+            Refusal::NoGuideStarFound,
+            format!("Failed to find star: {e}"),
+        )
+    })
+}
+
+fn lock_position_failed(e: skotiq_phd2::Phd2Error) -> SkotiqError {
+    let message = format!("Failed to get lock position: {e}");
+    match e {
+        skotiq_phd2::Phd2Error::NoLockPosition(_) => {
+            SkotiqError::refused(Refusal::NoLockPosition, message)
+        }
+        _ => SkotiqError::OperationFailed(message),
+    }
+}
+
+/// PHD2 states some refusals only in the words of its reply: `message` is
+/// refused as `kind` when PHD2's words contain `words` (any case), and is an
+/// `OperationFailed` otherwise.
+fn refused_in_phd2_words(
+    error: &skotiq_phd2::Phd2Error,
+    words: &str,
+    kind: Refusal,
+    message: String,
+) -> SkotiqError {
+    if error.message().to_lowercase().contains(words) {
+        SkotiqError::refused(kind, message)
+    } else {
+        SkotiqError::OperationFailed(message)
+    }
 }
 
 pub(crate) async fn set_lock_position(x: f64, y: f64, exact: bool) -> Result<(), SkotiqError> {
@@ -995,9 +1031,7 @@ pub(crate) async fn set_lock_position(x: f64, y: f64, exact: bool) -> Result<(),
 pub(crate) async fn lock_position() -> Result<(f64, f64), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client
-        .get_lock_position()
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get lock position: {}", e)))
+    client.get_lock_position().map_err(lock_position_failed)
 }
 
 pub(crate) async fn loop_exposures() -> Result<(), SkotiqError> {
@@ -1179,6 +1213,63 @@ async fn find_fresh_star(
     Err(SkotiqError::OperationFailed(format!(
         "PHD2 found no guide star in {FRESH_STAR_ATTEMPTS} fresh frames ({last_error})"
     )))
+}
+
+#[cfg(test)]
+mod refusal_tests {
+    use super::*;
+    use skotiq_phd2::Phd2Error;
+
+    #[test]
+    fn phd2_words_name_the_refusal_in_any_case_and_any_kind() {
+        let message = || "Failed to get star image: PHD2 error: No Star Selected".to_string();
+        for error in [
+            Phd2Error::Refused("PHD2 error: No Star Selected".into()),
+            Phd2Error::Protocol("no star selected".into()),
+        ] {
+            match refused_in_phd2_words(
+                &error,
+                "no star selected",
+                Refusal::NoStarSelected,
+                message(),
+            ) {
+                SkotiqError::Refused {
+                    kind,
+                    message: words,
+                } => {
+                    assert_eq!(kind, Refusal::NoStarSelected);
+                    assert_eq!(words, message());
+                }
+                other => panic!("{other:?}"),
+            }
+        }
+        let other = refused_in_phd2_words(
+            &Phd2Error::Refused("PHD2 error: camera not connected".into()),
+            "no star selected",
+            Refusal::NoStarSelected,
+            message(),
+        );
+        assert!(matches!(other, SkotiqError::OperationFailed(m) if m == message()));
+    }
+
+    #[test]
+    fn only_a_missing_lock_position_is_refused_as_one() {
+        let words = "Failed to get lock position: get_lock_position: expected array, got null";
+        match lock_position_failed(Phd2Error::NoLockPosition(
+            "get_lock_position: expected array, got null".into(),
+        )) {
+            SkotiqError::Refused { kind, message } => {
+                assert_eq!(kind, Refusal::NoLockPosition);
+                assert_eq!(message, words);
+            }
+            other => panic!("{other:?}"),
+        }
+        let other = lock_position_failed(Phd2Error::Protocol(
+            "get_lock_position: expected array, got 5".into(),
+        ));
+        assert!(matches!(other, SkotiqError::OperationFailed(m)
+            if m == "Failed to get lock position: get_lock_position: expected array, got 5"));
+    }
 }
 
 #[cfg(test)]

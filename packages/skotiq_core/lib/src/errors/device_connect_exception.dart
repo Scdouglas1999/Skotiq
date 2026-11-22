@@ -1,7 +1,10 @@
 import 'dart:async';
 
-import 'server_error.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+
 import 'bridge_error_message.dart';
+import 'server_error.dart';
+import 'skotiq_error.dart';
 
 /// A driver refused or failed a connect.
 ///
@@ -15,6 +18,14 @@ class DeviceConnectException implements Exception {
   final String deviceId;
   final Object cause;
   final String? reason;
+
+  /// The native failure as the core error, with its category and whether a
+  /// retry or a reconnect can help; null when the native side did not raise
+  /// the failure.
+  SkotiqError? get nativeError {
+    final cause = this.cause;
+    return cause is bridge.SkotiqError ? skotiqErrorFromBridge(cause) : null;
+  }
 
   @override
   String toString() =>

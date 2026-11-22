@@ -419,8 +419,10 @@ void main() {
 
       test('a busy executor is 409, not 400 — the payload was fine', () async {
         when(() => sequencer.sequencerStart()).thenThrow(
-          const bridge_error.SkotiqError.operationFailed(
-            'Failed to start sequence: Cannot start: executor is Running',
+          const bridge_error.SkotiqError.refused(
+            kind: bridge_error.Refusal.executorNotIdle,
+            message:
+                'Failed to start sequence: Cannot start: executor is Running',
           ),
         );
 

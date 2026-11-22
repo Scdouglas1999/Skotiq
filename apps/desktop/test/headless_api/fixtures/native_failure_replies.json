@@ -1,0 +1,343 @@
+{
+  "lock.phd2_null": {
+    "status": 409,
+    "body": {
+      "error": "The guider has no guide-star lock position.",
+      "code": "no_lock_position",
+      "message": "The guider has no guide-star lock position."
+    }
+  },
+  "lock.phd2_missing_x": {
+    "status": 409,
+    "body": {
+      "error": "The guider has no guide-star lock position.",
+      "code": "no_lock_position",
+      "message": "The guider has no guide-star lock position."
+    }
+  },
+  "lock.phd2_missing_y": {
+    "status": 409,
+    "body": {
+      "error": "The guider has no guide-star lock position.",
+      "code": "no_lock_position",
+      "message": "The guider has no guide-star lock position."
+    }
+  },
+  "lock.phd2_not_array": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "Failed to get lock position: get_lock_position: expected array, got 5",
+      "requestId": "test-request-id"
+    }
+  },
+  "lock.phd2_refused": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "Failed to get lock position: PHD2 error: method not found",
+      "requestId": "test-request-id"
+    }
+  },
+  "lock.phd2_not_connected": {
+    "status": 409,
+    "body": {
+      "error": "device_error",
+      "message": "Device not connected: PHD2",
+      "requestId": "test-request-id"
+    }
+  },
+  "lock.builtin_none": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "No guide star is selected",
+      "requestId": "test-request-id"
+    }
+  },
+  "lock.dart_error": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "guider gone",
+      "requestId": "test-request-id"
+    }
+  },
+  "star_image.phd2_no_star": {
+    "status": 409,
+    "body": {
+      "error": "The guider has no guide star selected.",
+      "code": "no_star_selected",
+      "message": "The guider has no guide star selected."
+    }
+  },
+  "star_image.phd2_refused": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "Failed to get star image: PHD2 error: camera not connected",
+      "requestId": "test-request-id"
+    }
+  },
+  "star_image.phd2_malformed": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "Failed to get star image: get_star_image: missing or non-integer 'frame'",
+      "requestId": "test-request-id"
+    }
+  },
+  "star_image.builtin_busy": {
+    "status": 409,
+    "body": {
+      "error": "device_error",
+      "message": "The guide camera is busy with the guiding loop.",
+      "requestId": "test-request-id"
+    }
+  },
+  "star_image.dart_error": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "no star selected",
+      "requestId": "test-request-id"
+    }
+  },
+  "find_star.builtin_none": {
+    "status": 404,
+    "body": {
+      "error": "guide_star_not_found",
+      "code": "guide_star_not_found",
+      "message": "No guide star found in the current frame. Check focus, exposure length, and that the guide camera is on sky.",
+      "requestId": "test-request-id"
+    }
+  },
+  "find_star.phd2_refused": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "Failed to find star: PHD2 error: could not find a suitable star",
+      "requestId": "test-request-id"
+    }
+  },
+  "find_star.phd2_not_connected": {
+    "status": 409,
+    "body": {
+      "error": "device_error",
+      "message": "Device not connected: PHD2",
+      "requestId": "test-request-id"
+    }
+  },
+  "find_star.dart_no_star": {
+    "status": 404,
+    "body": {
+      "error": "guide_star_not_found",
+      "code": "guide_star_not_found",
+      "message": "No guide star found in the current frame. Check focus, exposure length, and that the guide camera is on sky.",
+      "requestId": "test-request-id"
+    }
+  },
+  "find_star.dart_error": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "guider gone",
+      "requestId": "test-request-id"
+    }
+  },
+  "start.not_idle": {
+    "status": 409,
+    "body": {
+      "error": "sequencer_busy",
+      "message": "Failed to start sequence: Cannot start: executor is Running"
+    }
+  },
+  "start.not_idle_completed": {
+    "status": 409,
+    "body": {
+      "error": "sequencer_busy",
+      "message": "Failed to start sequence: Cannot start: executor is Completed"
+    }
+  },
+  "start.no_sequence": {
+    "status": 409,
+    "body": {
+      "error": "no_sequence_loaded",
+      "message": "No sequence is loaded. Load one first (POST /api/sequencer/load, or open a sequence in the editor) before starting."
+    }
+  },
+  "start.no_device_ops": {
+    "status": 400,
+    "body": {
+      "error": "preflight_rejected",
+      "code": "preflight_rejected",
+      "message": "Failed to start sequence: No device operations configured. Call set_device_ops() before starting a sequence. This ensures all device operations use real hardware instead of silently doing nothing."
+    }
+  },
+  "start.no_save_path": {
+    "status": 400,
+    "body": {
+      "error": "preflight_rejected",
+      "code": "preflight_rejected",
+      "message": "Failed to start sequence: This sequence captures frames but no save path is configured; every frame would otherwise be captured and discarded."
+    }
+  },
+  "start.internal": {
+    "status": 400,
+    "body": {
+      "error": "preflight_rejected",
+      "code": "preflight_rejected",
+      "message": "SkotiqError.internal(field0: Task panicked)"
+    }
+  },
+  "start.dart_error": {
+    "status": 400,
+    "body": {
+      "error": "preflight_rejected",
+      "code": "preflight_rejected",
+      "message": "Bad state: bridge is gone"
+    }
+  },
+  "depthlock.not_found": {
+    "status": 404,
+    "body": {
+      "error": "depthlock_goal_not_found",
+      "code": "depthlock_goal_not_found",
+      "message": "DepthLock goal m42-ha does not exist",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.stale": {
+    "status": 409,
+    "body": {
+      "error": "depthlock_stale_revision",
+      "code": "depthlock_stale_revision",
+      "message": "stale revision for DepthLock goal m42-ha",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.unavailable": {
+    "status": 503,
+    "body": {
+      "error": "depthlock_unavailable",
+      "code": "depthlock_unavailable",
+      "message": "DepthLock storage is not initialized; settings storage must be initialized first",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.removed": {
+    "status": 400,
+    "body": {
+      "error": "depthlock_invalid_request",
+      "code": "depthlock_invalid_request",
+      "message": "DepthLock goal m42-ha was removed",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.invalid": {
+    "status": 400,
+    "body": {
+      "error": "depthlock_invalid_request",
+      "code": "depthlock_invalid_request",
+      "message": "automaticCompletion requires enabled",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.raw_reference_missing": {
+    "status": 404,
+    "body": {
+      "error": "depthlock_goal_not_found",
+      "code": "depthlock_goal_not_found",
+      "message": "Cannot read /data/m42/ref.cr2: /data/m42/ref.cr2 does not exist",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.fits_reference_missing": {
+    "status": 400,
+    "body": {
+      "error": "depthlock_invalid_request",
+      "code": "depthlock_invalid_request",
+      "message": "Cannot read /data/m42/ref.fits: No such file or directory (os error 2)",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.io": {
+    "status": 400,
+    "body": {
+      "error": "depthlock_invalid_request",
+      "code": "depthlock_invalid_request",
+      "message": "disk gone",
+      "requestId": "test-request-id"
+    }
+  },
+  "depthlock.dart_error": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "store gone",
+      "requestId": "test-request-id"
+    }
+  },
+  "focuser.ascom_move_failure": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.already_moving": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.device_busy_words": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.focuser_is_busy": {
+    "status": 409,
+    "body": {
+      "deviceId": "focuser-1",
+      "error": "The focuser is already moving.",
+      "code": "device_busy",
+      "message": "The focuser is already moving."
+    }
+  },
+  "focuser.device_busy_variant": {
+    "status": 409,
+    "body": {
+      "error": "device_error",
+      "message": "focuser-1 is busy: moving",
+      "requestId": "test-request-id"
+    }
+  },
+  "focuser.other": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "sdk blew up",
+      "requestId": "test-request-id"
+    }
+  },
+  "focuser.dart_busy": {
+    "status": 409,
+    "body": {
+      "error": "device_busy",
+      "code": "device_busy",
+      "message": "focuser is busy",
+      "requestId": "test-request-id",
+      "deviceId": "focuser-1"
+    }
+  }
+}

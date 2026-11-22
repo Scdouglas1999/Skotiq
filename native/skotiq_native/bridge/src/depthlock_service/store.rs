@@ -180,6 +180,45 @@ impl GoalDefinition {
     }
 }
 
+/// Why the store refused a request. Each displays as its sentence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StoreError {
+    /// No goal has the id.
+    GoalNotFound(String),
+    /// The caller's expected revision is not the goal's current one.
+    StaleRevision(String),
+    /// Any other refusal or failure, in its own words.
+    Other(String),
+}
+
+impl std::fmt::Display for StoreError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoreError::GoalNotFound(message)
+            | StoreError::StaleRevision(message)
+            | StoreError::Other(message) => f.write_str(message),
+        }
+    }
+}
+
+impl From<String> for StoreError {
+    fn from(message: String) -> Self {
+        StoreError::Other(message)
+    }
+}
+
+impl From<&str> for StoreError {
+    fn from(message: &str) -> Self {
+        StoreError::Other(message.to_string())
+    }
+}
+
+impl From<StoreError> for String {
+    fn from(error: StoreError) -> Self {
+        error.to_string()
+    }
+}
+
 fn valid_goal_id(id: &str) -> bool {
     (1..=80).contains(&id.len())
         && id
@@ -358,7 +397,7 @@ impl GoalStore {
         })
     }
 
-    pub fn list(&self) -> Result<Vec<GoalRecord>, String> {
+    pub fn list(&self) -> Result<Vec<GoalRecord>, StoreError> {
         let state = self.state.lock();
         check_healthy(&state)?;
         Ok(state
@@ -369,12 +408,14 @@ impl GoalStore {
             .collect())
     }
 
-    pub fn get(&self, id: &str) -> Result<GoalRecord, String> {
+    pub fn get(&self, id: &str) -> Result<GoalRecord, StoreError> {
         let state = self.state.lock();
         check_healthy(&state)?;
         match state.records.get(id) {
             Some(record) if !record.deleted => Ok(record.clone()),
-            _ => Err(format!("DepthLock goal {id} does not exist")),
+            _ => Err(StoreError::GoalNotFound(format!(
+                "DepthLock goal {id} does not exist"
+            ))),
         }
     }
 
@@ -383,7 +424,7 @@ impl GoalStore {
         id: &str,
         definition: GoalDefinition,
         selected_at_ms: i64,
-    ) -> Result<GoalRecord, String> {
+    ) -> Result<GoalRecord, StoreError> {
         self.create_impl(id, definition, selected_at_ms, 0)
     }
 
@@ -393,9 +434,9 @@ impl GoalStore {
         definition: GoalDefinition,
         selected_at_ms: i64,
         fail_at: u8,
-    ) -> Result<GoalRecord, String> {
+    ) -> Result<GoalRecord, StoreError> {
         if !valid_goal_id(id) {
-            return Err(format!("invalid DepthLock goal id {id:?}"));
+            return Err(format!("invalid DepthLock goal id {id:?}").into());
         }
         definition.validate()?;
         if selected_at_ms <= 0 {
@@ -404,7 +445,7 @@ impl GoalStore {
         let mut state = self.state.lock();
         check_healthy(&state)?;
         if state.records.contains_key(id) {
-            return Err(format!("DepthLock goal {id} already exists"));
+            return Err(format!("DepthLock goal {id} already exists").into());
         }
         let record = GoalRecord {
             schema_version: SCHEMA_VERSION,
@@ -431,7 +472,7 @@ impl GoalStore {
         expected_revision: u64,
         definition: GoalDefinition,
         selected_at_ms: i64,
-    ) -> Result<GoalRecord, String> {
+    ) -> Result<GoalRecord, StoreError> {
         self.revise_impl(id, expected_revision, definition, selected_at_ms, 0)
     }
 
@@ -442,20 +483,20 @@ impl GoalStore {
         definition: GoalDefinition,
         selected_at_ms: i64,
         fail_at: u8,
-    ) -> Result<GoalRecord, String> {
+    ) -> Result<GoalRecord, StoreError> {
         definition.validate()?;
         let mut state = self.state.lock();
         check_healthy(&state)?;
-        let old = state
-            .records
-            .get(id)
-            .cloned()
-            .ok_or_else(|| format!("DepthLock goal {id} does not exist"))?;
+        let old = state.records.get(id).cloned().ok_or_else(|| {
+            StoreError::GoalNotFound(format!("DepthLock goal {id} does not exist"))
+        })?;
         if old.deleted {
-            return Err(format!("DepthLock goal {id} was removed"));
+            return Err(format!("DepthLock goal {id} was removed").into());
         }
         if old.revision != expected_revision {
-            return Err(format!("stale revision for DepthLock goal {id}"));
+            return Err(StoreError::StaleRevision(format!(
+                "stale revision for DepthLock goal {id}"
+            )));
         }
         if selected_at_ms <= old.selected_at_ms {
             return Err("selectedAtMs must move forward on a new selection".into());
@@ -495,23 +536,23 @@ impl GoalStore {
         Ok(record)
     }
 
-    pub fn remove(&self, id: &str, expected_revision: u64) -> Result<(), String> {
+    pub fn remove(&self, id: &str, expected_revision: u64) -> Result<(), StoreError> {
         self.remove_impl(id, expected_revision, 0)
     }
 
-    fn remove_impl(&self, id: &str, expected_revision: u64, fail_at: u8) -> Result<(), String> {
+    fn remove_impl(&self, id: &str, expected_revision: u64, fail_at: u8) -> Result<(), StoreError> {
         let mut state = self.state.lock();
         check_healthy(&state)?;
-        let old = state
-            .records
-            .get(id)
-            .cloned()
-            .ok_or_else(|| format!("DepthLock goal {id} does not exist"))?;
+        let old = state.records.get(id).cloned().ok_or_else(|| {
+            StoreError::GoalNotFound(format!("DepthLock goal {id} does not exist"))
+        })?;
         if old.deleted {
-            return Err(format!("DepthLock goal {id} was removed"));
+            return Err(format!("DepthLock goal {id} was removed").into());
         }
         if old.revision != expected_revision {
-            return Err(format!("stale revision for DepthLock goal {id}"));
+            return Err(StoreError::StaleRevision(format!(
+                "stale revision for DepthLock goal {id}"
+            )));
         }
         let mut record = old.clone();
         record.revision = old
@@ -534,22 +575,22 @@ impl GoalStore {
         expected_revision: u64,
         enabled: bool,
         automatic_completion: bool,
-    ) -> Result<GoalRecord, String> {
+    ) -> Result<GoalRecord, StoreError> {
         if automatic_completion && !enabled {
             return Err("automaticCompletion requires enabled".into());
         }
         let mut state = self.state.lock();
         check_healthy(&state)?;
-        let old = state
-            .records
-            .get(id)
-            .cloned()
-            .ok_or_else(|| format!("DepthLock goal {id} does not exist"))?;
+        let old = state.records.get(id).cloned().ok_or_else(|| {
+            StoreError::GoalNotFound(format!("DepthLock goal {id} does not exist"))
+        })?;
         if old.deleted {
-            return Err(format!("DepthLock goal {id} was removed"));
+            return Err(format!("DepthLock goal {id} was removed").into());
         }
         if old.revision != expected_revision {
-            return Err(format!("stale revision for DepthLock goal {id}"));
+            return Err(StoreError::StaleRevision(format!(
+                "stale revision for DepthLock goal {id}"
+            )));
         }
         let mut record = old.clone();
         record.definition.enabled = enabled;
@@ -566,7 +607,7 @@ impl GoalStore {
         id: &str,
         expected_revision: u64,
         frame: ApertureFrame,
-    ) -> Result<Admission, String> {
+    ) -> Result<Admission, StoreError> {
         self.add_evidence_impl(id, expected_revision, frame, 0)
     }
 
@@ -576,22 +617,22 @@ impl GoalStore {
         expected_revision: u64,
         frame: ApertureFrame,
         fail_at: u8,
-    ) -> Result<Admission, String> {
+    ) -> Result<Admission, StoreError> {
         let mut state = self.state.lock();
         check_healthy(&state)?;
-        let old = state
-            .records
-            .get(id)
-            .cloned()
-            .ok_or_else(|| format!("DepthLock goal {id} does not exist"))?;
+        let old = state.records.get(id).cloned().ok_or_else(|| {
+            StoreError::GoalNotFound(format!("DepthLock goal {id} does not exist"))
+        })?;
         if old.deleted {
-            return Err(format!("DepthLock goal {id} was removed"));
+            return Err(format!("DepthLock goal {id} was removed").into());
         }
         if !old.definition.enabled {
             return Err("DepthLock goal is disabled; evidence is not accepted".into());
         }
         if old.revision != expected_revision {
-            return Err(format!("stale revision for DepthLock goal {id}"));
+            return Err(StoreError::StaleRevision(format!(
+                "stale revision for DepthLock goal {id}"
+            )));
         }
         if old.analyzed_evidence_revision == Some(old.evidence_revision)
             && old
@@ -608,7 +649,8 @@ impl GoalStore {
         if old.evidence.len() >= MAX_EVIDENCE_PER_GOAL {
             return Err(format!(
                 "DepthLock goal {id} already holds {MAX_EVIDENCE_PER_GOAL} evidence rows"
-            ));
+            )
+            .into());
         }
         let mut record = old.clone();
         record.evidence.insert(frame.frame_id.clone(), frame);
@@ -630,7 +672,7 @@ impl GoalStore {
         expected_evidence_revision: u64,
         report: DepthReport,
         candidate: Option<Candidate>,
-    ) -> Result<(), String> {
+    ) -> Result<(), StoreError> {
         self.commit_analysis_impl(
             id,
             expected_revision,
@@ -649,25 +691,25 @@ impl GoalStore {
         report: DepthReport,
         candidate: Option<Candidate>,
         fail_at: u8,
-    ) -> Result<(), String> {
+    ) -> Result<(), StoreError> {
         let mut state = self.state.lock();
         check_healthy(&state)?;
-        let old = state
-            .records
-            .get(id)
-            .cloned()
-            .ok_or_else(|| format!("DepthLock goal {id} does not exist"))?;
+        let old = state.records.get(id).cloned().ok_or_else(|| {
+            StoreError::GoalNotFound(format!("DepthLock goal {id} does not exist"))
+        })?;
         if old.deleted {
-            return Err(format!("DepthLock goal {id} was removed"));
+            return Err(format!("DepthLock goal {id} was removed").into());
         }
         if !old.definition.enabled {
             return Err("DepthLock goal is disabled; analysis is not accepted".into());
         }
         if old.revision != expected_revision {
-            return Err(format!("stale revision for DepthLock goal {id}"));
+            return Err(StoreError::StaleRevision(format!(
+                "stale revision for DepthLock goal {id}"
+            )));
         }
         if old.evidence_revision != expected_evidence_revision {
-            return Err(format!("stale evidence revision for DepthLock goal {id}"));
+            return Err(format!("stale evidence revision for DepthLock goal {id}").into());
         }
         for value in [
             report.score,
@@ -728,7 +770,7 @@ impl GoalStore {
         id: &str,
         expected_revision: u64,
         reason: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), StoreError> {
         self.record_issue_impl(id, expected_revision, reason, 0)
     }
 
@@ -738,20 +780,20 @@ impl GoalStore {
         expected_revision: u64,
         reason: String,
         fail_at: u8,
-    ) -> Result<(), String> {
+    ) -> Result<(), StoreError> {
         checked_field("reason", &reason)?;
         let mut state = self.state.lock();
         check_healthy(&state)?;
-        let old = state
-            .records
-            .get(id)
-            .cloned()
-            .ok_or_else(|| format!("DepthLock goal {id} does not exist"))?;
+        let old = state.records.get(id).cloned().ok_or_else(|| {
+            StoreError::GoalNotFound(format!("DepthLock goal {id} does not exist"))
+        })?;
         if old.deleted {
-            return Err(format!("DepthLock goal {id} was removed"));
+            return Err(format!("DepthLock goal {id} was removed").into());
         }
         if old.revision != expected_revision {
-            return Err(format!("stale revision for DepthLock goal {id}"));
+            return Err(StoreError::StaleRevision(format!(
+                "stale revision for DepthLock goal {id}"
+            )));
         }
         let mut record = old.clone();
         record.last_issue = Some(reason);
@@ -764,7 +806,7 @@ impl GoalStore {
         id: &str,
         record: &GoalRecord,
         fail_at: u8,
-    ) -> Result<(), String> {
+    ) -> Result<(), StoreError> {
         let bytes = serde_json::to_vec(record)
             .map_err(|e| format!("cannot serialize DepthLock goal {id}: {e}"))?;
         if let Err(e) = self.write_record_file_at(id, &bytes, fail_at) {
@@ -775,7 +817,7 @@ impl GoalStore {
         Ok(())
     }
 
-    fn write_record_file_at(&self, id: &str, bytes: &[u8], fail_at: u8) -> Result<(), String> {
+    fn write_record_file_at(&self, id: &str, bytes: &[u8], fail_at: u8) -> Result<(), StoreError> {
         let pending = self.root.join(format!("{id}.pending"));
         let target = self.root.join(format!("{id}.json"));
         let mut file = File::create(&pending)
@@ -1207,13 +1249,32 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn a_missing_goal_and_a_stale_revision_are_refused_by_kind() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = GoalStore::open(dir.path()).unwrap();
+        store.create("goal-1", definition(), 100).unwrap();
+        assert_eq!(
+            store.get("nope").unwrap_err(),
+            StoreError::GoalNotFound("DepthLock goal nope does not exist".into())
+        );
+        assert_eq!(
+            store.revise("goal-1", 7, definition(), 200).unwrap_err(),
+            StoreError::StaleRevision("stale revision for DepthLock goal goal-1".into())
+        );
+        assert_eq!(
+            store.remove("nope", 1).unwrap_err(),
+            StoreError::GoalNotFound("DepthLock goal nope does not exist".into())
+        );
+    }
+
+    #[test]
     fn a_fault_before_rename_keeps_the_old_record_and_poisons_the_store() {
         let dir = tempfile::tempdir().unwrap();
         let store = GoalStore::open(dir.path()).unwrap();
         store.create("goal-1", definition(), 100).unwrap();
         assert!(store.create_impl("goal-2", definition(), 100, 1).is_err());
         let err = store.create("goal-3", definition(), 100).unwrap_err();
-        assert_eq!(err, POISONED);
+        assert_eq!(err.to_string(), POISONED);
         assert!(store.list().is_err());
         drop(store);
 
@@ -1234,7 +1295,7 @@ pub(crate) mod tests {
         assert!(store
             .commit_analysis_impl("goal-1", 1, 1, collecting_report(), Some(candidate()), 2)
             .is_err());
-        assert_eq!(store.list().unwrap_err(), POISONED);
+        assert_eq!(store.list().unwrap_err().to_string(), POISONED);
         drop(store);
 
         let reopened = GoalStore::open(dir.path()).unwrap();

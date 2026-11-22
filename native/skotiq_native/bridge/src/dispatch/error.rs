@@ -31,8 +31,7 @@ use thiserror::Error;
 /// Each variant carries enough context to classify the failure programmatically
 /// without re-parsing a message string:
 /// * the device id, where one is in scope;
-/// * an optional underlying source message / vendor code;
-/// * a category that [`DeviceOpError::is_retryable`] keys off.
+/// * an optional underlying source message / vendor code.
 ///
 /// `Display` is contractually identical to the legacy `format!` strings so the
 /// message that reaches Dart (via `SkotiqError::OperationFailed`) does not
@@ -261,46 +260,6 @@ impl DeviceOpError {
             },
             DeviceOpError::Message(_) => DeviceOpError::Hardware { device_id, detail },
         }
-    }
-
-    /// The device id this failure is scoped to, when known: the typed accessor
-    /// retry and reconnect logic uses instead of re-parsing messages.
-    #[allow(dead_code)]
-    pub(crate) fn device_id(&self) -> Option<&str> {
-        match self {
-            DeviceOpError::DeviceNotFound(id) => Some(id),
-            DeviceOpError::NotConnected { device_id, .. }
-            | DeviceOpError::Hardware { device_id, .. }
-            | DeviceOpError::SessionLost { device_id, .. }
-            | DeviceOpError::Timeout { device_id, .. } => device_id.as_deref(),
-            DeviceOpError::InvalidState { device_id, .. } => Some(device_id),
-            DeviceOpError::InvalidDeviceId { .. }
-            | DeviceOpError::InvalidParameter { .. }
-            | DeviceOpError::Unsupported { .. }
-            | DeviceOpError::Message(_) => None,
-        }
-    }
-
-    /// Whether retrying the same operation could plausibly succeed.
-    ///
-    /// Mirrors `SkotiqError::is_recoverable`'s classification: not-connected
-    /// and hardware/communication failures may be transient (the device can be
-    /// reconnected or the SDK call re-issued), whereas invalid parameters,
-    /// unsupported operations, and malformed ids will fail identically on
-    /// retry. A device-not-found is treated as non-retryable (the caller must
-    /// reconnect/rediscover, not blindly retry the op).
-    ///
-    /// Part of the structured-recovery API this refactor exists to enable; see
-    /// [`DeviceOpError::device_id`] for why it is not yet wired to a caller.
-    #[allow(dead_code)]
-    pub(crate) fn is_retryable(&self) -> bool {
-        matches!(
-            self,
-            DeviceOpError::NotConnected { .. }
-                | DeviceOpError::Hardware { .. }
-                | DeviceOpError::SessionLost { .. }
-                | DeviceOpError::Timeout { .. }
-        )
     }
 }
 
@@ -548,27 +507,5 @@ mod tests {
         assert_eq!(from_helper.to_string(), "boom from sub-helper");
         let back: String = from_helper.into();
         assert_eq!(back, "boom from sub-helper");
-    }
-
-    #[test]
-    fn retryable_classification() {
-        assert!(DeviceOpError::not_connected(None, "x not connected").is_retryable());
-        assert!(DeviceOpError::hardware(None, "sdk boom").is_retryable());
-        assert!(!DeviceOpError::invalid_parameter("bad").is_retryable());
-        assert!(!DeviceOpError::unsupported("nope").is_retryable());
-        assert!(!DeviceOpError::device_not_found("x").is_retryable());
-    }
-
-    #[test]
-    fn device_id_extraction() {
-        assert_eq!(
-            DeviceOpError::device_not_found("d1").device_id(),
-            Some("d1")
-        );
-        assert_eq!(
-            DeviceOpError::hardware(Some("d2".to_string()), "boom").device_id(),
-            Some("d2")
-        );
-        assert_eq!(DeviceOpError::invalid_parameter("bad").device_id(), None);
     }
 }
