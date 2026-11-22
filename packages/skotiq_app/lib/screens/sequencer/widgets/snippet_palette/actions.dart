@@ -302,7 +302,7 @@ extension _SnippetPaletteActions on _SnippetPaletteState {
   /// [_handleExportSnippet] — the user gets a save dialog instead and
   /// can attach the resulting file to whatever they like.
   Future<void> _handleShareSnippet(TemplateSnippet snippet) async {
-    if (!platformHasShareSheet(macOS: true)) {
+    if (!platformHasShareSheet()) {
       // Desktop fallback: open the export dialog. Same user-visible
       // result (a file they can attach to anything) without pretending
       // we can drive a system share UI that doesn't exist.

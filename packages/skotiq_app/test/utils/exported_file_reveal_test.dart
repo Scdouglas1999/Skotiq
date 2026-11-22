@@ -59,6 +59,7 @@ void main() {
   test('the export reveal shares on the hosts with a share sheet', () {
     expect(hostHasShareSheet('android'), isTrue);
     expect(hostHasShareSheet('ios'), isTrue);
+    expect(hostHasShareSheet('macos'), isTrue);
     expect(hostHasShareSheet('linux'), isFalse);
     expect(hostHasShareSheet('windows'), isFalse);
   });

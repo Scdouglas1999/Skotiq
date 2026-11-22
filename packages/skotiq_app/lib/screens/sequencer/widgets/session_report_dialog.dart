@@ -697,7 +697,7 @@ class _ReportBody extends ConsumerWidget {
       // On mobile, route through the system share sheet so the .txt is
       // actually reachable (the documents-dir write + 4s snackbar path was
       // a dead end on phones). Stage in the OS temp dir for the share.
-      if (platformHasShareSheet(macOS: true)) {
+      if (platformHasShareSheet()) {
         final tmpDir = await getTemporaryDirectory();
         final tmpFile = File(p.join(tmpDir.path, filename));
         await tmpFile.writeAsString(text);
