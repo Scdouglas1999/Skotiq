@@ -134,7 +134,7 @@ class _MountTabState extends ConsumerState<MountTab> {
     //
     // Gated through the equipment capability provider which
     // returns a fail-closed boolean — a driver that refuses to report
-    // `canPark` gets no button that hits a "Not implemented"
+    // `canPark` no longer ships a button that hits a "Not implemented"
     // path. While loading we keep buttons visible (`loadingDefault: true`)
     // so the UI does not flash empty on every tab switch.
     final mountCapsAsync = ref
