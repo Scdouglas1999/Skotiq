@@ -1,4 +1,5 @@
 export 'radar_frame.dart';
+export 'cloud_cover_series.dart';
 export 'cloud_motion.dart';
 export 'weather_alert.dart';
 export 'weather_settings.dart';

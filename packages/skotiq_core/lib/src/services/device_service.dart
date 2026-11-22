@@ -277,10 +277,6 @@ class DeviceService {
       );
     }
     _phd2Launcher = Phd2Launcher(ref: _ref);
-    // Construct the heartbeat router first so the reconnect coordinator
-    // can drive the "reconnecting" health indicator through it (the
-    // native HeartbeatReconnecting event is never emitted, so the Dart
-    // side surfaces that state from the reconnect signals it does see).
     _heartbeat = DeviceHeartbeatRouter(ref: _ref);
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,
@@ -288,14 +284,8 @@ class DeviceService {
       hostOwnsRecovery: hostDevices != null,
       resumeSequence: resumeSequence,
       pauseSequence: pauseSequence,
-      surfaceReconnecting: (deviceId, {int attempt = 0, int maxAttempts = 0}) =>
-          _heartbeat.surfaceReconnecting(
-            deviceId: deviceId,
-            attempt: attempt,
-            maxAttempts: maxAttempts,
-          ),
-      connect: _connect,
-      reconnectTarget: _reconnectTarget,
+      surfaceReconnecting: (deviceId) =>
+          _heartbeat.surfaceReconnecting(deviceId: deviceId),
     );
     _switchChannels = SwitchChannelService(
       ref: _ref,
@@ -364,7 +354,7 @@ class DeviceService {
     );
   }
 
-  /// Cancel reconnect timers, suppress auto-reconnect, and quiesce before a
+  /// Stop reading Disconnected events as lost devices and quiesce before a
   /// backend swap disposes this service instance.
   Future<void> prepareForBackendSwap() async {
     _reconnectCoordinator.prepareForBackendSwap();
@@ -418,7 +408,6 @@ class DeviceService {
     _hostWarmUpWatch = null;
     _focuserMoveSettleWatch?.cancel();
     _focuserMoveSettleWatch = null;
-    _reconnectCoordinator.cancelAll();
   }
 
   /// Discover available devices of a specific type

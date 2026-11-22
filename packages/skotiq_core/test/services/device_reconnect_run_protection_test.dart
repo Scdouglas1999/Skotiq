@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
@@ -23,6 +24,9 @@ void main() {
 
   setUp(() {
     backend = MockBackend();
+    when(
+      () => backend.nativeReconnectedDeviceTypes,
+    ).thenReturn(DeviceType.values.toSet());
     calls = [];
     when(() => backend.saveCheckpoint()).thenAnswer((_) async {
       calls.add('checkpoint');
@@ -49,8 +53,7 @@ void main() {
             calls.add('resume');
             run.setLifecycle(SequenceExecutionState.running);
           },
-          surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
-          connect: (type, deviceId) async {},
+          surfaceReconnecting: (deviceId) {},
         ),
       ),
     );

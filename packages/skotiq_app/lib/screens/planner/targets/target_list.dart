@@ -65,9 +65,8 @@ List<_TargetRow> _rows(
           if (target.id == nextId) return ('Next up', _StatusTone.good, 1.0);
           final rises = window?.start;
           if (score != null && score.hardConstraintFailed) {
-            final reason = score.rejectionReasons.firstOrNull;
-            final kind =
-                reason == null ? null : classifySchedulerRejection(reason);
+            final rejection = score.rejections.firstOrNull;
+            final kind = rejection?.kind;
             final waitsForSky = kind == null || kind.curedByRising;
             if (waitsForSky && rises != null && rises.isAfter(now)) {
               return (
@@ -81,7 +80,7 @@ List<_TargetRow> _rows(
                   ? (window != null && !window.isUp
                       ? 'Too low tonight'
                       : 'Not now')
-                  : schedulerRejectionChipLabel(reason!),
+                  : schedulerRejectionChipLabel(rejection!),
               _StatusTone.quiet,
               4.0,
             );

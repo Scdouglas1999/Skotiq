@@ -14,6 +14,7 @@ pub enum Setting {
     Offset,
     BinX,
     BinY,
+    SensorTemp,
 }
 
 impl Setting {
@@ -29,6 +30,7 @@ impl Setting {
             Self::Offset => "OFFSET",
             Self::BinX => "XBINNING",
             Self::BinY => "YBINNING",
+            Self::SensorTemp => "CCD-TEMP",
         }
     }
 }
@@ -45,6 +47,8 @@ pub struct Acquisition {
     pub offset: Option<f64>,
     pub bin_x: Option<f64>,
     pub bin_y: Option<f64>,
+    /// The sensor's measured temperature, in °C.
+    pub sensor_temp_c: Option<f64>,
 }
 
 /// How gain, offset and binning are compared.
@@ -75,6 +79,13 @@ pub struct AgreementPolicy {
     pub set_point_c: Option<f64>,
     pub read_mode: bool,
     pub numbers: NumberMatch,
+    /// Instrument, filter and read mode match ignoring ASCII case.
+    pub text_ignores_case: bool,
+    /// A gain, offset or binning the first frame states, the other frame must
+    /// state too.
+    pub first_states_numbers: bool,
+    /// Largest sensor-temperature difference, in °C.
+    pub sensor_temp_c: Option<f64>,
 }
 
 /// The first setting two frames disagree on, with each frame's value as text.
@@ -88,14 +99,27 @@ pub struct Disagreement {
 impl Acquisition {
     /// The first setting `other` disagrees with `self` on under `policy`, in
     /// the order instrument, filter, exposure, set-point, read mode, gain,
-    /// offset, binning.
+    /// offset, binning, sensor temperature.
     pub fn disagreement(&self, other: &Self, policy: &AgreementPolicy) -> Option<Disagreement> {
+        self.disagreements(other, policy).into_iter().next()
+    }
+
+    /// Every setting `other` disagrees with `self` on under `policy`, in the
+    /// order of [`Self::disagreement`].
+    pub fn disagreements(&self, other: &Self, policy: &AgreementPolicy) -> Vec<Disagreement> {
         let text = |setting, wanted: bool, a: &Option<String>, b: &Option<String>| match (a, b) {
-            (Some(a), Some(b)) if wanted && a != b => Some(Disagreement {
-                setting,
-                first: a.clone(),
-                other: b.clone(),
-            }),
+            (Some(a), Some(b)) if wanted => {
+                let same = if policy.text_ignores_case {
+                    a.eq_ignore_ascii_case(b)
+                } else {
+                    a == b
+                };
+                (!same).then(|| Disagreement {
+                    setting,
+                    first: a.clone(),
+                    other: b.clone(),
+                })
+            }
             _ => None,
         };
         let close =
@@ -107,61 +131,73 @@ impl Acquisition {
                 }),
                 _ => None,
             };
-        let number = |setting, a: Option<f64>, b: Option<f64>| {
-            let (a, b) = (a?, b?);
-            let differs = match policy.numbers {
-                NumberMatch::Whole => a as i64 != b as i64,
-                NumberMatch::Within(limit) => (a - b).abs() > limit,
-            };
-            let shown = |v: f64| match policy.numbers {
-                NumberMatch::Whole => (v as i64).to_string(),
-                NumberMatch::Within(_) => v.to_string(),
-            };
-            differs.then(|| Disagreement {
+        let shown = |v: f64| match policy.numbers {
+            NumberMatch::Whole => (v as i64).to_string(),
+            NumberMatch::Within(_) => v.to_string(),
+        };
+        let number = |setting, a: Option<f64>, b: Option<f64>| match (a, b) {
+            (Some(a), None) if policy.first_states_numbers => Some(Disagreement {
                 setting,
                 first: shown(a),
-                other: shown(b),
-            })
+                other: "unstated".to_string(),
+            }),
+            (Some(a), Some(b)) => {
+                let differs = match policy.numbers {
+                    NumberMatch::Whole => a as i64 != b as i64,
+                    NumberMatch::Within(limit) => (a - b).abs() > limit,
+                };
+                differs.then(|| Disagreement {
+                    setting,
+                    first: shown(a),
+                    other: shown(b),
+                })
+            }
+            _ => None,
         };
         let exposure_limit = policy
             .exposure
             .zip(self.exposure_s)
             .map(|(tolerance, first)| tolerance.absolute_s.max(first.abs() * tolerance.relative));
-        text(
-            Setting::Instrument,
-            policy.instrument,
-            &self.instrument,
-            &other.instrument,
-        )
-        .or_else(|| text(Setting::Filter, policy.filter, &self.filter, &other.filter))
-        .or_else(|| {
+        [
+            text(
+                Setting::Instrument,
+                policy.instrument,
+                &self.instrument,
+                &other.instrument,
+            ),
+            text(Setting::Filter, policy.filter, &self.filter, &other.filter),
             close(
                 Setting::Exposure,
                 exposure_limit,
                 self.exposure_s,
                 other.exposure_s,
-            )
-        })
-        .or_else(|| {
+            ),
             close(
                 Setting::SetPoint,
                 policy.set_point_c,
                 self.set_point_c,
                 other.set_point_c,
-            )
-        })
-        .or_else(|| {
+            ),
             text(
                 Setting::ReadMode,
                 policy.read_mode,
                 &self.read_mode,
                 &other.read_mode,
-            )
-        })
-        .or_else(|| number(Setting::Gain, self.gain, other.gain))
-        .or_else(|| number(Setting::Offset, self.offset, other.offset))
-        .or_else(|| number(Setting::BinX, self.bin_x, other.bin_x))
-        .or_else(|| number(Setting::BinY, self.bin_y, other.bin_y))
+            ),
+            number(Setting::Gain, self.gain, other.gain),
+            number(Setting::Offset, self.offset, other.offset),
+            number(Setting::BinX, self.bin_x, other.bin_x),
+            number(Setting::BinY, self.bin_y, other.bin_y),
+            close(
+                Setting::SensorTemp,
+                policy.sensor_temp_c,
+                self.sensor_temp_c,
+                other.sensor_temp_c,
+            ),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
     }
 }
 
@@ -180,6 +216,7 @@ mod tests {
             offset: Some(50.0),
             bin_x: Some(1.0),
             bin_y: Some(1.0),
+            sensor_temp_c: Some(set_point + 0.3),
         }
     }
 
@@ -193,6 +230,9 @@ mod tests {
         set_point_c: Some(0.05),
         read_mode: true,
         numbers: NumberMatch::Whole,
+        text_ignores_case: false,
+        first_states_numbers: false,
+        sensor_temp_c: None,
     };
 
     #[test]
@@ -259,5 +299,44 @@ mod tests {
         first.exposure_s = Some(0.001);
         other.exposure_s = Some(0.0019);
         assert_eq!(first.disagreement(&other, &STRICT), None);
+    }
+
+    #[test]
+    fn case_stated_numbers_and_sensor_temperature_follow_the_policy() {
+        let first = taken(100.0, "0", -10.0);
+        let mut other = first.clone();
+        other.filter = Some("l".into());
+        other.gain = None;
+        other.sensor_temp_c = Some(-8.0);
+        assert_eq!(
+            first
+                .disagreements(&other, &STRICT)
+                .into_iter()
+                .map(|d| d.setting)
+                .collect::<Vec<_>>(),
+            vec![Setting::Filter]
+        );
+        let depth = AgreementPolicy {
+            text_ignores_case: true,
+            first_states_numbers: true,
+            sensor_temp_c: Some(1.0),
+            ..STRICT
+        };
+        assert_eq!(
+            first
+                .disagreements(&other, &depth)
+                .into_iter()
+                .map(|d| (d.setting, d.other))
+                .collect::<Vec<_>>(),
+            vec![
+                (Setting::Gain, "unstated".to_string()),
+                (Setting::SensorTemp, "-8".to_string()),
+            ]
+        );
+        other.filter = Some("Ha".into());
+        assert_eq!(
+            first.disagreement(&other, &depth).map(|d| d.setting),
+            Some(Setting::Filter)
+        );
     }
 }

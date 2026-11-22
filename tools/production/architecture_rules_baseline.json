@@ -114,7 +114,7 @@
         "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider, loggingServiceProvider."
       },
       "services/device_reconnect_coordinator.dart": {
-        "count": 6,
+        "count": 5,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, cameraStateProvider, loggingServiceProvider, mountStateProvider, notificationServiceProvider, sequenceExecutionStateProvider, uiNotificationProvider."
       },
       "services/device_service.dart": {

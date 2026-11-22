@@ -397,6 +397,9 @@ const STREAMED_AGREEMENT: AgreementPolicy = AgreementPolicy {
     set_point_c: Some(0.05),
     read_mode: true,
     numbers: NumberMatch::Whole,
+    text_ignores_case: false,
+    first_states_numbers: false,
+    sensor_temp_c: None,
 };
 
 /// Every source must agree with the first on a card, when both carry it: size,

@@ -838,6 +838,9 @@ const FLAT_AGREEMENT: AgreementPolicy = AgreementPolicy {
     set_point_c: None,
     read_mode: false,
     numbers: NumberMatch::Within(1e-6),
+    text_ignores_case: false,
+    first_states_numbers: false,
+    sensor_temp_c: None,
 };
 
 /// How closely a raw flat and the bias or dark-flat taken out of it must agree.

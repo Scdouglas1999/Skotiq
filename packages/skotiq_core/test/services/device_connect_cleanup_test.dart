@@ -9,7 +9,6 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/device_heartbeat_health_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/ui_notification_provider.dart';
-import 'package:skotiq_core/src/services/device_reconnect_coordinator.dart';
 
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
@@ -20,8 +19,6 @@ class _TestBackendNotifier extends BackendNotifier {
     state = backend;
   }
 }
-
-final _refProvider = Provider<Ref>((ref) => ref);
 
 void main() {
   late ProviderContainer container;
@@ -37,15 +34,9 @@ void main() {
     when(
       () => backend.polarAlignmentEvents,
     ).thenAnswer((_) => const Stream.empty());
-    // The native heartbeat reconnects these; the focuser here takes the Dart
-    // reconnect path.
-    when(() => backend.nativeReconnectedDeviceTypes).thenReturn(const {
-      DeviceType.mount,
-      DeviceType.guider,
-      DeviceType.dome,
-      DeviceType.weather,
-      DeviceType.coverCalibrator,
-    });
+    when(
+      () => backend.nativeReconnectedDeviceTypes,
+    ).thenReturn(DeviceType.values.toSet());
     container = ProviderContainer(
       overrides: [
         backendProvider.overrideWith(
@@ -121,35 +112,6 @@ void main() {
       isNot(HeartbeatHealth.reconnecting),
       reason: 'a connect the user made that failed is reported, not retried',
     );
-  });
-
-  test('a reconnect whose driver opens but whose bring-up fails counts '
-      'toward the limit', () async {
-    const deviceId = 'sim_focuser';
-    var attempts = 0;
-    late DeviceReconnectCoordinator coordinator;
-    coordinator = DeviceReconnectCoordinator(
-      ref: container.read(_refProvider),
-      backend: backend,
-      hostOwnsRecovery: false,
-      resumeSequence: () async {},
-      pauseSequence: () async {},
-      surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
-      connect: (type, deviceId) async {},
-      retryDelays: const [Duration(milliseconds: 1)],
-      reconnectAttempt: (type, id) async {
-        attempts++;
-        // The driver reports Connected as soon as it opens.
-        await coordinator.onAuthoritativeDeviceConnected(type.name, id);
-        throw StateError('the focuser did not report its position');
-      },
-    );
-    addTearDown(coordinator.cancelAll);
-
-    await coordinator.attemptReconnect(DeviceType.focuser, deviceId);
-    await Future<void>.delayed(const Duration(milliseconds: 200));
-
-    expect(attempts, DeviceReconnectCoordinator.maxReconnectAttempts);
   });
 
   test('a Connected that arrives after its connect failed does not put the '

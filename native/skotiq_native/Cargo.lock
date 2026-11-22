@@ -2227,6 +2227,7 @@ dependencies = [
  "serde_json",
  "skotiq_imaging",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 

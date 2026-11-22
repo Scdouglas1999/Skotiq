@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Which rejections Plan > Targets shows as "Up <time>" (the target only has
 /// to rise) instead of a reason chip. The table is the switch the target

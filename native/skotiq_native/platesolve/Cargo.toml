@@ -10,6 +10,7 @@ description = "Runs the external plate solvers (ASTAP, astrometry.net) and reads
 [dependencies]
 skotiq_imaging = { path = "../imaging" }
 thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]

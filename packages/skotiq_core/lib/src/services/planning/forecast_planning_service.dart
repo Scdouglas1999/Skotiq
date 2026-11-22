@@ -1,8 +1,7 @@
 import '../../models/planning/night_forecast.dart';
 import '../../models/site/altitude_floor.dart';
-import '../../models/weather/radar_frame.dart';
+import '../../models/weather/cloud_cover_series.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../weather/radar_provider.dart';
 
 /// A single project target fed into the multi-night forecast.
 ///
@@ -35,21 +34,21 @@ class ProjectTargetCandidate {
 /// clear, dark hours have an imageable project target up.
 ///
 /// This is the analytic core of the multi-night planner. It consumes
-/// **already-fetched** hourly cloud data (a [RadarFetchResult] produced by
-/// [OpenMeteoCloudProvider] — the fetch itself happens in the C6 provider) and
-/// a decoupled list of [ProjectTargetCandidate]s, and emits a [WeekForecast].
-/// Because it performs no network or database access it is unit-testable
-/// against synthetic [RadarFrame] fixtures.
+/// **already-fetched** hourly cloud data (a [CloudCoverSeries] from the
+/// forecast feed, `LocationCloudForecastService`) and a decoupled list of
+/// [ProjectTargetCandidate]s, and emits a [WeekForecast]. Because it performs
+/// no network or database access it is unit-testable against synthetic
+/// [CloudCoverSample] fixtures.
 ///
 /// ## Fail-closed contract
 ///
 /// A missing or partial forecast is **never** silently treated as clear sky:
 ///
-/// * If [RadarFetchResult] is an error or carries no frames, [buildWeek]
+/// * If the [CloudCoverSeries] is an error or carries no samples, [buildWeek]
 ///   returns [WeekForecast.unavailable] immediately — no nights are
 ///   fabricated.
 /// * If a night's dark window lies entirely beyond the fetched forecast
-///   horizon (no cloud frame within [_cloudSampleTolerance] of any dark hour),
+///   horizon (no cloud sample within [_cloudSampleTolerance] of any dark hour),
 ///   that night becomes [NightForecast.unavailable] rather than a clear night.
 /// * A polar night with no astronomical darkness is reported honestly with
 ///   `darkHours == 0` and `forecastAvailable == true` — the night genuinely
@@ -65,7 +64,7 @@ class ForecastPlanningService {
   /// stands above it.
   final AltitudeFloor floor;
 
-  /// Cloud opacity (0..1) at or below which a sampled dark hour counts as
+  /// Cloud fraction (0..1) at or below which a sampled dark hour counts as
   /// "clear".
   ///
   /// The default of `0.35` (35% cloud cover) is intentionally tighter than
@@ -77,7 +76,7 @@ class ForecastPlanningService {
   final double cloudClearThreshold;
 
   /// Maximum distance between a requested sample hour and the nearest cloud
-  /// frame for that frame to be considered representative. Open-Meteo data is
+  /// sample for that sample to be considered representative. Open-Meteo data is
   /// hourly, so 90 minutes tolerates the half-hour rounding on either side of
   /// a top-of-hour sample without bleeding into a non-adjacent hour.
   static const Duration _cloudSampleTolerance = Duration(minutes: 90);
@@ -111,7 +110,7 @@ class ForecastPlanningService {
   /// project targets to score visibility for. See the class docs for the
   /// fail-closed contract.
   WeekForecast buildWeek({
-    required RadarFetchResult cloudResult,
+    required CloudCoverSeries cloudResult,
     required List<ProjectTargetCandidate> targets,
     required DateTime nowLocal,
     int nights = 7,
@@ -126,8 +125,8 @@ class ForecastPlanningService {
         'Cloud forecast unavailable: ${cloudResult.errorMessage}',
       );
     }
-    final frames = cloudResult.frames;
-    if (frames.isEmpty) {
+    final samples = cloudResult.samples;
+    if (samples.isEmpty) {
       return const WeekForecast.unavailable(
         'Cloud forecast unavailable: no forecast frames returned',
       );
@@ -148,7 +147,7 @@ class ForecastPlanningService {
       builtNights.add(
         _buildNight(
           nightDateLocal: nightDateLocal,
-          frames: frames,
+          samples: samples,
           targets: targets,
         ),
       );
@@ -161,7 +160,7 @@ class ForecastPlanningService {
 
   NightForecast _buildNight({
     required DateTime nightDateLocal,
-    required List<RadarFrame> frames,
+    required List<CloudCoverSample> samples,
     required List<ProjectTargetCandidate> targets,
   }) {
     final twilight = AstronomyCalculations.twilightTimesNear(
@@ -212,17 +211,14 @@ class ForecastPlanningService {
     }
 
     for (final sampleUtc in sampleHours) {
-      // Cloud: nearest-hour lookup (the same algorithm
-      // OpenMeteoCloudProvider.getCloudCoverAt implements), additionally gated
-      // on the fetched horizon — a frame is only trusted if it is within
-      // tolerance of the sample hour. Open-Meteo frames carry cloud cover as
-      // opacity in [0, 1], so we read it directly.
-      final nearest = _nearestFrame(sampleUtc, frames);
+      // Cloud: nearest-hour lookup, gated on the fetched horizon — a sample
+      // is only trusted if it is within tolerance of the dark hour.
+      final nearest = _nearestSample(sampleUtc, samples);
       if (nearest != null && nearest.distance <= _cloudSampleTolerance) {
-        final opacity = nearest.frame.opacity.clamp(0.0, 1.0);
+        final fraction = nearest.sample.fraction.clamp(0.0, 1.0);
         coveredHours += 1;
-        cloudSum += opacity;
-        if (opacity <= cloudClearThreshold) {
+        cloudSum += fraction;
+        if (fraction <= cloudClearThreshold) {
           clearHours += 1;
         }
       }
@@ -303,26 +299,23 @@ class ForecastPlanningService {
     return samples;
   }
 
-  /// The frame in [frames] nearest in time to [time], paired with its absolute
-  /// time distance, or null when [frames] is empty. This is the same
-  /// nearest-hour search [OpenMeteoCloudProvider.getCloudCoverAt] performs,
-  /// surfaced as a value so the caller can both gate on the distance and read
-  /// the opacity from a single scan.
-  ({RadarFrame frame, Duration distance})? _nearestFrame(
+  /// The sample in [samples] nearest in time to [time], paired with its
+  /// absolute time distance, or null when [samples] is empty.
+  ({CloudCoverSample sample, Duration distance})? _nearestSample(
     DateTime time,
-    List<RadarFrame> frames,
+    List<CloudCoverSample> samples,
   ) {
-    RadarFrame? best;
+    CloudCoverSample? best;
     Duration? bestDistance;
-    for (final frame in frames) {
-      final d = frame.timestamp.difference(time).abs();
+    for (final sample in samples) {
+      final d = sample.time.difference(time).abs();
       if (bestDistance == null || d < bestDistance) {
         bestDistance = d;
-        best = frame;
+        best = sample;
       }
     }
     if (best == null || bestDistance == null) return null;
-    return (frame: best, distance: bestDistance);
+    return (sample: best, distance: bestDistance);
   }
 
   /// Ranks targets that are up for at least one dark hour, descending by

@@ -49,6 +49,16 @@ class MetNoCloudProvider extends RadarProvider {
     required double latitude,
     required double longitude,
     double radiusKm = 100.0,
+  }) async => cloudCoverFrames(
+    await fetchCloudCover(latitude: latitude, longitude: longitude),
+    latitude: latitude,
+    longitude: longitude,
+  );
+
+  /// The site's hourly cloud cover from now through the forecast days.
+  Future<CloudCoverSeries> fetchCloudCover({
+    required double latitude,
+    required double longitude,
   }) async {
     try {
       final uri = Uri.parse(_baseUrl).replace(
@@ -67,7 +77,7 @@ class MetNoCloudProvider extends RadarProvider {
       );
 
       if (response.statusCode != 200) {
-        return RadarFetchResult.error(
+        return CloudCoverSeries.error(
           'MET Norway API returned status ${response.statusCode}',
         );
       }
@@ -76,22 +86,22 @@ class MetNoCloudProvider extends RadarProvider {
       try {
         json = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (e) {
-        return RadarFetchResult.error('Failed to parse JSON response: $e');
+        return CloudCoverSeries.error('Failed to parse JSON response: $e');
       }
 
       final properties = json['properties'];
       if (properties is! Map<String, dynamic>) {
-        return RadarFetchResult.error('Missing properties in response');
+        return CloudCoverSeries.error('Missing properties in response');
       }
       final timeseries = properties['timeseries'];
       if (timeseries is! List) {
-        return RadarFetchResult.error('Missing timeseries in response');
+        return CloudCoverSeries.error('Missing timeseries in response');
       }
 
       // Timestamps carry a trailing 'Z' (true UTC), so compare against a UTC
       // "now" for the forecast flag.
       final now = DateTime.now().toUtc();
-      final frames = <RadarFrame>[];
+      final samples = <CloudCoverSample>[];
 
       for (final entry in timeseries) {
         final cloudCover = _cloudCoverFraction(entry);
@@ -104,34 +114,24 @@ class MetNoCloudProvider extends RadarProvider {
         }
 
         final clamped = cloudCover.clamp(0.0, 100.0);
-        final opacity = clamped / 100.0;
-        final isForecast = timestamp.isAfter(now);
-
-        // Point bounds: ±0.5° around the requested location, matching
-        // Open-Meteo so frame geometry is identical across providers.
-        frames.add(
-          RadarFrame(
-            timestamp: timestamp,
-            tileUrlTemplate: '', // No tiles for this provider.
-            north: latitude + 0.5,
-            south: latitude - 0.5,
-            east: longitude + 0.5,
-            west: longitude - 0.5,
-            opacity: opacity,
-            isForecast: isForecast,
+        samples.add(
+          CloudCoverSample(
+            time: timestamp,
+            fraction: clamped / 100.0,
+            isForecast: timestamp.isAfter(now),
           ),
         );
       }
 
-      if (frames.isEmpty) {
-        return RadarFetchResult.error('No valid cloud cover data available');
+      if (samples.isEmpty) {
+        return CloudCoverSeries.error('No valid cloud cover data available');
       }
 
-      return RadarFetchResult.success(frames);
+      return CloudCoverSeries.success(samples);
     } on http.ClientException catch (e) {
-      return RadarFetchResult.error('Network error: $e');
+      return CloudCoverSeries.error('Network error: $e');
     } catch (e) {
-      return RadarFetchResult.error('Unexpected error: $e');
+      return CloudCoverSeries.error('Unexpected error: $e');
     }
   }
 

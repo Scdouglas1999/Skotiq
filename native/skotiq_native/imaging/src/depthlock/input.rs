@@ -15,8 +15,9 @@ use super::ApertureFrame;
 use crate::fits::FitsHeader;
 use crate::registration::{RegistrationStats, TransformKind, TransformModel};
 use crate::{
-    detect_stars, CalibrationMarks, CardReading, FrameKind, FrameType, ImageData, MasterProvenance,
-    PixelType, SipWcs, StarDetectionConfig,
+    detect_stars, Acquisition, AgreementPolicy, CalibrationMarks, CardReading, ExposureTolerance,
+    FrameKind, FrameType, ImageData, MasterProvenance, NumberMatch, PixelType, Setting, SipWcs,
+    StarDetectionConfig,
 };
 use serde::{Deserialize, Serialize};
 
@@ -539,6 +540,54 @@ impl Default for CompatibilityPolicy {
     }
 }
 
+impl AcquisitionSettings {
+    fn acquisition(&self) -> Acquisition {
+        Acquisition {
+            instrument: Some(self.instrument.clone()),
+            filter: Some(self.filter.clone()),
+            exposure_s: Some(self.exposure_secs),
+            gain: self.gain.map(f64::from),
+            offset: self.offset.map(f64::from),
+            bin_x: Some(f64::from(self.bin_x)),
+            bin_y: Some(f64::from(self.bin_y)),
+            sensor_temp_c: self.ccd_temp_c,
+            ..Acquisition::default()
+        }
+    }
+}
+
+/// A number a [`Disagreement`](crate::Disagreement) states, to one decimal.
+fn one_decimal(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .map_or_else(|_| value.to_string(), |v| format!("{v:.1}"))
+}
+
+/// A number a [`Disagreement`](crate::Disagreement) states, to three decimals.
+fn three_decimals(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .map_or_else(|_| value.to_string(), |v| format!("{v:.3}"))
+}
+
+/// DepthLock's agreement rule: names in any case, exposure within 0.1 % of
+/// the goal's (darks are not scaled), whole gain, offset and binning, and no
+/// set-point or read-mode check.
+const DEPTHLOCK_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    instrument: true,
+    filter: true,
+    exposure: Some(ExposureTolerance {
+        absolute_s: 0.0,
+        relative: 0.001,
+    }),
+    set_point_c: None,
+    read_mode: false,
+    numbers: NumberMatch::Whole,
+    text_ignores_case: true,
+    first_states_numbers: false,
+    sensor_temp_c: None,
+};
+
 /// Refuse a light whose acquisition differs from the goal's. Gain and offset
 /// are compared when the goal knows them; a goal defined without them is
 /// pooling on the calibration library's word alone, and says so.
@@ -547,53 +596,68 @@ pub fn check_compatible(
     light: &AcquisitionSettings,
     policy: &CompatibilityPolicy,
 ) -> Result<(), String> {
-    if !light.instrument.eq_ignore_ascii_case(&goal.instrument) {
-        return Err(format!(
+    let agreement = AgreementPolicy {
+        first_states_numbers: true,
+        sensor_temp_c: Some(policy.temperature_tolerance_c),
+        ..DEPTHLOCK_AGREEMENT
+    };
+    // Binning is named before gain and offset, the sensor temperature last.
+    let rank = |setting: Setting| match setting {
+        Setting::BinX | Setting::BinY => 0,
+        Setting::Gain | Setting::Offset => 1,
+        Setting::SensorTemp => 2,
+        _ => -1,
+    };
+    let Some(first) = goal
+        .acquisition()
+        .disagreements(&light.acquisition(), &agreement)
+        .into_iter()
+        .min_by_key(|d| rank(d.setting))
+    else {
+        return Ok(());
+    };
+    let stated = |value: Option<i32>| value.map_or("unstated".to_string(), |v| v.to_string());
+    Err(match first.setting {
+        Setting::Instrument => format!(
             "Camera differs: goal was defined for {:?}, light is from {:?}",
             goal.instrument, light.instrument
-        ));
-    }
-    if !light.filter.eq_ignore_ascii_case(&goal.filter) {
-        return Err(format!(
+        ),
+        Setting::Filter => format!(
             "Filter differs: goal is for {:?}, light was taken through {:?}",
             goal.filter, light.filter
-        ));
-    }
-    if (light.exposure_secs - goal.exposure_secs).abs() > 0.001 * goal.exposure_secs {
-        return Err(format!(
+        ),
+        Setting::Exposure => format!(
             "Exposure differs: goal and its master dark are for {:.3} s, light is {:.3} s \
              (DepthLock does not scale darks)",
             goal.exposure_secs, light.exposure_secs
-        ));
-    }
-    if light.bin_x != goal.bin_x || light.bin_y != goal.bin_y {
-        return Err(format!(
+        ),
+        Setting::BinX | Setting::BinY => format!(
             "Binning differs: goal is {}x{}, light is {}x{}",
             goal.bin_x, goal.bin_y, light.bin_x, light.bin_y
-        ));
-    }
-    for (name, goal_value, light_value) in [
-        ("Gain", goal.gain, light.gain),
-        ("Offset", goal.offset, light.offset),
-    ] {
-        if let Some(expected) = goal_value {
-            if light_value != Some(expected) {
-                return Err(format!(
-                    "{name} differs: goal is {expected}, light is {}",
-                    light_value.map_or("unstated".to_string(), |v| v.to_string())
-                ));
-            }
-        }
-    }
-    if let (Some(goal_temp), Some(light_temp)) = (goal.ccd_temp_c, light.ccd_temp_c) {
-        if (goal_temp - light_temp).abs() > policy.temperature_tolerance_c {
-            return Err(format!(
-                "Sensor temperature differs by more than {:.1} °C: goal {:.1} °C, light {:.1} °C",
-                policy.temperature_tolerance_c, goal_temp, light_temp
-            ));
-        }
-    }
-    Ok(())
+        ),
+        Setting::Gain => format!(
+            "Gain differs: goal is {}, light is {}",
+            stated(goal.gain),
+            stated(light.gain)
+        ),
+        Setting::Offset => format!(
+            "Offset differs: goal is {}, light is {}",
+            stated(goal.offset),
+            stated(light.offset)
+        ),
+        Setting::SensorTemp => format!(
+            "Sensor temperature differs by more than {:.1} °C: goal {} °C, light {} °C",
+            policy.temperature_tolerance_c,
+            one_decimal(&first.first),
+            one_decimal(&first.other)
+        ),
+        Setting::SetPoint | Setting::ReadMode => format!(
+            "{} differs: goal is {}, light is {}",
+            first.setting.card(),
+            first.first,
+            first.other
+        ),
+    })
 }
 
 /// Which master a file must declare itself to be.
@@ -653,47 +717,53 @@ pub fn validate_master(
         ));
     }
     master_pixels(image)?;
-    if let Some(instrument) = header.get_string("INSTRUME") {
-        if !instrument.trim().eq_ignore_ascii_case(&goal.instrument) {
-            return Err(format!(
-                "{label} is from camera {instrument:?}, goal is for {:?}",
-                goal.instrument
-            ));
-        }
-    }
-    if kind == MasterKind::Dark {
-        if let Some(exposure) = header.get_float("EXPTIME") {
-            if (exposure - goal.exposure_secs).abs() > 0.001 * goal.exposure_secs {
-                return Err(format!(
-                    "{label} exposure {exposure:.3} s does not match the goal's {:.3} s",
-                    goal.exposure_secs
-                ));
-            }
-        }
-    }
-    if kind == MasterKind::Flat {
-        if let Some(filter) = header.get_string("FILTER") {
-            if !filter.trim().eq_ignore_ascii_case(&goal.filter) {
-                return Err(format!(
-                    "{label} is for filter {filter:?}, goal is for {:?}",
-                    goal.filter
-                ));
-            }
-        }
-    }
-    for (key, expected) in [
-        ("GAIN", goal.gain.map(i64::from)),
-        ("OFFSET", goal.offset.map(i64::from)),
-        ("XBINNING", Some(i64::from(goal.bin_x))),
-        ("YBINNING", Some(i64::from(goal.bin_y))),
-    ] {
-        if let (Some(actual), Some(expected)) = (header.get_int(key), expected) {
-            if actual != expected {
-                return Err(format!("{label} {key} is {actual}, goal is {expected}"));
-            }
-        }
-    }
-    Ok(())
+    let card_text = |key: &str| header.get_string(key).map(|v| v.trim().to_string());
+    let card_number = |key: &str| header.get_int(key).map(|v| v as f64);
+    let master = Acquisition {
+        instrument: card_text("INSTRUME"),
+        filter: card_text("FILTER"),
+        exposure_s: header.get_float("EXPTIME"),
+        gain: card_number("GAIN"),
+        offset: card_number("OFFSET"),
+        bin_x: card_number("XBINNING"),
+        bin_y: card_number("YBINNING"),
+        ..Acquisition::default()
+    };
+    // A master dark is held to the goal's exposure, a master flat to its filter.
+    let agreement = AgreementPolicy {
+        filter: kind == MasterKind::Flat,
+        exposure: DEPTHLOCK_AGREEMENT
+            .exposure
+            .filter(|_| kind == MasterKind::Dark),
+        ..DEPTHLOCK_AGREEMENT
+    };
+    let Some(first) = goal.acquisition().disagreement(&master, &agreement) else {
+        return Ok(());
+    };
+    let raw = |key: &str| header.get_string(key).unwrap_or(first.other.as_str());
+    Err(match first.setting {
+        Setting::Instrument => format!(
+            "{label} is from camera {:?}, goal is for {:?}",
+            raw("INSTRUME"),
+            goal.instrument
+        ),
+        Setting::Filter => format!(
+            "{label} is for filter {:?}, goal is for {:?}",
+            raw("FILTER"),
+            goal.filter
+        ),
+        Setting::Exposure => format!(
+            "{label} exposure {} s does not match the goal's {:.3} s",
+            three_decimals(&first.other),
+            goal.exposure_secs
+        ),
+        setting => format!(
+            "{label} {} is {}, goal is {}",
+            setting.card(),
+            first.other,
+            first.first
+        ),
+    })
 }
 
 /// One measured exposure, assembled from its vetted parts.

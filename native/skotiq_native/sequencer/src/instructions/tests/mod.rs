@@ -1694,5 +1694,6 @@ mod save_path;
 mod script;
 mod slew;
 mod slew_wait;
+mod slew_watch_sites;
 mod step_lines;
 mod wait_time;
