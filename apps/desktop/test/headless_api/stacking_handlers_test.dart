@@ -744,6 +744,31 @@ void main() {
     },
   );
 
+  test('the host reads every engine setting a client sends', () async {
+    const sent = LiveStackingConfig(
+      sigmaClipEnabled: false,
+      sigmaClipThreshold: 3.25,
+      maxMatchStars: 150,
+      matchRadiusPx: 42.5,
+      matchFluxTolerance: 0.55,
+      minMatchedPairs: 7,
+      maxAlignmentResidualPx: 1.25,
+      starDetectionSigma: 3.5,
+      starDetectionMinSnr: 6.5,
+      sensorMode: 'osc',
+      bayerPattern: 'GRBG',
+      demosaicQuality: 'vng',
+    );
+    final response = await handlers.handleStart(
+      post('/api/stacking/start', {
+        'referencePath': '/host/ref.fits',
+        'config': sent.toWireJson(),
+      }),
+    );
+    expect(response.statusCode, HttpStatus.ok);
+    expect(fake.startedConfigs.last.toBridge(), sent.toBridge());
+  });
+
   test(
     '9.0.2 config tuning fields and totalIntegrationSecs round-trip over JSON',
     () async {
