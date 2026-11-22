@@ -1921,6 +1921,25 @@ pub struct CenterConfig {
     pub sync_mount: bool,
 }
 
+impl CenterConfig {
+    /// How a run centers its target again by itself: after a mount fault,
+    /// after a weather hold and when the drift trigger fires. Three attempts
+    /// of 5 s frames at the operator's centering tolerance, syncing each
+    /// correction.
+    pub fn run_recenter() -> Self {
+        Self {
+            use_target_coords: true,
+            custom_ra: None,
+            custom_dec: None,
+            accuracy_arcsec: None,
+            max_attempts: 3,
+            exposure_duration: 5.0,
+            filter: None,
+            sync_mount: true,
+        }
+    }
+}
+
 impl Default for CenterConfig {
     fn default() -> Self {
         Self {

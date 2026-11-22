@@ -386,3 +386,17 @@ async fn a_center_step_takes_the_centering_tolerance_setting() {
         outcomes[1].message
     );
 }
+
+/// A run's own recenter (mount fault, weather hold, drift trigger): three
+/// attempts of 5 s frames at the operator's tolerance, syncing.
+#[test]
+fn a_runs_own_recenter() {
+    let config = crate::CenterConfig::run_recenter();
+    assert!(config.use_target_coords);
+    assert_eq!((config.custom_ra, config.custom_dec), (None, None));
+    assert_eq!(config.accuracy_arcsec, None);
+    assert_eq!(config.max_attempts, 3);
+    assert_eq!(config.exposure_duration, 5.0);
+    assert_eq!(config.filter, None);
+    assert!(config.sync_mount);
+}
