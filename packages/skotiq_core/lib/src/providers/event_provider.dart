@@ -32,6 +32,7 @@ import '../services/notification/notification_router.dart'
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
+import 'notification_router_provider.dart' show notificationRouterProvider;
 import 'ui_notification_provider.dart';
 
 /// The typed event stream: every sequencer, device, imaging, guiding and
@@ -248,9 +249,11 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       }
 
       // A Notification node that names its own transports is sent by the
-      // notification router on exactly those.
+      // notification router on exactly those, while it routes at all.
       if (systemEventOf(event) case final SystemEvent_Notification notification
-          when nodeNotificationTransports(notification) != null) {
+          when nodeNotificationTransports(notification) != null &&
+              ref.exists(notificationRouterProvider) &&
+              ref.read(notificationRouterProvider).matrix.enabled) {
         return;
       }
 

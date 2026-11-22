@@ -10,6 +10,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
 
 class _MockFfiBackend extends Mock implements FfiBackend {}
 
@@ -33,7 +34,10 @@ SkotiqEvent _nodeWarning({List<String>? transports}) => SkotiqEvent(
 );
 
 void main() {
-  Future<List<UiNotification>> toastsFor(SkotiqEvent event) async {
+  Future<List<UiNotification>> toastsFor(
+    SkotiqEvent event, {
+    bool notificationsOn = true,
+  }) async {
     final backend = _MockFfiBackend();
     final controller = StreamController<SkotiqEvent>.broadcast();
     addTearDown(controller.close);
@@ -43,9 +47,18 @@ void main() {
         backendProvider.overrideWith(
           (ref) => _FixedBackendNotifier(ref, backend),
         ),
+        notificationRouterProvider.overrideWithValue(
+          NotificationRouter(
+            transports: const [],
+            matrix: NotificationRoutingMatrix.defaults().copyWith(
+              enabled: notificationsOn,
+            ),
+          ),
+        ),
       ],
     );
     addTearDown(container.dispose);
+    container.read(notificationRouterProvider);
     container.read(errorNotificationBridgeProvider);
     controller.add(event);
     await pumpEventQueue();
@@ -58,6 +71,15 @@ void main() {
 
   test('a node with no transports of its own keeps its toast', () async {
     final toasts = await toastsFor(_nodeWarning());
+    expect(toasts.single.title, 'Clouds');
+  });
+
+  test('with notifications off, a node with its own transports keeps its '
+      'toast', () async {
+    final toasts = await toastsFor(
+      _nodeWarning(transports: ['telegram']),
+      notificationsOn: false,
+    );
     expect(toasts.single.title, 'Clouds');
   });
 }
