@@ -94,11 +94,9 @@ fn crops_the_fit_could_barely_sample_still_read_on_the_right_side() {
 }
 
 #[test]
+#[ignore = "needs the 2026-09-14 rig frames: ~/.cache/sk-rig-data/2026-09-14 or SKOTIQ_RIG_DATA (not in the repo)"]
 fn full_frames_measure_what_an_independent_psf_fit_measures() {
-    let Some(dir) = rig_data() else {
-        eprintln!("SKIPPED: ~/.cache/sk-rig-data/2026-09-14 is not on this machine");
-        return;
-    };
+    let dir = rig_data().expect("the 2026-09-14 rig frames");
     assert_matches(
         &dir,
         &[

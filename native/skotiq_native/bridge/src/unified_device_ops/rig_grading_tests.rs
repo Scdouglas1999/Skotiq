@@ -179,11 +179,9 @@ async fn the_shipped_eccentricity_limit_passes_focus_and_rejects_trails() {
 }
 
 #[tokio::test]
+#[ignore = "needs the 2026-09-14 rig frames: ~/.cache/sk-rig-data/2026-09-14 or SKOTIQ_RIG_DATA (not in the repo)"]
 async fn the_full_frames_of_the_night_grade_as_they_should() {
-    let Some(dir) = rig_data() else {
-        eprintln!("SKIPPED: ~/.cache/sk-rig-data/2026-09-14 is not on this machine");
-        return;
-    };
+    let dir = rig_data().expect("the 2026-09-14 rig frames");
     for file in [
         "good/Unknown_L_2026-09-15_0005.fits",
         "good/Unknown_L_2026-09-15_0006.fits",
@@ -280,11 +278,9 @@ impl Run {
 /// per filter): the first six rounds of subs pass, and the three trailed subs
 /// that ended the night are rejected, on eccentricity and on star count.
 #[tokio::test]
+#[ignore = "needs the dust-study corpus: ~/.cache/ns-dust/data/laptop or SKOTIQ_DUST_DATA (not in the repo)"]
 async fn the_ngc891_run_keeps_its_subs_and_rejects_its_trailed_frames() {
-    let Some(root) = dust_data() else {
-        eprintln!("SKIPPED: the dust-study corpus is not on this machine");
-        return;
-    };
+    let root = dust_data().expect("the dust-study corpus");
     let dir = root.join("NGC7380");
     let mut run = Run::new();
     for round in 1..=6 {
@@ -329,11 +325,9 @@ async fn the_ngc891_run_keeps_its_subs_and_rejects_its_trailed_frames() {
 /// before the cloud pass, and the cloud frames are rejected, including one
 /// that still shows 253 stars too saturated by the sky to measure.
 #[tokio::test]
+#[ignore = "needs the dust-study corpus: ~/.cache/ns-dust/data/laptop or SKOTIQ_DUST_DATA (not in the repo)"]
 async fn a_night_that_clouds_over_rejects_the_cloud_frames() {
-    let Some(root) = dust_data() else {
-        eprintln!("SKIPPED: the dust-study corpus is not on this machine");
-        return;
-    };
+    let root = dust_data().expect("the dust-study corpus");
     let dir = root.join("N.I.N.A/2026-01-02/LIGHT");
     let mut run = Run::new();
     for name in [

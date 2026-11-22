@@ -3924,22 +3924,18 @@ mod rig_2026_09_14_tests {
         assert!((separation - 1.24).abs() < 0.05, "{separation:.2}'");
     }
 
-    /// The full solve, when the frame and an ASTAP install are both present.
-    /// Neither is on CI, and ASTAP is not installed on the development
-    /// machine either, so this usually reports what it skipped.
+    /// The full solve of the rig's own frame through the app's solver.
     #[test]
+    #[ignore = "needs ASTAP and ~/.cache/sk-rig-data/2026-09-14/solve/solve-verify.fits (not in the repo)"]
     fn the_app_solver_reproduces_the_rig_solution_on_the_real_frame() {
-        let Some(frame) = std::env::var_os("HOME")
+        let frame = std::env::var_os("HOME")
             .map(|h| Path::new(&h).join(".cache/sk-rig-data/2026-09-14/solve/solve-verify.fits"))
             .filter(|p| p.is_file())
-        else {
-            eprintln!("SKIPPED: the full solve-verify.fits is not on this machine");
-            return;
-        };
-        if find_astap_with_override(None).is_none() {
-            eprintln!("SKIPPED: no ASTAP install found");
-            return;
-        }
+            .expect("the full solve-verify.fits");
+        assert!(
+            find_astap_with_override(None).is_some(),
+            "no ASTAP install found"
+        );
         let result = solve_near(&frame, 341.8375, 58.131_667, 5.0);
         assert!(result.success, "{:?}", result.error);
         let arcsec = ((result.ra - RA) * DEC.to_radians().cos()).hypot(result.dec - DEC) * 3600.0;

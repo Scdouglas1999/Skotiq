@@ -94,7 +94,7 @@ async fn wait_for_frame(manager: &DeviceManager, id: &str) {
 /// Capabilities come from the camera's own members: an ISO gain list, an
 /// offset range, exposure limits, the cooler and the colour pattern.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs OmniSim with the osc camera profile: set SKOTIQ_OMNISIM_URL"]
 async fn capabilities_report_the_cameras_own_controls() {
     let Some(base_url) = omnisim() else { return };
     let manager = build_device_manager();
@@ -127,7 +127,7 @@ async fn capabilities_report_the_cameras_own_controls() {
 /// A gain is written as its index in the camera's ISO list and read back as
 /// the ISO speed; status reports the driver's own setpoint.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs OmniSim with the osc camera profile: set SKOTIQ_OMNISIM_URL"]
 async fn gain_and_cooler_are_written_and_read_in_the_cameras_terms() {
     let Some(base_url) = omnisim() else { return };
     let manager = build_device_manager();
@@ -178,7 +178,7 @@ async fn gain_and_cooler_are_written_and_read_in_the_cameras_terms() {
 /// camera's own `[x][y]` array holds it, with the EXPTIME, gain and binning
 /// the camera reports.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs OmniSim with the osc camera profile: set SKOTIQ_OMNISIM_URL"]
 async fn a_binned_subframe_arrives_upright_with_the_cameras_metadata() {
     let Some(base_url) = omnisim() else { return };
     let manager = build_device_manager();
@@ -227,7 +227,7 @@ async fn a_binned_subframe_arrives_upright_with_the_cameras_metadata() {
 /// ExposureMin, which only a dark exposure may be); the full frame carries the
 /// Bayer pattern the camera's offsets name.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs OmniSim with the osc camera profile: set SKOTIQ_OMNISIM_URL"]
 async fn a_bias_is_taken_dark_at_zero_seconds() {
     let Some(base_url) = omnisim() else { return };
     let manager = build_device_manager();
@@ -248,7 +248,7 @@ async fn a_bias_is_taken_dark_at_zero_seconds() {
 
 /// AbortExposure discards the frame; StopExposure keeps what was collected.
 #[tokio::test]
-#[ignore]
+#[ignore = "needs OmniSim with the osc camera profile: set SKOTIQ_OMNISIM_URL"]
 async fn abort_discards_and_stop_keeps_the_frame() {
     let Some(base_url) = omnisim() else { return };
     let manager = build_device_manager();

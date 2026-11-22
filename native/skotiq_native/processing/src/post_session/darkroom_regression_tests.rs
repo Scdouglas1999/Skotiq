@@ -703,7 +703,7 @@ fn delivery_writes_linear_masters_and_composites() {
 /// Full-size ASI1600 frames through the build. Run explicitly in release mode
 /// with `RV_FRAMES` set, under `/usr/bin/time -v` for the peak memory.
 #[test]
-#[ignore]
+#[ignore = "timing harness: run in release with RV_FRAMES"]
 fn full_size_build_timing() {
     let (w, h) = (4656u32, 3520u32);
     let n: usize = std::env::var("RV_FRAMES")
@@ -780,7 +780,7 @@ fn full_size_build_timing() {
 /// The REST-style accumulating add, one full-size sub per call. Run
 /// explicitly in release mode.
 #[test]
-#[ignore]
+#[ignore = "timing harness: run in release with RV_FRAMES"]
 fn full_size_add_per_call_timing() {
     let (w, h) = (4656u32, 3520u32);
     let n: usize = std::env::var("RV_FRAMES")
