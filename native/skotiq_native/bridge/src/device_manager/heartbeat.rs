@@ -136,9 +136,9 @@ impl DeviceManager {
     /// COM round-trip on the process-wide shared STA worker thread, and a slow
     /// driver call ahead of it in the queue times the probe out transiently.
     ///
+    /// Applying the retry ONCE here, above the per-driver dispatch, gives ASCOM,
     /// Native, INDI and Alpaca identical behavior by construction; a retry inside
     /// each driver's mount/focuser/wheel arm would be twelve copies
-    /// retry inside each driver's mount/focuser/wheel arm — is twelve copies
     /// that drift out of parity. Camera/etc. poll fast, reliable properties and
     /// are checked once. A genuinely-gone device fails the retry too and is
     /// still escalated by the surrounding loop.

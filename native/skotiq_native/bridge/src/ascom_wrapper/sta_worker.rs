@@ -75,7 +75,7 @@ pub(crate) type DevicePump = Box<dyn FnMut() -> PumpOutcome>;
 
 /// Builds a [`DevicePump`] on the worker thread. Runs `CoCreateInstance` for the
 /// driver (and any other construction-time COM) inside the apartment. Returning
-/// `Err` when the COM object cannot be created.
+/// `Err` fails the registration when the COM object cannot be created.
 type DeviceFactory = Box<dyn FnOnce() -> Result<DevicePump, String> + Send>;
 
 /// A registration handed to the worker thread: the factory to run on-thread and

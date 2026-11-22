@@ -7,7 +7,7 @@
 //! is a bridge trait over its `skotiq_device` driver trait with one
 //! `capabilities` per protocol: Alpaca and INDI here, next to nothing else
 //! because their operations live in their own crates; the simulators in
-//! the simulators and the ASCOM wrappers in `ascom_wrapper::accessory`,
+//! `crate::simulator` and the ASCOM wrappers in `ascom_wrapper::accessory`,
 //! next to their operations.
 
 use crate::device::{CalibratorState, CoverState};
