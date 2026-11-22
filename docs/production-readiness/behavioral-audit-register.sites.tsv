@@ -654,9 +654,6 @@ native/skotiq_native/imaging/src/deconvolution.rs	normalized_profile	unwrap_or_l
 native/skotiq_native/imaging/src/defect_map.rs	correct_u16_slice_supports_mean_and_gaussian	rust_let_underscore	3	V0054	let _ = correct_u16_slice(
 native/skotiq_native/imaging/src/defect_map.rs	file_round_trip	rust_let_underscore	1	V0054	let _ = std::fs::remove_file(&path);
 native/skotiq_native/imaging/src/defect_map.rs	round_trip_build_save_reload_identical_entries	rust_let_underscore	1	V0054	let _ = std::fs::remove_file(&path);
-native/skotiq_native/imaging/src/depthlock/input.rs	light_settings	unwrap_or_literal	1	V0788	bin_x: int_card("XBINNING")?.unwrap_or(1),
-native/skotiq_native/imaging/src/depthlock/input.rs	light_settings	unwrap_or_literal	1	V0788	bin_y: int_card("YBINNING")?.unwrap_or(1),
-native/skotiq_native/imaging/src/depthlock/input.rs	validate_master	unwrap_or_literal	1	V0789	let frames = provenance.frames.unwrap_or(0);
 native/skotiq_native/imaging/src/depthlock/mod.rs	progress_curve	unwrap_or_literal	1	V0758	.filter(|f| frame_usable(spec, f).unwrap_or(false))
 native/skotiq_native/imaging/src/difference_image.rs	difference_against_decoded	unwrap_or_literal	1	V0165	let t_ap = aperture_sum(&tmpl_lum, &overlap, tw, th, s.x, s.y, aperture).unwrap_or(0.0);
 native/skotiq_native/imaging/src/difference_image.rs	estimate_psf_sigma	unwrap_or_literal	1	V0165	((vals.last().copied().unwrap_or(0.0) - vals.first().copied().unwrap_or(0.0)).abs() * 1e-3)
@@ -709,7 +706,6 @@ native/skotiq_native/imaging/src/sky_atlas.rs	estimate_frame_norm	unwrap_or_lite
 native/skotiq_native/imaging/src/sky_atlas.rs	fold_prepared_frames	unwrap_or_literal	1	V0163	>= tile_buffer_bytes(frames.first().map(|f| f.channels()).unwrap_or(1))
 native/skotiq_native/imaging/src/stacking.rs	combine_master_frames	unwrap_or_literal	1	V0542	.unwrap_or(0);
 native/skotiq_native/imaging/src/stacking.rs	combine_master_frames	unwrap_or_literal	1	V0543	.unwrap_or(1)
-native/skotiq_native/imaging/src/star_reduction.rs	reduce_stars	unwrap_or_literal	1	V0121	let n = width.checked_mul(height).unwrap_or(0);
 native/skotiq_native/imaging/src/wcs_sip.rs	pathological_sip_order_does_not_panic	rust_let_underscore	1	V0164	let _ = wcs.world_to_pixel(ra, dec).expect("on-sky, no panic");
 native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	let centre = |axis: &str| header.get_int(axis).unwrap_or(0) as f64 / 2.0 + 0.5;
 native/skotiq_native/imaging/src/wcs_sip.rs	from_header	unwrap_or_literal	1	U2-01	let order = |key: &str| header.get_int(key).unwrap_or(0).max(0) as u32;
@@ -1104,7 +1100,6 @@ native/skotiq_native/processing/src/post_session/helpers.rs	choose_reference	unw
 native/skotiq_native/processing/src/post_session/integrate.rs	run_integration	rust_let_underscore	1	V0687	let _ = ref_reg_pos; // reference normalizes to identity; kept for clarity.
 native/skotiq_native/processing/src/post_session/integrate.rs	run_integration	unwrap_or_literal	1	V0688	let weight = weight_by_index.get(&i).copied().unwrap_or(0.0);
 native/skotiq_native/processing/src/post_session/light_calibration_tests.rs	drop	rust_let_underscore	1	V0654	let _ = std::fs::remove_dir_all(&self.0);
-native/skotiq_native/processing/src/post_session/master_cards.rs	attach_wcs	unwrap_or_default	1	V0634	result.error.unwrap_or_default()
 native/skotiq_native/processing/src/post_session/masters.rs	forget_open_master	rust_let_underscore	1	V0636	let _ = std::fs::remove_file(journal_path(sidecar));
 native/skotiq_native/processing/src/post_session/masters.rs	save	rust_let_underscore	1	V0635	let _ = std::fs::remove_file(journal_path(&self.sidecar));
 native/skotiq_native/processing/src/post_session/multi_night.rs	check_build_calibration	rust_let_underscore	1	V0644	let _ = calibrated_light(&reference.path, None, &masters).map_err(|(_, e)| e)?;
