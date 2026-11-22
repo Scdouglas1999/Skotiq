@@ -31,13 +31,18 @@ impl MeridianFlipExecutor {
                 }
             }
             let exposure = if extended { 15.0 } else { 5.0 };
-            let result = self.center_attempts(ctx, exposure).await;
-            if result.is_ok()
+            // The nearby field corrects a pointing no frame could solve; a
+            // field that solved is known and the probe would add nothing.
+            let failure = match self.center_attempts(ctx, exposure).await {
+                Ok(()) => return Ok(()),
+                Err(failure) => failure,
+            };
+            if failure.solved
                 || self.is_cancelled(ctx)
                 || self.attempts_made != self.config.max_retries + 1
                 || !extended
             {
-                return result;
+                return Err(failure.message);
             }
             self.warn_operator("Target acquisition still failed; trying one nearby higher field to correct pointing before returning.".into());
             self.say(format!(
@@ -47,10 +52,12 @@ impl MeridianFlipExecutor {
                 self.attempts_made,
                 self.config.max_retries + 1
             ));
-            self.nearby_pointing_reference(ctx).await.map_err(|e| {
-                format!("{}; nearby recovery: {e}", result.unwrap_err())
-            })?;
-            self.center_attempts(ctx, 15.0).await
+            self.nearby_pointing_reference(ctx)
+                .await
+                .map_err(|e| format!("{}; nearby recovery: {e}", failure.message))?;
+            self.center_attempts(ctx, 15.0)
+                .await
+                .map_err(|failure| failure.message)
         }
         .await;
         if let Some((id, position)) = original {

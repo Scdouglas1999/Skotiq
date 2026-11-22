@@ -269,6 +269,14 @@ pub(crate) const POST_FLIP_CENTERING: crate::instructions::CenterPolicy =
         separation: crate::instructions::Separation::FlatAtTargetDec,
     };
 
+/// A post-flip centering that did not center.
+#[derive(Debug)]
+pub(super) struct CenteringFailure {
+    pub message: String,
+    /// At least one frame solved.
+    pub solved: bool,
+}
+
 /// The post-flip guider restart counts guiding as locked once the guider says
 /// it guides, polled every 2 s up to the settle timeout.
 pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
@@ -1501,7 +1509,25 @@ impl MeridianFlipExecutor {
         }
     }
 
-    async fn center_attempts(&self, ctx: &FlipContext, exposure_secs: f64) -> Result<(), String> {
+    /// The post-flip centering frames. A failure says whether any frame
+    /// solved: with none, where the mount points is unknown.
+    async fn center_attempts(
+        &self,
+        ctx: &FlipContext,
+        exposure_secs: f64,
+    ) -> Result<(), CenteringFailure> {
+        let mut solved = false;
+        self.center_frames(ctx, exposure_secs, &mut solved)
+            .await
+            .map_err(|message| CenteringFailure { message, solved })
+    }
+
+    async fn center_frames(
+        &self,
+        ctx: &FlipContext,
+        exposure_secs: f64,
+        solved: &mut bool,
+    ) -> Result<(), String> {
         if ctx.simulate {
             tracing::info!(
                 "[MERIDIAN] (dry-run) Would plate-solve and center — skipping exposure and slew"
@@ -1560,6 +1586,7 @@ impl MeridianFlipExecutor {
                 }
             };
 
+            *solved = true;
             let target = (ctx.target_ra_hours, ctx.target_dec_degrees);
             let error = policy
                 .separation
@@ -5434,6 +5461,44 @@ mod tests {
             assert_eq!(coordinates, (ctx.target_ra_hours, ctx.target_dec_degrees));
         }
     }
+    /// Frames that solve but never come within tolerance leave the nearby
+    /// field alone: the pointing is known and every correction synced to it.
+    #[tokio::test(start_paused = true)]
+    async fn a_solving_field_that_does_not_converge_takes_no_nearby_probe() {
+        let state = Arc::new(MockDeviceOpsState::default());
+        state.pier_sides.lock().unwrap().extend([
+            crate::meridian::PierSide::West,
+            crate::meridian::PierSide::West,
+        ]);
+        *state.location.lock().unwrap() = Some((40.0, -75.0));
+        state
+            .solved_dec_offsets
+            .lock()
+            .unwrap()
+            .extend([40.0 / 3600.0; 6]);
+        let mut ctx = make_ctx(&state);
+        ctx.target_ra_hours =
+            (local_sidereal_time(julian_day(&chrono::Utc::now()), -75.0) - 0.5).rem_euclid(24.0);
+        ctx.target_dec_degrees = 10.0;
+        let mut executor = MeridianFlipExecutor::new(
+            MeridianFlipConfig {
+                max_retries: 1,
+                retry_delays_secs: vec![0.0],
+                pause_guiding: false,
+                resume_guiding: false,
+                settle_time: 0.0,
+                ..Default::default()
+            },
+            Arc::new(MockDeviceOps::new(state.clone())),
+        );
+        let result = executor.recover_target(&ctx).await;
+        let error = result.unwrap_err();
+        assert!(!error.contains("nearby"), "{error}");
+        assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 6);
+        assert_eq!(state.sync_calls.load(Ordering::Relaxed), 6);
+        assert_eq!(state.slew_calls.load(Ordering::Relaxed), 6);
+    }
+
     #[tokio::test(start_paused = true)]
     async fn target_recovery_rejects_empty_retry_schedule_before_equipment_commands() {
         let state = Arc::new(MockDeviceOpsState::default());
@@ -5608,6 +5673,14 @@ mod tests {
         );
         assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 3);
         assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);
+    }
+
+    /// A post-flip centering that did not center.
+    #[derive(Debug)]
+    pub(super) struct CenteringFailure {
+        pub message: String,
+        /// At least one frame solved.
+        pub solved: bool,
     }
 
     /// The post-flip guider restart counts guiding as locked once the guider
