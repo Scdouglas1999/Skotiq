@@ -30,5 +30,67 @@ class FlutterVersionTest(unittest.TestCase):
         self.assertEqual(len(set(versions.values())), 1, f"workflows disagree: {versions}")
 
 
+def steps_by_name(text, job):
+    """{step name: run text} for one job, read without a YAML parser."""
+    steps, name, run, in_job, collecting = {}, None, [], False, False
+    for line in text.splitlines():
+        if re.match(r"^  [\w-]+:\s*$", line):
+            in_job = line.strip() == f"{job}:"
+            continue
+        if not in_job:
+            continue
+        step = re.match(r"^      - name:\s*(.+?)\s*$", line)
+        if step:
+            if name:
+                steps[name] = "\n".join(run).strip()
+            name, run, collecting = step.group(1), [], False
+            continue
+        inline = re.match(r"^        run:\s*(.*)$", line)
+        if inline:
+            collecting = inline.group(1) in ("|", "")
+            if not collecting:
+                run.append(inline.group(1))
+            continue
+        if collecting and (line.startswith("          ") or not line.strip()):
+            run.append(line.strip())
+        elif re.match(r"^        \S", line):
+            collecting = False
+    if name:
+        steps[name] = "\n".join(run).strip()
+    return steps
+
+
+def package_commands(text):
+    return sorted(re.findall(r"bash scripts/package_linux\.sh [^\n]*", text))
+
+
+class BuildOnlyArtifactTest(unittest.TestCase):
+    """The build-only workflows package what the release ships."""
+
+    def test_linux_build_only_packages_like_the_release(self):
+        release = (WORKFLOWS / "release.yml").read_text()
+        build_only = (WORKFLOWS / "linux-release-build.yml").read_text()
+        self.assertEqual(
+            package_commands(build_only),
+            [c.replace('"$BUNDLE"', "apps/desktop/build/linux/x64/release/bundle")
+             for c in package_commands(release)])
+
+    def test_linux_build_only_compiles_in_the_update_key(self):
+        release = steps_by_name((WORKFLOWS / "release.yml").read_text(), "linux")
+        build_only = steps_by_name(
+            (WORKFLOWS / "linux-release-build.yml").read_text(), "linux-release-build")
+        self.assertEqual(build_only["Build Linux release bundle"],
+                         release["Build Linux release bundle"])
+
+    def test_windows_build_only_builds_like_the_release(self):
+        release = steps_by_name((WORKFLOWS / "release.yml").read_text(), "windows")
+        build_only = steps_by_name(
+            (WORKFLOWS / "windows-release-build.yml").read_text(), "windows-release-build")
+        for step in ("Build Rust native bridge (release)", "Build Flutter Windows app (release)",
+                     "Stage native DLLs (bridge, libraw, MSVC runtime) into Release",
+                     "Build + stage updater.exe"):
+            self.assertEqual(build_only.get(step), release[step], step)
+
+
 if __name__ == "__main__":
     unittest.main()

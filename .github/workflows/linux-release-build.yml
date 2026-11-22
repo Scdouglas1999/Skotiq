@@ -59,7 +59,8 @@ jobs:
             libusb-1.0-0-dev \
             libraw-dev \
             xvfb \
-            tar
+            tar \
+            desktop-file-utils
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -67,17 +68,24 @@ jobs:
       - name: Bootstrap workspace
         run: dart run melos bootstrap
 
+      # The same build as release.yml's, update key included, so this
+      # artifact can verify and apply an OTA update the way a release does.
       - name: Build Linux release bundle
-        run: dart run melos run build:desktop:linux --no-select
+        run: |
+          set -euo pipefail
+          dart scripts/build.dart desktop linux -- "--dart-define=SKOTIQ_UPDATE_PUBLIC_KEY=${{ secrets.SKOTIQ_UPDATE_PUBLIC_KEY || secrets.NIGHTSHADE_UPDATE_PUBLIC_KEY }}"
 
       - name: Bundle native libs + verify the bridge is present
-        run: bash scripts/package_linux.sh libs apps/desktop/build/linux/x64/release/bundle --libraw ldconfig
+        run: bash scripts/package_linux.sh libs apps/desktop/build/linux/x64/release/bundle --libraw stage
+
+      - name: Build the updater binary
+        run: bash scripts/package_linux.sh updater apps/desktop/build/linux/x64/release/bundle
 
       - name: Verify glibc floor (Bookworm / Raspberry Pi OS compatibility)
-        run: bash scripts/package_linux.sh glibc-floor apps/desktop/build/linux/x64/release/bundle
+        run: bash scripts/package_linux.sh glibc-floor apps/desktop/build/linux/x64/release/bundle --versioned-libs
 
       - name: Add release licenses and notices
-        run: bash scripts/package_linux.sh notices apps/desktop/build/linux/x64/release/bundle "$GITHUB_SHA"
+        run: bash scripts/package_linux.sh notices apps/desktop/build/linux/x64/release/bundle "$GITHUB_SHA" --desktop-entry
 
       - name: Headless runtime smoke
         run: |
