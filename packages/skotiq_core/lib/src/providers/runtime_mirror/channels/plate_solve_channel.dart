@@ -1,6 +1,4 @@
-import 'dart:typed_data';
-
-import '../../../backend/skotiq_backend.dart' show PlateSolveResult;
+import '../../../models/imaging/plate_solve_wire.dart';
 import '../../../services/plate_solve_service.dart';
 import '../runtime_mirror_channel.dart';
 import '../runtime_mirror_codec.dart';
@@ -28,7 +26,7 @@ class PlateSolveChannel extends RuntimeMirrorChannel<PlateSolveState> {
     return {
       'isSolving': value.isSolving,
       if (value.currentImage != null) 'currentImage': value.currentImage,
-      if (result != null) 'result': encodePlateSolveResult(result),
+      if (result != null) 'result': plateSolveResultToJson(result),
     };
   }
 
@@ -42,7 +40,7 @@ class PlateSolveChannel extends RuntimeMirrorChannel<PlateSolveState> {
     final current = controller.state;
     final raw = value['result'];
     final decoded = raw is Map
-        ? decodePlateSolveResult(Map<String, dynamic>.from(raw))
+        ? plateSolveResultFromJson(Map<String, dynamic>.from(raw))
         : null;
     // The same outcome keeps the object already held, so listeners that key on
     // identity (the recent-solves list) do not record one solve twice when the
@@ -59,79 +57,4 @@ class PlateSolveChannel extends RuntimeMirrorChannel<PlateSolveState> {
       currentImage: jsonString(value['currentImage']) ?? current.currentImage,
     );
   }
-}
-
-List<double?> _coeffs(Float64List values) => [
-  for (final v in values) finiteOrNull(v),
-];
-
-Float64List _decodeCoeffs(Object? raw) {
-  if (raw is! List) throw const FormatException('Solve has no coefficients');
-  return Float64List.fromList([
-    for (final v in raw)
-      if (v is num)
-        v.toDouble()
-      else
-        throw const FormatException('Solve coefficient is not a number'),
-  ]);
-}
-
-Map<String, dynamic> encodePlateSolveResult(PlateSolveResult r) => {
-  'success': r.success,
-  'ra': finiteOrNull(r.ra),
-  'dec': finiteOrNull(r.dec),
-  'pixelScale': finiteOrNull(r.pixelScale),
-  'rotation': finiteOrNull(r.rotation),
-  'fieldWidth': finiteOrNull(r.fieldWidth),
-  'fieldHeight': finiteOrNull(r.fieldHeight),
-  'solveTimeSecs': finiteOrNull(r.solveTimeSecs),
-  if (r.error != null) 'error': r.error,
-  'cd': [
-    finiteOrNull(r.cd11),
-    finiteOrNull(r.cd12),
-    finiteOrNull(r.cd21),
-    finiteOrNull(r.cd22),
-  ],
-  'sipAOrder': r.sipAOrder,
-  'sipBOrder': r.sipBOrder,
-  'sipApOrder': r.sipApOrder,
-  'sipBpOrder': r.sipBpOrder,
-  'sipA': _coeffs(r.sipACoeffs),
-  'sipB': _coeffs(r.sipBCoeffs),
-  'sipAp': _coeffs(r.sipApCoeffs),
-  'sipBp': _coeffs(r.sipBpCoeffs),
-};
-
-PlateSolveResult decodePlateSolveResult(Map<String, dynamic> json) {
-  // A coordinate-only solve encodes its unmeasured values as JSON null.
-  double measurement(String key) => json.containsKey(key) && json[key] == null
-      ? double.nan
-      : requireDouble(json, key);
-  final cd = json['cd'];
-  double cdAt(int i) => cd is List && cd.length > i && cd[i] is num
-      ? (cd[i] as num).toDouble()
-      : double.nan;
-  return PlateSolveResult(
-    success: json['success'] == true,
-    ra: requireDouble(json, 'ra'),
-    dec: requireDouble(json, 'dec'),
-    pixelScale: measurement('pixelScale'),
-    rotation: measurement('rotation'),
-    fieldWidth: measurement('fieldWidth'),
-    fieldHeight: measurement('fieldHeight'),
-    solveTimeSecs: measurement('solveTimeSecs'),
-    error: jsonString(json['error']),
-    cd11: cdAt(0),
-    cd12: cdAt(1),
-    cd21: cdAt(2),
-    cd22: cdAt(3),
-    sipAOrder: requireInt(json, 'sipAOrder'),
-    sipBOrder: requireInt(json, 'sipBOrder'),
-    sipApOrder: requireInt(json, 'sipApOrder'),
-    sipBpOrder: requireInt(json, 'sipBpOrder'),
-    sipACoeffs: _decodeCoeffs(json['sipA']),
-    sipBCoeffs: _decodeCoeffs(json['sipB']),
-    sipApCoeffs: _decodeCoeffs(json['sipAp']),
-    sipBpCoeffs: _decodeCoeffs(json['sipBp']),
-  );
 }

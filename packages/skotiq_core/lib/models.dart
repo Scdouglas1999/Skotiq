@@ -211,5 +211,6 @@ export 'src/models/science/period_analysis_models.dart';
 export 'src/models/imaging/live_stacking_models.dart';
 export 'src/models/imaging/live_stacking_state.dart';
 export 'src/models/imaging/saved_frame.dart';
+export 'src/models/imaging/plate_solve_wire.dart';
 export 'src/models/calibration/eon_status.dart';
 export 'src/models/sync/sync_models.dart';
