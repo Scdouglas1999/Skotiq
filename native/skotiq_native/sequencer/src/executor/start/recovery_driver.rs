@@ -862,10 +862,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         crate::GuidingStopReason::MountMove,
     )
     .await;
-    let mut ts = state.write().await;
-    ts.set_guiding_enabled(false);
-    ts.set_guide_star_lost(false);
-    ts.guiding.set_resume_pending(true);
+    state.write().await.guiding.guiding_stopped_by_motion();
 }
 
 struct UnguidedContinuation<'a> {
