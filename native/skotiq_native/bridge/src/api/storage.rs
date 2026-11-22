@@ -63,30 +63,10 @@ pub(crate) fn init_settings_storage(storage_path: String) -> Result<(), SkotiqEr
     // from the first run of the launch.
     crate::depthlock_service::init(&path).map_err(SkotiqError::OperationFailed)?;
 
-    // Push the persisted plate-solver paths into the imaging crate's
-    // process-global so every subsequent solve call (blind_solve, solve_near,
-    // the sequencer centering, the imaging auto-solve) sees the configured
-    // paths immediately — without waiting for the UI to call
-    // api_platesolve_set_config.
+    // Every solve this launch (blind, near, sequencer centering, auto-solve)
+    // uses the saved solver paths from here on.
     if let Ok(pref) = crate::state::get_platesolver_preference() {
-        skotiq_platesolve::set_solver_preference(
-            if pref.astap_path.is_empty() {
-                None
-            } else {
-                Some(pref.astap_path.as_str())
-            },
-            if pref.astrometry_path.is_empty() {
-                None
-            } else {
-                Some(pref.astrometry_path.as_str())
-            },
-            if pref.catalog_path.is_empty() {
-                None
-            } else {
-                Some(pref.catalog_path.as_str())
-            },
-            Some(pref.solver_choice.as_str()),
-        );
+        crate::solver::apply_solver_preference(&pref);
         tracing::info!(
             "Plate-solver preference loaded at startup: astap={:?} catalog={:?}",
             if pref.astap_path.is_empty() {

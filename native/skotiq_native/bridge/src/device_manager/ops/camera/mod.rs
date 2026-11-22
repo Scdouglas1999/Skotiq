@@ -468,7 +468,7 @@ mod sim_sky_wiring_tests {
         // `sim_capture::shared_platesolver_store`.
         crate::simulator::capture::shared_platesolver_store();
         let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-        crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
+        crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
             catalog_path: catalog.path().to_string_lossy().to_string(),
             ..previous.clone()
         })
@@ -521,7 +521,7 @@ mod sim_sky_wiring_tests {
         // leave a catalogue sky armed for every other simulator test.
         get_sim_mount().write().await.status.connected = false;
         get_sim_camera().write().await.status.connected = false;
-        let _ = crate::state::save_platesolver_preference(&previous);
+        let _ = crate::solver::save_solver_preference(&previous);
 
         let data = skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data);
         let found = skotiq_imaging::detect_stars_with_stats(
@@ -584,7 +584,7 @@ mod sim_sky_wiring_tests {
         let store = tempfile::TempDir::new().unwrap();
         let _ = crate::state::init_platesolver_storage(store.path().to_path_buf());
         let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-        crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
+        crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
             astap_path: binary.to_string_lossy().to_string(),
             catalog_path: dir.to_string_lossy().to_string(),
             ..previous.clone()
@@ -638,7 +638,7 @@ mod sim_sky_wiring_tests {
         // leave a catalogue sky armed for every other simulator test.
         get_sim_mount().write().await.status.connected = false;
         get_sim_camera().write().await.status.connected = false;
-        let _ = crate::state::save_platesolver_preference(&previous);
+        let _ = crate::solver::save_solver_preference(&previous);
 
         let scratch = tempfile::TempDir::new().unwrap();
         let path = scratch.path().join("downloaded.fits");

@@ -40,7 +40,8 @@ pub(crate) async fn solve(
     file_path: &str,
     request: SolveRequest<'_>,
 ) -> Result<PlateSolveResult, SkotiqError> {
-    apply_saved_solver_preference();
+    // A solver installed or moved while the app runs is found by this solve.
+    skotiq_platesolve::invalidate_solver_availability_cache();
     let (label, preference) = match request.position {
         Some(_) => ("near", SolvePreference::Hinted),
         None => ("blind", SolvePreference::Blind),
@@ -115,14 +116,12 @@ pub(crate) fn apply_solver_preference(pref: &crate::storage::PlateSolverPreferen
     );
 }
 
-/// The solver crate's preference is process memory and starts empty on every
-/// launch, so each solve applies the saved one first.
-fn apply_saved_solver_preference() {
-    match crate::state::get_platesolver_preference() {
-        Ok(pref) => apply_solver_preference(&pref),
-        Err(e) => tracing::warn!(
-            "Could not load plate-solver preference before solve (storage not ready?): {}",
-            e
-        ),
-    }
+/// Make `pref` the operator's solver choice: live at once, then saved.
+/// Live first, so the paths just set are honored this session even if the
+/// storage write fails.
+pub(crate) fn save_solver_preference(
+    pref: &crate::storage::PlateSolverPreference,
+) -> Result<(), String> {
+    apply_solver_preference(pref);
+    crate::state::save_platesolver_preference(pref)
 }
