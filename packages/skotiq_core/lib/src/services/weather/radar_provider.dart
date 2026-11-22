@@ -65,6 +65,29 @@ class RadarFetchResult {
   }
 }
 
+/// A cloud cover forecast drawn on the radar map: one uniform frame per hour
+/// over the box 0.5 degrees around the site, its opacity the cloud fraction.
+RadarFetchResult cloudCoverFrames(
+  CloudCoverSeries series, {
+  required double latitude,
+  required double longitude,
+}) {
+  if (!series.isSuccess) return RadarFetchResult.error(series.errorMessage!);
+  return RadarFetchResult.success([
+    for (final sample in series.samples)
+      RadarFrame(
+        timestamp: sample.time,
+        tileUrlTemplate: '',
+        north: latitude + 0.5,
+        south: latitude - 0.5,
+        east: longitude + 0.5,
+        west: longitude - 0.5,
+        opacity: sample.fraction,
+        isForecast: sample.isForecast,
+      ),
+  ]);
+}
+
 /// Geographic bounding box helper for checking coverage areas.
 class GeoBounds {
   /// Northern boundary in degrees latitude.

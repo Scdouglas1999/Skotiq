@@ -125,6 +125,7 @@ export 'src/models/campaign.dart';
 export 'src/models/scheduler/integration_goal.dart';
 export 'src/models/scheduler/target_constraint.dart';
 export 'src/models/scheduler/scheduler_decision.dart';
+export 'src/models/scheduler/scheduler_rejection.dart';
 export 'src/models/scheduler/scheduler_status.dart';
 export 'src/models/scheduler/scheduler_readiness.dart';
 export 'src/models/scheduler/target_progress.dart';

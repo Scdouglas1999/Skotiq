@@ -8,7 +8,6 @@ import 'package:skotiq_core/src/models/equipment/equipment_models.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/device_heartbeat_health_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
-import 'package:skotiq_core/src/services/device_reconnect_coordinator.dart';
 
 import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
@@ -42,7 +41,7 @@ void main() {
     ).thenAnswer((_) => const Stream.empty());
     when(
       () => mockBackend.nativeReconnectedDeviceTypes,
-    ).thenReturn(const {DeviceType.mount});
+    ).thenReturn(DeviceType.values.toSet());
 
     container = ProviderContainer(
       overrides: [
@@ -143,11 +142,10 @@ void main() {
       'pending', () async {
     const deviceId = 'native:zwo:0';
 
-    // Disable auto-reconnect so the Disconnected event has no reconnect to
-    // schedule: the indicator must then fall back to gray "unknown" rather
-    // than getting stuck on a stale value. (With auto-reconnect ON the
-    // indicator would correctly read "reconnecting" — covered separately.)
-    container.read(cameraStateProvider.notifier).setAutoReconnect(false);
+    // Nothing reconnects the camera here, so the indicator must fall back to
+    // gray "unknown" rather than getting stuck on a stale value. (A device
+    // the native side reconnects reads "reconnecting", covered separately.)
+    when(() => mockBackend.nativeReconnectedDeviceTypes).thenReturn(const {});
 
     // First, mark the device degraded.
     events.add(
@@ -240,13 +238,8 @@ void main() {
     // deduped to one toast), so the canonical
     // `HeartbeatStatusChanged{Disconnected}` status itself drives the
     // load-bearing disconnect side effects: transitioning the device connection
-    // state, which is what arms the auto-reconnect path.
-    //
-    // The camera is a Dart-owned reconnect type (native
-    // HeartbeatConfig::for_camera has auto_reconnect = false), so the Dart
-    // coordinator schedules the reconnect AND surfaces the "reconnecting"
-    // indicator immediately — the health dot reads `reconnecting`, not gray
-    // "unknown", while a reconnect is in flight.
+    // state and showing the device as reconnecting while the native loop
+    // brings it back: the health dot reads `reconnecting`, not gray "unknown".
     const deviceId = 'native:zwo:0';
 
     // Bring the camera "online" so the disconnect transition is observable.
@@ -296,241 +289,54 @@ void main() {
           .health,
       HeartbeatHealth.reconnecting,
       reason:
-          'a Dart-owned reconnect must light the reconnecting indicator, '
-          'not fall back to gray "unknown" while the attempt is in flight',
+          'a lost device the native loop reconnects reads reconnecting, '
+          'not gray "unknown"',
     );
     expect(
       container.read(cameraStateProvider).connectionState,
       DeviceConnectionState.disconnected,
-      reason: 'connection state must transition so auto-reconnect can arm',
+      reason: 'the camera slot shows the device as lost',
     );
   });
 
-  test('native-owned mount heartbeat loss surfaces reconnecting WITHOUT a '
-      'competing Dart connect (single-owner de-dup)', () async {
-    // Dual-reconnect race. The mount is a native-owned reconnect
-    // type (HeartbeatConfig::for_mount sets auto_reconnect = true), so the
-    // native reconnection_loop performs the real reconnect. The Dart
-    // coordinator must DEFER — it must not schedule its own connect, or the
-    // two engines double-connect / thrash the driver — while still lighting
-    // the "reconnecting" indicator the native side never emits an event for.
-    const deviceId = 'ascom:ASCOM.Simulator.Telescope';
+  test(
+    'mount heartbeat loss surfaces reconnecting WITHOUT an app connect',
+    () async {
+      // The native reconnection_loop performs the real reconnect; a second
+      // connect from the app double-connected and thrashed the driver. The app
+      // only lights the "reconnecting" indicator the native side never emits
+      // an event for.
+      const deviceId = 'ascom:ASCOM.Simulator.Telescope';
 
-    final mountNotifier = container.read(mountStateProvider.notifier);
-    mountNotifier.setConnecting(deviceId, 'Test Mount');
-    mountNotifier.setConnected();
+      final mountNotifier = container.read(mountStateProvider.notifier);
+      mountNotifier.setConnecting(deviceId, 'Test Mount');
+      mountNotifier.setConnected();
 
-    events.add(
-      makeEvent('HeartbeatStatusChanged', {
-        'device_type': 'mount',
-        'device_id': deviceId,
-        'status': 'disconnected',
-        'consecutive_failures': 5,
-      }),
-    );
-    // Give the unawaited reconnect path time to run its synchronous
-    // ownership decision. The Dart coordinator's own backoff is 5s, so a
-    // 100ms wait is well short of any (incorrect) Dart connect attempt.
-    await Future<void>.delayed(const Duration(milliseconds: 100));
+      events.add(
+        makeEvent('HeartbeatStatusChanged', {
+          'device_type': 'mount',
+          'device_id': deviceId,
+          'status': 'disconnected',
+          'consecutive_failures': 5,
+        }),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
 
-    expect(
-      container
-          .read(deviceHeartbeatHealthProvider.notifier)
-          .forDevice(deviceId)
-          .health,
-      HeartbeatHealth.reconnecting,
-      reason: 'native-owned reconnect must still light the indicator',
-    );
-    expect(
-      container.read(mountStateProvider).connectionState,
-      DeviceConnectionState.disconnected,
-    );
-    // The Dart coordinator deferred: it must NOT have driven a connect of
-    // its own against the device the native loop already owns.
-    verifyNever(() => mockBackend.connectDevice(any(), any()));
-  });
-
-  // The backend says which types its native side reconnects (the native
-  // policy table, read over the FFI); the coordinator defers exactly those and
-  // keeps every other type for itself.
-  test('the coordinator defers exactly the types the backend reconnects', () {
-    when(
-      () => mockBackend.nativeReconnectedDeviceTypes,
-    ).thenReturn(const {DeviceType.focuser, DeviceType.dome});
-    final coordinator = container.read(
-      Provider(
-        (ref) => DeviceReconnectCoordinator(
-          ref: ref,
-          backend: mockBackend,
-          hostOwnsRecovery: false,
-          resumeSequence: () async {},
-          pauseSequence: () async {},
-          surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
-          connect: (type, deviceId) async {},
-        ),
-      ),
-    );
-    for (final type in DeviceType.values) {
       expect(
-        coordinator.nativeOwnsReconnect(type),
-        type == DeviceType.focuser || type == DeviceType.dome,
-        reason: type.name,
+        container
+            .read(deviceHeartbeatHealthProvider.notifier)
+            .forDevice(deviceId)
+            .health,
+        HeartbeatHealth.reconnecting,
+        reason: 'the native reconnect must still light the indicator',
       );
-    }
-  });
-
-  group('DeviceReconnectCoordinator reconnect outcome', () {
-    test('connected state is accepted as success', () {
       expect(
-        () => DeviceReconnectCoordinator.validateReconnectOutcome(
-          type: DeviceType.focuser,
-          connectionState: DeviceConnectionState.connected,
-        ),
-        returnsNormally,
+        container.read(mountStateProvider).connectionState,
+        DeviceConnectionState.disconnected,
       );
-    });
-
-    test('terminal notifier error is not misreported as success', () {
-      expect(
-        () => DeviceReconnectCoordinator.validateReconnectOutcome(
-          type: DeviceType.focuser,
-          connectionState: DeviceConnectionState.error,
-          lastError: StateError('ASCOM connect failed'),
-        ),
-        throwsA(
-          isA<StateError>().having(
-            (error) => error.message,
-            'message',
-            allOf(contains('Focuser'), contains('ASCOM connect failed')),
-          ),
-        ),
-      );
-    });
-  });
-
-  test('Dart reconnect coalesces cleanup events, exhausts once, and resets on '
-      'authoritative connection', () async {
-    var reconnectCalls = 0;
-    var shouldFail = true;
-    late DeviceReconnectCoordinator coordinator;
-
-    final coordinatorProvider = Provider<DeviceReconnectCoordinator>((ref) {
-      coordinator = DeviceReconnectCoordinator(
-        ref: ref,
-        backend: mockBackend,
-        hostOwnsRecovery: false,
-        resumeSequence: () async {},
-        pauseSequence: () async {},
-        surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
-        connect: (type, deviceId) async {},
-        retryDelays: const [
-          Duration(milliseconds: 2),
-          Duration(milliseconds: 2),
-          Duration(milliseconds: 2),
-        ],
-        reconnectAttempt: (type, deviceId) async {
-          reconnectCalls++;
-          // Reproduce the backend cleanup Disconnected event racing the
-          // timer's own failure path.
-          unawaited(coordinator.attemptReconnect(type, deviceId));
-          if (shouldFail) {
-            throw StateError('driver unavailable');
-          }
-        },
-      );
-      return coordinator;
-    });
-
-    coordinator = container.read(coordinatorProvider);
-    const deviceId = 'ascom:ASCOM.ZWO.EAF.Focuser';
-
-    // Duplicate disconnects before the first timer fires must also coalesce.
-    await coordinator.attemptReconnect(DeviceType.focuser, deviceId);
-    await coordinator.attemptReconnect(DeviceType.focuser, deviceId);
-    await Future<void>.delayed(const Duration(milliseconds: 80));
-
-    expect(
-      reconnectCalls,
-      DeviceReconnectCoordinator.maxReconnectAttempts,
-      reason: 'one bounded 1/3..3/3 batch must run',
-    );
-
-    // Late cleanup events after exhaustion must not open a fresh batch.
-    await coordinator.attemptReconnect(DeviceType.focuser, deviceId);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(reconnectCalls, DeviceReconnectCoordinator.maxReconnectAttempts);
-
-    // A real/manual connection is the explicit reset condition.
-    shouldFail = false;
-    await coordinator.onAuthoritativeDeviceConnected('focuser', deviceId);
-    await coordinator.attemptReconnect(DeviceType.focuser, deviceId);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(reconnectCalls, DeviceReconnectCoordinator.maxReconnectAttempts + 1);
-
-    coordinator.cancelAll();
-  });
-
-  // The rig, Nov 8 2026: the camera at native:zwo:1 came back at
-  // native:zwo:0 and the reconnect kept asking for native:zwo:1.
-  test('a reconnect goes where the profile device is now, and a device '
-      'arriving on the bus restarts an exhausted reconnect', () async {
-    final attempted = <String>[];
-    var arrived = false;
-    var resolveFailures = 0;
-    late DeviceReconnectCoordinator coordinator;
-    final coordinatorProvider = Provider<DeviceReconnectCoordinator>((ref) {
-      coordinator = DeviceReconnectCoordinator(
-        ref: ref,
-        backend: mockBackend,
-        hostOwnsRecovery: false,
-        resumeSequence: () async {},
-        pauseSequence: () async {},
-        surfaceReconnecting: (deviceId, {attempt = 0, maxAttempts = 0}) {},
-        connect: (type, deviceId) async {},
-        retryDelays: const [Duration(milliseconds: 2)],
-        reconnectTarget: (type, deviceId) async {
-          if (!arrived) {
-            resolveFailures++;
-            throw StateError('the camera is not on the bus');
-          }
-          return 'native:zwo:0';
-        },
-        reconnectAttempt: (type, deviceId) async => attempted.add(deviceId),
-      );
-      return coordinator;
-    });
-    coordinator = container.read(coordinatorProvider);
-
-    // A camera is Dart-owned for reconnect; enable it.
-    container.read(cameraStateProvider.notifier).setAutoReconnect(true);
-    await coordinator.attemptReconnect(DeviceType.camera, 'native:zwo:1');
-    // Wait (bounded, not a fixed sleep: the full suite runs under load) for
-    // the three quick attempts to run out.
-    Future<void> until(bool Function() done) async {
-      final deadline = DateTime.now().add(const Duration(seconds: 5));
-      while (!done() && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 5));
-      }
-    }
-
-    await until(
-      () => resolveFailures >= DeviceReconnectCoordinator.maxReconnectAttempts,
-    );
-    expect(resolveFailures, DeviceReconnectCoordinator.maxReconnectAttempts);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(attempted, isEmpty, reason: 'every attempt failed to resolve');
-
-    arrived = true;
-    coordinator.onDeviceArrived(DeviceType.focuser);
-    await Future<void>.delayed(const Duration(milliseconds: 20));
-    expect(attempted, isEmpty, reason: 'a focuser is not the camera');
-
-    coordinator.onDeviceArrived(DeviceType.camera);
-    await until(() => attempted.isNotEmpty);
-    expect(attempted, ['native:zwo:0']);
-
-    coordinator.cancelAll();
-  });
+      verifyNever(() => mockBackend.connectDevice(any(), any()));
+    },
+  );
 
   test(
     'Heartbeat dispatch does not interfere with the Disconnected handler',

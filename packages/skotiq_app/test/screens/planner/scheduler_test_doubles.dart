@@ -103,7 +103,9 @@ TargetScore scoreFor({
       ScoreFactor(name: 'meridian', value: 0.5, weight: 1.0, weighted: 0.5),
     ],
     hardConstraintFailed: hardFail,
-    rejectionReasons: rejections,
+    rejections: [
+      for (final r in rejections) SchedulerRejection.fromSentence(r)
+    ],
   );
 }
 

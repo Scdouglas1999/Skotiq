@@ -4,8 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../../../models/weather/radar_frame.dart';
-import '../radar_provider.dart';
+import '../../../models/weather/cloud_cover_series.dart';
 import '../transient_http_retry.dart';
 
 /// Numerical sky cover from the forecast office serving the observing site.
@@ -28,7 +27,7 @@ class NwsCloudProvider {
   bool _disposed = false;
 
   static const _cacheLifetime = Duration(minutes: 5);
-  static const _maximumHourlyFrames = 14 * 24;
+  static const _maximumHourlySamples = 14 * 24;
   static const _headers = {
     'User-Agent': 'Skotiq (+https://github.com/Scdouglas1999/Skotiq)',
     'Accept': 'application/geo+json',
@@ -36,44 +35,38 @@ class NwsCloudProvider {
 
   String get name => 'National Weather Service';
 
-  /// Hourly samples for planning, without map tiles or invented spatial data.
-  Future<RadarFetchResult> fetchRadarFrames({
+  /// Hourly samples for planning.
+  Future<CloudCoverSeries> fetchCloudCover({
     required double latitude,
     required double longitude,
-    double radiusKm = 100.0,
   }) async {
     try {
       final intervals = await _intervals(latitude, longitude);
       final now = _clock().toUtc();
-      final frames = <RadarFrame>[];
+      final samples = <CloudCoverSample>[];
       for (final interval in intervals) {
         for (
           var time = interval.start;
           time.isBefore(interval.end);
           time = time.add(const Duration(hours: 1))
         ) {
-          if (frames.length == _maximumHourlyFrames) {
-            return RadarFetchResult.error(
+          if (samples.length == _maximumHourlySamples) {
+            return CloudCoverSeries.error(
               'NWS returned more than 14 days of hourly sky cover.',
             );
           }
-          frames.add(
-            RadarFrame(
-              timestamp: time,
-              tileUrlTemplate: '',
-              north: (latitude + 0.5).clamp(-90.0, 90.0),
-              south: (latitude - 0.5).clamp(-90.0, 90.0),
-              east: (longitude + 0.5).clamp(-180.0, 180.0),
-              west: (longitude - 0.5).clamp(-180.0, 180.0),
-              opacity: interval.percent / 100,
+          samples.add(
+            CloudCoverSample(
+              time: time,
+              fraction: interval.percent / 100,
               isForecast: time.isAfter(now),
             ),
           );
         }
       }
-      return RadarFetchResult.success(frames, providerName: name);
+      return CloudCoverSeries.success(samples, providerName: name);
     } on _NwsUnavailable catch (error) {
-      return RadarFetchResult.error(error.message);
+      return CloudCoverSeries.error(error.message);
     }
   }
 

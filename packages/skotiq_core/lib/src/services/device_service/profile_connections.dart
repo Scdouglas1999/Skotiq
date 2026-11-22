@@ -274,56 +274,6 @@ extension _DeviceServiceProfileConnections on DeviceService {
     return resolutions;
   }
 
-  /// The profile slots a reconnect of [type] at [deviceId] has to resolve,
-  /// main slot first. Empty when [deviceId] is not the active profile's
-  /// device for [type], or is not a position on the bus.
-  ///
-  /// Both camera slots resolve together: after the bus re-enumerates, the
-  /// main camera can come back at the guide camera's old id.
-  List<({String label, String savedId, String? savedName, DeviceType type})>
-  _reconnectSlots(EquipmentProfileModel profile, DeviceType type, String id) {
-    if (!isPositionalDeviceId(id)) return const [];
-    ({String label, String savedId, String? savedName, DeviceType type})? slot(
-      String label,
-      String? savedId,
-      String? savedName,
-    ) => savedId == null || savedId.isEmpty
-        ? null
-        : (label: label, savedId: savedId, savedName: savedName, type: type);
-    final slots = [
-      if (type.slot.checksModel)
-        slot(
-          type.slot.noun,
-          profile.deviceIdFor(type),
-          profile.deviceNameFor(type),
-        ),
-      if (type == DeviceType.camera)
-        slot('guide camera', profile.guideCameraId, profile.guideCameraName),
-    ].nonNulls.toList();
-    if (slots.isEmpty || slots.first.savedId != id) return const [];
-    return slots;
-  }
-
-  /// Where a reconnect of the profile's [type] device, last at [deviceId],
-  /// has to go: the id the profile's saved name is at now. Returns
-  /// [deviceId] unchanged for a device the profile does not name. Throws
-  /// with the reason when the slot cannot be resolved safely (the device the
-  /// profile names is not found and something else is at its id, or two
-  /// devices carry its name).
-  Future<String> _reconnectTarget(DeviceType type, String deviceId) async {
-    final profile = _ref.read(activeEquipmentProfileProvider);
-    if (profile == null) return deviceId;
-    final slots = _reconnectSlots(profile, type, deviceId);
-    if (slots.isEmpty) return deviceId;
-    final resolution = (await _resolveProfileSlots(
-      profile,
-      slots,
-    ))[slots.first.label]!;
-    final refusal = resolution.refusal;
-    if (refusal != null) throw StateError(refusal);
-    return resolution.deviceId!;
-  }
-
   /// The model the device at [deviceId] must be for the profile slot
   /// [label], or null when nothing is expected (the id is not a bus position,
   /// or it is not the profile's device for that slot). The host passes it to

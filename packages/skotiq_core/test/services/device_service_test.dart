@@ -875,17 +875,9 @@ void main() {
       },
     );
 
-    // Auto-reconnect is plumbed through every device type, not just
-    // [DeviceType.camera]: a device that ignores the toggle reconnects
-    // regardless of user preference. These pin every device type's behaviour:
-    //   - the default is `true`, so an upgrader is never silently disabled;
-    //   - `setAutoReconnect(false)` short-circuits the reconnect path.
-    //
-    // The reconnect path schedules a 5s+ backoff Timer, too slow to drive
-    // synchronously in CI, so these assert the boolean wiring and the negative
-    // case (no backend call). The positive case is covered by the camera
-    // reconnect test above, which exercises the same _attemptReconnect
-    // entrypoint.
+    // The per-slot flag defaults to `true`, so an upgrader is never silently
+    // disabled, and a lost device with the flag off gets no connect from the
+    // app either.
 
     test('mount auto-reconnect defaults to true', () {
       final state = container.read(mountStateProvider);
@@ -924,27 +916,17 @@ void main() {
         expect(mountState.connectionState, DeviceConnectionState.disconnected);
         expect(mountState.autoReconnectEnabled, isFalse);
 
-        // Critically: no reconnect attempt should have been queued. With the
-        // flag honored, _attemptReconnect short-circuits before scheduling
-        // its 5s timer, so the backend should never see a connect call.
         verifyNever(() => mockBackend.connectDevice(DeviceType.mount, any()));
       },
     );
 
-    test('mount disconnect DEFERS to native auto-reconnect (no competing Dart '
+    test('mount disconnect is left to the native auto-reconnect (no app '
         'connect) and surfaces the reconnecting indicator', () async {
-      // Dual-reconnect race. The mount is a NATIVE-owned reconnect
-      // type (HeartbeatConfig::for_mount sets auto_reconnect = true), so the
-      // native reconnection_loop performs the real reconnect. The Dart
-      // coordinator must DEFER — firing its own connect here raced the
-      // native loop and double-connected / thrashed the same physical mount
-      // after a heartbeat-driven loss. We still light the Dart-driven
-      // "reconnecting" indicator because the native side emits no
-      // HeartbeatReconnecting event.
-      //
-      // (Sequence-resume after the native-driven reconnect is still handled
-      // off the authoritative `Connected` event by
-      // onAuthoritativeDeviceConnected — see event_handling.dart.)
+      // A connect from the app here raced the native reconnection loop and
+      // double-connected the same physical mount. The "reconnecting"
+      // indicator is lit by the app because the native side emits no
+      // HeartbeatReconnecting event. Sequence resume after the native
+      // reconnect runs off the authoritative `Connected` event.
       const mount2 = 'simulator:mount-2';
       when(
         () => mockBackend.connectDevice(DeviceType.mount, any()),
@@ -966,13 +948,8 @@ void main() {
         ),
       );
 
-      // Wait past the Dart coordinator's first backoff (5s) — if it were
-      // (incorrectly) scheduling a competing attempt it would have fired by
-      // now. We bump to 6s to be safe.
-      await Future.delayed(const Duration(seconds: 6));
+      await Future.delayed(const Duration(milliseconds: 100));
 
-      // De-dup: the Dart coordinator deferred, so it must NOT have driven a
-      // connect of its own against the mount the native loop already owns.
       verifyNever(() => mockBackend.connectDevice(DeviceType.mount, any()));
 
       // …but the reconnecting indicator IS lit so the UI reflects recovery.
@@ -983,63 +960,6 @@ void main() {
             .health,
         HeartbeatHealth.reconnecting,
       );
-    }, timeout: const Timeout(Duration(seconds: 30)));
-
-    test('focuser disconnect (Dart-owned) DOES schedule a Dart reconnect and '
-        'surfaces the reconnecting indicator', () async {
-      // The focuser is a DART-owned reconnect type
-      // (HeartbeatConfig::for_focuser sets auto_reconnect = false), so the
-      // native loop ignores it and the Dart coordinator is the sole
-      // reconnect engine. It must schedule the real connect AND light the
-      // reconnecting indicator.
-      const focuser2 = 'simulator:focuser-2';
-      when(
-        () => mockBackend.connectDevice(DeviceType.focuser, any()),
-      ).thenAnswer((_) async {});
-      when(() => mockBackend.getFocuserStatus(any())).thenAnswer(
-        (_) async => const FocuserStatus(
-          connected: true,
-          position: 15000,
-          moving: false,
-          temperature: 12.5,
-          maxPosition: 50000,
-          stepSize: 1.0,
-          isAbsolute: true,
-          hasTemperature: true,
-        ),
-      );
-
-      final focuserNotifier = container.read(focuserStateProvider.notifier);
-      focuserNotifier.setConnecting(focuser2, 'Test Focuser');
-      focuserNotifier.setConnected();
-      expect(container.read(focuserStateProvider).autoReconnectEnabled, isTrue);
-
-      eventStreamController.add(
-        SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.warning,
-          category: EventCategory.equipment,
-          eventType: 'Disconnected',
-          data: {'device_type': 'focuser', 'device_id': focuser2},
-        ),
-      );
-
-      // The reconnecting indicator is surfaced synchronously when the
-      // coordinator commits to the attempt, before the 5s backoff.
-      await Future.delayed(const Duration(milliseconds: 100));
-      expect(
-        container
-            .read(deviceHeartbeatHealthProvider.notifier)
-            .forDevice(focuser2)
-            .health,
-        HeartbeatHealth.reconnecting,
-      );
-
-      // Wait past the first backoff (5s) so the real connect fires.
-      await Future.delayed(const Duration(seconds: 6));
-      verify(
-        () => mockBackend.connectDevice(DeviceType.focuser, focuser2),
-      ).called(greaterThanOrEqualTo(1));
     }, timeout: const Timeout(Duration(seconds: 30)));
 
     test('focuser auto-reconnect defaults to true', () {

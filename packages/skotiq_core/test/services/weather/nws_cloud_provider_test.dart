@@ -51,7 +51,7 @@ void main() {
     );
     addTearDown(provider.dispose);
 
-    await provider.fetchRadarFrames(
+    await provider.fetchCloudCover(
       latitude: 40.0123456789,
       longitude: -75.4567891234,
     );
@@ -80,14 +80,14 @@ void main() {
       );
       addTearDown(provider.dispose);
 
-      final result = await provider.fetchRadarFrames(
+      final result = await provider.fetchCloudCover(
         latitude: _point.latitude,
         longitude: _point.longitude,
       );
       expect(result.providerName, 'National Weather Service');
-      expect(result.frames.first.timestamp, DateTime.utc(2026, 11, 14, 3));
-      expect(result.frames.first.opacity, .87);
-      expect(result.frames[1].opacity, .92);
+      expect(result.samples.first.time, DateTime.utc(2026, 11, 14, 3));
+      expect(result.samples.first.fraction, .87);
+      expect(result.samples[1].fraction, .92);
       expect(requests.map((r) => r.url.toString()), [
         'https://api.weather.gov/points/40.0,-75.4',
         _gridUrl,
@@ -100,7 +100,7 @@ void main() {
   );
 
   test(
-    'planning expands multi-hour and day intervals into UTC hourly frames',
+    'planning expands multi-hour and day intervals into UTC hourly samples',
     () async {
       final provider = _provider(
         _grid([
@@ -109,22 +109,18 @@ void main() {
         ]),
       );
       addTearDown(provider.dispose);
-      final result = await provider.fetchRadarFrames(
+      final result = await provider.fetchCloudCover(
         latitude: _point.latitude,
         longitude: _point.longitude,
       );
       expect(result.isSuccess, isTrue);
       expect(result.providerName, 'National Weather Service');
-      expect(result.frames, hasLength(28));
-      expect(result.frames.first.timestamp, DateTime.utc(2026, 11, 14, 3));
-      expect(result.frames.last.timestamp, DateTime.utc(2026, 11, 15, 6));
-      expect(result.frames[1].opacity, .87);
-      expect(result.frames[2].opacity, .92);
-      expect(result.frames.every((frame) => frame.timestamp.isUtc), isTrue);
-      expect(
-        result.frames.every((frame) => frame.tileUrlTemplate.isEmpty),
-        isTrue,
-      );
+      expect(result.samples, hasLength(28));
+      expect(result.samples.first.time, DateTime.utc(2026, 11, 14, 3));
+      expect(result.samples.last.time, DateTime.utc(2026, 11, 15, 6));
+      expect(result.samples[1].fraction, .87);
+      expect(result.samples[2].fraction, .92);
+      expect(result.samples.every((sample) => sample.time.isUtc), isTrue);
     },
   );
 
@@ -134,11 +130,8 @@ void main() {
       now: DateTime.utc(2026, 11, 1, 7, 30),
     );
     addTearDown(provider.dispose);
-    final result = await provider.fetchRadarFrames(
-      latitude: 40,
-      longitude: -75,
-    );
-    expect(result.frames.map((frame) => frame.timestamp), [
+    final result = await provider.fetchCloudCover(latitude: 40, longitude: -75);
+    expect(result.samples.map((sample) => sample.time), [
       DateTime.utc(2026, 11, 1, 5),
       DateTime.utc(2026, 11, 1, 6),
       DateTime.utc(2026, 11, 1, 7),
@@ -163,13 +156,13 @@ void main() {
         ]),
       );
       addTearDown(provider.dispose);
-      final result = await provider.fetchRadarFrames(
+      final result = await provider.fetchCloudCover(
         latitude: 40,
         longitude: -75,
       );
       expect(result.isSuccess, isTrue);
-      expect(result.frames, hasLength(1));
-      expect(result.frames.single.opacity, 0);
+      expect(result.samples, hasLength(1));
+      expect(result.samples.single.fraction, 0);
     },
   );
 
@@ -178,12 +171,9 @@ void main() {
       _grid([_value('2026-11-14T03:00:00Z/PT1H', 87)], unit: 'wmoUnit:K'),
     );
     addTearDown(provider.dispose);
-    final result = await provider.fetchRadarFrames(
-      latitude: 40,
-      longitude: -75,
-    );
+    final result = await provider.fetchCloudCover(latitude: 40, longitude: -75);
     expect(result.isSuccess, isFalse);
-    expect(result.frames, isEmpty);
+    expect(result.samples, isEmpty);
   });
 
   test(
@@ -197,10 +187,7 @@ void main() {
         }),
       );
       addTearDown(provider.dispose);
-      final result = await provider.fetchRadarFrames(
-        latitude: 50,
-        longitude: 1,
-      );
+      final result = await provider.fetchCloudCover(latitude: 50, longitude: 1);
       expect(result.isSuccess, isFalse);
       expect(result.errorMessage, contains('404'));
       expect(calls, 1);
@@ -220,13 +207,13 @@ void main() {
       }),
     );
     addTearDown(provider.dispose);
-    final first = provider.fetchRadarFrames(latitude: 40, longitude: -75);
-    final frames = provider.fetchRadarFrames(latitude: 40, longitude: -75);
+    final first = provider.fetchCloudCover(latitude: 40, longitude: -75);
+    final samples = provider.fetchCloudCover(latitude: 40, longitude: -75);
     grid.complete(
       http.Response(_grid([_value('2026-11-14T03:00:00Z/PT2H', 87)]), 200),
     );
-    expect((await first).frames.first.opacity, .87);
-    expect((await frames).frames, hasLength(2));
+    expect((await first).samples.first.fraction, .87);
+    expect((await samples).samples, hasLength(2));
     expect(calls, 2);
   });
 
@@ -241,7 +228,7 @@ void main() {
       );
       addTearDown(provider.dispose);
       expect(
-        (await provider.fetchRadarFrames(
+        (await provider.fetchCloudCover(
           latitude: 40,
           longitude: -75,
         )).isSuccess,
@@ -260,12 +247,12 @@ void main() {
         ]),
       );
       addTearDown(provider.dispose);
-      final result = await provider.fetchRadarFrames(
+      final result = await provider.fetchCloudCover(
         latitude: 40,
         longitude: -75,
       );
       expect(result.isSuccess, isFalse);
-      expect(result.frames, isEmpty);
+      expect(result.samples, isEmpty);
     },
   );
 
@@ -285,7 +272,7 @@ void main() {
     );
     addTearDown(provider.dispose);
     expect(
-      (await provider.fetchRadarFrames(latitude: 40, longitude: -75)).isSuccess,
+      (await provider.fetchCloudCover(latitude: 40, longitude: -75)).isSuccess,
       isTrue,
     );
     expect(requests, hasLength(3));
@@ -315,7 +302,7 @@ void main() {
         }),
       );
       addTearDown(provider.dispose);
-      final result = await provider.fetchRadarFrames(
+      final result = await provider.fetchCloudCover(
         latitude: 40,
         longitude: -75,
       );
@@ -343,12 +330,12 @@ void main() {
         }),
       );
       addTearDown(provider.dispose);
-      await provider.fetchRadarFrames(latitude: 40, longitude: -75);
-      await provider.fetchRadarFrames(latitude: 40, longitude: -75);
+      await provider.fetchCloudCover(latitude: 40, longitude: -75);
+      await provider.fetchCloudCover(latitude: 40, longitude: -75);
       expect(points, hasLength(1));
       now = now.add(const Duration(minutes: 5));
-      await provider.fetchRadarFrames(latitude: 40, longitude: -75);
-      await provider.fetchRadarFrames(latitude: 41, longitude: -76);
+      await provider.fetchCloudCover(latitude: 40, longitude: -75);
+      await provider.fetchCloudCover(latitude: 41, longitude: -76);
       expect(points, [
         '/points/40.0,-75.0',
         '/points/40.0,-75.0',
@@ -366,7 +353,7 @@ void main() {
       final provider = _provider(body);
       addTearDown(provider.dispose);
       expect(
-        (await provider.fetchRadarFrames(
+        (await provider.fetchCloudCover(
           latitude: 40,
           longitude: -75,
         )).isSuccess,

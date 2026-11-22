@@ -490,7 +490,7 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     if (primaryReasonOverride != null) {
       primary = primaryReasonOverride;
     } else if (s.hardConstraintFailed) {
-      primary = _summarizeRejection(s.rejectionReasons);
+      primary = _summarizeRejection(s.rejections);
     } else {
       // Eligible-but-lower-scoring. Expose the score gap as a percentage
       // so operators can sanity-check tight calls.
@@ -512,17 +512,12 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     );
   }
 
-  /// Map the first per-constraint failure into a compact operator-facing
-  /// summary. Falls back to the raw text when no shorter form fits.
-  ///
-  /// The matching ladder lives in `services/scheduler/rejection_labels.dart`
-  /// so the queue row's STATUS chip and this record cannot drift apart. Do NOT
-  /// re-add a local ladder here — `scheduler_rejection_labels_test.dart` covers
-  /// both renderings.
-  String _summarizeRejection(List<String> reasons) {
-    if (reasons.isEmpty) return 'rejected';
+  /// The first failed constraint in the decision record's short words
+  /// (`services/scheduler/rejection_labels.dart`).
+  String _summarizeRejection(List<SchedulerRejection> rejections) {
+    if (rejections.isEmpty) return 'rejected';
     return schedulerRejectionSummary(
-      reasons.first,
+      rejections.first,
       minAltitudeDegrees: _config.minAltitudeDegrees,
     );
   }
