@@ -151,6 +151,45 @@ void main() {
         container.read(nightActivityProvider).kind, NightActivityKind.recovery);
   });
 
+  test('a run frame the camera exposes reads as capturing, with progress',
+      () {
+    // A run's frame is taken by the native camera, not the app's capture
+    // service; the host follows it from the camera's own events.
+    final node = ExposureNode(id: 'capture', durationSecs: 180, count: 60);
+    final container = ProviderContainer(overrides: [
+      activeEquipmentProfileProvider.overrideWithValue(null),
+      nightRunPhaseProvider.overrideWithValue(NightRunPhase.running),
+      nightActiveStepProvider.overrideWithValue(NightPlanEntry(
+          node: node, depth: 0, multiplier: 1, openEnded: false)),
+    ]);
+    addTearDown(container.dispose);
+    final progress = container.read(runRecordProvider.notifier);
+    progress.setLifecycle(SequenceExecutionState.running);
+    final subscription = container.listen(nightActivityProvider, (_, next) {});
+    addTearDown(subscription.close);
+    progress.updateProgress(currentNodeId: node.id);
+    progress.updateNodeStructuredProgress(
+        node.id,
+        10,
+        const ExposureInstructionProgressDetail(
+            frame: 3, total: 60, durationSecs: 180));
+    SkotiqEvent camera(String type, Map<String, dynamic> data) => SkotiqEvent(
+          timestamp: 0,
+          category: EventCategory.imaging,
+          eventType: type,
+          severity: EventSeverity.info,
+          data: data,
+        );
+    followHostCameraExposure(
+        container, camera('ExposureStarted', {'duration_secs': 180.0, 'frame_type': 'light'}));
+    followHostCameraExposure(container,
+        camera('ExposureProgress', {'progress': 0.25, 'remainingSecs': 135.0}));
+    final vm = container.read(nightActivityProvider);
+    expect(vm.kind, NightActivityKind.capture);
+    expect(vm.title.key, 'nightActivityCapture');
+    expect(vm.progress, closeTo(0.25, 1e-9));
+  });
+
   test('centering transitions use current telemetry, never an old solve result',
       () {
     final container = ProviderContainer(overrides: [
