@@ -45,6 +45,22 @@ class SmartNightPlannedTarget {
     this.filterSuggestion,
   });
 
+  /// This target with [filterPlans] and their [integrationSecs] in place of
+  /// its own.
+  SmartNightPlannedTarget withFilterPlans(
+    List<SmartNightFilterPlan> filterPlans, {
+    required double integrationSecs,
+  }) => SmartNightPlannedTarget(
+    suggestion: suggestion,
+    windowStart: windowStart,
+    windowEnd: windowEnd,
+    filterPlans: filterPlans,
+    integrationSecs: integrationSecs,
+    rationale: rationale,
+    filterReason: filterReason,
+    filterSuggestion: filterSuggestion,
+  );
+
   Map<String, dynamic> toJson() => {
     'suggestion': suggestion.toJson(),
     'windowStart': windowStart.toIso8601String(),
