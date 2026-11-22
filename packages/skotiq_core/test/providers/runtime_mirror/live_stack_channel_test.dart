@@ -152,6 +152,27 @@ void main() {
     expect(stacker.stops, 0);
   });
 
+  test('Stop on a client reaches a stack the host started', () async {
+    hostHolds = [
+      _update(
+        1,
+        LiveStackSummary(running: true, armed: true, slots: [_slot('L', 1, 1)]),
+      ),
+    ];
+    final client = linked();
+    client.container.read(liveStackingServiceProvider);
+    await hydrateHostRuntimeState(client.container, client.backend);
+    await settle();
+
+    await client.container.read(liveStackingProvider.notifier).stop();
+
+    expect(stacker.stops, 1);
+    expect(
+      client.container.read(liveStackingProvider).status,
+      LiveStackingStatus.idle,
+    );
+  });
+
   test('an armed host stack with no frame yet is not polled', () async {
     hostHolds = [
       _update(1, const LiveStackSummary(running: true, armed: true, slots: [])),
