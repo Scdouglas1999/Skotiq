@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:skotiq_core/src/backend/ip_geolocation.dart';
 import 'package:skotiq_core/src/services/site_positioning/geolocation_service.dart';
 
 class _StalledPlatform extends GeolocatorPlatform {
@@ -284,9 +285,10 @@ void main() {
         allowIp: true,
       ).then((value) => result = value),
     );
+    // Each host gets the IP lookup's one timeout.
     await tester.pump();
-    await tester.pump(const Duration(seconds: 3));
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(IpGeolocation.perHostTimeout);
+    await tester.pump(IpGeolocation.perHostTimeout);
     expect(result, isNotNull);
     expect(result!.fix, isNull);
     expect(result!.noInternet, isTrue);

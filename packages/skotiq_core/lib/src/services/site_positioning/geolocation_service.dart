@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:geolocator/geolocator.dart';
 import 'package:skotiq_astro/skotiq_astro.dart' show roundSiteEstimate;
 
+import '../../backend/ip_geolocation.dart';
+import '../../errors/skotiq_error.dart';
 import '../../utils/logging_service.dart';
 import 'positioning/positioning_result.dart';
 import 'positioning/positioning_deadline.dart';
@@ -60,13 +62,12 @@ class GeolocationService {
   /// degree.
   static double? _coord(Object? value) => (value as num?)?.toDouble();
 
-  /// Primary IP lookup. ipinfo.io's `loc` is typically ZIP-level for US
-  /// residential IPs; city-centroid services pin a metro ISP to city hall,
-  /// which is where Weather then draws the observatory.
-  static final Uri ipPrimaryEndpoint = Uri.parse('https://ipinfo.io/json');
+  /// Primary IP lookup ([IpGeolocation.endpoint]): ipinfo.io's `loc` is
+  /// typically ZIP-level for US residential IPs.
+  static final Uri ipPrimaryEndpoint = IpGeolocation.endpoint;
 
   /// TLS fallback when the primary is unreachable or has no coordinate.
-  static final Uri ipFallbackEndpoint = Uri.parse('https://ipwho.is/');
+  static final Uri ipFallbackEndpoint = IpGeolocation.fallbackEndpoint;
 
   /// Open-Meteo geocoding. Same vendor as the cloud forecast, TLS, no key.
   static final Uri placeSearchEndpoint = Uri.parse(
@@ -96,17 +97,12 @@ class GeolocationService {
   ) async {
     final client = clientFactory();
     try {
-      final response = await client
-          .get(uri)
-          .timeout(const Duration(seconds: 3));
-      if (response.statusCode != 200) return (fix: null, unreachable: false);
-      final parsed = _parseIpBody(response.body);
-      if (parsed == null) return (fix: null, unreachable: false);
+      final answer = await IpGeolocation.fetchFrom(client, uri);
       return (
         fix: PositioningResult(
-          latitude: parsed.$1,
-          longitude: parsed.$2,
-          locationName: parsed.$3,
+          latitude: answer.site.latitude,
+          longitude: answer.site.longitude,
+          locationName: _ipLocationName(answer.body),
           source: PositioningSource.ipAddress,
           provider: uri.host,
           // Neither IP service reports a radius. Left null rather than filled
@@ -115,6 +111,13 @@ class GeolocationService {
         ),
         unreachable: false,
       );
+    } on SkotiqError catch (e) {
+      Log.warning(
+        '[Geolocation] IP-based location refused (${uri.host}): '
+        '${e.message}',
+        source: 'GeolocationService',
+      );
+      return (fix: null, unreachable: false);
     } catch (e) {
       Log.warning(
         '[Geolocation] IP-based location failed (${uri.host}): $e',
@@ -148,37 +151,6 @@ class GeolocationService {
 
   static (double, double, String?)? _tupleOf(PositioningResult? fix) =>
       fix == null ? null : (fix.latitude, fix.longitude, fix.locationName);
-
-  /// ipinfo.io uses `loc` ("lat,lon"); ipwho.is / ipapi.co use
-  /// `latitude`/`longitude`. Prefer `loc` when both exist — that is the
-  /// ZIP-level fix. Round to four decimals so a seven-decimal city-centroid
-  /// reply cannot look surveyed.
-  static (double, double, String?)? _parseIpBody(String body) {
-    final decoded = json.decode(body);
-    if (decoded is! Map<String, dynamic>) return null;
-    if (decoded['success'] == false || decoded['error'] == true) return null;
-    if (decoded['error'] is Map) return null;
-
-    double? lat;
-    double? lon;
-    final loc = decoded['loc'];
-    if (loc is String) {
-      final parts = loc.split(',');
-      if (parts.length >= 2) {
-        lat = double.tryParse(parts[0].trim());
-        lon = double.tryParse(parts[1].trim());
-      }
-    }
-    lat ??= _coord(decoded['latitude']);
-    lon ??= _coord(decoded['longitude']);
-    if (lat == null || lon == null) return null;
-
-    return (
-      roundSiteEstimate(lat),
-      roundSiteEstimate(lon),
-      _ipLocationName(decoded),
-    );
-  }
 
   /// City + region, plus a country name when the service sent one. Skip a
   /// two-letter ISO code so ipinfo's `"country":"US"` does not become the
