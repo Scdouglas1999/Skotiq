@@ -2367,12 +2367,18 @@ fn flat_pedestal_state_reads_the_cards_it_reads_today() {
 }
 
 /// The rejection tokens one night's integration takes, and what each one runs:
-/// every spelling of the rejectors it runs, not the generalized ESD test.
+/// every rejector, `auto` as PixInsight picks it (the rule the multi-night
+/// master uses), named rejectors with the request's bounds.
 #[test]
 fn integration_rejection_tokens_name_its_rejectors() {
     use crate::post_session::args::IntegrationArgs;
-    use crate::post_session::helpers::{auto_reject, build_integration_config};
+    use crate::post_session::helpers::build_integration_config;
     use skotiq_imaging::integration::Reject;
+    let esd = Reject::GeneralizedEsd {
+        outliers: 0.3,
+        alpha: 0.05,
+        low_relaxation: 1.5,
+    };
     let args = |reject: &str| IntegrationArgs {
         reject: reject.to_string(),
         reject_low: 2.5,
@@ -2383,8 +2389,8 @@ fn integration_rejection_tokens_name_its_rejectors() {
     };
     let (low, high) = (2.5, 3.5);
     for (token, expected) in [
-        ("", auto_reject(9, low, high)),
-        ("Auto", auto_reject(9, low, high)),
+        ("", Reject::pixinsight_auto(9)),
+        ("Auto", Reject::pixinsight_auto(9)),
         ("none", Reject::None),
         ("sigmaClip", Reject::SigmaClip { low, high }),
         ("sigma_clip", Reject::SigmaClip { low, high }),
@@ -2417,6 +2423,8 @@ fn integration_rejection_tokens_name_its_rejectors() {
             },
         ),
         ("winsorized", Reject::WinsorizedSigmaClip { low, high }),
+        ("esd", esd),
+        ("generalizedEsd", esd),
     ] {
         assert_eq!(
             build_integration_config(&args(token), 9).unwrap().reject,
@@ -2424,26 +2432,33 @@ fn integration_rejection_tokens_name_its_rejectors() {
             "{token:?}"
         );
     }
-    for token in ["esd", "generalizedEsd", "bogus"] {
-        assert_eq!(
-            build_integration_config(&args(token), 9).unwrap_err(),
-            format!("unknown reject algorithm '{}'", token.to_ascii_lowercase()),
-            "{token:?}"
-        );
-    }
     assert_eq!(
-        auto_reject(7, low, high),
+        build_integration_config(&args("bogus"), 9).unwrap_err(),
+        "unknown reject algorithm 'bogus'"
+    );
+    let auto = |subs| {
+        build_integration_config(&args("auto"), subs)
+            .unwrap()
+            .reject
+    };
+    assert_eq!(
+        auto(7),
         Reject::PercentileClip {
             low: 0.2,
             high: 0.1
         }
     );
-    assert_eq!(
-        auto_reject(24, low, high),
-        Reject::WinsorizedSigmaClip { low, high }
-    );
-    assert_eq!(
-        auto_reject(25, low, high),
-        Reject::LinearFitClip { low, high }
-    );
+    for subs in [8, 19] {
+        assert_eq!(
+            auto(subs),
+            Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0
+            },
+            "{subs} subs"
+        );
+    }
+    for subs in [20, 24, 25, 60] {
+        assert_eq!(auto(subs), esd, "{subs} subs");
+    }
 }

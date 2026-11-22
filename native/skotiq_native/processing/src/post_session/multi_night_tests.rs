@@ -636,7 +636,7 @@ fn local_drizzle_build_preserves_faint_structure_and_removes_changing_gradients(
 }
 
 /// The rejection tokens a multi-night build takes, and what each one runs:
-/// every spelling of the rejectors it runs, none of sigma clip or min/max.
+/// every rejector, with PixInsight's default bounds.
 #[test]
 fn multi_night_rejection_tokens_name_its_rejectors() {
     use crate::post_session::multi_night::build_rejection;
@@ -705,17 +705,35 @@ fn multi_night_rejection_tokens_name_its_rejectors() {
                 high: 3.0,
             },
         ),
+        (
+            Some("sigmaClip"),
+            9,
+            Reject::SigmaClip {
+                low: 4.0,
+                high: 3.0,
+            },
+        ),
+        (
+            Some("minMax"),
+            9,
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 1,
+            },
+        ),
+        (
+            Some("min_max"),
+            9,
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 1,
+            },
+        ),
     ] {
         assert_eq!(build_rejection(token, frames), Ok(expected), "{token:?}");
     }
-    for token in ["sigmaClip", "minMax", "min_max", "bogus"] {
-        assert_eq!(
-            build_rejection(Some(token), 9),
-            Err(format!(
-                "unknown rejection '{}'",
-                token.to_ascii_lowercase()
-            )),
-            "{token:?}"
-        );
-    }
+    assert_eq!(
+        build_rejection(Some("bogus"), 9),
+        Err("unknown rejection 'bogus'".to_string())
+    );
 }

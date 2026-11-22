@@ -6,7 +6,7 @@ use crate::post_session::integrate::LoadedLight;
 use skotiq_imaging::frame_weighting::{
     analyze_frame_quality, FrameQuality, FrameQualityConfig, WeightFormula,
 };
-use skotiq_imaging::integration::{Combine, IntegrationConfig, Reject, RejectChoice};
+use skotiq_imaging::integration::{Combine, IntegrationConfig, Reject, RejectBounds, RejectChoice};
 use skotiq_imaging::normalization::{NormMode, NormalizationConfig};
 use skotiq_imaging::registration::{
     min_registration_stars, registrable_star_count, Interpolator, RegistrationConfig, TransformKind,
@@ -367,25 +367,18 @@ pub(crate) fn build_integration_config(
         "median" => Combine::Median,
         other => return Err(format!("unknown combine '{other}'")),
     };
-    let (low, high) = (a.reject_low, a.reject_high);
-    let reject = match RejectChoice::from_token(&a.reject) {
-        Some(RejectChoice::Auto) => auto_reject(sub_count, low, high),
-        Some(RejectChoice::None) => Reject::None,
-        Some(RejectChoice::SigmaClip) => Reject::SigmaClip { low, high },
-        Some(RejectChoice::WinsorizedSigmaClip) => Reject::WinsorizedSigmaClip { low, high },
-        Some(RejectChoice::LinearFitClip) => Reject::LinearFitClip { low, high },
-        Some(RejectChoice::PercentileClip) => Reject::PercentileClip { low, high },
-        Some(RejectChoice::MinMax) => Reject::MinMax {
-            n_low: a.min_max_low,
-            n_high: a.min_max_high,
-        },
-        Some(RejectChoice::GeneralizedEsd) | None => {
-            return Err(format!(
+    let bounds = RejectBounds {
+        low_high: Some((a.reject_low, a.reject_high)),
+        min_max: Some((a.min_max_low, a.min_max_high)),
+    };
+    let reject = RejectChoice::from_token(&a.reject)
+        .ok_or_else(|| {
+            format!(
                 "unknown reject algorithm '{}'",
                 a.reject.trim().to_ascii_lowercase()
-            ))
-        }
-    };
+            )
+        })?
+        .resolve(sub_count, bounds);
     let output_type = match a.output_bit_depth.trim().to_ascii_lowercase().as_str() {
         "" | "f32" => PixelType::F32,
         "u16" => PixelType::U16,
@@ -399,23 +392,6 @@ pub(crate) fn build_integration_config(
         generate_weight_map: false,
         min_coverage: 1,
     })
-}
-
-/// Smart reject-algorithm selection by sub count (PixInsight-style):
-/// `<8 → percentile`, `8–24 → winsorized-σ`, `≥25 → linear-fit`.
-pub(crate) fn auto_reject(sub_count: usize, low: f64, high: f64) -> Reject {
-    if sub_count < 8 {
-        // Percentile bounds are fractions; map the sigma-style inputs to a
-        // sensible default trim band when in "auto" mode.
-        Reject::PercentileClip {
-            low: 0.2,
-            high: 0.1,
-        }
-    } else if sub_count < 25 {
-        Reject::WinsorizedSigmaClip { low, high }
-    } else {
-        Reject::LinearFitClip { low, high }
-    }
 }
 
 /// One keyword of a frame's header as trimmed text, whatever its value type;
@@ -498,7 +474,7 @@ pub(crate) fn collect_master_provenance(
 /// `IntegrationArgs::reject` is the *request* token, so recording it directly
 /// stamps `REJECTM = 'auto'` on every default-path master — naming the wire
 /// protocol rather than the science. `auto` resolves by sub count in
-/// [`auto_reject`], and this reports what that resolved to.
+/// [`RejectChoice::resolve`], and this reports what that resolved to.
 pub(crate) fn reject_label(reject: &Reject) -> String {
     match reject {
         Reject::None => "none".to_string(),

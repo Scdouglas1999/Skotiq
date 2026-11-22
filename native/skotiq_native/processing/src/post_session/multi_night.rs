@@ -36,7 +36,7 @@ use skotiq_imaging::drizzle::{drizzle_frame_rows, DrizzleConfig, DrizzleFrame, D
 use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQualityConfig, WeightFormula};
 use skotiq_imaging::integration::{
     integrate_frames_with_spatial_weights, Combine, IntegrationConfig, IntegrationFrame, Reject,
-    RejectChoice,
+    RejectBounds, RejectChoice,
 };
 use skotiq_imaging::normalization::{
     apply_normalization, estimate_normalization, CoverageMask, NormalizationCoeffs,
@@ -480,36 +480,13 @@ pub(crate) fn calibrate_for_fold(
     calibrated_light(path, exposure, calibration).map_err(|(_, e)| format!("'{path}' {e}"))
 }
 
-/// The rejection the build applies, from the request token.
+/// The rejection the build applies, from the request token, with
+/// PixInsight's default bounds.
 pub(crate) fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
     let token = token.unwrap_or("");
-    Ok(match RejectChoice::from_token(token) {
-        Some(RejectChoice::Auto) => Reject::pixinsight_auto(frames),
-        Some(RejectChoice::None) => Reject::None,
-        Some(RejectChoice::PercentileClip) => Reject::PercentileClip {
-            low: 0.2,
-            high: 0.1,
-        },
-        Some(RejectChoice::WinsorizedSigmaClip) => Reject::WinsorizedSigmaClip {
-            low: 4.0,
-            high: 3.0,
-        },
-        Some(RejectChoice::LinearFitClip) => Reject::LinearFitClip {
-            low: 5.0,
-            high: 4.0,
-        },
-        Some(RejectChoice::GeneralizedEsd) => Reject::GeneralizedEsd {
-            outliers: 0.3,
-            alpha: 0.05,
-            low_relaxation: 1.5,
-        },
-        Some(RejectChoice::SigmaClip | RejectChoice::MinMax) | None => {
-            return Err(format!(
-                "unknown rejection '{}'",
-                token.trim().to_ascii_lowercase()
-            ))
-        }
-    })
+    RejectChoice::from_token(token)
+        .map(|choice| choice.resolve(frames, RejectBounds::default()))
+        .ok_or_else(|| format!("unknown rejection '{}'", token.trim().to_ascii_lowercase()))
 }
 
 /// The weighting formula that weighs a sub by the inverse variance of its

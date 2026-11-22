@@ -133,12 +133,13 @@ pub(crate) struct IntegrationArgs {
     /// `"mean"` | `"median"`.
     pub(crate) combine: String,
     /// `"auto"` | `"none"` | `"sigmaClip"` | `"winsorizedSigma"` |
-    /// `"linearFit"` | `"percentile"` | `"minMax"`.
+    /// `"linearFit"` | `"percentile"` | `"minMax"` | `"esd"`.
     ///
-    /// `"auto"` picks by sub count (PixInsight-style): `<8 → percentile`,
-    /// `8–24 → winsorizedSigma`, `≥25 → linearFit`.
+    /// `"auto"` is PixInsight's choice by sub count with its default bounds:
+    /// `<8 → percentile`, `8–19 → winsorizedSigma`, `≥20 → generalized ESD`.
     pub(crate) reject: String,
-    /// Low/high thresholds. Sigma-family: κ in σ. Percentile: fraction in (0,1).
+    /// Low/high thresholds of a named rejector (not `auto`). Sigma-family: κ in
+    /// σ. Percentile: fraction in (0,1).
     pub(crate) reject_low: f64,
     pub(crate) reject_high: f64,
     /// Min/max counts, used only when `reject == "minMax"`.
