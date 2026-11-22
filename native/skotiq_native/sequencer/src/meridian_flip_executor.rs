@@ -258,6 +258,17 @@ pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
         read_errors: crate::instructions::SlewReadErrors::Fail,
     };
 
+/// The post-flip centering: three frames, centered below 30" measured flat at
+/// the target's Dec, every correction synced. Not the operator's centering
+/// tolerance (owner item P9-1).
+pub(crate) const POST_FLIP_CENTERING: crate::instructions::CenterPolicy =
+    crate::instructions::CenterPolicy {
+        tolerance: crate::instructions::CenterTolerance::Below(30.0),
+        max_attempts: 3,
+        sync_mount: true,
+        separation: crate::instructions::Separation::FlatAtTargetDec,
+    };
+
 /// The post-flip guider restart counts guiding as locked once the guider says
 /// it guides, polled every 2 s up to the settle timeout.
 pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
@@ -1502,7 +1513,8 @@ impl MeridianFlipExecutor {
         let camera_id = ctx.camera_id.as_ref().ok_or("No camera configured")?;
 
         let mut last_failure = String::new();
-        for _ in 0..3 {
+        let policy = POST_FLIP_CENTERING;
+        for _ in 0..policy.max_attempts {
             self.wait_for_mount_to_settle(ctx).await?;
             // The retry ladder increases acquisition exposure after the first attempt.
             let image = crate::instructions::take_run_frame(
@@ -1548,49 +1560,39 @@ impl MeridianFlipExecutor {
                 }
             };
 
-            let ra_offset =
-                crate::meridian::wrap_hours((result.ra_degrees / 15.0) - ctx.target_ra_hours);
-            let dec_offset = result.dec_degrees - ctx.target_dec_degrees;
-
-            // Apply cos(dec) to RA when converting to arcsec for the same reason
-            // as TriggerState::calculate_drift_pixels: at high declinations a
-            // raw degree difference would overstate the on-sky distance.
-            let ra_offset_arcsec =
-                ra_offset * 15.0 * 3600.0 * ctx.target_dec_degrees.to_radians().cos();
-            let dec_offset_arcsec = dec_offset * 3600.0;
-            let total_offset = (ra_offset_arcsec.powi(2) + dec_offset_arcsec.powi(2)).sqrt();
-
+            let target = (ctx.target_ra_hours, ctx.target_dec_degrees);
+            let error = policy
+                .separation
+                .measure(target, (result.ra_degrees, result.dec_degrees));
             tracing::info!(
                 "[MERIDIAN] Plate solve result: offset={:.1}\" (RA={:.1}\", Dec={:.1}\")",
-                total_offset,
-                ra_offset_arcsec,
-                dec_offset_arcsec
+                error.total_arcsec,
+                error.ra_arcsec,
+                error.dec_arcsec
             );
 
-            // Preserve the existing post-flip tolerance, but verify it again
-            // after a correction instead of assuming a completed slew centered.
-            if total_offset < 30.0 {
+            // A correction is verified by the next frame, not assumed.
+            if policy.tolerance.is_met(error.total_arcsec) {
                 tracing::info!("[MERIDIAN] Centering within tolerance");
                 return Ok(());
             }
 
-            // Sync the mount model to the actual position, then re-slew to target.
-            // This corrects mount pointing errors that survived the flip; a bare
-            // re-slew without the sync would land at the same wrong spot.
+            // Synced, the mount model takes the pointing error that survived
+            // the flip; a bare re-slew would land at the same wrong spot.
             self.stop_guider_before_move("post-flip centering correction")
                 .await;
+            let slew_to = crate::instructions::correct_pointing(
+                &self.run.device_ops,
+                &ctx.mount_id,
+                policy.sync_mount,
+                target,
+                target,
+                (result.ra_degrees / 15.0, result.dec_degrees),
+            )
+            .await?;
             self.run
                 .device_ops
-                .mount_sync(&ctx.mount_id, result.ra_degrees / 15.0, result.dec_degrees)
-                .await?;
-
-            self.run
-                .device_ops
-                .mount_slew_to_coordinates(
-                    &ctx.mount_id,
-                    ctx.target_ra_hours,
-                    ctx.target_dec_degrees,
-                )
+                .mount_slew_to_coordinates(&ctx.mount_id, slew_to.0, slew_to.1)
                 .await?;
 
             match crate::instructions::wait_for_slew(

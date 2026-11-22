@@ -400,3 +400,78 @@ fn a_runs_own_recenter() {
     assert_eq!(config.filter, None);
     assert!(config.sync_mount);
 }
+
+/// How each centering judges and corrects the pointing.
+#[test]
+fn the_centering_policies() {
+    use crate::meridian_flip_executor::POST_FLIP_CENTERING;
+    let setting = 5.0;
+    let table = [
+        (
+            "Center step (defaults)",
+            CenterPolicy::for_step(&crate::CenterConfig::default(), setting),
+            CenterPolicy {
+                tolerance: CenterTolerance::AtMost(5.0),
+                max_attempts: 5,
+                sync_mount: true,
+                separation: Separation::OnTheSphere,
+            },
+        ),
+        (
+            "Center step with its own accuracy, no sync",
+            CenterPolicy::for_step(
+                &crate::CenterConfig {
+                    accuracy_arcsec: Some(3600.0),
+                    max_attempts: 1,
+                    sync_mount: false,
+                    ..Default::default()
+                },
+                setting,
+            ),
+            CenterPolicy {
+                tolerance: CenterTolerance::AtMost(3600.0),
+                max_attempts: 1,
+                sync_mount: false,
+                separation: Separation::OnTheSphere,
+            },
+        ),
+        (
+            "run recenter",
+            CenterPolicy::for_step(&crate::CenterConfig::run_recenter(), setting),
+            CenterPolicy {
+                tolerance: CenterTolerance::AtMost(5.0),
+                max_attempts: 3,
+                sync_mount: true,
+                separation: Separation::OnTheSphere,
+            },
+        ),
+        (
+            "post-flip centering",
+            POST_FLIP_CENTERING,
+            CenterPolicy {
+                tolerance: CenterTolerance::Below(30.0),
+                max_attempts: 3,
+                sync_mount: true,
+                separation: Separation::FlatAtTargetDec,
+            },
+        ),
+    ];
+    for (site, actual, expected) in table {
+        assert_eq!(actual, expected, "{site}");
+    }
+    assert!(CenterTolerance::AtMost(30.0).is_met(30.0));
+    assert!(!CenterTolerance::Below(30.0).is_met(30.0));
+}
+
+/// Both measures agree for a small offset away from the pole; the flat one
+/// is what the post-flip centering has always used.
+#[test]
+fn the_two_separation_measures() {
+    let target = (10.0, 45.0);
+    let solved = (150.0 + 20.0 / 3600.0, 45.0 + 10.0 / 3600.0);
+    let flat = Separation::FlatAtTargetDec.measure(target, solved);
+    let sphere = Separation::OnTheSphere.measure(target, solved);
+    assert!((flat.total_arcsec - sphere.total_arcsec).abs() < 0.01);
+    assert!((flat.ra_arcsec - 20.0 * 45f64.to_radians().cos()).abs() < 1e-6);
+    assert!((flat.dec_arcsec - 10.0).abs() < 1e-6);
+}

@@ -173,6 +173,126 @@ async fn centering_slew_wait(
     }
 }
 
+/// How a centering run judges and corrects the pointing. A Center step and a
+/// run's own recenters take theirs from the step's [`CenterConfig`] and the
+/// operator's tolerance ([`CenterPolicy::for_step`]); the post-flip centering
+/// keeps its own (`meridian_flip_executor::POST_FLIP_CENTERING`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct CenterPolicy {
+    pub tolerance: CenterTolerance,
+    pub max_attempts: u32,
+    /// Each correction syncs the mount to the solve and slews to the target;
+    /// off, it slews by the measured error and leaves the pointing model.
+    pub sync_mount: bool,
+    pub separation: Separation,
+}
+
+/// How close to the target counts as centered, in arcseconds.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum CenterTolerance {
+    AtMost(f64),
+    Below(f64),
+}
+
+impl CenterTolerance {
+    pub(crate) fn arcsec(self) -> f64 {
+        match self {
+            Self::AtMost(arcsec) | Self::Below(arcsec) => arcsec,
+        }
+    }
+
+    pub(crate) fn is_met(self, separation_arcsec: f64) -> bool {
+        match self {
+            Self::AtMost(arcsec) => separation_arcsec <= arcsec,
+            Self::Below(arcsec) => separation_arcsec < arcsec,
+        }
+    }
+}
+
+/// How the distance between the target and a solve is measured.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Separation {
+    /// The angle between the two on the sky.
+    OnTheSphere,
+    /// The RA difference scaled by cos(target Dec), combined with the Dec
+    /// difference as if the sky were flat there.
+    FlatAtTargetDec,
+}
+
+/// How far a solve landed from the target.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct PointingError {
+    pub ra_arcsec: f64,
+    pub dec_arcsec: f64,
+    pub total_arcsec: f64,
+}
+
+impl Separation {
+    /// From `target` (RA hours, Dec degrees) to `solved` (RA degrees, Dec
+    /// degrees), as a plate solve answers.
+    pub(crate) fn measure(self, target: (f64, f64), solved: (f64, f64)) -> PointingError {
+        let (target_ra_hours, target_dec) = target;
+        let (solved_ra_deg, solved_dec) = solved;
+        let ra_offset_hours = crate::meridian::wrap_hours((solved_ra_deg / 15.0) - target_ra_hours);
+        let ra_arcsec = ra_offset_hours * 15.0 * 3600.0 * target_dec.to_radians().cos();
+        let dec_arcsec = (solved_dec - target_dec) * 3600.0;
+        let total_arcsec = match self {
+            Self::OnTheSphere => calculate_separation_arcsec(
+                target_ra_hours * 15.0,
+                target_dec,
+                solved_ra_deg,
+                solved_dec,
+            ),
+            Self::FlatAtTargetDec => (ra_arcsec.powi(2) + dec_arcsec.powi(2)).sqrt(),
+        };
+        PointingError {
+            ra_arcsec,
+            dec_arcsec,
+            total_arcsec,
+        }
+    }
+}
+
+impl CenterPolicy {
+    /// A Center step's policy: its attempts and sync choice, at its own
+    /// accuracy or else the operator's centering tolerance.
+    pub(crate) fn for_step(config: &CenterConfig, tolerance_setting_arcsec: f64) -> Self {
+        Self {
+            tolerance: CenterTolerance::AtMost(
+                config.accuracy_arcsec.unwrap_or(tolerance_setting_arcsec),
+            ),
+            max_attempts: config.max_attempts,
+            sync_mount: config.sync_mount,
+            separation: Separation::OnTheSphere,
+        }
+    }
+}
+
+/// The correction a centering attempt makes: sync the mount to the solve and
+/// send it to the target, or, without sync, offset where it was last sent by
+/// the measured error. Returns where to slew; `Err` is a failed sync.
+pub(crate) async fn correct_pointing(
+    device_ops: &SharedDeviceOps,
+    mount_id: &str,
+    sync_mount: bool,
+    commanded: (f64, f64),
+    target: (f64, f64),
+    solved_ra_hours_dec: (f64, f64),
+) -> Result<(f64, f64), crate::device_ops::DeviceError> {
+    if sync_mount {
+        device_ops
+            .mount_sync(mount_id, solved_ra_hours_dec.0, solved_ra_hours_dec.1)
+            .await?;
+        Ok(target)
+    } else {
+        Ok(offset_by_pointing_error(
+            commanded,
+            target,
+            solved_ra_hours_dec,
+        ))
+    }
+}
+
 /// Execute a center instruction (plate solve + sync + slew loop)
 pub async fn execute_center(
     config: &CenterConfig,
@@ -191,9 +311,8 @@ async fn center(
     ctx: &InstructionContext,
     progress_callback: CenterProgressSink<'_>,
 ) -> InstructionResult {
-    let accuracy_arcsec = config
-        .accuracy_arcsec
-        .unwrap_or_else(|| ctx.run.centering_tolerance_arcsec());
+    let policy = CenterPolicy::for_step(config, ctx.run.centering_tolerance_arcsec());
+    let accuracy_arcsec = policy.tolerance.arcsec();
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,
@@ -294,15 +413,15 @@ async fn center(
         cb(0.0, &CenterProgress::Starting { accuracy_arcsec });
     }
 
-    for attempt in 1..=config.max_attempts {
+    for attempt in 1..=policy.max_attempts {
         if let Some(result) = ctx.check_cancelled() {
             return result;
         }
 
         // Why: attempt is a u32 loop counter bounded by max_attempts (also u32);
         // both lossless to f64.
-        let attempt_progress = (f64::from(attempt - 1) / f64::from(config.max_attempts)) * 100.0;
-        tracing::info!("Center attempt {}/{}", attempt, config.max_attempts);
+        let attempt_progress = (f64::from(attempt - 1) / f64::from(policy.max_attempts)) * 100.0;
+        tracing::info!("Center attempt {}/{}", attempt, policy.max_attempts);
 
         if let Some(cb) = progress_callback {
             cb(attempt_progress, &CenterProgress::Capturing { attempt });
@@ -394,12 +513,13 @@ async fn center(
             }
         };
 
-        let separation_arcsec = calculate_separation_arcsec(
-            target_ra_deg,
-            target_dec,
-            solve_result.ra_degrees,
-            solve_result.dec_degrees,
-        );
+        let separation_arcsec = policy
+            .separation
+            .measure(
+                (target_ra_hours, target_dec),
+                (solve_result.ra_degrees, solve_result.dec_degrees),
+            )
+            .total_arcsec;
         tracing::info!("Current separation: {:.1}\" from target", separation_arcsec);
 
         // Feeding the solve back into trigger state is what enables the
@@ -410,7 +530,7 @@ async fn center(
         // fired DriftLimit's own recenter in the middle of this one, which then
         // exposed over this loop's next frame and failed the node with "No
         // exposure is available to download" (found by the simulator soak).
-        if separation_arcsec <= accuracy_arcsec {
+        if policy.tolerance.is_met(separation_arcsec) {
             if let Some(trigger_state_lock) = &ctx.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.update_plate_solve(
@@ -429,8 +549,8 @@ async fn center(
 
         if let Some(cb) = progress_callback {
             cb(
-                // Why: config.max_attempts is u32; lossless to f64.
-                attempt_progress + 50.0 / f64::from(config.max_attempts),
+                // Why: policy.max_attempts is u32; lossless to f64.
+                attempt_progress + 50.0 / f64::from(policy.max_attempts),
                 &CenterProgress::Solved {
                     attempt,
                     ra_hours: solve_result.ra_degrees / 15.0,
@@ -440,7 +560,7 @@ async fn center(
             );
         }
 
-        if separation_arcsec <= accuracy_arcsec {
+        if policy.tolerance.is_met(separation_arcsec) {
             if let Some(cb) = progress_callback {
                 cb(95.0, &CenterProgress::Centered { separation_arcsec });
             }
@@ -476,39 +596,33 @@ async fn center(
             crate::GuidingStopReason::MountMove,
         )
         .await;
-        if config.sync_mount {
-            // The mount is told where it really points, so the slew to the
-            // target moves by the true pointing error.
-            if let Err(e) = ctx
-                .run
-                .device_ops
-                .mount_sync(
-                    &mount_id,
-                    solve_result.ra_degrees / 15.0,
-                    solve_result.dec_degrees,
-                )
-                .await
-            {
+        // Synced, the mount is told where it really points, so the slew to
+        // the target moves by the true pointing error.
+        commanded = match correct_pointing(
+            &ctx.run.device_ops,
+            &mount_id,
+            policy.sync_mount,
+            commanded,
+            (target_ra_hours, target_dec),
+            (solve_result.ra_degrees / 15.0, solve_result.dec_degrees),
+        )
+        .await
+        {
+            Ok(commanded) => commanded,
+            Err(e) => {
                 return InstructionResult::failure(format!(
                     "Mount sync failed during centering on attempt {}: {}",
                     attempt, e
                 ))
-                .caused_by(&e);
+                .caused_by(&e)
             }
-            commanded = (target_ra_hours, target_dec);
-        } else {
-            commanded = offset_by_pointing_error(
-                commanded,
-                (target_ra_hours, target_dec),
-                (solve_result.ra_degrees / 15.0, solve_result.dec_degrees),
-            );
-        }
+        };
 
         tracing::info!("Slewing to correct position...");
         if let Some(cb) = progress_callback {
             cb(
-                // Why: config.max_attempts is u32; lossless to f64.
-                attempt_progress + 75.0 / f64::from(config.max_attempts),
+                // Why: policy.max_attempts is u32; lossless to f64.
+                attempt_progress + 75.0 / f64::from(policy.max_attempts),
                 &CenterProgress::Correcting { attempt },
             );
         }
@@ -556,7 +670,7 @@ async fn center(
     InstructionResult::failure_because(
         format!(
             "Failed to center within {:.1}\" after {} attempts ({CENTERING_TOLERANCE_SETTING})",
-            accuracy_arcsec, config.max_attempts
+            accuracy_arcsec, policy.max_attempts
         ),
         Setback::CenterNotConverged,
     )
