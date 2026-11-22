@@ -47,7 +47,7 @@ pub enum FrameIoError {
     Io(std::io::Error),
     Fits(FitsError),
     Xisf(XisfError),
-    Raw(String),
+    Raw(crate::RawError),
     /// Neither the content nor the extension names a format the app reads.
     UnknownFormat(String),
     /// The format is read-only in the app.
@@ -88,7 +88,7 @@ impl From<FitsError> for FrameIoError {
 
 impl From<crate::RawError> for FrameIoError {
     fn from(e: crate::RawError) -> Self {
-        FrameIoError::Raw(e.to_string())
+        FrameIoError::Raw(e)
     }
 }
 
