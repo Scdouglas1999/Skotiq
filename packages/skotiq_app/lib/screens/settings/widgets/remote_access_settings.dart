@@ -219,7 +219,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               title: l10n.text('remoteAccessWebServer'),
               children: [
                 SettingRow(
-                  icon: LucideIcons.globe,
                   title: l10n.text('remoteAccessEnableTitle'),
                   subtitle: l10n.text('remoteAccessEnableDesc'),
                   trailing: AdminOnlyControl(
@@ -234,7 +233,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.hash,
                   title: l10n.text('remoteAccessPortTitle'),
                   subtitle: l10n.text('remoteAccessPortDesc'),
                   trailing: AdminOnlyControl(
@@ -297,7 +295,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               children: [
                 if (isRemote)
                   SettingRow(
-                    icon: LucideIcons.wifi,
                     title: l10n.text('remoteAccessHostActiveTitle'),
                     subtitle: l10n.text('remoteAccessHostActiveBody'),
                     trailing: const SizedBox.shrink(),
@@ -367,7 +364,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                     ),
                 ] else
                   SettingRow(
-                    icon: LucideIcons.power,
                     title: settings.webServerEnabled
                         ? l10n.text('remoteAccessStartingTitle')
                         : l10n.text('remoteAccessDisabledTitle'),
@@ -379,7 +375,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                         : const SizedBox.shrink(),
                   ),
                 SettingRow(
-                  icon: LucideIcons.shield,
                   title: 'Who can connect',
                   subtitle: describeRemoteAccessPairing(
                     requiresAuthentication: webState.requiresAuthentication,

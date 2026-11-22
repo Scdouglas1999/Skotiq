@@ -63,7 +63,6 @@ class PairingSettings extends ConsumerWidget {
               )
             else
               SettingRow(
-                icon: SkotiqIcons.link,
                 title: 'Pair a phone, tablet or browser',
                 subtitle: l10n.text('pairingStartDesc'),
                 trailing: SkotiqButton(
@@ -77,7 +76,6 @@ class PairingSettings extends ConsumerWidget {
               ),
             if (fingerprint.isNotEmpty)
               SettingRow(
-                icon: LucideIcons.fingerprint,
                 title: l10n.text('remoteAccessFingerprint'),
                 subtitle: 'The phone shows it too. Check that they match '
                     'before you connect.',

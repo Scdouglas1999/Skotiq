@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -257,7 +256,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
               title: 'PHD2 connection',
               children: [
                 SettingRow(
-                  icon: LucideIcons.server,
                   title: 'Host',
                   subtitle: 'PHD2 server hostname or IP address',
                   trailing: SettingsTextInput(
@@ -273,7 +271,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.network,
                   title: 'Port',
                   subtitle: 'PHD2 server port (default: 4400)',
                   trailing: SettingsNumberInput(
@@ -292,7 +289,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.folder,
                   title: 'PHD2 executable path',
                   subtitle: settings.phd2Path.isEmpty
                       ? 'Auto-detect (optional)'
@@ -307,7 +303,6 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.plugZap,
                   title: 'Test connection',
                   subtitle: _testSubtitle(settings),
                   trailing: Row(

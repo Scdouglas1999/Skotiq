@@ -183,15 +183,8 @@ class _HighlightedRowState extends State<_HighlightedRow> {
 /// 12 / 16 padding, title in `bodyMedium`, description in `caption`
 /// `textSecondary`. The row draws no rule of its own — [SettingsSection] owns
 /// the hairlines between its rows.
+/// A settings row is title + control: no icon column.
 class SettingRow extends StatelessWidget {
-  /// Ignored. A settings row is title + control: the mockup has no icon column
-  /// and the old 36 px icon square was the "card" look the panel replaced. The
-  /// parameter stays so the ~300 call sites keep compiling; wave 4 removes it.
-  final IconData icon;
-
-  /// Ignored, with [icon].
-  final Color? iconColor;
-
   final String title;
 
   final String? subtitle;
@@ -218,8 +211,6 @@ class SettingRow extends StatelessWidget {
 
   const SettingRow({
     super.key,
-    required this.icon,
-    this.iconColor,
     required this.title,
     this.subtitle,
     required this.trailing,

@@ -30,7 +30,6 @@ class _TransportsSection extends ConsumerWidget {
 /// and the next Save click writes it through the typed config's `save`
 /// notifier, which in turn writes the secret via [SecretsStore].
 class _SecretFieldRow extends StatefulWidget {
-  final IconData icon;
   final String title;
   final String? subtitle;
   final TextEditingController controller;
@@ -46,7 +45,6 @@ class _SecretFieldRow extends StatefulWidget {
   final VoidCallback? onClear;
 
   const _SecretFieldRow({
-    required this.icon,
     required this.title,
     required this.controller,
     required this.hasStoredValue,
@@ -87,7 +85,6 @@ class _SecretFieldRowState extends State<_SecretFieldRow> {
 
     if (_editing) {
       return SettingRow(
-        icon: widget.icon,
         title: widget.title,
         subtitle: widget.subtitle,
         trailing: settingsTrailingTextInput(
@@ -102,7 +99,6 @@ class _SecretFieldRowState extends State<_SecretFieldRow> {
 
     // Masked + Replace
     return SettingRow(
-      icon: widget.icon,
       title: widget.title,
       subtitle: widget.subtitle ?? 'Stored securely in the OS keyring.',
       trailing: Row(
@@ -196,7 +192,6 @@ Widget _transportErrorSection({
     title: title,
     children: [
       SettingRow(
-        icon: LucideIcons.alertTriangle,
         title: 'Could not load configuration',
         subtitle: userFacingError(error),
         trailing: SkotiqButton(

@@ -11,7 +11,6 @@ class _NotificationCrossLinkSection extends StatelessWidget {
       title: 'Notifications & events',
       children: [
         SettingRow(
-          icon: LucideIcons.bellRing,
           title: 'Send run events to Discord, Pushover or email',
           subtitle: 'Which events go where is set on the Notifications '
               'page.',
@@ -99,7 +98,6 @@ class _PluginRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.skotiqColors;
     final hasError = plugin.error != null;
 
     // The enabled-set is the authoritative persisted truth. While it is
@@ -110,8 +108,6 @@ class _PluginRow extends ConsumerWidget {
         : (enabledSet.valueOrNull?.contains(plugin.id) ?? plugin.enabled);
 
     return SettingRow(
-      icon: hasError ? LucideIcons.alertTriangle : LucideIcons.puzzle,
-      iconColor: hasError ? colors.error : null,
       title: plugin.name,
       stackWhenNarrow: true,
       // The plugin description is the row subtitle; the status pill (enabled /

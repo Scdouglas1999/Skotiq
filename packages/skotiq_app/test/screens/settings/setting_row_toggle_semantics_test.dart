@@ -56,7 +56,6 @@ class _RowUnderTest extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: SettingRow(
-          icon: Icons.power_settings_new,
           title: 'Start minimized',
           subtitle: 'Launch app minimized to system tray',
           trailing: SkotiqSwitch(value: true, onChanged: (_) {}),

@@ -83,7 +83,6 @@ class LearnedObstructionsSection extends ConsumerWidget {
                     'learned-obstruction-${point.azimuthDeg}-'
                     '${point.recordedAt.millisecondsSinceEpoch}',
                   ),
-                  icon: LucideIcons.mountain,
                   title: describeLearnedObstructionPosition(point),
                   subtitle: describeLearnedObstructionOrigin(point),
                   trailing: Align(

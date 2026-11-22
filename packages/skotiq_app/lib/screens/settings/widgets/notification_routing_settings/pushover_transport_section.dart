@@ -79,7 +79,6 @@ class _PushoverRoutingSectionState
           title: 'Pushover',
           children: [
             _SecretFieldRow(
-              icon: LucideIcons.key,
               title: 'API token',
               controller: _token,
               hasStoredValue: cfg.apiToken.isNotEmpty,
@@ -88,7 +87,6 @@ class _PushoverRoutingSectionState
               onClear: () => setState(() => _clearToken = true),
             ),
             _SecretFieldRow(
-              icon: LucideIcons.user,
               title: 'User key',
               controller: _user,
               hasStoredValue: cfg.userKey.isNotEmpty,
@@ -96,9 +94,8 @@ class _PushoverRoutingSectionState
               onChanged: (_) => _clearUser = false,
               onClear: () => setState(() => _clearUser = true),
             ),
-            _row(LucideIcons.smartphone, 'Device (optional)', _device),
+            _row('Device (optional)', _device),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save Pushover config',
               trailing: _SaveButton(
                 successMessage: 'Pushover settings saved',
@@ -106,7 +103,6 @@ class _PushoverRoutingSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.send,
               title: 'Test Pushover',
               trailing: _TestSendButton(
                 kind: NotificationTransportKind.pushover,
@@ -119,10 +115,8 @@ class _PushoverRoutingSectionState
     );
   }
 
-  Widget _row(IconData icon, String title, TextEditingController c,
-      {bool obscure = false}) {
+  Widget _row(String title, TextEditingController c, {bool obscure = false}) {
     return SettingRow(
-      icon: icon,
       title: title,
       trailing: settingsTrailingTextInput(
         context: context,

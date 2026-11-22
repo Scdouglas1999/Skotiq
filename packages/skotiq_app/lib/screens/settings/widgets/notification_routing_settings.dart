@@ -56,7 +56,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
             title: 'Where alerts go',
             children: [
               SettingRow(
-                icon: LucideIcons.server,
                 title: 'Set up on the imaging computer',
                 subtitle: 'The computer that runs the rig sends the alerts, '
                     'so email, webhook, Pushover, Telegram, Discord and MQTT '
@@ -131,7 +130,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
           title: 'Where alerts go',
           children: [
             SettingRow(
-              icon: LucideIcons.share2,
               title: 'Send alerts',
               subtitle: 'Off, no alert goes anywhere: not to the app, phones, '
                   'email or chat. Each event below says where it goes.',
@@ -177,7 +175,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
         : 'Not sent';
 
     return SettingRow(
-      icon: _iconFor(category),
       title: category.label,
       subtitle: summary,
       trailing: SkotiqButton(
@@ -201,66 +198,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  IconData _iconFor(NotificationCategory category) {
-    switch (category) {
-      case NotificationCategory.sequenceStarted:
-      case NotificationCategory.sequenceResumed:
-        return LucideIcons.play;
-      case NotificationCategory.sequenceCompleted:
-        return LucideIcons.checkCircle;
-      case NotificationCategory.sequenceFailed:
-        return LucideIcons.alertOctagon;
-      case NotificationCategory.sequencePaused:
-        return LucideIcons.pause;
-      case NotificationCategory.sequenceStopped:
-        return LucideIcons.square;
-      case NotificationCategory.targetStarted:
-      case NotificationCategory.targetCompleted:
-        return LucideIcons.crosshair;
-      case NotificationCategory.meridianFlipPerformed:
-        return LucideIcons.rotateCw;
-      case NotificationCategory.autofocusCompleted:
-      case NotificationCategory.autofocusContinued:
-      case NotificationCategory.autofocusFailed:
-        return LucideIcons.focus;
-      case NotificationCategory.frameCaptured:
-        return LucideIcons.camera;
-      case NotificationCategory.frameRejected:
-        return LucideIcons.cameraOff;
-      case NotificationCategory.problemNoticed:
-        return LucideIcons.alertCircle;
-      case NotificationCategory.exposureFailed:
-        return LucideIcons.alertTriangle;
-      case NotificationCategory.recoveryStarted:
-      case NotificationCategory.recoveryRecovered:
-      case NotificationCategory.recoveryGaveUp:
-        return LucideIcons.lifeBuoy;
-      case NotificationCategory.guidingLost:
-      case NotificationCategory.guidingRecovered:
-        return LucideIcons.target;
-      case NotificationCategory.weatherUnsafe:
-      case NotificationCategory.weatherSafeAgain:
-        return LucideIcons.cloudRain;
-      case NotificationCategory.mountFault:
-        return LucideIcons.octagon;
-      case NotificationCategory.cloudArriving:
-      case NotificationCategory.cloudOpening:
-        return LucideIcons.cloud;
-      case NotificationCategory.diskSpaceLow:
-        return LucideIcons.hardDrive;
-      case NotificationCategory.equipmentDisconnected:
-        return LucideIcons.unplug;
-      case NotificationCategory.triggerFired:
-        return LucideIcons.zap;
-      case NotificationCategory.transientDiscovered:
-        return LucideIcons.sparkles;
-      case NotificationCategory.darkroomDraftReady:
-        return LucideIcons.image;
-      case NotificationCategory.custom:
-        return LucideIcons.bell;
-    }
   }
 }
 
