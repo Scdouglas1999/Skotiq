@@ -72,7 +72,7 @@ class HostTxt {
     this.name,
     this.scheme,
     this.fingerprint,
-    this.pairingSupported,
+    required this.pairingSupported,
     this.hostName,
     this.hostMode,
     this.signalingPort,
@@ -93,9 +93,9 @@ class HostTxt {
       name: txt['name'],
       scheme: scheme == 'http' || scheme == 'https' ? scheme : null,
       fingerprint: nonEmpty('fingerprint'),
-      pairingSupported: pairing == null
-          ? null
-          : pairing.toLowerCase() == 'true' || pairing == '1',
+      pairingSupported:
+          pairing != null &&
+          (pairing.toLowerCase() == 'true' || pairing == '1'),
       hostName: txt['hostName'],
       hostMode: txt['hostMode'],
       signalingPort: signaling == null ? null : int.tryParse(signaling),
@@ -108,7 +108,9 @@ class HostTxt {
   /// `http` or `https`; null for anything else.
   final String? scheme;
   final String? fingerprint;
-  final bool? pairingSupported;
+
+  /// False when the record does not say `true`.
+  final bool pairingSupported;
   final String? hostName;
   final String? hostMode;
   final int? signalingPort;

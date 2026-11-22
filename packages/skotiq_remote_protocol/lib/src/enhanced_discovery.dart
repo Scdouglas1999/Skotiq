@@ -924,7 +924,7 @@ class EnhancedSkotiqDiscovery {
       version: advert.version,
       scheme: advert.scheme ?? 'http',
       fingerprint: advert.fingerprint,
-      pairingSupported: advert.pairingSupported ?? false,
+      pairingSupported: advert.pairingSupported,
     );
   }
 

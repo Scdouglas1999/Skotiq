@@ -102,7 +102,7 @@ class RemoteJob {
   /// [state] as this build knows it; null for a phase it does not know.
   JobState? get knownState => JobState.fromWire(state);
 
-  bool get isTerminal => knownState?.isTerminal ?? false;
+  bool get isTerminal => knownState?.isTerminal == true;
 
   factory RemoteJob.fromJson(
     Map<String, dynamic> json, {
