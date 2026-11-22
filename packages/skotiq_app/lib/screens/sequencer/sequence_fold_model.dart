@@ -28,7 +28,8 @@ library;
 import 'package:equatable/equatable.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart' show ExposureFramesRules, exposureNodeFrames;
+import 'package:skotiq_core/providers.dart'
+    show ExposureFramesRules, exposureNodeFrames;
 
 /// Which kind of contiguous sibling run a [FoldGroup] collapses into one row.
 enum FoldKind {
@@ -556,7 +557,7 @@ String _acquireVerb(SequenceNode node) => _acquireVerbs[node.kind]!;
 ) {
   final frames = exposureNodeFrames(
     typed: progress.nodeProgressStructuredDetail[nodeId],
-    line: progress.nodeProgressDetail[nodeId] ?? '',
+    line: progress.nodeProgressDetail[nodeId],
     status: progress.nodeStatuses[nodeId],
     plannedFallback: fallbackPlanned,
     rules: const ExposureFramesRules(statusWhenSilent: true),

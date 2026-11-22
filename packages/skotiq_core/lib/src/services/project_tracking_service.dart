@@ -36,7 +36,11 @@ List<FilterIntegration> acceptedLightsByFilter(
     final bucket = buckets.putIfAbsent(label.toLowerCase(), _FilterBucket.new);
     bucket.frames += filed.frames;
     bucket.seconds += filed.seconds;
-    bucket.labelCounts[label] = (bucket.labelCounts[label] ?? 0) + filed.frames;
+    bucket.labelCounts.update(
+      label,
+      (n) => n + filed.frames,
+      ifAbsent: () => filed.frames,
+    );
   }
   return [
     for (final bucket in buckets.values)

@@ -53,8 +53,9 @@ class ExposureFramesRules {
   /// frame captured, has captured every planned frame.
   final bool successMeansAll;
 
-  /// With no report at all, the status answers: success is every planned
-  /// frame, a started step none; a pending step has no frames to show.
+  /// With no report at all, the status answers against the step's own count:
+  /// success is every planned frame, a started step none; a pending step has
+  /// no frames to show.
   final bool statusWhenSilent;
 }
 
@@ -120,8 +121,8 @@ ExposureNodeFrames? exposureNodeFrames({
     );
   }
 
-  if (!rules.statusWhenSilent) return null;
-  final planned = plannedFallback ?? 0;
+  final planned = plannedFallback;
+  if (!rules.statusWhenSilent || planned == null) return null;
   return switch (status) {
     NodeStatus.success => ExposureNodeFrames(
       captured: planned,
