@@ -37,7 +37,8 @@ void main() {
   });
 
   Future<Map<String, Object?>> ask(String route, DateTime now) async {
-    final handlers = SchedulerHandlers(container, now: () => now);
+    // The host's clock reads local time, as DateTime.now() does.
+    final handlers = SchedulerHandlers(container, now: () => now.toLocal());
     final request = Request(
       'GET',
       Uri.parse('http://localhost/api/scheduler/$route?ra=5.59&dec=-5.39'),
