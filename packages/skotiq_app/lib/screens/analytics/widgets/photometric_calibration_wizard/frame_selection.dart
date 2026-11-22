@@ -104,7 +104,6 @@ extension _PhotometricWizardFrameSelection
                   const SizedBox(height: SkotiqTokens.spaceXs),
                   SkotiqDropdown(
                     isExpanded: true,
-                    isDense: true,
                     value: sessionId.toString(),
                     hint: 'Select session',
                     items: sessions.map((s) => s.id.toString()).toList(),

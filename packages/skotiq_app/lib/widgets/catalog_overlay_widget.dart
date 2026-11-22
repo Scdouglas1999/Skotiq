@@ -841,7 +841,6 @@ class CatalogOverlayPopover extends ConsumerWidget {
             const SizedBox(height: SkotiqTokens.spaceXs),
             SkotiqDropdown(
               isExpanded: true,
-              isDense: true,
               value: _snapMagnitude(magnitudeLimit).toStringAsFixed(0),
               items: const [
                 '6',

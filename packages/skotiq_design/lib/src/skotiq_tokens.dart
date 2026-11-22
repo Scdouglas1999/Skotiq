@@ -389,12 +389,6 @@ abstract final class SkotiqTokens {
   // Shadows are reserved for floating overlays (menus, toasts, modals, drag
   // feedback) where tonal lift is needed above the base surface.
 
-  /// Subtle shadow for floating menus and toasts
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> shadowSm = [
-    BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2)),
-  ];
-
   /// Medium shadow for dropdowns and popovers
   @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
   static const List<BoxShadow> shadowMd = [
@@ -406,38 +400,6 @@ abstract final class SkotiqTokens {
   static const List<BoxShadow> shadowLg = [
     BoxShadow(color: Color(0x33000000), blurRadius: 20, offset: Offset(0, 8)),
   ];
-
-  // Elevation system (dark theme)
-
-  /// Level 1 - Reserved for tonal separation; cards rely on borders instead.
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationLevel1 = [];
-
-  /// Level 2 - Light hover emphasis on interactive panels and drag feedback
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationLevel2 = [
-    BoxShadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 2)),
-  ];
-
-  /// Level 3 - Floating elevation for modals and dialogs only
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static List<BoxShadow> elevationLevel3(Color accentColor) => shadowLg;
-
-  /// Inset shadow for recessed elements (input fields, wells)
-  /// Creates depth by appearing pressed into the surface
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationInset = [
-    BoxShadow(
-      color: Color(0x66000000), // 40% opacity
-      blurRadius: 4,
-      offset: Offset(0, 2),
-      blurStyle: BlurStyle.inner,
-    ),
-  ];
-
-  /// Transition shadow from level 1 to level 2 (for hover animations)
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationLevel1to2 = elevationLevel2;
 
   // Opacity levels
   //
