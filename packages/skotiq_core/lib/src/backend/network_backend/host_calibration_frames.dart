@@ -23,6 +23,16 @@ mixin HostCalibrationFrames on NetworkBackendTransport {
     return _rowsFromJson(response['darks'], RemoteDarkLibraryEntry.fromJson);
   }
 
+  /// GET /api/db/dark-library — one page of the library, newest first:
+  /// `{items, total}`.
+  Future<Map<String, dynamic>> listDarkLibraryPage({
+    required int limit,
+    required int offset,
+  }) => _get(
+    DbReadApi.listDarkLibrary,
+    query: {'limit': limit, 'offset': offset},
+  );
+
   Future<Map<String, dynamic>> getDarkLibrarySettings() async {
     return _get(CalibrationApi.getDarkSettings);
   }
