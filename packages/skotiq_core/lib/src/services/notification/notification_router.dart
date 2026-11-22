@@ -24,6 +24,8 @@
 
 import 'dart:async';
 
+import '../../backend/bridge_events.dart' as typed show SequencerEvent_Started;
+import '../../backend/sequencer_run_events.dart' show sequencerEventOf;
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../models/sequence/run_stop_classification.dart';
@@ -598,8 +600,7 @@ class NotificationRouter {
       );
       return;
     }
-    if (event.category == EventCategory.sequencer &&
-        event.eventType == 'Started') {
+    if (sequencerEventOf(event) is typed.SequencerEvent_Started) {
       // Run boundary: nothing published from here belongs to the previous
       // run's stop episode.
       _stopPushArbiter.noteRunBoundary();
