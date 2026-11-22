@@ -5,9 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../linked_host.dart';
 import '../async_scope.dart';
-import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
@@ -29,8 +27,6 @@ import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
 import '../flat_wizard_provider.dart';
 import '../meridian_flip_provider.dart';
-import '../session_handoff_provider.dart';
-import '../../services/session_handoff_service.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -49,7 +45,9 @@ import '../settings_provider.dart';
 import '../../models/sequence/run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
 import '../../models/sequence/validation/validation_issue.dart' as validation;
+import '../linked_host.dart';
 import 'sequence_executor/eta_smoothing.dart';
+import 'sequence_executor/host_run_control.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
 import 'sequence_executor/run_stats_ledger.dart';
@@ -143,9 +141,21 @@ class SequenceExecutor {
   /// The checkpoint prepared for the next start.
   _RestoredCheckpoint? _restored;
 
-  /// A remote client asked the host to restore its checkpoint; the next start
-  /// continues that run on the host instead of sending the editor's plan.
-  bool _hostRestoreAwaitingStart = false;
+  /// The run on the imaging host, for a client linked to one; null where the
+  /// imaging host is this process.
+  late final HostRunControl? _hostRun = switch (_ref.read(
+    linkedHostRunStateProvider,
+  )) {
+    null => null,
+    final host => HostRunControl(
+      host,
+      ref: _ref,
+      backend: _backend,
+      logger: () => _logger,
+      setExecutionState: _setExecutionState,
+      noSequenceLoaded: _noSequenceLoaded,
+    ),
+  };
   bool _isCalibrationRun = false;
 
   /// Owns the run phases and operation latches.
@@ -408,10 +418,9 @@ class SequenceExecutor {
     }
     _acquireLaunchLatch();
     try {
-      final backend = _backend;
-      final host = _ref.read(linkedHostRunStateProvider);
-      if (host != null) {
-        await _startOnHost(backend, host);
+      final hostRun = _hostRun;
+      if (hostRun != null) {
+        await hostRun.start();
         return;
       }
       final sequence = _ref.read(currentSequenceProvider);
@@ -507,116 +516,6 @@ class SequenceExecutor {
           validatedAt: DateTime.now(),
         ),
       );
-
-  /// Start the run on the imaging host this client controls.
-  ///
-  /// The host owns the hardware, the database and the run, so a remote client
-  /// opens no session or run record of its own: it puts the plan the operator
-  /// sees into the host's editor and asks the host to start it, which runs the
-  /// host's own pre-flight and records. A plan restored from the host's
-  /// checkpoint is already in the host's executor and is started as it is.
-  Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
-    final ignoreHistory = _ref.read(
-      sessionHandoffIgnoreUnavailableOnceProvider,
-    );
-    if (ignoreHistory) {
-      _ref.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state =
-          false;
-    }
-    if (!_hostRestoreAwaitingStart) {
-      _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
-      final sequence = _ref.read(currentSequenceProvider);
-      if (sequence == null) throw _noSequenceLoaded();
-      await host.putOpenEditorSequence(
-        _ref.read(sequenceFileServiceProvider).sequenceToMap(sequence),
-        databaseId: sequence.databaseId,
-        isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
-      );
-    }
-    final decisions = await _clientHandoffForHost(ignoreHistory);
-    if (decisions.isEmpty && !ignoreHistory) {
-      await backend.sequencerStart();
-    } else {
-      await host.sequencerStartOnHost(
-        handoffDecisions: decisions,
-        ignoreUnavailableHistory: ignoreHistory,
-      );
-    }
-    if (_hostRestoreAwaitingStart) {
-      _hostRestoreAwaitingStart = false;
-      _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
-    }
-    _logger.info(
-      'Started the run on the imaging host '
-      '${_ref.read(linkedHostLinkProvider)?.serverHost}',
-      source: 'SequenceExecutor',
-    );
-    await _reflectHostRunState(backend);
-  }
-
-  /// The operator's handoff choices on this client. The host seeds from its
-  /// own history after Start, so the choices have to travel with the request.
-  /// A history read that throws is not "no history": without an explicit
-  /// confirmation the start fails and the host is not asked to run.
-  Future<Map<String, String>> _clientHandoffForHost(bool ignoreHistory) async {
-    final sequence = _ref.read(currentSequenceProvider);
-    final decisions = <String, String>{};
-    if (sequence != null && sequence.targetHeaders.isNotEmpty) {
-      List<SessionCarryOver> carry = const [];
-      try {
-        carry = await _ref.read(sessionCarryOverProvider.future);
-      } catch (error, stackTrace) {
-        if (!ignoreHistory) {
-          Error.throwWithStackTrace(error, stackTrace);
-        }
-      }
-      for (final entry in carry) {
-        final decision = _ref.read(
-          sessionHandoffDecisionProvider((
-            sequenceId: sequence.databaseId,
-            targetId: entry.targetId,
-          )),
-        );
-        if (decision != null) {
-          decisions['${entry.targetId}'] = decision.name;
-        }
-      }
-    }
-    return decisions;
-  }
-
-  /// Stop the run on the imaging host through the host's own executor, which
-  /// finalizes its run and session records.
-  Future<void> _stopOnHost(
-    SkotiqBackend backend,
-    HostRunState host, {
-    required bool preserveCheckpoint,
-  }) async {
-    final before = _ref.read(sequenceExecutionStateProvider);
-    if (!before.canStop) return;
-    _setExecutionState(SequenceExecutionState.stopping);
-    try {
-      await host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
-    } catch (_) {
-      _setExecutionState(before);
-      rethrow;
-    }
-    await _reflectHostRunState(backend);
-  }
-
-  /// Show the host's run state at once rather than after the next mirrored
-  /// event. A failed read leaves the state to the event mirror.
-  Future<void> _reflectHostRunState(SkotiqBackend backend) async {
-    try {
-      final status = await backend.sequencerGetStatus();
-      _ref.read(runRecordProvider.notifier).mirrorHostState(status.state);
-    } catch (e) {
-      _logger.debug(
-        'Could not read the host run state after a command: $e',
-        source: 'SequenceExecutor',
-      );
-    }
-  }
 
   void _acquireLaunchLatch() {
     _lifecycle.launch.acquire();
@@ -1864,10 +1763,9 @@ class SequenceExecutor {
   /// (e.g. [reset]).
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
-    final backend = _backend;
-    final host = _ref.read(linkedHostRunStateProvider);
-    if (host != null) {
-      return _stopOnHost(backend, host, preserveCheckpoint: preserveCheckpoint);
+    final hostRun = _hostRun;
+    if (hostRun != null) {
+      return hostRun.stop(preserveCheckpoint: preserveCheckpoint);
     }
     // Join an in-flight finalization — a natural terminal, another stop(), or a
     // rollback: the caller observes the SAME outcome, and native stop + cleanup
@@ -2077,7 +1975,7 @@ class SequenceExecutor {
 
     await _backend.sequencerReset();
     // A linked host's reset endpoint already clears its durable checkpoint.
-    if (!_backend.linksToHost) {
+    if (_hostRun == null) {
       await _backend.discardCheckpoint();
     }
 
@@ -2090,7 +1988,7 @@ class SequenceExecutor {
     // that survived this would make that start continue the old tree, on
     // this process and on a client that was waiting to continue the host.
     _clearRestored();
-    _hostRestoreAwaitingStart = false;
+    _hostRun?.forgetRestore();
 
     _setExecutionState(SequenceExecutionState.idle);
 
@@ -2139,17 +2037,9 @@ class SequenceExecutor {
     }
     _acquireLaunchLatch();
     try {
-      final backend = _backend;
-      if (_ref.read(isRemoteModeProvider)) {
-        // The host restores its own checkpoint into its executor and editor;
-        // the next start continues it there.
-        await backend.resumeFromCheckpoint();
-        _hostRestoreAwaitingStart = true;
-        final info = await backend.getCheckpointInfo();
-        _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
-        _ref
-            .read(runRecordProvider.notifier)
-            .setFramesDoneBeforeRun(info?.framesDoneByStep ?? const {});
+      final hostRun = _hostRun;
+      if (hostRun != null) {
+        await hostRun.restoreFromCheckpoint();
         return;
       }
       await _restoreFromCheckpointInner();
@@ -2171,7 +2061,7 @@ class SequenceExecutor {
 
   /// Whether a checkpoint restore is waiting for [start].
   bool get hasRestoredCheckpoint =>
-      _restored != null || _hostRestoreAwaitingStart;
+      _restored != null || (_hostRun?.hasRestoredCheckpoint ?? false);
 
   void _clearRestored() {
     _restored = null;
