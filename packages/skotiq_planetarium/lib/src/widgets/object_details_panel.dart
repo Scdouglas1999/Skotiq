@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../providers/planetarium_providers.dart';
+import 'dso_type_icon.dart';
 
 part 'object_details_panel/header_sections.dart';
 part 'object_details_panel/catalog_sections.dart';

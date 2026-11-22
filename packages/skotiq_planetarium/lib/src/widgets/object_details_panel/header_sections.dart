@@ -151,39 +151,17 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
     );
   }
 
-  IconData _getObjectIcon() {
-    if (object is Star) {
-      return LucideIcons.sparkles;
-    } else if (object is DeepSkyObject) {
-      final dso = object as DeepSkyObject;
-      return switch (dso.type) {
-        DsoType.galaxy => LucideIcons.orbit,
-        DsoType.nebula => LucideIcons.cloud,
-        DsoType.openCluster => LucideIcons.asterisk,
-        DsoType.globularCluster => LucideIcons.circle,
-        DsoType.planetaryNebula => LucideIcons.circleSlash,
-        _ => LucideIcons.star,
-      };
-    }
-    return LucideIcons.star;
-  }
+  IconData _getObjectIcon() => switch (object) {
+    Star() => LucideIcons.sparkles,
+    DeepSkyObject(:final type) => dsoTypeIcon(type),
+    _ => LucideIcons.star,
+  };
 
-  Color _getTypeColor() {
-    if (object is Star) {
-      return SkyPlotColors.star;
-    } else if (object is DeepSkyObject) {
-      final dso = object as DeepSkyObject;
-      return switch (dso.type) {
-        DsoType.galaxy => SkyPlotColors.galaxy,
-        DsoType.nebula => SkyPlotColors.poor,
-        DsoType.openCluster => SkyPlotColors.openCluster,
-        DsoType.globularCluster => SkyPlotColors.horizon,
-        DsoType.planetaryNebula => SkyPlotColors.planetaryNebula,
-        _ => SkyPlotColors.unknown,
-      };
-    }
-    return SkyPlotColors.unknown;
-  }
+  Color _getTypeColor() => switch (object) {
+    Star() => SkyPlotColors.star,
+    DeepSkyObject(:final type) => SkyPlotColors.forDsoType(type),
+    _ => SkyPlotColors.unknown,
+  };
 
   String _getTypeString() {
     if (object is Star) {
@@ -257,8 +235,8 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
           errorBuilder: (context, error, stackTrace) {
             return Center(
               child: Icon(
-                _getDsoIcon(dso.type),
-                color: _getDsoColor(dso.type),
+                dsoTypeIcon(dso.type),
+                color: SkyPlotColors.forDsoType(dso.type),
                 size: 32,
               ),
             );
@@ -278,54 +256,5 @@ extension _ObjectDetailsPanelHeaderSections on ObjectDetailsPanel {
 
     // Frame the target with margin while avoiding very small/very large cutouts.
     return (largestArcMin * 3.0 / 60.0).clamp(0.25, 3.0);
-  }
-
-  /// Get icon for DSO type (for thumbnail)
-  IconData _getDsoIcon(DsoType type) {
-    return switch (type) {
-      DsoType.galaxy ||
-      DsoType.galaxyPair ||
-      DsoType.galaxyTriplet ||
-      DsoType.galaxyGroup => LucideIcons.orbit,
-      DsoType.nebula ||
-      DsoType.emissionNebula ||
-      DsoType.reflectionNebula ||
-      DsoType.darkNebula ||
-      DsoType.hiiRegion => LucideIcons.cloud,
-      DsoType.openCluster ||
-      DsoType.clusterWithNebulosity ||
-      DsoType.clusterWithEmissionNebula ||
-      DsoType.clusterWithReflectionNebula => LucideIcons.asterisk,
-      DsoType.globularCluster => LucideIcons.circle,
-      DsoType.planetaryNebula => LucideIcons.circleSlash,
-      DsoType.supernova => LucideIcons.zap,
-      DsoType.starCloud => LucideIcons.sparkles,
-      DsoType.asterism => LucideIcons.shapes,
-      _ => LucideIcons.star,
-    };
-  }
-
-  /// Get color for DSO type (for thumbnail)
-  Color _getDsoColor(DsoType type) {
-    return switch (type) {
-      DsoType.galaxy ||
-      DsoType.galaxyPair ||
-      DsoType.galaxyTriplet ||
-      DsoType.galaxyGroup => SkyPlotColors.galaxy,
-      DsoType.nebula ||
-      DsoType.emissionNebula ||
-      DsoType.hiiRegion => SkyPlotColors.poor,
-      DsoType.reflectionNebula => SkyPlotColors.openCluster,
-      DsoType.darkNebula => SkyPlotColors.unknown,
-      DsoType.openCluster ||
-      DsoType.clusterWithNebulosity ||
-      DsoType.clusterWithEmissionNebula ||
-      DsoType.clusterWithReflectionNebula => SkyPlotColors.openCluster,
-      DsoType.globularCluster => SkyPlotColors.horizon,
-      DsoType.planetaryNebula => SkyPlotColors.planetaryNebula,
-      DsoType.supernova => SkyPlotColors.caution,
-      DsoType.starCloud => SkyPlotColors.openCluster,
-      _ => SkyPlotColors.unknown,
-    };
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show DsoType;
 
 /// Fixed colors encode imagery and measurements, never selected controls.
 abstract final class ImageOverlayColors {
@@ -86,6 +87,31 @@ abstract final class SkyPlotColors {
   static const planetaryNebula = Color(0xFF4FC3C8);
   static const star = Color(0xFFC4A055);
   static const unknown = Color(0xFF8E97A4);
+
+  /// The color a catalog object of [type] is drawn in.
+  static Color forDsoType(DsoType type) => switch (type) {
+    DsoType.galaxy ||
+    DsoType.galaxyPair ||
+    DsoType.galaxyTriplet ||
+    DsoType.galaxyGroup => galaxy,
+    DsoType.nebula || DsoType.emissionNebula || DsoType.hiiRegion => nebula,
+    DsoType.reflectionNebula ||
+    DsoType.openCluster ||
+    DsoType.clusterWithNebulosity ||
+    DsoType.clusterWithEmissionNebula ||
+    DsoType.clusterWithReflectionNebula ||
+    DsoType.starCloud => openCluster,
+    DsoType.globularCluster => globularCluster,
+    DsoType.planetaryNebula => planetaryNebula,
+    DsoType.supernova => caution,
+    DsoType.darkNebula ||
+    DsoType.star ||
+    DsoType.doubleStar ||
+    DsoType.association ||
+    DsoType.nova ||
+    DsoType.asterism ||
+    DsoType.other => unknown,
+  };
 }
 
 /// Catalog annotation identities shared with the design reference board.
