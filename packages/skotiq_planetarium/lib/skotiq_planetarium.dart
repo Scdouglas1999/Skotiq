@@ -5,7 +5,6 @@ export 'src/rendering/sky_renderer.dart';
 export 'src/rendering/render_quality.dart';
 export 'src/rendering/fov_overlays.dart';
 
-export 'src/services/geolocation_service.dart';
 
 export 'src/providers/planetarium_providers.dart';
 export 'src/providers/catalog_providers.dart';

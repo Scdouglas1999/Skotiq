@@ -16,6 +16,7 @@ export 'src/services/linked_rig/rig_link_service.dart';
 export 'src/services/host_mutation_event_hub.dart';
 export 'src/services/catalog_lookup/simbad_provider.dart';
 export 'src/services/sesame_name_resolver.dart';
+export 'src/services/site_positioning/geolocation_service.dart';
 export 'src/services/catalog_lookup/exoplanet_provider.dart';
 export 'src/services/catalog_lookup/gaia_provider.dart';
 export 'src/services/device_commands.dart';

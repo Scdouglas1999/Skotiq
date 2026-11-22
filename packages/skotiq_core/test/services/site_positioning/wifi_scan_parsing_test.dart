@@ -13,8 +13,8 @@
 //     expectations below are calibrated against `iw dev wlan0 scan dump` taken
 //     on the same 12-network scan on this machine.
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_planetarium/src/services/positioning/wifi_positioning.dart';
-import 'package:skotiq_planetarium/src/services/positioning/wifi_scan.dart';
+import 'package:skotiq_core/src/services/site_positioning/positioning/wifi_positioning.dart';
+import 'package:skotiq_core/src/services/site_positioning/positioning/wifi_scan.dart';
 
 /// Verbatim `nmcli -t -f BSSID,SIGNAL,CHAN,SSID dev wifi list --rescan yes`,
 /// including the hidden-SSID rows (empty last field) and a `_nomap` opt-out.
