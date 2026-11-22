@@ -190,15 +190,17 @@ extension _SequencerStartPreflight on SequencerHandlers {
     final native = error is bridge_api.SkotiqError
         ? error.maybeMap(
             operationFailed: (failure) => failure.field0,
+            refused: (refusal) => refusal.message,
             orElse: () => null,
           )
         : null;
     final message = native ?? error.toString();
     _logInfo('[API] POST /api/sequencer/start refused by pre-flight: $message');
 
-    // "Cannot start: executor is Running" is a state conflict, not a bad
-    // request: the caller's payload was fine, the appliance is simply busy.
-    if (message.contains('Cannot start: executor is')) {
+    // An executor that is not idle is a state conflict, not a bad request:
+    // the caller's payload was fine, the appliance is simply busy.
+    if (error is bridge_api.SkotiqError_Refused &&
+        error.kind == bridge_api.Refusal.executorNotIdle) {
       return jsonConflict({'error': 'sequencer_busy', 'message': message});
     }
     return jsonBadRequest({

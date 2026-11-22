@@ -190,9 +190,10 @@ final RegExp _wrapper = RegExp(
 );
 
 /// The bridge union's debug rendering after the words of whoever caught it:
-/// `Failed to start: SkotiqError.operationFailed(field0: text)`.
+/// `Failed to start: SkotiqError.operationFailed(field0: text)`, or
+/// `SkotiqError.refused(kind: Refusal.x, message: text)`.
 final RegExp _prefixedBridgeUnion = RegExp(
-  r'^(.+?: )SkotiqError\.\w+\(field0: (.*)\)$',
+  r'^(.+?: )SkotiqError\.(?:\w+\(field0|refused\(kind: [\w.]+, message): (.*)\)$',
   dotAll: true,
 );
 

@@ -25,14 +25,20 @@ import 'handler_test_helpers.dart';
 /// `SKOTIQ_RECORD_REPLIES=1` rewrites the fixture.
 final Map<String, Object> _failures = {
   // GET /api/guider/lock-position
-  'lock.phd2_null': const bridge.SkotiqError.operationFailed(
-    'Failed to get lock position: get_lock_position: expected array, got null',
+  'lock.phd2_null': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.noLockPosition,
+    message:
+        'Failed to get lock position: get_lock_position: expected array, got null',
   ),
-  'lock.phd2_missing_x': const bridge.SkotiqError.operationFailed(
-    'Failed to get lock position: get_lock_position: missing or non-numeric X',
+  'lock.phd2_missing_x': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.noLockPosition,
+    message:
+        'Failed to get lock position: get_lock_position: missing or non-numeric X',
   ),
-  'lock.phd2_missing_y': const bridge.SkotiqError.operationFailed(
-    'Failed to get lock position: get_lock_position: missing or non-numeric Y',
+  'lock.phd2_missing_y': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.noLockPosition,
+    message:
+        'Failed to get lock position: get_lock_position: missing or non-numeric Y',
   ),
   'lock.phd2_not_array': const bridge.SkotiqError.operationFailed(
     'Failed to get lock position: get_lock_position: expected array, got 5',
@@ -46,8 +52,9 @@ final Map<String, Object> _failures = {
   ),
   'lock.dart_error': StateError('guider gone'),
   // GET /api/guider/star-image
-  'star_image.phd2_no_star': const bridge.SkotiqError.operationFailed(
-    'Failed to get star image: PHD2 error: no star selected',
+  'star_image.phd2_no_star': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.noStarSelected,
+    message: 'Failed to get star image: PHD2 error: no star selected',
   ),
   'star_image.phd2_refused': const bridge.SkotiqError.operationFailed(
     'Failed to get star image: PHD2 error: camera not connected',
@@ -60,8 +67,9 @@ final Map<String, Object> _failures = {
   ),
   'star_image.dart_error': StateError('no star selected'),
   // POST /api/guider/find-star
-  'find_star.builtin_none': const bridge.SkotiqError.operationFailed(
-    'No guide star found',
+  'find_star.builtin_none': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.noGuideStarFound,
+    message: 'No guide star found',
   ),
   'find_star.phd2_refused': const bridge.SkotiqError.operationFailed(
     'Failed to find star: PHD2 error: could not find a suitable star',
@@ -70,14 +78,17 @@ final Map<String, Object> _failures = {
   'find_star.dart_no_star': Exception('No guide star found'),
   'find_star.dart_error': StateError('guider gone'),
   // POST /api/sequencer/start, the loaded-run path
-  'start.not_idle': const bridge.SkotiqError.operationFailed(
-    'Failed to start sequence: Cannot start: executor is Running',
+  'start.not_idle': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.executorNotIdle,
+    message: 'Failed to start sequence: Cannot start: executor is Running',
   ),
-  'start.not_idle_completed': const bridge.SkotiqError.operationFailed(
-    'Failed to start sequence: Cannot start: executor is Completed',
+  'start.not_idle_completed': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.executorNotIdle,
+    message: 'Failed to start sequence: Cannot start: executor is Completed',
   ),
-  'start.no_sequence': const bridge.SkotiqError.operationFailed(
-    'Failed to start sequence: No sequence loaded',
+  'start.no_sequence': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.noSequenceLoaded,
+    message: 'Failed to start sequence: No sequence loaded',
   ),
   'start.no_device_ops': const bridge.SkotiqError.operationFailed(
     'Failed to start sequence: No device operations configured. Call '
@@ -92,15 +103,19 @@ final Map<String, Object> _failures = {
   'start.internal': const bridge.SkotiqError.internal('Task panicked'),
   'start.dart_error': StateError('bridge is gone'),
   // GET /api/depthlock/goals/<id>
-  'depthlock.not_found': const bridge.SkotiqError.operationFailed(
-    'DepthLock goal m42-ha does not exist',
+  'depthlock.not_found': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.depthLockGoalNotFound,
+    message: 'DepthLock goal m42-ha does not exist',
   ),
-  'depthlock.stale': const bridge.SkotiqError.operationFailed(
-    'stale revision for DepthLock goal m42-ha',
+  'depthlock.stale': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.depthLockStaleRevision,
+    message: 'stale revision for DepthLock goal m42-ha',
   ),
-  'depthlock.unavailable': const bridge.SkotiqError.operationFailed(
-    'DepthLock storage is not initialized; settings storage must be '
-    'initialized first',
+  'depthlock.unavailable': const bridge.SkotiqError.refused(
+    kind: bridge.Refusal.depthLockUnavailable,
+    message:
+        'DepthLock storage is not initialized; settings storage must be '
+        'initialized first',
   ),
   'depthlock.removed': const bridge.SkotiqError.operationFailed(
     'DepthLock goal m42-ha was removed',

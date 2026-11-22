@@ -944,6 +944,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   (String, int) dco_decode_record_string_u_32(dynamic raw);
 
   @protected
+  Refusal dco_decode_refusal(dynamic raw);
+
+  @protected
   RetainedCaptureInfo dco_decode_retained_capture_info(dynamic raw);
 
   @protected
@@ -2153,6 +2156,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   (String, int) sse_decode_record_string_u_32(SseDeserializer deserializer);
+
+  @protected
+  Refusal sse_decode_refusal(SseDeserializer deserializer);
 
   @protected
   RetainedCaptureInfo sse_decode_retained_capture_info(
@@ -7622,36 +7628,44 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       wireObj.kind.DeviceBusy.current_operation = pre_current_operation;
       return;
     }
+    if (apiObj is SkotiqError_Refused) {
+      var pre_kind = cst_encode_refusal(apiObj.kind);
+      var pre_message = cst_encode_String(apiObj.message);
+      wireObj.tag = 17;
+      wireObj.kind.Refused.kind = pre_kind;
+      wireObj.kind.Refused.message = pre_message;
+      return;
+    }
     if (apiObj is SkotiqError_InvalidState) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 17;
+      wireObj.tag = 18;
       wireObj.kind.InvalidState.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_ImageError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 18;
+      wireObj.tag = 19;
       wireObj.kind.ImageError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_CameraError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 19;
+      wireObj.tag = 20;
       wireObj.kind.CameraError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_NoImageAvailable) {
-      wireObj.tag = 20;
+      wireObj.tag = 21;
       return;
     }
     if (apiObj is SkotiqError_ExposureCancelled) {
-      wireObj.tag = 21;
+      wireObj.tag = 22;
       return;
     }
     if (apiObj is SkotiqError_ExposureFailed) {
       var pre_camera_id = cst_encode_String(apiObj.cameraId);
       var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 22;
+      wireObj.tag = 23;
       wireObj.kind.ExposureFailed.camera_id = pre_camera_id;
       wireObj.kind.ExposureFailed.reason = pre_reason;
       return;
@@ -7659,32 +7673,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SkotiqError_DownloadFailed) {
       var pre_camera_id = cst_encode_String(apiObj.cameraId);
       var pre_reason = cst_encode_String(apiObj.reason);
-      wireObj.tag = 23;
+      wireObj.tag = 24;
       wireObj.kind.DownloadFailed.camera_id = pre_camera_id;
       wireObj.kind.DownloadFailed.reason = pre_reason;
       return;
     }
     if (apiObj is SkotiqError_IoError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 24;
+      wireObj.tag = 25;
       wireObj.kind.IoError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_SerializationError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 25;
+      wireObj.tag = 26;
       wireObj.kind.SerializationError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_PlateSolveError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 26;
+      wireObj.tag = 27;
       wireObj.kind.PlateSolveError.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_SequenceError) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 27;
+      wireObj.tag = 28;
       wireObj.kind.SequenceError.field0 = pre_field0;
       return;
     }
@@ -7692,7 +7706,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_prog_id = cst_encode_String(apiObj.progId);
       var pre_message = cst_encode_String(apiObj.message);
       var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 28;
+      wireObj.tag = 29;
       wireObj.kind.AscomError.prog_id = pre_prog_id;
       wireObj.kind.AscomError.message = pre_message;
       wireObj.kind.AscomError.error_code = pre_error_code;
@@ -7703,7 +7717,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_device_number = cst_encode_u_32(apiObj.deviceNumber);
       var pre_message = cst_encode_String(apiObj.message);
       var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 29;
+      wireObj.tag = 30;
       wireObj.kind.AlpacaError.base_url = pre_base_url;
       wireObj.kind.AlpacaError.device_number = pre_device_number;
       wireObj.kind.AlpacaError.message = pre_message;
@@ -7715,7 +7729,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_port = cst_encode_u_16(apiObj.port);
       var pre_device_name = cst_encode_String(apiObj.deviceName);
       var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 30;
+      wireObj.tag = 31;
       wireObj.kind.IndiError.server = pre_server;
       wireObj.kind.IndiError.port = pre_port;
       wireObj.kind.IndiError.device_name = pre_device_name;
@@ -7726,7 +7740,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       var pre_vendor = cst_encode_String(apiObj.vendor);
       var pre_message = cst_encode_String(apiObj.message);
       var pre_error_code = cst_encode_i_32(apiObj.errorCode);
-      wireObj.tag = 31;
+      wireObj.tag = 32;
       wireObj.kind.NativeError.vendor = pre_vendor;
       wireObj.kind.NativeError.message = pre_message;
       wireObj.kind.NativeError.error_code = pre_error_code;
@@ -7735,31 +7749,31 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     if (apiObj is SkotiqError_ComError) {
       var pre_message = cst_encode_String(apiObj.message);
       var pre_hresult = cst_encode_u_32(apiObj.hresult);
-      wireObj.tag = 32;
+      wireObj.tag = 33;
       wireObj.kind.ComError.message = pre_message;
       wireObj.kind.ComError.hresult = pre_hresult;
       return;
     }
     if (apiObj is SkotiqError_Internal) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 33;
+      wireObj.tag = 34;
       wireObj.kind.Internal.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_Cancelled) {
-      wireObj.tag = 34;
+      wireObj.tag = 35;
       return;
     }
     if (apiObj is SkotiqError_RuntimeInitFailed) {
       var pre_field0 = cst_encode_String(apiObj.field0);
-      wireObj.tag = 35;
+      wireObj.tag = 36;
       wireObj.kind.RuntimeInitFailed.field0 = pre_field0;
       return;
     }
     if (apiObj is SkotiqError_ResourceExhausted) {
       var pre_resource = cst_encode_String(apiObj.resource);
       var pre_message = cst_encode_String(apiObj.message);
-      wireObj.tag = 36;
+      wireObj.tag = 37;
       wireObj.kind.ResourceExhausted.resource = pre_resource;
       wireObj.kind.ResourceExhausted.message = pre_message;
       return;
@@ -8018,6 +8032,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int cst_encode_pier_side(PierSide raw);
+
+  @protected
+  int cst_encode_refusal(Refusal raw);
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw);
@@ -9473,6 +9490,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     (String, int) self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_refusal(Refusal self, SseSerializer serializer);
 
   @protected
   void sse_encode_retained_capture_info(
@@ -23926,6 +23946,13 @@ final class wire_cst_SkotiqError_DeviceBusy extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> current_operation;
 }
 
+final class wire_cst_SkotiqError_Refused extends ffi.Struct {
+  @ffi.Int32()
+  external int kind;
+
+  external ffi.Pointer<wire_cst_list_prim_u_8_strict> message;
+}
+
 final class wire_cst_SkotiqError_InvalidState extends ffi.Struct {
   external ffi.Pointer<wire_cst_list_prim_u_8_strict> field0;
 }
@@ -24062,6 +24089,8 @@ final class SkotiqErrorKind extends ffi.Union {
   external wire_cst_SkotiqError_NotSupported NotSupported;
 
   external wire_cst_SkotiqError_DeviceBusy DeviceBusy;
+
+  external wire_cst_SkotiqError_Refused Refused;
 
   external wire_cst_SkotiqError_InvalidState InvalidState;
 

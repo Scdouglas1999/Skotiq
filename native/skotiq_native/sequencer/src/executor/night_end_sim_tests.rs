@@ -764,7 +764,11 @@ async fn a_plan_with_nothing_left_to_image_refuses_to_start() {
     executor
         .load_sequence(target_plan(TargetTrigger::TimeAfter(an_hour_ago)))
         .expect("sequence loads");
-    let refusal = executor.start().await.expect_err("start is refused");
+    let refusal = executor
+        .start()
+        .await
+        .expect_err("start is refused")
+        .to_string();
     assert!(refusal.contains("Nothing to image"), "{refusal}");
     assert_eq!(executor.get_state().await, super::ExecutorState::Idle);
     tokio::time::sleep(Duration::from_millis(300)).await;

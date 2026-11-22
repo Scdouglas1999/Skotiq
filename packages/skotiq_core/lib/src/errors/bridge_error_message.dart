@@ -150,6 +150,20 @@ SkotiqError skotiqErrorFromBridge(bridge.SkotiqError error) {
       deviceId: deviceId,
       reason: "'$deviceId' does not support $operation",
     ),
+    // A refusal reads as the variant it was raised as before it had a kind.
+    refused: (kind, message) => switch (kind) {
+      bridge.Refusal.lightLeak => SkotiqError(
+        category: validation,
+        message: 'Invalid input: $message',
+        reason: message,
+      ),
+      _ => SkotiqError(
+        category: system,
+        message: 'Operation failed: $message',
+        isRecoverable: true,
+        reason: message,
+      ),
+    },
     deviceBusy: (deviceId, currentOperation) => SkotiqError(
       category: BackendErrorCategory.busy,
       message: 'Device busy: $deviceId - $currentOperation',

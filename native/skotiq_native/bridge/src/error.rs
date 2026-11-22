@@ -106,6 +106,12 @@ pub enum SkotiqError {
         current_operation: String,
     },
 
+    /// A refusal a caller answers by its kind (the host's HTTP status, a
+    /// report's sentence) rather than by its words. It displays as the
+    /// variant these refusals were raised as before they had a kind.
+    #[error("{}{}", .kind.display_prefix(), .message)]
+    Refused { kind: Refusal, message: String },
+
     /// The device cannot do this in the state it is in (a dither while
     /// guiding is paused, say). The message is the whole sentence a person
     /// reads, including what to do instead.
@@ -196,8 +202,48 @@ pub enum SkotiqError {
     ResourceExhausted { resource: String, message: String },
 }
 
+/// Why a request was refused, for a caller that answers each reason its own
+/// way.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refusal {
+    /// PHD2 answered `get_lock_position` without a numeric x and y.
+    NoLockPosition,
+    /// PHD2 has no guide star selected.
+    NoStarSelected,
+    /// The guide frame holds no star fit to guide on.
+    NoGuideStarFound,
+    /// The sequencer is running, paused, stopping or recovering.
+    ExecutorNotIdle,
+    /// The sequencer has no sequence loaded.
+    NoSequenceLoaded,
+    /// No DepthLock goal has the id.
+    DepthLockGoalNotFound,
+    /// The caller's DepthLock goal revision is not the current one.
+    DepthLockStaleRevision,
+    /// DepthLock storage is not initialized.
+    DepthLockUnavailable,
+    /// Calibration frames brightened during the set: a light leak.
+    LightLeak,
+}
+
+impl Refusal {
+    fn display_prefix(self) -> &'static str {
+        match self {
+            Refusal::LightLeak => "Invalid input: ",
+            _ => "Operation failed: ",
+        }
+    }
+}
+
 impl SkotiqError {
     // Constructor helpers
+
+    pub fn refused(kind: Refusal, message: impl Into<String>) -> Self {
+        SkotiqError::Refused {
+            kind,
+            message: message.into(),
+        }
+    }
 
     /// Create a connection failed error
     pub fn connection_failed(device_id: impl Into<String>, reason: impl Into<String>) -> Self {
@@ -295,5 +341,22 @@ impl From<SkotiqError> for String {
 impl From<&SkotiqError> for String {
     fn from(e: &SkotiqError) -> Self {
         e.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_refusal_displays_as_the_variant_it_was_raised_as() {
+        assert_eq!(
+            SkotiqError::refused(Refusal::NoLockPosition, "no lock").to_string(),
+            SkotiqError::OperationFailed("no lock".into()).to_string()
+        );
+        assert_eq!(
+            SkotiqError::refused(Refusal::LightLeak, "light leak: 3 of 9").to_string(),
+            SkotiqError::InvalidInput("light leak: 3 of 9".into()).to_string()
+        );
     }
 }

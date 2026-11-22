@@ -75,6 +75,10 @@ String describeBackendError(Object error) => error is bridge_error.SkotiqError
     operationFailed: (v) => (500, v.field0),
     notSupported: (v) => (501, scoped(v.operation, v.deviceId)),
     deviceBusy: (v) => (409, '${v.deviceId} is busy: ${v.currentOperation}'),
+    // The status of the variant each refusal was raised as before it had a
+    // kind; the handlers that answer a kind its own way catch it first.
+    refused: (v) =>
+        (v.kind == bridge_error.Refusal.lightLeak ? 400 : 500, v.message),
     invalidState: (v) => (409, v.field0),
     // Imaging
     imageError: (v) => (500, v.field0),

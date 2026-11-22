@@ -76,8 +76,9 @@ Future<String> apiBuildMasterFlat({required String argsJson}) => RustLib
 ///
 /// `args_json` is a [`BuildCalibrationMasterArgs`]; the result is a
 /// [`BuildCalibrationMasterResult`]. Frames that cannot make one master (too
-/// few, unreadable, disagreeing, leaking light) are `InvalidInput` with the
-/// reason; a master that could not be written is `OperationFailed`.
+/// few, unreadable, disagreeing) are `InvalidInput` with the reason, and a
+/// light leak is refused as `Refusal::LightLeak`; a master that could not be
+/// written is `OperationFailed`.
 Future<String> apiBuildCalibrationMaster({required String argsJson}) => RustLib
     .instance
     .api

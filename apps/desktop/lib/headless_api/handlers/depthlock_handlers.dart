@@ -66,11 +66,12 @@ class DepthLockHandlers implements RouteSource {
       return await action();
     } on bridge_error.SkotiqError catch (error, stackTrace) {
       final reason = describeBackendError(error);
-      final code = _depthLockErrorCode(reason);
+      final status = _depthLockErrorStatus(error, reason);
+      final code = _depthLockErrorCode(status);
       throw HandlerFailure(
         code: code,
         message: reason,
-        statusCode: _depthLockErrorStatus(reason),
+        statusCode: status,
         // `error` alone is the legacy prose slot, which a remote client folds
         // into "<code>: <reason>". Emitting the machine `code` beside it is
         // the canonical envelope, so the operator reads the native reason
@@ -82,24 +83,36 @@ class DepthLockHandlers implements RouteSource {
     }
   }
 
-  /// The store's refusals are distinguishable by their own sentences, which
-  /// are stable strings in `depthlock_service/store.rs`. Anything else is a
+  /// The store's refusals answer by their kind. Anything else is a
   /// definition the caller can fix, so it answers 400 rather than claiming a
-  /// host fault.
-  static int _depthLockErrorStatus(String reason) {
+  /// host fault, except that a reason saying something does not exist (a
+  /// camera-raw reference file that is missing, say) answers 404.
+  static int _depthLockErrorStatus(
+    bridge_error.SkotiqError error,
+    String reason,
+  ) {
+    if (error case bridge_error.SkotiqError_Refused(:final kind)) {
+      switch (kind) {
+        case bridge_error.Refusal.depthLockGoalNotFound:
+          return 404;
+        case bridge_error.Refusal.depthLockStaleRevision:
+          return 409;
+        case bridge_error.Refusal.depthLockUnavailable:
+          return 503;
+        default:
+          break;
+      }
+    }
     if (reason.contains('does not exist')) return 404;
-    if (reason.contains('stale revision')) return 409;
-    if (reason.contains('storage is not initialized')) return 503;
     return 400;
   }
 
-  static String _depthLockErrorCode(String reason) =>
-      switch (_depthLockErrorStatus(reason)) {
-        404 => 'depthlock_goal_not_found',
-        409 => 'depthlock_stale_revision',
-        503 => 'depthlock_unavailable',
-        _ => 'depthlock_invalid_request',
-      };
+  static String _depthLockErrorCode(int status) => switch (status) {
+    404 => 'depthlock_goal_not_found',
+    409 => 'depthlock_stale_revision',
+    503 => 'depthlock_unavailable',
+    _ => 'depthlock_invalid_request',
+  };
 
   /// A required nested JSON object, named by its own field path on failure.
   static Map<String, dynamic> _requireObject(

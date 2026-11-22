@@ -9,7 +9,7 @@
 //! Everything that touches a goal goes through the store's revision checks,
 //! so a job that outlives a goal edit commits nothing.
 
-use crate::depthlock_service::store::{Admission, GoalRecord, GoalStore};
+use crate::depthlock_service::store::{Admission, GoalRecord, GoalStore, StoreError};
 use crate::event::bus::{EventPayload, SkotiqEvent};
 use crate::event::correlation::create_event_auto_id;
 use crate::event::depthlock_events::DepthLockEvent;
@@ -68,7 +68,7 @@ enum Job {
     },
     Replay {
         goal_id: String,
-        reply: oneshot::Sender<Result<GoalRecord, String>>,
+        reply: oneshot::Sender<Result<GoalRecord, StoreError>>,
     },
 }
 
@@ -216,7 +216,7 @@ impl DepthLockService {
     }
 
     /// Re-evaluate a goal over the evidence it already holds.
-    pub async fn replay(&self, goal_id: &str) -> Result<GoalRecord, String> {
+    pub async fn replay(&self, goal_id: &str) -> Result<GoalRecord, StoreError> {
         let (reply, rx) = oneshot::channel();
         if !self.enqueue(
             Job::Replay {
@@ -227,10 +227,11 @@ impl DepthLockService {
         ) {
             return Err(format!(
                 "DepthLock analysis queue is full ({QUEUE_CAPACITY} jobs); try again shortly"
-            ));
+            )
+            .into());
         }
         rx.await
-            .map_err(|_| "DepthLock worker stopped before answering".to_string())?
+            .map_err(|_| StoreError::from("DepthLock worker stopped before answering"))?
     }
 
     fn enqueue(&self, job: Job, source: &str) -> bool {
@@ -487,7 +488,7 @@ impl DepthLockService {
                 // The store refused (revision moved, disabled, poisoned):
                 // nothing to record against the goal itself.
                 tracing::warn!("DepthLock goal {}: evidence not stored: {reason}", goal.id);
-                return IngestOutcome::Rejected(reason);
+                return IngestOutcome::Rejected(reason.into());
             }
         }
         self.stats.evidence_added.fetch_add(1, Ordering::Relaxed);
@@ -504,14 +505,14 @@ impl DepthLockService {
                     "DepthLock goal {}: analysis not committed: {reason}",
                     goal.id
                 );
-                IngestOutcome::Rejected(reason)
+                IngestOutcome::Rejected(reason.into())
             }
         }
     }
 
     /// Evaluate the goal's current evidence and commit the result against
     /// the revision and evidence revision it was computed for.
-    pub fn replay_now(&self, goal_id: &str) -> Result<GoalRecord, String> {
+    pub fn replay_now(&self, goal_id: &str) -> Result<GoalRecord, StoreError> {
         let record = self.store.get(goal_id)?;
         let evidence: Vec<ApertureFrame> = record.evidence.values().cloned().collect();
         let (report, candidate) = evaluate(
@@ -616,7 +617,11 @@ impl DepthGoalOps for DepthLockService {
     fn verdict(&self, binding: &DepthGoalBinding) -> DepthGoalVerdict {
         let record = match self.store.get(&binding.goal_id) {
             Ok(record) => record,
-            Err(reason) => return DepthGoalVerdict::Unavailable { reason },
+            Err(reason) => {
+                return DepthGoalVerdict::Unavailable {
+                    reason: reason.into(),
+                }
+            }
         };
         if record.revision != binding.revision {
             return DepthGoalVerdict::Unavailable {

@@ -37,10 +37,12 @@ async fn start_recycles_a_terminal_executor_instead_of_refusing() {
             .start()
             .await
             .expect_err("a bare executor has no sequence loaded");
-        assert!(
-            !err.contains("Cannot start"),
-            "start() from {terminal:?} must recycle to Idle, not refuse; got: {err}"
+        assert_eq!(
+            err,
+            StartError::NoSequence,
+            "start() from {terminal:?} must recycle to Idle, not refuse"
         );
+        assert_eq!(err.to_string(), "No sequence loaded");
         assert_eq!(
             executor.get_state().await,
             ExecutorState::Idle,
@@ -63,9 +65,10 @@ async fn start_still_refuses_a_busy_executor() {
         executor.run_state.transition(busy);
 
         let err = executor.start().await.expect_err("busy must be refused");
-        assert!(
-            err.contains("Cannot start"),
-            "start() during {busy:?} must be refused; got: {err}"
+        assert_eq!(err, StartError::NotIdle(busy));
+        assert_eq!(
+            err.to_string(),
+            format!("Cannot start: executor is {busy:?}")
         );
         assert_eq!(
             executor.get_state().await,

@@ -1,4 +1,4 @@
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 
 /// One-shot batch integration of a sub list into a linear FITS master.
 ///
@@ -66,13 +66,15 @@ pub fn api_build_master_flat(args_json: String) -> Result<String, String> {
 ///
 /// `args_json` is a [`BuildCalibrationMasterArgs`]; the result is a
 /// [`BuildCalibrationMasterResult`]. Frames that cannot make one master (too
-/// few, unreadable, disagreeing, leaking light) are `InvalidInput` with the
-/// reason; a master that could not be written is `OperationFailed`.
+/// few, unreadable, disagreeing) are `InvalidInput` with the reason, and a
+/// light leak is refused as `Refusal::LightLeak`; a master that could not be
+/// written is `OperationFailed`.
 pub fn api_build_calibration_master(args_json: String) -> Result<String, SkotiqError> {
     use skotiq_imaging::calibration_master_stream::MasterBuildError;
     skotiq_processing::post_session::entrypoints::build_calibration_master(args_json).map_err(|e| {
         match e {
             MasterBuildError::Refused(reason) => SkotiqError::InvalidInput(reason),
+            MasterBuildError::LightLeak(reason) => SkotiqError::refused(Refusal::LightLeak, reason),
             MasterBuildError::Failed(reason) => SkotiqError::OperationFailed(reason),
         }
     })

@@ -45,7 +45,7 @@ impl SequenceExecutor {
         Ok(())
     }
 
-    pub(super) async fn preflight_start(&mut self) -> Result<PreflightOutcome, String> {
+    pub(super) async fn preflight_start(&mut self) -> Result<PreflightOutcome, StartError> {
         let state = self.get_state().await;
         if matches!(
             state,
@@ -79,11 +79,11 @@ impl SequenceExecutor {
 
         let state = self.get_state().await;
         if state != ExecutorState::Idle {
-            return Err(format!("Cannot start: executor is {:?}", state));
+            return Err(StartError::NotIdle(state));
         }
 
         if self.sequence.is_none() || self.root_node.is_none() {
-            return Err("No sequence loaded".to_string());
+            return Err(StartError::NoSequence);
         }
 
         self.settle_stale_end_times()?;
@@ -208,7 +208,8 @@ impl SequenceExecutor {
                     "This sequence centers on a target but no plate solver (ASTAP or \
                  solve-field) was found on this system. Install and configure a plate \
                  solver before running — centering would fail on every target otherwise."
-                        .to_string(),
+                        .to_string()
+                        .into(),
                 );
             }
             if skotiq_platesolve::detect_astap_catalog(None, None).is_none() {
