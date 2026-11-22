@@ -191,7 +191,6 @@ Future<SiteDetected?> _store(
   );
 }
 
-
 double _kmBetween(double lat1, double lon1, double lat2, double lon2) {
   const earthRadiusKm = 6371.0;
   final degrees = AstronomyCalculations.angularSeparation(

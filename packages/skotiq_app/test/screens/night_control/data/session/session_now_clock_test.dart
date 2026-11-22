@@ -32,6 +32,7 @@ void main() {
     );
     addTearDown(container.dispose);
 
-    expect(container.read(nightSessionNowProvider).isAtSameMomentAs(at), isTrue);
+    expect(
+        container.read(nightSessionNowProvider).isAtSameMomentAs(at), isTrue);
   });
 }

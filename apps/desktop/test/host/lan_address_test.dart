@@ -39,6 +39,11 @@ void main() {
       ]),
       '10.0.0.5',
     );
-    expect(pickLanAddress([_Interface('lo', ['127.0.0.1'])]), isNull);
+    expect(
+      pickLanAddress([
+        _Interface('lo', ['127.0.0.1']),
+      ]),
+      isNull,
+    );
   });
 }

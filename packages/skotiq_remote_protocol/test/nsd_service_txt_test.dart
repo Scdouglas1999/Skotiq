@@ -20,7 +20,8 @@ void main() {
     expect(
       server.version,
       isNull,
-      reason: 'a made-up release would be shown, and compared, as the '
+      reason:
+          'a made-up release would be shown, and compared, as the '
           "host's until /api/info answers",
     );
     expect(server.name, 'Skotiq');

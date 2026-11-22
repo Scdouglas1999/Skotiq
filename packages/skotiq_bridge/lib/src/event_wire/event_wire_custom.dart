@@ -74,9 +74,7 @@ Map<String, Object?> _encodeStop(SequencerStop stop) => switch (stop) {
       'by': 'trigger',
       'trigger_id': triggerId,
       'trigger_name': triggerName,
-      'night_end': nightEnd == null
-          ? null
-          : encodeSequencerNightEnd(nightEnd),
+      'night_end': nightEnd == null ? null : encodeSequencerNightEnd(nightEnd),
     },
 };
 

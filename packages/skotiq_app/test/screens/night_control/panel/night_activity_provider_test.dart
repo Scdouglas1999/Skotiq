@@ -161,8 +161,7 @@ void main() {
         container.read(nightActivityProvider).kind, NightActivityKind.recovery);
   });
 
-  test('a run frame the camera exposes reads as capturing, with progress',
-      () {
+  test('a run frame the camera exposes reads as capturing, with progress', () {
     // A run's frame is taken by the native camera, not the app's capture
     // service; the host follows it from the camera's own events.
     final node = ExposureNode(id: 'capture', durationSecs: 180, count: 60);
@@ -191,7 +190,9 @@ void main() {
           data: data,
         );
     followHostCameraExposure(
-        container, camera('ExposureStarted', {'duration_secs': 180.0, 'frame_type': 'light'}));
+        container,
+        camera('ExposureStarted',
+            {'duration_secs': 180.0, 'frame_type': 'light'}));
     followHostCameraExposure(container,
         camera('ExposureProgress', {'progress': 0.25, 'remainingSecs': 135.0}));
     final vm = container.read(nightActivityProvider);

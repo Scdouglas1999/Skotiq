@@ -135,10 +135,7 @@ class StackingHandlers implements RouteSource {
       if (!_armed) return;
       try {
         if (!_started) {
-          await _service.start(
-            referenceImagePath: filePath,
-            config: _config,
-          );
+          await _service.start(referenceImagePath: filePath, config: _config);
           _started = true;
           _logger.info(
             '[stacking] reference frame established from $filePath',
