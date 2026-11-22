@@ -1,6 +1,7 @@
 //! The directory this host keeps its native files under (defect maps, camera
 //! files kept when a download failed). The app resolves it, honoring the
-//! operator's `SKOTIQ_DATA_DIR`, and hands it over in `api_init_host`.
+//! operator's `SKOTIQ_DATA_DIR`, and hands it over in `api_init_host`; until
+//! then there is none.
 
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -27,20 +28,28 @@ fn set_in(lock: &OnceLock<PathBuf>, root: PathBuf) -> Result<(), String> {
     }
 }
 
-/// The host's data root. Before `api_init_host` (unit tests, a start that
-/// never names one) it is `skotiq` in the temp directory.
-fn get_in(lock: &OnceLock<PathBuf>) -> PathBuf {
-    lock.get()
-        .cloned()
-        .unwrap_or_else(|| std::env::temp_dir().join("skotiq"))
+/// The host's data root, or why there is none: before `api_init_host`
+/// names one, nothing is written anywhere.
+fn get_in(lock: &OnceLock<PathBuf>) -> Result<PathBuf, String> {
+    lock.get().cloned().ok_or_else(|| {
+        "No data directory: the host has not named one yet (api_init_host)".to_string()
+    })
 }
 
-pub(crate) fn defect_maps() -> PathBuf {
-    get_in(&DATA_ROOT).join("defect_maps")
+pub(crate) fn defect_maps() -> Result<PathBuf, String> {
+    Ok(get_in(&DATA_ROOT)?.join("defect_maps"))
 }
 
-pub(crate) fn retained_captures() -> PathBuf {
-    get_in(&DATA_ROOT).join("retained_captures")
+pub(crate) fn retained_captures() -> Result<PathBuf, String> {
+    Ok(get_in(&DATA_ROOT)?.join("retained_captures"))
+}
+
+/// A data root for this test process, as a host names one.
+#[cfg(test)]
+pub(crate) fn set_for_tests() -> PathBuf {
+    let root = std::env::temp_dir().join(format!("skotiq-bridge-tests-{}", std::process::id()));
+    let _ = DATA_ROOT.set(root);
+    DATA_ROOT.get().cloned().expect("set above")
 }
 
 #[cfg(test)]
@@ -51,7 +60,7 @@ mod tests {
     fn files_sit_under_the_root_the_host_named() {
         let lock = OnceLock::new();
         set_in(&lock, PathBuf::from("/var/lib/skotiq/data")).unwrap();
-        let root = get_in(&lock);
+        let root = get_in(&lock).unwrap();
         assert_eq!(root, PathBuf::from("/var/lib/skotiq/data"));
         assert_eq!(
             root.join("defect_maps"),
@@ -59,12 +68,12 @@ mod tests {
         );
     }
 
+    /// P12-2: before a host names its data root there is none; nothing
+    /// is written to the temp directory.
     #[test]
-    fn without_a_root_files_go_to_the_temp_directory() {
-        assert_eq!(
-            get_in(&OnceLock::new()),
-            std::env::temp_dir().join("skotiq")
-        );
+    fn without_a_root_there_is_no_data_directory() {
+        let error = get_in(&OnceLock::new()).expect_err("no root");
+        assert!(error.contains("api_init_host"), "{error}");
     }
 
     #[test]
@@ -73,6 +82,6 @@ mod tests {
         set_in(&lock, PathBuf::from("/a")).unwrap();
         assert!(set_in(&lock, PathBuf::from("/a")).is_ok());
         assert!(set_in(&lock, PathBuf::from("/b")).is_err());
-        assert_eq!(get_in(&lock), PathBuf::from("/a"));
+        assert_eq!(get_in(&lock).unwrap(), PathBuf::from("/a"));
     }
 }

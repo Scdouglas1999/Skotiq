@@ -32,7 +32,8 @@ pub struct RetainedCaptureRecord {
 
 /// Save a camera file under a name no earlier file has.
 fn save_camera_file(file: &skotiq_device::CameraFile) -> Result<PathBuf, DeviceOpError> {
-    let dir = crate::data_root::retained_captures();
+    let dir =
+        crate::data_root::retained_captures().map_err(|e| DeviceOpError::hardware(None, e))?;
     let failed = |what: &str, e: std::io::Error| {
         DeviceOpError::hardware(None, format!("{what} {}: {e}", dir.display()))
     };

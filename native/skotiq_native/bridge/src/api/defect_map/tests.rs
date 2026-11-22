@@ -10,6 +10,7 @@ const H: u32 = 48;
 /// Dark frames with `hot` pixels lit in every frame, written to a fresh
 /// directory.
 fn darks(name: &str, hot: &[(u32, u32)]) -> Vec<String> {
+    crate::data_root::set_for_tests();
     let dir = std::env::temp_dir().join(format!("sk-defect-{}-{}", name, std::process::id()));
     std::fs::create_dir_all(&dir).expect("dark dir");
     (0..MIN_CONSISTENCY_FRAMES)
@@ -34,6 +35,7 @@ fn darks(name: &str, hot: &[(u32, u32)]) -> Vec<String> {
 }
 
 async fn enable(camera: &str, celsius: f64) {
+    crate::data_root::set_for_tests();
     api_defect_map_set_correction(
         camera.to_string(),
         W,

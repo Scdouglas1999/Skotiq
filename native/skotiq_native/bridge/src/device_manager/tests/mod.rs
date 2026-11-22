@@ -86,6 +86,7 @@ fn build_mount_info(id: &str, driver_type: DriverType) -> DeviceInfo {
 }
 
 fn build_device_manager() -> Arc<DeviceManager> {
+    crate::data_root::set_for_tests();
     DeviceManager::without_reconnection(AppState::new())
 }
 
