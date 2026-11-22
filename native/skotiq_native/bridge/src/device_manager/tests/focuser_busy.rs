@@ -1,6 +1,6 @@
-//! R1B-1 focuser: a focuser driver that refuses a move because it is moving
-//! answers as busy (`DeviceBusy` over the FFI, 409 on the host), not as a
-//! hardware fault the host had to read the words of.
+//! R1B-1 focuser: a focuser driver that refuses an app's move because it is
+//! moving answers as busy (`DeviceBusy` over the FFI, 409 on the host), not
+//! as a hardware fault the host had to read the words of.
 
 use super::*;
 use crate::device_manager::handle::DeviceHandle;
@@ -92,41 +92,55 @@ async fn focuser_answering(manager: &DeviceManager, id: &str, answer: &'static s
 }
 
 #[tokio::test]
-async fn a_focuser_that_says_it_is_moving_answers_busy() {
-    let manager = build_device_manager();
-    let id = "native:test:focuser";
-    for answer in [
+async fn a_focuser_that_says_it_is_moving_answers_the_app_busy() {
+    let manager = crate::device_manager::get_device_manager();
+    for (n, answer) in [
         "Move Failure",
         "Focuser is already moving",
         "device busy",
         "The focuser is busy",
-    ] {
-        focuser_answering(&manager, id, answer).await;
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let id = format!("native:test:focuser_busy_{n}");
+        focuser_answering(&manager, &id, answer).await;
         for result in [
-            manager.focuser_move_abs(id, 2000).await,
-            manager.focuser_move_rel(id, 50).await,
+            crate::api::devices::focuser::api_focuser_move_to(id.clone(), 2000).await,
+            crate::api::devices::focuser::api_focuser_move_relative(id.clone(), 50).await,
         ] {
-            let error = result.expect_err(answer);
             assert!(
-                matches!(error, DeviceOpError::InvalidState { .. }),
-                "{answer}: {error:?}"
-            );
-            assert!(
-                matches!(SkotiqError::from(error), SkotiqError::DeviceBusy { .. }),
-                "{answer}"
+                matches!(result, Err(SkotiqError::DeviceBusy { .. })),
+                "{answer}: {result:?}"
             );
         }
+        manager.unregister_device(&id).await;
     }
+}
+
+/// The run's own moves keep the driver's failure: its device retry takes it
+/// as transient, and the focuser stops moving.
+#[tokio::test]
+async fn the_runs_move_keeps_the_drivers_failure() {
+    let manager = build_device_manager();
+    let id = "native:test:focuser_run";
+    focuser_answering(&manager, id, "Move Failure").await;
+    let error = manager
+        .focuser_move_abs(id, 2000)
+        .await
+        .expect_err("refused");
+    assert!(matches!(error, DeviceOpError::Hardware { .. }), "{error:?}");
 }
 
 #[tokio::test]
 async fn any_other_focuser_failure_stays_a_hardware_fault() {
-    let manager = build_device_manager();
+    let manager = crate::device_manager::get_device_manager();
     let id = "native:test:focuser_fault";
     focuser_answering(&manager, id, "motor stalled").await;
-    let error = manager.focuser_move_abs(id, 2000).await.expect_err("fails");
+    let result = crate::api::devices::focuser::api_focuser_move_to(id.to_string(), 2000).await;
     assert!(
-        matches!(SkotiqError::from(error), SkotiqError::OperationFailed(_)),
-        "a stall is not a busy focuser"
+        matches!(result, Err(SkotiqError::OperationFailed(_))),
+        "a stall is not a busy focuser: {result:?}"
     );
+    manager.unregister_device(id).await;
 }
