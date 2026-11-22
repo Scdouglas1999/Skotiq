@@ -1,5 +1,11 @@
 part of '../node_progress_panels.dart';
 
+/// How the progress card and the Activity tab read a step's frames.
+const _cardFrameRules = ExposureFramesRules(
+  successMeansAll: true,
+  statusWhenSilent: true,
+);
+
 class _ExposureProgressPanel extends StatelessWidget {
   final SkotiqColors colors;
   final double progressPercent;
@@ -62,52 +68,21 @@ class _ExposureProgressPanel extends StatelessWidget {
     final exposureDetail = structuredDetail is ExposureInstructionProgressDetail
         ? structuredDetail as ExposureInstructionProgressDetail
         : null;
-    // The node's own progress line, in EITHER of the two wordings the executor
-    // writes: "Frame 3/4 (R)" while a frame is exposing, "Completed 3/4" once
-    // it lands. The LAST line a successful run leaves behind is the second, so
-    // a card that only understands the first parses 4 captured frames as none
-    // and reads "0 / 4 frames" over four thumbnails. One vocabulary:
-    // skotiq_core's [parseExposureProgressDetail], round-trip-tested
-    // against the formatters the executor uses.
-    //
-    // The typed ExposureInstructionProgressDetail is still preferred when
-    // present; it always describes a frame in flight.
-    final parsedDetail = parseExposureProgressDetail(detail);
-    final tallied = tally;
-    final totalFrames = tallied?.planned ??
-        exposureDetail?.total ??
-        parsedDetail?.total ??
-        node.count;
-    final liveFrame = exposureDetail?.frame ?? parsedDetail?.frame ?? 0;
-    final liveFrameIsDone =
-        exposureDetail == null && (parsedDetail?.frameCompleted ?? false);
-
-    final int completedFrames;
-    final int currentFrame;
-    final int headerFrames;
-    if (tallied != null) {
-      // The authoritative count. It survives the display string being
-      // overwritten by another instruction, so it is what the card counts with
-      // whenever it exists; the string paths below remain for hosts that emit
-      // no per-node exposure progress at all.
-      completedFrames = tallied.captured.clamp(0, totalFrames);
-      headerFrames = completedFrames;
-      currentFrame = (isRunning && completedFrames < totalFrames)
-          ? completedFrames + 1
-          : 0;
-    } else {
-      // A node is finished when its status says so OR when its own last line
-      // reports the final planned frame captured. The status does not always
-      // reach this card, so the line the run left behind is a second,
-      // independent witness.
-      final isDone =
-          isComplete || (liveFrameIsDone && liveFrame >= totalFrames);
-      // A finished node — and a node between frames — has nothing in flight.
-      currentFrame = (isDone || liveFrameIsDone) ? 0 : liveFrame;
-      completedFrames =
-          isDone ? totalFrames : (liveFrameIsDone ? liveFrame : liveFrame - 1);
-      headerFrames = isDone ? totalFrames : liveFrame;
-    }
+    final frames = exposureNodeFrames(
+          tally: tally,
+          typed: structuredDetail,
+          line: detail,
+          status: isComplete
+              ? NodeStatus.success
+              : (isRunning ? NodeStatus.running : null),
+          plannedFallback: node.count,
+          rules: _cardFrameRules,
+        ) ??
+        ExposureNodeFrames(captured: 0, planned: node.count);
+    final totalFrames = frames.planned ?? node.count;
+    final completedFrames = frames.captured;
+    final currentFrame = frames.inFlight;
+    final headerFrames = frames.named;
     final durationSecs =
         exposureDetail != null && exposureDetail.durationSecs > 0
             ? exposureDetail.durationSecs

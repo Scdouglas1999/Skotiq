@@ -285,7 +285,7 @@ abstract class Sequence with _$Sequence {
     if (node is LoopNode) {
       switch (node.conditionType) {
         case LoopConditionType.count:
-          final iterations = node.repeatCount ?? 1;
+          final iterations = loopPasses(node, nodes) ?? 1;
           return SequenceEstimate(
             estimatedSecs: childrenSecs * iterations,
             singleIterationSecs: childrenSingleIteration,
@@ -333,26 +333,13 @@ abstract class Sequence with _$Sequence {
           );
 
         case LoopConditionType.integrationTime:
-          // Integration time loop: estimate iterations based on target integration time
-          if (node.integrationTimeTarget != null &&
-              node.integrationTimeTarget! > 0 &&
-              childrenSingleIteration > 0) {
-            double exposurePerIteration = 0;
-            for (final childId in node.childIds) {
-              final child = nodes[childId];
-              if (child is ExposureNode && child.isEnabled) {
-                exposurePerIteration += child.totalDurationSecs;
-              }
-            }
-            if (exposurePerIteration > 0) {
-              final estimatedIterations =
-                  (node.integrationTimeTarget! / exposurePerIteration).ceil();
-              return SequenceEstimate(
-                estimatedSecs: childrenSingleIteration * estimatedIterations,
-                singleIterationSecs: childrenSingleIteration,
-                isUnbounded: false,
-              );
-            }
+          final passes = loopPasses(node, nodes);
+          if (passes != null && childrenSingleIteration > 0) {
+            return SequenceEstimate(
+              estimatedSecs: childrenSingleIteration * passes,
+              singleIterationSecs: childrenSingleIteration,
+              isUnbounded: false,
+            );
           }
           // If we can't estimate, treat as unbounded
           return SequenceEstimate(

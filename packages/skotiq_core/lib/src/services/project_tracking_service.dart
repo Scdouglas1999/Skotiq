@@ -1,5 +1,6 @@
 import 'package:skotiq_astro/skotiq_astro.dart' show observingNightOf;
 
+import '../database/rows/accepted_lights.dart';
 import '../database/rows/frame_type_record.dart';
 import '../database/database.dart' as db;
 import 'package:skotiq_astro/filters.dart';
@@ -30,15 +31,16 @@ List<FilterIntegration> acceptedLightsByFilter(
   Iterable<db.DbCapturedImage> frames,
 ) {
   final buckets = <String, _FilterBucket>{};
-  for (final frame in frames) {
-    if (!_isAcceptedLight(frame)) continue;
-    final label = (frame.filter == null || frame.filter!.isEmpty)
-        ? _unfiltered
-        : frame.filter!;
+  for (final filed in acceptedLightsAsFiled(frames)) {
+    final label = filed.filter.isEmpty ? _unfiltered : filed.filter;
     final bucket = buckets.putIfAbsent(label.toLowerCase(), _FilterBucket.new);
-    bucket.frames++;
-    bucket.seconds += frame.exposureDuration;
-    bucket.labelCounts[label] = (bucket.labelCounts[label] ?? 0) + 1;
+    bucket.frames += filed.frames;
+    bucket.seconds += filed.seconds;
+    bucket.labelCounts.update(
+      label,
+      (n) => n + filed.frames,
+      ifAbsent: () => filed.frames,
+    );
   }
   return [
     for (final bucket in buckets.values)
@@ -223,9 +225,6 @@ class TargetGoal {
 /// a target's night count is the same wherever it is shown.
 int observingNightCount(Iterable<db.DbCapturedImage> frames) =>
     {for (final frame in frames) observingNightOf(frame.capturedAt)}.length;
-
-bool _isAcceptedLight(db.DbCapturedImage frame) =>
-    frame.isLight && frame.isAccepted;
 
 /// Multi-night progress of one target, from its frames and its goals.
 class ProjectProgress {

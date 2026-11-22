@@ -285,7 +285,7 @@ class HistoryTotals {
     required List<SequenceRun>? runs,
   }) {
     final acceptedLights =
-        images.where((i) => i.isLight && i.isAccepted).toList(growable: false);
+        images.where((i) => i.isAcceptedLight).toList(growable: false);
     return HistoryTotals(
       exposures: images.length,
       acceptedIntegrationSecs: exposureSecs(acceptedLights),

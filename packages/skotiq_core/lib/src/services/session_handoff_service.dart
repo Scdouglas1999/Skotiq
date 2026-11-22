@@ -307,7 +307,7 @@ class SessionHandoffService {
                 .toList(growable: false)
           : await _imagesDao!.getImagesForTarget(target.id);
       final lightFrames = images
-          .where((i) => i.isLight && i.isAccepted)
+          .where((i) => i.isAcceptedLight)
           .toList(growable: false);
 
       // Per-filter integration across ALL prior sessions.
