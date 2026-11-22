@@ -3588,13 +3588,9 @@ packages/skotiq_remote_protocol/lib/src/discovery.dart	emit	empty_catch	1	V0116	
 packages/skotiq_remote_protocol/lib/src/discovery.dart	tryParseResponsePacket	empty_catch	1	V0116	} catch (_) {
 packages/skotiq_remote_protocol/lib/src/discovery.dart	discoverTargets	literal_null_coalesce	1	V0116	buildNumber: info['buildNumber'] as int? ?? 0,
 packages/skotiq_remote_protocol/lib/src/discovery.dart	discoverTargets	literal_null_coalesce	1	V0116	isReceiving: info['isReceiving'] as bool? ?? false,
-packages/skotiq_remote_protocol/lib/src/discovery.dart	tryParseResponsePacket	literal_null_coalesce	1	V0116	authRequired: info['authRequired'] as bool? ?? false,
-packages/skotiq_remote_protocol/lib/src/discovery.dart	tryParseResponsePacket	literal_null_coalesce	1	V0116	pairingSupported: info['pairingSupported'] as bool? ?? false,
 packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart	parseStrict	empty_catch	1	V0117	} catch (_) {
 packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart	loadLastServer	literal_null_coalesce	1	V0117	prefs.getBool(_DiscoveryPrefs.lastServerAuthRequired) ?? false,
 packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart	loadLastServer	literal_null_coalesce	1	V0117	prefs.getBool(_DiscoveryPrefs.lastServerPairingSupported) ?? false,
-packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart	probeServer	literal_null_coalesce	1	V0117	final authRequired = info['authRequired'] as bool? ?? false;
-packages/skotiq_remote_protocol/lib/src/enhanced_discovery.dart	probeServer	literal_null_coalesce	1	V0117	final pairingSupported = info['pairingSupported'] as bool? ?? false;
 packages/skotiq_remote_protocol/lib/src/host_info.dart	linkProblemFromError	literal_null_coalesce	1	O7-09	final text = '${error.message} ${error.osError?.message ?? ''}'
 packages/skotiq_remote_protocol/lib/src/push/lan_push_broadcaster.dart	close	empty_catch	1	V0121	} catch (_) {
 packages/skotiq_remote_protocol/lib/src/push/push_config.dart	load	empty_catch	1	V0121	} catch (_) {
