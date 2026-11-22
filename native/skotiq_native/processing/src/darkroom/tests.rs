@@ -1972,7 +1972,7 @@ fn darkroom_registry_reply_fixture() {
     ops.truncate(3);
     let registered = value["registered"].as_array_mut().expect("registered");
     registered.truncate(3);
-    crate::reply_fixtures::check_or_write("darkroom_registry", &value);
+    crate::reply_fixtures::check_or_write_shape("darkroom_registry", &value);
 }
 
 #[test]
@@ -1992,7 +1992,7 @@ fn darkroom_render_export_reply_fixture() {
         .to_string(),
     )
     .expect("export");
-    crate::reply_fixtures::check_or_write(
+    crate::reply_fixtures::check_or_write_shape(
         "darkroom_render_export",
         &stable_reply(&reply, dir.path()),
     );
