@@ -2255,11 +2255,12 @@ fn integrate_session_takes_a_light_pedestal_out_before_calibration() {
     );
 }
 
-/// Raw flats agree on camera, filter, gain, offset and binning (within 1e-6);
-/// read mode and set-point are not compared. A bias or dark-flat agrees with
-/// each flat on camera, gain, offset and binning.
+/// Raw flats agree on camera, filter, read mode, gain, offset and binning
+/// (within 1e-6); the set-point is not compared (flats are short and often
+/// uncooled). A bias or dark-flat agrees with each flat on camera, gain,
+/// offset and binning.
 #[test]
-fn flat_agreement_reads_the_cards_it_reads_today() {
+fn flat_agreement_reads_the_cards_it_reads() {
     let dir = temp_dir("flat_agreement");
     let image = ImageData::from_u16(48, 48, 1, &vec![20000; 48 * 48]);
     let pedestal = ImageData::from_u16(48, 48, 1, &vec![100; 48 * 48]);
@@ -2278,12 +2279,23 @@ fn flat_agreement_reads_the_cards_it_reads_today() {
     let out = dir.join("master.fits");
     write_fits(&first, &image, &header).unwrap();
     let mut other = header.clone();
-    other.set_string("READOUTM", "Mode 1");
     other.set_float("SET-TEMP", 0.0);
     write_fits(&second, &image, &other).unwrap();
     let args = serde_json::json!({"flatPaths":[first,second],"outputPath":out});
     build_master_flat(args.to_string()).unwrap();
 
+    other.set_string("READOUTM", "Mode 1");
+    write_fits(&second, &image, &other).unwrap();
+    assert_eq!(
+        build_master_flat(args.to_string()).unwrap_err(),
+        format!(
+            "{} was read out in mode Mode 1 but {} in mode Mode 0",
+            second.display(),
+            first.display()
+        )
+    );
+
+    other.set_string("READOUTM", "Mode 0");
     other.set_float("GAIN", 100.5);
     write_fits(&second, &image, &other).unwrap();
     assert_eq!(
@@ -2294,10 +2306,13 @@ fn flat_agreement_reads_the_cards_it_reads_today() {
     let mut bias_header = header.clone();
     bias_header.set_string("IMAGETYP", "BIAS");
     bias_header.set_float("EXPTIME", 0.001);
-    bias_header.set_float("XBINNING", 2.0);
+    bias_header.set_string("READOUTM", "Mode 1");
     write_fits(&bias, &pedestal, &bias_header).unwrap();
     let with_bias =
         serde_json::json!({"flatPaths":[first,second],"biasOrDarkFlat":bias,"outputPath":out});
+    build_master_flat(with_bias.to_string()).unwrap();
+    bias_header.set_float("XBINNING", 2.0);
+    write_fits(&bias, &pedestal, &bias_header).unwrap();
     assert_eq!(
         build_master_flat(with_bias.to_string()).unwrap_err(),
         "Flat and bias/dark-flat XBINNING differ"
