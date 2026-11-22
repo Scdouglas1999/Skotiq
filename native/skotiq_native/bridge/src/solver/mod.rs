@@ -1,7 +1,7 @@
 //! The plate-solve service every solve in the app goes through: a sequencer
 //! frame, a polar-alignment frame, or a file the app asks about. One solver
-//! process runs at a time and a frame is solved once however many callers ask
-//! ([`admission`]); a hinted solve escalates to a wide search and then blind
+//! process runs at a time (`skotiq_platesolve::acquire_solve_gate`) and a
+//! frame is solved once however many callers ask ([`admission`]); a hinted solve escalates to a wide search and then blind
 //! inside the operator's timeout ([`ladder`]); and each solve is told the field
 //! scale and teaches the camera's scale to the next one ([`scale`]).
 

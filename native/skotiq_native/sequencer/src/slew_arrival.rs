@@ -21,6 +21,12 @@
 //!
 //! The target and the position read-backs must be in the same frame; callers
 //! convert the target with `DeviceOps::mount_readback_frame`.
+//!
+//! [`watch_slew`] is the one watch every slew wait runs. Each caller states
+//! its rule in [`SlewArrivalTimings`]: the Center and the meridian flip wait
+//! with no target, an optional start phase and the first idle read ending the
+//! slew (`instructions::slew_wait`); the Slew instruction, the wizards and the
+//! bridge's slew-completed event need the evidence above.
 
 use std::future::Future;
 use std::time::Duration;
@@ -39,11 +45,37 @@ pub struct SlewArrivalTimings {
     pub poll_interval: Duration,
     pub start_grace: Duration,
     pub motion_start_window: Duration,
+    /// How long the mount may take to stop, counted from the start of the
+    /// watch, or from the end of the [`Self::start`] phase when there is one.
     pub timeout: Duration,
     pub idle_confirm_polls: u32,
     pub arrival_tolerance_deg: f64,
     /// Failed reads in a row that end the watch. Zero never ends it.
     pub max_consecutive_failures: u32,
+    /// Wait first for the mount to report it is moving.
+    pub start: Option<SlewStartBound>,
+    /// A deadline reached exactly counts as passed (`true`), or only once
+    /// exceeded (`false`).
+    pub deadline_inclusive: bool,
+    /// The stop check runs after each read as well as before it.
+    pub stop_after_read: bool,
+}
+
+/// A first phase of a watch that waits for the mount to report moving.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SlewStartBound {
+    pub within: Duration,
+    pub poll: Duration,
+    /// A mount that never reports moving within the bound: wait for it to
+    /// stop anyway (`true`), or end the watch (`false`).
+    pub proceed_if_never: bool,
+}
+
+/// Which part of the watch an outcome came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlewPhase {
+    Starting,
+    Moving,
 }
 
 impl SlewArrivalTimings {
@@ -57,6 +89,9 @@ impl SlewArrivalTimings {
             idle_confirm_polls: 2,
             arrival_tolerance_deg: 0.25,
             max_consecutive_failures: 0,
+            start: None,
+            deadline_inclusive: true,
+            stop_after_read: true,
         }
     }
 }
@@ -141,25 +176,69 @@ const MOTION_THRESHOLD_DEG: f64 = 0.1;
 /// untracked mount drifts with the sky by about 0.002° per half second.
 const STILL_THRESHOLD_DEG: f64 = 0.01;
 
+/// How a watched slew ended, when the mount did not stop. The outcomes
+/// that abort the slew carry the abort's answer.
+#[derive(Debug)]
+pub enum SlewEnd<S, R, E> {
+    /// The caller's stop check answered `S`.
+    Stopped {
+        reason: S,
+        phase: SlewPhase,
+        abort: R,
+    },
+    /// The mount never reported moving within the start bound.
+    NeverStarted {
+        abort: R,
+    },
+    DidNotMove,
+    /// The mount was still moving at the timeout.
+    TimedOut {
+        abort: R,
+    },
+    /// Failed reads in a row reached the limit; the last read's error.
+    LostContact {
+        reads: u32,
+        error: Option<E>,
+    },
+}
+
 /// Watch a slew that the driver has accepted until the mount has stopped.
+///
+/// `probe` reads the mount (told which phase asks); an `Err` or a sample
+/// without a slewing state is a failed read. `stop` is checked before every
+/// read, and after it when [`SlewArrivalTimings::stop_after_read`]. `abort`
+/// runs when the watch ends on a stop, a mount that never started, or the
+/// timeout.
 ///
 /// Returns the last [`SlewProgress`] once the mount is stopped — on the target
 /// or not; callers that care where it stopped check
 /// [`SlewProgress::near_target`] or re-read and validate the position.
-pub async fn wait_for_slew_arrival<P, F, C, G>(
+pub async fn watch_slew<S, R, E, P, F, A, AF, G>(
     target: Option<(f64, f64)>,
     timings: &SlewArrivalTimings,
     mut probe: P,
-    is_cancelled: C,
+    stop: impl Fn() -> Option<S>,
+    abort: A,
     mut on_progress: G,
-) -> Result<SlewProgress, SlewWaitError>
+) -> Result<SlewProgress, SlewEnd<S, R, E>>
 where
-    P: FnMut() -> F,
-    F: Future<Output = SlewSample>,
-    C: Fn() -> bool,
+    P: FnMut(SlewPhase) -> F,
+    F: Future<Output = Result<SlewSample, E>>,
+    A: FnOnce() -> AF,
+    AF: Future<Output = R>,
     G: FnMut(&SlewProgress),
 {
     let start = tokio::time::Instant::now();
+    let passed = |deadline: tokio::time::Instant| {
+        let now = tokio::time::Instant::now();
+        if timings.deadline_inclusive {
+            now >= deadline
+        } else {
+            now > deadline
+        }
+    };
+    let mut starting = timings.start;
+    let mut deadline = start + starting.map_or(timings.timeout, |bound| bound.within);
     let mut seen_slewing = false;
     let mut idle_polls = 0u32;
     let mut failures = 0u32;
@@ -167,14 +246,38 @@ where
     let mut previous: Option<f64> = None;
 
     loop {
-        if is_cancelled() {
-            return Err(SlewWaitError::Cancelled);
+        let phase = match starting {
+            Some(_) => SlewPhase::Starting,
+            None => SlewPhase::Moving,
+        };
+        if let Some(reason) = stop() {
+            return Err(SlewEnd::Stopped {
+                reason,
+                phase,
+                abort: abort().await,
+            });
         }
-        let sample = probe().await;
-        if is_cancelled() {
-            return Err(SlewWaitError::Cancelled);
+        let read = probe(phase).await;
+        if timings.stop_after_read {
+            if let Some(reason) = stop() {
+                return Err(SlewEnd::Stopped {
+                    reason,
+                    phase,
+                    abort: abort().await,
+                });
+            }
         }
         let elapsed = start.elapsed();
+        let (sample, error) = match read {
+            Ok(sample) => (sample, None),
+            Err(error) => (
+                SlewSample {
+                    slewing: None,
+                    position: None,
+                },
+                Some(error),
+            ),
+        };
 
         match sample.slewing {
             Some(true) => {
@@ -191,7 +294,10 @@ where
                 if timings.max_consecutive_failures > 0
                     && failures >= timings.max_consecutive_failures
                 {
-                    return Err(SlewWaitError::LostContact(failures));
+                    return Err(SlewEnd::LostContact {
+                        reads: failures,
+                        error,
+                    });
                 }
             }
         }
@@ -223,6 +329,29 @@ where
         };
         on_progress(&progress);
 
+        if let Some(bound) = starting {
+            let moving = sample.slewing == Some(true);
+            if moving || passed(deadline) {
+                if !moving && !bound.proceed_if_never {
+                    return Err(SlewEnd::NeverStarted {
+                        abort: abort().await,
+                    });
+                }
+                if !moving {
+                    tracing::debug!(
+                        "The mount did not report slewing within {}s of the slew command; \
+                         waiting for it to stop",
+                        bound.within.as_secs()
+                    );
+                }
+                starting = None;
+                deadline = tokio::time::Instant::now() + timings.timeout;
+                continue;
+            }
+            tokio::time::sleep(bound.poll).await;
+            continue;
+        }
+
         if sample.slewing.is_some() && idle_polls >= timings.idle_confirm_polls && still {
             let past_grace = elapsed >= timings.start_grace;
             let done = if remaining.is_some() {
@@ -241,13 +370,51 @@ where
             && !near
             && elapsed >= timings.motion_start_window
         {
-            return Err(SlewWaitError::DidNotMove);
+            return Err(SlewEnd::DidNotMove);
         }
-        if elapsed >= timings.timeout {
-            return Err(SlewWaitError::TimedOut(timings.timeout));
+        if passed(deadline) {
+            return Err(SlewEnd::TimedOut {
+                abort: abort().await,
+            });
         }
         tokio::time::sleep(timings.poll_interval).await;
     }
+}
+
+/// [`watch_slew`] for a caller that neither stops the mount nor needs the
+/// read error: `probe` reports a failed read as a sample without a slewing
+/// state, and a cancelled watch leaves the slew running.
+pub async fn wait_for_slew_arrival<P, F, C, G>(
+    target: Option<(f64, f64)>,
+    timings: &SlewArrivalTimings,
+    mut probe: P,
+    is_cancelled: C,
+    on_progress: G,
+) -> Result<SlewProgress, SlewWaitError>
+where
+    P: FnMut() -> F,
+    F: Future<Output = SlewSample>,
+    C: Fn() -> bool,
+    G: FnMut(&SlewProgress),
+{
+    let ended = watch_slew(
+        target,
+        timings,
+        |_| {
+            let sample = probe();
+            async move { Ok::<_, std::convert::Infallible>(sample.await) }
+        },
+        || is_cancelled().then_some(()),
+        || async {},
+        on_progress,
+    )
+    .await;
+    ended.map_err(|end| match end {
+        SlewEnd::Stopped { .. } => SlewWaitError::Cancelled,
+        SlewEnd::NeverStarted { .. } | SlewEnd::DidNotMove => SlewWaitError::DidNotMove,
+        SlewEnd::TimedOut { .. } => SlewWaitError::TimedOut(timings.timeout),
+        SlewEnd::LostContact { reads, .. } => SlewWaitError::LostContact(reads),
+    })
 }
 
 #[cfg(test)]

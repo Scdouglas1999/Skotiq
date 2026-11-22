@@ -1,9 +1,9 @@
 //! The escalation one frame's solve runs: the caller's radius around its
 //! hint, then a wide one, then blind, all inside the operator's timeout.
 
-use super::admission::acquire_solve_gate;
 use crate::error::SkotiqError;
 use skotiq_imaging::PlateSolveResult;
+use skotiq_platesolve::acquire_solve_gate;
 use std::time::{Duration, Instant};
 
 const DEFAULT_SOLVER_TIMEOUT_SECS: u32 = 60;

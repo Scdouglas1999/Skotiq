@@ -15,14 +15,17 @@ pub(crate) async fn wait_for_mount_arrival(
     timeout: Duration,
     progress_callback: Option<&(dyn Fn(f64, String) + Send + Sync)>,
 ) -> Result<crate::slew_arrival::SlewProgress, crate::slew_arrival::SlewWaitError> {
-    use crate::slew_arrival::{wait_for_slew_arrival, SlewArrivalTimings, SlewWaitError};
+    use crate::slew_arrival::{watch_slew, SlewArrivalTimings, SlewEnd, SlewWaitError};
 
     let mut polls = 0u32;
-    let result = wait_for_slew_arrival(
+    let ended = watch_slew(
         target,
         &SlewArrivalTimings::goto(timeout),
-        || ctx.run.device_ops.mount_slew_state(mount_id),
-        || ctx.cancellation_token.load(Ordering::Relaxed),
+        |_| async {
+            Ok::<_, std::convert::Infallible>(ctx.run.device_ops.mount_slew_state(mount_id).await)
+        },
+        || ctx.cancellation_token.load(Ordering::Relaxed).then_some(()),
+        || ctx.run.device_ops.mount_abort_slew(mount_id),
         |progress| {
             polls += 1;
             // Every other read: once a second is enough for a readout.
@@ -41,18 +44,30 @@ pub(crate) async fn wait_for_mount_arrival(
     )
     .await;
 
-    if matches!(
-        result,
-        Err(SlewWaitError::Cancelled) | Err(SlewWaitError::TimedOut(_))
-    ) {
-        if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
+    let warn_abort = |abort: Result<(), crate::device_ops::DeviceError>| {
+        if let Err(error) = abort {
             tracing::warn!(
                 "Wait-for-slew: abort-slew failed ({}); the mount may still be moving",
                 error
             );
         }
-    }
-    result
+    };
+    ended.map_err(|end| match end {
+        SlewEnd::Stopped { abort, .. } => {
+            warn_abort(abort);
+            SlewWaitError::Cancelled
+        }
+        SlewEnd::TimedOut { abort } => {
+            warn_abort(abort);
+            SlewWaitError::TimedOut(timeout)
+        }
+        SlewEnd::NeverStarted { abort } => {
+            warn_abort(abort);
+            SlewWaitError::DidNotMove
+        }
+        SlewEnd::DidNotMove => SlewWaitError::DidNotMove,
+        SlewEnd::LostContact { reads, .. } => SlewWaitError::LostContact(reads),
+    })
 }
 
 /// Wait for focuser to stop moving with timeout
