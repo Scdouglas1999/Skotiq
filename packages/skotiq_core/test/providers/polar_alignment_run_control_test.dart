@@ -301,8 +301,9 @@ void main() {
       'status error': 'error "Point 2: solving" error=null image=2 ra=null',
       'image':
           'measuring "Starting polar alignment..." error=null image=3 ra=2.51',
+      // No producer sends an empty image; one is ignored like a malformed one.
       'empty image':
-          'measuring "Starting polar alignment..." error=null image=0 ra=null',
+          'measuring "Starting polar alignment..." error=null image=2 ra=null',
       'imaging exposure complete':
           'measuring "Starting polar alignment..." error=null image=2 ra=null',
     });

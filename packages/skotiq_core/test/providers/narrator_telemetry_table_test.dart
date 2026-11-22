@@ -8,8 +8,7 @@ import 'package:skotiq_core/src/providers/remote_snapshot_stream.dart';
 
 import '../harness/event_wire.dart';
 
-bool _narratorSkips(SkotiqEvent event) =>
-    hostTelemetryEventTypes.contains(event.eventType);
+bool _narratorSkips(SkotiqEvent event) => isHostTelemetryEvent(event);
 
 typedef _E = bridge.EquipmentEvent;
 typedef _I = bridge.ImagingEvent;
@@ -127,7 +126,8 @@ void main() {
       'sequencer completed': false,
       'wire settingsChanged': false,
       'wire JobProgress': false,
-      'wire MountPositionChanged': true,
+      // No producer sends this name.
+      'wire MountPositionChanged': false,
     });
   });
 }

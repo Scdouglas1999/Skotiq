@@ -1,3 +1,11 @@
+import 'package:skotiq_core/backend.dart'
+    show
+        ImagingEvent_IntegrationProgress,
+        SequencerEvent_DitherPerformed,
+        SequencerEvent_FrameWatchReport,
+        imagingEventOf,
+        isPerTickTelemetry,
+        sequencerEventOf;
 import 'package:skotiq_core/models.dart';
 
 /// The host's events of the night that a person reads in a log, kept apart
@@ -15,39 +23,34 @@ class NightEventLog {
   final int capacity;
   final List<SkotiqEvent> _events = [];
 
-  /// Event types left out: per-tick telemetry that says nothing once it is
-  /// old (and, for autofocus, carries star crops), and the per-frame and
-  /// per-dither reports the run's own record keeps.
-  static const Set<String> _telemetryTypes = {
-    'ExposureProgress',
-    'GuideStep',
-    'GuideStats',
-    'MountPositionChanged',
-    'CameraTemperatureChanged',
-    'FocuserPositionChanged',
-    'FilterWheelPositionChanged',
-    'InstructionProgress',
-    'DitherPerformed',
-    'FrameWatchReport',
-    'AutofocusProgress',
-    'Progress',
-    'ProgressUpdated',
-  };
+  /// Left out: per-tick telemetry that says nothing once it is old (and,
+  /// for autofocus, carries star crops), and the per-dither and frame-watch
+  /// reports the run's own record keeps.
+  static bool _leftOut(SkotiqEvent event) =>
+      isPerTickTelemetry(event) ||
+      switch (sequencerEventOf(event)) {
+        SequencerEvent_DitherPerformed() ||
+        SequencerEvent_FrameWatchReport() => true,
+        _ => false,
+      };
+
+  static String? _integrationPhase(SkotiqEvent event) =>
+      switch (imagingEventOf(event)) {
+        ImagingEvent_IntegrationProgress(:final phase) => phase,
+        _ => null,
+      };
 
   /// Keep [event] when it is one a person reads; the sync envelopes a client
   /// applies rather than logs are left out too.
   void append(SkotiqEvent event) {
-    if (isHostSyncEnvelope(event) ||
-        _telemetryTypes.contains(event.eventType)) {
-      return;
-    }
+    if (isHostSyncEnvelope(event) || _leftOut(event)) return;
     // Integration progress is a line per phase in the host's log
     // (registering, integrating, writing, done), but it reports each phase
     // many times; only the newest report of a phase is kept.
-    if (event.eventType == 'IntegrationProgress' &&
+    final phase = _integrationPhase(event);
+    if (phase != null &&
         _events.isNotEmpty &&
-        _events.last.eventType == 'IntegrationProgress' &&
-        _events.last.data['phase'] == event.data['phase']) {
+        _integrationPhase(_events.last) == phase) {
       _events.removeLast();
     }
     _events.add(event);

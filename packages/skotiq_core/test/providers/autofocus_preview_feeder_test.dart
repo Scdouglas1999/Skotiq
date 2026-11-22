@@ -335,7 +335,8 @@ void main() {
         'failed': 'fresh=- centering=- flip=-',
         'imaging exposure completed':
             'fresh=- centering=centering:1 flip=centering:null',
-        'wire sequenceFailed': '-',
+        // No producer sends this spelling.
+        'wire sequenceFailed': 'centering:1',
       });
     });
 

@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../backend/sequencer_run_events.dart' show decodeStructuredProgressJson;
+import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_events.dart';
+import '../backend/sequencer_run_events.dart';
 import '../models/backend/event_types.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/imaging/imaging_models.dart';
@@ -83,48 +85,41 @@ class AutofocusPreviewFeeder {
     required PolarAlignPhase polarPhase,
     required int polarPoint,
   }) {
-    switch ((event.category, event.eventType)) {
-      case (EventCategory.sequencer, 'TriggerFired')
-          when event.data['action'] == 'MeridianFlip':
-        _flipping = true;
-      case (EventCategory.sequencer, 'InstructionProgress'):
-        _flipping = event.data['instruction'] == 'MeridianFlip';
-        final kind = event.data['detail_kind'];
-        final raw = event.data['detail_json'];
-        final detail = kind is String
-            ? InstructionProgressDetail.fromStructuredData(
-                detailKind: kind,
-                detailJson: raw is String
-                    ? decodeStructuredProgressJson(raw)
-                    : raw,
-              )
-            : null;
-        // Attempt 0 is the step starting or finishing, not a frame.
-        _centering = switch (detail) {
-          CenterInstructionProgressDetail(:final attempt, :final maxAttempts)
-              when attempt > 0 =>
-            (attempt: attempt, maxAttempts: maxAttempts),
-          _ => null,
-        };
-      case (EventCategory.sequencer, 'NodeStarted' || 'NodeCompleted'):
-        // A flip spans the step it interrupted, so only a Center step ends
-        // here.
-        _centering = null;
-      case (
-        EventCategory.sequencer,
-        'FrameAccepted' || 'FrameRejected' || 'ExposureCompleted',
-      ):
-        // A light of the run: whatever came before it is over.
-        _centering = null;
-        _flipping = false;
-      case (
-        EventCategory.sequencer,
-        'Stopped' || 'Completed' || 'SequenceFailed' || 'sequenceFailed',
-      ):
-        _centering = null;
-        _flipping = false;
-      case (EventCategory.imaging, 'ExposureComplete'):
-        if (event.data['success'] != true || autofocusRunning) return;
+    if (sequencerEventOf(event) case final run?) {
+      switch (run) {
+        case SequencerEvent_TriggerFired(
+          action: SequencerTriggerAction.meridianFlip,
+        ):
+          _flipping = true;
+        case SequencerEvent_InstructionProgress(:final instruction):
+          _flipping = instruction == 'MeridianFlip';
+          // Attempt 0 is the step starting or finishing, not a frame.
+          _centering = switch (run.report) {
+            CenterInstructionProgressDetail(:final attempt, :final maxAttempts)
+                when attempt > 0 =>
+              (attempt: attempt, maxAttempts: maxAttempts),
+            _ => null,
+          };
+        case SequencerEvent_NodeStarted() || SequencerEvent_NodeCompleted():
+          // A flip spans the step it interrupted, so only a Center step ends
+          // here.
+          _centering = null;
+        case SequencerEvent_FrameAccepted() ||
+            SequencerEvent_FrameRejected() ||
+            SequencerEvent_ExposureCompleted():
+          // A light of the run: whatever came before it is over.
+          _centering = null;
+          _flipping = false;
+        case _ when run.endsRun:
+          _centering = null;
+          _flipping = false;
+        default:
+      }
+      return;
+    }
+    switch (imagingEventOf(event)) {
+      case ImagingEvent_ExposureComplete(:final success):
+        if (!success || autofocusRunning) return;
         final centering = _centering;
         if (centering != null) {
           _request(

@@ -144,7 +144,8 @@ void main() {
       'sequencer ditherPerformed': false,
       'sequencer frameWatchReport': false,
       'sequencer completed': true,
-      'wire MountPositionChanged': false,
+      // No producer sends this name.
+      'wire MountPositionChanged': true,
     });
   });
 
