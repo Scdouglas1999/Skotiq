@@ -138,7 +138,7 @@ impl DeviceManager {
         error: &crate::dispatch::error::DeviceOpError,
     ) {
         let failure = DeviceFailure::from(error);
-        if failure.says_gone() || failure.session_lost() {
+        if failure.gone() || failure.session_lost() {
             self.status_reads
                 .record_failure(device_id, failure, std::time::Instant::now());
         }
@@ -150,8 +150,8 @@ impl DeviceManager {
     /// * a camera: its SDK session is broken
     ///   ([`DeviceFailure::session_lost`]), or a device came or went on the
     ///   bus recently;
-    /// * a filter wheel or focuser: its words say it is disconnected, and a
-    ///   device came or went on the bus recently.
+    /// * a filter wheel or focuser: it is gone ([`DeviceFailure::gone`]), and
+    ///   a device came or went on the bus recently.
     pub(crate) async fn wants_reopen(&self, device_id: &str, error: &DeviceFailure) -> bool {
         let Some(device_type) = self
             .devices
@@ -165,7 +165,7 @@ impl DeviceManager {
         let bus_changed = crate::hotplug::bus_changed_within(BUS_CHANGE_SUSPECT_WINDOW);
         match device_type {
             DeviceType::Camera => error.session_lost() || bus_changed,
-            DeviceType::FilterWheel | DeviceType::Focuser => bus_changed && error.says_gone(),
+            DeviceType::FilterWheel | DeviceType::Focuser => bus_changed && error.gone(),
             _ => false,
         }
     }

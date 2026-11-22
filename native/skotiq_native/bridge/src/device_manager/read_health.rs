@@ -105,13 +105,6 @@ fn counts_against_device(error: &DeviceOpError) -> bool {
     )
 }
 
-/// Whether a failed read says the device is gone, rather than busy or slow:
-/// by its kind or by its words.
-fn says_gone(error: &DeviceOpError) -> bool {
-    let failure = DeviceFailure::from(error);
-    failure.not_connected() || failure.says_gone()
-}
-
 impl DeviceManager {
     /// Record how a status read of `device_id` went. A read that says the
     /// device is gone records it lost at once, so the device list, every
@@ -123,7 +116,7 @@ impl DeviceManager {
         let Err(error) = result else {
             return;
         };
-        if !says_gone(error) {
+        if !DeviceFailure::from(error).gone() {
             return;
         }
         let device_type = {

@@ -740,3 +740,45 @@ async fn a_focuser_whose_reads_say_it_is_gone_is_listed_lost_and_reconnected() {
     assert_eq!(manager.focuser_get_position(id).await.ok(), Some(5200));
     let _ = manager.disconnect_device(id).await;
 }
+
+/// A wheel or focuser failure whose kind says it is not connected is gone
+/// whatever its words: after a bus change it is reopened and the move runs
+/// again, and it counts against the device's health.
+#[tokio::test]
+async fn a_not_connected_kind_without_the_words_is_gone_at_every_recovery_site() {
+    let _guard = simulator_singleton_test_lock().lock().await;
+    let manager = build_device_manager();
+    let focuser = "sim_focuser_kind";
+    manager
+        .register_device(build_sim_info(focuser, DeviceType::Focuser), false)
+        .await;
+    manager.connect_device(focuser).await.expect("connect");
+    let lost = || crate::dispatch::error::DeviceOpError::not_connected(None, "EAF gone");
+    assert!(!DeviceFailure::from(&lost()).says_gone());
+
+    crate::hotplug::note_bus_change();
+    let tries = std::sync::atomic::AtomicU32::new(0);
+    let moved = manager
+        .with_reopen(focuser, || async {
+            if tries.fetch_add(1, std::sync::atomic::Ordering::SeqCst) == 0 {
+                Err(lost())
+            } else {
+                Ok(())
+            }
+        })
+        .await;
+    crate::hotplug::forget_bus_change();
+    assert!(
+        moved.is_ok(),
+        "the move runs again after the reopen: {moved:?}"
+    );
+    assert_eq!(manager.reopen_count(focuser), 1);
+
+    for _ in 0..3 {
+        let _ = manager
+            .with_reopen(focuser, || async { Err::<(), _>(lost()) })
+            .await;
+    }
+    assert!(manager.failing_status_reads(focuser).is_some());
+    let _ = manager.disconnect_device(focuser).await;
+}
