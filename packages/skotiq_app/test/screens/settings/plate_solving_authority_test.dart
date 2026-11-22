@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/plate_solving_settings_screen.dart';
+import 'package:skotiq_app/services/host_folders.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -60,16 +61,17 @@ void main() {
         plateSolverPreferenceProvider.overrideWith(
           (ref) async => const PlateSolverPreference(),
         ),
-        plateSolverPathPickerProvider.overrideWithValue(
-          ({
-            required context,
-            required kind,
-            required isRemote,
-            required currentPath,
-          }) {
-            expect(kind, PlateSolverPathKind.astapExecutable);
-            return picks[pickerCalls++].future;
-          },
+        hostFoldersProvider.overrideWithValue(
+          FakeHostFolders(
+            onPickPath: (request, {required currentPath}) {
+              expect(
+                request.hostTitle,
+                plateSolverPathRequest(PlateSolverPathKind.astapExecutable)
+                    .hostTitle,
+              );
+              return picks[pickerCalls++].future;
+            },
+          ),
         ),
       ],
     );

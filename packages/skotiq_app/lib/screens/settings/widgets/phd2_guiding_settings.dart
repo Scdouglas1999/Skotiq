@@ -6,13 +6,28 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:file_selector/file_selector.dart';
 
-import '../../../widgets/remote_host_path_dialog.dart';
+import '../../../services/host_folders.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'package:skotiq_core/backend.dart';
+
+/// The PHD2 executable on the machine that owns the data.
+final phd2PathRequest = HostPathRequest(
+  hostTitle: 'PHD2 executable on imaging host',
+  hostHint: r'C:\Program Files\PHD2\PHD2.exe or /usr/bin/phd2',
+  hostSubmitLabel: 'Use host path',
+  hostClearLabel: 'Use auto-detect',
+  typeLabel: 'PHD2 executable',
+  extensions: Platform.isWindows ? const ['exe'] : null,
+  confirmLabel: 'Use this PHD2 executable',
+  initialDirectory: Platform.isWindows
+      ? 'C:\\Program Files'
+      : Platform.isMacOS
+          ? '/Applications'
+          : null,
+);
 
 class Phd2GuidingSettings extends ConsumerStatefulWidget {
   const Phd2GuidingSettings({super.key});
@@ -178,37 +193,12 @@ class _Phd2GuidingSettingsState extends ConsumerState<Phd2GuidingSettings> {
 
   Future<void> _selectPhd2Path() async {
     final startedOn = ref.backendScope();
-    final isRemote = ref.read(isRemoteModeProvider);
-    String? initialDir;
-    if (!isRemote && Platform.isWindows) {
-      initialDir = 'C:\\Program Files';
-    } else if (!isRemote && Platform.isMacOS) {
-      initialDir = '/Applications';
-    }
-
     final settings = ref.read(appSettingsProvider).valueOrNull;
-    final String? result;
-    if (isRemote) {
-      result = await RemoteHostPathDialog.show(
-        context,
-        title: 'PHD2 executable on imaging host',
-        initialPath: settings?.phd2Path,
-        hintText: r'C:\Program Files\PHD2\PHD2.exe or /usr/bin/phd2',
-        submitLabel: 'Use host path',
-        clearLabel: 'Use auto-detect',
-      );
-    } else {
-      final typeGroup = XTypeGroup(
-        label: 'PHD2 executable',
-        extensions: Platform.isWindows ? const ['exe'] : null,
-      );
-      result = (await openFile(
-        acceptedTypeGroups: [typeGroup],
-        initialDirectory: initialDir,
-        confirmButtonText: 'Use this PHD2 executable',
-      ))
-          ?.path;
-    }
+    final result = await ref.read(hostFoldersProvider).pickPath(
+          context,
+          phd2PathRequest,
+          currentPath: settings?.phd2Path,
+        );
 
     if (!mounted) {
       return;
