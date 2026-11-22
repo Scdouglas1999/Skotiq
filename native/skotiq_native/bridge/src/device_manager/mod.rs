@@ -8,6 +8,7 @@
 pub(crate) mod accessory;
 pub(crate) mod busy;
 pub(crate) mod capture;
+pub(crate) mod connect_check;
 pub(crate) mod connection;
 pub(crate) mod device_reopen;
 pub(crate) mod epoch;
@@ -284,6 +285,9 @@ pub struct DeviceManager {
 
     /// What is kept of each device across its connections.
     pub(crate) sessions: device_reopen::DeviceSessions,
+    /// The last position of each focuser, wheel and rotator, for the
+    /// connect check.
+    pub(crate) positions: connect_check::positions::Positions,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -394,6 +398,11 @@ impl DeviceManager {
     /// Create a new device manager
     pub fn new(app_state: SharedAppState) -> Arc<Self> {
         let manager = Self::without_reconnection(app_state);
+        // A test process shares one data root across its tests; their
+        // managers keep positions in memory.
+        if cfg!(not(test)) {
+            manager.positions.keep_under_data_root();
+        }
 
         // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
         let manager_clone = Arc::clone(&manager);
@@ -434,6 +443,7 @@ impl DeviceManager {
             stated_frame_defaults: Default::default(),
             unlisted_read_mode_notices: Default::default(),
             sessions: Default::default(),
+            positions: Default::default(),
         })
     }
 

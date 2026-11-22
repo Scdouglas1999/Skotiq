@@ -278,24 +278,48 @@ impl DeviceManager {
         }
     }
 
-    /// Read where a wheel, focuser or rotator that was just connected is.
-    /// Only a read: a reconnect never moves one.
+    /// Read where a wheel, focuser or rotator that was just connected is,
+    /// and check it against where Skotiq last recorded it
+    /// ([`DeviceManager::check_position_at_connect`]). Only a read: a
+    /// reconnect never moves one.
     pub(crate) async fn read_position_after_connect(&self, info: &DeviceInfo) {
+        use crate::device_manager::ops::backstop::Reading;
         let id = &info.id;
-        match info.device_type {
+        let reading = match info.device_type {
             DeviceType::Rotator => match self.rotator_get_position(id).await {
-                Ok(angle) => tracing::info!("Rotator {id} connected at {angle:.2} degrees"),
-                Err(e) => tracing::warn!("Rotator {id} connected; its angle read failed: {e}"),
+                Ok(angle) => {
+                    tracing::info!("Rotator {id} connected at {angle:.2} degrees");
+                    Some(Reading::Rotator(angle))
+                }
+                Err(e) => {
+                    tracing::warn!("Rotator {id} connected; its angle read failed: {e}");
+                    None
+                }
             },
             DeviceType::FilterWheel => match self.filter_wheel_get_position(id).await {
-                Ok(slot) => tracing::info!("Filter wheel {id} connected at slot {slot}"),
-                Err(e) => tracing::warn!("Filter wheel {id} connected; its slot read failed: {e}"),
+                Ok(slot) => {
+                    tracing::info!("Filter wheel {id} connected at slot {slot}");
+                    Some(Reading::Filter(slot))
+                }
+                Err(e) => {
+                    tracing::warn!("Filter wheel {id} connected; its slot read failed: {e}");
+                    None
+                }
             },
             DeviceType::Focuser => match self.focuser_get_position(id).await {
-                Ok(position) => tracing::info!("Focuser {id} connected at position {position}"),
-                Err(e) => tracing::warn!("Focuser {id} connected; its position read failed: {e}"),
+                Ok(position) => {
+                    tracing::info!("Focuser {id} connected at position {position}");
+                    Some(Reading::Focuser(position))
+                }
+                Err(e) => {
+                    tracing::warn!("Focuser {id} connected; its position read failed: {e}");
+                    None
+                }
             },
-            _ => {}
+            _ => None,
+        };
+        if let Some(reading) = reading {
+            self.check_position_at_connect(info, reading).await;
         }
     }
 
@@ -371,7 +395,7 @@ impl DeviceManager {
     /// The cooler state commanded through Skotiq wins over the last read:
     /// a camera that lost power can read its cooler off before it is
     /// reopened. A failed restore is reported and does not fail the connect.
-    pub(crate) async fn restore_camera_state(&self, info: &DeviceInfo) {
+    pub(crate) async fn restore_camera_state(&self, info: &DeviceInfo) -> bool {
         let device_id = &info.id;
         let (commanded, held) = {
             let devices = self.devices.read().await;
@@ -380,7 +404,7 @@ impl DeviceManager {
                     dev.desired_cooler,
                     dev.held_camera_state.unwrap_or_default(),
                 ),
-                None => return,
+                None => return false,
             }
         };
         let cooler = match commanded {
@@ -389,6 +413,7 @@ impl DeviceManager {
         };
 
         let mut failures = Vec::new();
+        let cooler_restored = matches!(cooler, Some((true, _)));
         if let Some((true, target)) = cooler {
             tracing::info!(
                 "Restoring camera {device_id} cooler: on, set-point {target:?} C (it ran at {:?} % \
@@ -410,7 +435,7 @@ impl DeviceManager {
             }
         }
         if failures.is_empty() {
-            return;
+            return cooler_restored;
         }
         let message = format!(
             "Reconnected, but could not restore the camera's {}",
@@ -425,5 +450,6 @@ impl DeviceManager {
             },
             EventSeverity::Warning,
         );
+        cooler_restored
     }
 }

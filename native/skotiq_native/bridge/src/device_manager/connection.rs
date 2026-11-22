@@ -598,9 +598,8 @@ impl DeviceManager {
                 // Before anything else reaches the camera, and before any
                 // wait: a reopened camera's sensor warms from the moment its
                 // cooler stopped.
-                if info.device_type == DeviceType::Camera {
-                    self.restore_camera_state(info).await;
-                }
+                let cooler_restored =
+                    info.device_type == DeviceType::Camera && self.restore_camera_state(info).await;
                 self.restore_commanded_state(info).await;
                 crate::device_capabilities::cache::invalidate_capability_cache_for_device(
                     device_id,
@@ -665,6 +664,11 @@ impl DeviceManager {
                 // (`keep_state`); a camera restores what it held above.
                 if info.device_type == DeviceType::Mount {
                     self.keep_mount_tracking(info, held_tracking).await;
+                    self.check_mount_after_connect(info);
+                }
+                // A cooler this connect just switched back on has not settled.
+                if info.device_type == DeviceType::Camera && !cooler_restored {
+                    self.check_cooler_at_connect(info).await;
                 }
             }
             Err(e) => {
