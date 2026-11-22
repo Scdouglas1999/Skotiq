@@ -10,8 +10,6 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 import 'error_text_kind.dart';
 
 /// Backend error category classifications.
-///
-/// These categories match the Rust `SkotiqError::error_category()` values.
 enum BackendErrorCategory {
   connection,
 
@@ -39,10 +37,9 @@ enum BackendErrorCategory {
   unknown,
 }
 
-/// Structured error information from the Skotiq native library.
+/// Structured error information, from the native library or Dart.
 ///
-/// This class mirrors the Rust `ErrorInfo` struct and provides all the
-/// context needed to:
+/// It provides the context needed to:
 /// - Display appropriate error messages to users
 /// - Decide whether to retry operations
 /// - Determine if reconnection is needed

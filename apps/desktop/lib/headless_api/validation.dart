@@ -3,6 +3,7 @@ import 'dart:convert';
 // bridge-boundary: headless_validation
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_core/errors.dart' show bridgeErrorTexts;
 
 import 'response_helpers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
@@ -19,115 +20,79 @@ String describeBackendError(Object error) => error is bridge_error.SkotiqError
     : error.toString();
 
 /// The HTTP status and the operator-readable sentence the host answers a
-/// flutter_rust_bridge [bridge_error.SkotiqError] with: one row per variant.
+/// flutter_rust_bridge [bridge_error.SkotiqError] with.
 ///
 /// The status lets a remote tablet react ("not supported", "not connected",
 /// "bad request") instead of an opaque 500; genuinely internal or driver
-/// faults stay 500. The sentence replaces the freezed `toString()`
+/// faults stay 500. The sentence is the remote one from core's error table
+/// ([bridgeErrorTexts]), not the freezed `toString()`
 /// (`SkotiqError.operationFailed(field0: <msg>)`), so the wire carries the
 /// text a remote client shows, not the Dart class plumbing.
 ///
 /// An EXHAUSTIVE `map` with no `orElse`: a variant added to the bridge union
-/// stops this function compiling instead of silently leaking the constructor
-/// form or falling to a 500. Do not reintroduce a catch-all.
+/// stops this function compiling instead of silently falling to a 500. Do not
+/// reintroduce a catch-all.
 ///
 /// An exposure the camera delivered but validation rejected (saturated,
 /// all-zero, wrong pixel count) is 422: the request was well-formed and the
 /// driver worked, so it is not an internal fault, and a retry-on-5xx client
 /// must not retry a request that cannot succeed until the exposure changes.
 (int, String) _backendErrorReply(bridge_error.SkotiqError e) {
-  // `deviceId` is empty on the arms where the driver did not scope the
-  // failure to one device; appending "(device )" there would be noise.
-  String scoped(String sentence, String deviceId) =>
-      deviceId.isEmpty ? sentence : '$sentence (device $deviceId)';
-
-  final (status, message) = e.map(
+  final status = e.map(
     // Connection / presence
-    deviceNotFound: (v) => (404, 'Device not found: ${v.field0}'),
-    connectionFailed: (v) =>
-        (502, 'Could not connect to ${v.deviceId}: ${v.reason}'),
-    alreadyConnected: (v) => (500, 'Device already connected: ${v.field0}'),
-    notConnected: (v) => (409, 'Device not connected: ${v.field0}'),
-    deviceDisconnected: (v) =>
-        (409, 'Device ${v.deviceId} disconnected: ${v.reason}'),
+    deviceNotFound: (_) => 404,
+    connectionFailed: (_) => 502,
+    alreadyConnected: (_) => 500,
+    notConnected: (_) => 409,
+    deviceDisconnected: (_) => 409,
     // Hardware / transport
-    hardwareError: (v) =>
-        (500, 'Hardware error on ${v.deviceId}: ${v.message}'),
-    communicationError: (v) =>
-        (500, 'Communication error with ${v.deviceId}: ${v.message}'),
-    timeout: (v) => (504, v.field0),
-    deviceTimeout: (v) => (
-      504,
-      '${v.deviceId} timed out after ${v.timeoutSecs}s during ${v.operation}',
-    ),
-    connectionTimeout: (v) =>
-        (504, 'Connecting to ${v.deviceId} timed out after ${v.timeoutSecs}s'),
+    hardwareError: (_) => 500,
+    communicationError: (_) => 500,
+    timeout: (_) => 504,
+    deviceTimeout: (_) => 504,
+    connectionTimeout: (_) => 504,
     // Caller input
-    invalidParameter: (v) => (400, v.field0),
-    invalidInput: (v) => (400, v.field0),
-    invalidDeviceId: (v) => (400, scoped(v.reason, v.deviceId)),
-    parameterOutOfRange: (v) => (
-      400,
-      '${v.paramName} ${v.value} is outside the valid range '
-          '${v.min} to ${v.max}',
-    ),
+    invalidParameter: (_) => 400,
+    invalidInput: (_) => 400,
+    invalidDeviceId: (_) => 400,
+    parameterOutOfRange: (_) => 400,
     // Operation
-    operationFailed: (v) => (500, v.field0),
-    notSupported: (v) => (501, scoped(v.operation, v.deviceId)),
-    deviceBusy: (v) => (409, '${v.deviceId} is busy: ${v.currentOperation}'),
+    operationFailed: (_) => 500,
+    notSupported: (_) => 501,
+    deviceBusy: (_) => 409,
     // The status of the variant each refusal was raised as before it had a
     // kind; the handlers that answer a kind its own way catch it first.
-    refused: (v) =>
-        (v.kind == bridge_error.Refusal.lightLeak ? 400 : 500, v.message),
-    invalidState: (v) => (409, v.field0),
+    refused: (v) => v.kind == bridge_error.Refusal.lightLeak ? 400 : 500,
+    invalidState: (_) => 409,
     // Imaging
-    imageError: (v) => (500, v.field0),
-    cameraError: (v) => (500, v.field0),
-    noImageAvailable: (_) =>
-        (404, 'No image is available yet — capture an exposure first'),
-    exposureCancelled: (_) => (409, 'Exposure cancelled'),
-    // `reason` is already the complete operator-actionable sentence.
-    exposureFailed: (v) => (422, v.reason),
-    downloadFailed: (v) =>
-        (500, 'Image download failed: ${v.cameraId} - ${v.reason}'),
+    imageError: (_) => 500,
+    cameraError: (_) => 500,
+    noImageAvailable: (_) => 404,
+    exposureCancelled: (_) => 409,
+    exposureFailed: (_) => 422,
+    downloadFailed: (_) => 500,
     // Host
-    ioError: (v) => (500, v.field0),
-    serializationError: (v) => (500, v.field0),
-    plateSolveError: (v) => (500, v.field0),
-    sequenceError: (v) => (500, v.field0),
+    ioError: (_) => 500,
+    serializationError: (_) => 500,
+    plateSolveError: (_) => 500,
+    sequenceError: (_) => 500,
     // Driver-stack specific
-    ascomError: (v) => (
-      500,
-      'ASCOM driver ${v.progId} reported: ${v.message} (code ${v.errorCode})',
-    ),
-    alpacaError: (v) => (
-      500,
-      'Alpaca device ${v.deviceNumber} at ${v.baseUrl} reported: '
-          '${v.message} (code ${v.errorCode})',
-    ),
-    indiError: (v) => (
-      500,
-      'INDI device ${v.deviceName} on ${v.server}:${v.port} reported: '
-          '${v.message}',
-    ),
-    nativeError: (v) =>
-        (500, '${v.vendor} SDK reported: ${v.message} (code ${v.errorCode})'),
-    comError: (v) => (
-      500,
-      'Windows COM call failed: ${v.message} '
-          '(HRESULT 0x${v.hresult.toUnsigned(32).toRadixString(16)})',
-    ),
+    ascomError: (_) => 500,
+    alpacaError: (_) => 500,
+    indiError: (_) => 500,
+    nativeError: (_) => 500,
+    comError: (_) => 500,
     // Process
-    internal: (v) => (500, v.field0),
-    cancelled: (_) => (409, 'Operation cancelled'),
-    runtimeInitFailed: (v) => (500, v.field0),
-    resourceExhausted: (v) => (409, '${v.resource} exhausted: ${v.message}'),
+    internal: (_) => 500,
+    cancelled: (_) => 409,
+    runtimeInitFailed: (_) => 500,
+    resourceExhausted: (_) => 409,
   );
 
   // Belt and braces: a variant whose payload string is empty would otherwise
   // put an empty `message` on the wire. Never fall back to `e.toString()` —
   // that is the constructor form this function exists to keep off the wire.
-  final trimmed = message.trim();
+  final trimmed = bridgeErrorTexts(e).remote.trim();
   return (
     status,
     trimmed.isEmpty ? 'The device reported an unspecified error' : trimmed,
