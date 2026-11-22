@@ -83,5 +83,8 @@ async fn the_device_layer_reopens_one_break_at_start_or_completion_and_no_other(
         "a transient fault reaches the caller"
     );
 
-    let _ = get_device_manager().disconnect_device(id).await;
+    get_device_manager()
+        .disconnect_device(id)
+        .await
+        .expect("disconnect");
 }
