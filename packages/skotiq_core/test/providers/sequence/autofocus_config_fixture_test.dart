@@ -12,6 +12,7 @@ import 'package:skotiq_core/src/models/sequence/autofocus_run.dart';
 import 'package:skotiq_core/src/models/sequence/sequence_models.dart';
 import 'package:skotiq_core/src/providers/focuser_backlash_provider.dart';
 import 'package:skotiq_core/src/providers/sequence/sequence_executor/sequence_serializer.dart';
+import 'package:skotiq_core/settings.dart' show AppSettingsState;
 
 const _fixturePath = '../../test_fixtures/autofocus_config/cases.json';
 
@@ -95,6 +96,15 @@ void main() {
       .cast<Map<String, dynamic>>();
 
   test('the fixture has cases', () => expect(cases, isNotEmpty));
+
+  // A run sent before the settings load uses the model's defaults, so they
+  // must be the ones a new install stores.
+  test('the model defaults backlash as a new install stores it', () {
+    const settings = AutofocusSettings();
+    const stored = AppSettingsState();
+    expect(settings.backlashIn, stored.afBacklashIn);
+    expect(settings.backlashOut, stored.afBacklashOut);
+  });
 
   for (final testCase in cases) {
     test('autofocus config: ${testCase['name']}', () {
