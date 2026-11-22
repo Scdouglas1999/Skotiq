@@ -2943,6 +2943,9 @@ packages/skotiq_core/lib/src/providers/sequence_file_service_provider.dart	-	emp
 packages/skotiq_core/lib/src/providers/sequence_file_service_provider.dart	-	literal_null_coalesce	1	V0032	return ref.read(appSettingsProvider).valueOrNull?.sequencesPath ?? '';
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	-	comment_best_effort	1	V0022	/// Best-effort legacy join for a run that has no captured frame provenance.
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	wallClockSecs	guessed_now_timestamp	1	V0022	final end = endTime ?? DateTime.now();
+packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	FilterStats.fromJson	literal_null_coalesce	1	V0022	..captured = (json['captured'] as num?)?.toInt() ?? 0
+packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	FilterStats.fromJson	literal_null_coalesce	1	V0022	..integrationSecs = (json['integrationSecs'] as num?)?.toDouble() ?? 0.0;
+packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	FilterStats.fromJson	literal_null_coalesce	1	V0022	..rejected = (json['rejected'] as num?)?.toInt() ?? 0
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunStats.fromJson	literal_null_coalesce	1	V0022	autofocusRuns: (map['autofocusRuns'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunStats.fromJson	literal_null_coalesce	1	V0022	ditherCount: (map['ditherCount'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunStats.fromJson	literal_null_coalesce	1	V0022	framesCaptured: (map['framesCaptured'] as num?)?.toInt() ?? 0,
@@ -2952,9 +2955,6 @@ packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunSta
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunStats.fromJson	literal_null_coalesce	1	V0022	overheadSecs: (map['overheadSecs'] as num?)?.toDouble() ?? 0,
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunStats.fromJson	literal_null_coalesce	1	V0022	triggerFires: (map['triggerFires'] as num?)?.toInt() ?? 0,
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	ParsedRunStats.fromJson	literal_null_coalesce	1	V0022	wallClockSecs: (map['wallClockSecs'] as num?)?.toDouble() ?? 0,
-packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunStats.fromJson	literal_null_coalesce	1	V0022	(fMap['integrationSecs'] as num?)?.toDouble() ?? 0.0;
-packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunStats.fromJson	literal_null_coalesce	1	V0022	fs.captured = (fMap['captured'] as num?)?.toInt() ?? 0;
-packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunStats.fromJson	literal_null_coalesce	1	V0022	fs.rejected = (fMap['rejected'] as num?)?.toInt() ?? 0;
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunStats.fromJson	literal_null_coalesce	1	V0022	stats.autofocusRuns = (map['autofocusRuns'] as num?)?.toInt() ?? 0;
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunStats.fromJson	literal_null_coalesce	1	V0022	stats.ditherCount = (map['ditherCount'] as num?)?.toInt() ?? 0;
 packages/skotiq_core/lib/src/providers/sequence_stats_provider.dart	SequenceRunStats.fromJson	literal_null_coalesce	1	V0022	stats.framesCaptured = (map['framesCaptured'] as num?)?.toInt() ?? 0;
