@@ -653,6 +653,13 @@ fn a_master_is_read_by_frametyp_its_kind_and_nframes() {
         check(&counted).unwrap_err(),
         "Master dark was built from 4 frames; DepthLock needs at least 8"
     );
+    counted.keywords.remove("NFRAMES");
+    counted.keywords.remove("NCOMBINE");
+    assert_eq!(
+        check(&counted).unwrap_err(),
+        "Master dark does not say how many frames it was built from (NFRAMES or NCOMBINE); \
+         DepthLock needs at least 8"
+    );
     let mut word_only = master_header("Master Dark", 20);
     word_only.keywords.remove("FRAMETYP");
     assert!(check(&word_only).is_ok(), "IMAGETYP says master");

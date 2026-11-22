@@ -464,6 +464,9 @@ pub struct AcquisitionSettings {
     pub ccd_temp_c: Option<f64>,
 }
 
+/// The binning of a light whose header does not state it: unbinned.
+const UNSTATED_BINNING: i32 = 1;
+
 /// Read and vet a light's header: an unprocessed monochrome `Light` with the
 /// cards the compatibility checks need.
 pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String> {
@@ -515,8 +518,8 @@ pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String
         exposure_secs,
         gain: whole(Setting::Gain, taken.gain)?,
         offset: whole(Setting::Offset, taken.offset)?,
-        bin_x: whole(Setting::BinX, taken.bin_x)?.unwrap_or(1),
-        bin_y: whole(Setting::BinY, taken.bin_y)?.unwrap_or(1),
+        bin_x: whole(Setting::BinX, taken.bin_x)?.unwrap_or(UNSTATED_BINNING),
+        bin_y: whole(Setting::BinY, taken.bin_y)?.unwrap_or(UNSTATED_BINNING),
         ccd_temp_c: taken.sensor_temp_c.filter(|v| v.is_finite()),
     })
 }
@@ -703,11 +706,19 @@ pub fn validate_master(
             "{label} carries a Bayer pattern; DepthLock is monochrome only"
         ));
     }
-    let frames = provenance.frames.or(provenance.combined).unwrap_or(0);
-    if frames < MIN_MASTER_FRAMES {
-        return Err(format!(
+    match provenance.frames.or(provenance.combined) {
+        Some(frames) if frames >= MIN_MASTER_FRAMES => {}
+        Some(frames) => {
+            return Err(format!(
             "{label} was built from {frames} frames; DepthLock needs at least {MIN_MASTER_FRAMES}"
-        ));
+        ))
+        }
+        None => {
+            return Err(format!(
+                "{label} does not say how many frames it was built from (NFRAMES or NCOMBINE); \
+                 DepthLock needs at least {MIN_MASTER_FRAMES}"
+            ))
+        }
     }
     if image.width != reference.width || image.height != reference.height {
         return Err(format!(

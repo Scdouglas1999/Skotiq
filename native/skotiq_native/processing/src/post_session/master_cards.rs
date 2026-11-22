@@ -94,9 +94,9 @@ fn attach_wcs_solved_by(
     };
     if !result.success || result.cd1_1 == 0.0 {
         tracing::info!(
-            "no WCS for '{}': ASTAP could not solve it ({})",
-            master_path.display(),
-            result.error.unwrap_or_default()
+            error = ?result.error,
+            "no WCS for '{}': ASTAP could not solve it",
+            master_path.display()
         );
         return None;
     }
@@ -192,7 +192,7 @@ mod tests {
         reference.set_float("CD1_1", -2.8e-4);
         reference.set_float("CD2_2", 2.8e-4);
         assert_eq!(attach(&reference), (Some(true), false), "CD: inherited");
-        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The master's own solve holds the app's one-solver gate: a solve asked
