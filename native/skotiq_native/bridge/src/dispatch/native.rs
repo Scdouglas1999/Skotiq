@@ -68,7 +68,13 @@ impl DeviceManager {
                 elevation_m: Some(location.elevation),
             })
         });
-        let data_root = crate::data_root::root().ok();
+        let data_root = match crate::data_root::root() {
+            Ok(root) => Some(root),
+            Err(e) => {
+                tracing::debug!("{} opens without a data root: {e}", info.id);
+                None
+            }
+        };
         let handle = family
             .open(OpenRequest {
                 address,
@@ -167,8 +173,15 @@ impl DeviceManager {
             // true after the camera is unplugged.
             (NativeHandle::Camera(mut camera), _) => {
                 if let Some(old) = self.handles.remove(&info.id) {
-                    let _ = old.disconnect().await;
-                    tracing::info!("Closed the previous native camera for {}", info.id);
+                    match old.disconnect().await {
+                        Ok(()) => {
+                            tracing::info!("Closed the previous native camera for {}", info.id)
+                        }
+                        Err(e) => tracing::warn!(
+                            "Closing the previous native camera for {} reported {e}",
+                            info.id
+                        ),
+                    }
                 }
                 camera.connect().await.map_err(ConnectError::from_driver)?;
                 self.handles.insert(

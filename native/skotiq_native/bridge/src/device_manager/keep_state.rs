@@ -104,12 +104,15 @@ impl DeviceManager {
         if status.tracking {
             return;
         }
-        tracing::info!(
-            "{device_id} reconnected not tracking; it was tracking{}, so tracking resumes",
-            held.rate
-                .map(|rate| format!(" at the {rate:?} rate"))
-                .unwrap_or_default()
-        );
+        match held.rate {
+            Some(rate) => tracing::info!(
+                "{device_id} reconnected not tracking; it was tracking at the {rate:?} rate, so \
+                 tracking resumes"
+            ),
+            None => tracing::info!(
+                "{device_id} reconnected not tracking; it was tracking, so tracking resumes"
+            ),
+        }
         match self.mount_set_tracking(device_id, true).await {
             Ok(()) => self.notify(
                 "info",

@@ -218,7 +218,9 @@ mod tests {
             std::process::id(),
             std::thread::current().id()
         ));
-        let _ = std::fs::remove_dir_all(&dir);
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).expect("clear the scratch directory");
+        }
         dir.join(FILE_NAME)
     }
 

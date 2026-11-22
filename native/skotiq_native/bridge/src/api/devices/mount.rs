@@ -512,9 +512,13 @@ mod tests {
             asked.fetch_add(1, Ordering::SeqCst);
             super::MountMoveGuider::Stopped
         };
-        let _ = super::move_axis("no_such_mount", 0, 0.5, clear).await;
+        assert!(super::move_axis("no_such_mount", 0, 0.5, clear)
+            .await
+            .is_err());
         assert_eq!(asked.load(Ordering::SeqCst), 1, "a nudge stops the guider");
-        let _ = super::move_axis("no_such_mount", 0, 0.0, clear).await;
+        assert!(super::move_axis("no_such_mount", 0, 0.0, clear)
+            .await
+            .is_err());
         assert_eq!(
             asked.load(Ordering::SeqCst),
             1,

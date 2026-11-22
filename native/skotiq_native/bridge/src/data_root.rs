@@ -52,9 +52,11 @@ pub(crate) fn retained_captures() -> Result<PathBuf, String> {
 /// A data root for this test process, as a host names one.
 #[cfg(test)]
 pub(crate) fn set_for_tests() -> PathBuf {
-    let root = std::env::temp_dir().join(format!("skotiq-bridge-tests-{}", std::process::id()));
-    let _ = DATA_ROOT.set(root);
-    DATA_ROOT.get().cloned().expect("set above")
+    DATA_ROOT
+        .get_or_init(|| {
+            std::env::temp_dir().join(format!("skotiq-bridge-tests-{}", std::process::id()))
+        })
+        .clone()
 }
 
 #[cfg(test)]

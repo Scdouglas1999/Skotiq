@@ -93,22 +93,20 @@ impl DeviceManager {
             let dev = devices.get(old_id)?;
             (dev.info.clone(), dev.auto_reconnect)
         };
-        let mut wanted = self
-            .observed_identities
-            .read()
-            .await
-            .get(old_id)
-            .cloned()
-            .unwrap_or_default();
+        let observed = self.observed_identities.read().await.get(old_id).cloned();
         let expected = self
             .expected_models
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .get(old_id)
             .cloned();
-        if expected.is_some() {
-            wanted.model = expected.clone();
-        }
+        // The model the caller expects at the id wins over the one last seen
+        // there, which after a re-enumeration may be another device's.
+        let wanted = DeviceIdentity {
+            model: expected.or_else(|| observed.as_ref().and_then(|seen| seen.model.clone())),
+            serial_number: observed.and_then(|seen| seen.serial_number),
+            sensor: None,
+        };
         if wanted.serial_number.is_none() && wanted.model.is_none() {
             tracing::info!("{old_id} was never identified; not looking for it at another id");
             return None;

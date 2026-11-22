@@ -395,7 +395,9 @@ mod park_state_file_tests {
     fn scratch(name: &str) -> PathBuf {
         let dir =
             std::env::temp_dir().join(format!("skotiq-lx200-park-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
+        if dir.exists() {
+            std::fs::remove_dir_all(&dir).expect("clear the scratch directory");
+        }
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }

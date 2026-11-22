@@ -6,7 +6,6 @@ use crate::device::{CameraState, CameraStatus, MountSite, MountStatus, MountTime
 use crate::event::bus::EventPayload;
 use crate::event::equipment::EquipmentEvent;
 use crate::event::system::SystemEvent;
-use std::sync::Arc;
 use std::time::Duration;
 
 fn mount_status(ra_hours: f64, tracking: bool, parked: bool) -> MountStatus {
@@ -274,13 +273,13 @@ async fn a_focuser_that_moved_while_disconnected_is_reported_and_left_where_it_i
         "{said:?}"
     );
     assert_eq!(manager.focuser_get_position(id).await.ok(), Some(9000));
-    let _ = manager.disconnect_device(id).await;
+    manager.disconnect_device(id).await.expect("disconnect");
 
     // The next connect, with the focuser where it was: nothing to say.
     let mut rx = manager.app_state.event_bus.subscribe();
     manager.connect_device(id).await.expect("connect again");
     assert!(notices(&mut rx).is_empty());
-    let _ = manager.disconnect_device(id).await;
+    manager.disconnect_device(id).await.expect("disconnect");
 }
 
 /// A native mount that says it is tracking while its RA drifts with the sky.
@@ -440,5 +439,4 @@ fn a_check_with_nothing_found_says_nothing() {
     };
     manager.report_unverified(&info, &[]);
     assert!(rx.try_recv().is_err());
-    let _ = Arc::clone(&manager);
 }

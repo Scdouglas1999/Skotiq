@@ -173,7 +173,13 @@ impl DeviceManager {
             });
         }
 
-        let capabilities = self.mount_site_capabilities(id).await.ok();
+        let capabilities = match self.mount_site_capabilities(id).await {
+            Ok(capabilities) => Some(capabilities),
+            Err(e) => {
+                tracing::debug!("{id}: clock and site not checked: {e}");
+                None
+            }
+        };
         if capabilities.as_ref().is_some_and(|c| c.can_read_time) {
             match self.mount_get_time(id).await {
                 Ok(time) => {
