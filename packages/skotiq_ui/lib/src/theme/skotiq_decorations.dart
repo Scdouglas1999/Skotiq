@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'skotiq_colors.dart';
-import 'skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// Shared [BoxDecoration] helpers for the Skotiq UI.
 ///

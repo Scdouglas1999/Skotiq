@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'skotiq_panel.dart';
 
 /// One labelled moment on the [NightBand] legend.

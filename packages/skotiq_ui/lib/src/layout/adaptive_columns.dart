@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// One cell of an [AdaptiveColumns] grid.
 @immutable

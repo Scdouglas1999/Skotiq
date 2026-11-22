@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 enum CardVariant {
   /// Standard card with surface background

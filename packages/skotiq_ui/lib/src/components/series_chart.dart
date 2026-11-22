@@ -3,7 +3,7 @@ import 'dart:ui' show PathMetric;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// A [SeriesChart] line, marker or highlight color, as a role. The chart
 /// resolves it against the active palette, so a caller never passes a color.

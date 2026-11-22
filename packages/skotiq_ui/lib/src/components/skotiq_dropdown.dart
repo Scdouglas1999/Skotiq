@@ -3,10 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 import '../utils/touch_target.dart';
 import 'skotiq_text_field.dart';
 

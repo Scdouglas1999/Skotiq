@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_design/skotiq_design.dart'
-    show CatalogAnnotationColors, DriverBackendColors;
+import 'package:skotiq_design/skotiq_design.dart';
 
 import '_design_showcase_primitives.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -15,11 +14,7 @@ import '../components/skotiq_text_field.dart';
 import '../components/section_header.dart';
 import '../components/status_dot.dart';
 import '../components/status_pill.dart';
-import '../theme/skotiq_chart_colors.dart';
-import '../theme/skotiq_colors.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 
 part 'design_reference_board/palette_sections.dart';
 part 'design_reference_board/typography_section.dart';

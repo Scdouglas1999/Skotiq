@@ -3,8 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/touch_target.dart';
 import 'skotiq_tooltip.dart';
 

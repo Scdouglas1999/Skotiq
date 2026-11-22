@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// A section heading inside a side panel or a settings page:
 /// `[icon 15 muted] [sectionTitle] … [trailing]`, 8px gap, 8px below.

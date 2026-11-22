@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// A wrapper that adds a crisp focus ring for keyboard navigation.
 class FocusRing extends StatefulWidget {

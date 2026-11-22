@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// A compact `-`/`+` integer stepper for dense rows (e.g. sequencer tree
 /// quick-edit) and forms.

@@ -645,13 +645,6 @@ bool _isScopedOutFinding({required String path, required String ruleId}) {
     // it as a primary one. The override keeps kMinInteractiveDimension.
     return true;
   }
-  if (ruleId == 'deprecated_text_style' &&
-      path == 'packages/skotiq_ui/lib/src/theme/skotiq_colors.dart') {
-    // The rule is about CALL SITES. This file is where `surfaceAlt` is
-    // declared, and a deprecated field still has to appear in its own class's
-    // constructor, copyWith, lerp, == and hashCode until wave 4 removes it.
-    return true;
-  }
 
   return false;
 }

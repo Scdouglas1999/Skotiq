@@ -4,9 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/intrinsic_safe_layout.dart';
 
 enum SkotiqAlertSeverity {

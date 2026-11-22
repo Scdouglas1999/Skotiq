@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 import '../tokens/shell_chrome_metrics.dart';
 
 /// One rail destination (04-shell §3.1).

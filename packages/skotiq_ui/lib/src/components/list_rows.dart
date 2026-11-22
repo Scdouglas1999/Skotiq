@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'readout.dart';
 
 /// Icon size at the head of a list row, in logical pixels (05 §9: 15 muted).
