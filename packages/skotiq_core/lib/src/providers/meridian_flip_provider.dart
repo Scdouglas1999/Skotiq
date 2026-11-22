@@ -430,12 +430,9 @@ final isFlipInProgressProvider = Provider<bool>((ref) {
       state == FlipExecutionState.retrying;
 });
 
-/// StateNotifier that resets flip execution state when the mount disconnects.
-///
-/// If a meridian flip is in progress (executing or retrying) and the mount
-/// disconnects, the flip can never complete. This notifier listens to the mount
-/// connection state and resets the flip providers to prevent the UI from
-/// being stuck in a "flipping" state indefinitely.
+/// Ends a flip in progress (executing or retrying) as aborted when the mount
+/// disconnects, since that flip can never complete; the panel keeps the
+/// attempt, step and progress the flip reached, as for any other abort.
 ///
 /// Uses ref.listen in its constructor instead of mutating state in a Provider
 /// build function, which would be a Riverpod violation.
@@ -454,14 +451,9 @@ class MeridianFlipDisconnectGuard extends StateNotifier<void> {
           );
           _ref
               .read(flipMonitorProgressProvider.notifier)
-              .set(
-                const FlipMonitorProgress(
-                  state: FlipExecutionState.aborted,
-                  attempt: 0,
-                  step: null,
-                  percent: 0,
-                  error: 'Meridian flip aborted: mount disconnected',
-                ),
+              .end(
+                FlipExecutionState.aborted,
+                'Meridian flip aborted: mount disconnected',
               );
         }
       }

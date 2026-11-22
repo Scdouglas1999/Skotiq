@@ -6,9 +6,8 @@
 //      ProviderContainer with a real `mountStateProvider`.
 //   2. While a flip is "executing", the mount transitions to `disconnected`.
 //      The guard's `ref.listen` callback fires and must:
-//        - reset `flipExecutionStateProvider` → `FlipExecutionState.aborted`
-//        - clear `flipCurrentStepProvider`, `flipProgressProvider`,
-//          `flipCurrentAttemptProvider`
+//        - end `flipExecutionStateProvider` as `FlipExecutionState.aborted`
+//        - keep the step, progress and attempt the flip reached
 //        - set `flipLastErrorProvider` to an actionable message
 //   3. A second scenario: the mount disconnects while the flip is in
 //      `idle` — guard must NOT modify state (no spurious aborts).
@@ -100,7 +99,7 @@ void main() {
     });
 
     test(
-      'disconnect during executing flip aborts and clears flip state',
+      'disconnect during executing flip aborts and keeps where it stopped',
       () async {
         // Bring the mount up — without a deviceId the notifier stays in its
         // default state, so we drive it directly via the public notifier API.
@@ -151,9 +150,12 @@ void main() {
               'flipExecutionStateProvider must transition executing→aborted '
               'when the mount disconnects mid-flip',
         );
-        expect(container.read(flipCurrentStepProvider), isNull);
-        expect(container.read(flipProgressProvider), equals(0));
-        expect(container.read(flipCurrentAttemptProvider), equals(0));
+        expect(
+          container.read(flipCurrentStepProvider),
+          FlipStep.slewingToTarget,
+        );
+        expect(container.read(flipProgressProvider), equals(35));
+        expect(container.read(flipCurrentAttemptProvider), equals(1));
         final errorMessage = container.read(flipLastErrorProvider);
         expect(errorMessage, isNotNull);
         expect(errorMessage!.toLowerCase(), contains('mount disconnected'));
@@ -175,7 +177,7 @@ void main() {
     );
 
     test(
-      'disconnect during retrying flip aborts and clears flip state',
+      'disconnect during retrying flip aborts and keeps where it stopped',
       () async {
         final mountNotifier = container.read(mountStateProvider.notifier);
         mountNotifier.setConnecting('mount-test');
@@ -198,10 +200,13 @@ void main() {
         expect(
           container.read(flipExecutionStateProvider),
           equals(FlipExecutionState.aborted),
-          reason: 'retrying state must also trigger the disconnect-guard reset',
+          reason: 'a retrying flip is ended by a disconnect too',
         );
-        expect(container.read(flipCurrentStepProvider), isNull);
-        expect(container.read(flipCurrentAttemptProvider), equals(0));
+        expect(
+          container.read(flipCurrentStepProvider),
+          FlipStep.slewingToTarget,
+        );
+        expect(container.read(flipCurrentAttemptProvider), equals(2));
       },
     );
 
