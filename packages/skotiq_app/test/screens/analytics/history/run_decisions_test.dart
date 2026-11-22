@@ -55,6 +55,31 @@ void main() {
     await tester.pump();
   }
 
+  testWidgets(
+      'a recovery reads as a warning and a fired trigger as info, as '
+      'on the timeline', (tester) async {
+    await pump(tester, [
+      _decision(
+        1,
+        startedAt.add(const Duration(seconds: 2)),
+        'Camera lost, reconnecting',
+        category: DecisionCategory.recoveryEntered,
+      ),
+      _decision(
+        2,
+        startedAt.add(const Duration(seconds: 4)),
+        'HFR above 3.5: autofocus',
+        category: DecisionCategory.triggerFired,
+      ),
+    ]);
+
+    SkotiqChip chip(DecisionCategory category) => tester.widget<SkotiqChip>(
+          find.widgetWithText(SkotiqChip, category.displayLabel),
+        );
+    expect(chip(DecisionCategory.recoveryEntered).tone, ChipTone.warning);
+    expect(chip(DecisionCategory.triggerFired).tone, ChipTone.info);
+  });
+
   testWidgets('a decision written past the run end is reachable and counted',
       (tester) async {
     await pump(tester, [
