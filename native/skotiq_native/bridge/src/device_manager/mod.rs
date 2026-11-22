@@ -533,14 +533,18 @@ impl DeviceManager {
     }
 
     /// The connected device of a type that comes first in [`listing_order`]
-    /// (live `DeviceManager` registry).
+    /// (live `DeviceManager` registry). A device a reopen is closing and
+    /// opening counts: for that moment its state reads disconnected, and a
+    /// role must not pass to another device (a second safety monitor, the
+    /// guide camera) for it.
     pub async fn first_connected_device_id(&self, device_type: DeviceType) -> Option<String> {
         let devices = self.devices.read().await;
         devices
             .values()
             .filter(|d| {
                 d.info.device_type == device_type
-                    && d.connection_state == ConnectionState::Connected
+                    && (d.connection_state == ConnectionState::Connected
+                        || self.is_reopening(&d.info.id))
             })
             .map(|d| d.info.id.clone())
             .min()

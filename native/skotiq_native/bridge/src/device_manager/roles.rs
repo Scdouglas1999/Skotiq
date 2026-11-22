@@ -96,32 +96,15 @@ impl DeviceManager {
                 RoleSource::Profile(device_type) => {
                     self.app_state.get_profile_device_id(device_type).await
                 }
-                RoleSource::Connected(device_type) => self.first_playing(device_type).await,
+                RoleSource::Connected(device_type) => {
+                    self.first_connected_device_id(device_type).await
+                }
             };
             if found.is_some() {
                 return found;
             }
         }
         None
-    }
-}
-
-impl DeviceManager {
-    /// The first device of `device_type` by id that is connected or being
-    /// reopened. For the second a reopen takes its state reads disconnected,
-    /// and the role must not pass to another device (a second safety monitor,
-    /// the guide camera) for it.
-    async fn first_playing(&self, device_type: DeviceType) -> Option<String> {
-        let devices = self.devices.read().await;
-        devices
-            .values()
-            .filter(|d| {
-                d.info.device_type == device_type
-                    && (d.connection_state == crate::device::ConnectionState::Connected
-                        || self.is_reopening(&d.info.id))
-            })
-            .map(|d| d.info.id.clone())
-            .min()
     }
 }
 

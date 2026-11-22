@@ -104,7 +104,7 @@ async fn a_focuser_that_says_it_is_moving_answers_the_app_busy() {
     .enumerate()
     {
         let id = format!("native:test:focuser_busy_{n}");
-        focuser_answering(&manager, &id, answer).await;
+        focuser_answering(manager, &id, answer).await;
         for result in [
             crate::api::devices::focuser::api_focuser_move_to(id.clone(), 2000).await,
             crate::api::devices::focuser::api_focuser_move_relative(id.clone(), 50).await,
@@ -136,7 +136,7 @@ async fn the_runs_move_keeps_the_drivers_failure() {
 async fn any_other_focuser_failure_stays_a_hardware_fault() {
     let manager = crate::device_manager::get_device_manager();
     let id = "native:test:focuser_fault";
-    focuser_answering(&manager, id, "motor stalled").await;
+    focuser_answering(manager, id, "motor stalled").await;
     let result = crate::api::devices::focuser::api_focuser_move_to(id.to_string(), 2000).await;
     assert!(
         matches!(result, Err(SkotiqError::OperationFailed(_))),
