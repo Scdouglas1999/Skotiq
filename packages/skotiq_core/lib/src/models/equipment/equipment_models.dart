@@ -112,18 +112,19 @@ class DeviceError extends Equatable {
       );
     }
     final message = userFacingError(error);
-    final (type, recoverable) = switch (classifyErrorText(message)) {
-      ErrorTextKind.timeout => (DeviceErrorType.timeout, true),
-      ErrorTextKind.notFound => (DeviceErrorType.deviceNotFound, false),
-      ErrorTextKind.connection => (DeviceErrorType.connectionFailed, true),
-      ErrorTextKind.permission => (DeviceErrorType.permissionDenied, false),
-      ErrorTextKind.busy => (DeviceErrorType.busy, true),
-      ErrorTextKind.hardware => (DeviceErrorType.communicationError, true),
+    final kind = classifyErrorText(message);
+    final type = switch (kind) {
+      ErrorTextKind.timeout => DeviceErrorType.timeout,
+      ErrorTextKind.notFound => DeviceErrorType.deviceNotFound,
+      ErrorTextKind.connection => DeviceErrorType.connectionFailed,
+      ErrorTextKind.permission => DeviceErrorType.permissionDenied,
+      ErrorTextKind.busy => DeviceErrorType.busy,
+      ErrorTextKind.hardware => DeviceErrorType.communicationError,
       ErrorTextKind.invalid ||
-      ErrorTextKind.unsupported => (DeviceErrorType.invalidParameter, true),
+      ErrorTextKind.unsupported => DeviceErrorType.invalidParameter,
       ErrorTextKind.imaging ||
-      ErrorTextKind.driver => (DeviceErrorType.driverError, true),
-      ErrorTextKind.unknown => (DeviceErrorType.unknown, true),
+      ErrorTextKind.driver => DeviceErrorType.driverError,
+      ErrorTextKind.unknown => DeviceErrorType.unknown,
     };
     return DeviceError(
       type: type,
@@ -131,7 +132,7 @@ class DeviceError extends Equatable {
       timestamp: DateTime.now(),
       deviceId: deviceId,
       retryAttempts: retryAttempts,
-      recoverable: recoverable,
+      recoverable: !kind.refusal,
     );
   }
 

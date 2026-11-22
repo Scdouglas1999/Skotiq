@@ -93,35 +93,17 @@ class SkotiqError implements Exception {
   /// error text: `DeviceError.fromException` and the FFI backend's fallback
   /// both come here. Prefer [fromJson] when structured data is available.
   factory SkotiqError.fromString(String message) {
-    final (category, recoverable, reconnect) = switch (classifyErrorText(
-      message,
-    )) {
-      ErrorTextKind.timeout => (BackendErrorCategory.timeout, true, false),
-      ErrorTextKind.connection => (BackendErrorCategory.connection, true, true),
-      ErrorTextKind.notFound => (BackendErrorCategory.connection, false, false),
-      ErrorTextKind.permission => (BackendErrorCategory.system, false, false),
-      ErrorTextKind.busy => (BackendErrorCategory.busy, true, false),
-      ErrorTextKind.hardware => (BackendErrorCategory.hardware, true, false),
-      ErrorTextKind.invalid => (BackendErrorCategory.validation, false, false),
-      ErrorTextKind.unsupported => (
-        BackendErrorCategory.unsupported,
-        false,
-        false,
-      ),
-      ErrorTextKind.imaging => (BackendErrorCategory.imaging, false, false),
-      ErrorTextKind.driver => (BackendErrorCategory.driver, false, false),
-      ErrorTextKind.unknown => (BackendErrorCategory.unknown, false, false),
-    };
+    final kind = classifyErrorText(message);
     final deviceMatch = RegExp(
       r'device:\s*(\S+)',
       caseSensitive: false,
     ).firstMatch(message);
     return SkotiqError(
-      category: category,
+      category: kind.category,
       message: message,
-      isRecoverable: recoverable,
-      shouldReconnect: reconnect,
-      isTimeout: category == BackendErrorCategory.timeout,
+      isRecoverable: kind.retryable,
+      shouldReconnect: kind.reconnect,
+      isTimeout: kind == ErrorTextKind.timeout,
       deviceId: deviceMatch?.group(1),
     );
   }
