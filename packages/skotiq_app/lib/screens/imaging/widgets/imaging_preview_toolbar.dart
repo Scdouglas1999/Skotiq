@@ -913,7 +913,7 @@ class _CatalogOverlayPopoverEntryState
   Widget build(BuildContext context) {
     // `_PopupMenu` wraps its entries in `IntrinsicWidth(stepWidth: 56)`, so
     // every entry is tightened to the same 56-stepped width. The popover's
-    // `clampPanelWidth` answer (200–240) is not a 56 multiple; aligning the
+    // `panelWidthFromFraction` answer (200–240) is not a 56 multiple; aligning the
     // child inside the entry keeps the card at its designed width instead of
     // being stretched to the menu's.
     return Align(

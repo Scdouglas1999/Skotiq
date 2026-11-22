@@ -289,7 +289,7 @@ class _CatalogOverlayLayerState extends ConsumerState<_CatalogOverlayLayer> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final colors = context.skotiqColors;
-        final tooltipMaxWidth = clampPanelWidth(
+        final tooltipMaxWidth = panelWidthFromFraction(
           constraints.maxWidth,
           fraction: 0.35,
           min: 160,
@@ -742,7 +742,7 @@ class CatalogOverlayBanner extends StatelessWidget {
     SkotiqColors colors,
     Color accent,
   ) {
-    final bannerMaxWidth = clampPanelWidth(
+    final bannerMaxWidth = panelWidthFromFraction(
       MediaQuery.sizeOf(context).width,
       fraction: 0.35,
       min: 200,
@@ -807,7 +807,7 @@ class CatalogOverlayPopover extends ConsumerWidget {
     final includeDsos = ref.watch(catalogOverlayIncludeDsosProvider);
     final includeStars = ref.watch(catalogOverlayIncludeStarsProvider);
 
-    final popoverWidth = clampPanelWidth(
+    final popoverWidth = panelWidthFromFraction(
       MediaQuery.sizeOf(context).width,
       fraction: 0.3,
       min: 200,

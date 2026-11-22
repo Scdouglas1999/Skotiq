@@ -22,18 +22,6 @@ double panelWidthFromFraction(
   return (available * fraction).clamp(min, max);
 }
 
-@Deprecated(
-  'Renamed to panelWidthFromFraction: it was indistinguishable at the call '
-  'site from AdaptiveDialogConstraints.clampPanelWidth, which does something '
-  'else. Will be removed one release after 6.1.0.',
-)
-double clampPanelWidth(
-  double available, {
-  required double fraction,
-  required double min,
-  required double max,
-}) => panelWidthFromFraction(available, fraction: fraction, min: min, max: max);
-
 /// Caps a dialog's design width to
 /// [AdaptiveDialogConstraints.defaultWidthFraction] of the viewport width.
 ///

@@ -353,7 +353,7 @@ extension _PlanetariumShell on _PlanetariumScreenState {
   }
 
   double _shellPanelWidth(double maxWidth) {
-    return clampPanelWidth(maxWidth, fraction: 0.30, min: 280, max: 380);
+    return panelWidthFromFraction(maxWidth, fraction: 0.30, min: 280, max: 380);
   }
 
   /// Width of the catalog-fallback warning: clear of the perf HUD on the right

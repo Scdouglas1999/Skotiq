@@ -24,15 +24,6 @@ void main() {
         400,
       );
     });
-
-    test('the deprecated clampPanelWidth alias still delegates', () {
-      // ignore: deprecated_member_use_from_same_package
-      expect(
-        // ignore: deprecated_member_use_from_same_package
-        clampPanelWidth(1000, fraction: 0.25, min: 200, max: 400),
-        panelWidthFromFraction(1000, fraction: 0.25, min: 200, max: 400),
-      );
-    });
   });
 
   group('dialogMaxWidth', () {
