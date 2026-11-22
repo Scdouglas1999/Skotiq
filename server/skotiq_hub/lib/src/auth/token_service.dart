@@ -327,8 +327,8 @@ class TokenService {
   /// Live tokens remembered after a database [resolve], keyed by token hash.
   ///
   /// Negative results are not stored: an attacker sending a fresh Bearer on
-  /// every request would grow this map the same way the old per-token rate
-  /// bucket did. Revoke and expiry drop entries. Capped so a large but
+  /// every request would grow this map.
+  /// Revoke and expiry drop entries. Capped so a large but
   /// legitimate user set cannot grow it without bound.
   final Map<String, _RememberedToken> _remembered = {};
   static const int _maxRemembered = 1024;
