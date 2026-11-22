@@ -187,7 +187,7 @@
     "body": {
       "error": "preflight_rejected",
       "code": "preflight_rejected",
-      "message": "SkotiqError.internal(field0: Task panicked)"
+      "message": "Task panicked"
     }
   },
   "start.dart_error": {

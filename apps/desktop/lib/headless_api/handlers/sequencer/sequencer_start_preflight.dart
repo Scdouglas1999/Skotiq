@@ -194,7 +194,7 @@ extension _SequencerStartPreflight on SequencerHandlers {
             orElse: () => null,
           )
         : null;
-    final message = native ?? error.toString();
+    final message = native ?? describeBackendError(error);
     _logInfo('[API] POST /api/sequencer/start refused by pre-flight: $message');
 
     // An executor that is not idle is a state conflict, not a bad request:
