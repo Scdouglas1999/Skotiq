@@ -72,11 +72,7 @@ final _rows = <(String, Map<String, Object?>, _Outcome)>[
     {..._complete(), 'totalIntegrationSecs': -5},
     {..._complete(), 'totalIntegrationSecs': 0.0},
   ),
-  (
-    'a missing count',
-    {..._complete()}..remove('stackedFrameCount'),
-    _refused,
-  ),
+  ('a missing count', {..._complete()}..remove('stackedFrameCount'), _refused),
   (
     'a count as text',
     {..._complete(), 'totalFramesAttempted': 'five'},
@@ -92,11 +88,7 @@ final _rows = <(String, Map<String, Object?>, _Outcome)>[
     {..._complete(), 'totalSigmaRejectedPixels': -1},
     _refused,
   ),
-  (
-    'a missing average',
-    {..._complete()}..remove('avgMatchedPairs'),
-    _refused,
-  ),
+  ('a missing average', {..._complete()}..remove('avgMatchedPairs'), _refused),
   (
     'a negative average',
     {..._complete(), 'avgAlignmentResidual': -0.1},
@@ -130,10 +122,7 @@ Future<_Outcome> _decodeRest(Map<String, Object?> stats) async {
     serverPort: 8080,
     webSocketPort: 8080,
     httpClient: FakeNetworkClient()
-      ..setResponse(
-        '/api/stacking/stats',
-        body: jsonEncode({'stats': stats}),
-      ),
+      ..setResponse('/api/stacking/stats', body: jsonEncode({'stats': stats})),
     autoConnectWebSocket: false,
   );
   addTearDown(backend.dispose);
