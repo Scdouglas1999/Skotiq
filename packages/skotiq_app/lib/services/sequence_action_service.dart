@@ -95,6 +95,15 @@ class SequenceActionService {
         }
       });
 
+  /// Hands the editor to the generated [sequence], owned by [owner], and
+  /// starts it: Smart Night, a planner recommendation and a mosaic project.
+  /// Taking ownership keeps the operator's unsaved sequence, which a stop of
+  /// the run restores. A refusal to start is thrown to the caller.
+  Future<void> startOwnedPlan(Sequence sequence, ActivePlanOwner owner) async {
+    _ref.read(currentSequenceProvider.notifier).takeOwnership(sequence, owner);
+    await _executor.start();
+  }
+
   Future<CommandActionResult> pause() => _single(
       _SequenceCommand.pause,
       () => _afterStart(() async {
