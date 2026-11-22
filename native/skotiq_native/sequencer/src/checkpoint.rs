@@ -678,6 +678,26 @@ pub struct CheckpointInfo {
     pub frames_done_by_step: HashMap<NodeId, u32>,
 }
 
+/// The file names a host moves when it adopts an earlier build's
+/// checkpoints: `test_fixtures/checkpoint/file_names.json`, held to
+/// `host_checkpoint_directory.dart` by a Dart test.
+#[cfg(test)]
+mod file_name_fixture_tests {
+    use super::CheckpointManager;
+
+    #[test]
+    fn the_checkpoint_file_names_match_the_fixture() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/checkpoint/file_names.json"
+        );
+        let names: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).expect("fixture")).expect("JSON");
+        assert_eq!(names["primary"], CheckpointManager::CHECKPOINT_FILENAME);
+        assert_eq!(names["backup"], CheckpointManager::CHECKPOINT_BACKUP);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
