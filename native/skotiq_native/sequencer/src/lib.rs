@@ -1284,19 +1284,19 @@ impl TargetSchedulerConfig {
 }
 
 fn default_scheduler_altitude_weight() -> f64 {
-    0.25
+    crate::scheduling::ScoringWeights::default().altitude_weight
 }
 fn default_scheduler_moon_distance_weight() -> f64 {
-    0.25
+    crate::scheduling::ScoringWeights::default().moon_distance_weight
 }
 fn default_scheduler_transit_proximity_weight() -> f64 {
-    0.20
+    crate::scheduling::ScoringWeights::default().transit_proximity_weight
 }
 fn default_scheduler_darkness_weight() -> f64 {
-    0.15
+    crate::scheduling::ScoringWeights::default().darkness_weight
 }
 fn default_scheduler_airmass_weight() -> f64 {
-    0.15
+    crate::scheduling::ScoringWeights::default().airmass_weight
 }
 fn default_scheduler_min_score_to_run() -> f64 {
     30.0

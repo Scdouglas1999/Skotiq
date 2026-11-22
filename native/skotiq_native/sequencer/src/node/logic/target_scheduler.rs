@@ -1762,4 +1762,25 @@ mod tests {
             "SingleFilter mode must not touch a pre-existing override slot",
         );
     }
+
+    /// A saved Target Scheduler step without weights takes the scorer's
+    /// defaults: 0.25 / 0.25 / 0.20 / 0.15 / 0.15.
+    #[test]
+    fn a_saved_scheduler_without_weights_takes_the_scorers_defaults() {
+        let config: TargetSchedulerConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(
+            (
+                config.altitude_weight,
+                config.moon_distance_weight,
+                config.transit_proximity_weight,
+                config.darkness_weight,
+                config.airmass_weight,
+            ),
+            (0.25, 0.25, 0.20, 0.15, 0.15)
+        );
+        assert_eq!(
+            config.weights(),
+            crate::scheduling::ScoringWeights::default()
+        );
+    }
 }
