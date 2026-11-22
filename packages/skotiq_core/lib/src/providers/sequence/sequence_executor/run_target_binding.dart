@@ -81,7 +81,7 @@ class RunTargetBinding {
     int targetId,
     TargetHeaderNode header,
   ) async {
-    if (header.raHours == 0.0 && header.decDegrees == 0.0) return;
+    if (header.coordinatesUnset) return;
     final row = await dao.getTargetById(targetId);
     if (row == null) return;
     const raEpsilonHours = 1.0 / 54000.0;

@@ -67,7 +67,7 @@ extension ObserverSiteOfSettings on AppSettingsState {
 /// stored coordinates always parse to a *valid* position — 0°, 0° is a real
 /// point, in the Gulf of Guinea, about 600 km off Ghana. Nothing observes from
 /// there, so the origin is the app's documented "not set" sentinel, exactly as
-/// `targetCoordinatesUnset` treats a Target node's 0h/+0° birth coordinates.
+/// `TargetHeaderNode.coordinatesUnset` treats a Target node's 0h/+0° birth coordinates.
 ///
 /// The cost is that an operator genuinely at 0°, 0° reads as unset; nudging
 /// either value by a millionth of a degree (the precision the Location editor

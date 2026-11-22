@@ -131,6 +131,15 @@ class TargetHeaderNode extends SequenceNode {
     return parts.join(' · ');
   }
 
+  /// Whether the node still has the (0h, +0°) it is born with: the node has
+  /// no nullable coordinate to mean "no pointing chosen yet", and that point
+  /// in Pisces is in range, so every surface and check treats the exact
+  /// origin as unset. A deliberate origin pointing reads as unset as well;
+  /// nudging either value by the ten-thousandth of a unit the coordinate
+  /// editor exposes claims it back. The Rust run-time check
+  /// (`instructions/gating.rs`) uses the same rule.
+  bool get coordinatesUnset => raHours == 0 && decDegrees == 0;
+
   @override
   NodeKind<TargetHeaderNode> get kind => NodeKinds.targetHeader;
 

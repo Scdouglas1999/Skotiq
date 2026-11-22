@@ -139,7 +139,7 @@ class _CoordinateLookupSectionState
     final colors = widget.colors;
     final node = widget.node;
     final name = node.targetName.trim();
-    final unset = targetCoordinatesUnset(node);
+    final unset = node.coordinatesUnset;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

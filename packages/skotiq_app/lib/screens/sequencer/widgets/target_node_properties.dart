@@ -12,7 +12,6 @@ import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/altitude_floor_rule.dart';
 import 'framing_assistant_inline.dart';
 import 'node_property_widgets.dart';
-import 'target_coordinates.dart';
 
 part 'target_node_properties/coordinate_lookup.dart';
 part 'target_node_properties/trigger_section.dart';
@@ -159,7 +158,7 @@ class TargetGroupProperties extends ConsumerWidget {
             child: SizedBox(
               width: double.infinity,
               child: SkotiqButton(
-                onPressed: targetCoordinatesUnset(node)
+                onPressed: node.coordinatesUnset
                     ? null
                     : () async {
                         final newRotation = await showFramingAssistantDialog(

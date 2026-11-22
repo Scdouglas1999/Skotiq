@@ -7,7 +7,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/altitude_chart.dart';
 import 'notes_panel.dart';
-import 'target_coordinates.dart';
 
 /// A rich card widget for displaying target header nodes in the sequencer.
 /// Shows coordinates, altitude chart, progress tracking, and mosaic panel info.
@@ -315,7 +314,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // pointing. Say "Not set" instead, in the same amber the card already
     // uses for the target category, so an unaimed target is obvious in the
     // tree without opening the properties panel.
-    final unset = targetCoordinatesUnset(node);
+    final unset = node.coordinatesUnset;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -392,7 +391,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     //
     // Same predicate as the coordinate row and the "Needs coordinates" footer,
     // so the three cannot disagree.
-    final unset = targetCoordinatesUnset(node);
+    final unset = node.coordinatesUnset;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -515,7 +514,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     //
     // "Ready" is the right word for a target that has not started and could;
     // it is the wrong word for one the app will refuse to run. The same
-    // `targetCoordinatesUnset` predicate the coordinate row uses decides which
+    // `TargetHeaderNode.coordinatesUnset` predicate the coordinate row uses decides which
     // of the two this is.
     final statusLabel = switch (widget.nodeStatus) {
       NodeStatus.running => currentNodeDetail ?? progress.message ?? 'Running',
@@ -526,7 +525,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           when stats.hasPlannedFrames && stats.hasKnownCompletion =>
         'Stopped · ${stats.completedFrames} of ${stats.totalFrames} frames',
       NodeStatus.cancelled => 'Stopped',
-      _ => targetCoordinatesUnset(widget.node) ? 'Needs coordinates' : 'Ready',
+      _ => widget.node.coordinatesUnset ? 'Needs coordinates' : 'Ready',
     };
 
     // Build the plan summary. A loop-until-stopped SmartExposure is

@@ -598,7 +598,7 @@ class _CoordinateReadout extends StatelessWidget {
 ///
 /// Finding a target group is not the same as having somewhere to point: a
 /// freshly-added target sits at the 0h/+0° placeholder
-/// ([targetCoordinatesUnset]), and confirming that in green is the app
+/// ([TargetHeaderNode.coordinatesUnset]), and confirming that in green is the app
 /// asserting a pointing the user never chose. Unset coordinates get the amber
 /// warning treatment too.
 class _TargetResolutionPreview extends ConsumerWidget {
@@ -625,7 +625,7 @@ class _TargetResolutionPreview extends ConsumerWidget {
     }
 
     final coordinatesUnset =
-        targetGroup != null && targetCoordinatesUnset(targetGroup);
+        targetGroup != null && targetGroup.coordinatesUnset;
     final resolved = targetGroup != null && !coordinatesUnset;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

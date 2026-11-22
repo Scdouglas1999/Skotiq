@@ -31,7 +31,6 @@ import 'sequence_tree/rollup_summary.dart';
 import 'sequence_tree_context_menu.dart';
 import 'sequence_tree_shortcuts.dart';
 import 'sequencer_density.dart';
-import 'target_coordinates.dart';
 import 'target_header_card.dart';
 import 'target_queue_panel.dart';
 import 'tree_insert.dart';
