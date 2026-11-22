@@ -27,59 +27,53 @@ final meridianFlipTelemetryProvider = Provider<void>((ref) {
       } on FormatException {
         return;
       }
-      if (decoded is! Map<String, dynamic> || decoded.length != 1) return;
-      final data = decoded.values.single;
-      if (data is! Map<String, dynamic>) return;
-      final stepName = data['step'];
-      final step = stepName is String ? flipStepFromNativeName(stepName) : null;
-      switch (decoded.keys.single) {
-        case 'Starting':
+      switch (MeridianFlipEvent.fromWire(decoded)) {
+        case null:
+          return;
+        case MeridianFlipStarting():
           ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.executing;
           ref.read(flipCurrentAttemptProvider.notifier).state = 1;
           ref.read(flipCurrentStepProvider.notifier).state = null;
           ref.read(flipProgressProvider.notifier).state = 0;
           ref.read(flipLastErrorProvider.notifier).state = null;
-        case 'StepStarted':
+        case MeridianFlipStepStarted(:final step):
           ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.executing;
           ref.read(flipCurrentStepProvider.notifier).state = step;
-        case 'StepFailed':
+        case MeridianFlipStepCompleted():
+          break;
+        case MeridianFlipStepFailed(:final step, :final error):
           ref.read(flipCurrentStepProvider.notifier).state = step;
-          ref.read(flipLastErrorProvider.notifier).state =
-              data['error'] as String?;
-        case 'Progress':
-          final percent = data['percent'];
-          if (percent is num) {
-            ref.read(flipProgressProvider.notifier).state = percent
-                .toInt()
-                .clamp(0, 100);
+          ref.read(flipLastErrorProvider.notifier).state = error;
+        case MeridianFlipProgress(:final percent):
+          if (percent != null) {
+            ref.read(flipProgressProvider.notifier).state = percent.clamp(
+              0,
+              100,
+            );
           }
-        case 'RetryScheduled':
+        case MeridianFlipRetryScheduled(:final attempt):
           ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.retrying;
-          final attempt = data['attempt'];
-          if (attempt is num) {
-            ref.read(flipCurrentAttemptProvider.notifier).state =
-                attempt.toInt() + 1;
+          if (attempt != null) {
+            ref.read(flipCurrentAttemptProvider.notifier).state = attempt + 1;
           }
           ref.read(flipProgressProvider.notifier).state = 0;
-        case 'Completed':
+        case MeridianFlipCompleted():
           ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.completed;
           ref.read(flipCurrentStepProvider.notifier).state = null;
           ref.read(flipProgressProvider.notifier).state = 100;
           ref.read(flipLastErrorProvider.notifier).state = null;
-        case 'Failed':
+        case MeridianFlipFailed(:final error):
           ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.failed;
-          ref.read(flipLastErrorProvider.notifier).state =
-              data['error'] as String?;
-        case 'Aborted':
+          ref.read(flipLastErrorProvider.notifier).state = error;
+        case MeridianFlipAborted(:final reason):
           ref.read(flipExecutionStateProvider.notifier).state =
               FlipExecutionState.aborted;
-          ref.read(flipLastErrorProvider.notifier).state =
-              data['reason'] as String?;
+          ref.read(flipLastErrorProvider.notifier).state = reason;
       }
     },
     onError: (Object error, StackTrace stack) {
