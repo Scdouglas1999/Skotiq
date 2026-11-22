@@ -671,7 +671,7 @@ pub fn validate_image_comprehensive(
             // measurement. Failing it outright breaks the flat wizard outright:
             // it converges by deliberately over-exposing, measuring the mean
             // ADU, and stepping the exposure down (`FlatWizardService.
-            // exposeAndAwait` -> `api_camera_start_exposure` -> here), so a hard
+            // exposeAndAwait` -> `api_camera_start_exposure_configured` -> here), so a hard
             // failure removes the very measurement the correction loop runs on.
             // All-zero keeps its error because there genuinely is no data.
             let all_saturated = min_value >= saturation_threshold;

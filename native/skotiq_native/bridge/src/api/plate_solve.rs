@@ -58,12 +58,6 @@ impl From<skotiq_imaging::PlateSolveResult> for PlateSolveResult {
     }
 }
 
-/// Get the path to the installed plate solver
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_get_plate_solver_path() -> Option<String> {
-    skotiq_platesolve::get_solver_path().map(|p| p.to_string_lossy().to_string())
-}
-
 /// Blind solve of the image file at `file_path`, told the field scale.
 pub async fn api_plate_solve_blind(
     file_path: String,

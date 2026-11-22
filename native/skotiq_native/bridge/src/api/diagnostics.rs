@@ -69,7 +69,7 @@ pub async fn api_get_filterwheel_capabilities(
 }
 
 /// Get rotator capabilities for a specific rotator device.
-pub async fn api_get_rotator_capabilities(
+pub(crate) async fn api_get_rotator_capabilities(
     device_id: String,
 ) -> Result<crate::device_capabilities::types::RotatorCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;

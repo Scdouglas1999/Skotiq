@@ -10352,56 +10352,6 @@ class RustLibWire implements BaseWire {
             )
           >();
 
-  void wire__crate__api__imaging__api_camera_start_exposure(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-    double duration_secs,
-    int gain,
-    int offset,
-    int bin_x,
-    int bin_y,
-  ) {
-    return _wire__crate__api__imaging__api_camera_start_exposure(
-      port_,
-      device_id,
-      duration_secs,
-      gain,
-      offset,
-      bin_x,
-      bin_y,
-    );
-  }
-
-  late final _wire__crate__api__imaging__api_camera_start_exposurePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-            ffi.Double,
-            ffi.Int32,
-            ffi.Int32,
-            ffi.Int32,
-            ffi.Int32,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure',
-      );
-  late final _wire__crate__api__imaging__api_camera_start_exposure =
-      _wire__crate__api__imaging__api_camera_start_exposurePtr
-          .asFunction<
-            void Function(
-              int,
-              ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-              double,
-              int,
-              int,
-              int,
-              int,
-            )
-          >();
-
   void wire__crate__api__imaging__api_camera_start_exposure_configured(
     int port_,
     ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
@@ -10879,118 +10829,6 @@ class RustLibWire implements BaseWire {
       );
   late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_close_cover =
       _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_close_coverPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void
-  wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightnessPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness',
-      );
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness =
-      _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightnessPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void
-  wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_statePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state',
-      );
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state =
-      _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_statePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void
-  wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_statePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state',
-      );
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state =
-      _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_statePtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void
-  wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightnessPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness',
-      );
-  late final _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness =
-      _wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightnessPtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
@@ -13069,19 +12907,6 @@ class RustLibWire implements BaseWire {
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();
 
-  WireSyncRust2DartDco
-  wire__crate__api__plate_solve__api_get_plate_solver_path() {
-    return _wire__crate__api__plate_solve__api_get_plate_solver_path();
-  }
-
-  late final _wire__crate__api__plate_solve__api_get_plate_solver_pathPtr =
-      _lookup<ffi.NativeFunction<WireSyncRust2DartDco Function()>>(
-        'frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_get_plate_solver_path',
-      );
-  late final _wire__crate__api__plate_solve__api_get_plate_solver_path =
-      _wire__crate__api__plate_solve__api_get_plate_solver_pathPtr
-          .asFunction<WireSyncRust2DartDco Function()>();
-
   WireSyncRust2DartDco wire__crate__api__storage__api_get_profiles() {
     return _wire__crate__api__storage__api_get_profiles();
   }
@@ -13106,33 +12931,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__diagnostics__api_get_qhy_discovery_status =
       _wire__crate__api__diagnostics__api_get_qhy_discovery_statusPtr
           .asFunction<WireSyncRust2DartDco Function()>();
-
-  void wire__crate__api__diagnostics__api_get_rotator_capabilities(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__diagnostics__api_get_rotator_capabilities(
-      port_,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__diagnostics__api_get_rotator_capabilitiesPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_rotator_capabilities',
-      );
-  late final _wire__crate__api__diagnostics__api_get_rotator_capabilities =
-      _wire__crate__api__diagnostics__api_get_rotator_capabilitiesPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
 
   void wire__crate__api__devices__rotator__api_get_rotator_status(
     int port_,
@@ -13589,36 +13387,6 @@ class RustLibWire implements BaseWire {
   late final _wire__crate__api__discovery__api_invalidate_discovery_cache =
       _wire__crate__api__discovery__api_invalidate_discovery_cachePtr
           .asFunction<void Function(int)>();
-
-  void wire__crate__api__connection__api_is_device_connected(
-    int port_,
-    int device_type,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> device_id,
-  ) {
-    return _wire__crate__api__connection__api_is_device_connected(
-      port_,
-      device_type,
-      device_id,
-    );
-  }
-
-  late final _wire__crate__api__connection__api_is_device_connectedPtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Int32,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__connection__api_is_device_connected',
-      );
-  late final _wire__crate__api__connection__api_is_device_connected =
-      _wire__crate__api__connection__api_is_device_connectedPtr
-          .asFunction<
-            void Function(int, int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
 
   WireSyncRust2DartDco
   wire__crate__api__diagnostics__api_is_qhy_discovery_enabled() {
@@ -16201,33 +15969,6 @@ class RustLibWire implements BaseWire {
       >('frbgen_skotiq_bridge_wire__crate__api__sky_atlas__api_sky_atlas');
   late final _wire__crate__api__sky_atlas__api_sky_atlas =
       _wire__crate__api__sky_atlas__api_sky_atlasPtr
-          .asFunction<
-            void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
-          >();
-
-  void wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame(
-    int port_,
-    ffi.Pointer<wire_cst_list_prim_u_8_strict> args_json,
-  ) {
-    return _wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame(
-      port_,
-      args_json,
-    );
-  }
-
-  late final _wire__crate__api__sky_atlas__frames__api_sky_atlas_add_framePtr =
-      _lookup<
-        ffi.NativeFunction<
-          ffi.Void Function(
-            ffi.Int64,
-            ffi.Pointer<wire_cst_list_prim_u_8_strict>,
-          )
-        >
-      >(
-        'frbgen_skotiq_bridge_wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame',
-      );
-  late final _wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame =
-      _wire__crate__api__sky_atlas__frames__api_sky_atlas_add_framePtr
           .asFunction<
             void Function(int, ffi.Pointer<wire_cst_list_prim_u_8_strict>)
           >();

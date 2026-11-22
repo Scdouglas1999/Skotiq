@@ -94,17 +94,6 @@ Future<void> apiDisconnectDevice({
 })
 ```
 
-### `apiIsDeviceConnected`
-
-Check if a device is connected.
-
-```dart
-Future<bool> apiIsDeviceConnected({
-  required DeviceType deviceType,
-  required String deviceId,
-})
-```
-
 ### `apiGetConnectedDevices`
 
 Get list of connected devices.
@@ -117,21 +106,27 @@ Future<List<DeviceInfo>> apiGetConnectedDevices()
 
 Gain, offset and binning are set with each exposure rather than by separate calls.
 
-### `apiCameraStartExposure`
+### `apiCameraStartExposureConfigured`
 
 Start a camera exposure. Returns progress updates via events, final image available via `apiGetLastImage`.
+A gain or offset left out keeps the camera's own; a subframe needs all four of `startX`, `startY`, `width`
+and `height`.
 
 ```dart
-Future<void> apiCameraStartExposure({
+Future<void> apiCameraStartExposureConfigured({
   required String deviceId,
   required double durationSecs,
-  required int gain,
-  required int offset,
+  int? gain,
+  int? offset,
   required int binX,
   required int binY,
+  int? startX,
+  int? startY,
+  int? width,
+  int? height,
+  required String frameType,
 })
 ```
-
 ### `apiCameraCancelExposure`
 
 Cancel current exposure.
@@ -451,14 +446,6 @@ Future<void> apiDefectMapSetCorrection({
 ```
 
 ## Plate Solving
-
-### `apiGetPlateSolverPath`
-
-Get the path to the installed plate solver.
-
-```dart
-String? apiGetPlateSolverPath()
-```
 
 ### `apiPlateSolveBlind`
 

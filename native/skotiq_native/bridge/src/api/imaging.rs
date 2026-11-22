@@ -571,31 +571,6 @@ pub struct ImageStatsResult {
     pub star_count: u32,
 }
 
-/// Start a camera exposure
-/// Returns progress updates via events, final image available via api_get_last_image
-/// Public bridge entry point. Gain/offset are explicit (`i32`) here so the
-/// generated FFI signature stays stable; this delegates to
-/// [`camera_start_exposure_opt`] with `Some(..)`, commanding both values
-/// exactly as before.
-pub async fn api_camera_start_exposure(
-    device_id: String,
-    duration_secs: f64,
-    gain: i32,
-    offset: i32,
-    bin_x: i32,
-    bin_y: i32,
-) -> Result<(), SkotiqError> {
-    camera_start_exposure_opt(
-        device_id,
-        duration_secs,
-        Some(gain),
-        Some(offset),
-        bin_x,
-        bin_y,
-    )
-    .await
-}
-
 /// Start an exposure without collapsing omitted controls to zero and with the
 /// complete per-frame geometry/frame-type contract.
 #[allow(clippy::too_many_arguments)]

@@ -49,34 +49,6 @@ Future<void> apiCoverCalibratorCalibratorOff({required String deviceId}) =>
           deviceId: deviceId,
         );
 
-/// Get cover calibrator cover state (0=NotPresent, 1=Closed, 2=Moving, 3=Open, 4=Unknown, 5=Error)
-Future<int> apiCoverCalibratorGetCoverState({required String deviceId}) =>
-    RustLib.instance.api
-        .crateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverState(
-          deviceId: deviceId,
-        );
-
-/// Get cover calibrator calibrator state (0=NotPresent, 1=Off, 2=NotReady, 3=Ready, 4=Unknown, 5=Error)
-Future<int> apiCoverCalibratorGetCalibratorState({required String deviceId}) =>
-    RustLib.instance.api
-        .crateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorState(
-          deviceId: deviceId,
-        );
-
-/// Get cover calibrator current brightness
-Future<int> apiCoverCalibratorGetBrightness({required String deviceId}) =>
-    RustLib.instance.api
-        .crateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightness(
-          deviceId: deviceId,
-        );
-
-/// Get cover calibrator maximum brightness
-Future<int> apiCoverCalibratorGetMaxBrightness({required String deviceId}) =>
-    RustLib.instance.api
-        .crateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightness(
-          deviceId: deviceId,
-        );
-
 /// Get cover calibrator full status
 Future<CoverCalibratorStatus> apiCoverCalibratorGetStatus({
   required String deviceId,
