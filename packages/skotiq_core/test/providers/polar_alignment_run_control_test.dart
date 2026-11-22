@@ -11,6 +11,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/backend/network_backend.dart';
@@ -22,6 +23,7 @@ import 'package:skotiq_core/src/providers/polar_alignment_provider.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 
+import '../harness/event_wire.dart';
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
@@ -69,6 +71,10 @@ SkotiqEvent _errorEvent({num azimuth = 5, num altitude = 5, num total = 7}) =>
         'azimuth_error': azimuth,
         'altitude_error': altitude,
         'total_error': total,
+        'current_ra': 2.5,
+        'current_dec': 89.1,
+        'target_ra': 2.5,
+        'target_dec': 89.26,
       },
     );
 
@@ -81,7 +87,10 @@ SkotiqEvent _imageEvent(Object? imageData, {Object? solvedRa}) => SkotiqEvent(
     'image_data': imageData,
     'width': 4,
     'height': 2,
-    if (solvedRa != null) 'solved_ra': solvedRa,
+    'solved_ra': solvedRa,
+    'solved_dec': null,
+    'point': 1,
+    'phase': 'measuring',
   },
 );
 
@@ -211,6 +220,92 @@ void main() {
         expect(notifier, isNotNull);
       },
     );
+  });
+
+  // What each polar-alignment event does to the state of a started run,
+  // over both transports. Pinned on the handler that compared event names.
+  test('the polar alignment events a run follows', () async {
+    final rows = <String, bridge.EventPayload>{
+      'error': const bridge.EventPayload.polarAlignment(
+        bridge.PolarAlignmentEvent(
+          azimuthError: 120,
+          altitudeError: -60,
+          totalError: 134.2,
+          currentRa: 2.5,
+          currentDec: 89.1,
+          targetRa: 2.5,
+          targetDec: 89.26,
+        ),
+      ),
+      for (final phase in ['measuring', 'adjusting', 'idle', 'error'])
+        'status $phase': bridge.EventPayload.polarAlignmentStatus(
+          bridge.PolarAlignmentStatus(
+            status: 'Point 2: solving',
+            phase: phase,
+            point: 2,
+          ),
+        ),
+      'image': bridge.EventPayload.polarAlignmentImage(
+        bridge.PolarAlignmentImageEvent(
+          imageData: Uint8List.fromList([7, 8, 9]),
+          width: 4,
+          height: 2,
+          solvedRa: 2.51,
+          point: 2,
+          phase: 'measuring',
+        ),
+      ),
+      'empty image': bridge.EventPayload.polarAlignmentImage(
+        bridge.PolarAlignmentImageEvent(
+          imageData: Uint8List(0),
+          width: 4,
+          height: 2,
+          point: 2,
+          phase: 'measuring',
+        ),
+      ),
+      'imaging exposure complete': const bridge.EventPayload.imaging(
+        bridge.ImagingEvent.exposureComplete(success: true),
+      ),
+    };
+    final table = <String, String>{};
+    for (final row in rows.entries) {
+      final cells = <String>[];
+      for (final path in EventPath.values) {
+        final container = buildContainer();
+        final notifier = container.read(polarAlignmentStateProvider.notifier);
+        await notifier.startAlignment(config);
+        events.add(_imageEvent(<dynamic>[1, 2]));
+        await _pump();
+        events.add(wireEventOver(path, row.value));
+        await _pump();
+        final s = container.read(polarAlignmentStateProvider);
+        cells.add(
+          '${s.phase.name} "${s.statusMessage}" '
+          'error=${s.currentError?.totalError} '
+          'image=${s.imageData?.length} ra=${s.solvedRa}',
+        );
+        container.dispose();
+      }
+      expect(cells.last, cells.first, reason: '${row.key}: transports');
+      table[row.key] = cells.first;
+    }
+    expect(table, <String, String>{
+      'error':
+          'measuring "Starting polar alignment..." error=134.2 image=2 ra=null',
+      'status measuring':
+          'measuring "Point 2: solving" error=null image=2 ra=null',
+      'status adjusting':
+          'adjusting "Point 2: solving" error=null image=2 ra=null',
+      'status idle': 'idle "Point 2: solving" error=null image=2 ra=null',
+      'status error': 'error "Point 2: solving" error=null image=2 ra=null',
+      'image':
+          'measuring "Starting polar alignment..." error=null image=3 ra=2.51',
+      'empty image':
+          'measuring "Starting polar alignment..." error=null image=0 ra=null',
+      'imaging exposure complete':
+          'measuring "Starting polar alignment..." error=null image=2 ra=null',
+    });
   });
 
   test('stale event after backend swap cannot mutate state', () async {
