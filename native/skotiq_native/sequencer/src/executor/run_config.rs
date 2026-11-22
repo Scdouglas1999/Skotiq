@@ -709,6 +709,11 @@ impl RunConfigStore {
         self.inner.sequence_center_sync.read().unwrap_or(true)
     }
 
+    /// Record the starting sequence's Center sync choice.
+    pub(crate) fn set_sequence_center_sync(&self, sync_mount: Option<bool>) {
+        *self.inner.sequence_center_sync.write() = sync_mount;
+    }
+
     /// Make `new` the settings: store it, carry each changed section to its
     /// derived copies and announce each changed section once. A value equal
     /// to the current one does nothing; one that fails
