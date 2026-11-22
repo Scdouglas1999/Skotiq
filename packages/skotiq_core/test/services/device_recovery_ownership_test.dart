@@ -159,4 +159,34 @@ void main() {
       async.flushTimers();
     });
   });
+
+  // The linked-client row above stands on this: the device service is told
+  // the host owns recovery exactly when the backend is a NetworkBackend.
+  test('only a NetworkBackend hands recovery to a host', () {
+    final network = NetworkBackend(
+      serverHost: '127.0.0.1',
+      autoConnectWebSocket: false,
+    );
+    final local = FfiBackend();
+    final none = DisconnectedBackend();
+    addTearDown(network.dispose);
+    addTearDown(local.dispose);
+    addTearDown(none.dispose);
+    bool hostOwns(SkotiqBackend backend) {
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container.read(linkedHostDevicesProvider) != null;
+    }
+
+    expect(hostOwns(network), isTrue);
+    expect(network.nativeReconnectedDeviceTypes, isEmpty);
+    expect(hostOwns(local), isFalse);
+    expect(hostOwns(none), isFalse);
+  });
 }
