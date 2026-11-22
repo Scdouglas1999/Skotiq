@@ -539,8 +539,8 @@ native/skotiq_native/bridge/src/device_manager/ops/camera/settings.rs	stated_fra
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	connect_fake_cover	rust_let_underscore	1	V0050	let _ = command_tx.send(command);
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	connect_fake_cover	rust_let_underscore	1	V0050	let _ = socket
 native/skotiq_native/bridge/src/device_manager/ops/cover.rs	release_simulated_panel	rust_let_underscore	1	V0050	let _ = get_device_manager().disconnect_device(device_id).await;
-native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	unwrap_or_default	1	V0905	.unwrap_or_default();
-native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position	unwrap_or_literal	1	V0712	.unwrap_or(-1);
+native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position_once	unwrap_or_default	1	V0905	.unwrap_or_default();
+native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	filter_wheel_set_position_once	unwrap_or_literal	1	V0712	.unwrap_or(-1);
 native/skotiq_native/bridge/src/device_manager/ops/filter_wheel.rs	poll_filter_wheel_position	unwrap_or_literal	2	V0623	state.last_position.unwrap_or(-1),
 native/skotiq_native/bridge/src/device_manager/ops/mount/mod.rs	-	unwrap_or_literal	1	V0669	//! * `mount.can_set_tracking().await.unwrap_or(false)` — ASCOM optional
 native/skotiq_native/bridge/src/device_manager/ops/weather.rs	connect_fake_weather	rust_let_underscore	1	V0121	let _ = socket
@@ -557,8 +557,8 @@ native/skotiq_native/bridge/src/device_manager/rig/filter_wheel.rs	capabilities	
 native/skotiq_native/bridge/src/device_manager/rig/focuser.rs	capabilities	unwrap_or_literal	1	R9-025	temp_comp: temp_comp.unwrap_or(false),
 native/skotiq_native/bridge/src/device_manager/rig/mount/driver.rs	capabilities	rust_drop_result	1	V0620	let tracking = mount.get_tracking().await.ok();
 native/skotiq_native/bridge/src/device_manager/rig/mount/driver.rs	status	unwrap_or_literal	1	R9-026	parked: read.parked.unwrap_or(false),
-native/skotiq_native/bridge/src/dispatch/native.rs	connect_native	rust_let_underscore	1	U2-23	let _ = old.disconnect().await;
-native/skotiq_native/bridge/src/dispatch/native.rs	connect_native	rust_let_underscore	2	O10-07	let _ = old.disconnect().await;
+native/skotiq_native/bridge/src/dispatch/native.rs	hold_native	rust_let_underscore	1	U2-23	let _ = old.disconnect().await;
+native/skotiq_native/bridge/src/dispatch/native.rs	hold_native	rust_let_underscore	2	O10-07	let _ = old.disconnect().await;
 native/skotiq_native/bridge/src/event/bus.rs	publish	rust_let_underscore	1	R9-027	let _ = self.sender.send(event);
 native/skotiq_native/bridge/src/event/sequencer.rs	SequencerEvent	nonconvergence_best_guess	1	V0705	/// consulted or could not pick a single best guess. Dart maps
 native/skotiq_native/bridge/src/frame_header/golden_tests.rs	drop	rust_let_underscore	1	V0630	let _ = std::fs::remove_dir_all(&self.0);
