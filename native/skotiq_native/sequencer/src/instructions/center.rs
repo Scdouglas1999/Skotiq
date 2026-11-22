@@ -176,7 +176,7 @@ async fn centering_slew_wait(
 /// How a centering run judges and corrects the pointing. A Center step and a
 /// run's own recenters take theirs from the step's [`CenterConfig`] and the
 /// operator's tolerance ([`CenterPolicy::for_step`]); the post-flip centering
-/// keeps its own (`meridian_flip_executor::POST_FLIP_CENTERING`).
+/// has its own (`meridian_flip_executor::POST_FLIP_CENTERING`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct CenterPolicy {
     pub tolerance: CenterTolerance,

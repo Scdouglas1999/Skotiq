@@ -3,8 +3,7 @@
 use super::*;
 use crate::meridian_flip_executor::{FLIP_CENTERING_SLEW, FLIP_SLEW};
 
-/// Every slew wait in the run, with the bounds it had when each caller kept
-/// its own loop.
+/// Every slew wait in the run and its bounds.
 #[test]
 fn the_slew_waits_and_their_bounds() {
     let ms = Duration::from_millis;

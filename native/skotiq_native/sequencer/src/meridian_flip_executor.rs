@@ -260,7 +260,7 @@ pub(crate) const FLIP_SLEW: crate::instructions::SlewWaitBounds =
 
 /// The post-flip centering: three frames, centered below 30" measured flat at
 /// the target's Dec, every correction synced. Not the operator's centering
-/// tolerance (owner item P9-1).
+/// tolerance.
 pub(crate) const POST_FLIP_CENTERING: crate::instructions::CenterPolicy =
     crate::instructions::CenterPolicy {
         tolerance: crate::instructions::CenterTolerance::Below(30.0),
@@ -5480,7 +5480,7 @@ mod tests {
     /// The post-flip centering a run's flip does: how close counts as
     /// centered, whether a correction syncs, how many frames it takes. The
     /// run's centering tolerance is 5"; the flip keeps its own 30" and always
-    /// syncs (owner item P9-1).
+    /// syncs.
     #[tokio::test(start_paused = true)]
     async fn post_flip_centering_keeps_its_own_policy() {
         struct Case {
@@ -5606,7 +5606,7 @@ mod tests {
 
     /// The post-flip guider restart counts guiding as locked once the guider
     /// says it guides, even with an empty RMS window (Start Guiding waits for
-    /// a measured step; owner item P9-3).
+    /// a measured step).
     #[tokio::test(start_paused = true)]
     async fn the_post_flip_guider_restart_accepts_guiding_with_no_rms_yet() {
         let state = Arc::new(MockDeviceOpsState::default());

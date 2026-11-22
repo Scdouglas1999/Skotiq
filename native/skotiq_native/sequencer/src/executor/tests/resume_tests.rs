@@ -367,103 +367,12 @@ fn a_checkpoint_without_per_step_frames_still_loads() {
 }
 
 /// `fixtures/checkpoint_mid_flip.json` was written by `CheckpointManager::save`
-/// at 8755f67f5 (checkpoint and trigger-state code as at that commit) for a run
-/// stopped while its Meridian Flip step ran: the step Running, the flip not yet
-/// recorded for the target, guiding stopped for the flip.
+/// for a run stopped while its Meridian Flip step ran: the step Running, the
+/// flip not yet recorded for the target, guiding stopped for the flip. The
+/// persisted types it holds are those of the release it pins.
 const MID_FLIP_CHECKPOINT: &str = include_str!("fixtures/checkpoint_mid_flip.json");
 
-fn mid_flip_plan() -> SequenceDefinition {
-    let mut sequence = SequenceDefinition::new("Mid-flip".to_string());
-    sequence.nodes.push(crate::NodeDefinition {
-        id: "root".to_string(),
-        name: "Root".to_string(),
-        node_type: NodeType::Loop(LoopConfig {
-            iterations: Some(1),
-            condition: LoopCondition::Count,
-            condition_value: None,
-            horizon_profile: None,
-        }),
-        enabled: true,
-        children: vec![
-            "frames-1".to_string(),
-            "flip".to_string(),
-            "frames-2".to_string(),
-        ],
-    });
-    for id in ["frames-1", "frames-2"] {
-        sequence.nodes.push(crate::NodeDefinition {
-            id: id.to_string(),
-            name: "Lights".to_string(),
-            node_type: NodeType::TakeExposure(crate::ExposureConfig {
-                duration_secs: SUB_SECS,
-                count: FRAMES,
-                ..Default::default()
-            }),
-            enabled: true,
-            children: vec![],
-        });
-    }
-    sequence.nodes.push(crate::NodeDefinition {
-        id: "flip".to_string(),
-        name: "Meridian Flip".to_string(),
-        node_type: NodeType::MeridianFlip(crate::MeridianFlipConfig {
-            settle_time: 12.0,
-            max_post_settle_rms_pixels: 1.5,
-            ..Default::default()
-        }),
-        enabled: true,
-        children: vec![],
-    });
-    sequence.root_node_id = Some("root".to_string());
-    sequence
-}
-
-fn mid_flip_checkpoint() -> crate::checkpoint::SessionCheckpoint {
-    let mut checkpoint = crate::checkpoint::SessionCheckpoint::new(mid_flip_plan());
-    checkpoint
-        .node_statuses
-        .insert("frames-1".to_string(), NodeStatus::Success);
-    checkpoint
-        .node_statuses
-        .insert("flip".to_string(), NodeStatus::Running);
-    checkpoint.current_node = Some("flip".to_string());
-    checkpoint.last_completed_node = Some("frames-1".to_string());
-    checkpoint.completed_exposures = FRAMES;
-    checkpoint.is_active = true;
-    checkpoint.executor_state = ExecutorState::Running;
-    let mut state = crate::triggers::TriggerState::new();
-    state.set_guiding_enabled(false);
-    state.guiding.guiding_stopped_by_motion();
-    checkpoint.set_trigger_state(crate::checkpoint::TriggerStateSnapshot::from_state(
-        &state,
-        crate::SafetyFailMode::default(),
-        Default::default(),
-    ));
-    checkpoint
-}
-
-/// Writes the fixture; run once with `SKOTIQ_WRITE_MID_FLIP_FIXTURE=1`.
-#[test]
-fn write_the_mid_flip_fixture() {
-    if std::env::var_os("SKOTIQ_WRITE_MID_FLIP_FIXTURE").is_none() {
-        return;
-    }
-    let dir = std::env::temp_dir().join(format!("sk-mid-flip-{}", uuid::Uuid::new_v4()));
-    let manager = crate::checkpoint::CheckpointManager::new(&dir);
-    manager.save(&mid_flip_checkpoint()).expect("saves");
-    let written = std::fs::read_to_string(dir.join("skotiq_session.checkpoint")).unwrap();
-    std::fs::write(
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/src/executor/tests/fixtures/checkpoint_mid_flip.json"
-        ),
-        written,
-    )
-    .unwrap();
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-/// A checkpoint taken mid-flip resumes as it always has: the flip step runs
+/// A checkpoint taken mid-flip resumes with the flip step to run: it runs
 /// again (only finished imaging steps are kept), the frames before it are
 /// not taken again, the flip is not recorded for the target, and the run's
 /// guiding stays stopped until something starts it.

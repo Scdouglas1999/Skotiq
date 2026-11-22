@@ -464,7 +464,7 @@ fn the_centering_policies() {
 }
 
 /// Both measures agree for a small offset away from the pole; the flat one
-/// is what the post-flip centering has always used.
+/// is what the post-flip centering uses.
 #[test]
 fn the_two_separation_measures() {
     let target = (10.0, 45.0);
