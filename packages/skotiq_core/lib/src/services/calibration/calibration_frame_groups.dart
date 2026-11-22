@@ -1,7 +1,29 @@
 import '../../database/database.dart' show DbCapturedImage;
 import '../../models/imaging/imaging_models.dart' show FrameType;
-import '../darkroom_build_service.dart' show darkroomTemperatureGapC;
+import 'package:skotiq_astro/skotiq_astro.dart' show observingNightOf;
+
 import '../frame_header.dart';
+
+/// Sensor temperatures closer than this, within one night and setup, are one
+/// group: cooler drift during a night must not split its calibration.
+const double darkroomTemperatureGapC = 3;
+
+/// The observing night [time] belongs to as a `YYYY-MM-DD` key: the evening
+/// date [observingNightOf] names.
+String observingNight(DateTime time) {
+  final evening = observingNightOf(time);
+  String two(int v) => v.toString().padLeft(2, '0');
+  return '${evening.year}-${two(evening.month)}-${two(evening.day)}';
+}
+
+/// The key flats are grouped and matched by: filter, gain, offset, binning.
+String flatSetupKey(
+  String? filter,
+  int? gain,
+  int? offset,
+  int binX,
+  int binY,
+) => '${filter ?? ''}|$gain|$offset|${binX}x$binY';
 
 /// What a dark or bias frame's own header says about how it was taken,
 /// beyond what its `captured_images` row records.

@@ -19,7 +19,6 @@ import '../models/calibration/dark_library_match_tolerances.dart';
 import 'calibration/calibration_frame_groups.dart';
 import 'calibration_master_builder.dart';
 import 'dark_library_service.dart';
-import 'darkroom_build_service.dart' show observingNight, flatSetupKey;
 import 'flat_library_service.dart';
 import 'frame_header.dart';
 import '../utils/logging_service.dart';

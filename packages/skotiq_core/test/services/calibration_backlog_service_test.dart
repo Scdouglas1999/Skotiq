@@ -617,10 +617,10 @@ void main() {
         }),
       );
 
-      final id = await flats.createMasterFlat(
+      final id = (await flats.buildMasterFlat(
         flatPaths: [flat.path, flat.path],
         outputPath: '${tmp.path}/master_flat.fits',
-      );
+      )).libraryId;
 
       final entry = await flatDao.getEntryById(id);
       expect(entry!.filter, 'L');

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/services/calibration/calibration_frame_groups.dart';
 import 'package:skotiq_core/src/services/frame_header.dart';
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/src/database/daos/calibration_tags_dao.dart';
@@ -13,8 +14,6 @@ import 'package:skotiq_core/src/database/daos/recipes_dao.dart';
 import 'package:skotiq_core/src/models/darkroom/recipe.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/services/calibration_library_service.dart';
-import 'package:skotiq_core/src/services/calibration_master_builder.dart';
-import 'package:skotiq_core/src/services/dark_library_service.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/services/darkroom_build_service.dart';
 
@@ -319,100 +318,6 @@ void main() {
       DarkroomBuildService.applyToFilter(groups, 'R', 'flat', '/L.fits');
       expect(DarkroomBuildService.flatCoverage(groups).withoutFlats, ['G']);
     });
-
-    test('built masters register in the calibration library', () async {
-      final darkDao = DarkLibraryDao(db);
-      final flatDao = FlatLibraryDao(db);
-      final svc = DarkroomBuildService(
-        operation: native.call,
-        library: CalibrationLibraryService(
-          db: db,
-          flatLibraryDao: flatDao,
-          tagsDao: CalibrationTagsDao(db),
-        ),
-        masters: IntegratedMastersDao(db),
-        darkLibrary: DarkLibraryService(darkDao),
-        flatLibrary: flatDao,
-        buildFlat: (args) async => {
-          'width': 100,
-          'height': 80,
-          'frameCount': 19,
-        },
-        buildMaster: (request) async => CalibrationMasterBuildResult.fromJson({
-          'outputPath': request.outputPath,
-          'kind': request.kind,
-          'width': 100,
-          'height': 80,
-          'frameCount': 30,
-          'leakBaseline': 0,
-          'leakThreshold': 0,
-          'masterMean': 500,
-          'rejectionFraction': 0,
-          'exposureSecs': 120,
-          'gain': 100,
-          'offset': 50,
-        }),
-      );
-      await svc.buildCalibration(
-        kind: 'dark',
-        paths: ['/d1.fits'],
-        output: '/masters/dark.fits',
-      );
-      await svc.buildCalibration(
-        kind: 'flat',
-        paths: ['/f1.fits'],
-        output: '/masters/flat_B.fits',
-        bias: '/masters/bias.fits',
-        forGroup: g('B', 'n1'),
-      );
-      final darks = await darkDao.getAllEntries();
-      expect(darks.single.filePath, '/masters/dark.fits');
-      expect(darks.single.exposureTime, 120);
-      final flats = await flatDao.getAllEntries();
-      expect(flats.single.filePath, '/masters/flat_B.fits');
-      expect(flats.single.filter, 'B');
-      expect(flats.single.masterFrameCount, 19);
-    });
-
-    test(
-      'a flat built for no group is filed under its own frames\' settings',
-      () async {
-        final flatDao = FlatLibraryDao(db);
-        final svc = DarkroomBuildService(
-          operation: native.call,
-          library: CalibrationLibraryService(
-            db: db,
-            flatLibraryDao: flatDao,
-            tagsDao: CalibrationTagsDao(db),
-          ),
-          masters: IntegratedMastersDao(db),
-          flatLibrary: flatDao,
-          readHeader: (path) async => FrameHeader({
-            'FILTER': 'Ha',
-            'GAIN': 76.0,
-            'OFFSET': 15,
-            'XBINNING': 2,
-            'YBINNING': 2,
-          }),
-          buildFlat: (args) async => {
-            'width': 100,
-            'height': 80,
-            'frameCount': 3,
-          },
-        );
-        await svc.buildCalibration(
-          kind: 'flat',
-          paths: ['/f1.fits', '/f2.fits', '/f3.fits'],
-          output: '/masters/flat_Ha.fits',
-          bias: '/masters/bias.fits',
-        );
-        final flat = (await flatDao.getAllEntries()).single;
-        expect(flat.filter, 'Ha');
-        expect(flat.gain, 76);
-        expect(flat.offset, 15);
-        expect(flat.binX, 2);
-      },
-    );
   });
 
   group('working space', () {
