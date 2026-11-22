@@ -51,8 +51,8 @@ pub fn is_colour_sensor(sensor_type: i32) -> bool {
 ///
 /// A colour sensor with no RGGB-style order — `SensorType` 1 (direct colour) or
 /// the 3..=5 CMYG/CMYG2/LRGB mosaics — is left undebayered and writes no
-/// `BAYERPAT` card. That is correct for those families, but once the OSC gate
-/// moved from `SensorType == 1` to `== 2` a Bayer one-shot-colour camera whose
+/// `BAYERPAT` card. That is correct for those families, but a Bayer
+/// one-shot-colour camera whose
 /// driver MISREPORTS its `SensorType` as 1 loses its debayering and its
 /// `BAYERPAT` card silently. Naming the reason lets that misreport be
 /// recognised from the app rather than hunted, and keeps the copy in one place
