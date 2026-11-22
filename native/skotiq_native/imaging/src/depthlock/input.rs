@@ -488,39 +488,36 @@ pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String
             "DepthLock measures monochrome data; this light carries a Bayer pattern".into(),
         );
     }
-    let instrument = header
-        .get_string("INSTRUME")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("Light has no camera identity (INSTRUME)")?
-        .to_string();
-    let filter = header
-        .get_string("FILTER")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("Light has no filter identity (FILTER)")?
-        .to_string();
-    let exposure_secs = numeric(header, "EXPTIME")?;
+    let taken = crate::acquisition(header);
+    let name = |card: Option<String>| {
+        card.map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    let instrument = name(taken.instrument).ok_or("Light has no camera identity (INSTRUME)")?;
+    let filter = name(taken.filter).ok_or("Light has no filter identity (FILTER)")?;
+    let exposure_secs = taken
+        .exposure_s
+        .filter(|v| v.is_finite())
+        .ok_or("DepthLock requires a finite EXPTIME FITS keyword")?;
     if exposure_secs <= 0.0 {
         return Err("Light has a non-positive EXPTIME".into());
     }
-    let int_card = |key: &str| -> Result<Option<i32>, String> {
-        match header.get_int(key) {
-            None => Ok(None),
-            Some(v) => i32::try_from(v)
-                .map(Some)
-                .map_err(|_| format!("{key} is out of range")),
-        }
+    let whole = |card: Setting, value: Option<f64>| -> Result<Option<i32>, String> {
+        value
+            .map(|v| {
+                i32::try_from(v as i64).map_err(|_| format!("{} is out of range", card.card()))
+            })
+            .transpose()
     };
     Ok(AcquisitionSettings {
         instrument,
         filter,
         exposure_secs,
-        gain: int_card("GAIN")?,
-        offset: int_card("OFFSET")?,
-        bin_x: int_card("XBINNING")?.unwrap_or(1),
-        bin_y: int_card("YBINNING")?.unwrap_or(1),
-        ccd_temp_c: header.get_float("CCD-TEMP").filter(|v| v.is_finite()),
+        gain: whole(Setting::Gain, taken.gain)?,
+        offset: whole(Setting::Offset, taken.offset)?,
+        bin_x: whole(Setting::BinX, taken.bin_x)?.unwrap_or(1),
+        bin_y: whole(Setting::BinY, taken.bin_y)?.unwrap_or(1),
+        ccd_temp_c: taken.sensor_temp_c.filter(|v| v.is_finite()),
     })
 }
 

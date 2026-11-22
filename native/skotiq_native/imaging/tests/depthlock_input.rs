@@ -803,7 +803,8 @@ fn a_light_acquisition_is_read_card_by_card() {
             h.keywords.remove("EXPTIME");
             h.set_float("EXPOSURE", 120.0);
         }),
-        Err("DepthLock requires a finite EXPTIME FITS keyword".to_string())
+        Ok(goal.clone()),
+        "EXPOSURE stands in for a missing EXPTIME, as in every other reader"
     );
     assert_eq!(
         read(&|h| {
