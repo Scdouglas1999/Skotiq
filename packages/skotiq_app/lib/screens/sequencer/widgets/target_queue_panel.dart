@@ -43,7 +43,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../add_target_header_helper.dart';
 import '../../../utils/count_label.dart';
-import '../../../widgets/accessible_dropdown.dart';
 import 'sequence_tree.dart' show revealSequenceRow, treeNodeKeyRegistryProvider;
 import 'target_header_card.dart';
 import '../../../utils/snackbar_helper.dart';

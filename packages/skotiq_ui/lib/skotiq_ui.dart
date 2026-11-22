@@ -28,6 +28,7 @@ export 'src/utils/text_measure.dart';
 export 'src/components/brand/brand.dart';
 export 'src/components/skotiq_button.dart';
 export 'src/components/skotiq_card.dart';
+export 'src/components/accessible_dropdown.dart';
 export 'src/components/skotiq_dropdown.dart';
 export 'src/components/session_picker.dart';
 export 'src/components/skotiq_text_field.dart';

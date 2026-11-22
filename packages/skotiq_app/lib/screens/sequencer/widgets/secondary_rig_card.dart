@@ -16,7 +16,6 @@ import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../utils/snackbar_helper.dart';
 
 class SecondaryRigCard extends ConsumerWidget {

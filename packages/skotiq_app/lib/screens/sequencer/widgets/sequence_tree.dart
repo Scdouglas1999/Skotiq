@@ -14,7 +14,6 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../sequence_mutator_helper.dart';
 import '../../../tours/tour_target.dart';
-import '../../../widgets/accessible_dropdown.dart';
 import '../sequence_fold_model.dart';
 import '../sequence_fold_state.dart';
 import 'delete_node_confirmation.dart';
