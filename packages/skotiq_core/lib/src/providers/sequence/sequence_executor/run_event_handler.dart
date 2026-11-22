@@ -283,7 +283,7 @@ class RunEventHandler {
     }
     // A status Dart has not learned yet reads as a failure; carry the raw
     // string so the red node explains itself.
-    _finishCenterNode(nodeId, status);
+    _finishCenterNode(nodeId, nodeStatus);
     if (!knownNodeStatuses.contains(status)) {
       _logger.warning(
         'NodeCompleted with unknown status "$status" for node '
@@ -310,7 +310,7 @@ class RunEventHandler {
     _ref.read(centeringRunProvider).reportRunStep(report);
   }
 
-  void _finishCenterNode(String nodeId, String status) {
+  void _finishCenterNode(String nodeId, NodeStatus status) {
     if (_centerNodeId != nodeId) return;
     _centerNodeId = null;
     _ref.read(centeringRunProvider).finishRunStep(status);
