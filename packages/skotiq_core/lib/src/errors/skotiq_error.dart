@@ -98,7 +98,7 @@ class SkotiqError implements Exception {
     return SkotiqError(
       category: kind.category,
       message: message,
-      isRecoverable: kind.retryable,
+      isRecoverable: kind.recoverable,
       shouldReconnect: kind.reconnect,
       isTimeout: kind == ErrorTextKind.timeout,
       deviceId: deviceMatch?.group(1),

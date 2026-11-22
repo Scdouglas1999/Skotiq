@@ -132,7 +132,7 @@ class DeviceError extends Equatable {
       timestamp: DateTime.now(),
       deviceId: deviceId,
       retryAttempts: retryAttempts,
-      recoverable: !kind.refusal,
+      recoverable: kind.recoverable,
     );
   }
 

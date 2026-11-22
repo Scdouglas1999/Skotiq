@@ -4,37 +4,35 @@ import 'skotiq_error.dart' show BackendErrorCategory, SkotiqError;
 /// category of its own: a Dart exception, or a plain message from the native
 /// side or a host. A typed error is read by its type, never by this.
 enum ErrorTextKind {
-  timeout(BackendErrorCategory.timeout, retryable: true),
-  notFound(BackendErrorCategory.connection, refusal: true),
-  connection(BackendErrorCategory.connection, retryable: true, reconnect: true),
-  permission(BackendErrorCategory.system, refusal: true),
-  busy(BackendErrorCategory.busy, retryable: true),
-  hardware(BackendErrorCategory.hardware, retryable: true),
-  invalid(BackendErrorCategory.validation),
-  unsupported(BackendErrorCategory.unsupported),
+  timeout(BackendErrorCategory.timeout),
+  notFound(BackendErrorCategory.connection, recoverable: false),
+  connection(BackendErrorCategory.connection, reconnect: true),
+  permission(BackendErrorCategory.system, recoverable: false),
+  busy(BackendErrorCategory.busy),
+  hardware(BackendErrorCategory.hardware),
+  invalid(BackendErrorCategory.validation, recoverable: false),
+  unsupported(BackendErrorCategory.unsupported, recoverable: false),
   imaging(BackendErrorCategory.imaging),
   driver(BackendErrorCategory.driver),
   unknown(BackendErrorCategory.unknown);
 
   const ErrorTextKind(
     this.category, {
-    this.retryable = false,
+    this.recoverable = true,
     this.reconnect = false,
-    this.refusal = false,
   });
 
   /// The category an error of this kind is filed under.
   final BackendErrorCategory category;
 
-  /// Trying the same operation again can work ([SkotiqError.isRecoverable]).
-  final bool retryable;
+  /// Trying again can work: everything but a refusal (not there, not
+  /// allowed) and a request that cannot succeed as asked (invalid,
+  /// unsupported). [SkotiqError.isRecoverable] and a device slot's
+  /// `recoverable` both read this.
+  final bool recoverable;
 
   /// Reconnecting the device can help ([SkotiqError.shouldReconnect]).
   final bool reconnect;
-
-  /// The device or the system refused outright (not there, not allowed).
-  /// A device slot counts every other kind as one it may recover from.
-  final bool refusal;
 }
 
 /// The one reading of error text. A new kind or a reworded native message

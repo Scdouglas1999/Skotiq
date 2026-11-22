@@ -9,7 +9,8 @@ import 'package:skotiq_core/models.dart';
 void main() {
   group('a text kind decides category, recoverable and reconnect', () {
     // (text, category, recoverable, reconnect) from SkotiqError.fromString,
-    // (device type, recoverable) from DeviceError.fromException.
+    // (device type, recoverable) from DeviceError.fromException. Both
+    // recoverable columns are one rule.
     const rows =
         <(String, BackendErrorCategory, bool, bool, DeviceErrorType, bool)>[
           (
@@ -66,7 +67,7 @@ void main() {
             false,
             false,
             DeviceErrorType.invalidParameter,
-            true,
+            false,
           ),
           (
             'Pulse guiding unsupported',
@@ -74,12 +75,12 @@ void main() {
             false,
             false,
             DeviceErrorType.invalidParameter,
-            true,
+            false,
           ),
           (
             'Exposure aborted',
             BackendErrorCategory.imaging,
-            false,
+            true,
             false,
             DeviceErrorType.driverError,
             true,
@@ -87,7 +88,7 @@ void main() {
           (
             'ASCOM driver threw',
             BackendErrorCategory.driver,
-            false,
+            true,
             false,
             DeviceErrorType.driverError,
             true,
@@ -95,7 +96,7 @@ void main() {
           (
             'Something odd',
             BackendErrorCategory.unknown,
-            false,
+            true,
             false,
             DeviceErrorType.unknown,
             true,
@@ -112,6 +113,7 @@ void main() {
         final device = DeviceError.fromException(Exception(text));
         expect(device.type, type);
         expect(device.recoverable, deviceOk);
+        expect(device.recoverable, error.isRecoverable);
       });
     }
   });
