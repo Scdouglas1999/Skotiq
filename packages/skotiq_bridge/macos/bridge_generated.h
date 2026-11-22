@@ -1302,6 +1302,7 @@ typedef struct wire_cst_SequencerEvent_TriggerFired {
   struct wire_cst_list_prim_u_8_strict *trigger_id;
   struct wire_cst_list_prim_u_8_strict *trigger_name;
   int32_t action;
+  int32_t *night_end;
 } wire_cst_SequencerEvent_TriggerFired;
 
 typedef struct wire_cst_SequencerEvent_InstructionProgress {
@@ -1521,6 +1522,7 @@ typedef struct wire_cst_SequencerStop_System {
 typedef struct wire_cst_SequencerStop_Trigger {
   struct wire_cst_list_prim_u_8_strict *trigger_id;
   struct wire_cst_list_prim_u_8_strict *trigger_name;
+  int32_t *night_end;
 } wire_cst_SequencerStop_Trigger;
 
 typedef union SequencerStopKind {
@@ -3972,6 +3974,8 @@ struct wire_cst_secondary_rig_config_api *frbgen_skotiq_bridge_cst_new_box_autoa
 
 struct wire_cst_sequencer_event *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event(void);
 
+int32_t *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_night_end(int32_t value);
+
 struct wire_cst_sequencer_notice *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice(void);
 
 struct wire_cst_sequencer_stop *frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop(void);
@@ -4125,6 +4129,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_safety_monitor_capabilities);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_secondary_rig_config_api);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_event);
+    dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_night_end);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_notice);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_stop);
     dummy_var ^= ((int64_t) (void*) frbgen_skotiq_bridge_cst_new_box_autoadd_shutter_status);

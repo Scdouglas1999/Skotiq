@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerNightEnd;
 
 import '../../../models/backend/sequencer_status.dart';
 import '../../../models/sequence/sequence_models.dart';
@@ -152,6 +153,7 @@ Map<String, dynamic>? _encodeStop(SequenceStopDecision? stop) => stop == null
         'origin': stop.origin,
         'originLabel': stop.originLabel,
         'parked': stop.parked,
+        'nightEnd': stop.nightEnd?.name,
       };
 
 SequenceStopDecision? _decodeStop(Object? raw) {
@@ -165,6 +167,9 @@ SequenceStopDecision? _decodeStop(Object? raw) {
     origin: jsonString(raw['origin']),
     originLabel: jsonString(raw['originLabel']),
     parked: raw['parked'] == true,
+    nightEnd: SequencerNightEnd.values
+        .where((end) => end.name == raw['nightEnd'])
+        .firstOrNull,
   );
 }
 

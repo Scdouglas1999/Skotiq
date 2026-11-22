@@ -96,9 +96,9 @@ class GuiderStatus {
   final String deviceId;
   final bool connected;
 
-  /// "Disconnected", "Connected", "Stopped", "Calibrating", "Guiding",
-  /// "Looping", "Paused", "Settling", "LostLock", or a state PHD2 names
-  /// that this build does not know, as PHD2 spells it.
+  /// [`GuiderState::as_wire`]: "Disconnected", "Connected", "Stopped",
+  /// "Calibrating", "Guiding", "Looping", "Paused", "Settling", "LostLock",
+  /// or a state PHD2 names that this build does not know, as PHD2 spells it.
   final String state;
 
   /// Guide error RMS in arcseconds.
@@ -113,11 +113,9 @@ class GuiderStatus {
   /// in its profile, or a failed read). Never a placeholder 0.
   final double? pixelScale;
 
-  /// Why the guider is stopped or held, as the snake_case name of a
-  /// `GuidingStopReason` (`autofocus`, `meridian_flip`,
-  /// `tracking_limit_hold`, `mount_move`, `pre_meridian_hold`,
-  /// `sequence_step`, `dither_settle`, `run_stopped`, `operator`). `None`
-  /// while guiding runs or when nothing recorded a reason.
+  /// Why the guider is stopped or held, as the wire name of a
+  /// `GuidingStopReason` (`GuidingStopReason::as_wire`). `None` while
+  /// guiding runs or when nothing recorded a reason.
   final String? stopReason;
 
   /// The reference stars the built-in multi-star guider tracks. PHD2

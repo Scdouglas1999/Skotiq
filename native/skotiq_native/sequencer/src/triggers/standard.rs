@@ -309,11 +309,30 @@ pub fn recovery_node_trigger_id(node_id: &str) -> String {
 /// ends the night like the dawn trigger's.
 pub const OBSTRUCTION_TRIGGER_ID: &str = "obstruction";
 
+/// Why a run's end is also the night's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NightEnd {
+    /// The dawn trigger parked the rig.
+    Dawn,
+    /// Something stands in front of the telescope.
+    Obstruction,
+}
+
+/// Why a `ParkAndAbort` fired under this id ends the night, or `None` when it
+/// ends only the run.
+pub fn night_end(trigger_id: &str) -> Option<NightEnd> {
+    if trigger_id == OBSTRUCTION_TRIGGER_ID {
+        return Some(NightEnd::Obstruction);
+    }
+    StandardTrigger::from_id(trigger_id)
+        .is_some_and(|trigger| trigger.spec().ends_the_night)
+        .then_some(NightEnd::Dawn)
+}
+
 /// Whether a `ParkAndAbort` fired under this id ends the night rather than
 /// only the run.
 pub fn ends_the_night(trigger_id: &str) -> bool {
-    trigger_id == OBSTRUCTION_TRIGGER_ID
-        || StandardTrigger::from_id(trigger_id).is_some_and(|trigger| trigger.spec().ends_the_night)
+    night_end(trigger_id).is_some()
 }
 
 /// The recovery cause a fired trigger hands to the recovery driver, or `None`
@@ -326,6 +345,35 @@ pub fn trigger_recovery_cause(trigger_id: &str) -> Option<RecoveryCause> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Which trigger ids end the night, as the app reads them off a stop
+    /// (`eon_run_end_table_test.dart` builds its stops from the same file).
+    #[test]
+    fn night_ends_match_the_app() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../packages/skotiq_core/test/fixtures/night_end_triggers.json"
+        ))
+        .expect("the fixture is JSON");
+        let ids = StandardTrigger::ALL
+            .iter()
+            .map(|trigger| trigger.id().to_string())
+            .chain([
+                OBSTRUCTION_TRIGGER_ID.to_string(),
+                recovery_node_trigger_id("n1"),
+                String::new(),
+            ]);
+        let sent: serde_json::Map<String, serde_json::Value> = ids
+            .map(|id| {
+                let end = match night_end(&id) {
+                    Some(NightEnd::Dawn) => "dawn".into(),
+                    Some(NightEnd::Obstruction) => "obstruction".into(),
+                    None => serde_json::Value::Null,
+                };
+                (id, end)
+            })
+            .collect();
+        assert_eq!(serde_json::Value::Object(sent), expected);
+    }
 
     /// The ids are the wire: checkpoints store them, decision rows carry them
     /// and the app matches on them (`eon_trigger.dart`,

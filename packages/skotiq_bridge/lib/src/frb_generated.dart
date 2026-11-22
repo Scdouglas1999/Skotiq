@@ -12292,6 +12292,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd dco_decode_box_autoadd_sequencer_night_end(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sequencer_night_end(raw);
+  }
+
+  @protected
   SequencerNotice dco_decode_box_autoadd_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_sequencer_notice(raw);
@@ -14227,6 +14233,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd? dco_decode_opt_box_autoadd_sequencer_night_end(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sequencer_night_end(raw);
+  }
+
+  @protected
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_sequencer_notice(raw);
@@ -14827,6 +14841,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           triggerId: dco_decode_String(raw[1]),
           triggerName: dco_decode_String(raw[2]),
           action: dco_decode_sequencer_trigger_action(raw[3]),
+          nightEnd: dco_decode_opt_box_autoadd_sequencer_night_end(raw[4]),
         );
       case 16:
         return SequencerEvent_InstructionProgress(
@@ -15042,6 +15057,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd dco_decode_sequencer_night_end(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerNightEnd.values[raw as int];
+  }
+
+  @protected
   SequencerNotice dco_decode_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -15099,6 +15120,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SequencerStop_Trigger(
           triggerId: dco_decode_String(raw[1]),
           triggerName: dco_decode_String(raw[2]),
+          nightEnd: dco_decode_opt_box_autoadd_sequencer_night_end(raw[3]),
         );
       default:
         throw Exception("unreachable");
@@ -16862,6 +16884,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_sequencer_event(deserializer));
+  }
+
+  @protected
+  SequencerNightEnd sse_decode_box_autoadd_sequencer_night_end(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sequencer_night_end(deserializer));
   }
 
   @protected
@@ -19630,6 +19660,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd? sse_decode_opt_box_autoadd_sequencer_night_end(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sequencer_night_end(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   ) {
@@ -20429,10 +20472,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_triggerId = sse_decode_String(deserializer);
         var var_triggerName = sse_decode_String(deserializer);
         var var_action = sse_decode_sequencer_trigger_action(deserializer);
+        var var_nightEnd = sse_decode_opt_box_autoadd_sequencer_night_end(
+          deserializer,
+        );
         return SequencerEvent_TriggerFired(
           triggerId: var_triggerId,
           triggerName: var_triggerName,
           action: var_action,
+          nightEnd: var_nightEnd,
         );
       case 16:
         var var_nodeId = sse_decode_String(deserializer);
@@ -20813,6 +20860,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd sse_decode_sequencer_night_end(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerNightEnd.values[inner];
+  }
+
+  @protected
   SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -20888,9 +20944,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         var var_triggerId = sse_decode_String(deserializer);
         var var_triggerName = sse_decode_String(deserializer);
+        var var_nightEnd = sse_decode_opt_box_autoadd_sequencer_night_end(
+          deserializer,
+        );
         return SequencerStop_Trigger(
           triggerId: var_triggerId,
           triggerName: var_triggerName,
+          nightEnd: var_nightEnd,
         );
       default:
         throw UnimplementedError('');
@@ -21533,6 +21593,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_sequencer_night_end(SequencerNightEnd raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -22717,6 +22783,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_sequencer_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_night_end(
+    SequencerNightEnd self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sequencer_night_end(self, serializer);
   }
 
   @protected
@@ -24988,6 +25063,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_night_end(
+    SequencerNightEnd? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sequencer_night_end(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_sequencer_notice(
     SequencerNotice? self,
     SseSerializer serializer,
@@ -25621,11 +25709,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         triggerId: final triggerId,
         triggerName: final triggerName,
         action: final action,
+        nightEnd: final nightEnd,
       ):
         sse_encode_i_32(15, serializer);
         sse_encode_String(triggerId, serializer);
         sse_encode_String(triggerName, serializer);
         sse_encode_sequencer_trigger_action(action, serializer);
+        sse_encode_opt_box_autoadd_sequencer_night_end(nightEnd, serializer);
       case SequencerEvent_InstructionProgress(
         nodeId: final nodeId,
         instruction: final instruction,
@@ -25987,6 +26077,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sequencer_night_end(
+    SequencerNightEnd self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_sequencer_notice(
     SequencerNotice self,
     SseSerializer serializer,
@@ -26047,10 +26146,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case SequencerStop_Trigger(
         triggerId: final triggerId,
         triggerName: final triggerName,
+        nightEnd: final nightEnd,
       ):
         sse_encode_i_32(4, serializer);
         sse_encode_String(triggerId, serializer);
         sse_encode_String(triggerName, serializer);
+        sse_encode_opt_box_autoadd_sequencer_night_end(nightEnd, serializer);
     }
   }
 

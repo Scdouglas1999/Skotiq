@@ -33,11 +33,9 @@ pub struct GuiderStatus {
     /// guider has no scale to give (PHD2 without focal length and pixel size
     /// in its profile, or a failed read). Never a placeholder 0.
     pub pixel_scale: Option<f64>,
-    /// Why the guider is stopped or held, as the snake_case name of a
-    /// `GuidingStopReason` (`autofocus`, `meridian_flip`,
-    /// `tracking_limit_hold`, `mount_move`, `pre_meridian_hold`,
-    /// `sequence_step`, `dither_settle`, `run_stopped`, `operator`). `None`
-    /// while guiding runs or when nothing recorded a reason.
+    /// Why the guider is stopped or held, as the wire name of a
+    /// `GuidingStopReason` (`GuidingStopReason::as_wire`). `None` while
+    /// guiding runs or when nothing recorded a reason.
     pub stop_reason: Option<String>,
     /// The reference stars the built-in multi-star guider tracks. PHD2
     /// guides on one star and reports none here.

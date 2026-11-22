@@ -495,6 +495,9 @@ pub(crate) async fn run_sequencer_event_loop(
                         EventSeverity::Info,
                         EventCategory::Sequencer,
                         EventPayload::Sequencer(SequencerEvent::TriggerFired {
+                            night_end: crate::event::sequencer::SequencerNightEnd::of_trigger(
+                                trigger_id,
+                            ),
                             trigger_id: trigger_id.clone(),
                             trigger_name: trigger_name.clone(),
                             action: (*action).into(),

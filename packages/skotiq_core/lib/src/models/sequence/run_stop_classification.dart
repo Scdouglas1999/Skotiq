@@ -16,6 +16,7 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         SequencerStop_Cancelled,
         SequencerStop_Operator,
         SequencerStop_System,
+        SequencerNightEnd,
         SequencerStop_Trigger,
         SequencerTriggerAction;
 
@@ -93,11 +94,16 @@ class SequenceStopDecision {
   /// "stopped".
   final bool parked;
 
+  /// Why the stop also ended the night, as the native trigger table says;
+  /// null for a stop that ends only the run.
+  final SequencerNightEnd? nightEnd;
+
   const SequenceStopDecision(
     this.author, {
     this.origin,
     this.originLabel,
     this.parked = false,
+    this.nightEnd,
   });
 }
 
@@ -116,8 +122,12 @@ SequenceStopDecision? sequenceStopDecisionOf(SequencerStop? stop) =>
         SequenceStopAuthor.system,
         origin: _nonEmpty(origin),
       ),
-      SequencerStop_Trigger(:final triggerId, :final triggerName) =>
-        _triggerStop(triggerId, triggerName),
+      SequencerStop_Trigger(
+        :final triggerId,
+        :final triggerName,
+        :final nightEnd,
+      ) =>
+        _triggerStop(triggerId, triggerName, nightEnd),
     };
 
 /// Read a `TriggerFired` event as stop authorship, or null when this fire did
@@ -127,14 +137,19 @@ SequenceStopDecision? sequenceStopTriggerDecision({
   required String? triggerId,
   required String? triggerName,
   required SequencerTriggerAction? action,
+  SequencerNightEnd? nightEnd,
 }) {
   if (action != SequencerTriggerAction.parkAndAbort) return null;
-  return _triggerStop(triggerId, triggerName);
+  return _triggerStop(triggerId, triggerName, nightEnd);
 }
 
 /// A trigger is a subsystem, so its stop is a system stop with the trigger as
 /// its origin. A trigger with neither an id nor a name names nobody.
-SequenceStopDecision? _triggerStop(String? triggerId, String? triggerName) {
+SequenceStopDecision? _triggerStop(
+  String? triggerId,
+  String? triggerName,
+  SequencerNightEnd? nightEnd,
+) {
   final id = _nonEmpty(triggerId);
   final name = _nonEmpty(triggerName);
   // The operator knows the trigger by its display name; the id is the fallback
@@ -146,6 +161,7 @@ SequenceStopDecision? _triggerStop(String? triggerId, String? triggerName) {
     origin: id ?? named,
     originLabel: 'the $named trigger',
     parked: true,
+    nightEnd: nightEnd,
   );
 }
 

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart';
 import 'package:skotiq_core/models.dart';
@@ -6,9 +9,29 @@ import 'package:skotiq_core/src/providers/sequence/sequence_progress.dart'
     show runEventStopEvidence;
 
 /// Every way a run's end reaches the end-of-night decision, and what the
-/// decision is. The table was written from the decisions the app made before
-/// the run's end carried the native night-end cause, so a change to how the
-/// cause travels must leave every row as it is.
+/// decision is. The table was written from the decisions the app made while
+/// it read the night's end from trigger ids; the stops now carry the native
+/// trigger table's answer (`night_end_triggers.json`, which the native
+/// `night_ends_match_the_app` test writes from), and every row is as it was.
+/// A system stop never carries a trigger id (its origins are rollback, the
+/// disk watchdog, end-of-night calibration and the scheduler), so that row of
+/// the first table is gone.
+
+/// The native trigger table's night end for a trigger id.
+final Map<String, Object?> _nativeNightEnds =
+    jsonDecode(File('test/fixtures/night_end_triggers.json').readAsStringSync())
+        as Map<String, Object?>;
+
+SequencerNightEnd? _nightEndOf(String id) {
+  if (!_nativeNightEnds.containsKey(id)) {
+    throw StateError('no native answer for "$id"');
+  }
+  return switch (_nativeNightEnds[id]) {
+    'dawn' => SequencerNightEnd.dawn,
+    'obstruction' => SequencerNightEnd.obstruction,
+    _ => null,
+  };
+}
 
 /// A source of the run's stop as the wire delivers it.
 class _Source {
@@ -24,7 +47,11 @@ class _Source {
 
 SequenceStopDecision? _triggerRow(String id, String name) =>
     sequenceStopDecisionOf(
-      SequencerStop.trigger(triggerId: id, triggerName: name),
+      SequencerStop.trigger(
+        triggerId: id,
+        triggerName: name,
+        nightEnd: _nightEndOf(id),
+      ),
     );
 
 SequenceStopDecision? _triggerFired(
@@ -32,7 +59,12 @@ SequenceStopDecision? _triggerFired(
   String name,
   SequencerTriggerAction action,
 ) => runEventStopEvidence(
-  SequencerEvent.triggerFired(triggerId: id, triggerName: name, action: action),
+  SequencerEvent.triggerFired(
+    triggerId: id,
+    triggerName: name,
+    action: action,
+    nightEnd: _nightEndOf(id),
+  ),
 );
 
 final _sources = <_Source>[
@@ -63,7 +95,6 @@ final _sources = <_Source>[
     'rollback',
     'disk-watchdog',
     'end-of-night calibration',
-    'dawn_approaching',
   ])
     _Source(
       'system $origin',
@@ -103,9 +134,13 @@ String _decide(
   required bool nightEnding,
   required bool parked,
 }) {
+  final evidence = source.evidence;
   final reason = classifyRunEnd(
     runStatus: status,
     stopOrigin: _originOf(source, status),
+    nightEnd: evidence?.author == SequenceStopAuthor.system
+        ? evidence?.nightEnd
+        : null,
     nightEnding: nightEnding,
     parked: parked,
   );
@@ -144,7 +179,6 @@ const _today = <String>[
   'system rollback | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/- aborted:-/-/- stopped:-/-/- stoppedResumable:-/-/- interrupted:-/-/-',
   'system disk-watchdog | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/- aborted:-/-/- stopped:-/-/- stoppedResumable:-/-/- interrupted:-/-/-',
   'system end-of-night calibration | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/- aborted:-/-/- stopped:-/-/- stoppedResumable:-/-/- interrupted:-/-/-',
-  'system dawn_approaching | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/dawn aborted:dawn/dawn/dawn stopped:dawn/dawn/dawn stoppedResumable:dawn/dawn/dawn interrupted:-/-/-',
   'operator | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/- aborted:-/-/- stopped:-/-/- stoppedResumable:-/-/- interrupted:-/-/-',
   'autopilot | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/- aborted:-/-/- stopped:-/-/- stoppedResumable:-/-/- interrupted:-/-/-',
   'no row, last end null | running:-/-/- paused:-/-/- completed:targetsComplete/targetsComplete/targetsComplete failed:-/-/- aborted:-/dawn/dawn stopped:-/dawn/dawn stoppedResumable:-/dawn/dawn interrupted:-/-/-',

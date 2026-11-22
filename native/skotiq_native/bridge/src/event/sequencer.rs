@@ -98,7 +98,30 @@ pub enum SequencerStop {
     Trigger {
         trigger_id: String,
         trigger_name: String,
+        /// Why the run's end is also the night's; `None` when it ends only
+        /// the run.
+        night_end: Option<SequencerNightEnd>,
     },
+}
+
+/// Why a trigger that ended the run also ended the night. Mirrors
+/// `skotiq_sequencer::NightEnd`.
+#[frb]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SequencerNightEnd {
+    Dawn,
+    Obstruction,
+}
+
+impl SequencerNightEnd {
+    /// Why a park fired under `trigger_id` ends the night, as the native
+    /// trigger table says.
+    pub fn of_trigger(trigger_id: &str) -> Option<Self> {
+        skotiq_sequencer::night_end(trigger_id).map(|end| match end {
+            skotiq_sequencer::NightEnd::Dawn => Self::Dawn,
+            skotiq_sequencer::NightEnd::Obstruction => Self::Obstruction,
+        })
+    }
 }
 
 impl From<skotiq_sequencer::RunStop> for SequencerStop {
@@ -113,6 +136,7 @@ impl From<skotiq_sequencer::RunStop> for SequencerStop {
                 trigger_id,
                 trigger_name,
             } => Self::Trigger {
+                night_end: SequencerNightEnd::of_trigger(&trigger_id),
                 trigger_id,
                 trigger_name,
             },
@@ -295,6 +319,9 @@ pub enum SequencerEvent {
         /// Human-readable trigger name
         trigger_name: String,
         action: SequencerTriggerAction,
+        /// Why a park under this trigger ends the night; `None` when it does
+        /// not end the night.
+        night_end: Option<SequencerNightEnd>,
     },
     /// A step's progress (cooling, autofocus, slewing, a frame of a burst).
     /// A frame verdict, scheduler decision, integration budget, adapted
