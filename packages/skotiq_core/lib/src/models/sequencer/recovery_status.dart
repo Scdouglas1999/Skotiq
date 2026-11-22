@@ -43,24 +43,19 @@ String _phaseWireKey(RecoveryPhase p) {
   }
 }
 
-RecoveryPhase _phaseFromWire(dynamic raw) {
-  // Rust serde emits unit variants as JSON strings. Anything else is a
-  // protocol contract violation: throwing keeps a mis-shaped payload from
-  // resolving to a default phase the recovery UI would then report as real.
-  final s = raw is String ? raw : raw.toString();
-  switch (s) {
-    case 'Waiting':
-      return RecoveryPhase.waiting;
-    case 'Attempting':
-      return RecoveryPhase.attempting;
-    case 'Recovered':
-      return RecoveryPhase.recovered;
-    case 'GaveUp':
-      return RecoveryPhase.gaveUp;
-    default:
-      throw FormatException('Unknown RecoveryPhase wire value: $s');
-  }
-}
+RecoveryPhase _phaseFromWire(dynamic raw) =>
+    recoveryPhaseFromWire(raw is String ? raw : raw.toString());
+
+/// The [RecoveryPhase] a Rust `RecoveryPhase` wire word names. Anything else
+/// is a protocol contract violation: throwing keeps a mis-shaped payload from
+/// resolving to a default phase the recovery UI would then report as real.
+RecoveryPhase recoveryPhaseFromWire(String wire) => switch (wire) {
+  'Waiting' => RecoveryPhase.waiting,
+  'Attempting' => RecoveryPhase.attempting,
+  'Recovered' => RecoveryPhase.recovered,
+  'GaveUp' => RecoveryPhase.gaveUp,
+  _ => throw FormatException('Unknown RecoveryPhase wire value: $wire'),
+};
 
 /// Stable string keys for the [RecoveryCause] discriminant. Matches the
 /// Rust `serde` representation for unit variants. The [RecoveryCause.custom]
@@ -92,6 +87,26 @@ class RecoveryCause extends Equatable {
       const RecoveryCause._('DeviceDisconnected', null);
   factory RecoveryCause.custom(String label) =>
       RecoveryCause._('Custom', label);
+
+  /// The cause a typed bridge event names by [kind]. Throws on a kind this
+  /// app does not know: a fallback would report a wrong recovery cause as if
+  /// it were the real one.
+  factory RecoveryCause.fromKind(String kind, String? customLabel) {
+    if (kind == 'Custom') return RecoveryCause.custom(customLabel ?? '');
+    if (_unitKinds.contains(kind)) return RecoveryCause._(kind, null);
+    throw FormatException('Unknown RecoveryCause kind: $kind');
+  }
+
+  static const _unitKinds = {
+    'GuideStarLost',
+    'SlewFailed',
+    'PlateSolveFailed',
+    'WeatherUnsafe',
+    'MountTrackingLost',
+    'FocusDriftCritical',
+    'ConsecutiveRejectsExceeded',
+    'DeviceDisconnected',
+  };
 
   /// Human-readable label. Mirrors `RecoveryCause::display_label` on the
   /// Rust side so the dashboard banner shows the same string the
