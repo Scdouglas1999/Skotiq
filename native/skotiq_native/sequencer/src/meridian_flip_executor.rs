@@ -2828,7 +2828,10 @@ mod tests {
                 is_guiding: !self.state.guider_stopped.load(Ordering::Relaxed),
                 rms_ra: 0.5,
                 rms_dec: 0.4,
-                rms_total: self.state.guider_rms_total.lock().unwrap().unwrap_or(0.64),
+                rms_total: match *self.state.guider_rms_total.lock().unwrap() {
+                    Some(rms) => rms,
+                    None => 0.64,
+                },
             })
         }
 
