@@ -399,7 +399,7 @@ class PlannerFieldFit {
     if (sizeArcmin <= short) {
       return const PlannerFieldFit._(PlannerFieldFitKind.fills);
     }
-    final (rows, columns) = MosaicPlanner.calculatePanelCount(
+    final grid = MosaicGrid.covering(
       totalWidth: sizeArcmin,
       totalHeight: sizeArcmin,
       panelWidth: long,
@@ -407,8 +407,8 @@ class PlannerFieldFit {
     );
     return PlannerFieldFit._(
       PlannerFieldFitKind.mosaic,
-      columns: columns,
-      rows: rows,
+      columns: grid.columns,
+      rows: grid.rows,
     );
   }
 

@@ -3,6 +3,7 @@ import '../models/imaging/imaging_models.dart' show FrameType;
 import 'package:uuid/uuid.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show
+        MosaicGrid,
         MosaicPanel,
         MosaicStartCorner,
         mosaicPanelCenters,
@@ -38,21 +39,19 @@ class MosaicConfig {
 
   int get totalPanels => panelsHorizontal * panelsVertical;
 
-  /// The mosaic's total angular extent on the sky, in degrees.
-  ///
-  /// Overlapping panels do NOT add their full width: adjacent centres are
-  /// [overlapPercent] closer than a panel width, so an N-panel row spans
-  /// `panelWidth * (1 + (N-1) * (1 - overlap))`, not `panelWidth * N`. This is
-  /// the same overlap-reduced step [MosaicService.generatePanels] lays the grid
-  /// out with, so the reported extent describes the grid that will actually be
-  /// imaged.
+  /// The grid's shape: columns, rows and overlap.
+  MosaicGrid get grid => MosaicGrid(
+    columns: panelsHorizontal,
+    rows: panelsVertical,
+    overlapPercent: overlapPercent,
+  );
+
+  /// The mosaic's total angular extent on the sky, in degrees, overlap
+  /// included ([MosaicGrid.extent]): the grid [MosaicService.generatePanels]
+  /// lays out.
   (double widthDeg, double heightDeg) get totalExtentDegrees {
-    final overlapFactor = 1.0 - (overlapPercent / 100.0);
-    final widthDeg =
-        panelWidthArcmin * (1 + (panelsHorizontal - 1) * overlapFactor) / 60.0;
-    final heightDeg =
-        panelHeightArcmin * (1 + (panelsVertical - 1) * overlapFactor) / 60.0;
-    return (widthDeg, heightDeg);
+    final (width, height) = grid.extent(panelWidthArcmin, panelHeightArcmin);
+    return (width / 60.0, height / 60.0);
   }
 
   /// Sky area the finished mosaic covers, in square degrees.
@@ -237,14 +236,14 @@ class MosaicService {
   /// The mosaic's panels in capture order, numbered as the app numbers them
   /// everywhere ([mosaicPanelCenters]).
   List<MosaicPanel> generatePanels(MosaicConfig config) {
-    final overlapFactor = 1.0 - (config.overlapPercent / 100.0);
+    final grid = config.grid;
     return mosaicPanelCenters(
       centerRaHours: config.centerRa,
       centerDecDegrees: config.centerDec,
-      stepRaDegrees: config.panelWidthArcmin * overlapFactor / 60.0,
-      stepDecDegrees: config.panelHeightArcmin * overlapFactor / 60.0,
-      columns: config.panelsHorizontal,
-      rows: config.panelsVertical,
+      stepRaDegrees: grid.step(config.panelWidthArcmin) / 60.0,
+      stepDecDegrees: grid.step(config.panelHeightArcmin) / 60.0,
+      columns: grid.columns,
+      rows: grid.rows,
       rotationDegrees: config.rotation,
       startCorner: config.startCorner,
       serpentine: config.serpentine,

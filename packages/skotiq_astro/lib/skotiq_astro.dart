@@ -45,7 +45,6 @@ export 'src/catalogs/element_refresh_service.dart';
 
 export 'src/fov/equipment_fov.dart';
 export 'src/fov/mosaic_geometry.dart';
-export 'src/fov/mosaic_planner.dart';
 
 export 'src/planning/target_scoring.dart';
 export 'src/planning/tonight_ranking.dart';
