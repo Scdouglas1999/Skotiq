@@ -195,8 +195,8 @@ class QrConnectionData {
 
   String toQrString() => jsonEncode(toJson());
 
-  /// Strict parser. Throws [QrValidationException] on any schema violation —
-  /// the audit calls out that lenient parsing was the bug. Callers are
+  /// Strict parser. Throws [QrValidationException] on any schema violation.
+  /// Callers are
   /// expected to surface the reason to the operator.
   static QrConnectionData parseStrict(String data) {
     final dynamic decoded;
@@ -876,7 +876,6 @@ class EnhancedSkotiqDiscovery {
         }
       });
 
-      // Wait for timeout
       await completer.future;
 
       return servers;

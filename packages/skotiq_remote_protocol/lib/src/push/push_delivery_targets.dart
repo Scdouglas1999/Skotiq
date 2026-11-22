@@ -1,15 +1,6 @@
 /// A truthful snapshot of whether a critical alert can actually be pushed to a
 /// phone right now.
 ///
-/// Exists because the "Push critical alerts to mobile" setting used to render
-/// as a plain ON switch regardless of whether ANY device could receive a push.
-/// On Android that was never true in a stock build: the FCM client is a dormant
-/// scaffold pending Firebase provisioning (`google-services.json` is absent),
-/// so the phone logs
-/// `FCM not configured (no google-services.json); push registration dormant`
-/// and never registers a token. The switch therefore asserted a capability the
-/// system did not have.
-///
 /// Two independent things must both hold for a push to land:
 ///   * at least one paired device has registered a push token
 ///     ([registeredDeviceCount] > 0), and

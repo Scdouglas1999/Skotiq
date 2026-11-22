@@ -33,9 +33,7 @@ String shortServerFingerprint(String fingerprint, {int length = 16}) {
 /// Which kind of Skotiq process serves the remote API.
 ///
 /// `gui` is the desktop app with its window (the usual imaging computer);
-/// `headless` is the daemon (`--headless`, a Pi appliance, a service). The two
-/// used to be indistinguishable to a client: both called themselves
-/// "Skotiq Headless".
+/// `headless` is the daemon (`--headless`, a Pi appliance, a service).
 enum SkotiqHostMode {
   gui('gui'),
   headless('headless');
