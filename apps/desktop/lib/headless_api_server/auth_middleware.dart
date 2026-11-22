@@ -90,6 +90,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         );
         return _authenticationRequired(
           requestId,
+          ApiErrorCodes.authRequired,
           'Missing Authorization header or session cookie',
         );
       };
@@ -172,6 +173,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           );
           return _authenticationRequired(
             requestId,
+            ApiErrorCodes.invalidTicket,
             'Invalid or expired WebSocket ticket',
           );
         }
@@ -183,6 +185,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           );
           return _authenticationRequired(
             requestId,
+            ApiErrorCodes.invalidTicket,
             'Invalid or expired WebSocket ticket',
           );
         }
@@ -232,6 +235,7 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
         );
         return _authenticationRequired(
           requestId,
+          ApiErrorCodes.invalidAuthHeader,
           'Invalid Authorization header format. Expected: Bearer <token>',
         );
 
@@ -341,12 +345,16 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
     headers: {HeadlessApiServer._requestIdHeader: requestId},
   );
 
-  /// 401 for a request whose credential is missing or unusable.
-  Response _authenticationRequired(String requestId, String message) =>
-      jsonUnauthorized(
-        {'error': 'Authentication required', 'message': message},
-        headers: {HeadlessApiServer._requestIdHeader: requestId},
-      );
+  /// 401 for a request whose credential is missing or unusable, coded by
+  /// which.
+  Response _authenticationRequired(
+    String requestId,
+    String code,
+    String message,
+  ) => jsonUnauthorized(
+    {'error': 'Authentication required', 'code': code, 'message': message},
+    headers: {HeadlessApiServer._requestIdHeader: requestId},
+  );
 
   /// 429 for a client whose bad tokens tripped the failure limiter.
   Response _authenticationRateLimited(String requestId) => jsonRateLimited(
