@@ -7,7 +7,7 @@ use skotiq_imaging::depthlock::input::{
     MasterKind, ReferenceGeometry, SATURATION_ADU,
 };
 use skotiq_imaging::registration::{RegistrationStats, TransformKind, TransformModel};
-use skotiq_imaging::{FitsHeader, ImageData, SipWcs};
+use skotiq_imaging::{FitsHeader, ImageData, ProductCards, SipWcs};
 
 fn u16_image(width: u32, height: u32, fill: u16) -> ImageData {
     ImageData::from_u16(width, height, 1, &vec![fill; (width * height) as usize])
@@ -406,15 +406,14 @@ fn compatibility_refuses_a_changed_acquisition_and_tolerates_small_temperature_d
     assert!(check_compatible(&gainless_goal, &gainless_light, &policy).is_ok());
 }
 
+/// A master's identification cards as Skotiq's master writers set them,
+/// with `kind` as the `IMAGETYP` spelling.
 fn master_header(kind: &str, frames: i64) -> FitsHeader {
-    // Exactly what `api_combine_master_frames` writes.
     let mut h = FitsHeader::new();
-    h.set_string("IMAGETYP", kind);
-    h.set_string("FRAMETYP", "MASTER");
-    h.set_string("CALSTAT", &format!("Skotiq master {kind}"));
-    h.set_int("NFRAMES", frames);
-    h.set_string("COMBMETH", "SIGMA_CLIP");
-    h.set_string("MASTRTYP", "F32");
+    let calstat = format!("Skotiq master {kind}");
+    ProductCards::master(kind, &calstat)
+        .with_frames(frames)
+        .write_to(&mut h);
     h
 }
 
