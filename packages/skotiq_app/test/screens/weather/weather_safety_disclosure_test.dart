@@ -17,7 +17,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 
 void main() {
   group('weatherNoDataRuleText', () {

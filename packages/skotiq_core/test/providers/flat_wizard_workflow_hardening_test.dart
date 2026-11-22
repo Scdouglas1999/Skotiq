@@ -825,7 +825,7 @@ void main() {
         'output': {},
         'previewKey': 'old',
       };
-      wizard.applyHostSnapshot(old);
+      wizard.applyHostSnapshot(FlatRunSnapshot.fromJson(old));
       expect(wizard.isBusy, isTrue);
       (container.read(backendProvider.notifier) as _FixedBackendNotifier).use(
         newHost,
@@ -862,11 +862,13 @@ void main() {
         'mode': 'quick',
         'showAduGraph': true,
       };
-      wizard.applyHostSnapshot({
-        'state': {...state, 'statusMessage': 'Completed'},
-        'busy': false,
-        'output': {},
-      });
+      wizard.applyHostSnapshot(
+        FlatRunSnapshot.fromJson({
+          'state': {...state, 'statusMessage': 'Completed'},
+          'busy': false,
+          'output': {},
+        }),
+      );
       host.pendingStart!.complete({'state': state, 'busy': true, 'output': {}});
       await start;
       expect(wizard.isBusy, isFalse);

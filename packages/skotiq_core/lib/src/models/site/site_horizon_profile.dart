@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../../utils/unreadable_stored_data.dart';
 import 'horizon_profile.dart' as scheduler;
 import 'learned_obstruction.dart';
 
@@ -119,9 +120,14 @@ class SiteHorizonProfile {
         }
       }
       return SiteHorizonProfile(altitudes, samples: samples);
-    } catch (_) {
-      // Return flat horizon on parse failure - this is a data error,
-      // not something we should silently swallow. Log it.
+    } catch (error) {
+      reportUnreadableStoredData(
+        'site horizon',
+        json,
+        error,
+        fallback: 'a flat horizon',
+        source: 'SiteHorizonProfile',
+      );
       return SiteHorizonProfile._default();
     }
   }
@@ -262,10 +268,16 @@ class SiteHorizonProfile {
     try {
       final decoded = jsonDecode(json);
       if (decoded is Map<String, dynamic>) return decoded;
-    } catch (_) {
-      // Fall through to the tolerant parser below: a hand-edited or
-      // truncated blob should still yield whatever compass values it has
-      // rather than resetting the operator's mask to flat.
+    } catch (error) {
+      // A hand-edited or truncated blob still yields whatever compass values
+      // it has rather than resetting the operator's mask to flat.
+      reportUnreadableStoredData(
+        'site horizon',
+        json,
+        error,
+        fallback: 'the compass values that could be read from it',
+        source: 'SiteHorizonProfile',
+      );
     }
     return _parseSimpleJson(json);
   }

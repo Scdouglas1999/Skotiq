@@ -256,6 +256,9 @@ class _NativeContractStackingEngine implements StackingEngineSeam {
 /// exercised deterministically. The reference is frame #1 (count 1); each
 /// follower add returns the next scripted count.
 class _FakeLiveStacking implements LiveStackingService {
+  @override
+  bool get readsHost => false;
+
   _FakeLiveStacking({required this.followerCounts, required this.finalResult});
 
   /// Stacked-frame count returned for each follower add, in order. A value that
@@ -274,7 +277,10 @@ class _FakeLiveStacking implements LiveStackingService {
   int _followerIndex = 0;
 
   @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
     addCalls.add('addFile:$imagePath');
     return _nextResult();
   }
@@ -284,7 +290,8 @@ class _FakeLiveStacking implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
+    String? filterKey,
   }) async {
     addCalls.add('addData:${width}x$height');
     addPedestals.add(pedestal);
@@ -303,7 +310,8 @@ class _FakeLiveStacking implements LiveStackingService {
   }
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async => finalResult;
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
+      finalResult;
 
   @override
   noSuchMethod(Invocation invocation) => throw UnimplementedError(
@@ -1576,7 +1584,10 @@ class _RejectingLiveStacking extends _FakeLiveStacking {
   final Set<String> rejectPaths;
 
   @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
     addCalls.add('addFile:$imagePath');
     if (rejectPaths.contains(imagePath)) {
       throw Exception(
@@ -1595,7 +1606,8 @@ class _ThrowingLiveStacking extends _FakeLiveStacking {
   final Object error;
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async => throw error;
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
+      throw error;
 }
 
 /// Exposes the enclosing container's [Ref] so services that take a `Ref` can be

@@ -69,6 +69,7 @@ import '../live_stacking_broadcast_service_providers.dart';
 import '../logging_service_provider.dart';
 import '../sequence_file_service_provider.dart';
 import '../sequence_repository_provider.dart';
+import '../../models/imaging/live_stacking_state.dart';
 
 export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;

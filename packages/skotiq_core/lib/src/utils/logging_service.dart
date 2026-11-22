@@ -6,6 +6,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import 'skotiq_data_directory.dart';
+import 'retryable_once.dart';
 
 enum LogLevel {
   debug,
@@ -316,7 +317,9 @@ class LoggingService {
 
   String? _logDirectory;
   bool _initialized = false;
-  Future<void>? _initializationFuture;
+  late final RetryableOnce<void> _initialization = RetryableOnce(
+    _initializeImpl,
+  );
   final List<LogEntry> _recentLogs = [];
   static const int _maxRecentLogs = 1000;
 
@@ -376,15 +379,7 @@ class LoggingService {
 
   /// Ensure initialization is started exactly once.
   Future<void> ensureInitialized() async {
-    final future = _initializationFuture ??= _initializeImpl();
-    try {
-      await future;
-    } catch (_) {
-      if (identical(_initializationFuture, future)) {
-        _initializationFuture = null;
-      }
-      rethrow;
-    }
+    await _initialization();
   }
 
   Future<void> _initializeImpl() async {

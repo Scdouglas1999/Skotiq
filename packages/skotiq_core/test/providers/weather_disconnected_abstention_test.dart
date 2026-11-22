@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

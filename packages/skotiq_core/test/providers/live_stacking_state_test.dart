@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_core/src/providers/live_stacking_provider.dart';
+import 'package:skotiq_core/src/models/imaging/live_stacking_state.dart';
 
 void main() {
   test('copyWith preserves nullable fields when no clear is requested', () {

@@ -86,60 +86,6 @@ class SafetyMonitorHandlers implements RouteSource {
     };
   }
 
-  /// Exact aggregate host-safety projection shared by both aggregate response
-  /// shapes. Keeping this in one map prevents the no-dedicated-monitor branch
-  /// from silently dropping weather/API verdicts, severity, or the action
-  /// reason remote operators need to understand an unsafe state.
-  Map<String, dynamic> _aggregateSafetyPayload(WeatherSafetyState safety) {
-    return {
-      'isSafe': safety.isSafe,
-      'safetyStatus': safety.status.name,
-      'currentAlertLevel': safety.currentAlertLevel.name,
-      'dataSource': safety.dataSource.name,
-      'hardwareWeatherSafe': safety.hardwareWeatherSafe,
-      'safetyMonitorSafe': safety.safetyMonitorSafe,
-      'apiWeatherSafe': safety.apiWeatherSafe,
-      'hardwareWeatherReading': safety.hardwareWeatherReading.name,
-      'safetyMonitorReading': safety.safetyMonitorReading.name,
-      // `isSafe` is `true` both when conditions were checked and found good and
-      // when nothing was checked at all. These three tell a remote client which
-      // it is, so a phone cannot render "conditions safe for imaging" over a
-      // host that is not monitoring, or claim auto-park protection the composed
-      // policy does not actually arm.
-      'monitoringEnabled': safety.monitoringEnabled,
-      'autoParkArmed': safety.autoParkArmed,
-      'autoResumeArmed': safety.autoResumeArmed,
-      'actions': {
-        'shouldPause': safety.actions.shouldPause,
-        'shouldPark': safety.actions.shouldPark,
-        'shouldCloseDome': safety.actions.shouldCloseDome,
-        'reason': safety.actions.reason,
-        'resumeCheckTime': safety.actions.resumeCheckTime?.toWireTime(),
-        'advisoryOnly': safety.actions.advisoryOnly,
-      },
-      // Which input decides, and what the run's own frames say: a forecast
-      // only warns or holds; a sensor at the site may park.
-      'decisionSource': safety.decisionSource.name,
-      'advisoryOnly': safety.advisoryOnly,
-      'forecastUnsafe': safety.forecastUnsafe,
-      'forecastHoldsRun': safety.forecastHoldsRun,
-      'starEvidenceOverridesForecast': safety.starEvidenceOverridesForecast,
-      'starEvidence': switch (safety.starEvidence) {
-        final evidence? => {
-          'latestStars': evidence.latestStars,
-          'typicalStars': evidence.typicalStars,
-          'latestAt': evidence.latestAt.toWireTime(),
-          'clear': evidence.clear,
-        },
-        null => null,
-      },
-      'snoozeReason': safety.snoozeReason,
-      'failModeWarning': safety.failModeWarning,
-      'lastEvaluation': safety.lastEvaluation?.toWireTime(),
-      'snoozeUntil': safety.snoozeUntil?.toWireTime(),
-    };
-  }
-
   /// GET /api/safety/status
   /// Gets the current safety status from all connected safety monitors.
   /// Query params: deviceId=safety_monitor_id (optional - if not provided, returns status from all monitors)
@@ -214,7 +160,7 @@ class SafetyMonitorHandlers implements RouteSource {
       // No safety monitors connected - use aggregate weather safety state
       // but report accurately that no monitors are connected
       return jsonOk({
-        ..._aggregateSafetyPayload(weatherSafety),
+        ...weatherSafety.toJson(),
         "monitorsConnected": 0,
         "monitors": <Map<String, dynamic>>[],
         "lastUpdate": DateTime.now().toWireTime(),
@@ -239,7 +185,7 @@ class SafetyMonitorHandlers implements RouteSource {
     }).toList();
 
     return jsonOk({
-      ..._aggregateSafetyPayload(weatherSafety),
+      ...weatherSafety.toJson(),
       "monitorsConnected": safetyMonitors.length,
       "monitors": monitorStatuses,
       "lastUpdate": DateTime.now().toWireTime(),

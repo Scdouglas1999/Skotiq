@@ -141,10 +141,10 @@ class ImagingHandlers implements RouteSource {
           throw JobFailedException(
             code: 'plate_solve_failed',
             message: solve.error ?? 'The solver found no solution.',
-            details: _plateSolveJson(solve),
+            details: plateSolveResultToJson(solve),
           );
         }
-        return _plateSolveJson(solve);
+        return plateSolveResultToJson(solve);
       },
     );
     return jsonOk({
@@ -152,37 +152,6 @@ class ImagingHandlers implements RouteSource {
       'status': job.state.wireName,
       'operation': job.operation,
     });
-  }
-
-  /// Serializes a [PlateSolveResult] to the wire shape, including the WCS CD
-  /// matrix and SIP distortion coefficients so remote (slave) clients can
-  /// reconstruct distortion-corrected pixel<->sky mapping. The SIP arrays are
-  /// emitted as plain `List<double>`; when the solve carries no SIP terms the
-  /// orders are 0 and the coefficient lists are empty.
-  static Map<String, Object?> _plateSolveJson(PlateSolveResult solve) {
-    return {
-      'success': solve.success,
-      'ra': solve.ra,
-      'dec': solve.dec,
-      'pixelScale': solve.pixelScale,
-      'rotation': solve.rotation,
-      'fieldWidth': solve.fieldWidth,
-      'fieldHeight': solve.fieldHeight,
-      'solveTimeSecs': solve.solveTimeSecs,
-      'error': solve.error,
-      'cd11': solve.cd11,
-      'cd12': solve.cd12,
-      'cd21': solve.cd21,
-      'cd22': solve.cd22,
-      'sipAOrder': solve.sipAOrder,
-      'sipBOrder': solve.sipBOrder,
-      'sipApOrder': solve.sipApOrder,
-      'sipBpOrder': solve.sipBpOrder,
-      'sipACoeffs': solve.sipACoeffs.toList(),
-      'sipBCoeffs': solve.sipBCoeffs.toList(),
-      'sipApCoeffs': solve.sipApCoeffs.toList(),
-      'sipBpCoeffs': solve.sipBpCoeffs.toList(),
-    };
   }
 
   // Plate solver setup

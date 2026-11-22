@@ -7,6 +7,7 @@ import '../backend/remote_host.dart';
 import '../models/meridian_flip_event.dart';
 import 'backend_provider.dart';
 import 'meridian_flip_provider.dart';
+import '../models/meridian_flip_progress.dart';
 
 /// Native flip steps feed the same state that linked clients mirror. Listen
 /// on the host only; a viewer's authoritative source is its runtime snapshot.

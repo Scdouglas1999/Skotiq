@@ -12,6 +12,7 @@ import '../../localization/skotiq_localizations.dart';
 import '../image_preview/frame_overlay_controls.dart';
 import '../image_preview/preview_display_scale.dart';
 import 'saved_frame_view.dart';
+import 'package:skotiq_core/models.dart';
 
 /// One frame of a gallery, as the viewer names it.
 @immutable

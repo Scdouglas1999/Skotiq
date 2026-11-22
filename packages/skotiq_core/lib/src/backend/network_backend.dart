@@ -90,6 +90,7 @@ export 'package:skotiq_remote_protocol/wire_models.dart';
 
 import '../models/disk_space.dart';
 import '../errors/server_error.dart';
+import '../models/imaging/plate_solve_wire.dart';
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
 part 'network_backend/remote_database_plugin_operations.dart';

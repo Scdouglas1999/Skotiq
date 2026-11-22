@@ -1,0 +1,74 @@
+import 'meridian_flip_event.dart' show FlipStep;
+
+/// Current flip state for UI
+///
+/// Represents the current state of a meridian flip operation.
+enum FlipExecutionState {
+  /// No flip is in progress
+  idle,
+
+  /// Flip is currently executing
+  executing,
+
+  /// Flip failed and is being retried
+  retrying,
+
+  /// Flip completed successfully
+  completed,
+
+  /// Flip failed after all retries
+  failed,
+
+  /// Flip was aborted by user
+  aborted,
+}
+
+/// Where the flip a mount's flip monitor runs stands, as the mount card
+/// shows it: one value, so the host shares all of it with linked clients.
+class FlipMonitorProgress {
+  const FlipMonitorProgress({
+    required this.state,
+    required this.attempt,
+    required this.step,
+    required this.percent,
+    required this.error,
+  });
+
+  final FlipExecutionState state;
+  final int attempt;
+  final FlipStep? step;
+
+  /// 0 to 100.
+  final int percent;
+  final String? error;
+
+  Map<String, dynamic> toJson() => {
+    'state': state.name,
+    'attempt': attempt,
+    'step': step?.name,
+    'progress': percent,
+    'error': error,
+  };
+
+  /// An unknown state reads as idle and an unknown step as none. Throws
+  /// [FormatException] when the attempt or percent is missing.
+  factory FlipMonitorProgress.fromJson(Map<String, dynamic> json) {
+    int count(String key) {
+      final value = json[key];
+      if (value is num) return value.toInt();
+      throw FormatException('Flip progress has no integer "$key"');
+    }
+
+    final error = json['error'];
+    return FlipMonitorProgress(
+      state: FlipExecutionState.values.firstWhere(
+        (s) => s.name == json['state'],
+        orElse: () => FlipExecutionState.idle,
+      ),
+      attempt: count('attempt'),
+      step: FlipStep.values.where((s) => s.name == json['step']).firstOrNull,
+      percent: count('progress'),
+      error: error is String ? error : null,
+    );
+  }
+}

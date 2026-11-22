@@ -3,14 +3,10 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/darkroom_navigation.dart';
-import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/image_preview/frame_overlay_controls.dart';
 import '../../imaging/widgets/live_stack/live_stack_darkroom_provider.dart';
 import '../../imaging/widgets/live_stack/live_stack_filter_pills.dart';
@@ -20,6 +16,7 @@ import '../../imaging/widgets/live_stack_canvas.dart' show StackedImageSource;
 import '../../imaging/widgets/preview_viewport.dart';
 import '../../imaging/widgets/stacking_panel.dart'
     show stackedPreviewStretchAsyncProvider;
+import '../../imaging/widgets/live_stack/live_stack_open_in_darkroom.dart';
 
 /// Whether Night Control's stage shows the single captured sub or the active
 /// per-filter live stack.
@@ -160,33 +157,12 @@ class _NightStageLiveStackViewState
 
   Future<void> _openInDarkroom(String filterKey) async {
     if (_isPromoting) return;
-    final refusal = darkroomHostOnlyRefusal(ref);
-    if (refusal != null) {
-      context.showInfoSnackBar(refusal);
-      return;
-    }
-    setState(() => _isPromoting = true);
-    try {
-      final promoted = await promoteLiveStackToDarkroom(
-        ref: ref,
-        filterKey: filterKey,
-      );
-      if (!mounted) return;
-      final loc = promoted.recipeId != null
-          ? darkroomEditLocation(
-              masterId: promoted.masterId,
-              recipeId: promoted.recipeId,
-            )
-          : darkroomEditLocation(masterId: promoted.masterId);
-      unawaited(context.push(loc));
-    } catch (error) {
-      if (!mounted) return;
-      context.showErrorSnackBar(
-        'Could not open in Darkroom: ${userFacingError(error)}',
-      );
-    } finally {
-      if (mounted) setState(() => _isPromoting = false);
-    }
+    await openLiveStackInDarkroom(
+      context,
+      ref,
+      filterKey,
+      setBusy: (busy) => setState(() => _isPromoting = busy),
+    );
   }
 
   @override
@@ -196,9 +172,7 @@ class _NightStageLiveStackViewState
     final darkroom = ref.watch(liveStackDarkroomProvider);
     final isRemoteClient = ref.watch(isRemoteClientProvider);
 
-    final activeKey = stack.selectedFilterKey ??
-        stack.activeFilterStack?.filterKey ??
-        kDefaultLiveStackFilterKey;
+    final activeKey = stack.viewedFilterKey;
     final hasPixels = stack.previewData != null &&
         stack.previewWidth > 0 &&
         stack.previewHeight > 0;
@@ -347,9 +321,7 @@ class _NightStageLiveStackViewState
 
 /// Top-left status summary pill when Night Control is viewing a live stack.
 FramePillText nightLiveStackStatusPill(LiveStackingState stack) {
-  final activeKey = stack.selectedFilterKey ??
-      stack.activeFilterStack?.filterKey ??
-      kDefaultLiveStackFilterKey;
+  final activeKey = stack.viewedFilterKey;
   final label = liveStackFilterDisplayName(activeKey);
   final frames = stack.stats.stackedFrameCount;
   final integration = formatLiveIntegration(stack.stats.totalIntegrationSecs);

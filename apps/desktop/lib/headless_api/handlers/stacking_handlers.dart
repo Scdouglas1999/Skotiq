@@ -100,16 +100,10 @@ class StackingHandlers implements RouteSource {
     String? filterKey,
   }) async {
     try {
-      if (filterKey != null) {
-        return await _service.startFromFileForFilter(
-          filterKey: filterKey,
-          referenceImagePath: referencePath,
-          config: config,
-        );
-      }
-      return await _service.startFromFile(
+      return await _service.start(
         referenceImagePath: referencePath,
         config: config,
+        filterKey: filterKey,
       );
     } catch (error, stackTrace) {
       final match = RegExp(
@@ -141,7 +135,7 @@ class StackingHandlers implements RouteSource {
       if (!_armed) return;
       try {
         if (!_started) {
-          await _service.startFromFile(
+          await _service.start(
             referenceImagePath: filePath,
             config: _config,
           );
@@ -364,9 +358,7 @@ class StackingHandlers implements RouteSource {
         statusCode: 404,
       );
     }
-    final result = slot == null
-        ? await _service.getCurrentResult()
-        : await _service.getCurrentResultForFilter(slot);
+    final result = await _service.getCurrentResult(filterKey: slot);
     return jsonOk({
       'active': true,
       'width': result.width,
@@ -387,9 +379,7 @@ class StackingHandlers implements RouteSource {
         statusCode: 404,
       );
     }
-    final result = slot == null
-        ? await _service.getCurrentResult()
-        : await _service.getCurrentResultForFilter(slot);
+    final result = await _service.getCurrentResult(filterKey: slot);
     final samples = Uint16List.fromList(result.data);
     final bytes = samples.buffer.asUint8List(
       samples.offsetInBytes,
@@ -523,7 +513,7 @@ class StackingHandlers implements RouteSource {
     return _enqueue(() async {
       if (filterKey != null) {
         try {
-          await _service.resetForFilter(filterKey);
+          await _service.reset(filterKey: filterKey);
         } catch (e) {
           if (!_slotWasAbsent(e)) rethrow;
           _logger.warning(
@@ -640,7 +630,7 @@ class StackingHandlers implements RouteSource {
   Future<Response> _stopNamedFilter(String filterKey) async {
     var stopped = false;
     try {
-      await _service.stopForFilter(filterKey);
+      await _service.stop(filterKey: filterKey);
       stopped = true;
     } catch (e) {
       if (!_slotWasAbsent(e)) rethrow;

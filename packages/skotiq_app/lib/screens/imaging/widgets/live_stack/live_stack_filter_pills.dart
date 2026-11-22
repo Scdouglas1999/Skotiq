@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'live_stack_formatters.dart';
+import 'package:skotiq_core/models.dart';
 
 /// Compact Observatory per-filter live stack selector strip.
 ///

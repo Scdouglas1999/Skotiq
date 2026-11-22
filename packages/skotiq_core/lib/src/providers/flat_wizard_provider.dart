@@ -33,6 +33,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
+import '../models/flat_wizard/flat_run_snapshot.dart';
 import 'imaging_service_providers.dart';
 import 'profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
@@ -54,32 +55,17 @@ final flatWizardProvider =
       return FlatWizardNotifier(ref);
     });
 
-/// Encode the nested Freezed settings and filters into plain wire maps.
-Map<String, dynamic> flatWizardStateWire(FlatWizardState state) =>
-    jsonDecode(jsonEncode(state)) as Map<String, dynamic>;
-
 /// Run metadata a linked client mirrors. Preview pixels travel separately.
-final flatWizardSnapshotProvider = Provider<Map<String, dynamic>>((ref) {
+final flatWizardSnapshotProvider = Provider<FlatRunSnapshot>((ref) {
   final state = ref.watch(flatWizardProvider);
   final output = ref.watch(flatRunOutputProvider);
   final image = state.lastImageData;
-  return {
-    'state': flatWizardStateWire(state),
-    'busy': ref.read(flatWizardProvider.notifier).isBusy,
-    'previewKey': image is CapturedImageResult ? image.timestamp : null,
-    'output': {
-      for (final entry in output.filters.entries)
-        entry.key: {
-          'filter': entry.value.filter,
-          'exposureSeconds': entry.value.exposureSeconds,
-          'paths': entry.value.paths,
-          'gain': entry.value.gain,
-          'offset': entry.value.offset,
-          'binX': entry.value.binX,
-          'binY': entry.value.binY,
-        },
-    },
-  };
+  return FlatRunSnapshot(
+    state: state,
+    busy: ref.read(flatWizardProvider.notifier).isBusy,
+    previewKey: image is CapturedImageResult ? image.timestamp : null,
+    output: output.filters,
+  );
 });
 
 /// The folder flats are saved under: the one the operator chose, else

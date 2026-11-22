@@ -55,11 +55,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         liveStackingServiceProvider.overrideWith(
-          (ref) => LiveStackingService(
-            ref,
-            host: ref.watch(linkedHostLiveStackProvider),
-            saveFitsMaster: fakeSaveFits,
-          ),
+          (ref) => _service(ref, fakeSaveFits),
         ),
       ],
     );
@@ -129,11 +125,7 @@ void main() {
             (ref) => _TestBackendNotifier(ref, backend),
           ),
           liveStackingServiceProvider.overrideWith(
-            (ref) => LiveStackingService(
-              ref,
-              host: ref.watch(linkedHostLiveStackProvider),
-              saveFitsMaster: fakeSaveFits,
-            ),
+            (ref) => _service(ref, fakeSaveFits),
           ),
         ],
       );
@@ -167,4 +159,13 @@ void main() {
     expect(message, contains('.tif'));
     expect(message, contains('FITS master'));
   });
+}
+
+/// The service the app's role provider would pick, writing FITS through
+/// [saveFits].
+LiveStackingService _service(Ref ref, SaveStackMasterFits saveFits) {
+  final host = ref.watch(linkedHostLiveStackProvider);
+  return host == null
+      ? LiveStackingService(ref, saveFitsMaster: saveFits)
+      : LinkedLiveStackingService(ref, host, saveFitsMaster: saveFits);
 }

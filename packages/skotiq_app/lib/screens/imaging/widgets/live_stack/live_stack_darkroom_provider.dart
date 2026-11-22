@@ -1,12 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show immutable;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -741,139 +739,26 @@ final liveStackDarkroomProvider =
   (ref) => LiveStackDarkroomNotifier(ref),
 );
 
-/// Result of promoting an active live stack into the durable Darkroom library.
-class LiveStackDarkroomPromotion {
-  final int masterId;
-  final int? recipeId;
-  final String masterFitsPath;
-
-  const LiveStackDarkroomPromotion({
-    required this.masterId,
-    required this.masterFitsPath,
-    this.recipeId,
-  });
-}
-
-/// Persist the active live stack for [filterKey] as a linear FITS master in the
-/// Darkroom library (`integrated_masters`), optionally preserving the operator's
-/// live Darkroom recipe (`recipes`), and return the IDs needed to navigate
-/// straight to `/darkroom`.
+/// Open in Darkroom: persist the active live stack for [filterKey] as a
+/// Darkroom master, keeping the operator's live Darkroom edit as a recipe, and
+/// return the IDs needed to navigate straight to `/darkroom`.
 Future<LiveStackDarkroomPromotion> promoteLiveStackToDarkroom({
   required WidgetRef ref,
   required String filterKey,
 }) async {
-  final stackState = ref.read(liveStackingProvider);
-  final snap =
-      stackState.filterStacks[filterKey] ?? stackState.activeFilterStack;
-  final frames =
-      snap?.stats.stackedFrameCount ?? stackState.stats.stackedFrameCount;
-  if (frames <= 0) {
-    throw StateError('No stacked frames available to send to Darkroom.');
-  }
-
-  final sessionState = ref.read(sessionStateProvider);
-  final targetName = sessionState.targetName?.trim();
-  final safeTarget = (targetName != null && targetName.isNotEmpty)
-      ? targetName.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
-      : 'live_stack';
-  final safeFilter = filterKey.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-  final stamp = DateTime.now()
-      .toUtc()
-      .toIso8601String()
-      .replaceAll(':', '-')
-      .split('.')
-      .first;
-
-  final service = ref.read(liveStackingServiceProvider);
-  final mastersDao = ref.read(integratedMastersDaoProvider);
-  final recipesDao = ref.read(recipesDaoProvider);
   final darkroomState = ref.read(liveStackDarkroomProvider);
-  final container = ProviderScope.containerOf(ref.context, listen: false);
-
-  // Prefer saving alongside the reference sub's parent folder in a `masters`
-  // sibling folder, falling back to system temp so promotion always succeeds.
-  final refPath = snap?.referenceImagePath ?? stackState.referenceImagePath;
-  final String mastersDir;
-  if (refPath != null && refPath.trim().isNotEmpty) {
-    mastersDir = p.join(p.dirname(refPath), 'masters');
-  } else {
-    mastersDir = p.join(Directory.systemTemp.path, 'skotiq_live_masters');
-  }
-  await Directory(mastersDir).create(recursive: true);
-
-  final filePath = p.join(
-    mastersDir,
-    '${safeTarget}_${safeFilter}_${stamp}Z_${frames}f.fits',
-  );
-
-  final saved = stackState.filterStacks.containsKey(filterKey)
-      ? await service.saveMasterForFilter(
-          filterKey: filterKey,
-          filePath: filePath,
-        )
-      : await service.saveMaster(filePath: filePath);
-
-  final width = snap?.previewWidth ?? stackState.previewWidth;
-  final height = snap?.previewHeight ?? stackState.previewHeight;
-  final channels = snap?.channels ??
-      ((stackState.previewData != null &&
-              width * height > 0 &&
-              stackState.previewData!.length >= width * height * 3)
-          ? 3
-          : 1);
-
-  final displayFilter =
-      filterKey == kDefaultLiveStackFilterKey ? null : filterKey;
-  final masterDisplayName = [
-    if (targetName != null && targetName.isNotEmpty)
-      targetName
-    else
-      'Live stack',
-    if (displayFilter != null) displayFilter,
-    '($frames frames)',
-  ].join(' · ');
-
-  final masterId = await mastersDao.insertMaster(
-    name: masterDisplayName,
-    masterFitsPath: saved.filePath,
-    status: IntegratedMasterStatus.finalized,
-    accumulationMode: AccumulationMode.runningWeightedMean,
-    channels: channels,
-    width: width,
-    height: height,
-    frameCount: saved.stackedFrameCount,
-    totalIntegrationSeconds: saved.totalIntegrationSecs ?? 0.0,
-    filter: displayFilter,
-    settingsJson: jsonEncode(<String, dynamic>{
-      'source': 'liveStack',
-      if (targetName != null && targetName.isNotEmpty) 'target': targetName,
-    }),
-  );
-
-  // If the operator dialed in live Darkroom steps, carry them straight into a
-  // durable DarkroomRecipe row so the full Darkroom opens with their exact edit!
   final settings = darkroomState.settingsFor(filterKey);
-  int? recipeId;
-  if (darkroomState.enabled && settings.hasAnyActiveStep) {
-    final steps = settings.toRecipeSteps(isColor: channels >= 3);
-    if (steps.isNotEmpty) {
-      recipeId = await recipesDao.create(
-        masterId: masterId,
+  final sessionState = ref.read(sessionStateProvider);
+  final container = ProviderScope.containerOf(ref.context, listen: false);
+  final promoted = await ref.read(liveStackDarkroomPromoterProvider).promote(
+        stack: ref.read(liveStackingProvider),
+        filterKey: filterKey,
+        targetName: sessionState.targetName,
         sessionId: sessionState.dbSessionId,
-        baseMasterPath: saved.filePath,
-        name:
-            'Live Darkroom${displayFilter != null ? ' ($displayFilter)' : ''}',
-        stepsJson: jsonEncode(steps),
-        createdBy: RecipeAuthor.user,
+        recipeSteps: darkroomState.enabled && settings.hasAnyActiveStep
+            ? settings.toRecipeSteps
+            : null,
       );
-    }
-  }
-
   container.invalidate(darkroomImageLibraryProvider);
-
-  return LiveStackDarkroomPromotion(
-    masterId: masterId,
-    recipeId: recipeId,
-    masterFitsPath: saved.filePath,
-  );
+  return promoted;
 }

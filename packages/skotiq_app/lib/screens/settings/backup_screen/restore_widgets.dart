@@ -1,22 +1,5 @@
 part of '../backup_screen.dart';
 
-class _ReplaceState {
-  const _ReplaceState({
-    this.pendingBackup,
-    this.pendingSafetyBackup,
-    this.outcome,
-    this.outcomeRestored = false,
-  });
-
-  /// The backup that takes the database's place at the next start.
-  final String? pendingBackup;
-  final String? pendingSafetyBackup;
-
-  /// What the last start did with a replace, in words.
-  final String? outcome;
-  final bool outcomeRestored;
-}
-
 /// Asks how a backup is to be restored and says what each way does.
 class _RestoreChoiceDialog extends StatefulWidget {
   const _RestoreChoiceDialog({required this.backupName, required this.onHost});

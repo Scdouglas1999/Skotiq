@@ -1,9 +1,9 @@
 import '../database/rows/frame_type_record.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_remote_protocol/wire.dart' show tryParseWireTime;
 import 'linked_host.dart';
 import '../errors/error_text.dart';
 import '../models/weather/weather_models.dart';
@@ -37,13 +37,13 @@ import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
 import '../settings/app_settings_state.g.dart';
 import '../utils/logging_service.dart';
+import '../models/weather/weather_safety_state.dart';
+import '../models/weather/sky_star_evidence.dart';
 
-part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';
 part 'weather_safety/weather_safety_remote.dart';
 part 'weather_safety/weather_safety_enforcement.dart';
 part 'weather_safety/weather_safety_executor_push.dart';
-part 'weather_safety/weather_star_evidence.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
@@ -167,6 +167,17 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// Wall clock for the park-before-dawn check. Injectable so a test can
   /// stand half an hour before dawn without waiting for one.
   final DateTime Function() _clock;
+
+  /// Show the linked host's [verdict], as its runtime channel delivers it.
+  /// Only a linked client takes one; the host keeps its own evaluation.
+  void applyHostVerdict(WeatherSafetyState verdict) {
+    if (!mounted || _ref.read(linkedHostWeatherProvider) == null) return;
+    if (jsonEncode(verdict.toJson()) == jsonEncode(state.toJson()) &&
+        !state.hostVerdictUnavailable) {
+      return;
+    }
+    state = verdict;
+  }
 
   WeatherSafetyNotifier(
     Ref ref, {

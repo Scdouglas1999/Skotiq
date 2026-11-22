@@ -1,3 +1,4 @@
+import '../../../models/flat_wizard/flat_run_snapshot.dart';
 import '../../backend_provider.dart';
 import '../../flat_wizard_provider.dart';
 import '../runtime_mirror_channel.dart';
@@ -7,7 +8,7 @@ import '../runtime_mirror_channel.dart';
 /// Progress and the saved-frame list travel here. Preview pixels use the
 /// bounded JPEG route. The client does not report its own wizard back, so
 /// browsing tabs on the phone does not change the host's run.
-class FlatWizardChannel extends RuntimeMirrorChannel<Map<String, dynamic>> {
+class FlatWizardChannel extends RuntimeMirrorChannel<FlatRunSnapshot> {
   const FlatWizardChannel();
 
   @override
@@ -17,7 +18,7 @@ class FlatWizardChannel extends RuntimeMirrorChannel<Map<String, dynamic>> {
   get source => flatWizardSnapshotProvider;
 
   @override
-  Map<String, dynamic> encode(Map<String, dynamic> value) => value;
+  Map<String, dynamic> encode(FlatRunSnapshot value) => value.toJson();
 
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
@@ -25,6 +26,8 @@ class FlatWizardChannel extends RuntimeMirrorChannel<Map<String, dynamic>> {
         !identical(context.networkBackend, context.read(backendProvider))) {
       return;
     }
-    context.read(flatWizardProvider.notifier).applyHostSnapshot(value);
+    context
+        .read(flatWizardProvider.notifier)
+        .applyHostSnapshot(FlatRunSnapshot.fromJson(value));
   }
 }

@@ -175,7 +175,7 @@ void main() {
     expect(state.filterSettings[0].currentAdu, preview.stats.mean);
     expect(state.aduHistory.last.adu, preview.stats.mean);
     final snapshot = container.read(flatWizardSnapshotProvider);
-    final saved = (snapshot['state'] as Map)['filterSettings'] as List;
+    final saved = (snapshot.toJson()['state'] as Map)['filterSettings'] as List;
     expect((saved[0] as Map)['currentAdu'], preview.stats.mean);
   });
 
