@@ -228,19 +228,20 @@ void main() {
       });
     });
 
-    test('from the panel, settings not loaded yet', () async {
-      expect(await sent(useSettingsDefaults: false, settingsLoaded: false), {
-        ...ids,
-        'exposureTime': 2.5,
-        'stepSize': 77,
-        'stepsOut': 6,
-        'method': 'Star HFR',
-        'binning': 3,
-        ...tableAdvanced,
-        'useBrightestNStars': 0,
-        'backlashIn': 350,
-      });
-    });
+    test(
+      'from the panel, settings not loaded yet: the table defaults',
+      () async {
+        expect(await sent(useSettingsDefaults: false, settingsLoaded: false), {
+          ...ids,
+          'exposureTime': 2.5,
+          'stepSize': 77,
+          'stepsOut': 6,
+          'method': 'Star HFR',
+          'binning': 3,
+          ...tableAdvanced,
+        });
+      },
+    );
   });
 
   test('moving filter-wheel sentinel has no current filter name', () {

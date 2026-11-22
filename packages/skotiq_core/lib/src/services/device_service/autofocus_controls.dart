@@ -101,27 +101,22 @@ extension _DeviceServiceAutofocusControls on DeviceService {
       }
       final effectiveGain = activeFilterSettings?.gain;
       final effectiveOffset = activeFilterSettings?.offset;
-      final effectiveCurveFitting = appSettings?.afCurveFitting ?? 'Hyperbolic';
-      final effectiveNumberOfAttempts = appSettings?.afNumberOfAttempts ?? 1;
-      final effectiveExposuresPerPoint = appSettings?.afExposuresPerPoint ?? 1;
-      final effectiveRSquaredThreshold =
-          appSettings?.afRSquaredThreshold ?? 0.7;
-      final effectiveOuterCropRatio = appSettings?.afOuterCropRatio ?? 1.0;
-      final effectiveInnerCropRatio = appSettings?.afInnerCropRatio ?? 0.0;
-      final effectiveUseBrightestNStars =
-          appSettings?.afUseBrightestNStars ?? 0;
-      final effectiveFocuserSettleTimeMs =
-          appSettings?.afFocuserSettleTimeMs ?? 500;
-      final effectiveBacklashCompMethod =
-          appSettings?.afBacklashCompMethod ?? 'Overshoot';
-      final effectiveBacklashIn = appSettings?.afBacklashIn ?? 350;
-      final effectiveBacklashOut = appSettings?.afBacklashOut ?? 0;
-      final disableGuidingDuringAf =
-          appSettings?.afDisableGuidingDuringAf ?? false;
-
-      final failureHfrToleranceRatio =
-          appSettings?.afFailureHfrToleranceRatio ??
-          const AutofocusSettings().failureHfrToleranceRatio;
+      // Before the settings are read, an explicit run takes the table's
+      // defaults for everything the panel does not set.
+      final advanced = appSettings ?? const AppSettingsState();
+      final effectiveCurveFitting = advanced.afCurveFitting;
+      final effectiveNumberOfAttempts = advanced.afNumberOfAttempts;
+      final effectiveExposuresPerPoint = advanced.afExposuresPerPoint;
+      final effectiveRSquaredThreshold = advanced.afRSquaredThreshold;
+      final effectiveOuterCropRatio = advanced.afOuterCropRatio;
+      final effectiveInnerCropRatio = advanced.afInnerCropRatio;
+      final effectiveUseBrightestNStars = advanced.afUseBrightestNStars;
+      final effectiveFocuserSettleTimeMs = advanced.afFocuserSettleTimeMs;
+      final effectiveBacklashCompMethod = advanced.afBacklashCompMethod;
+      final effectiveBacklashIn = advanced.afBacklashIn;
+      final effectiveBacklashOut = advanced.afBacklashOut;
+      final disableGuidingDuringAf = advanced.afDisableGuidingDuringAf;
+      final failureHfrToleranceRatio = advanced.afFailureHfrToleranceRatio;
 
       // Read for THIS focuser's id rather than through a provider keyed on
       // "the connected focuser": the run is about to drive `focuserDeviceId`,
