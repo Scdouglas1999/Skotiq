@@ -349,9 +349,9 @@ final List<Check> checks = [
     'deny',
     '--manifest-path',
     'native/skotiq_native/Cargo.toml',
+    '--all-features',
     'check',
     'licenses',
-    '--all-features',
   ], requires: 'cargo-deny'),
 ];
 
