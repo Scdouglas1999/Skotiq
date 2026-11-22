@@ -529,7 +529,9 @@ impl IndiClient {
                                 }
                             }
                         }
-                    } else if name_bytes == b"oneBLOB" {
+                    }
+                    // Handle BLOB elements with format attribute
+                    else if name_bytes == b"oneBLOB" {
                         if let Some(elem) = get_attribute(e, "name") {
                             current_element = elem;
                         }
