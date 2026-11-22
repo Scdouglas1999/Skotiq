@@ -44,14 +44,8 @@ import 'package:skotiq_core/utils.dart';
 /// rather than served as `application/octet-stream`. Both prefixes are exempt
 /// from the bearer-token middleware — the `/dashboard` and `/run-watch` routes
 /// are declared public so the pages can load before the user holds any token
-/// — which made every file the bundler
-/// happened to copy into the SPA directory readable with no credential:
-/// `GET /dashboard/README.md` answered 200 with 16KB of internal developer
-/// documentation describing the bearer-to-cookie upgrade, the pairing
-/// endpoints, the SSE query-string token and the `SKOTIQ_REQUIRE_AUTH`
-/// escape hatch. The public prefix now serves only the kinds of file the
-/// pages themselves request. The packaging side of the same repair is in
-/// `apps/desktop/pubspec.yaml`, which no longer ships the README at all.
+/// — so any other file in the SPA directory would be readable with no
+/// credential.
 const _mimeTypes = <String, String>{
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',

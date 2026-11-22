@@ -628,10 +628,6 @@ const RATE_LIMIT_BODY = JSON.stringify({
   requestId: 'dash-abc',
 });
 
-// Reproduced against a live host: a burst put the limiter's JSON body straight
-// into the operator's log panel — "Settings fetch failed: GET /api/settings
-// failed (429): {"code":"rate_limited",…}" — and nothing honoured
-// retryAfterSecs, so the next tick fired into the same empty bucket.
 test('a 429 becomes a typed retry window, never a rendered body', async () => {
   let calls = 0;
   const api = loadApi(async () => {
@@ -905,18 +901,7 @@ test('a log row reads the keys a log frame carries', () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-01 (wave 6) — one failing route must not leave the Run panel painting a
-// frozen run as live
-//
-// Measured against the running bundle with /api/sequencer/status substituted
-// for a plain HTTP 500 and EVERY other request reaching the real daemon: 66
-// refused refreshes over 45 s, every 5 s sample identical —
-//   hdr='Connected' seq='running' node='Exposure L' pct='3%'
-//   msg='Exposure: Frame 2/20 (5.0s) (10%)' staleBadge=hidden
-// while the wire read state=running progress=0.1375 'Frame 11/20'. The page
-// asserted 3% for a rig at 13.75%, under a green header, with the per-panel
-// stale badge suppressed by its `wsHealthy` gate because the event socket was
-// perfectly healthy the whole time.
+// One failing route must not leave the Run panel painting a frozen run as live
 // ---------------------------------------------------------------------------
 
 /** The page mid-run: everything fresh, the sequencer route just refused. */
@@ -2089,9 +2074,9 @@ test('a 75s run at 10 events a second never outruns the server budget', () => {
     h.advance(100);
   }
   assert.equal(h.gets.length, h.refreshes.length * 3);
-  // 7500 events used to mean 22 500 GETs. The budget the server sizes for a
-  // dashboard is 60 reads a second (route_metadata/rate_limiting.dart), and
-  // three panels' worth of state is one refresh.
+  // The budget the server sizes for a dashboard is 60 reads a second
+  // (route_metadata/rate_limiting.dart), and three panels' worth of state is
+  // one refresh.
   assert.ok(h.refreshes.length <= 76,
     'at most one refresh per second over 75s, got ' + h.refreshes.length);
   assert.ok(h.refreshes.length >= 74,
@@ -2361,12 +2346,9 @@ function analyticsPanel(session, transparency = []) {
 }
 
 // GET /api/sessions/active serves the imaging_sessions row, whose exposure
-// counters used to be written only every fifth frame, beside an
-// accepted/rejected pair the same endpoint counts live off captured_images.
-// Four frames into a healthy night the card read "Frames returned 0" next to
-// "4 accepted". The counters now advance per frame (SessionService), so the
-// two halves of the card come from the same night at the same moment — and
-// this is the shape that must never render again.
+// counters sit beside an accepted/rejected pair the same endpoint counts live
+// off captured_images. Both halves of the card must come from the same night
+// at the same moment.
 test('a card that has graded frames cannot report none returned', () => {
   const { read } = analyticsPanel({
     id: 1, name: 'D4 live watch',
@@ -3356,9 +3338,6 @@ test('a polar alignment error from the host shows in arcminutes', () => {
 // Gallery "NEW" badge
 // ---------------------------------------------------------------------------
 
-// The gallery listened on its own `api.on('event')`, which every connect wiped
-// with `removeAllListeners()`, and it called a helper that no longer existed.
-// The badge is driven from the one event dispatcher now.
 test('a finished exposure shows the gallery NEW badge', () => {
   const doc = makeDocument(['gallery-fresh-badge']);
   const badge = doc.getElementById('gallery-fresh-badge');

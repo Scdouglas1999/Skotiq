@@ -1479,11 +1479,7 @@
     // backend: a green "running" for a rig that may have been off for an hour.
     const seqStatus = document.getElementById('seq-status');
     if (seqStatus) renderBadge(seqStatus, 'unknown', 'badge-error');
-    // The percentage is the same assertion in another shape, and it outlived
-    // the badge: measured after a SIGKILL at wire progress 0.250, the badge
-    // went "unknown" and the banner said every value might be wrong while
-    // "25%" stayed on screen, the bar stayed 94.75px wide and the bar's
-    // aria-valuenow kept announcing 25 for the next 47 s. A figure whose
+    // The percentage is the same assertion in another shape. A figure whose
     // source is gone is not a smaller truth than a state whose source is gone.
     markProgressUnknown(
       'seq-progress-bar', 'seq-progress-bar-container', 'seq-progress-text');
@@ -1592,10 +1588,6 @@
   }
 
   /// Paint one panel's stale line from the shared verdict.
-  ///
-  /// The `wsHealthy` early-return that used to live here is gone: it hid the
-  /// line whenever the event socket was alive, which is exactly the state a
-  /// single failing REST route leaves the page in.
   function renderStaleIndicator(panelKey, view) {
     const el = document.getElementById('stale-' + panelKey);
     if (!el) return;
@@ -4108,10 +4100,10 @@
   // bar that does not look like a run that has done nothing yet.
   //
   // An empty bar is a claim: it says "0% complete". That claim is true on a
-  // rig that has just started and false on one whose backend died at 25%, and
-  // both used to render identically down to the pixel. The `unknown` class
-  // gives the track its own hatched fill, so an operator can tell "nothing has
-  // happened" from "we have no idea" without reading the number.
+  // rig that has just started and false on one whose backend died at 25%. The
+  // `unknown` class gives the track its own hatched fill, so an operator can
+  // tell "nothing has happened" from "we have no idea" without reading the
+  // number.
   //
   // aria-valuenow is REMOVED rather than zeroed: a progressbar with no value is
   // announced as indeterminate, which is the truth, while aria-valuenow="0"
@@ -6231,10 +6223,9 @@
     const errEl = document.getElementById('pa-total-error');
     if (phaseEl) phaseEl.textContent = state.polarAlignment.phase || 'idle';
     if (errEl) {
-      // `isFinite` coerces, so a string error figure passed the guard and then
-      // threw on `.toFixed`, leaving the whole panel — phase included —
-      // unpainted. The colour class keys off the same gated value, so an
-      // unreadable error can no longer render green.
+      // `isFinite` coerces, so a string error figure would pass it and then throw
+      // on `.toFixed`. The colour class keys off the same gated value, so an
+      // unreadable error cannot render green.
       const v = wireNumber(state.polarAlignment.totalErrorArcmin);
       errEl.textContent = v != null ? v.toFixed(2) + "'" : '--';
       errEl.className = 'status-value' + (v != null
@@ -7573,11 +7564,7 @@
     const id = String(item.id ?? item.imageId ?? '');
     if (!id) return;
     const meta = document.getElementById('gallery-modal-meta');
-    // The verdict travels with the frame into the preview. Opening a reject
-    // full-size used to show the same header line as a keeper — "L · 8/18/2026,
-    // 7:51:35 AM / Download original / Close" — so the one place an operator
-    // goes to judge a frame was the one place the grader's judgement was
-    // missing.
+    // The verdict travels with the frame into the preview.
     if (meta) meta.textContent = galleryModalMeta(item);
     const generation = ++gallery.modalLoadGeneration;
     if (gallery.modalPreviewUrl) {

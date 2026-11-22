@@ -94,7 +94,7 @@ void main() {
       const bridge_error.SkotiqError.noImageAvailable(),
       const bridge_error.SkotiqError.exposureCancelled(),
       const bridge_error.SkotiqError.cancelled(),
-      // named-field, previously unhandled
+      // named-field
       const bridge_error.SkotiqError.comError(
         message: 'Member not found',
         hresult: -2147352573,

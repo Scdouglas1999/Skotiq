@@ -61,11 +61,9 @@ void main() {
         'coimaging',
       );
       // The live collaboration surface (shared-viewer join, broadcast preview,
-      // chat, annotations) is the last collaborative route that still fell
-      // through to `system` — it maps to the collaborative `constellation`
-      // resource, so a fine-grained token no longer needs `system` to run a
-      // shared viewing session (and a `system` grant no longer silently gains
-      // it).
+      // chat, annotations) maps to the collaborative `constellation` resource, so
+      // a fine-grained token does not need `system` to run a shared viewing
+      // session (and a `system` grant does not silently gain it).
       expect(
         resourceKeyForEndpoint(
           method: 'POST',

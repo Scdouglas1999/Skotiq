@@ -403,15 +403,11 @@ async function apiFetch(path, opts) {
     }
     // Tokens can be revoked desktop-side; force re-pair. The reason goes ON
     // THE SCREEN, not only into the thrown error — nothing catches
-    // 'auth_required' to render it, which is how this landed as a silent
-    // logout.
+    // 'auth_required' to render it.
     //
     // WHICH reason depends on where the credential came from, not on whether
-    // one exists. Keying on `token ?` told a device that had never paired —
-    // one whose operator had just mistyped a token into the manual box — that
-    // its pairing "is no longer accepted… revoked… or the profile it belonged
-    // to was replaced", a diagnosis of an event that never happened, and it
-    // sent them to the desktop for a fresh code they did not need.
+    // one exists: a device that has never paired (its operator mistyped a token
+    // into the manual box) must not be told its pairing was revoked.
     if (!authRefusalStated) {
       const reason = credentialRefusalText(
         credentialSource, token, tokenWasEverAccepted());
@@ -620,13 +616,8 @@ function renderLinkState() {
     badge.textContent = 'unknown';
     badge.className = 'badge badge-error';
   }
-  // The percentage is the same assertion in another shape, and it outlived
-  // the badge: measured after a SIGTERM at wire progress 0.05, the badge went
-  // "unknown" and the banner said every value below might be wrong while "5%"
-  // stayed on screen, the bar stayed 5% wide and aria-valuenow kept announcing
-  // 5 for the next 45 s. The dashboard's `paintRunUnknown` settled the stance
-  // for the same loss — "a figure whose source is gone is not a smaller truth
-  // than a state whose source is gone" — and this is that stance, here.
+  // The percentage is the same assertion in another shape. A figure whose
+  // source is gone is not a smaller truth than a state whose source is gone.
   paintProgressUnknown();
   // A control whose precondition nobody can confirm is not offerable either.
   updateRunControls('unknown');
@@ -676,13 +667,6 @@ function stopStaleWatchdog() {
 
 /// Show the pair screen, saying WHY when this device has just lost a pairing
 /// it had.
-///
-/// A device whose token the desktop revoked was dropped here silently: the
-/// screen it landed on was byte-for-byte the one a browser that had never
-/// paired gets (verified — the two screenshots hashed identically), with
-/// `#pair-status` empty and the thrown 'Pairing is no longer accepted' reaching
-/// nothing. From bed that reads as "the app forgot me", and the next move —
-/// walk to the desktop for a fresh code — is the one thing it did not say.
 ///
 /// [reason] is that sentence, and [tone] is `'error'` for something that
 /// happened TO this device and `'info'` for something the operator did. Absent
@@ -994,15 +978,9 @@ function stopPolling() {
 
 /// Fetch one snapshot and render it, and record what the exchange was worth.
 ///
-/// The order is load-bearing. `noteLinkOk()` used to run on the status code,
-/// before the payload had been looked at, so a 200 whose body was `null` reset
-/// the staleness clock and `applySnapshot` then returned on its `if (!data)`
-/// guard having painted nothing: measured against the release bundle, 51 s of
-/// `null` bodies past a 20 s staleness threshold left a green "running" badge,
-/// "30%" and "9 / 30" on screen while the wire read 90% / 27 of 30, with the
-/// connection dot in its connected class and no banner. The link is healthy
-/// only once a well-formed snapshot has been APPLIED, so that is where it is
-/// recorded.
+/// The order is load-bearing. The link is healthy only once a well-formed
+/// snapshot has been APPLIED, so that is where it is recorded: a 200 whose
+/// body is `null` must not reset the staleness clock.
 async function fetchSnapshot() {
   try {
     const data = await apiJson('/api/run-watch/snapshot');
@@ -1137,21 +1115,14 @@ const TERMINAL_WIRE_STATES = new Set(
 /// `progress.state` is the executor's own `SequenceExecutionState`, an enum
 /// with no member for a cancelled run: once a run is stopped it reads `idle`
 /// while `sequencer.state` — the field the same snapshot carries straight from
-/// `/api/sequencer/status` — reads `cancelled`. Reading the executor block
-/// unconditionally told the operator the rig was idle 8% into a night that had
-/// just been cancelled. So: the executor block wins while it is describing a
-/// live run, and the moment it falls back to `idle` the sequencer status —
-/// which is the one that knows how the run ended — is what gets rendered.
+/// `/api/sequencer/status` — reads `cancelled`. So: the executor block wins
+/// while it is describing a live run, and the moment it falls back to `idle`
+/// the sequencer status — which is the one that knows how the run ended — is
+/// what gets rendered.
 ///
 /// A run the wire says has ENDED overrides the executor block outright, even
-/// when that block names a live-looking state. Measured against the release
-/// bundle: `POST /api/sequencer/pause` at a cancelled run left the snapshot
-/// carrying `sequencer.state: cancelled` beside `progress.state: paused`, and
-/// a resume left `progress.state: running` — this page rendered a green
-/// `running` badge, across reloads, for a run that had ended 40 s earlier.
-/// The server no longer admits those commands, and this tie-break means one
-/// stale executor block can no longer outrank the field that knows how the
-/// run finished.
+/// when that block names a live-looking state, so one stale executor block
+/// cannot outrank the field that knows how the run finished.
 function reportedSequencerState(progress, sequencer) {
   const executing = String((progress && progress.state) || '').toLowerCase();
   const reported = String((sequencer && sequencer.state) || '').toLowerCase();
@@ -1165,23 +1136,15 @@ function reportedSequencerState(progress, sequencer) {
 
 /// Enable exactly the run controls the reported state admits.
 ///
-/// Every control used to be tappable at all times: on a rig with nothing
-/// running, Pause / Skip / Resume each fired a request and each drew a green
-/// "accepted" toast, while `/api/sequencer/status` went on reading "idle".
-/// The desktop dashboard already gates the same controls on the executor
-/// state (`updateSequencerButtons` in web_dashboard/js/app.js); this surface
-/// now reads the same rule off the same state word.
-///
 /// Reset stays available in every state on purpose: it is the way out of a
 /// wedged executor, and it does the thing it says on an idle one.
 /// Controls the rig has refused for the credential this device is carrying,
 /// keyed by button id, holding the sentence that refusal produced.
 ///
 /// A read-only pairing renders the same control cluster as a control-scope
-/// one, so before this the buttons stayed live and each press posted a request
-/// the rig had already refused once. A control this credential cannot use is
-/// disabled and carries its reason, so the refusal is on the control rather
-/// than only in a toast that has since faded.
+/// one. A control this credential cannot use is disabled and carries its
+/// reason, so the refusal is on the control rather than only in a toast that
+/// has since faded.
 const refusedControls = new Map();
 
 /// Which control drives which endpoint, so a refusal lands on the button that
@@ -1302,16 +1265,11 @@ function renderSequencerMessages(sequencer, progress, headline) {
 /// same degraded surface a dead daemon produces. Two things earn it:
 ///
 ///  * a payload that is not a snapshot object at all — `null`, `0`, `false`,
-///    `""`, a bare string, an array. The old guard was `if (!data) return;`,
-///    which swallowed exactly these and left the caller believing the exchange
-///    had succeeded.
+///    `""`, a bare string, an array.
 ///
-///  * a render that throws. The formatters below no longer throw on a
-///    wrongly-typed field, but the DOM is not this page's to guarantee, and a
+///  * a render that throws. The DOM is not this page's to guarantee, and a
 ///    throw part-way through leaves the fields above it holding a payload the
-///    ones below never took. That mixture is not a picture of anything, and
-///    nobody was told: the old catch in [fetchSnapshot] inspected `e.kind`
-///    only, so a TypeError was discarded in silence.
+///    ones below never took.
 function applySnapshot(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new ApiError(
@@ -2264,12 +2222,7 @@ async function sequencerAction(path, label, body) {
 // the address a phone actually uses to reach an observatory rig — the plain
 // http:// LAN address of the desktop — is not one. Measured on that origin:
 // `'wakeLock' in navigator` is false, the service worker never registers, and
-// Notification.permission is pinned at "denied" before anything is asked. The
-// page's answer to all of that used to be a checkbox that stayed ticked: the
-// wake-lock branch had no `else`, and the push branch only acted on a
-// permission of "default", so at "denied" it returned having done nothing.
-// The feature worked in loopback testing and was dead in deployment, which is
-// exactly why it survived.
+// Notification.permission is pinned at "denied" before anything is asked.
 //
 // The support verdicts below are FEATURE TESTS — what this origin can actually
 // do — never a guess from the user agent.

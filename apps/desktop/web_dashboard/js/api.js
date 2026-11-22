@@ -401,15 +401,7 @@ class SkotiqApi {
     // values `JSON.parse` can produce (`null`, `0`, `false`, `""`), but a list
     // or a bare string/number/boolean, which has no fields to read at all.
     // Both end the same way: the caller falls through to its own defaults and
-    // presents them as the server's. The falsy half used to be the whole
-    // guard, and measured against the release bundle a 200 on `/api/info`
-    // carrying `[1,2,3]` — identically `"hello"`, `42`, `true` — logged
-    // `Connected to undefined vundefined`, left the header pill reading
-    // "Connected", and dropped the Auth chip entirely, because
-    // `info.authRequired` was `undefined` and the needs-credential branch
-    // never fired. The sibling client refuses the whole set already
-    // (`web_run_watch/js/run-watch.js` `applySnapshot`); this is that refusal,
-    // here.
+    // presents them as the server's.
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       throw new SkotiqApiError(
         'unusable_answer',

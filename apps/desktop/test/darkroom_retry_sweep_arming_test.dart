@@ -1,16 +1,8 @@
 // Who arms the Darkroom delivery retry sweep.
 //
-// The sweep used to be armed inside HeadlessApiServer's start, which a desktop
-// GUI only reaches when `web_server_enabled` is on — and that is off on a fresh
-// install (`AppSettings @Default(false) webServerEnabled`). Measured against the
-// release bundle at 08:49 UTC: a GUI with remote access off ran its startup
-// catch-up pass, failed it with `destinationUnreachable` (attempts 1, next
-// attempt due at 08:50:10), had its destination directory created at 08:49:38 —
-// and at 08:53:39 the journal row was still `retrying` with `updated_at`
-// unchanged and the drop directory empty. The same database with
-// `web_server_enabled=true` delivered the same row inside 30 seconds. Meanwhile
-// a pass stopped during delivery tells the operator, in as many words, that
-// "the retry sweep resumes them".
+// HeadlessApiServer's start is reached by a desktop GUI only when
+// `web_server_enabled` is on, and that is off on a fresh install
+// (`AppSettings @Default(false) webServerEnabled`).
 //
 // So the sweep belongs to delivery: `resumeDarkroomWork` is the one seam every
 // mode that owns the journal runs, and it is what arms the timer.

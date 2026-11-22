@@ -53,12 +53,9 @@ test('dashboard treats WebSocket heartbeat traffic as live activity', () => {
 });
 
 test('healthy quiet WebSocket does not mark stable panels stale', () => {
-  // The rule is unchanged and the mechanism that carries it is not: a
-  // `wsHealthy` early-return used to suppress every panel's stale line while
-  // the socket was alive, which also suppressed the one panel whose own REST
-  // route was failing. The verdict now has a single source — a panel is stale
-  // when its last refresh was REFUSED, or when contact is gone — so an idle
-  // server that has simply pushed nothing marks nothing.
+  // The verdict has a single source — a panel is stale when its last refresh
+  // was REFUSED, or when contact is gone — so an idle server that has simply
+  // pushed nothing marks nothing.
   const source = fs.readFileSync(
     path.join(__dirname, '..', 'js', 'app.js'),
     'utf8',

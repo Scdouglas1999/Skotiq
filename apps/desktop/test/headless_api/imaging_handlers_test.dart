@@ -55,12 +55,9 @@ void main() {
     test(
       'plate-solver config accepts empty paths so an ASTAP-only rig can save',
       () async {
-        // Reproduced against a live appliance: setting the ASTAP catalog
-        // directory from a paired remote client died with
-        // 400 invalid_request on astrometryPath, which was empty because no
-        // Astrometry.net is installed. GET returns astrometryPath:"" for that
-        // rig, so requiring non-empty made the document the API serves one it
-        // refuses to accept back, and the setting could never be saved.
+        // A rig without Astrometry.net installed reports astrometryPath:"" from GET,
+        // so requiring non-empty would make the document the API serves one it
+        // refuses to accept back.
         final backend = _RecordingPlateSolverBackend();
         final local = ProviderContainer(
           overrides: [

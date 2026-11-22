@@ -309,8 +309,6 @@ test('an unknown integration denominator renders as unknown, not zero', () => {
   assert.equal(doc.getElementById('progress-integration').textContent, '2s / 24s');
 });
 
-// D4-07. The card used to read `--` in every row during a live run whose
-// target the same snapshot named.
 test('a target with no coordinates still shows its name', () => {
   const { doc, api } = loadRunWatch();
   api.noteLinkOk();
@@ -367,9 +365,8 @@ test('a disconnected guider reports no RMS at all', () => {
   assert.equal(doc.getElementById('guide-snr').textContent, '22.5');
 });
 
-// D4-10. `dataSource: 'unavailable'` means nothing has looked at the sky. The
-// server still fills in safeToImage/alertLevel, and the badge used to render
-// them as a green "clear".
+// `dataSource: 'unavailable'` means nothing has looked at the sky. The
+// server still fills in safeToImage/alertLevel.
 test('no weather source never renders an affirmative verdict', () => {
   const { doc, api } = loadRunWatch();
   api.applySnapshot(runningSnapshot());
@@ -828,17 +825,9 @@ test('a control that genuinely failed still reads as a failure', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// D4-5 — a figure whose source is gone
+// A figure whose source is gone
 // ---------------------------------------------------------------------------
 
-// The null-progress path has been honest since D4W-03; the read-FAILED path
-// was not. Measured after a SIGTERM at wire progress 0.05: the badge flipped
-// to "unknown" and the banner said every value below might be wrong, while
-// #progress-pct read "5%", the bar stayed 5% wide and aria-valuenow kept
-// announcing 5 at +10 s, +25 s and +45 s. The dashboard's paintRunUnknown
-// settled the stance for the same loss — "a figure whose source is gone is not
-// a smaller truth than a state whose source is gone" — and this is that stance
-// applied here.
 test('a percentage nobody can vouch for is dropped with the state', () => {
   const { doc, api } = loadRunWatch();
   const bar = doc.getElementById('progress-bar-aria');
@@ -926,11 +915,6 @@ test('the unknown track has a rendering of its own', () => {
     'without a paint rule the class distinguishes nothing');
 });
 
-// D4W-04. A token the desktop revoked dropped this page back to the first-run
-// pair screen with nothing said: `#pair-status` empty, no toast, and a screen
-// byte-identical to the one a browser that had never paired gets (the two
-// screenshots hashed the same). The thrown 'Pairing is no longer accepted'
-// reached no caller that renders it.
 test('a rejected pairing says what happened and what to do next', async () => {
   const { doc, api } = loadRunWatch({
     fetch: async () => ({
@@ -958,13 +942,6 @@ test('a rejected pairing says what happened and what to do next', async () => {
   assert.ok(doc.getElementById('main-screen').classList.contains('hidden'));
 });
 
-// D4-05. A device that has never paired, whose operator mistyped a token into
-// the manual box, was told its pairing "is no longer accepted — the desktop
-// rejected it, which happens when the pairing was revoked there or the profile
-// it belonged to was replaced" — measured verbatim against the release bundle
-// on a browser whose localStorage had just been cleared. That is a diagnosis
-// of an event that never happened, and it sends the operator to fetch a fresh
-// code for a pairing that never existed.
 test('a token that was never accepted is not called a revoked pairing', async () => {
   const { doc, api } = loadRunWatch({
     fetch: async () => ({
@@ -2321,12 +2298,9 @@ test('an HFR the server did not name is not given a name', async () => {
   assert.equal(meta.title, '');
 });
 
-// D4W-3. Numbers on this page are guarded by `wireNumber` and lists throw a
-// TypeError; strings were the one wire type with no guard at all, and the DOM
-// stringifies whatever it is handed. Reproduced against the release bundle in
-// a real browser with ONE field of a real snapshot changed — `currentFilter`
-// from "L" to `{name:"L"}` — which put the literal text "[object Object]" in
-// the filter slot and in the active-target line.
+// Numbers on this page are guarded by `wireNumber` and lists throw a
+// TypeError; strings need the same, because the DOM stringifies whatever it
+// is handed ("[object Object]" in the filter slot).
 test('a filter that is not a string is not a filter', () => {
   const { doc, api } = loadRunWatch();
   const snapshot = runningSnapshot();
@@ -2380,16 +2354,7 @@ test('the strings the server does send still reach the screen', () => {
 });
 
 // ---------------------------------------------------------------------------
-// W19-A / D4-01 — a scope 403 is not a revoked pairing
-//
-// Measured against the release bundle on a live run: a viewer holding a valid
-// read-only token pressed Pause once, the rig answered 403 naming
-// sequencer:control, and the page hid the run, wrote "This device's pairing is
-// no longer accepted — the rig rejected it, which happens when the pairing was
-// revoked there…", and emptied localStorage. Nothing had been revoked: the
-// same token answered 200 on /api/run-watch/snapshot a second later. The
-// viewer lost a working credential and a live night over a button they were
-// never entitled to press.
+// A scope 403 is not a revoked pairing
 // ---------------------------------------------------------------------------
 
 /** A 403 that names the capability it refused on, as the rig sends it. */

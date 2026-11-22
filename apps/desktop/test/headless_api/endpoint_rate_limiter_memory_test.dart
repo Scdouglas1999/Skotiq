@@ -5,9 +5,8 @@ import '../support/route_policy.dart';
 
 /// `EndpointRateLimiter` keys on `(clientKey, method, concrete path)`, and
 /// several rate-limited prefixes are parametric — every distinct
-/// `/api/coimaging/sessions/<id>/contribute` mints its own entry. Its sibling
-/// `TokenBucketRateLimiter` has carried an LRU cap since it was written; this
-/// one had none, so an unattended run leaked one entry per session id forever.
+/// `/api/coimaging/sessions/<id>/contribute` mints its own entry. Without an
+/// LRU cap an unattended run would leak one entry per session id.
 ///
 /// The proof is the same shape the sibling's eviction test uses: a bucket that
 /// was evicted comes back fresh, so a previously-blocked key is allowed again.

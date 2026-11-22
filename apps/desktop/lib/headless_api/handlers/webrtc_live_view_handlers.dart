@@ -65,7 +65,6 @@
 // client must re-offer. Once `connected` the session lives as long as
 // the datachannel is open; the 30 s timer no longer applies.
 //
-// no stubs, no placeholders, errors are loud.
 // A WebRTC failure (peer disconnect, ICE failure, datachannel close)
 // tears the session down immediately and the client-side stream emits
 // an explicit error. There is no silent fallback to the WS path inside
