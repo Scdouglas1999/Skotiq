@@ -391,7 +391,7 @@ async fn a_center_step_takes_the_centering_tolerance_setting() {
 /// attempts of 5 s frames at the operator's tolerance, syncing.
 #[test]
 fn a_runs_own_recenter() {
-    let config = crate::CenterConfig::run_recenter();
+    let config = RunShared::new(Arc::new(NullDeviceOps)).recenter_config();
     assert!(config.use_target_coords);
     assert_eq!((config.custom_ra, config.custom_dec), (None, None));
     assert_eq!(config.accuracy_arcsec, None);
@@ -437,7 +437,7 @@ fn the_centering_policies() {
         ),
         (
             "run recenter",
-            CenterPolicy::for_step(&crate::CenterConfig::run_recenter(), setting),
+            CenterPolicy::for_step(&crate::CenterConfig::run_recenter(true), setting),
             CenterPolicy {
                 tolerance: CenterTolerance::AtMost(5.0),
                 max_attempts: 3,

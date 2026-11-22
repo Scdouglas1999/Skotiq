@@ -489,6 +489,16 @@ impl RunShared {
         )
     }
 
+    /// How the run centers its target again by itself (mount fault, weather
+    /// hold, drift, after a flip). Outside a run every correction syncs.
+    pub fn recenter_config(&self) -> crate::CenterConfig {
+        crate::CenterConfig::run_recenter(
+            self.settings
+                .as_ref()
+                .is_none_or(crate::executor::RunConfigStore::recenter_syncs_mount),
+        )
+    }
+
     /// This run's shared state for a step starting now; see
     /// [`Self::take_settings`].
     pub fn for_step(&self) -> Self {
