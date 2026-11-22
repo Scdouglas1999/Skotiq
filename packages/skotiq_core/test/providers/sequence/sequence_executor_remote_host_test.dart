@@ -200,19 +200,16 @@ void main() {
     expect(executor.hasRestoredCheckpoint, isFalse);
   });
 
-  for (final clearsCheckpoint in [true, false]) {
-    test('remote reset handles checkpointCleared=$clearsCheckpoint', () async {
+  test(
+    'a remote reset is one request; the host clears the checkpoint',
+    () async {
       const reset = '/api/sequencer/reset';
-      const discard = '/api/sequencer/checkpoint/discard';
       final fake = FakeNetworkClient()
         ..setResponse(
           reset,
           method: 'POST',
-          body: clearsCheckpoint
-              ? '{"status":"reset","checkpointCleared":true}'
-              : '{"status":"reset"}',
-        )
-        ..setResponse(discard, method: 'POST', body: '{}');
+          body: '{"status":"reset","checkpointCleared":true}',
+        );
       final backend = NetworkBackend(
         serverHost: 'example.invalid',
         serverPort: 8080,
@@ -223,12 +220,9 @@ void main() {
       addTearDown(backend.dispose);
 
       await backend.sequencerReset();
-      expect(fake.requests.map((request) => request.url.path), [
-        reset,
-        if (!clearsCheckpoint) discard,
-      ]);
-    });
-  }
+      expect(fake.requests.map((request) => request.url.path), [reset]);
+    },
+  );
 
   test('reset forgets a restored host checkpoint, so the next start '
       'sends the open plan', () async {
