@@ -18,6 +18,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 
+/// Plugin storage in memory: the default file store writes under the user's
+/// real data directory (`XDG_DATA_HOME`/`HOME`), which a test must not touch.
+PluginContextFactory _memoryContexts() =>
+    PluginContextFactory(storageFactory: (_) => InMemoryPluginStorage());
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -45,7 +50,7 @@ void main() {
     });
 
     test('host auto-registers sequence-plugin nodes', () async {
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       final plugin = _DummySequencePlugin();
       await host.registerPlugin(plugin);
@@ -63,7 +68,7 @@ void main() {
     });
 
     test('disable + re-enable round-trip republishes registrations', () async {
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       final plugin = _DummySequencePlugin();
       await host.registerPlugin(plugin);
@@ -78,7 +83,7 @@ void main() {
     });
 
     test('unregister drops every registration owned by the plugin', () async {
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       final plugin = _DummySequencePlugin();
       await host.registerPlugin(plugin);
@@ -94,7 +99,7 @@ void main() {
     test(
       'changes stream emits a fresh snapshot on register / unregister',
       () async {
-        final host = PluginHost();
+        final host = PluginHost(contextFactory: _memoryContexts());
         addTearDown(host.dispose);
 
         final snapshots = <List<PluginNodeRegistration>>[];
@@ -119,7 +124,7 @@ void main() {
     late PluginNodeExecutor executor;
 
     setUp(() async {
-      host = PluginHost();
+      host = PluginHost(contextFactory: _memoryContexts());
       executor = PluginNodeExecutor(host: host, registry: host.nodeRegistry);
     });
 
@@ -256,7 +261,7 @@ void main() {
   group('PushoverNotificationPlugin', () {
     test('validates required title and message', () async {
       final plugin = PushoverNotificationPlugin();
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
 
@@ -289,7 +294,7 @@ void main() {
       final plugin = PushoverNotificationPlugin(
         clientBuilder: () => mockClient,
       );
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
 
@@ -322,7 +327,7 @@ void main() {
       final plugin = PushoverNotificationPlugin(
         clientBuilder: () => mockClient,
       );
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
       await plugin.configureCredentials(
@@ -360,7 +365,7 @@ void main() {
       final plugin = PushoverNotificationPlugin(
         clientBuilder: () => mockClient,
       );
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
       await plugin.configureCredentials(apiToken: 'bad', userKey: 'bad');
@@ -422,7 +427,7 @@ void main() {
         return http.Response('', 204);
       });
       final plugin = DiscordWebhookPlugin(clientBuilder: () => mockClient);
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
 
@@ -448,7 +453,7 @@ void main() {
         return http.Response('', 204);
       });
       final plugin = DiscordWebhookPlugin(clientBuilder: () => mockClient);
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
 
@@ -479,7 +484,7 @@ void main() {
   group('HomeAssistantPlugin', () {
     test('rejects non-http connection URLs', () async {
       final plugin = HomeAssistantPlugin();
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
 
@@ -520,7 +525,7 @@ void main() {
         return http.Response('[]', 200);
       });
       final plugin = HomeAssistantPlugin(clientBuilder: () => mockClient);
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
       await plugin.configureConnection(
@@ -562,7 +567,7 @@ void main() {
         );
       });
       final plugin = HomeAssistantPlugin(clientBuilder: () => mockClient);
-      final host = PluginHost();
+      final host = PluginHost(contextFactory: _memoryContexts());
       addTearDown(host.dispose);
       await host.registerPlugin(plugin);
       await plugin.configureConnection(
