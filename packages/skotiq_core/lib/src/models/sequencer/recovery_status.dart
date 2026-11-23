@@ -92,7 +92,7 @@ class RecoveryCause extends Equatable {
   /// app does not know: a fallback would report a wrong recovery cause as if
   /// it were the real one.
   factory RecoveryCause.fromKind(String kind, String? customLabel) {
-    if (kind == 'Custom') return RecoveryCause.custom(customLabel ?? '');
+    if (kind == 'Custom') return RecoveryCause._(kind, customLabel);
     if (_unitKinds.contains(kind)) return RecoveryCause._(kind, null);
     throw FormatException('Unknown RecoveryCause kind: $kind');
   }

@@ -204,10 +204,13 @@ impl<'de> de::Deserializer<'de> for Tracer<'_> {
         visitor: V,
     ) -> Result<V::Value, TraceError> {
         let depth = self.depth;
+        let Some(&name) = variants.first() else {
+            return Err(TraceError("an enum with no variants".to_string()));
+        };
         self.mark(&format!("one of {}", variants.join("|")));
         let mut scratch = Value::Null;
         visitor.visit_enum(Variant {
-            name: variants.first().copied().unwrap_or_default(),
+            name,
             scratch: &mut scratch,
             depth,
         })
@@ -369,6 +372,7 @@ mod tests {
 
     #[derive(Deserialize)]
     #[serde(default, rename_all = "camelCase")]
+    #[allow(dead_code)]
     struct Inner {
         poly_degree: u32,
         preserve_mean: bool,
@@ -385,6 +389,7 @@ mod tests {
 
     #[derive(Deserialize, Default)]
     #[serde(rename_all = "camelCase")]
+    #[allow(dead_code)]
     enum Mode {
         #[default]
         Fast,
@@ -405,8 +410,6 @@ mod tests {
 
     #[test]
     fn a_request_type_traces_to_its_keys() {
-        let _ = (Inner::default().poly_degree, Inner::default().preserve_mean);
-        let _ = Mode::Slow;
         assert_eq!(
             key_schema::<Outer>(),
             serde_json::json!({
