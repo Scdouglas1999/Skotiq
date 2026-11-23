@@ -57,7 +57,7 @@ void main() {
     );
     final view = TileProvenanceView.fromJson(
       1,
-      replyFixtureObject('sky_atlas_info')! as Map<String, dynamic>,
+      replyFixtureObject('sky_atlas_info'),
     );
     expect(view.totalFrames, 42);
     expect(view.totalIntegrationSeconds, 7560.0);
