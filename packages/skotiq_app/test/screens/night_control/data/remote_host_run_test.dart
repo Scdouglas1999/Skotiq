@@ -428,4 +428,66 @@ void main() {
     expect(client.read(nightSessionStatsProvider).frameCount, 5);
     expect(client.read(nightRunLightRowsProvider), hasLength(2));
   });
+
+  // A client that continued the host's checkpoint adds the checkpoint's
+  // frames to the session's rows. The host opens a new session for the
+  // continued run, so the frames before it are not in that session and are
+  // counted once.
+  test(
+      'a client that continued the checkpoint counts each frame before it '
+      'once', () async {
+    final plan = TwoTargetPlan();
+    final lNode = plan.sequence.nodes.values
+        .whereType<ExposureNode>()
+        .firstWhere((node) => node.filter == 'L');
+    final runStart = DateTime(2026, 11, 7, 21, 10);
+    final continued = DateTime(2026, 11, 7, 23, 40);
+    final rows = <db.DbCapturedImage>[
+      for (var i = 0; i < 3; i++)
+        _row(800 + i, 140, runStart.add(Duration(minutes: 3 * i))),
+      for (var i = 0; i < 2; i++)
+        _row(810 + i, 141, continued.add(Duration(minutes: 3 * i))),
+    ];
+    final checkpoint = CheckpointInfo(
+      sequenceName: plan.sequence.name,
+      timestamp: runStart.add(const Duration(minutes: 10)),
+      completedExposures: 3,
+      completedIntegrationSecs: 180,
+      canResume: true,
+      ageSeconds: 60,
+      ended: 'stopped',
+      framesDoneByStep: {lNode.id: 3},
+    );
+    final backend = _link();
+    final client = planContainer(
+      now: continued.add(const Duration(minutes: 10)),
+      sequence: plan.sequence,
+      backend: backend,
+      execution: SequenceExecutionState.running,
+      progress: const SequenceProgress(state: SequenceExecutionState.running),
+      run: RunRecord(
+        startedAt: continued,
+        restoredCheckpoint: checkpoint,
+        framesDoneBeforeRun: checkpoint.framesDoneByStep,
+      ),
+      extra: [
+        allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
+        allSessionsProvider.overrideWith(
+          (ref) => Stream.value([
+            _session(141, continued, 'active'),
+            _session(140, runStart, 'stopped'),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(client.dispose);
+    await _settle(client, [nightPlanProgressProvider]);
+
+    expect(client.read(nightSessionIdProvider), 141);
+    final l = client
+        .read(nightPlanProgressProvider)!
+        .rows
+        .firstWhere((row) => row.filter == 'L');
+    expect(l.framesDone, 5, reason: '3 before the checkpoint, 2 since');
+  });
 }
