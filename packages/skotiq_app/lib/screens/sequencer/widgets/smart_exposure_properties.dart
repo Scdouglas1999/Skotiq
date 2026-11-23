@@ -247,7 +247,8 @@ class SmartExposureProperties extends ConsumerWidget {
                         child: Text(
                           'Nothing bounds this loop. Set an integration budget '
                           'below, or place this node under a target with an end '
-                          'condition (ends-when / ends-before): otherwise the '
+                          'condition (ends-when, ends-before or maximum '
+                          'altitude): otherwise the '
                           'run will refuse to start.',
                           style: TextStyle(
                             fontSize: Responsive.fontSize(context, 11),

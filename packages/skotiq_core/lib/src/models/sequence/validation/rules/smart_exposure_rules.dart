@@ -145,8 +145,9 @@ class SmartExposureUnboundedLoopRule implements SequenceValidator {
               'run will refuse to start.',
           affectedNodeId: node.id,
           resolutionHint:
-              'Set an integration budget on the node, or place it under a target '
-              'with an ends-when / ends-before condition.',
+              'Set an integration budget on the node, or give the target it '
+              'sits under an ends-when, ends-before or maximum-altitude '
+              'condition.',
         ),
       );
     }
