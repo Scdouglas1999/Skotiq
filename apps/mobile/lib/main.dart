@@ -88,6 +88,7 @@ Duration lostSessionRetryDelay(int attempt) {
 }
 
 void main() async {
+  Log.listen();
   Log.info('Starting Skotiq...', source: 'Main');
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -131,6 +131,7 @@ const _headlessLogSource = 'HeadlessMain';
 ///   SKOTIQ_RELAY_ALLOW_INSECURE_TLS=true
 ///                         Same as --relay-allow-insecure-tls.
 void main(List<String> args) async {
+  Log.listen();
   startupTimeline.mark('headless main');
   WidgetsFlutterBinding.ensureInitialized();
   await answerLaunchArguments(
