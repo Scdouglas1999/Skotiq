@@ -70,7 +70,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
   DateTime _now = DateTime.now();
 
   TwilightTimes? _twilightTimes;
-  DateTime? _twilightCacheDate;
+  NightDate? _twilightCacheNight;
   double? _twilightCacheLat;
   double? _twilightCacheLon;
 
@@ -115,22 +115,24 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     super.dispose();
   }
 
-  TwilightTimes? _getTwilightTimes(double lat, double lon, DateTime date) {
-    final cacheDate = DateTime(date.year, date.month, date.day);
+  /// Twilight of the site's night that holds [start], the timeline's start
+  /// instant.
+  TwilightTimes? _getTwilightTimes(double lat, double lon, DateTime start) {
+    final night = AstronomyCalculations.nightDateOf(start, longitudeDeg: lon);
 
     if (_twilightTimes != null &&
-        _twilightCacheDate == cacheDate &&
+        _twilightCacheNight == night &&
         _twilightCacheLat == lat &&
         _twilightCacheLon == lon) {
       return _twilightTimes;
     }
 
     _twilightTimes = AstronomyCalculations.calculateTwilightTimes(
-      date: NightDate.ofCalendarDay(date),
+      date: night,
       latitudeDeg: lat,
       longitudeDeg: lon,
     );
-    _twilightCacheDate = cacheDate;
+    _twilightCacheNight = night;
     _twilightCacheLat = lat;
     _twilightCacheLon = lon;
 
