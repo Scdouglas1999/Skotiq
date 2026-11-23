@@ -588,6 +588,19 @@ void main() {
         expect(await IntegratedMastersDao(db).getAll(), hasLength(3));
         final build = native.requests.firstWhere((r) => r['op'] == 'build');
         expect(build['settings']['weighting']['formula'], 'starSignal');
+        // The plan's groups go to the build whole; these ride along unread.
+        expect(
+          unreadArgKeys(build, [
+            'master_accumulate_op',
+            'master_accumulate_build',
+          ]),
+          {
+            'groups[].groupId',
+            'groups[].filter',
+            'groups[].lights[].id',
+            'groups[].lights[].side',
+          },
+        );
         final delivery = native.requests.firstWhere(
           (r) => r['op'] == 'deliverUniform',
         );
