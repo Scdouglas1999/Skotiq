@@ -89,14 +89,6 @@
         "count": 6,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider, targetMastersFolderProvider. Remains: Other services import it (guided_build_delivery.dart, night_end_runner.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/defect_map_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads linkedHostCalibrationToolsProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
-      "services/device_commands.dart": {
-        "count": 4,
-        "reason": "Holds a Riverpod Ref; reads deviceBackendProvider, deviceServiceProvider, switchStateProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/device_heartbeat_router.dart": {
         "count": 2,
         "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider, loggingServiceProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
@@ -108,10 +100,6 @@
       "services/device_service.dart": {
         "count": 24,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider. Remains: Other services import it (device_commands.dart, device_service_lifecycle.dart, profile_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/eon_deferral.dart": {
-        "count": 2,
-        "reason": "Holds a Riverpod Ref; reads backendProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
       "services/eon_trigger.dart": {
         "count": 11,
@@ -214,14 +202,6 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads darkroomBuildServiceProvider, darkroomStateStoreProvider, databaseProvider, notificationServiceProvider, postSessionSeamProvider, targetMastersFolderProvider. Remains: Other services import it (guided_build_delivery.dart, night_end_runner.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/defect_map_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads linkedHostCalibrationToolsProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
-      "services/device_commands.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads deviceBackendProvider, deviceServiceProvider, switchStateProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/device_heartbeat_router.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads deviceHeartbeatHealthProvider, loggingServiceProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
@@ -233,10 +213,6 @@
       "services/device_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider. Remains: Other services import it (device_commands.dart, device_service_lifecycle.dart, profile_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/eon_deferral.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads backendProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
       "services/eon_service.dart": {
         "count": 1,
