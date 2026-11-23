@@ -1,0 +1,5 @@
+{
+  "detectedStars": 3,
+  "message": "Failed to initialize stacker: Reference frame has only 3 stars, need at least 8 for alignment",
+  "requiredStars": 8
+}

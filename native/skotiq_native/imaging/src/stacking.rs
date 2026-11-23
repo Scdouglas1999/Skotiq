@@ -203,6 +203,18 @@ impl FrameRefusal {
     }
 }
 
+/// Why a live stack could not start from a reference frame.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StackerStartError {
+    /// The reference holds fewer stars than alignment needs.
+    #[error("Reference frame has only {detected} stars, need at least {required} for alignment")]
+    TooFewReferenceStars { detected: usize, required: usize },
+    /// The reference cannot seed a stack: it is empty, or of a sample type or
+    /// channel count the stacker does not read.
+    #[error("{0}")]
+    Unusable(String),
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct StackingStats {
     /// Total frames added (including rejected)
@@ -351,7 +363,10 @@ impl LiveStacker {
     /// provenance too — as unknown here. Callers that read the reference from a
     /// file should use [`LiveStacker::new_with_provenance`] so the master's
     /// `EXPTIME` / `DATE-OBS` count it.
-    pub fn new(reference_frame: &ImageData, config: LiveStackConfig) -> Result<Self, String> {
+    pub fn new(
+        reference_frame: &ImageData,
+        config: LiveStackConfig,
+    ) -> Result<Self, StackerStartError> {
         Self::new_with_provenance(reference_frame, config, &FrameProvenance::unknown())
     }
 
@@ -360,25 +375,27 @@ impl LiveStacker {
         reference_frame: &ImageData,
         config: LiveStackConfig,
         reference_provenance: &FrameProvenance,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, StackerStartError> {
         if reference_frame.is_empty() {
-            return Err("Reference frame is empty".to_string());
+            return Err(StackerStartError::Unusable(
+                "Reference frame is empty".to_string(),
+            ));
         }
 
         // 16-bit frames and float frames, whose sample range says where their
         // ADU are; the stack itself is 16-bit.
         if !matches!(reference_frame.pixel_type, PixelType::U16 | PixelType::F32) {
-            return Err(format!(
+            return Err(StackerStartError::Unusable(format!(
                 "Live stacking reads 16-bit and 32-bit float images, got {:?}",
                 reference_frame.pixel_type
-            ));
+            )));
         }
 
         if !matches!(reference_frame.channels, 1 | 3) {
-            return Err(format!(
+            return Err(StackerStartError::Unusable(format!(
                 "Live stacking supports 1-channel (mono) or 3-channel (RGB) images only, got {} channels",
                 reference_frame.channels
-            ));
+            )));
         }
 
         let width = reference_frame.width;
@@ -392,11 +409,10 @@ impl LiveStacker {
         // would otherwise misread).
         let ref_stars = detect_stars(reference_frame, &config.star_detection);
         if ref_stars.len() < config.min_matched_pairs {
-            return Err(format!(
-                "Reference frame has only {} stars, need at least {} for alignment",
-                ref_stars.len(),
-                config.min_matched_pairs
-            ));
+            return Err(StackerStartError::TooFewReferenceStars {
+                detected: ref_stars.len(),
+                required: config.min_matched_pairs,
+            });
         }
 
         tracing::info!(

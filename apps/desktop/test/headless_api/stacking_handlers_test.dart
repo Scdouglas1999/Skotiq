@@ -453,9 +453,11 @@ void main() {
   });
 
   test('reference with too few stars returns a structured 422', () async {
-    fake.startError = Exception(
-      'Failed to initialize stacker: '
-      'Reference frame has only 0 stars, need at least 5 for alignment',
+    fake.startError = const bridge.SkotiqError.refused(
+      kind: bridge.Refusal.liveStackTooFewReferenceStars,
+      message:
+          'Failed to initialize stacker: '
+          'Reference frame has only 0 stars, need at least 5 for alignment',
     );
 
     final response = await translateHandlerErrors(
@@ -479,6 +481,33 @@ void main() {
     );
     expect(status['armed'], isFalse);
     expect(status['started'], isFalse);
+  });
+
+  test('the too-few-stars 422 body is pinned for the native error', () async {
+    fake.startError = const bridge.SkotiqError.refused(
+      kind: bridge.Refusal.liveStackTooFewReferenceStars,
+      message:
+          'Failed to initialize stacker: '
+          'Reference frame has only 3 stars, need at least 8 for alignment',
+    );
+
+    final response = await translateHandlerErrors(
+      handlers.handleStart(
+        post('/api/stacking/start', {'referencePath': '/host/daylight.fits'}),
+      ),
+    );
+
+    expect(response.statusCode, HttpStatus.unprocessableEntity);
+    expect(jsonDecode(await response.readAsString()), {
+      'error': 'stacking_reference_rejected',
+      'code': 'stacking_reference_rejected',
+      'message':
+          'Reference frame does not contain enough stars for live-stack '
+          'alignment.',
+      'requestId': 'test-request',
+      'detectedStars': 3,
+      'requiredStars': 8,
+    });
   });
 
   test(

@@ -644,3 +644,15 @@ LiveStackRefusal? liveStackRefusalOf(Object error) => switch (error) {
   },
   _ => null,
 };
+
+/// The refusal of a reference frame with too few stars, when [error] is
+/// one.
+LiveStackReferenceRefusal? liveStackReferenceRefusalOf(Object error) =>
+    switch (error) {
+      bridge.SkotiqError_Refused(
+        kind: bridge.Refusal.liveStackTooFewReferenceStars,
+        :final message,
+      ) =>
+        LiveStackReferenceRefusal.fromMessage(message),
+      _ => null,
+    };

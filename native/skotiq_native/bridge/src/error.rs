@@ -233,6 +233,11 @@ pub enum Refusal {
     LiveStackOtherFilter,
     /// The frame file handed to the live stacker could not be read.
     LiveStackUnreadable,
+    /// The live stacker did not start: the reference frame holds fewer stars
+    /// than alignment needs. The message ends with both counts, in the form
+    /// `test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json`
+    /// holds.
+    LiveStackTooFewReferenceStars,
 }
 
 impl Refusal {
@@ -241,7 +246,8 @@ impl Refusal {
             Refusal::LightLeak => "Invalid input: ",
             Refusal::LiveStackMisaligned
             | Refusal::LiveStackOtherFilter
-            | Refusal::LiveStackUnreadable => "Image error: ",
+            | Refusal::LiveStackUnreadable
+            | Refusal::LiveStackTooFewReferenceStars => "Image error: ",
             _ => "Operation failed: ",
         }
     }
