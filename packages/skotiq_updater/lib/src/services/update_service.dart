@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
@@ -14,6 +14,8 @@ import 'github_release_source.dart';
 import 'update_compatibility.dart';
 import 'update_downloader.dart';
 import 'update_verifier.dart';
+
+final _updateServiceLog = Logger('skotiq.UpdateService');
 
 /// Filename of the staged manifest persisted alongside `ready.json`.
 /// Both staging paths (HTTPS download + LAN push) write this so apply-time
@@ -902,11 +904,9 @@ class UpdateService {
         _currentVersion,
         _currentBuildNumber,
       )) {
-        developer.log(
+        _updateServiceLog.info(
           'Discarding staged update $version+$buildNumber: the running build '
           '$_currentVersion+$_currentBuildNumber is not older.',
-          name: 'UpdateService',
-          level: 800,
         );
         await clearStagedUpdate();
         return null;
@@ -919,10 +919,8 @@ class UpdateService {
         extractPath: extractPath,
       );
     } catch (e) {
-      developer.log(
+      _updateServiceLog.warning(
         'Discarding corrupted staged-update marker (${markerFile.path}): $e',
-        name: 'UpdateService',
-        level: 900,
       );
       _noticeQueue.enqueue(
         'A staged update was found in an inconsistent state and was '
@@ -1041,25 +1039,17 @@ class UpdateService {
         staged.extractPath,
         updaterExecutableName,
       );
-      developer.log(
+      _updateServiceLog.warning(
         'Updater not in install dir, checking staging: $stagedUpdaterPath',
-        name: 'UpdateService',
-        level: 900,
       );
 
       if (await File(stagedUpdaterPath).exists()) {
-        developer.log(
+        _updateServiceLog.info(
           'Found updater in staging, copying to install directory',
-          name: 'UpdateService',
-          level: 800,
         );
         try {
           await File(stagedUpdaterPath).copy(updaterPath);
-          developer.log(
-            'Updater bootstrapped successfully',
-            name: 'UpdateService',
-            level: 800,
-          );
+          _updateServiceLog.info('Updater bootstrapped successfully');
         } catch (e) {
           throw UpdateException(
             'Failed to bootstrap updater from staged update: $e\n'
@@ -1104,11 +1094,7 @@ class UpdateService {
       relaunchFlags: updaterRelaunchFlags(),
     );
 
-    developer.log(
-      'Launching updater: $updaterPath with args: $args',
-      name: 'UpdateService',
-      level: 800,
-    );
+    _updateServiceLog.info('Launching updater: $updaterPath with args: $args');
 
     final Process updaterProcess;
     try {
@@ -1127,10 +1113,8 @@ class UpdateService {
           await pendingFile.delete();
         }
       } catch (cleanupError) {
-        developer.log(
+        _updateServiceLog.severe(
           'Failed to remove pending marker after spawn failure: $cleanupError',
-          name: 'UpdateService',
-          level: 1000,
         );
       }
       throw UpdateException(
@@ -1150,10 +1134,8 @@ class UpdateService {
         // Cleanup of the pending marker is secondary here; the spawn failure
         // thrown below is the load-bearing error. Log the delete failure so it
         // is not lost.
-        developer.log(
+        _updateServiceLog.warning(
           'Failed to delete pending marker during pid=0 cleanup: $e',
-          name: 'UpdateService',
-          level: 900,
         );
       }
       throw UpdateException(
@@ -1162,18 +1144,14 @@ class UpdateService {
       );
     }
 
-    developer.log(
-      'updater launched, pid=${updaterProcess.pid}',
-      name: 'UpdateService',
-      level: 800,
-    );
+    _updateServiceLog.info('updater launched, pid=${updaterProcess.pid}');
 
     // Hold the parent open for 500 ms so the OS commits the child process
     // and the log flush reaches disk before exit(0) tears down stdio.
     // Without it a child that fails to start leaves no trace in the
     // user-visible log.
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    await _flushDeveloperLog();
+    await _flushStdio();
 
     exit(0);
   }
@@ -1232,10 +1210,8 @@ class UpdateService {
       relaunchFlags: updaterRelaunchFlags(),
     );
 
-    developer.log(
+    _updateServiceLog.info(
       'Launching updater for rollback: $updaterPath with args: $args',
-      name: 'UpdateService',
-      level: 800,
     );
 
     final Process updaterProcess;
@@ -1258,14 +1234,12 @@ class UpdateService {
       );
     }
 
-    developer.log(
+    _updateServiceLog.info(
       'rollback updater launched, pid=${updaterProcess.pid}',
-      name: 'UpdateService',
-      level: 800,
     );
 
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    await _flushDeveloperLog();
+    await _flushStdio();
 
     exit(0);
   }
@@ -1361,11 +1335,7 @@ class UpdateService {
       final version = data['skippedVersion'];
       return version is String ? version : null;
     } catch (e) {
-      developer.log(
-        'Failed to read skipped-version marker: $e',
-        name: 'UpdateService',
-        level: 900,
-      );
+      _updateServiceLog.warning('Failed to read skipped-version marker: $e');
       return null;
     }
   }
@@ -1381,11 +1351,7 @@ class UpdateService {
       }
       await file.writeAsString(jsonEncode({'skippedVersion': version}));
     } catch (e) {
-      developer.log(
-        'Failed to persist skipped-version marker: $e',
-        name: 'UpdateService',
-        level: 900,
-      );
+      _updateServiceLog.warning('Failed to persist skipped-version marker: $e');
     }
   }
 
@@ -1478,23 +1444,15 @@ class UpdateService {
     return expectedFile;
   }
 
-  /// Force the developer.log buffer to drain before `exit(0)`. The log
-  /// channel is fundamentally async; without an explicit flush the spawn
-  /// pid is silently lost on early exit. Best we can do without dart:io
-  /// `stdout.flush` because developer.log routes through the Dart VM
-  /// service.
-  Future<void> _flushDeveloperLog() async {
+  /// Drains stdout and stderr before `exit(0)`.
+  Future<void> _flushStdio() async {
     try {
       await stdout.flush();
       await stderr.flush();
     } catch (e) {
       // Why: stdio may be detached in headless mode. Surface but do not
       // block exit on a non-essential flush.
-      developer.log(
-        'stdout/stderr flush failed: $e',
-        name: 'UpdateService',
-        level: 900,
-      );
+      _updateServiceLog.warning('stdout/stderr flush failed: $e');
     }
   }
 

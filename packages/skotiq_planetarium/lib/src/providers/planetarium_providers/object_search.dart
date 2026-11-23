@@ -1,5 +1,7 @@
 part of '../planetarium_providers.dart';
 
+final _planetariumProvidersLog = Logger('skotiq.PlanetariumProviders');
+
 enum SearchObjectTypeFilter { all, stars, galaxies, nebulae, clusters }
 
 class SearchFilters {
@@ -489,11 +491,9 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
           }
         } catch (e) {
-          developer.log(
+          _planetariumProvidersLog.warning(
             '[Planetarium] Star search error: $e',
-            name: 'PlanetariumProviders',
-            level: 900,
-            error: e,
+            e,
           );
         }
       }
@@ -607,11 +607,9 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
           }
         } catch (e) {
-          developer.log(
+          _planetariumProvidersLog.warning(
             '[Planetarium] DSO search error: $e',
-            name: 'PlanetariumProviders',
-            level: 900,
-            error: e,
+            e,
           );
         }
       }
@@ -637,11 +635,9 @@ class ObjectSearchNotifier extends StateNotifier<ObjectSearchState> {
             }
           }
         } catch (e) {
-          developer.log(
+          _planetariumProvidersLog.warning(
             '[Planetarium] Solar-system search error: $e',
-            name: 'PlanetariumProviders',
-            level: 900,
-            error: e,
+            e,
           );
         }
       }

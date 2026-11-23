@@ -1,10 +1,12 @@
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
+
+final _deepStarProvidersLog = Logger('skotiq.DeepStarProviders');
 
 // Deep-star tier — downloadable Tycho-2 / Gaia subset below the HYG floor
 
@@ -93,12 +95,7 @@ final deepStarsInViewProvider = FutureProvider<List<Star>>((ref) async {
       aspectRatio: aspect,
     );
   } catch (e) {
-    developer.log(
-      '[DeepStar] query failed: $e',
-      name: 'DeepStarProviders',
-      level: 900,
-      error: e,
-    );
+    _deepStarProvidersLog.warning('[DeepStar] query failed: $e', e);
     return const [];
   }
 });

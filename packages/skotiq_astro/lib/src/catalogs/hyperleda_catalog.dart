@@ -1,10 +1,13 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 
+import 'package:logging/logging.dart';
+
 import '../util/csv_line.dart';
 import 'catalog_region_scan.dart';
+
+final _hyperLedaCatalogLog = Logger('skotiq.HyperLedaCatalog');
 
 /// HyperLEDA catalog data for deep galaxy annotation
 /// Contains ~3 million galaxies down to magnitude 20+
@@ -159,20 +162,24 @@ class HyperLedaCatalogLoader {
     final lines = await file.readAsLines();
     final galaxies = <HyperLedaData>[];
 
+    // HyperLEDA carries malformed rows from upstream exports; a bad line must
+    // not abort the load. One line states them, so a systemic format change
+    // is visible without a line per row.
+    var malformed = 0;
+    Object? firstError;
     // Skip header line
     for (var i = 1; i < lines.length; i++) {
       try {
         galaxies.add(HyperLedaData.fromCsvLine(lines[i]));
       } catch (e) {
-        // HyperLEDA carries malformed rows from upstream exports; a single
-        // bad line must not abort the load. FINE surfaces a systemic format
-        // change in the dev console.
-        developer.log(
-          'HyperLEDA line $i parse failed; skipping: $e',
-          name: 'HyperLedaCatalog',
-          level: 500,
-        );
+        malformed++;
+        firstError ??= 'line $i: $e';
       }
+    }
+    if (malformed > 0) {
+      _hyperLedaCatalogLog.fine(
+        'HyperLEDA skipped $malformed malformed line(s); first $firstError',
+      );
     }
 
     _cachedData = galaxies;

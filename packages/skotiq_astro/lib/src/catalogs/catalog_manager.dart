@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:developer' as developer;
+
+import 'package:logging/logging.dart';
 
 import '../celestial_object.dart';
 import '../coordinate_system.dart';
@@ -9,6 +10,8 @@ import 'nebula_light.dart';
 import 'open_ngc_catalog.dart';
 import 'sky_catalog.dart';
 import 'star_catalog.dart';
+
+final _catalogManagerLog = Logger('skotiq.CatalogManager');
 
 /// The installed catalogs of this process: the files ([CatalogInstaller]) and
 /// the one parsed copy of each that every consumer reads (planetarium, name
@@ -57,11 +60,9 @@ class CatalogManager extends CatalogInstaller {
       try {
         _nebulaLight = parseNebulaLightTable(await nebulaLight());
       } catch (e) {
-        developer.log(
+        _catalogManagerLog.severe(
           '[Catalog] the nebula light table could not be read, so nebulae '
           'keep their OpenNGC types: $e',
-          name: 'CatalogManager',
-          level: 1000,
         );
       }
     }
@@ -76,11 +77,7 @@ class CatalogManager extends CatalogInstaller {
     try {
       await Future.wait([dsos.load(), stars.load()]);
     } catch (e) {
-      developer.log(
-        '[Catalog] pre-warm failed: $e',
-        name: 'CatalogManager',
-        level: 800,
-      );
+      _catalogManagerLog.info('[Catalog] pre-warm failed: $e');
     }
   }
 
@@ -134,11 +131,7 @@ class CatalogManager extends CatalogInstaller {
         );
       }
     } catch (e) {
-      developer.log(
-        '[Catalog] DSO search error: $e',
-        name: 'CatalogManager',
-        level: 900,
-      );
+      _catalogManagerLog.warning('[Catalog] DSO search error: $e');
     }
 
     final catalog = stars;

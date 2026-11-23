@@ -424,7 +424,7 @@ Provides all UI extension points from enabled `UiPlugin` instances. Watches the 
 
 ### ConsolePluginLogger
 
-Default `PluginLogger` implementation that writes to the Dart developer log. Log entries are prefixed with `Plugin.<pluginId>`.
+Default `PluginLogger` implementation. Entries go to the app log (the log file and the Log Viewer) with the source `Plugin.<pluginId>`.
 
 ### InMemoryPluginStorage
 

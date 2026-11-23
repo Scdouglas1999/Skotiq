@@ -1,6 +1,8 @@
-import 'dart:developer' as developer;
+import 'package:logging/logging.dart';
 
 import 'minor_planet_catalog.dart';
+
+final _mpcOrbParserLog = Logger('skotiq.MpcOrbParser');
 
 /// Parsers for the Minor Planet Center's published element files:
 ///
@@ -47,10 +49,8 @@ class MpcOrbParser {
       results.add(parsed);
     }
     if (results.isEmpty && failed > 0) {
-      developer.log(
+      _mpcOrbParserLog.warning(
         '[MPCORB] no parsable asteroid lines ($failed skipped)',
-        name: 'MpcOrbParser',
-        level: 900,
       );
     }
     return results;

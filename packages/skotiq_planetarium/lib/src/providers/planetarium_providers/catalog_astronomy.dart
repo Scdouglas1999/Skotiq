@@ -1,5 +1,7 @@
 part of '../planetarium_providers.dart';
 
+final _planetariumLog = Logger('skotiq.planetarium');
+
 /// Deep-sky objects to magnitude 16, so faint imaging targets are there when
 /// zoomed in; the dynamic magnitude limit filters them per frame.
 final loadedDsosProvider = FutureProvider<List<DeepSkyObject>>((ref) async {
@@ -23,10 +25,7 @@ final starSpatialIndexProvider = FutureProvider<StarSpatialIndex>((ref) async {
       // Warm-up is purely a latency optimization — the grid lazily builds on
       // first use anyway — but a throwing warm path means real queries will
       // hit the same error, so surface it.
-      developer.log(
-        'Spatial index grid warm-up failed: $e',
-        name: 'skotiq.planetarium',
-      );
+      _planetariumLog.fine('Spatial index grid warm-up failed: $e');
     }
   });
   ref.onDispose(warmTimer.cancel);
@@ -47,10 +46,7 @@ final dsoSpatialIndexProvider = FutureProvider<DsoSpatialIndex>((ref) async {
       // Warm-up is purely a latency optimization — the grid lazily builds on
       // first use anyway — but a throwing warm path means real queries will
       // hit the same error, so surface it.
-      developer.log(
-        'Spatial index grid warm-up failed: $e',
-        name: 'skotiq.planetarium',
-      );
+      _planetariumLog.fine('Spatial index grid warm-up failed: $e');
     }
   });
   ref.onDispose(warmTimer.cancel);

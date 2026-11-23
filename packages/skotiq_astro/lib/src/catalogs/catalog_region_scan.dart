@@ -276,6 +276,7 @@ Future<CatalogRegionScan<T>> scanCatalogRegion<T>({
         .compareTo(filter.sortKey(pb.ra, pb.dec));
   });
 
+  // This runs in a worker isolate, which has no app-log listener.
   if (malformedRows > 0) {
     developer.log(
       '$catalogName region scan skipped $malformedRows malformed rows',

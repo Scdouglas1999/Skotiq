@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'element_refresh_providers.dart';
 import 'planetarium_providers.dart';
+
+final _minorPlanetProvidersLog = Logger('skotiq.MinorPlanetProviders');
 
 /// Whether asteroid/comet overlay is enabled
 final showMinorPlanetsProvider = StateProvider<bool>((ref) => false);
@@ -81,11 +83,9 @@ class MinorPlanetPositionNotifier
         lastUpdate: DateTime.now(),
       );
     } catch (e) {
-      developer.log(
+      _minorPlanetProvidersLog.warning(
         '[MinorPlanet] Position computation error: $e',
-        name: 'MinorPlanetProviders',
-        level: 900,
-        error: e,
+        e,
       );
     }
   }

@@ -26,16 +26,19 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http2/http2.dart';
+import 'package:logging/logging.dart';
 
 import 'lan_push_broadcaster.dart';
 import 'push_config.dart';
 import 'push_jwt.dart';
 import 'push_token_store.dart';
+
+final _apnsRemotePushDeliveryLog = Logger('skotiq.ApnsRemotePushDelivery');
+final _fcmRemotePushDeliveryLog = Logger('skotiq.FcmRemotePushDelivery');
 
 /// Abstract surface for delivering a [PushNotificationFrame] outside
 /// the LAN — typically via FCM for Android or APNs for iOS. The
@@ -356,11 +359,9 @@ class FcmRemotePushDelivery implements RemotePushDelivery {
 
         failed++;
         failureCounted = true;
-        developer.log(
+        _fcmRemotePushDeliveryLog.severe(
           'FCM send failed for ${device.deviceId}: ${resp.statusCode} '
           '${_truncateBody(resp.body)}',
-          name: 'FcmRemotePushDelivery',
-          level: 1000,
         );
         if (resp.statusCode == 404) {
           // NOT_FOUND / UNREGISTERED => the token is genuinely dead; prune it.
@@ -372,12 +373,10 @@ class FcmRemotePushDelivery implements RemotePushDelivery {
         // from receiving a safety alert.
         if (!attemptCounted) attempted++;
         if (!failureCounted) failed++;
-        developer.log(
+        _fcmRemotePushDeliveryLog.severe(
           'FCM send threw for ${device.deviceId}: $error',
-          name: 'FcmRemotePushDelivery',
-          level: 1000,
-          error: error,
-          stackTrace: stackTrace,
+          error,
+          stackTrace,
         );
       }
     }
@@ -600,10 +599,8 @@ class ApnsRemotePushDelivery implements RemotePushDelivery {
 
         failed++;
         failureCounted = true;
-        developer.log(
+        _apnsRemotePushDeliveryLog.severe(
           'APNs send failed for ${device.deviceId}: status $status',
-          name: 'ApnsRemotePushDelivery',
-          level: 1000,
         );
         if (status == 410) {
           // Gone is genuinely unregistered. A 400 remains registered because
@@ -613,12 +610,10 @@ class ApnsRemotePushDelivery implements RemotePushDelivery {
       } catch (error, stackTrace) {
         if (!attemptCounted) attempted++;
         if (!failureCounted) failed++;
-        developer.log(
+        _apnsRemotePushDeliveryLog.severe(
           'APNs send threw for ${device.deviceId}: $error',
-          name: 'ApnsRemotePushDelivery',
-          level: 1000,
-          error: error,
-          stackTrace: stackTrace,
+          error,
+          stackTrace,
         );
       }
     }

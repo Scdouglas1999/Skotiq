@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
@@ -13,6 +13,8 @@ import 'lan_push_frame_reader.dart';
 import 'update_compatibility.dart';
 import 'update_service.dart' show persistStagedManifest;
 import 'update_verifier.dart';
+
+final _lanPushReceiverLog = Logger('skotiq.LanPushReceiver');
 
 typedef PushProgressCallback =
     void Function(
@@ -144,20 +146,12 @@ class LanPushReceiver {
     }
 
     _server = await ServerSocket.bind(InternetAddress.anyIPv4, _serverPort);
-    developer.log(
-      'Listening on port $_serverPort',
-      name: 'LanPushReceiver',
-      level: 800,
-    );
+    _lanPushReceiverLog.info('Listening on port $_serverPort');
 
     _server!.listen(
       _handleConnection,
       onError: (error) {
-        developer.log(
-          'Server error: $error',
-          name: 'LanPushReceiver',
-          level: 1000,
-        );
+        _lanPushReceiverLog.severe('Server error: $error');
         onError?.call('Server error: $error');
       },
     );
@@ -175,11 +169,7 @@ class LanPushReceiver {
   /// The server responds with {"auth": "ok"} or {"auth": "rejected"} and closes.
   void _handleConnection(Socket socket) async {
     final remoteAddress = socket.remoteAddress.address;
-    developer.log(
-      'Connection from $remoteAddress',
-      name: 'LanPushReceiver',
-      level: 800,
-    );
+    _lanPushReceiverLog.info('Connection from $remoteAddress');
 
     if (!_tryReserveReceiveSlot()) {
       socket.write(jsonEncode({'error': 'Already receiving update'}));
@@ -204,11 +194,7 @@ class LanPushReceiver {
 
       await _receiveUpdate(reader, socket);
     } catch (e) {
-      developer.log(
-        'Error receiving update: $e',
-        name: 'LanPushReceiver',
-        level: 1000,
-      );
+      _lanPushReceiverLog.severe('Error receiving update: $e');
       onError?.call(e.toString());
     } finally {
       _releaseReceiveSlot();
@@ -259,22 +245,14 @@ class LanPushReceiver {
       final clientSecret = authData['secret'] as String?;
       if (clientSecret == null ||
           !_constantTimeCompare(clientSecret, _pushSecret!)) {
-        developer.log(
-          'Invalid push secret from $remoteAddress',
-          name: 'LanPushReceiver',
-          level: 1000,
-        );
+        _lanPushReceiverLog.severe('Invalid push secret from $remoteAddress');
         socket.write(
           jsonEncode({'auth': 'rejected', 'reason': 'invalid secret'}),
         );
         return false;
       }
 
-      developer.log(
-        'Authenticated push client from $remoteAddress',
-        name: 'LanPushReceiver',
-        level: 800,
-      );
+      _lanPushReceiverLog.info('Authenticated push client from $remoteAddress');
       socket.write(jsonEncode({'auth': 'ok'}));
       await socket.flush();
       return true;
@@ -282,11 +260,7 @@ class LanPushReceiver {
       socket.write(jsonEncode({'auth': 'rejected', 'reason': 'timeout'}));
       return false;
     } catch (e) {
-      developer.log(
-        'Failed to authenticate $remoteAddress: $e',
-        name: 'LanPushReceiver',
-        level: 1000,
-      );
+      _lanPushReceiverLog.severe('Failed to authenticate $remoteAddress: $e');
       socket.write(jsonEncode({'auth': 'rejected', 'reason': 'parse error'}));
       return false;
     }
@@ -392,11 +366,9 @@ class LanPushReceiver {
         try {
           await packageFile.delete();
         } catch (deleteError) {
-          developer.log(
+          _lanPushReceiverLog.severe(
             'Failed to remove partial update.zip after receive error: '
             '$deleteError',
-            name: 'LanPushReceiver',
-            level: 1000,
           );
         }
       }
@@ -433,10 +405,8 @@ class LanPushReceiver {
       await socket.flush();
     } catch (e) {
       // Pusher may have disconnected - that's fine, update is complete
-      developer.log(
+      _lanPushReceiverLog.warning(
         'Could not send completion response (pusher disconnected): $e',
-        name: 'LanPushReceiver',
-        level: 900,
       );
     }
 
@@ -494,10 +464,7 @@ class LanPushReceiver {
     await persistStagedManifest(staging, manifest);
 
     final markerFile = File(path.join(staging.path, 'ready.json'));
-    developer.log(
-      'Writing ready marker to: ${markerFile.path}',
-      name: 'LanPushReceiver',
-    );
+    _lanPushReceiverLog.fine('Writing ready marker to: ${markerFile.path}');
     await markerFile.writeAsString(
       jsonEncode({
         'version': manifest.version,
@@ -507,7 +474,7 @@ class LanPushReceiver {
         'source': 'lan_push',
       }),
     );
-    developer.log('Ready marker written successfully', name: 'LanPushReceiver');
+    _lanPushReceiverLog.fine('Ready marker written successfully');
 
     return extractDir.path;
   }

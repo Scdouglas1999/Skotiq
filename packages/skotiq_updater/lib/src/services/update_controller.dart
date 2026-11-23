@@ -772,6 +772,7 @@ class UpdateController {
       );
     }
     _beginOperation('download');
+    final gen = _opGeneration;
 
     _eventsController.add(
       UpdateDownloadStartedEvent(
@@ -855,12 +856,14 @@ class UpdateController {
         ),
       );
     } catch (e) {
-      // Operator abort surfaces as a cancellation from the downloader. Treat
-      // it as a clean stop — return to staged/idle without a failure event.
-      final cancelled =
+      // A stop the operator asked for is not a failure: no failure event, and
+      // the offer or the staged update stays. Any other error is a failure,
+      // whatever its text says, and bytes that failed verification always are.
+      final badBytes = e is UpdateException && e.isVerificationFailure;
+      final stoppedByOperator =
           e is DownloadCancelledException ||
-          e.toString().toLowerCase().contains('cancel');
-      if (cancelled) {
+          (gen != _opGeneration && !badBytes);
+      if (stoppedByOperator) {
         final manifest = _lastManifest;
         _updateStatus(
           UpdateControllerStatus(

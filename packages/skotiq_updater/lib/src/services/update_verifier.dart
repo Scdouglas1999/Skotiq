@@ -1,11 +1,13 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:cryptography/cryptography.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import '../models/update_manifest.dart';
+
+final _updateVerifierLog = Logger('skotiq.UpdateVerifier');
 
 /// Production release verification key. The private seed is held outside the
 /// repository and in GitHub Actions; a dart-define can override this for testing
@@ -271,11 +273,7 @@ class UpdateVerifier {
         signature: signature,
       );
     } catch (e) {
-      developer.log(
-        'Signature verification error: $e',
-        name: 'UpdateVerifier',
-        level: 900,
-      );
+      _updateVerifierLog.warning('Signature verification error: $e');
       return false;
     }
   }

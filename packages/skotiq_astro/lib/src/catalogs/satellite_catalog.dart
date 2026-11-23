@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import '../astronomy/astronomy_calculations.dart';
 import '../astronomy/sgp4.dart';
 import 'catalog_manager.dart';
+
+final _satelliteCatalogLog = Logger('skotiq.SatelliteCatalog');
 
 /// Satellite data with current computed position.
 class SatelliteData {
@@ -156,6 +158,7 @@ class TleParser {
         .where((l) => l.isNotEmpty)
         .toList();
     final elements = <OrbitalElements>[];
+    final tally = _TleTally();
 
     int i = 0;
     while (i < lines.length) {
@@ -164,31 +167,20 @@ class TleParser {
           _isLine1(lines[i + 1]) &&
           _isLine2(lines[i + 2])) {
         // Three-line format: name + line1 + line2
-        final parsed = _parseThreeLines(lines[i], lines[i + 1], lines[i + 2]);
-        if (parsed != null) {
-          elements.add(parsed);
-        } else {
-          developer.log(
-            '[TLE] Failed to parse: ${lines[i].trim()}',
-            name: 'SatelliteCatalog',
-            level: 900,
-          );
-        }
+        final parsed = _parseThreeLines(
+          lines[i],
+          lines[i + 1],
+          lines[i + 2],
+          tally,
+        );
+        if (parsed != null) elements.add(parsed);
         i += 3;
       } else if (i + 1 < lines.length &&
           _isLine1(lines[i]) &&
           _isLine2(lines[i + 1])) {
         // Two-line format: line1 + line2 (no name line)
-        final parsed = _parseTwoLines(lines[i], lines[i + 1]);
-        if (parsed != null) {
-          elements.add(parsed);
-        } else {
-          developer.log(
-            '[TLE] Failed to parse 2-line at index $i',
-            name: 'SatelliteCatalog',
-            level: 900,
-          );
-        }
+        final parsed = _parseTwoLines(lines[i], lines[i + 1], tally);
+        if (parsed != null) elements.add(parsed);
         i += 2;
       } else {
         // Skip unrecognized line
@@ -196,6 +188,7 @@ class TleParser {
       }
     }
 
+    tally.report();
     return elements;
   }
 
@@ -211,29 +204,31 @@ class TleParser {
     String name,
     String line1,
     String line2,
+    _TleTally tally,
   ) {
     final cleanName = name.trim();
-    return _parseTwoLinesWithName(cleanName, line1, line2);
+    return _parseTwoLinesWithName(cleanName, line1, line2, tally);
   }
 
-  static OrbitalElements? _parseTwoLines(String line1, String line2) {
+  static OrbitalElements? _parseTwoLines(
+    String line1,
+    String line2,
+    _TleTally tally,
+  ) {
     final catStr = line1.substring(2, 7).trim();
-    return _parseTwoLinesWithName('SAT $catStr', line1, line2);
+    return _parseTwoLinesWithName('SAT $catStr', line1, line2, tally);
   }
 
   static OrbitalElements? _parseTwoLinesWithName(
     String name,
     String line1,
     String line2,
+    _TleTally tally,
   ) {
     try {
       if (!_verifyChecksum(line1) || !_verifyChecksum(line2)) {
-        developer.log(
-          '[TLE] Checksum mismatch for $name',
-          name: 'SatelliteCatalog',
-          level: 900,
-        );
-        // Continue anyway - some sources have bad checksums
+        // Kept anyway: some sources publish bad checksums.
+        tally.checksumMismatches.add(name);
       }
 
       final catalogNumber = int.parse(line1.substring(2, 7).trim());
@@ -279,12 +274,7 @@ class TleParser {
         revolutionNumber: revolutionNumber,
       );
     } catch (e) {
-      developer.log(
-        '[TLE] Parse error for "$name": $e',
-        name: 'SatelliteCatalog',
-        level: 900,
-        error: e,
-      );
+      tally.failures.add('"$name": $e');
       return null;
     }
   }
@@ -411,19 +401,15 @@ class SatelliteCatalog {
           if (elements.isNotEmpty) {
             _cachedGroups[source.name] = elements;
             _lastDownloadTime = stat.modified;
-            developer.log(
+            _satelliteCatalogLog.info(
               '[Satellite] Loaded ${elements.length} TLEs from cache for ${source.name}',
-              name: 'SatelliteCatalog',
-              level: 800,
             );
             return elements;
           }
         } catch (e) {
-          developer.log(
+          _satelliteCatalogLog.warning(
             '[Satellite] Cache read error for ${source.name}: $e',
-            name: 'SatelliteCatalog',
-            level: 900,
-            error: e,
+            e,
           );
         }
       }
@@ -447,20 +433,16 @@ class SatelliteCatalog {
         }
         await cacheFile.writeAsString(text);
       } catch (e) {
-        developer.log(
+        _satelliteCatalogLog.warning(
           '[Satellite] Cache write error for ${source.name}: $e',
-          name: 'SatelliteCatalog',
-          level: 900,
-          error: e,
+          e,
         );
       }
 
       _cachedGroups[source.name] = elements;
       _lastDownloadTime = DateTime.now();
-      developer.log(
+      _satelliteCatalogLog.info(
         '[Satellite] Downloaded ${elements.length} TLEs for ${source.name}',
-        name: 'SatelliteCatalog',
-        level: 800,
       );
       return elements;
     } catch (e) {
@@ -471,10 +453,8 @@ class SatelliteCatalog {
           final elements = TleParser.parse(text);
           if (elements.isNotEmpty) {
             _cachedGroups[source.name] = elements;
-            developer.log(
+            _satelliteCatalogLog.warning(
               '[Satellite] Using stale cache for ${source.name} (${elements.length} TLEs)',
-              name: 'SatelliteCatalog',
-              level: 900,
             );
             return elements;
           }
@@ -484,11 +464,9 @@ class SatelliteCatalog {
           // the `rethrow` below so the original download error reaches the
           // caller (which is the actionable one). Logging here surfaces the
           // cache corruption distinctly from the network failure.
-          developer.log(
+          _satelliteCatalogLog.severe(
             '[Satellite] Stale-cache fallback failed for ${source.name}: $e',
-            name: 'SatelliteCatalog',
-            level: 1000,
-            error: e,
+            e,
           );
         }
       }
@@ -513,11 +491,9 @@ class SatelliteCatalog {
           }
         }
       } catch (e) {
-        developer.log(
+        _satelliteCatalogLog.warning(
           '[Satellite] Failed to load ${source.name}: $e',
-          name: 'SatelliteCatalog',
-          level: 900,
-          error: e,
+          e,
         );
       }
     }
@@ -686,4 +662,30 @@ class SatelliteCatalog {
 
     return results;
   }
+}
+
+/// What one TLE file got wrong, stated once per file rather than once per
+/// element set: a source with thousands of sets would otherwise fill the log.
+class _TleTally {
+  final checksumMismatches = <String>[];
+  final failures = <String>[];
+
+  void report() {
+    if (checksumMismatches.isNotEmpty) {
+      _satelliteCatalogLog.warning(
+        '[TLE] Checksum mismatch in ${checksumMismatches.length} element '
+        'set(s), kept: ${_examples(checksumMismatches)}',
+      );
+    }
+    if (failures.isNotEmpty) {
+      _satelliteCatalogLog.warning(
+        '[TLE] ${failures.length} element set(s) could not be parsed and were '
+        'skipped: ${_examples(failures)}',
+      );
+    }
+  }
+
+  static String _examples(List<String> items) => items.length <= 3
+      ? items.join(', ')
+      : '${items.take(3).join(', ')} and ${items.length - 3} more';
 }

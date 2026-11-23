@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
+
+final _elementRefreshProvidersLog = Logger('skotiq.ElementRefreshProviders');
 
 /// The element-refresh service over the shared catalog directory.
 final elementRefreshServiceProvider = Provider<ElementRefreshService>((ref) {
@@ -149,11 +151,9 @@ class ElementRefreshController extends StateNotifier<ElementRefreshStatus> {
     try {
       config = await service.loadConfig();
     } catch (e) {
-      developer.log(
+      _elementRefreshProvidersLog.warning(
         '[ElementRefresh] config authority unavailable at init: $e',
-        name: 'ElementRefreshProviders',
-        level: 900,
-        error: e,
+        e,
       );
       if (!mounted) return;
       // The config is unreadable/corrupt. Keep the cached elements visible but
@@ -201,11 +201,9 @@ class ElementRefreshController extends StateNotifier<ElementRefreshStatus> {
       // Let consumers (propagation, search) pick up the new disk cache.
       _ref.read(elementRefreshReloadProvider.notifier).state++;
     } catch (e) {
-      developer.log(
+      _elementRefreshProvidersLog.warning(
         '[ElementRefresh] refresh failed: $e',
-        name: 'ElementRefreshProviders',
-        level: 900,
-        error: e,
+        e,
       );
       if (!mounted) return;
       state = state.copyWith(isRefreshing: false, error: e);
