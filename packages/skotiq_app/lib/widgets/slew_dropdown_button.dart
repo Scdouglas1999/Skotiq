@@ -4,15 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/mount_command_service.dart';
-import '../services/rotate_after_centering.dart';
-import 'centering_dialog.dart';
+import '../services/slew_and_center.dart';
 import '../utils/snackbar_helper.dart';
 
 enum SlewMode {
@@ -284,113 +282,46 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     context.showCommandActionResult(result);
   }
 
-  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) =>
-      _slewAndCenter(revision, backend);
-
-  /// Slews, then opens the centering dialog on the target. Completes with
-  /// the first centering run's result once that run ends, or null when the
-  /// slew failed or the dialog closed without a run.
-  ///
-  /// The dialog stays open on its result until the user closes it. The
-  /// button is busy for the run, not for the dialog: after an abort or a
-  /// failure it has to offer the slew again, not sit on "Working..." behind
-  /// a finished result.
-  Future<CenteringResult?> _slewAndCenter(
-    int revision,
-    SkotiqBackend backend,
-  ) async {
-    if (!await _preflightCentering(revision, backend)) return null;
-
+  /// The press is still this button's: the same host, and the mount
+  /// service the press started with.
+  bool Function() _currentFor(int revision, SkotiqBackend backend) {
     final mountService = ref.read(mountCommandServiceProvider);
-    final slewResult = await mountService.slewTo(
-      widget.ra,
-      widget.dec,
-      showFeedback: false,
-      targetName: widget.targetName,
-    );
-
-    if (!mounted ||
-        !_isCurrentOperation(revision, backend) ||
-        !identical(ref.read(mountCommandServiceProvider), mountService)) {
-      return null;
-    }
-
-    if (!slewResult.isSuccess) {
-      context.showCommandActionResult(slewResult);
-      return null;
-    }
-
-    return showCenteringDialog(
-      context: context,
-      targetRa: widget.ra,
-      targetDec: widget.dec,
-      targetName: widget.targetName ?? 'Target',
-    );
+    return () =>
+        _isCurrentOperation(revision, backend) &&
+        identical(ref.read(mountCommandServiceProvider), mountService);
   }
+
+  // The button is busy for the run, not for the dialog: after an abort or a
+  // failure it has to offer the slew again, not sit on "Working..." behind a
+  // finished result.
+  Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) =>
+      slewAndCenter(
+        ref,
+        context,
+        ra: widget.ra,
+        dec: widget.dec,
+        targetName: widget.targetName,
+        dialogTitle: widget.targetName ?? 'Target',
+        isCurrent: _currentFor(revision, backend),
+      );
 
   Future<void> _handleSlewCenterRotate(
     int revision,
     SkotiqBackend backend,
-  ) async {
-    final centeringResult = await _slewAndCenter(revision, backend);
-    if (!mounted || !_isCurrentOperation(revision, backend)) return;
-
-    if (centeringResult == null || !centeringResult.success) {
-      if (centeringResult != null) {
-        final reason =
-            centeringResult.errorMessage ?? 'Unknown centering error';
-        context.showWarningSnackBar(
-          'Centering failed: $reason Rotation was skipped.',
-        );
-      }
-      return;
-    }
-
-    final rotation = widget.targetRotation;
-    if (rotation == null) return;
-    final rotated = await rotateAfterCentering(ref, rotation);
-    if (rotated != null && mounted && _isCurrentOperation(revision, backend)) {
-      context.showCommandActionResult(rotated);
-    }
-  }
-
-  Future<bool> _preflightCentering(int revision, SkotiqBackend backend) async {
-    final camera = ref.read(cameraStateProvider);
-    if (camera.connectionState != DeviceConnectionState.connected) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showWarningSnackBar(
-          'Connect an imaging camera before using Slew & Center.',
-        );
-      }
-      return false;
-    }
-
-    final centering = ref.read(centeringServiceProvider);
-    if (centering.isRunning) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showWarningSnackBar(
-          'A centering operation is already running.',
-        );
-      }
-      return false;
-    }
-
-    try {
-      await ref.read(plateSolveServiceProvider).ensureSolverAvailable();
-      return _isCurrentOperation(revision, backend);
-    } on SolverNotAvailableError catch (e) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showWarningSnackBar(e.message);
-      }
-      return false;
-    } catch (e) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showErrorSnackBar(
-            'Could not check the plate solver: ${userFacingError(e)}');
-      }
-      return false;
-    }
-  }
+  ) =>
+      slewCenterAndRotate(
+        ref,
+        context,
+        ra: widget.ra,
+        dec: widget.dec,
+        targetName: widget.targetName,
+        dialogTitle: widget.targetName ?? 'Target',
+        isCurrent: _currentFor(revision, backend),
+        rotation: () => widget.targetRotation,
+        rotationSkipped: (failed) =>
+            'Centering failed: ${failed.errorMessage ?? 'Unknown centering error'} '
+            'Rotation was skipped.',
+      );
 
   bool _isCurrentOperation(int revision, SkotiqBackend backend) =>
       mounted &&

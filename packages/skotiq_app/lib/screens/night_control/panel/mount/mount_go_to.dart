@@ -14,7 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show catalogStateProvider, objectSearchProvider;
@@ -23,6 +22,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
+import '../../../../services/slew_and_center.dart';
 import '../../../../services/night_actions/manual_action_gating.dart';
 import '../../../../services/night_actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
@@ -366,16 +366,10 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   /// centering every manual Slew & center uses.
   Future<CommandActionResult> _center(({double ra, double dec}) to) async {
     final l10n = context.l10n;
-    // A centering run slews to the target first; that GoTo is asked about
-    // below the horizon or the site's floor as any GoTo is.
-    final refused = await ref
-        .read(mountCommandServiceProvider)
-        .confirmGoToAltitude(to.ra, to.dec);
+    final centered = await centerWithoutDialog(ref, ra: to.ra, dec: to.dec);
+    final refused = centered.refused;
     if (refused != null) return refused;
-    final result = (await ref.read(centeringRunProvider).center(
-          raHours: to.ra,
-          decDegrees: to.dec,
-        ))!;
+    final result = centered.result!;
     if (!result.success) {
       return CommandActionResult.failure(
         result.errorMessage ?? l10n.text('nightScopeErrCenter'),

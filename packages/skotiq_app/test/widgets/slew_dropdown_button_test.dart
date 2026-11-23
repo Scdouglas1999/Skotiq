@@ -214,7 +214,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Connect an imaging camera before using Slew & Center.'),
         findsOneWidget);
-    expect(service, isNull);
+    expect(service?.calls ?? 0, 0, reason: 'no GoTo is sent');
   });
 
   testWidgets('the chevron half meets the design system touch minimum',
