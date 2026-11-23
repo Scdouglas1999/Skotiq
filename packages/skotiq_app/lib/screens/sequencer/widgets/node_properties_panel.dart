@@ -16,7 +16,6 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 
 import '../../../widgets/altitude_floor_rule.dart';
 import '../../../widgets/sensitivity_field.dart';
@@ -24,6 +23,7 @@ import '../../equipment/dialogs/profile_editor_dialog.dart';
 import 'delete_node_confirmation.dart';
 import 'live_stacking_properties.dart';
 import 'meridian_flip_edit_helper.dart';
+import 'next_dawn.dart';
 import 'node_activity_tab.dart';
 import 'node_notes_tab.dart';
 import 'node_progress_panels.dart';
