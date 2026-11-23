@@ -17,14 +17,17 @@ class _FixedBackendNotifier extends BackendNotifier {
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 /// The night-end runner, recording the nights it is handed.
-class _RecordingRunner extends NightEndRunner {
-  _RecordingRunner(super.ref);
+class _RecordingRunner extends Mock implements NightEndRunner {
+  _RecordingRunner();
 
   final calls = <int>[];
   final reasons = <String>[];
 
   @override
   Future<void> start() async {}
+
+  @override
+  Future<void> idle() async {}
 
   @override
   Future<NightEndRun?> nightEnded({
@@ -110,7 +113,7 @@ void main() {
           (ref) => _FixedBackendNotifier(ref, FfiBackend(database: db)),
         ),
         nightEndRunnerProvider.overrideWith((ref) {
-          recording = _RecordingRunner(ref);
+          recording = _RecordingRunner();
           return recording;
         }),
       ],
@@ -239,7 +242,7 @@ void main() {
           (ref) => _FixedBackendNotifier(ref, backend),
         ),
         nightEndRunnerProvider.overrideWith((ref) {
-          return recording = _RecordingRunner(ref);
+          return recording = _RecordingRunner();
         }),
       ],
     );

@@ -57,10 +57,6 @@
         "count": 6,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentImageProvider, lastImageStatsProvider, loggingServiceProvider. Remains: Other services import it (annotation_pipeline.dart, annotation_snr_tracker.dart, click_identify_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/calibration_backlog_service.dart": {
-        "count": 5,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationLibraryProvider, calibrationMasterBuildProvider, darkLibraryServiceProvider, databaseProvider, flatLibraryServiceProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/calibration_library_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; scopes host work with AsyncScope (Riverpod). Remains: Other services import it (post_session_integration_service.dart), so it stays in services/; its provider reads become arguments in a later round."
@@ -101,10 +97,6 @@
         "count": 24,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appVersionProvider, focuserBacklashCalibrationSettingsProvider, focuserBacklashOfferSessionProvider, loggingServiceProvider, phd2ControllerProvider (guiding resumes after autofocus through the one guiding start), settingsDaoProvider. Remains: Other services import it (device_commands.dart, device_service_lifecycle.dart, profile_service.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/eon_trigger.dart": {
-        "count": 11,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/frame_identity.dart": {
         "count": 4,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider. Remains: Other services import it (imaging_service.dart), so it stays in services/; its provider reads become arguments in a later round."
@@ -116,10 +108,6 @@
       "services/local_imaging_records.dart": {
         "count": 9,
         "reason": "Holds a Riverpod Ref and declares the role provider of its own data set (hostRoleProvider); reads coImagingSessionServiceProvider, imagesDaoProvider, loggingServiceProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider, thumbnailSidecarServiceProvider. Remains: Other services import it (imaging_service.dart, local_imaging_records_solved_frame_hooks.dart, science_processing_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/night_end_runner.dart": {
-        "count": 8,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationBacklogProvider, darkroomBuildJobsProvider, darkroomBuildServiceProvider, darkroomRecentBuildsProvider, darkroomStateStoreProvider, databaseProvider, guidedBuildDeliveryProvider, imagesDaoProvider, loggingServiceProvider, notificationServiceProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
       "services/open_plan_service.dart": {
         "count": 5,
@@ -153,10 +141,6 @@
       "services/annotation_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads backendProvider, currentImageProvider, lastImageStatsProvider, loggingServiceProvider. Remains: Other services import it (annotation_pipeline.dart, annotation_snr_tracker.dart, click_identify_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/calibration_backlog_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationLibraryProvider, calibrationMasterBuildProvider, darkLibraryServiceProvider, databaseProvider, flatLibraryServiceProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
       "services/calibration_library_service.dart": {
         "count": 1,
@@ -202,10 +186,6 @@
         "count": 1,
         "reason": "A StateNotifier kept under services/; it is provider-layer state. Remains: EndOfNightCalibrationService is a StateNotifier declared beside the end-of-night domain interfaces (EonRig, EonLibrary, EonRunResult); splitting the notifier from the interfaces comes first."
       },
-      "services/eon_trigger.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, backendProvider, currentSequenceProvider, endOfNightCalibrationProvider, imagesDaoProvider, loggingServiceProvider, mountStateProvider, sequenceExecutionStateProvider, sequenceExecutorProvider, sequenceStopEvidenceProvider, sequenceTerminalRunResultProvider, settingsDaoProvider, shutdownWarmUpDeferredProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/frame_identity.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, appSettingsProvider, equipmentProfilesProvider, filterWheelStateProvider, focuserStateProvider, loggingServiceProvider, mountStateProvider, rotatorStateProvider. Remains: Other services import it (imaging_service.dart), so it stays in services/; its provider reads become arguments in a later round."
@@ -217,10 +197,6 @@
       "services/local_imaging_records.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the role provider of its own data set (hostRoleProvider); reads coImagingSessionServiceProvider, imagesDaoProvider, loggingServiceProvider, narratorServiceProvider, notificationRouterProvider, sessionsDaoProvider, skyAtlasServiceProvider, thumbnailSidecarServiceProvider. Remains: Other services import it (imaging_service.dart, local_imaging_records_solved_frame_hooks.dart, science_processing_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/night_end_runner.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads calibrationBacklogProvider, darkroomBuildJobsProvider, darkroomBuildServiceProvider, darkroomRecentBuildsProvider, darkroomStateStoreProvider, databaseProvider, guidedBuildDeliveryProvider, imagesDaoProvider, loggingServiceProvider, notificationServiceProvider, settingsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       },
       "services/open_plan_service.dart": {
         "count": 1,
