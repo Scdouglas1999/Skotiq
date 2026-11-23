@@ -427,7 +427,7 @@ class _PlanningAstronomyCache {
   ({double raDeg, double decDeg, int day, double lat, double lon})? _trackKey;
   (List<double> altitudes, double maxAlt)? _track;
 
-  ({int day, double lat, double lon})? _twilightKey;
+  ({NightDate night, double lat, double lon})? _twilightKey;
   TwilightTimes? _twilight;
 
   /// The sampled altitude track for [raDeg]/[decDeg] over the 24 hours from
@@ -455,14 +455,14 @@ class _PlanningAstronomyCache {
     return fresh;
   }
 
-  /// Tonight's twilight times, computed by [compute] only on a key miss.
+  /// The twilight times of [night], computed by [compute] only on a key miss.
   TwilightTimes twilight({
-    required DateTime date,
+    required NightDate night,
     required double latitudeDeg,
     required double longitudeDeg,
     required TwilightTimes Function() compute,
   }) {
-    final key = (day: _dayKey(date), lat: latitudeDeg, lon: longitudeDeg);
+    final key = (night: night, lat: latitudeDeg, lon: longitudeDeg);
     final cached = _twilight;
     if (cached != null && _twilightKey == key) return cached;
     final fresh = compute();
