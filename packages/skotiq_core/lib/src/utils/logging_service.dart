@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'package:logging/logging.dart' as logging;
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
@@ -15,7 +16,7 @@ enum LogLevel {
   error,
   critical;
 
-  /// The level `dart:developer` and `package:logging` print for this one.
+  /// The level `dart:developer` prints for this one.
   int get developerLevel => switch (this) {
     LogLevel.debug => 300,
     LogLevel.info => 500,
@@ -46,7 +47,35 @@ abstract final class Log {
   /// Stack frames kept on an entry.
   static const int _stackFrames = 16;
 
-  static void attach(LoggingService service) => _service = service;
+  /// Leaf packages, which cannot import this class, log through
+  /// `package:logging` under a name that starts with this. [attach] forwards
+  /// those records here; other `package:logging` users stay out of the log.
+  static const String leafLoggerPrefix = 'skotiq.';
+
+  static StreamSubscription<logging.LogRecord>? _leafRecords;
+
+  static void attach(LoggingService service) {
+    _service = service;
+    _leafRecords ??= _forwardLeafRecords();
+  }
+
+  /// Subscribes once for the life of the process, so a second container
+  /// cannot forward a record twice. While no service is attached the records
+  /// go to `dart:developer` like every other [write].
+  static StreamSubscription<logging.LogRecord> _forwardLeafRecords() {
+    logging.Logger.root.level = logging.Level.ALL;
+    return logging.Logger.root.onRecord.listen((record) {
+      final name = record.loggerName;
+      if (!name.startsWith(leafLoggerPrefix)) return;
+      write(
+        LogLevel.fromDeveloperLevel(record.level.value),
+        record.message,
+        source: name.substring(leafLoggerPrefix.length),
+        error: record.error,
+        stackTrace: record.stackTrace,
+      );
+    });
+  }
 
   static void detach(LoggingService service) {
     if (identical(_service, service)) _service = null;

@@ -77,6 +77,11 @@ dependencies:
   # the SDP/ICE plumbing without a real camera.
   flutter_webrtc: ^1.4.1
 
+  # Records from the leaf packages (updater, remote protocol, plugins,
+  # planetarium, astro, bridge), which cannot import core's `Log`. [Log]
+  # forwards them into the app log.
+  logging: ^1.3.0
+
   # Native bridge
   skotiq_bridge:
     path: ../skotiq_bridge
