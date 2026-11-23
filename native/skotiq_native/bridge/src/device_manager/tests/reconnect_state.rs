@@ -23,6 +23,9 @@ async fn reconnect_reapplies_mount_tracking() {
         .connect_device(device_id)
         .await
         .expect("initial connect should succeed");
+    // A tracking mount is unparked; the simulator starts parked, and a
+    // reconnect never switches tracking on for a parked mount.
+    get_sim_mount().write().await.status.parked = false;
 
     // Operator/sequencer commands tracking on; this records desired state.
     manager
@@ -70,6 +73,7 @@ async fn reconnect_reapplies_mount_tracking() {
     );
 
     get_sim_mount().write().await.status.tracking = false;
+    get_sim_mount().write().await.status.parked = true;
     get_sim_mount().write().await.status.connected = false;
 }
 
