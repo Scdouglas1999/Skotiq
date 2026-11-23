@@ -9,6 +9,7 @@ import 'catalog_target_resolver.dart';
 import 'catalog_target_types.dart';
 import '../backend/network_backend.dart';
 import '../providers/logging_service_provider.dart';
+import '../utils/async_scope.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {

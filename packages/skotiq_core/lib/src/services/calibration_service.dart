@@ -21,6 +21,7 @@ import '../providers/database_provider.dart';
 import '../backend/network_backend.dart';
 import '../database/daos/settings_dao.dart';
 import '../providers/logging_service_provider.dart';
+import '../utils/async_scope.dart';
 
 /// Sentinel object used by [CalibrationSettings.copyWith] to distinguish
 /// "parameter not passed" from an explicit `null`.

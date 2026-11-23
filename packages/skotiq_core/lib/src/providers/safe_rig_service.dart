@@ -14,6 +14,7 @@ import 'equipment/mount_state_provider.dart';
 import 'secondary_rig_provider.dart';
 import 'sequence_provider.dart';
 import 'ui_notification_provider.dart';
+import '../utils/async_scope.dart';
 
 /// What [SafeRigService.safeTheRig] does with a connected, unparked mount when
 /// nothing of Skotiq's is running: no sequence running or paused and no

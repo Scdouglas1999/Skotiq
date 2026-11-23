@@ -17,6 +17,7 @@ import 'settings_widgets.dart';
 import '../../../router/settings_sections.dart';
 import '../../../router/app_routes.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// Manage the connected appliance's plate-solve / star catalogs over the
 /// network (`/api/catalog/*`). A freshly-imaged Pi ships with no catalogs, so

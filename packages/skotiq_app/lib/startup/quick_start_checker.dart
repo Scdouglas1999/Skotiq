@@ -14,6 +14,7 @@ import 'startup_ui_context.dart';
 import 'quick_start_dialog.dart';
 import 'session_recovery_dialog.dart';
 import '../utils/snackbar_helper.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// Widget that checks for quick start opportunities on app startup.
 ///

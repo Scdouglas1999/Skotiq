@@ -16,6 +16,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../dialogs/fujifilm_disclaimer_dialog.dart';
 import '../profile_actions.dart';
 import '../utils/profile_mutation_epoch.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 part 'discovery_panel/device_row_item.dart';
 

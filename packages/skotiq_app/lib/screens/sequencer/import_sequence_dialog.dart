@@ -12,6 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../utils/open_in_editor.dart';
 import '../../utils/snackbar_helper.dart';
 import 'dialogs/import_summary_dialog.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 typedef SequenceImportFilePicker = Future<file_selector.XFile?> Function();
 

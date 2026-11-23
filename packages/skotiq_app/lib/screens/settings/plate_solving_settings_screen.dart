@@ -17,6 +17,7 @@ import 'widgets/plate_solve_parameters_section.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/solver_detection_card.dart';
 import '../../tours/tour_target.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 enum PlateSolverPathKind {
   astapExecutable,

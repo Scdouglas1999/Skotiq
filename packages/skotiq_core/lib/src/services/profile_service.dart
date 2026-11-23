@@ -20,6 +20,7 @@ import '../providers/device_service_providers.dart';
 import '../providers/async_scope.dart';
 import '../utils/logging_service.dart';
 import '../database/rows/equipment_profile_rows.dart';
+import '../utils/async_scope.dart';
 
 part 'profile_service/profile_export_data.dart';
 part 'profile_service/profile_service_types.dart';

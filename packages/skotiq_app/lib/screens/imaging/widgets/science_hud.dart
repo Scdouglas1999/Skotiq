@@ -17,6 +17,7 @@ import '../imaging_science_state.dart';
 import '../../../router/app_routes.dart';
 import '../../../router/analytics_route.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 part 'science_hud_parts/_offers_and_chips.dart';
 

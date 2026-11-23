@@ -26,6 +26,7 @@ import '../providers/live_stacking_service_provider.dart';
 import '../providers/logging_service_provider.dart';
 import '../providers/stack_light_selector_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
+import '../utils/async_scope.dart';
 part 'stack_and_share_service/stack_results.dart';
 part 'stack_and_share_service/rejection_reasons.dart';
 part 'stack_and_share_service/stack_frame_io.dart';

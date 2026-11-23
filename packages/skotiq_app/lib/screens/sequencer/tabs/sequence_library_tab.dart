@@ -21,6 +21,7 @@ import '../../../utils/count_label.dart';
 import '../../../utils/open_in_editor.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../widgets/save_sequence.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 part 'sequence_library_tab/library_toolbar.dart';
 part 'sequence_library_tab/sequence_row.dart';
