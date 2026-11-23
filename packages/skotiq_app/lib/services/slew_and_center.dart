@@ -53,8 +53,9 @@ Future<CommandActionResult?> slewAndCenterRefusal(WidgetRef ref) async {
 /// a run. The dialog stays open on its result until the operator closes it.
 ///
 /// [isCurrent] is false once the press no longer belongs to the screen that
-/// made it; nothing is shown after that. [beforeDialog] runs between a slew
-/// that arrived and the dialog.
+/// made it; nothing is shown after that. With [sameMountAfterSlew] the slew's
+/// answer is dropped when the mount service was replaced while it ran.
+/// [beforeDialog] runs between a slew that arrived and the dialog.
 Future<CenteringResult?> slewAndCenter(
   WidgetRef ref,
   BuildContext context, {
@@ -63,6 +64,7 @@ Future<CenteringResult?> slewAndCenter(
   required String? targetName,
   required String dialogTitle,
   required bool Function() isCurrent,
+  bool sameMountAfterSlew = false,
   VoidCallback? beforeDialog,
 }) async {
   final refused = await slewAndCenterRefusal(ref);
@@ -72,13 +74,18 @@ Future<CenteringResult?> slewAndCenter(
     return null;
   }
 
-  final slewed = await ref.read(mountCommandServiceProvider).slewTo(
-        ra,
-        dec,
-        showFeedback: false,
-        targetName: targetName,
-      );
+  final mountService = ref.read(mountCommandServiceProvider);
+  final slewed = await mountService.slewTo(
+    ra,
+    dec,
+    showFeedback: false,
+    targetName: targetName,
+  );
   if (!isCurrent() || !context.mounted) return null;
+  if (sameMountAfterSlew &&
+      !identical(ref.read(mountCommandServiceProvider), mountService)) {
+    return null;
+  }
   if (!slewed.isSuccess) {
     context.showCommandActionResult(slewed);
     return null;
@@ -112,6 +119,7 @@ Future<void> slewCenterAndRotate(
   required double? Function() rotation,
   required String Function(CenteringResult failed) rotationSkipped,
   String? centeredWithoutRotator,
+  bool sameMountAfterSlew = false,
   VoidCallback? beforeDialog,
 }) async {
   final centered = await slewAndCenter(
@@ -122,6 +130,7 @@ Future<void> slewCenterAndRotate(
     targetName: targetName,
     dialogTitle: dialogTitle,
     isCurrent: isCurrent,
+    sameMountAfterSlew: sameMountAfterSlew,
     beforeDialog: beforeDialog,
   );
   if (!isCurrent() || !context.mounted || centered == null) return;

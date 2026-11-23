@@ -282,15 +282,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     context.showCommandActionResult(result);
   }
 
-  /// The press is still this button's: the same host, and the mount
-  /// service the press started with.
-  bool Function() _currentFor(int revision, SkotiqBackend backend) {
-    final mountService = ref.read(mountCommandServiceProvider);
-    return () =>
-        _isCurrentOperation(revision, backend) &&
-        identical(ref.read(mountCommandServiceProvider), mountService);
-  }
-
   // The button is busy for the run, not for the dialog: after an abort or a
   // failure it has to offer the slew again, not sit on "Working..." behind a
   // finished result.
@@ -302,7 +293,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         dec: widget.dec,
         targetName: widget.targetName,
         dialogTitle: widget.targetName ?? 'Target',
-        isCurrent: _currentFor(revision, backend),
+        isCurrent: () => _isCurrentOperation(revision, backend),
+        sameMountAfterSlew: true,
       );
 
   Future<void> _handleSlewCenterRotate(
@@ -316,7 +308,8 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
         dec: widget.dec,
         targetName: widget.targetName,
         dialogTitle: widget.targetName ?? 'Target',
-        isCurrent: _currentFor(revision, backend),
+        isCurrent: () => _isCurrentOperation(revision, backend),
+        sameMountAfterSlew: true,
         rotation: () => widget.targetRotation,
         rotationSkipped: (failed) =>
             'Centering failed: ${failed.errorMessage ?? 'Unknown centering error'} '
