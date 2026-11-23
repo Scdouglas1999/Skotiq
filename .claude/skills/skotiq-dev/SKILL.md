@@ -273,7 +273,9 @@ Copy a converted role: `backend/roles/host_data/observing_lists_store.dart` (loc
 ## 6. Verify
 
 Run what covers what you touched and keep it green. Note any failure that also fails on the base
-commit instead of hiding it.
+commit instead of hiding it. Before pushing for CI, read the tests you added against
+[the CI failure patterns](../../../docs/agents/ci-failure-patterns.md): a run takes about 1h45m,
+and the same mistakes keep failing it after a local pass.
 
 | Area | Checks |
 | --- | --- |
