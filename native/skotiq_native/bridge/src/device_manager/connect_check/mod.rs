@@ -39,6 +39,7 @@ pub(crate) mod field {
     pub(crate) const PIER_SIDE: &str = "pier side";
     pub(crate) const CLOCK: &str = "clock";
     pub(crate) const SITE: &str = "site";
+    #[cfg(test)]
     pub(crate) const ALL: [&str; 6] = [POSITION, COOLER, TRACKING, PIER_SIDE, CLOCK, SITE];
 }
 
