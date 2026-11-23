@@ -9,11 +9,13 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/utils.dart';
 
+import '../harness/event_wire.dart';
 import '../harness/in_memory_database.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -160,13 +162,39 @@ void main() {
       final sub = container.listen(recentNarratorFeedProvider, (_, _) {});
       async.flushMicrotasks();
       for (var i = 0; i < 60; i++) {
-        events.add(_event(EventCategory.guiding, 'GuideStep'));
-        events.add(_event(EventCategory.imaging, 'ExposureProgress'));
+        events.add(
+          networkWireEvent(
+            const bridge.EventPayload.guiding(
+              bridge.GuidingEvent.correction(
+                ra: 1,
+                dec: 2,
+                raRaw: 0.5,
+                decRaw: -0.25,
+              ),
+            ),
+          ),
+        );
+        events.add(
+          networkWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.exposureProgress(
+                progress: 0.5,
+                remainingSecs: 30,
+              ),
+            ),
+          ),
+        );
         async.elapse(const Duration(seconds: 1));
       }
       expect(feedReads, 1);
       for (var i = 0; i < 60; i++) {
-        events.add(_event(EventCategory.imaging, 'ImageSaved'));
+        events.add(
+          networkWireEvent(
+            const bridge.EventPayload.imaging(
+              bridge.ImagingEvent.imageSaved(filePath: '/frames/l_001.fits'),
+            ),
+          ),
+        );
         async.elapse(const Duration(seconds: 1));
       }
       expect(

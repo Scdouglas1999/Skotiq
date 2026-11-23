@@ -178,6 +178,18 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// Like [_settle], for work that reads and writes real files: pump until
+/// [done] holds, at most about ten seconds.
+Future<void> _settleUntil(WidgetTester tester, bool Function() done) async {
+  for (var i = 0; i < 500 && !done(); i++) {
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 1)),
+    );
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+  await _settle(tester);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -320,7 +332,10 @@ void main() {
       );
 
       await tester.tap(find.widgetWithText(SkotiqButton, 'Build'));
-      await _settle(tester);
+      await _settleUntil(
+        tester,
+        () => find.textContaining('Master dark built').evaluate().isNotEmpty,
+      );
 
       expect(rig.built.single.framePaths, hasLength(20));
       expect(find.text('Dark 90 s'), findsNothing);

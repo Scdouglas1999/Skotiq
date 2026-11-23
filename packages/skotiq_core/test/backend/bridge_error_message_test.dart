@@ -12,11 +12,16 @@ void main() {
       final refused = skotiqErrorFromBridge(
         bridge.SkotiqError.refused(kind: kind, message: 'words'),
       );
-      final before = skotiqErrorFromBridge(
-        kind == bridge.Refusal.lightLeak
-            ? const bridge.SkotiqError.invalidInput('words')
-            : const bridge.SkotiqError.operationFailed('words'),
-      );
+      final before = skotiqErrorFromBridge(switch (kind) {
+        bridge.Refusal.lightLeak => const bridge.SkotiqError.invalidInput(
+          'words',
+        ),
+        bridge.Refusal.liveStackMisaligned ||
+        bridge.Refusal.liveStackOtherFilter ||
+        bridge.Refusal.liveStackUnreadable =>
+          const bridge.SkotiqError.imageError('words'),
+        _ => const bridge.SkotiqError.operationFailed('words'),
+      });
       expect(fields(refused), fields(before), reason: '$kind');
     }
   });

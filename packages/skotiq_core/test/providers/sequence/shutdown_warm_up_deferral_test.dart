@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
+import '../../harness/in_memory_database.dart';
+
 /// A wizard plan: one target holding the whole night, its warm-up last,
 /// followed by a meridian flip watcher.
 Sequence _wizardPlan() => Sequence.create(
@@ -30,7 +32,7 @@ Sequence _wizardPlan() => Sequence.create(
 );
 
 Map<String, dynamic> _wire({required bool defer}) {
-  final container = ProviderContainer();
+  final container = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
   addTearDown(container.dispose);
   final serializer = container.read(
     Provider((ref) => SequenceSerializer(ref: ref, warn: (_) {})),
