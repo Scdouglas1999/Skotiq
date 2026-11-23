@@ -31,16 +31,19 @@ Sequence _wizardPlan() => Sequence.create(
   },
 );
 
-Map<String, dynamic> _wire({required bool defer}) {
+Future<Map<String, dynamic>> _wire({required bool defer}) async {
   final container = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);
   addTearDown(container.dispose);
   final serializer = container.read(
     Provider((ref) => SequenceSerializer(ref: ref, warn: (_) {})),
   );
-  return jsonDecode(
-        serializer.sequenceToJson(_wizardPlan(), deferShutdownWarmUp: defer),
-      )
-      as Map<String, dynamic>;
+  final json = serializer.sequenceToJson(
+    _wizardPlan(),
+    deferShutdownWarmUp: defer,
+  );
+  // The settings the serializer's providers load land before teardown.
+  await pumpEventQueue();
+  return jsonDecode(json) as Map<String, dynamic>;
 }
 
 bool _nodeDefers(Map<String, dynamic> wire, String id) {
@@ -52,14 +55,14 @@ bool _nodeDefers(Map<String, dynamic> wire, String id) {
 
 void main() {
   test('a run before end-of-night calibration asks the sequencer to defer '
-      'its shutdown warm-up', () {
-    final wire = _wire(defer: true);
+      'its shutdown warm-up', () async {
+    final wire = await _wire(defer: true);
     expect(wire['metadata'], containsPair('defer_shutdown_warm_up', 'true'));
     expect(_nodeDefers(wire, 'warm'), isFalse);
   });
 
-  test('a run with no calibration after it asks for nothing', () {
-    final wire = _wire(defer: false);
+  test('a run with no calibration after it asks for nothing', () async {
+    final wire = await _wire(defer: false);
     expect(
       (wire['metadata'] as Map).containsKey('defer_shutdown_warm_up'),
       isFalse,
