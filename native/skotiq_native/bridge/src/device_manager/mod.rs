@@ -285,6 +285,8 @@ pub struct DeviceManager {
 
     /// What is kept of each device across its connections.
     pub(crate) sessions: device_reopen::DeviceSessions,
+    /// Devices followed to another id: where each old id's device is now.
+    pub(crate) moved: follow::MovedDevices,
     /// The last position of each focuser, wheel and rotator, for the
     /// connect check.
     pub(crate) positions: connect_check::positions::Positions,
@@ -443,6 +445,7 @@ impl DeviceManager {
             stated_frame_defaults: Default::default(),
             unlisted_read_mode_notices: Default::default(),
             sessions: Default::default(),
+            moved: Default::default(),
             positions: Default::default(),
         })
     }

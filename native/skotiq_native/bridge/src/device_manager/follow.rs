@@ -8,6 +8,12 @@
 //! for in a fresh enumeration of its own driver, by serial or model, and
 //! connected where it is. Two devices that both match are never guessed
 //! between: the device stays lost and the operator is told.
+//!
+//! A run keeps the ids it started with. The manager records where each
+//! followed device went ([`DeviceManager::current_id`]), and the run's device
+//! calls go there. An id stops leading elsewhere once a device is connected
+//! at it again, and the id it led to stops being followed once a device that
+//! is not the one that moved is connected there.
 
 use crate::device::DeviceInfo;
 use crate::device_manager::identity::{same_model, DeviceIdentity};
@@ -16,7 +22,31 @@ use crate::event::bus::EventPayload;
 use crate::event::correlation::create_event_auto_id;
 use crate::event::equipment::{EventCategory, EventSeverity};
 use crate::event::system::SystemEvent;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+/// A device that left an id and was connected at `to`, as it was identified
+/// when it was found there.
+#[derive(Debug, Clone)]
+pub(crate) struct Moved {
+    to: String,
+    identity: DeviceIdentity,
+}
+
+/// [`Moved`] by the id the device left.
+pub(crate) type MovedDevices = std::sync::Mutex<HashMap<String, Moved>>;
+
+/// Whether a device identified as `seen` is the one that moved, identified
+/// as `moved`: the same serial when both have one, else the same model. A
+/// side that says nothing is no evidence of another device.
+fn is_moved_device(seen: &DeviceIdentity, moved: &DeviceIdentity) -> bool {
+    match (&seen.serial_number, &moved.serial_number) {
+        (Some(seen), Some(moved)) => seen == moved,
+        _ => match (&seen.model, &moved.model) {
+            (Some(seen), Some(moved)) => same_model(seen, moved),
+            _ => true,
+        },
+    }
+}
 
 /// Where a device that left its id is now.
 #[derive(Debug)]
@@ -176,6 +206,7 @@ impl DeviceManager {
         }
         self.set_auto_reconnect(&new_id, auto_reconnect).await;
         self.set_auto_reconnect(old_id, false).await;
+        self.record_move(old_id, &new_id, wanted.clone());
         let message = format!("{what} came back at {new_id} (it was {old_id}); connected there.");
         tracing::info!("{message}");
         self.notify(
@@ -184,6 +215,59 @@ impl DeviceManager {
             &message,
         );
         Some(new_id)
+    }
+
+    /// Where the device last known at `device_id` is now: the id it was
+    /// followed to, else `device_id` itself.
+    pub(crate) fn current_id(&self, device_id: &str) -> String {
+        self.moved
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .get(device_id)
+            .map_or_else(|| device_id.to_string(), |moved| moved.to.clone())
+    }
+
+    /// The device that left `from`, identified as `identity`, is connected
+    /// at `to`. An id that led to `from` leads to `to` now.
+    fn record_move(&self, from: &str, to: &str, identity: DeviceIdentity) {
+        let mut moved = self.moved.lock().unwrap_or_else(|p| p.into_inner());
+        for earlier in moved.values_mut().filter(|earlier| earlier.to == from) {
+            earlier.to = to.to_string();
+        }
+        moved.insert(
+            from.to_string(),
+            Moved {
+                to: to.to_string(),
+                identity,
+            },
+        );
+    }
+
+    /// A device identified as `seen` connected at `device_id`. The id is its
+    /// own again, and an id that led here leads here only while this is the
+    /// device that moved.
+    pub(crate) fn forget_moves_at(&self, device_id: &str, seen: &DeviceIdentity) {
+        let mut moved = self.moved.lock().unwrap_or_else(|p| p.into_inner());
+        moved.remove(device_id);
+        moved.retain(|from, earlier| {
+            let kept = earlier.to != device_id || is_moved_device(seen, &earlier.identity);
+            if !kept {
+                tracing::info!(
+                    "{device_id} now holds {}, not the device that left {from} for it; \
+                     {from} is no longer followed there",
+                    seen.describe()
+                );
+            }
+            kept
+        });
+    }
+
+    /// `device_id` is no longer known: it leads nowhere else, and nothing
+    /// leads to it.
+    pub(crate) fn forget_moves_of(&self, device_id: &str) {
+        let mut moved = self.moved.lock().unwrap_or_else(|p| p.into_inner());
+        moved.remove(device_id);
+        moved.retain(|_, earlier| earlier.to != device_id);
     }
 
     /// What a connect restores, moved from `from` to `to`.
