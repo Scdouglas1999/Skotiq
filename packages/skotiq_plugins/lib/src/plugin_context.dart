@@ -14,8 +14,7 @@ final _pluginStorageLog = Logger('skotiq.PluginStorage');
 class ConsolePluginLogger implements PluginLogger {
   final Logger _log;
 
-  ConsolePluginLogger(String pluginId)
-    : _log = Logger('skotiq.Plugin.$pluginId');
+  ConsolePluginLogger(String pluginId) : _log = _pluginLogger(pluginId);
 
   @override
   void info(String message) => _log.info(message);
@@ -29,6 +28,13 @@ class ConsolePluginLogger implements PluginLogger {
   @override
   void error(String message, [Object? error, StackTrace? stackTrace]) =>
       _log.severe(message, error, stackTrace);
+}
+
+/// `package:logging` names are dot-separated paths and refuse an empty part,
+/// so an id such as `''` or `a..b` is reduced to its non-empty parts.
+Logger _pluginLogger(String pluginId) {
+  final parts = pluginId.split('.').where((part) => part.isNotEmpty);
+  return Logger(['skotiq', 'Plugin', ...parts].join('.'));
 }
 
 /// In-memory implementation of PluginStorage
@@ -184,7 +190,7 @@ class FilePluginStorage implements PluginStorage {
         throw const FormatException('Plugin storage root must be an object');
       }
     } catch (e, stackTrace) {
-      Logger('skotiq.Plugin.$_pluginId').severe(
+      _pluginLogger(_pluginId).severe(
         'Failed to load plugin storage for $_pluginId, resetting storage',
         e,
         stackTrace,

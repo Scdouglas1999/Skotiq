@@ -166,6 +166,13 @@ void main() {
       );
     });
 
+    test('Logger accepts any plugin id', () {
+      for (final id in ['', 'a.', '.a', 'a..b']) {
+        final logger = ConsolePluginLogger(id);
+        expect(() => logger.warning('Warning message'), returnsNormally);
+      }
+    });
+
     test('Storage persists values', () async {
       final storage = InMemoryPluginStorage();
 
