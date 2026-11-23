@@ -38,8 +38,8 @@ class AutofocusResultChannel extends RuntimeMirrorChannel<AutofocusResult?> {
     if (value != null) {
       try {
         decoded = AutofocusResult.fromJson(value);
-      } on Object {
-        return;
+      } on Object catch (e) {
+        throw FormatException('Autofocus result could not be read: $e');
       }
     }
     context.read(autofocusResultProvider.notifier).state = decoded;

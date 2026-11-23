@@ -413,6 +413,32 @@ void main() {
       expect(update.origin, 'client-a');
     });
 
+    test('the host refuses an autofocus report it cannot read', () {
+      final host = _host();
+      addTearDown(host.container.dispose);
+      var malformed = false;
+
+      final applied = applyClientRuntimeReport(
+        host.container,
+        channel: 'autofocusResult',
+        value: const {
+          'bestPosition': 2506,
+          'bestHfr': null,
+          'focusData': [],
+          'method': 'Hyperbolic',
+          'timestamp': 5,
+          'curveFitQuality': 0.95,
+          'backlashApplied': false,
+        },
+        origin: 'client-a',
+        onMalformed: () => malformed = true,
+      );
+
+      expect(applied, isFalse);
+      expect(malformed, isTrue);
+      expect(host.container.read(autofocusResultProvider), isNull);
+    });
+
     test('the host refuses reports for a host-only channel', () {
       final host = _host();
       addTearDown(host.container.dispose);
