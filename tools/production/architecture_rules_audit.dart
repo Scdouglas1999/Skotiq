@@ -41,6 +41,9 @@ import 'src/audit_scope.dart';
 ///                       it clear of the shell's bottom chrome; no other
 ///                       library code calls `showSnackBar` or shows a toast, or
 ///                       shows a failure as an info snackbar.
+///   leaf-logger         A `package:logging` logger in library code is
+///                       built as `Logger('skotiq.<Name>')`: the app log
+///                       takes only records under `skotiq.`.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -378,6 +381,15 @@ const _appFeedbackInstead =
     'bar the screen declares, colors it by its tone and keeps it up long '
     'enough to read.';
 
+const _leafLoggerInstead =
+    "Name it Logger('skotiq.<Name>'), a string literal starting with "
+    "'skotiq.'. Leaf packages cannot import skotiq_core's Log, so they log "
+    'through package:logging, and Log forwards only records whose logger '
+    "name starts with 'skotiq.' to the app log (file, Log Viewer, remote "
+    'tail). Any other name, and a detached logger, is dropped. A worker '
+    'isolate has no forwarder: log there with dart:developer, or send the '
+    'message back to the main isolate.';
+
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
   final baselinePath = argValue(args, '--baseline') ?? _defaultBaselinePath;
@@ -405,6 +417,7 @@ void main(List<String> args) {
   violations.addAll(_checkAppShared(dartFiles));
   violations.addAll(_checkHostScreens(dartFiles));
   violations.addAll(_checkAppFeedback(dartFiles));
+  violations.addAll(_checkLeafLogger(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
   final srcImportSites = _srcImportSites(dartPackages, dartFiles);
@@ -583,6 +596,11 @@ enum _Rule {
     'app-feedback',
     'A snackbar is shown through the one feedback helper.',
     _appFeedbackInstead,
+  ),
+  leafLogger(
+    'leaf-logger',
+    'A package:logging logger is named skotiq.<Name>.',
+    _leafLoggerInstead,
   );
 
   const _Rule(this.id, this.summary, this.instead);
@@ -1159,6 +1177,53 @@ List<_Violation> _checkAppFeedback(List<String> files) {
           _appFeedbackInstead,
         ),
       );
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// leaf-logger
+
+/// A `package:logging` logger built in code: `Logger(` or `Logger.detached(`,
+/// with the start of its first argument.
+final _loggerConstruction = RegExp(
+  r'''(?<![\w.])Logger(\.detached)?\(\s*(['"]skotiq\.)?''',
+);
+
+final _libraryCode = RegExp(r'^(?:packages|apps)/[^/]+/lib/');
+
+List<_Violation> _checkLeafLogger(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_libraryCode.hasMatch(path)) continue;
+    if (path.endsWith('.g.dart') || path.endsWith('.freezed.dart')) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final code = lines[i].split('//').first;
+      for (final m in _loggerConstruction.allMatches(code)) {
+        final String what;
+        if (m.group(1) != null) {
+          what = 'builds a detached logger';
+        } else if (m.group(2) == null) {
+          final open = code.indexOf('(', m.start);
+          final rest = _callArguments(lines, i, open).substring(1).trimLeft();
+          if (rest.startsWith("'skotiq.") || rest.startsWith('"skotiq.')) {
+            continue;
+          }
+          what = 'names a logger outside skotiq.';
+        } else {
+          continue;
+        }
+        out.add(
+          _Violation(
+            _Rule.leafLogger,
+            '$path:${i + 1}',
+            what,
+            _leafLoggerInstead,
+          ),
+        );
+      }
     }
   }
   return out;

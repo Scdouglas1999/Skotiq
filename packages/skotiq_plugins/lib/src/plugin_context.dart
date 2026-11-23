@@ -34,7 +34,7 @@ class ConsolePluginLogger implements PluginLogger {
 /// so an id such as `''` or `a..b` is reduced to its non-empty parts.
 Logger _pluginLogger(String pluginId) {
   final parts = pluginId.split('.').where((part) => part.isNotEmpty);
-  return Logger(['skotiq', 'Plugin', ...parts].join('.'));
+  return Logger('skotiq.${['Plugin', ...parts].join('.')}');
 }
 
 /// In-memory implementation of PluginStorage
