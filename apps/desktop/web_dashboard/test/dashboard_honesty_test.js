@@ -3360,7 +3360,7 @@ const DASHBOARD_GUIDER_STATE = {
   'Disconnected': ['Disconnected', 'badge-idle', 'connect'],
   'Connected': ['Connected', 'badge-idle', 'start'],
   'Stopped': ['Stopped', 'badge-idle', 'start'],
-  'Calibrating': ['Calibrating', 'badge-idle', 'start'],
+  'Calibrating': ['Calibrating', 'badge-idle', 'stop'],
   'Guiding': ['Guiding', 'badge-running', 'pause', 'stop', 'dither'],
   'Looping': ['Looping', 'badge-idle', 'start'],
   'Paused': ['Paused', 'badge-idle', 'start', 'stop'],
