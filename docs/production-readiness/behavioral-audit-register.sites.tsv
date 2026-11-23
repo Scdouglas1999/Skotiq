@@ -1387,7 +1387,7 @@ native/skotiq_native/sequencer/src/instructions/grading.rs	emit_grade_progress	u
 native/skotiq_native/sequencer/src/instructions/park.rs	park_mount	rust_drop_result	1	V0831	.ok();
 native/skotiq_native/sequencer/src/instructions/wait_time.rs	-	unwrap_or_literal	1	V0355	let total_wait_secs = u64::try_from(twilight_time - now).unwrap_or(0);
 native/skotiq_native/sequencer/src/instructions/wait_time.rs	execute_wait_time	unwrap_or_literal	1	V0354	let total_wait_secs = u64::try_from(until - now).unwrap_or(0);
-native/skotiq_native/sequencer/src/meridian_flip_executor.rs	-	rust_let_underscore	1	V0062	/// Replaces the previous `let _ = mount_park(...)` pattern: on error, log
+native/skotiq_native/sequencer/src/meridian_flip_executor.rs	MeridianFlipExecutor	rust_let_underscore	1	V0062	/// Replaces the previous `let _ = mount_park(...)` pattern: on error, log
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	announce_outcome	rust_let_underscore	1	V0062	let _ = tx.send(event);
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	emit_event	rust_let_underscore	1	R91-07	let _ = tx.send(ExecutorEvent::MeridianFlipProgress { detail_json });
 native/skotiq_native/sequencer/src/meridian_flip_executor.rs	emit_event	rust_let_underscore	1	V0062	let _ = tx.send(ExecutorEvent::NodeProgress {
