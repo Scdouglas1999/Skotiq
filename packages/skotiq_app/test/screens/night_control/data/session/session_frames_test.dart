@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/session/last_frame_metrics_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_id.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';

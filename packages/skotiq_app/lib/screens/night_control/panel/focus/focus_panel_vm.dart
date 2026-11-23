@@ -12,7 +12,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../../actions/night_action_controller.dart';
 import '../../data/plan/night_run_phase_provider.dart';
-import '../../data/session/session_events_provider.dart';
+import '../../../../services/night_session/night_session_events.dart';
 import '../../night_control_contracts.dart';
 
 enum NightAutofocusStatus { idle, running, done, failed, cancelled }

@@ -9,8 +9,9 @@ import 'package:skotiq_app/screens/night_control/data/session/before_you_start_p
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';

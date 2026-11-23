@@ -22,7 +22,7 @@ import '../../data/plan/night_plan_inputs.dart';
 import '../../night_control_contracts.dart';
 import '../../../../services/run_dashboard_providers.dart';
 import '../panel_widgets.dart';
-import 'recent_solves_provider.dart';
+import '../../../../services/night_session/night_recent_solves.dart';
 import 'solve_sections.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 

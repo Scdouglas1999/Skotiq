@@ -5,11 +5,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
-import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
+import 'package:skotiq_app/services/night_session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
+import 'package:skotiq_app/services/night_session/night_session_id.dart';
+import 'package:skotiq_app/services/night_session/night_recent_solves.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

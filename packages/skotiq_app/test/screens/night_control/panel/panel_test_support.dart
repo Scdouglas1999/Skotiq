@@ -17,7 +17,7 @@ import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_
 import 'package:skotiq_app/screens/night_control/data/session/last_frame_metrics_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/run_grading_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';

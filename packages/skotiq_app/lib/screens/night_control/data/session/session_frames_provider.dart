@@ -12,27 +12,10 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
+import '../../../../services/night_session/night_session_id.dart';
 import '../../night_control_contracts.dart';
 import 'session_format.dart' show nightSessionNowProvider;
 import 'package:skotiq_astro/skotiq_astro.dart';
-
-/// The session whose frames Tonight shows; null when nothing is imaging.
-final nightSessionIdProvider = Provider<int?>((ref) {
-  final local = ref.watch(
-    sessionStateProvider.select((state) => state.dbSessionId),
-  );
-  if (local != null) return local;
-  // endSession clears SessionState; the terminal result retains the exact
-  // session identity so finished-night charts and integration stay visible.
-  final terminal = ref.watch(shownTerminalRunResultProvider);
-  if (terminal?.dbSessionId != null &&
-      ref.watch(sequenceExecutionStateProvider).canStart) {
-    return terminal!.isCalibration
-        ? ref.watch(completedImagingRunProvider)?.result.dbSessionId
-        : terminal.dbSessionId;
-  }
-  return ref.watch(watchedHostSessionIdProvider);
-});
 
 /// The observing night Tonight shows: local noon to the next local noon,
 /// the night Darkroom groups frames by. It is the night of the run Tonight

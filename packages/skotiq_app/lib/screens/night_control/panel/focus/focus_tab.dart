@@ -13,7 +13,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../actions/night_action_controller.dart';
-import '../../data/session/session_events_provider.dart';
+import '../../../../services/night_session/night_session_events.dart';
 import '../../data/session/session_format.dart';
 import '../../night_control_contracts.dart';
 import '../../../../utils/v_curve_chart_data.dart';

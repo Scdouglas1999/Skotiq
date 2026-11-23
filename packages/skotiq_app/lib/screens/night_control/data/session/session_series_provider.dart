@@ -15,6 +15,7 @@ import 'package:skotiq_ui/skotiq_ui.dart' show SeriesChartTone;
 
 import '../../night_control_contracts.dart';
 import 'session_events_provider.dart';
+import '../../../../services/night_session/night_session_events.dart';
 import 'session_format.dart';
 import 'session_frames_provider.dart';
 

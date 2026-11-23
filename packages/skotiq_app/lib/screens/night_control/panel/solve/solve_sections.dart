@@ -17,7 +17,7 @@ import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
 import '../panel_widgets.dart';
 import 'night_solve_tab.dart';
-import 'recent_solves_provider.dart';
+import '../../../../services/night_session/night_recent_solves.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';
