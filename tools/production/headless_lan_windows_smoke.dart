@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// The release this tree builds. Every API request names it in
-/// `x-skotiq-version`; a host refuses a request that does not.
-final String _skotiqRelease = RegExp(
-  r'^version:\s*"([^"]+)"',
-  multiLine: true,
-).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+import 'src/host_client.dart';
 
 const _defaultExePath =
     'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
@@ -230,11 +225,7 @@ Future<_HttpResponseBody> _request(
   Map<String, Object?>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
-  request.headers.set('x-skotiq-version', _skotiqRelease);
-  request.headers.contentType = ContentType.json;
-  if (token != null) {
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-  }
+  setHostHeaders(request, token: token);
   if (body != null) {
     request.write(jsonEncode(body));
   }
@@ -292,14 +283,9 @@ Future<void> _expectTextAsset(
 }
 
 Future<void> _expectWebSocketPong(Uri baseUri, String token) async {
-  final uri = Uri(
-    scheme: 'ws',
-    host: baseUri.host,
-    port: baseUri.port,
-    path: '/events',
-    queryParameters: {'token': token, 'version': _skotiqRelease},
+  final socket = await WebSocket.connect(
+    hostEventsUri(baseUri, token).toString(),
   );
-  final socket = await WebSocket.connect(uri.toString());
   try {
     socket.add(jsonEncode({'type': 'ping'}));
     final deadline = DateTime.now().add(const Duration(seconds: 10));

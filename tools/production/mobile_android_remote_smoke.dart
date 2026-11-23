@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// The release this tree builds. Every API request names it in
-/// `x-skotiq-version`; a host refuses a request that does not.
-final String _skotiqRelease = RegExp(
-  r'^version:\s*"([^"]+)"',
-  multiLine: true,
-).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+import 'src/host_client.dart';
 
 const _defaultExePath =
     'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
@@ -20,19 +15,6 @@ const _adminToken = 'skotiq-mobile-smoke-admin-token';
 const _viewToken = 'skotiq-mobile-smoke-view-token';
 const _controlToken = 'skotiq-mobile-smoke-control-token';
 const _evidenceDir = 'docs/production-readiness';
-String _expectedAppVersion() {
-  final source = File.fromUri(
-    Platform.script.resolve('../../version.yaml'),
-  ).readAsStringSync();
-  final match = RegExp(
-    r'^version:\s*"([^"\n]+)"',
-    multiLine: true,
-  ).firstMatch(source);
-  if (match == null)
-    throw const FormatException('Missing release in version.yaml');
-  return match.group(1)!;
-}
-
 void main(List<String> args) async {
   if (!Platform.isWindows) {
     stderr.writeln('Android remote smoke currently expects Windows headless.');
@@ -283,7 +265,7 @@ Future<void> _verifyHeadlessPreconditions(
 ) async {
   final info = await _request(client, baseUri, '/api/info');
   _expectStatus('/api/info', info, HttpStatus.ok);
-  final expectedVersion = _expectedAppVersion();
+  final expectedVersion = skotiqRelease;
   if (info.json['version'] != expectedVersion) {
     throw StateError(
       'Expected app version $expectedVersion, got ${info.json['version']}',
@@ -691,11 +673,7 @@ Future<_HttpResponseBody> _request(
   Map<String, Object?>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
-  request.headers.set('x-skotiq-version', _skotiqRelease);
-  request.headers.contentType = ContentType.json;
-  if (token != null) {
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-  }
+  setHostHeaders(request, token: token);
   if (body != null) {
     request.write(jsonEncode(body));
   }

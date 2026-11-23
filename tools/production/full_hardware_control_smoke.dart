@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// The release this tree builds. Every API request names it in
-/// `x-skotiq-version`; a host refuses a request that does not.
-final String _skotiqRelease = RegExp(
-  r'^version:\s*"([^"]+)"',
-  multiLine: true,
-).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+import 'src/host_client.dart';
 
 const _defaultExePath = 'apps/desktop/build/linux/x64/release/bundle/skotiq';
 const _adminToken = 'skotiq-full-hardware-smoke-admin-token';
@@ -654,14 +649,7 @@ class _Api {
     bool authenticated = true,
   }) async {
     final request = await client.openUrl(method, baseUri.resolve(path));
-    request.headers.set('x-skotiq-version', _skotiqRelease);
-    request.headers.contentType = ContentType.json;
-    if (authenticated) {
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer $_adminToken',
-      );
-    }
+    setHostHeaders(request, token: authenticated ? _adminToken : null);
     if (requestId != null) request.headers.set('x-request-id', requestId);
     if (body != null) request.write(jsonEncode(body));
     final response = await request.close();
