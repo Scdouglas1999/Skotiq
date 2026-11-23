@@ -2035,6 +2035,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn wait_treats_a_child_reaped_elsewhere_as_exited() {
+        // A fork here can inherit a script another test is still writing.
+        #[cfg(unix)]
+        let _fixtures = lock_script_fixtures();
         extern "C" {
             fn waitpid(pid: i32, status: *mut i32, options: i32) -> i32;
         }
@@ -2053,6 +2056,9 @@ mod tests {
 
     #[test]
     fn wait_gives_up_on_a_solver_that_outlives_the_timeout() {
+        // A fork here can inherit a script another test is still writing.
+        #[cfg(unix)]
+        let _fixtures = lock_script_fixtures();
         // Windows has no `sleep`; `ping` waits a second between echoes.
         #[cfg(windows)]
         let mut command = {
@@ -2582,6 +2588,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn verify_solver_times_out_and_reaps_a_hung_probe() {
+        let _fixtures = lock_script_fixtures();
         let dir = std::env::temp_dir().join(format!(
             "skotiq-verify-{}-{}",
             std::process::id(),
