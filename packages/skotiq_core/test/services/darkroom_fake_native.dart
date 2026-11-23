@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../harness/args_fixture.dart';
+
 /// A native stand-in that records requests and writes the files a real build
 /// would.
 class FakeDarkroomNative {
@@ -26,6 +28,10 @@ class FakeDarkroomNative {
 
   Future<Map<String, dynamic>> call(Map<String, dynamic> args) async {
     requests.add(jsonDecode(jsonEncode(args)) as Map<String, dynamic>);
+    expectNativeReadsEveryKey(args, [
+      'master_accumulate_op',
+      _argsFixtures[args['op']]!,
+    ], notRead: _passedBack(args));
     switch (args['op']) {
       case 'checkCalibration':
         return {};
@@ -134,3 +140,46 @@ class FakeDarkroomNative {
 }
 
 String _name(Object? path) => '$path'.split('/').last;
+
+/// The `ffi_args` fixture of each master_accumulate op the build service sends.
+const _argsFixtures = {
+  'checkCalibration': 'master_accumulate_check_calibration',
+  'registrationPreview': 'master_accumulate_registration_preview',
+  'build': 'master_accumulate_build',
+  'deliverUniform': 'master_accumulate_deliver_uniform',
+};
+
+/// Keys the build service sends that the native side drops, by op.
+///
+/// The plan's groups go to the build whole, so the plan's own bookkeeping
+/// (`groupId`, `filter`, `warnings`, a light's `id`) rides along unread; the
+/// build also drops a light's pier `side`, which only the framing pre-pass
+/// reads. A light's `known` footprint is the pre-pass's own reply record,
+/// passed back whole, of which the native side reads only the measured
+/// fields. Each is listed when the request carries it.
+const _dropped = {
+  'build': {
+    'groups[].groupId',
+    'groups[].filter',
+    'groups[].warnings',
+    'groups[].lights[].id',
+    'groups[].lights[].side',
+  },
+  'registrationPreview': {
+    'groups[].lights[].known.path',
+    'groups[].lights[].known.group',
+    'groups[].lights[].known.side',
+    'groups[].lights[].known.overlap',
+    'groups[].lights[].known.included',
+    'groups[].lights[].known.reason',
+  },
+};
+
+Set<String> _passedBack(Map<String, dynamic> args) {
+  final dropped = _dropped[args['op']];
+  if (dropped == null) return const {};
+  return unreadArgKeys(args, [
+    'master_accumulate_op',
+    _argsFixtures[args['op']]!,
+  ]).intersection(dropped);
+}

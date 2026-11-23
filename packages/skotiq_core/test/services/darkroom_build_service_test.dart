@@ -17,6 +17,8 @@ import 'package:skotiq_core/src/services/calibration_library_service.dart';
 import 'package:skotiq_core/src/database/daos/dark_library_dao.dart';
 import 'package:skotiq_core/src/services/darkroom_build_service.dart';
 
+import '../harness/args_fixture.dart';
+import '../harness/reply_fixture.dart';
 import 'darkroom_fake_native.dart';
 
 DbCapturedImage _image(
@@ -438,6 +440,44 @@ void main() {
       expect(lights, hasLength(5));
       expect(lights.every((l) => l['known'] != null), isTrue);
       expect(fewer.toJson()['excluded'].single['reason'], 'Limits the crop');
+    });
+
+    test('a footprint passed back from the native reply is what the '
+        'native pre-pass reads, plus the record it came in', () async {
+      final reply = replyFixtureObject('registration_preview');
+      final template = (reply['frames'] as List).first as Map<String, dynamic>;
+      final lightPaths = [
+        for (final g in plan.toJson()['groups'] as List)
+          for (final l in (g as Map)['lights'] as List) (l as Map)['path'],
+      ];
+      final previous = DarkroomRegistrationPreview.fromJson({
+        ...reply,
+        'frames': [
+          for (final path in lightPaths) {...template, 'path': path},
+        ],
+      });
+
+      await service.previewRegistration(plan, previous: previous);
+
+      final request = native.requests.last;
+      expect(request['gridSize'], [reply['width'], reply['height']]);
+      expect(
+        unreadArgKeys(request, [
+          'master_accumulate_op',
+          'master_accumulate_registration_preview',
+        ]),
+        {
+          for (final key in [
+            'path',
+            'group',
+            'side',
+            'overlap',
+            'included',
+            'reason',
+          ])
+            'groups[].lights[].known.$key',
+        },
+      );
     });
 
     test('the reference cannot be excluded', () {
