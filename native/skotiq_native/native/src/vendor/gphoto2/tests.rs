@@ -886,6 +886,14 @@ fn libgphoto2_results_read_as_the_header_defines_them() {
     assert!(matches!(gp_error(-52, "x"), DriverError::Disconnected));
     assert!(gp_error(-53, "opening").to_string().contains("gvfs"));
     assert!(gp_error(-7, "capture").to_string().contains("lost contact"));
+    for missing in [GP_ERROR_FILE_NOT_FOUND, GP_ERROR_DIRECTORY_NOT_FOUND] {
+        let error = gp_error(missing, "reading /DCIM/capt0000.cr2");
+        assert!(matches!(error, DriverError::FileGone(_)), "{error:?}");
+        assert_eq!(
+            error.to_string(),
+            "SDK error: gPhoto2 reading /DCIM/capt0000.cr2: the camera no longer has the file."
+        );
+    }
     // CameraOperation bits as gphoto2-abilities-list.h numbers them.
     assert_eq!(
         [
