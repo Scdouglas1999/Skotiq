@@ -556,6 +556,29 @@ async fn a_card_capture_stays_listed_when_a_retrieve_cannot_find_it() {
     assert_eq!(manager.camera_retained_captures().len(), 1);
 }
 
+/// A memory capture stays listed when its retrieve fails because the
+/// camera's USB port went away: the camera is gone, not the file, and a
+/// retrieve after the camera is back says whether the file is still there.
+#[tokio::test]
+async fn a_memory_capture_stays_listed_when_the_camera_port_is_gone() {
+    let id = "native:test:retained_port_gone";
+    let manager = manager_keeping_a_capture(id, true, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_UNKNOWN_PORT,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+
+    let error = manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("USB port is gone"), "{error}");
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+}
+
 /// A raw file that was read and could not be decoded is saved as the camera
 /// made it at once, and is not left for the user to retrieve.
 #[tokio::test]

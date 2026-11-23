@@ -214,11 +214,10 @@ impl DeviceManager {
                         r.device_id == device_id && r.location == location && r.in_camera_memory
                     });
                 // A memory file that the camera no longer has cannot come back.
-                let gone = matches!(
-                    e,
-                    DeviceOpError::FileGone { .. } | DeviceOpError::DeviceNotFound(_)
-                );
-                if in_memory && gone && self.forget_retained(device_id, location) {
+                if in_memory
+                    && matches!(e, DeviceOpError::FileGone { .. })
+                    && self.forget_retained(device_id, location)
+                {
                     self.publish_retained_captures_changed(device_id);
                 }
                 return Err(e);
