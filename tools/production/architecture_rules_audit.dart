@@ -390,12 +390,13 @@ const _leafLoggerInstead =
     "name starts with 'skotiq.' to the app log (file, Log Viewer, remote "
     'tail). Any other name, and a detached logger, is dropped. A worker '
     'isolate has no forwarder: log there with dart:developer, or send the '
-    'message back to the main isolate.';
+    'message back to the main isolate. See docs/architecture/logging.md.';
 
 const _mainListensInstead =
     'Make Log.listen(); the first statement of main. Leaf records logged '
     'before the logging service exists (catalogs opening, network set-up) '
-    'are lost unless the forwarder is already listening.';
+    'are lost unless the forwarder is already listening. See '
+    'docs/architecture/logging.md.';
 
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
