@@ -34,7 +34,9 @@ fn sim_camera(id: &str) -> DeviceInfo {
 async fn clean_bus() {
     let mgr = get_device_manager();
     for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
-        let _ = mgr.disconnect_device(id).await;
+        if mgr.is_connected(id).await {
+            mgr.disconnect_device(id).await.expect("disconnect");
+        }
         mgr.unregister_device(id).await;
     }
     reset_sim_camera_bus();
