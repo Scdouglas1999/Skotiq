@@ -273,10 +273,12 @@ final List<Check> checks = [
     'test',
   ]),
   // The web dashboard and run-watch pages' own tests (node's built-in runner).
+  // Node 22 and 24 read a bare directory argument as a script to run, so the
+  // files are named by a pattern node expands itself.
   Check(
     'dart-tests',
     'dashboard-js-tests',
-    ['node', '--test', 'test/'],
+    ['node', '--test', 'test/*_test.js'],
     workingDirectory: 'apps/desktop/web_dashboard',
   ),
   Check(
