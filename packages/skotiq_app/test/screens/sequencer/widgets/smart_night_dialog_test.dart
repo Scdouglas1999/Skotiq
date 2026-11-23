@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/smart_night_dialog.dart';
+import 'package:skotiq_core/database.dart' show PolarAlignmentHistoryEntry;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -32,6 +33,88 @@ class _TestSettingsNotifier extends AppSettingsNotifier {
 
   @override
   Future<AppSettingsState> build() => _load();
+}
+
+class _ShiftedClock implements Clock {
+  const _ShiftedClock(this._at);
+  final DateTime _at;
+
+  @override
+  DateTime now() => _at;
+
+  @override
+  DateTime nowUtc() => _at.toUtc();
+
+  @override
+  Duration get utcOffset => _at.timeZoneOffset;
+
+  @override
+  DateTime fromUtc(DateTime utc) => utc.toLocal();
+}
+
+const _ngc7380 = TargetSuggestion(
+  targetId: 1,
+  targetName: 'NGC7380',
+  raHours: 22.78,
+  decDegrees: 58.1,
+  objectType: 'Emission Nebula',
+  totalScore: 80,
+  visibility: planetarium.TargetVisibilityInfo(
+    currentAltitude: 60,
+    currentAzimuth: 90,
+    airmass: 1.2,
+    moonDistance: 90,
+    hoursAboveMinAlt: 6,
+  ),
+);
+
+SensorSpecValue<T> _spec<T>(T value) => SensorSpecValue(
+      value: value,
+      origin: SensorSpecOrigin.userOverride,
+      provenance: 'entered by the operator',
+    );
+
+final _knownSensor = ResolvedCameraSensorSpecs(
+  reportedModel: 'Test camera',
+  databaseEntry: null,
+  pixelSizeMicrons: _spec(3.76),
+  sensorWidthPx: _spec(6248),
+  sensorHeightPx: _spec(4176),
+  readNoiseE: _spec(1.5),
+  fullWellE: _spec(51000.0),
+  qePeakFraction: _spec(0.8),
+);
+
+/// Records the context the preview is built from, then stops the build.
+class _RecordingSmartNightService extends SmartNightService {
+  _RecordingSmartNightService(Ref ref, {required this.onBuild})
+      : super(
+          suggestionService: ref.watch(targetSuggestionServiceProvider),
+          logging: ref.watch(loggingServiceProvider),
+          floor: ref.watch(altitudeFloorProvider),
+        );
+
+  final void Function(SmartNightContext context) onBuild;
+
+  @override
+  SmartNightPlan build({
+    required EquipmentProfileModel profile,
+    required List<String> availableFilters,
+    required double latitudeDeg,
+    required double longitudeDeg,
+    required SmartNightContext context,
+    required List<TargetSuggestion> selectedSuggestions,
+    required SmartNightStrategy? strategy,
+    required SmartNightSettings settings,
+    required PlanTimer planTimer,
+    SmartNightExposureContext? exposureContext,
+    SmartNightFlatPlan? flatPlan,
+    Map<int, List<IntegrationGoalProgress>> integrationGoals = const {},
+    Map<int, FilterSet> targetSets = const {},
+  }) {
+    onBuild(context);
+    throw StateError('preview stopped by the test');
+  }
 }
 
 Future<ProviderContainer> _pumpDialog(
@@ -356,6 +439,76 @@ void main() {
       expect(toggle.value, isFalse);
       expect(toggle.onChanged, isNotNull);
     });
+  });
+
+  // The days since the last polar alignment are counted on the app's clock,
+  // as the rest of the plan is.
+  testWidgets('the polar alignment age is read at the app clock',
+      (tester) async {
+    final wallNow = DateTime.now();
+    final appNow = wallNow.add(const Duration(days: 40));
+    SmartNightContext? planned;
+    await _pumpDialog(
+      tester,
+      before: (container) async {
+        container.listen(lastPolarAlignmentProvider(7), (_, __) {});
+        await container.read(lastPolarAlignmentProvider(7).future);
+      },
+      overrides: [
+        appObserverLocationProvider.overrideWithValue(
+          const LocationSettings(latitude: 40, longitude: -75),
+        ),
+        activeEquipmentProfileProvider.overrideWithValue(
+          const EquipmentProfileModel(
+            id: 7,
+            name: 'Test rig',
+            focalLength: 600,
+            aperture: 120,
+            filterNames: ['L'],
+          ),
+        ),
+        clockProvider.overrideWithValue(_ShiftedClock(appNow)),
+        lastPolarAlignmentProvider(7).overrideWith(
+          (ref) async => PolarAlignmentHistoryEntry(
+            id: 1,
+            equipmentProfileId: 7,
+            initialAzimuthError: 0,
+            initialAltitudeError: 0,
+            initialTotalError: 0,
+            finalAzimuthError: 0,
+            finalAltitudeError: 0,
+            finalTotalError: 0,
+            startedAt: wallNow.subtract(const Duration(days: 1, hours: 1)),
+            completedAt: wallNow.subtract(const Duration(days: 1)),
+            autoCompleted: true,
+            isNorth: true,
+            configJson: '{}',
+          ),
+        ),
+        tonightSuggestionsProvider.overrideWith((_) async => const [_ngc7380]),
+        activeCameraSensorSpecsProvider
+            .overrideWith((ref) async => _knownSensor),
+        smartNightServiceProvider.overrideWith(
+          (ref) => _RecordingSmartNightService(
+            ref,
+            onBuild: (context) => planned = context,
+          ),
+        ),
+      ],
+    );
+    await tester.pumpAndSettle();
+    for (var step = 0; step < 4 && planned == null; step++) {
+      await tester.tap(find.text('Next'));
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    expect(planned, isNotNull, reason: 'the preview was built');
+    expect(planned!.daysSinceLastPolarAlignment, 41);
   });
 
   testWidgets('SmartNightDialog blocks equipment step when aperture is missing',
