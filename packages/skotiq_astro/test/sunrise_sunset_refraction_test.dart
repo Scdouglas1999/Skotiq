@@ -35,7 +35,7 @@ void main() {
 
   group('calculateTwilightTimes (dashboard night strip)', () {
     final tw = AstronomyCalculations.calculateTwilightTimes(
-      date: date,
+      date: NightDate.ofCalendarDay(date),
       latitudeDeg: lat,
       longitudeDeg: lon,
     );

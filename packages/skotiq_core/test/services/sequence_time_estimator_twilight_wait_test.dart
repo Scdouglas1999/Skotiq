@@ -43,7 +43,7 @@ void main() {
 
   // Astronomical dusk at the site on the evening of [day].
   DateTime duskOf(DateTime day) => AstronomyCalculations.calculateTwilightTimes(
-    date: day,
+    date: NightDate.ofCalendarDay(day),
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   ).astronomicalDusk!;

@@ -34,7 +34,7 @@ void main() {
   bench('calculateTwilightTimes', 400, (i) {
     final (lat, lon) = sites[i % sites.length];
     AstronomyCalculations.calculateTwilightTimes(
-      date: base.add(Duration(days: i % 365)),
+      date: NightDate.ofCalendarDay(base.add(Duration(days: i % 365))),
       latitudeDeg: lat,
       longitudeDeg: lon,
     );
@@ -44,7 +44,7 @@ void main() {
     AstronomyCalculations.calculateObjectVisibility(
       raDeg: (i * 37) % 360,
       decDeg: (i * 13) % 120 - 60,
-      date: base.add(Duration(days: i % 365)),
+      date: NightDate.ofCalendarDay(base.add(Duration(days: i % 365))),
       latitudeDeg: lat,
       longitudeDeg: lon,
     );

@@ -49,7 +49,7 @@ void main() {
 
   TwilightTimes windowFor(DateTime date) =>
       AstronomyCalculations.calculateTwilightTimes(
-        date: date,
+        date: NightDate.ofCalendarDay(date),
         latitudeDeg: lat,
         longitudeDeg: lon,
       );

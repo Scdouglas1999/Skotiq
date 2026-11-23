@@ -922,7 +922,7 @@ TwilightTimes altitudeChartNight(
   // of the night that opens at the site's solar noon of that calendar day, so
   // the site's own date picks tonight's; the previous night's window is kept
   // for as long as it is still running.
-  TwilightTimes twilightFor(DateTime date) =>
+  TwilightTimes twilightFor(NightDate date) =>
       AstronomyCalculations.calculateTwilightTimes(
         date: date,
         latitudeDeg: latitudeDeg,
@@ -952,11 +952,7 @@ TwilightTimes altitudeChartNight(
       const Duration(hours: 23) - const Duration(minutes: 15),
     );
     if (now.isBefore(approximatePreviousEnd)) {
-      final previousTwilight = twilightFor(
-        siteToday.isUtc
-            ? DateTime.utc(siteToday.year, siteToday.month, siteToday.day - 1)
-            : DateTime(siteToday.year, siteToday.month, siteToday.day - 1),
-      );
+      final previousTwilight = twilightFor(siteToday.addDays(-1));
       final previousEnd = previousTwilight.sunrise?.add(
         const Duration(hours: 1),
       );

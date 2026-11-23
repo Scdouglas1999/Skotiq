@@ -186,12 +186,20 @@ void main() {
     group('${pin.lat}, ${pin.lon} on ${pin.date}', () {
       test('night start and middle', () {
         expect(
-          _iso(AstronomyCalculations.nightStartOf(date, longitudeDeg: pin.lon)),
+          _iso(
+            AstronomyCalculations.nightStartOf(
+              NightDate.ofCalendarDay(date),
+              longitudeDeg: pin.lon,
+            ),
+          ),
           pin.nightStart,
         );
         expect(
           _iso(
-            AstronomyCalculations.nightMiddleOf(date, longitudeDeg: pin.lon),
+            AstronomyCalculations.nightMiddleOf(
+              NightDate.ofCalendarDay(date),
+              longitudeDeg: pin.lon,
+            ),
           ),
           pin.nightMiddle,
         );
@@ -207,7 +215,7 @@ void main() {
 
       test('twilight', () {
         final twilight = AstronomyCalculations.calculateTwilightTimes(
-          date: date,
+          date: NightDate.ofCalendarDay(date),
           latitudeDeg: pin.lat,
           longitudeDeg: pin.lon,
         );
@@ -219,7 +227,7 @@ void main() {
         final visibility = AstronomyCalculations.calculateObjectVisibility(
           raDeg: 83.8,
           decDeg: -5.4,
-          date: date,
+          date: NightDate.ofCalendarDay(date),
           latitudeDeg: pin.lat,
           longitudeDeg: pin.lon,
         );

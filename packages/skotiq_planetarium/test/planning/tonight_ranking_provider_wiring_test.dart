@@ -21,7 +21,7 @@ double _raHoursTransitingAt(DateTime instant) =>
 
 void main() {
   final twilight = AstronomyCalculations.calculateTwilightTimes(
-    date: _nightDate,
+    date: NightDate.ofCalendarDay(_nightDate),
     latitudeDeg: _lat,
     longitudeDeg: _lon,
   );

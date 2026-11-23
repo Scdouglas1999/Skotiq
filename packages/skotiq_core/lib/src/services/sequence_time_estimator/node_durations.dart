@@ -262,7 +262,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     TwilightType twilightType,
     _LocationContext locationContext,
   ) {
-    TwilightTimes nightOf(DateTime date) =>
+    TwilightTimes nightOf(NightDate date) =>
         AstronomyCalculations.calculateTwilightTimes(
           date: date,
           latitudeDeg: locationContext.latitude,
@@ -283,11 +283,7 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     if (dusk == null) return null;
     if (!dusk.isBefore(currentTime)) return dusk;
     if (dawn == null || currentTime.isBefore(dawn)) return null;
-    // The next calendar day, not 24 hours on (a DST change).
-    final next = night.isUtc
-        ? DateTime.utc(night.year, night.month, night.day + 1)
-        : DateTime(night.year, night.month, night.day + 1);
-    final (nextDusk, _) = duskAndDawn(nightOf(next));
+    final (nextDusk, _) = duskAndDawn(nightOf(night.addDays(1)));
     return nextDusk;
   }
 

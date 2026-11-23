@@ -52,7 +52,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // Sample apparent altitude across the site's night (solar noon to solar
     // noon), the same 24h span the twilight gauge uses.
     final nightStart = AstronomyCalculations.nightStartOf(
-      observationTime,
+      NightDate.ofCalendarDay(observationTime),
       longitudeDeg: longitude,
     );
     const samples = 48; // every 30 minutes
@@ -224,7 +224,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       compute: () => AstronomyCalculations.calculateTwilightTimes(
-        date: observationTime,
+        date: NightDate.ofCalendarDay(observationTime),
         latitudeDeg: latitude,
         longitudeDeg: longitude,
       ),
@@ -238,7 +238,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // twilight times are read from, so "now" and the band map consistently
     // with the altitude track.
     final nightStart = AstronomyCalculations.nightStartOf(
-      observationTime,
+      NightDate.ofCalendarDay(observationTime),
       longitudeDeg: longitude,
     );
     const windowMinutes = 24 * 60;

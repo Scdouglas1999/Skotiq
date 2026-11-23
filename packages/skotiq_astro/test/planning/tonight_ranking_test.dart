@@ -13,7 +13,7 @@ void main() {
   final floor = AltitudeFloorSamples.flat(30);
 
   final twilight = AstronomyCalculations.calculateTwilightTimes(
-    date: nightDate,
+    date: NightDate.ofCalendarDay(nightDate),
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   );
@@ -40,7 +40,7 @@ void main() {
       decDeg: [20.0],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
     );
 
@@ -61,7 +61,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
     );
     expect(ranked.map((entry) => entry.index), [1]);
@@ -76,7 +76,7 @@ void main() {
       decDeg: [20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
     );
     final request = asked.requests.single;
@@ -104,7 +104,7 @@ void main() {
       // Midsummer near the pole: the sun never sets.
       latitudeDeg: 78,
       longitudeDeg: 15,
-      nightDate: DateTime(2026, 6, 21),
+      nightDate: NightDate.ofCalendarDay(DateTime(2026, 6, 21)),
       floor: floor,
     );
     expect(ranked, isEmpty);
@@ -119,7 +119,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
       magnitudes: [8, 15],
     );
@@ -134,7 +134,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
       objectTypes: [DsoType.galaxy.index, DsoType.star.index],
     );
@@ -149,7 +149,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
       sizesArcMin: [2, 200],
       fovWidthDeg: 0.57,
@@ -161,7 +161,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
       sizesArcMin: [2, 200],
       fovWidthDeg: 5.7,
@@ -179,7 +179,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
     );
     final explicitNulls = await rankTonightTargets(
@@ -188,7 +188,7 @@ void main() {
       decDeg: [20, 20],
       latitudeDeg: latitude,
       longitudeDeg: longitude,
-      nightDate: nightDate,
+      nightDate: NightDate.ofCalendarDay(nightDate),
       floor: floor,
       magnitudes: [null, null],
       sizesArcMin: [null, null],
@@ -259,7 +259,7 @@ void main() {
         magnitudes: [14.5, 5.0],
         latitudeDeg: latitude,
         longitudeDeg: longitude,
-        nightDate: nightDate,
+        nightDate: NightDate.ofCalendarDay(nightDate),
         floor: floor,
       );
       expect(ranked, hasLength(2));
