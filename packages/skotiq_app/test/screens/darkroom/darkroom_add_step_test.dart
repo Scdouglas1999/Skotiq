@@ -40,6 +40,7 @@ import '../../harness/harness.dart' show TestBackendNotifier;
 import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
+import '../../harness/args_fixture.dart';
 
 final String _masterPath = '$darkroomScratch/m31_G.fits';
 
@@ -156,6 +157,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     final catalogue = <String, dynamic>{
       'schemaVersion': 1,
       'ops': [

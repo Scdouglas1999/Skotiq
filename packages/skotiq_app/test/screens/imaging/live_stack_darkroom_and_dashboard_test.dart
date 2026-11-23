@@ -19,6 +19,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../harness/args_fixture.dart';
 
 class _ScriptedDarkroomSeam implements DarkroomSeam {
   _ScriptedDarkroomSeam({this.registryReply});
@@ -34,6 +35,7 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls++;
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     final gate = registryGate;
     if (gate != null) await gate.future;
     final scripted = registryReply;
@@ -88,6 +90,7 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
 
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     final id = args['renderId'] as String?;
     if (id != null) cancelledIds.add(id);
     return const <String, dynamic>{'cancelled': true};
