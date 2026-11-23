@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -188,5 +190,63 @@ void main() {
 
       expect(predictedFrom, [observed]);
     });
+  });
+
+  // Playing the clock backward moves it out of the window every minute: one
+  // prediction runs at a time, and the last position is predicted after it.
+  test('a clock moving back while predicting starts one more', () async {
+    final calls = <(DateTime, Completer<List<SatellitePass>>)>[];
+    late _HeldClock clock;
+    final container = ProviderContainer(
+      overrides: [
+        observationTimeProvider.overrideWith(
+          (ref) => clock = _HeldClock(observed),
+        ),
+        satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+        passPredictionComputerProvider.overrideWithValue(({
+          required elements,
+          required latitude,
+          required longitude,
+          required startTime,
+          required predictionWindow,
+        }) {
+          final reply = Completer<List<SatellitePass>>();
+          calls.add((startTime, reply));
+          return reply.future;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    Future<void> settle() async {
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    container
+        .read(observerLocationProvider.notifier)
+        .setLocation(latitude: 40, longitude: -74);
+    container.listen(upcomingPassesProvider, (_, __) {});
+    container.read(showSatellitesProvider.notifier).state = true;
+    await settle();
+    calls.single.$2.complete(const []);
+    await settle();
+
+    for (var minutes = 1; minutes <= 3; minutes++) {
+      clock.scrubTo(observed.subtract(Duration(minutes: minutes)));
+      container.read(upcomingPassesProvider);
+      await settle();
+    }
+    expect(calls.map((c) => c.$1), [
+      observed,
+      observed.subtract(const Duration(minutes: 1)),
+    ]);
+
+    calls.last.$2.complete(const []);
+    await settle();
+    expect(calls.map((c) => c.$1), [
+      observed,
+      observed.subtract(const Duration(minutes: 1)),
+      observed.subtract(const Duration(minutes: 3)),
+    ]);
   });
 }
