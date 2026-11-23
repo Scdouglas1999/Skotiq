@@ -1,7 +1,7 @@
 import 'package:skotiq_astro/skotiq_astro.dart';
 
-/// The next [dawn] after [now] at a site: this night's while it is still
-/// ahead, otherwise the next night's. Null when neither night has one (a
+/// The next [dawn] after [now] at a site: the dawn of the site's night that
+/// holds [now] while it is still ahead, otherwise the next night's. Null when neither night has one (a
 /// polar summer has no nautical dawn).
 DateTime? nextDawn(
   DateTime now, {
@@ -17,7 +17,11 @@ DateTime? nextDawn(
         ),
       );
 
-  final tonight = dawnOf(NightDate.ofCalendarDay(now));
+  final night = AstronomyCalculations.nightDateOf(
+    now,
+    longitudeDeg: longitudeDeg,
+  );
+  final tonight = dawnOf(night);
   if (tonight != null && !tonight.isBefore(now)) return tonight;
-  return dawnOf(NightDate.ofCalendarDay(now.add(const Duration(days: 1))));
+  return dawnOf(night.addDays(1));
 }

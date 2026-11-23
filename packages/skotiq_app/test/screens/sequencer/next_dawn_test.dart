@@ -42,4 +42,19 @@ void main() {
     final now = DateTime.utc(2026, 11, 22, 13).toLocal(); // 08:00 at the site
     expectDawnOfNight(civil(now), const NightDate(2026, 11, 22), now);
   });
+
+  test('after midnight it is this morning, not the next one', () {
+    final now = DateTime.utc(2026, 11, 22, 7).toLocal(); // 02:00 at the site
+    expectDawnOfNight(civil(now), const NightDate(2026, 11, 21), now);
+    expectDawnOfNight(
+      nextDawn(
+        now,
+        latitudeDeg: _latitude,
+        longitudeDeg: _longitude,
+        dawn: (t) => t.nauticalDawn,
+      ),
+      const NightDate(2026, 11, 21),
+      now,
+    );
+  });
 }
