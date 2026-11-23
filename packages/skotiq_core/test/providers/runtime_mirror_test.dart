@@ -413,6 +413,32 @@ void main() {
       expect(update.origin, 'client-a');
     });
 
+    test('the host refuses an autofocus report it cannot read', () {
+      final host = _host();
+      addTearDown(host.container.dispose);
+      var malformed = false;
+
+      final applied = applyClientRuntimeReport(
+        host.container,
+        channel: 'autofocusResult',
+        value: const {
+          'bestPosition': 2506,
+          'bestHfr': null,
+          'focusData': [],
+          'method': 'Hyperbolic',
+          'timestamp': 5,
+          'curveFitQuality': 0.95,
+          'backlashApplied': false,
+        },
+        origin: 'client-a',
+        onMalformed: () => malformed = true,
+      );
+
+      expect(applied, isFalse);
+      expect(malformed, isTrue);
+      expect(host.container.read(autofocusResultProvider), isNull);
+    });
+
     test('the host refuses reports for a host-only channel', () {
       final host = _host();
       addTearDown(host.container.dispose);
@@ -652,6 +678,115 @@ void main() {
       );
       expect(client.read(flipCurrentStepProvider), FlipStep.slewingToTarget);
       expect(client.read(flipProgressProvider), 40);
+    });
+
+    test('a centering run on the host shows on the client field for '
+        'field', () async {
+      final attempt = CenteringIteration(
+        iterationNumber: 2,
+        solvedRa: 5.5,
+        solvedDec: 22.0,
+        targetRa: 5.51,
+        targetDec: 22.01,
+        offsetArcsec: 40.0,
+        offsetArcmin: double.nan,
+        plateSolveSuccess: true,
+        errorMessage: 'slow solve',
+        timestamp: DateTime.utc(2026, 11, 22, 3, 4, 5),
+      );
+      final client = await roundTrip((host) {
+        host
+            .read(centeringRunProvider)
+            .adoptStatus(
+              CenteringStatus(
+                state: CenteringState.verifying,
+                currentIteration: 2,
+                maxIterations: 5,
+                currentOffsetArcsec: 40.0,
+                currentOffsetArcmin: double.infinity,
+                message: 'Verifying',
+                iterationHistory: [attempt],
+                lastImagePath: '/frames/center.fits',
+                solvedRa: 5.5,
+                solvedDec: 22.0,
+              ),
+            );
+      }, 'centeringStatus');
+      final status = client.read(centeringStatusProvider);
+      expect(status.state, CenteringState.verifying);
+      expect(status.currentIteration, 2);
+      expect(status.maxIterations, 5);
+      expect(status.currentOffsetArcsec, 40.0);
+      expect(status.currentOffsetArcmin, isNull);
+      expect(status.message, 'Verifying');
+      expect(status.lastImagePath, '/frames/center.fits');
+      expect(status.solvedRa, 5.5);
+      expect(status.solvedDec, 22.0);
+      final shown = status.iterationHistory.single;
+      expect(shown.iterationNumber, 2);
+      expect(shown.solvedRa, 5.5);
+      expect(shown.solvedDec, 22.0);
+      expect(shown.targetRa, 5.51);
+      expect(shown.targetDec, 22.01);
+      expect(shown.offsetArcsec, 40.0);
+      expect(shown.offsetArcmin, isNull);
+      expect(shown.plateSolveSuccess, isTrue);
+      expect(shown.errorMessage, 'slow solve');
+      expect(shown.timestamp.isAtSameMomentAs(attempt.timestamp), isTrue);
+
+      final resultClient = await roundTrip((host) {
+        host
+            .read(lastCenteringResultProvider.notifier)
+            .state = CenteringResult.failure(
+          errorMessage: 'No stars',
+          iterations: 2,
+          iterationHistory: [attempt],
+        );
+      }, 'centeringResult');
+      final result = resultClient.read(lastCenteringResultProvider)!;
+      expect(result.success, isFalse);
+      expect(result.iterations, 2);
+      expect(result.finalOffsetArcsec, isNull);
+      expect(result.errorMessage, 'No stars');
+      expect(result.iterationHistory.single.iterationNumber, 2);
+    });
+
+    test('an autofocus result reaches the client without its unmeasured '
+        'points', () async {
+      final client = await roundTrip((host) {
+        host
+            .read(autofocusResultProvider.notifier)
+            .state = const AutofocusResult(
+          bestPosition: 6620,
+          bestHfr: 2.94,
+          focusData: [
+            FocusDataPoint(position: 6500, hfr: 3.4, starCount: 40),
+            FocusDataPoint(position: 6560, hfr: double.nan, starCount: 0),
+            FocusDataPoint(
+              position: 6620,
+              hfr: 2.94,
+              fwhm: double.nan,
+              starCount: 52,
+            ),
+          ],
+          method: 'Hyperbolic',
+          temperature: double.nan,
+          timestamp: 7,
+          curveFitQuality: 0.97,
+          backlashApplied: true,
+        );
+      }, 'autofocusResult');
+      final result = client.read(autofocusResultProvider)!;
+      expect(result.bestPosition, 6620);
+      expect(result.bestHfr, 2.94);
+      expect(result.focusData.map((p) => p.position), [6500, 6620]);
+      expect(result.focusData.last.fwhm, isNull);
+      expect(result.focusData.last.starCount, 52);
+      expect(result.method, 'Hyperbolic');
+      expect(result.temperature, isNull);
+      expect(result.timestamp, 7);
+      expect(result.curveFitQuality, 0.97);
+      expect(result.backlashApplied, isTrue);
     });
 
     test('an autofocus run that ended in the other window ends here', () async {

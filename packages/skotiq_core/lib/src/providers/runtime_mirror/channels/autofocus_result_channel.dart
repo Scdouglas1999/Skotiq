@@ -19,28 +19,17 @@ class AutofocusResultChannel extends RuntimeMirrorChannel<AutofocusResult?> {
   @override
   bool get clientReports => true;
 
+  /// A point with no measured HFR is not on the curve and is left out.
   @override
   Map<String, dynamic>? encode(AutofocusResult? value) {
     if (value == null) return null;
-    return {
-      'bestPosition': value.bestPosition,
-      'bestHfr': finiteOrNull(value.bestHfr),
+    return finiteJson({
+      ...value.toJson(),
       'focusData': [
         for (final p in value.focusData)
-          if (finiteOrNull(p.hfr) != null)
-            {
-              'position': p.position,
-              'hfr': p.hfr,
-              'fwhm': finiteOrNull(p.fwhm),
-              'starCount': p.starCount,
-            },
+          if (p.hfr.isFinite) p.toJson(),
       ],
-      'method': value.method,
-      'temperature': finiteOrNull(value.temperature),
-      'timestamp': value.timestamp,
-      'curveFitQuality': finiteOrNull(value.curveFitQuality),
-      'backlashApplied': value.backlashApplied,
-    };
+    });
   }
 
   @override
@@ -49,8 +38,8 @@ class AutofocusResultChannel extends RuntimeMirrorChannel<AutofocusResult?> {
     if (value != null) {
       try {
         decoded = AutofocusResult.fromJson(value);
-      } on Object {
-        return;
+      } on Object catch (e) {
+        throw FormatException('Autofocus result could not be read: $e');
       }
     }
     context.read(autofocusResultProvider.notifier).state = decoded;

@@ -167,7 +167,7 @@ String _smartFilters(SmartExposureNode node) {
 /// The Count column for a planned capture.
 ///
 /// A `+` suffix marks a figure that is a floor rather than the plan: under a
-/// non-`count` loop the walk deliberately counts one pass (the rest of the app
+/// loop with no fixed passes the walk counts one pass (the rest of the app
 /// says "per pass"), and an open-ended SmartExposure contributes no fixed
 /// frames at all. An em dash is the honest answer when the only imager is
 /// open-ended — there is no number to print, and `0` would be a lie.

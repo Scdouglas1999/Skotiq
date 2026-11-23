@@ -50,15 +50,7 @@ SmartNightPlan smartNightPlanWithCountChange(
         (s, fp) => s + fp.integrationSecs,
       );
       newPlannedTargets.add(
-        SmartNightPlannedTarget(
-          suggestion: p.suggestion,
-          windowStart: p.windowStart,
-          windowEnd: p.windowEnd,
-          filterPlans: updatedFilters,
-          integrationSecs: newIntegration,
-          rationale: p.rationale,
-          filterReason: p.filterReason,
-        ),
+        p.withFilterPlans(updatedFilters, integrationSecs: newIntegration),
       );
     } else {
       newPlannedTargets.add(p);

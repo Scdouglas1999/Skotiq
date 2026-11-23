@@ -87,7 +87,7 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
     next,
   ) {
     next.whenData((event) {
-      final mapped = _mapEventToTrigger(event);
+      final mapped = schedulerTriggerFor(event);
       if (mapped != null) controller.add(mapped);
     });
   });
@@ -98,35 +98,31 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
   return controller.stream;
 });
 
-SchedulerTriggerEvent? _mapEventToTrigger(SkotiqEvent event) {
+/// The scheduler trigger [event] raises, or null when it raises none.
+SchedulerTriggerEvent? schedulerTriggerFor(SkotiqEvent event) {
   switch (event.category) {
     case EventCategory.safety:
       return SchedulerTriggerEvent.weatherChange;
     case EventCategory.guiding:
-      // The payload distinguishes loss vs recovery; we surface both as
-      // discrete triggers so the engine can react. A finer-grained
-      // mapping can be added when the payload accessor is stable.
-      final payload = event.payload;
-      if (payload is EventPayload_Guiding) {
-        final name = payload.field0.toString().toLowerCase();
-        if (name.contains('lost') || name.contains('stopped')) {
-          return SchedulerTriggerEvent.guidingLost;
-        }
-        if (name.contains('settled') || name.contains('started')) {
-          return SchedulerTriggerEvent.guidingRecovered;
-        }
-      }
-      return null;
+      return switch (event.payload) {
+        EventPayload_Guiding(
+          field0: GuidingEvent_GuidingStopped() || GuidingEvent_LostStar(),
+        ) =>
+          SchedulerTriggerEvent.guidingLost,
+        EventPayload_Guiding(
+          field0: GuidingEvent_GuidingStarted() || GuidingEvent_Settled(),
+        ) =>
+          SchedulerTriggerEvent.guidingRecovered,
+        _ => null,
+      };
     case EventCategory.equipment:
-      final payload = event.payload;
-      if (payload is EventPayload_Equipment) {
-        final name = payload.field0.toString().toLowerCase();
-        if (name.contains('parked')) return SchedulerTriggerEvent.mountParked;
-        if (name.contains('unparked')) {
-          return SchedulerTriggerEvent.mountUnparked;
-        }
-      }
-      return null;
+      // A finished park raises no trigger: an evaluation right after an
+      // operator or safety park could dispatch a target and unpark the mount.
+      return switch (event.payload) {
+        EventPayload_Equipment(field0: EquipmentEvent_MountUnparked()) =>
+          SchedulerTriggerEvent.mountUnparked,
+        _ => null,
+      };
     case EventCategory.sequencer:
       // A natural whole-sequence completion means the autopilot's dispatched
       // work for the current target finished. Without reacting, the rig sits

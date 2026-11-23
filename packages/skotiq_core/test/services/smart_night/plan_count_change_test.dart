@@ -106,6 +106,32 @@ void main() {
     expect(step.integrationBudgetSecs, changed.integrationSecs);
   });
 
+  test('a count change keeps the filter set offered beside the plan', () {
+    final built = plan();
+    final offered = SmartNightPlannedTarget.fromJson({
+      ...built.plannedTargets.first.toJson(),
+      'filterSuggestion': 'Add Ha for the nebulae in the field',
+    });
+    final before = SmartNightPlan(
+      sequence: built.sequence,
+      plannedTargets: [offered, ...built.plannedTargets.skip(1)],
+      totalIntegrationSecs: built.totalIntegrationSecs,
+      estimatedWallClockSecs: built.estimatedWallClockSecs,
+      warnings: built.warnings,
+      strategy: built.strategy,
+      settings: built.settings,
+      context: built.context,
+    );
+
+    final after = smartNightPlanWithCountChange(before, offered, 0, 1);
+
+    expect(
+      after.plannedTargets.first.filterSuggestion,
+      'Add Ha for the nebulae in the field',
+    );
+    expect(after.plannedTargets.first.filterReason, offered.filterReason);
+  });
+
   test('a count takes the exposure editors\' range, 1 to 9999', () {
     final before = plan();
     final target = before.plannedTargets.first;

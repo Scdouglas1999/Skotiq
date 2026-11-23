@@ -25,6 +25,24 @@ class CenteringResult {
     'iterationHistory': [for (final i in iterationHistory) i.toJson()],
   };
 
+  /// Reads a [toJson] map. Throws [FormatException] when it has no attempt
+  /// count.
+  factory CenteringResult.fromJson(Map<Object?, Object?> json) {
+    final iterations = json['iterations'];
+    if (iterations is! int) {
+      throw const FormatException('Centering result has no "iterations"');
+    }
+    final offset = json['finalOffsetArcsec'];
+    final error = json['errorMessage'];
+    return CenteringResult(
+      success: json['success'] == true,
+      finalOffsetArcsec: offset is num ? offset.toDouble() : null,
+      iterations: iterations,
+      errorMessage: error is String ? error : null,
+      iterationHistory: iterationsFromJson(json),
+    );
+  }
+
   /// The attempts in a [toJson] map that carry an attempt number. An entry
   /// without one, or a map without the list, gives no attempts.
   static List<CenteringIteration> iterationsFromJson(
@@ -229,6 +247,51 @@ class CenteringStatus {
       lastImagePath: lastImagePath ?? this.lastImagePath,
       solvedRa: solvedRa ?? this.solvedRa,
       solvedDec: solvedDec ?? this.solvedDec,
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'state': state.name,
+    'currentIteration': currentIteration,
+    'maxIterations': maxIterations,
+    'currentOffsetArcsec': currentOffsetArcsec,
+    'currentOffsetArcmin': currentOffsetArcmin,
+    'message': message,
+    'iterationHistory': [for (final i in iterationHistory) i.toJson()],
+    'lastImagePath': lastImagePath,
+    'solvedRa': solvedRa,
+    'solvedDec': solvedDec,
+  };
+
+  /// Reads a [toJson] map; an unknown state reads as idle. Throws
+  /// [FormatException] when it has no attempt counts.
+  factory CenteringStatus.fromJson(Map<Object?, Object?> json) {
+    int count(String key) => switch (json[key]) {
+      final int value => value,
+      _ => throw FormatException('Centering status has no "$key"'),
+    };
+    double? real(String key) => switch (json[key]) {
+      final num value => value.toDouble(),
+      _ => null,
+    };
+    String? text(String key) => switch (json[key]) {
+      final String value => value,
+      _ => null,
+    };
+    return CenteringStatus(
+      state: CenteringState.values.firstWhere(
+        (s) => s.name == json['state'],
+        orElse: () => CenteringState.idle,
+      ),
+      currentIteration: count('currentIteration'),
+      maxIterations: count('maxIterations'),
+      currentOffsetArcsec: real('currentOffsetArcsec'),
+      currentOffsetArcmin: real('currentOffsetArcmin'),
+      message: text('message'),
+      iterationHistory: CenteringResult.iterationsFromJson(json),
+      lastImagePath: text('lastImagePath'),
+      solvedRa: real('solvedRa'),
+      solvedDec: real('solvedDec'),
     );
   }
 

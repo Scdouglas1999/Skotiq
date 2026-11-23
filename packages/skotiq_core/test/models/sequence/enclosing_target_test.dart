@@ -38,8 +38,9 @@ void main() {
     expect(sequence.enclosingTarget('missing'), isNull);
   });
 
-  test('any target above with an end condition bounds the node', () {
-    expect(sequence.isBoundedByTargetWindow('exp'), isTrue);
+  test('the nearest target above decides whether a window bounds the node', () {
+    expect(sequence.isBoundedByTargetWindow('inner'), isTrue);
+    expect(sequence.isBoundedByTargetWindow('exp'), isFalse);
     expect(sequence.isBoundedByTargetWindow('loose'), isFalse);
   });
 

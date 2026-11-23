@@ -1,12 +1,18 @@
 // A loop's length as each reader gives it for the same tree: the Builder's
-// tree rollup, the plan's integration estimate, and the timeline walk. The
-// pass count of a loop that fixes one comes from one rule (`loopPasses`).
+// tree rollup, the plan's integration estimate, the timeline walk, the
+// planned frame count and the disk projection. The pass count of a loop that
+// fixes one comes from one rule (`loopPasses`).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 
 const _estimator = SequenceTimeEstimator();
+const _camera = CameraCapabilities(
+  maxWidth: 1000,
+  maxHeight: 1000,
+  bitDepth: 16,
+);
 
 /// A plan of [loop] holding one 5 x 60 s exposure (and [extra] children),
 /// under a root.
@@ -45,6 +51,8 @@ class _Case {
     required this.integration,
     required this.unbounded,
     required this.timeline,
+    required this.frames,
+    required this.framesArePerPass,
   });
 
   final String name;
@@ -59,6 +67,13 @@ class _Case {
 
   /// `estimateTotalDuration` in seconds.
   final double timeline;
+
+  /// The planned frames ([plannedCaptureUnder]), which the disk projection
+  /// also counts.
+  final int frames;
+
+  /// [PlannedCapture.hasUnboundedRepeat]: [frames] is one pass, not the total.
+  final bool framesArePerPass;
 }
 
 void main() {
@@ -83,6 +98,8 @@ void main() {
       integration: 900,
       unbounded: false,
       timeline: 3 * pass,
+      frames: 15,
+      framesArePerPass: false,
     ),
     _Case(
       'count with no repeat count',
@@ -92,6 +109,8 @@ void main() {
       integration: 300,
       unbounded: false,
       timeline: pass,
+      frames: 5,
+      framesArePerPass: false,
     ),
     _Case(
       'count 0',
@@ -106,6 +125,8 @@ void main() {
       integration: 0,
       unbounded: false,
       timeline: pass,
+      frames: 0,
+      framesArePerPass: false,
     ),
     // The executor repeats an integration-time loop while the run's
     // integration is short of the target, so the loop takes several passes
@@ -123,6 +144,8 @@ void main() {
       integration: 1500,
       unbounded: false,
       timeline: 5 * pass,
+      frames: 25,
+      framesArePerPass: false,
     ),
     _Case(
       'integration time 1000 s rounds up to 4 passes',
@@ -137,6 +160,8 @@ void main() {
       integration: 1200,
       unbounded: false,
       timeline: 4 * pass,
+      frames: 20,
+      framesArePerPass: false,
     ),
     _Case(
       'integration time with no target',
@@ -147,6 +172,8 @@ void main() {
       integration: 300,
       unbounded: true,
       timeline: pass,
+      frames: 5,
+      framesArePerPass: true,
     ),
     _Case(
       'integration time counts only enabled exposures',
@@ -164,6 +191,8 @@ void main() {
       integration: 1500,
       unbounded: false,
       timeline: 5 * pass,
+      frames: 25,
+      framesArePerPass: false,
     ),
     _Case(
       'forever',
@@ -174,6 +203,8 @@ void main() {
       integration: 300,
       unbounded: true,
       timeline: pass,
+      frames: 5,
+      framesArePerPass: true,
     ),
     _Case(
       'until a time that has passed',
@@ -188,6 +219,8 @@ void main() {
       integration: 300,
       unbounded: false,
       timeline: 0,
+      frames: 5,
+      framesArePerPass: true,
     ),
     _Case(
       'until a time two hours away',
@@ -202,6 +235,8 @@ void main() {
       integration: 7200 ~/ 300 * 300,
       unbounded: false,
       timeline: 7200,
+      frames: 5,
+      framesArePerPass: true,
     ),
   ];
 
@@ -227,6 +262,18 @@ void main() {
       );
       expect(estimate.isUnbounded, c.unbounded, reason: 'unbounded');
       expect(timeline, closeTo(c.timeline, 2), reason: 'timeline');
+      final planned = plannedCaptureUnder(sequence, 'root');
+      expect(planned.frames, c.frames, reason: 'planned frames');
+      expect(
+        planned.hasUnboundedRepeat,
+        c.framesArePerPass,
+        reason: 'frames per pass',
+      );
+      expect(
+        DiskSpaceGuardService.projectSequenceBytes(sequence, _camera),
+        c.frames * (1000 * 1000 * 2 + 65536),
+        reason: 'disk projection',
+      );
     });
   }
 }

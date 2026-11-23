@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' show PlateSolveResult;
 
 import '../errors/error_text.dart';
+import '../models/sequence/sequence_models.dart' show NodeStatus;
 import '../models/sequence/instruction_progress_detail.dart'
     show CenterInstructionProgressDetail;
 import '../services/centering_service.dart';
@@ -140,9 +141,10 @@ class CenteringRun {
     );
   }
 
-  /// A run's native Center step ended with node status [status].
-  void finishRunStep(String status) {
-    final failed = status != 'success' && status != 'cancelled';
+  /// A run's native Center step ended with [status]. Only a failure is a
+  /// centering error; a step stopped or skipped part way keeps its last solve.
+  void finishRunStep(NodeStatus status) {
+    final failed = status == NodeStatus.failure;
     final current = _status.state;
     _status.state = CenteringStatus(
       state: failed ? CenteringState.error : CenteringState.completed,

@@ -24,8 +24,9 @@ extension NodeFrames on SequenceNode {
 
 /// What a subtree plans to capture.
 ///
-/// A `count` loop multiplies its subtree by its repeat count. Every other
-/// loop keeps the single-pass figure (a total is never unbounded) and sets
+/// A loop whose condition fixes its passes ([loopPasses]: a repeat count, or
+/// an integration target) multiplies its subtree by them. Every other loop
+/// keeps the single-pass figure (a total is never unbounded) and sets
 /// [hasUnboundedRepeat], so a caller can say the figure is a per-pass floor.
 /// Disabled steps contribute nothing.
 class PlannedCapture {
@@ -46,9 +47,9 @@ class PlannedCapture {
   /// Integration budget of those open-ended nodes, in seconds (0 = uncapped).
   final double openEndedBudgetSecs;
 
-  /// True when a non-`count` loop (until-time / altitude / forever / while
-  /// dark / integration-time) wraps part of the subtree, which makes
-  /// [frames] a single-pass floor rather than the total.
+  /// True when a loop with no fixed passes (until-time / altitude / forever /
+  /// while dark, or an integration time it cannot reach) wraps part of the
+  /// subtree, which makes [frames] a single-pass floor rather than the total.
   final bool hasUnboundedRepeat;
 
   const PlannedCapture({
@@ -113,8 +114,9 @@ PlannedCapture plannedCaptureUnder(Sequence sequence, String rootId) {
 
     var childMult = mult;
     if (node is LoopNode) {
-      if (node.conditionType == LoopConditionType.count) {
-        childMult = mult * (node.repeatCount ?? 1);
+      final passes = loopPasses(node, sequence.nodes);
+      if (passes != null) {
+        childMult = mult * passes;
       } else if (node.childIds.isNotEmpty) {
         hasUnboundedRepeat = true;
       }
