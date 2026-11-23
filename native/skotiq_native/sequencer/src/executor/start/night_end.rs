@@ -506,4 +506,34 @@ mod tests {
         assert!(!ends_the_night("weather_unsafe"));
         assert!(!ends_the_night("guide_star_lost"));
     }
+
+    const WIRE_WORDS_FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/wire_words/sequence_metadata.json"
+    );
+
+    /// `test_fixtures/wire_words/sequence_metadata.json`: the sequence
+    /// metadata keys the app writes for the executor to read. Regenerate with
+    /// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer sequence_metadata_wire_words`.
+    #[test]
+    fn sequence_metadata_wire_words_fixture() {
+        let value = serde_json::json!({
+            "deferShutdownWarmUp": DEFER_SHUTDOWN_WARM_UP_METADATA_KEY,
+        });
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let path = std::path::Path::new(WIRE_WORDS_FIXTURE);
+            std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(path, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(WIRE_WORDS_FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "a sequence metadata key changed; regenerate the fixture and update the app"
+        );
+    }
 }

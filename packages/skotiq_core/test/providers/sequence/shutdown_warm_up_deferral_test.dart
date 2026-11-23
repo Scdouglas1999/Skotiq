@@ -4,6 +4,7 @@
 // recovery and flip watchers by), so the app only asks for the deferral and
 // marks no step itself.
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,7 +49,24 @@ bool _nodeDefers(Map<String, dynamic> wire, String id) {
   return (node['node_type'] as Map)['defer_to_calibration'] == true;
 }
 
+/// The metadata key the native sequencer reads, as a Rust test writes it.
+String _nativeDeferKey() =>
+    (jsonDecode(
+              File(
+                '../../test_fixtures/wire_words/sequence_metadata.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>)['deferShutdownWarmUp']
+        as String;
+
 void main() {
+  test('the deferral is asked for under the key the sequencer reads', () {
+    expect(
+      _wire(defer: true)['metadata'],
+      containsPair(_nativeDeferKey(), 'true'),
+    );
+  });
+
   test('a run before end-of-night calibration asks the sequencer to defer '
       'its shutdown warm-up', () {
     final wire = _wire(defer: true);
