@@ -1186,9 +1186,9 @@ List<_Violation> _checkAppFeedback(List<String> files) {
 // leaf-logger
 
 /// A `package:logging` logger built in code: `Logger(` or `Logger.detached(`,
-/// with the start of its first argument.
+/// prefixed or not, with the start of its first argument.
 final _loggerConstruction = RegExp(
-  r'''(?<![\w.])Logger(\.detached)?\(\s*(['"]skotiq\.)?''',
+  r'''(?<!\w)Logger(\.detached)?\(\s*(['"]skotiq\.)?''',
 );
 
 final _libraryCode = RegExp(r'^(?:packages|apps)/[^/]+/lib/');

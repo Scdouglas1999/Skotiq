@@ -941,7 +941,8 @@ Future<void> main() async {
             'final _quiet = Logger.detached(\'skotiq.Quiet\');\n'
             'final _built = Logger(\n'
             "  ['skotiq', id].join('.'),\n"
-            ');\n',
+            ');\n'
+            "final _prefixed = logging.Logger('Catalog');\n",
       );
       await _write(
         root,
@@ -955,6 +956,7 @@ Future<void> main() async {
       'catalog.dart:1: names a logger outside skotiq.',
       'catalog.dart:2: builds a detached logger',
       'catalog.dart:3: names a logger outside skotiq.',
+      'catalog.dart:6: names a logger outside skotiq.',
       'host.dart:1: names a logger outside skotiq.',
       "Where it goes instead: Name it Logger('skotiq.<Name>')",
     ],
@@ -970,7 +972,8 @@ Future<void> main() async {
           'final _wrapped = Logger(\n'
           '  "skotiq.Plugin.\${id}",\n'
           ');\n'
-          'final root = Logger.root;\n'
+          "final _prefixed = logging.Logger('skotiq.Catalog');\n"
+          'final root = logging.Logger.root;\n'
           'Logger _pluginLogger(String id) => _log;\n'
           'final c = ConsolePluginLogger(id);\n'
           "// Logger('Example') in a comment.\n",
