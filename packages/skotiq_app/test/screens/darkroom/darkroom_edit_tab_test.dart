@@ -20,6 +20,7 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart';
+import '../../harness/args_fixture.dart';
 
 /// A seam that answers the registry with a scripted composite plan and refuses
 /// every render, so an editor opened here shows its error state rather than
@@ -31,6 +32,7 @@ class _CombineSeam implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     final reply = answer;
     // Through JSON, as the native reply arrives: nested maps are then
     // Map<String, dynamic>, which is what the decoders check for.

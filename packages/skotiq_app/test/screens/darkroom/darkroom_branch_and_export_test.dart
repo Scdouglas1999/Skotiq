@@ -42,6 +42,7 @@ import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
+import '../../harness/args_fixture.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -150,6 +151,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
     required Map<String, dynamic> args,
   }) async {
     exportArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_render_export']);
     exportRecipes.add(recipeJson);
     final hold = holdExport;
     if (hold != null) {
@@ -209,6 +211,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
     cancelArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     return {'renderId': args['renderId'], 'running': true};
   }
 }

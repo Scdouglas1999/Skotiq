@@ -1412,5 +1412,8 @@ mod args_fixture_tests {
         crate::args_fixtures::check_or_write_args::<super::MasterBuildArgs>(
             "master_accumulate_build",
         );
+        crate::args_fixtures::check_or_write_args::<super::BuildReferenceArgs>(
+            "master_accumulate_check_calibration",
+        );
     }
 }

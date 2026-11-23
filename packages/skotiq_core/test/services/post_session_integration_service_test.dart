@@ -57,7 +57,7 @@ class FakePostSessionSeam implements PostSessionSeam {
     integrateCalls.add(args);
     // The finishing knobs ride in the settings for this service's own
     // finishing steps; the native integration does not read them.
-    expectNativeReadsEveryKey(
+    expectNativeReadsEveryKeyAtEnd(
       args,
       ['integrate_session'],
       notRead: {'settings.finishing'},
@@ -100,7 +100,7 @@ class FakePostSessionSeam implements PostSessionSeam {
       // An add carries the whole integration settings block; as for
       // integrateSession, the native side does not read its finishing knobs.
       final settings = args['settings'];
-      expectNativeReadsEveryKey(
+      expectNativeReadsEveryKeyAtEnd(
         args,
         ['master_accumulate_op', 'master_accumulate_$op'],
         notRead: {
@@ -134,7 +134,7 @@ class FakePostSessionSeam implements PostSessionSeam {
     Map<String, dynamic> args,
   ) async {
     flatCalls.add(args);
-    expectNativeReadsEveryKey(args, ['build_master_flat']);
+    expectNativeReadsEveryKeyAtEnd(args, ['build_master_flat']);
     return BuildMasterFlatResult(
       outputPath: args['outputPath'] as String,
       frameCount: (args['flatPaths'] as List).length,
@@ -149,7 +149,7 @@ class FakePostSessionSeam implements PostSessionSeam {
 
   @override
   Future<SaveFitsMasterResult> saveFitsMaster(Map<String, dynamic> args) async {
-    expectNativeReadsEveryKey(args, ['save_fits_master']);
+    expectNativeReadsEveryKeyAtEnd(args, ['save_fits_master']);
     return SaveFitsMasterResult(
       outputPath: args['outputPath'] as String,
       width: args['width'] as int? ?? 0,
@@ -214,6 +214,9 @@ class FakePostSessionSeam implements PostSessionSeam {
       weights: weights,
       exposuresS: exposuresS,
     ));
+    // The seam builds the request around these lists; each quality record
+    // is the service's own.
+    expectNativeReadsEveryKeyAtEnd({'qualities': qualities}, ['analyze_night']);
     if (useRealOptimizer) {
       return _realIntegrationCurve(qualities, weights, exposuresS);
     }
@@ -314,21 +317,21 @@ class FakePostSessionSeam implements PostSessionSeam {
   @override
   Future<String> extractBackground(Map<String, dynamic> args) async {
     finishingCalls['extractBackground']!.add(args);
-    expectNativeReadsEveryKey(args, ['extract_background']);
+    expectNativeReadsEveryKeyAtEnd(args, ['extract_background']);
     return args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
   }
 
   @override
   Future<String> deconvolvePreview(Map<String, dynamic> args) async {
     finishingCalls['deconvolvePreview']!.add(args);
-    expectNativeReadsEveryKey(args, ['deconvolve_preview']);
+    expectNativeReadsEveryKeyAtEnd(args, ['deconvolve_preview']);
     return args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
   }
 
   @override
   Future<String> reduceStarsPreview(Map<String, dynamic> args) async {
     finishingCalls['reduceStarsPreview']!.add(args);
-    expectNativeReadsEveryKey(args, ['reduce_stars_preview']);
+    expectNativeReadsEveryKeyAtEnd(args, ['reduce_stars_preview']);
     return args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
   }
 
@@ -340,7 +343,7 @@ class FakePostSessionSeam implements PostSessionSeam {
     Map<String, dynamic> args,
   ) async {
     drizzleCalls.add(args);
-    expectNativeReadsEveryKey(args, ['drizzle_integrate']);
+    expectNativeReadsEveryKeyAtEnd(args, ['drizzle_integrate']);
     final scale =
         ((args['config'] as Map?)?['scale'] as num?)?.toDouble() ?? 2.0;
     final refW = (args['refW'] as num?)?.toInt() ?? 0;
@@ -366,7 +369,7 @@ class FakePostSessionSeam implements PostSessionSeam {
   @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async {
     stitchCalls.add(args);
-    expectNativeReadsEveryKey(args, ['stitch_mosaic']);
+    expectNativeReadsEveryKeyAtEnd(args, ['stitch_mosaic']);
     if (stitchResult != null) return stitchResult!;
     final output =
         (args['output'] as Map?)?.cast<String, dynamic>() ??

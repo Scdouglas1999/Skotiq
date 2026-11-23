@@ -26,6 +26,7 @@ import 'package:skotiq_core/services.dart';
 import 'darkroom_scratch.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
+import '../../harness/args_fixture.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -228,6 +229,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     final reply = <String, dynamic>{
       'schemaVersion': 1,
       'ops': [
@@ -296,6 +298,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
     cancelArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     return {
       'renderId': args['renderId'],
       'op': args['op'],

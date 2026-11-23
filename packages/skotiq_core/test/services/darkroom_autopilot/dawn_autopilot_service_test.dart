@@ -23,6 +23,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/utils.dart';
 
+import '../../harness/args_fixture.dart';
+
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
   _ScriptedDarkroom({required this.baseMasterRef});
@@ -107,6 +109,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     await beforeRegistry?.call();
     registryCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     if (args['composite'] != null) {
       final reply = compositeReply?.call(args);
       if (reply != null) return reply;
@@ -194,6 +197,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
     required Map<String, dynamic> args,
   }) async {
     exportArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_render_export']);
     final error = exportError;
     if (error != null) {
       exportError = null;
@@ -219,6 +223,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
     cancelArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     return {
       'renderId': args['renderId'],
       'op': args['op'],
