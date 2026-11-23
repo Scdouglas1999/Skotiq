@@ -188,7 +188,7 @@ abstract interface class NightActionApi {
   Future<void> snapshot();
 
   /// Starts looping, or stops a running loop. During a run the loop holds
-  /// the run paused ([NightRunPhase.pausedForAction]) until it stops.
+  /// the run paused (Tonight's paused-for-action phase) until it stops.
   Future<void> toggleLoop();
 
   Future<void> autofocus();
@@ -224,7 +224,7 @@ abstract interface class NightActionApi {
   Future<void> cancel();
 
   /// When an armed "Start at dark" fires; null when not armed. The same
-  /// value as [NightHeaderVm.armedStartAt].
+  /// value as the Tonight header's armed start time.
   DateTime? get armedStartAt;
 
   /// Arms the run to start at tonight's astronomical dark. Held in this app

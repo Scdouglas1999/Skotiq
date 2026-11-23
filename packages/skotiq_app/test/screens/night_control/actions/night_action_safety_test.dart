@@ -226,9 +226,7 @@ void main() {
 
   test('no file of the action package can park or stop a run', () {
     final files = [
-      ...Directory('lib/services/night_actions')
-          .listSync()
-          .whereType<File>(),
+      ...Directory('lib/services/night_actions').listSync().whereType<File>(),
       File('lib/services/manual_capture_controller.dart'),
     ];
     expect(files.length, greaterThan(4));
