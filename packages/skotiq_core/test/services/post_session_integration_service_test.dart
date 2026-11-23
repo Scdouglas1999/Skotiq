@@ -214,6 +214,9 @@ class FakePostSessionSeam implements PostSessionSeam {
       weights: weights,
       exposuresS: exposuresS,
     ));
+    // The seam builds the request around these lists; each quality record
+    // is the service's own.
+    expectNativeReadsEveryKey({'qualities': qualities}, ['analyze_night']);
     if (useRealOptimizer) {
       return _realIntegrationCurve(qualities, weights, exposuresS);
     }

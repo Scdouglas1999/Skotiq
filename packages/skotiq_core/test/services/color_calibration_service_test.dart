@@ -6,6 +6,8 @@ import 'package:skotiq_core/src/services/post_session_seam.dart';
 import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
+import '../harness/args_fixture.dart';
+
 /// Minimal scriptable [PostSessionSeam]: records the photometry + calibrate
 /// calls and returns canned results. Only the two methods the colour-cal
 /// service uses are meaningful; the rest throw if ever reached.
@@ -32,6 +34,12 @@ class _FakeSeam implements PostSessionSeam {
     required List<Map<String, dynamic>> matchedStars,
   }) async {
     lastMatchedStars = matchedStars;
+    // The seam builds the request around this list; each match is the
+    // service's own.
+    expectNativeReadsEveryKey(
+      {'matchedStars': matchedStars},
+      ['color_calibrate'],
+    );
     lastChannels = channels;
     return ColorCalibrationResult(
       outputPath: outputFits,

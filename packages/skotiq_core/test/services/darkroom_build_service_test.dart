@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show RustLib, RustLibApi;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/services/calibration/calibration_frame_groups.dart';
 import 'package:skotiq_core/src/services/frame_header.dart';
@@ -47,6 +50,19 @@ DbCapturedImage _image(
   createdAt: at,
   isAccepted: true,
 );
+
+class _RecordingCancel extends Mock implements RustLibApi {
+  _RecordingCancel(this.cancels);
+  final List<Map<String, dynamic>> cancels;
+
+  @override
+  Future<String> crateApiPostSessionEntrypointsApiPostSessionCancel({
+    required String argsJson,
+  }) async {
+    cancels.add(jsonDecode(argsJson) as Map<String, dynamic>);
+    return jsonEncode(replyFixture('post_session_cancel'));
+  }
+}
 
 void main() {
   late SkotiqDatabase db;
@@ -522,6 +538,32 @@ void main() {
   });
 
   group('run', () {
+    test('stopping a running build asks the native side to cancel its run '
+        'in the keys it reads', () async {
+      final cancels = <Map<String, dynamic>>[];
+      RustLib.initMock(api: _RecordingCancel(cancels));
+      addTearDown(RustLib.dispose);
+      final preview = await service.previewRegistration(plan);
+      native.buildGate = Completer<void>();
+      final running = service.run(
+        plan,
+        Directory('${folder.path}/run'),
+        accepted: preview,
+      );
+      await native.buildStarted.future;
+      final runId = native.requests.lastWhere(
+        (r) => r['op'] == 'build',
+      )['runId'];
+      await service.stop();
+      native.buildGate!.complete();
+      await running.then((_) {}, onError: (_) {});
+
+      expect(cancels, [
+        {'runId': runId, 'op': 'cancel'},
+      ]);
+      expectNativeReadsEveryKey(cancels.single, ['post_session_cancel']);
+    });
+
     test(
       'resume reuses finished filters, exports once and persists masters idempotently',
       () async {
