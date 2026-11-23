@@ -2,7 +2,7 @@ part of '../scheduler_engine.dart';
 
 extension _SchedulerEngineScoring on SchedulerEngine {
   TargetScore _scoreCandidate(SchedulerCandidate c, DateTime now) {
-    final rejections = <String>[];
+    final rejections = <SchedulerRejection>[];
 
     final (alt, az) = AstronomyCalculations.objectAltAz(
       raDeg: c.raHours * 15.0,
@@ -16,10 +16,19 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     final floor = _floor;
     final floorDeg = floor.atAzimuth(az);
     if (alt < floorDeg) {
+      final printedAlt = alt.toStringAsFixed(1);
       rejections.add(
         floor.followsHorizon
-            ? 'altitude ${alt.toStringAsFixed(1)}° below horizon profile "Site horizon" (${floorDeg.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)'
-            : 'altitude ${alt.toStringAsFixed(1)}° below site minimum ${floorDeg.toStringAsFixed(1)}°',
+            ? SchedulerRejection(
+                kind: SchedulerRejectionKind.behindHorizonProfile,
+                reason:
+                    'altitude $printedAlt° below horizon profile "Site horizon" (${floorDeg.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)',
+              )
+            : SchedulerRejection.belowFloor(
+                printedAltitude: double.parse(printedAlt),
+                reason:
+                    'altitude $printedAlt° below site minimum ${floorDeg.toStringAsFixed(1)}°',
+              ),
       );
     }
 
@@ -35,7 +44,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     );
     if (sunAlt > _config.maxSunAltitudeDegrees) {
       rejections.add(
-        'Sun ${sunAlt.toStringAsFixed(1)}° above darkness limit ${_config.maxSunAltitudeDegrees.toStringAsFixed(1)}°: too bright to image',
+        SchedulerRejection(
+          kind: SchedulerRejectionKind.other,
+          reason:
+              'Sun ${sunAlt.toStringAsFixed(1)}° above darkness limit ${_config.maxSunAltitudeDegrees.toStringAsFixed(1)}°: too bright to image',
+        ),
       );
     }
 
@@ -53,7 +66,12 @@ extension _SchedulerEngineScoring on SchedulerEngine {
         .where((p) => p.remainingFrames > 0)
         .toList();
     if (stillNeeded.isEmpty && c.goals.isNotEmpty) {
-      rejections.add('all integration goals complete');
+      rejections.add(
+        const SchedulerRejection(
+          kind: SchedulerRejectionKind.goalsComplete,
+          reason: 'all integration goals complete',
+        ),
+      );
     }
     final hasUsableGoal = stillNeeded.isEmpty
         ? c
@@ -66,8 +84,12 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           .toSet()
           .toList();
       rejections.add(
-        'required filter${missingFilters.length == 1 ? '' : 's'} not in '
-        'equipment wheel (${missingFilters.join(", ")})',
+        SchedulerRejection(
+          kind: SchedulerRejectionKind.filterMissing,
+          reason:
+              'required filter${missingFilters.length == 1 ? '' : 's'} not in '
+              'equipment wheel (${missingFilters.join(", ")})',
+        ),
       );
     }
 
@@ -80,7 +102,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           if (ct.timeWindow != null &&
               !ct.timeWindow!.containsLocal(localTime)) {
             rejections.add(
-              'outside time window ${ct.timeWindow!.startMinutes ~/ 60}:${(ct.timeWindow!.startMinutes % 60).toString().padLeft(2, '0')}-${ct.timeWindow!.endMinutes ~/ 60}:${(ct.timeWindow!.endMinutes % 60).toString().padLeft(2, '0')}',
+              SchedulerRejection(
+                kind: SchedulerRejectionKind.outsideTimeWindow,
+                reason:
+                    'outside time window ${ct.timeWindow!.startMinutes ~/ 60}:${(ct.timeWindow!.startMinutes % 60).toString().padLeft(2, '0')}-${ct.timeWindow!.endMinutes ~/ 60}:${(ct.timeWindow!.endMinutes % 60).toString().padLeft(2, '0')}',
+              ),
             );
           }
           break;
@@ -89,7 +115,11 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           if (ct.moonIlluminationMax != null &&
               moonLitPercent / 100.0 > ct.moonIlluminationMax!) {
             rejections.add(
-              'moon illumination ${moonLitPercent.toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
+              SchedulerRejection(
+                kind: SchedulerRejectionKind.moonIllumination,
+                reason:
+                    'moon illumination ${moonLitPercent.toStringAsFixed(0)}% exceeds max ${(ct.moonIlluminationMax! * 100).toStringAsFixed(0)}%',
+              ),
             );
           }
           break;
@@ -103,9 +133,13 @@ extension _SchedulerEngineScoring on SchedulerEngine {
             );
             if (sep < minSep) {
               rejections.add(
-                'moon separation ${sep.toStringAsFixed(0)}° below minimum '
-                '${minSep.toStringAsFixed(0)}° '
-                '(moon ${AstronomyCalculations.moonIllumination(now).toStringAsFixed(0)}% lit)',
+                SchedulerRejection(
+                  kind: SchedulerRejectionKind.moonSeparation,
+                  reason:
+                      'moon separation ${sep.toStringAsFixed(0)}° below minimum '
+                      '${minSep.toStringAsFixed(0)}° '
+                      '(moon ${AstronomyCalculations.moonIllumination(now).toStringAsFixed(0)}% lit)',
+                ),
               );
             }
           }
@@ -114,13 +148,21 @@ extension _SchedulerEngineScoring on SchedulerEngine {
           final profile = c.horizonProfiles[ct.customHorizonId];
           if (profile == null) {
             rejections.add(
-              'horizon profile ${ct.customHorizonId} not loaded (orchestrator bug)',
+              SchedulerRejection(
+                kind: SchedulerRejectionKind.behindHorizonProfile,
+                reason:
+                    'horizon profile ${ct.customHorizonId} not loaded (orchestrator bug)',
+              ),
             );
           } else {
             final minAlt = profile.minAltitudeAt(az);
             if (alt < minAlt) {
               rejections.add(
-                'altitude ${alt.toStringAsFixed(1)}° below horizon profile "${profile.name}" (${minAlt.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)',
+                SchedulerRejection(
+                  kind: SchedulerRejectionKind.behindHorizonProfile,
+                  reason:
+                      'altitude ${alt.toStringAsFixed(1)}° below horizon profile "${profile.name}" (${minAlt.toStringAsFixed(1)}° at az ${az.toStringAsFixed(0)}°)',
+                ),
               );
             }
           }
@@ -140,8 +182,9 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     }
 
     // Compute factors regardless so the UI can show them even on rejected
-    // candidates.
-    final altitudeFactor = _altitudeFactor(alt, floorDeg);
+    // candidates. The target's floor is the site's with its step horizon.
+    final targetFloor = floor.withTargetHorizon(_stepHorizonOf(c));
+    final altitudeFactor = _altitudeFactor(alt, targetFloor.atAzimuth(az));
     final meridianFactor = _meridianFactor(raHours: c.raHours, now: now);
     final (moonFactor, moonDetail) = _moonFactor(
       raHours: c.raHours,
@@ -152,6 +195,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
       raHours: c.raHours,
       decDegrees: c.decDegrees,
       now: now,
+      floor: targetFloor,
     );
     final filterFactor = _filterCoverageFactor(
       remainingByGoal,
@@ -219,7 +263,7 @@ extension _SchedulerEngineScoring on SchedulerEngine {
       totalScore: total,
       factors: factors,
       hardConstraintFailed: rejections.isNotEmpty,
-      rejectionReasons: rejections,
+      rejections: rejections,
     );
   }
 
@@ -248,6 +292,19 @@ extension _SchedulerEngineScoring on SchedulerEngine {
       ra2Deg: moonRa,
       dec2Deg: moonDec,
     );
+  }
+
+  /// The horizon [c]'s step gives it, when an enabled constraint names a
+  /// loaded one.
+  HorizonProfile? _stepHorizonOf(SchedulerCandidate c) {
+    for (final ct in c.constraints) {
+      if (ct.enabled && ct.kind == TargetConstraintKind.customHorizon) {
+        if (c.horizonProfiles[ct.customHorizonId] case final profile?) {
+          return profile;
+        }
+      }
+    }
+    return null;
   }
 
   /// The site's altitude floor ([AltitudeFloor]): its horizon when one is
@@ -311,11 +368,13 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     required double raHours,
     required double decDegrees,
     required DateTime now,
+    required AltitudeFloor floor,
   }) {
     final endHorizon = _hoursUntilSettingBelowMin(
       raHours: raHours,
       decDegrees: decDegrees,
       now: now,
+      floor: floor,
     );
     final hours = endHorizon.clamp(0.0, 10.0);
     final factor = hours / 10.0;
@@ -328,8 +387,9 @@ extension _SchedulerEngineScoring on SchedulerEngine {
     required double raHours,
     required double decDegrees,
     required DateTime now,
+    required AltitudeFloor floor,
   }) {
-    final left = _floor.timeUntilBelow(
+    final left = floor.timeUntilBelow(
       raDeg: raHours * 15.0,
       decDeg: decDegrees,
       now: now,

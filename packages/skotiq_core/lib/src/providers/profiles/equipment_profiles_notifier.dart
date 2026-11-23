@@ -45,7 +45,8 @@ typedef _LocalProfiles = ({
   HostMutationEventHub hub,
 });
 
-class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
+class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState>
+    implements ProfileWriter {
   /// The linked host's profiles, or null when the profiles are in this
   /// process's database.
   _LinkedProfiles? get _remote {
@@ -63,30 +64,9 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     }
   }
 
-  Future<int?> _resolveRemoteProfileIdByName(
-    _LinkedProfiles remote,
-    String name, {
-    Set<int> excludingIds = const <int>{},
-  }) async {
-    final profiles = await remote.host.getProfiles();
-    _requireSameHost(remote);
-    final candidates = <int>[];
-    for (final profile in profiles) {
-      if (profile.name == name) {
-        final id = int.tryParse(profile.id);
-        if (id != null && id > 0 && !excludingIds.contains(id)) {
-          candidates.add(id);
-        }
-      }
-    }
-    // A name is not an identity. The compatibility fallback for older hosts
-    // is only safe when exactly one unseen row matches; otherwise fail loudly
-    // instead of selecting an arbitrary same-name profile.
-    return candidates.length == 1 ? candidates.single : null;
-  }
-
   @override
   Future<EquipmentProfilesState> build() async {
+    ref.rereadsWithTheHost();
     final host = ref.watch(linkedHostProfilesProvider);
     if (host != null) {
       try {
@@ -112,7 +92,10 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
           activeProfile: active,
         );
       } catch (e, stackTrace) {
-        _log.warning('Remote equipment profile fetch failed: $e\n$stackTrace');
+        Log.warning(
+          'Remote equipment profile fetch failed: $e\n$stackTrace',
+          source: 'ProfilesProvider',
+        );
         Error.throwWithStackTrace(
           StateError('Could not load equipment profiles from host: $e'),
           stackTrace,
@@ -153,6 +136,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// field since then is kept. A changed [EquipmentProfileModel.isDefault]
   /// sets or clears the startup profile as [setDefaultProfile] does; the
   /// active flag, the sort order and the timestamps are not a save's to change.
+  @override
   Future<int> saveProfile(EquipmentProfileModel profile) async {
     final loaded = _loadedCopy(profile.id);
     final defaultChanged = loaded == null
@@ -206,30 +190,12 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     EquipmentProfileModel profile,
     EquipmentProfileModel? loaded,
   ) async {
-    final existingIds = <int>{
-      for (final known
-          in state.valueOrNull?.profiles ?? const <EquipmentProfileModel>[])
-        if (known.id != null) known.id!,
-    };
     final next = profile.toRemoteProfile();
-    await remote.host.saveProfileFields(
+    final savedId = await remote.host.saveProfileFields(
       next,
       fields: _changedRemoteFields(loaded, next),
     );
     _requireSameHost(remote);
-    final savedId =
-        int.tryParse(remote.host.lastSavedProfileId ?? '') ??
-        profile.id ??
-        await _resolveRemoteProfileIdByName(
-          remote,
-          profile.name,
-          excludingIds: existingIds,
-        );
-    if (savedId == null || savedId <= 0) {
-      throw StateError(
-        'Host saved profile "${profile.name}" but returned no valid id',
-      );
-    }
     return savedId;
   }
 
@@ -309,6 +275,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     }..removeAll(const {'id', 'createdAt', 'updatedAt'});
   }
 
+  @override
   Future<void> deleteProfile(int profileId) async {
     final remote = _remote;
     if (remote != null) {
@@ -336,6 +303,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// Activation is transactional for every caller: the native executor accepts
   /// the target before SQLite changes, so an interactive tap cannot leave the
   /// UI and running sequencer on different profiles.
+  @override
   Future<void> setActiveProfile(int profileId) => _activateProfile(profileId);
 
   /// Copies the active profile into the native store, which the run, the
@@ -358,6 +326,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   /// Startup-facing alias for the same strict transaction used by every
   /// activation. Kept as a named API because startup callers use the failure as
   /// a hard gate before connecting equipment.
+  @override
   Future<void> setActiveProfileStrict(int profileId) =>
       _activateProfile(profileId);
 
@@ -408,6 +377,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
   }
 
   /// Set or clear the default startup profile.
+  @override
   Future<void> setDefaultProfile(
     int? profileId, {
     bool makeActive = true,
@@ -487,6 +457,7 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
     ref.invalidateSelf();
   }
 
+  @override
   Future<int> duplicateProfile(int sourceId, String newName) async {
     final remote = _remote;
     if (remote != null) {
@@ -507,26 +478,10 @@ class EquipmentProfilesNotifier extends AsyncNotifier<EquipmentProfilesState> {
       // name, every other field preserved. `copyWith(id: null)` cannot clear the
       // id (id ?? this.id) and would send the source id — silently overwriting
       // the source instead of duplicating it.
-      await remote.host.saveProfile(
+      final id = await remote.host.saveProfile(
         source.toInsertionCopy(name: newName).toRemoteProfile(),
       );
       _requireSameHost(remote);
-      final existingIds = current.profiles
-          .map((profile) => profile.id)
-          .whereType<int>()
-          .toSet();
-      final id =
-          int.tryParse(remote.host.lastSavedProfileId ?? '') ??
-          await _resolveRemoteProfileIdByName(
-            remote,
-            newName,
-            excludingIds: existingIds,
-          );
-      if (id == null) {
-        throw StateError(
-          'Host duplicated profile as "$newName" but id could not be resolved',
-        );
-      }
       ref.invalidateSelf();
       return id;
     }

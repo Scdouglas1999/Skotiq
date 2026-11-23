@@ -121,7 +121,7 @@ pub async fn execute_target_scheduler(
         }
 
         // Build TargetInputs from the live children.
-        let now = context.clock.now_utc();
+        let now = context.run.clock.now_utc();
         // A floor the step carries wins over the run's.
         let observer = ObserverContext::at_site(
             lat,
@@ -1760,6 +1760,27 @@ mod tests {
             ctx.scheduler_filter_cycle_override(),
             Some(sentinel),
             "SingleFilter mode must not touch a pre-existing override slot",
+        );
+    }
+
+    /// A saved Target Scheduler step without weights takes the scorer's
+    /// defaults: 0.25 / 0.25 / 0.20 / 0.15 / 0.15.
+    #[test]
+    fn a_saved_scheduler_without_weights_takes_the_scorers_defaults() {
+        let config: TargetSchedulerConfig = serde_json::from_str("{}").unwrap();
+        assert_eq!(
+            (
+                config.altitude_weight,
+                config.moon_distance_weight,
+                config.transit_proximity_weight,
+                config.darkness_weight,
+                config.airmass_weight,
+            ),
+            (0.25, 0.25, 0.20, 0.15, 0.15)
+        );
+        assert_eq!(
+            config.weights(),
+            crate::scheduling::ScoringWeights::default()
         );
     }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 
 import '../../../localization/skotiq_localizations.dart';
@@ -32,7 +31,6 @@ class GeneralSettings extends ConsumerWidget {
               // hide the row over a remote session so it can't throw.
               if (!isRemoteMode)
                 SettingRow(
-                  icon: LucideIcons.power,
                   title: l10n.text('generalStartMinimized'),
                   subtitle: l10n.text('generalStartMinimizedDesc'),
                   trailing: SettingsSwitch(
@@ -45,7 +43,6 @@ class GeneralSettings extends ConsumerWidget {
                   ),
                 ),
               SettingRow(
-                icon: LucideIcons.plug,
                 title: l10n.text('generalAutoConnect'),
                 subtitle: l10n.text('generalAutoConnectDesc'),
                 trailing: SettingsSwitch(
@@ -56,7 +53,6 @@ class GeneralSettings extends ConsumerWidget {
                         .setAutoConnectEquipment(value);
                   },
                 ),
-                isLast: true,
               ),
             ],
           ),
@@ -64,7 +60,6 @@ class GeneralSettings extends ConsumerWidget {
             title: l10n.text('generalBehavior'),
             children: [
               SettingRow(
-                icon: LucideIcons.languages,
                 title: l10n.text('generalLanguage'),
                 // What this control actually changes: the app chrome — menus,
                 // the navigation rail, the persistent status bar and the whole
@@ -90,13 +85,11 @@ class GeneralSettings extends ConsumerWidget {
                   },
                   width: 150,
                 ),
-                isLast: isRemoteMode,
               ),
               // `confirm_before_closing` is intentionally non-remotable
               // (host-only); hide the row over a remote session.
               if (!isRemoteMode)
                 SettingRow(
-                  icon: LucideIcons.alertTriangle,
                   title: l10n.text('generalConfirmBeforeClosing'),
                   subtitle: l10n.text('generalConfirmBeforeClosingDesc'),
                   trailing: SettingsSwitch(
@@ -107,7 +100,6 @@ class GeneralSettings extends ConsumerWidget {
                           .setConfirmBeforeClosing(value);
                     },
                   ),
-                  isLast: true,
                 ),
             ],
           ),

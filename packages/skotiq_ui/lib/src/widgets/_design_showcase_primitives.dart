@@ -12,9 +12,7 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// A titled block of specimens.
 class ShowcaseSection extends StatelessWidget {

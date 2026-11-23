@@ -30,6 +30,17 @@ extension _ConnectedDeviceActionsAndTelemetry on _ConnectedDeviceCardState {
   /// One attempt, no loop: a second failure shows on the card again and the
   /// user decides what to do next.
   Future<void> _retryConnect() async {
+    final retryId = _slot.retryDeviceId;
+    if (widget.type == DeviceType.camera &&
+        retryId != null &&
+        !await askCameraConsentBeforeConnect(
+          context,
+          deviceId: retryId,
+          deviceName: _slot.deviceName,
+        )) {
+      return;
+    }
+    if (!mounted) return;
     final command = _beginDeviceCommand();
     if (command == null) return;
     try {

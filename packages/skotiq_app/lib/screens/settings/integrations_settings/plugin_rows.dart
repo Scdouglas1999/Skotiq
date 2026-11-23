@@ -11,11 +11,9 @@ class _NotificationCrossLinkSection extends StatelessWidget {
       title: 'Notifications & events',
       children: [
         SettingRow(
-          icon: LucideIcons.bellRing,
           title: 'Send run events to Discord, Pushover or email',
           subtitle: 'Which events go where is set on the Notifications '
               'page.',
-          isLast: true,
           stackWhenNarrow: true,
           trailing: SkotiqButton(
             label: 'Open notifications',
@@ -69,7 +67,6 @@ class _PluginsSection extends ConsumerWidget {
         for (var i = 0; i < plugins.length; i++)
           _PluginRow(
             plugin: plugins[i],
-            isLast: i == plugins.length - 1,
             enabledSet: enabledSet,
             lastFiredAt: lastFired[plugins[i].id],
             testHttpClientFactory: testHttpClientFactory,
@@ -89,21 +86,18 @@ bool _pluginIsConfigurable(String pluginId) {
 class _PluginRow extends ConsumerWidget {
   const _PluginRow({
     required this.plugin,
-    required this.isLast,
     required this.enabledSet,
     required this.lastFiredAt,
     required this.testHttpClientFactory,
   });
 
   final PluginInfo plugin;
-  final bool isLast;
   final AsyncValue<Set<String>> enabledSet;
   final DateTime? lastFiredAt;
   final http.Client Function()? testHttpClientFactory;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.skotiqColors;
     final hasError = plugin.error != null;
 
     // The enabled-set is the authoritative persisted truth. While it is
@@ -114,10 +108,7 @@ class _PluginRow extends ConsumerWidget {
         : (enabledSet.valueOrNull?.contains(plugin.id) ?? plugin.enabled);
 
     return SettingRow(
-      icon: hasError ? LucideIcons.alertTriangle : LucideIcons.puzzle,
-      iconColor: hasError ? colors.error : null,
       title: plugin.name,
-      isLast: isLast,
       stackWhenNarrow: true,
       // The plugin description is the row subtitle; the status pill (enabled /
       // error / last-fired), the optional Configure button, and the switch all

@@ -116,10 +116,7 @@ bool isCriticalEvent(SkotiqEvent event) {
     },
     EventPayload_Sequencer(field0: final v) => switch (v) {
       // A note or a problem the run carried on through is never a critical
-      // alert: escalating on the payload type alone gave a non-fatal
-      // preflight advisory a red "Critical - Sequencer" toast, a persistent
-      // Run Dashboard banner and an audible alert, on a run that went on to
-      // finish 3/3. The severity is checked as well because the one-shot
+      // alert. The severity is checked as well because the one-shot
       // operations publish their progress on this payload at info.
       // A cancellation is the end of a run someone or something stopped,
       // told by the stop row, never an alarm.

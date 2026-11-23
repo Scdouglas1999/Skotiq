@@ -113,7 +113,6 @@ class _AdaptiveExposureSettingsState
               title: 'Global default',
               children: [
                 SettingRow(
-                  icon: LucideIcons.barChart3,
                   title: 'Enable global default',
                   subtitle:
                       'Apply adaptive exposure to capture steps that have no '
@@ -124,13 +123,11 @@ class _AdaptiveExposureSettingsState
                       await notifier.setAdaptiveExposureEnabled(v);
                     },
                   ),
-                  isLast: !enabled,
                 ),
                 // Target SNR control hidden until the native executor honors
                 // target_snr; compute_adaptive_exposure ignores it today.
                 if (enabled) ...[
                   SettingRow(
-                    icon: LucideIcons.moon,
                     title: 'Reference sky brightness',
                     subtitle:
                         'The darkness your planned exposures were chosen for, '
@@ -147,7 +144,6 @@ class _AdaptiveExposureSettingsState
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.arrowDownNarrowWide,
                     title: 'Shortest exposure',
                     subtitle: 'Adaptive exposure never goes below this',
                     trailing: SettingsNumberInput(
@@ -163,7 +159,6 @@ class _AdaptiveExposureSettingsState
                     ),
                   ),
                   SettingRow(
-                    icon: LucideIcons.arrowUpNarrowWide,
                     title: 'Longest exposure',
                     subtitle: 'Adaptive exposure never goes above this',
                     trailing: SettingsNumberInput(
@@ -177,7 +172,6 @@ class _AdaptiveExposureSettingsState
                       decimals: 1,
                       onChanged: (_) => _commitGlobalBounds(notifier),
                     ),
-                    isLast: true,
                   ),
                 ],
               ],

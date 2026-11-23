@@ -3,9 +3,13 @@
 // and Dec typed by hand are used as typed.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/mount_go_to.dart';
 import 'package:skotiq_app/screens/night_control/panel/mount/night_mount_tab.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
+import 'package:skotiq_app/services/goto_altitude_check.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 
 import '../../../../harness/harness.dart';
@@ -23,10 +27,40 @@ class _SlewRecorder extends RecordingMountCommands {
   final List<(double, double)> slews = [];
 
   @override
-  Future<CommandActionResult> slewTo(double ra, double dec,
+  Future<CommandActionResult> sendSlew(double ra, double dec,
       {bool showFeedback = true}) {
     slews.add((ra, dec));
-    return super.slewTo(ra, dec, showFeedback: showFeedback);
+    return super.sendSlew(ra, dec, showFeedback: showFeedback);
+  }
+}
+
+/// A site at +45 with a flat horizon: Dec -80 never rises there.
+class _Site extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async =>
+      const AppSettingsState(latitude: 45, longitude: 0);
+}
+
+class _CenterRecorder extends CenteringRun {
+  _CenterRecorder(super.ref);
+
+  int runs = 0;
+
+  @override
+  Future<CenteringResult?> center({
+    required double raHours,
+    required double decDegrees,
+    double? exposureSeconds,
+    CenteringConfig? config,
+    bool publishes = true,
+    bool Function()? isCurrent,
+  }) async {
+    runs++;
+    return const CenteringResult(
+      success: true,
+      iterations: 1,
+      iterationHistory: [],
+    );
   }
 }
 
@@ -102,5 +136,101 @@ void main() {
 
     expect(lookups, isEmpty);
     expect(commands(handle).slews, [(10.0, 20.0)]);
+  });
+
+  group('below the horizon', () {
+    Future<(HarnessHandle, List<GoToAltitudeQuestion>)> pumpSite(
+      WidgetTester tester, {
+      bool answer = false,
+    }) async {
+      final asked = <GoToAltitudeQuestion>[];
+      final handle = await pumpPanelTab(
+        tester,
+        const NightMountTab(),
+        overrides: [
+          ...panelOverrides(),
+          mountCommandServiceProvider.overrideWith(_SlewRecorder.new),
+          appSettingsProvider.overrideWith(_Site.new),
+          centeringRunProvider.overrideWith(_CenterRecorder.new),
+          goToAltitudeAskProvider.overrideWithValue((question) async {
+            asked.add(question);
+            return answer;
+          }),
+        ],
+      );
+      await tester.ensureVisible(find.byKey(_slew));
+      await tester.enterText(find.byKey(_ra), '10h00m00s');
+      await tester.enterText(find.byKey(_dec), '-80 00 00');
+      await tester.pump();
+      return (handle, asked);
+    }
+
+    testWidgets('Slew asks once and moves nothing on a no', (tester) async {
+      final (handle, asked) = await pumpSite(tester);
+
+      await tester.tap(find.byKey(_slew));
+      await tester.pumpAndSettle();
+
+      expect(asked, hasLength(1));
+      expect(commands(handle).slews, isEmpty);
+    });
+
+    testWidgets('Slew & center asks once and runs no centering on a no',
+        (tester) async {
+      final (handle, asked) = await pumpSite(tester);
+
+      await tester.tap(find.byKey(_slewCenter));
+      await tester.pumpAndSettle();
+
+      expect(asked, hasLength(1));
+      expect(
+        (handle.container.read(centeringRunProvider) as _CenterRecorder).runs,
+        0,
+      );
+    });
+
+    testWidgets('Slew & center asks once and centers once on a yes',
+        (tester) async {
+      final (handle, asked) = await pumpSite(tester, answer: true);
+
+      await tester.tap(find.byKey(_slewCenter));
+      await tester.pumpAndSettle();
+
+      expect(asked, hasLength(1));
+      expect(
+        (handle.container.read(centeringRunProvider) as _CenterRecorder).runs,
+        1,
+      );
+      expect(commands(handle).slews, isEmpty,
+          reason: 'the centering run makes the GoTo itself');
+    });
+
+    testWidgets('Slew & center on a target that is up asks nothing',
+        (tester) async {
+      final (handle, asked) = await pumpSite(tester);
+      await tester.enterText(find.byKey(_dec), '+85 00 00');
+      await tester.pump();
+
+      await tester.tap(find.byKey(_slewCenter));
+      await tester.pumpAndSettle();
+
+      expect(asked, isEmpty);
+      expect(
+        (handle.container.read(centeringRunProvider) as _CenterRecorder).runs,
+        1,
+      );
+    });
+
+    testWidgets('a target that is up asks nothing', (tester) async {
+      final (handle, asked) = await pumpSite(tester);
+      await tester.enterText(find.byKey(_dec), '+85 00 00');
+      await tester.pump();
+
+      await tester.tap(find.byKey(_slew));
+      await tester.pumpAndSettle();
+
+      expect(asked, isEmpty);
+      expect(commands(handle).slews, hasLength(1));
+    });
   });
 }

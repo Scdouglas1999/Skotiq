@@ -13,7 +13,7 @@ library;
 
 import 'package:skotiq_remote_protocol/wire.dart' show kDefaultHeadlessPort;
 
-import '../models/settings/app_settings.dart'
+import '../models/settings/app_settings_values.dart'
     show SafetyFailMode, kDefaultAccentColorHex;
 import 'capture_format.dart';
 import 'device_retries.dart';

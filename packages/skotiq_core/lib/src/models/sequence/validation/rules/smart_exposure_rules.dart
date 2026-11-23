@@ -131,7 +131,7 @@ class SmartExposureUnboundedLoopRule implements SequenceValidator {
       // A positive integration budget is a valid automatic bound.
       if (node.integrationBudgetSecs > 0) continue;
       // Otherwise, the only automatic bound is a parent target window.
-      if (_hasBoundingTargetWindow(sequence, node)) continue;
+      if (sequence.isBoundedByTargetWindow(node.id)) continue;
 
       issues.add(
         ValidationIssue(
@@ -145,27 +145,12 @@ class SmartExposureUnboundedLoopRule implements SequenceValidator {
               'run will refuse to start.',
           affectedNodeId: node.id,
           resolutionHint:
-              'Set an integration budget on the node, or place it under a target '
-              'with an ends-when / ends-before condition.',
+              'Set an integration budget on the node, or give the target it '
+              'sits under an ends-when, ends-before or maximum-altitude '
+              'condition.',
         ),
       );
     }
     return issues;
-  }
-
-  /// Walk parents to find a [TargetHeaderNode] with an end condition.
-  bool _hasBoundingTargetWindow(Sequence sequence, SequenceNode node) {
-    var currentId = node.parentId;
-    final seen = <String>{};
-    while (currentId != null && seen.add(currentId)) {
-      final parent = sequence.nodes[currentId];
-      if (parent == null) break;
-      if (parent is TargetHeaderNode &&
-          (parent.endWhen != null || parent.endBefore != null)) {
-        return true;
-      }
-      currentId = parent.parentId;
-    }
-    return false;
   }
 }

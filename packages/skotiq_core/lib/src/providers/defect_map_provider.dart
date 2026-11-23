@@ -24,11 +24,11 @@ import '../utils/logging_service.dart';
 const Object _defectMapSettingsSentinel = Object();
 const Object _defectMapUiSentinel = Object();
 
-/// Service provider for [DefectMapService]. The service reads the active
-/// backend through [ref] so build/apply can route to the host over REST when
+/// Service provider for [DefectMapService]. The service asks for the linked
+/// host at each call so build/apply can route to the host over REST when
 /// running as a remote client.
 final defectMapServiceProvider = Provider<DefectMapService>((ref) {
-  return DefectMapService(ref);
+  return DefectMapService(() => ref.read(linkedHostCalibrationToolsProvider));
 });
 
 /// Query parameters for looking up a stored defect map.

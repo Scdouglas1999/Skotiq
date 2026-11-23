@@ -23,7 +23,7 @@ import '../../harness/harness.dart';
 import 'package:skotiq_app/services/manual_capture_controller.dart';
 
 class _LoopSpyImagingService extends ImagingService {
-  _LoopSpyImagingService(super.ref) : super(flatCaptureBusy: () => false);
+  _LoopSpyImagingService(super.ref) : super(rigHeld: () => null);
 
   final loopStarted = Completer<void>();
   final loopStopped = Completer<void>();

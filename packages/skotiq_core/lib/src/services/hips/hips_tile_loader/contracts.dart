@@ -204,14 +204,14 @@ class HipsResidentSnapshot {
 /// Sink for surfaced (non-cancellation) tile fetch errors.
 ///
 /// The loader reports every genuine failure here as well as recording it in
-/// the snapshot. The default implementation logs via `dart:developer`; tests
+/// the snapshot. The default implementation writes to the app log; tests
 /// inject a capturing sink.
 abstract class HipsTileLoaderErrorSink {
   /// Reports a surfaced tile fetch failure (never a cancellation).
   void onTileError(HipsTileFailure failure);
 }
 
-/// Default error sink: logs each failure via `dart:developer`.
+/// Default error sink: writes each failure to the app log.
 class _DevLogErrorSink implements HipsTileLoaderErrorSink {
   const _DevLogErrorSink();
 

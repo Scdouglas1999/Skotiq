@@ -33,8 +33,7 @@ class _CaptureSpy {
 }
 
 class _FakeImagingService extends ImagingService {
-  _FakeImagingService(super.ref, this.spy)
-      : super(flatCaptureBusy: () => false);
+  _FakeImagingService(super.ref, this.spy) : super(rigHeld: () => null);
 
   final _CaptureSpy spy;
 

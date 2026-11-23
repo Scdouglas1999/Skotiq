@@ -75,7 +75,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     title: 'Lax',
                     description:
                         'Missing darks render as info. Only critical equipment failures block the run.',
-                    icon: LucideIcons.feather,
                     onSelected: () async {
                       await notifier
                           .setPreflightStrictness(PreflightStrictness.lax);
@@ -87,7 +86,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     title: 'Normal',
                     description:
                         'Missing darks render as warnings. Sequence starts after the user confirms the warnings list.',
-                    icon: LucideIcons.scale,
                     onSelected: () async {
                       await notifier
                           .setPreflightStrictness(PreflightStrictness.normal);
@@ -99,8 +97,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                     title: 'Strict',
                     description:
                         'Missing darks render as errors. Sequence refuses to start until every flagged issue is resolved or acknowledged.',
-                    icon: LucideIcons.shieldAlert,
-                    isLast: true,
                     onSelected: () async {
                       await notifier
                           .setPreflightStrictness(PreflightStrictness.strict);
@@ -113,7 +109,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
               title: 'Polar alignment',
               children: [
                 SettingRow(
-                  icon: LucideIcons.compass,
                   title: 'Polar alignment max age',
                   subtitle:
                       'Sequence pre-flight flags the polar alignment if the last recorded run is older than this. Set to 0 to disable the check.',
@@ -129,7 +124,6 @@ class _PreflightSettingsState extends ConsumerState<PreflightSettings> {
                       await notifier.setPolarAlignmentMaxAgeDays(value.toInt());
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -150,36 +144,27 @@ class _StrictnessOption extends StatelessWidget {
   final PreflightStrictness current;
   final String title;
   final String description;
-  final IconData icon;
   final VoidCallback onSelected;
-  final bool isLast;
 
   const _StrictnessOption({
     required this.value,
     required this.current,
     required this.title,
     required this.description,
-    required this.icon,
     required this.onSelected,
-    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colors = SkotiqColors.of(context);
-    final selected = value == current;
     return InkWell(
       key: ValueKey('preflightStrictness_${value.persistedName}'),
       onTap: onSelected,
       child: SettingRow(
-        icon: icon,
-        iconColor: selected ? colors.primary : null,
         title: title,
         subtitle: description,
         trailing: Radio<PreflightStrictness>(
           value: value,
         ),
-        isLast: isLast,
       ),
     );
   }

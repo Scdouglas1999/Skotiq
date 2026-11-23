@@ -12,7 +12,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 /// or below this level, and re-appears the moment the flip escalates to a more
 /// urgent tone (info → warning → imminent) — so dismissing the calm "flip in
 /// 5h" status can never suppress the attention-grade "imminent" one. Holds the
-/// dismissed [SkotiqAlertSeverity.index]; `null` means "not dismissed". It
+/// dismissed [BannerTone.index]; `null` means "not dismissed". It
 /// resets to `null` [MeridianFlipCountdownBanner.kDismissalResetGrace] after
 /// the flip disarms — debounced so a heartbeat flap (disconnect → auto-reconnect
 /// every ~30 s) cannot un-dismiss the banner — and resets immediately when the
@@ -188,7 +188,7 @@ class _MeridianFlipCountdownView extends StatelessWidget {
 
   final MeridianCountdownState state;
 
-  /// The [SkotiqAlertSeverity.index] the operator last dismissed at, or
+  /// The [BannerTone.index] the operator last dismissed at, or
   /// `null` if not dismissed. The banner hides while the live severity is at or
   /// below this; an escalation above it re-surfaces the banner.
   final int? dismissedSeverityIndex;
@@ -218,19 +218,14 @@ class _MeridianFlipCountdownView extends StatelessWidget {
     }
 
     final accent = switch (spec.severity) {
-      SkotiqAlertSeverity.info => colors.info,
-      SkotiqAlertSeverity.success => colors.success,
-      SkotiqAlertSeverity.warning => colors.warning,
-      SkotiqAlertSeverity.error => colors.error,
+      BannerTone.info => colors.info,
+      BannerTone.success => colors.success,
+      BannerTone.warning => colors.warning,
+      BannerTone.error => colors.error,
     };
 
-    // Decoration recipe is identical to SkotiqAlert (severity tint @ 0.06
-    // over surfaceAlt, border @ 0.35, radiusMd) so the banner is visually
-    // indistinguishable from the design-system alert — we only compose a richer
-    // body so the live countdown can use tabular telemetry figures. The two
-    // alpha constants below are the exact values SkotiqAlert._getColors
-    // uses; mirroring them keeps the banner on the same surface as every other
-    // alert in the app.
+    // A tone tint over surfaceAlt with a tone border, so the live countdown
+    // can use tabular telemetry figures in a body richer than a banner's.
     const alertTintAlpha = 0.06;
     const alertBorderAlpha = 0.35;
     final background = Color.alphaBlend(
@@ -330,7 +325,7 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
   // "monitored by the sequencer" info banner instead.
   if (state.timeToFlip == null) {
     return const _BannerSpec(
-      severity: SkotiqAlertSeverity.info,
+      severity: BannerTone.info,
       icon: LucideIcons.flipHorizontal2,
       title: _BannerTitle(text: 'Meridian flip armed'),
       subtitle: 'Monitored by the sequencer. No action needed.',
@@ -342,7 +337,7 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
   final remaining = state.timeToFlip!;
   if (remaining <= Duration.zero) {
     return _BannerSpec(
-      severity: SkotiqAlertSeverity.warning,
+      severity: BannerTone.warning,
       icon: LucideIcons.flipHorizontal2,
       title: const _BannerTitle(text: 'Meridian flip imminent'),
       subtitle: state.isSequencerOwned
@@ -356,8 +351,7 @@ _BannerSpec? _resolveSpec(MeridianCountdownState state) {
   // Armed, live numeric countdown
   final isWarning = remaining < MeridianFlipCountdownBanner.kWarningThreshold;
   return _BannerSpec(
-    severity:
-        isWarning ? SkotiqAlertSeverity.warning : SkotiqAlertSeverity.info,
+    severity: isWarning ? BannerTone.warning : BannerTone.info,
     icon: LucideIcons.flipHorizontal2,
     title: _BannerTitle(
       text: 'Meridian flip in ',
@@ -544,7 +538,7 @@ class _BannerSpec {
     required this.showPierChip,
   });
 
-  final SkotiqAlertSeverity severity;
+  final BannerTone severity;
   final IconData icon;
   final _BannerTitle title;
   final String subtitle;
@@ -552,5 +546,5 @@ class _BannerSpec {
 
   /// Whether this state earns the full-width banner. Everything calmer than a
   /// warning is ambient status and rides in the toolbar chip instead.
-  bool get needsBanner => severity != SkotiqAlertSeverity.info;
+  bool get needsBanner => severity != BannerTone.info;
 }

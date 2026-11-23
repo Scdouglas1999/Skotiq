@@ -21,8 +21,8 @@ fn idle() -> Result<CameraStatus, DriverError> {
         cooler_power: None,
         target_temp: None,
         cooler_on: Some(false),
-        gain: 800,
-        offset: 0,
+        gain: Some(800),
+        offset: Some(0),
         bin_x: 1,
         bin_y: 1,
         exposure_remaining: None,
@@ -140,7 +140,7 @@ impl CameraDriver for ThermometerlessCamera {
 }
 
 async fn manager_with(device_id: &str, camera: ThermometerlessCamera) -> Arc<DeviceManager> {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     manager
         .register_device(
             DeviceInfo {

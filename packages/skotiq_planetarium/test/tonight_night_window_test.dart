@@ -34,43 +34,36 @@ ProviderContainer _container(DateTime observationTime) {
 
 void main() {
   group('nightDateOf', () {
+    // The site's mean solar time at 105W is UTC-7. The instants are built in
+    // UTC so the answers hold on a computer in any zone.
+    DateTime atSolar(int day, int hour, int minute) =>
+        DateTime.utc(2026, 8, day, hour + 7, minute).toLocal();
+    NightDate nightOf(DateTime instant) =>
+        AstronomyCalculations.nightDateOf(instant, longitudeDeg: _lon);
+
     test('an evening instant names its own day', () {
-      expect(
-        AstronomyCalculations.nightDateOf(DateTime(2026, 8, 2, 21, 30)),
-        DateTime(2026, 8, 2),
-      );
+      expect(nightOf(atSolar(2, 21, 30)), const NightDate(2026, 8, 2));
     });
 
     test('an instant past midnight names the day the night STARTED', () {
-      expect(
-        AstronomyCalculations.nightDateOf(DateTime(2026, 8, 3, 0, 1)),
-        DateTime(2026, 8, 2),
-      );
-      expect(
-        AstronomyCalculations.nightDateOf(DateTime(2026, 8, 3, 4, 30)),
-        DateTime(2026, 8, 2),
-      );
+      expect(nightOf(atSolar(3, 0, 1)), const NightDate(2026, 8, 2));
+      expect(nightOf(atSolar(3, 4, 30)), const NightDate(2026, 8, 2));
     });
 
-    test('local noon is the boundary, and UTC-ness is preserved', () {
+    test('the site\'s solar noon is the boundary, for a UTC instant too', () {
+      expect(nightOf(atSolar(3, 11, 59)), const NightDate(2026, 8, 2));
+      expect(nightOf(atSolar(3, 12, 0)), const NightDate(2026, 8, 3));
       expect(
-        AstronomyCalculations.nightDateOf(DateTime(2026, 8, 3, 11, 59)),
-        DateTime(2026, 8, 2),
+        nightOf(DateTime.utc(2026, 8, 3, 20, 0)),
+        const NightDate(2026, 8, 3),
       );
-      expect(
-        AstronomyCalculations.nightDateOf(DateTime(2026, 8, 3, 12, 0)),
-        DateTime(2026, 8, 3),
-      );
-      final utc = AstronomyCalculations.nightDateOf(
-        DateTime.utc(2026, 8, 3, 13, 0),
-      );
-      expect(utc.isUtc, isTrue);
     });
   });
 
   test('the selected-object readout describes the night in progress', () {
-    // 02:00 local — the night that began the previous evening.
-    final container = _container(DateTime(2026, 8, 3, 2, 0));
+    // 02:00 site solar time (09:00 UTC at 105W): the night that began the
+    // previous evening.
+    final container = _container(DateTime.utc(2026, 8, 3, 9).toLocal());
     container.read(selectedObjectProvider.notifier).selectCoordinates(_ngc6685);
 
     final visibility = container.read(selectedObjectVisibilityProvider);
@@ -79,7 +72,7 @@ void main() {
     final expected = AstronomyCalculations.calculateObjectVisibility(
       raDeg: _ngc6685.raDegrees,
       decDeg: _ngc6685.dec,
-      date: DateTime(2026, 8, 2),
+      date: NightDate.ofCalendarDay(DateTime(2026, 8, 2)),
       latitudeDeg: _lat,
       longitudeDeg: _lon,
     );
@@ -90,7 +83,7 @@ void main() {
     final nextNight = AstronomyCalculations.calculateObjectVisibility(
       raDeg: _ngc6685.raDegrees,
       decDeg: _ngc6685.dec,
-      date: DateTime(2026, 8, 3),
+      date: NightDate.ofCalendarDay(DateTime(2026, 8, 3)),
       latitudeDeg: _lat,
       longitudeDeg: _lon,
     );
@@ -130,7 +123,7 @@ void main() {
       // midnight — the case a calendar-day anchor gets wrong.
       container
           .read(observationTimeProvider.notifier)
-          .setTime(DateTime(2026, 8, 3, 2, 0));
+          .setTime(DateTime.utc(2026, 8, 3, 9).toLocal());
       container
           .read(selectedObjectProvider.notifier)
           .selectCoordinates(_ngc6685);

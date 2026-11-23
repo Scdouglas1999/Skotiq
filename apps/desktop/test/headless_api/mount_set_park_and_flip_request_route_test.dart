@@ -18,6 +18,7 @@ import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 class _MockSequencerBackend extends Mock implements SequencerBackend {}
 
@@ -38,7 +39,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     Future<(int, Map<String, Object?>)> setPark() async {

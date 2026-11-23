@@ -14,6 +14,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart' as wire;
+import 'package:skotiq_core/models.dart';
 
 class _TestBackendNotifier extends BackendNotifier {
   _TestBackendNotifier(super.ref, SkotiqBackend backend) {
@@ -79,7 +80,7 @@ void main() {
     expect(centering.currentIteration, 2);
     final solve = container.read(plateSolveStateProvider).lastResult!;
     expect(solve.ra, 5.5 * 15);
-    final mirrored = decodePlateSolveResult(encodePlateSolveResult(solve));
+    final mirrored = plateSolveResultFromJson(plateSolveResultToJson(solve));
     expect(mirrored.ra, solve.ra);
     expect(mirrored.dec, solve.dec);
     expect(mirrored.pixelScale.isNaN, isTrue);
@@ -96,6 +97,58 @@ void main() {
     );
     expect(container.read(centeringStatusProvider).state, CenteringState.error);
     expect(container.read(plateSolveStateProvider).lastResult, isNull);
+    expect(container.read(plateSolveStateProvider).isSolving, isFalse);
+  });
+
+  test('a Center step the operator skips is not a centering error', () async {
+    final backend = MockBackend();
+    final events = StreamController<wire.SkotiqEvent>.broadcast();
+    when(() => backend.eventStream).thenAnswer((_) => events.stream);
+    when(
+      () => backend.polarAlignmentEvents,
+    ).thenAnswer((_) => const Stream.empty());
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        backendProvider.overrideWith(
+          (ref) => _TestBackendNotifier(ref, backend),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    addTearDown(events.close);
+    addTearDown(db.close);
+
+    const nodeId = 'center-1';
+    container
+        .read(runRecordProvider.notifier)
+        .updateProgress(currentNodeId: nodeId);
+    final executor = container.read(sequenceExecutorProvider);
+    executor.handleSequencerEventForTest(
+      _event('InstructionProgress', {
+        'node_id': nodeId,
+        'instruction': 'Center',
+        'progress_percent': 40,
+        'detail': 'attempt 1',
+        'detail_kind': 'Center',
+        'detail_json': jsonEncode({
+          'attempt': 1,
+          'max_attempts': 5,
+          'solved_ra_hours': 5.5,
+          'solved_dec_degrees': 24.1,
+        }),
+      }),
+    );
+    executor.handleSequencerEventForTest(
+      _event('NodeCompleted', {'node_id': nodeId, 'status': 'skipped'}),
+    );
+
+    expect(
+      container.read(centeringStatusProvider).state,
+      isNot(CenteringState.error),
+    );
+    expect(container.read(plateSolveStateProvider).lastResult?.ra, 5.5 * 15);
     expect(container.read(plateSolveStateProvider).isSolving, isFalse);
   });
 }

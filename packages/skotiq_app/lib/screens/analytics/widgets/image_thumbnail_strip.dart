@@ -12,7 +12,7 @@ import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
 import 'package:skotiq_core/errors.dart' show userFacingError;
 import 'package:skotiq_core/providers.dart'
-    show imagingBackendProvider, isRemoteModeProvider, SavedFrameRef;
+    show hostPathsProvider, imagingBackendProvider;
 import 'package:skotiq_core/services.dart'
     show
         imagingRecordsProvider,
@@ -112,8 +112,7 @@ const double _kGridTileMaxWidth = 180;
 /// Decorates each thumbnail with the existing quality badge plus a richer set
 /// of science badges (plate-solve checkmark, zero-point chip when available)
 /// and exposes an accept/reject context menu via long-press so users can flag
-/// poor frames without losing them — implements the P3.4 "manual quality
-/// gate, no auto-delete" pattern from the science gap list.
+/// poor frames without losing them: a manual quality gate, no auto-delete.
 class ImageThumbnailStrip extends StatefulWidget {
   final List<DbCapturedImage> images;
 

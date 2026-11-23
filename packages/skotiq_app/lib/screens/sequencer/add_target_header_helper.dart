@@ -10,9 +10,9 @@ import '../../utils/snackbar_helper.dart';
 ///
 /// `CurrentSequenceNotifier.addTargetHeader` THROWS
 /// [NoActiveSequenceException] when no sequence is loaded, rather than quietly
-/// creating one the user did not ask for. This helper centralises the
-/// prompt-then-create dance so every entry point that adds a target (planner,
-/// planetarium, framing, annotation overlay) behaves identically.
+/// creating one the user did not ask for. This helper asks before creating
+/// one. The Sequencer's own empty-state button creates without asking, since
+/// the operator is already in the editor.
 ///
 /// Returns `true` if the target was actually added, `false` if the user
 /// declined the prompt or the editor refused (e.g. a sequence is running).

@@ -1,12 +1,10 @@
 // Where "Solve latest camera frame" gets its position hint.
 //
 // The framing target is resolved once and then outlives every slew of the
-// session. On 2026-09-13 at 03:21 UTC the owner's manual solves hinted from
-// coordinates that were hours and a whole polar alignment old, ASTAP was told
-// to look within 5° of them, and it answered "No solution found!" in a second
-// — twice — while the automatic post-capture solve of the same camera was
-// succeeding from the mount's live position. The button has to hint from where
-// the telescope IS, read at click time.
+// session, and ASTAP searches within 5° of the hint, so a hint from a target
+// hours and a polar alignment old answers "No solution found!" while the
+// mount's live position solves. The button has to hint from where the
+// telescope IS, read at click time.
 
 import 'dart:typed_data';
 

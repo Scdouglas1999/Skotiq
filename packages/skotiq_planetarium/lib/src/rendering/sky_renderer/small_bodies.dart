@@ -60,9 +60,7 @@ extension _SkyCanvasPainterSmallBodies on SkyCanvasPainter {
         final truncatedLabel = labelText.length > 16
             ? '${labelText.substring(0, 14)}..'
             : labelText;
-        final textStyle = TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        final textStyle = SkotiqTypography.canvas(
           color: color.withValues(alpha: 0.9),
           fontSize: isIss ? 11.0 : 9.0,
           fontWeight: isIss ? FontWeight.w600 : FontWeight.w400,
@@ -135,9 +133,7 @@ extension _SkyCanvasPainterSmallBodies on SkyCanvasPainter {
         final labelText = vs.name.length > 14
             ? '${vs.name.substring(0, 12)}..'
             : vs.name;
-        final textStyle = TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        final textStyle = SkotiqTypography.canvas(
           color: varColor.withValues(alpha: 0.85),
           fontSize: 9.0,
           fontWeight: FontWeight.w400,
@@ -293,9 +289,7 @@ extension _SkyCanvasPainterSmallBodies on SkyCanvasPainter {
     final tp = TextPainter(
       text: TextSpan(
         text: labelText,
-        style: TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        style: SkotiqTypography.canvas(
           color: color.withValues(alpha: 0.85),
           fontSize: 9.0,
         ),

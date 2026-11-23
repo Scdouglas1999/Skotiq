@@ -1,0 +1,36 @@
+{
+  "foldsByTile": [
+    {
+      "centerDec": 41.269,
+      "centerRa": 10.6847,
+      "channels": 3,
+      "coverageAdded": 2.5,
+      "coverageMean": 11.25,
+      "framesAdded": 3,
+      "integrationSeconds": 7560.0,
+      "integrationSecondsAdded": 540.0,
+      "rejected": 17,
+      "tileId": 1234567,
+      "totalFrames": 42,
+      "weightAdded": 2.75
+    }
+  ],
+  "frameFolds": [
+    {
+      "coverageAdded": 0.75,
+      "frameIndex": 2,
+      "integrationSecondsAdded": 180.0,
+      "label": "2026-11-21",
+      "rejected": 5,
+      "tileId": 1234567,
+      "weightAdded": 0.875
+    }
+  ],
+  "framesSkippedNoCoverage": 1,
+  "layer": "Ha",
+  "ok": true,
+  "tilesTouched": [
+    1234567,
+    1234568
+  ]
+}

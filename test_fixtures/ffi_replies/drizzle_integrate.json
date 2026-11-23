@@ -1,0 +1,9 @@
+{
+  "channels": 3,
+  "coveragePath": "/out/M31_drizzle_coverage.fits",
+  "coveragePngPath": "/out/M31_drizzle_coverage.png",
+  "outHeight": 8352,
+  "outWidth": 12496,
+  "outputPath": "/out/M31_drizzle.fits",
+  "previewPngPath": "/out/M31_drizzle.png"
+}

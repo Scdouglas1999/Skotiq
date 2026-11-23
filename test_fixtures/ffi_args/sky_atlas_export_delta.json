@@ -1,0 +1,7 @@
+{
+  "atlasRoot": "string",
+  "order": "number",
+  "outPath": "string",
+  "sinceIso": "string",
+  "tileId": "number"
+}

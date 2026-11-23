@@ -3,6 +3,7 @@
 
 use crate::adaptive_polling::ConsecutiveFailureBackoff;
 use crate::device::DeviceType;
+use crate::device_manager::busy::Busy;
 use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::error::DeviceOpError;
@@ -19,8 +20,23 @@ impl DeviceManager {
     /// wheel reads back, so no UI is left showing the wheel as moving; when
     /// the wheel cannot be read either, the disconnect handling takes over.
     ///
+    /// A move that fails because the wheel's session broke after a bus
+    /// change reopens it and moves again ([`Self::with_reopen`]), for the run
+    /// and the app alike.
+    ///
     /// [`state_events`]: crate::device_manager::ops::state_events
     pub async fn filter_wheel_set_position(
+        &self,
+        device_id: &str,
+        position: i32,
+    ) -> Result<(), DeviceOpError> {
+        self.with_reopen(device_id, || {
+            self.filter_wheel_set_position_once(device_id, position)
+        })
+        .await
+    }
+
+    async fn filter_wheel_set_position_once(
         &self,
         device_id: &str,
         position: i32,
@@ -30,7 +46,7 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         // `-1` is the documented "position unknown" sentinel of
         // `FilterChanging.from_position`, for a wheel that cannot say where it
         // is (mid-move, or not homed yet after a reconnect).
@@ -55,8 +71,13 @@ impl DeviceManager {
             from_filter_name: slot_name(from_position),
         });
 
+        // The heartbeat waits while the move call runs, as the focuser's
+        // does: an ASCOM driver blocks in it on the STA thread.
         let result = match self.filter_wheel(device_id).await {
-            Ok(wheel) => wheel.move_to_slot(position).await,
+            Ok(wheel) => {
+                let _op = self.busy(device_id, Busy::BlockingCall);
+                wheel.move_to_slot(position).await
+            }
             Err(e) => Err(e),
         };
 

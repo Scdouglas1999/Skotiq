@@ -22,16 +22,17 @@ class _MockLocalBackend extends Mock implements SkotiqBackend {}
 /// Local stacker stand-in that answers both calls `_startFromFile` makes, so
 /// the host path runs end to end without the native singleton.
 class _FakeLocalStackingService extends LiveStackingService {
-  _FakeLocalStackingService(super.ref);
+  _FakeLocalStackingService(super.logger);
 
   String? startedFrom;
   int stopCalls = 0;
   int resetCalls = 0;
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
     startedFrom = referenceImagePath;
     return const LiveStackingStats(stackedFrameCount: 1);
@@ -42,12 +43,13 @@ class _FakeLocalStackingService extends LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async => const LiveStackingStats(stackedFrameCount: 1);
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async =>
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
       const LiveStackingResult(
         width: 2,
         height: 1,
@@ -56,12 +58,12 @@ class _FakeLocalStackingService extends LiveStackingService {
       );
 
   @override
-  Future<void> reset() async {
+  Future<void> reset({String? filterKey}) async {
     resetCalls++;
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stopCalls++;
   }
 }
@@ -95,7 +97,7 @@ void main() {
   test('a stack started from a file names the sub it is aligned to', () async {
     late _FakeLocalStackingService service;
     final container = _localContainer((ref) {
-      service = _FakeLocalStackingService(ref);
+      service = _FakeLocalStackingService(ref.read(loggingServiceProvider));
       return service;
     });
     final notifier = container.read(liveStackingProvider.notifier);
@@ -114,7 +116,9 @@ void main() {
   });
 
   test('stopping clears it: an idle stack is aligned to nothing', () async {
-    final container = _localContainer(_FakeLocalStackingService.new);
+    final container = _localContainer(
+      (ref) => _FakeLocalStackingService(ref.read(loggingServiceProvider)),
+    );
     final notifier = container.read(liveStackingProvider.notifier);
 
     await notifier.startFromFile('/data/m42/light_0001.fits');
@@ -126,7 +130,9 @@ void main() {
   test(
     'a reset starts the evidence over and drops the old reference',
     () async {
-      final container = _localContainer(_FakeLocalStackingService.new);
+      final container = _localContainer(
+        (ref) => _FakeLocalStackingService(ref.read(loggingServiceProvider)),
+      );
       final notifier = container.read(liveStackingProvider.notifier);
 
       await notifier.startFromFile('/data/m42/light_0001.fits');
@@ -139,7 +145,9 @@ void main() {
   );
 
   test('a second session replaces the first session\'s reference', () async {
-    final container = _localContainer(_FakeLocalStackingService.new);
+    final container = _localContainer(
+      (ref) => _FakeLocalStackingService(ref.read(loggingServiceProvider)),
+    );
     final notifier = container.read(liveStackingProvider.notifier);
 
     await notifier.startFromFile('/data/m42/light_0001.fits');
@@ -153,7 +161,9 @@ void main() {
   });
 
   test('a stack built from raw pixels names no file', () async {
-    final container = _localContainer(_FakeLocalStackingService.new);
+    final container = _localContainer(
+      (ref) => _FakeLocalStackingService(ref.read(loggingServiceProvider)),
+    );
     final notifier = container.read(liveStackingProvider.notifier);
 
     await notifier.startFromData(
@@ -178,7 +188,7 @@ void main() {
         backendProvider.overrideWith((ref) => _TestBackendNotifier(ref)),
         loggingServiceProvider.overrideWithValue(LoggingService()),
         liveStackingServiceProvider.overrideWith((ref) {
-          service = _FailingStackingService(ref);
+          service = _FailingStackingService(ref.read(loggingServiceProvider));
           return service;
         }),
       ],
@@ -250,12 +260,13 @@ void main() {
 }
 
 class _FailingStackingService extends LiveStackingService {
-  _FailingStackingService(super.ref);
+  _FailingStackingService(super.logger);
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async => throw StateError('cannot read $referenceImagePath');
 }
 

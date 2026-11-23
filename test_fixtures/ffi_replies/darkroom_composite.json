@@ -1,0 +1,1438 @@
+{
+  "base": {
+    "channels": 1,
+    "height": 384,
+    "level": 0,
+    "levelCount": 3,
+    "scaleFromMaster": 1.0,
+    "width": 512
+  },
+  "cacheBudget": {
+    "baseMasterBytes": 536870912,
+    "renderBytes": 536870912
+  },
+  "channelMixes": [
+    {
+      "mix": {
+        "blue": {
+          "oiii": 1.0
+        },
+        "green": {
+          "hAlpha": 1.0
+        },
+        "red": {
+          "sii": 1.0
+        }
+      },
+      "name": "SHO (Hubble palette)",
+      "palette": "sho"
+    },
+    {
+      "mix": {
+        "blue": {
+          "oiii": 1.0
+        },
+        "green": {
+          "oiii": 1.0
+        },
+        "red": {
+          "hAlpha": 1.0
+        }
+      },
+      "name": "HOO (bicolor)",
+      "palette": "hoo"
+    }
+  ],
+  "composite": {
+    "alternatives": [
+      {
+        "name": "RGB",
+        "palette": "rgb"
+      }
+    ],
+    "combined": true,
+    "crop": {
+      "height": 356,
+      "width": 480,
+      "x": 24,
+      "y": 16
+    },
+    "excluded": [],
+    "inputs": [
+      {
+        "check": {
+          "meanOffsetPx": [
+            -0.010640419972779532,
+            -0.003872989785352143
+          ],
+          "medianOffsetPx": 0.01149938327467827,
+          "rmsOffsetPx": 0.0934153777383005,
+          "stars": 131
+        },
+        "filter": "Red",
+        "fitRmsPx": 0.014561536241301012,
+        "model": "similarity",
+        "path": "/masters/Red_master.fits",
+        "role": "red",
+        "rotationDeg": 0.0006792794656309235,
+        "scale": 0.9999957818477456,
+        "shiftPx": [
+          18.40303900182888,
+          7.199330063066185
+        ],
+        "starsMatched": 124
+      },
+      {
+        "check": {
+          "meanOffsetPx": [
+            -0.00645154201102801,
+            0.0048299777903268734
+          ],
+          "medianOffsetPx": 0.01124554697601882,
+          "rmsOffsetPx": 0.01977358176252083,
+          "stars": 132
+        },
+        "filter": "Green",
+        "fitRmsPx": 0.01647183888158871,
+        "model": "similarity",
+        "path": "/masters/Green_master.fits",
+        "role": "green",
+        "rotationDeg": 0.0003311916046376567,
+        "scale": 0.999998522843376,
+        "shiftPx": [
+          2.301989296489652,
+          -6.099076208691798
+        ],
+        "starsMatched": 131
+      },
+      {
+        "check": {
+          "meanOffsetPx": [
+            0.01060225826704028,
+            -0.006242693743281132
+          ],
+          "medianOffsetPx": 0.01194041105247746,
+          "rmsOffsetPx": 0.10575466911117246,
+          "stars": 132
+        },
+        "filter": "Blue",
+        "fitRmsPx": 0.01604070393473664,
+        "model": "similarity",
+        "path": "/masters/Blue_master.fits",
+        "role": "blue",
+        "rotationDeg": -0.0004135767264294306,
+        "scale": 1.0000045892426033,
+        "shiftPx": [
+          16.69839905886834,
+          9.600848758212775
+        ],
+        "starsMatched": 122
+      }
+    ],
+    "luminance": "the luminance master sets each pixel's lightness and the RGB masters its color, applied in linear space before a color-preserving stretch",
+    "palette": "lrgb",
+    "paletteName": "LRGB",
+    "reason": "LRGB from L, R, G and B; the conventional choice for these filters (also possible: RGB)",
+    "reference": {
+      "filter": "Luminance",
+      "path": "/masters/Luminance_master.fits",
+      "role": "luminance"
+    },
+    "referenceSize": {
+      "height": 384,
+      "width": 512
+    },
+    "starHfrPx": {},
+    "worstMedianOffsetPx": 0.01194041105247746
+  },
+  "draft": {
+    "autoParams": {
+      "cropRect": null,
+      "defaults": {
+        "background_extract": {
+          "exclusionPercentile": 0.75,
+          "modelOrder": 2,
+          "sampleSpacing": 64.0
+        },
+        "denoise": {
+          "chromaStrength": 0.5,
+          "scaleCount": 4,
+          "strength": 1.0,
+          "thresholdSigma": 3.0
+        }
+      },
+      "stretch": {
+        "b": 1.0,
+        "blackPoint": 2927.7737011132813,
+        "colorMode": "luminance",
+        "d": 75.50976978617872,
+        "symmetryPoint": 0.0,
+        "whitePoint": 8700.1123046875
+      },
+      "stretchMeasuredAtLevel": 0
+    },
+    "notes": [
+      {
+        "opId": "crop",
+        "outcome": "omitted",
+        "reason": "the channel combination already crops to the area every master covers"
+      },
+      {
+        "opId": "background_extract",
+        "outcome": "omitted",
+        "reason": "the channel combination already flattened each master's sky before combining them, and a second surface over the combined color would only refit what is left of the noise"
+      },
+      {
+        "opId": "color_calibrate",
+        "outcome": "included",
+        "reason": "this master carries no plate solve, so catalog stars cannot be placed on it; the balance renders the median color of the field's own isolated, unsaturated stars neutral"
+      },
+      {
+        "opId": "denoise",
+        "outcome": "included",
+        "reason": "the automatic edit uses gentle reduction on the two finest noise scales to preserve star wings and faint detail; stronger smoothing remains available in the editor"
+      },
+      {
+        "opId": "scnr",
+        "outcome": "included",
+        "reason": "nothing in a broadband deep-sky field is green, so green is limited to the average of red and blue at PixInsight's default amount"
+      }
+    ],
+    "recipe": {
+      "baseMasterRef": "/masters/Luminance_master.fits",
+      "createdBy": "autopilot",
+      "id": "composite-test",
+      "schemaVersion": 1,
+      "steps": [
+        {
+          "enabled": true,
+          "opId": "channel_combine",
+          "opVersion": 1,
+          "params": {
+            "crop": {
+              "height": 356,
+              "width": 480,
+              "x": 24,
+              "y": 16
+            },
+            "fits": {
+              "luminanceToRgb": {
+                "offset": 646.0066210015707,
+                "scale": 0.415877120318184
+              }
+            },
+            "flatten": {
+              "background": {
+                "green": {
+                  "coefficients": [
+                    2299.41142483503,
+                    -0.504536568066533,
+                    0.1928904726331407,
+                    0.6797586414507523,
+                    0.11203580286688022,
+                    0.3748593428832847
+                  ],
+                  "degree": 2
+                },
+                "luminance": {
+                  "coefficients": [
+                    5499.426953799502,
+                    -0.5665748225818005,
+                    1.1287164656859934,
+                    -0.265879241420327,
+                    1.5327141661282104,
+                    1.162475128660709
+                  ],
+                  "degree": 2
+                },
+                "red": {
+                  "coefficients": [
+                    2499.690426450401,
+                    0.0216629223066008,
+                    -0.24478241203237328,
+                    -0.4372872526730696,
+                    0.26886854826884077,
+                    0.932439071789792
+                  ],
+                  "degree": 2
+                }
+              },
+              "chromaBox": 64.0,
+              "throughput": {
+                "blue": {
+                  "coefficients": [
+                    0.0
+                  ],
+                  "degree": 0
+                },
+                "green": {
+                  "coefficients": [
+                    0.0
+                  ],
+                  "degree": 0
+                },
+                "red": {
+                  "coefficients": [
+                    0.0
+                  ],
+                  "degree": 0
+                }
+              }
+            },
+            "inputs": [
+              {
+                "filter": "Luminance",
+                "height": 384,
+                "path": "/masters/Luminance_master.fits",
+                "reference": true,
+                "role": "luminance",
+                "width": 512
+              },
+              {
+                "filter": "Red",
+                "height": 384,
+                "path": "/masters/Red_master.fits",
+                "role": "red",
+                "transform": [
+                  0.9999957817774676,
+                  -0.000011855613207177025,
+                  18.40303900182888,
+                  0.000011855613207177025,
+                  0.9999957817774676,
+                  7.199330063066185
+                ],
+                "width": 512
+              },
+              {
+                "filter": "Green",
+                "height": 384,
+                "path": "/masters/Green_master.fits",
+                "role": "green",
+                "transform": [
+                  0.9999985228266696,
+                  -5.780375417325792e-6,
+                  2.301989296489652,
+                  5.780375417325792e-6,
+                  0.9999985228266696,
+                  -6.099076208691798
+                ],
+                "width": 512
+              },
+              {
+                "filter": "Blue",
+                "height": 384,
+                "path": "/masters/Blue_master.fits",
+                "role": "blue",
+                "transform": [
+                  1.0000045892165514,
+                  7.2183087121685725e-6,
+                  16.69839905886834,
+                  -7.2183087121685725e-6,
+                  1.0000045892165514,
+                  9.600848758212775
+                ],
+                "width": 512
+              }
+            ],
+            "palette": "lrgb"
+          }
+        },
+        {
+          "enabled": true,
+          "opId": "color_calibrate",
+          "opVersion": 1,
+          "params": {
+            "channelOffset": [
+              464.5140239097168,
+              637.7064489023428,
+              -1102.2204728120591
+            ],
+            "channelScale": [
+              0.9892537417141968,
+              1.0,
+              1.0099638619139482
+            ],
+            "neutralizeBackground": true,
+            "whiteReference": "averageStar"
+          }
+        },
+        {
+          "enabled": true,
+          "opId": "chroma_denoise",
+          "opVersion": 1,
+          "params": {
+            "amount": 0.35
+          }
+        },
+        {
+          "enabled": true,
+          "opId": "scnr",
+          "opVersion": 1,
+          "params": {}
+        },
+        {
+          "enabled": true,
+          "opId": "denoise",
+          "opVersion": 1,
+          "params": {
+            "chromaStrength": 0.0,
+            "scaleCount": 2,
+            "strength": 0.35,
+            "thresholdSigma": 2.0
+          }
+        },
+        {
+          "enabled": true,
+          "opId": "stretch",
+          "opVersion": 1,
+          "params": {
+            "b": 1.0,
+            "blackPoint": 2927.7737011132813,
+            "colorMode": "luminance",
+            "d": 75.50976978617872,
+            "symmetryPoint": 0.0,
+            "whitePoint": 8700.1123046875
+          }
+        },
+        {
+          "enabled": true,
+          "opId": "saturation",
+          "opVersion": 1,
+          "params": {
+            "amount": 0.25
+          }
+        }
+      ]
+    }
+  },
+  "masterPath": "/masters/Luminance_master.fits",
+  "ops": [
+    {
+      "defaults": {
+        "exclusionPercentile": 0.75,
+        "modelOrder": 2,
+        "sampleSpacing": 64.0
+      },
+      "example": {
+        "exclusionPercentile": 0.75,
+        "modelOrder": 2,
+        "sampleSpacing": 64.0
+      },
+      "id": "background_extract",
+      "params": [
+        {
+          "default": 64.0,
+          "displayName": "Sample spacing (master pixels)",
+          "example": 64.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1024.0,
+          "min": 8.0,
+          "name": "sampleSpacing",
+          "required": false,
+          "summary": "Spacing in master pixels between background sample boxes."
+        },
+        {
+          "default": 0.75,
+          "displayName": "Darkest-sample fraction kept",
+          "example": 0.75,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.05,
+          "name": "exclusionPercentile",
+          "required": false,
+          "summary": "Fraction of the darkest samples kept, so nebulosity does not become background."
+        },
+        {
+          "default": 2,
+          "displayName": "Background polynomial degree",
+          "example": 2,
+          "independent": true,
+          "kind": "integer",
+          "max": 6.0,
+          "min": 0.0,
+          "name": "modelOrder",
+          "required": false,
+          "summary": "Polynomial degree of the background surface."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Fits a smooth background model from a star-rejected sample lattice and subtracts it, keeping the frame's pedestal.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "b": 0.0,
+        "colorMode": "linked",
+        "d": 1.0,
+        "symmetryPoint": 0.0
+      },
+      "example": {
+        "b": 0.0,
+        "blackPoint": 0.0,
+        "colorMode": "linked",
+        "d": 1.0,
+        "symmetryPoint": 0.0,
+        "whitePoint": 1.0
+      },
+      "id": "stretch",
+      "params": [
+        {
+          "displayName": "Black point (ADU)",
+          "example": 0.0,
+          "independent": false,
+          "kind": "number",
+          "max": 1000000000000.0,
+          "min": -1000000000000.0,
+          "name": "blackPoint",
+          "required": true,
+          "summary": "ADU mapped to 0. Must sit below whitePoint."
+        },
+        {
+          "displayName": "White point (ADU)",
+          "example": 1.0,
+          "independent": false,
+          "kind": "number",
+          "max": 1000000000000.0,
+          "min": -1000000000000.0,
+          "name": "whitePoint",
+          "required": true,
+          "summary": "ADU mapped to 1. Must sit above blackPoint."
+        },
+        {
+          "default": 1.0,
+          "displayName": "Stretch intensity",
+          "example": 1.0,
+          "independent": true,
+          "kind": "number",
+          "max": 10000.0,
+          "min": 0.0,
+          "name": "d",
+          "required": false,
+          "summary": "Stretch intensity; 0 is the identity ramp."
+        },
+        {
+          "default": 0.0,
+          "displayName": "Local intensity",
+          "example": 0.0,
+          "independent": true,
+          "kind": "number",
+          "max": 15.0,
+          "min": -5.0,
+          "name": "b",
+          "required": false,
+          "summary": "Local intensity: the generalised-hyperbolic family selector."
+        },
+        {
+          "default": 0.0,
+          "displayName": "Symmetry point (normalised)",
+          "example": 0.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "symmetryPoint",
+          "required": false,
+          "summary": "Normalised position the curve is symmetric about."
+        },
+        {
+          "allowed": [
+            "linked",
+            "luminance"
+          ],
+          "allowedLabels": [
+            "Linked channels",
+            "Luminance (keeps color)"
+          ],
+          "default": "linked",
+          "displayName": "Color handling",
+          "example": "linked",
+          "independent": true,
+          "kind": "enum",
+          "name": "colorMode",
+          "required": false,
+          "summary": "linked applies the curve to each channel, which washes bright color toward white; luminance stretches each pixel's channel mean and keeps its channel ratios, so hue and saturation survive the stretch."
+        }
+      ],
+      "stage": "stretched",
+      "summary": "Applies a generalised hyperbolic stretch, leaving the linear stage.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "x": 0,
+        "y": 0
+      },
+      "example": {
+        "height": 16,
+        "width": 16,
+        "x": 0,
+        "y": 0
+      },
+      "id": "crop",
+      "params": [
+        {
+          "default": 0,
+          "displayName": "Left edge (master pixels)",
+          "example": 0,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 0.0,
+          "name": "x",
+          "required": false,
+          "summary": "Left edge in master pixels."
+        },
+        {
+          "default": 0,
+          "displayName": "Top edge (master pixels)",
+          "example": 0,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 0.0,
+          "name": "y",
+          "required": false,
+          "summary": "Top edge in master pixels."
+        },
+        {
+          "displayName": "Width (master pixels)",
+          "example": 16,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 1.0,
+          "name": "width",
+          "required": true,
+          "summary": "Rectangle width in master pixels."
+        },
+        {
+          "displayName": "Height (master pixels)",
+          "example": 16,
+          "independent": true,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 1.0,
+          "name": "height",
+          "required": true,
+          "summary": "Rectangle height in master pixels."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Cuts a rectangle out of the frame and moves the reference pixel with it.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "magLimit": 17.0,
+        "matchRadiusPx": 3.0,
+        "minStars": 8,
+        "neutralizeBackground": false,
+        "whiteRefBv": 0.65,
+        "whiteReference": "catalog"
+      },
+      "example": {
+        "channelOffset": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "channelScale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "magLimit": 17.0,
+        "matchRadiusPx": 3.0,
+        "minStars": 8,
+        "neutralizeBackground": false,
+        "whiteRefBv": 0.65,
+        "whiteReference": "catalog"
+      },
+      "id": "color_calibrate",
+      "params": [
+        {
+          "displayName": "Per-channel scales",
+          "example": [
+            1.0,
+            1.0,
+            1.0
+          ],
+          "independent": true,
+          "kind": "numberArray",
+          "length": 3,
+          "max": 1000000.0,
+          "min": 1e-6,
+          "name": "channelScale",
+          "required": false,
+          "summary": "Explicit per-channel scales. Absent solves them from the catalogue instead."
+        },
+        {
+          "default": 0.65,
+          "displayName": "Neutral colour (B-V)",
+          "example": 0.65,
+          "independent": true,
+          "kind": "number",
+          "max": 2.5,
+          "min": -0.5,
+          "name": "whiteRefBv",
+          "required": false,
+          "summary": "B-V of the colour the calibration renders neutral."
+        },
+        {
+          "default": 17.0,
+          "displayName": "Faintest catalogue magnitude (V)",
+          "example": 17.0,
+          "independent": true,
+          "kind": "number",
+          "max": 22.0,
+          "min": 5.0,
+          "name": "magLimit",
+          "required": false,
+          "summary": "Faintest catalogue V magnitude used."
+        },
+        {
+          "default": 3.0,
+          "displayName": "Match radius (render pixels)",
+          "example": 3.0,
+          "independent": true,
+          "kind": "number",
+          "max": 32.0,
+          "min": 0.5,
+          "name": "matchRadiusPx",
+          "required": false,
+          "summary": "How far a detected star may sit from its catalogue position."
+        },
+        {
+          "default": 8,
+          "displayName": "Fewest matched stars",
+          "example": 8,
+          "independent": true,
+          "kind": "integer",
+          "max": 100000.0,
+          "min": 8.0,
+          "name": "minStars",
+          "required": false,
+          "summary": "Fewest matched stars the fit accepts."
+        },
+        {
+          "allowed": [
+            "catalog",
+            "averageStar"
+          ],
+          "allowedLabels": [
+            "Catalog star colors",
+            "Average star"
+          ],
+          "default": "catalog",
+          "displayName": "White reference",
+          "example": "catalog",
+          "independent": true,
+          "kind": "enum",
+          "name": "whiteReference",
+          "required": false,
+          "summary": "catalog fits the balance to catalog B-V colors through the plate solve; averageStar renders the median color of the field's own stars neutral, for a master with no plate solve."
+        },
+        {
+          "default": false,
+          "displayName": "Neutralize the background",
+          "example": false,
+          "independent": true,
+          "kind": "boolean",
+          "name": "neutralizeBackground",
+          "required": false,
+          "summary": "Offsets each channel after the scales so the sky has the same level in all three."
+        },
+        {
+          "displayName": "Per-channel offsets",
+          "example": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "independent": true,
+          "kind": "numberArray",
+          "length": 3,
+          "max": 1000000000.0,
+          "min": -1000000000.0,
+          "name": "channelOffset",
+          "required": false,
+          "summary": "Explicit per-channel offsets added after the scales. Absent measures them when neutralizeBackground is set."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Scales the channels of a three-channel master from a Johnson B-V colour-versus-flux regression against the caller's photometry. It is not full spectrophotometric calibration: the shipped photometry is B and V only.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "chromaStrength": 0.5,
+        "scaleCount": 4,
+        "strength": 1.0,
+        "thresholdSigma": 3.0
+      },
+      "example": {
+        "chromaStrength": 0.5,
+        "scaleCount": 4,
+        "strength": 1.0,
+        "thresholdSigma": 3.0
+      },
+      "id": "denoise",
+      "params": [
+        {
+          "default": 4,
+          "displayName": "Wavelet scales",
+          "example": 4,
+          "independent": true,
+          "kind": "integer",
+          "max": 6.0,
+          "min": 1.0,
+          "name": "scaleCount",
+          "required": false,
+          "summary": "Wavelet scales thresholded, in render-level pixels."
+        },
+        {
+          "default": 3.0,
+          "displayName": "Detail threshold (noise sigmas)",
+          "example": 3.0,
+          "independent": true,
+          "kind": "number",
+          "max": 10.0,
+          "min": 0.0,
+          "name": "thresholdSigma",
+          "required": false,
+          "summary": "Detail threshold in per-scale noise sigmas; 0 shrinks nothing."
+        },
+        {
+          "default": 1.0,
+          "displayName": "Strength",
+          "example": 1.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "strength",
+          "required": false,
+          "summary": "Weight the whole correction is applied at; 0 is the identity."
+        },
+        {
+          "default": 0.5,
+          "displayName": "Chroma strength",
+          "example": 0.5,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "chromaStrength",
+          "required": false,
+          "summary": "Weight the chroma low-pass is applied at. A mono master has no chroma."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Shrinks starlet-wavelet detail coefficients against each scale's own measured noise, and smooths chroma separately.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "amount": 0.5,
+        "maskDilatePx": 2.0,
+        "maskThresholdSigma": 5.0
+      },
+      "example": {
+        "amount": 0.5,
+        "maskDilatePx": 2.0,
+        "maskThresholdSigma": 5.0
+      },
+      "id": "star_reduce",
+      "params": [
+        {
+          "default": 0.5,
+          "displayName": "Amount",
+          "example": 0.5,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "amount",
+          "required": false,
+          "summary": "How far a star core is pulled toward its surroundings; 0 is an exact clone."
+        },
+        {
+          "default": 5.0,
+          "displayName": "Mask threshold (noise sigmas)",
+          "example": 5.0,
+          "independent": true,
+          "kind": "number",
+          "max": 20.0,
+          "min": 1.0,
+          "name": "maskThresholdSigma",
+          "required": false,
+          "summary": "Detection threshold above the background, in noise sigmas."
+        },
+        {
+          "default": 2.0,
+          "displayName": "Mask dilation (render pixels)",
+          "example": 2.0,
+          "independent": true,
+          "kind": "number",
+          "max": 32.0,
+          "min": 0.0,
+          "name": "maskDilatePx",
+          "required": false,
+          "summary": "Pixels the star mask grows by before it is feathered."
+        }
+      ],
+      "stage": "stretched",
+      "summary": "De-emphasises detected stars morphologically. It removes no star and leaves mask-zero pixels byte-identical.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "amount": 0.0,
+        "protection": 0.5
+      },
+      "example": {
+        "amount": 0.0,
+        "protection": 0.5
+      },
+      "id": "saturation",
+      "params": [
+        {
+          "default": 0.0,
+          "displayName": "Saturation change",
+          "example": 0.0,
+          "independent": true,
+          "kind": "number",
+          "max": 3.0,
+          "min": -1.0,
+          "name": "amount",
+          "required": false,
+          "summary": "Saturation change; 0 is the identity and -1 is fully desaturated."
+        },
+        {
+          "default": 0.5,
+          "displayName": "Highlight protection",
+          "example": 0.5,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "protection",
+          "required": false,
+          "summary": "How strongly highlights are held back from the change."
+        }
+      ],
+      "stage": "stretched",
+      "summary": "Scales each pixel's departure from its own luminance, protecting the brightest tones.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "mode": "luminance",
+        "x": [
+          0.0,
+          1.0
+        ],
+        "y": [
+          0.0,
+          1.0
+        ]
+      },
+      "example": {
+        "mode": "luminance",
+        "x": [
+          0.0,
+          1.0
+        ],
+        "y": [
+          0.0,
+          1.0
+        ]
+      },
+      "id": "curves",
+      "params": [
+        {
+          "allowed": [
+            "luminance",
+            "perChannel"
+          ],
+          "allowedLabels": [
+            "Luminance",
+            "Each channel"
+          ],
+          "default": "luminance",
+          "displayName": "Curve mode",
+          "example": "luminance",
+          "independent": true,
+          "kind": "enum",
+          "name": "mode",
+          "required": false,
+          "summary": "Whether the curve moves luminance alone or each channel."
+        },
+        {
+          "default": [
+            0.0,
+            1.0
+          ],
+          "displayName": "Control-point inputs",
+          "example": [
+            0.0,
+            1.0
+          ],
+          "independent": false,
+          "kind": "numberList",
+          "max": 1.0,
+          "maxLength": 16,
+          "min": 0.0,
+          "minLength": 2,
+          "name": "x",
+          "required": false,
+          "summary": "Control-point inputs, strictly increasing from 0 to 1."
+        },
+        {
+          "default": [
+            0.0,
+            1.0
+          ],
+          "displayName": "Control-point outputs",
+          "example": [
+            0.0,
+            1.0
+          ],
+          "independent": false,
+          "kind": "numberList",
+          "max": 1.0,
+          "maxLength": 16,
+          "min": 0.0,
+          "minLength": 2,
+          "name": "y",
+          "required": false,
+          "summary": "Control-point outputs, one per entry of x."
+        }
+      ],
+      "stage": "stretched",
+      "summary": "Applies a monotone spline through the given control points, on luminance or per channel.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "chromaSmoothing": 1.0,
+        "haLuminanceWeight": 0.3,
+        "haRedWeight": 0.5
+      },
+      "example": {
+        "chromaSmoothing": 1.0,
+        "crop": {
+          "height": 16,
+          "width": 16,
+          "x": 0,
+          "y": 0
+        },
+        "fits": {},
+        "flatten": {
+          "chromaBox": 64
+        },
+        "haLuminanceWeight": 0.3,
+        "haRedWeight": 0.5,
+        "inputs": [
+          {
+            "height": 16,
+            "path": "r.fits",
+            "reference": true,
+            "role": "red",
+            "width": 16
+          },
+          {
+            "height": 16,
+            "path": "g.fits",
+            "role": "green",
+            "transform": [
+              1,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "width": 16
+          },
+          {
+            "height": 16,
+            "path": "b.fits",
+            "role": "blue",
+            "transform": [
+              1,
+              0,
+              0,
+              0,
+              1,
+              0
+            ],
+            "width": 16
+          }
+        ],
+        "mix": {
+          "blue": {
+            "oiii": 1.0
+          },
+          "green": {
+            "hAlpha": 1.0
+          },
+          "red": {
+            "sii": 1.0
+          }
+        },
+        "palette": "rgb",
+        "starSigma": {
+          "blue": 1.1,
+          "green": 1.1,
+          "red": 1.2
+        }
+      },
+      "id": "channel_combine",
+      "params": [
+        {
+          "allowed": [
+            "lrgb",
+            "rgb",
+            "haRgb",
+            "haLrgb",
+            "sho",
+            "hoo",
+            "osc",
+            "custom"
+          ],
+          "allowedLabels": [
+            "LRGB",
+            "RGB",
+            "HaRGB",
+            "HaLRGB",
+            "SHO (Hubble palette)",
+            "HOO (bicolor)",
+            "one-shot color",
+            "Custom mix"
+          ],
+          "displayName": "Combination",
+          "example": "rgb",
+          "independent": false,
+          "kind": "enum",
+          "name": "palette",
+          "required": true,
+          "summary": "Which filters go to which color channel."
+        },
+        {
+          "displayName": "Channel mix",
+          "example": {
+            "blue": {
+              "oiii": 1.0
+            },
+            "green": {
+              "hAlpha": 1.0
+            },
+            "red": {
+              "sii": 1.0
+            }
+          },
+          "independent": false,
+          "kind": "channelMix",
+          "max": 2.0,
+          "min": 0.0,
+          "name": "mix",
+          "required": false,
+          "summary": "How much of each narrowband master goes into red, green and blue. The masters are matched on their stars first; a weight then scales that master's signal above the sky."
+        },
+        {
+          "displayName": "Masters and registration",
+          "example": [
+            {
+              "height": 16,
+              "path": "r.fits",
+              "reference": true,
+              "role": "red",
+              "width": 16
+            },
+            {
+              "height": 16,
+              "path": "g.fits",
+              "role": "green",
+              "transform": [
+                1,
+                0,
+                0,
+                0,
+                1,
+                0
+              ],
+              "width": 16
+            },
+            {
+              "height": 16,
+              "path": "b.fits",
+              "role": "blue",
+              "transform": [
+                1,
+                0,
+                0,
+                0,
+                1,
+                0
+              ],
+              "width": 16
+            }
+          ],
+          "independent": false,
+          "kind": "object",
+          "name": "inputs",
+          "required": true,
+          "summary": "Each master's filter role, path, size and its measured registration onto the base master."
+        },
+        {
+          "displayName": "Common area (master pixels)",
+          "example": {
+            "height": 16,
+            "width": 16,
+            "x": 0,
+            "y": 0
+          },
+          "independent": false,
+          "kind": "object",
+          "name": "crop",
+          "required": true,
+          "summary": "The rectangle every master covers, in base-master pixels."
+        },
+        {
+          "displayName": "Flux matching",
+          "example": {},
+          "independent": false,
+          "kind": "object",
+          "name": "fits",
+          "required": false,
+          "summary": "Measured scale and offset matching one master onto another. Absent measures them from the image."
+        },
+        {
+          "default": 1.0,
+          "displayName": "Color smoothing (master pixels)",
+          "example": 1.0,
+          "independent": true,
+          "kind": "number",
+          "max": 8.0,
+          "min": 0.0,
+          "name": "chromaSmoothing",
+          "required": false,
+          "summary": "Blur applied to the color, not the luminance, when a luminance master is laid over RGB."
+        },
+        {
+          "displayName": "Star profile per channel (master pixels)",
+          "example": {
+            "blue": 1.1,
+            "green": 1.1,
+            "red": 1.2
+          },
+          "independent": false,
+          "kind": "object",
+          "name": "starSigma",
+          "required": false,
+          "summary": "Measured Gaussian sigma of each color master's stars. With a luminance master, the color of the sharper channels is blurred to the widest profile so star cores and wings take one color."
+        },
+        {
+          "default": 0.5,
+          "displayName": "Ha share of red",
+          "example": 0.5,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "haRedWeight",
+          "required": false,
+          "summary": "How much of the red channel the matched Ha master replaces in HaRGB."
+        },
+        {
+          "default": 0.3,
+          "displayName": "Ha share of luminance",
+          "example": 0.3,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "haLuminanceWeight",
+          "required": false,
+          "summary": "How much of the luminance the matched Ha master replaces in HaLRGB."
+        },
+        {
+          "displayName": "Per-master flattening",
+          "example": {
+            "chromaBox": 64
+          },
+          "independent": false,
+          "kind": "object",
+          "name": "flatten",
+          "required": false,
+          "summary": "Flattens each master before the channels are combined: its throughput across the field, measured from the stars, and its sky gradient, each a measured polynomial surface, then the sky's color on a lattice of chromaBox-pixel boxes. Absent leaves the masters as registered; surfaces not given are measured."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Combines a target's per-filter masters, registered onto the base master, into one color image: RGB, LRGB (luminance over RGB color), HaRGB, SHO, HOO, a custom mix of the narrowband masters, or one-shot color.",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "amount": 1.0,
+        "neutral": "average",
+        "preserveLightness": true
+      },
+      "example": {
+        "amount": 1.0,
+        "neutral": "average",
+        "preserveLightness": true
+      },
+      "id": "scnr",
+      "params": [
+        {
+          "default": 1.0,
+          "displayName": "Amount",
+          "example": 1.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "amount",
+          "required": false,
+          "summary": "How far green moves to the neutral; 0 is the identity."
+        },
+        {
+          "allowed": [
+            "average",
+            "maximum"
+          ],
+          "allowedLabels": [
+            "Average of red and blue",
+            "Larger of red and blue"
+          ],
+          "default": "average",
+          "displayName": "Neutral reference",
+          "example": "average",
+          "independent": true,
+          "kind": "enum",
+          "name": "neutral",
+          "required": false,
+          "summary": "average limits green to the mean of red and blue; maximum to the larger of them, which removes less."
+        },
+        {
+          "default": true,
+          "displayName": "Preserve lightness",
+          "example": true,
+          "independent": true,
+          "kind": "boolean",
+          "name": "preserveLightness",
+          "required": false,
+          "summary": "Rescales a pixel whose green was lowered so its brightness is unchanged."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Removes a green cast by limiting green to a neutral built from red and blue (PixInsight SCNR).",
+      "version": 1
+    },
+    {
+      "defaults": {
+        "amount": 1.0,
+        "protection": 8.0,
+        "smoothingPx": 6.0
+      },
+      "example": {
+        "amount": 1.0,
+        "protection": 8.0,
+        "smoothingPx": 6.0
+      },
+      "id": "chroma_denoise",
+      "params": [
+        {
+          "default": 6.0,
+          "displayName": "Color smoothing (master pixels)",
+          "example": 6.0,
+          "independent": true,
+          "kind": "number",
+          "max": 64.0,
+          "min": 0.5,
+          "name": "smoothingPx",
+          "required": false,
+          "summary": "Gaussian width the background's color is smoothed over."
+        },
+        {
+          "default": 8.0,
+          "displayName": "Signal protection (sky sigmas)",
+          "example": 8.0,
+          "independent": true,
+          "kind": "number",
+          "max": 100.0,
+          "min": 0.5,
+          "name": "protection",
+          "required": false,
+          "summary": "How far above the sky a pixel must be to keep its own color entirely."
+        },
+        {
+          "default": 1.0,
+          "displayName": "Amount",
+          "example": 1.0,
+          "independent": true,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "amount",
+          "required": false,
+          "summary": "How much of the background's color is replaced by its smoothed color; 0 is the identity."
+        }
+      ],
+      "stage": "linear",
+      "summary": "Smooths large-scale color noise in the background, leaving lightness, stars and the target's color untouched.",
+      "version": 1
+    }
+  ],
+  "registered": [
+    {
+      "id": "background_extract",
+      "version": 1
+    },
+    {
+      "id": "channel_combine",
+      "version": 1
+    },
+    {
+      "id": "chroma_denoise",
+      "version": 1
+    },
+    {
+      "id": "color_calibrate",
+      "version": 1
+    },
+    {
+      "id": "crop",
+      "version": 1
+    },
+    {
+      "id": "curves",
+      "version": 1
+    },
+    {
+      "id": "denoise",
+      "version": 1
+    },
+    {
+      "id": "saturation",
+      "version": 1
+    },
+    {
+      "id": "scnr",
+      "version": 1
+    },
+    {
+      "id": "star_reduce",
+      "version": 1
+    },
+    {
+      "id": "stretch",
+      "version": 1
+    }
+  ],
+  "schemaVersion": 1
+}

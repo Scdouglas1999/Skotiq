@@ -221,4 +221,77 @@ void main() {
     visit(originalRootId);
     expect(reachable, hasLength(sequence.nodes.length));
   });
+
+  testWidgets(
+      'replacing with a framed mosaic asks before discarding unsaved edits',
+      (tester) async {
+    final editor = CurrentSequenceNotifier();
+    editor.createSequence(name: 'Unsaved plan');
+    editor.addNode(DelayNode(id: 'unsaved-delay', seconds: 1));
+    expect(editor.isDirty, isTrue);
+    bool? added;
+
+    const target = FramingTarget(
+      name: 'M31',
+      catalogId: 'M31',
+      raHours: 0.712,
+      decDegrees: 41.2,
+    );
+    const framingState = FramingState(
+      target: target,
+      useCustomEquipment: true,
+      customEquipment: _equipment,
+      mosaicEnabled: true,
+      mosaicConfig: FramingMosaicConfig(columns: 2, rows: 1),
+      mosaicPanels: _generatedPanels,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          currentSequenceProvider.overrideWith((ref) => editor),
+          framingProvider.overrideWith(
+            (ref) => _SeededFramingNotifier(ref, framingState),
+          ),
+          smartNightExposureContextProvider.overrideWith((ref) async => null),
+        ],
+        child: MaterialApp(
+          home: Consumer(
+            builder: (context, ref, _) => TextButton(
+              onPressed: () async {
+                added = await addFramedTargetToSequencer(
+                  context: context,
+                  ref: ref,
+                  target: target,
+                  replaceSequence: true,
+                );
+              },
+              child: const Text('Replace with mosaic'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Replace with mosaic'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Discard unsaved changes?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+
+    expect(added, isFalse);
+    expect(editor.state!.name, 'Unsaved plan');
+    expect(editor.state!.nodes, contains('unsaved-delay'));
+
+    await tester.tap(find.text('Replace with mosaic'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Discard and open'));
+    await tester.pumpAndSettle();
+
+    expect(added, isTrue);
+    expect(editor.state!.name, 'M31 Mosaic');
+    expect(
+        editor.state!.nodes.values.whereType<TargetHeaderNode>(), hasLength(2));
+  });
 }

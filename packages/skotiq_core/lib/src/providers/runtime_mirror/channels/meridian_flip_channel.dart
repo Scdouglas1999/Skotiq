@@ -1,28 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../models/meridian_flip_event.dart' show FlipStep;
+import '../../../models/meridian_flip_progress.dart';
 import '../../meridian_flip_provider.dart';
 import '../../meridian_flip_telemetry.dart';
 import '../runtime_mirror_channel.dart';
-import '../runtime_mirror_codec.dart';
 
-typedef MeridianFlipRunState = ({
-  FlipExecutionState state,
-  int attempt,
-  FlipStep? step,
-  int progress,
-  String? error,
-});
-
-final _meridianFlipProgressProvider = Provider<MeridianFlipRunState>((ref) {
+final _meridianFlipProgressProvider = Provider<FlipMonitorProgress>((ref) {
   ref.watch(meridianFlipTelemetryProvider);
-  return (
-    state: ref.watch(flipExecutionStateProvider),
-    attempt: ref.watch(flipCurrentAttemptProvider),
-    step: ref.watch(flipCurrentStepProvider),
-    progress: ref.watch(flipProgressProvider),
-    error: ref.watch(flipLastErrorProvider),
-  );
+  return ref.watch(flipMonitorProgressProvider);
 });
 
 /// A meridian flip the host's flip monitor is performing outside a sequence.
@@ -30,7 +15,7 @@ final _meridianFlipProgressProvider = Provider<MeridianFlipRunState>((ref) {
 /// The monitor runs only on the process that owns the mount, so a linked
 /// client's mount card kept its controls enabled and showed no flip while the
 /// mount was mid-flip.
-class MeridianFlipChannel extends RuntimeMirrorChannel<MeridianFlipRunState> {
+class MeridianFlipChannel extends RuntimeMirrorChannel<FlipMonitorProgress> {
   const MeridianFlipChannel();
 
   @override
@@ -43,36 +28,13 @@ class MeridianFlipChannel extends RuntimeMirrorChannel<MeridianFlipRunState> {
   Duration get minInterval => const Duration(milliseconds: 500);
 
   @override
-  Map<String, dynamic>? encode(MeridianFlipRunState value) => {
-    'state': value.state.name,
-    'attempt': value.attempt,
-    'step': value.step?.name,
-    'progress': value.progress,
-    'error': value.error,
-  };
+  Map<String, dynamic>? encode(FlipMonitorProgress value) => value.toJson();
 
   @override
   void apply(RuntimeApplyContext context, Map<String, dynamic>? value) {
     if (value == null || context.networkBackend == null) return;
-    context.read(flipExecutionStateProvider.notifier).state = FlipExecutionState
-        .values
-        .firstWhere(
-          (s) => s.name == value['state'],
-          orElse: () => FlipExecutionState.idle,
-        );
-    context.read(flipCurrentAttemptProvider.notifier).state = requireInt(
-      value,
-      'attempt',
-    );
-    context.read(flipCurrentStepProvider.notifier).state = FlipStep.values
-        .where((s) => s.name == value['step'])
-        .firstOrNull;
-    context.read(flipProgressProvider.notifier).state = requireInt(
-      value,
-      'progress',
-    );
-    context.read(flipLastErrorProvider.notifier).state = jsonString(
-      value['error'],
-    );
+    context
+        .read(flipMonitorProgressProvider.notifier)
+        .set(FlipMonitorProgress.fromJson(value));
   }
 }

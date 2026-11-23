@@ -409,4 +409,44 @@ mod tests {
         assert_eq!(plain.resolve(600.0, 5400.0), (600.0, 5400.0));
         assert_eq!(plain.after_failure(600.0), 600.0);
     }
+
+    const CAUSES_FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/recovery_causes.json"
+    );
+
+    /// `test_fixtures/recovery_causes.json`: each cause's serde form, kind,
+    /// `wire_key` and `display_label`. The app keeps its own label and key
+    /// per kind, because it shows recovery history it saved in earlier
+    /// releases with the kind only; its test holds that table to this file.
+    /// Regenerate with
+    /// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer recovery_causes_fixture`.
+    #[test]
+    fn recovery_causes_fixture() {
+        let rows: Vec<serde_json::Value> = all_causes()
+            .iter()
+            .map(|cause| {
+                serde_json::json!({
+                    "cause": serde_json::to_value(cause).unwrap(),
+                    "kind": cause.policy().kind,
+                    "wireKey": cause.wire_key(),
+                    "label": cause.display_label(),
+                })
+            })
+            .collect();
+        let value = serde_json::Value::Array(rows);
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(CAUSES_FIXTURE, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(CAUSES_FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "a recovery cause's label or key changed; regenerate the fixture and update the app's table"
+        );
+    }
 }

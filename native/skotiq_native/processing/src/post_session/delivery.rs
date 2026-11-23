@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use skotiq_imaging::{read_frame, read_frame_header, write_fits, FitsHeader, ImageData};
 use std::path::Path;
 
-use skotiq_imaging::color_composite::{
+use skotiq_imaging::recipe::composite::{
     alignment_check, classify_filter, register_onto, warp_window, Affine2, FilterRole, Rect,
 };
 use skotiq_imaging::recipe::{OpContext, OpImage};
@@ -480,5 +480,16 @@ fn sanitize_name(name: &str) -> String {
         "unnamed".to_string()
     } else {
         cleaned
+    }
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::MasterDeliverArgs>(
+            "master_accumulate_deliver",
+        );
     }
 }

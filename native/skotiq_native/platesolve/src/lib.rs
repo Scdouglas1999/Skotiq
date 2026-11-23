@@ -22,8 +22,10 @@
 //! * `output_dir.parent().unwrap_or_else(|| Path::new("."))` — root-path
 //!   case for the temp/work directory; current-dir is the safe fallback.
 
+mod gate;
 mod paths;
 
+pub use gate::{acquire_solve_gate, acquire_solve_gate_blocking};
 pub use paths::CatalogInfo;
 use paths::{
     astap_candidates, astrometry_candidates, catalog_dir_candidates, first_existing,
@@ -410,35 +412,10 @@ pub fn detect_astap_catalog(
     let home = home_dir();
 
     // Fall back to the operator's configured Plate Solving paths when the
-    // caller supplies none. Every other entry point into this module already
-    // consults `ACTIVE_SOLVER_PREF` for exactly this reason ("without any
-    // caller needing to pass the config explicitly"); this one did not, so it
-    // only ever searched the default install locations.
-    //
-    // The visible consequence: on any rig whose ASTAP lives somewhere else,
-    // the sequencer's pre-flight check reported "no ASTAP star database found
-    // ... target centering in this sequence will fail" as a run-level error,
-    // on runs where the catalogs were present and ASTAP was solving to 0.5".
-    // A setup warning that fires while the thing it warns about is working is
-    // worse than no warning: the next real one gets ignored.
-    //
-    // Reading the preference was not enough, and the same warning fired again
-    // on the owner's rig on 2026-09-15: ASTAP sat at
-    // `C:\Program Files\astap\astap.exe` with a `d80_*.1476` catalog beside it
-    // and solved that night's frames to 0.17" of an independent run, while
-    // every sequence logged "no ASTAP star database found ... target centering
-    // in this sequence will fail". `ACTIVE_SOLVER_PREF.astap_path` was empty —
-    // nothing had been configured by hand, because nothing needed to be — so
-    // the fallback produced no exe, the exe's own directory never entered the
-    // candidate list, and `C:\Program Files\astap` is not in
-    // `catalog_dir_candidates`' well-known set either.
-    //
-    // So resolve the executable the way the REST of the module resolves it,
+    // caller supplies none, as every other entry point into this module does.
+    // Resolve the executable the way the REST of the module resolves it,
     // through the same cached `discovered_solvers()` that `PlateSolverConfig`
-    // and `verify_solver` use, before concluding anything is missing. That is
-    // what `api_platesolve_detect` has always done by hand — and why it
-    // reported this rig's catalog correctly while the preflight did not. The
-    // detector and the solver now search from the same executable, so the
+    // and `verify_solver` use, before concluding anything is missing, so the
     // detector cannot contradict a solver that is working.
     let fallback_exe;
     let fallback_catalog;
@@ -620,16 +597,7 @@ fn fits_naxis2(path: &Path) -> Option<f64> {
 /// `.wcs` is a minimal header (`NAXIS = 0`) with no dimensions, so the solved
 /// field size has to come from the frame that was solved.
 fn fits_image_size(path: &Path) -> Option<(f64, f64)> {
-    match fits_header_floats(path, &["NAXIS1", "NAXIS2"]).as_slice() {
-        [Some(w), Some(h)] if *w > 0.0 && *h > 0.0 => Some((*w, *h)),
-        _ => None,
-    }
-}
-
-/// The frame's width and height in whole pixels, from its primary FITS header.
-pub fn fits_frame_size(path: &Path) -> Option<(u32, u32)> {
-    // NAXIS values are integers well inside u32.
-    fits_image_size(path).map(|(w, h)| (w as u32, h as u32))
+    skotiq_imaging::read_frame_size(path).map(|(w, h)| (f64::from(w), f64::from(h)))
 }
 
 /// Read numeric cards off a FITS primary header without decoding pixel data.
@@ -2067,6 +2035,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn wait_treats_a_child_reaped_elsewhere_as_exited() {
+        // A fork here can inherit a script another test is still writing.
+        #[cfg(unix)]
+        let _fixtures = lock_script_fixtures();
         extern "C" {
             fn waitpid(pid: i32, status: *mut i32, options: i32) -> i32;
         }
@@ -2085,6 +2056,9 @@ mod tests {
 
     #[test]
     fn wait_gives_up_on_a_solver_that_outlives_the_timeout() {
+        // A fork here can inherit a script another test is still writing.
+        #[cfg(unix)]
+        let _fixtures = lock_script_fixtures();
         // Windows has no `sleep`; `ping` waits a second between echoes.
         #[cfg(windows)]
         let mut command = {
@@ -2614,6 +2588,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn verify_solver_times_out_and_reaps_a_hung_probe() {
+        let _fixtures = lock_script_fixtures();
         let dir = std::env::temp_dir().join(format!(
             "skotiq-verify-{}-{}",
             std::process::id(),
@@ -2796,7 +2771,6 @@ mod tests {
             None,
             Some("astap"),
         );
-        // Clear by passing empty / None
         set_solver_preference(None, None, None, None);
 
         let config = PlateSolverConfig::default();
@@ -3959,22 +3933,18 @@ mod rig_2026_09_14_tests {
         assert!((separation - 1.24).abs() < 0.05, "{separation:.2}'");
     }
 
-    /// The full solve, when the frame and an ASTAP install are both present.
-    /// Neither is on CI, and ASTAP is not installed on the development
-    /// machine either, so this usually reports what it skipped.
+    /// The full solve of the rig's own frame through the app's solver.
     #[test]
+    #[ignore = "needs ASTAP and ~/.cache/sk-rig-data/2026-09-14/solve/solve-verify.fits (not in the repo)"]
     fn the_app_solver_reproduces_the_rig_solution_on_the_real_frame() {
-        let Some(frame) = std::env::var_os("HOME")
+        let frame = std::env::var_os("HOME")
             .map(|h| Path::new(&h).join(".cache/sk-rig-data/2026-09-14/solve/solve-verify.fits"))
             .filter(|p| p.is_file())
-        else {
-            eprintln!("SKIPPED: the full solve-verify.fits is not on this machine");
-            return;
-        };
-        if find_astap_with_override(None).is_none() {
-            eprintln!("SKIPPED: no ASTAP install found");
-            return;
-        }
+            .expect("the full solve-verify.fits");
+        assert!(
+            find_astap_with_override(None).is_some(),
+            "no ASTAP install found"
+        );
         let result = solve_near(&frame, 341.8375, 58.131_667, 5.0);
         assert!(result.success, "{:?}", result.error);
         let arcsec = ((result.ra - RA) * DEC.to_radians().cos()).hypot(result.dec - DEC) * 3600.0;

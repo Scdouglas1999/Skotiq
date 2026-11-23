@@ -1,7 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show TwilightTimes;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show TwilightTimes, siteLocationIsSet;
 
 import 'host_role.dart';
 import 'async_scope.dart';
@@ -9,6 +10,8 @@ import '../models/planning/target_suggestion.dart';
 import '../services/science/science_camera_auto_config.dart';
 import '../services/smart_night/exposure_calculator.dart';
 import '../services/smart_night/hardware_specs_service.dart';
+import '../services/smart_night/smart_night_inputs.dart';
+import '../services/smart_night/unknown_camera_figures.dart';
 import '../services/session_optimizer_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
@@ -125,13 +128,7 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
   final qePeak = _preferUserValue(sensorSpecs.qePeakFraction, settingsQePeak);
 
   if (pixelSize == null) {
-    caveats.add(
-      sensorSpecCaveat(
-        field: SensorSpecField.pixelSize,
-        cameraLabel: cameraLabel,
-        estimate: 'a $_kPlanningPixelSizeMicrons micron estimate',
-      ),
-    );
+    caveats.add(unknownPixelSizeCaveat(cameraLabel: cameraLabel));
   }
   if (readNoise == null) {
     caveats.add(
@@ -139,7 +136,7 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
         field: SensorSpecField.readNoise,
         cameraLabel: cameraLabel,
         estimate:
-            'a conservative ${_kPlanningReadNoiseE.toStringAsFixed(1)}e- '
+            'a conservative ${UnknownCameraFigures.readNoiseE.toStringAsFixed(1)}e- '
             'estimate',
       ),
     );
@@ -158,21 +155,23 @@ final smartNightExposureContextProvider = FutureProvider<SmartNightExposureConte
       sensorSpecCaveat(
         field: SensorSpecField.qePeak,
         cameraLabel: cameraLabel,
-        estimate: 'a ${(_kPlanningQePeak * 100).round()}% estimate',
+        estimate: 'a ${(UnknownCameraFigures.qePeak * 100).round()}% estimate',
       ),
     );
   }
 
   return SmartNightExposureContext(
     camera: CameraExposureSpec(
-      readNoiseE: readNoise ?? _kPlanningReadNoiseE,
-      fullWellE: fullWell ?? _kPlanningFullWellE,
-      qePeak: (qePeak ?? _kPlanningQePeak).clamp(0.05, 1.0).toDouble(),
+      readNoiseE: readNoise ?? UnknownCameraFigures.readNoiseE,
+      fullWellE: fullWell ?? UnknownCameraFigures.fullWellE,
+      qePeak: (qePeak ?? UnknownCameraFigures.qePeak)
+          .clamp(0.05, 1.0)
+          .toDouble(),
     ),
     bortleClass: settings.bortleClass,
     focalLengthMm: focalLength,
     apertureMm: aperture,
-    pixelSizeMicrons: pixelSize ?? _kPlanningPixelSizeMicrons,
+    pixelSizeMicrons: pixelSize,
     availableFilterNames: effectiveFilters.isNotEmpty
         ? effectiveFilters
         : (profile?.filterNames ?? const []),
@@ -210,14 +209,9 @@ Future<bool> _connectedCameraRecordsColor(Ref ref) async {
   }
 }
 
-/// Stand-ins used only when a value misses at every tier of the resolution
-/// chain, each paired with a caveat that says so. Chosen to be conservative
-/// rather than typical: a planning estimate that flatters the rig produces
-/// sub-exposures that clip.
-const double _kPlanningPixelSizeMicrons = 3.76;
-const double _kPlanningReadNoiseE = 3.5;
-const double _kPlanningFullWellE = 18000;
-const double _kPlanningQePeak = 0.65;
+// A noise figure that misses at every tier of the resolution chain takes its
+// UnknownCameraFigures stand-in, paired with a caveat that says so; an unknown
+// pixel size has none.
 
 /// Picks between the resolved value and a global expert setting.
 ///
@@ -433,7 +427,9 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
       if (suggestion == null) return null;
 
       final settings = await ref.watch(appSettingsProvider.future);
-      if (settings.latitude == 0.0 && settings.longitude == 0.0) return null;
+      if (!siteLocationIsSet(settings.latitude, settings.longitude)) {
+        return null;
+      }
 
       // An empty list is a wheel-less rig, not missing data — the service
       // estimates an unfiltered night for it.
@@ -456,11 +452,7 @@ final plannerTargetIntegrationPreviewProvider = FutureProvider.autoDispose
           .read(integrationGoalServiceProvider)
           .progressForTarget(targetId);
 
-      final smartNightSettings = SmartNightSettings(
-        targetSnr: settings.smartNightTargetSnr,
-        subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
-        subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
-      );
+      final smartNightSettings = SmartNightInputs.forNight(settings, profile);
       final filterSet = await ref.watch(
         targetFilterSetProvider(suggestion).future,
       );

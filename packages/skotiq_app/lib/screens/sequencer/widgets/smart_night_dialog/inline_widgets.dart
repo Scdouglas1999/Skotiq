@@ -308,19 +308,19 @@ class _SeedSourceBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (missingNames.isEmpty) {
-      return SkotiqInlineBanner(
-        severity: SkotiqAlertSeverity.info,
-        message: 'Pre-selected the incomplete targets from "$label". '
+      return SkotiqBanner(
+        title: 'Pre-selected the incomplete targets from "$label". '
             'Adjust the selection below if you like.',
+        tone: BannerTone.info,
       );
     }
     final names = missingNames.join(', ');
-    return SkotiqInlineBanner(
-      severity: SkotiqAlertSeverity.warning,
-      message: 'Pre-selected the incomplete targets from "$label". '
+    return SkotiqBanner(
+      title: 'Pre-selected the incomplete targets from "$label". '
           '${missingNames.length} '
           '($names) are below tonight\'s altitude / score cut-offs and '
           'won\'t be planned tonight.',
+      tone: BannerTone.warning,
     );
   }
 }
@@ -706,14 +706,15 @@ class _PlanSummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Tonight: ${plan.plannedTargets.length} '
               'target${plan.plannedTargets.length == 1 ? '' : 's'}, '
               '${(plan.totalIntegrationSecs / 3600).toStringAsFixed(1)}h '
               'integration',
           subtitle: 'Estimated wall-clock: '
               '${(plan.estimatedWallClockSecs / 3600).toStringAsFixed(1)}h '
-              '(includes slews, AF, dither, downloads).',
+              '(includes slews, AF, dither, downloads; a frame-count change '
+              'adds or takes away its exposure time only).',
         ),
       ],
     );

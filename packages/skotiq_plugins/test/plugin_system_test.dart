@@ -4,6 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 /// Integration test demonstrating the complete plugin lifecycle
+
+/// Plugin storage in memory: the default file store writes under the user's
+/// real data directory (`XDG_DATA_HOME`/`HOME`), which a test must not touch.
+PluginContextFactory _memoryContexts() =>
+    PluginContextFactory(storageFactory: (_) => InMemoryPluginStorage());
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -11,7 +17,7 @@ void main() {
     late PluginHost host;
 
     setUp(() {
-      host = PluginHost();
+      host = PluginHost(contextFactory: _memoryContexts());
     });
 
     tearDown(() async {
@@ -166,6 +172,13 @@ void main() {
       );
     });
 
+    test('Logger accepts any plugin id', () {
+      for (final id in ['', 'a.', '.a', 'a..b']) {
+        final logger = ConsolePluginLogger(id);
+        expect(() => logger.warning('Warning message'), returnsNormally);
+      }
+    });
+
     test('Storage persists values', () async {
       final storage = InMemoryPluginStorage();
 
@@ -273,7 +286,7 @@ void main() {
     });
 
     test('Sandboxed plugin event bus blocks global subscriptions', () async {
-      final factory = PluginContextFactory();
+      final factory = _memoryContexts();
       final context = factory.createContext('com.skotiq.sandbox-test');
       addTearDown(factory.dispose);
 

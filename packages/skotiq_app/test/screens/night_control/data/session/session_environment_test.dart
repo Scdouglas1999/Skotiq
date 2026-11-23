@@ -1,14 +1,18 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart';
+import 'package:skotiq_app/services/night_actions/night_solver_status.dart';
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
@@ -584,7 +588,7 @@ void main() {
       final rows = h.read(nightEquipmentProvider);
       final guider = rows.firstWhere((r) => r.kind == EquipmentKind.guider);
       expect(guider.status, EquipmentStatus.attention);
-      expect(guider.details.first.key, 'nightSessionGuiderNotLooping');
+      expect(guider.details.first.key, 'nightScopeGuideStopped');
       final rotator = rows.firstWhere((r) => r.kind == EquipmentKind.rotator);
       expect(rotator.status, EquipmentStatus.absent);
       expect(rotator.details, isEmpty);
@@ -783,6 +787,15 @@ void main() {
         guider.details.first.key,
         'nightScopeGuideHeld_tracking_limit_hold',
       );
+    });
+
+    test('every reason the guider names has its own words', () {
+      final l10n = SkotiqLocalizations(const Locale('en'));
+      for (final reason in GuidingStopReason.values) {
+        final text = nightGuideStopReason(reason.wire);
+        expect(text.key, 'nightScopeGuideHeld_${reason.wire}');
+        expect(l10n.text(text.key), reason.text, reason: reason.wire);
+      }
     });
 
     test('a reason the app has no words for is shown as given', () async {

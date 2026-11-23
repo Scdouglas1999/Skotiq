@@ -229,31 +229,8 @@ class GuidingHandlers implements RouteSource {
     "decRate": data.decRate,
   };
 
-  static bool _isNoLockPosition(Object error) {
-    if (error is bridge.SkotiqError) {
-      return error.maybeMap(
-        operationFailed: (failure) {
-          final message = failure.field0.toLowerCase();
-          return message.contains('get_lock_position') &&
-              (message.contains('got null') ||
-                  message.contains('missing or non-numeric'));
-        },
-        orElse: () => false,
-      );
-    }
-    return false;
-  }
-
-  static bool _isNoStarSelected(Object error) {
-    if (error is bridge.SkotiqError) {
-      return error.maybeMap(
-        operationFailed: (failure) =>
-            failure.field0.toLowerCase().contains('no star selected'),
-        orElse: () => false,
-      );
-    }
-    return false;
-  }
+  static bool _isRefused(Object error, bridge.Refusal kind) =>
+      error is bridge.SkotiqError_Refused && error.kind == kind;
 
   Future<Response> handlePhd2GetAlgoParamNames(Request request) async {
     final axis = request.url.queryParameters['axis'];
@@ -408,28 +385,14 @@ class GuidingHandlers implements RouteSource {
       (x, y) = await backend.guiderFindStar();
     } catch (error, stackTrace) {
       // "No guide star found" is an ordinary outcome — a sparse field, clouds,
-      // or a defocused frame — not a server fault. The native layer raises it as
-      // an unstructured `OperationFailed`, which the error translator maps to
-      // `500 internal_error` (observed live against the built-in guider). A 500
-      // tells a remote client the HOST broke and invites a retry storm, so
-      // answer 404 with a code the caller can branch on.
-      //
-      // Classify off the typed bridge variant first (same shape as the
-      // exposure-cancelled check in camera_handlers): builtin_guider raises
-      // `OperationFailed("No guide star found")` and the PHD2 path raises
-      // `OperationFailed("Failed to find star: <phd2 text>")`. The stringified
-      // fallback only covers a chained network backend, which re-raises the
-      // host's message without the bridge type. Neither value is ever placed in
-      // a response body — it selects the status code and nothing more.
-      const marker = 'no guide star found';
-      final isNoStarFound =
-          (error is bridge.SkotiqError &&
-              error.maybeMap(
-                operationFailed: (failure) =>
-                    failure.field0.toLowerCase().contains(marker),
-                orElse: () => false,
-              )) ||
-          error.toString().toLowerCase().contains(marker);
+      // or a defocused frame — not a server fault, so it answers 404 with a
+      // code the caller can branch on rather than a 500 that invites a retry
+      // storm. An error that is not the bridge's is read by its words: a
+      // chained network backend re-raises the host's message without the
+      // bridge type. Neither is placed in a response body.
+      final isNoStarFound = error is bridge.SkotiqError
+          ? _isRefused(error, bridge.Refusal.noGuideStarFound)
+          : error.toString().toLowerCase().contains('no guide star found');
       if (isNoStarFound) {
         throw HandlerFailure(
           code: 'guide_star_not_found',
@@ -487,7 +450,7 @@ class GuidingHandlers implements RouteSource {
       final (x, y) = await backend.guiderGetLockPosition();
       return jsonOk({"x": x, "y": y});
     } catch (error) {
-      if (_isNoLockPosition(error)) {
+      if (_isRefused(error, bridge.Refusal.noLockPosition)) {
         return jsonError(
           code: 'no_lock_position',
           message: 'The guider has no guide-star lock position.',
@@ -524,7 +487,7 @@ class GuidingHandlers implements RouteSource {
       image = await backend.guiderGetStarImage(size: size);
     } catch (error) {
       // Looping with no star selected is a normal state, not a server failure.
-      if (_isNoStarSelected(error)) {
+      if (_isRefused(error, bridge.Refusal.noStarSelected)) {
         return jsonError(
           code: 'no_star_selected',
           message: 'The guider has no guide star selected.',

@@ -132,7 +132,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
           title: 'Display',
           children: [
             SettingRow(
-              icon: LucideIcons.eye,
               title: 'Enable annotations',
               subtitle: 'Show object annotations on images',
               trailing: SettingsSwitch(
@@ -141,7 +140,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.tag,
               title: 'Show labels',
               subtitle: 'Display object names next to markers',
               trailing: SettingsSwitch(
@@ -150,7 +148,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.hash,
               title: 'Show magnitudes',
               subtitle: 'Display magnitude values with labels',
               trailing: SettingsSwitch(
@@ -159,7 +156,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.listTree,
               title: 'Max objects to display',
               subtitle: 'Limit number of annotations for performance',
               trailing: SettingsCompactSlider(
@@ -174,7 +170,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.grid,
               title: 'Grid overlay',
               subtitle: 'Grid type: pixel, celestial RA/Dec, or off',
               trailing: SettingsChoice<GridType>(
@@ -191,7 +186,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 },
                 onChanged: settingsNotifier.setGridType,
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -202,7 +196,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
           title: 'Magnitude filter',
           children: [
             SettingRow(
-              icon: LucideIcons.sunDim,
               title: 'Minimum magnitude',
               subtitle: 'Brightest objects to show (lower = brighter)',
               trailing: SettingsCompactSlider(
@@ -216,7 +209,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.sunMedium,
               title: 'Maximum magnitude',
               subtitle: 'Faintest objects to show (higher = fainter)',
               trailing: SettingsCompactSlider(
@@ -228,7 +220,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setMagnitudeCutoff(value),
               ),
-              isLast: true,
               stackWhenNarrow: true,
             ),
           ],
@@ -241,8 +232,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
           children: [
             ObjectTypeToggle(
               title: 'Galaxies',
-              icon: LucideIcons.circle,
-              color: Color(markerStyle.galaxyColor),
               isEnabled: settings.visibleTypes
                   .contains(AnnotationObjectFilter.galaxies),
               onChanged: (value) => settingsNotifier
@@ -250,8 +239,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
             ),
             ObjectTypeToggle(
               title: 'Nebulae',
-              icon: LucideIcons.cloud,
-              color: Color(markerStyle.nebulaColor),
               isEnabled: settings.visibleTypes
                   .contains(AnnotationObjectFilter.nebulae),
               onChanged: (value) => settingsNotifier
@@ -259,8 +246,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
             ),
             ObjectTypeToggle(
               title: 'Star clusters',
-              icon: LucideIcons.sparkles,
-              color: Color(markerStyle.clusterColor),
               isEnabled: settings.visibleTypes
                   .contains(AnnotationObjectFilter.starClusters),
               onChanged: (value) => settingsNotifier
@@ -268,8 +253,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
             ),
             ObjectTypeToggle(
               title: 'Planetary nebulae',
-              icon: LucideIcons.target,
-              color: Color(markerStyle.planetaryNebulaColor),
               isEnabled: settings.visibleTypes
                   .contains(AnnotationObjectFilter.planetaryNebulae),
               onChanged: (value) => settingsNotifier
@@ -277,8 +260,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
             ),
             ObjectTypeToggle(
               title: 'Stars',
-              icon: LucideIcons.star,
-              color: Color(markerStyle.starColor),
               isEnabled:
                   settings.visibleTypes.contains(AnnotationObjectFilter.stars),
               onChanged: (value) => settingsNotifier
@@ -286,13 +267,10 @@ class AnnotationSettingsPage extends ConsumerWidget {
             ),
             ObjectTypeToggle(
               title: 'Other objects',
-              icon: LucideIcons.helpCircle,
-              color: Color(markerStyle.otherColor),
               isEnabled:
                   settings.visibleTypes.contains(AnnotationObjectFilter.other),
               onChanged: (value) => settingsNotifier
                   .toggleObjectType(AnnotationObjectFilter.other),
-              isLast: true,
             ),
           ],
         ),
@@ -303,7 +281,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
           title: 'Fade effects',
           children: [
             SettingRow(
-              icon: LucideIcons.mousePointer,
               title: 'Fade when not hovering',
               subtitle: 'Dim annotations when mouse leaves image',
               trailing: SettingsSwitch(
@@ -313,7 +290,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.sun,
               title: 'Hover opacity',
               subtitle: 'Brightness when mouse is over image',
               trailing: SettingsCompactSlider(
@@ -327,7 +303,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.moon,
               title: 'Idle opacity',
               subtitle: 'Brightness when mouse leaves image',
               trailing: SettingsCompactSlider(
@@ -341,7 +316,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.timer,
               title: 'Fade duration',
               subtitle: 'Animation speed in milliseconds',
               trailing: SettingsCompactSlider(
@@ -353,7 +327,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setFadeAnimationMs(value.toInt()),
               ),
-              isLast: true,
               stackWhenNarrow: true,
             ),
           ],
@@ -365,7 +338,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
           title: 'Click to identify',
           children: [
             SettingRow(
-              icon: LucideIcons.mousePointerClick,
               title: 'Enable click to identify',
               subtitle: 'Click on image to identify objects',
               trailing: SettingsSwitch(
@@ -375,7 +347,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.crosshair,
               title: 'Search radius',
               subtitle: 'Distance to search for objects (arcseconds)',
               trailing: SettingsCompactSlider(
@@ -387,7 +358,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
                 onChanged: (value) =>
                     settingsNotifier.setClickSearchRadius(value),
               ),
-              isLast: true,
               stackWhenNarrow: true,
             ),
           ],
@@ -399,7 +369,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
           title: 'Marker styles',
           children: [
             SettingRow(
-              icon: LucideIcons.pencil,
               title: 'Stroke width',
               subtitle: 'Thickness of marker outlines',
               trailing: SettingsCompactSlider(
@@ -413,7 +382,6 @@ class AnnotationSettingsPage extends ConsumerWidget {
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.type,
               title: 'Label font size',
               subtitle: 'Size of text labels',
               trailing: SettingsCompactSlider(
@@ -427,14 +395,12 @@ class AnnotationSettingsPage extends ConsumerWidget {
               stackWhenNarrow: true,
             ),
             SettingRow(
-              icon: LucideIcons.scaling,
               title: 'Scale by object size',
               subtitle: 'Larger objects get larger markers',
               trailing: SettingsSwitch(
                 value: markerStyle.scaleBySize,
                 onChanged: (value) => markerNotifier.setScaleBySize(value),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -445,14 +411,12 @@ class AnnotationSettingsPage extends ConsumerWidget {
           title: 'Automation',
           children: [
             SettingRow(
-              icon: LucideIcons.zap,
               title: 'Auto-annotate images',
               subtitle: 'Automatically annotate plate-solved images',
               trailing: SettingsSwitch(
                 value: settings.autoAnnotate,
                 onChanged: (value) => settingsNotifier.setAutoAnnotate(value),
               ),
-              isLast: true,
             ),
           ],
         ),

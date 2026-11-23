@@ -10,6 +10,9 @@ pub enum Setback {
     Disconnected,
     /// The mount is parked and did not unpark for the slew.
     MountParked,
+    /// The mount took the slew and stayed where it was, as one stopped at an
+    /// axis limit does.
+    DidNotMove,
     /// The slew finished, but outside the tolerance around the target.
     OffTarget,
     /// The slew finished, but the mount's position could not be read back.
@@ -425,6 +428,8 @@ pub struct RunShared {
     /// for work outside a run, whose values are set where its context is
     /// built.
     pub settings: Option<crate::executor::RunConfigStore>,
+    /// The run's clock: the wall clock, or a test's.
+    pub clock: Arc<dyn crate::scheduling::Clock>,
 }
 
 impl RunShared {
@@ -487,6 +492,16 @@ impl RunShared {
         )
     }
 
+    /// How the run centers its target again by itself (mount fault, weather
+    /// hold, drift, after a flip). Outside a run every correction syncs.
+    pub fn recenter_config(&self) -> crate::CenterConfig {
+        crate::CenterConfig::run_recenter(
+            self.settings
+                .as_ref()
+                .is_none_or(crate::executor::RunConfigStore::recenter_syncs_mount),
+        )
+    }
+
     /// This run's shared state for a step starting now; see
     /// [`Self::take_settings`].
     pub fn for_step(&self) -> Self {
@@ -523,6 +538,7 @@ impl RunShared {
             device_retry: super::DeviceRetryHandle::single_attempt(),
             camera_file_saving: crate::CameraFileSaving::default(),
             settings: None,
+            clock: crate::scheduling::default_clock(),
         }
     }
 

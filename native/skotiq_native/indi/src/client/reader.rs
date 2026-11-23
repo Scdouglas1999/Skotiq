@@ -359,7 +359,6 @@ impl IndiClient {
                                     IndiPropertyType::Text
                                 };
 
-                                // Parse state and perm
                                 // Why: per INDI 1.7 protocol the `state`
                                 // and `perm` attributes on def*Vector elements are NOT mandatory
                                 // and many drivers omit them on initial vector definition. The
@@ -718,7 +717,6 @@ impl IndiClient {
                             );
                         }
 
-                        // Handle BLOB data with format validation
                         if current_blob_active {
                             // The base64 body of a frame is never a readable property
                             // value — `property_values` is only cleared on disconnect,

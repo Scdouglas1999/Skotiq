@@ -109,8 +109,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
     });
   }
 
-  /// Get all tutorial progress entries.
-  /// Useful for displaying an overview of tutorial completion status.
   Future<List<TutorialProgressEntry>> getAllProgress() {
     return select(tutorialProgress).get();
   }
@@ -141,7 +139,6 @@ class TutorialProgressDao extends DatabaseAccessor<SkotiqDatabase>
     }
   }
 
-  /// Watch dismissed prompt screen IDs for reactive updates.
   Stream<Set<String>> watchDismissedPromptScreenIds() {
     return (select(tutorialProgress)..where((t) => t.dismissed.equals(true)))
         .watch()

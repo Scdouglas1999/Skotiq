@@ -39,7 +39,6 @@ fn get_discovery_cache() -> &'static Mutex<Option<DiscoveryCache>> {
 }
 
 /// How long to cache discovery results before re-querying SDKs
-/// Set to 60 seconds to avoid redundant discovery during the same session.
 /// Discovery can still be triggered manually via the UI refresh button.
 const CACHE_TTL: Duration = Duration::from_secs(60);
 
@@ -149,17 +148,10 @@ pub fn serial_port_of_id(device_id: &str) -> Option<String> {
         .then(|| address.split(':').next().unwrap_or(address).to_string())
 }
 
-/// Discover all native devices from all vendors
-///
-/// This function is protected by a mutex to ensure thread-safety since most
-/// vendor SDKs are NOT thread-safe. Results are cached for CACHE_TTL seconds
-/// to avoid redundant SDK queries when multiple device types are discovered.
-pub async fn discover_all_devices() -> Result<Vec<NativeDeviceInfo>, DriverError> {
-    discover_native_devices(&DiscoveryScope::default()).await
-}
-
 /// The native devices found within `scope`. A result is reused for
 /// [`CACHE_TTL`] by a discovery of the same scope.
+///
+/// Discoveries run one at a time: most vendor SDKs are not thread-safe.
 pub async fn discover_native_devices(
     scope: &DiscoveryScope,
 ) -> Result<Vec<NativeDeviceInfo>, DriverError> {
@@ -270,16 +262,6 @@ pub async fn invalidate_discovery_cache() {
     let mut cache = get_discovery_cache().lock().await;
     *cache = None;
     tracing::debug!("Discovery cache invalidated");
-}
-
-pub async fn discover_devices(
-    device_type: DeviceKind,
-) -> Result<Vec<NativeDeviceInfo>, DriverError> {
-    let all_devices = discover_all_devices().await?;
-    Ok(all_devices
-        .into_iter()
-        .filter(|d| d.device_type == device_type)
-        .collect())
 }
 
 #[cfg(test)]

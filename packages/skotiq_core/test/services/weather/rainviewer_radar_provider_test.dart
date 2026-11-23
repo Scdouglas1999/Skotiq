@@ -356,8 +356,10 @@ void main() {
     });
 
     test('dispose closes HTTP client', () {
-      provider = RainViewerRadarProvider();
-      expect(() => provider.dispose(), returnsNormally);
+      final client = _CloseRecordingClient();
+      provider = RainViewerRadarProvider(httpClient: client);
+      provider.dispose();
+      expect(client.closed, isTrue);
     });
 
     test('timestamp conversion from Unix seconds is correct', () async {
@@ -384,4 +386,15 @@ void main() {
       expect(firstFrame.timestamp, equals(expectedTimestamp));
     });
   });
+}
+
+class _CloseRecordingClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      throw UnimplementedError();
+
+  @override
+  void close() => closed = true;
 }

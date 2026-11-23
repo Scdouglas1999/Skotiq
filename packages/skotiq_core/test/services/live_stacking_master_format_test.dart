@@ -21,6 +21,7 @@ import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/services/live_stacking_service.dart';
 import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 import 'package:skotiq_core/src/providers/linked_host.dart';
+import 'package:skotiq_core/src/providers/logging_service_provider.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
@@ -55,11 +56,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         liveStackingServiceProvider.overrideWith(
-          (ref) => LiveStackingService(
-            ref,
-            host: ref.watch(linkedHostLiveStackProvider),
-            saveFitsMaster: fakeSaveFits,
-          ),
+          (ref) => _service(ref, fakeSaveFits),
         ),
       ],
     );
@@ -129,11 +126,7 @@ void main() {
             (ref) => _TestBackendNotifier(ref, backend),
           ),
           liveStackingServiceProvider.overrideWith(
-            (ref) => LiveStackingService(
-              ref,
-              host: ref.watch(linkedHostLiveStackProvider),
-              saveFitsMaster: fakeSaveFits,
-            ),
+            (ref) => _service(ref, fakeSaveFits),
           ),
         ],
       );
@@ -167,4 +160,20 @@ void main() {
     expect(message, contains('.tif'));
     expect(message, contains('FITS master'));
   });
+}
+
+/// The service the app's role provider would pick, writing FITS through
+/// [saveFits].
+LiveStackingService _service(Ref ref, SaveStackMasterFits saveFits) {
+  final host = ref.watch(linkedHostLiveStackProvider);
+  return host == null
+      ? LiveStackingService(
+          ref.read(loggingServiceProvider),
+          saveFitsMaster: saveFits,
+        )
+      : LinkedLiveStackingService(
+          ref.read(loggingServiceProvider),
+          host,
+          saveFitsMaster: saveFits,
+        );
 }

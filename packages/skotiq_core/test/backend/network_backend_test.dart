@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_core/src/models/imaging/autofocus_request.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show LinkVersion;
 import 'package:image/image.dart' as img;
@@ -234,11 +235,11 @@ void main() {
         );
         backend = _buildBackend(fake);
 
-        await backend.saveProfile(
+        final id = await backend.saveProfile(
           const EquipmentProfile(id: '', name: 'Remote Rig'),
         );
 
-        expect(backend.lastSavedProfileId, '42');
+        expect(id, 42);
         expect(fake.requestsFor('/api/profiles'), hasLength(1));
       },
     );
@@ -259,7 +260,6 @@ void main() {
           ),
           throwsA(isA<FormatException>()),
         );
-        expect(backend.lastSavedProfileId, isNull);
       },
     );
 
@@ -630,24 +630,30 @@ void main() {
       backend = _buildBackend(fake);
 
       final result = await backend.autofocusStart(
-        deviceId: 'focuser-1',
-        cameraId: 'camera-1',
-        exposureTime: 2,
-        stepSize: 50,
-        stepsOut: 4,
-        gain: 123,
-        offset: 17,
-        curveFitting: 'Parabolic',
-        numberOfAttempts: 3,
-        exposuresPerPoint: 2,
-        rSquaredThreshold: 0.91,
-        outerCropRatio: 0.8,
-        innerCropRatio: 0.1,
-        useBrightestNStars: 20,
-        focuserSettleTimeMs: 750,
-        backlashCompMethod: 'Inward',
-        backlashIn: 120,
-        backlashOut: 30,
+        const AutofocusRequest(
+          deviceId: 'focuser-1',
+          cameraId: 'camera-1',
+          exposureTime: 2,
+          stepSize: 50,
+          stepsOut: 4,
+          method: 'VCurve',
+          binning: 1,
+          gain: 123,
+          offset: 17,
+          curveFitting: 'Parabolic',
+          numberOfAttempts: 3,
+          exposuresPerPoint: 2,
+          rSquaredThreshold: 0.91,
+          outerCropRatio: 0.8,
+          innerCropRatio: 0.1,
+          useBrightestNStars: 20,
+          focuserSettleTimeMs: 750,
+          backlashCompMethod: 'Inward',
+          backlashIn: 120,
+          backlashOut: 30,
+          measuredBacklashIn: null,
+          failureHfrToleranceRatio: 2.4,
+        ),
       );
 
       expect(result.bestPosition, 12345);
@@ -667,6 +673,7 @@ void main() {
       expect(payload['backlashCompMethod'], 'Inward');
       expect(payload['backlashIn'], 120);
       expect(payload['backlashOut'], 30);
+      expect(payload['failureHfrToleranceRatio'], 2.4);
     });
 
     test('a centering started on the host answers its job', () async {

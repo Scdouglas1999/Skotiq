@@ -28,18 +28,9 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
   /// `ApiScope.public`; `GET /api/info` lists those same routes as
   /// `publicEndpoints`.
   ///
-  /// WebSocket endpoints (/api/ws, /events) require authentication when enabled.
-  /// They accept the token via Authorization header or `token` query parameter
-  /// (since browsers cannot set custom headers on WebSocket upgrades).
+  /// Every other route takes the credentials [_credentialsFrom] reads, each
+  /// answered by [_admit].
   Middleware _authMiddleware() {
-    // WebSocket paths that support query-param auth: the legacy ?token= form
-    // or the single-use ?ticket= form.
-    //
-    // /ws/live-view participates in the same query-param auth flow
-    // because browser/WS clients can't always set custom headers on the
-    // upgrade request — the phone passes the bearer token via ?token= and
-    // we honour it here.
-
     return (innerHandler) {
       return (request) {
         // FAIL CLOSED when unconfigured. Short-circuiting every request
@@ -83,274 +74,225 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
           return innerHandler(request);
         }
 
-        // For WebSocket paths, accept either the legacy ?token=<bearer> (with
-        // a deprecation warning) or the one-shot ?ticket=, which is consumed
-        // and invalidated here so it cannot be reused.
-        if (route.method == ApiMethod.ws) {
-          final queryTicket = request.url.queryParameters['ticket'];
-          if (queryTicket != null && queryTicket.isNotEmpty) {
-            // ws_ticket_manager.consume returns the digest of the token
-            // that minted the ticket, NOT the raw token. That digest IS
-            // the authenticated identity for the upcoming WS — stash it
-            // on the context so the upgrade handler can bind it to the
-            // socket as the canonical viewer id.
-            final ticketIdentity = _wsTicketManager.consume(queryTicket);
-            if (ticketIdentity != null) {
-              // Re-verify the issuing principal is still active (not revoked
-              // between mint and upgrade) and still permitted for this route,
-              // and attach its grant so downstream WS checks see its real
-              // privileges (e.g. admin access).
-              final ticketGrant = ticketIdentity.isEmpty
-                  ? null
-                  : _grantForIdentity(ticketIdentity);
-              if (ticketGrant == null) {
-                _logWarning(
-                  '[AUTH][$requestId] Rejected WS upgrade to $path - '
-                  'ticket principal is no longer active',
-                );
-                return jsonUnauthorized(
-                  {
-                    'error': 'Authentication required',
-                    'message': 'Invalid or expired WebSocket ticket',
-                  },
-                  headers: {HeadlessApiServer._requestIdHeader: requestId},
-                );
-              }
-              if (!HeadlessAuthPolicy.permits(
-                grant: ticketGrant,
-                route: route,
-              )) {
-                _logWarning(
-                  '[AUTH][$requestId] Rejected WS upgrade to $path - '
-                  'insufficient scope for ticket principal',
-                );
-                return jsonForbidden(
-                  HeadlessAuthPolicy.scopeDenialBody(
-                    grant: ticketGrant,
-                    route: route,
-                  ),
-                  headers: {HeadlessApiServer._requestIdHeader: requestId},
-                );
-              }
-              return innerHandler(
-                _attachAuthIdentity(
-                  request,
-                  identity: ticketIdentity,
-                  routeClass: route.bucket,
-                  grant: ticketGrant,
-                ),
-              );
-            }
-            // Bad/expired ticket — do NOT fall through to legacy token to
-            // avoid masking a stolen-ticket replay attempt with a successful
-            // bearer-token outcome. Reject explicitly.
-            _logWarning(
-              '[AUTH][$requestId] Rejected WS upgrade to $path - invalid or expired ticket',
-            );
-            return jsonUnauthorized(
-              {
-                'error': 'Authentication required',
-                'message': 'Invalid or expired WebSocket ticket',
-              },
-              headers: {HeadlessApiServer._requestIdHeader: requestId},
-            );
-          }
-
-          final queryToken = request.url.queryParameters['token'];
-          if (queryToken != null && queryToken.isNotEmpty) {
-            // The legacy ?token= path goes through the SAME bearer-token
-            // failure limiter as the Authorization-header path. Unthrottled,
-            // each garbage WS token attempt drives the O(N*L) constant-time
-            // _scopeForToken scan pre-auth. Check the limiter BEFORE the scan;
-            // record a failure when the token resolves to no/disallowed scope;
-            // clear on success.
-            final wsClientKey = _rateLimitClientKey(request);
-            if (_tokenResolver.isRateLimited(wsClientKey)) {
-              _logWarning(
-                '[AUTH][$requestId] Rate-limited WS ?token= attempts from '
-                '$wsClientKey on $path',
-              );
-              return jsonRateLimited(
-                {
-                  'error': 'Rate limit exceeded',
-                  'message': 'Too many authentication failures',
-                  'requestId': requestId,
-                },
-                headers: {
-                  HeadlessApiServer._requestIdHeader: requestId,
-                  'retry-after': '60',
-                },
-              );
-            }
-            final queryGrant = _grantForToken(queryToken);
-            if (queryGrant != null &&
-                HeadlessAuthPolicy.permits(grant: queryGrant, route: route)) {
-              _tokenResolver.clearFailures(wsClientKey);
-              // The event stream is how a phone stays live all night; a client
-              // that only ever holds this socket open must still register as
-              // seen.
-              _touchPairedDeviceSeen(queryToken);
-              _logWarning(
-                '[AUTH][$requestId] WS upgrade to $path used legacy ?token=. '
-                'Switch to POST /api/ws/ticket + ?ticket=.',
-              );
-              return innerHandler(
-                _attachAuthIdentity(
-                  request,
-                  identity: computeServerFingerprint(queryToken),
-                  routeClass: route.bucket,
-                  grant: queryGrant,
-                ),
-              );
-            }
-            // Unknown or scope-disallowed ?token= — count it against the
-            // failure limiter so repeated bad attempts trip the 429 lockout,
-            // mirroring the Authorization-header path's recordFailure.
-            _tokenResolver.recordFailure(wsClientKey);
-          }
-          // Fall through to check Authorization header below.
-        }
-
-        // Resolve credentials. Acceptable forms:
-        //  1. `Authorization: Bearer <token>` header (mobile clients, API
-        //     consumers, the dashboard's pre-cookie path).
-        //  2. The `skotiq_session` HttpOnly cookie set by
-        //     `POST /api/auth/cookie` after a successful pairing. Cookie
-        //     requests additionally require a matching CSRF token on every
-        //     state-changing method.
-        //  3. `?access_token=<bearer>` query parameter, but ONLY for the
-        //     SSE endpoint. Why: browser EventSource cannot set
-        //     custom headers and the SSE handler is GET-only / read-only,
-        //     so a one-shot URL token is the only viable auth carrier
-        //     for the phone client. This is gated to /api/run-watch/events
-        //     so general endpoints still require the header form.
-        //
-        // We resolve the cookie BEFORE the Authorization header so a single
-        // dashboard tab that has both (e.g. mid-migration) still gets the
-        // CSRF check applied. If both are present the Authorization header
-        // takes precedence (it is the active session the browser opted into
-        // for this request).
-        final authHeader = request.headers['authorization'];
-        final cookieHeader = request.headers['cookie'];
-        final sessionCookie = AuthCookieManager.extractCookie(cookieHeader);
-        String? token;
-        bool tokenFromCookie = false;
-        // accept ?access_token= on the SSE endpoint only.
-        // extends this to the /api/logs/tail SSE endpoint for the
-        // same reason: browser EventSource cannot set custom headers,
-        // so a one-shot query-param bearer is the only viable carrier
-        // for the phone client. Both endpoints are GET-only and
-        // read-only so a leaked URL token (e.g. via a screenshot) has
-        // bounded blast radius.
-        if (route.queryToken) {
-          final qToken = request.url.queryParameters['access_token'];
-          if (qToken != null && qToken.isNotEmpty) {
-            token = qToken;
-          }
-        }
-        if (token == null && authHeader != null) {
-          if (!authHeader.startsWith('Bearer ')) {
-            _logWarning(
-              '[AUTH][$requestId] Rejected request to $path - invalid auth format',
-            );
-            return jsonUnauthorized(
-              {
-                'error': 'Authentication required',
-                'message':
-                    'Invalid Authorization header format. Expected: Bearer <token>',
-              },
-              headers: {HeadlessApiServer._requestIdHeader: requestId},
-            );
-          }
-          token = authHeader.substring(7); // Remove 'Bearer ' prefix
-        }
-        if (token == null && sessionCookie != null) {
-          final cookieBearer = _authCookieManager.resolveBearer(sessionCookie);
-          if (cookieBearer != null) {
-            token = cookieBearer;
-            tokenFromCookie = true;
-          }
-        }
-
-        if (token == null) {
-          _logWarning(
-            '[AUTH][$requestId] Rejected request to $path - no Authorization header or session cookie',
+        final scopeRefusal = _Refusal();
+        for (final credential in _credentialsFrom(request, route)) {
+          final answer = _admit(
+            innerHandler,
+            request,
+            requestId,
+            path,
+            route,
+            credential,
+            scopeRefusal,
           );
-          return jsonUnauthorized(
+          if (answer != null) return answer;
+        }
+        if (scopeRefusal.value case final refusal?) return refusal;
+        _logWarning(
+          '[AUTH][$requestId] Rejected request to $path - no Authorization header or session cookie',
+        );
+        return _authenticationRequired(
+          requestId,
+          ApiErrorCodes.authRequired,
+          'Missing Authorization header or session cookie',
+        );
+      };
+    };
+  }
+
+  /// The credentials [request] presents for [route], in the order they are
+  /// tried.
+  ///
+  /// A socket upgrade may carry a single-use `?ticket=` (then nothing else is
+  /// tried, so a replayed ticket is never masked by a working bearer) or the
+  /// older `?token=`, which falls through to the forms below when it does not
+  /// admit. Then one bearer: `?access_token=` on the routes that take it
+  /// (browser EventSource cannot set headers), else the Authorization header,
+  /// else the `skotiq_session` cookie set by `POST /api/auth/cookie`.
+  List<_Credential> _credentialsFrom(Request request, ApiRoute route) {
+    final query = request.url.queryParameters;
+    final credentials = <_Credential>[];
+    if (route.method == ApiMethod.ws) {
+      final ticket = query['ticket'];
+      if (ticket != null && ticket.isNotEmpty) return [_Ticket(ticket)];
+      final token = query['token'];
+      if (token != null && token.isNotEmpty) {
+        credentials.add(_QueryToken(token));
+      }
+    }
+    final sessionCookie = AuthCookieManager.extractCookie(
+      request.headers['cookie'],
+    );
+    final accessToken = route.queryToken ? query['access_token'] : null;
+    final authHeader = request.headers['authorization'];
+    if (accessToken != null && accessToken.isNotEmpty) {
+      credentials.add(_Bearer(accessToken, sessionCookie: sessionCookie));
+    } else if (authHeader != null) {
+      credentials.add(
+        authHeader.startsWith('Bearer ')
+            ? _Bearer(authHeader.substring(7), sessionCookie: sessionCookie)
+            : const _MalformedHeader(),
+      );
+    } else if (sessionCookie != null) {
+      final cookieBearer = _authCookieManager.resolveBearer(sessionCookie);
+      if (cookieBearer != null) {
+        credentials.add(
+          _Bearer(cookieBearer, sessionCookie: sessionCookie, fromCookie: true),
+        );
+      }
+    }
+    return credentials;
+  }
+
+  /// The answer to [credential]: the request passed on with its principal,
+  /// a refusal, or null to try the next credential.
+  ///
+  /// What differs between the forms:
+  ///  * a ticket is checked against no failure limiter (it is single use and
+  ///    already consumed), its principal must still be active, and its
+  ///    device is not marked seen;
+  ///  * `?token=` is limited like a bearer; when it does not admit the next
+  ///    credential is tried. An unknown token counts as a failure; a known
+  ///    one without the scope does not, and is answered with the ticket
+  ///    path's 403 when nothing else admits;
+  ///  * a bearer from the cookie must carry the CSRF header on a
+  ///    state-changing method (except logout); a recognized bearer clears the
+  ///    client's failures and marks its device seen before the scope check.
+  FutureOr<Response>? _admit(
+    Handler innerHandler,
+    Request request,
+    String requestId,
+    String path,
+    ApiRoute route,
+    _Credential credential,
+    _Refusal scopeRefusal,
+  ) {
+    switch (credential) {
+      case _Ticket(:final ticket):
+        // The ticket resolves to the digest of the token that minted it,
+        // which is the socket's identity.
+        final identity = _wsTicketManager.consume(ticket);
+        if (identity == null) {
+          _logWarning(
+            '[AUTH][$requestId] Rejected WS upgrade to $path - invalid or expired ticket',
+          );
+          return _authenticationRequired(
+            requestId,
+            ApiErrorCodes.invalidTicket,
+            'Invalid or expired WebSocket ticket',
+          );
+        }
+        final grant = identity.isEmpty ? null : _grantForIdentity(identity);
+        if (grant == null) {
+          _logWarning(
+            '[AUTH][$requestId] Rejected WS upgrade to $path - '
+            'ticket principal is no longer active',
+          );
+          return _authenticationRequired(
+            requestId,
+            ApiErrorCodes.invalidTicket,
+            'Invalid or expired WebSocket ticket',
+          );
+        }
+        if (!HeadlessAuthPolicy.permits(grant: grant, route: route)) {
+          _logWarning(
+            '[AUTH][$requestId] Rejected WS upgrade to $path - '
+            'insufficient scope for ticket principal',
+          );
+          return _scopeDenied(requestId, grant, route);
+        }
+        return _admitted(innerHandler, request, route, identity, grant);
+
+      case _QueryToken(:final token):
+        final clientKey = _rateLimitClientKey(request);
+        if (_tokenResolver.isRateLimited(clientKey)) {
+          _logWarning(
+            '[AUTH][$requestId] Rate-limited WS ?token= attempts from '
+            '$clientKey on $path',
+          );
+          return _authenticationRateLimited(requestId);
+        }
+        final grant = _grantForToken(token);
+        if (grant == null) {
+          _tokenResolver.recordFailure(clientKey);
+          return null;
+        }
+        _tokenResolver.clearFailures(clientKey);
+        // A known token without the scope is no failed guess: the next
+        // credential is tried, and with none admitting the route answers
+        // the ticket path's refusal.
+        if (!HeadlessAuthPolicy.permits(grant: grant, route: route)) {
+          _logWarning(
+            '[AUTH][$requestId] WS upgrade to $path - '
+            'insufficient scope for ?token= principal',
+          );
+          scopeRefusal.value = _scopeDenied(requestId, grant, route);
+          return null;
+        }
+        // A phone that only holds the event socket open all night must still
+        // register as seen.
+        _touchPairedDeviceSeen(token);
+        _logWarning(
+          '[AUTH][$requestId] WS upgrade to $path used legacy ?token=. '
+          'Switch to POST /api/ws/ticket + ?ticket=.',
+        );
+        return _admitted(
+          innerHandler,
+          request,
+          route,
+          computeServerFingerprint(token),
+          grant,
+        );
+
+      case _MalformedHeader():
+        _logWarning(
+          '[AUTH][$requestId] Rejected request to $path - invalid auth format',
+        );
+        return _authenticationRequired(
+          requestId,
+          ApiErrorCodes.invalidAuthHeader,
+          'Invalid Authorization header format. Expected: Bearer <token>',
+        );
+
+      case _Bearer(:final token, :final fromCookie, :final sessionCookie):
+        // Only cookie requests need CSRF: the browser attaches the cookie to
+        // every same-site request on its own, a header it never does. Reads
+        // change nothing, and logout stays open after the CSRF lifetime so an
+        // idle tab can still drop its cookie.
+        final isLogout =
+            request.method.toUpperCase() == 'POST' &&
+            path == AuthApi.logout.route.path;
+        if (fromCookie &&
+            !isLogout &&
+            HeadlessApiServer._methodNeedsCsrf(request.method) &&
+            !_authCookieManager.validateCsrf(
+              cookieToken: sessionCookie,
+              presented:
+                  request.headers[AuthCookieManager.csrfHeader.toLowerCase()],
+            )) {
+          _logWarning(
+            '[AUTH][$requestId] Rejected cookie request to $path - missing or invalid CSRF token',
+          );
+          return jsonForbidden(
             {
-              'error': 'Authentication required',
-              'message': 'Missing Authorization header or session cookie',
+              'error': 'csrf_required',
+              'message':
+                  'A valid ${AuthCookieManager.csrfHeader} header is required for this method.',
             },
             headers: {HeadlessApiServer._requestIdHeader: requestId},
           );
         }
-
-        // CSRF gate for cookie-authenticated requests. Why only when the
-        // token came from the cookie: bearer-header requests are not
-        // ambient-credentialed by the browser, so a cross-origin attacker
-        // cannot get the header attached automatically. Cookie requests,
-        // however, are sent on every same-site fetch — the CSRF token
-        // (in-memory in JS, mirrored to a request header) is what proves
-        // the request actually originated from the dashboard SPA.
-        //
-        // GET/HEAD/OPTIONS are excluded because CSRF protects state
-        // changes; read-only responses do not need it (and pre-flighting
-        // every GET would break image/event endpoints).
-        // Logout stays available after the CSRF lifetime. A dashboard tab
-        // that has sat idle past [AuthCookieManager.csrfLifetime] would
-        // otherwise 403 on the only call that can drop the cookie, including
-        // when it no longer has a token to send. SameSite=Strict already
-        // withholds the cookie from cross-site posts; other state changes
-        // still require a live CSRF token.
-        final isLogout =
-            request.method.toUpperCase() == 'POST' &&
-            path == AuthApi.logout.route.path;
-        if (tokenFromCookie &&
-            !isLogout &&
-            HeadlessApiServer._methodNeedsCsrf(request.method)) {
-          final presented =
-              request.headers[AuthCookieManager.csrfHeader.toLowerCase()];
-          if (!_authCookieManager.validateCsrf(
-            cookieToken: sessionCookie,
-            presented: presented,
-          )) {
-            _logWarning(
-              '[AUTH][$requestId] Rejected cookie request to $path - missing or invalid CSRF token',
-            );
-            return jsonForbidden(
-              {
-                'error': 'csrf_required',
-                'message':
-                    'A valid ${AuthCookieManager.csrfHeader} header is required for this method.',
-              },
-              headers: {HeadlessApiServer._requestIdHeader: requestId},
-            );
-          }
-        }
-
+        // The token lookup is a constant-time scan of every token; the
+        // limiter sheds a client spamming bad tokens before it runs.
         final clientKey = _rateLimitClientKey(request);
-        // Why pre-check: the constant-time loop is O(N*L) over the token
-        // table, so an attacker spamming bad tokens turns it into a CPU-burn
-        // vector. The resolver tracks per-client failure counts and sheds load
-        // with 429 once the bucket fills.
         if (_tokenResolver.isRateLimited(clientKey)) {
           _logWarning(
             '[AUTH][$requestId] Rate-limited token comparisons from $clientKey on $path',
           );
-          return jsonRateLimited(
-            {
-              'error': 'Rate limit exceeded',
-              'message': 'Too many authentication failures',
-              'requestId': requestId,
-            },
-            headers: {
-              HeadlessApiServer._requestIdHeader: requestId,
-              'retry-after': '60',
-            },
-          );
+          return _authenticationRateLimited(requestId);
         }
-        final tokenGrant = _grantForToken(token);
-        if (tokenGrant == null) {
+        final grant = _grantForToken(token);
+        if (grant == null) {
           _tokenResolver.recordFailure(clientKey);
           _logWarning(
             '[AUTH][$requestId] Rejected request to $path - invalid token',
@@ -364,49 +306,83 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
             headers: {HeadlessApiServer._requestIdHeader: requestId},
           );
         }
-        // Token recognised — clear stale failures so a successful login
-        // resets the counter for that client.
         _tokenResolver.clearFailures(clientKey);
         _touchPairedDeviceSeen(token);
-
-        if (!HeadlessAuthPolicy.permits(grant: tokenGrant, route: route)) {
+        if (!HeadlessAuthPolicy.permits(grant: grant, route: route)) {
           final requiredCapability = HeadlessAuthPolicy.requiredCapabilityFor(
             route,
           );
           final requiredScope = HeadlessAuthPolicy.requiredScopeFor(route);
           _logWarning(
             '[AUTH][$requestId] Rejected request to $path - '
-            'scope=${headlessTokenScopeName(tokenGrant.coarseScope)} '
+            'scope=${headlessTokenScopeName(grant.coarseScope)} '
             'required=${headlessTokenScopeName(requiredScope)} '
             'resource=${requiredCapability.resource.wireName} '
             'level=${headlessAccessLevelName(requiredCapability.level)}',
           );
-          // The body is built from the grant and the endpoint that decided the
-          // refusal, in HeadlessAuthPolicy, so it cannot drift from the
-          // decision — see [HeadlessAuthPolicy.scopeDenialBody] for why the
-          // coarse pair is conditional.
-          return jsonForbidden(
-            HeadlessAuthPolicy.scopeDenialBody(grant: tokenGrant, route: route),
-            headers: {HeadlessApiServer._requestIdHeader: requestId},
-          );
+          return _scopeDenied(requestId, grant, route);
         }
-
-        // Token is valid, continue to handler. Stash the digest of the
-        // resolved token + the request's route class so the rate-limit
-        // middleware (and any handler that wants to log the principal
-        // without a re-resolution) can read it back. We MUST NOT pass
-        // the raw token through the context — see [_authIdentityContextKey].
-        return innerHandler(
-          _attachAuthIdentity(
-            request,
-            identity: computeServerFingerprint(token),
-            routeClass: route.bucket,
-            grant: tokenGrant,
-          ),
+        return _admitted(
+          innerHandler,
+          request,
+          route,
+          computeServerFingerprint(token),
+          grant,
         );
-      };
-    };
+    }
   }
+
+  /// The request passed on with its principal: the token's digest (never the
+  /// raw token), the route class and the grant.
+  FutureOr<Response> _admitted(
+    Handler innerHandler,
+    Request request,
+    ApiRoute route,
+    String identity,
+    HeadlessAuthGrant grant,
+  ) => innerHandler(
+    _attachAuthIdentity(
+      request,
+      identity: identity,
+      routeClass: route.bucket,
+      grant: grant,
+    ),
+  );
+
+  /// 403 built from the grant and the route that refused it, by
+  /// [HeadlessAuthPolicy], so the body cannot drift from the decision.
+  Response _scopeDenied(
+    String requestId,
+    HeadlessAuthGrant grant,
+    ApiRoute route,
+  ) => jsonForbidden(
+    HeadlessAuthPolicy.scopeDenialBody(grant: grant, route: route),
+    headers: {HeadlessApiServer._requestIdHeader: requestId},
+  );
+
+  /// 401 for a request whose credential is missing or unusable, coded by
+  /// which.
+  Response _authenticationRequired(
+    String requestId,
+    String code,
+    String message,
+  ) => jsonUnauthorized(
+    {'error': 'Authentication required', 'code': code, 'message': message},
+    headers: {HeadlessApiServer._requestIdHeader: requestId},
+  );
+
+  /// 429 for a client whose bad tokens tripped the failure limiter.
+  Response _authenticationRateLimited(String requestId) => jsonRateLimited(
+    {
+      'error': 'Rate limit exceeded',
+      'message': 'Too many authentication failures',
+      'requestId': requestId,
+    },
+    headers: {
+      HeadlessApiServer._requestIdHeader: requestId,
+      'retry-after': '60',
+    },
+  );
 
   /// stash the authenticated principal's digest + the
   /// classified route class on the shelf request context so downstream
@@ -635,4 +611,42 @@ extension _HeadlessApiServerAuthMiddleware on HeadlessApiServer {
       }),
     );
   }
+}
+
+/// The refusal a `?token=` without the route's scope earned, answered when no
+/// other credential admits the request.
+final class _Refusal {
+  Response? value;
+}
+
+/// A credential a request presents; see `_credentialsFrom`.
+sealed class _Credential {
+  const _Credential();
+}
+
+/// A socket's single-use `?ticket=`.
+final class _Ticket extends _Credential {
+  const _Ticket(this.ticket);
+  final String ticket;
+}
+
+/// A socket's `?token=<bearer>`.
+final class _QueryToken extends _Credential {
+  const _QueryToken(this.token);
+  final String token;
+}
+
+/// An Authorization header that is not `Bearer <token>`.
+final class _MalformedHeader extends _Credential {
+  const _MalformedHeader();
+}
+
+/// A bearer token from `?access_token=`, the Authorization header or the
+/// session cookie ([fromCookie]); [sessionCookie] is the request's cookie,
+/// which the CSRF check reads.
+final class _Bearer extends _Credential {
+  const _Bearer(this.token, {this.sessionCookie, this.fromCookie = false});
+  final String token;
+  final String? sessionCookie;
+  final bool fromCookie;
 }

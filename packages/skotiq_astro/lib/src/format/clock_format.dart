@@ -52,6 +52,16 @@ abstract final class ClockFormat {
   /// `Nov 10, 2026 23:52`.
   static String monthDayYearHm(DateTime t) => '${monthDayYear(t)} ${hm(t)}';
 
+  /// The observing night that starts on the calendar day of [evening]:
+  /// `Oct 23 to 24`, or `Oct 31 to Nov 1` across a month end.
+  static String nightOf(DateTime evening) {
+    final next = DateTime(evening.year, evening.month, evening.day + 1);
+    final start = monthDay(evening);
+    return next.month == evening.month
+        ? '$start to ${next.day}'
+        : '$start to ${monthDay(next)}';
+  }
+
   /// `Tue, Nov 10`, for a night or a day someone has to find on a calendar.
   static String weekdayMonthDay(DateTime t) =>
       '${_weekdayNames[t.weekday - 1]}, ${monthDay(t)}';

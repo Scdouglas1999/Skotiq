@@ -241,7 +241,7 @@ class MountStateNotifier extends DeviceSlotNotifier<MountState> {
     } catch (e) {
       // The position, pier side and tracking state shown are now older than
       // this poll. A driver can keep answering the heartbeat while every
-      // position read fails (the NYX-101, Nov 8 2026), so the values are
+      // position read fails (the NYX-101), so the values are
       // marked stale here, and the host's heartbeat counts the failed reads
       // too and takes the mount through error and reconnect.
       if (mounted &&

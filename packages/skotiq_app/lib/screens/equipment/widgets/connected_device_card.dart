@@ -14,7 +14,7 @@ import 'package:skotiq_core/settings.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/cooled_camera_guard.dart';
-import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope, formatDeviceId;
 import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../focuser_backlash/effective_backlash_readout.dart';
@@ -28,6 +28,7 @@ import '../utils/session_device_save.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/guide_distance.dart';
 import '../../../utils/guider_state_label.dart';
+import '../dialogs/fujifilm_disclaimer_dialog.dart';
 
 part 'connected_device_card/status_and_display.dart';
 part 'connected_device_card/actions_and_telemetry.dart';

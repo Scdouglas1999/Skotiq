@@ -1,12 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_events.dart';
+import '../backend/sequencer_run_events.dart';
 import '../models/backend/event_types.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/imaging/imaging_models.dart';
 import '../models/polar_alignment_config.dart' show PolarAlignPhase;
+import '../models/sequence/instruction_progress_detail.dart';
 import '../services/capture_preview_loader.dart';
 import '../services/imaging_service.dart' show currentImageProvider;
 import '../utils/utc_timestamp.dart';
@@ -82,42 +85,41 @@ class AutofocusPreviewFeeder {
     required PolarAlignPhase polarPhase,
     required int polarPoint,
   }) {
-    switch ((event.category, event.eventType)) {
-      case (EventCategory.sequencer, 'TriggerFired')
-          when event.data['action'] == 'MeridianFlip':
-        _flipping = true;
-      case (EventCategory.sequencer, 'InstructionProgress'):
-        _flipping = event.data['instruction'] == 'MeridianFlip';
-        if (event.data['detail_kind'] == 'Center') {
-          final detail = _jsonObject(event.data['detail_json']);
-          final attempt = (detail?['attempt'] as num?)?.toInt() ?? 0;
-          final max = (detail?['max_attempts'] as num?)?.toInt();
+    if (sequencerEventOf(event) case final run?) {
+      switch (run) {
+        case SequencerEvent_TriggerFired(
+          action: SequencerTriggerAction.meridianFlip,
+        ):
+          _flipping = true;
+        case SequencerEvent_InstructionProgress(:final instruction):
+          _flipping = instruction == 'MeridianFlip';
           // Attempt 0 is the step starting or finishing, not a frame.
-          _centering = attempt > 0
-              ? (attempt: attempt, maxAttempts: max)
-              : null;
-        } else {
+          _centering = switch (run.report) {
+            CenterInstructionProgressDetail(:final attempt, :final maxAttempts)
+                when attempt > 0 =>
+              (attempt: attempt, maxAttempts: maxAttempts),
+            _ => null,
+          };
+        case SequencerEvent_NodeStarted() || SequencerEvent_NodeCompleted():
+          // A flip spans the step it interrupted, so only a Center step ends
+          // here.
           _centering = null;
-        }
-      case (EventCategory.sequencer, 'NodeStarted' || 'NodeCompleted'):
-        // A flip spans the step it interrupted, so only a Center step ends
-        // here.
-        _centering = null;
-      case (
-        EventCategory.sequencer,
-        'FrameAccepted' || 'FrameRejected' || 'ExposureCompleted',
-      ):
-        // A light of the run: whatever came before it is over.
-        _centering = null;
-        _flipping = false;
-      case (
-        EventCategory.sequencer,
-        'Stopped' || 'Completed' || 'SequenceFailed' || 'sequenceFailed',
-      ):
-        _centering = null;
-        _flipping = false;
-      case (EventCategory.imaging, 'ExposureComplete'):
-        if (event.data['success'] != true || autofocusRunning) return;
+        case SequencerEvent_FrameAccepted() ||
+            SequencerEvent_FrameRejected() ||
+            SequencerEvent_ExposureCompleted():
+          // A light of the run: whatever came before it is over.
+          _centering = null;
+          _flipping = false;
+        case _ when run.endsRun:
+          _centering = null;
+          _flipping = false;
+        default:
+      }
+      return;
+    }
+    switch (imagingEventOf(event)) {
+      case ImagingEvent_ExposureComplete(:final success):
+        if (!success || autofocusRunning) return;
         final centering = _centering;
         if (centering != null) {
           _request(
@@ -165,17 +167,6 @@ class AutofocusPreviewFeeder {
       final pending = _pending;
       _pending = null;
       if (pending != null) unawaited(_fetch(pending));
-    }
-  }
-
-  static Map<String, dynamic>? _jsonObject(Object? raw) {
-    if (raw is Map<String, dynamic>) return raw;
-    if (raw is! String) return null;
-    try {
-      final decoded = jsonDecode(raw);
-      return decoded is Map<String, dynamic> ? decoded : null;
-    } on FormatException {
-      return null;
     }
   }
 }

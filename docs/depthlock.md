@@ -329,8 +329,11 @@ number anyway. It needs:
 
 - **Monochrome, linear, 16-bit data.** Not a colour render, not a stretched
   preview.
-- **Skotiq-format calibration masters** — `FRAMETYP=MASTER`, a flat
-  normalised to unit mean, and at least 8 frames behind each master. The
+- **Calibration masters that say they are masters** — `FRAMETYP=MASTER` or
+  an `IMAGETYP` such as `Master Dark` (the calibration library writes both),
+  at least 8 frames behind each (`NFRAMES`, else `NCOMBINE`), a dark at the
+  goal's exposure and a flat in its filter. The flat is normalized by its own
+  median, so a unit-mean or a 32768-mean flat both work. The
   presentation-oriented clipping calibration used for previews cannot be used
   here, because it discards the signed values the measurement depends on.
 - **A plate-solved reference** with a TAN solution (a frame Skotiq solved

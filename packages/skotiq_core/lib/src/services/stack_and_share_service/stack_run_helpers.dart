@@ -45,7 +45,7 @@ extension _StackRunHelpers on StackAndShareService {
     required StackedFrameSelection frame,
     required _CalibrationContext? calibration,
   }) async {
-    final service = _ref.read(liveStackingServiceProvider);
+    final service = _liveStackingOf();
     if (calibration == null) {
       return service.addFrameFromFile(frame.filePath);
     }

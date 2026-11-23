@@ -4,11 +4,6 @@ import 'package:test/test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// `AnnotationCatalog.searchNearby` merges per-region results, not whole sky.
-///
-/// It used to call `loadAll()`, which merged OpenNGC + HyperLEDA + GLADE+ in
-/// full before filtering to the requested cone, and resolved each position
-/// collision with `List.indexOf` — an O(n) scan of the growing merged list, so
-/// the merge was quadratic in colliding rows on top of being whole-sky.
 void main() {
   late Directory tempDir;
 
@@ -145,8 +140,7 @@ void main() {
   test(
     'merges many colliding rows without a per-collision linear scan',
     () async {
-      // 4,000 rows all landing on the same dedup key. Under the old
-      // `List.indexOf` merge this is quadratic; it must now complete promptly.
+      // 4,000 rows all landing on the same dedup key.
       final rows = <String>[];
       for (var i = 0; i < 4000; i++) {
         rows.add('30.0,5.0,12.0,3000,$i');

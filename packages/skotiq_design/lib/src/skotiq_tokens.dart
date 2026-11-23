@@ -122,18 +122,15 @@ abstract final class SkotiqTokens {
   /// Fully rounded (for circular elements)
   static const double radiusFull = 999.0;
 
-  // In-use migration radii — now ALIASES of the semantic scale
+  // In-use migration radii — ALIASES of the semantic scale
   //
-  // These were value-named constants that let 979 call sites keep their exact
-  // literal while losing the magic number. The design pass they were waiting
-  // for has happened (`docs/design/overhaul/03-tokens.md` §3.2), so each one
-  // now forwards to the semantic radius it maps to and the call sites take the
-  // new value without an edit. Wave 4 sed-replaces the names and deletes these.
+  // Each one forwards to the semantic radius it maps to
+  // (`docs/design/overhaul/03-tokens.md` §3.2).
   //
   // Do NOT add new call sites at these names in fresh code — reach for the
   // semantic scale (radiusXs..radiusXl) instead.
 
-  /// Folds into [radiusXs]. Wave 4 sed-replaces the call sites and deletes it.
+  /// Folds into [radiusXs].
   static const double radiusInline2 = radiusXs;
 
   /// Equals [radiusXs].
@@ -181,8 +178,8 @@ abstract final class SkotiqTokens {
   // Animation durations
   //
   // Three durations do all the work: 120 for hover, 160 for a state change,
-  // 220 for a panel. The rest are aliases kept so call sites compile, and wave
-  // 4 folds them in. Motion here CONFIRMS an action; it never decorates one.
+  // 220 for a panel. The rest are aliases kept so call sites compile. Motion
+  // here CONFIRMS an action; it never decorates one.
 
   /// 80ms - icon colour on hover
   static const Duration durationMicro = Duration(milliseconds: 80);
@@ -202,10 +199,10 @@ abstract final class SkotiqTokens {
   /// 300ms - immersive mode enter/exit only
   static const Duration durationSlow = Duration(milliseconds: 300);
 
-  /// 300ms - alias of [durationSlow]. Deprecated; folded in wave 4.
+  /// 300ms - alias of [durationSlow]. Deprecated.
   static const Duration durationCinematic = durationSlow;
 
-  /// 300ms - alias of [durationSlow]. Deprecated; folded in wave 4.
+  /// 300ms - alias of [durationSlow]. Deprecated.
   static const Duration durationSluggish = durationSlow;
 
   /// 1500ms - Shimmer/loading animation cycle. The only continuous animation
@@ -219,31 +216,30 @@ abstract final class SkotiqTokens {
   //
   // One curve. `Curves.easeOutCubic` is the cubic-bezier(0.215, 0.61, 0.355, 1)
   // the design tokens name, and the eight names below are all pointed at it:
-  // no bounce, no overshoot, no spring anywhere in the chrome. Wave 4 deletes
-  // every alias and keeps [curveStandard].
+  // no bounce, no overshoot, no spring anywhere in the chrome.
 
   /// The one easing curve.
   static const Curve curveStandard = Curves.easeOutCubic;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curveDecelerate = curveStandard;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curveAccelerate = curveStandard;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curveBounce = curveStandard;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curveSharp = curveStandard;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curveSnappy = curveStandard;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curvePrecise = curveStandard;
 
-  /// Alias of [curveStandard]. Deprecated; deleted in wave 4.
+  /// Alias of [curveStandard]. Deprecated.
   static const Curve curveSettle = curveStandard;
 
   // Icon sizes
@@ -389,12 +385,6 @@ abstract final class SkotiqTokens {
   // Shadows are reserved for floating overlays (menus, toasts, modals, drag
   // feedback) where tonal lift is needed above the base surface.
 
-  /// Subtle shadow for floating menus and toasts
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> shadowSm = [
-    BoxShadow(color: Color(0x14000000), blurRadius: 6, offset: Offset(0, 2)),
-  ];
-
   /// Medium shadow for dropdowns and popovers
   @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
   static const List<BoxShadow> shadowMd = [
@@ -407,42 +397,10 @@ abstract final class SkotiqTokens {
     BoxShadow(color: Color(0x33000000), blurRadius: 20, offset: Offset(0, 8)),
   ];
 
-  // Elevation system (dark theme)
-
-  /// Level 1 - Reserved for tonal separation; cards rely on borders instead.
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationLevel1 = [];
-
-  /// Level 2 - Light hover emphasis on interactive panels and drag feedback
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationLevel2 = [
-    BoxShadow(color: Color(0x14000000), blurRadius: 5, offset: Offset(0, 2)),
-  ];
-
-  /// Level 3 - Floating elevation for modals and dialogs only
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static List<BoxShadow> elevationLevel3(Color accentColor) => shadowLg;
-
-  /// Inset shadow for recessed elements (input fields, wells)
-  /// Creates depth by appearing pressed into the surface
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationInset = [
-    BoxShadow(
-      color: Color(0x66000000), // 40% opacity
-      blurRadius: 4,
-      offset: Offset(0, 2),
-      blurStyle: BlurStyle.inner,
-    ),
-  ];
-
-  /// Transition shadow from level 1 to level 2 (for hover animations)
-  @Deprecated('Use SkotiqDecorations.popover/dialog. Removed in wave 4.')
-  static const List<BoxShadow> elevationLevel1to2 = elevationLevel2;
-
   // Opacity levels
   //
   // The nine below are the Observatory set; everything after them is kept only
-  // so the pre-overhaul call sites compile and is deleted in wave 4.
+  // so the pre-overhaul call sites compile.
 
   /// 12% - selected rail item, selected strip item, selected settings item.
   static const double opacityAccentTint = 0.12;
@@ -482,10 +440,10 @@ abstract final class SkotiqTokens {
   /// [opacityAccentTint].
   static const double opacitySubtle = 0.1;
 
-  /// Medium overlay (hover states). Deprecated; deleted in wave 4.
+  /// Medium overlay (hover states). Deprecated.
   static const double opacityMedium = 0.2;
 
-  /// Strong overlay (pressed states). Deprecated; deleted in wave 4.
+  /// Strong overlay (pressed states). Deprecated.
   static const double opacityStrong = 0.3;
 
   /// Very light primary/accent tint (4%). Deprecated; use

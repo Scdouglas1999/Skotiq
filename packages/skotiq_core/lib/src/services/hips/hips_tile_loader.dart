@@ -1,4 +1,4 @@
-// Component C6 — HiPS framing tile loader / orchestrator.
+// HiPS framing tile loader / orchestrator.
 //
 // This is the *scheduler* that turns a stream of fast-changing framing
 // viewports (pan/zoom/rotate gestures, target switches) into a small, ordered,
@@ -62,7 +62,7 @@
 //
 // A fetch failure is surfaced, not swallowed: failed tiles are recorded in the
 // snapshot's [HipsResidentSnapshot.failures] and re-thrown to an injected
-// [HipsTileLoaderErrorSink] (defaulting to `dart:developer` logging) so a
+// [HipsTileLoaderErrorSink] (defaulting to the app log) so a
 // developer/operator sees them, while the never-blank coarse fallback keeps the
 // view usable. A *cancellation* ([HipsFetchCancelledException]) is the expected
 // outcome of a superseded generation and is dropped quietly — it is not an error
@@ -169,7 +169,7 @@ class HipsTileLoader extends ChangeNotifier {
   /// [cache] and [fetcher] are the injected C4/C5 components (real ones in
   /// production, test doubles in unit tests). [clock] defaults to a real
   /// [Timer]-backed clock; tests inject a fake. [errorSink] defaults to
-  /// `dart:developer` logging. [debounce] is the trailing recompute window.
+  /// the app log. [debounce] is the trailing recompute window.
   /// [subdivisions] is forwarded to [HipsTileSelection.computeVisibleTiles].
   ///
   /// When [ownsFetcher] is true (the default) the loader [dispose]s the fetcher;

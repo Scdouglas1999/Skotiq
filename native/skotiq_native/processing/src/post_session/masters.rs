@@ -14,6 +14,7 @@ use crate::post_session::light_calibration::{LightCalibration, FLOAT_CALIBRATION
 use crate::post_session::multi_night::{calibrate_for_fold, OnGrid};
 use crate::run_cancel::CancelToken;
 use serde::{Deserialize, Serialize};
+use skotiq_imaging::atomic_file::{replace_file, Replace, ReplaceError};
 use skotiq_imaging::calibration_masters::{build_master_flat, MasterFlatConfig};
 use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQuality, FrameQualityConfig};
 use skotiq_imaging::integration::IntegrationFrame;
@@ -23,7 +24,11 @@ use skotiq_imaging::master_accumulation::{
 use skotiq_imaging::normalization::{apply_normalization, estimate_normalization, CoverageMask};
 use skotiq_imaging::registration::RegistrationConfig;
 use skotiq_imaging::stacking::{CombineMethod, MasterOutputType};
-use skotiq_imaging::{read_frame_header, read_image, write_fits, FitsHeader, ImageData, PixelType};
+use skotiq_imaging::ProductCards;
+use skotiq_imaging::{
+    acquisition, read_frame_header, read_image, write_fits, AgreementPolicy, FitsHeader, ImageData,
+    NumberMatch, PixelType, Setting,
+};
 use std::path::Path;
 
 /// Turn a sidecar deserialize failure into an operator-honest message.
@@ -206,7 +211,7 @@ pub(crate) fn master_create(args_json: &str) -> Result<MasterAccumulateResult, S
     let ref_u16 = ensure_u16(&reference);
     write_fits(&ref_companion, &ref_u16, &{
         let mut h = FitsHeader::new();
-        h.set_string("IMAGETYP", "MASTER_REF");
+        ProductCards::image_type("MASTER_REF").write_to(&mut h);
         h
     })
     .map_err(|e| format!("failed to write reference companion: {e:?}"))?;
@@ -284,9 +289,18 @@ impl OpenMaster {
             return Ok(());
         }
         let tmp = self.sidecar.with_extension("saving");
-        std::fs::write(&tmp, self.master.serialize())
-            .and_then(|_| std::fs::rename(&tmp, &self.sidecar))
-            .map_err(|e| format!("failed to write sidecar: {e}"))?;
+        let how = Replace {
+            sync: false,
+            ..Replace::DURABLE
+        };
+        replace_file(&self.sidecar, &tmp, how, |tmp| {
+            std::fs::write(tmp, self.master.serialize())
+        })
+        .map_err(|e| match e {
+            ReplaceError::Write { error, .. } | ReplaceError::Place { error, .. } => {
+                format!("failed to write sidecar: {error}")
+            }
+        })?;
         // A journal line whose foldsBefore is below the saved fold count is
         // skipped on replay, so a crash before this removal is harmless.
         let _ = std::fs::remove_file(journal_path(&self.sidecar));
@@ -689,11 +703,10 @@ pub(crate) fn master_finalize(args_json: &str) -> Result<MasterAccumulateResult,
     let master_path = Path::new(&args.master_fits_path);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq accumulating master");
-    header.set_int("NFRAMES", master.metadata.total_frames as i64);
-    header.set_int("NCOMBINE", master.metadata.total_frames as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq accumulating master")
+        .with_frames(master.metadata.total_frames as i64)
+        .with_combined(master.metadata.total_frames as i64)
+        .write_to(&mut header);
     header.set_float("EXPTIME", master.metadata.total_integration_seconds);
     if let Some(f) = &master.metadata.filter {
         header.set_string("FILTER", f);
@@ -817,24 +830,41 @@ fn flat_metadata(path: &str) -> Result<FitsHeader, String> {
     })
 }
 
+/// How closely the raw flats of one master flat must agree. The set-point is
+/// not compared: flats are short and often taken uncooled.
+const FLAT_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    instrument: true,
+    filter: true,
+    exposure: None,
+    set_point_c: None,
+    read_mode: true,
+    numbers: NumberMatch::Within(1e-6),
+    text_ignores_case: false,
+    first_states_numbers: false,
+    sensor_temp_c: None,
+};
+
+/// How closely a raw flat and the bias or dark-flat taken out of it must agree.
+/// The dark-flat's exposure is held to its own rule.
+const FLAT_PEDESTAL_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    filter: false,
+    read_mode: false,
+    ..FLAT_AGREEMENT
+};
+
 fn validate_flat_pedestal(flat: &FitsHeader, pedestal: &FitsHeader) -> Result<(), String> {
-    if let (Some(a), Some(b)) = (flat.get_string("INSTRUME"), pedestal.get_string("INSTRUME")) {
-        if a != b {
-            return Err("Flat and bias/dark-flat cameras differ (INSTRUME)".into());
-        }
+    if let Some(d) =
+        acquisition(flat).disagreement(&acquisition(pedestal), &FLAT_PEDESTAL_AGREEMENT)
+    {
+        return Err(match d.setting {
+            Setting::Instrument => "Flat and bias/dark-flat cameras differ (INSTRUME)".into(),
+            setting => format!("Flat and bias/dark-flat {} differ", setting.card()),
+        });
     }
-    for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
-        if let (Some(a), Some(b)) = (flat.get_float(key), pedestal.get_float(key)) {
-            if (a - b).abs() > 1e-6 {
-                return Err(format!("Flat and bias/dark-flat {key} differ"));
-            }
-        }
-    }
-    let kind = pedestal
+    let is_bias = pedestal
         .get_string("IMAGETYP")
-        .unwrap_or_default()
-        .to_ascii_lowercase();
-    let is_bias = kind.contains("bias") || kind.contains("offset");
+        .and_then(skotiq_imaging::FrameKind::from_imagetyp)
+        .is_some_and(|kind| kind.base == skotiq_imaging::FrameType::Bias);
     if !is_bias {
         if let (Some(a), Some(b)) = (flat.get_float("EXPTIME"), pedestal.get_float("EXPTIME")) {
             // Dark current in a dark-flat of 0.1 s or less is negligible, so it
@@ -876,17 +906,7 @@ pub(crate) fn flat_pedestal_state(
             FlatPedestal::Included
         };
     }
-    let upper = |key: &str| {
-        header
-            .get_string(key)
-            .unwrap_or_default()
-            .to_ascii_uppercase()
-    };
-    let master = upper("FRAMETYP").contains("MASTER")
-        || upper("IMAGETYP").contains("MASTER")
-        || header.get_int("NCOMBINE").is_some_and(|n| n > 1)
-        || header.get_int("NFRAMES").is_some_and(|n| n > 1);
-    if master {
+    if skotiq_imaging::MasterProvenance::from_header(header).any_card_says_integrated() {
         FlatPedestal::Removed
     } else {
         FlatPedestal::Included
@@ -918,28 +938,19 @@ pub(crate) fn build_master_flat_impl(
         .collect::<Result<Vec<_>, _>>()?;
     // Exposure may vary: Skotiq's flat capture adjusts it frame by frame, and
     // each flat is scaled to its own median before combining.
-    for header in &source_headers[1..] {
-        for key in ["INSTRUME", "FILTER"] {
-            if let (Some(first), Some(next)) =
-                (source_headers[0].get_string(key), header.get_string(key))
-            {
-                if first != next {
-                    return Err(format!(
-                        "Raw flats have different {key}; build each calibration group separately"
-                    ));
-                }
-            }
-        }
-        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
-            if let (Some(first), Some(next)) =
-                (source_headers[0].get_float(key), header.get_float(key))
-            {
-                if (first - next).abs() > 1e-6 {
-                    return Err(format!(
-                        "Raw flats have different {key}; build each calibration group separately"
-                    ));
-                }
-            }
+    let first = acquisition(&source_headers[0]);
+    for (path, header) in args.flat_paths.iter().zip(&source_headers).skip(1) {
+        if let Some(d) = first.disagreement(&acquisition(header), &FLAT_AGREEMENT) {
+            return Err(match d.setting {
+                Setting::ReadMode => format!(
+                    "{path} was read out in mode {} but {} in mode {}",
+                    d.other, args.flat_paths[0], d.first
+                ),
+                setting => format!(
+                    "Raw flats have different {}; build each calibration group separately",
+                    setting.card()
+                ),
+            });
         }
     }
     let exposures: Vec<f64> = source_headers
@@ -1032,11 +1043,10 @@ pub(crate) fn build_master_flat_impl(
     let out_path = Path::new(&args.output_path);
     ensure_parent_dir(out_path)?;
     let mut header = source_headers[0].clone();
-    header.set_string("IMAGETYP", "FLAT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq master flat");
-    header.set_int("NFRAMES", master.frame_count as i64);
-    header.set_int("NCOMBINE", master.frame_count as i64);
+    ProductCards::master("FLAT", "Skotiq master flat")
+        .with_frames(master.frame_count as i64)
+        .with_combined(master.frame_count as i64)
+        .write_to(&mut header);
     header.set_bool(FLAT_PEDESTAL_CARD, pedestal.is_some());
     match pedestal_path {
         Some(path) => header.add_history(&format!(
@@ -1154,9 +1164,7 @@ pub(crate) fn save_fits_master_impl(
     let out_path = Path::new(&args.output_path);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq master (re-export)");
+    ProductCards::master("MASTER_LIGHT", "Skotiq master (re-export)").write_to(&mut header);
     if let Some(o) = &args.object {
         header.set_string("OBJECT", o);
     }
@@ -1179,4 +1187,27 @@ pub(crate) fn save_fits_master_impl(
         channels: args.channels,
         pixel_type: pt.to_string(),
     })
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::BuildMasterFlatArgs>(
+            "build_master_flat",
+        );
+        crate::args_fixtures::check_or_write_args::<super::SaveFitsMasterArgs>("save_fits_master");
+        crate::args_fixtures::check_or_write_args::<super::MasterCreateArgs>(
+            "master_accumulate_create",
+        );
+        crate::args_fixtures::check_or_write_args::<super::MasterAddArgs>("master_accumulate_add");
+        crate::args_fixtures::check_or_write_args::<super::MasterFinalizeArgs>(
+            "master_accumulate_finalize",
+        );
+        crate::args_fixtures::check_or_write_args::<super::MasterInfoArgs>(
+            "master_accumulate_info",
+        );
+        crate::args_fixtures::check_or_write_args::<super::MasterOp>("master_accumulate_op");
+    }
 }

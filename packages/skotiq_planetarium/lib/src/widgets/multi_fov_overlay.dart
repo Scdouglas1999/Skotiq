@@ -483,9 +483,7 @@ class _MultiFovPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        style: SkotiqTypography.canvas(
           color: color,
           fontSize: fontSize,
           fontWeight: bold ? FontWeight.w600 : FontWeight.w500,

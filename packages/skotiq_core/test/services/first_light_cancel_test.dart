@@ -14,7 +14,7 @@ import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/providers/auto_stretch_provider.dart';
 import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/first_light_provider.dart';
-import 'package:skotiq_core/src/services/first_light/first_light_orchestrator.dart';
+import 'package:skotiq_core/src/providers/first_light/first_light_orchestrator.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 
@@ -22,7 +22,7 @@ import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 /// cancel exists for. `cancelExposure` records the device-level abort and
 /// resolves the capture the way the real service does when it aborts a frame.
 class _StalledImagingService extends ImagingService {
-  _StalledImagingService(super.ref) : super(flatCaptureBusy: () => false);
+  _StalledImagingService(super.ref) : super(rigHeld: () => null);
 
   final Completer<CapturedImageData?> _pending =
       Completer<CapturedImageData?>();

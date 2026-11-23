@@ -11,42 +11,27 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     });
   }
 
+  /// Run one evaluation. A caller that arrives while another is in flight
+  /// is queued behind it, without dropping the triggering event, and gets an
+  /// evaluation of its own once those ahead of it have finished. A failure
+  /// reaches only this caller's future.
   Future<void> _evaluateWithReason(
     String reason, {
     List<SchedulerCandidate>? candidates,
   }) async {
-    if (_evaluating) {
-      // Queue this caller; they'll be released after the in-flight
-      // evaluation finishes. This serializes evaluations without dropping
-      // a triggering event.
-      final c = Completer<void>();
-      _pendingEvaluations.add(c);
-      return c.future;
-    }
-    _evaluating = true;
-    // Published so stop() can wait for a dispatch that is already in flight
-    // rather than racing it (see SchedulerEngine._awaitEvaluationQuiescence).
-    final idle = Completer<void>();
-    _evaluationIdle = idle;
+    final ahead = _evaluationQueue;
+    final done = Completer<void>();
+    _evaluationQueue = done.future;
     try {
-      await _evaluateOnce(reason, candidates: candidates);
-    } finally {
-      _evaluating = false;
-      if (identical(_evaluationIdle, idle)) _evaluationIdle = null;
-      if (!idle.isCompleted) idle.complete();
-      if (_pendingEvaluations.isNotEmpty) {
-        final next = _pendingEvaluations.removeAt(0);
-        // Run the next evaluation in a microtask so the completer for the
-        // current caller resolves first.
-        scheduleMicrotask(() async {
-          try {
-            await _evaluateWithReason('coalesced');
-            next.complete();
-          } catch (e, st) {
-            next.completeError(e, st);
-          }
-        });
+      if (ahead == null) {
+        await _evaluateOnce(reason, candidates: candidates);
+      } else {
+        await ahead;
+        await _evaluateOnce('coalesced');
       }
+    } finally {
+      done.complete();
+      if (identical(_evaluationQueue, done.future)) _evaluationQueue = null;
     }
   }
 
@@ -505,7 +490,7 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     if (primaryReasonOverride != null) {
       primary = primaryReasonOverride;
     } else if (s.hardConstraintFailed) {
-      primary = _summarizeRejection(s.rejectionReasons);
+      primary = _summarizeRejection(s.rejections);
     } else {
       // Eligible-but-lower-scoring. Expose the score gap as a percentage
       // so operators can sanity-check tight calls.
@@ -527,17 +512,12 @@ extension _SchedulerEngineEvaluation on SchedulerEngine {
     );
   }
 
-  /// Map the first per-constraint failure into a compact operator-facing
-  /// summary. Falls back to the raw text when no shorter form fits.
-  ///
-  /// The matching ladder lives in `services/scheduler/rejection_labels.dart`
-  /// so the queue row's STATUS chip and this record cannot drift apart. Do NOT
-  /// re-add a local ladder here — `scheduler_rejection_labels_test.dart` covers
-  /// both renderings.
-  String _summarizeRejection(List<String> reasons) {
-    if (reasons.isEmpty) return 'rejected';
+  /// The first failed constraint in the decision record's short words
+  /// (`services/scheduler/rejection_labels.dart`).
+  String _summarizeRejection(List<SchedulerRejection> rejections) {
+    if (rejections.isEmpty) return 'rejected';
     return schedulerRejectionSummary(
-      reasons.first,
+      rejections.first,
       minAltitudeDegrees: _config.minAltitudeDegrees,
     );
   }

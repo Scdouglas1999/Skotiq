@@ -160,12 +160,10 @@ class _BottomNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     // Same annotation the rail's NavItem carries, because the bar is the
     // rail's phone-width replacement and has to answer the same three
-    // questions. A bare InkWell contributes a tap action and nothing else:
-    // measured on the running app at 420x900, every destination came back as
-    // `panel` with states [focusable, showing, visible] — no role, no
-    // `selected` on the one the operator is standing in, and no `enabled`,
-    // which reads to assistive tech as a disabled control. `enabled` is
-    // published only when the field is given, so it is given.
+    // questions. A bare InkWell contributes a tap action and nothing else: no
+    // role, no `selected` on the one the operator is standing in, and no
+    // `enabled`, which reads to assistive tech as a disabled control. `enabled`
+    // is published only when the field is given, so it is given.
     return Semantics(
       enabled: true,
       button: true,
@@ -233,7 +231,7 @@ class _BottomNavItem extends StatelessWidget {
 
   /// 11 px / 500 (04 §3.3). `captionSm` is 12; the bar's five labels need the
   /// extra pixel back.
-  // TODO(observatory): promote to SkotiqTypography.navLabel at merge.
+  // TODO(observatory): promote to SkotiqTypography.navLabel.
   static const TextStyle _labelStyle = TextStyle(
     fontFamily: SkotiqTypography.fontFamily,
     fontSize: BottomNavMetrics.itemLabelFontSize,

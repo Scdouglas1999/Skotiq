@@ -18,7 +18,7 @@ import '../../../golden/surface_golden_harness.dart';
 import '../fixtures/night_fixtures.dart';
 import 'center_test_support.dart';
 
-/// The guide series as P1b builds it: legend values in pixels.
+/// The guide series as the provider builds it: legend values in pixels.
 NightSeriesVm _guideInPixels() {
   final base = NightFixtures.guideSeries();
   return NightSeriesVm(
@@ -210,7 +210,7 @@ void main() {
       _allText(tester),
       contains(RegExp(r'best 45\s484 · HFR 1\.98 px · 13\.1 °C')),
     );
-    expect(find.text('Guider idle'), findsOneWidget);
+    expect(find.text('Not guiding'), findsOneWidget);
     expect(find.text('Start looping'), findsOneWidget);
     expect(find.text('Cooling'), findsOneWidget);
     expect(find.text('since 18:22'), findsOneWidget);

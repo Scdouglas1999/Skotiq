@@ -3,8 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/touch_target.dart';
 import 'skotiq_tooltip.dart';
 
@@ -167,9 +166,7 @@ class _SkotiqIconButtonState extends State<SkotiqIconButton> {
       // `find.byTooltip` is the finder every Flutter test reaches for, and it
       // matches a Material `Tooltip` — not this control's own
       // `SkotiqTooltip`, which is an OverlayPortal that exists only while
-      // the pointer is over the button. So the 178 icon controls wave 3
-      // migrated went invisible to it, and each screen grew a local
-      // `findByTooltip` helper that knew about both.
+      // the pointer is over the button.
       //
       // The `Tooltip` below is a LABEL, not a second tooltip: `TooltipVisibility`
       // stops it building any overlay of its own, and `excludeFromSemantics`

@@ -17,14 +17,17 @@ class _FixedBackendNotifier extends BackendNotifier {
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
 /// The night-end runner, recording the nights it is handed.
-class _RecordingRunner extends NightEndRunner {
-  _RecordingRunner(super.ref);
+class _RecordingRunner extends Mock implements NightEndRunner {
+  _RecordingRunner();
 
   final calls = <int>[];
   final reasons = <String>[];
 
   @override
   Future<void> start() async {}
+
+  @override
+  Future<void> idle() async {}
 
   @override
   Future<NightEndRun?> nightEnded({
@@ -110,7 +113,7 @@ void main() {
           (ref) => _FixedBackendNotifier(ref, FfiBackend(database: db)),
         ),
         nightEndRunnerProvider.overrideWith((ref) {
-          recording = _RecordingRunner(ref);
+          recording = _RecordingRunner();
           return recording;
         }),
       ],
@@ -160,10 +163,11 @@ void main() {
     coordinatorContainer
         .read(runRecordProvider.notifier)
         .setStopEvidence(
-          const SequenceStopDecision(
-            SequenceStopAuthor.system,
-            origin: 'dawn_approaching',
-            parked: true,
+          sequenceStopTriggerDecision(
+            triggerId: 'dawn_approaching',
+            triggerName: 'Dawn Approaching',
+            action: SequencerTriggerAction.parkAndAbort,
+            nightEnd: SequencerNightEnd.dawn,
           ),
         );
     coordinatorContainer
@@ -188,10 +192,11 @@ void main() {
     coordinatorContainer
         .read(runRecordProvider.notifier)
         .setStopEvidence(
-          const SequenceStopDecision(
-            SequenceStopAuthor.system,
-            origin: 'obstruction',
-            parked: true,
+          sequenceStopTriggerDecision(
+            triggerId: 'obstruction',
+            triggerName: 'Obstruction',
+            action: SequencerTriggerAction.parkAndAbort,
+            nightEnd: SequencerNightEnd.obstruction,
           ),
         );
     coordinatorContainer
@@ -237,7 +242,7 @@ void main() {
           (ref) => _FixedBackendNotifier(ref, backend),
         ),
         nightEndRunnerProvider.overrideWith((ref) {
-          return recording = _RecordingRunner(ref);
+          return recording = _RecordingRunner();
         }),
       ],
     );

@@ -64,7 +64,7 @@ class NightSummaryView extends ConsumerWidget {
             SkotiqBanner(
               tone: endedBadly ? BannerTone.error : BannerTone.warning,
               title: endedBadly ? 'Why the run ended' : 'Reported by the run',
-              message: runFailureMessage(cause),
+              message: userFacingError(cause),
             ),
             const SizedBox(height: _gap),
           ],
@@ -300,14 +300,11 @@ class _TargetsPanel extends StatelessWidget {
                         (
                           filter.key.isEmpty ? 'No filter' : filter.key,
                           [
-                            if (filter.value['captured'] case final num n)
-                              countLabel(n.toInt(), 'frame'),
-                            if (filter.value['integrationSecs']
-                                case final num secs)
-                              DurationFormat.seconds(
-                                secs.toDouble(),
-                                style: DurationStyle.short,
-                              ),
+                            countLabel(filter.value.captured, 'frame'),
+                            DurationFormat.seconds(
+                              filter.value.integrationSecs,
+                              style: DurationStyle.short,
+                            ),
                           ].join(' · '),
                         ),
                     ],
@@ -346,7 +343,7 @@ class _ProblemsPanel extends StatelessWidget {
                 child: Container(height: 1, color: colors.border),
               ),
             SelectableText(
-              runFailureMessage(problem),
+              userFacingError(problem),
               style:
                   SkotiqTypography.bodySm.copyWith(color: colors.textSecondary),
             ),

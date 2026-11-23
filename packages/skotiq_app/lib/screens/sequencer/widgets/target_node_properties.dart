@@ -8,11 +8,9 @@ import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/altitude_floor_rule.dart';
 import 'framing_assistant_inline.dart';
 import 'node_property_widgets.dart';
-import 'target_coordinates.dart';
 
 part 'target_node_properties/coordinate_lookup.dart';
 part 'target_node_properties/trigger_section.dart';
@@ -159,7 +157,7 @@ class TargetGroupProperties extends ConsumerWidget {
             child: SizedBox(
               width: double.infinity,
               child: SkotiqButton(
-                onPressed: targetCoordinatesUnset(node)
+                onPressed: node.coordinatesUnset
                     ? null
                     : () async {
                         final newRotation = await showFramingAssistantDialog(
@@ -426,35 +424,12 @@ class TargetGroupProperties extends ConsumerWidget {
   }
 
   /// Clear a legacy Start After / End Before wall-clock constraint back to
-  /// unset. These fields use plain `?? this.startAfter` copyWith semantics, so
-  /// `copyWith(startAfter: null)` keeps the old value — clearing is
-  /// rebuild-explicit, mirroring the integration-budget toggle recipe.
+  /// unset.
   void _clearTimeConstraint(WidgetRef ref, {required bool clearStart}) {
     ref.read(currentSequenceProvider.notifier).updateNode(
-          TargetHeaderNode(
-            id: node.id,
-            name: node.name,
-            isEnabled: node.isEnabled,
-            childIds: node.childIds,
-            parentId: node.parentId,
-            orderIndex: node.orderIndex,
-            comment: node.comment,
-            targetName: node.targetName,
-            raHours: node.raHours,
-            decDegrees: node.decDegrees,
-            rotation: node.rotation,
-            priority: node.priority,
-            minAltitude: node.minAltitude,
-            maxAltitude: node.maxAltitude,
-            startAfter: clearStart ? null : node.startAfter,
-            endBefore: clearStart ? node.endBefore : null,
-            mosaicPanel: node.mosaicPanel,
-            integrationBudget: node.integrationBudget,
-            startWhen: node.startWhen,
-            endWhen: node.endWhen,
-            triggerPollIntervalSecs: node.triggerPollIntervalSecs,
-            brightnessTierHint: node.brightnessTierHint,
-            catalogTargetId: node.catalogTargetId,
+          node.copyWith(
+            clearStartAfter: clearStart,
+            clearEndBefore: !clearStart,
           ),
         );
   }

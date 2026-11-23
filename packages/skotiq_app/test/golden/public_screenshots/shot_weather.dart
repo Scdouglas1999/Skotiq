@@ -41,7 +41,7 @@ RadarFrame clearSkyFrame() {
 }
 
 class _ClearSkyRadar extends WeatherRadarService {
-  _ClearSkyRadar(super.ref);
+  _ClearSkyRadar(super.database);
 
   late final RadarFetchResult _result = RadarFetchResult.success(
     [clearSkyFrame()],
@@ -86,7 +86,9 @@ class _ClearSky extends CurrentSkyService {
 /// conditions and the Weather screen read the same clear sky.
 List<Override> clearSkyOverrides() => [
       weatherRadarServiceProvider.overrideWith((ref) {
-        final service = _ClearSkyRadar(ref)..initialize();
+        final service = _ClearSkyRadar(
+          () => ref.read(databaseProvider),
+        )..initialize();
         ref.onDispose(service.dispose);
         return service;
       }),

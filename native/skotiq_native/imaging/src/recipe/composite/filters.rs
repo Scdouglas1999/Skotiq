@@ -104,13 +104,20 @@ impl FilterRole {
 ///
 /// A three-channel master is color whatever its filter is called: a dual-band
 /// filter on a one-shot-color camera still produces a Bayer image. A mono
-/// master is matched on its filter name with case, spaces, dashes, underscores,
-/// brackets and a trailing bandwidth (`7nm`) ignored.
+/// master whose name the filter-name rule ([`skotiq_frame::filter_bands`])
+/// reads as one band has that band's role, as the wheel and the live stack
+/// read it ("Baader Ha 7nm" is Ha). Other names are matched with case,
+/// spaces, dashes, underscores, brackets and a trailing bandwidth (`7nm`)
+/// ignored, which also takes the short forms the rule does not ("O", "S",
+/// "UV/IR cut" as luminance).
 pub fn classify_filter(name: Option<&str>, channels: u32) -> FilterRole {
     if channels == 3 {
         return FilterRole::Color;
     }
     let raw = name.unwrap_or("").trim();
+    if let Some(role) = role_of_one_band(raw) {
+        return role;
+    }
     let key = normalize(raw);
     match key.as_str() {
         "l" | "lum" | "luma" | "luminance" | "clear" | "c" | "cl" | "uvircut" | "uvir"
@@ -127,6 +134,25 @@ pub fn classify_filter(name: Option<&str>, channels: u32) -> FilterRole {
             raw.to_string()
         }),
     }
+}
+
+/// The role of the one band the filter-name rule reads in `name`.
+fn role_of_one_band(name: &str) -> Option<FilterRole> {
+    let bands = skotiq_frame::filter_bands(name);
+    let mut bands = bands.iter();
+    let (Some(band), None) = (bands.next(), bands.next()) else {
+        return None;
+    };
+    Some(match band.as_str() {
+        "L" => FilterRole::Luminance,
+        "R" => FilterRole::Red,
+        "G" => FilterRole::Green,
+        "B" => FilterRole::Blue,
+        "HA" => FilterRole::HAlpha,
+        "OIII" => FilterRole::Oiii,
+        "SII" => FilterRole::Sii,
+        _ => return None,
+    })
 }
 
 /// Lower-case the name, drop separators and brackets, and strip a trailing

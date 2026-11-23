@@ -102,10 +102,10 @@ class DarkroomController extends StateNotifier<DarkroomViewState> {
   /// describes. A render whose generation is no longer the newest is
   /// superseded: its pixels describe a recipe the operator has already edited.
   ///
-  /// Bumped at the EDIT, not when the next render starts. Bumping it at the
-  /// start meant that for the whole render debounce the in-flight render was
-  /// still the newest generation, so a render that landed inside that window
-  /// passed the check and painted pixels the operator had already edited away.
+  /// Bumped at the EDIT, not when the next render starts: bumped at the start,
+  /// the in-flight render would stay the newest generation for the whole render
+  /// debounce, so a render that landed inside that window would pass the check
+  /// and paint pixels the operator had already edited away.
   int _renderGeneration = 0;
 
   /// True when a refresh was asked for while a render was inside the engine, so

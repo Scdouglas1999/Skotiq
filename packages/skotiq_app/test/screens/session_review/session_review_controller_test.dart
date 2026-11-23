@@ -185,8 +185,13 @@ void main() {
         sessionReviewControllerProvider(SessionReviewScope.session(sessionId)),
       );
 
+  // The night report is computed and written after the sub list is shown, so
+  // a test that ended at the first paint would leave it writing into the
+  // temporary data folder the tear-down deletes.
   Future<void> waitUntilLoaded() async {
-    for (var i = 0; i < 50 && state().loading; i++) {
+    for (var i = 0;
+        i < 500 && (state().loading || state().loadingSmartData);
+        i++) {
       await Future<void>.delayed(const Duration(milliseconds: 10));
     }
   }

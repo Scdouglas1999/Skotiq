@@ -81,7 +81,6 @@ class ConnectionSettings extends ConsumerWidget {
           title: 'Server status',
           children: [
             SettingRow(
-              icon: LucideIcons.server,
               title: 'Connection status',
               subtitle: serverAddress,
               trailing: Container(
@@ -101,7 +100,6 @@ class ConnectionSettings extends ConsumerWidget {
             ),
             if (isNetwork)
               SettingRow(
-                icon: LucideIcons.globe,
                 title: 'Server address',
                 subtitle: 'Current host and port for this Skotiq server',
                 trailing: SelectableText(
@@ -112,7 +110,6 @@ class ConnectionSettings extends ConsumerWidget {
                 ),
               ),
             SettingRow(
-              icon: isNetwork ? LucideIcons.logOut : LucideIcons.logIn,
               title: isNetwork ? 'Disconnect' : 'Connect to Server',
               subtitle: isNetwork
                   ? 'Return to connection screen to connect to a different server'
@@ -126,7 +123,6 @@ class ConnectionSettings extends ConsumerWidget {
                 onPressed: () =>
                     _handleConnectionAction(context, ref, isNetwork),
               ),
-              isLast: !(isDisconnected && canWorkLocally),
             ),
             // The only way out of a DisconnectedBackend was to relaunch:
             // `useLocalBackend()` had no UI caller anywhere in the app, so a
@@ -135,13 +131,11 @@ class ConnectionSettings extends ConsumerWidget {
             // the rig locally — a phone has no local hardware to fall back to.
             if (isDisconnected && canWorkLocally)
               const SettingRow(
-                icon: LucideIcons.hardDrive,
                 title: 'Work locally',
                 subtitle:
                     'Drive the equipment attached to this computer instead of '
                     'a remote server',
                 trailing: WorkLocallyButton(),
-                isLast: true,
               ),
           ],
         ),
@@ -155,7 +149,6 @@ class ConnectionSettings extends ConsumerWidget {
               // host/port knob is not applicable, so only offer it off-Windows.
               if (!Platform.isWindows)
                 SettingRow(
-                  icon: LucideIcons.server,
                   title: 'INDI server address',
                   subtitle:
                       '${settings.indiServerHost}:${settings.indiServerPort}'
@@ -171,7 +164,6 @@ class ConnectionSettings extends ConsumerWidget {
                   ),
                 ),
               SettingRow(
-                icon: LucideIcons.radio,
                 title: 'Query INDI on startup',
                 subtitle:
                     'Include the configured INDI server in automatic startup discovery',
@@ -185,7 +177,6 @@ class ConnectionSettings extends ConsumerWidget {
               // default (localhost:11111) even though the common Alpaca
               // deployment is an ASCOM Remote host elsewhere on the LAN.
               SettingRow(
-                icon: LucideIcons.server,
                 title: 'Alpaca server address',
                 subtitle:
                     '${settings.alpacaServerHost}:${settings.alpacaServerPort}'
@@ -201,7 +192,6 @@ class ConnectionSettings extends ConsumerWidget {
                 ),
               ),
               SettingRow(
-                icon: LucideIcons.search,
                 title: 'Query Alpaca on startup',
                 subtitle:
                     'Include the configured Alpaca server in automatic startup discovery',
@@ -211,7 +201,6 @@ class ConnectionSettings extends ConsumerWidget {
                 ),
               ),
               SettingRow(
-                icon: LucideIcons.camera,
                 title: 'Look for QHY cameras',
                 subtitle: _qhyDiscoverySubtitle(
                   linked: isNetwork,
@@ -221,7 +210,6 @@ class ConnectionSettings extends ConsumerWidget {
                   value: settings.qhyDiscoveryEnabled,
                   onChanged: settingsNotifier.setQhyDiscoveryEnabled,
                 ),
-                isLast: true,
               ),
             ],
           ),
@@ -230,11 +218,9 @@ class ConnectionSettings extends ConsumerWidget {
             title: 'Remote features',
             children: [
               SettingRow(
-                icon: LucideIcons.refreshCw,
                 title: 'Refresh host settings',
                 subtitle: 'Reload this screen from the connected Skotiq host',
                 trailing: _HostSettingsRefreshButton(),
-                isLast: true,
               ),
             ],
           ),

@@ -20,6 +20,7 @@ import 'calibration/calibration_selection.dart';
 import 'frame_header.dart';
 import 'calibration/shared_calibration_library.dart';
 import '../utils/logging_service.dart';
+import '../utils/async_scope.dart';
 part 'calibration_library_service/remote_acceptance.dart';
 part 'calibration_library_service/matchers.dart';
 part 'calibration_library_service/sharing.dart';

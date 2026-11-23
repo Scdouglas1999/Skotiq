@@ -1,4 +1,4 @@
-// The safety rules of plan section 4, against the real service wiring
+// The night-action safety rules, against the real service wiring
 // ([ServiceNightRigOps]) with the services mocked: a failed autofocus never
 // parks and never stops the run, and a failed resume leaves the run paused.
 import 'dart:io';
@@ -7,8 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
-import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
+import 'package:skotiq_app/services/night_actions/armed_start_provider.dart';
+import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_core/models.dart';
@@ -19,7 +19,7 @@ import '../../../harness/mock_backend.dart';
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
 import 'night_action_test_support.dart';
-import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
+import 'package:skotiq_app/services/night_actions/run_pause_guard.dart';
 
 class _MockSequenceActions extends Mock implements SequenceActionService {}
 
@@ -226,9 +226,7 @@ void main() {
 
   test('no file of the action package can park or stop a run', () {
     final files = [
-      ...Directory('lib/screens/night_control/actions')
-          .listSync()
-          .whereType<File>(),
+      ...Directory('lib/services/night_actions').listSync().whereType<File>(),
       File('lib/services/manual_capture_controller.dart'),
     ];
     expect(files.length, greaterThan(4));

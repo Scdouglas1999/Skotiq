@@ -9,7 +9,8 @@ import '../models/meridian_flip_settings.dart';
 import '../models/meridian_flip_event.dart';
 import '../models/sequence/sequence_models.dart'
     show SequenceExecutionState, SequenceExecutionStateCapabilities;
-import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show AstronomyCalculations, siteLocationIsSet;
 import '../models/backend/event_types.dart';
 import 'linked_host.dart';
 import '../backend/remote_host.dart';
@@ -29,6 +30,9 @@ import '../database/daos/settings_dao.dart';
 import 'logging_service_provider.dart';
 import 'notification_service_provider.dart';
 import '../utils/logging_service.dart';
+import '../models/meridian_flip_progress.dart';
+import 'rig_activity.dart';
+import '../models/rig_activity.dart';
 
 /// Key used to store global meridian flip settings in app_settings table
 /// Initial-load health for [globalMeridianFlipSettingsProvider].
@@ -365,7 +369,6 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
 
   try {
     final overrides = jsonDecode(overridesJson) as Map<String, dynamic>;
-    // Merge overrides with global defaults
     final globalJson = global.toJson();
     final merged = {...globalJson, ...overrides};
     return MeridianFlipSettings.fromJson(merged);
@@ -375,53 +378,53 @@ final effectiveMeridianFlipSettingsProvider = Provider<MeridianFlipSettings>((
   }
 });
 
-/// Current flip state for UI
-///
-/// Represents the current state of a meridian flip operation.
-enum FlipExecutionState {
-  /// No flip is in progress
-  idle,
+/// Where the flip the mount's flip monitor runs stands: the native flip
+/// steps on the host, the monitor's own start and outcome, the disconnect
+/// guard, and on a linked client the host's value.
+class FlipMonitorProgressNotifier extends StateNotifier<FlipMonitorProgress> {
+  FlipMonitorProgressNotifier() : super(FlipMonitorProgress.none);
 
-  /// Flip is currently executing
-  executing,
+  void set(FlipMonitorProgress next) {
+    if (next != state) state = next;
+  }
 
-  /// Flip failed and is being retried
-  retrying,
+  void update(FlipMonitorProgress Function(FlipMonitorProgress now) change) =>
+      set(change(state));
 
-  /// Flip completed successfully
-  completed,
-
-  /// Flip failed after all retries
-  failed,
-
-  /// Flip was aborted by user
-  aborted,
+  /// End the flip as [outcome] with [error] ([FlipMonitorProgress.ended]).
+  void end(FlipExecutionState outcome, String? error) =>
+      set(state.ended(outcome, error));
 }
 
-/// Provider tracking current flip execution state
-///
-/// UI components can watch this to show appropriate status indicators,
-/// enable/disable controls, and display progress information.
-final flipExecutionStateProvider = StateProvider<FlipExecutionState>((ref) {
-  return FlipExecutionState.idle;
-});
+final flipMonitorProgressProvider =
+    StateNotifierProvider<FlipMonitorProgressNotifier, FlipMonitorProgress>(
+      (ref) => FlipMonitorProgressNotifier(),
+    );
 
-/// Provider for the current flip attempt number during retries
-///
-/// Returns 0 when no flip is in progress, or the current attempt number
-/// (1-indexed) during flip execution.
-final flipCurrentAttemptProvider = StateProvider<int>((ref) => 0);
+/// UI components watch this to show status indicators and enable or disable
+/// controls.
+final flipExecutionStateProvider = Provider<FlipExecutionState>(
+  (ref) => ref.watch(flipMonitorProgressProvider.select((p) => p.state)),
+);
 
-/// Provider for the current flip step being executed
-///
-/// Returns null when no flip is in progress, or the current FlipStep
-/// during flip execution.
-final flipCurrentStepProvider = StateProvider<FlipStep?>((ref) => null);
+/// 0 when no flip is in progress, else the current attempt (1-indexed).
+final flipCurrentAttemptProvider = Provider<int>(
+  (ref) => ref.watch(flipMonitorProgressProvider.select((p) => p.attempt)),
+);
 
-/// Provider for flip progress percentage (0-100)
-final flipProgressProvider = StateProvider<int>((ref) => 0);
+/// Null when no flip is in progress, else the step being executed.
+final flipCurrentStepProvider = Provider<FlipStep?>(
+  (ref) => ref.watch(flipMonitorProgressProvider.select((p) => p.step)),
+);
 
-final flipLastErrorProvider = StateProvider<String?>((ref) => null);
+/// Flip progress percentage (0-100).
+final flipProgressProvider = Provider<int>(
+  (ref) => ref.watch(flipMonitorProgressProvider.select((p) => p.percent)),
+);
+
+final flipLastErrorProvider = Provider<String?>(
+  (ref) => ref.watch(flipMonitorProgressProvider.select((p) => p.error)),
+);
 
 final isFlipInProgressProvider = Provider<bool>((ref) {
   final state = ref.watch(flipExecutionStateProvider);
@@ -429,12 +432,9 @@ final isFlipInProgressProvider = Provider<bool>((ref) {
       state == FlipExecutionState.retrying;
 });
 
-/// StateNotifier that resets flip execution state when the mount disconnects.
-///
-/// If a meridian flip is in progress (executing or retrying) and the mount
-/// disconnects, the flip can never complete. This notifier listens to the mount
-/// connection state and resets the flip providers to prevent the UI from
-/// being stuck in a "flipping" state indefinitely.
+/// Ends a flip in progress (executing or retrying) as aborted when the mount
+/// disconnects, since that flip can never complete; the panel keeps the
+/// attempt, step and progress the flip reached, as for any other abort.
 ///
 /// Uses ref.listen in its constructor instead of mutating state in a Provider
 /// build function, which would be a Riverpod violation.
@@ -451,13 +451,12 @@ class MeridianFlipDisconnectGuard extends StateNotifier<void> {
             'Mount disconnected during meridian flip - aborting flip state',
             source: 'MeridianFlip',
           );
-          _ref.read(flipExecutionStateProvider.notifier).state =
-              FlipExecutionState.aborted;
-          _ref.read(flipCurrentStepProvider.notifier).state = null;
-          _ref.read(flipProgressProvider.notifier).state = 0;
-          _ref.read(flipCurrentAttemptProvider.notifier).state = 0;
-          _ref.read(flipLastErrorProvider.notifier).state =
-              'Meridian flip aborted: mount disconnected';
+          _ref
+              .read(flipMonitorProgressProvider.notifier)
+              .end(
+                FlipExecutionState.aborted,
+                'Meridian flip aborted: mount disconnected',
+              );
         }
       }
     });
@@ -532,11 +531,24 @@ enum MeridianMonitorDecision {
 ///   The flip targets the mount's CURRENT coordinates (the object it is
 ///   tracking). A cooldown prevents re-firing while a flip is in flight or
 ///   the operator is responding to a failure notification.
+/// Whether the flip monitor's own flip (outside any run, automatic or asked
+/// for by hand) is being performed now.
+final standaloneFlipInFlightProvider = StateProvider<bool>((ref) => false);
+
 class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
   final Ref _ref;
   Timer? _pollTimer;
   DateTime? _lastTriggerAt;
-  bool _flipInFlight = false;
+
+  bool _inFlight = false;
+
+  bool get _flipInFlight => _inFlight;
+  set _flipInFlight(bool value) {
+    _inFlight = value;
+    if (mounted) {
+      _ref.read(standaloneFlipInFlightProvider.notifier).state = value;
+    }
+  }
 
   /// Minimum interval between trigger fires.
   ///
@@ -584,6 +596,24 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
     _pollTimer = Timer.periodic(_pollInterval, (_) => evaluateOnce());
   }
 
+  FlipMonitorProgressNotifier get _progress =>
+      _ref.read(flipMonitorProgressProvider.notifier);
+
+  /// A flip the monitor starts: under way, no step or error yet. The attempt
+  /// is left as it was.
+  void _startFlip() => _progress.update(
+    (p) => p.copyWith(
+      state: FlipExecutionState.executing,
+      clearStep: true,
+      percent: 0,
+      clearError: true,
+    ),
+  );
+
+  /// A flip the monitor will not start: only the reason changes.
+  void _refuse(String reason) =>
+      _progress.update((p) => p.copyWith(error: reason));
+
   /// Public for tests — runs a single poll cycle and returns the decision.
   MeridianMonitorDecision evaluateOnce() {
     if (_ref.read(isRemoteModeProvider)) {
@@ -621,7 +651,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
 
     final appSettings = _ref.read(appSettingsProvider).valueOrNull;
     if (appSettings == null ||
-        (appSettings.latitude == 0.0 && appSettings.longitude == 0.0)) {
+        !siteLocationIsSet(appSettings.latitude, appSettings.longitude)) {
       // Why: HA computation needs a real longitude. Refuse to alert from a
       // 0,0 default — that would be a spurious notification.
       return MeridianMonitorDecision.inactive;
@@ -653,15 +683,21 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
   /// sequencer must immediately reject.
   Future<bool> executeNow({String targetName = 'Manual flip'}) async {
     if (_flipInFlight || _ref.read(isFlipInProgressProvider)) {
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'A meridian flip is already in progress';
+      _refuse('A meridian flip is already in progress');
       return false;
     }
 
     final execution = _ref.read(sequenceExecutionStateProvider);
     if (!execution.canStart) {
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'The active sequence owns the mount; stop it before flipping manually';
+      _refuse(
+        'The active sequence owns the mount; stop it before flipping manually',
+      );
+      return false;
+    }
+
+    final held = rigHeldBy(_ref.read, starting: RigActivity.flip);
+    if (held != null) {
+      _refuse(held.busy);
       return false;
     }
 
@@ -670,8 +706,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
           .read(globalMeridianFlipSettingsProvider.notifier)
           .ensureLoaded();
     } catch (error) {
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'Could not load meridian flip settings: $error';
+      _refuse('Could not load meridian flip settings: $error');
       return false;
     }
 
@@ -681,26 +716,19 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
         mount.deviceId!.isEmpty ||
         mount.ra == null ||
         mount.dec == null) {
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'Mount coordinates are unavailable for a manual flip';
+      _refuse('Mount coordinates are unavailable for a manual flip');
       return false;
     }
     if (mount.isParked) {
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'Unpark the mount before flipping manually';
+      _refuse('Unpark the mount before flipping manually');
       return false;
     }
     if (!mount.isTracking) {
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'Start mount tracking before flipping manually';
+      _refuse('Start mount tracking before flipping manually');
       return false;
     }
 
-    _ref.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
-    _ref.read(flipCurrentStepProvider.notifier).state = null;
-    _ref.read(flipProgressProvider.notifier).state = 0;
-    _ref.read(flipLastErrorProvider.notifier).state = null;
+    _startFlip();
     return _executeStandaloneFlip(
       _ref.read(globalMeridianFlipSettingsProvider),
       mount,
@@ -731,10 +759,12 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
         '(id=$mountId, ra=$ra, dec=$dec) — alert-only.',
         source: 'MeridianFlipStandaloneMonitor',
       );
-      _ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.failed;
-      _ref.read(flipLastErrorProvider.notifier).state =
-          'Flip not executed: mount coordinates unavailable';
+      _progress.update(
+        (p) => p.copyWith(
+          state: FlipExecutionState.failed,
+          error: 'Flip not executed: mount coordinates unavailable',
+        ),
+      );
       return false;
     }
 
@@ -787,9 +817,9 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
             resumeGuiding: settings.resumeGuidingAfterFlip,
             settleTimeSecs: settings.settleTimeSeconds,
           );
-      _ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.completed;
-      _ref.read(flipProgressProvider.notifier).state = 100;
+      _progress.update(
+        (p) => p.copyWith(state: FlipExecutionState.completed, percent: 100),
+      );
       logger.info(
         '$targetName completed',
         source: 'MeridianFlipStandaloneMonitor',
@@ -804,9 +834,10 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
       }
       return true;
     } catch (e) {
-      _ref.read(flipExecutionStateProvider.notifier).state =
-          FlipExecutionState.failed;
-      _ref.read(flipLastErrorProvider.notifier).state = e.toString();
+      _progress.update(
+        (p) =>
+            p.copyWith(state: FlipExecutionState.failed, error: e.toString()),
+      );
       logger.error(
         '$targetName failed: $e',
         source: 'MeridianFlipStandaloneMonitor',
@@ -841,11 +872,7 @@ class MeridianFlipStandaloneMonitor extends StateNotifier<void> {
   }
 
   void _emitAlert(MeridianFlipSettings settings, double hourAngleHours) {
-    _ref.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
-    _ref.read(flipCurrentStepProvider.notifier).state = null;
-    _ref.read(flipProgressProvider.notifier).state = 0;
-    _ref.read(flipLastErrorProvider.notifier).state = null;
+    _startFlip();
 
     final logger = _ref.read(loggingServiceProvider);
     logger.warning(

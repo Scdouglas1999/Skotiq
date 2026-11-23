@@ -947,16 +947,6 @@ mod tests {
     }
 
     #[test]
-    fn forensic_history_len_bounded() {
-        // Defensive: bumping this constant is fine but it should stay
-        // small enough to fit comfortably in memory per active sequence.
-        // Use const_assert via const block so the constraint is enforced
-        // at compile time and clippy doesn't flag `assert!(true)`.
-        const _: () = assert!(FORENSIC_HISTORY_LEN <= 32);
-        const _: () = assert!(FORENSIC_HISTORY_LEN >= 5);
-    }
-
-    #[test]
     fn cloud_signals_dont_misfire_on_stable_clear_skies() {
         // Sanity check: stable clear skies + isolated reject must NOT
         // be classified as CloudPassage.

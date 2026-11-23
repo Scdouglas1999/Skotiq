@@ -75,8 +75,7 @@ pub(crate) type DevicePump = Box<dyn FnMut() -> PumpOutcome>;
 
 /// Builds a [`DevicePump`] on the worker thread. Runs `CoCreateInstance` for the
 /// driver (and any other construction-time COM) inside the apartment. Returning
-/// `Err` mirrors the legacy `new()` behaviour for wrappers (e.g. the filter
-/// wheel) that fail construction when the COM object cannot be created.
+/// `Err` fails the registration when the COM object cannot be created.
 type DeviceFactory = Box<dyn FnOnce() -> Result<DevicePump, String> + Send>;
 
 /// A registration handed to the worker thread: the factory to run on-thread and
@@ -144,7 +143,7 @@ fn worker_sender() -> &'static Sender<Registration> {
 ///
 /// The factory is executed on the worker; on success its [`DevicePump`] is added
 /// to the round-robin and `Ok(())` is returned, on failure the factory's error
-/// string is propagated (matching the legacy synchronous-construction contract).
+/// string is propagated.
 pub(crate) fn register_device<F>(factory: F) -> Result<(), String>
 where
     F: FnOnce() -> Result<DevicePump, String> + Send + 'static,

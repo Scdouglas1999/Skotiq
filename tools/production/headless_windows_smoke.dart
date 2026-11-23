@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// The release this tree builds. Every API request names it in
-/// `x-skotiq-version`; a host refuses a request that does not.
-final String _skotiqRelease = RegExp(
-  r'^version:\s*"([^"]+)"',
-  multiLine: true,
-).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+import 'src/host_client.dart';
 
 const _defaultExePath =
     'apps/desktop/build/windows/x64/runner/Release/skotiq.exe';
@@ -151,7 +146,7 @@ void main(List<String> args) async {
       'application/javascript',
     );
 
-    await expectSmokeWebSocketPong(baseUri, _viewToken);
+    await expectEventsPong(baseUri, _viewToken);
     await _expectSimulatorCapture(client, baseUri, captures);
 
     stdout.writeln('Packaged headless Windows smoke passed.');
@@ -237,11 +232,7 @@ Future<SmokeHttpResponse> _requestJson(
   Map<String, Object?>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
-  request.headers.set('x-skotiq-version', _skotiqRelease);
-  request.headers.contentType = ContentType.json;
-  if (token != null) {
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-  }
+  setHostHeaders(request, token: token);
   if (body != null) {
     request.write(jsonEncode(body));
   }
@@ -342,32 +333,6 @@ Future<void> _readTextAsset(
   }
   if (body.isEmpty) {
     throw StateError('$path returned an empty body');
-  }
-}
-
-Future<void> expectSmokeWebSocketPong(
-  Uri baseUri,
-  String token, {
-  Duration timeout = const Duration(seconds: 10),
-}) async {
-  final uri = Uri(
-    scheme: 'ws',
-    host: baseUri.host,
-    port: baseUri.port,
-    path: '/events',
-    queryParameters: {'token': token},
-  );
-  final socket = await WebSocket.connect(uri.toString()).timeout(timeout);
-  try {
-    socket.add(jsonEncode({'type': 'ping'}));
-    await socket
-        .firstWhere((message) {
-          final data = jsonDecode(message as String) as Map<String, dynamic>;
-          return data['type'] == 'pong';
-        })
-        .timeout(timeout);
-  } finally {
-    await socket.close().timeout(timeout);
   }
 }
 

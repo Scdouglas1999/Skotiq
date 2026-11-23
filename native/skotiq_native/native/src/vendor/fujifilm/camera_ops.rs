@@ -315,8 +315,8 @@ impl CameraDriver for FujifilmCamera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: self.core.gain,
-            offset: self.core.offset,
+            gain: Some(self.core.gain),
+            offset: Some(self.core.offset),
             bin_x: 1,
             bin_y: 1,
             exposure_remaining: self.core.exposure_remaining(),
@@ -523,6 +523,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn get_gain(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         Ok(self.core.gain)
     }
 
@@ -531,6 +532,7 @@ impl CameraDriver for FujifilmCamera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         Ok(0)
     }
 

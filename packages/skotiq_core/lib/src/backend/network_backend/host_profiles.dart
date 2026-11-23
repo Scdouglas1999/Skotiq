@@ -11,14 +11,15 @@ mixin HostProfiles on NetworkBackendTransport {
 
   Future<EquipmentProfile?> getActiveProfile();
 
-  Future<void> saveProfile(EquipmentProfile profile);
+  /// Save [profile] on the host and return the id of the row it saved.
+  Future<int> saveProfile(EquipmentProfile profile);
 
   Future<void> deleteProfile(String profileId);
 
   /// Makes [profileId] the host's active profile.
   Future<void> loadProfile(String profileId);
 
-  Future<void> saveProfileFields(
+  Future<int> saveProfileFields(
     EquipmentProfile profile, {
     required Set<String>? fields,
   });

@@ -1,6 +1,6 @@
 // One resolver decides where this instance's data lives.
 //
-// Live defect (fresh-install audit, 2026-09-01): SKOTIQ_DATA_DIR relocated
+// SKOTIQ_DATA_DIR relocated
 // the Rust side's persistence and the Dart log directory, and nothing else.
 // Catalogs, catalog caches, checkpoints, the sky atlas, staged updates, the
 // remote-access token and the push secret went on resolving
@@ -121,7 +121,7 @@ void main() {
     });
   });
 
-  group('process-environment snapshot', () {
+  group('process environment', () {
     test('the first snapshot wins', () {
       captureSkotiqProcessEnvironment({skotiqDataDirEnv: '/first'});
       captureSkotiqProcessEnvironment({skotiqDataDirEnv: '/second'});
@@ -129,13 +129,7 @@ void main() {
       expect(skotiqProcessEnvironment[skotiqDataDirEnv], '/first');
     });
 
-    test('a value written back into the environment after the snapshot cannot '
-        'relocate this instance', () async {
-      // apps/desktop publishes its resolved data root back into the C
-      // environment so Rust lands in the same tree, and with nothing set by
-      // the operator that value IS the platform application-support path.
-      // Read afterwards it would look like a relocation and drag the
-      // documents root off ~/Documents on an ordinary install.
+    test('a captured environment replaces the live one', () async {
       captureSkotiqProcessEnvironment(const <String, String>{});
 
       final documents = await resolveSkotiqDocumentsDirectory(
@@ -150,8 +144,6 @@ void main() {
     });
 
     test('with no snapshot the resolvers read the live environment', () async {
-      // Mobile and any process that never calls the capture must keep working:
-      // the getter falls through to Platform.environment.
       expect(
         skotiqProcessEnvironment[skotiqDataDirEnv],
         Platform.environment[skotiqDataDirEnv],

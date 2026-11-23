@@ -1,0 +1,13 @@
+{
+  "aperture": "number",
+  "detection": {
+    "detectionSigma": "number",
+    "maxEccentricity": "number",
+    "maxSharpness": "number",
+    "minArea": "number",
+    "minHfr": "number",
+    "minSnr": "number"
+  },
+  "inputFits": "string",
+  "maxStars": "number"
+}

@@ -3,7 +3,7 @@
 //! past it (N.I.N.A.'s "pause before meridian").
 //!
 //! Some rigs cannot track through the meridian at all: on the owner's NYX-101
-//! the tube hits the tripod there. On 2026-10-21 that was worked around with
+//! the tube hits the tripod there. Once that was worked around with
 //! scheduled scripts that paused the run, stopped the guider and switched
 //! tracking off 20 minutes before transit, then switched it back on and
 //! resumed 20 minutes after. No flip ever ran and 3.5 hours were lost: the

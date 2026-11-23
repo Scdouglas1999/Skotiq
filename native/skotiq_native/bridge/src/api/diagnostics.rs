@@ -69,7 +69,7 @@ pub async fn api_get_filterwheel_capabilities(
 }
 
 /// Get rotator capabilities for a specific rotator device.
-pub async fn api_get_rotator_capabilities(
+pub(crate) async fn api_get_rotator_capabilities(
     device_id: String,
 ) -> Result<crate::device_capabilities::types::RotatorCapabilities, SkotiqError> {
     let caps = crate::device_capabilities::get_device_capabilities(&device_id).await?;
@@ -136,10 +136,11 @@ pub struct QuirkInfo {
 ///
 /// Returns a list of known device characteristics and workarounds that are
 /// automatically applied. This information can be displayed in the equipment
-/// screen to inform users about device-specific behaviors.
+/// screen to inform users about device-specific behaviors. `model` is the
+/// name the driver reported for it, when it is connected.
 #[flutter_rust_bridge::frb(sync)]
-pub fn api_get_device_quirks(device_id: String) -> Vec<QuirkInfo> {
-    let quirks = skotiq_native::quirks::get_quirks_for_device(&device_id);
+pub fn api_get_device_quirks(device_id: String, model: Option<String>) -> Vec<QuirkInfo> {
+    let quirks = skotiq_native::quirks::get_quirks_for_device_model(&device_id, model.as_deref());
     quirks
         .into_iter()
         .map(|q| QuirkInfo {

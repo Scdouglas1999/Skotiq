@@ -1,13 +1,11 @@
-// Framing -> Utilities -> Add to Sequence closed its dialog with no toast, no
-// error and no navigation while the Sequencer still showed "New Sequence /
-// 0 targets" and the editor held no sequence at all. Both halves of that are
-// pinned here:
+// Framing -> Utilities -> Add to Sequence must not close its dialog in
+// silence when nothing landed in the sequence. Both halves are pinned here:
 //
 //   * the flow may not report success it has not verified — it reads the
 //     insert back out of `currentSequenceProvider` before returning true, and
 //     tells the user when nothing landed;
 //   * the picker is a commit surface with its own Cancel, so a stray click on
-//     the barrier can no longer discard a confirmed choice in silence (a
+//     the barrier cannot discard a confirmed choice in silence (a
 //     barrier dismissal and a real cancel both return null, and null is the
 //     one outcome the caller says nothing about).
 

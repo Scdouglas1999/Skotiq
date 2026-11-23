@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_core/database.dart' show ImagingSession;
 
 /// The session-picker entry that means "the frames shot outside any session".
 ///
@@ -16,3 +17,23 @@ const String kQuickCaptureSessionLabel = 'Quick captures (no session)';
 /// Diagnostics), [kQuickCaptureSessionSelection], or null for each tab's own
 /// default. One pick for the three, so moving between tabs keeps the night.
 final analyticsSessionPickProvider = StateProvider<int?>((ref) => null);
+
+/// The session an Analytics tab shows, or null for the quick captures.
+///
+/// One rule for the Session and Science tabs: a [pick] among [sessions] wins,
+/// then the live session, then the [defaultSessionId] the Science tab opens
+/// on, then the newest session on record. A [kQuickCaptureSessionSelection]
+/// pick shows the quick captures whatever else is there.
+int? analyticsSessionInView({
+  required int? pick,
+  required List<ImagingSession> sessions,
+  required int? liveSessionId,
+  required int? defaultSessionId,
+}) {
+  if (pick == kQuickCaptureSessionSelection) return null;
+  final picked = sessions.any((session) => session.id == pick) ? pick : null;
+  return picked ??
+      liveSessionId ??
+      defaultSessionId ??
+      sessions.firstOrNull?.id;
+}

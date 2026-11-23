@@ -63,7 +63,7 @@ class ConstellationView extends ConsumerWidget {
 
   /// Re-reads everything the swarm view shows.
   ///
-  /// Public because the view no longer carries a header of its own: the Plan
+  /// Public because the view carries no header of its own: the Plan
   /// screen's "Your sky" tab owns the one refresh button for all three
   /// discovery surfaces (06 §Plan removes the second header row).
   static void refreshConstellation(WidgetRef ref) {
@@ -247,7 +247,7 @@ class _ConnectedBody extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Expanded(
-                child: SectionHeader(
+                child: SectionTitle(
                   title: 'Shared targets',
                   subtitle: 'Community fields the swarm is deepening together',
                 ),
@@ -314,7 +314,7 @@ class _FollowTheNightSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(
+            const SectionTitle(
               title: 'Follow the night',
               subtitle: 'Where it is darkest for you and the swarm needs depth',
             ),
@@ -333,7 +333,7 @@ class _FollowTheNightSection extends StatelessWidget {
       error: (error, _) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const SectionHeader(
+          const SectionTitle(
             title: 'Follow the night',
             subtitle: 'Where it is darkest for you and the swarm needs depth',
           ),

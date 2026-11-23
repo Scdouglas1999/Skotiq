@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/autofocus_progress.dart';
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart' show EquipmentEvent_PropertyChanged;
 import 'backend_provider.dart';
 import 'operation_progress_provider.dart';
 import '../models/backend/backend_types.dart';
@@ -47,6 +49,10 @@ class AutofocusOverlayState {
   /// Whether the autofocus run ended in an error (avoids stringly-typed checks)
   final bool hasError;
 
+  /// Whether the run was canceled: it ended with no error and no result.
+  /// Kept until the status changes.
+  final bool cancelled;
+
   const AutofocusOverlayState({
     this.isRunning = false,
     this.currentPoint = 0,
@@ -62,6 +68,7 @@ class AutofocusOverlayState {
     this.focusRange,
     this.starCrops = const [],
     this.hasError = false,
+    this.cancelled = false,
   });
 
   AutofocusOverlayState copyWith({
@@ -80,6 +87,7 @@ class AutofocusOverlayState {
     FocusRange? focusRange,
     List<StarCrop>? starCrops,
     bool? hasError,
+    bool? cancelled,
   }) {
     return AutofocusOverlayState(
       isRunning: isRunning ?? this.isRunning,
@@ -96,6 +104,7 @@ class AutofocusOverlayState {
       focusRange: focusRange ?? this.focusRange,
       starCrops: starCrops ?? this.starCrops,
       hasError: hasError ?? this.hasError,
+      cancelled: cancelled ?? (status == null && this.cancelled),
     );
   }
 }
@@ -135,23 +144,24 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
     _eventSubscription = backend.eventStream.listen((event) {
       if (!mounted) return;
       if (generation != _backendGeneration) return;
-      if (event.category != EventCategory.equipment) return;
-      if (event.eventType == 'AutofocusProgress') {
-        _handleAutofocusProgress(event);
-      } else if (event.eventType == 'PropertyChanged' &&
-          event.data['property'] == 'AutofocusFinished') {
-        _handleAutofocusFinished(event.data['value'] as String?);
+      switch (equipmentEventOf(event)) {
+        case EquipmentEvent_PropertyChanged(
+          property: 'AutofocusProgress',
+          value: final detail,
+        ):
+          _handleAutofocusProgress(detail);
+        case EquipmentEvent_PropertyChanged(
+          property: 'AutofocusFinished',
+          :final value,
+        ):
+          _handleAutofocusFinished(value);
+        default:
+          break;
       }
     });
   }
 
-  void _handleAutofocusProgress(SkotiqEvent event) {
-    final detail = event.data['detail'] as String?;
-    if (detail == null) {
-      onAutofocusFailed('Autofocus progress event was missing detail payload');
-      return;
-    }
-
+  void _handleAutofocusProgress(String detail) {
     final progressData = AutofocusProgressData.tryParse(detail);
     if (progressData == null) {
       onAutofocusFailed('Autofocus progress event could not be parsed');
@@ -325,6 +335,7 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
       hasError: false,
       isMinimized: true,
       status: 'Autofocus cancelled',
+      cancelled: true,
       clearResult: true,
     );
   }
@@ -368,6 +379,7 @@ class AutofocusOverlayNotifier extends StateNotifier<AutofocusOverlayState> {
       focusRange: incoming.focusRange,
       starCrops: incoming.starCrops,
       hasError: incoming.hasError,
+      cancelled: incoming.cancelled,
     );
   }
 

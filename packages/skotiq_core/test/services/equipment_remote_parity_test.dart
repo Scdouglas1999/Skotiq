@@ -59,8 +59,7 @@ void main() {
         );
         when(
           () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
-        ).thenAnswer((_) async {});
-        when(() => backend.lastSavedProfileId).thenReturn('9');
+        ).thenAnswer((_) async => 9);
 
         final container = ProviderContainer(
           overrides: [

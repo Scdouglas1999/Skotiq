@@ -105,7 +105,6 @@ class QuickStartService {
         ? checkpointsDao.getCheckpoint(sequenceId)
         : Future<db.SequenceCheckpoint?>.value(null);
 
-    // Wait for all futures to complete
     final results = await Future.wait<Object?>([
       profileNameFuture,
       targetFuture,
@@ -288,7 +287,6 @@ class QuickStartService {
     );
     final contexts = <QuickStartContext>[];
 
-    // Get the sessions a previous process left unfinished first
     final interruptedSessions = await sessionsDao.getInterruptedSessions();
     for (final session in interruptedSessions) {
       if (contexts.length >= limit) break;

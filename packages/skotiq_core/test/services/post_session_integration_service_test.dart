@@ -23,8 +23,21 @@ import 'package:skotiq_core/src/services/post_session_integration_service.dart';
 import 'package:skotiq_core/src/services/post_session_seam.dart';
 import 'package:skotiq_core/src/models/imaging/gnomonic_projection.dart';
 
+import '../harness/args_fixture.dart';
+
 /// Records the args of every call and returns scriptable results, so the
 /// orchestration services run end-to-end without native code.
+
+/// The accumulate ops whose native request a Rust test traces.
+const _accumulateOps = {
+  'create',
+  'add',
+  'finalize',
+  'info',
+  'build',
+  'deliver',
+};
+
 class FakePostSessionSeam implements PostSessionSeam {
   final List<Map<String, dynamic>> integrateCalls = [];
   final List<Map<String, dynamic>> accumulateCalls = [];
@@ -42,6 +55,13 @@ class FakePostSessionSeam implements PostSessionSeam {
     Map<String, dynamic> args,
   ) async {
     integrateCalls.add(args);
+    // The finishing knobs ride in the settings for this service's own
+    // finishing steps; the native integration does not read them.
+    expectNativeReadsEveryKeyAtEnd(
+      args,
+      ['integrate_session'],
+      notRead: {'settings.finishing'},
+    );
     if (integrateBuilder != null) return integrateBuilder!(args);
     final lights = (args['lightPaths'] as List).cast<String>();
     final output = args['output'] as Map<String, dynamic>;
@@ -76,6 +96,19 @@ class FakePostSessionSeam implements PostSessionSeam {
   ) async {
     accumulateCalls.add(args);
     final op = args['op'] as String;
+    if (_accumulateOps.contains(op)) {
+      // An add carries the whole integration settings block; as for
+      // integrateSession, the native side does not read its finishing knobs.
+      final settings = args['settings'];
+      expectNativeReadsEveryKeyAtEnd(
+        args,
+        ['master_accumulate_op', 'master_accumulate_$op'],
+        notRead: {
+          if (settings is Map && settings.containsKey('finishing'))
+            'settings.finishing',
+        },
+      );
+    }
     final queue = scriptedAccumulate[op];
     if (queue != null && queue.isNotEmpty) {
       return queue.removeAt(0);
@@ -101,6 +134,7 @@ class FakePostSessionSeam implements PostSessionSeam {
     Map<String, dynamic> args,
   ) async {
     flatCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['build_master_flat']);
     return BuildMasterFlatResult(
       outputPath: args['outputPath'] as String,
       frameCount: (args['flatPaths'] as List).length,
@@ -115,6 +149,7 @@ class FakePostSessionSeam implements PostSessionSeam {
 
   @override
   Future<SaveFitsMasterResult> saveFitsMaster(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKeyAtEnd(args, ['save_fits_master']);
     return SaveFitsMasterResult(
       outputPath: args['outputPath'] as String,
       width: args['width'] as int? ?? 0,
@@ -179,6 +214,9 @@ class FakePostSessionSeam implements PostSessionSeam {
       weights: weights,
       exposuresS: exposuresS,
     ));
+    // The seam builds the request around these lists; each quality record
+    // is the service's own.
+    expectNativeReadsEveryKeyAtEnd({'qualities': qualities}, ['analyze_night']);
     if (useRealOptimizer) {
       return _realIntegrationCurve(qualities, weights, exposuresS);
     }
@@ -279,18 +317,21 @@ class FakePostSessionSeam implements PostSessionSeam {
   @override
   Future<String> extractBackground(Map<String, dynamic> args) async {
     finishingCalls['extractBackground']!.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['extract_background']);
     return args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
   }
 
   @override
   Future<String> deconvolvePreview(Map<String, dynamic> args) async {
     finishingCalls['deconvolvePreview']!.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['deconvolve_preview']);
     return args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
   }
 
   @override
   Future<String> reduceStarsPreview(Map<String, dynamic> args) async {
     finishingCalls['reduceStarsPreview']!.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['reduce_stars_preview']);
     return args['outputFits'] as String? ?? args['outputPath'] as String? ?? '';
   }
 
@@ -302,6 +343,7 @@ class FakePostSessionSeam implements PostSessionSeam {
     Map<String, dynamic> args,
   ) async {
     drizzleCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['drizzle_integrate']);
     final scale =
         ((args['config'] as Map?)?['scale'] as num?)?.toDouble() ?? 2.0;
     final refW = (args['refW'] as num?)?.toInt() ?? 0;
@@ -327,6 +369,7 @@ class FakePostSessionSeam implements PostSessionSeam {
   @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async {
     stitchCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['stitch_mosaic']);
     if (stitchResult != null) return stitchResult!;
     final output =
         (args['output'] as Map?)?.cast<String, dynamic>() ??

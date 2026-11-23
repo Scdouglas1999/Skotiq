@@ -1,13 +1,16 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as p;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/utils.dart';
 
 /// File names the native `CheckpointManager` writes in the checkpoint
 /// directory (`CHECKPOINT_FILENAME` / `CHECKPOINT_BACKUP` in
-/// `native/skotiq_native/sequencer/src/checkpoint.rs`).
-const List<String> _checkpointFileNames = [
+/// `native/skotiq_native/sequencer/src/checkpoint.rs`); both sides are held to
+/// `test_fixtures/checkpoint/file_names.json`.
+@visibleForTesting
+const List<String> hostCheckpointFileNames = [
   'skotiq_session.checkpoint',
   'skotiq_session.checkpoint.bak',
 ];
@@ -82,7 +85,7 @@ Future<void> _adoptEarlierCheckpoints({
   if (configured(skotiqDatabaseDirEnv) && !configured(skotiqDataDirEnv)) {
     return;
   }
-  for (final name in _checkpointFileNames) {
+  for (final name in hostCheckpointFileNames) {
     if (await File(p.join(target.path, name)).exists()) return;
   }
   final dataRoot = await resolveSkotiqDataDirectory(
@@ -99,21 +102,21 @@ Future<void> _adoptEarlierCheckpoints({
   // pairs one night's checkpoint with another night's backup.
   String? source;
   for (final folder in earlier) {
-    if (await holds(folder, _checkpointFileNames.first)) {
+    if (await holds(folder, hostCheckpointFileNames.first)) {
       source = folder;
       break;
     }
   }
   if (source == null) {
     for (final folder in earlier) {
-      if (await holds(folder, _checkpointFileNames.last)) {
+      if (await holds(folder, hostCheckpointFileNames.last)) {
         source = folder;
         break;
       }
     }
   }
   if (source == null) return;
-  for (final name in _checkpointFileNames) {
+  for (final name in hostCheckpointFileNames) {
     final file = File(p.join(source, name));
     if (!await file.exists()) continue;
     try {

@@ -1,9 +1,6 @@
 // The Targets panel: the toolbox tab that answers "what am I pointing at?".
 //
-// Two sections, because the word "queue" was doing two jobs and neither was
-// visible. The tab used to be called Queue and showed ONLY the planetarium's
-// wishlist, so loading the bundled "Mono LRGB M51" starter — a sequence with a
-// target in it — produced the tab saying "Your target queue is empty."
+// Two sections:
 //
 //   * IN THIS SEQUENCE reads `Sequence.targetHeaders`, the same list the
 //     canvas bar counts in its "1 target" chip. One row per target header,
@@ -43,9 +40,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../add_target_header_helper.dart';
 import '../../../utils/count_label.dart';
-import '../../../widgets/accessible_dropdown.dart';
 import 'sequence_tree.dart' show revealSequenceRow, treeNodeKeyRegistryProvider;
-import 'target_coordinates.dart';
 import 'target_header_card.dart';
 import '../../../utils/snackbar_helper.dart';
 
@@ -180,13 +175,13 @@ _TargetVisibility _computeVisibility({
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   );
-  // The night containing [now], local noon to noon, against the site's
-  // altitude floor in the direction the target stands.
-  final night = AstronomyCalculations.nightDateOf(now);
+  // The night containing [now] at the site, against the site's altitude floor
+  // in the direction the target stands.
+  final night = AstronomyCalculations.nightDateOf(now, longitudeDeg: longitude);
   final visibility = floor.visibilityAround(
     raDeg: raDeg,
     decDeg: decDeg,
-    center: DateTime(night.year, night.month, night.day, 24),
+    center: AstronomyCalculations.nightMiddleOf(night, longitudeDeg: longitude),
     latitudeDeg: latitude,
     longitudeDeg: longitude,
   );
@@ -506,9 +501,9 @@ const EdgeInsets _listPadding =
 
 /// An eyebrow label and the number of rows under it.
 ///
-/// The panel's own title is gone with it: the toolbox's segmented control
-/// already names this pane "Targets", and a second title under it said the
-/// same word twice. What the sections need is the eyebrow that says which of
+/// The toolbox's segmented control already names this pane "Targets", so
+/// the panel carries no title of its own. What the sections need is the
+/// eyebrow that says which of
 /// the two lists you are reading (06: panel and column labels).
 class _SectionHeader extends StatelessWidget {
   final SkotiqColors colors;
@@ -695,7 +690,8 @@ class _Dropdown<T> extends StatelessWidget {
 /// in the tree and the library preview cannot disagree about the same target.
 /// The honesty rules are the walk's own: an open-ended Smart Exposure has no
 /// fixed count and is described as looping rather than as zero frames, and a
-/// non-`count` loop makes the counted figure one pass rather than the night.
+/// loop with no fixed passes makes the counted figure one pass rather than the
+/// night.
 String targetPlanSummary(PlannedCapture planned) {
   if (planned.isEmpty) return 'No exposures yet';
 
@@ -769,7 +765,7 @@ class _InSequenceRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = node.targetName.isEmpty ? node.name : node.targetName;
-    final unset = targetCoordinatesUnset(node);
+    final unset = node.coordinatesUnset;
     final summary = targetPlanSummary(planned);
     final chipLabels = unset
         ? const <String>['Not set']
@@ -852,7 +848,7 @@ class _InSequenceRow extends ConsumerWidget {
 /// target reads the same in the panel and in the tree. [tone] null is a fact
 /// about the target; a toned chip carries state, and "Not set" is `warning`
 /// because exactly 0h/+0\u00b0 is a real point in Pisces and printing it as a
-/// settled pointing is the bug [targetCoordinatesUnset] exists to prevent.
+/// settled pointing is the bug [TargetHeaderNode.coordinatesUnset] exists to prevent.
 class _TargetChip extends StatelessWidget {
   final SkotiqColors colors;
   final String label;

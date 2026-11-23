@@ -1,0 +1,12 @@
+{
+  "channels": 3,
+  "coveredFraction": 0.875,
+  "fitsPath": "/atlas/cache/cutout.fits",
+  "height": 1536,
+  "maxCoverage": 14.0,
+  "meanCoverage": 6.5,
+  "ok": true,
+  "pngPath": "/atlas/cache/cutout.png",
+  "tilesUsed": 4,
+  "width": 2048
+}

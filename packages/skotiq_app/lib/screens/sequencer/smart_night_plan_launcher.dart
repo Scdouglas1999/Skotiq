@@ -3,13 +3,16 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
+import '../../services/sequence_action_service.dart';
+
 typedef SmartNightProviderRead = T Function<T>(ProviderListenable<T> provider);
 
 /// Launches an accepted Smart Night plan.
 ///
 /// Keep this outside the dialog so the launch contract is testable: the
-/// generated sequence is loaded into the editor, the executor is started, and
-/// the draft is marked started only after the executor accepts the run.
+/// generated sequence is loaded into the editor, [confirm] (the pre-flight
+/// checks) is asked, the executor is started, and the draft is marked started
+/// only after the executor accepts the run.
 class SmartNightPlanLauncher {
   const SmartNightPlanLauncher();
 
@@ -17,16 +20,13 @@ class SmartNightPlanLauncher {
     required SmartNightProviderRead read,
     required SmartNightPlan plan,
     String? draftId,
+    Future<bool> Function()? confirm,
   }) async {
-    // Hand the editor slot to the Smart Night owner rather than discarding the
-    // operator's unsaved work: takeOwnership stashes the manual sequence and
-    // flips the owner, so stopping the run restores it.
-    read(currentSequenceProvider.notifier).takeOwnership(
+    await read(sequenceActionServiceProvider).startOwnedPlan(
       plan.sequence,
       ActivePlanOwner.smartNight,
+      confirm: confirm,
     );
-
-    await read(sequenceExecutorProvider).start();
 
     if (draftId != null) {
       await read(smartNightDraftServiceProvider).markStarted(draftId);

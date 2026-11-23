@@ -17,7 +17,6 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../../imaging/widgets/depthlock/depthlock_presentation.dart';
 import 'node_property_widgets.dart';
@@ -39,7 +38,7 @@ class SmartExposureProperties extends ConsumerWidget {
     final canEdit = ref.watch(canEditSequenceProvider);
     final exposureContext =
         ref.watch(smartNightExposureContextProvider).valueOrNull;
-    final target = _parentTarget(ref);
+    final target = ref.watch(currentSequenceProvider)?.enclosingTarget(node.id);
 
     return IgnorePointer(
       ignoring: !canEdit,
@@ -223,7 +222,10 @@ class SmartExposureProperties extends ConsumerWidget {
             // user fixes it at edit time rather than at runtime.
             if (node.loopUntilStopped &&
                 node.integrationBudgetSecs <= 0 &&
-                !_hasBoundingTargetWindow(ref))
+                !(ref
+                        .read(currentSequenceProvider)
+                        ?.isBoundedByTargetWindow(node.id) ??
+                    false))
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Container(
@@ -245,7 +247,8 @@ class SmartExposureProperties extends ConsumerWidget {
                         child: Text(
                           'Nothing bounds this loop. Set an integration budget '
                           'below, or place this node under a target with an end '
-                          'condition (ends-when / ends-before): otherwise the '
+                          'condition (ends-when, ends-before or maximum '
+                          'altitude): otherwise the '
                           'run will refuse to start.',
                           style: TextStyle(
                             fontSize: Responsive.fontSize(context, 11),
@@ -295,46 +298,6 @@ class SmartExposureProperties extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  /// The target step this node sits under, directly or transitively.
-  TargetHeaderNode? _parentTarget(WidgetRef ref) {
-    final nodes = ref.watch(currentSequenceProvider)?.nodes ?? const {};
-    var currentId = node.parentId;
-    final seen = <String>{};
-    while (currentId != null && seen.add(currentId)) {
-      final parent = nodes[currentId];
-      if (parent is TargetHeaderNode) return parent;
-      currentId = parent?.parentId;
-    }
-    return null;
-  }
-
-  /// True when this node sits (directly or transitively) under a
-  /// [TargetHeaderNode] that has an end condition — `endWhen` (an
-  /// altitude/time crossing trigger) or the legacy `endBefore` wall-clock
-  /// cutoff. In loop-until-stopped mode that target window is what bounds the
-  /// otherwise-unbounded rotation, so the editor only warns when no such
-  /// window (and no integration budget) exists.
-  ///
-  /// Walks parents via [SequenceNode.parentId]; cheap (depth is small) and
-  /// runs only while the warning predicate is being evaluated.
-  bool _hasBoundingTargetWindow(WidgetRef ref) {
-    final sequence = ref.read(currentSequenceProvider);
-    if (sequence == null) return false;
-    final nodes = sequence.nodes;
-    var currentId = node.parentId;
-    final seen = <String>{};
-    while (currentId != null && seen.add(currentId)) {
-      final parent = nodes[currentId];
-      if (parent == null) break;
-      if (parent is TargetHeaderNode &&
-          (parent.endWhen != null || parent.endBefore != null)) {
-        return true;
-      }
-      currentId = parent.parentId;
-    }
-    return false;
   }
 }
 

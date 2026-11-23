@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
@@ -23,7 +22,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
       title: 'Live stacking & broadcast',
       children: [
         SettingRow(
-          icon: LucideIcons.shieldOff,
           title: 'Disable broadcast everywhere',
           subtitle: 'Master kill switch: every LiveStacking node will '
               'build the stack in memory but refuse public requests. '
@@ -38,7 +36,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           ),
         ),
         SettingRow(
-          icon: LucideIcons.layers,
           title: 'Default stack method',
           subtitle: 'Average is fastest; Median + Rejection and Sigma '
               'reject outliers but are slower.',
@@ -53,7 +50,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           ),
         ),
         SettingRow(
-          icon: LucideIcons.type,
           title: 'Default watermark template',
           subtitle: 'Rendered on the broadcast JPEG. Variable interpolation '
               r'(e.g. "${target.name}: L ${integration.hms}") applied at '
@@ -76,7 +72,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           ),
         ),
         SettingRow(
-          icon: LucideIcons.globe2,
           title: 'Public by default',
           subtitle: 'Off → new nodes start with auth required. Turn on '
               'only if you routinely run public outreach events.',
@@ -90,7 +85,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           ),
         ),
         SettingRow(
-          icon: LucideIcons.image,
           title: 'Default thumbnail size',
           subtitle: 'Output dimensions for the broadcast JPEG. Smaller '
               'is phone-friendly; larger preserves more detail.',
@@ -103,7 +97,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               defaultThumbnailSize: size,
             ),
           ),
-          isLast: true,
         ),
       ],
     );
@@ -122,7 +115,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
       children: [
         // Standalone monitoring
         SettingRow(
-          icon: LucideIcons.eye,
           title: 'Standalone monitoring',
           subtitle: standaloneSupported
               ? 'Monitor meridian even when no sequence is running'
@@ -139,7 +131,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Trigger method
         SettingRow(
-          icon: LucideIcons.crosshair,
           title: 'Trigger method',
           subtitle: flipSettings.triggerMethod.description,
           trailing: settingsTrailingChoice<MeridianTriggerMethod>(
@@ -154,7 +145,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         if (flipSettings.triggerMethod ==
             MeridianTriggerMethod.minutesPastMeridian)
           SettingRow(
-            icon: LucideIcons.timer,
             title: 'Minutes past meridian',
             helpId: FieldHelpId.meridianFlipTrigger,
             subtitle: 'Flip after target crosses meridian by this amount',
@@ -173,7 +163,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         if (flipSettings.triggerMethod ==
             MeridianTriggerMethod.minutesPastMeridian)
           SettingRow(
-            icon: LucideIcons.pause,
             title: 'Stop tracking before meridian',
             subtitle: '0 = off. Tracking stops this many minutes before the '
                 'meridian and the flip runs at Minutes Past Meridian.',
@@ -193,7 +182,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         if (flipSettings.triggerMethod ==
             MeridianTriggerMethod.minutesBeforeLimit)
           SettingRow(
-            icon: LucideIcons.timer,
             title: 'Minutes before limit',
             subtitle: 'Flip before mount reaches tracking limit',
             trailing: SettingsNumberInput(
@@ -212,7 +200,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         if (flipSettings.triggerMethod ==
             MeridianTriggerMethod.hourAngleThreshold)
           SettingRow(
-            icon: LucideIcons.timer,
             title: 'Hour angle threshold',
             subtitle: 'Flip when hour angle exceeds this value',
             trailing: SettingsNumberInput(
@@ -231,7 +218,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         if (flipSettings.triggerMethod ==
             MeridianTriggerMethod.onTrackingLimitHit)
           SettingRow(
-            icon: LucideIcons.timer,
             title: 'Wait before flip',
             subtitle:
                 'Delay after tracking limit detected (0 = flip immediately)',
@@ -249,7 +235,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
           ),
         // What a stop at the mount's own tracking limit does
         SettingRow(
-          icon: LucideIcons.flipHorizontal2,
           title: 'When the mount stops at its limit',
           subtitle: flipSettings.trackingLimitPolicy.description,
           trailing: settingsTrailingChoice<TrackingLimitPolicy>(
@@ -262,7 +247,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Flip sequence - pause guiding
         SettingRow(
-          icon: LucideIcons.pause,
           title: 'Pause guiding before flip',
           subtitle: 'Temporarily stop autoguider during flip',
           trailing: SettingsSwitch(
@@ -274,7 +258,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Flip sequence - recenter
         SettingRow(
-          icon: LucideIcons.crosshair,
           title: 'Recenter after flip',
           subtitle: 'Plate solve and re-center target after flip',
           trailing: SettingsSwitch(
@@ -286,7 +269,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Flip sequence - refocus
         SettingRow(
-          icon: LucideIcons.focus,
           title: 'Refocus after flip',
           subtitle: 'Run autofocus after flip completes',
           trailing: SettingsSwitch(
@@ -298,7 +280,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Flip sequence - resume guiding
         SettingRow(
-          icon: LucideIcons.play,
           title: 'Resume guiding after flip',
           subtitle: 'Restart autoguider if it was running',
           trailing: SettingsSwitch(
@@ -310,7 +291,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Settle time
         SettingRow(
-          icon: LucideIcons.clock,
           title: 'Settle time',
           subtitle: 'Wait time after flip before resuming',
           trailing: SettingsNumberInput(
@@ -327,7 +307,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Error handling - max retries
         SettingRow(
-          icon: LucideIcons.repeat,
           title: 'Max retries',
           subtitle: 'Number of retry attempts if flip fails',
           trailing: SettingsNumberInput(
@@ -344,7 +323,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Error handling - failure action
         SettingRow(
-          icon: LucideIcons.alertTriangle,
           title: 'On failure',
           subtitle: flipSettings.failureAction.description,
           trailing: settingsTrailingChoice<FlipFailureAction>(
@@ -357,7 +335,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Notifications - sound
         SettingRow(
-          icon: LucideIcons.volume2,
           title: 'Sound alert',
           subtitle: 'Play sound when flip starts/completes/fails',
           trailing: SettingsSwitch(
@@ -369,7 +346,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
         ),
         // Notifications - push
         SettingRow(
-          icon: LucideIcons.bell,
           title: 'Push notification',
           subtitle: 'Send notification to mobile app',
           trailing: SettingsSwitch(
@@ -378,7 +354,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               return notifier.setPushNotificationOnFlip(value);
             },
           ),
-          isLast: true,
         ),
       ],
     );
@@ -429,7 +404,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Safety',
               children: [
                 SettingRow(
-                  icon: LucideIcons.shieldAlert,
                   title: 'Park on unsafe weather',
                   subtitle: 'Park the mount and close the cover and dome when '
                       'weather turns unsafe. When off, the run stops exposing '
@@ -446,7 +420,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.sunrise,
                   title: 'Park before dawn',
                   subtitle:
                       'Park the mount and close the cover and dome 30 minutes '
@@ -462,7 +435,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.pauseOctagon,
                   title: 'Stop the run for quality problems',
                   subtitle: 'Off: when guiding RMS goes over its limit, a '
                       'centering or recenter cannot solve, a dither does not '
@@ -482,7 +454,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.crosshair,
                   title: 'Recover the mount on its own after a mount fault',
                   subtitle: 'When the mount moves on its own or loses its '
                       'position, the run pauses and Skotiq stops moving the '
@@ -501,7 +472,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.alertTriangle,
                   title: 'Safety fail mode',
                   subtitle: settings.safetyFailMode.description,
                   trailing: settingsTrailingChoice<SafetyFailMode>(
@@ -513,7 +483,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                         .read(appSettingsProvider.notifier)
                         .setSafetyFailMode(mode),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -521,7 +490,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Device retries',
               children: [
                 SettingRow(
-                  icon: LucideIcons.camera,
                   title: 'Camera retries',
                   subtitle: 'Times a failed exposure or image download is '
                       'tried again, after a short wait, before the run '
@@ -544,7 +512,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.disc,
                   title: 'Filter wheel retries',
                   subtitle: 'Times a failed filter change, or one where the '
                       'wheel never reaches the filter, is tried again before '
@@ -562,7 +529,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           .setFilterWheelRetries(value.toInt());
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -571,7 +537,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Auto focus',
               children: [
                 SettingRow(
-                  icon: LucideIcons.focus,
                   title: 'Auto focus on filter change',
                   subtitle: 'Run auto focus when switching filters',
                   trailing: SettingsSwitch(
@@ -584,7 +549,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.timer,
                   title: 'Auto focus interval',
                   subtitle: 'Run auto focus periodically',
                   trailing: SettingsNumberInput(
@@ -606,7 +570,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                 // depends on the sub length. The run configuration follows
                 // the saved value, so a running sequence takes the change.
                 SettingRow(
-                  icon: LucideIcons.repeat,
                   title: 'Auto focus every N frames',
                   subtitle:
                       'Run autofocus every N completed exposures (frames-based)',
@@ -626,7 +589,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           );
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -634,7 +596,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Dithering',
               children: [
                 SettingRow(
-                  icon: LucideIcons.move,
                   title: 'Enable dithering',
                   subtitle: 'Move mount slightly between exposures',
                   trailing: SettingsSwitch(
@@ -647,7 +608,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.hash,
                   title: 'Dither every',
                   subtitle: 'Number of frames between dithers',
                   trailing: SettingsNumberInput(
@@ -663,7 +623,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           .setDitherEveryFrames(value.toInt());
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -683,7 +642,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Notes & journal',
               children: [
                 SettingRow(
-                  icon: LucideIcons.bookOpen,
                   title: 'Prompt for notes after run',
                   subtitle: 'Show a quick journal-entry dialog when a sequence '
                       'finishes so you can capture seeing, dew, anomalies.',
@@ -695,7 +653,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           .setPromptForNotesAfterRun(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -708,7 +665,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
               title: 'Smart night defaults',
               children: [
                 SettingRow(
-                  icon: LucideIcons.focus,
                   title: 'Autofocus cadence (frames)',
                   subtitle: 'How many exposures between autofocus runs '
                       'when the wizard picks frame-based cadence.',
@@ -728,7 +684,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.clock,
                   title: 'Integration budget per target',
                   subtitle:
                       'Default per-target imaging budget the wizard uses.',
@@ -751,7 +706,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.lamp,
                   title: 'Include flats at end',
                   subtitle: 'Append per-filter flats when the active '
                       'profile has a cover calibrator.',
@@ -765,7 +719,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.listOrdered,
                   title: 'Scheduler for multi-target nights',
                   subtitle: 'Wrap multi-target plans in a TargetScheduler so '
                       'the executor can swap between them by altitude.',
@@ -779,7 +732,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.hash,
                   title: 'Scheduler threshold (targets)',
                   subtitle: 'Use the scheduler when target count reaches this '
                       'number; otherwise chain them linearly.',
@@ -799,7 +751,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.compass,
                   title: 'Polar alignment stale after',
                   subtitle: 'If the last polar alignment is older than '
                       'this, the wizard prepends a fresh alignment node.',
@@ -820,7 +771,6 @@ class _SequencerSettingsState extends ConsumerState<SequencerSettings> {
                           );
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),

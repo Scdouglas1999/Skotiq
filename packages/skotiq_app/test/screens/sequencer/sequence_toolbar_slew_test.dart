@@ -9,9 +9,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_toolbar.dart';
+import 'package:skotiq_app/services/command_action_result.dart';
+import 'package:skotiq_app/services/goto_altitude_check.dart';
+import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/pump_app_screen.dart';
@@ -40,9 +45,49 @@ Sequence _sequenceWithTarget() {
   );
 }
 
+class _ConnectedMount extends MountStateNotifier {
+  _ConnectedMount(super.ref) {
+    // ignore: invalid_use_of_protected_member
+    state = const MountState(
+      connectionState: DeviceConnectionState.connected,
+      deviceId: 'mount-1',
+      deviceName: 'Test Mount',
+    );
+  }
+}
+
+/// A site at +45 with a 30 degree floor: the target at Dec -35 never climbs
+/// above 10 degrees there.
+class _HighFloorSite extends AppSettingsNotifier {
+  @override
+  Future<AppSettingsState> build() async => const AppSettingsState(
+        latitude: 45,
+        longitude: 0,
+        horizonProfileJson: '{"N":30,"NE":30,"E":30,"SE":30,"S":30,"SW":30,'
+            '"W":30,"NW":30}',
+      );
+}
+
+class _SlewRecorder extends MountCommandService {
+  _SlewRecorder(super.ref);
+
+  int sent = 0;
+
+  @override
+  Future<CommandActionResult> sendSlew(
+    double ra,
+    double dec, {
+    bool showFeedback = true,
+  }) async {
+    sent++;
+    return CommandActionResult.ok;
+  }
+}
+
 Future<void> _pumpToolbar(
   WidgetTester tester, {
   required SequenceExecutionState executionState,
+  List<Override> overrides = const [],
 }) async {
   final notifier = CurrentSequenceNotifier();
   // ignore: invalid_use_of_protected_member
@@ -59,6 +104,7 @@ Future<void> _pumpToolbar(
       runRecordProvider.overrideWith(
         (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: executionState)),
       ),
+      ...overrides,
     ],
   );
 }
@@ -82,14 +128,61 @@ void main() {
     );
   });
 
-  testWidgets('when idle it asks before moving the mount', (tester) async {
-    await _pumpToolbar(tester, executionState: SequenceExecutionState.idle);
-
+  Future<(_SlewRecorder, List<GoToAltitudeQuestion>)> pumpAsking(
+    WidgetTester tester, {
+    List<Override> site = const [],
+  }) async {
+    final asked = <GoToAltitudeQuestion>[];
+    late _SlewRecorder mount;
+    await _pumpToolbar(
+      tester,
+      executionState: SequenceExecutionState.idle,
+      overrides: [
+        ...site,
+        mountStateProvider.overrideWith(_ConnectedMount.new),
+        mountCommandServiceProvider
+            .overrideWith((ref) => mount = _SlewRecorder(ref)),
+        goToAltitudeAskProvider.overrideWithValue((question) async {
+          asked.add(question);
+          return false;
+        }),
+      ],
+    );
     await tapCanvasBarAction(tester, 'Slew to target');
+    await tester.pumpAndSettle();
+    return (mount, asked);
+  }
 
-    expect(find.text('Slew to M42-TEST?'), findsOneWidget);
-    expect(find.text('The mount will move now.'), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-    expect(find.text('Slew now'), findsOneWidget);
+  Future<void> release(WidgetTester tester) async {
+    // The connected mount arms the device-contact ticker; let it go.
+    ProviderScope.containerOf(tester.element(find.byType(SequenceToolbar)))
+        .read(mountStateProvider.notifier)
+        .setDisconnected();
+    await tester.pump(const Duration(seconds: 11));
+  }
+
+  testWidgets('when idle it always asks once before moving the mount',
+      (tester) async {
+    final (mount, asked) = await pumpAsking(tester);
+
+    expect(asked, hasLength(1), reason: 'a mis-press never moves the mount');
+    expect(asked.single.targetName, 'M42-TEST');
+    expect(asked.single.verdict?.kind ?? GoToAltitudeKind.clear,
+        GoToAltitudeKind.clear);
+    expect(mount.sent, 0);
+    await release(tester);
+  });
+
+  testWidgets('under the floor the one question carries the warning',
+      (tester) async {
+    final (mount, asked) = await pumpAsking(
+      tester,
+      site: [appSettingsProvider.overrideWith(_HighFloorSite.new)],
+    );
+
+    expect(asked, hasLength(1));
+    expect(asked.single.verdict?.kind, isNot(GoToAltitudeKind.clear));
+    expect(mount.sent, 0);
+    await release(tester);
   });
 }

@@ -36,11 +36,13 @@ use skotiq_imaging::drizzle::{drizzle_frame_rows, DrizzleConfig, DrizzleFrame, D
 use skotiq_imaging::frame_weighting::{accumulation_weights, FrameQualityConfig, WeightFormula};
 use skotiq_imaging::integration::{
     integrate_frames_with_spatial_weights, Combine, IntegrationConfig, IntegrationFrame, Reject,
+    RejectBounds, RejectChoice,
 };
 use skotiq_imaging::normalization::{
     apply_normalization, estimate_normalization, CoverageMask, NormalizationCoeffs,
 };
 use skotiq_imaging::registration::{min_registration_stars, Interpolator, TransformModel};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_image, write_fits, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -478,37 +480,13 @@ pub(crate) fn calibrate_for_fold(
     calibrated_light(path, exposure, calibration).map_err(|(_, e)| format!("'{path}' {e}"))
 }
 
-/// The rejection the build applies, from the request token.
-fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
-    Ok(
-        match token
-            .map(str::trim)
-            .unwrap_or("")
-            .to_ascii_lowercase()
-            .as_str()
-        {
-            "" | "auto" => Reject::pixinsight_auto(frames),
-            "none" => Reject::None,
-            "percentile" => Reject::PercentileClip {
-                low: 0.2,
-                high: 0.1,
-            },
-            "winsorized" | "winsorizedsigma" => Reject::WinsorizedSigmaClip {
-                low: 4.0,
-                high: 3.0,
-            },
-            "linearfit" => Reject::LinearFitClip {
-                low: 5.0,
-                high: 4.0,
-            },
-            "esd" | "generalizedesd" => Reject::GeneralizedEsd {
-                outliers: 0.3,
-                alpha: 0.05,
-                low_relaxation: 1.5,
-            },
-            other => return Err(format!("unknown rejection '{other}'")),
-        },
-    )
+/// The rejection the build applies, from the request token, with
+/// PixInsight's default bounds.
+pub(crate) fn build_rejection(token: Option<&str>, frames: usize) -> Result<Reject, String> {
+    let token = token.unwrap_or("");
+    RejectChoice::from_token(token)
+        .map(|choice| choice.resolve(frames, RejectBounds::default()))
+        .ok_or_else(|| format!("unknown rejection '{}'", token.trim().to_ascii_lowercase()))
 }
 
 /// The weighting formula that weighs a sub by the inverse variance of its
@@ -1124,9 +1102,7 @@ fn master_build_inner(args: &MasterBuildArgs) -> Result<MasterBuildResult, Strin
     if let Some(source) = fits_header_of(&normalization_path) {
         copy_optics_cards(&mut header, &source);
     }
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq multi-night master");
+    ProductCards::master("MASTER_LIGHT", "Skotiq multi-night master").write_to(&mut header);
     header.set_string("GRIDREF", &grid_id);
     header.set_int("NFRAMES", folded.len() as i64);
     header.set_int("NCOMBINE", folded.len() as i64);
@@ -1426,4 +1402,18 @@ pub(crate) fn check_build_calibration(json: &str) -> Result<serde_json::Value, S
         }
     }
     serde_json::to_value(report).map_err(|e| e.to_string())
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::MasterBuildArgs>(
+            "master_accumulate_build",
+        );
+        crate::args_fixtures::check_or_write_args::<super::BuildReferenceArgs>(
+            "master_accumulate_check_calibration",
+        );
+    }
 }

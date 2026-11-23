@@ -865,7 +865,7 @@ void main() {
       ('Stretch', 3.0),
     ]);
     // And the order the framework publishes is the order the PLATFORM ends up
-    // with. Measured on the release bundle 2026-08-31: a move re-inflates only
+    // with: a move re-inflates only
     // the cards whose index changed, so the untouched card keeps its
     // accessibility node while the moved ones get new ones — and the Linux
     // AT-SPI bridge leaves the node it already holds where it is and appends
@@ -1057,10 +1057,9 @@ void main() {
     expect(slider, findsOneWidget);
 
     // Press on the middle of the track and sweep right in held steps, the way
-    // a finger or a mouse does. Every update in the gesture has to land: the
-    // card used to be re-keyed by the first one, which tore its subtree down
-    // and took the drag recognizer with it — the slider then took the value
-    // under the pointer at press and ignored the rest of the sweep.
+    // a finger or a mouse does. Every update in the gesture has to land:
+    // re-keying the card on the first one would tear its subtree down and take
+    // the drag recognizer with it.
     num storedValue() => handle.container
         .read(darkroomControllerProvider(scope))
         .steps[0]
@@ -1126,12 +1125,9 @@ void main() {
     await pump(tester, DarkroomScope.recipe(id), size: const Size(1280, 1400));
     final semantics = tester.ensureSemantics();
 
-    // Measured on the release bundle 2026-08-31: each of these came back
-    // `['enabled', 'sensitive', 'showing']` with NO `focusable`, because the
-    // name was published on a wrapper that excluded the node owning the focus.
-    // A keyboard walk of one step card therefore stopped on unnamed panels for
-    // the two move buttons, the parameters expander and remove, while only the
-    // enable toggle — which is built as one node — announced itself.
+    // A name published on a wrapper that excludes the node owning the focus
+    // leaves the named node without `focusable`, so a keyboard walk stops on
+    // unnamed panels.
     for (final label in [
       'Move Background extract down',
       'Background extract parameters',
@@ -1271,10 +1267,9 @@ void main() {
 
     final semantics = tester.ensureSemantics();
     final node = tester.getSemantics(find.byType(SkotiqSlider));
-    // Measured on the release bundle 2026-08-31: with `scaleCount` = 500
-    // stored and the card reading "parameter 'scaleCount' = 500 is outside
-    // [1, 6]", the slider announced 6 — the position the Material slider is
-    // pinned to, which is a number the engine never received.
+    // With `scaleCount` = 500 stored, the slider must not announce 6 — the
+    // position the Material slider is pinned to, a number the engine never
+    // received.
     expect(node.value, contains('5000'));
     expect(node.label, contains('5000'));
     expect(node.value, contains('outside the accepted range'));
@@ -1572,11 +1567,10 @@ void main() {
     await pump(tester, DarkroomScope.recipe(id), size: const Size(1400, 1600));
 
     final semantics = tester.ensureSemantics();
-    // Measured on the release bundle 2026-08-31: two cards on this panel both
-    // published `button: 'Show more'`, side by side, so a reader had reading
-    // order and nothing else to tell one account from the other. The word on
-    // screen stays "Show more" — it sits inside the alert whose sentence it
-    // continues.
+    // Two cards on this panel each carry a "Show more"; a bare
+    // `button: 'Show more'` on both would leave a reader reading order and
+    // nothing else to tell one account from the other. The word on screen stays
+    // "Show more" — it sits inside the alert whose sentence it continues.
     expect(
       publishedNode(tester, "Show more about the draft's omissions"),
       isNotNull,
@@ -1596,11 +1590,9 @@ void main() {
     final handle = tester.ensureSemantics();
     await pump(tester, const DarkroomScope.recipe(4242));
 
-    // The whole screen used to be ONE ~300-character button: the header's
+    // The screen must not merge into ONE ~300-character button (the header's
     // title and subtitle, the empty state's title, the reason and this label
-    // twice over, merged into the single fragment that carried a tap. Nothing
-    // was named for an exact-name lookup to find, and an activation landed on a
-    // node whose extents were the screen.
+    // twice over): nothing would be named for an exact-name lookup to find.
     final action = find.widgetWithText(
       SkotiqButton,
       'Choose another image',

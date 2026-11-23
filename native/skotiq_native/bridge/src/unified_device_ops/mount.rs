@@ -1,4 +1,4 @@
-use super::{device_error, UnifiedDeviceOps};
+use super::{sequencer_error, UnifiedDeviceOps};
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_sequencer::{DeviceResult, MountOps};
@@ -22,7 +22,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_slew(mount_id, ra_hours, dec_degrees)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_slew_state(&self, mount_id: &str) -> skotiq_sequencer::slew_arrival::SlewSample {
@@ -47,14 +47,14 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_abort(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_get_coordinates(&self, mount_id: &str) -> DeviceResult<(f64, f64)> {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         Ok((status.right_ascension, status.declination))
     }
@@ -109,7 +109,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_sync(mount_id, ra_hours, dec_degrees)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_park(&self, mount_id: &str) -> DeviceResult<()> {
@@ -119,7 +119,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_park(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_unpark(&self, mount_id: &str) -> DeviceResult<()> {
@@ -129,7 +129,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_unpark(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_find_home(&self, mount_id: &str) -> DeviceResult<()> {
@@ -138,14 +138,14 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_find_home(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_is_at_home(&self, mount_id: &str) -> DeviceResult<bool> {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         status
             .at_home
@@ -156,7 +156,7 @@ impl MountOps for UnifiedDeviceOps {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         Ok(status.slewing)
     }
@@ -165,7 +165,7 @@ impl MountOps for UnifiedDeviceOps {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         parked_from_status(mount_id, &status)
     }
@@ -174,7 +174,7 @@ impl MountOps for UnifiedDeviceOps {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         if !status.can_slew {
             return Ok(false);
@@ -199,7 +199,7 @@ impl MountOps for UnifiedDeviceOps {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         Ok(match status.side_of_pier {
             Some(crate::device::PierSide::East) => skotiq_sequencer::meridian::PierSide::East,
@@ -214,7 +214,7 @@ impl MountOps for UnifiedDeviceOps {
         let status = get_device_manager()
             .mount_get_status(mount_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))?;
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))?;
 
         Ok(status.tracking)
     }
@@ -228,7 +228,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_move_axis(mount_id, axis, rate_deg_per_sec)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn mount_set_tracking(&self, mount_id: &str, enabled: bool) -> DeviceResult<()> {
@@ -241,7 +241,7 @@ impl MountOps for UnifiedDeviceOps {
         get_device_manager()
             .mount_set_tracking(mount_id, enabled)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Mount))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Mount))
     }
 
     async fn request_mount_fault_hold(&self, mount_id: &str, message: &str) {
@@ -257,8 +257,7 @@ impl MountOps for UnifiedDeviceOps {
     }
 }
 
-/// Decisions-verify refutation D4 (2026-08-14, corrected by the focused
-/// re-refute): a mount that cannot READ park state (the LX200 family without
+/// A mount that cannot READ park state (the LX200 family without
 /// a cached park entry) reaches the status layer as a fabricated
 /// `parked=false`, marked by `availability[PARKED] = Unsupported`. Surface
 /// that unknowability as an error so callers take their read-failed path

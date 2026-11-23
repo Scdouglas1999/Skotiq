@@ -9,8 +9,10 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../utils/open_in_editor.dart';
 import '../../utils/snackbar_helper.dart';
 import 'dialogs/import_summary_dialog.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 typedef SequenceImportFilePicker = Future<file_selector.XFile?> Function();
 
@@ -177,14 +179,12 @@ class ImportSequenceFlow {
         final currentName =
             ref.read(currentSequenceProvider)?.name ?? 'Current sequence';
         if (!context.mounted) return false;
-        final confirmed = await _confirmDiscardUnsaved(
+        final confirmed = await confirmDiscardUnsaved(
           context,
-          UnsavedChangesException(
-            attemptedOperation: 'open imported sequence',
-            currentSequenceName: currentName,
-          ),
+          currentName: currentName,
+          prompt: _openImportedPrompt,
         );
-        if (confirmed != true || !context.mounted) return false;
+        if (!confirmed || !context.mounted) return false;
         if (!_requireCurrentHost(context, host)) return false;
         discardUnsaved = true;
       }
@@ -586,68 +586,25 @@ class ImportSequenceFlow {
       {bool discardUnsaved = false,
       required AsyncScope<SkotiqBackend> host}) async {
     final editor = ref.read(currentSequenceProvider.notifier);
-    try {
-      editor.loadSequence(sequence, discardUnsaved: discardUnsaved);
-      return true;
-    } on UnsavedChangesException catch (e) {
-      if (!context.mounted) return false;
-      final confirmed = await _confirmDiscardUnsaved(context, e);
-      if (confirmed != true) return false;
-      if (!context.mounted) return false;
-      if (!_requireCurrentHost(context, host)) return false;
-      editor.loadSequence(sequence, discardUnsaved: true);
-      return true;
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) {
-        context
-            .showErrorSnackBar('Cannot open imported sequence: ${e.message}');
-      }
-      return false;
-    }
-  }
-
-  static Future<bool?> _confirmDiscardUnsaved(
-    BuildContext context,
-    UnsavedChangesException error,
-  ) {
-    final colors = SkotiqColors.of(context);
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: colors.surface,
-        title: Row(
-          children: [
-            Icon(LucideIcons.fileWarning, color: colors.warning, size: 18),
-            const SizedBox(width: 8),
-            const Text('Discard unsaved changes?'),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: AdaptiveDialogConstraints.hybrid(
-            ctx,
-            designMaxWidth: 440,
-          ),
-          child: Text(
-            '"${error.currentSequenceName}" has unsaved changes. Opening the '
-            'imported sequence will discard them.',
-            style: TextStyle(
-                fontSize: SkotiqTypography.fontSize13,
-                color: colors.textPrimary),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Discard and open'),
-          ),
-        ],
+    final alreadyConfirmed = discardUnsaved;
+    return openInEditor(
+      context,
+      load: ({required discardUnsaved}) => editor.loadSequence(
+        sequence,
+        discardUnsaved: alreadyConfirmed || discardUnsaved,
       ),
+      prompt: _openImportedPrompt,
+      proceed: () => _requireCurrentHost(context, host),
+      onLocked: (e) => context
+          .showErrorSnackBar('Cannot open imported sequence: ${e.message}'),
     );
   }
+
+  static const _openImportedPrompt = DiscardUnsavedPrompt(
+    consequence: 'Opening the imported sequence will discard them.',
+    confirmLabel: 'Discard and open',
+    destructive: false,
+  );
 
   /// Build a human-readable summary of nodes dropped during import, for
   /// persisting into the sequence description. Returns an empty string

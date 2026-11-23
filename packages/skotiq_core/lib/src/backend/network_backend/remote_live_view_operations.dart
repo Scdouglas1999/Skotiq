@@ -241,9 +241,8 @@ mixin _NetworkBackendRemoteLiveViewOperations on NetworkBackendTransport {
   /// support WebRTC" and "session crashed mid-stream".
   ///
   /// [onFallback] (optional) receives a single-line note when the auto
-  /// path falls back. The note is also written to `dart:developer.log`
-  /// at level 800 so it shows up in flutter logs without requiring the
-  /// caller to plumb a logger.
+  /// path falls back. The note is also written to the app log
+  /// at info level, so the caller need not plumb a logger.
   Stream<LiveViewFrame> subscribeLiveViewAuto({
     required String deviceId,
     int maxDim = 1024,

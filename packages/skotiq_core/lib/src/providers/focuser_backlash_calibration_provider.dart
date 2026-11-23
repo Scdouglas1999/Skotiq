@@ -4,10 +4,11 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
-import '../errors/skotiq_exception.dart' show SkotiqException;
 import '../models/autofocus_progress.dart';
 import '../models/focuser_backlash_calibration.dart';
 import '../models/focuser_backlash_progress.dart';
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart' show EquipmentEvent_PropertyChanged;
 import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'focuser_backlash_provider.dart';
@@ -148,11 +149,12 @@ class FocuserBacklashCalibrationNotifier
     _eventSubscription = backend.eventStream.listen((event) {
       if (!mounted) return;
       if (generation != _backendGeneration) return;
-      if (event.category != EventCategory.equipment) return;
-      if (event.eventType != 'FocuserBacklashCalibrationProgress') return;
-      final detail = event.data['detail'] as String?;
-      if (detail == null) return;
-      _handleFrame(detail);
+      if (equipmentEventOf(event) case EquipmentEvent_PropertyChanged(
+        property: 'FocuserBacklashCalibrationProgress',
+        value: final detail,
+      )) {
+        _handleFrame(detail);
+      }
     });
   }
 
@@ -282,16 +284,9 @@ class FocuserBacklashCalibrationNotifier
 
   /// Whether [error] is the operator's own cancellation rather than a fault.
   ///
-  /// Native raises `SkotiqError::Cancelled`, which the FFI backend maps to
-  /// [SkotiqError.cancelled]; over a network backend the same stop arrives
-  /// as text, hence the second test — the same two-step check the autofocus
-  /// path makes.
-  static bool _isCancellation(Object error) {
-    if (error is SkotiqError && error.isCancellation) return true;
-    if (error is SkotiqException && error.isCancellation) return true;
-    final text = error.toString().toLowerCase();
-    return text.contains('cancelled') || text.contains('canceled');
-  }
+  /// Native raises `SkotiqError::Cancelled`; over a network backend the
+  /// same stop arrives as text. Both say so in their text.
+  static bool _isCancellation(Object error) => saysCanceled(error.toString());
 
   Future<void> cancel() async {
     if (!state.isRunning) return;

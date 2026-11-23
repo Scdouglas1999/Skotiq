@@ -26,6 +26,7 @@ use skotiq_imaging::drizzle::{
     self, bayer_drizzle_integrate, BayerDrizzleFrame, DrizzleConfig, DrizzleFrame, DrizzleKernel,
 };
 use skotiq_imaging::registration::{TransformKind, TransformModel};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_color_filter_array, read_frame, write_fits, FitsHeader, PixelType};
 use std::path::Path;
 
@@ -254,10 +255,9 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
     let master_path = Path::new(&args.output_fits);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq drizzle master");
-    header.set_int("NFRAMES", args.frames.len() as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq drizzle master")
+        .with_frames(args.frames.len() as i64)
+        .write_to(&mut header);
     header.set_float("DRZSCALE", cfg.scale);
     header.set_float("PIXFRAC", cfg.pixfrac);
     header.set_string("DRZKERN", kernel_name(cfg.kernel));
@@ -289,7 +289,7 @@ fn drizzle_integrate_impl(args: DrizzleIntegrateArgs) -> Result<DrizzleIntegrate
             let path = Path::new(p);
             ensure_parent_dir(path)?;
             let mut h = FitsHeader::new();
-            h.set_string("IMAGETYP", "COVERAGE_MAP");
+            ProductCards::image_type("COVERAGE_MAP").write_to(&mut h);
             h.add_history("Skotiq drizzle per-pixel coverage (drizzle weight) map");
             write_fits(path, &output.coverage, &h)
                 .map_err(|e| format!("failed to write coverage map: {e:?}"))?;
@@ -871,5 +871,38 @@ mod tests {
         let (master, _h) = read_frame(out_path.as_path()).expect("read bayer drizzle master");
         assert_eq!(master.pixel_type, PixelType::F32);
         assert_eq!(master.channels, 3);
+    }
+}
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn drizzle_reply_fixture() {
+        check_or_write(
+            "drizzle_integrate",
+            &DrizzleIntegrateResult {
+                output_path: "/out/M31_drizzle.fits".to_string(),
+                coverage_path: Some("/out/M31_drizzle_coverage.fits".to_string()),
+                coverage_png_path: Some("/out/M31_drizzle_coverage.png".to_string()),
+                preview_png_path: Some("/out/M31_drizzle.png".to_string()),
+                out_width: 12496,
+                out_height: 8352,
+                channels: 3,
+            },
+        );
+    }
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::DrizzleIntegrateArgs>(
+            "drizzle_integrate",
+        );
     }
 }

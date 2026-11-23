@@ -866,6 +866,9 @@ WireEvent _encodeSequencerEvent(SequencerEvent event) => switch (event) {
       'trigger_id': event.triggerId,
       'trigger_name': event.triggerName,
       'action': encodeSequencerTriggerAction(event.action),
+      'night_end': event.nightEnd == null
+          ? null
+          : encodeSequencerNightEnd(event.nightEnd!),
     },
   ),
   SequencerEvent_InstructionProgress() => (
@@ -1182,6 +1185,7 @@ SequencerEvent? _decodeSequencerEvent(
           decodeSequencerTriggerAction(d['action']),
           'action',
         ),
+        nightEnd: decodeSequencerNightEnd(d['night_end']),
       );
     case 'InstructionProgress':
       return SequencerEvent.instructionProgress(
@@ -1753,6 +1757,7 @@ String encodeFrameType(FrameType value) => switch (value) {
   FrameType.flat => 'flat',
   FrameType.bias => 'bias',
   FrameType.darkFlat => 'darkFlat',
+  FrameType.snapshot => 'snapshot',
 };
 
 FrameType? decodeFrameType(Object? raw) => switch (raw) {
@@ -1761,6 +1766,7 @@ FrameType? decodeFrameType(Object? raw) => switch (raw) {
   'flat' => FrameType.flat,
   'bias' => FrameType.bias,
   'darkFlat' => FrameType.darkFlat,
+  'snapshot' => FrameType.snapshot,
   _ => null,
 };
 
@@ -1797,6 +1803,17 @@ SequencerErrorKind? decodeSequencerErrorKind(Object? raw) => switch (raw) {
   'step_failed' => SequencerErrorKind.stepFailed,
   'standalone' => SequencerErrorKind.standalone,
   'cancelled' => SequencerErrorKind.cancelled,
+  _ => null,
+};
+
+String encodeSequencerNightEnd(SequencerNightEnd value) => switch (value) {
+  SequencerNightEnd.dawn => 'dawn',
+  SequencerNightEnd.obstruction => 'obstruction',
+};
+
+SequencerNightEnd? decodeSequencerNightEnd(Object? raw) => switch (raw) {
+  'dawn' => SequencerNightEnd.dawn,
+  'obstruction' => SequencerNightEnd.obstruction,
   _ => null,
 };
 

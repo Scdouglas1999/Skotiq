@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:multicast_dns/multicast_dns.dart';
 
 import 'discovery.dart';
 import 'enhanced_discovery.dart';
+import 'host_advert.dart';
+
+final _rigDiscoveryLog = Logger('skotiq.RigDiscovery');
 
 /// The DNS-SD service type every Skotiq host registers (GUI and headless).
 const String skotiqMdnsServiceType = '_skotiq._tcp';
@@ -133,7 +136,7 @@ class RigDiscovery {
       final servers = await SkotiqDiscovery.discoverServers(timeout: timeout);
       servers.forEach(offer);
     } catch (e) {
-      developer.log('UDP browse failed: $e', name: 'RigDiscovery', level: 900);
+      _rigDiscoveryLog.warning('UDP browse failed: $e');
     }
   }
 
@@ -151,7 +154,7 @@ class RigDiscovery {
       );
       servers.forEach(offer);
     } catch (e) {
-      developer.log('nsd browse failed: $e', name: 'RigDiscovery', level: 900);
+      _rigDiscoveryLog.warning('nsd browse failed: $e');
     }
   }
 
@@ -169,18 +172,11 @@ class RigDiscovery {
       // A query that cannot be sent (no route on this interface) is reported
       // on the socket's stream, not thrown by lookup().
       await client.start(
-        onError: (Object e) => developer.log(
-          'mDNS socket error: $e',
-          name: 'RigDiscovery',
-          level: 900,
-        ),
+        onError: (Object e) =>
+            _rigDiscoveryLog.warning('mDNS socket error: $e'),
       );
     } catch (e) {
-      developer.log(
-        'mDNS client could not start: $e',
-        name: 'RigDiscovery',
-        level: 900,
-      );
+      _rigDiscoveryLog.warning('mDNS client could not start: $e');
       return;
     }
     final resolutions = <Future<void>>[];
@@ -204,7 +200,7 @@ class RigDiscovery {
                   timeout: round,
                 )
                 .handleError((Object e) {
-                  developer.log('mDNS PTR lookup: $e', name: 'RigDiscovery');
+                  _rigDiscoveryLog.fine('mDNS PTR lookup: $e');
                 })) {
           if (!seen.add(ptr.domainName)) continue;
           resolutions.add(_resolveInstance(client, ptr.domainName, onFound));
@@ -212,7 +208,7 @@ class RigDiscovery {
       }
       await Future.wait(resolutions);
     } catch (e) {
-      developer.log('mDNS browse failed: $e', name: 'RigDiscovery', level: 900);
+      _rigDiscoveryLog.warning('mDNS browse failed: $e');
     } finally {
       client.stop();
     }
@@ -248,29 +244,25 @@ class RigDiscovery {
         }
         final address = await pickReachableAddress(addresses);
         if (address != null) {
-          final scheme = (txt['scheme'] ?? 'http').toLowerCase();
+          final advert = HostTxt.parse(txt);
           onFound(
             DiscoveredServer(
               host: address.address,
               webPort: srv.port,
-              name: txt['name'] ?? instance.split('.').first,
-              version: txt['version'],
-              scheme: scheme == 'https' ? 'https' : 'http',
-              fingerprint: _nonEmpty(txt['fingerprint']),
-              pairingSupported: txt['pairingSupported'] == 'true',
-              hostName: txt['hostName'] ?? computer,
-              hostMode: txt['hostMode'],
+              name: advert.name ?? instance.split('.').first,
+              version: advert.version,
+              scheme: advert.scheme ?? 'http',
+              fingerprint: advert.fingerprint,
+              pairingSupported: advert.pairingSupported,
+              hostName: advert.hostName ?? computer,
+              hostMode: advert.hostMode,
             ),
           );
         }
         break;
       }
     } catch (e) {
-      developer.log(
-        'mDNS resolve of $instance failed: $e',
-        name: 'RigDiscovery',
-        level: 500,
-      );
+      _rigDiscoveryLog.fine('mDNS resolve of $instance failed: $e');
     }
   }
 
@@ -324,17 +316,12 @@ class RigDiscovery {
             ...i.addresses,
       ];
     } on SocketException catch (e) {
-      developer.log(
+      _rigDiscoveryLog.warning(
         'listing local interfaces failed, no subnet preference: $e',
-        name: 'RigDiscovery',
-        level: 900,
       );
       return const [];
     }
   }
-
-  static String? _nonEmpty(String? value) =>
-      (value == null || value.isEmpty) ? null : value;
 
   /// `multicast_dns` hands a TXT record's strings joined by newlines.
   static Map<String, String> parseTxtRecord(String text) {

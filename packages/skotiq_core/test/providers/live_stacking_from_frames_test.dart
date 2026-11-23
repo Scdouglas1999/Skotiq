@@ -25,7 +25,7 @@ class _LocalBackendNotifier extends BackendNotifier {
 }
 
 class _RecordingStackingService extends LiveStackingService {
-  _RecordingStackingService(super.ref);
+  _RecordingStackingService(super.logger);
 
   final calls = <String>[];
 
@@ -33,16 +33,20 @@ class _RecordingStackingService extends LiveStackingService {
   Completer<void>? gate;
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
     calls.add('start $referenceImagePath');
     return const LiveStackingStats(stackedFrameCount: 1);
   }
 
   @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
     calls.add('add $imagePath');
     await gate?.future;
     final count = calls.where((c) => c.startsWith('add')).length + 1;
@@ -55,7 +59,7 @@ class _RecordingStackingService extends LiveStackingService {
   }
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async =>
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
       const LiveStackingResult(
         width: 2,
         height: 1,
@@ -64,7 +68,7 @@ class _RecordingStackingService extends LiveStackingService {
       );
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     calls.add('stop');
   }
 }
@@ -80,7 +84,7 @@ void main() {
         backendProvider.overrideWith(_LocalBackendNotifier.new),
         loggingServiceProvider.overrideWithValue(LoggingService()),
         liveStackingServiceProvider.overrideWith((ref) {
-          service = _RecordingStackingService(ref);
+          service = _RecordingStackingService(ref.read(loggingServiceProvider));
           return service;
         }),
       ],

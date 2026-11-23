@@ -21,7 +21,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show LinkVersion, computeServerFingerprint, skotiqRelease;
+    show LinkVersion, computeServerFingerprint;
 import 'package:path/path.dart' as p;
 
 import 'delivery_artifact.dart';
@@ -332,10 +332,9 @@ class PeerPullService {
     );
   }
 
-  Map<String, String> _headers() => <String, String>{
-    HttpHeaders.authorizationHeader: 'Bearer $token',
-    LinkVersion.header: skotiqRelease,
-  };
+  Map<String, String> _headers() => LinkVersion.hostHeaders(
+    headers: {HttpHeaders.authorizationHeader: 'Bearer $token'},
+  );
 
   static DeliveryFailureKind _kindForStatus(int status) {
     if (status == HttpStatus.unauthorized || status == HttpStatus.forbidden) {

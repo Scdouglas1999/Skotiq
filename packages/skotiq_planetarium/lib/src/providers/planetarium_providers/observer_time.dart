@@ -60,7 +60,9 @@ class PlanetariumObserverNotifier extends StateNotifier<PlanetariumObserver> {
     double? elevation,
     String? locationName,
   }) {
-    if (latitude == 0.0 && longitude == 0.0) {
+    if (latitude != null &&
+        longitude != null &&
+        !siteLocationIsSet(latitude, longitude)) {
       clearLocation(elevation: elevation, locationName: locationName);
       return;
     }

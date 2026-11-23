@@ -245,6 +245,10 @@ void main() {
       final pushService = container.read(pushNotificationServiceProvider);
       await container.read(pushNotificationConfigProvider.future);
       await Future<void>.delayed(Duration.zero);
+      // The operator's routing rules are loaded, as on a rig mid-run: the
+      // bridge asks the router whether it pages a run's failure itself.
+      await container.read(notificationRoutingMatrixProvider.future);
+      container.read(notificationRouterProvider);
       final received = <PushNotification>[];
       final pushSub = pushService.notifications.listen(received.add);
       addTearDown(pushSub.cancel);
@@ -283,6 +287,64 @@ void main() {
       );
       expect(received, hasLength(1));
       expect(received.single.body, contains('DriftLimit recenter failed'));
+    });
+
+    // The router pages an exposure failure itself, by the operator's rule
+    // for it; with the phone push turned off there, this bridge pages it.
+    group('an exposure failure the router would page', () {
+      Future<List<PushNotification>> pushesWith(
+        NotificationRoutingRule? rule,
+      ) async {
+        final container = makeContainer(
+          audibleAlertsOnCritical: false,
+          pushCriticalAlerts: true,
+        );
+        await container.read(appSettingsProvider.future);
+        final pushService = container.read(pushNotificationServiceProvider);
+        await container.read(pushNotificationConfigProvider.future);
+        await container.read(notificationRoutingMatrixProvider.future);
+        await Future<void>.delayed(Duration.zero);
+        final router = container.read(notificationRouterProvider);
+        router.updateMatrix(
+          rule == null
+              ? NotificationRoutingMatrix.defaults()
+              : NotificationRoutingMatrix.defaults()
+                  .withRule(NotificationCategory.exposureFailed, rule),
+        );
+        final received = <PushNotification>[];
+        final pushSub = pushService.notifications.listen(received.add);
+        addTearDown(pushSub.cancel);
+        _startCriticalAlerts(container, AppRole.hostDaemon);
+        container.read(eventHistoryProvider.notifier).addEvent(
+              bridge_event.SkotiqEvent(
+                eventId: BigInt.from(41),
+                timestamp: DateTime.now().millisecondsSinceEpoch,
+                severity: bridge_event.EventSeverity.critical,
+                category: bridge_event.EventCategory.imaging,
+                payload: bridge_event.EventPayload.imaging(
+                  const bridge_event.ImagingEvent.exposureFailed(
+                    error: 'Camera stopped answering',
+                  ),
+                ),
+              ),
+            );
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        return received;
+      }
+
+      test('push on: the bridge leaves it to the router', () async {
+        expect(await pushesWith(null), isEmpty);
+      });
+
+      test('push off for the category: the bridge pages it', () async {
+        final pushes = await pushesWith(
+          const NotificationRoutingRule(
+            transports: [NotificationTransportKind.inApp],
+          ),
+        );
+        expect(pushes, hasLength(1));
+        expect(pushes.single.priority, PushNotificationPriority.critical);
+      });
     });
 
     test('with no screen open, a host pages the phone once and sounds once',
@@ -422,15 +484,14 @@ void main() {
   });
 
   group('horizon-aware time-to-set agreement', () {
-    test(
-        'the planetarium receives the site floor by azimuth after its sync '
-        'fires', () async {
+    test('the planetarium reads the site floor by azimuth', () async {
       final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
 
       const horizon = 18.0;
       final container = ProviderContainer(
         overrides: [
+          ...planetariumInputOverrides(),
           databaseProvider.overrideWithValue(db),
           appSettingsProvider.overrideWith(
             () => _FakeAppSettingsNotifier(
@@ -448,12 +509,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      // Drain the AsyncNotifier and wire the listener.
       await container.read(appSettingsProvider.future);
-      container.read(planetariumAltitudeFloorSyncProvider);
-
-      // The sync provider schedules Future.microtask updates; flush them.
-      await Future<void>.delayed(const Duration(milliseconds: 10));
 
       final floor = container.read(planetariumAltitudeFloorProvider);
       expect(floor.at(0), horizon);

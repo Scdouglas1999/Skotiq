@@ -36,11 +36,7 @@ final targetFilterSetProvider = FutureProvider.autoDispose
     .family<FilterSet, TargetSuggestion>((ref, target) async {
       final choice = await ref.watch(targetFilterChoiceProvider(target).future);
       final prefs = await ref.watch(filterSetPreferencesProvider.future);
-      return prefs.setFor(
-        target,
-        sets: choice.sets(saved: prefs.custom),
-        recommended: choice.recommended,
-      );
+      return resolveTargetFilterSet(target, choice: choice, prefs: prefs);
     });
 
 /// The active equipment profile's Filters picker state: the filter sets the
@@ -71,15 +67,18 @@ class FilterSetPreferencesNotifier extends AsyncNotifier<FilterSetPreferences> {
     );
   }
 
-  /// Remembers [set] for [target]; [recommended] (Skotiq's choice) forgets
-  /// the target's choice instead.
-  Future<void> choose(
+  /// The one way a filter-set pick is kept: remembers [set] for [target], or
+  /// forgets the target's pick when [set] is [choice]'s recommendation. A
+  /// pick only chooses; a set is stored, with its shares, by [save].
+  Future<void> pick(
     TargetSuggestion target,
-    FilterSet set, {
-    required FilterSet recommended,
-  }) => _update((prefs) => prefs.choose(target, set, recommended: recommended));
+    FilterSet set,
+    SmartNightFilterChoice choice,
+  ) => _update(
+    (prefs) => prefs.choose(target, set, recommended: choice.recommended),
+  );
 
-  /// Saves [set], replacing a saved set of the same name.
+  /// Saves [set] with its shares, replacing a saved set of the same name.
   Future<void> save(CustomFilterSet set) => _update((prefs) => prefs.save(set));
 
   /// Deletes the saved set [name].

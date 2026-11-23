@@ -1,5 +1,5 @@
 // The Incomplete Sessions prompt read "25h 25m" for an unclosed session from
-// the day before (reverify RV-07): its length ran to now, not to its last
+// the day before: its length ran to now, not to its last
 // frame.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/services.dart';

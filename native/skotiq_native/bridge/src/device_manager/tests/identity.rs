@@ -64,7 +64,8 @@ async fn connect_refuses_an_id_that_re_bound_to_different_hardware() {
     let err = manager
         .connect_device_internal(&info)
         .await
-        .expect_err("a swapped camera must not connect");
+        .expect_err("a swapped camera must not connect")
+        .to_string();
 
     assert!(
         err.contains("no longer the same hardware"),
@@ -137,7 +138,8 @@ async fn a_swap_found_during_auto_reconnect_is_not_reported_as_a_user_cancel() {
     let err = manager
         .connect_device_internal(&info)
         .await
-        .expect_err("a swapped camera must not connect");
+        .expect_err("a swapped camera must not connect")
+        .to_string();
 
     assert_ne!(
         err,
@@ -288,8 +290,6 @@ async fn a_moved_camera_is_still_refused_without_an_expectation() {
     reset_sim_camera_bus();
 }
 
-/// Only a camera's handle used to answer what it is, so two filter wheels (or
-/// focusers, or mounts) trading ids on a replug were never compared.
 #[tokio::test]
 async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
     use crate::device_manager::handle::DeviceHandle;
@@ -323,4 +323,124 @@ async fn a_vendor_filter_wheel_behind_its_handle_reports_model_and_serial() {
     let identity = manager.probe_device_identity(&info).await;
     assert_eq!(identity.model.as_deref(), Some("EFW"));
     assert_eq!(identity.serial_number.as_deref(), Some("0E0F0A01"));
+}
+
+/// R1H2-2 (rig, Nov 8 2026: the camera came back at `native:zwo:0` after it
+/// had been `native:zwo:1`): a reconnect refused at the old id finds the
+/// device where it went, by serial or model, connects it there, and carries
+/// what it held (the cooler) with it.
+#[tokio::test]
+async fn a_reconnect_refused_at_the_old_id_follows_the_camera_to_its_new_id() {
+    use crate::simulator::camera::{
+        reset_sim_camera_bus, unplug_sim_camera, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+    };
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+    let manager = build_device_manager();
+    let info = build_sim_info(SIM_IMAGING_CAMERA_ID, DeviceType::Camera);
+    manager.register_device(info.clone(), true).await;
+    manager
+        .connect_device_expecting(SIM_IMAGING_CAMERA_ID, Some("Simulated Camera"))
+        .await
+        .expect("the camera connects");
+    manager
+        .camera_set_cooler(SIM_IMAGING_CAMERA_ID, true, Some(-10.0))
+        .await
+        .expect("cooler on");
+
+    unplug_sim_camera(SIM_IMAGING_CAMERA_ID, true).await;
+    manager
+        .mark_lost(SIM_IMAGING_CAMERA_ID, true, "the camera left the bus")
+        .await;
+    manager
+        .attempt_reconnect(SIM_IMAGING_CAMERA_ID, &info)
+        .await;
+
+    assert!(
+        manager.is_connected(SIM_GUIDE_CAMERA_ID).await,
+        "the camera is reconnected at the id it moved to"
+    );
+    assert_eq!(
+        display_name(&manager, SIM_GUIDE_CAMERA_ID).await.as_deref(),
+        Some("Simulated Camera")
+    );
+    {
+        let devices = manager.devices.read().await;
+        assert!(
+            !devices[SIM_IMAGING_CAMERA_ID].auto_reconnect,
+            "the old id is not retried for the camera that left it"
+        );
+        assert_eq!(
+            devices[SIM_GUIDE_CAMERA_ID].desired_cooler,
+            Some((true, Some(-10.0)))
+        );
+    }
+
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        let _ = manager.disconnect_device(id).await;
+    }
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+}
+
+/// R1H2-2: two cameras behind one hub trade places. The main camera's body
+/// now sits at the guide camera's id, which Skotiq knows as the guide
+/// camera: that id is not reused for the main camera (its record, held
+/// state and slot are the guide camera's). The main camera stays lost and
+/// the operator is told where it is.
+#[tokio::test]
+async fn a_camera_that_traded_places_with_another_is_not_connected_at_its_id() {
+    use crate::simulator::camera::{
+        reset_sim_camera_bus, unplug_sim_camera, SIM_GUIDE_CAMERA_ID, SIM_IMAGING_CAMERA_ID,
+    };
+
+    let _guard = simulator_singleton_test_lock().lock().await;
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
+    let manager = build_device_manager();
+    for (id, model) in [
+        (SIM_IMAGING_CAMERA_ID, "Simulated Camera"),
+        (SIM_GUIDE_CAMERA_ID, "Simulated Guide Camera"),
+    ] {
+        manager
+            .register_device(build_sim_info(id, DeviceType::Camera), true)
+            .await;
+        manager
+            .connect_device_expecting(id, Some(model))
+            .await
+            .expect("connect");
+    }
+    unplug_sim_camera(SIM_IMAGING_CAMERA_ID, true).await;
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        manager.mark_lost(id, true, "the hub dropped").await;
+    }
+    let mut rx = manager.app_state.event_bus.subscribe();
+    let info = build_sim_info(SIM_IMAGING_CAMERA_ID, DeviceType::Camera);
+    manager
+        .attempt_reconnect(SIM_IMAGING_CAMERA_ID, &info)
+        .await;
+
+    assert!(!manager.is_connected(SIM_IMAGING_CAMERA_ID).await);
+    assert!(
+        !manager.is_connected(SIM_GUIDE_CAMERA_ID).await,
+        "the guide camera's id is not taken over by the main camera"
+    );
+    let mut told = false;
+    while let Ok(event) = rx.try_recv() {
+        if let crate::event::bus::EventPayload::System(
+            crate::event::system::SystemEvent::Notification { message, .. },
+        ) = &event.payload
+        {
+            told |= message.contains(SIM_GUIDE_CAMERA_ID);
+        }
+    }
+    assert!(told, "the operator is told where the camera is");
+
+    for id in [SIM_IMAGING_CAMERA_ID, SIM_GUIDE_CAMERA_ID] {
+        let _ = manager.disconnect_device(id).await;
+    }
+    reset_sim_camera_bus();
+    crate::discovery::forget().await;
 }

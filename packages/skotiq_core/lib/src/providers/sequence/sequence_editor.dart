@@ -1,4 +1,4 @@
-import '../../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';

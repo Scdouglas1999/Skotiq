@@ -9,19 +9,13 @@ import 'package:skotiq_core/src/models/backend/backend_types.dart';
 
 /// Mock implementation of SkotiqBackend for testing
 class MockBackend extends Mock implements SkotiqBackend {
-  /// The native policy (the heartbeat reconnects these itself), unless a test
-  /// stubs another answer.
+  /// The native policy, unless a test stubs another answer: the native
+  /// heartbeat reconnects every device type.
   @override
   Set<DeviceType> get nativeReconnectedDeviceTypes =>
       super.noSuchMethod(Invocation.getter(#nativeReconnectedDeviceTypes))
           as Set<DeviceType>? ??
-      const {
-        DeviceType.mount,
-        DeviceType.guider,
-        DeviceType.dome,
-        DeviceType.weather,
-        DeviceType.coverCalibrator,
-      };
+      DeviceType.values.toSet();
 }
 
 /// Test fixtures and helper data for common test scenarios

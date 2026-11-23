@@ -6,9 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/backend.dart' show SkotiqBackend;
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../widgets/geolocation_consent.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// Resolves this machine's position through the positioning tiers: the
 /// platform's location service, a Wi-Fi scan resolved by a positioning
@@ -140,8 +141,8 @@ Future<SiteDetection?> detectSite(
   if (host.isStale) return null;
   final fix = attempt.fix;
   if (fix == null) return SiteNotFound(attempt);
-  final latitude = _rounded(fix.latitude);
-  final longitude = _rounded(fix.longitude);
+  final latitude = roundSiteEstimate(fix.latitude);
+  final longitude = roundSiteEstimate(fix.longitude);
   if (!fix.isPrecise) {
     return SiteEstimated(attempt, latitude: latitude, longitude: longitude);
   }
@@ -190,10 +191,6 @@ Future<SiteDetected?> _store(
     keptElevation: keptElevation,
   );
 }
-
-/// Four decimals of a degree is about ten metres, finer than any lookup tier
-/// places a site; the digits past it are noise in the stored site.
-double _rounded(double degrees) => double.parse(degrees.toStringAsFixed(4));
 
 double _kmBetween(double lat1, double lon1, double lat2, double lon2) {
   const earthRadiusKm = 6371.0;

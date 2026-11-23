@@ -33,16 +33,18 @@ impl FlipStep {
         )
     }
 
+    /// The step's words, the app's words for it
+    /// (`packages/skotiq_core/test/fixtures/flip_step_words.json`).
     pub fn description(&self) -> &'static str {
         match self {
-            FlipStep::PausingGuider => "Pausing guider",
+            FlipStep::PausingGuider => "Pausing Guider",
             FlipStep::EnablingTracking => "Turning tracking on",
-            FlipStep::SlewingToTarget => "Slewing to target (flip)",
-            FlipStep::VerifyingPierSide => "Verifying pier side",
+            FlipStep::SlewingToTarget => "Slewing to Target",
+            FlipStep::VerifyingPierSide => "Verifying Pier Side",
             FlipStep::ConfirmingTracking => "Confirming tracking",
-            FlipStep::PlateSolvingAndCentering => "Plate solving and centering",
-            FlipStep::Refocusing => "Running autofocus",
-            FlipStep::ResumingGuider => "Resuming guider",
+            FlipStep::PlateSolvingAndCentering => "Plate Solving & Centering",
+            FlipStep::Refocusing => "Refocusing",
+            FlipStep::ResumingGuider => "Resuming Guider",
             FlipStep::Settling => "Settling",
         }
     }
@@ -91,14 +93,6 @@ pub enum MeridianFlipEvent {
 
 /// How far the target is from the meridian, and on which side, as a phrase the
 /// flip banner can put in parentheses after the signed hour angle.
-///
-/// The banner used to render every hour angle as "N minutes past meridian",
-/// so a flip that fired east of transit announced itself as "-90.0 minutes
-/// past meridian" — arithmetically honest and unreadable. The trigger can no
-/// longer fire east of transit, but this event is also emitted by an
-/// operator-placed MeridianFlip instruction, where a negative hour angle is a
-/// legitimate (if unusual) thing to command, and the log has to say plainly
-/// which side of the meridian the flip happened on.
 pub(crate) fn meridian_offset_phrase(hour_angle_hours: f64) -> String {
     let minutes = hour_angle_hours * 60.0;
     if minutes < 0.0 {
@@ -274,5 +268,114 @@ mod tests {
             "15.0 minutes past the meridian"
         );
         assert_eq!(meridian_offset_phrase(0.0), "0.0 minutes past the meridian");
+    }
+
+    /// The step words are one table with the app's: its
+    /// `meridian_flip_event_test.dart` reads the same file.
+    #[test]
+    fn flip_step_words_match_the_app() {
+        let words: std::collections::BTreeMap<String, String> = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/flip_step_words.json"
+        ))
+        .expect("the fixture is JSON");
+        let steps = [
+            FlipStep::PausingGuider,
+            FlipStep::EnablingTracking,
+            FlipStep::SlewingToTarget,
+            FlipStep::VerifyingPierSide,
+            FlipStep::ConfirmingTracking,
+            FlipStep::PlateSolvingAndCentering,
+            FlipStep::Refocusing,
+            FlipStep::ResumingGuider,
+            FlipStep::Settling,
+        ];
+        assert_eq!(words.len(), steps.len());
+        for step in steps {
+            let name = serde_json::to_value(step).expect("a step serializes");
+            let name = name.as_str().expect("a step is its name");
+            assert_eq!(
+                Some(step.description()),
+                words.get(name).map(String::as_str),
+                "{name}"
+            );
+        }
+    }
+
+    /// The app reads the flip's steps by these names and fields; its
+    /// `meridian_flip_event_test.dart` decodes the same file.
+    #[test]
+    fn flip_events_match_the_app() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/meridian_flip_events.json"
+        ))
+        .expect("the fixture is JSON");
+        let steps = [
+            FlipStep::PausingGuider,
+            FlipStep::EnablingTracking,
+            FlipStep::SlewingToTarget,
+            FlipStep::VerifyingPierSide,
+            FlipStep::ConfirmingTracking,
+            FlipStep::PlateSolvingAndCentering,
+            FlipStep::Refocusing,
+            FlipStep::ResumingGuider,
+            FlipStep::Settling,
+        ];
+        // Every step is listed, so a new one fails here until the app has it.
+        for step in steps {
+            match step {
+                FlipStep::PausingGuider
+                | FlipStep::EnablingTracking
+                | FlipStep::SlewingToTarget
+                | FlipStep::VerifyingPierSide
+                | FlipStep::ConfirmingTracking
+                | FlipStep::PlateSolvingAndCentering
+                | FlipStep::Refocusing
+                | FlipStep::ResumingGuider
+                | FlipStep::Settling => {}
+            }
+        }
+        let mut sent = vec![MeridianFlipEvent::Starting {
+            target_name: "M31".to_string(),
+            from_pier_side: PierSide::East,
+            hour_angle: 0.25,
+        }];
+        sent.extend(
+            steps
+                .iter()
+                .enumerate()
+                .map(|(index, step)| MeridianFlipEvent::StepStarted {
+                    step: *step,
+                    step_index: index as u8,
+                    total_steps: steps.len() as u8,
+                }),
+        );
+        sent.extend([
+            MeridianFlipEvent::StepCompleted {
+                step: FlipStep::Settling,
+                duration_secs: Some(12.5),
+            },
+            MeridianFlipEvent::StepFailed {
+                step: FlipStep::SlewingToTarget,
+                error: "slew timed out".to_string(),
+            },
+            MeridianFlipEvent::Progress { percent: 40 },
+            MeridianFlipEvent::RetryScheduled {
+                attempt: 1,
+                max_attempts: 3,
+                delay_secs: 60.0,
+            },
+            MeridianFlipEvent::Completed {
+                new_pier_side: PierSide::West,
+                duration_secs: 185.0,
+            },
+            MeridianFlipEvent::Failed {
+                error: "pier side did not change".to_string(),
+                action_taken: "parked".to_string(),
+            },
+            MeridianFlipEvent::Aborted {
+                reason: "run stopped".to_string(),
+            },
+        ]);
+        assert_eq!(serde_json::to_value(&sent).unwrap(), expected);
     }
 }

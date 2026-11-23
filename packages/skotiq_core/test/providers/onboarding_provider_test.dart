@@ -645,8 +645,7 @@ void main() {
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
       when(
         () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
-      ).thenAnswer((_) async {});
-      when(() => backend.lastSavedProfileId).thenReturn('42');
+      ).thenAnswer((_) async => 42);
       when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
       when(() => backend.loadProfile(any())).thenAnswer((_) async {});
       when(
@@ -707,11 +706,10 @@ void main() {
     () async {
       final firstHost = _MockNetworkBackend();
       final replacementHost = _MockNetworkBackend();
-      final saveProfile = Completer<void>();
+      final saveProfile = Completer<int>();
       when(
         () => firstHost.saveProfileFields(any(), fields: any(named: 'fields')),
       ).thenAnswer((_) => saveProfile.future);
-      when(() => firstHost.lastSavedProfileId).thenReturn('71');
       for (final host in [firstHost, replacementHost]) {
         when(
           () => host.eventStream,
@@ -742,7 +740,7 @@ void main() {
         () => firstHost.saveProfileFields(any(), fields: any(named: 'fields')),
       );
       backendNotifier.swap(replacementHost);
-      saveProfile.complete();
+      saveProfile.complete(71);
 
       await expectLater(
         completion,

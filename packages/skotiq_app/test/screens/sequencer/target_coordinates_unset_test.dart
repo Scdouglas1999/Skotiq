@@ -13,7 +13,6 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/node_properties_panel.dart';
-import 'package:skotiq_app/screens/sequencer/widgets/target_coordinates.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/target_header_card.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/target_node_properties.dart';
 import 'package:skotiq_core/database.dart';
@@ -176,7 +175,7 @@ void main() {
         .nodes[target.id] as TargetHeaderNode;
     expect(updated.raHours, closeTo(_m31RaHours, 1e-9));
     expect(updated.decDegrees, closeTo(_m31DecDegrees, 1e-9));
-    expect(targetCoordinatesUnset(updated), isFalse);
+    expect(updated.coordinatesUnset, isFalse);
     // Drain live validation's 500 ms debounce so the binding does not fail
     // the test on a pending timer.
     await tester.pump(const Duration(seconds: 1));

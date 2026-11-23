@@ -69,7 +69,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
-    final isRemoteMode = ref.watch(isRemoteModeProvider);
+    final local = ref.watch(hostPathsProvider).local(widget.image.filePath);
     final qualityColor = _getQualityColor(colors);
     // Only a frame that needs attention is outlined in its verdict's color;
     // a good or unrated frame keeps the quiet hairline.
@@ -165,12 +165,12 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                                 if (payload.fileExists &&
                                     isDisplayableImagePath(
                                         widget.image.filePath) &&
-                                    !isRemoteMode) {
+                                    local != null) {
                                   return _railClip(
                                     LayoutBuilder(
                                       builder: (context, constraints) =>
                                           Image.file(
-                                        File(widget.image.filePath),
+                                        File(local),
                                         fit: BoxFit.cover,
                                         width: double.infinity,
                                         height: double.infinity,
@@ -252,7 +252,7 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                               ],
                             ),
                           ),
-                          // P2.3 science badges: small solve checkmark + optional
+                          // Science badges: small solve checkmark + optional
                           // ZP chip. Sit bottom-right so they don't fight the HFR
                           // and quality badges, and only appear when there is
                           // something meaningful to report.

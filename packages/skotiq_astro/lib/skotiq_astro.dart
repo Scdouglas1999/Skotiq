@@ -8,6 +8,7 @@ export 'src/coordinate_system.dart';
 export 'src/astronomy/altitude_floor_search.dart';
 export 'src/astronomy/astronomy_calculations.dart';
 export 'src/astronomy/observability.dart';
+export 'src/astronomy/observer_site.dart';
 export 'src/astronomy/planetary_positions.dart';
 export 'src/astronomy/milky_way_data.dart';
 export 'src/astronomy/sgp4.dart';
@@ -19,6 +20,7 @@ export 'src/catalogs/catalog_name_search.dart';
 export 'src/catalogs/open_ngc_catalog.dart';
 export 'src/catalogs/dso_designations.dart';
 export 'src/catalogs/nebula_light.dart';
+export 'src/catalogs/target_light.dart';
 export 'src/catalogs/hyg_depth.dart';
 export 'src/catalogs/star_catalog.dart';
 export 'src/catalogs/constellation_data.dart';
@@ -43,7 +45,6 @@ export 'src/catalogs/element_refresh_service.dart';
 
 export 'src/fov/equipment_fov.dart';
 export 'src/fov/mosaic_geometry.dart';
-export 'src/fov/mosaic_planner.dart';
 
 export 'src/planning/target_scoring.dart';
 export 'src/planning/tonight_ranking.dart';

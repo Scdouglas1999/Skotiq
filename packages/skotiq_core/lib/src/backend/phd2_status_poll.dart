@@ -1,3 +1,4 @@
+import 'bridge_events.dart';
 import 'roles/guiding_backend.dart';
 import '../models/backend/phd2_status.dart';
 import '../utils/device_id.dart';
@@ -15,30 +16,28 @@ const Duration kPhd2PollTimeout = Duration(seconds: 30);
 const Duration kPhd2PollInterval = Duration(milliseconds: 500);
 
 /// Whether a guiding event indicates PHD2 is still reachable (not link loss).
-bool isPhd2GuidingHeartbeatEvent(String eventType) {
-  switch (eventType) {
-    case 'Disconnected':
-    case 'LostStar':
-    case 'UnknownGuidingEvent':
-      return false;
-    case 'GuideStep':
-    case 'GuideStats':
-    case 'Connected':
-    case 'AppState':
-    case 'GuidingStarted':
-    case 'GuidingStopped':
-    case 'Paused':
-    case 'Resumed':
-    case 'Settling':
-    case 'SettleDone':
-    case 'LoopingExposures':
-    case 'Calibrating':
-    case 'CalibrationComplete':
-      return true;
-    default:
-      return false;
-  }
-}
+bool isPhd2GuidingHeartbeatEvent(GuidingEvent event) => switch (event) {
+  GuidingEvent_Correction() ||
+  GuidingEvent_GuideStats() ||
+  GuidingEvent_Connected() ||
+  GuidingEvent_AppState() ||
+  GuidingEvent_GuidingStarted() ||
+  GuidingEvent_GuidingStopped() ||
+  GuidingEvent_Paused() ||
+  GuidingEvent_Resumed() ||
+  GuidingEvent_Settling() ||
+  GuidingEvent_Settled() ||
+  GuidingEvent_Looping() ||
+  GuidingEvent_Calibrating() ||
+  GuidingEvent_CalibrationComplete() => true,
+  GuidingEvent_Disconnected() ||
+  GuidingEvent_LostStar() ||
+  GuidingEvent_SettleTimedOut() ||
+  GuidingEvent_StopReason() ||
+  GuidingEvent_DitherStarted() ||
+  GuidingEvent_DitherCompleted() ||
+  GuidingEvent_StarSelected() => false,
+};
 
 /// Whether [deviceId] is a PHD2 guider id, matched EXACTLY (no trim, no case
 /// folding) — unlike [isPhd2DeviceId], which normalizes first.

@@ -1,8 +1,10 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
+
+final _antiFreezeStoreLog = Logger('skotiq.AntiFreezeStore');
 
 /// Persists a per-channel monotonic watermark of the newest update
 /// `releaseDate` this host has accepted, so a later check cannot be frozen
@@ -50,11 +52,9 @@ class AntiFreezeStore {
       // (a missing file is legitimately empty), so failing closed adds no
       // protection while turning a benign disk glitch into a permanent
       // update outage. The bar is re-established on the next accepted update.
-      developer.log(
+      _antiFreezeStoreLog.warning(
         'Anti-freeze watermark file unreadable; proceeding without a '
         'rollback watermark on this read: $e',
-        name: 'AntiFreezeStore',
-        level: 900,
       );
       return {};
     }

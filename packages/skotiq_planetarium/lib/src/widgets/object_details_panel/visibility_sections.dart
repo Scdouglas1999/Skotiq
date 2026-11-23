@@ -162,11 +162,15 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
       objectVisibilityProvider((
         raDeg: object.coordinates.ra * 15,
         decDeg: object.coordinates.dec,
-        // The NIGHT containing the observation time. The scan runs local noon
-        // to noon, so handing it the raw instant described the FOLLOWING night
-        // from midnight until noon — the panel would report a rise/transit/set
-        // a whole sidereal day away from the one the user is observing.
-        nightDate: AstronomyCalculations.nightDateOf(obsTime),
+        // The NIGHT containing the observation time. The scan runs from the
+        // site's solar noon to the next, so handing it the raw instant
+        // described the FOLLOWING night from midnight until noon: the panel
+        // would report a rise/transit/set a whole sidereal day away from the
+        // one the user is observing.
+        nightDate: AstronomyCalculations.nightDateOf(
+          obsTime,
+          longitudeDeg: site.longitude,
+        ),
         latitudeDeg: site.latitude,
         longitudeDeg: site.longitude,
         againstFloor: true,
@@ -300,7 +304,10 @@ extension _ObjectDetailsPanelVisibilitySections on ObjectDetailsPanel {
         // Same night anchor as the Rise/Transit/Set section above, so the quick
         // stats bar cannot quote a different night's transit than the panel it
         // sits in.
-        nightDate: AstronomyCalculations.nightDateOf(obsTime),
+        nightDate: AstronomyCalculations.nightDateOf(
+          obsTime,
+          longitudeDeg: site.longitude,
+        ),
         latitudeDeg: site.latitude,
         longitudeDeg: site.longitude,
         againstFloor: false,

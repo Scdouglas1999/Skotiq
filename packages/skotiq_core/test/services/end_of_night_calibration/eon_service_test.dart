@@ -61,13 +61,18 @@ class FakeRig implements EonRig {
   Map<String, Object?>? saved;
   Completer<void>? runGate;
 
+  DateTime clock = DateTime(2026, 10, 22, 6, 30);
+
   @override
-  DateTime now() => DateTime(2026, 10, 22, 6, 30);
+  DateTime now() => clock;
 
   @override
   Future<List<db.DbCapturedImage>> lightFramesSince(DateTime since) async {
     calls.add('lights since $since');
-    return lights;
+    return [
+      for (final light in lights)
+        if (!light.capturedAt.isBefore(since)) light,
+    ];
   }
 
   @override
@@ -158,8 +163,11 @@ class FakeRig implements EonRig {
     built.add(request);
     final first = lightsOrFrame(request.framePaths.first);
     if (leakyExposures.contains(first)) {
-      throw 'light leak: 15 of 20 frames read more than 5.0 ADU above the '
-          'first frames (233.0 ADU); no master was written';
+      throw const CalibrationMasterRefused(
+        'light leak: 15 of 20 frames read more than 5.0 ADU above the '
+        'first frames (233.0 ADU); no master was written',
+        lightLeak: true,
+      );
     }
     return CalibrationMasterBuildResult(
       outputPath: request.outputPath,
@@ -256,7 +264,7 @@ void main() {
 
     expect(report.phase, EonPhase.finished, reason: report.summary);
     expect(rig.calls.take(3), [
-      'lights since 2026-10-21 14:30:00.000',
+      'lights since 2026-10-21 12:00:00.000',
       'stopGuiding',
       'mount home',
     ]);
@@ -277,7 +285,7 @@ void main() {
       p.join(
         '/n/Dark',
         'Masters',
-        'MasterDark_90s_g76_o15_m10C_bin1_20261022-0630.fits',
+        'MasterDark_90s_g76_o15_m10C_bin1_20261022-063000.fits',
       ),
     );
     expect(report.masters.where((m) => m.built), hasLength(3));
@@ -327,8 +335,8 @@ void main() {
             b.outputPath.split('/').last: b.framePaths.length,
         },
         {
-          'MasterDark_3s_g76_o15_p1C_bin1_20261022-0630.fits': 5,
-          'MasterDark_3s_g76_o15_p0C_bin1_20261022-0630.fits': 4,
+          'MasterDark_3s_g76_o15_p1C_bin1_20261022-063000.fits': 5,
+          'MasterDark_3s_g76_o15_p0C_bin1_20261022-063000.fits': 4,
         },
       );
       expect(
@@ -494,7 +502,7 @@ void main() {
             b.outputPath
                     .split('/')
                     .last
-                    .replaceFirst('_20261022-0630.fits', ''):
+                    .replaceFirst('_20261022-063000.fits', ''):
                 b.framePaths.length,
         };
         expect(built, {
@@ -716,6 +724,24 @@ void main() {
     );
     await skipping.run(reason: 'manual');
     expect(rig.calls, isNot(contains('warmUp')));
+  });
+
+  test('the night\'s lights are those of its observing night', () async {
+    // A late finish: the step runs at 11:30 and the night's first lights
+    // were taken at 18:00 the evening before, 17.5 hours earlier.
+    rig.clock = DateTime(2026, 10, 22, 11, 30);
+    final evening = DateTime(2026, 10, 21, 18);
+    rig.lights = [
+      for (var i = 0; i < 4; i++)
+        frame(
+          i,
+          type: 'light',
+          exposure: 90,
+        ).copyWith(capturedAt: evening.add(Duration(seconds: i))),
+    ];
+    final report = await service.run(reason: 'manual');
+    expect(rig.calls.first, 'lights since ${DateTime(2026, 10, 21, 12)}');
+    expect(report.phase, isNot(EonPhase.skipped));
   });
 
   test('a night without lights is skipped', () async {

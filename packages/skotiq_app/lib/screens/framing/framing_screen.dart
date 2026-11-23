@@ -22,8 +22,7 @@ import 'widgets/framing_sidebar.dart';
 /// Scaffold-less framing body: composing and framing astrophotography targets
 /// on a survey-backed canvas with an equipment FOV reticle.
 ///
-/// Hosted both inside Plan Tonight's "Sky" tab and by [FramingScreen] (the thin
-/// wrapper kept for the redirected `/framing` standalone route). Browsing and
+/// Hosted inside Plan Tonight's "Sky" tab. Browsing and
 /// acting on tonight's target suggestions lives entirely in the Planner — this
 /// view carries no Suggestions tab. Targets are adopted into the canvas via
 /// [FramingNotifier.setTargetSuggestion] before opening the Framing tab, or
@@ -464,20 +463,5 @@ class _FramingViewState extends ConsumerState<FramingView> {
       context.showErrorSnackBar(
           'Failed to cache survey image: ${userFacingError(e)}');
     }
-  }
-}
-
-/// Thin Scaffold wrapper kept for the redirected standalone `/framing` route.
-/// The reusable body lives in [FramingView], also hosted by Plan Tonight's
-/// "Sky" tab.
-class FramingScreen extends StatelessWidget {
-  const FramingScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: SkotiqColors.of(context).background,
-      body: const FramingView(),
-    );
   }
 }

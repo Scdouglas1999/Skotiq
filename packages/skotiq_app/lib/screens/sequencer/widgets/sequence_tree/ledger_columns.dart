@@ -12,6 +12,7 @@
 // the pre-flight dialog about the same subtree.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -166,7 +167,7 @@ String _smartFilters(SmartExposureNode node) {
 /// The Count column for a planned capture.
 ///
 /// A `+` suffix marks a figure that is a floor rather than the plan: under a
-/// non-`count` loop the walk deliberately counts one pass (the rest of the app
+/// loop with no fixed passes the walk counts one pass (the rest of the app
 /// says "per pass"), and an open-ended SmartExposure contributes no fixed
 /// frames at all. An em dash is the honest answer when the only imager is
 /// open-ended — there is no number to print, and `0` would be a lie.
@@ -284,11 +285,9 @@ DateTime? _foldSubtreeStart(
 ///    past its expected finish, which is why adding the two would count the
 ///    same minutes twice.
 ///
-/// Measuring `now - predictedStart` instead — as this did before review — is
-/// not lateness at all but time ELAPSED IN the node, most of which the plan
-/// asked for. A 30-minute exposure running exactly on plan would have pushed
-/// every pending ETA by a minute every minute for half an hour and then snapped
-/// back when the node ended.
+/// Measuring `now - predictedStart` instead is not lateness at all but time
+/// ELAPSED IN the node, most of which the plan asked for: an on-plan 30-minute
+/// exposure would push every pending ETA by a minute every minute.
 ///
 /// Zero, never negative: a run that is AHEAD of plan is not talked back down to
 /// it, because the estimator and not the clock says how long the rest takes.
@@ -373,9 +372,8 @@ Map<String, LedgerEta> ledgerEtasFor(
           .difference(simulation.start);
 
   // …but the RUN's start is the wrong anchor for the part of the plan that has
-  // not happened yet. A night that is forty minutes behind at 01:00 still had
-  // the same start time, so anchoring on it alone printed every remaining ETA
-  // forty minutes optimistic — all night, and by more as the night went on.
+  // not happened yet: anchored on it alone, a night forty minutes behind would
+  // print every remaining ETA forty minutes optimistic.
   //
   // The executing node is the join between what happened and what is still
   // predicted, and there are exactly two ways it can put the rest of the night
@@ -412,14 +410,11 @@ Map<String, LedgerEta> ledgerEtasFor(
 /// it. `autoDispose` so the subscription — and the timer inside it — dies with
 /// the last listener instead of outliving a widget test's tree.
 ///
-/// It ticks DURING a run as well as before one. It used to stop while the
-/// executor was driving, on the reasoning that the anchor had moved to the
-/// run's recorded start and a tick would only rebuild identical predictions.
-/// That was true of the predictions and wrong about the night: the pending
-/// tail is anchored on `max(now, the executing node's predicted start)`
-/// ([ledgerEtasFor]), so a run falling behind only shows in the ETA column
-/// when the clock moves. One minute is also the column's own resolution — it
-/// prints `HH:mm` — so this is the slowest tick that can still be right.
+/// It ticks DURING a run as well as before one: the pending tail is anchored
+/// on `max(now, the executing node's predicted start)` ([ledgerEtasFor]), so a
+/// run falling behind only shows in the ETA column when the clock moves. One
+/// minute is also the column's own resolution — it prints `HH:mm` — so this
+/// is the slowest tick that can still be right.
 ///
 /// Nothing but [ledgerEtaProvider] reads it, which is what keeps a timer
 /// running through a night from costing anything else a rebuild.

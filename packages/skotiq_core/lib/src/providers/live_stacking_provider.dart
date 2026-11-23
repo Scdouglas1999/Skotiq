@@ -4,10 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import 'linked_host.dart';
 import 'async_scope.dart';
 import '../errors/error_text.dart';
-import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../services/live_stacking_service.dart';
 import '../utils/logging_service.dart';
@@ -16,298 +14,7 @@ import 'backend_provider.dart';
 import 'live_stacking_service_provider.dart';
 import 'logging_service_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
-import '../errors/server_error.dart';
-
-/// Canonical display order for astrophotography filters in filter switchers.
-const List<String> kLiveStackFilterSortOrder = <String>[
-  'L',
-  'Lum',
-  'Luminance',
-  'R',
-  'Red',
-  'G',
-  'Green',
-  'B',
-  'Blue',
-  'Ha',
-  'H-alpha',
-  'OIII',
-  'O3',
-  'SII',
-  'S2',
-];
-
-int _filterSortRank(String key) {
-  if (key == kDefaultLiveStackFilterKey) return 10000;
-  final lower = key.toLowerCase();
-  for (var i = 0; i < kLiveStackFilterSortOrder.length; i++) {
-    if (kLiveStackFilterSortOrder[i].toLowerCase() == lower) return i;
-  }
-  return 500;
-}
-
-/// Compare two filter keys into natural astrophotography filter order.
-int compareLiveStackFilters(String a, String b) {
-  final ra = _filterSortRank(a);
-  final rb = _filterSortRank(b);
-  if (ra != rb) return ra.compareTo(rb);
-  return a.toLowerCase().compareTo(b.toLowerCase());
-}
-
-/// Current state of the live stacking session.
-enum LiveStackingStatus {
-  /// No stacking session is active.
-  idle,
-
-  /// Stacking is active and processing frames.
-  running,
-
-  /// An error occurred during stacking.
-  error,
-}
-
-/// Snapshot of one per-filter live stack slot.
-class FilterStackSnapshot {
-  final String filterKey;
-  final LiveStackingStats stats;
-  final Uint16List? previewData;
-  final int previewWidth;
-  final int previewHeight;
-  final int channels;
-  final int lastFrameSigmaRejectedPixels;
-  final int lastFrameTotalPixels;
-  final String? referenceImagePath;
-  final int revision;
-  final List<LiveStackFrameEvent> events;
-
-  const FilterStackSnapshot({
-    required this.filterKey,
-    this.stats = const LiveStackingStats(),
-    this.previewData,
-    this.previewWidth = 0,
-    this.previewHeight = 0,
-    this.channels = 1,
-    this.lastFrameSigmaRejectedPixels = 0,
-    this.lastFrameTotalPixels = 0,
-    this.referenceImagePath,
-    this.revision = 0,
-    this.events = const [],
-  });
-
-  bool get hasPixels =>
-      previewData != null && previewWidth > 0 && previewHeight > 0;
-
-  double get lastFrameSigmaRejectionRate {
-    if (lastFrameTotalPixels <= 0) return 0.0;
-    return lastFrameSigmaRejectedPixels / lastFrameTotalPixels;
-  }
-
-  double get totalIntegrationSecs => stats.totalIntegrationSecs;
-
-  FilterStackSnapshot copyWith({
-    LiveStackingStats? stats,
-    Uint16List? previewData,
-    bool clearPreviewData = false,
-    int? previewWidth,
-    int? previewHeight,
-    int? channels,
-    int? lastFrameSigmaRejectedPixels,
-    int? lastFrameTotalPixels,
-    String? referenceImagePath,
-    bool clearReferenceImagePath = false,
-    int? revision,
-    List<LiveStackFrameEvent>? events,
-  }) {
-    return FilterStackSnapshot(
-      filterKey: filterKey,
-      stats: stats ?? this.stats,
-      previewData: clearPreviewData ? null : (previewData ?? this.previewData),
-      previewWidth: previewWidth ?? this.previewWidth,
-      previewHeight: previewHeight ?? this.previewHeight,
-      channels: channels ?? this.channels,
-      lastFrameSigmaRejectedPixels:
-          lastFrameSigmaRejectedPixels ?? this.lastFrameSigmaRejectedPixels,
-      lastFrameTotalPixels: lastFrameTotalPixels ?? this.lastFrameTotalPixels,
-      referenceImagePath: clearReferenceImagePath
-          ? null
-          : (referenceImagePath ?? this.referenceImagePath),
-      revision: revision ?? this.revision,
-      events: events ?? this.events,
-    );
-  }
-}
-
-/// Full state of the live stacking session for UI consumption.
-class LiveStackingState {
-  final LiveStackingStatus status;
-  final LiveStackingStats stats;
-  final LiveStackingConfig config;
-
-  /// True when live stacking is armed to automatically capture and stack
-  /// incoming frames (even before the first frame arrives to create a filter
-  /// slot).
-  final bool isArmed;
-
-  /// Active per-filter live stacks keyed by normalized filter name (`L`, `Ha`,
-  /// `OIII`, `Unfiltered`, ...).
-  final Map<String, FilterStackSnapshot> filterStacks;
-
-  /// The filter stack currently selected for preview, statistics, and Darkroom
-  /// processing.
-  final String? selectedFilterKey;
-
-  /// Chronological (newest-first) log of evaluated frames across all filters.
-  final List<LiveStackFrameEvent> frameLog;
-
-  /// The most recent stacked preview image as u16 pixel data (mirrors the
-  /// selected filter stack for backward compatibility with all existing viewers).
-  final Uint16List? previewData;
-  final int previewWidth;
-  final int previewHeight;
-
-  /// Sigma-clip pixels rejected on the most recently added frame.
-  ///
-  /// Derived from the cumulative total reported by Rust on each frame add:
-  /// `stats.totalSigmaRejectedPixels - previous_total`. A spike in this value
-  /// indicates a problem with the latest frame (clouds, satellite trail,
-  /// drift, etc.) and is surfaced loudly in the UI.
-  final int lastFrameSigmaRejectedPixels;
-
-  /// Total pixel count of the most recently added frame. Captured from the
-  /// stacker's output dimensions so the UI can compute a rejection rate
-  /// (`lastFrameSigmaRejectedPixels / lastFrameTotalPixels`) without
-  /// reaching back into [previewWidth]/[previewHeight] (which may be
-  /// updated independently when a fresh preview is rendered).
-  final int lastFrameTotalPixels;
-
-  /// Error message if status == error.
-  final String? errorMessage;
-
-  /// On-disk path of the frame this stack is aligned to, when the session was
-  /// started from a file.
-  ///
-  /// Every subsequent frame is registered onto this one, so the stack's pixel
-  /// geometry IS this sub's — which is what lets a consumer resolve the
-  /// stack's WCS, scale and orientation from the reference's own header
-  /// instead of guessing them. Null when the stack was started from raw pixel
-  /// data, when a remote host was armed without naming a reference, and
-  /// whenever no stack is running.
-  final String? referenceImagePath;
-
-  const LiveStackingState({
-    this.status = LiveStackingStatus.idle,
-    this.stats = const LiveStackingStats(),
-    this.config = const LiveStackingConfig(),
-    this.isArmed = false,
-    this.filterStacks = const {},
-    this.selectedFilterKey,
-    this.frameLog = const [],
-    this.previewData,
-    this.previewWidth = 0,
-    this.previewHeight = 0,
-    this.lastFrameSigmaRejectedPixels = 0,
-    this.lastFrameTotalPixels = 0,
-    this.errorMessage,
-    this.referenceImagePath,
-  });
-
-  /// Sorted list of filter keys currently holding live stacks.
-  List<String> get availableFilters {
-    if (filterStacks.isEmpty) return const [];
-    final keys = filterStacks.keys.toList(growable: false)
-      ..sort(compareLiveStackFilters);
-    return keys;
-  }
-
-  /// Currently selected filter stack snapshot, or null when none exist.
-  FilterStackSnapshot? get activeFilterStack {
-    if (filterStacks.isEmpty) return null;
-    if (selectedFilterKey != null &&
-        filterStacks.containsKey(selectedFilterKey)) {
-      return filterStacks[selectedFilterKey];
-    }
-    return filterStacks[availableFilters.first];
-  }
-
-  /// True when live stacking is running or armed for incoming frames.
-  bool get isActiveOrArmed => status == LiveStackingStatus.running || isArmed;
-
-  /// True when at least one stack has accumulated frames.
-  bool get hasStackedFrames =>
-      totalFramesAcrossFilters > 0 || stats.stackedFrameCount > 0;
-
-  /// Total stacked frames across all active filter slots.
-  int get totalFramesAcrossFilters {
-    if (filterStacks.isEmpty) return stats.stackedFrameCount;
-    var total = 0;
-    for (final s in filterStacks.values) {
-      total += s.stats.stackedFrameCount;
-    }
-    return total;
-  }
-
-  /// Total integration seconds across all active filter slots.
-  double get totalIntegrationAcrossFilters {
-    if (filterStacks.isEmpty) return stats.totalIntegrationSecs;
-    var total = 0.0;
-    for (final s in filterStacks.values) {
-      total += s.stats.totalIntegrationSecs;
-    }
-    return total;
-  }
-
-  /// Per-frame sigma rejection rate (0.0 .. 1.0). Returns 0 when no frame
-  /// has been processed yet to avoid divide-by-zero.
-  double get lastFrameSigmaRejectionRate {
-    if (lastFrameTotalPixels <= 0) return 0.0;
-    return lastFrameSigmaRejectedPixels / lastFrameTotalPixels;
-  }
-
-  LiveStackingState copyWith({
-    LiveStackingStatus? status,
-    LiveStackingStats? stats,
-    LiveStackingConfig? config,
-    bool? isArmed,
-    Map<String, FilterStackSnapshot>? filterStacks,
-    String? selectedFilterKey,
-    bool clearSelectedFilterKey = false,
-    List<LiveStackFrameEvent>? frameLog,
-    Uint16List? previewData,
-    bool clearPreviewData = false,
-    int? previewWidth,
-    int? previewHeight,
-    int? lastFrameSigmaRejectedPixels,
-    int? lastFrameTotalPixels,
-    String? errorMessage,
-    bool clearErrorMessage = false,
-    String? referenceImagePath,
-    bool clearReferenceImagePath = false,
-  }) {
-    return LiveStackingState(
-      status: status ?? this.status,
-      stats: stats ?? this.stats,
-      config: config ?? this.config,
-      isArmed: isArmed ?? this.isArmed,
-      filterStacks: filterStacks ?? this.filterStacks,
-      selectedFilterKey: clearSelectedFilterKey
-          ? null
-          : (selectedFilterKey ?? this.selectedFilterKey),
-      frameLog: frameLog ?? this.frameLog,
-      previewData: clearPreviewData ? null : (previewData ?? this.previewData),
-      previewWidth: previewWidth ?? this.previewWidth,
-      previewHeight: previewHeight ?? this.previewHeight,
-      lastFrameSigmaRejectedPixels:
-          lastFrameSigmaRejectedPixels ?? this.lastFrameSigmaRejectedPixels,
-      lastFrameTotalPixels: lastFrameTotalPixels ?? this.lastFrameTotalPixels,
-      errorMessage: clearErrorMessage
-          ? null
-          : (errorMessage ?? this.errorMessage),
-      referenceImagePath: clearReferenceImagePath
-          ? null
-          : (referenceImagePath ?? this.referenceImagePath),
-    );
-  }
-}
+import '../models/imaging/live_stacking_state.dart';
 
 /// StateNotifier that manages the live stacking session.
 ///
@@ -325,7 +32,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // appear under the new connection. A remote host keeps stacking when a
       // companion disconnects, but a local stack owns a process-wide native
       // singleton and must be released before the replacement host can use it.
-      final localService = _sessionService;
+      final session = _sessionService;
+      final localService = session != null && !session.readsHost
+          ? session
+          : null;
       final starting = _startInFlight;
       final ingesting = _ingestChain;
       _invalidateSession();
@@ -372,31 +82,39 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   LoggingService get _logger => _ref.read(loggingServiceProvider);
   LiveStackingService get _service => _ref.read(liveStackingServiceProvider);
 
-  /// Polls the host's stacked result while remote stacking is active. The host
-  /// auto-feeds captured frames into its stacker, so the client has nothing to
-  /// react to except the wall clock — it refreshes the preview/stats on a
-  /// cadence. Null when local (frames update the preview synchronously) or idle.
-  Timer? _remotePollTimer;
+  /// On a linked client, fetches the viewed slot's pixels again after a
+  /// failed fetch. Null while nothing failed.
+  Timer? _fetchRetryTimer;
 
-  /// True once a remote poll has returned a stacked result. Before the host's
-  /// first frame the poll legitimately 404s, so a failure only signals a lost
-  /// host after we have seen at least one frame.
-  bool _hadRemoteResult = false;
-
-  /// Consecutive remote poll failures after the first frame. Flips to error
-  /// once sustained (not on a single transient blip).
-  int _consecutivePollFailures = 0;
+  /// Consecutive failed fetches of the host's pixels. Flips to error once
+  /// sustained (not on a single transient blip).
+  int _consecutiveFetchFailures = 0;
 
   /// Monotonically identifies the currently displayed stacking session.
   /// Cancelling a timer cannot cancel an HTTP/FFI Future already in flight, so
   /// every completion also checks this generation and its backend authority.
   int _sessionGeneration = 0;
   SkotiqBackend? _sessionAuthority;
-  HostLiveStack? _remoteSessionBackend;
   LiveStackingService? _sessionService;
-  bool _remotePollInFlight = false;
+
+  /// Whether this session's stack is the linked host's.
+  bool get _sessionOnHost {
+    final service = _sessionService;
+    return service != null && service.readsHost;
+  }
+
+  /// On a linked client, the pixel revision of each slot of the host's stack
+  /// as the host's runtime channel last described it. Null until the channel
+  /// has described a stack; nothing is fetched before.
+  Map<String, int>? _hostRevisions;
+
+  bool _fetchInFlight = false;
   Future<void>? _startInFlight;
   Future<void>? _stopInFlight;
+
+  /// The host's newest description of its stack while this client's own
+  /// start was settling, shown once the start has armed the stack.
+  ({LiveStackSummary summary, SkotiqBackend backend})? _heldHostStack;
   Future<void>? _resetInFlight;
   Future<void> _ingestChain = Future<void>.value();
 
@@ -413,15 +131,19 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   void _invalidateSession() {
+    _hostRevisions = null;
+    _heldHostStack = null;
     _sessionGeneration++;
-    _remotePollTimer?.cancel();
-    _remotePollTimer = null;
-    _remotePollInFlight = false;
-    _hadRemoteResult = false;
-    _consecutivePollFailures = 0;
+    _cancelFetchRetry();
+    _fetchInFlight = false;
+    _consecutiveFetchFailures = 0;
     _sessionAuthority = null;
-    _remoteSessionBackend = null;
     _sessionService = null;
+  }
+
+  void _cancelFetchRetry() {
+    _fetchRetryTimer?.cancel();
+    _fetchRetryTimer = null;
   }
 
   Future<void> _trackStart(Future<void> Function() operation) {
@@ -429,13 +151,33 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (active != null) return active;
     final future = operation();
     _startInFlight = future;
+    // The caller receives the outcome; this bookkeeping copy must not report
+    // a failure a second time as unhandled.
     future.whenComplete(() {
-      if (identical(_startInFlight, future)) _startInFlight = null;
-    });
+      if (!identical(_startInFlight, future)) return;
+      _startInFlight = null;
+      _showHeldHostStack();
+    }).ignore();
     return future;
   }
 
-  /// Arm host-side live stacking and begin polling its preview/stats.
+  /// Show what the host described while this client's start settled, when
+  /// the start armed the stack. A description of no stack is not held: it
+  /// predates the arm.
+  void _showHeldHostStack() {
+    final held = _heldHostStack;
+    _heldHostStack = null;
+    if (held == null ||
+        !mounted ||
+        _stopInFlight != null ||
+        state.status != LiveStackingStatus.running) {
+      return;
+    }
+    applyHostStack(held.summary, held.backend);
+  }
+
+  /// Arm host-side live stacking. The host's runtime channel then describes
+  /// its stack and this client fetches each new revision of the viewed slot.
   ///
   /// The remote entry point: the tablet has no local reference frame, so the
   /// host arms its stacker and the next captured frame becomes the reference.
@@ -449,8 +191,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     if (stopping != null) await stopping;
 
     final backend = _ref.read(backendProvider);
-    final remote = _ref.read(linkedHostLiveStackProvider);
-    if (remote == null) {
+    final service = _service;
+    if (!service.readsHost) {
       state = state.copyWith(
         status: LiveStackingStatus.error,
         errorMessage: 'Remote live stacking requires a connected imaging host.',
@@ -465,24 +207,22 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final effectiveConfig = config ?? state.config;
     final generation = ++_sessionGeneration;
     _sessionAuthority = backend;
-    _remoteSessionBackend = remote;
-    _sessionService = null;
-    _hadRemoteResult = false;
-    _consecutivePollFailures = 0;
+    _sessionService = service;
+    _consecutiveFetchFailures = 0;
     state = LiveStackingState(
       status: LiveStackingStatus.running,
       isArmed: true,
       config: effectiveConfig,
     );
     try {
-      final stats = await remote.stackingStart(config: effectiveConfig);
+      final stats = await service.start(config: effectiveConfig);
       if (!_isCurrentSession(generation, backend)) return;
       state = state.copyWith(stats: stats);
       _logger.info(
         'Remote live stacking armed on host',
         source: 'LiveStackingNotifier',
       );
-      _startRemotePolling(generation, backend);
+      unawaited(_fetchHostSlot(generation, backend));
     } catch (e) {
       if (!_isCurrentSession(generation, backend)) return;
       state = state.copyWith(
@@ -496,61 +236,48 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
   }
 
-  void _startRemotePolling(int generation, SkotiqBackend backend) {
-    if (!_isCurrentSession(generation, backend)) return;
-    _remotePollTimer?.cancel();
-    // 2.5s cadence: brisk enough that the preview tracks a typical sub-minute
-    // EAA exposure within a frame or two, cheap enough not to flood the LAN
-    // with full-frame u16 downloads. Each tick pulls the latest host result.
-    _remotePollTimer = pacedPeriodicTimer(
-      const Duration(milliseconds: 2500),
-      () => _pollRemoteResult(generation, backend),
-    );
-    unawaited(_pollRemoteResult(generation, backend));
-  }
-
-  Future<void> _pollRemoteResult(int generation, SkotiqBackend backend) async {
-    final remote = _remoteSessionBackend;
-    if (remote == null ||
-        _remotePollInFlight ||
+  /// Fetch the pixels of the viewed slot of the host's stack when the
+  /// host's channel says they changed since this client last showed them,
+  /// and again after the download while they keep changing. A failed fetch
+  /// is retried after a pause; the third failure in a row is shown and the
+  /// retries stop ([retryHostFetch] starts them again).
+  Future<void> _fetchHostSlot(int generation, SkotiqBackend backend) async {
+    final service = _sessionService;
+    if (service == null ||
+        !service.readsHost ||
+        _fetchInFlight ||
         !_isCurrentSession(generation, backend) ||
         state.status != LiveStackingStatus.running) {
       return;
     }
-    _remotePollInFlight = true;
+    final slotKey = state.viewedFilterKey;
+    final slotRevision = _hostRevisions?[slotKey];
+    final shown = state.filterStacks[slotKey];
+    if (slotRevision == null ||
+        shown == null ||
+        (shown.hasPixels && shown.revision == slotRevision)) {
+      _cancelFetchRetry();
+      return;
+    }
+    _cancelFetchRetry();
+    _fetchInFlight = true;
     try {
-      final result = await remote.stackingGetResult();
+      final result = await service.getCurrentResult(filterKey: slotKey);
+      _fetchInFlight = false;
       if (!_isCurrentSession(generation, backend) ||
           state.status != LiveStackingStatus.running) {
         return;
       }
-      _hadRemoteResult = true;
-      _consecutivePollFailures = 0;
-      state = state.copyWith(
-        stats: result.stats,
-        previewData: _asUint16List(result.data),
-        previewWidth: result.width,
-        previewHeight: result.height,
-        lastFrameTotalPixels: result.width * result.height,
-        clearErrorMessage: true,
-      );
+      _consecutiveFetchFailures = 0;
+      _showHostSlot(slotKey, slotRevision, result);
     } catch (e) {
+      _fetchInFlight = false;
       if (!_isCurrentSession(generation, backend) ||
           state.status != LiveStackingStatus.running) {
         return;
       }
-      // Before the host's first frame lands there is no result yet (404
-      // no_active_stack). Only that exact response is expected; authentication,
-      // transport, and malformed-payload failures must not be hidden forever.
-      final isWaitingForFirstFrame =
-          !_hadRemoteResult &&
-          ((e is ServerError && e.code == 'no_active_stack') ||
-              e.toString().contains('no_active_stack'));
-      if (isWaitingForFirstFrame) return;
-      _consecutivePollFailures++;
-      if (_consecutivePollFailures >= 3) {
-        _remotePollTimer?.cancel();
-        _remotePollTimer = null;
+      _consecutiveFetchFailures++;
+      if (_consecutiveFetchFailures >= 3) {
         _logger.error(
           'Lost contact with host stacker: $e',
           source: 'LiveStackingNotifier',
@@ -558,27 +285,135 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         // The host may still be stacking. Keep the session active so Stop is
         // available, but make the stale preview failure explicit and retryable.
         state = state.copyWith(errorMessage: 'Lost contact with host stacker');
+        return;
       }
-    } finally {
-      _remotePollInFlight = false;
+      _fetchRetryTimer = Timer(
+        PollPace.stretch(const Duration(milliseconds: 2500)),
+        () => unawaited(_fetchHostSlot(generation, backend)),
+      );
+      return;
+    }
+    if (state.viewedFilterKey != slotKey ||
+        _hostRevisions?[slotKey] != slotRevision) {
+      await _fetchHostSlot(generation, backend);
     }
   }
 
-  /// Retry a failed remote preview poll without restarting the host stack.
-  void retryRemotePolling() {
-    final remote = _remoteSessionBackend;
+  /// The host's live stack as the host's runtime channel describes it, on a
+  /// linked client. A stack the host runs, whoever armed it, is shown here
+  /// and can be reset or stopped from here. When the host's stack ends, this
+  /// client's view of it ends too; nothing is sent back to the host.
+  void applyHostStack(LiveStackSummary? host, SkotiqBackend backend) {
+    final service = _service;
+    if (!service.readsHost) return;
+    _hostRevisions = host == null
+        ? null
+        : {for (final slot in host.slots) slot.filterKey: slot.revision};
+    // This client's own start or stop is settling; the host's next update
+    // describes its outcome. A stack described during the start is shown
+    // once the start has armed it.
+    if (_startInFlight != null || _stopInFlight != null) {
+      if (_stopInFlight == null) {
+        _heldHostStack = host == null
+            ? null
+            : (summary: host, backend: backend);
+      }
+      return;
+    }
+    _heldHostStack = null;
+    final onThisHost =
+        state.status == LiveStackingStatus.running &&
+        _sessionOnHost &&
+        identical(_sessionAuthority, backend);
+    if (host == null) {
+      if (!onThisHost) return;
+      _invalidateSession();
+      state = LiveStackingState(config: state.config);
+      return;
+    }
+    if (!onThisHost) {
+      ++_sessionGeneration;
+      _sessionAuthority = backend;
+      _sessionService = service;
+      _consecutiveFetchFailures = 0;
+      state = LiveStackingState(
+        status: LiveStackingStatus.running,
+        isArmed: host.armed,
+        config: state.config,
+      );
+    }
+    final stacks = <String, FilterStackSnapshot>{
+      for (final slot in host.slots)
+        slot.filterKey:
+            (state.filterStacks[slot.filterKey] ??
+                    FilterStackSnapshot(filterKey: slot.filterKey))
+                .copyWith(stats: slot.stats, channels: slot.channels),
+    };
+    final keys = stacks.keys.toList()..sort(compareLiveStackFilters);
+    final selected = stacks.containsKey(state.selectedFilterKey)
+        ? state.selectedFilterKey
+        : keys.firstOrNull;
+    final next = state.copyWith(
+      isArmed: host.armed,
+      filterStacks: Map<String, FilterStackSnapshot>.unmodifiable(stacks),
+      frameLog: state.frameLog
+          .where((e) => stacks.containsKey(e.filterKey))
+          .toList(growable: false),
+    );
+    state = selected == null
+        ? LiveStackingState(
+            status: next.status,
+            isArmed: next.isArmed,
+            config: next.config,
+          )
+        : _mirrorSelectedFilter(next, stacks[selected]!);
     final authority = _sessionAuthority;
-    if (remote == null ||
+    if (authority != null) {
+      unawaited(_fetchHostSlot(_sessionGeneration, authority));
+    }
+  }
+
+  /// Show [result], the pixels of the host's [slotKey] at [revision].
+  void _showHostSlot(String slotKey, int revision, LiveStackingResult result) {
+    final known = state.filterStacks[slotKey];
+    if (known == null) return;
+    final snapshot = known.copyWith(
+      stats: result.stats,
+      previewData: _asUint16List(result.data),
+      previewWidth: result.width,
+      previewHeight: result.height,
+      channels: result.channels,
+      lastFrameTotalPixels: result.width * result.height,
+      revision: revision,
+    );
+    final next = state.copyWith(
+      filterStacks: Map<String, FilterStackSnapshot>.unmodifiable({
+        ...state.filterStacks,
+        slotKey: snapshot,
+      }),
+      clearErrorMessage: true,
+    );
+    state = next.viewedFilterKey == slotKey
+        ? _mirrorSelectedFilter(next, snapshot)
+        : next;
+  }
+
+  /// Fetch the host's pixels again after they could not be fetched, without
+  /// restarting the host stack.
+  void retryHostFetch() {
+    final service = _sessionService;
+    final authority = _sessionAuthority;
+    if (service == null ||
+        !service.readsHost ||
         authority == null ||
         state.status != LiveStackingStatus.running ||
-        !identical(remote, _ref.read(linkedHostLiveStackProvider)) ||
+        !identical(service, _ref.read(liveStackingServiceProvider)) ||
         _ref.backendScopeOver(authority).isStale) {
       return;
     }
-    _consecutivePollFailures = 0;
+    _consecutiveFetchFailures = 0;
     state = state.copyWith(clearErrorMessage: true);
-    final generation = _sessionGeneration;
-    _startRemotePolling(generation, authority);
+    unawaited(_fetchHostSlot(_sessionGeneration, authority));
   }
 
   /// Arm live stacking to automatically stack incoming captured frames without
@@ -588,8 +423,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   /// session in memory so the next frame captured (manual or sequenced) starts
   /// its filter's stack automatically.
   Future<void> arm({LiveStackingConfig? config}) {
-    final remote = _ref.read(linkedHostLiveStackProvider);
-    if (remote != null) {
+    if (_service.readsHost) {
       return startRemote(config: config);
     }
     return _trackStart(() => _armLocal(config: config));
@@ -608,7 +442,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
     ++_sessionGeneration;
     _sessionAuthority = authority;
-    _remoteSessionBackend = null;
     _sessionService = _service;
     final effectiveConfig = config ?? state.config;
     state = LiveStackingState(
@@ -632,6 +465,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       state.copyWith(selectedFilterKey: filterKey),
       snapshot,
     );
+    final authority = _sessionAuthority;
+    if (_sessionOnHost && authority != null) {
+      unawaited(_fetchHostSlot(_sessionGeneration, authority));
+    }
   }
 
   /// Mirror [snapshot] onto the top-level preview/stats fields so legacy
@@ -689,10 +526,29 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     );
   }
 
+  /// [startFromFile], or [startFromFileForFilter] with a [filterKey], for a
+  /// caller that answers with the outcome: a failure is recorded in the state
+  /// as usual and also completes the returned future with the stacker's error.
+  Future<void> startFromFileOrThrow(
+    String referenceImagePath, {
+    String? filterKey,
+    LiveStackingConfig? config,
+  }) {
+    return _trackStart(
+      () => _startFromFile(
+        referenceImagePath,
+        config: config,
+        filterKey: filterKey,
+        throwOnFailure: true,
+      ),
+    );
+  }
+
   Future<void> _startFromFile(
     String referenceImagePath, {
     LiveStackingConfig? config,
     String? filterKey,
+    bool throwOnFailure = false,
   }) async {
     final stopping = _stopInFlight;
     if (stopping != null) await stopping;
@@ -711,20 +567,16 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
 
     final int generation;
     final LiveStackingConfig effectiveConfig;
-    final HostLiveStack? remote;
-    final LiveStackingService? service;
+    final LiveStackingService service;
 
     if (isAlreadyRunningOnAuthority) {
       generation = _sessionGeneration;
       effectiveConfig = config ?? state.config;
-      remote = _remoteSessionBackend;
-      service = _sessionService;
+      service = _sessionService ?? _service;
     } else {
       generation = ++_sessionGeneration;
       _sessionAuthority = authority;
-      remote = _ref.read(linkedHostLiveStackProvider);
-      _remoteSessionBackend = remote;
-      service = remote != null ? null : _service;
+      service = _service;
       _sessionService = service;
       effectiveConfig = config ?? state.config;
       state = LiveStackingState(
@@ -735,22 +587,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
 
     try {
-      final stats = remote != null
-          ? await remote.stackingStart(
-              referencePath: referenceImagePath,
-              config: effectiveConfig,
-              filterKey: normalizedFilter,
-            )
-          : (normalizedFilter != null
-                ? await service!.startFromFileForFilter(
-                    filterKey: normalizedFilter,
-                    referenceImagePath: referenceImagePath,
-                    config: effectiveConfig,
-                  )
-                : await service!.startFromFile(
-                    referenceImagePath: referenceImagePath,
-                    config: effectiveConfig,
-                  ));
+      final stats = await service.start(
+        referenceImagePath: referenceImagePath,
+        config: effectiveConfig,
+        filterKey: normalizedFilter,
+      );
 
       if (!_isCurrentSession(generation, authority)) return;
 
@@ -765,11 +606,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       }
 
       // Surface the reference frame as the initial preview.
-      final result = remote != null
-          ? await remote.stackingGetResult(filterKey: normalizedFilter)
-          : (normalizedFilter != null
-                ? await service!.getCurrentResultForFilter(normalizedFilter)
-                : await service!.getCurrentResult());
+      final result = await service.getCurrentResult(
+        filterKey: normalizedFilter,
+      );
       if (!_isCurrentSession(generation, authority)) return;
 
       final resolvedKey =
@@ -847,6 +686,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         'Failed to start live stacking: $e',
         source: 'LiveStackingNotifier',
       );
+      if (throwOnFailure) rethrow;
     }
   }
 
@@ -930,7 +770,6 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     } else {
       generation = ++_sessionGeneration;
       _sessionAuthority = authority;
-      _remoteSessionBackend = null;
       service = _service;
       _sessionService = service;
       effectiveConfig = config ?? state.config;
@@ -942,22 +781,14 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     }
 
     try {
-      final stats = normalizedFilter != null
-          ? await service.startFromDataForFilter(
-              filterKey: normalizedFilter,
-              width: width,
-              height: height,
-              data: data,
-              pedestal: pedestal,
-              config: effectiveConfig,
-            )
-          : await service.startFromData(
-              width: width,
-              height: height,
-              data: data,
-              pedestal: pedestal,
-              config: effectiveConfig,
-            );
+      final stats = await service.startFromData(
+        width: width,
+        height: height,
+        data: data,
+        pedestal: pedestal,
+        config: effectiveConfig,
+        filterKey: normalizedFilter,
+      );
 
       if (!_isCurrentSession(generation, authority)) return;
 
@@ -968,9 +799,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       // Mirror startFromFile: surface the reference frame as the initial
       // preview so the panel and any auto-feed broadcast have an image
       // immediately rather than only after the second frame.
-      final result = normalizedFilter != null
-          ? await service.getCurrentResultForFilter(normalizedFilter)
-          : await service.getCurrentResult();
+      final result = await service.getCurrentResult(
+        filterKey: normalizedFilter,
+      );
       if (!_isCurrentSession(generation, authority)) return;
 
       final resolvedKey =
@@ -1026,7 +857,13 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   /// the next step is attached with [Future.then], which never runs when the
   /// previous future completed with an error, so its completer would stay
   /// pending forever.
-  Future<void> _enqueueIngest(Future<void> Function() body) {
+  ///
+  /// With [propagate] a failing step completes its caller with the error
+  /// instead of being logged here.
+  Future<void> _enqueueIngest(
+    Future<void> Function() body, {
+    bool propagate = false,
+  }) {
     final completer = Completer<void>();
     final settled = _ingestChain.then<void>(
       (_) {},
@@ -1035,7 +872,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final done = settled.then((_) async {
       try {
         await body();
-      } catch (error) {
+      } catch (error, stackTrace) {
+        if (propagate) {
+          completer.completeError(error, stackTrace);
+          return;
+        }
         _logger.error(
           'Live stack ingest step failed: ${_stackErrorText(error)}',
           source: 'LiveStackingNotifier',
@@ -1099,7 +940,39 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     });
   }
 
-  Future<void> _ingestFrameFromFileWithMetadata(
+  /// Add [imagePath] to the active slot of a running stack and return the
+  /// stacked result, for a caller that answers with the outcome. A frame the
+  /// stacker refuses is recorded in the state as usual and also completes the
+  /// returned future with the stacker's error.
+  Future<LiveStackingResult> addFrameFromFileOrThrow(String imagePath) async {
+    final generation = _sessionGeneration;
+    final authority = _sessionAuthority;
+    if (state.status != LiveStackingStatus.running || authority == null) {
+      throw StateError('Live stacker not initialized');
+    }
+    LiveStackingResult? added;
+    await _enqueueIngest(() async {
+      if (!_isCurrentSession(generation, authority) ||
+          state.status != LiveStackingStatus.running) {
+        return;
+      }
+      added = await _ingestFrameFromFileWithMetadata(
+        imagePath,
+        generation: generation,
+        authority: authority,
+        throwOnFailure: true,
+      );
+    }, propagate: true);
+    final result = added;
+    if (result == null) {
+      throw StateError('Live stacking stopped before $imagePath was added');
+    }
+    return result;
+  }
+
+  /// The stacked result after [imagePath] joined it; null when the frame was
+  /// skipped, started a new filter slot, or the session ended meanwhile.
+  Future<LiveStackingResult?> _ingestFrameFromFileWithMetadata(
     String imagePath, {
     required int generation,
     required Object authority,
@@ -1107,8 +980,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     double? exposureSecs,
     double? hfr,
     int? starCount,
+    bool throwOnFailure = false,
   }) async {
-    if (state.status != LiveStackingStatus.running) return;
+    if (state.status != LiveStackingStatus.running) return null;
 
     final targetFilter = state.config.separateByFilter
         ? (filter != null
@@ -1129,7 +1003,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         detectedStars: starCount,
         exposureSecs: exposureSecs,
       );
-      return;
+      return null;
     }
     final minStars = state.config.minStarCount;
     if (minStars != null && starCount != null && starCount < minStars) {
@@ -1142,17 +1016,17 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         detectedStars: starCount,
         exposureSecs: exposureSecs,
       );
-      return;
+      return null;
     }
 
-    final remote = _remoteSessionBackend;
     final service = _sessionService;
+    final onHost = _sessionOnHost;
 
     // If locally armed (no stack yet) OR a brand-new filter arrived while
     // `separateByFilter` is active, initialize that filter's stack with this
     // frame as its reference!
     final needsNewFilterStack =
-        remote == null &&
+        !onHost &&
         service != null &&
         ((state.isArmed && state.filterStacks.isEmpty) ||
             (state.config.separateByFilter &&
@@ -1168,26 +1042,22 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         referenceImagePath: imagePath,
         exposureSecs: exposureSecs,
       );
-      return;
+      return null;
     }
 
     try {
       final useExplicitFilter =
-          remote == null &&
+          !onHost &&
           filter != null &&
           state.filterStacks.containsKey(targetFilter);
-      final result = remote != null
-          ? await remote.stackingAddFrame(imagePath)
-          : (useExplicitFilter
-                ? await service!.addFrameFromFileForFilter(
-                    imagePath,
-                    filterKey: targetFilter,
-                  )
-                : await service!.addFrameFromFile(imagePath));
+      final result = await service!.addFrameFromFile(
+        imagePath,
+        filterKey: useExplicitFilter ? targetFilter : null,
+      );
 
       if (!_isCurrentSession(generation, authority) ||
           state.status != LiveStackingStatus.running) {
-        return;
+        return null;
       }
 
       _applyAcceptedResult(
@@ -1196,8 +1066,9 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         sourceLabel: p.basename(imagePath),
         exposureSecs: exposureSecs,
       );
+      return result;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       _logger.warning('Frame rejected: $e', source: 'LiveStackingNotifier');
       await _publishRejectionStats(
         generation,
@@ -1210,6 +1081,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         sourceLabel: p.basename(imagePath),
         exposureSecs: exposureSecs,
       );
+      if (throwOnFailure) rethrow;
+      return null;
     }
   }
 
@@ -1222,16 +1095,16 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     double? exposureSecs,
   }) async {
     try {
-      await service.startFromFileForFilter(
-        filterKey: filterKey,
+      await service.start(
         referenceImagePath: referenceImagePath,
         config: state.config,
+        filterKey: filterKey,
       );
       if (!_isCurrentSession(generation, authority) ||
           state.status != LiveStackingStatus.running) {
         return;
       }
-      final result = await service.getCurrentResultForFilter(filterKey);
+      final result = await service.getCurrentResult(filterKey: filterKey);
       if (!_isCurrentSession(generation, authority) ||
           state.status != LiveStackingStatus.running) {
         return;
@@ -1425,7 +1298,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         return;
       }
       final service = _sessionService;
-      if (_remoteSessionBackend != null || service == null) return;
+      if (service == null || service.readsHost) return;
       final targetFilter =
           state.selectedFilterKey ?? kDefaultLiveStackFilterKey;
       try {
@@ -1490,12 +1363,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       stats = error.stats;
     } else {
       try {
-        final remote = _remoteSessionBackend;
-        stats = remote != null
-            ? await remote.stackingGetStats()
-            : (filterKey != null
-                  ? await _sessionService?.getStatsForFilter(filterKey)
-                  : await _sessionService?.getStats());
+        stats = await _sessionService?.getStats(filterKey: filterKey);
       } catch (e) {
         _logger.debug(
           'Live stacker rejection stats read failed: $e',
@@ -1556,8 +1424,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     state = state.copyWith(config: config);
     final service = _sessionService;
     if (state.status == LiveStackingStatus.running &&
-        _remoteSessionBackend == null &&
         service != null &&
+        !service.readsHost &&
         state.filterStacks.isNotEmpty) {
       unawaited(
         service.updateLiveConfig(config).catchError((Object e) {
@@ -1571,7 +1439,10 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
   }
 
   /// Reset one specific filter stack while preserving other active filters.
-  Future<void> resetFilter(String filterKey) {
+  ///
+  /// With [throwOnFailure] a failure also completes the returned future with
+  /// the stacker's error.
+  Future<void> resetFilter(String filterKey, {bool throwOnFailure = false}) {
     final normalizedKey = normalizeLiveStackFilterKey(filterKey);
     if (state.status != LiveStackingStatus.running) {
       return Future<void>.value();
@@ -1588,13 +1459,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       final existing = state.filterStacks[normalizedKey];
       if (existing == null) return;
       try {
-        final remote = _remoteSessionBackend;
-        final service = _sessionService;
-        if (remote != null) {
-          await remote.stackingReset(filterKey: normalizedKey);
-        } else {
-          await service!.resetForFilter(normalizedKey);
-        }
+        await _sessionService!.reset(filterKey: normalizedKey);
         if (!_isCurrentSession(generation, authority)) return;
         final latest = state.filterStacks[normalizedKey] ?? existing;
         final cleared = latest.copyWith(
@@ -1627,17 +1492,24 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           errorMessage:
               'Failed to reset $normalizedKey stack: ${userFacingError(e)}',
         );
+        if (throwOnFailure) rethrow;
       }
-    });
+    }, propagate: throwOnFailure);
   }
 
   /// Stop and release a single filter stack. If it was the last remaining
   /// filter, stops the entire session cleanly.
-  Future<void> stopFilter(String filterKey) async {
+  ///
+  /// With [throwOnFailure] a failure also completes the returned future with
+  /// the stacker's error.
+  Future<void> stopFilter(
+    String filterKey, {
+    bool throwOnFailure = false,
+  }) async {
     final normalizedKey = normalizeLiveStackFilterKey(filterKey);
     if (!state.filterStacks.containsKey(normalizedKey)) return;
-    if (_remoteSessionBackend == null && state.filterStacks.length <= 1) {
-      await stop();
+    if (!_sessionOnHost && state.filterStacks.length <= 1) {
+      await (throwOnFailure ? stopOrThrow() : stop());
       return;
     }
     final authority = _sessionAuthority;
@@ -1648,18 +1520,12 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     await _enqueueIngest(() async {
       if (!_isCurrentSession(generation, authority)) return;
       if (!state.filterStacks.containsKey(normalizedKey)) return;
-      if (_remoteSessionBackend == null && state.filterStacks.length <= 1) {
+      if (!_sessionOnHost && state.filterStacks.length <= 1) {
         stopWholeSession = true;
         return;
       }
       try {
-        final remote = _remoteSessionBackend;
-        final service = _sessionService;
-        if (remote != null) {
-          await remote.stackingStop(filterKey: normalizedKey);
-        } else if (service != null) {
-          await service.stopForFilter(normalizedKey);
-        }
+        await _sessionService?.stop(filterKey: normalizedKey);
         if (!_isCurrentSession(generation, authority)) return;
         final updatedStacks = Map<String, FilterStackSnapshot>.of(
           state.filterStacks,
@@ -1695,10 +1561,11 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           errorMessage:
               'Failed to stop $normalizedKey stack: ${userFacingError(e)}',
         );
+        if (throwOnFailure) rethrow;
       }
-    });
+    }, propagate: throwOnFailure);
     if (stopWholeSession) {
-      await stop();
+      await (throwOnFailure ? stopOrThrow() : stop());
     }
   }
 
@@ -1728,25 +1595,24 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
     final authority = _sessionAuthority;
     if (authority == null || state.status != LiveStackingStatus.running) return;
     final generation = ++_sessionGeneration;
-    _remotePollTimer?.cancel();
-    _remotePollTimer = null;
+    _cancelFetchRetry();
     try {
-      final remote = _remoteSessionBackend;
-      final service = _sessionService;
+      final service = _sessionService!;
+      final onHost = service.readsHost;
       final existingFilterKeys = state.filterStacks.keys.toList(
         growable: false,
       );
       final hasNamedFilter = existingFilterKeys.any(
         (key) => key != kDefaultLiveStackFilterKey,
       );
-      if (remote != null) {
-        await remote.stackingReset();
+      if (onHost) {
+        await service.reset();
       } else if (existingFilterKeys.length > 1 || hasNamedFilter) {
         for (final key in existingFilterKeys) {
-          await service!.resetForFilter(key);
+          await service.reset(filterKey: key);
         }
       } else {
-        await service!.reset();
+        await service.reset();
       }
       if (!_isCurrentSession(generation, authority)) return;
       // Rebuild from scratch (preserving config) so per-frame counters and the
@@ -1756,7 +1622,7 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
         isArmed: state.isArmed,
         config: state.config,
       );
-      if (remote != null) _startRemotePolling(generation, authority);
+      if (onHost) unawaited(_fetchHostSlot(generation, authority));
     } catch (e) {
       if (!_isCurrentSession(generation, authority)) return;
       _logger.error(
@@ -1766,34 +1632,40 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       state = state.copyWith(
         errorMessage: 'Failed to reset stack: ${userFacingError(e)}',
       );
-      final remote = _remoteSessionBackend;
-      if (remote != null) _startRemotePolling(generation, authority);
+      if (_sessionOnHost) unawaited(_fetchHostSlot(generation, authority));
     }
   }
 
   /// Stop stacking and release resources.
-  Future<void> stop() {
+  Future<void> stop() => _trackStop(throwOnFailure: false);
+
+  /// [stop] for a caller that answers with the outcome: a failure other than
+  /// "nothing was started" also completes the returned future with the
+  /// stacker's error. A stop already in flight is joined as it is.
+  Future<void> stopOrThrow() => _trackStop(throwOnFailure: true);
+
+  Future<void> _trackStop({required bool throwOnFailure}) {
     final active = _stopInFlight;
     if (active != null) return active;
-    final future = _stop();
+    final future = _stop(throwOnFailure: throwOnFailure);
     _stopInFlight = future;
+    // The caller receives the outcome; this bookkeeping copy must not report
+    // a failure a second time as unhandled.
     future.whenComplete(() {
       if (identical(_stopInFlight, future)) _stopInFlight = null;
-    });
+    }).ignore();
     return future;
   }
 
-  Future<void> _stop() async {
+  Future<void> _stop({required bool throwOnFailure}) async {
     final config = state.config;
     final authority = _sessionAuthority ?? _ref.read(backendProvider);
-    final remote = _remoteSessionBackend;
     final service = _sessionService;
+    final onHost = _sessionOnHost;
     final generation = ++_sessionGeneration;
-    _remotePollTimer?.cancel();
-    _remotePollTimer = null;
-    _remotePollInFlight = false;
-    _hadRemoteResult = false;
-    _consecutivePollFailures = 0;
+    _cancelFetchRetry();
+    _fetchInFlight = false;
+    _consecutiveFetchFailures = 0;
     try {
       // A Stop racing Start or an in-flight frame ingest must be ordered after
       // both settle; otherwise Start/ingest can create a native stacker after
@@ -1805,12 +1677,8 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
       } catch (_) {
         // Ingest errors are owned by their callers.
       }
-      if (remote != null) {
-        await remote.stackingStop();
-      } else if (service != null) {
-        await service.stop();
-      }
-    } catch (e) {
+      await service?.stop();
+    } catch (e, stackTrace) {
       // An armed session that never received a frame has no native slot.
       // api_stacking_stop reports that as "not initialized". The stop still
       // succeeded: the in-flight start/ingest above was waited out, and
@@ -1827,19 +1695,19 @@ class LiveStackingNotifier extends StateNotifier<LiveStackingState> {
           state = state.copyWith(
             errorMessage: 'Failed to stop stack: ${userFacingError(e)}',
           );
-          if (remote != null &&
+          if (onHost &&
               authority != null &&
               state.status == LiveStackingStatus.running) {
-            _startRemotePolling(generation, authority);
+            unawaited(_fetchHostSlot(generation, authority));
           }
         }
+        if (throwOnFailure) Error.throwWithStackTrace(e, stackTrace);
         return;
       }
     }
 
     if (!mounted || generation != _sessionGeneration) return;
     _sessionAuthority = null;
-    _remoteSessionBackend = null;
     _sessionService = null;
     state = LiveStackingState(config: config);
   }

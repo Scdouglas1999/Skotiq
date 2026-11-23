@@ -18,7 +18,7 @@
 /// `sequence_tree_shortcuts.dart`, which pulls in `flutter/material`) that
 /// would break this file's purity.
 ///
-/// Rendering (wave 2) consumes [foldChildren] per parent instead of the raw
+/// Rendering consumes [foldChildren] per parent instead of the raw
 /// child list; the returned [TreeEntry]s are the ONLY contract it sees, so the
 /// shapes here carry everything a folded row needs to paint — label, chip,
 /// shared capture spec, member ids and per-member labels — without a second
@@ -28,6 +28,8 @@ library;
 import 'package:equatable/equatable.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart'
+    show ExposureFramesRules, exposureNodeFrames;
 
 /// Which kind of contiguous sibling run a [FoldGroup] collapses into one row.
 enum FoldKind {
@@ -293,15 +295,10 @@ List<TreeEntry> foldChildren(
 /// Per-member progress text for the folded row's summary column:
 /// `Ha 6/12 · OIII 6/12 · SII 6/12`.
 ///
-/// Captured counts come from the same sources `_ExposureProgressPanel` reads,
-/// in the same precedence — the typed [ExposureInstructionProgressDetail]
-/// first, the legacy string detail second, node status last — with ONE
-/// documented gap: the panel's preferred source, `nodeExposureTallyProvider`,
-/// is a separate provider and therefore not visible through the
-/// [SequenceProgress] parameter this signature is fixed to. Structured detail
-/// carries the same number the tally counts (`frame` is a post-capture count,
-/// see `node_exposure_tally.dart`), so the divergence is limited to hosts
-/// whose executor emits no structured progress at all.
+/// Captured counts come from [exposureNodeFrames], without the per-step
+/// tally: this signature takes only the [SequenceProgress]. The typed report
+/// carries the same count the tally does, so the two differ only where a step
+/// sends no typed exposure report.
 ///
 /// Only meaningful for [FoldKind.filterRun]; returns an empty string for
 /// other kinds and whenever no member has run data yet (a pending run must
@@ -331,16 +328,6 @@ String foldProgressText(FoldGroup group, SequenceProgress progress) {
           '/${frames[i]?.planned ?? fallbackPlanned}',
   ].join(' · ');
 }
-
-/// Ids of every node hidden inside the folded groups of [entries] — the set
-/// a tree renderer must NOT draw as individual rows. Includes the members'
-/// representative (member 0) too: callers that need "draw these ids" vs "hide
-/// these ids" distinguish via [FoldedEntry] itself; this is the membership
-/// set, used for selection expands ("click selects all members").
-Set<String> foldedMemberIds(List<TreeEntry> entries) => <String>{
-      for (final entry in entries)
-        if (entry is FoldedEntry) ...entry.group.memberIds,
-    };
 
 /// Filter runs fold frames the night will actually shoot: a disabled node
 /// breaks the run, and a non-leaf is excluded because a folded row cannot
@@ -563,45 +550,20 @@ String _filterLabel(ExposureNode node) {
 String _acquireVerb(SequenceNode node) => _acquireVerbs[node.kind]!;
 
 /// Frames captured for one member, or null when the member has no run data.
-///
-/// Precedence mirrors `_ExposureProgressPanel`: structured detail, then the
-/// string detail, then node status. A structured `frame` is already a
-/// captured count (the native callback fires after the frame lands); the
-/// string wordings distinguish "Frame n/m" (n in flight → n-1 captured) from
-/// "Completed n/m" (n captured) — see `exposure_progress_vocabulary.dart`.
 ({int captured, int planned})? _memberFrameProgress(
   String nodeId,
   int fallbackPlanned,
   SequenceProgress progress,
 ) {
-  final structured = progress.nodeProgressStructuredDetail[nodeId];
-  if (structured is ExposureInstructionProgressDetail && structured.total > 0) {
-    return (
-      captured: structured.frame.clamp(0, structured.total),
-      planned: structured.total,
-    );
-  }
-  final parsed = parseExposureProgressDetail(
-    progress.nodeProgressDetail[nodeId] ?? '',
+  final frames = exposureNodeFrames(
+    typed: progress.nodeProgressStructuredDetail[nodeId],
+    line: progress.nodeProgressDetail[nodeId],
+    status: progress.nodeStatuses[nodeId],
+    plannedFallback: fallbackPlanned,
+    rules: const ExposureFramesRules(statusWhenSilent: true),
   );
-  if (parsed != null) {
-    final captured = parsed.frameCompleted ? parsed.frame : parsed.frame - 1;
-    return (
-      captured: captured.clamp(0, parsed.total),
-      planned: parsed.total > 0 ? parsed.total : fallbackPlanned,
-    );
-  }
-  switch (progress.nodeStatuses[nodeId]) {
-    case NodeStatus.success:
-      return (captured: fallbackPlanned, planned: fallbackPlanned);
-    case NodeStatus.running ||
-          NodeStatus.failure ||
-          NodeStatus.skipped ||
-          NodeStatus.cancelled:
-      return (captured: 0, planned: fallbackPlanned);
-    case NodeStatus.pending || null:
-      return null;
-  }
+  if (frames == null) return null;
+  return (captured: frames.captured, planned: frames.planned!);
 }
 
 /// Stable group id: FNV-1a over the SORTED member ids.

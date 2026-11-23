@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 import '../tokens/shell_chrome_metrics.dart';
 
 /// One rail destination (04-shell §3.1).
@@ -73,7 +71,7 @@ class _NavItemState extends State<NavItem> {
     return Semantics(
       // Semantics publishes isEnabled only when this field is given;
       // omitting it makes assistive tech announce a live control as
-      // disabled. Measured on the running app 2026-08-09.
+      // disabled.
       enabled: true,
       button: true,
       selected: widget.isSelected,

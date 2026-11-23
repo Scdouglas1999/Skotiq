@@ -52,10 +52,11 @@ impl ExecutorHandle {
                 crate::GuidingStopReason::MountFault,
             )
             .await;
-            let mut ts = trigger_state.write().await;
-            ts.set_guiding_enabled(false);
-            ts.set_guide_star_lost(false);
-            ts.guiding.set_resume_pending(true);
+            trigger_state
+                .write()
+                .await
+                .guiding
+                .guiding_stopped_by_motion();
         }
         self.run_state.set_message(format!("Paused: {message}"));
         // No executor error: an error reads as the run failing, and the
@@ -76,9 +77,9 @@ impl ExecutorHandle {
     }
 
     /// Record an operator's (or the device layer's) action on the run in its
-    /// decision log.
+    /// decision log. With no run under way there is no run to record it in.
     pub(crate) fn emit_manual_intervention(&self, action: &str, details: serde_json::Value) {
-        if !self.settings.read().decision_logging_enabled {
+        if !self.settings.read().decision_logging_enabled || !self.run_state.run_in_flight() {
             return;
         }
         let _ = self

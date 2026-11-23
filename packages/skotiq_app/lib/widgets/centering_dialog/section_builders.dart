@@ -48,7 +48,7 @@ extension _CenteringDialogSectionBuilders on _CenteringDialogState {
     SkotiqColors colors,
     ThemeData theme,
   ) {
-    final maxHeight = clampPanelWidth(
+    final maxHeight = panelWidthFromFraction(
       MediaQuery.sizeOf(context).height,
       fraction: 0.45,
       min: 200,

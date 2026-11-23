@@ -191,312 +191,19 @@ String _sentence(String message) {
   return body.endsWith('.') ? body : '$body.';
 }
 
+/// One profile of an export file.
 class ProfileExportData {
-  final String name;
-  final String? description;
-  final String? cameraId;
-  final String? mountId;
-  final String? focuserId;
-  final String? filterWheelId;
-  final String? guiderId;
-  final String? guideCameraId;
-  final double? guideFocalLength;
-  final String? rotatorId;
-  final String? domeId;
-  final String? weatherId;
-  final String? safetyMonitorId;
-  final String? switchId;
-  final String? coverCalibratorId;
-  final String? cameraName;
-  final String? mountName;
-  final String? focuserName;
-  final String? filterWheelName;
-  final String? guiderName;
-  final String? guideCameraName;
-  final String? rotatorName;
-  final String? safetyMonitorName;
-  final String? switchName;
-  final String? telescopeName;
-  final double? telescopeFocalLength;
-  final double? telescopeAperture;
-  final double focalLength;
-  final double aperture;
-  final double? focalRatio;
-  final int? defaultGain;
-  final int? defaultOffset;
-  final String? defaultReadoutMode;
-  final int defaultBinX;
-  final int defaultBinY;
-  final double? defaultCoolingTemp;
-  final bool coolOnConnect;
-  final double? defaultCenteringExposure;
-  final List<String>? filterNames;
-  final Map<String, int>? filterFocusOffsets;
-  final String? meridianFlipOverrides;
-  final String? profileIcon;
-  final int? profileColor;
+  const ProfileExportData(this.profile);
 
-  ProfileExportData({
-    required this.name,
-    this.description,
-    this.cameraId,
-    this.mountId,
-    this.focuserId,
-    this.filterWheelId,
-    this.guiderId,
-    this.guideCameraId,
-    this.guideFocalLength,
-    this.rotatorId,
-    this.domeId,
-    this.weatherId,
-    this.safetyMonitorId,
-    this.switchId,
-    this.coverCalibratorId,
-    this.cameraName,
-    this.mountName,
-    this.focuserName,
-    this.filterWheelName,
-    this.guiderName,
-    this.guideCameraName,
-    this.rotatorName,
-    this.safetyMonitorName,
-    this.switchName,
-    this.telescopeName,
-    this.telescopeFocalLength,
-    this.telescopeAperture,
-    required this.focalLength,
-    required this.aperture,
-    this.focalRatio,
-    this.defaultGain,
-    this.defaultOffset,
-    this.defaultReadoutMode,
-    required this.defaultBinX,
-    required this.defaultBinY,
-    this.defaultCoolingTemp,
-    this.coolOnConnect = false,
-    this.defaultCenteringExposure,
-    this.filterNames,
-    this.filterFocusOffsets,
-    this.meridianFlipOverrides,
-    this.profileIcon,
-    this.profileColor,
-  });
-
-  factory ProfileExportData.fromDatabase(DbEquipmentProfile profile) {
-    List<String>? filterNames;
-    Map<String, int>? filterOffsets;
-
-    if (profile.filterNames != null) {
-      try {
-        filterNames = decodeStringListJson(
-          profile.filterNames,
-          context: 'equipment_profiles.filter_names for "${profile.name}"',
-        );
-      } catch (e) {
-        // Malformed filter names JSON - skip
-        Log.error(
-          'ProfileService: Failed to parse filterNames: $e',
-          source: 'ProfileService',
-          error: e,
-        );
-      }
-    }
-
-    if (profile.filterFocusOffsets != null) {
-      try {
-        filterOffsets = decodeStringIntMapJson(
-          profile.filterFocusOffsets,
-          context:
-              'equipment_profiles.filter_focus_offsets for "${profile.name}"',
-        );
-      } catch (e) {
-        // Malformed filter offsets JSON - skip
-        Log.error(
-          'ProfileService: Failed to parse filterFocusOffsets: $e',
-          source: 'ProfileService',
-          error: e,
-        );
-      }
-    }
-
-    return ProfileExportData(
-      name: profile.name,
-      description: profile.description,
-      cameraId: profile.cameraId,
-      mountId: profile.mountId,
-      focuserId: profile.focuserId,
-      filterWheelId: profile.filterWheelId,
-      guiderId: profile.guiderId,
-      guideCameraId: profile.guideCameraId,
-      guideFocalLength: profile.guideFocalLength,
-      rotatorId: profile.rotatorId,
-      domeId: profile.domeId,
-      weatherId: profile.weatherId,
-      safetyMonitorId: profile.safetyMonitorId,
-      switchId: profile.switchId,
-      coverCalibratorId: profile.coverCalibratorId,
-      cameraName: profile.cameraName,
-      mountName: profile.mountName,
-      focuserName: profile.focuserName,
-      filterWheelName: profile.filterWheelName,
-      guiderName: profile.guiderName,
-      guideCameraName: profile.guideCameraName,
-      rotatorName: profile.rotatorName,
-      safetyMonitorName: profile.safetyMonitorName,
-      switchName: profile.switchName,
-      telescopeName: profile.telescopeName,
-      telescopeFocalLength: profile.telescopeFocalLength,
-      telescopeAperture: profile.telescopeAperture,
-      focalLength: profile.focalLength,
-      aperture: profile.aperture,
-      focalRatio: profile.focalRatio,
-      defaultGain: profile.defaultGain,
-      defaultOffset: profile.defaultOffset,
-      defaultReadoutMode: profile.defaultReadoutMode,
-      defaultBinX: profile.defaultBinX,
-      defaultBinY: profile.defaultBinY,
-      defaultCoolingTemp: profile.defaultCoolingTemp,
-      coolOnConnect: profile.coolOnConnect,
-      defaultCenteringExposure: profile.defaultCenteringExposure,
-      filterNames: filterNames,
-      filterFocusOffsets: filterOffsets,
-      meridianFlipOverrides: profile.meridianFlipOverrides,
-      profileIcon: profile.profileIcon,
-      profileColor: profile.profileColor,
-    );
-  }
-
-  factory ProfileExportData.fromModel(EquipmentProfileModel profile) {
-    return ProfileExportData(
-      name: profile.name,
-      description: profile.description,
-      cameraId: profile.cameraId,
-      mountId: profile.mountId,
-      focuserId: profile.focuserId,
-      filterWheelId: profile.filterWheelId,
-      guiderId: profile.guiderId,
-      guideCameraId: profile.guideCameraId,
-      guideFocalLength: profile.guideFocalLength,
-      rotatorId: profile.rotatorId,
-      domeId: profile.domeId,
-      weatherId: profile.weatherId,
-      safetyMonitorId: profile.safetyMonitorId,
-      switchId: profile.switchId,
-      coverCalibratorId: profile.coverCalibratorId,
-      cameraName: profile.cameraName,
-      mountName: profile.mountName,
-      focuserName: profile.focuserName,
-      filterWheelName: profile.filterWheelName,
-      guiderName: profile.guiderName,
-      guideCameraName: profile.guideCameraName,
-      rotatorName: profile.rotatorName,
-      safetyMonitorName: profile.safetyMonitorName,
-      switchName: profile.switchName,
-      telescopeName: profile.telescopeName,
-      telescopeFocalLength: profile.telescopeFocalLength,
-      telescopeAperture: profile.telescopeAperture,
-      focalLength: profile.focalLength,
-      aperture: profile.aperture,
-      focalRatio: profile.focalRatio,
-      defaultGain: profile.defaultGain,
-      defaultOffset: profile.defaultOffset,
-      defaultReadoutMode: profile.defaultReadoutMode,
-      defaultBinX: profile.defaultBinX,
-      defaultBinY: profile.defaultBinY,
-      defaultCoolingTemp: profile.defaultCoolingTemp,
-      coolOnConnect: profile.coolOnConnect,
-      defaultCenteringExposure: profile.defaultCenteringExposure,
-      filterNames: profile.filterNames.isNotEmpty ? profile.filterNames : null,
-      filterFocusOffsets: profile.filterFocusOffsets.isNotEmpty
-          ? profile.filterFocusOffsets
-          : null,
-      meridianFlipOverrides: profile.meridianFlipOverrides,
-      profileIcon: profile.profileIcon,
-      profileColor: profile.profileColor,
-    );
-  }
+  factory ProfileExportData.fromModel(EquipmentProfileModel profile) =>
+      ProfileExportData(profile);
 
   factory ProfileExportData.fromJson(Map<String, dynamic> json) {
     final name = json['name'];
     if (name is! String || name.trim().isEmpty) {
       throw const FormatException('Profile name must be a non-empty string');
     }
-    final data = ProfileExportData(
-      name: name.trim(),
-      description: _profileText(json['description'], 'description'),
-      cameraId: _profileText(json['cameraId'], 'cameraId'),
-      mountId: _profileText(json['mountId'], 'mountId'),
-      focuserId: _profileText(json['focuserId'], 'focuserId'),
-      filterWheelId: _profileText(json['filterWheelId'], 'filterWheelId'),
-      guiderId: _profileText(json['guiderId'], 'guiderId'),
-      guideCameraId: _profileText(json['guideCameraId'], 'guideCameraId'),
-      guideFocalLength: _profileDouble(
-        json['guideFocalLength'],
-        'guideFocalLength',
-      ),
-      rotatorId: _profileText(json['rotatorId'], 'rotatorId'),
-      domeId: _profileText(json['domeId'], 'domeId'),
-      weatherId: _profileText(json['weatherId'], 'weatherId'),
-      safetyMonitorId: _profileText(json['safetyMonitorId'], 'safetyMonitorId'),
-      switchId: _profileText(json['switchId'], 'switchId'),
-      coverCalibratorId: _profileText(
-        json['coverCalibratorId'],
-        'coverCalibratorId',
-      ),
-      cameraName: _profileText(json['cameraName'], 'cameraName'),
-      mountName: _profileText(json['mountName'], 'mountName'),
-      focuserName: _profileText(json['focuserName'], 'focuserName'),
-      filterWheelName: _profileText(json['filterWheelName'], 'filterWheelName'),
-      guiderName: _profileText(json['guiderName'], 'guiderName'),
-      guideCameraName: _profileText(json['guideCameraName'], 'guideCameraName'),
-      rotatorName: _profileText(json['rotatorName'], 'rotatorName'),
-      safetyMonitorName: _profileText(
-        json['safetyMonitorName'],
-        'safetyMonitorName',
-      ),
-      switchName: _profileText(json['switchName'], 'switchName'),
-      telescopeName: _profileText(json['telescopeName'], 'telescopeName'),
-      telescopeFocalLength: _profileDouble(
-        json['telescopeFocalLength'],
-        'telescopeFocalLength',
-      ),
-      telescopeAperture: _profileDouble(
-        json['telescopeAperture'],
-        'telescopeAperture',
-      ),
-      focalLength: _profileDouble(json['focalLength'], 'focalLength') ?? 0.0,
-      aperture: _profileDouble(json['aperture'], 'aperture') ?? 0.0,
-      focalRatio: _profileDouble(json['focalRatio'], 'focalRatio'),
-      defaultGain: _profileInt(json['defaultGain'], 'defaultGain'),
-      defaultOffset: _profileInt(json['defaultOffset'], 'defaultOffset'),
-      defaultReadoutMode: _profileText(
-        json['defaultReadoutMode'],
-        'defaultReadoutMode',
-      ),
-      defaultBinX: _profileInt(json['defaultBinX'], 'defaultBinX') ?? 1,
-      defaultBinY: _profileInt(json['defaultBinY'], 'defaultBinY') ?? 1,
-      defaultCoolingTemp: _profileDouble(
-        json['defaultCoolingTemp'],
-        'defaultCoolingTemp',
-      ),
-      coolOnConnect:
-          _profileBool(json['coolOnConnect'], 'coolOnConnect') ?? false,
-      defaultCenteringExposure: _profileDouble(
-        json['defaultCenteringExposure'],
-        'defaultCenteringExposure',
-      ),
-      filterNames: _profileStringList(json['filterNames'], 'filterNames'),
-      filterFocusOffsets: _profileIntMap(
-        json['filterFocusOffsets'],
-        'filterFocusOffsets',
-      ),
-      meridianFlipOverrides: _profileText(
-        json['meridianFlipOverrides'],
-        'meridianFlipOverrides',
-      ),
-      profileIcon: _profileText(json['profileIcon'], 'profileIcon'),
-      profileColor: _profileInt(json['profileColor'], 'profileColor'),
-    );
+    final data = _profileFromExportJson(json, name: name.trim());
     if (!data.focalLength.isFinite || data.focalLength < 0) {
       throw const FormatException('Profile focalLength must be non-negative');
     }
@@ -566,57 +273,127 @@ class ProfileExportData {
         );
       }
     }
-    return data;
+    return ProfileExportData(data);
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'description': description,
-      'cameraId': cameraId,
-      'mountId': mountId,
-      'focuserId': focuserId,
-      'filterWheelId': filterWheelId,
-      'guiderId': guiderId,
-      'guideCameraId': guideCameraId,
-      'guideFocalLength': guideFocalLength,
-      'rotatorId': rotatorId,
-      'domeId': domeId,
-      'weatherId': weatherId,
-      'safetyMonitorId': safetyMonitorId,
-      'switchId': switchId,
-      'coverCalibratorId': coverCalibratorId,
-      'cameraName': cameraName,
-      'mountName': mountName,
-      'focuserName': focuserName,
-      'filterWheelName': filterWheelName,
-      'guiderName': guiderName,
-      'guideCameraName': guideCameraName,
-      'rotatorName': rotatorName,
-      'safetyMonitorName': safetyMonitorName,
-      'switchName': switchName,
-      'telescopeName': telescopeName,
-      'telescopeFocalLength': telescopeFocalLength,
-      'telescopeAperture': telescopeAperture,
-      'focalLength': focalLength,
-      'aperture': aperture,
-      'focalRatio': focalRatio,
-      'defaultGain': defaultGain,
-      'defaultOffset': defaultOffset,
-      'defaultReadoutMode': defaultReadoutMode,
-      'defaultBinX': defaultBinX,
-      'defaultBinY': defaultBinY,
-      'defaultCoolingTemp': defaultCoolingTemp,
-      'coolOnConnect': coolOnConnect,
-      'defaultCenteringExposure': defaultCenteringExposure,
-      'filterNames': filterNames,
-      'filterFocusOffsets': filterFocusOffsets,
-      'meridianFlipOverrides': meridianFlipOverrides,
-      'profileIcon': profileIcon,
-      'profileColor': profileColor,
-    };
-  }
+  final EquipmentProfileModel profile;
+
+  String get name => profile.name;
+
+  /// The profile this entry describes, to be created under [name].
+  EquipmentProfileModel toModel({required String name}) =>
+      profile.toInsertionCopy(name: name);
+
+  Map<String, dynamic> toJson() => _exportJsonOf(profile);
 }
+
+// BEGIN GENERATED equipment-profile export
+// dart format off
+/// The export file entry for [profile]: its fields without the
+/// stored row's id, flags and timestamps; an empty filter list
+/// or offset map is written as null.
+Map<String, dynamic> _exportJsonOf(EquipmentProfileModel profile) {
+  return {
+    'name': profile.name,
+    'description': profile.description,
+    'cameraId': profile.cameraId,
+    'mountId': profile.mountId,
+    'focuserId': profile.focuserId,
+    'filterWheelId': profile.filterWheelId,
+    'guiderId': profile.guiderId,
+    'guideCameraId': profile.guideCameraId,
+    'guideFocalLength': profile.guideFocalLength,
+    'rotatorId': profile.rotatorId,
+    'domeId': profile.domeId,
+    'weatherId': profile.weatherId,
+    'safetyMonitorId': profile.safetyMonitorId,
+    'switchId': profile.switchId,
+    'coverCalibratorId': profile.coverCalibratorId,
+    'focalLength': profile.focalLength,
+    'aperture': profile.aperture,
+    'focalRatio': profile.focalRatio,
+    'defaultGain': profile.defaultGain,
+    'defaultOffset': profile.defaultOffset,
+    'defaultReadoutMode': profile.defaultReadoutMode,
+    'defaultBinX': profile.defaultBinX,
+    'defaultBinY': profile.defaultBinY,
+    'defaultCoolingTemp': profile.defaultCoolingTemp,
+    'coolOnConnect': profile.coolOnConnect,
+    'defaultCenteringExposure': profile.defaultCenteringExposure,
+    'filterNames': profile.filterNames.isNotEmpty ? profile.filterNames : null,
+    'filterFocusOffsets': profile.filterFocusOffsets.isNotEmpty ? profile.filterFocusOffsets : null,
+    'meridianFlipOverrides': profile.meridianFlipOverrides,
+    'cameraName': profile.cameraName,
+    'mountName': profile.mountName,
+    'focuserName': profile.focuserName,
+    'filterWheelName': profile.filterWheelName,
+    'guiderName': profile.guiderName,
+    'guideCameraName': profile.guideCameraName,
+    'rotatorName': profile.rotatorName,
+    'safetyMonitorName': profile.safetyMonitorName,
+    'switchName': profile.switchName,
+    'telescopeName': profile.telescopeName,
+    'telescopeFocalLength': profile.telescopeFocalLength,
+    'telescopeAperture': profile.telescopeAperture,
+    'profileIcon': profile.profileIcon,
+    'profileColor': profile.profileColor,
+  };
+}
+
+/// The profile an export file entry describes, each field read
+/// by its kind; [name] is the already checked name.
+EquipmentProfileModel _profileFromExportJson(
+  Map<String, dynamic> json, {
+  required String name,
+}) {
+  return EquipmentProfileModel(
+    name: name,
+    description: _profileText(json['description'], 'description'),
+    cameraId: _profileText(json['cameraId'], 'cameraId'),
+    mountId: _profileText(json['mountId'], 'mountId'),
+    focuserId: _profileText(json['focuserId'], 'focuserId'),
+    filterWheelId: _profileText(json['filterWheelId'], 'filterWheelId'),
+    guiderId: _profileText(json['guiderId'], 'guiderId'),
+    guideCameraId: _profileText(json['guideCameraId'], 'guideCameraId'),
+    guideFocalLength: _profileDouble(json['guideFocalLength'], 'guideFocalLength'),
+    rotatorId: _profileText(json['rotatorId'], 'rotatorId'),
+    domeId: _profileText(json['domeId'], 'domeId'),
+    weatherId: _profileText(json['weatherId'], 'weatherId'),
+    safetyMonitorId: _profileText(json['safetyMonitorId'], 'safetyMonitorId'),
+    switchId: _profileText(json['switchId'], 'switchId'),
+    coverCalibratorId: _profileText(json['coverCalibratorId'], 'coverCalibratorId'),
+    focalLength: _profileDouble(json['focalLength'], 'focalLength') ?? 0.0,
+    aperture: _profileDouble(json['aperture'], 'aperture') ?? 0.0,
+    focalRatio: _profileDouble(json['focalRatio'], 'focalRatio'),
+    defaultGain: _profileInt(json['defaultGain'], 'defaultGain'),
+    defaultOffset: _profileInt(json['defaultOffset'], 'defaultOffset'),
+    defaultReadoutMode: _profileText(json['defaultReadoutMode'], 'defaultReadoutMode'),
+    defaultBinX: _profileInt(json['defaultBinX'], 'defaultBinX') ?? 1,
+    defaultBinY: _profileInt(json['defaultBinY'], 'defaultBinY') ?? 1,
+    defaultCoolingTemp: _profileDouble(json['defaultCoolingTemp'], 'defaultCoolingTemp'),
+    coolOnConnect: _profileBool(json['coolOnConnect'], 'coolOnConnect') ?? false,
+    defaultCenteringExposure: _profileDouble(json['defaultCenteringExposure'], 'defaultCenteringExposure'),
+    filterNames: _profileStringList(json['filterNames'], 'filterNames') ?? const [],
+    filterFocusOffsets: _profileIntMap(json['filterFocusOffsets'], 'filterFocusOffsets') ?? const {},
+    meridianFlipOverrides: _profileText(json['meridianFlipOverrides'], 'meridianFlipOverrides'),
+    cameraName: _profileText(json['cameraName'], 'cameraName'),
+    mountName: _profileText(json['mountName'], 'mountName'),
+    focuserName: _profileText(json['focuserName'], 'focuserName'),
+    filterWheelName: _profileText(json['filterWheelName'], 'filterWheelName'),
+    guiderName: _profileText(json['guiderName'], 'guiderName'),
+    guideCameraName: _profileText(json['guideCameraName'], 'guideCameraName'),
+    rotatorName: _profileText(json['rotatorName'], 'rotatorName'),
+    safetyMonitorName: _profileText(json['safetyMonitorName'], 'safetyMonitorName'),
+    switchName: _profileText(json['switchName'], 'switchName'),
+    telescopeName: _profileText(json['telescopeName'], 'telescopeName'),
+    telescopeFocalLength: _profileDouble(json['telescopeFocalLength'], 'telescopeFocalLength'),
+    telescopeAperture: _profileDouble(json['telescopeAperture'], 'telescopeAperture'),
+    profileIcon: _profileText(json['profileIcon'], 'profileIcon'),
+    profileColor: _profileInt(json['profileColor'], 'profileColor'),
+  );
+}
+// dart format on
+// END GENERATED equipment-profile export
 
 /// Typed field readers. A hand-edited or foreign document can put any JSON
 /// value in any key; a bare `as String?` turns that into a Dart `TypeError`,

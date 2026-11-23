@@ -1,6 +1,6 @@
-// Tonight on a client linked to a host that already has a run (sync night
-// 2026-11-03): SY-01 (joined after the run), SY-25 (restarted during a paused
-// run), SY-37 (the run ended while the client watched). The host is faked by
+// Tonight on a client linked to a host that already has a run: joined after
+// the run, restarted during a paused run, and the run ending while the client
+// watched. The host is faked by
 // its rows and by the run record it publishes through the runtime mirror.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +11,7 @@ import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provi
 import 'package:skotiq_app/screens/night_control/data/plan/plan_progress_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/plan_steps_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_id.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
@@ -427,4 +428,79 @@ void main() {
     expect(client.read(nightSessionStatsProvider).frameCount, 5);
     expect(client.read(nightRunLightRowsProvider), hasLength(2));
   });
+
+  // A client that continued the host's checkpoint adds the checkpoint's
+  // frames to the session's rows. The host continues the run in a new
+  // session, or in the interrupted night's session when the operator
+  // recovered it at startup (SequenceExecutor.resumeFromCheckpoint), where the
+  // frames before the checkpoint are rows of the session too. Either way each
+  // frame counts once.
+  for (final recovered in [false, true])
+    test(
+        'a client that continued the checkpoint counts each earlier frame '
+        'once (${recovered ? 'recovered session' : 'new session'})', () async {
+      final plan = TwoTargetPlan();
+      final lNode = plan.sequence.nodes.values
+          .whereType<ExposureNode>()
+          .firstWhere((node) => node.filter == 'L');
+      final runStart = DateTime(2026, 11, 7, 21, 10);
+      final continued = DateTime(2026, 11, 7, 23, 40);
+      final continuedSession = recovered ? 140 : 141;
+      final rows = <db.DbCapturedImage>[
+        for (var i = 0; i < 3; i++)
+          _row(800 + i, 140, runStart.add(Duration(minutes: 3 * i))),
+        for (var i = 0; i < 2; i++)
+          _row(
+            810 + i,
+            continuedSession,
+            continued.add(Duration(minutes: 3 + 3 * i)),
+          ),
+      ];
+      final checkpoint = CheckpointInfo(
+        sequenceName: plan.sequence.name,
+        timestamp: runStart.add(const Duration(minutes: 10)),
+        completedExposures: 3,
+        completedIntegrationSecs: 180,
+        canResume: true,
+        ageSeconds: 60,
+        ended: 'stopped',
+        framesDoneByStep: {lNode.id: 3},
+      );
+      final backend = _link();
+      final client = planContainer(
+        now: continued.add(const Duration(minutes: 10)),
+        sequence: plan.sequence,
+        backend: backend,
+        execution: SequenceExecutionState.running,
+        progress: const SequenceProgress(state: SequenceExecutionState.running),
+        // What the client holds once it pressed Start on the restored run:
+        // the checkpoint's counts, and the host's start of the continued run.
+        run: RunRecord(
+          startedAt: continued,
+          framesDoneBeforeRun: checkpoint.framesDoneByStep,
+        ),
+        extra: [
+          allDbImagesProvider.overrideWith((ref) => Stream.value(rows)),
+          allSessionsProvider.overrideWith(
+            (ref) => Stream.value([
+              if (recovered)
+                _session(140, runStart, 'active')
+              else ...[
+                _session(141, continued, 'active'),
+                _session(140, runStart, 'interrupted'),
+              ],
+            ]),
+          ),
+        ],
+      );
+      addTearDown(client.dispose);
+      await _settle(client, [nightPlanProgressProvider]);
+
+      expect(client.read(nightSessionIdProvider), continuedSession);
+      final l = client
+          .read(nightPlanProgressProvider)!
+          .rows
+          .firstWhere((row) => row.filter == 'L');
+      expect(l.framesDone, 5, reason: '3 before the checkpoint, 2 since');
+    });
 }

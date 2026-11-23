@@ -1,10 +1,16 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:convert';
 
+import 'package:logging/logging.dart';
+
+import 'host_advert.dart';
 import 'link_version.dart';
 import 'network_uri.dart';
+import 'ports.dart';
+
+final _skotiqDiscoveryLog = Logger('skotiq.SkotiqDiscovery');
+final _updatePushDiscoveryLog = Logger('skotiq.UpdatePushDiscovery');
 
 class DiscoveredServer {
   final String host;
@@ -74,7 +80,7 @@ class DiscoveredServer {
   DiscoveredServer({
     required this.host,
     required this.webPort,
-    this.signalingPort = 45678,
+    this.signalingPort = kDefaultSignalingPort,
     required this.name,
     this.version,
     this.mode = 'desktop',
@@ -217,10 +223,8 @@ typedef DiscoveryDatagramHandler =
 /// `reuseAddress`. On Windows a unicast datagram to a doubly bound UDP port is
 /// delivered to only one of the sockets, and it was the update responder's,
 /// which ignores discovery probes. A Windows imaging computer therefore never
-/// answered `SKOTIQ_DISCOVERY_V2:` at all (reproduced against a live 8.2.1 GUI
-/// host: the update probe was answered on the same port, the discovery probe
-/// was not). One socket that hands each message to the responder whose prefix
-/// it carries cannot lose a datagram that way.
+/// answered `SKOTIQ_DISCOVERY_V2:` at all. One socket that hands each message
+/// to the responder whose prefix it carries cannot lose a datagram that way.
 class DiscoveryPortMux {
   DiscoveryPortMux._();
 
@@ -264,19 +268,15 @@ class DiscoveryPortMux {
             try {
               if (lease._handler(message, datagram, socket)) return;
             } catch (e, stackTrace) {
-              developer.log(
+              _skotiqDiscoveryLog.warning(
                 'Discovery responder failed: $e\n$stackTrace',
-                name: 'SkotiqDiscovery',
-                level: 900,
               );
             }
           }
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          _skotiqDiscoveryLog.severe(
             'Discovery port socket error: $error\n$stackTrace',
-            name: 'SkotiqDiscovery',
-            level: 1000,
           );
         },
       );
@@ -326,7 +326,7 @@ class SkotiqDiscovery {
   static const int _serverPort = discoveryPort;
 
   /// The UDP port Skotiq hosts listen on for discovery and update probes.
-  static const int discoveryPort = 45679;
+  static const int discoveryPort = kDiscoveryPort;
   // Marker bytes so we never mistake a stray UDP datagram for a Skotiq
   // packet. JSON alone is not sufficient — anything on the local LAN can
   // emit `{...}`.
@@ -339,35 +339,17 @@ class SkotiqDiscovery {
   /// Returned [DiscoveryBroadcaster] owns the socket + timer. Callers MUST
   /// call [DiscoveryBroadcaster.stop] on shutdown.
   static Future<DiscoveryBroadcaster> startBroadcasting({
+    required HostAdvert advert,
     required int webPort,
     required int signalingPort,
-    String name = 'Skotiq',
-    required String version,
-    String scheme = 'http',
-    String? fingerprint,
-    bool authRequired = false,
-    String authenticationMode = 'none',
-    bool pairingSupported = false,
-    String? hostName,
-    String? hostMode,
     Duration interval = const Duration(seconds: 2),
   }) async {
     // Build the announcement once — payload is invariant across the run.
-    final payload = {
-      'protocol': _protocolVersion,
-      'name': name,
-      'version': version,
-      'webPort': webPort,
-      'signalingPort': signalingPort,
-      'scheme': scheme,
-      'authRequired': authRequired,
-      'authenticationMode': authenticationMode,
-      'pairingSupported': pairingSupported,
-      if (fingerprint != null && fingerprint.isNotEmpty)
-        'fingerprint': fingerprint,
-      if (hostName != null && hostName.isNotEmpty) 'hostName': hostName,
-      if (hostMode != null && hostMode.isNotEmpty) 'hostMode': hostMode,
-    };
+    final payload = beaconPayload(
+      advert,
+      webPort: webPort,
+      signalingPort: signalingPort,
+    );
     final messageBytes = utf8.encode('$_responsePrefix${jsonEncode(payload)}');
     final broadcastTargets = await _udpBroadcastTargets();
 
@@ -414,6 +396,26 @@ class SkotiqDiscovery {
     return DiscoveryBroadcaster._(lease, timer);
   }
 
+  /// The beacon a host broadcasts and answers probes with, as JSON.
+  static Map<String, Object?> beaconPayload(
+    HostAdvert advert, {
+    required int webPort,
+    required int signalingPort,
+  }) => {
+    'protocol': _protocolVersion,
+    'name': advert.hostName,
+    'version': advert.version,
+    'webPort': webPort,
+    'signalingPort': signalingPort,
+    'scheme': advert.scheme,
+    'authRequired': advert.authRequired,
+    'authenticationMode': advert.authenticationMode,
+    'pairingSupported': advert.pairingSupported,
+    if (advert.fingerprint.isNotEmpty) 'fingerprint': advert.fingerprint,
+    if (advert.hostName.isNotEmpty) 'hostName': advert.hostName,
+    'hostMode': advert.hostMode.wire,
+  };
+
   /// Run [task] and log any thrown exception at error level.
   ///
   /// Why: Timer.periodic and Stream.listen callbacks complete outside any
@@ -425,10 +427,8 @@ class SkotiqDiscovery {
     try {
       task();
     } catch (e, stackTrace) {
-      developer.log(
+      _skotiqDiscoveryLog.severe(
         'Supervised task "$name" failed: $e\n$stackTrace',
-        name: 'SkotiqDiscovery',
-        level: 1000,
       );
     }
   }
@@ -447,9 +447,8 @@ class SkotiqDiscovery {
     RawDatagramSocket? socket;
 
     try {
-      developer.log(
+      _skotiqDiscoveryLog.fine(
         'Creating UDP socket for discovery (ephemeral port)...',
-        name: 'SkotiqDiscovery',
       );
       socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
@@ -457,10 +456,9 @@ class SkotiqDiscovery {
         reuseAddress: true,
       );
       socket.broadcastEnabled = true;
-      developer.log(
+      _skotiqDiscoveryLog.fine(
         'Client socket bound to ephemeral port ${socket.port}; '
         'targeting server port $_serverPort',
-        name: 'SkotiqDiscovery',
       );
 
       socket.listen(
@@ -480,27 +478,17 @@ class SkotiqDiscovery {
             if (seen.contains(key)) return;
             seen.add(key);
             servers.add(server);
-            developer.log(
+            _skotiqDiscoveryLog.info(
               'Found server: ${servers.last.name} at $host',
-              name: 'SkotiqDiscovery',
-              level: 800,
             );
           } catch (e) {
-            developer.log(
-              'Error parsing packet: $e',
-              name: 'SkotiqDiscovery',
-              level: 1000,
-            );
+            _skotiqDiscoveryLog.severe('Error parsing packet: $e');
           }
         },
         onError: (Object e) {
           // A probe that cannot be sent (no route on this interface) is reported
           // here, not thrown by send().
-          developer.log(
-            'Discovery socket error: $e',
-            name: 'SkotiqDiscovery',
-            level: 900,
-          );
+          _skotiqDiscoveryLog.warning('Discovery socket error: $e');
         },
       );
 
@@ -519,17 +507,12 @@ class SkotiqDiscovery {
       }
 
       await Future.delayed(timeout);
-      developer.log(
+      _skotiqDiscoveryLog.fine(
         'Discovery timeout reached, found ${servers.length} servers',
-        name: 'SkotiqDiscovery',
       );
       return servers;
     } catch (e) {
-      developer.log(
-        'Discovery error: $e',
-        name: 'SkotiqDiscovery',
-        level: 1000,
-      );
+      _skotiqDiscoveryLog.severe('Discovery error: $e');
       return servers;
     } finally {
       socket?.close();
@@ -542,12 +525,6 @@ class SkotiqDiscovery {
   }) async {
     final servers = await discoverServers(timeout: timeout);
     return servers.isNotEmpty ? servers.first : null;
-  }
-
-  static String _validScheme(Object? raw) {
-    if (raw is! String) return 'http';
-    final scheme = raw.toLowerCase();
-    return scheme == 'https' ? 'https' : 'http';
   }
 
   /// Parse one UDP response packet. Exposed as a pure helper so the wire
@@ -563,27 +540,20 @@ class SkotiqDiscovery {
         return null;
       }
 
+      final advert = HostAdvertRead.fromJson(info);
       return DiscoveredServer(
         host: host,
         webPort: info['webPort'] as int,
         signalingPort: info['signalingPort'] as int,
-        name: info['name'] is String ? info['name'] as String : 'Skotiq',
-        version: info['version'] is String ? info['version'] as String : null,
-        scheme: _validScheme(info['scheme']),
-        authRequired: info['authRequired'] as bool? ?? false,
-        authenticationMode: info['authenticationMode'] is String
-            ? info['authenticationMode'] as String
-            : 'none',
-        pairingSupported: info['pairingSupported'] as bool? ?? false,
-        fingerprint: info['fingerprint'] is String
-            ? info['fingerprint'] as String
-            : null,
-        hostName: info['hostName'] is String
-            ? info['hostName'] as String
-            : null,
-        hostMode: info['hostMode'] is String
-            ? info['hostMode'] as String
-            : null,
+        name: advert.name ?? 'Skotiq',
+        version: advert.version,
+        scheme: advert.scheme ?? 'http',
+        authRequired: advert.authRequired == true,
+        authenticationMode: advert.authenticationMode ?? 'none',
+        pairingSupported: advert.pairingSupported == true,
+        fingerprint: advert.fingerprint,
+        hostName: advert.hostName,
+        hostMode: advert.hostMode,
       );
     } catch (_) {
       return null;
@@ -670,7 +640,7 @@ class DiscoveredUpdateTarget {
 /// Discovery service for finding Skotiq instances to push updates to
 class UpdatePushDiscovery {
   static const int _discoveryPort = SkotiqDiscovery.discoveryPort;
-  static const int _pushPort = 45680;
+  static const int _pushPort = kLanUpdatePushPort;
   static const String _updatePushMessage = 'SKOTIQ_UPDATE_PUSH';
   static const String _updateResponsePrefix = 'SKOTIQ_UPDATE_TARGET:';
 
@@ -681,10 +651,7 @@ class UpdatePushDiscovery {
     final seen = <String>{};
 
     try {
-      developer.log(
-        'Creating UDP socket for discovery...',
-        name: 'UpdatePushDiscovery',
-      );
+      _updatePushDiscoveryLog.fine('Creating UDP socket for discovery...');
       final socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         _discoveryPort,
@@ -716,29 +683,17 @@ class UpdatePushDiscovery {
                     isReceiving: info['isReceiving'] as bool? ?? false,
                   );
                   targets.add(target);
-                  developer.log(
-                    'Found target: $target',
-                    name: 'UpdatePushDiscovery',
-                    level: 800,
-                  );
+                  _updatePushDiscoveryLog.info('Found target: $target');
                 }
               }
             } catch (e) {
-              developer.log(
-                'Error parsing packet: $e',
-                name: 'UpdatePushDiscovery',
-                level: 1000,
-              );
+              _updatePushDiscoveryLog.severe('Error parsing packet: $e');
             }
           }
         }
       });
 
-      // Send update push discovery broadcast
-      developer.log(
-        'Sending discovery broadcast...',
-        name: 'UpdatePushDiscovery',
-      );
+      _updatePushDiscoveryLog.fine('Sending discovery broadcast...');
       final discoveryData = utf8.encode(_updatePushMessage);
       socket.send(
         discoveryData,
@@ -746,21 +701,15 @@ class UpdatePushDiscovery {
         _discoveryPort,
       );
 
-      // Wait for responses
       await Future.delayed(timeout);
-      developer.log(
+      _updatePushDiscoveryLog.fine(
         'Discovery complete, found ${targets.length} targets',
-        name: 'UpdatePushDiscovery',
       );
       socket.close();
 
       return targets;
     } catch (e) {
-      developer.log(
-        'Discovery error: $e',
-        name: 'UpdatePushDiscovery',
-        level: 1000,
-      );
+      _updatePushDiscoveryLog.severe('Discovery error: $e');
       return targets;
     }
   }
@@ -788,18 +737,15 @@ class UpdatePushDiscovery {
         };
         final response = '$_updateResponsePrefix${jsonEncode(info)}';
         socket.send(utf8.encode(response), datagram.address, datagram.port);
-        developer.log(
+        _updatePushDiscoveryLog.fine(
           'Responded to discovery from ${datagram.address.address}',
-          name: 'UpdatePushDiscovery',
         );
         return true;
       },
     );
 
-    developer.log(
+    _updatePushDiscoveryLog.info(
       'Listening for update push discovery on port $_discoveryPort',
-      name: 'UpdatePushDiscovery',
-      level: 800,
     );
     return lease;
   }

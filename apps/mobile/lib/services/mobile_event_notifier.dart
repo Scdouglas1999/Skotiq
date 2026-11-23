@@ -1,11 +1,15 @@
 import 'dart:async';
 
+import 'package:skotiq_core/backend.dart' show typedEventFromWire;
+import 'package:skotiq_core/bridge_events.dart'
+    show EventPayload_PolarAlignmentStatus;
 import 'package:skotiq_core/models.dart';
 
 import 'mobile_preferences.dart';
 import 'notification_service.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobOperation;
 
 /// Subscribes to the backend's `SkotiqEvent` stream and converts critical
 /// events into local OS notifications via [MobileNotificationService].
@@ -121,6 +125,9 @@ class MobileEventNotifier {
       switch (event.category) {
         case EventCategory.job:
           await _handleJob(event);
+          return;
+        case EventCategory.polarAlignment:
+          await _handlePolarAlignment(event);
           return;
         case EventCategory.session:
           await _handleSession(event);
@@ -296,44 +303,80 @@ class MobileEventNotifier {
     if (_firedRecently(key, _repeatWindow)) return;
     if (_pushAlreadyCovered(event.eventType)) return;
 
-    switch (operation) {
+    switch (JobOperation.fromWire(operation)) {
       // Every autofocus sweep publishes its outcome, which
       // [NotificationEventClassifier] tells; the job's end would tell it
       // twice.
-      case 'focuser.autofocus':
-      case 'focuser.autofocus.start':
+      case JobOperation.autofocus:
         return;
-      case 'plate-solve':
+      case JobOperation.plateSolve:
         if (!_preferences.notifyExposureFailed) return;
         await _notifications.notifyPlateSolveFailed(errorMessage);
         _markFired(key);
-        break;
-      case 'framing.center-on-target':
+      case JobOperation.centerOnTarget:
         if (!_preferences.notifyExposureFailed) return;
         await _notifications.notifyCenteringFailed(errorMessage);
         _markFired(key);
-        break;
-      case 'polar-alignment.start':
-      case 'polar-alignment.all-sky.start':
-        // Polar alignment failure is operator-facing: even if the user is
-        // staring at the polar-align screen, a notification helps when
-        // they wandered off to fetch coffee mid-routine. Gate on the same
-        // "exposure failed" pref so users who muted imaging failures
-        // don't get paged by this.
+      case final JobOperation job:
+        // The host's own jobs a client started; gated on the same "exposure
+        // failed" pref as the imaging failures.
         if (!_preferences.notifyExposureFailed) return;
-        await _notifications.notifyPolarAlignmentFailed(errorMessage);
+        await _notifications.notifyHostJobFailed(
+          title: _hostJobTitle(job),
+          message: errorMessage,
+        );
         _markFired(key);
-        break;
-      default:
-        // Unknown operation. Log loudly so the next time a job type is
-        // added server-side, the gap is visible in mobile logs instead
-        // of silently swallowed.
+      case null:
+        // No alert for these. Logged so a failure the phone does not alert
+        // is still visible in mobile logs.
         Log.warning(
           '[MobileEventNotifier] JobFailed for unhandled operation '
           '"$operation": $errorMessage',
           source: 'MobileEventNotifier',
         );
-        break;
+    }
+  }
+
+  /// The title a failed host job is announced under.
+  static String _hostJobTitle(JobOperation job) => switch (job) {
+    JobOperation.postSessionIntegrate ||
+    JobOperation.postSessionDrizzle ||
+    JobOperation.postSessionAnalyzeNight ||
+    JobOperation.postSessionBuildMasterFlat ||
+    JobOperation.postSessionColorCalibrate ||
+    JobOperation.postSessionDetectStars ||
+    JobOperation.postSessionExtractBackground ||
+    JobOperation.postSessionMasterAccumulate => 'Dawn processing failed',
+    JobOperation.updateCheck ||
+    JobOperation.updateDownload ||
+    JobOperation.updateApply ||
+    JobOperation.updateRollback => 'Update failed',
+    JobOperation.catalogDownload => 'Catalog download failed',
+    JobOperation.backfillThumbnails => 'Thumbnail backfill failed',
+    JobOperation.backlashCalibration => 'Backlash calibration failed',
+    JobOperation.plateSolve => 'Plate solve failed',
+    JobOperation.centerOnTarget => 'Centering failed',
+    JobOperation.autofocus => 'Autofocus failed',
+  };
+
+  /// A polar alignment that ends in error pages the phone: the operator may
+  /// have walked off mid-routine. Its own status event says so (phase
+  /// `error`); polar alignment is not a host job. Gated on the same
+  /// "exposure failed" pref as the imaging failures.
+  Future<void> _handlePolarAlignment(SkotiqEvent event) async {
+    final payload = typedEventFromWire(event)?.payload;
+    if (payload case EventPayload_PolarAlignmentStatus(
+      :final field0,
+    ) when field0.phase == 'error') {
+      if (!_preferences.notifyExposureFailed) return;
+      const key = 'polar-alignment:error';
+      if (_firedRecently(key, _repeatWindow)) return;
+      const prefix = 'Error: ';
+      final status = field0.status;
+      await _notifications.notifyPolarAlignmentFailed(
+        status.startsWith(prefix) ? status.substring(prefix.length) : status,
+      );
+      _markFired(key);
     }
   }
 

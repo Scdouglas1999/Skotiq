@@ -278,10 +278,6 @@ class _ShaderCache {
 
 final StarPsfShaderCache _starPsfShaderCache = StarPsfShaderCache();
 
-/// Cached constellation line rendering.
-/// Since constellation lines don't change unless the view moves significantly,
-/// we record them into a ui.Picture and replay it each frame.
-/// Cache invalidates when view center moves >0.5 degrees or zoom changes >5%.
 /// The full set of view parameters a cached [ui.Picture] was projected with.
 ///
 /// The key must carry every input the projection reads, or a replayed picture
@@ -431,15 +427,15 @@ class _PlanningAstronomyCache {
   ({double raDeg, double decDeg, int day, double lat, double lon})? _trackKey;
   (List<double> altitudes, double maxAlt)? _track;
 
-  ({int day, double lat, double lon})? _twilightKey;
+  ({NightDate night, double lat, double lon})? _twilightKey;
   TwilightTimes? _twilight;
 
-  /// The sampled altitude track for [raDeg]/[decDeg] over the local noon→noon
-  /// window, computed by [compute] only on a key miss.
+  /// The sampled altitude track for [raDeg]/[decDeg] over the 24 hours from
+  /// [nightStart], computed by [compute] only on a key miss.
   (List<double>, double) altitudeTrack({
     required double raDeg,
     required double decDeg,
-    required DateTime localNoon,
+    required DateTime nightStart,
     required double latitudeDeg,
     required double longitudeDeg,
     required (List<double>, double) Function() compute,
@@ -447,7 +443,7 @@ class _PlanningAstronomyCache {
     final key = (
       raDeg: raDeg,
       decDeg: decDeg,
-      day: _dayKey(localNoon),
+      day: _dayKey(nightStart),
       lat: latitudeDeg,
       lon: longitudeDeg,
     );
@@ -459,14 +455,14 @@ class _PlanningAstronomyCache {
     return fresh;
   }
 
-  /// Tonight's twilight times, computed by [compute] only on a key miss.
+  /// The twilight times of [night], computed by [compute] only on a key miss.
   TwilightTimes twilight({
-    required DateTime date,
+    required NightDate night,
     required double latitudeDeg,
     required double longitudeDeg,
     required TwilightTimes Function() compute,
   }) {
-    final key = (day: _dayKey(date), lat: latitudeDeg, lon: longitudeDeg);
+    final key = (night: night, lat: latitudeDeg, lon: longitudeDeg);
     final cached = _twilight;
     if (cached != null && _twilightKey == key) return cached;
     final fresh = compute();

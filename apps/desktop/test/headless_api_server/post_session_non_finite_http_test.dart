@@ -1,10 +1,8 @@
 // What a remote client actually receives for a number JSON cannot carry.
 //
-// Live against the release bundle, `POST /api/post-session/integrate` with
-// `"exposuresSec":[1e400]` answered `200 {"status":"queued"}` and then failed
-// the job with "Converting object to an encodable object failed: Infinity" —
-// an encoder artifact naming no field, no index and no next step, on the one
-// surface whose every other refusal names all three.
+// A non-finite number must be refused at the request, naming its field and
+// index — not queued and then failed with an encoder artifact
+// ("Converting object to an encodable object failed: Infinity").
 //
 // This drives a real socket against the real route table and the real
 // middleware stack, and it writes the body as raw bytes rather than through

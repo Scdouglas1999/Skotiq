@@ -24,6 +24,8 @@ pub struct Lx200Mount {
     /// is_parked queries until park/unpark has been called at least once
     /// or telemetry confirms a state.
     pub(crate) park_state: Mutex<Option<bool>>,
+    /// The file the park flag is kept in ([`park_state_file`]).
+    pub(crate) park_state_file: PathBuf,
     /// Cancellation channel for the standard-LX200 pulse-guide sleep.
     /// Notified by `abort_slew` so the start/stop pair
     /// terminates immediately instead of waiting out the full duration.
@@ -40,7 +42,32 @@ impl std::fmt::Debug for Lx200Mount {
 }
 
 impl Lx200Mount {
+    /// The command that selects `rate`. OnStep and standard LX200 share the
+    /// sidereal, lunar and solar commands; King is OnStep's only, and no
+    /// custom rate is set.
+    pub(crate) fn tracking_rate_command(&self, rate: TrackingRate) -> Option<&'static str> {
+        match rate {
+            TrackingRate::Sidereal => Some(commands::SET_TRACK_SIDEREAL),
+            TrackingRate::Lunar => Some(commands::SET_TRACK_LUNAR),
+            TrackingRate::Solar => Some(commands::SET_TRACK_SOLAR),
+            TrackingRate::King if self.mount_type.is_onstep() => {
+                Some(commands::ONSTEP_SET_RATE_KING)
+            }
+            TrackingRate::King | TrackingRate::Custom => None,
+        }
+    }
+
     pub fn new(port: String, mount_type: Lx200MountType, baud_rate: Option<u32>) -> Self {
+        Self::keeping_park_state_in(port, mount_type, baud_rate, legacy_park_state_file())
+    }
+
+    /// [`Self::new`], keeping the park flag in `park_state_file`.
+    pub fn keeping_park_state_in(
+        port: String,
+        mount_type: Lx200MountType,
+        baud_rate: Option<u32>,
+        park_state_file: PathBuf,
+    ) -> Self {
         let type_prefix = match &mount_type {
             Lx200MountType::Meade => "meade",
             Lx200MountType::OnStep => "onstep",
@@ -67,17 +94,18 @@ impl Lx200Mount {
         // will return NotSupported until park() or unpark() has run at
         // least once (or telemetry confirms a state). We log read errors
         // because silent fallbacks hide bugs.
-        let park_state_initial: Option<bool> = match read_persisted_park_state(&device_id) {
-            Ok(state) => state,
-            Err(e) => {
-                tracing::warn!(
-                    "LX200 park-state cache unreadable for {}: {} (treating as unknown)",
-                    device_id,
-                    e
-                );
-                None
-            }
-        };
+        let park_state_initial: Option<bool> =
+            match read_persisted_park_state(&park_state_file, &device_id) {
+                Ok(state) => state,
+                Err(e) => {
+                    tracing::warn!(
+                        "LX200 park-state cache unreadable for {}: {} (treating as unknown)",
+                        device_id,
+                        e
+                    );
+                    None
+                }
+            };
 
         Self {
             device_id,
@@ -93,6 +121,7 @@ impl Lx200Mount {
             product_name: Mutex::new(String::new()),
             precision: Mutex::new(CoordinatePrecision::High),
             park_state: Mutex::new(park_state_initial),
+            park_state_file,
             pulse_guide_cancel: Arc::new(Notify::new()),
         }
     }

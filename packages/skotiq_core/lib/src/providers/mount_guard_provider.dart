@@ -1,20 +1,27 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logging/logging.dart';
 
 import '../backend/roles/mount_guard_backend.dart';
+import '../backend/bridge_event_codec.dart';
+import '../backend/bridge_events.dart'
+    show
+        SafetyEvent_MountGuardCleared,
+        SafetyEvent_MountMotionFault,
+        SafetyEvent_MountPositionUnknown;
 import '../models/backend/event_types.dart';
 import '../models/mount_guard.dart';
+import '../utils/logging_service.dart';
 import 'backend_provider.dart';
 import 'critical_alert_provider.dart';
 import 'settings_provider.dart';
 
-/// The safety events the host's mount guard publishes.
-const mountGuardEventTypes = {
-  'MountMotionFault',
-  'MountPositionUnknown',
-  'MountGuardCleared',
+/// Whether [event] is one the host's mount guard publishes.
+bool isMountGuardEvent(SkotiqEvent event) => switch (safetyEventOf(event)) {
+  SafetyEvent_MountMotionFault() ||
+  SafetyEvent_MountPositionUnknown() ||
+  SafetyEvent_MountGuardCleared() => true,
+  _ => false,
 };
 
 /// How often the guard is read while a fault is open: the stop attempts and
@@ -24,8 +31,6 @@ const _openPoll = Duration(seconds: 3);
 /// How often it is read otherwise, so a client that missed an event (it
 /// linked later, or its socket dropped) still catches up.
 const _quietPoll = Duration(seconds: 30);
-
-final _log = Logger('MountGuard');
 
 /// Every mount with an open motion fault or an unknown position, on the host
 /// and on linked clients alike.
@@ -61,11 +66,7 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
     });
     if (backend is! MountGuardBackend) return const [];
     _events = backend.eventStream
-        .where(
-          (e) =>
-              e.category == EventCategory.safety &&
-              mountGuardEventTypes.contains(e.eventType),
-        )
+        .where(isMountGuardEvent)
         .listen((_) => refresh());
     _schedule(_quietPoll, gen);
     Future.microtask(() {
@@ -104,7 +105,7 @@ class MountGuardNotifier extends Notifier<List<MountGuardEntry>> {
       _schedule(entries.isEmpty ? _quietPoll : _openPoll, gen);
     } catch (error) {
       if (_disposed || gen != _generation) return;
-      _log.fine('Mount guard read failed: $error');
+      Log.debug('Mount guard read failed: $error', source: 'MountGuard');
       // A client between connections reads nothing; the next poll or event
       // tries again. The last state stays on screen meanwhile, because an
       // open fault must not vanish just because one read failed.

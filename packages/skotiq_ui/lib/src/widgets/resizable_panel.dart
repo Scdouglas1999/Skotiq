@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 enum ResizeSide { left, right }
 

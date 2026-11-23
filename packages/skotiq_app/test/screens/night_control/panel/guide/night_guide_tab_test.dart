@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_app/screens/night_control/panel/guide/night_guide_tab.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -227,7 +227,7 @@ void main() {
     expect(find.textContaining('PHD2'), findsNothing);
   });
 
-  // On 2026-10-25 a watcher read an autofocus guiding stop as a lost star.
+  // An autofocus guiding stop is not a lost star.
   testWidgets('a planned guiding stop says what it is for', (tester) async {
     await pumpPanelTab(
       tester,

@@ -85,8 +85,6 @@ class HistogramPainter extends CustomPainter {
 /// A looping operator watches each frame while the next one exposes, so the
 /// canvas keeps showing the last image: progress is a thin line along the top
 /// edge and one compact pill at the top centre, and neither takes the pointer.
-/// (This used to be a 70% black scrim with a ring, which hid every frame of a
-/// loop for the whole of the next exposure.)
 class ExposureProgressOverlay extends StatelessWidget {
   final ExposureProgress progress;
   final SkotiqColors colors;

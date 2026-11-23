@@ -180,11 +180,7 @@ class _DesktopBuilderLayout extends ConsumerWidget {
 
               // Derived widths. The columns are the spec's 264 / 300 whenever
               // there is room for them; only a genuinely tight window packs
-              // them down to their floor. (They used to sit at the floor
-              // WHENEVER both were open and grow only when the other one
-              // collapsed, so the shipped default was a 220 px palette that
-              // clipped its own tab labels and its node descriptions.) A
-              // user-dragged width still overrides.
+              // them down to their floor. A user-dragged width still overrides.
               final leftDerived = spaceTight ? dims.leftMin : dims.leftExpanded;
               final rightDerived =
                   spaceTight ? dims.rightMin : dims.rightExpanded;

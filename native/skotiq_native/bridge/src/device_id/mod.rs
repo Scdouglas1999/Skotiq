@@ -29,6 +29,8 @@ use serde::{Deserialize, Serialize};
 
 pub mod cache;
 #[cfg(test)]
+mod fixture_tests;
+#[cfg(test)]
 // `unwrap_or` policy: the test helpers in this module
 // use `unwrap_or_else(|e| panic!(...))` as a richer-message replacement
 // for `expect`. These are NOT silent fallbacks — they fail the test loud
@@ -469,8 +471,7 @@ impl ParsedDeviceId {
         // Why: simulator instance index defaults to 0
         // when the suffix is malformed or absent. Real driver IDs go
         // through stricter parsing; the simulator is a developer-only
-        // device family where "instance 0" is the legacy fallback that
-        // matches the pre-multi-instance default behaviour.
+        // device family.
         let instance: u32 = if parts.len() > 1 {
             parts[1].parse().unwrap_or(0)
         } else {
@@ -494,7 +495,6 @@ impl ParsedDeviceId {
             return Self::parse_ascom(&format!("ascom:{}", id));
         }
 
-        // Check if it looks like a URL
         if id.starts_with("http://") || id.starts_with("https://") {
             // Likely an Alpaca URL without prefix
             return Self::parse_alpaca(&format!("alpaca:{}", id));

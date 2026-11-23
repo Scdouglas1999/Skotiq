@@ -1,23 +1,21 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import '../../database/daos/settings_dao.dart';
 import '../../models/sequence/active_plan_owner.dart';
-import '../../providers/backend_provider.dart';
-import '../../providers/database_provider.dart';
 import 'eon_settings.dart';
 
 /// Whether end-of-night calibration will follow a run that [owner] starts, so
 /// the plan's closing warm-up waits for it. The scheduler's runs keep their
 /// own warm-up (it ends the night itself), and a calibration run is the step's
-/// own.
+/// own. A remote client never runs it; [settingsDao] is read only on the host.
 Future<bool> endOfNightCalibrationFollows(
-  Ref ref,
-  ActivePlanOwner owner,
-) async {
+  ActivePlanOwner owner, {
+  required bool Function() isRemote,
+  required SettingsDao Function() settingsDao,
+}) async {
   if (owner == ActivePlanOwner.calibration ||
       owner == ActivePlanOwner.autopilot) {
     return false;
   }
-  if (ref.read(isRemoteModeProvider)) return false;
-  final settings = await EonSettings.load(ref.read(settingsDaoProvider));
+  if (isRemote()) return false;
+  final settings = await EonSettings.load(settingsDao());
   return settings.enabled;
 }

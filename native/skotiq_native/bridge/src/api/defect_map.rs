@@ -33,17 +33,12 @@ pub struct ApiDefectMapStatus {
 /// correction is off.
 static APPLIED: Mutex<Option<DefectMapApplyState>> = Mutex::const_new(None);
 
-fn defect_maps_root() -> PathBuf {
-    // Why: SKOTIQ_DATA_DIR is the per-platform application data path the app
-    // sets at launch. Without it (unit tests, a bare headless start) the maps
-    // live in the temp dir for the session.
-    let base = std::env::var_os("SKOTIQ_DATA_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("skotiq"));
-    base.join("defect_maps")
-}
-
-fn defect_map_path(camera_id: &str, width: u32, height: u32, bucket_decicelsius: i16) -> PathBuf {
+fn defect_map_path(
+    camera_id: &str,
+    width: u32,
+    height: u32,
+    bucket_decicelsius: i16,
+) -> Result<PathBuf, SkotiqError> {
     let camera: String = camera_id
         .chars()
         .map(|c| match c {
@@ -51,10 +46,11 @@ fn defect_map_path(camera_id: &str, width: u32, height: u32, bucket_decicelsius:
             _ => '_',
         })
         .collect();
-    defect_maps_root().join(format!(
+    let dir = crate::data_root::defect_maps().map_err(SkotiqError::InvalidState)?;
+    Ok(dir.join(format!(
         "{}_{}x{}_{:+05}.ndm",
         camera, width, height, bucket_decicelsius
-    ))
+    )))
 }
 
 fn require_camera(camera_id: &str) -> Result<(), SkotiqError> {
@@ -100,7 +96,7 @@ fn unix_seconds(time: std::time::SystemTime) -> i64 {
 
 /// Build a defect map for a camera from at least
 /// [`MIN_CONSISTENCY_FRAMES`] dark frames (FITS/XISF) of one size and pixel
-/// type, and store it under `$SKOTIQ_DATA_DIR/defect_maps/` by camera, sensor
+/// type, and store it under `defect_maps` in the data directory by camera, sensor
 /// size and temperature bucket. When the sequencer is applying the map this
 /// replaces, it applies the new one from the next exposure.
 pub async fn api_defect_map_build(
@@ -136,7 +132,7 @@ pub async fn api_defect_map_build(
     let map =
         build_defect_map(&dark_refs, bucket).map_err(|e| SkotiqError::ImageError(e.to_string()))?;
 
-    let path = defect_map_path(&camera_id, map.width, map.height, bucket);
+    let path = defect_map_path(&camera_id, map.width, map.height, bucket)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| {
             SkotiqError::ImageError(format!(
@@ -205,7 +201,7 @@ pub async fn api_defect_map_set_correction(
         ))
     })?;
     let bucket = bucket_temperature(sensor_temperature_celsius);
-    let path = defect_map_path(&camera_id, width, height, bucket);
+    let path = defect_map_path(&camera_id, width, height, bucket)?;
 
     let mut applied = APPLIED.lock().await;
     if !path.exists() {
@@ -251,7 +247,7 @@ pub async fn api_defect_map_clear(
 ) -> Result<(), SkotiqError> {
     require_camera(&camera_id)?;
     let bucket = bucket_temperature(sensor_temperature_celsius);
-    let path = defect_map_path(&camera_id, width, height, bucket);
+    let path = defect_map_path(&camera_id, width, height, bucket)?;
 
     let mut applied = APPLIED.lock().await;
     if path.exists() {
@@ -286,7 +282,7 @@ pub async fn api_defect_map_get_status(
 ) -> Result<Option<ApiDefectMapStatus>, SkotiqError> {
     require_camera(&camera_id)?;
     let bucket = bucket_temperature(sensor_temperature_celsius);
-    let path = defect_map_path(&camera_id, width, height, bucket);
+    let path = defect_map_path(&camera_id, width, height, bucket)?;
 
     let applied = APPLIED.lock().await;
     if !path.exists() {

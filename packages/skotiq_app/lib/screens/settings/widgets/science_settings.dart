@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -98,7 +97,6 @@ class ScienceSettingsPage extends ConsumerWidget {
               title: 'Mode',
               children: [
                 SettingRow(
-                  icon: LucideIcons.flaskConical,
                   title: 'Show advanced overlay controls',
                   subtitle:
                       'Adds PSF, residual, and tile-map layers to the Imaging overlays menu.',
@@ -109,7 +107,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.layers,
                   title: 'Science overlays',
                   subtitle:
                       'Enable overlays such as PSF map, residual vectors, and tracks',
@@ -118,7 +115,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     onChanged: (value) =>
                         scienceNotifier.setOverlayEnabled(value),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -126,7 +122,6 @@ class ScienceSettingsPage extends ConsumerWidget {
               title: 'Features',
               children: [
                 SettingRow(
-                  icon: LucideIcons.activity,
                   title: 'Live differential photometry',
                   subtitle: 'Target/comparison tracking and live light curves',
                   trailing: SettingsSwitch(
@@ -138,7 +133,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.gauge,
                   title: 'Per-frame photometric calibration',
                   subtitle: 'Compute zeropoint and limiting magnitude',
                   trailing: SettingsSwitch(
@@ -150,7 +144,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.cloud,
                   title: 'Transparency and extinction',
                   subtitle: 'Track atmospheric transparency over time',
                   trailing: SettingsSwitch(
@@ -162,7 +155,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.layoutGrid,
                   title: 'PSF field map',
                   subtitle: 'Analyze field-wide seeing and tilt patterns',
                   trailing: SettingsSwitch(
@@ -174,7 +166,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.map,
                   title: 'Astrometric residuals',
                   subtitle: 'Map catalog offsets across each solved frame',
                   trailing: SettingsSwitch(
@@ -186,7 +177,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.layers,
                   title: 'Your Sky atlas',
                   subtitle: 'Off unless you turn it on. Stacks each accepted, '
                       'solved light into your sky atlas: about 1.5 '
@@ -205,7 +195,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  icon: LucideIcons.hardDrive,
                   title: 'Your Sky size limit (${ByteFormat.gigaUnit})',
                   subtitle: 'New frames stop being added to the atlas when it '
                       'reaches this size. Nothing is deleted. 0 means no limit.',
@@ -223,7 +212,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   limitGb: science.skyAtlasLimitGb,
                 ),
                 SettingRow(
-                  icon: LucideIcons.rocket,
                   title: 'Moving object mode',
                   subtitle: 'Detect and track moving candidates',
                   trailing: SettingsSwitch(
@@ -235,7 +223,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.slidersHorizontal,
                   title: 'Narrowband line ratios',
                   subtitle: 'Generate SII/Ha, OIII/Ha, and SII/OIII products',
                   trailing: SettingsSwitch(
@@ -247,7 +234,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.layoutTemplate,
                   title: 'Frame quality maps',
                   subtitle:
                       'Compute clipping, uniformity, background and SNR tile maps',
@@ -260,7 +246,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.boxSelect,
                   title: '3D science surfaces',
                   subtitle:
                       'Enable surface explorer and interactive mesh rendering',
@@ -273,7 +258,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.fileText,
                   title: 'Write science keywords to FITS',
                   subtitle:
                       'Stamp MAGZP / MAGZPERR / TRANSPAR back into the FITS '
@@ -284,7 +268,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                     value: science.fitsHeaderWritebackEnabled,
                     onChanged: scienceNotifier.setFitsHeaderWritebackEnabled,
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -298,7 +281,6 @@ class ScienceSettingsPage extends ConsumerWidget {
               title: 'AAVSO',
               children: [
                 _ScienceTextRow(
-                  icon: LucideIcons.userCheck,
                   title: 'AAVSO observer code',
                   subtitle: 'Your assigned AAVSO observer initials (1-5 chars, '
                       'e.g., "XYZ")',
@@ -309,7 +291,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   validate: _validateAavsoObserverCode,
                   value: science.aavsoObserverCode,
                   onCommit: scienceNotifier.setAavsoObserverCode,
-                  isLast: true,
                 ),
               ],
             ),
@@ -317,7 +298,6 @@ class ScienceSettingsPage extends ConsumerWidget {
               title: 'Minor Planet Center (MPC)',
               children: [
                 _ScienceTextRow(
-                  icon: LucideIcons.star,
                   title: 'MPC observatory code',
                   subtitle: 'Your 3-character MPC observatory code (e.g., '
                       '"G40"). Required for MPC report export.',
@@ -330,7 +310,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setMpcObservatoryCode,
                 ),
                 _ScienceTextRow(
-                  icon: LucideIcons.bookOpen,
                   title: 'Astrometric catalog',
                   subtitle:
                       'Reference catalog your solver uses (ADES astCat, e.g. '
@@ -339,7 +318,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   width: 110,
                   value: science.mpcAstrometricCatalog,
                   onCommit: scienceNotifier.setMpcAstrometricCatalog,
-                  isLast: true,
                 ),
               ],
             ),
@@ -347,7 +325,6 @@ class ScienceSettingsPage extends ConsumerWidget {
               title: 'Observer identity',
               children: [
                 _ScienceTextRow(
-                  icon: LucideIcons.user,
                   title: 'Observer name',
                   subtitle:
                       'Written into MPC ADES headers and the TNS reporter '
@@ -356,7 +333,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   width: 160,
                   value: science.observerName,
                   onCommit: scienceNotifier.setObserverName,
-                  isLast: true,
                 ),
               ],
             ),
@@ -364,7 +340,6 @@ class ScienceSettingsPage extends ConsumerWidget {
               title: 'Transient Name Server (TNS)',
               children: [
                 _ScienceTextRow(
-                  icon: LucideIcons.hash,
                   title: 'Bot id',
                   subtitle: 'Your TNS bot id (tns_marker tns_id).',
                   hint: 'e.g. 12345',
@@ -378,7 +353,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  icon: LucideIcons.bot,
                   title: 'Bot name',
                   subtitle: 'Your TNS bot name (tns_marker name).',
                   hint: 'e.g. SkotiqBot',
@@ -387,7 +361,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   onCommit: scienceNotifier.setTnsBotName,
                 ),
                 _ScienceTextRow(
-                  icon: LucideIcons.users,
                   title: 'Reporting group id',
                   subtitle: 'Your TNS reporting_group_id.',
                   hint: 'e.g. 42',
@@ -402,7 +375,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  icon: LucideIcons.database,
                   title: 'Data source id',
                   subtitle: 'Your TNS discovery_data_source_id.',
                   hint: 'e.g. 7',
@@ -417,7 +389,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   ),
                 ),
                 _ScienceTextRow(
-                  icon: LucideIcons.edit3,
                   title: 'Reporter name',
                   subtitle: 'Reporter shown on TNS (falls back to observer '
                       'name).',
@@ -435,8 +406,7 @@ class ScienceSettingsPage extends ConsumerWidget {
               children: [
                 _ScienceCameraAutoRow(),
                 _ScienceCameraValueRow(
-                  settingKey: 'science.camera.read_noise_e',
-                  icon: LucideIcons.zap,
+                  settingKey: ScienceCameraAutoConfig.readNoiseKey,
                   title: 'Camera read noise (e⁻)',
                   subtitle: 'At the camera gain you image at. Used for '
                       'limiting magnitude (default 3.5)',
@@ -445,8 +415,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 30.0,
                 ),
                 _ScienceCameraValueRow(
-                  settingKey: 'science.camera.gain_e_per_adu',
-                  icon: LucideIcons.activity,
+                  settingKey: ScienceCameraAutoConfig.gainKey,
                   title: 'Camera gain (e⁻/ADU)',
                   subtitle: 'Electrons per ADU at the camera gain you image '
                       'at; it changes with that gain. Used for limiting '
@@ -456,8 +425,7 @@ class ScienceSettingsPage extends ConsumerWidget {
                   max: 50.0,
                 ),
                 _ScienceCameraValueRow(
-                  settingKey: 'science.camera.saturation_adu',
-                  icon: LucideIcons.sun,
+                  settingKey: ScienceCameraAutoConfig.saturationKey,
                   title: 'Saturation level (ADU)',
                   subtitle: 'Stars peaking above this are left out of '
                       'photometry. Set it a little below the highest value '
@@ -466,7 +434,6 @@ class ScienceSettingsPage extends ConsumerWidget {
                   min: 255,
                   max: 65535,
                   integer: true,
-                  isLast: true,
                 ),
               ],
             ),
@@ -489,7 +456,6 @@ class ScienceSettingsPage extends ConsumerWidget {
 /// is science-specific — normalisation, per-field validation shown in the
 /// subtitle, and the failure toast.
 class _ScienceTextRow extends ConsumerStatefulWidget {
-  final IconData icon;
   final String title;
   final String subtitle;
   final String hint;
@@ -506,11 +472,9 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
 
   final int? maxLength;
   final bool numeric;
-  final bool isLast;
   final String? Function(String value)? validate;
 
   const _ScienceTextRow({
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.hint,
@@ -520,7 +484,6 @@ class _ScienceTextRow extends ConsumerStatefulWidget {
     this.uppercase = false,
     this.maxLength,
     this.numeric = false,
-    this.isLast = false,
     this.validate,
   });
 
@@ -574,7 +537,6 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
   @override
   Widget build(BuildContext context) {
     return SettingRow(
-      icon: widget.icon,
       title: widget.title,
       subtitle: _rowError ?? widget.subtitle,
       trailing: SettingsTextInput(
@@ -586,7 +548,6 @@ class _ScienceTextRowState extends ConsumerState<_ScienceTextRow> {
         inputFormatters: _formatters,
         onChanged: _commit,
       ),
-      isLast: widget.isLast,
     );
   }
 }
@@ -661,7 +622,6 @@ class _TnsApiKeyRowState extends ConsumerState<_TnsApiKeyRow> {
   @override
   Widget build(BuildContext context) {
     return SettingRow(
-      icon: LucideIcons.keyRound,
       title: 'Bot API key',
       subtitle: _writeError ??
           (_hasKey
@@ -690,7 +650,6 @@ class _TnsSandboxRow extends ConsumerWidget {
     final science = ref.watch(scienceSettingsProvider).valueOrNull ??
         const ScienceSettings();
     return SettingRow(
-      icon: LucideIcons.flaskConical,
       title: 'Use TNS sandbox',
       subtitle:
           'Submit to the TNS sandbox instead of production (no public record).',
@@ -699,7 +658,6 @@ class _TnsSandboxRow extends ConsumerWidget {
         onChanged: (value) =>
             ref.read(scienceSettingsProvider.notifier).setTnsUseSandbox(value),
       ),
-      isLast: true,
     );
   }
 }
@@ -746,7 +704,6 @@ class _ScienceOnlineCatalogRowState
     final enabled =
         _pendingValue ?? (stored == null || stored.toLowerCase() != 'false');
     return SettingRow(
-      icon: LucideIcons.globe,
       title: 'Deep catalog lookups (APASS DR9)',
       subtitle: 'Fetch B/V photometry to ~mag 16 from VizieR for zero-point '
           'calibration and the transform wizard. Cached per field for '
@@ -756,7 +713,6 @@ class _ScienceOnlineCatalogRowState
         value: enabled,
         onChanged: _setEnabled,
       ),
-      isLast: true,
     );
   }
 }
@@ -808,7 +764,6 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
             : 'Following: $source')
         : 'Manual: values below are user-set and will not be overwritten';
     return SettingRow(
-      icon: LucideIcons.wand2,
       title: 'Auto-configure from camera',
       subtitle: subtitle,
       trailing: SettingsSwitch(
@@ -830,25 +785,21 @@ class _ScienceCameraAutoRowState extends ConsumerState<_ScienceCameraAutoRow> {
 /// formatter would swallow the offending text before the row ever sees it.
 class _ScienceCameraValueRow extends ConsumerStatefulWidget {
   final String settingKey;
-  final IconData icon;
   final String title;
   final String subtitle;
   final String defaultText;
   final double min;
   final double max;
   final bool integer;
-  final bool isLast;
 
   const _ScienceCameraValueRow({
     required this.settingKey,
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.defaultText,
     required this.min,
     required this.max,
     this.integer = false,
-    this.isLast = false,
   });
 
   @override
@@ -912,7 +863,6 @@ class _ScienceCameraValueRowState
     final stored =
         ref.watch(scienceRawSettingsProvider).valueOrNull?[widget.settingKey];
     return SettingRow(
-      icon: widget.icon,
       title: widget.title,
       subtitle: _rowError ?? widget.subtitle,
       trailing: SettingsTextInput(
@@ -922,7 +872,6 @@ class _ScienceCameraValueRowState
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         onChanged: _commit,
       ),
-      isLast: widget.isLast,
     );
   }
 }
@@ -991,7 +940,6 @@ class _SkyAtlasStorageRowState extends ConsumerState<_SkyAtlasStorageRow> {
               'versions at a fraction of the size.';
     }
     return SettingRow(
-      icon: LucideIcons.archive,
       title: 'Your Sky storage',
       subtitle: subtitle,
       trailing: SkotiqButton(

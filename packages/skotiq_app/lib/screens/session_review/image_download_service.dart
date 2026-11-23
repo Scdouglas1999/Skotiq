@@ -4,17 +4,6 @@ import 'package:skotiq_core/backend.dart';
 
 import '../../services/file_download_service.dart';
 
-export '../../services/file_download_service.dart'
-    show DesktopSaveLocationPicker, MobileFileShare;
-
-/// Result of a "download the full-resolution capture to this device" flow.
-///
-/// The destination handling (temp file → share sheet / save picker) is the
-/// generic [downloadFileToDevice]; these aliases keep the image-flavoured
-/// names its callers and tests use.
-typedef ImageDownloadStatus = FileDownloadStatus;
-typedef ImageDownloadOutcome = FileDownloadOutcome;
-
 /// Download the full-resolution image [imageId] from the connected imaging
 /// host to a temp file (streamed + resumable via
 /// [ImagingBackend.downloadImage]) and then hand it to the user:
@@ -27,7 +16,7 @@ typedef ImageDownloadOutcome = FileDownloadOutcome;
 /// This works over a remote pairing (the host streams the bytes) AND for a
 /// local host (the client backend copies its own file). Progress is reported
 /// through [onProgress] in `[0, 1]`.
-Future<ImageDownloadOutcome> downloadImageToDevice({
+Future<FileDownloadOutcome> downloadImageToDevice({
   required ImagingBackend backend,
   required int imageId,
   required String fileName,
@@ -38,7 +27,7 @@ Future<ImageDownloadOutcome> downloadImageToDevice({
   Future<Directory> Function()? temporaryDirectory,
 }) async {
   if (imageId <= 0) {
-    return const ImageDownloadOutcome.failed('Image id is not valid.');
+    return const FileDownloadOutcome.failed('Image id is not valid.');
   }
   final safeName = fileName.trim().isEmpty ? 'capture-$imageId.fits' : fileName;
   return downloadFileToDevice(

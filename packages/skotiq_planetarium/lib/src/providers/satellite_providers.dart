@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
+
+final _satelliteProvidersLog = Logger('skotiq.SatelliteProviders');
 
 /// Whether satellite overlay is enabled
 final showSatellitesProvider = StateProvider<bool>((ref) => false);
@@ -22,12 +24,7 @@ final satelliteTleProvider = FutureProvider<List<OrbitalElements>>((ref) async {
   try {
     return await catalog.loadBrightSatellites();
   } catch (e) {
-    developer.log(
-      '[Satellite] Failed to load TLE data: $e',
-      name: 'SatelliteProviders',
-      level: 1000,
-      error: e,
-    );
+    _satelliteProvidersLog.severe('[Satellite] Failed to load TLE data: $e', e);
     rethrow;
   }
 });
@@ -184,6 +181,12 @@ class PassPredictionNotifier extends StateNotifier<PassPredictionState> {
   final Ref _ref;
   int _computeGeneration = 0;
 
+  /// The span of the planetarium's clock the last prediction covers.
+  ({DateTime from, DateTime until})? _predicted;
+
+  /// The clock left [_predicted] while a prediction for it was running.
+  bool _clockLeftWhileComputing = false;
+
   PassPredictionNotifier(this._ref) : super(const PassPredictionState()) {
     _ref.listen<bool>(showSatellitesProvider, (previous, next) {
       if (!next) {
@@ -200,12 +203,46 @@ class PassPredictionNotifier extends StateNotifier<PassPredictionState> {
       if (_ref.read(showSatellitesProvider)) _refreshForCurrentInputs();
     });
     _ref.listen<PlanetariumObserver>(observerLocationProvider, (_, __) {
-      if (_ref.read(showSatellitesProvider) &&
-          _ref.read(satelliteTleProvider).valueOrNull?.isNotEmpty == true) {
+      if (_canPredict) unawaited(computePasses());
+    });
+    _ref.listen<DateTime>(observationMinuteProvider, (_, minute) {
+      if (!_canPredict || !_outsidePredicted(minute)) return;
+      if (state.isComputing) {
+        _clockLeftWhileComputing = true;
+      } else {
         unawaited(computePasses());
       }
     });
   }
+
+  bool _outsidePredicted(DateTime minute) {
+    final predicted = _predicted;
+    if (predicted == null) return false;
+    return minute.isBefore(_minuteOf(predicted.from)) ||
+        !minute.isBefore(predicted.until);
+  }
+
+  /// Predicts again when the clock left the span while it was computed.
+  void _followClockAfterPrediction() {
+    if (!_clockLeftWhileComputing) return;
+    _clockLeftWhileComputing = false;
+    if (_canPredict &&
+        _outsidePredicted(_ref.read(observationMinuteProvider))) {
+      unawaited(computePasses());
+    }
+  }
+
+  bool get _canPredict =>
+      _ref.read(showSatellitesProvider) &&
+      _ref.read(satelliteTleProvider).valueOrNull?.isNotEmpty == true;
+
+  static DateTime _minuteOf(DateTime t) => t.subtract(
+    Duration(
+      seconds: t.second,
+      milliseconds: t.millisecond,
+      microseconds: t.microsecond,
+    ),
+  );
 
   void _refreshForCurrentInputs() {
     final tleData = _ref.read(satelliteTleProvider);
@@ -269,6 +306,8 @@ class PassPredictionNotifier extends StateNotifier<PassPredictionState> {
       return;
     }
     final generation = ++_computeGeneration;
+    final from = _ref.read(observationTimeProvider).time.toUtc();
+    _predicted = (from: from, until: from.add(predictionWindow));
 
     state = const PassPredictionState(isComputing: true);
 
@@ -277,7 +316,7 @@ class PassPredictionNotifier extends StateNotifier<PassPredictionState> {
         elements: elements,
         latitude: site.latitude,
         longitude: site.longitude,
-        startTime: DateTime.now().toUtc(),
+        startTime: from,
         predictionWindow: predictionWindow,
       );
 
@@ -287,6 +326,7 @@ class PassPredictionNotifier extends StateNotifier<PassPredictionState> {
       if (!_canPublish(generation)) return;
       state = PassPredictionState(error: 'Pass prediction failed: $e');
     }
+    _followClockAfterPrediction();
   }
 
   bool _canPublish(int generation) {
@@ -338,9 +378,9 @@ final passPredictionProvider =
       return PassPredictionNotifier(ref);
     });
 
-/// Provider for upcoming passes (future only).
+/// The passes still to end at the planetarium's clock, to the minute.
 final upcomingPassesProvider = Provider<List<SatellitePass>>((ref) {
   final state = ref.watch(passPredictionProvider);
-  final now = DateTime.now();
+  final now = ref.watch(observationMinuteProvider);
   return state.passes.where((p) => p.setTime.isAfter(now)).toList();
 });

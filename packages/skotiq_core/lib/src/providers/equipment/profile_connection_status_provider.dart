@@ -73,8 +73,8 @@ class ProfileDeviceConnection {
   /// mismatch only when BOTH a device is connected (non-empty id) AND the
   /// profile assigns one (non-empty id) AND the two ids differ after the
   /// PHD2-canonical collapse. It does NOT use the fuzzy token matcher — a fuzzy
-  /// (but not canonical-equal) pairing is reported as a mismatch, exactly as
-  /// the old inline `check(...)` did. The guider applies [canonicalGuiderId]
+  /// (but not canonical-equal) pairing is reported as a mismatch.
+  /// The guider applies [canonicalGuiderId]
   /// to both sides so the same PHD2 guider recorded under any of its
   /// representations is never flagged.
   bool get isMismatch {

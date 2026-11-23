@@ -5,10 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_providers.dart';
 import 'package:skotiq_app/screens/darkroom/targets/nights_strip.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart'
+    show darkroomMasterBelongsTo, darkroomMasterTargetName;
 
 import 'owner_nights_fixture.dart';
 
@@ -45,7 +48,7 @@ void main() {
     // Subs after midnight belong to the evening they started.
     final oct21 = t.nights.firstWhere((n) => n.key == '2026-10-21');
     expect(oct21.last.day, 22);
-    expect(darkroomNightLabel(oct21.evening), 'Oct 21 to 22');
+    expect(ClockFormat.nightOf(oct21.evening), 'Oct 21 to 22');
     expect(darkroomWeekday(oct21.evening), 'Wednesday');
   });
 
@@ -197,6 +200,29 @@ void main() {
     expect(normalizeDarkroomTargetName('ngc 0891'), 'NGC0891');
   });
 
+  test('a master whose target row was renamed is that target\'s', () async {
+    final dao = IntegratedMastersDao(owner.db);
+    final row = (await owner.db.targetsDao.getAllTargets()).single;
+    // Named when the row was still called something else.
+    final renamed = await dao.getById(
+      await dao.insertMaster(
+        name: 'Old name · Ha',
+        filter: 'Ha',
+        targetId: row.id,
+        status: IntegratedMasterStatus.finalized,
+        accumulationMode: AccumulationMode.batch,
+      ),
+    );
+    final names = {row.id: row.name};
+    // The library files it under the row's name...
+    expect(darkroomMasterTargetName(renamed!, names), row.name);
+    // ...and so does a Targets group whose lights name no row.
+    expect(
+      darkroomMasterBelongsTo(renamed, row.name, targetNames: names),
+      isTrue,
+    );
+  });
+
   test('a master named for M31 is not M3\'s', () async {
     final dao = IntegratedMastersDao(owner.db);
     final m31 = await dao.getById(
@@ -221,7 +247,26 @@ void main() {
 
   test('filters keep the Darkroom order', () {
     final list = ['Ha', 'B', 'SII', 'L', 'Custom', 'G', 'R', 'OIII']
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
     expect(list, ['L', 'R', 'G', 'B', 'Ha', 'OIII', 'SII', 'Custom']);
+  });
+
+  test('every spelling of a filter sorts with its band, as in the live stack',
+      () {
+    final list = [
+      'S2',
+      'Custom',
+      'H-alpha',
+      'Blue',
+      'Lum',
+      'O3',
+      'Red',
+      'Green'
+    ]..sort(compareFilterNames);
+    expect(
+        list, ['Lum', 'Red', 'Green', 'Blue', 'H-alpha', 'O3', 'S2', 'Custom']);
+    final keys = ['Unfiltered', 'Ha', 'Lum', 'Custom']
+      ..sort(compareLiveStackFilters);
+    expect(keys, ['Lum', 'Ha', 'Custom', 'Unfiltered']);
   });
 }

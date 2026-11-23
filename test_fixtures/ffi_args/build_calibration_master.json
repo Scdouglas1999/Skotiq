@@ -1,0 +1,10 @@
+{
+  "framePaths": [
+    "string"
+  ],
+  "highSigma": "number",
+  "kind": "string",
+  "leakMinRiseAdu": "number",
+  "lowSigma": "number",
+  "outputPath": "string"
+}

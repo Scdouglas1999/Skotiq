@@ -17,6 +17,7 @@
 //! driver's own reason, then the reconnection loop, which keeps trying until
 //! reads succeed again.
 
+use crate::device_manager::failure::DeviceFailure;
 use crate::device_manager::DeviceManager;
 use crate::dispatch::error::DeviceOpError;
 use std::collections::HashMap;
@@ -35,7 +36,7 @@ const STATUS_READ_FAILURE_WINDOW: Duration = Duration::from_secs(60);
 #[derive(Debug, Clone)]
 pub(crate) struct StatusReadRun {
     pub consecutive_failures: u32,
-    pub last_error: String,
+    pub last_error: DeviceFailure,
     pub last_failure_at: Instant,
 }
 
@@ -52,17 +53,22 @@ impl StatusReadHealth {
         self.lock().remove(device_id);
     }
 
-    pub(crate) fn record_failure(&self, device_id: &str, error: &str, at: Instant) {
+    pub(crate) fn record_failure(
+        &self,
+        device_id: &str,
+        error: impl Into<DeviceFailure>,
+        at: Instant,
+    ) {
         let mut runs = self.lock();
         let run = runs
             .entry(device_id.to_string())
             .or_insert_with(|| StatusReadRun {
                 consecutive_failures: 0,
-                last_error: String::new(),
+                last_error: DeviceFailure::words(""),
                 last_failure_at: at,
             });
         run.consecutive_failures += 1;
-        run.last_error = error.to_string();
+        run.last_error = error.into();
         run.last_failure_at = at;
     }
 
@@ -73,7 +79,7 @@ impl StatusReadHealth {
     /// The reason to treat the device as not answering, when its reads have
     /// failed [`STATUS_READ_FAILURE_LIMIT`] times in a row and the last
     /// failure is recent.
-    pub(crate) fn failing(&self, device_id: &str, now: Instant) -> Option<String> {
+    pub(crate) fn failing(&self, device_id: &str, now: Instant) -> Option<DeviceFailure> {
         let runs = self.lock();
         let run = runs.get(device_id)?;
         if run.consecutive_failures < STATUS_READ_FAILURE_LIMIT
@@ -81,10 +87,12 @@ impl StatusReadHealth {
         {
             return None;
         }
-        Some(format!(
-            "the last {} status reads failed: {}",
-            run.consecutive_failures, run.last_error
-        ))
+        let failures = run.consecutive_failures;
+        Some(
+            run.last_error
+                .clone()
+                .reworded(|error| format!("the last {failures} status reads failed: {error}")),
+        )
     }
 }
 
@@ -97,27 +105,18 @@ fn counts_against_device(error: &DeviceOpError) -> bool {
     )
 }
 
-/// Whether a failed read says the device is gone, rather than busy or slow.
-fn says_gone(error: &DeviceOpError) -> bool {
-    if matches!(error, DeviceOpError::NotConnected { .. }) {
-        return true;
-    }
-    let message = error.to_string().to_ascii_lowercase();
-    message.contains("disconnected") || message.contains("not connected")
-}
-
 impl DeviceManager {
     /// Record how a status read of `device_id` went. A read that says the
     /// device is gone records it lost at once, so the device list, every
     /// status screen and the reconnection loop agree on what the device said
-    /// (rig, 2026-11-17: an EAF answered "Device disconnected" for minutes
+    /// (an EAF answered "Device disconnected" for minutes
     /// while the list still showed it connected and nothing reconnected it).
     pub(crate) async fn note_read<T>(&self, device_id: &str, result: &Result<T, DeviceOpError>) {
         self.note_status_read(device_id, result);
         let Err(error) = result else {
             return;
         };
-        if !says_gone(error) {
+        if !DeviceFailure::from(error).gone() {
             return;
         }
         let device_type = {
@@ -136,7 +135,7 @@ impl DeviceManager {
             crate::device_manager::policy::policy(device_type)
                 .heartbeat
                 .auto_reconnect,
-            &format!("Stopped answering: {error}"),
+            crate::device_manager::connection::Loss::StoppedAnswering(&error.to_string()),
         )
         .await;
     }
@@ -147,14 +146,14 @@ impl DeviceManager {
             Ok(_) => self.status_reads.record_success(device_id),
             Err(e) if counts_against_device(e) => {
                 self.status_reads
-                    .record_failure(device_id, &e.to_string(), Instant::now())
+                    .record_failure(device_id, DeviceFailure::from(e), Instant::now())
             }
             Err(_) => {}
         }
     }
 
     /// See [`StatusReadHealth::failing`].
-    pub(crate) fn failing_status_reads(&self, device_id: &str) -> Option<String> {
+    pub(crate) fn failing_status_reads(&self, device_id: &str) -> Option<DeviceFailure> {
         self.status_reads.failing(device_id, Instant::now())
     }
 }
@@ -172,7 +171,7 @@ mod tests {
         assert_eq!(health.failing("m", t), None);
         health.record_failure("m", "Failed to get RA: 0x80040401", t);
         let reason = health.failing("m", t).expect("three failures count");
-        assert!(reason.contains("0x80040401"), "{reason}");
+        assert!(reason.to_string().contains("0x80040401"), "{reason}");
 
         health.record_success("m");
         assert_eq!(health.failing("m", t), None);

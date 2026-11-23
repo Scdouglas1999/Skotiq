@@ -16,6 +16,9 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 
+import '../../backend/bridge_event_codec.dart';
+import '../../backend/bridge_events.dart'
+    show ImagingEvent_IntegrationTelemetry;
 import '../../models/backend/event_types.dart';
 import 'pass_log.dart';
 import 'pass_timeline.dart';
@@ -98,13 +101,10 @@ class DarkroomPassRecorder implements PassReporter {
   ];
 
   void _onEvent(SkotiqEvent event) {
-    if (event.category != EventCategory.imaging ||
-        event.eventType != 'IntegrationTelemetry') {
-      return;
-    }
-    final runId = event.data['run_id'];
-    final kind = event.data['kind'];
-    if (runId is! String || runId.isEmpty || kind is! String) return;
+    final telemetry = imagingEventOf(event);
+    if (telemetry is! ImagingEvent_IntegrationTelemetry) return;
+    final ImagingEvent_IntegrationTelemetry(:runId, :kind) = telemetry;
+    if (runId.isEmpty) return;
     final detail = event.data['detail'];
     _append(
       runId,

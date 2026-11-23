@@ -1,7 +1,5 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
-import '../../providers/linked_host.dart';
 import '../../models/defect_map.dart';
 import '../../backend/remote_host.dart';
 
@@ -14,13 +12,14 @@ import '../../backend/remote_host.dart';
 /// status, clear, or sequencer-push against a controller's FFI would inspect a
 /// different process and produce a split-brain UI.
 class DefectMapService {
-  final Ref _ref;
+  /// [linkedHost] gives the linked host's defect maps, or null when the rig is
+  /// this machine. It is asked at each call, so linking to another host
+  /// applies from the next operation.
+  DefectMapService(this._linkedHost);
 
-  DefectMapService(this._ref);
+  final HostCalibrationTools? Function() _linkedHost;
 
-  /// The linked host's defect maps, or null when the rig is this machine.
-  HostCalibrationTools? get _remote =>
-      _ref.read(linkedHostCalibrationToolsProvider);
+  HostCalibrationTools? get _remote => _linkedHost();
 
   /// Build a defect map for `cameraId` from the supplied dark / bias
   /// frame paths. At least

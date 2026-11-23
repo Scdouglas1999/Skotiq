@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:crypto/crypto.dart';
+import 'package:logging/logging.dart';
+
+final _serverIdentityLog = Logger('skotiq.ServerIdentity');
 
 /// Stable SHA-256 fingerprint for a Skotiq remote-control host.
 ///
@@ -33,9 +35,7 @@ String shortServerFingerprint(String fingerprint, {int length = 16}) {
 /// Which kind of Skotiq process serves the remote API.
 ///
 /// `gui` is the desktop app with its window (the usual imaging computer);
-/// `headless` is the daemon (`--headless`, a Pi appliance, a service). The two
-/// used to be indistinguishable to a client: both called themselves
-/// "Skotiq Headless".
+/// `headless` is the daemon (`--headless`, a Pi appliance, a service).
 enum SkotiqHostMode {
   gui('gui'),
   headless('headless');
@@ -59,11 +59,7 @@ String _localHostname() {
   try {
     return Platform.localHostname;
   } catch (e) {
-    developer.log(
-      'reading the local hostname failed: $e',
-      name: 'ServerIdentity',
-      level: 900,
-    );
+    _serverIdentityLog.warning('reading the local hostname failed: $e');
     return '';
   }
 }

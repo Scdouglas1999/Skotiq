@@ -3,8 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// bridge-boundary: imaging_handlers
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -19,7 +17,6 @@ import '../job_manager.dart';
 import '../request_context.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
-import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'filesystem_handlers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
@@ -46,11 +43,9 @@ class ImagingHandlers implements RouteSource {
 
   final ProviderContainer container;
 
-  /// optional job manager. When wired, plate-solve returns
-  /// `{jobId, status: queued}` immediately and the actual solve runs in
-  /// the background. Null in legacy callers / tests that exercise the
-  /// blocking shape.
-  final JobManager? jobManager;
+  /// Runs plate-solve requests: they answer `{jobId, status: queued}` at
+  /// once and the solve runs in the background.
+  final JobManager jobManager;
 
   /// Whether a frame a remote client saves here is also shown in this
   /// process's own image view. Only a desktop host has one; a headless host
@@ -59,7 +54,7 @@ class ImagingHandlers implements RouteSource {
 
   ImagingHandlers(
     this.container, {
-    this.jobManager,
+    required this.jobManager,
     this.showApiCapturesInPreview = false,
   });
 
@@ -123,77 +118,38 @@ class ImagingHandlers implements RouteSource {
           );
     }
 
-    final mgr = jobManager;
-    final preferLegacy = requestPrefersLegacyBlocking(request);
-    if (mgr != null && !preferLegacy) {
-      final job = mgr.start(
-        operation: 'plate-solve',
-        deviceId: null,
-        work: (sink, cancellation) async {
-          sink.update(null, 'Solving $imagePath');
-          final solve = await runSolve();
-          // There is no solver-process cancellation hook yet. Keep the job
-          // running until the solver really exits; JobManager observes the
-          // cancellation flag after this callback returns and transitions it
-          // to cancelled instead of falsely orphaning live host work.
-          if (cancellation.isCancelled) {
-            throw const JobCancelledException(
-              'Plate-solve cancellation requested by client',
-            );
-          }
-          // A job whose work failed ends `failed`: the job's state is what
-          // the job list, the failure notices and the clients go by.
-          if (!solve.success) {
-            throw JobFailedException(
-              code: 'plate_solve_failed',
-              message: solve.error ?? 'The solver found no solution.',
-              details: _plateSolveJson(solve),
-            );
-          }
-          return _plateSolveJson(solve);
-        },
-      );
-      return jsonOk({
-        'jobId': job.jobId,
-        'status': job.state.wireName,
-        'operation': job.operation,
-      });
-    }
-
-    final result = await runSolve();
-
-    return jsonOk(_plateSolveJson(result));
-  }
-
-  /// Serializes a [PlateSolveResult] to the wire shape, including the WCS CD
-  /// matrix and SIP distortion coefficients so remote (slave) clients can
-  /// reconstruct distortion-corrected pixel<->sky mapping. The SIP arrays are
-  /// emitted as plain `List<double>`; when the solve carries no SIP terms the
-  /// orders are 0 and the coefficient lists are empty.
-  static Map<String, Object?> _plateSolveJson(PlateSolveResult solve) {
-    return {
-      'success': solve.success,
-      'ra': solve.ra,
-      'dec': solve.dec,
-      'pixelScale': solve.pixelScale,
-      'rotation': solve.rotation,
-      'fieldWidth': solve.fieldWidth,
-      'fieldHeight': solve.fieldHeight,
-      'solveTimeSecs': solve.solveTimeSecs,
-      'error': solve.error,
-      'cd11': solve.cd11,
-      'cd12': solve.cd12,
-      'cd21': solve.cd21,
-      'cd22': solve.cd22,
-      'sipAOrder': solve.sipAOrder,
-      'sipBOrder': solve.sipBOrder,
-      'sipApOrder': solve.sipApOrder,
-      'sipBpOrder': solve.sipBpOrder,
-      'sipACoeffs': solve.sipACoeffs.toList(),
-      'sipBCoeffs': solve.sipBCoeffs.toList(),
-      'sipApCoeffs': solve.sipApCoeffs.toList(),
-      'sipBpCoeffs': solve.sipBpCoeffs.toList(),
-    };
+    final job = jobManager.start(
+      operation: JobOperation.plateSolve,
+      deviceId: null,
+      work: (sink, cancellation) async {
+        sink.update(null, 'Solving $imagePath');
+        final solve = await runSolve();
+        // There is no solver-process cancellation hook yet. Keep the job
+        // running until the solver really exits; JobManager observes the
+        // cancellation flag after this callback returns and transitions it
+        // to cancelled instead of falsely orphaning live host work.
+        if (cancellation.isCancelled) {
+          throw const JobCancelledException(
+            'Plate-solve cancellation requested by client',
+          );
+        }
+        // A job whose work failed ends `failed`: the job's state is what
+        // the job list, the failure notices and the clients go by.
+        if (!solve.success) {
+          throw JobFailedException(
+            code: 'plate_solve_failed',
+            message: solve.error ?? 'The solver found no solution.',
+            details: plateSolveResultToJson(solve),
+          );
+        }
+        return plateSolveResultToJson(solve);
+      },
+    );
+    return jsonOk({
+      'jobId': job.jobId,
+      'status': job.state.wireName,
+      'operation': job.operation,
+    });
   }
 
   // Plate solver setup
@@ -226,7 +182,9 @@ class ImagingHandlers implements RouteSource {
         statusCode: HttpStatus.notFound,
       );
     }
-    final fits = await bridge.apiReadFitsFile(filePath: filePath);
+    final fits = await container
+        .read(imagingBackendProvider)
+        .readFitsFile(filePath: filePath);
     return jsonOk({'width': fits.width, 'height': fits.height});
   }
 
@@ -593,13 +551,15 @@ class ImagingHandlers implements RouteSource {
       outDir.createSync(recursive: true);
     }
 
-    await bridge.apiCalibrateImageFile(
-      lightPath: lightPath,
-      darkPath: darkPath,
-      flatPath: flatPath,
-      biasPath: biasPath,
-      outputPath: outputPath,
-    );
+    await container
+        .read(imagingBackendProvider)
+        .calibrateImageFile(
+          lightPath: lightPath,
+          darkPath: darkPath,
+          flatPath: flatPath,
+          biasPath: biasPath,
+          outputPath: outputPath,
+        );
 
     return jsonOk({
       'outputPath': outputPath,

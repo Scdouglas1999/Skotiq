@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "tiles": [
+    {
+      "centerDec": 41.269,
+      "centerRa": 10.6847,
+      "channels": 3,
+      "coverageMean": 11.25,
+      "integrationSeconds": 7560.0,
+      "lastFoldIso": "2026-11-21T04:30:00Z",
+      "tileId": 1234567,
+      "totalFrames": 42
+    }
+  ]
+}

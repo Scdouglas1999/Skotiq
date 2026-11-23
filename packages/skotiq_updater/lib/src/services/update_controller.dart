@@ -14,6 +14,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/update_manifest.dart';
 import 'android_installer.dart';
+import 'update_downloader.dart' show DownloadCancelledException;
 import 'update_service.dart';
 
 /// The GitHub project shipped builds read releases from.
@@ -716,8 +717,6 @@ class UpdateController {
         );
       }
 
-      // No update — reset to idle (or staged if a previously-staged
-      // update still exists).
       if (gen == _opGeneration) {
         _updateStatus(
           UpdateControllerStatus(
@@ -773,6 +772,7 @@ class UpdateController {
       );
     }
     _beginOperation('download');
+    final gen = _opGeneration;
 
     _eventsController.add(
       UpdateDownloadStartedEvent(
@@ -856,12 +856,14 @@ class UpdateController {
         ),
       );
     } catch (e) {
-      // Operator abort surfaces as a cancellation from the downloader. Treat
-      // it as a clean stop — return to staged/idle without a failure event.
-      final cancelled =
-          e.runtimeType.toString().contains('Cancel') ||
-          e.toString().toLowerCase().contains('cancel');
-      if (cancelled) {
+      // A stop the operator asked for is not a failure: no failure event, and
+      // the offer or the staged update stays. Any other error is a failure,
+      // whatever its text says, and bytes that failed verification always are.
+      final badBytes = e is UpdateException && e.isVerificationFailure;
+      final stoppedByOperator =
+          e is DownloadCancelledException ||
+          (gen != _opGeneration && !badBytes);
+      if (stoppedByOperator) {
         final manifest = _lastManifest;
         _updateStatus(
           UpdateControllerStatus(
@@ -890,7 +892,7 @@ class UpdateController {
       // Verification failures surface as `UpdateVerificationFailed` so
       // the client can distinguish "the bytes were bad" from "the network
       // dropped".
-      if (e is UpdateException && e.message.toLowerCase().contains('verif')) {
+      if (e is UpdateException && e.isVerificationFailure) {
         _eventsController.add(
           UpdateVerificationFailedEvent(jobId: jobId, reason: e.message),
         );

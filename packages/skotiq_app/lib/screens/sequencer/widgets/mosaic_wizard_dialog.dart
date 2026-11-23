@@ -366,8 +366,7 @@ class _MosaicWizardDialogState extends ConsumerState<MosaicWizardDialog>
                         ? '${(_panelWidthArcmin / 60).toStringAsFixed(2)}° × ${(_panelHeightArcmin / 60).toStringAsFixed(2)}°'
                         : 'unknown',
                     overlapLabel: '${_overlapPercent.toStringAsFixed(0)}%',
-                    filterCount:
-                        exposure.isMultiFilter ? exposure.filters!.length : 1,
+                    filterCount: exposure.filters.length,
                     exposureSecsPerPanel: exposureSecsPerPanel,
                     exposuresPerPanel: exposuresPerPanel,
                     estTimeHours: _estimatedTime().inSeconds / 3600,

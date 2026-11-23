@@ -2,9 +2,8 @@
 ///
 /// 02 rule 3 and 06's copy rules want "Take exposures", not "Take Exposures",
 /// and the mockup draws it that way. The strings themselves come from
-/// `nodePaletteProvider` in `skotiq_core`, which this wave may not touch
-/// (07: "Do not touch packages/skotiq_core"), so the palette lowers them
-/// where it DRAWS them.
+/// `nodePaletteProvider` in `skotiq_core`, and the palette lowers them where
+/// it DRAWS them.
 ///
 /// This is deliberately chrome-only. The name a node carries once it is in a
 /// sequence is the user's data — `NodePaletteItem.createNode()` sets it, the

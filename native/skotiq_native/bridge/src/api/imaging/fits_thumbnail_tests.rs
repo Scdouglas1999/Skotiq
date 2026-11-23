@@ -1,9 +1,9 @@
 //! The FITS thumbnail generator behind every frame strip in the app.
 //!
 //! Two properties are pinned here. The first is that the generator samples the
-//! frame rather than materialising it: it used to convert the whole frame to
-//! `Vec<u16>` before reading one sample in `scale`, which for a 4656 x 3520
-//! ASI1600 frame meant 32.8 MB of allocation and 16.4 million conversions to
+//! frame rather than materialising it: for a 4656 x 3520
+//! ASI1600 frame the whole-frame conversion meant 32.8 MB of allocation and
+//! 16.4 million conversions to
 //! keep 1.2% of them. The second is that every FITS pixel type and both the
 //! mono and colour channel layouts come out with the same pixel values they
 //! did through the whole-frame conversion, since a thumbnail that changes

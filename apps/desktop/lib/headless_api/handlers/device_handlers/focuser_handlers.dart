@@ -165,77 +165,25 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     return jsonOk({'status': 'halted'});
   }
 
-  bool _isFocuserBusy(Object error) {
-    final message = error is bridge_error.SkotiqError
-        ? error.maybeMap(
-            operationFailed: (failure) => failure.field0,
-            orElse: () => error.toString(),
-          )
-        : error.toString();
-    final normalized = message.toLowerCase();
-    return normalized.contains('move failure') ||
-        normalized.contains('already moving') ||
-        normalized.contains('device busy') ||
-        normalized.contains('focuser is busy');
-  }
+  /// The bridge answers a move the driver refused because the focuser is
+  /// moving as `deviceBusy`.
+  bool _isFocuserBusy(Object error) =>
+      error is bridge_error.SkotiqError_DeviceBusy;
 
   Future<Response> handleAutofocusStart(Request request) async {
     _logInfo('[API] POST /api/focuser/autofocus/start');
     final payload = await readJsonObject(request);
-    final deviceId = requireString(payload, 'deviceId');
-    final cameraId = requireString(payload, 'cameraId');
-    final exposureTime = requireDouble(
-      payload,
-      'exposureTime',
-      min: 0.1,
-      max: 300,
-    );
-    final stepSize = requireInt(payload, 'stepSize', min: 1, max: 10000);
-    final stepsOut = requireInt(payload, 'stepsOut', min: 1, max: 50);
-    final method = optionalString(payload, 'method') ?? 'VCurve';
-    final binning = optionalInt(payload, 'binning', min: 1, max: 4) ?? 1;
-    final gain = optionalInt(payload, 'gain', min: 0);
-    final offset = optionalInt(payload, 'offset', min: 0);
-    final curveFitting =
-        optionalString(payload, 'curveFitting') ?? 'Hyperbolic';
-    final numberOfAttempts =
-        optionalInt(payload, 'numberOfAttempts', min: 1, max: 10) ?? 1;
-    final exposuresPerPoint =
-        optionalInt(payload, 'exposuresPerPoint', min: 1, max: 20) ?? 1;
-    final rSquaredThreshold =
-        optionalDouble(payload, 'rSquaredThreshold', min: 0, max: 1) ?? 0.7;
-    final outerCropRatio =
-        optionalDouble(payload, 'outerCropRatio', min: 0, max: 1) ?? 1.0;
-    final innerCropRatio =
-        optionalDouble(payload, 'innerCropRatio', min: 0, max: 1) ?? 0.0;
-    if (outerCropRatio == 0 || innerCropRatio >= outerCropRatio) {
+    final AutofocusRequest autofocusRequest;
+    try {
+      autofocusRequest = AutofocusRequest.fromWireJson(payload);
+    } on AutofocusRequestFieldError catch (error) {
       throw BadRequestError(
-        field: 'innerCropRatio/outerCropRatio',
-        expected: '0 <= inner < outer <= 1',
-        message: 'Crop ratios must satisfy 0 <= inner < outer <= 1',
+        field: error.field,
+        expected: error.expected,
+        message: error.message,
       );
     }
-    final useBrightestNStars =
-        optionalInt(payload, 'useBrightestNStars', min: 0, max: 500) ?? 10;
-    final focuserSettleTimeMs =
-        optionalInt(payload, 'focuserSettleTimeMs', min: 0, max: 10000) ?? 500;
-    final backlashCompMethod =
-        optionalString(payload, 'backlashCompMethod') ?? 'Overshoot';
-    // Zero, like every other backlash default: an API caller who omits it
-    // gets no compensation rather than 350 steps of someone else's focuser.
-    final backlashIn =
-        optionalInt(payload, 'backlashIn', min: 0, max: 10000) ?? 0;
-    final backlashOut =
-        optionalInt(payload, 'backlashOut', min: 0, max: 10000) ?? 0;
-    // A figure this app measured on the focuser, from a stored calibration.
-    // Never overrides `backlashIn`: native applies it only when the operator
-    // has left theirs at 0.
-    final measuredBacklashIn = optionalInt(
-      payload,
-      'measuredBacklashIn',
-      min: 0,
-      max: 10000,
-    );
+    final deviceId = autofocusRequest.deviceId;
 
     // register the command so any later event with a matching
     // operation kind picks up `correlatingCommandId`. We still register
@@ -246,120 +194,59 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    // when a JobManager is wired up and the client has
-    // NOT opted into the legacy synchronous shape, return `{jobId,
-    // status: queued, commandId}` immediately and run the autofocus
-    // work in the background. Progress + completion arrive via WS
+    // Answers `{jobId, status: queued, commandId}` at once and runs the
+    // autofocus in the background. Progress and completion arrive as WS
     // events (category=job).
-    final mgr = jobManager;
-    final preferLegacy = requestPrefersLegacyBlocking(request);
-    final recordFocusModel = await _focusModelRecorder(method);
-    if (mgr != null && !preferLegacy) {
-      final job = mgr.start(
-        operation: 'focuser.autofocus',
-        deviceId: deviceId,
-        commandId: commandId,
-        work: (sink, cancellation) async {
-          sink.update(null, 'Starting autofocus');
-          final backend = container.read(deviceBackendProvider);
-          // Race the long-running call against the job token. If the client
-          // cancels, propagate that request through the backend before marking
-          // the job cancelled; otherwise the REST job would disappear while
-          // the camera and focuser continued a physical autofocus sweep.
-          final workFuture = backend.autofocusStart(
-            deviceId: deviceId,
-            cameraId: cameraId,
-            exposureTime: exposureTime,
-            stepSize: stepSize,
-            stepsOut: stepsOut,
-            method: method,
-            binning: binning,
-            gain: gain,
-            offset: offset,
-            curveFitting: curveFitting,
-            numberOfAttempts: numberOfAttempts,
-            exposuresPerPoint: exposuresPerPoint,
-            rSquaredThreshold: rSquaredThreshold,
-            outerCropRatio: outerCropRatio,
-            innerCropRatio: innerCropRatio,
-            useBrightestNStars: useBrightestNStars,
-            focuserSettleTimeMs: focuserSettleTimeMs,
-            backlashCompMethod: backlashCompMethod,
-            backlashIn: backlashIn,
-            backlashOut: backlashOut,
-            measuredBacklashIn: measuredBacklashIn,
-          );
-          final result = await Future.any<dynamic>([
-            workFuture,
-            cancellation.whenCancelled.then((_) => _CancelledMarker.instance),
-          ]);
-          if (result is _CancelledMarker) {
-            await backend.autofocusCancel();
-            // `autofocusCancel` only requests cancellation. The native sweep
-            // still has to halt the motor and command its return position, so
-            // keep the job running until the original work future actually
-            // settles. A terminal JobCancelled event before that point would
-            // let clients start another sweep on moving hardware.
-            try {
-              await workFuture;
-            } catch (error) {
-              // Cancellation normally makes the work future fail with the
-              // backend's typed cancelled error. The user's cancellation is
-              // authoritative once the cancel command itself succeeded.
-              _logger.debug(
-                'Autofocus work settled with an error after client cancellation: '
-                '$error',
-                source: 'DeviceHandlers',
-              );
-            }
-            throw const JobCancelledException(
-              'Autofocus cancellation requested by client',
+    final recordFocusModel = await _focusModelRecorder(autofocusRequest.method);
+    final job = jobManager.start(
+      operation: JobOperation.autofocus,
+      deviceId: deviceId,
+      commandId: commandId,
+      work: (sink, cancellation) async {
+        sink.update(null, 'Starting autofocus');
+        final backend = container.read(deviceBackendProvider);
+        // Race the long-running call against the job token. If the client
+        // cancels, propagate that request through the backend before marking
+        // the job cancelled; otherwise the REST job would disappear while
+        // the camera and focuser continued a physical autofocus sweep.
+        final workFuture = backend.autofocusStart(autofocusRequest);
+        final result = await Future.any<dynamic>([
+          workFuture,
+          cancellation.whenCancelled.then((_) => _CancelledMarker.instance),
+        ]);
+        if (result is _CancelledMarker) {
+          await backend.autofocusCancel();
+          // `autofocusCancel` only requests cancellation. The native sweep
+          // still has to halt the motor and command its return position, so
+          // keep the job running until the original work future actually
+          // settles. A terminal JobCancelled event before that point would
+          // let clients start another sweep on moving hardware.
+          try {
+            await workFuture;
+          } catch (error) {
+            // Cancellation normally makes the work future fail with the
+            // backend's typed cancelled error. The user's cancellation is
+            // authoritative once the cancel command itself succeeded.
+            _logger.debug(
+              'Autofocus work settled with an error after client cancellation: '
+              '$error',
+              source: 'DeviceHandlers',
             );
           }
-          final typed = result as AutofocusResult;
-          await recordFocusModel?.call(typed);
-          return typed.toJson();
-        },
-      );
-      return jsonOk({
-        'jobId': job.jobId,
-        'status': job.state.wireName,
-        if (commandId != null) 'commandId': commandId,
-        'operation': job.operation,
-      });
-    }
-
-    // Legacy fallback (no JobManager wired or client opted into
-    // synchronous shape). Existing behaviour preserved.
-    final backend = container.read(deviceBackendProvider);
-    final result = await backend.autofocusStart(
-      deviceId: deviceId,
-      cameraId: cameraId,
-      exposureTime: exposureTime,
-      stepSize: stepSize,
-      stepsOut: stepsOut,
-      method: method,
-      binning: binning,
-      gain: gain,
-      offset: offset,
-      curveFitting: curveFitting,
-      numberOfAttempts: numberOfAttempts,
-      exposuresPerPoint: exposuresPerPoint,
-      rSquaredThreshold: rSquaredThreshold,
-      outerCropRatio: outerCropRatio,
-      innerCropRatio: innerCropRatio,
-      useBrightestNStars: useBrightestNStars,
-      focuserSettleTimeMs: focuserSettleTimeMs,
-      backlashCompMethod: backlashCompMethod,
-      backlashIn: backlashIn,
-      backlashOut: backlashOut,
-      measuredBacklashIn: measuredBacklashIn,
+          throw const JobCancelledException(
+            'Autofocus cancellation requested by client',
+          );
+        }
+        final typed = result as AutofocusResult;
+        await recordFocusModel?.call(typed);
+        return typed.toJson();
+      },
     );
-    await recordFocusModel?.call(result);
-
     return jsonOk({
+      'jobId': job.jobId,
+      'status': job.state.wireName,
       if (commandId != null) 'commandId': commandId,
-      ...result.toJson(),
+      'operation': job.operation,
     });
   }
 
@@ -402,64 +289,49 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       deviceId: deviceId,
     );
 
-    final mgr = jobManager;
-    final preferLegacy = requestPrefersLegacyBlocking(request);
-    if (mgr != null && !preferLegacy) {
-      final job = mgr.start(
-        operation: 'focuser.backlash-calibration',
-        deviceId: deviceId,
-        commandId: commandId,
-        work: (sink, cancellation) async {
-          sink.update(null, 'Starting the from-below scan');
-          final backend = container.read(deviceBackendProvider);
-          final workFuture = backend.focuserBacklashCalibrationStart(
-            deviceId: deviceId,
-            cameraId: cameraId,
-            configJson: configJson,
-          );
-          final result = await Future.any<dynamic>([
-            workFuture,
-            cancellation.whenCancelled.then((_) => _CancelledMarker.instance),
-          ]);
-          if (result is _CancelledMarker) {
-            await backend.focuserBacklashCalibrationCancel();
-            // Cancelling only asks. The routine still has to halt the motor
-            // and drive the focuser back to where the operator left it, so the
-            // job stays live until the real future settles — otherwise a
-            // client could start another run on moving hardware.
-            try {
-              await workFuture;
-            } catch (error) {
-              _logger.debug(
-                'Backlash calibration settled with an error after client '
-                'cancellation: $error',
-                source: 'DeviceHandlers',
-              );
-            }
-            throw const JobCancelledException(
-              'Backlash calibration cancellation requested by client',
+    final job = jobManager.start(
+      operation: JobOperation.backlashCalibration,
+      deviceId: deviceId,
+      commandId: commandId,
+      work: (sink, cancellation) async {
+        sink.update(null, 'Starting the from-below scan');
+        final backend = container.read(deviceBackendProvider);
+        final workFuture = backend.focuserBacklashCalibrationStart(
+          deviceId: deviceId,
+          cameraId: cameraId,
+          configJson: configJson,
+        );
+        final result = await Future.any<dynamic>([
+          workFuture,
+          cancellation.whenCancelled.then((_) => _CancelledMarker.instance),
+        ]);
+        if (result is _CancelledMarker) {
+          await backend.focuserBacklashCalibrationCancel();
+          // Cancelling only asks. The routine still has to halt the motor
+          // and drive the focuser back to where the operator left it, so the
+          // job stays live until the real future settles — otherwise a
+          // client could start another run on moving hardware.
+          try {
+            await workFuture;
+          } catch (error) {
+            _logger.debug(
+              'Backlash calibration settled with an error after client '
+              'cancellation: $error',
+              source: 'DeviceHandlers',
             );
           }
-          return {'outcome': _decodeNativeJson(result as String, 'outcome')};
-        },
-      );
-      return jsonOk({
-        'jobId': job.jobId,
-        'status': job.state.wireName,
-        if (commandId != null) 'commandId': commandId,
-        'operation': job.operation,
-      });
-    }
-
-    final backend = container.read(deviceBackendProvider);
-    final outcomeJson = await backend.focuserBacklashCalibrationStart(
-      deviceId: deviceId,
-      cameraId: cameraId,
-      configJson: configJson,
+          throw const JobCancelledException(
+            'Backlash calibration cancellation requested by client',
+          );
+        }
+        return {'outcome': _decodeNativeJson(result as String, 'outcome')};
+      },
     );
     return jsonOk({
+      'jobId': job.jobId,
+      'status': job.state.wireName,
       if (commandId != null) 'commandId': commandId,
-      'outcome': _decodeNativeJson(outcomeJson, 'outcome'),
+      'operation': job.operation,
     });
   }
 
@@ -470,14 +342,13 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final commandId = commandCorrelator?.beginCommand(
       operation: 'focuser.backlash-calibration.cancel',
     );
-    final manager = jobManager;
-    final activeJobs = manager
-        ?.list(operation: 'focuser.backlash-calibration')
+    final activeJobs = jobManager
+        .list(operation: JobOperation.backlashCalibration.wire)
         .where((job) => !job.state.isTerminal)
         .toList(growable: false);
-    if (activeJobs != null && activeJobs.isNotEmpty) {
+    if (activeJobs.isNotEmpty) {
       for (final job in activeJobs) {
-        manager!.cancel(job.jobId);
+        jobManager.cancel(job.jobId);
       }
       return jsonOk({
         if (commandId != null) 'commandId': commandId,
@@ -544,17 +415,16 @@ extension FocuserDeviceHandlers on DeviceHandlers {
     final commandId = commandCorrelator?.beginCommand(
       operation: 'focuser.autofocus.cancel',
     );
-    final manager = jobManager;
-    final activeJobs = manager
-        ?.list(operation: 'focuser.autofocus')
+    final activeJobs = jobManager
+        .list(operation: JobOperation.autofocus.wire)
         .where((job) => !job.state.isTerminal)
         .toList(growable: false);
-    if (activeJobs != null && activeJobs.isNotEmpty) {
+    if (activeJobs.isNotEmpty) {
       // Drive the same cooperative token owned by the job. Its work callback
       // propagates the request to the backend and does not become terminal
       // until the physical sweep future settles.
       for (final job in activeJobs) {
-        manager!.cancel(job.jobId);
+        jobManager.cancel(job.jobId);
       }
       return jsonOk({
         if (commandId != null) 'commandId': commandId,
@@ -563,7 +433,7 @@ extension FocuserDeviceHandlers on DeviceHandlers {
       });
     }
 
-    // Legacy/no-job run (or a sweep started by another in-process surface).
+    // A sweep started by another in-process surface, not by a job here.
     final backend = container.read(deviceBackendProvider);
     await backend.autofocusCancel();
 

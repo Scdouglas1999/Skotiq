@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart' show ObstructionAction;
 import 'package:skotiq_core/providers.dart';
@@ -47,7 +46,6 @@ class _FrameWatchSettingsSectionState
           : 'Recenter after drift',
       children: [
         SettingRow(
-          icon: LucideIcons.crosshair,
           title: 'Recenter after drift trigger',
           subtitle:
               'Plate solve every saved light frame and recenter between exposures '
@@ -61,7 +59,6 @@ class _FrameWatchSettingsSectionState
           ),
         ),
         SettingRow(
-          icon: LucideIcons.move,
           title: 'Maximum drift',
           subtitle:
               'Default: 30 arcseconds. Measured from the first successfully solved '
@@ -79,11 +76,9 @@ class _FrameWatchSettingsSectionState
             onChanged: (value) =>
                 _save(() => notifier.setDriftLimitArcsec(value)),
           ),
-          isLast: !widget.showObstructionDetection,
         ),
         if (widget.showObstructionDetection) ...[
           SettingRow(
-            icon: LucideIcons.mountain,
             title: 'Detect obstructions',
             subtitle:
                 'Off by default. Watch for trees or a roof entering the field: '
@@ -97,11 +92,9 @@ class _FrameWatchSettingsSectionState
               onChanged: (value) =>
                   _save(() => notifier.setObstructionDetection(value)),
             ),
-            isLast: !settings.obstructionDetection,
           ),
           if (settings.obstructionDetection)
             SettingRow(
-              icon: LucideIcons.skipForward,
               title: 'When an obstruction is confirmed',
               subtitle:
                   'Notify: tell you and keep imaging the target. Move on: '
@@ -119,7 +112,6 @@ class _FrameWatchSettingsSectionState
                 onChanged: (action) =>
                     _save(() => notifier.setObstructionAction(action)),
               ),
-              isLast: true,
             ),
         ],
       ],

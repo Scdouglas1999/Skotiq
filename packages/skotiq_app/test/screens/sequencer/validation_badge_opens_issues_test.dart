@@ -48,9 +48,9 @@ void main() {
 
     final handle = await pumpAppScreen(
       tester,
-      // The counts moved from the tree's own header row to the canvas bar
-      // in wave 3 (06 §Sequencer), so the pair is pumped together — which is
-      // also how the builder lays them out.
+      // The counts live in the canvas bar (06 §Sequencer), so the pair is
+      // pumped
+      // together — which is also how the builder lays them out.
       Builder(
         builder: (context) => Column(
           children: [

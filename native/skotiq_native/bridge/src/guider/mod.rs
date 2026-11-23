@@ -19,10 +19,9 @@ pub struct GuiderStatus {
     /// The guider that answered (`phd2_guider` or the built-in guider's id).
     pub device_id: String,
     pub connected: bool,
-    /// "Disconnected", "Connected", "Stopped", "Calibrating", "Guiding",
-    /// "Looping", "Paused", "Settling", "LostLock", or a state PHD2 names
-    /// that this build does not know, as PHD2 spells it.
-    pub state: String,
+    /// What the guider is doing. The app spells it as a word for the
+    /// headless API: `test_fixtures/guider_state/words.json`.
+    pub state: GuiderActivity,
     /// Guide error RMS in arcseconds.
     pub rms_ra: f64,
     pub rms_dec: f64,
@@ -33,11 +32,9 @@ pub struct GuiderStatus {
     /// guider has no scale to give (PHD2 without focal length and pixel size
     /// in its profile, or a failed read). Never a placeholder 0.
     pub pixel_scale: Option<f64>,
-    /// Why the guider is stopped or held, as the snake_case name of a
-    /// `GuidingStopReason` (`autofocus`, `meridian_flip`,
-    /// `tracking_limit_hold`, `mount_move`, `pre_meridian_hold`,
-    /// `sequence_step`, `dither_settle`, `run_stopped`, `operator`). `None`
-    /// while guiding runs or when nothing recorded a reason.
+    /// Why the guider is stopped or held, as the wire name of a
+    /// `GuidingStopReason` (`GuidingStopReason::as_wire`). `None` while
+    /// guiding runs or when nothing recorded a reason.
     pub stop_reason: Option<String>,
     /// The reference stars the built-in multi-star guider tracks. PHD2
     /// guides on one star and reports none here.
@@ -326,15 +323,34 @@ impl Guider {
     }
 }
 
-/// Whether a guider in `state` may move the mount: anything but idle,
-/// looping or paused. PHD2 in LostLock keeps searching and guides again the
-/// moment it finds the star; settling and calibrating move the mount; a
-/// state this build does not know is treated as moving it.
-pub(crate) fn state_may_move_mount(state: &str) -> bool {
-    !matches!(
-        state,
-        "Disconnected" | "Connected" | "Stopped" | "Selected" | "Looping" | "Paused"
-    )
+/// What a guider is doing, as both guiders state it. An idle PHD2 says
+/// `Connected` and an idle built-in guider `Stopped`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GuiderActivity {
+    Disconnected,
+    Connected,
+    Stopped,
+    Calibrating,
+    Guiding,
+    Looping,
+    Paused,
+    Settling,
+    LostLock,
+    /// A state PHD2 names that this build does not know, as PHD2 spells it.
+    Unknown(String),
+}
+
+impl GuiderActivity {
+    /// Whether a guider in this state may move the mount: anything but idle,
+    /// looping or paused. PHD2 in LostLock keeps searching and guides again
+    /// the moment it finds the star; settling and calibrating move the mount;
+    /// a state this build does not know is treated as moving it.
+    pub(crate) fn may_move_mount(&self) -> bool {
+        !matches!(
+            self,
+            Self::Disconnected | Self::Connected | Self::Stopped | Self::Looping | Self::Paused
+        )
+    }
 }
 
 #[cfg(test)]
@@ -424,26 +440,101 @@ mod tests {
         );
     }
 
+    const GUIDER_STATE_WORDS: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/guider_state/words.json"
+    );
+
+    /// The word the app gives each state on the headless API and decodes
+    /// again (the words the status carried as a string before the field was
+    /// typed). An unknown state keeps PHD2's own spelling.
+    fn word(state: &GuiderActivity) -> &str {
+        match state {
+            GuiderActivity::Disconnected => "Disconnected",
+            GuiderActivity::Connected => "Connected",
+            GuiderActivity::Stopped => "Stopped",
+            GuiderActivity::Calibrating => "Calibrating",
+            GuiderActivity::Guiding => "Guiding",
+            GuiderActivity::Looping => "Looping",
+            GuiderActivity::Paused => "Paused",
+            GuiderActivity::Settling => "Settling",
+            GuiderActivity::LostLock => "LostLock",
+            GuiderActivity::Unknown(raw) => raw,
+        }
+    }
+
+    fn words_contract() -> serde_json::Value {
+        let states = [
+            GuiderActivity::Disconnected,
+            GuiderActivity::Connected,
+            GuiderActivity::Stopped,
+            GuiderActivity::Calibrating,
+            GuiderActivity::Guiding,
+            GuiderActivity::Looping,
+            GuiderActivity::Paused,
+            GuiderActivity::Settling,
+            GuiderActivity::LostLock,
+            GuiderActivity::Unknown("GuidingPaused".to_string()),
+        ];
+        let rows: Vec<serde_json::Value> = states
+            .iter()
+            .map(|state| {
+                let variant = format!("{state:?}");
+                let variant = variant.split('(').next().expect("variant").to_string();
+                serde_json::json!({
+                    "variant": variant,
+                    "word": word(state),
+                    "mayMoveMount": state.may_move_mount(),
+                })
+            })
+            .collect();
+        serde_json::json!({ "states": rows })
+    }
+
+    /// `test_fixtures/guider_state/words.json` lists every state the FFI
+    /// carries with its word; the app's word table is held to it.
+    #[test]
+    fn the_guider_state_fixture_matches_the_states() {
+        let mut text = serde_json::to_string_pretty(&words_contract()).expect("serialize");
+        text.push('\n');
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            std::fs::create_dir_all(
+                std::path::Path::new(GUIDER_STATE_WORDS)
+                    .parent()
+                    .expect("dir"),
+            )
+            .expect("fixture dir");
+            std::fs::write(GUIDER_STATE_WORDS, &text).expect("write fixture");
+            return;
+        }
+        let committed = std::fs::read_to_string(GUIDER_STATE_WORDS).expect("fixture");
+        let committed: serde_json::Value = serde_json::from_str(&committed).expect("fixture JSON");
+        assert_eq!(
+            committed,
+            words_contract(),
+            "the guider states changed; regenerate the fixture and update the app's word table"
+        );
+    }
+
     #[test]
     fn a_guider_that_may_move_the_mount_is_any_but_idle_looping_or_paused() {
         for state in [
-            "Guiding",
-            "Calibrating",
-            "Settling",
-            "LostLock",
-            "GuidingPaused",
+            GuiderActivity::Guiding,
+            GuiderActivity::Calibrating,
+            GuiderActivity::Settling,
+            GuiderActivity::LostLock,
+            GuiderActivity::Unknown("GuidingPaused".to_string()),
         ] {
-            assert!(state_may_move_mount(state), "{state}");
+            assert!(state.may_move_mount(), "{state:?}");
         }
         for state in [
-            "Disconnected",
-            "Connected",
-            "Stopped",
-            "Selected",
-            "Looping",
-            "Paused",
+            GuiderActivity::Disconnected,
+            GuiderActivity::Connected,
+            GuiderActivity::Stopped,
+            GuiderActivity::Looping,
+            GuiderActivity::Paused,
         ] {
-            assert!(!state_may_move_mount(state), "{state}");
+            assert!(!state.may_move_mount(), "{state:?}");
         }
     }
 }

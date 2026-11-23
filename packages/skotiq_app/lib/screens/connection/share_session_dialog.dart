@@ -9,10 +9,9 @@ import '../../utils/snackbar_helper.dart';
 /// Opens the Remote Access sheet: the local and LAN URLs, the pairing state
 /// and the attached-viewer count.
 ///
-/// It used to hang off a share glyph in the status bar. The status bar reports
-/// state and nothing else now (04 §5), and sharing a session is an action on
-/// the remote connection, so it lives on the top bar's remote indicator, which
-/// is already the control for everything else about that connection.
+/// Sharing a session is an action on the remote connection, so it lives on
+/// the top bar's remote indicator, which is already the control for
+/// everything else about that connection.
 Future<void> showShareSessionDialog(BuildContext context) {
   final colors = SkotiqColors.of(context);
   final webState = ProviderScope.containerOf(

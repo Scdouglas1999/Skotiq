@@ -42,15 +42,6 @@ Future<void> apiDisconnectDevice({
   deviceId: deviceId,
 );
 
-/// Check if a device is connected
-Future<bool> apiIsDeviceConnected({
-  required DeviceType deviceType,
-  required String deviceId,
-}) => RustLib.instance.api.crateApiConnectionApiIsDeviceConnected(
-  deviceType: deviceType,
-  deviceId: deviceId,
-);
-
 /// Get list of connected devices
 Future<List<DeviceInfo>> apiGetConnectedDevices() =>
     RustLib.instance.api.crateApiConnectionApiGetConnectedDevices();

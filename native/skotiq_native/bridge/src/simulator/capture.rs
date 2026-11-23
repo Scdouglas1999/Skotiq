@@ -357,7 +357,7 @@ async fn sim_rig_is_guiding() -> bool {
     guider
         .status()
         .await
-        .is_ok_and(|status| status.state == "Guiding")
+        .is_ok_and(|status| status.state == crate::guider::GuiderActivity::Guiding)
 }
 
 /// A plate-solver settings directory that outlives every test in the binary.

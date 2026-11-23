@@ -73,6 +73,38 @@ class TwilightTimes {
   }
 }
 
+/// Tonight's dark window at a site ([AstronomyCalculations.darkWindow]).
+sealed class DarkWindow {
+  /// The night the window was read from.
+  final TwilightTimes twilight;
+
+  const DarkWindow(this.twilight);
+}
+
+/// The night has a dark window: from its darkest dusk to the matching dawn,
+/// astronomical, else nautical, else civil, else sunset to sunrise.
+final class NightDarkWindow extends DarkWindow {
+  final DateTime start;
+  final DateTime end;
+
+  const NightDarkWindow({
+    required this.start,
+    required this.end,
+    required TwilightTimes twilight,
+  }) : super(twilight);
+}
+
+/// The Sun crosses none of the boundaries tonight: it stays below the
+/// horizon all day ([polarNight]), or it never sets.
+final class NoDarkWindow extends DarkWindow {
+  final bool polarNight;
+
+  const NoDarkWindow({
+    required this.polarNight,
+    required TwilightTimes twilight,
+  }) : super(twilight);
+}
+
 class MoonTimes {
   final DateTime? moonrise;
   final DateTime? moonset;

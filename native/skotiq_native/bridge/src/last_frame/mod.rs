@@ -173,9 +173,7 @@ const FWHM_PER_HFR: f64 = 2.0;
 /// HFR and eccentricity are the run's own measurement of the frame
 /// ([`crate::unified_device_ops::frame_shape`], what the grader judges and
 /// what the frame's record holds), so the HFR a screen shows is the HFR the
-/// reject reason quotes. The screens read a median of the brightest
-/// detections instead, and frame #2 of the IC 405 night showed HFR 4.50
-/// beside "HFR 4.12 px exceeds" (2026-11-16).
+/// reject reason quotes.
 ///
 /// `None` for HFR, FWHM or eccentricity means too few usable stars to measure
 /// this frame — never a fabricated 0.

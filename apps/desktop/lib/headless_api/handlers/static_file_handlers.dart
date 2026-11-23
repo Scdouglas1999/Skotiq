@@ -33,6 +33,7 @@ import 'package:path/path.dart' as p;
 import 'package:shelf/shelf.dart';
 
 import '../response_helpers.dart';
+import '../run_state_script.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 import 'package:skotiq_core/utils.dart';
@@ -44,14 +45,8 @@ import 'package:skotiq_core/utils.dart';
 /// rather than served as `application/octet-stream`. Both prefixes are exempt
 /// from the bearer-token middleware — the `/dashboard` and `/run-watch` routes
 /// are declared public so the pages can load before the user holds any token
-/// — which made every file the bundler
-/// happened to copy into the SPA directory readable with no credential:
-/// `GET /dashboard/README.md` answered 200 with 16KB of internal developer
-/// documentation describing the bearer-to-cookie upgrade, the pairing
-/// endpoints, the SSE query-string token and the `SKOTIQ_REQUIRE_AUTH`
-/// escape hatch. The public prefix now serves only the kinds of file the
-/// pages themselves request. The packaging side of the same repair is in
-/// `apps/desktop/pubspec.yaml`, which no longer ships the README at all.
+/// — so any other file in the SPA directory would be readable with no
+/// credential.
 const _mimeTypes = <String, String>{
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -192,7 +187,26 @@ class StaticFileHandlers implements RouteSource {
         headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
       );
     }
+    final shared = _sharedScript(normalized);
+    if (shared != null) return shared;
     return _serveFile(findDashboardDir(), normalized, surface: 'dashboard');
+  }
+
+  /// The scripts both pages load from the host's own tables: the error codes
+  /// they act on ([ApiErrorCodes]) and the run state they show
+  /// ([RunStateScript]). Null for any other path.
+  Response? _sharedScript(String path) {
+    final script = switch (path) {
+      'js/wire-errors.js' => ApiErrorCodes.javaScript(),
+      'js/run-state.js' => RunStateScript.javaScript(),
+      _ => null,
+    };
+    if (script == null) return null;
+    return contentResponse(
+      utf8.encode(script),
+      contentType: _mimeTypes['.js']!,
+      headers: {'cache-control': 'no-cache', ..._staticFileSecurityHeaders},
+    );
   }
 
   /// `GET /run-watch` / `GET /run-watch/` — serve `index.html` for the
@@ -227,6 +241,8 @@ class StaticFileHandlers implements RouteSource {
     if (normalized == null) {
       return jsonForbidden({'error': 'Invalid path'});
     }
+    final shared = _sharedScript(normalized);
+    if (shared != null) return shared;
     return _serveFile(findRunWatchDir(), normalized, surface: 'run-watch');
   }
 

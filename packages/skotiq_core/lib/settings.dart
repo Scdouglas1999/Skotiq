@@ -8,6 +8,7 @@ export 'src/settings/capture_format.dart';
 export 'src/settings/device_retries.dart';
 export 'src/settings/focuser_step_limit.dart';
 export 'src/settings/guide_settle.dart';
+export 'src/settings/port_range.dart';
 export 'src/settings/preflight_strictness.dart';
 export 'src/settings/setting.dart'
     show

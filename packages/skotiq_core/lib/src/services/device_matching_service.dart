@@ -150,7 +150,6 @@ class DeviceMatchingService {
   String normalizeName(String name) {
     var normalized = name.trim();
 
-    // Remove ASCOM. or INDI. prefix patterns
     normalized = normalized.replaceAll(
       RegExp(r'^ASCOM\.\w+\.', caseSensitive: false),
       '',
@@ -188,7 +187,6 @@ class DeviceMatchingService {
       }
     }
 
-    // Remove extra whitespace and common separators
     normalized = normalized
         .replaceAll(RegExp(r'[-_]+'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
@@ -258,7 +256,6 @@ class DeviceMatchingService {
     if (s1.isEmpty) return s2.length;
     if (s2.isEmpty) return s1.length;
 
-    // Create two rows for the DP table
     var previousRow = List<int>.generate(s2.length + 1, (i) => i);
     var currentRow = List<int>.filled(s2.length + 1, 0);
 

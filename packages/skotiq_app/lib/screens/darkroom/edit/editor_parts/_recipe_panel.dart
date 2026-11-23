@@ -23,20 +23,16 @@ const int kDarkroomDraftNoteCollapsedChars = 100;
 /// widget's own and it is marked, so "…" plus a control that names the rest is
 /// the difference between text that was shortened and text that looks broken.
 ///
-/// The control lives in the alert's `action` slot rather than under the alert.
-/// Under it, the control was a separate row in the panel's scroll view: the
-/// alert sat above the fold and the button that completed its sentence sat one
-/// line below it, so the operator saw a clause cut off with — as far as the
-/// screen was concerned — nothing that said the rest existed. Inside the alert
-/// the control cannot be scrolled away from the text it discloses; they share a
-/// viewport because they share a box. It costs the message column the button's
-/// width, which is less than the row the button used to occupy underneath.
+/// The control lives in the alert's `action` slot rather than under the alert:
+/// as a separate row in the panel's scroll view it could sit below the fold
+/// while the alert's clipped text sat above it. Inside the alert the control
+/// cannot be scrolled away from the text it discloses; they share a viewport
+/// because they share a box.
 ///
 /// The disclosure NAMES WHAT IT OPENS. This panel shows more than one of these
 /// at once — an autopilot draft over a one-channel master carries both "The
 /// draft left 2 operations out" and "The integration recorded 5 calibration
-/// warnings" — and measured on the release bundle 2026-08-31 both published
-/// `button: 'Show more'`, side by side, with nothing to tell a reader which
+/// warnings" — so a bare `button: 'Show more'` would not tell a reader which
 /// account each one completes. The word on screen stays "Show more", because it
 /// sits inside the alert whose text it continues; [disclosureObject] is what
 /// assistive tech reads instead, the way "Remove Denoise" and "Use default for
@@ -97,11 +93,9 @@ class _DarkroomCollapsibleAlertState extends State<_DarkroomCollapsibleAlert> {
   /// view.
   ///
   /// The alert grows where it stands, and this panel's viewport is a few
-  /// hundred pixels: measured on the release bundle 2026-08-31, opening "the
-  /// draft's omissions" left the first paragraph sliced mid-word at the scroll
-  /// edge, the second paragraph entirely below it, and pushed the Render block
-  /// that HAD been visible out of sight — an operator pressing "Show more" was
-  /// shown less. The scroll runs after the frame that lays the expanded alert
+  /// hundred pixels, so without a scroll an operator pressing "Show more" could
+  /// be shown less. The scroll runs after the frame that lays the expanded
+  /// alert
   /// out, because only then does the viewport know how tall this is now, and it
   /// aligns the alert's top with the panel's so as much of the newly revealed
   /// text as fits is on screen.
@@ -279,8 +273,8 @@ class _DarkroomRecipePanelState extends State<_DarkroomRecipePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Inset to the same gutter the panel's own content uses. SectionHeader
-        // pads vertically only, and on the phone's segmented layout this panel
+        // Inset to the same gutter the panel's own content uses. SectionTitle
+        // adds no side padding, and on the phone's segmented layout this panel
         // IS the screen — nothing outside it supplies a margin, so without this
         // the heading starts at the window edge while every card under it is
         // indented.

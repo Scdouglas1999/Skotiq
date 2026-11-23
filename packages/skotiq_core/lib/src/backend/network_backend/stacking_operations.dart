@@ -21,7 +21,7 @@ mixin _NetworkBackendStackingOperations on NetworkBackendTransport {
   Future<void> stackingUpdateConfig(LiveStackingConfig config) async {
     await _post(
       StackingApi.updateConfig,
-      body: {'config': _stackingConfigToJson(config)},
+      body: {'config': config.toWireJson()},
     );
   }
 
@@ -41,21 +41,6 @@ mixin _NetworkBackendStackingOperations on NetworkBackendTransport {
 }
 
 extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
-  Map<String, Object?> _stackingConfigToJson(LiveStackingConfig c) => {
-    'sigmaClipEnabled': c.sigmaClipEnabled,
-    'sigmaClipThreshold': c.sigmaClipThreshold,
-    'maxMatchStars': c.maxMatchStars,
-    'matchRadiusPx': c.matchRadiusPx,
-    'matchFluxTolerance': c.matchFluxTolerance,
-    'minMatchedPairs': c.minMatchedPairs,
-    'maxAlignmentResidualPx': c.maxAlignmentResidualPx,
-    'starDetectionSigma': c.starDetectionSigma,
-    'starDetectionMinSnr': c.starDetectionMinSnr,
-    'sensorMode': c.sensorMode,
-    if (c.bayerPattern != null) 'bayerPattern': c.bayerPattern,
-    'demosaicQuality': c.demosaicQuality,
-  };
-
   /// Require an integral [key] on [json] that is at least [min]. JSON numbers
   /// decode to `int` or `double`; a double is accepted only when it carries no
   /// fractional part (so a genuinely non-integral count like `1.5` is rejected,
@@ -229,63 +214,15 @@ extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
     return Map<String, dynamic>.from(value);
   }
 
-  /// Require and decode the stats object under `stats`. Counts must be
-  /// integral and non-negative; averages must be finite and non-negative. Of
-  /// the six counters and averages none is defaulted: a partial stats object
-  /// throws. The filter fields are newer than the endpoint and optional.
+  /// Require and decode the stats object under `stats`
+  /// ([LiveStackingStats.fromJson]).
   LiveStackingStats _requireStackingStats(
     Map<String, dynamic> json,
     String endpoint,
-  ) {
-    final stats = _requireStackingObject(json, 'stats', endpoint);
-    return LiveStackingStats(
-      stackedFrameCount: _requireStackingInt(
-        stats,
-        'stackedFrameCount',
-        endpoint,
-        min: 0,
-      ),
-      totalFramesAttempted: _requireStackingInt(
-        stats,
-        'totalFramesAttempted',
-        endpoint,
-        min: 0,
-      ),
-      rejectedAlignmentFailures: _requireStackingInt(
-        stats,
-        'rejectedAlignmentFailures',
-        endpoint,
-        min: 0,
-      ),
-      avgMatchedPairs: _requireStackingNonNegativeDouble(
-        stats,
-        'avgMatchedPairs',
-        endpoint,
-      ),
-      avgAlignmentResidual: _requireStackingNonNegativeDouble(
-        stats,
-        'avgAlignmentResidual',
-        endpoint,
-      ),
-      totalSigmaRejectedPixels: _requireStackingInt(
-        stats,
-        'totalSigmaRejectedPixels',
-        endpoint,
-        min: 0,
-      ),
-      totalIntegrationSecs: switch (stats['totalIntegrationSecs']) {
-        final num secs when secs.isFinite && secs >= 0 => secs.toDouble(),
-        _ => 0.0,
-      },
-      // An unfiltered stack has no filter name.
-      filter: _optionalFilterName(stats['filter']),
-      otherFilterFrames: switch (stats['otherFilterFrames']) {
-        final int count when count > 0 => count,
-        _ => 0,
-      },
-      lastOtherFilter: _optionalFilterName(stats['lastOtherFilter']),
-    );
-  }
+  ) => LiveStackingStats.fromJson(
+    _requireStackingObject(json, 'stats', endpoint),
+    source: '$endpoint response',
+  );
 
   /// Require the stacked result's `channels`, accepting only the two documented
   /// counts.
@@ -440,7 +377,4 @@ extension _NetworkBackendStackingOperationsHelpers on NetworkBackendTransport {
     if (json[key] == null) return null;
     return _requireStackingNonNegativeDouble(json, key, endpoint);
   }
-
-  String? _optionalFilterName(Object? value) =>
-      value is String && value.trim().isNotEmpty ? value : null;
 }

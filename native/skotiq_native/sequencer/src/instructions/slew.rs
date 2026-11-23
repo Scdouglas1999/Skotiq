@@ -76,7 +76,7 @@ pub async fn execute_slew(
         }
     }
 
-    // W1 native daylight gate (structural). A slew that points the rig at the
+    // Native daylight gate (structural). A slew that points the rig at the
     // active sky/science target (`use_target_coords`) is the on-sky pointing
     // step of a LIGHT-frame run; it never happens while the Sun is up, so a
     // raw sequence started via `api_sequencer_start` (including a mosaic)
@@ -113,11 +113,7 @@ pub async fn execute_slew(
     let mut result = slew_mount(mount_id, ra, dec, ctx, progress_callback).await;
     // A mount stuck at an axis limit takes the slew and stays put: move it
     // off the limit and slew again.
-    if result.status == NodeStatus::Failure
-        && result.message.as_deref().is_some_and(|m| {
-            m.contains(&crate::slew_arrival::SlewWaitError::DidNotMove.to_string())
-        })
-    {
+    if result.setback() == Some(Setback::DidNotMove) {
         let freed = crate::limit_backoff::back_off_limit(
             &*ctx.run.device_ops,
             mount_id,
@@ -389,6 +385,9 @@ async fn slew_mount(
                         }
                         Err(crate::slew_arrival::SlewWaitError::Cancelled) => {
                             InstructionResult::cancelled("Slew cancelled")
+                        }
+                        Err(e @ crate::slew_arrival::SlewWaitError::DidNotMove) => {
+                            InstructionResult::failure_because(e.to_string(), Setback::DidNotMove)
                         }
                         Err(e) => InstructionResult::failure(e.to_string()),
                     }

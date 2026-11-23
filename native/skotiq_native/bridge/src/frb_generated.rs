@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueNom,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -857581642;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1686779812;
 
 // Section: executor
 
@@ -583,48 +583,6 @@ fn wire__crate__api__devices__camera__api_camera_retrieve_retained_capture_impl(
         },
     )
 }
-fn wire__crate__api__imaging__api_camera_start_exposure_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-    duration_secs: impl CstDecode<f64>,
-    gain: impl CstDecode<i32>,
-    offset: impl CstDecode<i32>,
-    bin_x: impl CstDecode<i32>,
-    bin_y: impl CstDecode<i32>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_camera_start_exposure",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            let api_duration_secs = duration_secs.cst_decode();
-            let api_gain = gain.cst_decode();
-            let api_offset = offset.cst_decode();
-            let api_bin_x = bin_x.cst_decode();
-            let api_bin_y = bin_y.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok = crate::api::imaging::api_camera_start_exposure(
-                            api_device_id,
-                            api_duration_secs,
-                            api_gain,
-                            api_offset,
-                            api_bin_x,
-                            api_bin_y,
-                        )
-                        .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__imaging__api_camera_start_exposure_configured_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     device_id: impl CstDecode<String>,
@@ -1025,46 +983,6 @@ fn wire__crate__api__devices__cover_calibrator__api_cover_calibrator_close_cover
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_cover_calibrator_close_cover", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
                     transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
                          let output_ok = crate::api::devices::cover_calibrator::api_cover_calibrator_close_cover(api_device_id).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_cover_calibrator_get_brightness", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::cover_calibrator::api_cover_calibrator_get_brightness(api_device_id).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_cover_calibrator_get_calibrator_state", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::cover_calibrator::api_cover_calibrator_get_calibrator_state(api_device_id).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_cover_calibrator_get_cover_state", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::cover_calibrator::api_cover_calibrator_get_cover_state(api_device_id).await?;   Ok(output_ok)
-                    })().await)
-                } })
-}
-fn wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec,_,_,_>(flutter_rust_bridge::for_generated::TaskInfo{ debug_name: "api_cover_calibrator_get_max_brightness", port: Some(port_), mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal }, move || { let api_device_id = device_id.cst_decode(); move |context| async move {
-                    transform_result_dco::<_, _, crate::error::SkotiqError>((move || async move {
-                         let output_ok = crate::api::devices::cover_calibrator::api_cover_calibrator_get_max_brightness(api_device_id).await?;   Ok(output_ok)
                     })().await)
                 } })
 }
@@ -2724,6 +2642,7 @@ fn wire__crate__api__heartbeat__api_get_device_health_impl(
 }
 fn wire__crate__api__diagnostics__api_get_device_quirks_impl(
     device_id: impl CstDecode<String>,
+    model: impl CstDecode<Option<String>>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
@@ -2733,9 +2652,10 @@ fn wire__crate__api__diagnostics__api_get_device_quirks_impl(
         },
         move || {
             let api_device_id = device_id.cst_decode();
+            let api_model = model.cst_decode();
             transform_result_dco::<_, _, ()>((move || {
                 let output_ok = Result::<_, ()>::Ok(
-                    crate::api::diagnostics::api_get_device_quirks(api_device_id),
+                    crate::api::diagnostics::api_get_device_quirks(api_device_id, api_model),
                 )?;
                 Ok(output_ok)
             })())
@@ -3017,23 +2937,6 @@ fn wire__crate__api__devices__mount__api_get_mount_status_impl(
         },
     )
 }
-fn wire__crate__api__plate_solve__api_get_plate_solver_path_impl(
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_get_plate_solver_path",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            transform_result_dco::<_, _, ()>((move || {
-                let output_ok =
-                    Result::<_, ()>::Ok(crate::api::plate_solve::api_get_plate_solver_path())?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
 fn wire__crate__api__storage__api_get_profiles_impl(
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
@@ -3064,32 +2967,6 @@ fn wire__crate__api__diagnostics__api_get_qhy_discovery_status_impl(
                     Result::<_, ()>::Ok(crate::api::diagnostics::api_get_qhy_discovery_status())?;
                 Ok(output_ok)
             })())
-        },
-    )
-}
-fn wire__crate__api__diagnostics__api_get_rotator_capabilities_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_get_rotator_capabilities",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::diagnostics::api_get_rotator_capabilities(api_device_id)
-                                .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
         },
     )
 }
@@ -3586,37 +3463,19 @@ fn wire__crate__api__init__api_init_impl(
         },
     )
 }
-fn wire__crate__api__storage__api_init_profile_storage_impl(
-    storage_path: impl CstDecode<String>,
+fn wire__crate__api__init__api_init_host_impl(
+    paths: impl CstDecode<crate::api::init::HostPaths>,
 ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_init_profile_storage",
+            debug_name: "api_init_host",
             port: None,
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
         },
         move || {
-            let api_storage_path = storage_path.cst_decode();
+            let api_paths = paths.cst_decode();
             transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::storage::api_init_profile_storage(api_storage_path)?;
-                Ok(output_ok)
-            })())
-        },
-    )
-}
-fn wire__crate__api__storage__api_init_settings_storage_impl(
-    storage_path: impl CstDecode<String>,
-) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync::<flutter_rust_bridge::for_generated::DcoCodec, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_init_settings_storage",
-            port: None,
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Sync,
-        },
-        move || {
-            let api_storage_path = storage_path.cst_decode();
-            transform_result_dco::<_, _, crate::error::SkotiqError>((move || {
-                let output_ok = crate::api::storage::api_init_settings_storage(api_storage_path)?;
+                let output_ok = crate::api::init::api_init_host(api_paths)?;
                 Ok(output_ok)
             })())
         },
@@ -3679,38 +3538,6 @@ fn wire__crate__api__discovery__api_invalidate_discovery_cache_impl(
                         let output_ok = Result::<_, ()>::Ok({
                             crate::api::discovery::api_invalidate_discovery_cache().await;
                         })?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
-fn wire__crate__api__connection__api_is_device_connected_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    device_type: impl CstDecode<crate::device::DeviceType>,
-    device_id: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_is_device_connected",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_device_type = device_type.cst_decode();
-            let api_device_id = device_id.cst_decode();
-            move |context| async move {
-                transform_result_dco::<_, _, ()>(
-                    (move || async move {
-                        let output_ok = Result::<_, ()>::Ok(
-                            crate::api::connection::api_is_device_connected(
-                                api_device_type,
-                                api_device_id,
-                            )
-                            .await,
-                        )?;
                         Ok(output_ok)
                     })()
                     .await,
@@ -6012,30 +5839,6 @@ fn wire__crate__api__sequencer__lifecycle__api_sequencer_stop_impl(
         },
     )
 }
-fn wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::DcoCodec, _, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_sequencer_subscribe_events",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            move |context| async move {
-                transform_result_dco::<_, _, crate::error::SkotiqError>(
-                    (move || async move {
-                        let output_ok =
-                            crate::api::sequencer::event_bridge::api_sequencer_subscribe_events()
-                                .await?;
-                        Ok(output_ok)
-                    })()
-                    .await,
-                )
-            }
-        },
-    )
-}
 fn wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     current_cover_percent: impl CstDecode<Option<f64>>,
@@ -6156,28 +5959,6 @@ fn wire__crate__api__sky_atlas__api_sky_atlas_impl(
             move |context| {
                 transform_result_dco::<_, _, String>((move || {
                     let output_ok = crate::api::sky_atlas::api_sky_atlas(api_args_json)?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    args_json: impl CstDecode<String>,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::DcoCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "api_sky_atlas_add_frame",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let api_args_json = args_json.cst_decode();
-            move |context| {
-                transform_result_dco::<_, _, String>((move || {
-                    let output_ok =
-                        crate::api::sky_atlas::frames::api_sky_atlas_add_frame(api_args_json)?;
                     Ok(output_ok)
                 })())
             }
@@ -7867,6 +7648,7 @@ impl CstDecode<crate::device::FrameType> for i32 {
             2 => crate::device::FrameType::Flat,
             3 => crate::device::FrameType::Bias,
             4 => crate::device::FrameType::DarkFlat,
+            5 => crate::device::FrameType::Snapshot,
             _ => unreachable!("Invalid variant for FrameType: {}", self),
         }
     }
@@ -7913,6 +7695,27 @@ impl CstDecode<crate::device::PierSide> for i32 {
         }
     }
 }
+impl CstDecode<crate::error::Refusal> for i32 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::error::Refusal {
+        match self {
+            0 => crate::error::Refusal::NoLockPosition,
+            1 => crate::error::Refusal::NoStarSelected,
+            2 => crate::error::Refusal::NoGuideStarFound,
+            3 => crate::error::Refusal::ExecutorNotIdle,
+            4 => crate::error::Refusal::NoSequenceLoaded,
+            5 => crate::error::Refusal::DepthLockNoSuchGoal,
+            6 => crate::error::Refusal::DepthLockStaleRevision,
+            7 => crate::error::Refusal::DepthLockUnavailable,
+            8 => crate::error::Refusal::LightLeak,
+            9 => crate::error::Refusal::LiveStackMisaligned,
+            10 => crate::error::Refusal::LiveStackOtherFilter,
+            11 => crate::error::Refusal::LiveStackUnreadable,
+            12 => crate::error::Refusal::LiveStackTooFewReferenceStars,
+            _ => unreachable!("Invalid variant for Refusal: {}", self),
+        }
+    }
+}
 impl CstDecode<crate::event::sequencer::SequencerErrorKind> for i32 {
     // Codec=Cst (C-struct based), see doc to use other codecs
     fn cst_decode(self) -> crate::event::sequencer::SequencerErrorKind {
@@ -7924,6 +7727,16 @@ impl CstDecode<crate::event::sequencer::SequencerErrorKind> for i32 {
             4 => crate::event::sequencer::SequencerErrorKind::Standalone,
             5 => crate::event::sequencer::SequencerErrorKind::Cancelled,
             _ => unreachable!("Invalid variant for SequencerErrorKind: {}", self),
+        }
+    }
+}
+impl CstDecode<crate::event::sequencer::SequencerNightEnd> for i32 {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    fn cst_decode(self) -> crate::event::sequencer::SequencerNightEnd {
+        match self {
+            0 => crate::event::sequencer::SequencerNightEnd::Dawn,
+            1 => crate::event::sequencer::SequencerNightEnd::Obstruction,
+            _ => unreachable!("Invalid variant for SequencerNightEnd: {}", self),
         }
     }
 }
@@ -8098,6 +7911,8 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
         let mut var_binX = <i32>::sse_decode(deserializer);
         let mut var_binY = <i32>::sse_decode(deserializer);
         let mut var_ccdTempC = <Option<f64>>::sse_decode(deserializer);
+        let mut var_setPointC = <Option<f64>>::sse_decode(deserializer);
+        let mut var_readMode = <Option<String>>::sse_decode(deserializer);
         return crate::api::depthlock::ApiAcquisitionSettings {
             instrument: var_instrument,
             filter: var_filter,
@@ -8107,6 +7922,8 @@ impl SseDecode for crate::api::depthlock::ApiAcquisitionSettings {
             bin_x: var_binX,
             bin_y: var_binY,
             ccd_temp_c: var_ccdTempC,
+            set_point_c: var_setPointC,
+            read_mode: var_readMode,
         };
     }
 }
@@ -8912,6 +8729,7 @@ impl SseDecode for crate::api::imaging::AutofocusConfigApi {
         let mut var_backlashIn = <i32>::sse_decode(deserializer);
         let mut var_backlashOut = <i32>::sse_decode(deserializer);
         let mut var_measuredBacklashIn = <Option<i32>>::sse_decode(deserializer);
+        let mut var_failureHfrToleranceRatio = <f64>::sse_decode(deserializer);
         return crate::api::imaging::AutofocusConfigApi {
             exposure_time: var_exposureTime,
             step_size: var_stepSize,
@@ -8931,6 +8749,7 @@ impl SseDecode for crate::api::imaging::AutofocusConfigApi {
             backlash_in: var_backlashIn,
             backlash_out: var_backlashOut,
             measured_backlash_in: var_measuredBacklashIn,
+            failure_hfr_tolerance_ratio: var_failureHfrToleranceRatio,
         };
     }
 }
@@ -10422,6 +10241,7 @@ impl SseDecode for crate::device::FrameType {
             2 => crate::device::FrameType::Flat,
             3 => crate::device::FrameType::Bias,
             4 => crate::device::FrameType::DarkFlat,
+            5 => crate::device::FrameType::Snapshot,
             _ => unreachable!("Invalid variant for FrameType: {}", inner),
         };
     }
@@ -10487,6 +10307,49 @@ impl SseDecode for crate::guider::GuideStarImage {
     }
 }
 
+impl SseDecode for crate::guider::GuiderActivity {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                return crate::guider::GuiderActivity::Disconnected;
+            }
+            1 => {
+                return crate::guider::GuiderActivity::Connected;
+            }
+            2 => {
+                return crate::guider::GuiderActivity::Stopped;
+            }
+            3 => {
+                return crate::guider::GuiderActivity::Calibrating;
+            }
+            4 => {
+                return crate::guider::GuiderActivity::Guiding;
+            }
+            5 => {
+                return crate::guider::GuiderActivity::Looping;
+            }
+            6 => {
+                return crate::guider::GuiderActivity::Paused;
+            }
+            7 => {
+                return crate::guider::GuiderActivity::Settling;
+            }
+            8 => {
+                return crate::guider::GuiderActivity::LostLock;
+            }
+            9 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::guider::GuiderActivity::Unknown(var_field0);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::guider::GuiderCalibration {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10510,7 +10373,7 @@ impl SseDecode for crate::guider::GuiderStatus {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_deviceId = <String>::sse_decode(deserializer);
         let mut var_connected = <bool>::sse_decode(deserializer);
-        let mut var_state = <String>::sse_decode(deserializer);
+        let mut var_state = <crate::guider::GuiderActivity>::sse_decode(deserializer);
         let mut var_rmsRa = <f64>::sse_decode(deserializer);
         let mut var_rmsDec = <f64>::sse_decode(deserializer);
         let mut var_rmsTotal = <f64>::sse_decode(deserializer);
@@ -10639,6 +10502,20 @@ impl SseDecode for crate::event::equipment::HeartbeatStatus {
             3 => crate::event::equipment::HeartbeatStatus::Reconnecting,
             4 => crate::event::equipment::HeartbeatStatus::Reconnected,
             _ => unreachable!("Invalid variant for HeartbeatStatus: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::api::init::HostPaths {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_dataDirectory = <String>::sse_decode(deserializer);
+        let mut var_logDirectory = <String>::sse_decode(deserializer);
+        let mut var_profileDirectory = <String>::sse_decode(deserializer);
+        return crate::api::init::HostPaths {
+            data_directory: var_dataDirectory,
+            log_directory: var_logDirectory,
+            profile_directory: var_profileDirectory,
         };
     }
 }
@@ -11855,6 +11732,19 @@ impl SseDecode for Option<crate::device::PierSide> {
     }
 }
 
+impl SseDecode for Option<crate::event::sequencer::SequencerNightEnd> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::event::sequencer::SequencerNightEnd>::sse_decode(
+                deserializer,
+            ));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::event::sequencer::SequencerNotice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12288,6 +12178,29 @@ impl SseDecode for (String, u32) {
     }
 }
 
+impl SseDecode for crate::error::Refusal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::error::Refusal::NoLockPosition,
+            1 => crate::error::Refusal::NoStarSelected,
+            2 => crate::error::Refusal::NoGuideStarFound,
+            3 => crate::error::Refusal::ExecutorNotIdle,
+            4 => crate::error::Refusal::NoSequenceLoaded,
+            5 => crate::error::Refusal::DepthLockNoSuchGoal,
+            6 => crate::error::Refusal::DepthLockStaleRevision,
+            7 => crate::error::Refusal::DepthLockUnavailable,
+            8 => crate::error::Refusal::LightLeak,
+            9 => crate::error::Refusal::LiveStackMisaligned,
+            10 => crate::error::Refusal::LiveStackOtherFilter,
+            11 => crate::error::Refusal::LiveStackUnreadable,
+            12 => crate::error::Refusal::LiveStackTooFewReferenceStars,
+            _ => unreachable!("Invalid variant for Refusal: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::api::devices::camera::RetainedCaptureInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12696,10 +12609,13 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
                 let mut var_triggerName = <String>::sse_decode(deserializer);
                 let mut var_action =
                     <crate::event::sequencer::SequencerTriggerAction>::sse_decode(deserializer);
+                let mut var_nightEnd =
+                    <Option<crate::event::sequencer::SequencerNightEnd>>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerEvent::TriggerFired {
                     trigger_id: var_triggerId,
                     trigger_name: var_triggerName,
                     action: var_action,
+                    night_end: var_nightEnd,
                 };
             }
             16 => {
@@ -13092,6 +13008,18 @@ impl SseDecode for crate::event::sequencer::SequencerEvent {
     }
 }
 
+impl SseDecode for crate::event::sequencer::SequencerNightEnd {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::event::sequencer::SequencerNightEnd::Dawn,
+            1 => crate::event::sequencer::SequencerNightEnd::Obstruction,
+            _ => unreachable!("Invalid variant for SequencerNightEnd: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::event::sequencer::SequencerNotice {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13174,9 +13102,12 @@ impl SseDecode for crate::event::sequencer::SequencerStop {
             4 => {
                 let mut var_triggerId = <String>::sse_decode(deserializer);
                 let mut var_triggerName = <String>::sse_decode(deserializer);
+                let mut var_nightEnd =
+                    <Option<crate::event::sequencer::SequencerNightEnd>>::sse_decode(deserializer);
                 return crate::event::sequencer::SequencerStop::Trigger {
                     trigger_id: var_triggerId,
                     trigger_name: var_triggerName,
+                    night_end: var_nightEnd,
                 };
             }
             _ => {
@@ -13365,24 +13296,32 @@ impl SseDecode for crate::error::SkotiqError {
                 };
             }
             17 => {
-                let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::InvalidState(var_field0);
+                let mut var_kind = <crate::error::Refusal>::sse_decode(deserializer);
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::Refused {
+                    kind: var_kind,
+                    message: var_message,
+                };
             }
             18 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::ImageError(var_field0);
+                return crate::error::SkotiqError::InvalidState(var_field0);
             }
             19 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
-                return crate::error::SkotiqError::CameraError(var_field0);
+                return crate::error::SkotiqError::ImageError(var_field0);
             }
             20 => {
-                return crate::error::SkotiqError::NoImageAvailable;
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::error::SkotiqError::CameraError(var_field0);
             }
             21 => {
-                return crate::error::SkotiqError::ExposureCancelled;
+                return crate::error::SkotiqError::NoImageAvailable;
             }
             22 => {
+                return crate::error::SkotiqError::ExposureCancelled;
+            }
+            23 => {
                 let mut var_cameraId = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::ExposureFailed {
@@ -13390,7 +13329,7 @@ impl SseDecode for crate::error::SkotiqError {
                     reason: var_reason,
                 };
             }
-            23 => {
+            24 => {
                 let mut var_cameraId = <String>::sse_decode(deserializer);
                 let mut var_reason = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::DownloadFailed {
@@ -13398,23 +13337,23 @@ impl SseDecode for crate::error::SkotiqError {
                     reason: var_reason,
                 };
             }
-            24 => {
+            25 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::IoError(var_field0);
             }
-            25 => {
+            26 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::SerializationError(var_field0);
             }
-            26 => {
+            27 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::PlateSolveError(var_field0);
             }
-            27 => {
+            28 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::SequenceError(var_field0);
             }
-            28 => {
+            29 => {
                 let mut var_progId = <String>::sse_decode(deserializer);
                 let mut var_message = <String>::sse_decode(deserializer);
                 let mut var_errorCode = <i32>::sse_decode(deserializer);
@@ -13424,7 +13363,7 @@ impl SseDecode for crate::error::SkotiqError {
                     error_code: var_errorCode,
                 };
             }
-            29 => {
+            30 => {
                 let mut var_baseUrl = <String>::sse_decode(deserializer);
                 let mut var_deviceNumber = <u32>::sse_decode(deserializer);
                 let mut var_message = <String>::sse_decode(deserializer);
@@ -13436,7 +13375,7 @@ impl SseDecode for crate::error::SkotiqError {
                     error_code: var_errorCode,
                 };
             }
-            30 => {
+            31 => {
                 let mut var_server = <String>::sse_decode(deserializer);
                 let mut var_port = <u16>::sse_decode(deserializer);
                 let mut var_deviceName = <String>::sse_decode(deserializer);
@@ -13448,7 +13387,7 @@ impl SseDecode for crate::error::SkotiqError {
                     message: var_message,
                 };
             }
-            31 => {
+            32 => {
                 let mut var_vendor = <String>::sse_decode(deserializer);
                 let mut var_message = <String>::sse_decode(deserializer);
                 let mut var_errorCode = <i32>::sse_decode(deserializer);
@@ -13458,7 +13397,7 @@ impl SseDecode for crate::error::SkotiqError {
                     error_code: var_errorCode,
                 };
             }
-            32 => {
+            33 => {
                 let mut var_message = <String>::sse_decode(deserializer);
                 let mut var_hresult = <u32>::sse_decode(deserializer);
                 return crate::error::SkotiqError::ComError {
@@ -13466,18 +13405,18 @@ impl SseDecode for crate::error::SkotiqError {
                     hresult: var_hresult,
                 };
             }
-            33 => {
+            34 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::Internal(var_field0);
             }
-            34 => {
+            35 => {
                 return crate::error::SkotiqError::Cancelled;
             }
-            35 => {
+            36 => {
                 let mut var_field0 = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::RuntimeInitFailed(var_field0);
             }
-            36 => {
+            37 => {
                 let mut var_resource = <String>::sse_decode(deserializer);
                 let mut var_message = <String>::sse_decode(deserializer);
                 return crate::error::SkotiqError::ResourceExhausted {
@@ -13862,6 +13801,8 @@ impl flutter_rust_bridge::IntoDart for crate::api::depthlock::ApiAcquisitionSett
             self.bin_x.into_into_dart().into_dart(),
             self.bin_y.into_into_dart().into_dart(),
             self.ccd_temp_c.into_into_dart().into_dart(),
+            self.set_point_c.into_into_dart().into_dart(),
+            self.read_mode.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -14764,6 +14705,9 @@ impl flutter_rust_bridge::IntoDart for crate::api::imaging::AutofocusConfigApi {
             self.backlash_in.into_into_dart().into_dart(),
             self.backlash_out.into_into_dart().into_dart(),
             self.measured_backlash_in.into_into_dart().into_dart(),
+            self.failure_hfr_tolerance_ratio
+                .into_into_dart()
+                .into_dart(),
         ]
         .into_dart()
     }
@@ -16271,22 +16215,28 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::frame_file::FrameHeaderRead>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::device::FrameType {
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::device::FrameType> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Light => 0.into_dart(),
-            Self::Dark => 1.into_dart(),
-            Self::Flat => 2.into_dart(),
-            Self::Bias => 3.into_dart(),
-            Self::DarkFlat => 4.into_dart(),
+        match self.0 {
+            crate::device::FrameType::Light => 0.into_dart(),
+            crate::device::FrameType::Dark => 1.into_dart(),
+            crate::device::FrameType::Flat => 2.into_dart(),
+            crate::device::FrameType::Bias => 3.into_dart(),
+            crate::device::FrameType::DarkFlat => 4.into_dart(),
+            crate::device::FrameType::Snapshot => 5.into_dart(),
             _ => unreachable!(),
         }
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::device::FrameType {}
-impl flutter_rust_bridge::IntoIntoDart<crate::device::FrameType> for crate::device::FrameType {
-    fn into_into_dart(self) -> crate::device::FrameType {
-        self
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for FrbWrapper<crate::device::FrameType>
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::device::FrameType>>
+    for crate::device::FrameType
+{
+    fn into_into_dart(self) -> FrbWrapper<crate::device::FrameType> {
+        self.into()
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
@@ -16343,6 +16293,36 @@ impl flutter_rust_bridge::IntoIntoDart<crate::guider::GuideStarImage>
     for crate::guider::GuideStarImage
 {
     fn into_into_dart(self) -> crate::guider::GuideStarImage {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::guider::GuiderActivity {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            crate::guider::GuiderActivity::Disconnected => [0.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Connected => [1.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Stopped => [2.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Calibrating => [3.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Guiding => [4.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Looping => [5.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Paused => [6.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Settling => [7.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::LostLock => [8.into_dart()].into_dart(),
+            crate::guider::GuiderActivity::Unknown(field0) => {
+                [9.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::guider::GuiderActivity {}
+impl flutter_rust_bridge::IntoIntoDart<crate::guider::GuiderActivity>
+    for crate::guider::GuiderActivity
+{
+    fn into_into_dart(self) -> crate::guider::GuiderActivity {
         self
     }
 }
@@ -16493,6 +16473,25 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::equipment::HeartbeatStatus>
     for crate::event::equipment::HeartbeatStatus
 {
     fn into_into_dart(self) -> crate::event::equipment::HeartbeatStatus {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::init::HostPaths {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.data_directory.into_into_dart().into_dart(),
+            self.log_directory.into_into_dart().into_dart(),
+            self.profile_directory.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::init::HostPaths {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::init::HostPaths>
+    for crate::api::init::HostPaths
+{
+    fn into_into_dart(self) -> crate::api::init::HostPaths {
         self
     }
 }
@@ -17319,6 +17318,33 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::diagnostics::QuirkInfo>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::error::Refusal {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::NoLockPosition => 0.into_dart(),
+            Self::NoStarSelected => 1.into_dart(),
+            Self::NoGuideStarFound => 2.into_dart(),
+            Self::ExecutorNotIdle => 3.into_dart(),
+            Self::NoSequenceLoaded => 4.into_dart(),
+            Self::DepthLockNoSuchGoal => 5.into_dart(),
+            Self::DepthLockStaleRevision => 6.into_dart(),
+            Self::DepthLockUnavailable => 7.into_dart(),
+            Self::LightLeak => 8.into_dart(),
+            Self::LiveStackMisaligned => 9.into_dart(),
+            Self::LiveStackOtherFilter => 10.into_dart(),
+            Self::LiveStackUnreadable => 11.into_dart(),
+            Self::LiveStackTooFewReferenceStars => 12.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::error::Refusal {}
+impl flutter_rust_bridge::IntoIntoDart<crate::error::Refusal> for crate::error::Refusal {
+    fn into_into_dart(self) -> crate::error::Refusal {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::devices::camera::RetainedCaptureInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -17729,11 +17755,13 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerEvent {
                 trigger_id,
                 trigger_name,
                 action,
+                night_end,
             } => [
                 15.into_dart(),
                 trigger_id.into_into_dart().into_dart(),
                 trigger_name.into_into_dart().into_dart(),
                 action.into_into_dart().into_dart(),
+                night_end.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::event::sequencer::SequencerEvent::InstructionProgress {
@@ -18144,6 +18172,27 @@ impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerEvent>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerNightEnd {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self {
+            Self::Dawn => 0.into_dart(),
+            Self::Obstruction => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::event::sequencer::SequencerNightEnd
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::event::sequencer::SequencerNightEnd>
+    for crate::event::sequencer::SequencerNightEnd
+{
+    fn into_into_dart(self) -> crate::event::sequencer::SequencerNightEnd {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerNotice {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self {
@@ -18225,10 +18274,12 @@ impl flutter_rust_bridge::IntoDart for crate::event::sequencer::SequencerStop {
             crate::event::sequencer::SequencerStop::Trigger {
                 trigger_id,
                 trigger_name,
+                night_end,
             } => [
                 4.into_dart(),
                 trigger_id.into_into_dart().into_dart(),
                 trigger_name.into_into_dart().into_dart(),
+                night_end.into_into_dart().into_dart(),
             ]
             .into_dart(),
             _ => {
@@ -18440,47 +18491,53 @@ impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
                 current_operation.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::error::SkotiqError::InvalidState(field0) => {
-                [17.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::ImageError(field0) => {
-                [18.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::CameraError(field0) => {
-                [19.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::NoImageAvailable => [20.into_dart()].into_dart(),
-            crate::error::SkotiqError::ExposureCancelled => [21.into_dart()].into_dart(),
-            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => [
-                22.into_dart(),
-                camera_id.into_into_dart().into_dart(),
-                reason.into_into_dart().into_dart(),
+            crate::error::SkotiqError::Refused { kind, message } => [
+                17.into_dart(),
+                kind.into_into_dart().into_dart(),
+                message.into_into_dart().into_dart(),
             ]
             .into_dart(),
-            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => [
+            crate::error::SkotiqError::InvalidState(field0) => {
+                [18.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::ImageError(field0) => {
+                [19.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::CameraError(field0) => {
+                [20.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::NoImageAvailable => [21.into_dart()].into_dart(),
+            crate::error::SkotiqError::ExposureCancelled => [22.into_dart()].into_dart(),
+            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => [
                 23.into_dart(),
                 camera_id.into_into_dart().into_dart(),
                 reason.into_into_dart().into_dart(),
             ]
             .into_dart(),
+            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => [
+                24.into_dart(),
+                camera_id.into_into_dart().into_dart(),
+                reason.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
             crate::error::SkotiqError::IoError(field0) => {
-                [24.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::error::SkotiqError::SerializationError(field0) => {
                 [25.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::error::SkotiqError::PlateSolveError(field0) => {
+            crate::error::SkotiqError::SerializationError(field0) => {
                 [26.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::error::SkotiqError::SequenceError(field0) => {
+            crate::error::SkotiqError::PlateSolveError(field0) => {
                 [27.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::error::SkotiqError::SequenceError(field0) => {
+                [28.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
             crate::error::SkotiqError::AscomError {
                 prog_id,
                 message,
                 error_code,
             } => [
-                28.into_dart(),
+                29.into_dart(),
                 prog_id.into_into_dart().into_dart(),
                 message.into_into_dart().into_dart(),
                 error_code.into_into_dart().into_dart(),
@@ -18492,7 +18549,7 @@ impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
                 message,
                 error_code,
             } => [
-                29.into_dart(),
+                30.into_dart(),
                 base_url.into_into_dart().into_dart(),
                 device_number.into_into_dart().into_dart(),
                 message.into_into_dart().into_dart(),
@@ -18505,7 +18562,7 @@ impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
                 device_name,
                 message,
             } => [
-                30.into_dart(),
+                31.into_dart(),
                 server.into_into_dart().into_dart(),
                 port.into_into_dart().into_dart(),
                 device_name.into_into_dart().into_dart(),
@@ -18517,27 +18574,27 @@ impl flutter_rust_bridge::IntoDart for crate::error::SkotiqError {
                 message,
                 error_code,
             } => [
-                31.into_dart(),
+                32.into_dart(),
                 vendor.into_into_dart().into_dart(),
                 message.into_into_dart().into_dart(),
                 error_code.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::error::SkotiqError::ComError { message, hresult } => [
-                32.into_dart(),
+                33.into_dart(),
                 message.into_into_dart().into_dart(),
                 hresult.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::error::SkotiqError::Internal(field0) => {
-                [33.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+                [34.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::error::SkotiqError::Cancelled => [34.into_dart()].into_dart(),
+            crate::error::SkotiqError::Cancelled => [35.into_dart()].into_dart(),
             crate::error::SkotiqError::RuntimeInitFailed(field0) => {
-                [35.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+                [36.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
             crate::error::SkotiqError::ResourceExhausted { resource, message } => [
-                36.into_dart(),
+                37.into_dart(),
                 resource.into_into_dart().into_dart(),
                 message.into_into_dart().into_dart(),
             ]
@@ -18973,6 +19030,8 @@ impl SseEncode for crate::api::depthlock::ApiAcquisitionSettings {
         <i32>::sse_encode(self.bin_x, serializer);
         <i32>::sse_encode(self.bin_y, serializer);
         <Option<f64>>::sse_encode(self.ccd_temp_c, serializer);
+        <Option<f64>>::sse_encode(self.set_point_c, serializer);
+        <Option<String>>::sse_encode(self.read_mode, serializer);
     }
 }
 
@@ -19468,6 +19527,7 @@ impl SseEncode for crate::api::imaging::AutofocusConfigApi {
         <i32>::sse_encode(self.backlash_in, serializer);
         <i32>::sse_encode(self.backlash_out, serializer);
         <Option<i32>>::sse_encode(self.measured_backlash_in, serializer);
+        <f64>::sse_encode(self.failure_hfr_tolerance_ratio, serializer);
     }
 }
 
@@ -20606,6 +20666,7 @@ impl SseEncode for crate::device::FrameType {
                 crate::device::FrameType::Flat => 2,
                 crate::device::FrameType::Bias => 3,
                 crate::device::FrameType::DarkFlat => 4,
+                crate::device::FrameType::Snapshot => 5,
                 _ => {
                     unimplemented!("");
                 }
@@ -20649,6 +20710,48 @@ impl SseEncode for crate::guider::GuideStarImage {
     }
 }
 
+impl SseEncode for crate::guider::GuiderActivity {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::guider::GuiderActivity::Disconnected => {
+                <i32>::sse_encode(0, serializer);
+            }
+            crate::guider::GuiderActivity::Connected => {
+                <i32>::sse_encode(1, serializer);
+            }
+            crate::guider::GuiderActivity::Stopped => {
+                <i32>::sse_encode(2, serializer);
+            }
+            crate::guider::GuiderActivity::Calibrating => {
+                <i32>::sse_encode(3, serializer);
+            }
+            crate::guider::GuiderActivity::Guiding => {
+                <i32>::sse_encode(4, serializer);
+            }
+            crate::guider::GuiderActivity::Looping => {
+                <i32>::sse_encode(5, serializer);
+            }
+            crate::guider::GuiderActivity::Paused => {
+                <i32>::sse_encode(6, serializer);
+            }
+            crate::guider::GuiderActivity::Settling => {
+                <i32>::sse_encode(7, serializer);
+            }
+            crate::guider::GuiderActivity::LostLock => {
+                <i32>::sse_encode(8, serializer);
+            }
+            crate::guider::GuiderActivity::Unknown(field0) => {
+                <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::guider::GuiderCalibration {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -20665,7 +20768,7 @@ impl SseEncode for crate::guider::GuiderStatus {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.device_id, serializer);
         <bool>::sse_encode(self.connected, serializer);
-        <String>::sse_encode(self.state, serializer);
+        <crate::guider::GuiderActivity>::sse_encode(self.state, serializer);
         <f64>::sse_encode(self.rms_ra, serializer);
         <f64>::sse_encode(self.rms_dec, serializer);
         <f64>::sse_encode(self.rms_total, serializer);
@@ -20782,6 +20885,15 @@ impl SseEncode for crate::event::equipment::HeartbeatStatus {
             },
             serializer,
         );
+    }
+}
+
+impl SseEncode for crate::api::init::HostPaths {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.data_directory, serializer);
+        <String>::sse_encode(self.log_directory, serializer);
+        <String>::sse_encode(self.profile_directory, serializer);
     }
 }
 
@@ -21709,6 +21821,16 @@ impl SseEncode for Option<crate::device::PierSide> {
     }
 }
 
+impl SseEncode for Option<crate::event::sequencer::SequencerNightEnd> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::event::sequencer::SequencerNightEnd>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::event::sequencer::SequencerNotice> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22017,6 +22139,33 @@ impl SseEncode for (String, u32) {
     }
 }
 
+impl SseEncode for crate::error::Refusal {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::error::Refusal::NoLockPosition => 0,
+                crate::error::Refusal::NoStarSelected => 1,
+                crate::error::Refusal::NoGuideStarFound => 2,
+                crate::error::Refusal::ExecutorNotIdle => 3,
+                crate::error::Refusal::NoSequenceLoaded => 4,
+                crate::error::Refusal::DepthLockNoSuchGoal => 5,
+                crate::error::Refusal::DepthLockStaleRevision => 6,
+                crate::error::Refusal::DepthLockUnavailable => 7,
+                crate::error::Refusal::LightLeak => 8,
+                crate::error::Refusal::LiveStackMisaligned => 9,
+                crate::error::Refusal::LiveStackOtherFilter => 10,
+                crate::error::Refusal::LiveStackUnreadable => 11,
+                crate::error::Refusal::LiveStackTooFewReferenceStars => 12,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::api::devices::camera::RetainedCaptureInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22319,11 +22468,15 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
                 trigger_id,
                 trigger_name,
                 action,
+                night_end,
             } => {
                 <i32>::sse_encode(15, serializer);
                 <String>::sse_encode(trigger_id, serializer);
                 <String>::sse_encode(trigger_name, serializer);
                 <crate::event::sequencer::SequencerTriggerAction>::sse_encode(action, serializer);
+                <Option<crate::event::sequencer::SequencerNightEnd>>::sse_encode(
+                    night_end, serializer,
+                );
             }
             crate::event::sequencer::SequencerEvent::InstructionProgress {
                 node_id,
@@ -22705,6 +22858,22 @@ impl SseEncode for crate::event::sequencer::SequencerEvent {
     }
 }
 
+impl SseEncode for crate::event::sequencer::SequencerNightEnd {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::event::sequencer::SequencerNightEnd::Dawn => 0,
+                crate::event::sequencer::SequencerNightEnd::Obstruction => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::event::sequencer::SequencerNotice {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -22769,10 +22938,14 @@ impl SseEncode for crate::event::sequencer::SequencerStop {
             crate::event::sequencer::SequencerStop::Trigger {
                 trigger_id,
                 trigger_name,
+                night_end,
             } => {
                 <i32>::sse_encode(4, serializer);
                 <String>::sse_encode(trigger_id, serializer);
                 <String>::sse_encode(trigger_name, serializer);
+                <Option<crate::event::sequencer::SequencerNightEnd>>::sse_encode(
+                    night_end, serializer,
+                );
             }
             _ => {
                 unimplemented!("");
@@ -22958,48 +23131,53 @@ impl SseEncode for crate::error::SkotiqError {
                 <String>::sse_encode(device_id, serializer);
                 <String>::sse_encode(current_operation, serializer);
             }
-            crate::error::SkotiqError::InvalidState(field0) => {
+            crate::error::SkotiqError::Refused { kind, message } => {
                 <i32>::sse_encode(17, serializer);
-                <String>::sse_encode(field0, serializer);
+                <crate::error::Refusal>::sse_encode(kind, serializer);
+                <String>::sse_encode(message, serializer);
             }
-            crate::error::SkotiqError::ImageError(field0) => {
+            crate::error::SkotiqError::InvalidState(field0) => {
                 <i32>::sse_encode(18, serializer);
                 <String>::sse_encode(field0, serializer);
             }
-            crate::error::SkotiqError::CameraError(field0) => {
+            crate::error::SkotiqError::ImageError(field0) => {
                 <i32>::sse_encode(19, serializer);
                 <String>::sse_encode(field0, serializer);
             }
-            crate::error::SkotiqError::NoImageAvailable => {
+            crate::error::SkotiqError::CameraError(field0) => {
                 <i32>::sse_encode(20, serializer);
+                <String>::sse_encode(field0, serializer);
             }
-            crate::error::SkotiqError::ExposureCancelled => {
+            crate::error::SkotiqError::NoImageAvailable => {
                 <i32>::sse_encode(21, serializer);
             }
-            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => {
+            crate::error::SkotiqError::ExposureCancelled => {
                 <i32>::sse_encode(22, serializer);
-                <String>::sse_encode(camera_id, serializer);
-                <String>::sse_encode(reason, serializer);
             }
-            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => {
+            crate::error::SkotiqError::ExposureFailed { camera_id, reason } => {
                 <i32>::sse_encode(23, serializer);
                 <String>::sse_encode(camera_id, serializer);
                 <String>::sse_encode(reason, serializer);
             }
-            crate::error::SkotiqError::IoError(field0) => {
+            crate::error::SkotiqError::DownloadFailed { camera_id, reason } => {
                 <i32>::sse_encode(24, serializer);
-                <String>::sse_encode(field0, serializer);
+                <String>::sse_encode(camera_id, serializer);
+                <String>::sse_encode(reason, serializer);
             }
-            crate::error::SkotiqError::SerializationError(field0) => {
+            crate::error::SkotiqError::IoError(field0) => {
                 <i32>::sse_encode(25, serializer);
                 <String>::sse_encode(field0, serializer);
             }
-            crate::error::SkotiqError::PlateSolveError(field0) => {
+            crate::error::SkotiqError::SerializationError(field0) => {
                 <i32>::sse_encode(26, serializer);
                 <String>::sse_encode(field0, serializer);
             }
-            crate::error::SkotiqError::SequenceError(field0) => {
+            crate::error::SkotiqError::PlateSolveError(field0) => {
                 <i32>::sse_encode(27, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::error::SkotiqError::SequenceError(field0) => {
+                <i32>::sse_encode(28, serializer);
                 <String>::sse_encode(field0, serializer);
             }
             crate::error::SkotiqError::AscomError {
@@ -23007,7 +23185,7 @@ impl SseEncode for crate::error::SkotiqError {
                 message,
                 error_code,
             } => {
-                <i32>::sse_encode(28, serializer);
+                <i32>::sse_encode(29, serializer);
                 <String>::sse_encode(prog_id, serializer);
                 <String>::sse_encode(message, serializer);
                 <i32>::sse_encode(error_code, serializer);
@@ -23018,7 +23196,7 @@ impl SseEncode for crate::error::SkotiqError {
                 message,
                 error_code,
             } => {
-                <i32>::sse_encode(29, serializer);
+                <i32>::sse_encode(30, serializer);
                 <String>::sse_encode(base_url, serializer);
                 <u32>::sse_encode(device_number, serializer);
                 <String>::sse_encode(message, serializer);
@@ -23030,7 +23208,7 @@ impl SseEncode for crate::error::SkotiqError {
                 device_name,
                 message,
             } => {
-                <i32>::sse_encode(30, serializer);
+                <i32>::sse_encode(31, serializer);
                 <String>::sse_encode(server, serializer);
                 <u16>::sse_encode(port, serializer);
                 <String>::sse_encode(device_name, serializer);
@@ -23041,29 +23219,29 @@ impl SseEncode for crate::error::SkotiqError {
                 message,
                 error_code,
             } => {
-                <i32>::sse_encode(31, serializer);
+                <i32>::sse_encode(32, serializer);
                 <String>::sse_encode(vendor, serializer);
                 <String>::sse_encode(message, serializer);
                 <i32>::sse_encode(error_code, serializer);
             }
             crate::error::SkotiqError::ComError { message, hresult } => {
-                <i32>::sse_encode(32, serializer);
+                <i32>::sse_encode(33, serializer);
                 <String>::sse_encode(message, serializer);
                 <u32>::sse_encode(hresult, serializer);
             }
             crate::error::SkotiqError::Internal(field0) => {
-                <i32>::sse_encode(33, serializer);
+                <i32>::sse_encode(34, serializer);
                 <String>::sse_encode(field0, serializer);
             }
             crate::error::SkotiqError::Cancelled => {
-                <i32>::sse_encode(34, serializer);
+                <i32>::sse_encode(35, serializer);
             }
             crate::error::SkotiqError::RuntimeInitFailed(field0) => {
-                <i32>::sse_encode(35, serializer);
+                <i32>::sse_encode(36, serializer);
                 <String>::sse_encode(field0, serializer);
             }
             crate::error::SkotiqError::ResourceExhausted { resource, message } => {
-                <i32>::sse_encode(36, serializer);
+                <i32>::sse_encode(37, serializer);
                 <String>::sse_encode(resource, serializer);
                 <String>::sse_encode(message, serializer);
             }
@@ -23426,6 +23604,8 @@ mod io {
                 bin_x: self.bin_x.cst_decode(),
                 bin_y: self.bin_y.cst_decode(),
                 ccd_temp_c: self.ccd_temp_c.cst_decode(),
+                set_point_c: self.set_point_c.cst_decode(),
+                read_mode: self.read_mode.cst_decode(),
             }
         }
     }
@@ -23955,6 +24135,7 @@ mod io {
                 backlash_in: self.backlash_in.cst_decode(),
                 backlash_out: self.backlash_out.cst_decode(),
                 measured_backlash_in: self.measured_backlash_in.cst_decode(),
+                failure_hfr_tolerance_ratio: self.failure_hfr_tolerance_ratio.cst_decode(),
             }
         }
     }
@@ -24230,6 +24411,13 @@ mod io {
             CstDecode::<crate::event::guiding::GuidingEvent>::cst_decode(*wrap).into()
         }
     }
+    impl CstDecode<crate::api::init::HostPaths> for *mut wire_cst_host_paths {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::init::HostPaths {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::api::init::HostPaths>::cst_decode(*wrap).into()
+        }
+    }
     impl CstDecode<i32> for *mut i32 {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> i32 {
@@ -24387,6 +24575,13 @@ mod io {
         fn cst_decode(self) -> crate::event::sequencer::SequencerEvent {
             let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
             CstDecode::<crate::event::sequencer::SequencerEvent>::cst_decode(*wrap).into()
+        }
+    }
+    impl CstDecode<crate::event::sequencer::SequencerNightEnd> for *mut i32 {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::event::sequencer::SequencerNightEnd {
+            let wrap = unsafe { flutter_rust_bridge::for_generated::box_from_leak_ptr(self) };
+            CstDecode::<crate::event::sequencer::SequencerNightEnd>::cst_decode(*wrap).into()
         }
     }
     impl CstDecode<crate::event::sequencer::SequencerNotice> for *mut wire_cst_sequencer_notice {
@@ -25413,6 +25608,27 @@ mod io {
             }
         }
     }
+    impl CstDecode<crate::guider::GuiderActivity> for wire_cst_guider_activity {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::guider::GuiderActivity {
+            match self.tag {
+                0 => crate::guider::GuiderActivity::Disconnected,
+                1 => crate::guider::GuiderActivity::Connected,
+                2 => crate::guider::GuiderActivity::Stopped,
+                3 => crate::guider::GuiderActivity::Calibrating,
+                4 => crate::guider::GuiderActivity::Guiding,
+                5 => crate::guider::GuiderActivity::Looping,
+                6 => crate::guider::GuiderActivity::Paused,
+                7 => crate::guider::GuiderActivity::Settling,
+                8 => crate::guider::GuiderActivity::LostLock,
+                9 => {
+                    let ans = unsafe { self.kind.Unknown };
+                    crate::guider::GuiderActivity::Unknown(ans.field0.cst_decode())
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
     impl CstDecode<crate::guider::GuiderCalibration> for wire_cst_guider_calibration {
         // Codec=Cst (C-struct based), see doc to use other codecs
         fn cst_decode(self) -> crate::guider::GuiderCalibration {
@@ -25513,6 +25729,16 @@ mod io {
                     }
                 }
                 _ => unreachable!(),
+            }
+        }
+    }
+    impl CstDecode<crate::api::init::HostPaths> for wire_cst_host_paths {
+        // Codec=Cst (C-struct based), see doc to use other codecs
+        fn cst_decode(self) -> crate::api::init::HostPaths {
+            crate::api::init::HostPaths {
+                data_directory: self.data_directory.cst_decode(),
+                log_directory: self.log_directory.cst_decode(),
+                profile_directory: self.profile_directory.cst_decode(),
             }
         }
     }
@@ -26748,6 +26974,7 @@ mod io {
                         trigger_id: ans.trigger_id.cst_decode(),
                         trigger_name: ans.trigger_name.cst_decode(),
                         action: ans.action.cst_decode(),
+                        night_end: ans.night_end.cst_decode(),
                     }
                 }
                 16 => {
@@ -27059,6 +27286,7 @@ mod io {
                     crate::event::sequencer::SequencerStop::Trigger {
                         trigger_id: ans.trigger_id.cst_decode(),
                         trigger_name: ans.trigger_name.cst_decode(),
+                        night_end: ans.night_end.cst_decode(),
                     }
                 }
                 _ => unreachable!(),
@@ -27172,50 +27400,57 @@ mod io {
                     }
                 }
                 17 => {
+                    let ans = unsafe { self.kind.Refused };
+                    crate::error::SkotiqError::Refused {
+                        kind: ans.kind.cst_decode(),
+                        message: ans.message.cst_decode(),
+                    }
+                }
+                18 => {
                     let ans = unsafe { self.kind.InvalidState };
                     crate::error::SkotiqError::InvalidState(ans.field0.cst_decode())
                 }
-                18 => {
+                19 => {
                     let ans = unsafe { self.kind.ImageError };
                     crate::error::SkotiqError::ImageError(ans.field0.cst_decode())
                 }
-                19 => {
+                20 => {
                     let ans = unsafe { self.kind.CameraError };
                     crate::error::SkotiqError::CameraError(ans.field0.cst_decode())
                 }
-                20 => crate::error::SkotiqError::NoImageAvailable,
-                21 => crate::error::SkotiqError::ExposureCancelled,
-                22 => {
+                21 => crate::error::SkotiqError::NoImageAvailable,
+                22 => crate::error::SkotiqError::ExposureCancelled,
+                23 => {
                     let ans = unsafe { self.kind.ExposureFailed };
                     crate::error::SkotiqError::ExposureFailed {
                         camera_id: ans.camera_id.cst_decode(),
                         reason: ans.reason.cst_decode(),
                     }
                 }
-                23 => {
+                24 => {
                     let ans = unsafe { self.kind.DownloadFailed };
                     crate::error::SkotiqError::DownloadFailed {
                         camera_id: ans.camera_id.cst_decode(),
                         reason: ans.reason.cst_decode(),
                     }
                 }
-                24 => {
+                25 => {
                     let ans = unsafe { self.kind.IoError };
                     crate::error::SkotiqError::IoError(ans.field0.cst_decode())
                 }
-                25 => {
+                26 => {
                     let ans = unsafe { self.kind.SerializationError };
                     crate::error::SkotiqError::SerializationError(ans.field0.cst_decode())
                 }
-                26 => {
+                27 => {
                     let ans = unsafe { self.kind.PlateSolveError };
                     crate::error::SkotiqError::PlateSolveError(ans.field0.cst_decode())
                 }
-                27 => {
+                28 => {
                     let ans = unsafe { self.kind.SequenceError };
                     crate::error::SkotiqError::SequenceError(ans.field0.cst_decode())
                 }
-                28 => {
+                29 => {
                     let ans = unsafe { self.kind.AscomError };
                     crate::error::SkotiqError::AscomError {
                         prog_id: ans.prog_id.cst_decode(),
@@ -27223,7 +27458,7 @@ mod io {
                         error_code: ans.error_code.cst_decode(),
                     }
                 }
-                29 => {
+                30 => {
                     let ans = unsafe { self.kind.AlpacaError };
                     crate::error::SkotiqError::AlpacaError {
                         base_url: ans.base_url.cst_decode(),
@@ -27232,7 +27467,7 @@ mod io {
                         error_code: ans.error_code.cst_decode(),
                     }
                 }
-                30 => {
+                31 => {
                     let ans = unsafe { self.kind.IndiError };
                     crate::error::SkotiqError::IndiError {
                         server: ans.server.cst_decode(),
@@ -27241,7 +27476,7 @@ mod io {
                         message: ans.message.cst_decode(),
                     }
                 }
-                31 => {
+                32 => {
                     let ans = unsafe { self.kind.NativeError };
                     crate::error::SkotiqError::NativeError {
                         vendor: ans.vendor.cst_decode(),
@@ -27249,23 +27484,23 @@ mod io {
                         error_code: ans.error_code.cst_decode(),
                     }
                 }
-                32 => {
+                33 => {
                     let ans = unsafe { self.kind.ComError };
                     crate::error::SkotiqError::ComError {
                         message: ans.message.cst_decode(),
                         hresult: ans.hresult.cst_decode(),
                     }
                 }
-                33 => {
+                34 => {
                     let ans = unsafe { self.kind.Internal };
                     crate::error::SkotiqError::Internal(ans.field0.cst_decode())
                 }
-                34 => crate::error::SkotiqError::Cancelled,
-                35 => {
+                35 => crate::error::SkotiqError::Cancelled,
+                36 => {
                     let ans = unsafe { self.kind.RuntimeInitFailed };
                     crate::error::SkotiqError::RuntimeInitFailed(ans.field0.cst_decode())
                 }
-                36 => {
+                37 => {
                     let ans = unsafe { self.kind.ResourceExhausted };
                     crate::error::SkotiqError::ResourceExhausted {
                         resource: ans.resource.cst_decode(),
@@ -27475,6 +27710,8 @@ mod io {
                 bin_x: Default::default(),
                 bin_y: Default::default(),
                 ccd_temp_c: core::ptr::null_mut(),
+                set_point_c: core::ptr::null_mut(),
+                read_mode: core::ptr::null_mut(),
             }
         }
     }
@@ -28088,6 +28325,7 @@ mod io {
                 backlash_in: Default::default(),
                 backlash_out: Default::default(),
                 measured_backlash_in: core::ptr::null_mut(),
+                failure_hfr_tolerance_ratio: Default::default(),
             }
         }
     }
@@ -28778,6 +29016,19 @@ mod io {
             Self::new_with_null_ptr()
         }
     }
+    impl NewWithNullPtr for wire_cst_guider_activity {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                tag: -1,
+                kind: GuiderActivityKind { nil__: () },
+            }
+        }
+    }
+    impl Default for wire_cst_guider_activity {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
     impl NewWithNullPtr for wire_cst_guider_calibration {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -28799,7 +29050,7 @@ mod io {
             Self {
                 device_id: core::ptr::null_mut(),
                 connected: Default::default(),
-                state: core::ptr::null_mut(),
+                state: Default::default(),
                 rms_ra: Default::default(),
                 rms_dec: Default::default(),
                 rms_total: Default::default(),
@@ -28825,6 +29076,20 @@ mod io {
         }
     }
     impl Default for wire_cst_guiding_event {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+    impl NewWithNullPtr for wire_cst_host_paths {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                data_directory: core::ptr::null_mut(),
+                log_directory: core::ptr::null_mut(),
+                profile_directory: core::ptr::null_mut(),
+            }
+        }
+    }
+    impl Default for wire_cst_host_paths {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
@@ -30052,27 +30317,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-        duration_secs: f64,
-        gain: i32,
-        offset: i32,
-        bin_x: i32,
-        bin_y: i32,
-    ) {
-        wire__crate__api__imaging__api_camera_start_exposure_impl(
-            port_,
-            device_id,
-            duration_secs,
-            gain,
-            offset,
-            bin_x,
-            bin_y,
-        )
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__imaging__api_camera_start_exposure_configured(
         port_: i64,
         device_id: *mut wire_cst_list_prim_u_8_strict,
@@ -30252,46 +30496,6 @@ mod io {
         device_id: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__devices__cover_calibrator__api_cover_calibrator_close_cover_impl(
-            port_, device_id,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness_impl(
-            port_, device_id,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state_impl(
-            port_, device_id,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state_impl(
-            port_, device_id,
-        )
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness_impl(
             port_, device_id,
         )
     }
@@ -30895,8 +31099,9 @@ mod io {
     #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_device_quirks(
         device_id: *mut wire_cst_list_prim_u_8_strict,
+        model: *mut wire_cst_list_prim_u_8_strict,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__diagnostics__api_get_device_quirks_impl(device_id)
+        wire__crate__api__diagnostics__api_get_device_quirks_impl(device_id, model)
     }
 
     #[unsafe(no_mangle)]
@@ -30986,12 +31191,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__plate_solve__api_get_plate_solver_path(
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__plate_solve__api_get_plate_solver_path_impl()
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_get_profiles(
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__storage__api_get_profiles_impl()
@@ -31001,14 +31200,6 @@ mod io {
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_qhy_discovery_status(
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
         wire__crate__api__diagnostics__api_get_qhy_discovery_status_impl()
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__diagnostics__api_get_rotator_capabilities(
-        port_: i64,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__diagnostics__api_get_rotator_capabilities_impl(port_, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -31178,17 +31369,10 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_init_profile_storage(
-        storage_path: *mut wire_cst_list_prim_u_8_strict,
+    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__init__api_init_host(
+        paths: *mut wire_cst_host_paths,
     ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__storage__api_init_profile_storage_impl(storage_path)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__storage__api_init_settings_storage(
-        storage_path: *mut wire_cst_list_prim_u_8_strict,
-    ) -> flutter_rust_bridge::for_generated::WireSyncRust2DartDco {
-        wire__crate__api__storage__api_init_settings_storage_impl(storage_path)
+        wire__crate__api__init__api_init_host_impl(paths)
     }
 
     #[unsafe(no_mangle)]
@@ -31211,15 +31395,6 @@ mod io {
         port_: i64,
     ) {
         wire__crate__api__discovery__api_invalidate_discovery_cache_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__connection__api_is_device_connected(
-        port_: i64,
-        device_type: i32,
-        device_id: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__connection__api_is_device_connected_impl(port_, device_type, device_id)
     }
 
     #[unsafe(no_mangle)]
@@ -32080,13 +32255,6 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
-        port_: i64,
-    ) {
-        wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events_impl(port_)
-    }
-
-    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sequencer__runtime_config__api_sequencer_update_cloud_motion(
         port_: i64,
         current_cover_percent: *mut f64,
@@ -32187,14 +32355,6 @@ mod io {
         args_json: *mut wire_cst_list_prim_u_8_strict,
     ) {
         wire__crate__api__sky_atlas__api_sky_atlas_impl(port_, args_json)
-    }
-
-    #[unsafe(no_mangle)]
-    pub extern "C" fn frbgen_skotiq_bridge_wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame(
-        port_: i64,
-        args_json: *mut wire_cst_list_prim_u_8_strict,
-    ) {
-        wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame_impl(port_, args_json)
     }
 
     #[unsafe(no_mangle)]
@@ -33028,6 +33188,14 @@ mod io {
     }
 
     #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_host_paths(
+    ) -> *mut wire_cst_host_paths {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(
+            wire_cst_host_paths::new_with_null_ptr(),
+        )
+    }
+
+    #[unsafe(no_mangle)]
     pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_i_32(value: i32) -> *mut i32 {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
     }
@@ -33168,6 +33336,13 @@ mod io {
         flutter_rust_bridge::for_generated::new_leak_box_ptr(
             wire_cst_sequencer_event::new_with_null_ptr(),
         )
+    }
+
+    #[unsafe(no_mangle)]
+    pub extern "C" fn frbgen_skotiq_bridge_cst_new_box_autoadd_sequencer_night_end(
+        value: i32,
+    ) -> *mut i32 {
+        flutter_rust_bridge::for_generated::new_leak_box_ptr(value)
     }
 
     #[unsafe(no_mangle)]
@@ -33768,6 +33943,8 @@ mod io {
         bin_x: i32,
         bin_y: i32,
         ccd_temp_c: *mut f64,
+        set_point_c: *mut f64,
+        read_mode: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -34191,6 +34368,7 @@ mod io {
         backlash_in: i32,
         backlash_out: i32,
         measured_backlash_in: *mut i32,
+        failure_hfr_tolerance_ratio: f64,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -35078,6 +35256,23 @@ mod io {
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
+    pub struct wire_cst_guider_activity {
+        tag: i32,
+        kind: GuiderActivityKind,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub union GuiderActivityKind {
+        Unknown: wire_cst_GuiderActivity_Unknown,
+        nil__: (),
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_GuiderActivity_Unknown {
+        field0: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
     pub struct wire_cst_guider_calibration {
         is_calibrated: bool,
         ra_angle: *mut f64,
@@ -35090,7 +35285,7 @@ mod io {
     pub struct wire_cst_guider_status {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         connected: bool,
-        state: *mut wire_cst_list_prim_u_8_strict,
+        state: wire_cst_guider_activity,
         rms_ra: f64,
         rms_dec: f64,
         rms_total: f64,
@@ -35163,6 +35358,13 @@ mod io {
     pub struct wire_cst_GuidingEvent_GuideStats {
         snr: f64,
         star_mass: f64,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_host_paths {
+        data_directory: *mut wire_cst_list_prim_u_8_strict,
+        log_directory: *mut wire_cst_list_prim_u_8_strict,
+        profile_directory: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -36121,6 +36323,7 @@ mod io {
         trigger_id: *mut wire_cst_list_prim_u_8_strict,
         trigger_name: *mut wire_cst_list_prim_u_8_strict,
         action: i32,
+        night_end: *mut i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -36412,6 +36615,7 @@ mod io {
     pub struct wire_cst_SequencerStop_Trigger {
         trigger_id: *mut wire_cst_list_prim_u_8_strict,
         trigger_name: *mut wire_cst_list_prim_u_8_strict,
+        night_end: *mut i32,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]
@@ -36439,6 +36643,7 @@ mod io {
         OperationFailed: wire_cst_SkotiqError_OperationFailed,
         NotSupported: wire_cst_SkotiqError_NotSupported,
         DeviceBusy: wire_cst_SkotiqError_DeviceBusy,
+        Refused: wire_cst_SkotiqError_Refused,
         InvalidState: wire_cst_SkotiqError_InvalidState,
         ImageError: wire_cst_SkotiqError_ImageError,
         CameraError: wire_cst_SkotiqError_CameraError,
@@ -36556,6 +36761,12 @@ mod io {
     pub struct wire_cst_SkotiqError_DeviceBusy {
         device_id: *mut wire_cst_list_prim_u_8_strict,
         current_operation: *mut wire_cst_list_prim_u_8_strict,
+    }
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct wire_cst_SkotiqError_Refused {
+        kind: i32,
+        message: *mut wire_cst_list_prim_u_8_strict,
     }
     #[repr(C)]
     #[derive(Clone, Copy)]

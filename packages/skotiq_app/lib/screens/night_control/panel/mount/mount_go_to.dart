@@ -14,8 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show catalogStateProvider, objectSearchProvider;
@@ -24,8 +22,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
-import '../../actions/manual_action_gating.dart';
-import '../../actions/night_action_controller.dart';
+import '../../../../services/slew_and_center.dart';
+import '../../../../services/night_actions/manual_action_gating.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import 'night_mount_tab.dart';
 import '../panel_widgets.dart';
@@ -367,17 +366,10 @@ class _NightMountGoToSectionState extends ConsumerState<NightMountGoToSection> {
   /// centering every manual Slew & center uses.
   Future<CommandActionResult> _center(({double ra, double dec}) to) async {
     final l10n = context.l10n;
-    final centering = ManualCentering.of(
-      await ref.read(appSettingsProvider.future),
-      ref.read(activeEquipmentProfileProvider),
-    );
-    final result = await ref.read(centeringServiceProvider).centerOnTarget(
-          targetRa: to.ra,
-          targetDec: to.dec,
-          config: centering.config,
-          onStatusUpdate: (status) =>
-              ref.read(centeringStatusProvider.notifier).state = status,
-        );
+    final centered = await centerWithoutDialog(ref, ra: to.ra, dec: to.dec);
+    final refused = centered.refused;
+    if (refused != null) return refused;
+    final result = centered.result!;
     if (!result.success) {
       return CommandActionResult.failure(
         result.errorMessage ?? l10n.text('nightScopeErrCenter'),

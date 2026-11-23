@@ -5,7 +5,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../../../../utils/guide_distance.dart';
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../data/plan/night_run_phase_provider.dart';
 import '../../data/plan/plan_steps_provider.dart';
 import '../../data/session/session_format.dart';
@@ -53,7 +53,7 @@ NightActivityKind resolveNightActivity({
   required NightRunPhase phase,
   required SequenceExecutionState execution,
   SequenceNode? node,
-  String? detailKind,
+  InstructionProgressDetail? detail,
   bool autofocusRunning = false,
   bool flipping = false,
   FlipStep? flipStep,
@@ -97,7 +97,7 @@ NightActivityKind resolveNightActivity({
   };
   if (centeringActive ||
       activity == NodeActivity.center ||
-      detailKind == 'Center' ||
+      detail is CenterInstructionProgressDetail ||
       manualAction == ManualActionId.center ||
       manualAction == ManualActionId.solve ||
       manualAction == ManualActionId.solveSync) {
@@ -106,28 +106,25 @@ NightActivityKind resolveNightActivity({
   if (execution == SequenceExecutionState.recovering) {
     return NightActivityKind.recovery;
   }
-  if (detailKind == 'Autofocus' || activity == NodeActivity.focus) {
+  if (detail is AutofocusInstructionProgressDetail ||
+      activity == NodeActivity.focus) {
     return NightActivityKind.focus;
   }
-  if (activity == NodeActivity.slew || detailKind == 'Slew') {
-    return NightActivityKind.slew;
-  }
+  if (activity == NodeActivity.slew) return NightActivityKind.slew;
   if (activity == NodeActivity.flip ||
-      detailKind == 'MeridianFlip' ||
+      detail is MeridianFlipStepProgressDetail ||
       manualAction == ManualActionId.flip) {
     return NightActivityKind.flip;
   }
   if (exposing) return NightActivityKind.capture;
   if (settling ||
-      detailKind == 'Dither' ||
-      detailKind == 'Guiding' ||
       activity == NodeActivity.guide ||
       manualAction == ManualActionId.dither) {
     return NightActivityKind.guide;
   }
   if (activity == NodeActivity.capture ||
-      detailKind == 'Exposure' ||
-      detailKind == 'SmartExposure') {
+      detail is ExposureInstructionProgressDetail ||
+      detail is SmartExposureInstructionProgressDetail) {
     return NightActivityKind.capture;
   }
   return NightActivityKind.waiting;
@@ -152,8 +149,7 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
       ended(id) ? null : progress.nodeProgressStructuredDetail[id];
   final percent = progress.nodeProgressPercent[id];
   // A completed sub-operation must not keep its panel when capture resumes.
-  final detailKind =
-      percent != null && percent >= 100 ? null : structured?.wire.detailKind;
+  final current = percent != null && percent >= 100 ? null : structured;
   final camera = ref.watch(cameraStateProvider);
   final mount = ref.watch(mountStateProvider);
   final center = ref.watch(centeringStatusProvider);
@@ -164,7 +160,7 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
     phase: phase,
     execution: execution,
     node: node,
-    detailKind: detailKind,
+    detail: current,
     autofocusRunning: ref.watch(autofocusOverlayProvider).isRunning,
     flipping: flipping,
     flipStep: flipStep,
@@ -183,11 +179,8 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
       true,
     _ => false,
   };
-  final raw = structured?.wire.detailJson ?? const <String, Object?>{};
-  double? number(String key) => switch (raw[key]) {
-        final num value => value.toDouble(),
-        _ => null,
-      };
+  final centerReport =
+      structured is CenterInstructionProgressDetail ? structured : null;
   MetricVm metric(String label, String? value) =>
       MetricVm(label: NightText(label), value: value);
   String? fixed(double? v, [String unit = '']) =>
@@ -274,10 +267,10 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
                   : 'nightActivityCenter';
       final current = centerActive && center.currentIteration > 0
           ? center.currentIteration
-          : number('attempt')?.toInt();
+          : centerReport?.attempt;
       final maximum = centerActive && center.maxIterations > 0
           ? center.maxIterations
-          : number('max_attempts')?.toInt();
+          : centerReport?.maxAttempts;
       metrics.addAll([
         metric('nightActivityAttempt',
             current == null ? null : '$current / ${maximum ?? "—"}'),
@@ -286,15 +279,13 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
             fixed(
                 centerActive
                     ? center.currentOffsetArcsec
-                    : number('last_separation_arcsec'),
+                    : centerReport?.lastSeparationArcsec,
                 '″')),
       ]);
       detail = centerActive ? center.message : null;
     }
     if (kind == NightActivityKind.flip) {
-      detail = raw['phase'] is String
-          ? raw['phase'] as String
-          : progress.nodeProgressDetail[id];
+      detail = progress.nodeProgressDetail[id];
       fraction = percent == null ? null : percent / 100;
     }
     if (flipping) fraction = ref.watch(flipProgressProvider) / 100;
@@ -309,9 +300,6 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
       metric('nightActivityRaRms', formatGuide(rms.ra, scale)),
       metric('nightActivityDecRms', formatGuide(rms.dec, scale)),
       metric('nightActivityTotalRms', formatGuide(rms.total, scale)),
-      if (number('settle_pixels') != null)
-        metric('nightActivitySettleThreshold',
-            fixed(number('settle_pixels'), ' px')),
     ]);
   } else if (kind == NightActivityKind.recovery) {
     final recovery = ref.watch(currentRecoveryProvider);
@@ -322,10 +310,6 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
     }
   } else if (kind == NightActivityKind.waiting) {
     detail = progress.nodeProgressDetail[id] ?? progress.currentNodeName;
-    if (number('remaining_secs') != null) {
-      metrics.add(metric(
-          'nightSessionStatRemaining', fixed(number('remaining_secs'), ' s')));
-    }
   } else if (kind == NightActivityKind.failed ||
       kind == NightActivityKind.paused ||
       kind == NightActivityKind.stopping) {
@@ -345,10 +329,8 @@ final nightActivityProvider = Provider<NightActivityVm>((ref) {
     FlipStep.confirmingTracking =>
       'nightActivityFlip',
     FlipStep.pausingGuider => 'nightActivityFlipPauseGuide',
-    FlipStep.stoppingTracking => 'nightActivityFlipStopTracking',
     FlipStep.slewingToTarget => 'nightActivitySlew',
     FlipStep.verifyingPierSide => 'nightActivityFlipVerifySide',
-    FlipStep.resumingTracking => 'nightActivityFlipResumeTracking',
     FlipStep.plateSolvingAndCentering => titleKey,
     FlipStep.refocusing => 'nightActivityFocus',
     FlipStep.resumingGuider => 'nightActivityGuide',

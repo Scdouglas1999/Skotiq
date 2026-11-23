@@ -4,13 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/darkroom/targets/darkroom_targets_model.dart';
 import 'package:skotiq_app/screens/planner/targets/plan_targets_tab.dart';
 import 'package:skotiq_app/services/run_dashboard_providers.dart';
+import 'package:skotiq_astro/format.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_core/database.dart' as ndb;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/services.dart' show schedulerRejectionChipLabel;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 import '../../../harness/provider_teardown.dart';
+import '../scheduler_test_doubles.dart';
 import 'plan_targets_test_support.dart';
 
 ndb.DbTarget _target(int id, String name) => ndb.DbTarget(
@@ -218,6 +222,52 @@ void main() {
     });
   }
 
+  // A target the autopilot rules out reads the scheduler's own reason,
+  // shortened by the one ladder in skotiq_core.
+  for (final (reason, chip) in const [
+    ('required filter Ha not in wheel', 'Filter missing'),
+    ('outside time window 22:00–02:00', 'Outside window'),
+  ]) {
+    testWidgets('a ruled-out target reads "$chip"', (tester) async {
+      await _pump(
+        tester,
+        extra: [
+          currentSchedulerDecisionProvider.overrideWith(
+            (ref) => FakeCurrentSchedulerDecisionNotifier(
+              SchedulerDecision(
+                score: 0,
+                reasoning: const [],
+                evaluatedAt: DateTime.utc(2026, 11, 3, 22),
+                scoredCandidates: [
+                  TargetScore(
+                    targetId: 2,
+                    targetName: 'M74',
+                    totalScore: 0,
+                    factors: const [],
+                    hardConstraintFailed: true,
+                    rejections: [SchedulerRejection.fromSentence(reason)],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+      expect(
+        schedulerRejectionChipLabel(SchedulerRejection.fromSentence(reason)),
+        chip,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan-target-row-2')),
+          matching: find.text(chip),
+        ),
+        findsOneWidget,
+      );
+      await settleProviderTeardown(tester);
+    });
+  }
+
   testWidgets('choosing a group narrows the list and the autopilot to it',
       (tester) async {
     final container = await _pump(tester, groups: [_fall]);
@@ -297,6 +347,49 @@ void main() {
     });
   }
 
+  // The tonight window is the floor's own search over astronomical dark, so
+  // it agrees with Best tonight to the minute instead of a ten-minute grid.
+  testWidgets('the tonight window is the floor search over the dark',
+      (tester) async {
+    final now = DateTime(2026, 11, 3, 15);
+    const floor = AltitudeFloor(horizon: null, minimumDeg: 30);
+    await _pump(
+      tester,
+      site: const LocationSettings(latitude: 47, longitude: -71),
+      extra: [
+        altitudeFloorProvider.overrideWithValue(floor),
+        clockProvider.overrideWithValue(_StoppedClock(now)),
+      ],
+    );
+    await tester.tap(find.text('NGC0891'));
+    await tester.pumpAndSettle();
+
+    final night = AstronomyCalculations.nightAt(
+      now: now,
+      latitudeDeg: 47,
+      longitudeDeg: -71,
+    );
+    final window = floor.windowAbove(
+      raDeg: _ngc.ra * 15,
+      decDeg: _ngc.dec,
+      from: night.astronomicalDusk!,
+      until: night.astronomicalDawn!,
+      latitudeDeg: 47,
+      longitudeDeg: -71,
+    )!;
+    final line = tester.widget<Text>(
+      find.byKey(const Key('target-detail-tonight-window')),
+    );
+    expect(
+      line.data,
+      contains(
+        'from ${ClockFormat.hm(window.start.toLocal())} to '
+        '${ClockFormat.hm(window.end.toLocal())},',
+      ),
+    );
+    await settleProviderTeardown(tester);
+  });
+
   testWidgets('at phone width every row keeps its name and nothing overflows',
       (tester) async {
     await _pump(tester, size: const Size(390, 844));
@@ -313,4 +406,22 @@ void main() {
     _expectNoLayoutError(tester);
     await settleProviderTeardown(tester);
   });
+}
+
+class _StoppedClock implements Clock {
+  const _StoppedClock(this.at);
+
+  final DateTime at;
+
+  @override
+  DateTime now() => at;
+
+  @override
+  DateTime nowUtc() => at.toUtc();
+
+  @override
+  Duration get utcOffset => at.timeZoneOffset;
+
+  @override
+  DateTime fromUtc(DateTime utc) => utc.toLocal();
 }

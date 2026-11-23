@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'readout.dart';
 
 /// Emphasis for a [MetricGridItem]'s value or delta.

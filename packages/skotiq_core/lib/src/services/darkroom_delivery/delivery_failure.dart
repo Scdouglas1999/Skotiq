@@ -21,14 +21,6 @@ import '../../models/darkroom/delivery.dart';
 /// `FileSystemException.message` names only the act — `Cannot copy file to
 /// '/drop/master.fits'`, `Failed to open file` — and the reason lives in
 /// `osError`.
-/// Reporting the act alone produced journal rows, morning-report problems and
-/// Settings status lines that all read
-/// `insufficientSpace: Copying X to Y failed: Cannot copy file to Z`: the kind
-/// prefix was the only thing naming a mechanism, and for every other errno
-/// even that was `transportFailure`, which names nothing. The reason was
-/// always in hand — the ENOSPC classification is made by reading
-/// `osError.errorCode` one line earlier — it simply never reached the
-/// operator's sentence.
 ///
 /// The errno rides along because two different failures share one wording
 /// often enough to matter when someone reads the journal a week later.
@@ -151,14 +143,7 @@ class DeliveryFailure implements Exception {
 /// Every transport decodes the same column, and the two ways it can refuse to
 /// decode are the same configuration error: text that is not JSON at all, and
 /// JSON that is not an object. Both are
-/// [DeliveryFailureKind.configurationInvalid] — TERMINAL. A bare `jsonDecode`
-/// raised `FormatException` here instead, which [DeliveryService] can only
-/// read as an unclassified transport failure: RETRYABLE. A destination whose
-/// configuration cannot be parsed was then re-attempted on the whole backoff
-/// schedule, spending the night's budget on a row whose text is identical
-/// every time, and the operator's sentence was the parser's
-/// (`FormatException: Unexpected character (at character 1)`) rather than one
-/// naming the column and the row.
+/// [DeliveryFailureKind.configurationInvalid] — TERMINAL.
 ///
 /// [what] names the destination kind in the operator's words ("watched-folder
 /// destination"), so the sentence says which row to open.

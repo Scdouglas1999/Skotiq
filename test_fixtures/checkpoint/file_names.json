@@ -1,0 +1,4 @@
+{
+  "primary": "skotiq_session.checkpoint",
+  "backup": "skotiq_session.checkpoint.bak"
+}

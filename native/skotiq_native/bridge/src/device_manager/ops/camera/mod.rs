@@ -56,17 +56,10 @@
 //! Connection-level errors are not silenced here; this layer composes
 //! values *after* `with_camera!` has already established the device path.
 
-/// A gain or offset a camera status reports as [`UNKNOWN_CAMERA_SETTING`]
-/// reads as `None`.
-pub(crate) use skotiq_device::UNKNOWN_CAMERA_SETTING;
-
-/// `None` when a status setting was recorded as unreadable, else `Some(value)`.
-pub(crate) fn camera_setting_or_unknown(value: i32) -> Option<i32> {
-    if value <= UNKNOWN_CAMERA_SETTING {
-        None
-    } else {
-        Some(value)
-    }
+/// A gain or offset from a camera status: unknown when the camera could not
+/// read it, or when it reports a negative value.
+pub(crate) fn camera_setting_or_unknown(value: Option<i32>) -> Option<i32> {
+    value.filter(|value| *value >= 0)
 }
 
 /// What a frame records for one camera setting, gain or offset: nothing for a
@@ -108,17 +101,15 @@ mod camera_setting_tests {
     /// let a failed read outrank the operator's configured gain.
     #[test]
     fn unknown_camera_setting_is_distinct_from_a_real_zero() {
-        use super::{camera_setting_or_unknown, UNKNOWN_CAMERA_SETTING};
+        use super::camera_setting_or_unknown;
 
-        assert_eq!(camera_setting_or_unknown(UNKNOWN_CAMERA_SETTING), None);
-        assert_eq!(camera_setting_or_unknown(0), Some(0));
-        assert_eq!(camera_setting_or_unknown(139), Some(139));
+        assert_eq!(camera_setting_or_unknown(None), None);
+        assert_eq!(camera_setting_or_unknown(Some(-1)), None);
+        assert_eq!(camera_setting_or_unknown(Some(0)), Some(0));
+        assert_eq!(camera_setting_or_unknown(Some(139)), Some(139));
         // `.or(config)` only falls through on None, which is the whole point.
-        assert_eq!(
-            camera_setting_or_unknown(UNKNOWN_CAMERA_SETTING).or(Some(120)),
-            Some(120)
-        );
-        assert_eq!(camera_setting_or_unknown(0).or(Some(120)), Some(0));
+        assert_eq!(camera_setting_or_unknown(None).or(Some(120)), Some(120));
+        assert_eq!(camera_setting_or_unknown(Some(0)).or(Some(120)), Some(0));
     }
 
     #[test]
@@ -477,7 +468,7 @@ mod sim_sky_wiring_tests {
         // `sim_capture::shared_platesolver_store`.
         crate::simulator::capture::shared_platesolver_store();
         let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-        crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
+        crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
             catalog_path: catalog.path().to_string_lossy().to_string(),
             ..previous.clone()
         })
@@ -530,7 +521,7 @@ mod sim_sky_wiring_tests {
         // leave a catalogue sky armed for every other simulator test.
         get_sim_mount().write().await.status.connected = false;
         get_sim_camera().write().await.status.connected = false;
-        let _ = crate::state::save_platesolver_preference(&previous);
+        let _ = crate::solver::save_solver_preference(&previous);
 
         let data = skotiq_imaging::ImageData::from_u16(image.width, image.height, 1, &image.data);
         let found = skotiq_imaging::detect_stars_with_stats(
@@ -593,7 +584,7 @@ mod sim_sky_wiring_tests {
         let store = tempfile::TempDir::new().unwrap();
         let _ = crate::state::init_platesolver_storage(store.path().to_path_buf());
         let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-        crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
+        crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
             astap_path: binary.to_string_lossy().to_string(),
             catalog_path: dir.to_string_lossy().to_string(),
             ..previous.clone()
@@ -647,7 +638,7 @@ mod sim_sky_wiring_tests {
         // leave a catalogue sky armed for every other simulator test.
         get_sim_mount().write().await.status.connected = false;
         get_sim_camera().write().await.status.connected = false;
-        let _ = crate::state::save_platesolver_preference(&previous);
+        let _ = crate::solver::save_solver_preference(&previous);
 
         let scratch = tempfile::TempDir::new().unwrap();
         let path = scratch.path().join("downloaded.fits");

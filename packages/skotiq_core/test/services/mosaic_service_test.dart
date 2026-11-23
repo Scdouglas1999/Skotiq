@@ -265,7 +265,7 @@ void main() {
         panelsVertical: 2,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -286,7 +286,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -469,7 +469,7 @@ void main() {
         panelsVertical: 2,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -494,7 +494,7 @@ void main() {
         panelsHorizontal: 2,
         panelsVertical: 2,
       );
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -551,7 +551,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -579,7 +579,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 20,
       );
@@ -606,7 +606,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -634,7 +634,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -665,7 +665,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -697,7 +697,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -725,7 +725,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
       );
@@ -757,7 +757,7 @@ void main() {
         panelsVertical: 1,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 120.0,
         exposuresPerPanel: 10,
         filterName: 'Ha',
@@ -793,7 +793,7 @@ void main() {
         panelsVertical: 2,
       );
 
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 1,
       );
@@ -838,7 +838,7 @@ void main() {
       panelsHorizontal: 3,
       panelsVertical: 2,
     );
-    const exposure = MosaicExposureSettings(
+    final exposure = MosaicExposureSettings(
       exposureSeconds: 60.0,
       exposuresPerPanel: 1,
     );
@@ -928,7 +928,7 @@ void main() {
         panelsHorizontal: 2,
         panelsVertical: 2,
       );
-      const exposure = MosaicExposureSettings(
+      final exposure = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 1,
       );
@@ -991,7 +991,6 @@ void main() {
     );
 
     test('multiFilter constructor mirrors the first filter into scalars', () {
-      expect(exposure.isMultiFilter, isTrue);
       expect(exposure.filters, hasLength(3));
       // Scalar fields seed from filters.first so single-value readers stay
       // correct without inspecting the per-filter plan.
@@ -1011,15 +1010,14 @@ void main() {
     });
 
     test('single-filter settings resolve to a one-element plan', () {
-      const single = MosaicExposureSettings(
+      final single = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
         filterName: 'L',
       );
-      expect(single.isMultiFilter, isFalse);
-      expect(single.resolvedFilters, hasLength(1));
-      expect(single.resolvedFilters.single.filterName, equals('L'));
-      expect(single.resolvedFilters.single.exposuresPerPanel, equals(10));
+      expect(single.filters, hasLength(1));
+      expect(single.filters.single.filterName, equals('L'));
+      expect(single.filters.single.exposuresPerPanel, equals(10));
     });
 
     test('every panel images the full filter set in order', () {
@@ -1086,7 +1084,7 @@ void main() {
     });
 
     test('single-filter sequence is unchanged (one loop per panel)', () {
-      const single = MosaicExposureSettings(
+      final single = MosaicExposureSettings(
         exposureSeconds: 60.0,
         exposuresPerPanel: 10,
         filterName: 'L',

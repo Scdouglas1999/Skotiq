@@ -51,13 +51,10 @@ class FrameIdentity {
       return trimmed == null || trimmed.isEmpty ? null : trimmed;
     }
 
-    // The dedicated telescope fields first, then the generic optics fields a
-    // profile built through them carries; 0 means not configured.
-    double? firstPositive(double? preferred, double? fallback) {
-      if (preferred != null && preferred > 0) return preferred;
-      if (fallback != null && fallback > 0) return fallback;
-      return null;
-    }
+    // The train the rig images through (after a reducer or barlow), else the
+    // telescope's own optics; 0 means not configured.
+    double? positive(double? value) =>
+        value != null && value > 0 ? value : null;
 
     final hasSite = settings?.hasObserverLocation ?? false;
     return FrameIdentity(
@@ -69,11 +66,8 @@ class FrameIdentity {
           : null,
       cameraName: text(profile?.cameraName),
       telescopeName: text(profile?.telescopeName),
-      focalLengthMm: firstPositive(
-        profile?.telescopeFocalLength,
-        profile?.focalLength,
-      ),
-      apertureMm: firstPositive(profile?.telescopeAperture, profile?.aperture),
+      focalLengthMm: positive(profile?.effectiveFocalLength),
+      apertureMm: positive(profile?.effectiveAperture),
     );
   }
 

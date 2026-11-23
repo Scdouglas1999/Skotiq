@@ -21,6 +21,7 @@ import '../models/depthlock/depthlock_models.dart';
 import '../models/equipment/guider_for_move.dart';
 import '../models/equipment/known_devices.dart';
 import '../models/equipment_profile.dart';
+import '../models/imaging/autofocus_request.dart';
 import '../models/imaging/imaging_models.dart';
 import '../models/imaging/stack_and_share_models.dart';
 import '../models/live_view/live_view_frame.dart';
@@ -50,6 +51,8 @@ import '../models/imaging/fits_keyword_write.dart';
 import 'roles/host_data/host_link.dart';
 import 'target_scoring.dart';
 import 'skotiq_backend.dart';
+import 'bridge_event_codec.dart';
+import 'bridge_events.dart' as bridge show EquipmentEvent_PropertyChanged;
 // TailnetDetector is the single source of truth for host reachability
 // classification (LAN vs Tailscale tailnet vs public). Reused here so the
 // scheme/timeout tuning matches the QR/pairing validator exactly.
@@ -58,7 +61,9 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
         PushDeliveryTargets,
         TailnetDetector,
         buildSkotiqServerUri,
+        getHostInfo,
         kDefaultHeadlessPort;
+import 'package:skotiq_remote_protocol/json_fields.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import 'package:path/path.dart' as p;
 import '../models/settings/app_settings.dart' as models;
@@ -88,6 +93,7 @@ export 'package:skotiq_remote_protocol/wire_models.dart';
 
 import '../models/disk_space.dart';
 import '../errors/server_error.dart';
+import '../models/imaging/plate_solve_wire.dart';
 part 'network_backend/remote_operations.dart';
 part 'network_backend/remote_calibration_catalog_operations.dart';
 part 'network_backend/remote_database_plugin_operations.dart';
@@ -151,13 +157,6 @@ abstract class NetworkBackendTransport {
   final String serverHost;
   final int serverPort;
   final int webSocketPort;
-
-  /// ID returned by the most recent successful profile save. The backend role
-  /// method returns `Future<void>`; this client also exposes the saved id so
-  /// remote creates never have to rediscover a row by a non-unique profile
-  /// name.
-  String? _lastSavedProfileId;
-  String? get lastSavedProfileId => _lastSavedProfileId;
 
   /// URL scheme for the REST/SSE transport: `'http'` (plaintext, the LAN
   /// default) or `'https'` (TLS, used when the server is exposed over a
@@ -448,21 +447,23 @@ abstract class NetworkBackendTransport {
     );
   }
 
-  /// The WebSocket URI of [endpoint], with the scheme derived from [scheme].
+  /// The WebSocket URI of [endpoint], with the scheme derived from [scheme]
+  /// and this build's release in the query, which the host requires on every
+  /// upgrade.
   Uri _wsUri(ApiEndpoint endpoint, [Map<String, String>? queryParameters]) {
     final route = endpoint.route;
     if (route.method != ApiMethod.ws) {
       throw StateError('${route.signature} is not a WebSocket route');
     }
-    final path = route.path;
     return Uri(
       scheme: _wsScheme,
       host: serverHost,
       port: webSocketPort,
-      path: path,
-      queryParameters: (queryParameters == null || queryParameters.isEmpty)
-          ? null
-          : queryParameters,
+      path: route.path,
+      queryParameters: {
+        ...?queryParameters,
+        LinkVersion.queryParameter: skotiqRelease,
+      },
     );
   }
 

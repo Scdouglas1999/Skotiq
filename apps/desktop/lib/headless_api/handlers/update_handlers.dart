@@ -85,7 +85,7 @@ class UpdateHandlers {
     final channelOverride = await _readOptionalChannel(request);
 
     final job = jobManager.start(
-      operation: 'system.update.check',
+      operation: JobOperation.updateCheck,
       work: (sink, cancellation) async {
         sink.update(null, 'Querying update server');
         final outcome = await controller.checkForUpdates(
@@ -122,7 +122,7 @@ class UpdateHandlers {
     // /api/jobs/{id} polling correlates with the event stream.
     late final Job job;
     job = jobManager.start(
-      operation: 'system.update.download',
+      operation: JobOperation.updateDownload,
       work: (sink, cancellation) async {
         sink.update(0, 'Downloading update');
         await controller.downloadAndStage(jobId: job.jobId);
@@ -150,7 +150,7 @@ class UpdateHandlers {
     if (conflict != null) return conflict;
     late final Job job;
     job = jobManager.start(
-      operation: 'system.update.apply',
+      operation: JobOperation.updateApply,
       work: (sink, cancellation) async {
         sink.update(null, 'Applying staged update');
         await controller.applyStagedUpdate(jobId: job.jobId);
@@ -188,8 +188,8 @@ class UpdateHandlers {
     // promptly.
     final cancelled = <String>[];
     for (final job in jobManager.list()) {
-      if (job.operation == 'system.update.check' ||
-          job.operation == 'system.update.download') {
+      if (job.kind == JobOperation.updateCheck ||
+          job.kind == JobOperation.updateDownload) {
         if (!job.state.isTerminal) {
           try {
             jobManager.cancel(job.jobId);
@@ -222,7 +222,7 @@ class UpdateHandlers {
     }
     late final Job job;
     job = jobManager.start(
-      operation: 'system.update.rollback',
+      operation: JobOperation.updateRollback,
       work: (sink, cancellation) async {
         sink.update(null, 'Rolling back last applied update');
         await controller.rollback(jobId: job.jobId);
@@ -257,7 +257,7 @@ class UpdateHandlers {
   Response? _activeOperationConflict() {
     Job? activeJob;
     for (final job in jobManager.list()) {
-      if (job.operation.startsWith('system.update.') && !job.state.isTerminal) {
+      if (job.kind.isUpdate && !job.state.isTerminal) {
         activeJob = job;
         break;
       }

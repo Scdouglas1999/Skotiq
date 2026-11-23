@@ -106,49 +106,18 @@ class _StarterCard extends ConsumerWidget {
       ref.read(effectiveFiltersProvider),
     );
     final cloned = renameFilters(starter, filterRenames);
-    try {
-      notifier.loadSequence(cloned);
-    } on UnsavedChangesException catch (e) {
-      if (!context.mounted) return;
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints:
-                AdaptiveDialogConstraints.hybrid(ctx, designMaxWidth: 440),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Loading "${sample.displayName}" will discard them.'),
-          ),
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and load',
-              variant: ButtonVariant.destructive,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
-        ),
-      );
-      if (discard != true || !context.mounted || host.isStale) {
-        return;
-      }
-      try {
-        notifier.loadSequence(cloned, discardUnsaved: true);
-      } on SequenceLockedException catch (e) {
-        if (context.mounted) context.showErrorSnackBar(e.message);
-        return;
-      }
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) context.showErrorSnackBar(e.message);
-      return;
-    }
+    final opened = await openInEditor(
+      context,
+      load: ({required discardUnsaved}) =>
+          notifier.loadSequence(cloned, discardUnsaved: discardUnsaved),
+      prompt: DiscardUnsavedPrompt(
+        consequence: 'Loading "${sample.displayName}" will discard them.',
+        confirmLabel: 'Discard and load',
+      ),
+      proceed: () => !host.isStale,
+      onLocked: (e) => context.showErrorSnackBar(e.message),
+    );
+    if (!opened) return;
 
     // Switch to Builder tab so the user sees the loaded sequence.
     ref.read(sequencerTabProvider.notifier).state = 0;

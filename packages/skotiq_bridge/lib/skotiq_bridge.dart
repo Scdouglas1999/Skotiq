@@ -14,8 +14,6 @@ export 'src/storage.dart';
 export 'src/native_bridge.dart';
 export 'src/api_barrel.dart';
 
-export 'src/rolling_rms_calculator.dart';
-
 export 'src/device_capabilities/types.dart';
 
 // Export the FRB-generated SkotiqError sealed class hierarchy so

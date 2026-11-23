@@ -1,18 +1,38 @@
+import 'skotiq_error.dart' show BackendErrorCategory, SkotiqError;
+
 /// What an error's text says went wrong, for an error that carries no
 /// category of its own: a Dart exception, or a plain message from the native
 /// side or a host. A typed error is read by its type, never by this.
 enum ErrorTextKind {
-  timeout,
-  notFound,
-  connection,
-  permission,
-  busy,
-  hardware,
-  invalid,
-  unsupported,
-  imaging,
-  driver,
-  unknown,
+  timeout(BackendErrorCategory.timeout),
+  notFound(BackendErrorCategory.connection, recoverable: false),
+  connection(BackendErrorCategory.connection, reconnect: true),
+  permission(BackendErrorCategory.system, recoverable: false),
+  busy(BackendErrorCategory.busy),
+  hardware(BackendErrorCategory.hardware),
+  invalid(BackendErrorCategory.validation, recoverable: false),
+  unsupported(BackendErrorCategory.unsupported, recoverable: false),
+  imaging(BackendErrorCategory.imaging),
+  driver(BackendErrorCategory.driver),
+  unknown(BackendErrorCategory.unknown);
+
+  const ErrorTextKind(
+    this.category, {
+    this.recoverable = true,
+    this.reconnect = false,
+  });
+
+  /// The category an error of this kind is filed under.
+  final BackendErrorCategory category;
+
+  /// Trying again can work: everything but a refusal (not there, not
+  /// allowed) and a request that cannot succeed as asked (invalid,
+  /// unsupported). [SkotiqError.isRecoverable] and a device slot's
+  /// `recoverable` both read this.
+  final bool recoverable;
+
+  /// Reconnecting the device can help ([SkotiqError.shouldReconnect]).
+  final bool reconnect;
 }
 
 /// The one reading of error text. A new kind or a reworded native message

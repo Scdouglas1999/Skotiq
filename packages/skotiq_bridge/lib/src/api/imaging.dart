@@ -7,7 +7,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `detect_stars_in_file_blocking`, `encode_preview_jpeg`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `read_fits_file_blocking`, `thumbnail_generation_gate`, `write_rgba`
+// These functions are ignored because they are not marked as `pub`: `auto_stretch_color_image`, `auto_stretch_image`, `calibrate_light`, `camera_start_exposure_configured_opt`, `camera_start_exposure_opt`, `classify_exposure_failure`, `detect_stars_in_file_blocking`, `encode_preview_jpeg`, `first_sight_of_unknown_frame_type`, `generate_fits_thumbnail_jpeg`, `get_autofocus_cancel_token`, `get_backlash_calibration_cancel_token`, `one_shot_focus_context`, `read_fits_file_blocking`, `requested_frame_type`, `sequencer_autofocus_config`, `thumbnail_generation_gate`, `write_rgba`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 /// Run autofocus
@@ -73,28 +73,6 @@ Future<String> apiPlanFocuserBacklashCalibration({
 Future<void> apiCancelFocuserBacklashCalibration() =>
     RustLib.instance.api.crateApiImagingApiCancelFocuserBacklashCalibration();
 
-/// Start a camera exposure
-/// Returns progress updates via events, final image available via api_get_last_image
-/// Public bridge entry point. Gain/offset are explicit (`i32`) here so the
-/// generated FFI signature stays stable; this delegates to
-/// [`camera_start_exposure_opt`] with `Some(..)`, commanding both values
-/// exactly as before.
-Future<void> apiCameraStartExposure({
-  required String deviceId,
-  required double durationSecs,
-  required int gain,
-  required int offset,
-  required int binX,
-  required int binY,
-}) => RustLib.instance.api.crateApiImagingApiCameraStartExposure(
-  deviceId: deviceId,
-  durationSecs: durationSecs,
-  gain: gain,
-  offset: offset,
-  binX: binX,
-  binY: binY,
-);
-
 /// Start an exposure without collapsing omitted controls to zero and with the
 /// complete per-frame geometry/frame-type contract.
 Future<void> apiCameraStartExposureConfigured({
@@ -138,10 +116,6 @@ Future<void> apiClearDeviceImage({required String deviceId}) =>
     RustLib.instance.api.crateApiImagingApiClearDeviceImage(deviceId: deviceId);
 
 /// Cancel current exposure.
-///
-/// The abort generation moves first: it is what stops the exposure waiting
-/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
-/// the stop, which must not be downloaded as a frame.
 Future<void> apiCameraCancelExposure({required String deviceId}) => RustLib
     .instance
     .api
@@ -480,6 +454,11 @@ class AutofocusConfigApi {
   /// instead of running all the way back to the sweep's start.
   final int? measuredBacklashIn;
 
+  /// The operator's `afFailureHfrToleranceRatio`: how far above the
+  /// reference HFR a failed autofocus may leave the frames and still be
+  /// called usable, and the sweep's landing tolerance.
+  final double failureHfrToleranceRatio;
+
   const AutofocusConfigApi({
     required this.exposureTime,
     required this.stepSize,
@@ -499,6 +478,7 @@ class AutofocusConfigApi {
     required this.backlashIn,
     required this.backlashOut,
     this.measuredBacklashIn,
+    required this.failureHfrToleranceRatio,
   });
 
   @override
@@ -520,7 +500,8 @@ class AutofocusConfigApi {
       backlashCompMethod.hashCode ^
       backlashIn.hashCode ^
       backlashOut.hashCode ^
-      measuredBacklashIn.hashCode;
+      measuredBacklashIn.hashCode ^
+      failureHfrToleranceRatio.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -544,7 +525,8 @@ class AutofocusConfigApi {
           backlashCompMethod == other.backlashCompMethod &&
           backlashIn == other.backlashIn &&
           backlashOut == other.backlashOut &&
-          measuredBacklashIn == other.measuredBacklashIn;
+          measuredBacklashIn == other.measuredBacklashIn &&
+          failureHfrToleranceRatio == other.failureHfrToleranceRatio;
 }
 
 /// Autofocus result containing all data for display and analysis

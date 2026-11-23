@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
-
 String triggerActionName(TriggerActionType action) {
   switch (action) {
     case TriggerActionType.notify:

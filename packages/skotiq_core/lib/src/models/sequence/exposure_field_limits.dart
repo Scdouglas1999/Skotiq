@@ -17,3 +17,26 @@ abstract final class ExposureFieldLimits {
   /// Frames between dithers; zero dithers never.
   static const ({int min, int max}) ditherEvery = (min: 0, max: 100);
 }
+
+/// The values the other step fields take, in every editor that sets them:
+/// the inspector and the inline popover. Each range is wide enough for every
+/// value an editor wrote before the editors shared it, so opening a saved
+/// sequence never clamps one of its steps.
+abstract final class NodeFieldLimits {
+  static const ({double min, double max}) coolTargetC = (min: -50, max: 30);
+
+  static const ({int min, int max}) loopRepeatCount = (min: 1, max: 9999);
+
+  static const ({double min, double max}) delaySecs = (min: 0, max: 86400);
+
+  static const ({double min, double max}) ditherPixels = (min: 0, max: 50);
+
+  /// Settle limits of a Dither step and of a Start Guiding step, which write
+  /// the same dither defaults.
+  static const ({double min, double max}) settlePixels = (min: 0.1, max: 10);
+  static const ({double min, double max}) settleSecs = (min: 1, max: 120);
+  static const ({double min, double max}) settleTimeoutSecs = (
+    min: 10,
+    max: 300,
+  );
+}

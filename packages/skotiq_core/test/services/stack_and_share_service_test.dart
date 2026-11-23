@@ -52,6 +52,7 @@ import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 import 'package:skotiq_core/src/providers/stack_light_selector_provider.dart';
 import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
+import 'package:skotiq_core/src/providers/stack_and_share_service_provider.dart';
 import 'package:skotiq_core/src/services/calibration_service.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
@@ -256,6 +257,9 @@ class _NativeContractStackingEngine implements StackingEngineSeam {
 /// exercised deterministically. The reference is frame #1 (count 1); each
 /// follower add returns the next scripted count.
 class _FakeLiveStacking implements LiveStackingService {
+  @override
+  bool get readsHost => false;
+
   _FakeLiveStacking({required this.followerCounts, required this.finalResult});
 
   /// Stacked-frame count returned for each follower add, in order. A value that
@@ -274,7 +278,10 @@ class _FakeLiveStacking implements LiveStackingService {
   int _followerIndex = 0;
 
   @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
     addCalls.add('addFile:$imagePath');
     return _nextResult();
   }
@@ -284,7 +291,8 @@ class _FakeLiveStacking implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
+    String? filterKey,
   }) async {
     addCalls.add('addData:${width}x$height');
     addPedestals.add(pedestal);
@@ -303,7 +311,8 @@ class _FakeLiveStacking implements LiveStackingService {
   }
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async => finalResult;
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
+      finalResult;
 
   @override
   noSuchMethod(Invocation invocation) => throw UnimplementedError(
@@ -458,7 +467,7 @@ void main() {
           ),
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -501,7 +510,7 @@ void main() {
         );
         addTearDown(c.dispose);
         final engine = _FakeStackingEngine();
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -557,7 +566,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -631,7 +640,7 @@ void main() {
         ),
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -661,7 +670,7 @@ void main() {
       addTearDown(c.dispose);
       Uint8List? persistedRgba;
       final progress = <StackAndShareProgress>[];
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
         persistPreview: ({required result, required rgba}) async {
@@ -705,7 +714,7 @@ void main() {
           ),
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
           persistPreview: ({required result, required rgba}) async {
@@ -749,7 +758,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -804,7 +813,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -848,7 +857,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -910,7 +919,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -938,7 +947,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -983,7 +992,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1023,7 +1032,10 @@ void main() {
           liveStacking: failing,
         );
         addTearDown(c1.dispose);
-        final s1 = StackAndShareService(c1.read(_refProvider), engine: engine);
+        final s1 = stackAndShareServiceFor(
+          c1.read(_refProvider),
+          engine: engine,
+        );
         await expectLater(
           s1.run(
             sessionId: sessionId,
@@ -1046,7 +1058,10 @@ void main() {
           liveStacking: live2,
         );
         addTearDown(c2.dispose);
-        final s2 = StackAndShareService(c2.read(_refProvider), engine: engine);
+        final s2 = stackAndShareServiceFor(
+          c2.read(_refProvider),
+          engine: engine,
+        );
         final result = await s2.run(
           sessionId: sessionId,
           config: const StackAndShareConfig(applyCalibration: false),
@@ -1081,7 +1096,7 @@ void main() {
           ],
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1138,7 +1153,7 @@ void main() {
       await c.read(allSettingsProvider.future);
       expect(c.read(calibrationSettingsProvider).masterFlatPath, flat.path);
 
-      await StackAndShareService(c.read(_refProvider), engine: engine).run(
+      await stackAndShareServiceFor(c.read(_refProvider), engine: engine).run(
         sessionId: sessionId,
         config: const StackAndShareConfig(
           applyCalibration: true,
@@ -1171,7 +1186,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1214,7 +1229,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1281,7 +1296,7 @@ void main() {
         ],
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1316,7 +1331,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1352,7 +1367,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1389,7 +1404,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1432,7 +1447,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1471,7 +1486,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1510,7 +1525,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1576,7 +1591,10 @@ class _RejectingLiveStacking extends _FakeLiveStacking {
   final Set<String> rejectPaths;
 
   @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
     addCalls.add('addFile:$imagePath');
     if (rejectPaths.contains(imagePath)) {
       throw Exception(
@@ -1595,7 +1613,8 @@ class _ThrowingLiveStacking extends _FakeLiveStacking {
   final Object error;
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async => throw error;
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async =>
+      throw error;
 }
 
 /// Exposes the enclosing container's [Ref] so services that take a `Ref` can be

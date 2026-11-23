@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../components/focus_ring.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// An accessible icon button with proper semantics and focus support.
 ///

@@ -176,14 +176,10 @@ void main() {
     },
   );
 
-  // SY-04: the host's Guiding screen kept the RA rate it read when PHD2
+  // The host's Guiding screen kept the RA rate it read when PHD2
   // connected (7.26 px/s) after PHD2 recalibrated (6.21 px/s): a new
   // calibration only flipped the calibrated flag.
-  for (final eventType in const [
-    'CalibrationComplete',
-    'CalibrationDataFlipped',
-    'GuidingStarted',
-  ]) {
+  for (final eventType in const ['CalibrationComplete', 'GuidingStarted']) {
     test('$eventType re-reads the calibration rates from the guider', () async {
       var reads = 0;
       when(() => mockBackend.guiderGetCalibration()).thenAnswer((_) async {

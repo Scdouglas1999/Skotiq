@@ -296,7 +296,7 @@ void main() {
         decDeg: [_east.decDegrees],
         latitudeDeg: _latitude,
         longitudeDeg: _longitude,
-        nightDate: DateTime(2026, 1, 14),
+        nightDate: NightDate.ofCalendarDay(DateTime(2026, 1, 14)),
         floor: trees.asSamples(),
       );
       expect(

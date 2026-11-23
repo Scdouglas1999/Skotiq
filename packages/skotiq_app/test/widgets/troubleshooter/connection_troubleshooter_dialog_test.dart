@@ -70,8 +70,10 @@ void main() {
     );
 
     expect(find.text('Connection help'), findsOneWidget);
-    expect(find.text(expected.headline), findsOneWidget);
-    expect(find.text(expected.plainLanguage), findsOneWidget);
+    expect(find.textContaining(expected.headline, findRichText: true),
+        findsOneWidget);
+    expect(find.textContaining(expected.plainLanguage, findRichText: true),
+        findsOneWidget);
   });
 
   testWidgets('lists every remediation step with a numbered badge',

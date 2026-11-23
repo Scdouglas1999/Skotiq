@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -12,12 +11,13 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../utils/snackbar_helper.dart';
-import '../../widgets/remote_host_path_dialog.dart';
+import '../../services/host_folders.dart';
 import 'widgets/admin_only.dart';
 import 'widgets/plate_solve_parameters_section.dart';
 import 'widgets/settings_widgets.dart';
 import 'widgets/solver_detection_card.dart';
 import '../../tours/tour_target.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 enum PlateSolverPathKind {
   astapExecutable,
@@ -25,71 +25,38 @@ enum PlateSolverPathKind {
   astrometryExecutable,
 }
 
-typedef PlateSolverPathPicker = Future<String?> Function({
-  required BuildContext context,
-  required PlateSolverPathKind kind,
-  required bool isRemote,
-  required String currentPath,
-});
-
-Future<String?> _pickPlateSolverPath({
-  required BuildContext context,
-  required PlateSolverPathKind kind,
-  required bool isRemote,
-  required String currentPath,
-}) async {
-  if (isRemote) {
-    return switch (kind) {
-      PlateSolverPathKind.astapExecutable => RemoteHostPathDialog.show(
-          context,
-          title: 'ASTAP executable on imaging host',
-          initialPath: currentPath,
-          hintText: r'C:\Program Files\astap\astap.exe or /usr/bin/astap',
-          submitLabel: 'Use host path',
-          clearLabel: 'Use auto-detect',
-        ),
-      PlateSolverPathKind.astapCatalogDirectory => RemoteHostPathDialog.show(
-          context,
-          title: 'ASTAP catalog directory on imaging host',
-          initialPath: currentPath,
-          hintText: r'C:\Program Files\astap or /opt/astap',
-          submitLabel: 'Use host path',
-          clearLabel: 'Use auto-detect',
-        ),
-      PlateSolverPathKind.astrometryExecutable => RemoteHostPathDialog.show(
-          context,
-          title: 'solve-field executable on imaging host',
-          initialPath: currentPath,
-          hintText: '/usr/bin/solve-field',
-          submitLabel: 'Use host path',
-          clearLabel: 'Use auto-detect',
-        ),
-    };
-  }
-
-  if (kind == PlateSolverPathKind.astapCatalogDirectory) {
-    return getDirectoryPath(confirmButtonText: 'Use this catalog folder');
-  }
-
-  final label = kind == PlateSolverPathKind.astapExecutable
-      ? 'ASTAP executable'
-      : 'solve-field';
-  final file = await openFile(
-    acceptedTypeGroups: [
-      XTypeGroup(
-        label: label,
-        extensions: Platform.isWindows ? const ['exe'] : null,
+/// The plate-solver path [kind] on the machine that owns the data.
+HostPathRequest plateSolverPathRequest(PlateSolverPathKind kind) {
+  final executableTypes = Platform.isWindows ? const ['exe'] : null;
+  return switch (kind) {
+    PlateSolverPathKind.astapExecutable => HostPathRequest(
+        hostTitle: 'ASTAP executable on imaging host',
+        hostHint: r'C:\Program Files\astap\astap.exe or /usr/bin/astap',
+        hostSubmitLabel: 'Use host path',
+        hostClearLabel: 'Use auto-detect',
+        typeLabel: 'ASTAP executable',
+        extensions: executableTypes,
+        confirmLabel: 'Use this ASTAP',
       ),
-    ],
-    confirmButtonText: kind == PlateSolverPathKind.astapExecutable
-        ? 'Use this ASTAP'
-        : 'Use this solve-field',
-  );
-  return file?.path;
+    PlateSolverPathKind.astapCatalogDirectory => const HostPathRequest(
+        hostTitle: 'ASTAP catalog directory on imaging host',
+        hostHint: r'C:\Program Files\astap or /opt/astap',
+        hostSubmitLabel: 'Use host path',
+        hostClearLabel: 'Use auto-detect',
+        folder: true,
+        confirmLabel: 'Use this catalog folder',
+      ),
+    PlateSolverPathKind.astrometryExecutable => HostPathRequest(
+        hostTitle: 'solve-field executable on imaging host',
+        hostHint: '/usr/bin/solve-field',
+        hostSubmitLabel: 'Use host path',
+        hostClearLabel: 'Use auto-detect',
+        typeLabel: 'solve-field',
+        extensions: executableTypes,
+        confirmLabel: 'Use this solve-field',
+      ),
+  };
 }
-
-final plateSolverPathPickerProvider =
-    Provider<PlateSolverPathPicker>((ref) => _pickPlateSolverPath);
 
 /// Dedicated full-screen Plate Solving route.
 class PlateSolvingSettingsScreen extends ConsumerWidget {
@@ -168,12 +135,11 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
     setState(() => _isChoosingPath = true);
 
     try {
-      final path = await ref.read(plateSolverPathPickerProvider)(
-        context: context,
-        kind: kind,
-        isRemote: ref.read(isRemoteModeProvider),
-        currentPath: currentPath,
-      );
+      final path = await ref.read(hostFoldersProvider).pickPath(
+            context,
+            plateSolverPathRequest(kind),
+            currentPath: currentPath,
+          );
       if (path == null || choice.isStale) return;
 
       await _savePreference(update(path), startedOn: choice);
@@ -386,7 +352,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           title: 'ASTAP',
           children: [
             SettingRow(
-              icon: LucideIcons.fileCode,
               title: 'ASTAP executable',
               subtitle: preference.astapPath.isEmpty
                   ? (detection.astapPath ?? 'Auto-detect: not found')
@@ -401,7 +366,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.folder,
               title: 'ASTAP catalog directory',
               subtitle: preference.catalogPath.isEmpty
                   ? (detection.catalogPath ?? 'Auto-detect: not found')
@@ -414,7 +378,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shieldCheck,
               title: 'Verify ASTAP',
               subtitle: _verifyAstapSubtitle(
                   detection: detection,
@@ -431,7 +394,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                     : () => _verifyAstap(
                         _resolveAstapTarget(detection, preference)!),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -440,7 +402,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           title: 'Astrometry.net',
           children: [
             SettingRow(
-              icon: LucideIcons.fileCode,
               title: 'solve-field executable',
               subtitle: preference.astrometryPath.isEmpty
                   ? (detection.astrometryPath ?? 'Auto-detect: not found')
@@ -455,7 +416,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shieldCheck,
               title: 'Verify Astrometry.net',
               subtitle: _verifyAstrometrySubtitle(
                   detection: detection,
@@ -473,7 +433,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
                         : () => _verifyAstrometry(
                             _resolveAstrometryTarget(detection, preference)!),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -485,7 +444,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               label: 'ASTAP',
               subtitle:
                   'Fast offline solver: recommended for almost all setups.',
-              icon: LucideIcons.zap,
               value: PlateSolverChoice.astap,
               groupValue: preference.choice,
               onChanged: (next) async {
@@ -496,7 +454,6 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
             _ChoiceRow(
               label: 'Astrometry.net',
               subtitle: 'Local solve-field. Slower but useful on Linux/macOS.',
-              icon: LucideIcons.globe,
               value: PlateSolverChoice.astrometry,
               groupValue: preference.choice,
               onChanged: (next) async {
@@ -508,14 +465,12 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
               label: 'Auto-fallback',
               subtitle: 'Try ASTAP first; fall back to Astrometry.net if ASTAP '
                   'fails or is missing.',
-              icon: LucideIcons.shuffle,
               value: PlateSolverChoice.auto,
               groupValue: preference.choice,
               onChanged: (next) async {
                 if (next == null) return;
                 await _savePreference(preference.copyWith(choice: next));
               },
-              isLast: true,
             ),
           ],
         ),
@@ -844,20 +799,16 @@ class _CatalogMissingHint extends StatelessWidget {
 class _ChoiceRow extends StatelessWidget {
   final String label;
   final String subtitle;
-  final IconData icon;
   final PlateSolverChoice value;
   final PlateSolverChoice groupValue;
   final ValueChanged<PlateSolverChoice?> onChanged;
-  final bool isLast;
 
   const _ChoiceRow({
     required this.label,
     required this.subtitle,
-    required this.icon,
     required this.value,
     required this.groupValue,
     required this.onChanged,
-    this.isLast = false,
   });
 
   @override
@@ -867,11 +818,9 @@ class _ChoiceRow extends StatelessWidget {
     return InkWell(
       onTap: () => onChanged(value),
       child: SettingRow(
-        icon: icon,
         title: label,
         subtitle: subtitle,
         trailing: _ChoiceIndicator(selected: selected, colors: colors),
-        isLast: isLast,
       ),
     );
   }

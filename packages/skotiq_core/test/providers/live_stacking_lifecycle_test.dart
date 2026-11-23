@@ -17,19 +17,20 @@ class _MockNetworkBackend extends Mock implements NetworkBackend {}
 class _MockLocalBackend extends Mock implements SkotiqBackend {}
 
 class _ControlledLocalStackingService extends LiveStackingService {
-  _ControlledLocalStackingService(super.ref);
+  _ControlledLocalStackingService(super.logger);
 
   final startResult = Completer<LiveStackingStats>();
   int stopCalls = 0;
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) => startResult.future;
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stopCalls++;
   }
 }
@@ -148,7 +149,9 @@ void main() {
           loggingServiceProvider.overrideWithValue(LoggingService()),
           liveStackingServiceProvider.overrideWith((ref) {
             final backend = ref.watch(backendProvider);
-            final service = _ControlledLocalStackingService(ref);
+            final service = _ControlledLocalStackingService(
+              ref.read(loggingServiceProvider),
+            );
             if (identical(backend, oldBackend)) {
               oldService = service;
             } else {
@@ -180,26 +183,48 @@ void main() {
     },
   );
 
-  test('remote preview timer never overlaps a slow result download', () {
+  test('a slot that changes during a slow download is fetched again after '
+      'it, never alongside it', () {
     fakeAsync((async) {
       final backend = _MockNetworkBackend();
-      final resultCompleter = Completer<LiveStackingResult>();
+      final downloads = <Completer<LiveStackingResult>>[];
       when(
         () => backend.stackingStart(config: any(named: 'config')),
       ).thenAnswer((_) async => const LiveStackingStats());
-      when(backend.stackingGetResult).thenAnswer((_) => resultCompleter.future);
+      when(
+        () => backend.stackingGetResult(filterKey: any(named: 'filterKey')),
+      ).thenAnswer((_) {
+        final download = Completer<LiveStackingResult>();
+        downloads.add(download);
+        return download.future;
+      });
 
       final container = _container(backend);
       final notifier = container.read(liveStackingProvider.notifier);
       unawaited(notifier.startRemote());
       async.flushMicrotasks();
+      LiveStackSummary described(int revision) => LiveStackSummary(
+        armed: true,
+        slots: [
+          LiveStackSlotSummary(
+            filterKey: 'L',
+            stats: LiveStackingStats(stackedFrameCount: revision),
+            width: 1,
+            height: 1,
+            channels: 1,
+            revision: revision,
+          ),
+        ],
+      );
 
-      verify(backend.stackingGetResult).called(1);
-      async.elapse(const Duration(seconds: 10));
+      notifier.applyHostStack(described(1), backend);
       async.flushMicrotasks();
-      verifyNever(backend.stackingGetResult);
+      expect(downloads, hasLength(1));
+      notifier.applyHostStack(described(2), backend);
+      async.elapse(const Duration(seconds: 10));
+      expect(downloads, hasLength(1));
 
-      resultCompleter.complete(
+      downloads[0].complete(
         const LiveStackingResult(
           width: 1,
           height: 1,
@@ -208,9 +233,18 @@ void main() {
         ),
       );
       async.flushMicrotasks();
-      async.elapse(const Duration(milliseconds: 2500));
-      async.flushMicrotasks();
-      verify(backend.stackingGetResult).called(1);
+      expect(downloads, hasLength(2));
+      downloads[1].complete(
+        const LiveStackingResult(
+          width: 1,
+          height: 1,
+          data: [43],
+          stats: LiveStackingStats(stackedFrameCount: 2),
+        ),
+      );
+      async.elapse(const Duration(seconds: 10));
+      expect(downloads, hasLength(2));
+      expect(container.read(liveStackingProvider).previewData, [43]);
     });
   });
 

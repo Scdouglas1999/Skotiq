@@ -36,6 +36,8 @@ mod fold;
 pub mod frames;
 pub mod regions;
 #[cfg(test)]
+mod reply_fixture_tests;
+#[cfg(test)]
 mod tests;
 mod tiles;
 
@@ -181,3 +183,12 @@ pub fn sky_atlas(args_json: String) -> Result<String, String> {
 }
 
 // Tests
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::AtlasAction>("sky_atlas_action");
+    }
+}

@@ -211,8 +211,7 @@ class ResolvedCameraSensorSpecs {
 ///
 /// The producer ([sensorSpecCaveat]) and the recognisers (the Plan screen's
 /// risk banner, the Smart Night builder's prompt) share it, so a reworded
-/// caveat cannot silently stop being recognised — which is how the old banner
-/// came to collapse caveats by sniffing for the words "not configured".
+/// caveat cannot silently stop being recognised.
 const String _sensorSpecCaveatMarker = 'is not published for';
 
 /// The caveat for a sensor field that missed at every tier of the chain.
@@ -229,6 +228,12 @@ String sensorSpecCaveat({
   return '$subject $_sensorSpecCaveatMarker $cameraLabel; '
       'planning with $estimate.';
 }
+
+/// The caveat for a pixel size that missed at every tier of the chain. No
+/// estimate stands in for it: Smart Night plans nothing until it is known.
+String unknownPixelSizeCaveat({required String cameraLabel}) =>
+    'Pixel size $_sensorSpecCaveatMarker $cameraLabel; Smart Night will not '
+    'plan exposures until it is entered.';
 
 /// The caveat for a saved override the app could not parse. Separate from
 /// [sensorSpecCaveat] because the remedy is different: the user's own entry is

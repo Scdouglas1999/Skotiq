@@ -3,6 +3,7 @@
 //! they are tested on every platform; the SDK calls that use them are in
 //! `camera_ops.rs` (Windows only).
 
+use crate::dslr::{self, Pick, Plan, PlanRules, TimedSpeed};
 use std::time::Duration;
 
 /// `XSDK_SHUTTER_BULB` (XAPI.h).
@@ -62,13 +63,25 @@ const SHOWN_SPEEDS: &[(i32, f64)] = &[
     (64000000, 60.0),
 ];
 
-/// How close a timed code must be to the request to be used instead of bulb.
-const TIMED_MATCH_TOLERANCE: f64 = 0.01;
+/// The X SDK driver's exposure rules. Every supported body has bulb (the
+/// bulb sequence of half press, a 500 ms pause, full press and a release on
+/// the next status poll cannot time a sub-second exposure), and a listed
+/// timed speed is used at any length.
+const X_SDK_RULES: PlanRules<'static, i32> = PlanRules {
+    can_bulb: true,
+    timed_up_to: None,
+    same: Pick::Difference,
+    shown: SHOWN_SPEEDS,
+    bulb_without_speeds: false,
+    fallback: Pick::Difference,
+};
 
-/// Below this a request without a matching timed code takes the nearest timed
-/// code: the bulb sequence (half press, a 500 ms pause, full press, release on
-/// the next status poll) cannot time a sub-second exposure.
-const SHORTEST_BULB_SECONDS: f64 = 1.0;
+/// One timed code and the time it sets.
+impl TimedSpeed for (i32, f64) {
+    fn seconds(&self) -> f64 {
+        self.1
+    }
+}
 
 /// Every supported body's bulb mode ends at 60 minutes (Fujifilm specifications).
 pub(crate) const LONGEST_BULB_SECONDS: f64 = 3600.0;
@@ -119,17 +132,8 @@ impl ShutterSpeeds {
     /// when the body refuses bulb. Above the longest timed speed that is the
     /// longest one.
     pub(crate) fn nearest_timed(&self, seconds: f64) -> Option<Shutter> {
-        self.timed
-            .iter()
-            .copied()
-            .min_by(|a, b| {
-                (a.1 / seconds)
-                    .ln()
-                    .abs()
-                    .total_cmp(&(b.1 / seconds).ln().abs())
-                    .then(a.1.total_cmp(&b.1))
-            })
-            .map(|(code, seconds)| Shutter::Timed { code, seconds })
+        dslr::pick(&self.timed, seconds, Pick::Ratio)
+            .map(|&(code, seconds)| Shutter::Timed { code, seconds })
     }
 
     /// The shutter setting for a requested exposure.
@@ -150,47 +154,16 @@ impl ShutterSpeeds {
                 "A {seconds:.0} s exposure is longer than the camera's 60 minute bulb limit."
             ));
         }
-        let nearest = self.timed.iter().copied().min_by(|a, b| {
-            (a.1 - seconds)
-                .abs()
-                .total_cmp(&(b.1 - seconds).abs())
-                .then(a.1.total_cmp(&b.1))
-        });
-        if let Some((code, timed)) =
-            nearest.filter(|(_, timed)| (timed - seconds).abs() <= seconds * TIMED_MATCH_TOLERANCE)
-        {
-            return Ok(Shutter::Timed {
-                code,
-                seconds: timed,
-            });
-        }
-        if let Some(shown) = self.shown_as(seconds) {
-            return Ok(shown);
-        }
-        match nearest {
-            _ if seconds >= SHORTEST_BULB_SECONDS => Ok(Shutter::Bulb { seconds }),
-            Some((code, timed)) => Ok(Shutter::Timed {
-                code,
-                seconds: timed,
-            }),
-            None => Err(format!(
+        match dslr::plan(&self.timed, seconds, &X_SDK_RULES, |&(code, _), shown| {
+            code == *shown
+        }) {
+            Ok(Plan::Timed(&(code, seconds))) => Ok(Shutter::Timed { code, seconds }),
+            Ok(Plan::Bulb) => Ok(Shutter::Bulb { seconds }),
+            Err(_) => Err(format!(
                 "The camera reported no shutter speeds, so a {seconds} s exposure cannot be set. \
                  Set the shutter speed dial to T and the exposure mode to M, then reconnect."
             )),
         }
-    }
-}
-
-impl ShutterSpeeds {
-    /// The timed speed the camera shows as `seconds`, when the body lists it.
-    fn shown_as(&self, seconds: f64) -> Option<Shutter> {
-        let (code, _) = SHOWN_SPEEDS
-            .iter()
-            .find(|(_, shown)| (shown - seconds).abs() <= seconds * TIMED_MATCH_TOLERANCE)?;
-        self.timed
-            .iter()
-            .find(|(listed, _)| listed == code)
-            .map(|&(code, seconds)| Shutter::Timed { code, seconds })
     }
 }
 
@@ -205,15 +178,13 @@ pub(crate) fn fixed_sensitivities(reported: &[i32]) -> Vec<i32> {
     values
 }
 
-/// The supported ISO nearest to `requested` (ties go to the lower ISO), or
+/// The supported ISO nearest to `requested` by ratio (ties go to the lower ISO), or
 /// `requested` itself when the body reported none. A gain control offers any
 /// whole number between the lowest and highest ISO; the body accepts only its
 /// fixed steps.
 pub(crate) fn nearest_sensitivity(supported: &[i32], requested: i32) -> i32 {
-    supported
-        .iter()
+    dslr::nearest_iso(supported, |&iso| iso, requested)
         .copied()
-        .min_by_key(|&v| ((i64::from(v) - i64::from(requested)).abs(), v))
         .unwrap_or(requested)
 }
 
@@ -445,12 +416,15 @@ mod tests {
         );
     }
 
+    /// P5-4: by ratio, as ISO steps go (the same rule as gPhoto2): between
+    /// 800 and 1600 the midpoint is their geometric mean, 1131.
     #[test]
     fn a_gain_between_iso_steps_selects_the_nearest_iso() {
         let isos = [160, 200, 250, 320, 400, 500, 640, 800, 1600, 3200];
         assert_eq!(nearest_sensitivity(&isos, 850), 800);
-        assert_eq!(nearest_sensitivity(&isos, 1200), 800);
-        assert_eq!(nearest_sensitivity(&isos, 1201), 1600);
+        assert_eq!(nearest_sensitivity(&isos, 1131), 800);
+        assert_eq!(nearest_sensitivity(&isos, 1132), 1600);
+        assert_eq!(nearest_sensitivity(&isos, 1200), 1600);
         assert_eq!(nearest_sensitivity(&isos, 100), 160);
         assert_eq!(nearest_sensitivity(&isos, 6400), 3200);
         assert_eq!(nearest_sensitivity(&[], 850), 850);

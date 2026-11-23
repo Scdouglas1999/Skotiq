@@ -16,13 +16,13 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../actions/manual_action_gating.dart';
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/manual_action_gating.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../night_control_contracts.dart';
 import '../../../../services/run_dashboard_providers.dart';
 import '../panel_widgets.dart';
-import 'recent_solves_provider.dart';
+import '../../../../services/night_session/night_recent_solves.dart';
 import 'solve_sections.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 

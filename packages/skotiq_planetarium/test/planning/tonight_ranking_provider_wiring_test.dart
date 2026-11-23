@@ -10,8 +10,9 @@ import 'package:skotiq_astro/testing.dart';
 const _lat = 40.0;
 const _lon = -105.0;
 
-/// Evening of the night under test, so `nightDateOf` resolves to 2026-08-02.
-final _observationTime = DateTime(2026, 8, 2, 22, 0);
+/// Evening of the night under test (22:00 site solar time, 05:00 UTC at
+/// 105W), so `nightDateOf` resolves to 2026-08-02 on a computer in any zone.
+final _observationTime = DateTime.utc(2026, 8, 3, 5).toLocal();
 final _nightDate = DateTime(2026, 8, 2);
 
 /// RA (hours) of an object that culminates at [instant] from this site.
@@ -20,7 +21,7 @@ double _raHoursTransitingAt(DateTime instant) =>
 
 void main() {
   final twilight = AstronomyCalculations.calculateTwilightTimes(
-    date: _nightDate,
+    date: NightDate.ofCalendarDay(_nightDate),
     latitudeDeg: _lat,
     longitudeDeg: _lon,
   );

@@ -2,13 +2,13 @@ import 'dart:convert';
 
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
+import '../backend/bridge_event_codec.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/imaging/color_calibration_result.dart';
 import '../models/imaging/integration_curve.dart';
 import '../models/imaging/mosaic_stitch_result.dart';
 import '../models/imaging/star_photometry.dart';
 import '../backend/network_backend.dart';
-import '../models/backend/backend_types.dart';
 
 /// Injectable seam over the four post-session batch-processing FFI functions
 /// (`apiIntegrateSession`, `apiMasterAccumulate`, `apiBuildMasterFlat`,
@@ -131,6 +131,80 @@ abstract class PostSessionSeam {
   Stream<({String phase, double fraction})> integrationProgress();
 }
 
+/// A post-session operation this machine's native pipeline runs.
+enum PostSessionOp {
+  integrateSession,
+  masterAccumulate,
+  buildMasterFlat,
+  saveFitsMaster,
+  analyzeNight,
+  detectStarsPhotometry,
+  colorCalibrate,
+  extractBackground,
+  deconvolvePreview,
+  reduceStarsPreview,
+  drizzleIntegrate,
+  stitchMosaic,
+}
+
+/// This machine's post-session pipeline: each [PostSessionOp] is one native
+/// call that takes the op's JSON arguments and answers JSON. The host's
+/// `/api/post-session/*` routes answer with that object as it is ([run]);
+/// [BridgePostSessionSeam] reads it into its result types.
+class PostSessionPipeline {
+  const PostSessionPipeline();
+
+  /// The native answer to [op], as the JSON text it returned.
+  Future<String> call(PostSessionOp op, String argsJson) => switch (op) {
+    PostSessionOp.integrateSession => bridge.apiIntegrateSession(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.masterAccumulate => bridge.apiMasterAccumulate(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.buildMasterFlat => bridge.apiBuildMasterFlat(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.saveFitsMaster => bridge.apiSaveFitsMaster(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.analyzeNight => bridge.apiAnalyzeNight(argsJson: argsJson),
+    PostSessionOp.detectStarsPhotometry => bridge.apiDetectStarsPhotometry(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.colorCalibrate => bridge.apiColorCalibrate(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.extractBackground => bridge.apiExtractBackground(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.deconvolvePreview => bridge.apiDeconvolvePreview(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.reduceStarsPreview => bridge.apiReduceStarsPreview(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.drizzleIntegrate => bridge.apiDrizzleIntegrate(
+      argsJson: argsJson,
+    ),
+    PostSessionOp.stitchMosaic => bridge.apiStitchMosaic(argsJson: argsJson),
+  };
+
+  /// The native answer to [op], decoded. Throws a [FormatException] when it
+  /// is not a JSON object.
+  Future<Map<String, dynamic>> run(PostSessionOp op, String argsJson) async =>
+      decodeObject(await call(op, argsJson));
+
+  static Map<String, dynamic> decodeObject(String json) {
+    final decoded = jsonDecode(json);
+    if (decoded is Map<String, dynamic>) return decoded;
+    throw FormatException(
+      'post-session native call returned a non-object JSON payload',
+      json,
+    );
+  }
+}
+
 /// Production [PostSessionSeam] that encodes each request to JSON, forwards to
 /// the native bridge, and decodes the JSON result.
 class BridgePostSessionSeam implements PostSessionSeam {
@@ -151,6 +225,8 @@ class BridgePostSessionSeam implements PostSessionSeam {
     : _backend = backend,
       _remote = host;
 
+  static const _pipeline = PostSessionPipeline();
+
   @override
   Future<IntegrateSessionResult> integrateSession(
     Map<String, dynamic> args,
@@ -161,7 +237,10 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionIntegrate(args),
       );
     }
-    final out = await bridge.apiIntegrateSession(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.integrateSession,
+      jsonEncode(args),
+    );
     return IntegrateSessionResult.fromJson(_decodeObject(out));
   }
 
@@ -175,7 +254,10 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionMasterAccumulate(args),
       );
     }
-    final out = await bridge.apiMasterAccumulate(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.masterAccumulate,
+      jsonEncode(args),
+    );
     return MasterAccumulateResult.fromJson(_decodeObject(out));
   }
 
@@ -189,13 +271,19 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionBuildMasterFlat(args),
       );
     }
-    final out = await bridge.apiBuildMasterFlat(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.buildMasterFlat,
+      jsonEncode(args),
+    );
     return BuildMasterFlatResult.fromJson(_decodeObject(out));
   }
 
   @override
   Future<SaveFitsMasterResult> saveFitsMaster(Map<String, dynamic> args) async {
-    final out = await bridge.apiSaveFitsMaster(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.saveFitsMaster,
+      jsonEncode(args),
+    );
     return SaveFitsMasterResult.fromJson(_decodeObject(out));
   }
 
@@ -222,7 +310,10 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionAnalyzeNight(args),
       );
     }
-    final out = await bridge.apiAnalyzeNight(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.analyzeNight,
+      jsonEncode(args),
+    );
     return IntegrationCurve.fromJson(_decodeObject(out));
   }
 
@@ -243,8 +334,9 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionDetectStars(args),
       );
     }
-    final out = await bridge.apiDetectStarsPhotometry(
-      argsJson: jsonEncode(args),
+    final out = await _pipeline.call(
+      PostSessionOp.detectStarsPhotometry,
+      jsonEncode(args),
     );
     return StarPhotometryResult.fromJson(_decodeObject(out));
   }
@@ -270,7 +362,10 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionColorCalibrate(args),
       );
     }
-    final out = await bridge.apiColorCalibrate(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.colorCalibrate,
+      jsonEncode(args),
+    );
     return ColorCalibrationResult.fromJson(_decodeObject(out));
   }
 
@@ -282,19 +377,28 @@ class BridgePostSessionSeam implements PostSessionSeam {
         await remote.postSessionExtractBackground(args),
       );
     }
-    final out = await bridge.apiExtractBackground(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.extractBackground,
+      jsonEncode(args),
+    );
     return _decodeOutputPath(out);
   }
 
   @override
   Future<String> deconvolvePreview(Map<String, dynamic> args) async {
-    final out = await bridge.apiDeconvolvePreview(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.deconvolvePreview,
+      jsonEncode(args),
+    );
     return _decodeOutputPath(out);
   }
 
   @override
   Future<String> reduceStarsPreview(Map<String, dynamic> args) async {
-    final out = await bridge.apiReduceStarsPreview(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.reduceStarsPreview,
+      jsonEncode(args),
+    );
     return _decodeOutputPath(out);
   }
 
@@ -306,13 +410,19 @@ class BridgePostSessionSeam implements PostSessionSeam {
     if (remote != null) {
       return remote.postSessionDrizzleIntegrate(args);
     }
-    final out = await bridge.apiDrizzleIntegrate(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.drizzleIntegrate,
+      jsonEncode(args),
+    );
     return _decodeObject(out);
   }
 
   @override
   Future<MosaicStitchResult> stitchMosaic(Map<String, dynamic> args) async {
-    final out = await bridge.apiStitchMosaic(argsJson: jsonEncode(args));
+    final out = await _pipeline.call(
+      PostSessionOp.stitchMosaic,
+      jsonEncode(args),
+    );
     return MosaicStitchResult.fromJson(_decodeObject(out));
   }
 
@@ -320,27 +430,23 @@ class BridgePostSessionSeam implements PostSessionSeam {
   Stream<({String phase, double fraction})> integrationProgress() {
     final backend = _backend;
     if (backend == null) return const Stream.empty();
-    return backend.eventStream
-        .where(
-          (e) =>
-              e.category == EventCategory.imaging &&
-              e.eventType == 'IntegrationProgress',
-        )
-        .map(
-          (e) => (
-            phase: e.data['phase'] as String? ?? '',
-            fraction: (e.data['fraction'] as num?)?.toDouble() ?? 0.0,
-          ),
-        );
+    return backend.eventStream.expand(
+      (e) => [
+        if (imagingEventOf(e) case bridge.ImagingEvent_IntegrationProgress(
+          :final phase,
+          :final fraction,
+        ))
+          (phase: phase, fraction: fraction),
+      ],
+    );
   }
 
   /// Decode a `{outputPath}` envelope to its path string. Throws a
   /// [FormatException] when the native call returned a non-object or omitted
   /// the path, mirroring [_decodeObject]'s contract.
   String _decodeOutputPath(String json) {
-    final obj = _decodeObject(json);
-    final path = obj['outputPath'];
-    if (path is String) return path;
+    final path = postSessionOutputPath(_decodeObject(json));
+    if (path != null) return path;
     throw FormatException(
       'post-session native call returned no outputPath',
       json,
@@ -350,21 +456,22 @@ class BridgePostSessionSeam implements PostSessionSeam {
   /// Pull the `outputPath` out of an already-decoded result map (the remote
   /// job-result envelope), mirroring [_decodeOutputPath]'s string contract.
   String _outputPathFromMap(Map<String, dynamic> obj) {
-    final path = obj['outputPath'];
-    if (path is String) return path;
+    final path = postSessionOutputPath(obj);
+    if (path != null) return path;
     throw FormatException(
       'post-session remote call returned no outputPath: $obj',
     );
   }
 
-  Map<String, dynamic> _decodeObject(String json) {
-    final decoded = jsonDecode(json);
-    if (decoded is Map<String, dynamic>) return decoded;
-    throw FormatException(
-      'post-session native call returned a non-object JSON payload',
-      json,
-    );
-  }
+  Map<String, dynamic> _decodeObject(String json) =>
+      PostSessionPipeline.decodeObject(json);
+}
+
+/// The file an enhance step (background extraction, deconvolution, star
+/// reduction) wrote: its reply's `outputPath`, or null when it names none.
+String? postSessionOutputPath(Map<String, dynamic> reply) {
+  final path = reply['outputPath'];
+  return path is String ? path : null;
 }
 
 /// One per-frame record from [IntegrateSessionResult] — what the cull UI shows.

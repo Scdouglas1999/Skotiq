@@ -20,7 +20,7 @@ bool _isStaleReading(DateTime? timestamp) =>
 
 /// Evaluate hardware weather device for safety.
 ///
-/// Architecture-unification 2026-06-05 (Subsystem 2 step 3): the threshold
+/// The threshold
 /// comparison logic lives in the pure [WeatherThresholdEvaluator] so it has one
 /// definition and is unit-testable in isolation. This just adapts the
 /// provider's [WeatherState] / [WeatherSettings] into the evaluator's inputs.

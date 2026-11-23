@@ -22,9 +22,7 @@ import 'package:skotiq_core/providers.dart';
 
 /// Top-left: the frame on screen and its key measurements, in one line.
 ///
-/// Folds what used to be two glass panels — a five-readout stats card and a
-/// separate "21:24:16 · 2.0 s · Light" status line in the opposite corner —
-/// into the single pill the approved Imaging mockup shows. The secondary
+/// The single pill the approved Imaging mockup shows. The secondary
 /// numbers (eccentricity, median, mean) stay one hover away in the tooltip
 /// rather than leaving the screen entirely.
 class FrameInfoPill extends ConsumerWidget {
@@ -170,7 +168,7 @@ class FrameInfoPill extends ConsumerWidget {
 
 /// Bottom-right, opt-in: the preview histogram.
 ///
-/// It no longer names the stretch in force. The capture bar's Stretch toggle
+/// It does not name the stretch in force. The capture bar's Stretch toggle
 /// already says that, and the same "Stretch: off" twice on one canvas is one
 /// fact read as two.
 class HistogramHud extends ConsumerWidget {

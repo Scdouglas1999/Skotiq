@@ -1,6 +1,9 @@
 //! Acquisition recovery after the mount has already reached its intended side.
 use super::*;
 
+/// How long the nearby field's solve may take.
+const NEARBY_SOLVE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
 impl MeridianFlipExecutor {
     pub(super) async fn plate_solve_and_center(&self, ctx: &FlipContext) -> Result<(), String> {
         if ctx.simulate {
@@ -31,13 +34,18 @@ impl MeridianFlipExecutor {
                 }
             }
             let exposure = if extended { 15.0 } else { 5.0 };
-            let result = self.center_attempts(ctx, exposure).await;
-            if result.is_ok()
+            // The nearby field corrects a pointing no frame could solve; a
+            // field that solved is known and the probe would add nothing.
+            let failure = match self.center_attempts(ctx, exposure).await {
+                Ok(()) => return Ok(()),
+                Err(failure) => failure,
+            };
+            if failure.solved
                 || self.is_cancelled(ctx)
                 || self.attempts_made != self.config.max_retries + 1
                 || !extended
             {
-                return result;
+                return Err(failure.message);
             }
             self.warn_operator("Target acquisition still failed; trying one nearby higher field to correct pointing before returning.".into());
             self.say(format!(
@@ -47,10 +55,12 @@ impl MeridianFlipExecutor {
                 self.attempts_made,
                 self.config.max_retries + 1
             ));
-            self.nearby_pointing_reference(ctx).await.map_err(|e| {
-                format!("{}; nearby recovery: {e}", result.unwrap_err())
-            })?;
-            self.center_attempts(ctx, 15.0).await
+            self.nearby_pointing_reference(ctx)
+                .await
+                .map_err(|e| format!("{}; nearby recovery: {e}", failure.message))?;
+            self.center_attempts(ctx, 15.0)
+                .await
+                .map_err(|failure| failure.message)
         }
         .await;
         if let Some((id, position)) = original {
@@ -110,8 +120,23 @@ impl MeridianFlipExecutor {
                 return Err("Nearby recovery changed pier side; refusing to sync".into());
             }
             let camera = ctx.camera_id.as_deref().ok_or("No camera configured")?;
-            let image = self.run.device_ops.camera_start_exposure(crate::device_ops::ExposureRequest::new(camera, 15.0)).await?;
-            let solved = self.recovery_solve(ctx, &image, ra * 15.0, dec).await?;
+            let image = crate::instructions::take_run_frame(
+                crate::instructions::RetryScope {
+                    run: &self.run,
+                    stop: &|| {
+                        self.is_cancelled(ctx)
+                            .then_some(crate::instructions::FrameStop::Cancel)
+                    },
+                },
+                crate::instructions::CaptureSite::FlipNearbyRecovery,
+                crate::device_ops::ExposureRequest::new(camera, 15.0),
+                "on the flip's solve frame",
+            )
+            .await
+            .map_err(|end| end.to_string())?;
+            let solved = self
+                .recovery_solve(ctx, &image, ra * 15.0, dec, NEARBY_SOLVE_TIMEOUT)
+                .await?;
             if !solved.success || !solved.ra_degrees.is_finite() || !(-90.0..=90.0).contains(&solved.dec_degrees) {
                 return Err("Nearby recovery field did not solve".into());
             }
@@ -150,9 +175,10 @@ impl MeridianFlipExecutor {
         image: &crate::device_ops::ImageData,
         ra: f64,
         dec: f64,
+        bound: std::time::Duration,
     ) -> Result<crate::device_ops::PlateSolveResult, String> {
         let solve = tokio::time::timeout(
-            std::time::Duration::from_secs(60),
+            bound,
             self.run
                 .device_ops
                 .plate_solve(image, Some(ra), Some(dec), None),
@@ -160,7 +186,7 @@ impl MeridianFlipExecutor {
         tokio::pin!(solve);
         loop {
             tokio::select! {
-                result = &mut solve => return result.map_err(|_| "Recovery plate solve timed out after 60s".to_string())?.map_err(String::from),
+                result = &mut solve => return result.map_err(|_| format!("Recovery plate solve timed out after {}s", bound.as_secs()))?.map_err(String::from),
                 _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
                     if self.is_cancelled(ctx) {
                 return Err("Recovery cancelled".into());

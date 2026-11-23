@@ -40,12 +40,7 @@ pub(crate) fn iso_choices(choices: &[String]) -> Vec<IsoChoice> {
 /// The offered speed nearest to `requested`, by ratio (ISO steps are
 /// multiplicative). A tie goes to the lower speed.
 pub(crate) fn nearest_iso(speeds: &[IsoChoice], requested: i32) -> Option<&IsoChoice> {
-    let requested = f64::from(requested.max(1));
-    speeds.iter().min_by(|a, b| {
-        let da = (f64::from(a.speed) / requested).ln().abs();
-        let db = (f64::from(b.speed) / requested).ln().abs();
-        da.total_cmp(&db)
-    })
+    crate::dslr::nearest_iso(speeds, |c| c.speed, requested)
 }
 
 /// A snapshot of one libgphoto2 configuration widget and its children.

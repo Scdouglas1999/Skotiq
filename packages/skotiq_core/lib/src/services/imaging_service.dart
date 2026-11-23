@@ -21,6 +21,14 @@ import '../providers/settings_provider.dart';
 import '../providers/session_provider.dart';
 import 'local_imaging_records.dart';
 import '../providers/ui_notification_provider.dart';
+import '../backend/bridge_event_codec.dart' show imagingEventOf;
+import '../backend/bridge_events.dart'
+    show
+        ImagingEvent_ExposureCancelled,
+        ImagingEvent_ExposureComplete,
+        ImagingEvent_ExposureFailed,
+        ImagingEvent_ExposureFailedOld,
+        ImagingEvent_ExposureProgress;
 import '../backend/network_backend.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/skotiq_exception.dart'
@@ -28,8 +36,9 @@ import '../errors/skotiq_exception.dart'
         ConnectionException,
         DeviceBusyException,
         ImagingException,
-        SkotiqException,
         ValidationException;
+import '../errors/skotiq_error.dart' show SkotiqError;
+import '../models/rig_activity.dart';
 import 'capture_preview_loader.dart';
 import '../database/database.dart' show CapturedImagesCompanion;
 import '../utils/host_paths.dart';
@@ -44,6 +53,7 @@ import '../providers/capture_preview_loader_provider.dart';
 import '../providers/logging_service_provider.dart';
 import '../providers/notification_service_provider.dart';
 import '../providers/science/science_processing_service_provider.dart';
+import '../utils/async_scope.dart';
 part 'imaging_service/file_paths.dart';
 part 'imaging_service/persistence.dart';
 part 'imaging_service/quality_processing.dart';
@@ -105,16 +115,17 @@ class ImagingService {
   /// camera's frames are written and recorded by this process.
   ImagingService(
     this._ref, {
-    required bool Function() flatCaptureBusy,
+    required RigActivity? Function() rigHeld,
     HostFiles? hostFiles,
     HostImagingRecords? hostRecords,
-  }) : _flatCaptureBusy = flatCaptureBusy,
+  }) : _rigHeld = rigHeld,
        _host = _ref.providerBackendScope(),
        _logger = _ref.read(loggingServiceProvider),
        _hostFiles = hostFiles,
        _hostRecords = hostRecords;
 
-  final bool Function() _flatCaptureBusy;
+  /// The activity other than a manual capture that holds the rig now.
+  final RigActivity? Function() _rigHeld;
   final HostFiles? _hostFiles;
   final HostImagingRecords? _hostRecords;
 
@@ -261,10 +272,9 @@ class ImagingService {
         consecutiveErrors++;
         onError?.call(e.toString());
 
-        // A non-recoverable structured error (notably a FITS write failure)
-        // must stop immediately. Retrying ten more exposures would only lose
-        // more frames to the same full/unwritable destination.
-        if (e is SkotiqException && !e.isRecoverable) {
+        // A non-recoverable error (a FITS write failure, a refusal from the
+        // host) stops at once: ten more exposures would fail the same way.
+        if (e is SkotiqError && !e.isRecoverable) {
           _logger.error(
             'Loop capture stopped after non-recoverable error: $e',
             source: 'ImagingService',

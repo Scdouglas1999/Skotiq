@@ -2,7 +2,7 @@
 //
 // The bodies sit in an IndexedStack, so a half-typed field survives a tab
 // switch. Mount, Guide and Solve come in through the constructor; their
-// package (P7) never imports this one and this one never imports it.
+// package never imports this one and this one never imports it.
 //
 // Only the operator switches tabs: pressing a tab, or an action-bar button
 // that selects its own tab. Something that happens on its own (an autofocus

@@ -10,12 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_rust_bridge: ^2.11.1
+  flutter_rust_bridge: 2.11.1 # must equal the bridge crate's =2.11.1 (native/skotiq_native/bridge/Cargo.toml)
   freezed_annotation: ^3.0.0
-  http: ^1.2.0
-  path_provider: ^2.1.2
   path: ^1.8.3
-  win32: ^5.0.0  # For native Windows ASCOM support via COM
 
 dev_dependencies:
   flutter_test:

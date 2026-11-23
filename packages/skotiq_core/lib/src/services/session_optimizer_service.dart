@@ -3,7 +3,7 @@ import '../database/database.dart' as db;
 import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/session_report.dart';
-import '../models/equipment/filter_names.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'mosaic_service.dart';
 import 'target_suggestion_service.dart';
@@ -209,7 +209,10 @@ class SessionOptimizationPlan {
   final DateTime generatedAt;
   final TargetSuggestion? primaryTarget;
   final List<TargetSuggestion> alternates;
-  final double recommendedExposureSeconds;
+
+  /// The primary target's sub length; null when none can be computed (no
+  /// exposure context, or no pixel size).
+  final double? recommendedExposureSeconds;
   final String? recommendedFilterName;
 
   /// The primary target's filter set ([chooseSmartNightFilters]).
@@ -239,7 +242,11 @@ class SmartNightExposureContext {
   final int bortleClass;
   final double focalLengthMm;
   final double apertureMm;
-  final double pixelSizeMicrons;
+
+  /// The camera's pixel size, null when no reading, user entry or published
+  /// specification gives one. Nothing is computed from a stand-in pitch:
+  /// [recommendForFilter] then has no answer and Smart Night refuses to plan.
+  final double? pixelSizeMicrons;
   final List<String> availableFilterNames;
   final double? guideRmsArcsec;
   final int guideSampleCount;
@@ -271,11 +278,15 @@ class SmartNightExposureContext {
     this.oneShotColor = false,
   });
 
-  ExposureRecommendation recommendForFilter(
+  /// The exposure calculator's sub for [filterName] on this rig; null when
+  /// the pixel size is unknown.
+  ExposureRecommendation? recommendForFilter(
     String? filterName, {
     SmartNightExposureCalculator calculator =
         const SmartNightExposureCalculator(),
   }) {
+    final pixelSizeMicrons = this.pixelSizeMicrons;
+    if (pixelSizeMicrons == null) return null;
     return calculator.recommend(
       ExposureCalculatorInput(
         camera: camera,
@@ -297,13 +308,14 @@ class SmartNightExposureContext {
   /// Shared default for mosaic builders: prefer the luminance/clear channel
   /// when present, otherwise use the first configured filter, and run the
   /// same Smart Night exposure calculator used by Plan Tonight and the
-  /// sequencer property panels.
-  MosaicExposureSettings recommendMosaicExposureSettings({
+  /// sequencer property panels. Null when the pixel size is unknown.
+  MosaicExposureSettings? recommendMosaicExposureSettings({
     int exposuresPerPanel = 10,
     int binning = 1,
   }) {
     final filterName = _preferredBroadbandFilterName(availableFilterNames);
     final recommendation = recommendForFilter(filterName);
+    if (recommendation == null) return null;
     return MosaicExposureSettings(
       exposureSeconds: recommendation.seconds,
       exposuresPerPanel: exposuresPerPanel,
@@ -330,41 +342,33 @@ MosaicExposureSettings smartNightMosaicExposureSettings(
   int exposuresPerPanel = 10,
   int binning = 1,
 }) {
-  if (exposureContext == null) {
-    return MosaicExposureSettings(
-      exposureSeconds: _fallbackExposureContext
-          .recommendMosaicExposureSettings(
-            exposuresPerPanel: exposuresPerPanel,
-            binning: binning,
-          )
-          .exposureSeconds,
-      exposuresPerPanel: exposuresPerPanel,
-      filterName: null,
-      binning: binning,
-    );
-  }
-  return exposureContext.recommendMosaicExposureSettings(
+  final recommended = exposureContext?.recommendMosaicExposureSettings(
     exposuresPerPanel: exposuresPerPanel,
+    binning: binning,
+  );
+  if (recommended != null) return recommended;
+  return MosaicExposureSettings(
+    exposureSeconds: _presetLuminanceSecs,
+    exposuresPerPanel: exposuresPerPanel,
+    filterName: null,
     binning: binning,
   );
 }
 
-const SmartNightExposureContext
-_fallbackExposureContext = SmartNightExposureContext(
-  camera: CameraExposureSpec(readNoiseE: 3.5, fullWellE: 18000, qePeak: 0.65),
-  bortleClass: 5,
-  focalLengthMm: 500,
-  apertureMm: 80,
-  pixelSizeMicrons: 3.76,
-  availableFilterNames: ['L'],
-  caveats: [
-    'Equipment optics are incomplete; using a conservative Smart Night planning estimate.',
-    'Configure focal length, aperture, and camera sensor values for target-specific exposure recommendations.',
-  ],
-);
+/// The sub a mosaic panel gets with no exposure calculation (no context yet,
+/// or no pixel size): Smart Night's own luminance preset.
+final double _presetLuminanceSecs =
+    const SmartNightSettings().defaultFrameDurationSecs['L'] ?? 120;
+
+/// What the plan says when it has no exposure context to size a sub with.
+const List<String> _noOpticsCaveats = [
+  'Equipment optics are incomplete, so no sub-exposure is recommended.',
+  'Configure focal length, aperture, and camera sensor values for '
+      'target-specific exposure recommendations.',
+];
 
 class _ExposurePlan {
-  final double seconds;
+  final double? seconds;
   final String? filterName;
   final String? rationale;
   final List<String> caveats;
@@ -430,7 +434,7 @@ class SessionOptimizerService {
         generatedAt: planGeneratedAt,
         primaryTarget: null,
         alternates: const [],
-        recommendedExposureSeconds: 0,
+        recommendedExposureSeconds: null,
         recommendedFilterName: null,
         recommendedFilterNames: const [],
         estimatedUsableHours: 0,
@@ -446,16 +450,14 @@ class SessionOptimizerService {
     final estimatedUsableHours = (primary.visibility.hoursAboveMinAlt ?? 0)
         .clamp(0.0, 24.0);
 
-    final effectiveContext = exposureContext ?? _fallbackExposureContext;
     final filterChoice = chooseSmartNightFilters(
       target: primary,
-      availableFilters: effectiveContext.availableFilterNames,
-      oneShotColor: effectiveContext.oneShotColor,
+      availableFilters: exposureContext?.availableFilterNames ?? const [],
+      oneShotColor: exposureContext != null && exposureContext.oneShotColor,
     );
-    final exposurePlan = _recommendExposure(
-      filterChoice.filters.first,
-      effectiveContext,
-    );
+    final exposurePlan = exposureContext == null
+        ? const _ExposurePlan(seconds: null, caveats: _noOpticsCaveats)
+        : _recommendExposure(filterChoice.filters.first, exposureContext);
     final availableFilters = exposureContext?.availableFilterNames ?? const [];
     final recommendedFilterNames = availableFilters.isEmpty
         ? const <String>[]
@@ -463,11 +465,12 @@ class SessionOptimizerService {
     // A rig that reports no filter names at all captures unfiltered. The
     // exposure model still uses a luminance passband to size the sub, but
     // reporting that as "L" would promise a filter the built sequence never
-    // selects. A missing exposure context is a different case — that falls
-    // back to the planning-estimate rig, which does name a filter.
-    final rigNamesFilters = (exposureContext ?? _fallbackExposureContext)
-        .availableFilterNames
-        .any((name) => name.trim().isNotEmpty);
+    // selects. With no exposure context nothing is recommended.
+    final rigNamesFilters =
+        exposureContext?.availableFilterNames.any(
+          (name) => name.trim().isNotEmpty,
+        ) ??
+        false;
 
     final rationale = <String>[
       primary.reasoning,
@@ -520,10 +523,10 @@ class SessionOptimizerService {
       calculator: _exposureCalculator,
     );
     return _ExposurePlan(
-      seconds: recommendation.seconds,
+      seconds: recommendation?.seconds,
       filterName: filterName,
-      rationale: recommendation.rationale,
-      caveats: [...context.caveats, ...recommendation.caveats],
+      rationale: recommendation?.rationale,
+      caveats: [...context.caveats, ...?recommendation?.caveats],
     );
   }
 
@@ -766,7 +769,6 @@ class SessionOptimizerService {
         )
         .toList(growable: false);
 
-    // Sort by confidence descending so the strongest insights surface first.
     filtered.sort((a, b) => b.confidence.compareTo(a.confidence));
 
     return filtered;

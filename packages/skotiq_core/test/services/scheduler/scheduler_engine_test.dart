@@ -302,7 +302,7 @@ void main() {
     });
   });
 
-  // SY-06: the schedule's reasoning said "ill 33%" at 19:48 on 2026-11-03
+  // The schedule's reasoning said "ill 33%" at 19:48 on 2026-11-03
   // while Tonight said 27% for the same instant; the engine used its own
   // cruder phase formula.
   test('the moon factor quotes the lit fraction every screen uses', () async {

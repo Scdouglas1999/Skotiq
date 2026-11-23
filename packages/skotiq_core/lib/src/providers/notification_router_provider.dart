@@ -274,485 +274,322 @@ Future<void> _mirrorToAppSettings(
 
 // Per-transport config notifiers
 
-class EmailConfigNotifier extends AsyncNotifier<EmailTransportConfig>
-    with _SerializedAsyncWrites<EmailTransportConfig> {
-  @override
-  Future<EmailTransportConfig> build() async {
-    // Trigger one-shot migration before reading any blob — if a legacy
-    // plaintext blob still has the password in it, we want it moved
-    // before we hand the config back to anyone.
-    await ref.read(notificationSecretsMigrationProvider.future);
+/// What sets one transport's stored config apart from the others: its row,
+/// the keyring fields its secrets live in, and how the two are put together.
+class TransportStorage<C extends NotificationTransportConfig> {
+  const TransportStorage({
+    required this.kind,
+    required this.label,
+    required this.identityName,
+    required this.empty,
+    required this.fromJson,
+    required this.secretFields,
+    required this.withoutSecrets,
+    required this.secretsOf,
+    required this.withSecrets,
+    this.carriesLegacyCredentials = false,
+    this.afterSave,
+  });
 
-    final dao = ref.read(settingsDaoProvider);
-    final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.read(
-      StoreSettings.notificationTransport(NotificationTransportKind.email),
-    );
-    // A missing blob is a legitimate first-run default; a present-but-corrupt
-    // blob must surface as an error rather than silently reverting to defaults
-    // (which would hide the corruption and could re-activate an unconfigured
-    // transport). Missing keys still fall back to backwards-compatible field
-    // defaults inside fromJson.
-    final EmailTransportConfig base = raw == null
-        ? const EmailTransportConfig()
-        : _decodeEmail(raw);
-    final password = await secrets.read(SecretField.emailPassword);
-    return base.copyWith(password: password);
-  }
+  final NotificationTransportKind kind;
 
-  EmailTransportConfig _decodeEmail(String raw) {
+  /// "Email", as the corrupt and not-loaded messages name it.
+  final String label;
+
+  /// The name the store-changed-while-saving message uses.
+  final String identityName;
+
+  final C empty;
+  final C Function(Map<String, dynamic> json) fromJson;
+
+  /// The keyring fields read when the config loads, in order.
+  final List<String> secretFields;
+
+  /// The config as written to the settings row.
+  final C Function(C config) withoutSecrets;
+
+  /// The keyring values a save writes.
+  final Map<String, String> Function(C config) secretsOf;
+
+  /// The stored config with the keyring values of [secretFields] put back.
+  final C Function(C base, Map<String, String> secrets) withSecrets;
+
+  /// Waits for the pre-router Discord/Pushover carry-over before loading.
+  final bool carriesLegacyCredentials;
+
+  final Future<void> Function(Ref ref, C config)? afterSave;
+
+  OptionalTextSetting get row => StoreSettings.notificationTransport(kind);
+
+  C decode(String raw) {
     try {
-      return EmailTransportConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
+      return fromJson(jsonDecode(raw) as Map<String, dynamic>);
     } catch (e, stackTrace) {
       Log.error(
-        '[NotificationProviders] Bad email config: $e',
+        '[NotificationProviders] Bad ${label.toLowerCase()} config: $e',
         source: 'NotificationProviders',
         error: e,
         stackTrace: stackTrace,
       );
       Error.throwWithStackTrace(
-        StateError('Email routing configuration is corrupt: $e'),
+        StateError('$label routing configuration is corrupt: $e'),
         stackTrace,
       );
     }
   }
+}
 
-  Future<void> save(EmailTransportConfig config) async {
+/// One transport's config: the non-secret fields in the settings row, the
+/// secrets in the keyring.
+///
+/// A missing row is a first-run default; a present but corrupt row is an
+/// error rather than a silent default, which would hide the corruption and
+/// could re-activate an unconfigured transport.
+class TransportConfigNotifier<C extends NotificationTransportConfig>
+    extends AsyncNotifier<C>
+    with _SerializedAsyncWrites<C> {
+  TransportConfigNotifier(this.storage);
+
+  final TransportStorage<C> storage;
+
+  @override
+  Future<C> build() async {
+    // A legacy plaintext blob must have its secrets moved to the keyring
+    // before the config is handed to anyone.
+    if (storage.carriesLegacyCredentials) {
+      await ref.read(legacyNotificationCredentialsProvider.future);
+    } else {
+      await ref.read(notificationSecretsMigrationProvider.future);
+    }
+    final dao = ref.read(settingsDaoProvider);
+    final secrets = ref.read(secretsStoreProvider);
+    final raw = await dao.read(storage.row);
+    final base = raw == null ? storage.empty : storage.decode(raw);
+    final values = <String, String>{};
+    for (final field in storage.secretFields) {
+      values[field] = await secrets.read(field);
+    }
+    return storage.withSecrets(base, values);
+  }
+
+  Future<void> save(C config) async {
     return serializeWrite(() async {
       if (state.valueOrNull == null) {
         throw StateError(
-          'Email routing config is not loaded; refusing to overwrite it '
-          'with the entered values.',
+          '${storage.label} routing config is not loaded; refusing to '
+          'overwrite it with the entered values.',
         );
       }
       final dao = ref.read(settingsDaoProvider);
       final secrets = ref.read(secretsStoreProvider);
-      final nonSecret = config.copyWith(password: '');
       await _persistConfigWithSecrets(
         dao: dao,
         secrets: secrets,
-        row: StoreSettings.notificationTransport(
-          NotificationTransportKind.email,
-        ),
-        encodedConfig: jsonEncode(nonSecret.toJson()),
-        secretValues: {SecretField.emailPassword: config.password},
+        row: storage.row,
+        encodedConfig: jsonEncode(storage.withoutSecrets(config).toJson()),
+        secretValues: storage.secretsOf(config),
       );
       _verifyPersistenceIdentity(
         dao: dao,
         secrets: secrets,
-        transport: 'email',
+        transport: storage.identityName,
       );
       state = AsyncData(config);
+      await storage.afterSave?.call(ref, config);
     });
   }
 }
 
-class WebhookConfigNotifier extends AsyncNotifier<WebhookTransportConfig>
-    with _SerializedAsyncWrites<WebhookTransportConfig> {
-  @override
-  Future<WebhookTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
-    final dao = ref.read(settingsDaoProvider);
-    final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.read(
-      StoreSettings.notificationTransport(
-        NotificationTransportKind.webhookGeneric,
-      ),
-    );
-    // Missing blob → first-run default; corrupt blob → surface the error.
-    final WebhookTransportConfig base;
-    if (raw == null) {
-      base = const WebhookTransportConfig();
-    } else {
-      base = _decodeWebhook(raw);
+Map<String, String> _decodeWebhookHeaders(String raw) {
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('webhook headers must be an object');
     }
-    final url = await secrets.read(SecretField.genericWebhookUrl);
-    final encodedHeaders = await secrets.read(
-      SecretField.genericWebhookHeaders,
+    final headers = <String, String>{};
+    for (final entry in decoded.entries) {
+      if (entry.key is! String || entry.value is! String) {
+        throw const FormatException(
+          'webhook header names and values must be strings',
+        );
+      }
+      headers[entry.key as String] = entry.value as String;
+    }
+    return headers;
+  } catch (error, stackTrace) {
+    Error.throwWithStackTrace(
+      StateError('Webhook routing credentials are corrupt: $error'),
+      stackTrace,
     );
+  }
+}
+
+final _emailStorage = TransportStorage<EmailTransportConfig>(
+  kind: NotificationTransportKind.email,
+  label: 'Email',
+  identityName: 'email',
+  empty: const EmailTransportConfig(),
+  fromJson: EmailTransportConfig.fromJson,
+  secretFields: const [SecretField.emailPassword],
+  withoutSecrets: (c) => c.copyWith(password: ''),
+  secretsOf: (c) => {SecretField.emailPassword: c.password},
+  withSecrets: (base, s) =>
+      base.copyWith(password: s[SecretField.emailPassword]),
+);
+
+/// The URL and headers are stitched back through `fromJson`, so a malformed
+/// URL in the keyring counts as corruption like a malformed stored field.
+final _webhookStorage = TransportStorage<WebhookTransportConfig>(
+  kind: NotificationTransportKind.webhookGeneric,
+  label: 'Webhook',
+  identityName: 'webhook',
+  empty: const WebhookTransportConfig(),
+  fromJson: WebhookTransportConfig.fromJson,
+  secretFields: const [
+    SecretField.genericWebhookUrl,
+    SecretField.genericWebhookHeaders,
+  ],
+  withoutSecrets: (c) => c.copyWith(url: '', headers: const {}),
+  secretsOf: (c) => {
+    SecretField.genericWebhookUrl: c.url,
+    SecretField.genericWebhookHeaders: c.headers.isEmpty
+        ? ''
+        : jsonEncode(c.headers),
+  },
+  withSecrets: (base, s) {
+    final encodedHeaders = s[SecretField.genericWebhookHeaders]!;
     final headers = encodedHeaders.isEmpty
         ? const <String, String>{}
         : _decodeWebhookHeaders(encodedHeaders);
-    // Re-decode the stitched config so a malformed URL in secure storage is
-    // treated as corruption just like a malformed non-secret field.
     return WebhookTransportConfig.fromJson({
       ...base.toJson(),
-      'url': url,
+      'url': s[SecretField.genericWebhookUrl],
       'headers': headers,
     });
-  }
+  },
+);
 
-  WebhookTransportConfig _decodeWebhook(String raw) {
-    try {
-      return WebhookTransportConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
-    } catch (e, stackTrace) {
-      Log.error(
-        '[NotificationProviders] Bad webhook config: $e',
-        source: 'NotificationProviders',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      Error.throwWithStackTrace(
-        StateError('Webhook routing configuration is corrupt: $e'),
-        stackTrace,
-      );
-    }
-  }
+final _pushoverStorage = TransportStorage<PushoverTransportConfig>(
+  kind: NotificationTransportKind.pushover,
+  label: 'Pushover',
+  identityName: 'Pushover',
+  empty: const PushoverTransportConfig(),
+  fromJson: PushoverTransportConfig.fromJson,
+  secretFields: const [
+    SecretField.pushoverApiToken,
+    SecretField.pushoverUserKey,
+  ],
+  withoutSecrets: (c) => c.copyWith(apiToken: '', userKey: ''),
+  secretsOf: (c) => {
+    SecretField.pushoverApiToken: c.apiToken,
+    SecretField.pushoverUserKey: c.userKey,
+  },
+  withSecrets: (base, s) => base.copyWith(
+    apiToken: s[SecretField.pushoverApiToken],
+    userKey: s[SecretField.pushoverUserKey],
+  ),
+  carriesLegacyCredentials: true,
+  afterSave: (ref, config) async {
+    final legacy = ref.read(appSettingsProvider).valueOrNull;
+    if (legacy == null) return;
+    final settings = ref.read(appSettingsProvider.notifier);
+    await _mirrorToAppSettings([
+      (
+        current: legacy.pushoverKey,
+        value: config.apiToken,
+        set: settings.setPushoverKey,
+      ),
+      (
+        current: legacy.pushoverUser,
+        value: config.userKey,
+        set: settings.setPushoverUser,
+      ),
+    ]);
+  },
+);
 
-  Map<String, String> _decodeWebhookHeaders(String raw) {
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        throw const FormatException('webhook headers must be an object');
-      }
-      final headers = <String, String>{};
-      for (final entry in decoded.entries) {
-        if (entry.key is! String || entry.value is! String) {
-          throw const FormatException(
-            'webhook header names and values must be strings',
-          );
-        }
-        headers[entry.key as String] = entry.value as String;
-      }
-      return headers;
-    } catch (error, stackTrace) {
-      Error.throwWithStackTrace(
-        StateError('Webhook routing credentials are corrupt: $error'),
-        stackTrace,
-      );
-    }
-  }
+final _telegramStorage = TransportStorage<TelegramTransportConfig>(
+  kind: NotificationTransportKind.telegram,
+  label: 'Telegram',
+  identityName: 'Telegram',
+  empty: const TelegramTransportConfig(),
+  fromJson: TelegramTransportConfig.fromJson,
+  secretFields: const [SecretField.telegramBotToken],
+  withoutSecrets: (c) => c.copyWith(botToken: ''),
+  secretsOf: (c) => {SecretField.telegramBotToken: c.botToken},
+  withSecrets: (base, s) =>
+      base.copyWith(botToken: s[SecretField.telegramBotToken]),
+);
 
-  Future<void> save(WebhookTransportConfig config) async {
-    return serializeWrite(() async {
-      if (state.valueOrNull == null) {
-        throw StateError(
-          'Webhook routing config is not loaded; refusing to overwrite it '
-          'with the entered values.',
-        );
-      }
-      final dao = ref.read(settingsDaoProvider);
-      final secrets = ref.read(secretsStoreProvider);
-      final nonSecret = config.copyWith(url: '', headers: const {});
-      await _persistConfigWithSecrets(
-        dao: dao,
-        secrets: secrets,
-        row: StoreSettings.notificationTransport(
-          NotificationTransportKind.webhookGeneric,
-        ),
-        encodedConfig: jsonEncode(nonSecret.toJson()),
-        secretValues: {
-          SecretField.genericWebhookUrl: config.url,
-          SecretField.genericWebhookHeaders: config.headers.isEmpty
-              ? ''
-              : jsonEncode(config.headers),
-        },
-      );
-      _verifyPersistenceIdentity(
-        dao: dao,
-        secrets: secrets,
-        transport: 'webhook',
-      );
-      state = AsyncData(config);
-    });
-  }
-}
+final _discordStorage = TransportStorage<DiscordTransportConfig>(
+  kind: NotificationTransportKind.discord,
+  label: 'Discord',
+  identityName: 'Discord',
+  empty: const DiscordTransportConfig(),
+  fromJson: DiscordTransportConfig.fromJson,
+  secretFields: const [SecretField.discordWebhookUrl],
+  withoutSecrets: (c) => c.copyWith(webhookUrl: ''),
+  secretsOf: (c) => {SecretField.discordWebhookUrl: c.webhookUrl},
+  withSecrets: (base, s) => DiscordTransportConfig.fromJson({
+    ...base.toJson(),
+    'webhookUrl': s[SecretField.discordWebhookUrl],
+  }),
+  carriesLegacyCredentials: true,
+  afterSave: (ref, config) async {
+    final legacy = ref.read(appSettingsProvider).valueOrNull;
+    if (legacy == null) return;
+    await _mirrorToAppSettings([
+      (
+        current: legacy.discordWebhook,
+        value: config.webhookUrl,
+        set: ref.read(appSettingsProvider.notifier).setDiscordWebhook,
+      ),
+    ]);
+  },
+);
 
-class PushoverConfigNotifier extends AsyncNotifier<PushoverTransportConfig>
-    with _SerializedAsyncWrites<PushoverTransportConfig> {
-  @override
-  Future<PushoverTransportConfig> build() async {
-    await ref.read(legacyNotificationCredentialsProvider.future);
-    final dao = ref.read(settingsDaoProvider);
-    final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.read(
-      StoreSettings.notificationTransport(NotificationTransportKind.pushover),
-    );
-    final PushoverTransportConfig base = raw == null
-        ? const PushoverTransportConfig()
-        : _decodePushover(raw);
-    final apiToken = await secrets.read(SecretField.pushoverApiToken);
-    final userKey = await secrets.read(SecretField.pushoverUserKey);
-    return base.copyWith(apiToken: apiToken, userKey: userKey);
-  }
-
-  PushoverTransportConfig _decodePushover(String raw) {
-    try {
-      return PushoverTransportConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
-    } catch (e, stackTrace) {
-      Log.error(
-        '[NotificationProviders] Bad pushover config: $e',
-        source: 'NotificationProviders',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      Error.throwWithStackTrace(
-        StateError('Pushover routing configuration is corrupt: $e'),
-        stackTrace,
-      );
-    }
-  }
-
-  Future<void> save(PushoverTransportConfig config) async {
-    return serializeWrite(() async {
-      if (state.valueOrNull == null) {
-        throw StateError(
-          'Pushover routing config is not loaded; refusing to overwrite it '
-          'with the entered values.',
-        );
-      }
-      final dao = ref.read(settingsDaoProvider);
-      final secrets = ref.read(secretsStoreProvider);
-      final nonSecret = config.copyWith(apiToken: '', userKey: '');
-      await _persistConfigWithSecrets(
-        dao: dao,
-        secrets: secrets,
-        row: StoreSettings.notificationTransport(
-          NotificationTransportKind.pushover,
-        ),
-        encodedConfig: jsonEncode(nonSecret.toJson()),
-        secretValues: {
-          SecretField.pushoverApiToken: config.apiToken,
-          SecretField.pushoverUserKey: config.userKey,
-        },
-      );
-      _verifyPersistenceIdentity(
-        dao: dao,
-        secrets: secrets,
-        transport: 'Pushover',
-      );
-      state = AsyncData(config);
-      final legacy = ref.read(appSettingsProvider).valueOrNull;
-      if (legacy != null) {
-        final settings = ref.read(appSettingsProvider.notifier);
-        await _mirrorToAppSettings([
-          (
-            current: legacy.pushoverKey,
-            value: config.apiToken,
-            set: settings.setPushoverKey,
-          ),
-          (
-            current: legacy.pushoverUser,
-            value: config.userKey,
-            set: settings.setPushoverUser,
-          ),
-        ]);
-      }
-    });
-  }
-}
-
-class TelegramConfigNotifier extends AsyncNotifier<TelegramTransportConfig>
-    with _SerializedAsyncWrites<TelegramTransportConfig> {
-  @override
-  Future<TelegramTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
-    final dao = ref.read(settingsDaoProvider);
-    final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.read(
-      StoreSettings.notificationTransport(NotificationTransportKind.telegram),
-    );
-    final TelegramTransportConfig base = raw == null
-        ? const TelegramTransportConfig()
-        : _decodeTelegram(raw);
-    final botToken = await secrets.read(SecretField.telegramBotToken);
-    return base.copyWith(botToken: botToken);
-  }
-
-  TelegramTransportConfig _decodeTelegram(String raw) {
-    try {
-      return TelegramTransportConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
-    } catch (e, stackTrace) {
-      Log.error(
-        '[NotificationProviders] Bad telegram config: $e',
-        source: 'NotificationProviders',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      Error.throwWithStackTrace(
-        StateError('Telegram routing configuration is corrupt: $e'),
-        stackTrace,
-      );
-    }
-  }
-
-  Future<void> save(TelegramTransportConfig config) async {
-    return serializeWrite(() async {
-      if (state.valueOrNull == null) {
-        throw StateError(
-          'Telegram routing config is not loaded; refusing to overwrite it '
-          'with the entered values.',
-        );
-      }
-      final dao = ref.read(settingsDaoProvider);
-      final secrets = ref.read(secretsStoreProvider);
-      final nonSecret = config.copyWith(botToken: '');
-      await _persistConfigWithSecrets(
-        dao: dao,
-        secrets: secrets,
-        row: StoreSettings.notificationTransport(
-          NotificationTransportKind.telegram,
-        ),
-        encodedConfig: jsonEncode(nonSecret.toJson()),
-        secretValues: {SecretField.telegramBotToken: config.botToken},
-      );
-      _verifyPersistenceIdentity(
-        dao: dao,
-        secrets: secrets,
-        transport: 'Telegram',
-      );
-      state = AsyncData(config);
-    });
-  }
-}
-
-class DiscordConfigNotifier extends AsyncNotifier<DiscordTransportConfig>
-    with _SerializedAsyncWrites<DiscordTransportConfig> {
-  @override
-  Future<DiscordTransportConfig> build() async {
-    await ref.read(legacyNotificationCredentialsProvider.future);
-    final dao = ref.read(settingsDaoProvider);
-    final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.read(
-      StoreSettings.notificationTransport(NotificationTransportKind.discord),
-    );
-    final DiscordTransportConfig base = raw == null
-        ? const DiscordTransportConfig()
-        : _decodeDiscord(raw);
-    final webhookUrl = await secrets.read(SecretField.discordWebhookUrl);
-    return DiscordTransportConfig.fromJson({
-      ...base.toJson(),
-      'webhookUrl': webhookUrl,
-    });
-  }
-
-  DiscordTransportConfig _decodeDiscord(String raw) {
-    try {
-      return DiscordTransportConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
-    } catch (e, stackTrace) {
-      Log.error(
-        '[NotificationProviders] Bad discord config: $e',
-        source: 'NotificationProviders',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      Error.throwWithStackTrace(
-        StateError('Discord routing configuration is corrupt: $e'),
-        stackTrace,
-      );
-    }
-  }
-
-  Future<void> save(DiscordTransportConfig config) async {
-    return serializeWrite(() async {
-      if (state.valueOrNull == null) {
-        throw StateError(
-          'Discord routing config is not loaded; refusing to overwrite it '
-          'with the entered values.',
-        );
-      }
-      final dao = ref.read(settingsDaoProvider);
-      final secrets = ref.read(secretsStoreProvider);
-      final nonSecret = config.copyWith(webhookUrl: '');
-      await _persistConfigWithSecrets(
-        dao: dao,
-        secrets: secrets,
-        row: StoreSettings.notificationTransport(
-          NotificationTransportKind.discord,
-        ),
-        encodedConfig: jsonEncode(nonSecret.toJson()),
-        secretValues: {SecretField.discordWebhookUrl: config.webhookUrl},
-      );
-      _verifyPersistenceIdentity(
-        dao: dao,
-        secrets: secrets,
-        transport: 'Discord',
-      );
-      state = AsyncData(config);
-      final legacy = ref.read(appSettingsProvider).valueOrNull;
-      if (legacy != null) {
-        await _mirrorToAppSettings([
-          (
-            current: legacy.discordWebhook,
-            value: config.webhookUrl,
-            set: ref.read(appSettingsProvider.notifier).setDiscordWebhook,
-          ),
-        ]);
-      }
-    });
-  }
-}
-
-class MqttConfigNotifier extends AsyncNotifier<MqttTransportConfig>
-    with _SerializedAsyncWrites<MqttTransportConfig> {
-  @override
-  Future<MqttTransportConfig> build() async {
-    await ref.read(notificationSecretsMigrationProvider.future);
-    final dao = ref.read(settingsDaoProvider);
-    final secrets = ref.read(secretsStoreProvider);
-    final raw = await dao.read(
-      StoreSettings.notificationTransport(NotificationTransportKind.mqtt),
-    );
-    final MqttTransportConfig base = raw == null
-        ? const MqttTransportConfig()
-        : _decodeMqtt(raw);
-    final password = await secrets.read(SecretField.mqttPassword);
+final _mqttStorage = TransportStorage<MqttTransportConfig>(
+  kind: NotificationTransportKind.mqtt,
+  label: 'MQTT',
+  identityName: 'MQTT',
+  empty: const MqttTransportConfig(),
+  fromJson: MqttTransportConfig.fromJson,
+  secretFields: const [SecretField.mqttPassword],
+  withoutSecrets: (c) => c.copyWith(clearPassword: true),
+  secretsOf: (c) => {SecretField.mqttPassword: c.password ?? ''},
+  withSecrets: (base, s) {
+    final password = s[SecretField.mqttPassword]!;
     return base.copyWith(password: password.isEmpty ? null : password);
-  }
+  },
+);
 
-  MqttTransportConfig _decodeMqtt(String raw) {
-    try {
-      return MqttTransportConfig.fromJson(
-        jsonDecode(raw) as Map<String, dynamic>,
-      );
-    } catch (e, stackTrace) {
-      Log.error(
-        '[NotificationProviders] Bad mqtt config: $e',
-        source: 'NotificationProviders',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      Error.throwWithStackTrace(
-        StateError('MQTT routing configuration is corrupt: $e'),
-        stackTrace,
-      );
-    }
-  }
+class EmailConfigNotifier
+    extends TransportConfigNotifier<EmailTransportConfig> {
+  EmailConfigNotifier() : super(_emailStorage);
+}
 
-  Future<void> save(MqttTransportConfig config) async {
-    return serializeWrite(() async {
-      if (state.valueOrNull == null) {
-        throw StateError(
-          'MQTT routing config is not loaded; refusing to overwrite it '
-          'with the entered values.',
-        );
-      }
-      final dao = ref.read(settingsDaoProvider);
-      final secrets = ref.read(secretsStoreProvider);
-      final nonSecret = config.copyWith(clearPassword: true);
-      await _persistConfigWithSecrets(
-        dao: dao,
-        secrets: secrets,
-        row: StoreSettings.notificationTransport(
-          NotificationTransportKind.mqtt,
-        ),
-        encodedConfig: jsonEncode(nonSecret.toJson()),
-        secretValues: {SecretField.mqttPassword: config.password ?? ''},
-      );
-      _verifyPersistenceIdentity(dao: dao, secrets: secrets, transport: 'MQTT');
-      state = AsyncData(config);
-    });
-  }
+class WebhookConfigNotifier
+    extends TransportConfigNotifier<WebhookTransportConfig> {
+  WebhookConfigNotifier() : super(_webhookStorage);
+}
+
+class PushoverConfigNotifier
+    extends TransportConfigNotifier<PushoverTransportConfig> {
+  PushoverConfigNotifier() : super(_pushoverStorage);
+}
+
+class TelegramConfigNotifier
+    extends TransportConfigNotifier<TelegramTransportConfig> {
+  TelegramConfigNotifier() : super(_telegramStorage);
+}
+
+class DiscordConfigNotifier
+    extends TransportConfigNotifier<DiscordTransportConfig> {
+  DiscordConfigNotifier() : super(_discordStorage);
+}
+
+class MqttConfigNotifier extends TransportConfigNotifier<MqttTransportConfig> {
+  MqttConfigNotifier() : super(_mqttStorage);
 }
 
 class RoutingMatrixNotifier extends AsyncNotifier<NotificationRoutingMatrix>

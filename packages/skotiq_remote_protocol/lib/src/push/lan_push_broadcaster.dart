@@ -70,11 +70,13 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:logging/logging.dart';
+
+final _lanPushBroadcasterLog = Logger('skotiq.LanPushBroadcaster');
 
 /// Default port for the LAN push notification protocol. Distinct from
 /// `45679` (discovery) and `45680` (OTA push receiver).
@@ -694,16 +696,11 @@ class LanPushBroadcaster {
       l(level, message, fields: fields);
       return;
     }
-    final lvl = switch (level) {
-      LanPushLogLevel.info => 800,
-      LanPushLogLevel.warning => 900,
-      LanPushLogLevel.error => 1000,
-    };
-    developer.log(
-      message + (fields == null ? '' : ' fields=$fields'),
-      name: 'LanPushBroadcaster',
-      level: lvl,
-    );
+    _lanPushBroadcasterLog.log(switch (level) {
+      LanPushLogLevel.info => Level.INFO,
+      LanPushLogLevel.warning => Level.WARNING,
+      LanPushLogLevel.error => Level.SEVERE,
+    }, message + (fields == null ? '' : ' fields=$fields'));
   }
 }
 
@@ -727,11 +724,7 @@ class _RawSocketSink implements LanPushDatagramSink {
       // a socket that always fails surfaces as a missing notification on
       // the client. Nothing rethrows — losing one frame on one socket must
       // not abort the fan-out to the remaining sinks.
-      developer.log(
-        'LanPush datagram send failed: $e',
-        name: 'LanPushBroadcaster',
-        level: 900,
-      );
+      _lanPushBroadcasterLog.warning('LanPush datagram send failed: $e');
     }
   }
 

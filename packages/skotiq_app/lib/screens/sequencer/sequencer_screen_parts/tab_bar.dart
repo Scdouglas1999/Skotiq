@@ -53,11 +53,13 @@ class _SequencerPageHeader extends ConsumerWidget {
     }
 
     void openPreflight({bool armed = false}) {
+      if (armed) {
+        startWithPreflight(context, ref);
+        return;
+      }
       showDialog<void>(
         context: context,
-        builder: (_) => PreFlightValidationDialog(
-          onStartSequence: armed ? () => run(actionService.start) : null,
-        ),
+        builder: (_) => const PreFlightValidationDialog(),
       );
     }
 

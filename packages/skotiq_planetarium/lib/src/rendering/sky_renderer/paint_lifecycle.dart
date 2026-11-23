@@ -2,6 +2,8 @@
 
 part of '../sky_renderer.dart';
 
+final _skyCanvasPainterLog = Logger('skotiq.SkyCanvasPainter');
+
 extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
   void _paint(Canvas canvas, Size size) {
     final paintStopwatch = Stopwatch()..start();
@@ -316,7 +318,7 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
           solarUs +
           labelUs +
           markerUs;
-      developer.log(
+      _skyCanvasPainterLog.fine(
         'SkyCanvasPainter TIMING BREAKDOWN (frame 60, ${(totalUs / 1000.0).toStringAsFixed(1)}ms total):\n'
         '  Background:     ${(bgUs / 1000.0).toStringAsFixed(2)}ms\n'
         '  Milky Way:      ${(mwUs / 1000.0).toStringAsFixed(2)}ms\n'
@@ -329,8 +331,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
         '  Labels:         ${(labelUs / 1000.0).toStringAsFixed(2)}ms\n'
         '  Markers:        ${(markerUs / 1000.0).toStringAsFixed(2)}ms\n'
         '  Quality: ${qualityConfig.quality.name}',
-        name: 'SkyCanvasPainter',
-        level: 500,
       );
     }
 
@@ -359,7 +359,7 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
         final avgMs =
             SkyCanvasPainter._paintTimings.reduce((a, b) => a + b) /
             SkyCanvasPainter._paintTimings.length;
-        developer.log(
+        _skyCanvasPainterLog.warning(
           'SkyCanvasPainter: paint() averaging ${avgMs.toStringAsFixed(1)}ms '
           '(budget: ${SkyCanvasPainter._frameBudgetMs}ms). '
           '${SkyCanvasPainter._overBudgetCount} of last '
@@ -367,8 +367,6 @@ extension _SkyCanvasPainterPaintLifecycle on SkyCanvasPainter {
           'Quality: ${qualityConfig.quality.name}, '
           'Stars: ${stars.length}, DSOs: ${dsos.length}. '
           'Consider lowering render quality.',
-          name: 'SkyCanvasPainter',
-          level: 900,
         );
       }
     }

@@ -58,6 +58,20 @@ class LinkedRig {
 
   String get address => '$host:$port';
 
+  /// Whether a host found at [host]:[port] with [fingerprint] is this rig:
+  /// by fingerprint when both sides have one, else by address.
+  bool isSameRig({
+    required String host,
+    required int port,
+    String? fingerprint,
+  }) {
+    final mine = this.fingerprint;
+    if (mine != null && fingerprint != null) {
+      return mine.toLowerCase() == fingerprint.toLowerCase();
+    }
+    return this.host == host && this.port == port;
+  }
+
   /// True when the host lets this desktop change its settings.
   bool get hasFullAccess => tokenScope == 'admin';
 
@@ -183,6 +197,20 @@ class LinkedRigStore {
       Log.debug('linked rig record unreadable: $e', source: 'LinkedRigStore');
       return null;
     }
+  }
+
+  /// The remembered rig's token when the host at [host]:[port] with
+  /// [fingerprint] is that rig ([LinkedRig.isSameRig]), else null.
+  Future<String?> tokenFor({
+    required String host,
+    required int port,
+    String? fingerprint,
+  }) async {
+    final rig = await load();
+    if (rig == null) return null;
+    return rig.isSameRig(host: host, port: port, fingerprint: fingerprint)
+        ? readToken()
+        : null;
   }
 
   /// The token for the remembered rig, or null when none is stored.

@@ -1,9 +1,9 @@
-// What every plan data provider (night-control plan section 3, P1a) reads:
+// What every plan data provider reads:
 // now, the operator's clock, the loaded plan flattened into execution order,
 // and one estimator run. When nodes really started and finished is core's
 // `runNodeTimesProvider`.
 //
-// Every DateTime a P1a view model carries is on the operator's clock, the
+// Every DateTime a plan view model carries is on the operator's clock, the
 // same clock `tonightNightProvider` renders sunset and dawn on. A widget
 // compares one against `clockProvider.now()`, never `DateTime.now()`; the two
 // differ only when Settings picks a time zone other than the host's.
@@ -13,7 +13,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 
 /// Now, as a true instant (UTC), on Tonight's shared 30 s tick.
@@ -255,38 +255,20 @@ final nightPlanTimingProvider = Provider<NightPlanTiming?>((ref) {
       anchor: anchor, timings: plan.timings, total: plan.total);
 });
 
-/// Frames an exposure node has captured in its current pass, and planned.
-///
-/// Same precedence as the Sequencer's progress panel: the per-node tally,
-/// then the structured detail, then the progress string. Null when the node
-/// has reported no frames at all.
+/// Frames an exposure node has captured in its current pass, and planned
+/// ([exposureNodeFrames]). Null when the node has reported no frames at all.
 ({int captured, int? planned})? nightNodeFrames(
   String nodeId, {
   required Map<String, NodeExposureTally> tally,
   required SequenceProgress progress,
 }) {
-  final counted = tally[nodeId];
-  if (counted != null) {
-    return (captured: counted.captured, planned: counted.planned);
-  }
-  final structured = progress.nodeProgressStructuredDetail[nodeId];
-  if (structured is ExposureInstructionProgressDetail && structured.total > 0) {
-    return (
-      captured: structured.frame.clamp(0, structured.total),
-      planned: structured.total,
-    );
-  }
-  final detail = progress.nodeProgressDetail[nodeId];
-  final parsed = detail == null ? null : parseExposureProgressDetail(detail);
-  if (parsed != null) {
-    final captured = parsed.frameCompleted ? parsed.frame : parsed.frame - 1;
-    final planned = parsed.total > 0 ? parsed.total : null;
-    return (
-      captured: planned == null ? captured : captured.clamp(0, planned),
-      planned: planned,
-    );
-  }
-  return null;
+  final frames = exposureNodeFrames(
+    tally: tally[nodeId],
+    typed: progress.nodeProgressStructuredDetail[nodeId],
+    line: progress.nodeProgressDetail[nodeId],
+  );
+  if (frames == null) return null;
+  return (captured: frames.captured, planned: frames.planned);
 }
 
 /// The frames [node] takes per pass, or null when it has no count of its own:

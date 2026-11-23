@@ -22,7 +22,7 @@ import 'panel/guide/night_guide_tab.dart';
 import 'panel/mount/night_mount_tab.dart';
 import 'panel/night_right_panel.dart';
 import 'panel/solve/night_solve_tab.dart';
-import 'panel/solve/recent_solves_provider.dart';
+import '../../services/night_session/night_recent_solves.dart';
 import 'run_warnings_banner.dart';
 import 'package:skotiq_app/widgets/mount_guard/mount_guard_banner.dart';
 

@@ -1,4 +1,4 @@
-// Shared inputs for the P1a plan data provider tests: a two-target plan, a
+// Shared inputs for the plan data provider tests: a two-target plan, a
 // fixed night over Boston, and a ProviderContainer whose every input is an
 // override, so each test states exactly the rig, run and clock it means.
 
@@ -177,7 +177,7 @@ sk.SkotiqEvent nodeEvent(
   );
 }
 
-/// A container with every P1a input pinned. Defaults: no plan, idle, camera
+/// A container with every plan input pinned. Defaults: no plan, idle, camera
 /// connected, commands allowed, Boston with the night above and no altitude
 /// floor above the true horizon, meridian flips off, the host's clock, a
 /// local backend.

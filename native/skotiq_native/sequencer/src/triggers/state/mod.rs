@@ -324,11 +324,7 @@ impl TriggerState {
 
     /// Mark that autofocus was just performed
     ///
-    /// The temperature shift is measured from here too. Nothing else moved
-    /// the baseline, so once the tube had cooled past the threshold the
-    /// Temperature Shift trigger stayed true and refocused at every cooldown
-    /// for the rest of the night (rig, 2026-10-20: every 10 min after
-    /// 2 °C).
+    /// The temperature shift is measured from here too.
     pub fn mark_autofocus_performed(&mut self) {
         self.latches.autofocus_hfr_seq = Some(self.latches.hfr_sample_seq);
         self.latches.last_autofocus_frame = self.latches.completed_exposures;
@@ -626,7 +622,7 @@ impl TriggerState {
         };
     }
 
-    /// Defense-in-depth (full-night audit 2026-06-04): store the Dart-side
+    /// Store the Dart-side
     /// weather-safety verdict. `Some(true)` = Dart computed UNSAFE, `Some(false)`
     /// = Dart computed SAFE, `None` = Dart abstains (provider disabled / no data).
     /// Folded into the `WeatherUnsafe` trigger as an additional unsafe source so a

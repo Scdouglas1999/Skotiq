@@ -16,17 +16,21 @@ use tokio::sync::{Mutex, RwLock};
 mod alpaca_mount;
 mod capabilities;
 mod device_reopen;
+mod focuser_busy;
 mod guards;
+mod guide_camera_heartbeat;
 mod heartbeat_config;
 mod heartbeat_events;
 mod identity;
 mod indi_ids;
 mod indi_release;
+mod keep_state;
 mod listing_order;
 mod mount_home;
 mod mount_ops;
 mod mount_set_park;
 mod mount_trace;
+mod move_holds;
 mod native_camera_probe;
 mod native_mount_probe;
 mod omnisim;
@@ -82,29 +86,9 @@ fn build_mount_info(id: &str, driver_type: DriverType) -> DeviceInfo {
     }
 }
 
-fn build_device_manager() -> DeviceManager {
-    DeviceManager {
-        app_state: AppState::new(),
-        devices: RwLock::new(HashMap::new()),
-        observed_identities: RwLock::new(HashMap::new()),
-        expected_models: Default::default(),
-        reconnect_config: ReconnectConfig::default(),
-        handles: Default::default(),
-        native_devices: RwLock::new(HashMap::new()),
-        indi_clients: RwLock::new(HashMap::new()),
-        heartbeat_tasks: RwLock::new(HashMap::new()),
-        reconnect_cancel_tokens: RwLock::new(HashMap::new()),
-        active_operations: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
-        usb_contention: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-        command_activity: Default::default(),
-        published_temperatures: Default::default(),
-        status_reads: Default::default(),
-        pixel_size_notices: Default::default(),
-        dim_frame_cameras: Default::default(),
-        retained_captures: Default::default(),
-        stated_frame_defaults: Default::default(),
-        unlisted_read_mode_notices: Default::default(),
-    }
+fn build_device_manager() -> Arc<DeviceManager> {
+    crate::data_root::set_for_tests();
+    DeviceManager::without_reconnection(AppState::new())
 }
 
 // Device identity: a positional id must not silently re-bind

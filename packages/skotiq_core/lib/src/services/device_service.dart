@@ -25,11 +25,14 @@ import '../providers/app_version_provider.dart';
 import '../providers/autofocus_progress_provider.dart';
 import '../providers/unified_discovery_provider.dart';
 import '../providers/device_connection_progress_provider.dart';
+import '../backend/bridge_event_codec.dart';
 import '../backend/remote_host.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/device_connect_exception.dart';
 import '../errors/skotiq_exception.dart' show ConnectionException;
+import '../errors/skotiq_error.dart' show saysCanceled;
 import '../models/equipment/equipment_models.dart';
+import '../models/imaging/autofocus_request.dart';
 import '../models/imaging/imaging_models.dart'
     show AutofocusSettings, FilterAutofocusConfig;
 import 'package:skotiq_astro/format.dart';
@@ -273,11 +276,9 @@ class DeviceService {
         ),
       );
     }
-    _phd2Launcher = Phd2Launcher(ref: _ref);
-    // Construct the heartbeat router first so the reconnect coordinator
-    // can drive the "reconnecting" health indicator through it (the
-    // native HeartbeatReconnecting event is never emitted, so the Dart
-    // side surfaces that state from the reconnect signals it does see).
+    _phd2Launcher = Phd2Launcher(
+      notices: () => _ref.read(uiNotificationProvider.notifier),
+    );
     _heartbeat = DeviceHeartbeatRouter(ref: _ref);
     _reconnectCoordinator = DeviceReconnectCoordinator(
       ref: _ref,
@@ -285,14 +286,8 @@ class DeviceService {
       hostOwnsRecovery: hostDevices != null,
       resumeSequence: resumeSequence,
       pauseSequence: pauseSequence,
-      surfaceReconnecting: (deviceId, {int attempt = 0, int maxAttempts = 0}) =>
-          _heartbeat.surfaceReconnecting(
-            deviceId: deviceId,
-            attempt: attempt,
-            maxAttempts: maxAttempts,
-          ),
-      connect: _connect,
-      reconnectTarget: _reconnectTarget,
+      surfaceReconnecting: (deviceId) =>
+          _heartbeat.surfaceReconnecting(deviceId: deviceId),
     );
     _switchChannels = SwitchChannelService(
       ref: _ref,
@@ -361,7 +356,7 @@ class DeviceService {
     );
   }
 
-  /// Cancel reconnect timers, suppress auto-reconnect, and quiesce before a
+  /// Stop reading Disconnected events as lost devices and quiesce before a
   /// backend swap disposes this service instance.
   Future<void> prepareForBackendSwap() async {
     _reconnectCoordinator.prepareForBackendSwap();
@@ -415,7 +410,6 @@ class DeviceService {
     _hostWarmUpWatch = null;
     _focuserMoveSettleWatch?.cancel();
     _focuserMoveSettleWatch = null;
-    _reconnectCoordinator.cancelAll();
   }
 
   /// Discover available devices of a specific type

@@ -78,7 +78,7 @@ void main() {
       for (final date in dates) {
         test('$name ${date.toIso8601String().substring(0, 10)}', () {
           final twilight = AstronomyCalculations.calculateTwilightTimes(
-            date: date,
+            date: NightDate.ofCalendarDay(date),
             latitudeDeg: lat,
             longitudeDeg: lon,
           );

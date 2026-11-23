@@ -116,6 +116,16 @@ abstract class Sequence with _$Sequence {
   /// [SequenceTreeIndex.descendantsOf].
   List<String> descendantsOf(String nodeId) => treeIndex.descendantsOf(nodeId);
 
+  /// The nearest target step [nodeId] sits under. See
+  /// [SequenceTreeIndex.enclosingTarget].
+  TargetHeaderNode? enclosingTarget(String nodeId) =>
+      treeIndex.enclosingTarget(nodeId);
+
+  /// Whether a target step above [nodeId] has an end condition. See
+  /// [SequenceTreeIndex.isBoundedByTargetWindow].
+  bool isBoundedByTargetWindow(String nodeId) =>
+      treeIndex.isBoundedByTargetWindow(nodeId);
+
   /// Verify the structural invariants of this sequence. See
   /// [SequenceTreeIndex.invariants] for the full set of checks.
   List<String> invariants() => treeIndex.invariants();
@@ -275,7 +285,7 @@ abstract class Sequence with _$Sequence {
     if (node is LoopNode) {
       switch (node.conditionType) {
         case LoopConditionType.count:
-          final iterations = node.repeatCount ?? 1;
+          final iterations = loopPasses(node, nodes) ?? 1;
           return SequenceEstimate(
             estimatedSecs: childrenSecs * iterations,
             singleIterationSecs: childrenSingleIteration,
@@ -323,27 +333,13 @@ abstract class Sequence with _$Sequence {
           );
 
         case LoopConditionType.integrationTime:
-          // Integration time loop: estimate iterations based on target integration time
-          if (node.integrationTimeTarget != null &&
-              node.integrationTimeTarget! > 0 &&
-              childrenSingleIteration > 0) {
-            // Find total exposure time per iteration from children
-            double exposurePerIteration = 0;
-            for (final childId in node.childIds) {
-              final child = nodes[childId];
-              if (child is ExposureNode && child.isEnabled) {
-                exposurePerIteration += child.totalDurationSecs;
-              }
-            }
-            if (exposurePerIteration > 0) {
-              final estimatedIterations =
-                  (node.integrationTimeTarget! / exposurePerIteration).ceil();
-              return SequenceEstimate(
-                estimatedSecs: childrenSingleIteration * estimatedIterations,
-                singleIterationSecs: childrenSingleIteration,
-                isUnbounded: false,
-              );
-            }
+          final passes = loopPasses(node, nodes);
+          if (passes != null && childrenSingleIteration > 0) {
+            return SequenceEstimate(
+              estimatedSecs: childrenSingleIteration * passes,
+              singleIterationSecs: childrenSingleIteration,
+              isUnbounded: false,
+            );
           }
           // If we can't estimate, treat as unbounded
           return SequenceEstimate(

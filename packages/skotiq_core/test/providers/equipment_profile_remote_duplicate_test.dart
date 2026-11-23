@@ -90,7 +90,6 @@ void main() {
       }
       return null;
     });
-    when(() => backend.lastSavedProfileId).thenReturn('100');
     when(() => backend.saveProfile(any())).thenAnswer((invocation) async {
       final p =
           invocation.positionalArguments.first
@@ -105,6 +104,7 @@ void main() {
         final idx = stored.indexWhere((e) => e.id == p.id);
         if (idx != -1) stored[idx] = p;
       }
+      return int.tryParse(p.id) ?? 100;
     });
 
     final container = ProviderContainer(

@@ -171,9 +171,49 @@ pub fn debayer_cfa_to_rgb(
     ))
 }
 
-/// How a refusal of a frame taken through another filter begins. The host's
-/// API tells this refusal from an alignment failure by these words.
+/// How a refusal of a frame taken through another filter begins.
 pub const OTHER_FILTER_REFUSAL: &str = "Frame of another filter not stacked";
+
+/// Why the live stacker left a frame out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FrameRefusalKind {
+    /// The frame did not align to the reference (too few stars or matches,
+    /// matches that disagree, or a residual over the limit). Counted in
+    /// [`StackingStats::rejected_alignment_failures`].
+    Misaligned,
+    /// Taken through another filter than the stack's. Counted in
+    /// [`StackingStats::other_filter_frames`].
+    OtherFilter,
+    /// The frame cannot join this stack: another size, channel count or
+    /// sample type.
+    Incompatible,
+}
+
+/// A frame the live stacker left out, and the sentence that says why.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[error("{message}")]
+pub struct FrameRefusal {
+    pub kind: FrameRefusalKind,
+    pub message: String,
+}
+
+impl FrameRefusal {
+    fn new(kind: FrameRefusalKind, message: String) -> Self {
+        Self { kind, message }
+    }
+}
+
+/// Why a live stack could not start from a reference frame.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum StackerStartError {
+    /// The reference holds fewer stars than alignment needs.
+    #[error("Reference frame has only {detected} stars, need at least {required} for alignment")]
+    TooFewReferenceStars { detected: usize, required: usize },
+    /// The reference cannot seed a stack: it is empty, or of a sample type or
+    /// channel count the stacker does not read.
+    #[error("{0}")]
+    Unusable(String),
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct StackingStats {
@@ -294,11 +334,12 @@ pub struct LiveStacker {
     last_frame_telemetry: Option<FrameTelemetry>,
 }
 
-/// Whether two `FILTER` values name the same filter.
+/// Whether two `FILTER` values name the same filter by the filter-name rule
+/// ([`skotiq_frame::same_filter`]), the rule the wheel moves by.
 fn same_filter(a: Option<&str>, b: Option<&str>) -> bool {
     match (a, b) {
         (None, None) => true,
-        (Some(a), Some(b)) => a.trim().eq_ignore_ascii_case(b.trim()),
+        (Some(a), Some(b)) => skotiq_frame::same_filter(a, b),
         _ => false,
     }
 }
@@ -322,7 +363,10 @@ impl LiveStacker {
     /// provenance too — as unknown here. Callers that read the reference from a
     /// file should use [`LiveStacker::new_with_provenance`] so the master's
     /// `EXPTIME` / `DATE-OBS` count it.
-    pub fn new(reference_frame: &ImageData, config: LiveStackConfig) -> Result<Self, String> {
+    pub fn new(
+        reference_frame: &ImageData,
+        config: LiveStackConfig,
+    ) -> Result<Self, StackerStartError> {
         Self::new_with_provenance(reference_frame, config, &FrameProvenance::unknown())
     }
 
@@ -331,25 +375,27 @@ impl LiveStacker {
         reference_frame: &ImageData,
         config: LiveStackConfig,
         reference_provenance: &FrameProvenance,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, StackerStartError> {
         if reference_frame.is_empty() {
-            return Err("Reference frame is empty".to_string());
+            return Err(StackerStartError::Unusable(
+                "Reference frame is empty".to_string(),
+            ));
         }
 
         // 16-bit frames and float frames, whose sample range says where their
         // ADU are; the stack itself is 16-bit.
         if !matches!(reference_frame.pixel_type, PixelType::U16 | PixelType::F32) {
-            return Err(format!(
+            return Err(StackerStartError::Unusable(format!(
                 "Live stacking reads 16-bit and 32-bit float images, got {:?}",
                 reference_frame.pixel_type
-            ));
+            )));
         }
 
         if !matches!(reference_frame.channels, 1 | 3) {
-            return Err(format!(
+            return Err(StackerStartError::Unusable(format!(
                 "Live stacking supports 1-channel (mono) or 3-channel (RGB) images only, got {} channels",
                 reference_frame.channels
-            ));
+            )));
         }
 
         let width = reference_frame.width;
@@ -363,11 +409,10 @@ impl LiveStacker {
         // would otherwise misread).
         let ref_stars = detect_stars(reference_frame, &config.star_detection);
         if ref_stars.len() < config.min_matched_pairs {
-            return Err(format!(
-                "Reference frame has only {} stars, need at least {} for alignment",
-                ref_stars.len(),
-                config.min_matched_pairs
-            ));
+            return Err(StackerStartError::TooFewReferenceStars {
+                detected: ref_stars.len(),
+                required: config.min_matched_pairs,
+            });
         }
 
         tracing::info!(
@@ -441,7 +486,11 @@ impl LiveStacker {
     /// A frame handed over without a header says nothing about its filter, so
     /// it is not judged on it; `pedestal` is the output pedestal its samples
     /// carry, in ADU (0 for none).
-    pub fn add_frame(&mut self, frame: &ImageData, pedestal: f64) -> Result<ImageData, String> {
+    pub fn add_frame(
+        &mut self,
+        frame: &ImageData,
+        pedestal: f64,
+    ) -> Result<ImageData, FrameRefusal> {
         self.stack_frame(
             frame,
             &FrameProvenance {
@@ -463,16 +512,19 @@ impl LiveStacker {
         &mut self,
         frame: &ImageData,
         provenance: &FrameProvenance,
-    ) -> Result<ImageData, String> {
+    ) -> Result<ImageData, FrameRefusal> {
         if !same_filter(provenance.filter.as_deref(), self.filter.as_deref()) {
             self.last_frame_telemetry = None;
             self.stats.other_filter_frames += 1;
             self.stats.last_other_filter = provenance.filter.clone();
-            return Err(format!(
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::OtherFilter,
+                format!(
                 "{OTHER_FILTER_REFUSAL}: the frame was taken {} and this live stack is of frames \
                  taken {}.",
                 filter_phrase(provenance.filter.as_deref()),
                 filter_phrase(self.filter.as_deref()),
+            ),
             ));
         }
         self.stack_frame(frame, provenance)
@@ -482,26 +534,35 @@ impl LiveStacker {
         &mut self,
         frame: &ImageData,
         provenance: &FrameProvenance,
-    ) -> Result<ImageData, String> {
+    ) -> Result<ImageData, FrameRefusal> {
         self.last_frame_telemetry = None;
         self.stats.total_frames_attempted += 1;
 
         if frame.width != self.width || frame.height != self.height {
-            return Err(format!(
-                "Frame dimensions {}x{} don't match reference {}x{}",
-                frame.width, frame.height, self.width, self.height
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Incompatible,
+                format!(
+                    "Frame dimensions {}x{} don't match reference {}x{}",
+                    frame.width, frame.height, self.width, self.height
+                ),
             ));
         }
         if frame.channels != self.channels {
-            return Err(format!(
-                "Frame channel count {} doesn't match reference {}",
-                frame.channels, self.channels
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Incompatible,
+                format!(
+                    "Frame channel count {} doesn't match reference {}",
+                    frame.channels, self.channels
+                ),
             ));
         }
         if !matches!(frame.pixel_type, PixelType::U16 | PixelType::F32) {
-            return Err(format!(
-                "Live stacking reads 16-bit and 32-bit float images, got {:?}",
-                frame.pixel_type
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Incompatible,
+                format!(
+                    "Live stacking reads 16-bit and 32-bit float images, got {:?}",
+                    frame.pixel_type
+                ),
             ));
         }
 
@@ -520,10 +581,13 @@ impl LiveStacker {
                 frame_stars.len(),
                 self.config.min_matched_pairs
             );
-            return Err(format!(
-                "Insufficient stars for alignment: {} detected, {} required",
-                frame_stars.len(),
-                self.config.min_matched_pairs
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Misaligned,
+                format!(
+                    "Insufficient stars for alignment: {} detected, {} required",
+                    frame_stars.len(),
+                    self.config.min_matched_pairs
+                ),
             ));
         }
 
@@ -547,10 +611,13 @@ impl LiveStacker {
                 matches.len(),
                 self.config.min_matched_pairs
             );
-            return Err(format!(
-                "Insufficient star matches for alignment: {} matched, {} required",
-                matches.len(),
-                self.config.min_matched_pairs
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Misaligned,
+                format!(
+                    "Insufficient star matches for alignment: {} matched, {} required",
+                    matches.len(),
+                    self.config.min_matched_pairs
+                ),
             ));
         }
 
@@ -583,12 +650,15 @@ impl LiveStacker {
                 matches.len(),
                 self.config.min_matched_pairs
             );
-            return Err(format!(
-                "Inconsistent star matches for alignment: {} of {} agree on one transform, \
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Misaligned,
+                format!(
+                    "Inconsistent star matches for alignment: {} of {} agree on one transform, \
                  {} required",
-                inlier_count,
-                matches.len(),
-                self.config.min_matched_pairs
+                    inlier_count,
+                    matches.len(),
+                    self.config.min_matched_pairs
+                ),
             ));
         }
 
@@ -606,9 +676,12 @@ impl LiveStacker {
                 inlier_count,
                 matches.len()
             );
-            return Err(format!(
-                "Alignment residual too high: {:.2}px (max {:.2}px)",
-                residual, self.config.max_alignment_residual_px
+            return Err(FrameRefusal::new(
+                FrameRefusalKind::Misaligned,
+                format!(
+                    "Alignment residual too high: {:.2}px (max {:.2}px)",
+                    residual, self.config.max_alignment_residual_px
+                ),
             ));
         }
 
@@ -790,14 +863,30 @@ impl LiveStacker {
 
     /// Update runtime-mutable stacking parameters without resetting pixels.
     pub fn update_config(&mut self, next: LiveStackConfig) {
-        self.config.sigma_clip_enabled = next.sigma_clip_enabled;
-        self.config.sigma_clip_threshold = next.sigma_clip_threshold;
-        self.config.max_match_stars = next.max_match_stars;
-        self.config.match_radius_px = next.match_radius_px;
-        self.config.match_flux_tolerance = next.match_flux_tolerance;
-        self.config.min_matched_pairs = next.min_matched_pairs;
-        self.config.max_alignment_residual_px = next.max_alignment_residual_px;
-        self.config.star_detection = next.star_detection;
+        // Every field is named, so a new one has to be sorted into runtime
+        // tunable or fixed at start. The sensor and demosaic settings shaped
+        // the reference already ingested and stay as the stack started.
+        let LiveStackConfig {
+            sigma_clip_threshold,
+            sigma_clip_enabled,
+            max_match_stars,
+            match_radius_px,
+            match_flux_tolerance,
+            min_matched_pairs,
+            max_alignment_residual_px,
+            star_detection,
+            bayer_pattern: _,
+            sensor_mode: _,
+            demosaic_algorithm: _,
+        } = next;
+        self.config.sigma_clip_enabled = sigma_clip_enabled;
+        self.config.sigma_clip_threshold = sigma_clip_threshold;
+        self.config.max_match_stars = max_match_stars;
+        self.config.match_radius_px = match_radius_px;
+        self.config.match_flux_tolerance = match_flux_tolerance;
+        self.config.min_matched_pairs = min_matched_pairs;
+        self.config.max_alignment_residual_px = max_alignment_residual_px;
+        self.config.star_detection = star_detection;
     }
 
     /// Record the optical filter name on this stack's FITS provenance.
@@ -2195,7 +2284,6 @@ mod tests {
 
     #[test]
     fn test_affine_translation_only() {
-        // Create matches with a known translation
         let matches = vec![
             StarMatch {
                 ref_star: DetectedStar {
@@ -2797,13 +2885,20 @@ mod tests {
         assert!(stacker.last_frame_telemetry().is_none());
         assert_eq!(
             refusal,
-            "Frame of another filter not stacked: the frame was taken through R and this live \
-             stack is of frames taken through L."
+            FrameRefusal::new(
+                FrameRefusalKind::OtherFilter,
+                "Frame of another filter not stacked: the frame was taken through R and this \
+                 live stack is of frames taken through L."
+                    .to_string()
+            )
         );
         let refusal = stacker
             .add_frame_with_provenance(&shifted, &through(None))
             .expect_err("an unfiltered frame does not enter an L stack");
-        assert!(refusal.contains("taken with no filter"), "{refusal}");
+        assert!(
+            refusal.message.contains("taken with no filter"),
+            "{refusal}"
+        );
 
         let stats = stacker.get_stats();
         assert_eq!(stats.stacked_frame_count, 1);
@@ -2821,6 +2916,37 @@ mod tests {
             .add_frame(&shifted, 0.0)
             .expect("a frame without a header is not judged on its filter");
         assert_eq!(stacker.get_stats().stacked_frame_count, 3);
+    }
+
+    /// The live stack reads a frame's filter by the filter-name rule the
+    /// wheel moves by: a frame through "Baader Ha 7nm" belongs in a stack
+    /// started from "Ha", a frame through "OIII" does not.
+    #[test]
+    fn a_frame_named_by_another_spelling_of_the_filter_stacks() {
+        let field = osc_test_field();
+        let reference = make_test_image(512, 512, &field);
+        let shifted = make_test_image(512, 512, &shift_field(&field, 3.0, 2.0));
+        let through = |filter: &str| FrameProvenance {
+            exposure_secs: Some(60.0),
+            date_obs: None,
+            filter: Some(filter.to_string()),
+            pedestal: 0.0,
+        };
+        let mut stacker =
+            LiveStacker::new_with_provenance(&reference, osc_test_config(), &through("Ha"))
+                .expect("reference accepted");
+        stacker
+            .add_frame_with_provenance(&shifted, &through("Baader Ha 7nm"))
+            .expect("Baader Ha 7nm is Ha");
+        stacker
+            .add_frame_with_provenance(&shifted, &through("H-alpha"))
+            .expect("H-alpha is Ha");
+        stacker
+            .add_frame_with_provenance(&shifted, &through("OIII"))
+            .expect_err("OIII is not Ha");
+        let stats = stacker.get_stats();
+        assert_eq!(stats.stacked_frame_count, 3);
+        assert_eq!(stats.other_filter_frames, 1);
     }
 
     fn shift_field(field: &[(f64, f64, f64)], dx: f64, dy: f64) -> Vec<(f64, f64, f64)> {
@@ -2875,7 +3001,8 @@ mod tests {
         let err = strict
             .add_frame(&frame, 0.0)
             .expect_err("high-residual frame must be rejected");
-        assert!(err.contains("residual"), "unexpected error: {err}");
+        assert_eq!(err.kind, FrameRefusalKind::Misaligned);
+        assert!(err.message.contains("residual"), "unexpected error: {err}");
         assert_eq!(
             strict.frame_count(),
             1,

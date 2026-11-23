@@ -28,8 +28,6 @@ DbCapturedImage _image(int id, String frameType, {bool accepted = true}) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // Rig, 2026-11-03: the picker read "7/8 frames kept" from the session row
-  // while the readouts under it read "4/8 exposures" from the graded frames.
   // The row's `successful_exposures` is what the camera returned, not what the
   // grading kept, so the picker names only the captures.
   testWidgets('the session picker does not call captures frames kept',

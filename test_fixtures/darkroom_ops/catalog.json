@@ -1,0 +1,475 @@
+{
+  "ops": [
+    {
+      "id": "background_extract",
+      "params": [
+        {
+          "default": 64.0,
+          "kind": "number",
+          "max": 1024.0,
+          "min": 8.0,
+          "name": "sampleSpacing",
+          "required": false
+        },
+        {
+          "default": 0.75,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.05,
+          "name": "exclusionPercentile",
+          "required": false
+        },
+        {
+          "default": 2,
+          "kind": "integer",
+          "max": 6.0,
+          "min": 0.0,
+          "name": "modelOrder",
+          "required": false
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    },
+    {
+      "id": "stretch",
+      "params": [
+        {
+          "kind": "number",
+          "max": 1000000000000.0,
+          "min": -1000000000000.0,
+          "name": "blackPoint",
+          "required": true
+        },
+        {
+          "kind": "number",
+          "max": 1000000000000.0,
+          "min": -1000000000000.0,
+          "name": "whitePoint",
+          "required": true
+        },
+        {
+          "default": 1.0,
+          "kind": "number",
+          "max": 10000.0,
+          "min": 0.0,
+          "name": "d",
+          "required": false
+        },
+        {
+          "default": 0.0,
+          "kind": "number",
+          "max": 15.0,
+          "min": -5.0,
+          "name": "b",
+          "required": false
+        },
+        {
+          "default": 0.0,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "symmetryPoint",
+          "required": false
+        },
+        {
+          "allowed": [
+            "linked",
+            "luminance"
+          ],
+          "default": "linked",
+          "kind": "enum",
+          "name": "colorMode",
+          "required": false
+        }
+      ],
+      "stage": "stretched",
+      "version": 1
+    },
+    {
+      "id": "crop",
+      "params": [
+        {
+          "default": 0,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 0.0,
+          "name": "x",
+          "required": false
+        },
+        {
+          "default": 0,
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 0.0,
+          "name": "y",
+          "required": false
+        },
+        {
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 1.0,
+          "name": "width",
+          "required": true
+        },
+        {
+          "kind": "integer",
+          "max": 1000000.0,
+          "min": 1.0,
+          "name": "height",
+          "required": true
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    },
+    {
+      "id": "color_calibrate",
+      "params": [
+        {
+          "kind": "numberArray",
+          "length": 3,
+          "max": 1000000.0,
+          "min": 1e-6,
+          "name": "channelScale",
+          "required": false
+        },
+        {
+          "default": 0.65,
+          "kind": "number",
+          "max": 2.5,
+          "min": -0.5,
+          "name": "whiteRefBv",
+          "required": false
+        },
+        {
+          "default": 17.0,
+          "kind": "number",
+          "max": 22.0,
+          "min": 5.0,
+          "name": "magLimit",
+          "required": false
+        },
+        {
+          "default": 3.0,
+          "kind": "number",
+          "max": 32.0,
+          "min": 0.5,
+          "name": "matchRadiusPx",
+          "required": false
+        },
+        {
+          "default": 8,
+          "kind": "integer",
+          "max": 100000.0,
+          "min": 8.0,
+          "name": "minStars",
+          "required": false
+        },
+        {
+          "allowed": [
+            "catalog",
+            "averageStar"
+          ],
+          "default": "catalog",
+          "kind": "enum",
+          "name": "whiteReference",
+          "required": false
+        },
+        {
+          "default": false,
+          "kind": "boolean",
+          "name": "neutralizeBackground",
+          "required": false
+        },
+        {
+          "kind": "numberArray",
+          "length": 3,
+          "max": 1000000000.0,
+          "min": -1000000000.0,
+          "name": "channelOffset",
+          "required": false
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    },
+    {
+      "id": "denoise",
+      "params": [
+        {
+          "default": 4,
+          "kind": "integer",
+          "max": 6.0,
+          "min": 1.0,
+          "name": "scaleCount",
+          "required": false
+        },
+        {
+          "default": 3.0,
+          "kind": "number",
+          "max": 10.0,
+          "min": 0.0,
+          "name": "thresholdSigma",
+          "required": false
+        },
+        {
+          "default": 1.0,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "strength",
+          "required": false
+        },
+        {
+          "default": 0.5,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "chromaStrength",
+          "required": false
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    },
+    {
+      "id": "star_reduce",
+      "params": [
+        {
+          "default": 0.5,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "amount",
+          "required": false
+        },
+        {
+          "default": 5.0,
+          "kind": "number",
+          "max": 20.0,
+          "min": 1.0,
+          "name": "maskThresholdSigma",
+          "required": false
+        },
+        {
+          "default": 2.0,
+          "kind": "number",
+          "max": 32.0,
+          "min": 0.0,
+          "name": "maskDilatePx",
+          "required": false
+        }
+      ],
+      "stage": "stretched",
+      "version": 1
+    },
+    {
+      "id": "saturation",
+      "params": [
+        {
+          "default": 0.0,
+          "kind": "number",
+          "max": 3.0,
+          "min": -1.0,
+          "name": "amount",
+          "required": false
+        },
+        {
+          "default": 0.5,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "protection",
+          "required": false
+        }
+      ],
+      "stage": "stretched",
+      "version": 1
+    },
+    {
+      "id": "curves",
+      "params": [
+        {
+          "allowed": [
+            "luminance",
+            "perChannel"
+          ],
+          "default": "luminance",
+          "kind": "enum",
+          "name": "mode",
+          "required": false
+        },
+        {
+          "default": [
+            0.0,
+            1.0
+          ],
+          "kind": "numberList",
+          "max": 1.0,
+          "maxLength": 16,
+          "min": 0.0,
+          "minLength": 2,
+          "name": "x",
+          "required": false
+        },
+        {
+          "default": [
+            0.0,
+            1.0
+          ],
+          "kind": "numberList",
+          "max": 1.0,
+          "maxLength": 16,
+          "min": 0.0,
+          "minLength": 2,
+          "name": "y",
+          "required": false
+        }
+      ],
+      "stage": "stretched",
+      "version": 1
+    },
+    {
+      "id": "channel_combine",
+      "params": [
+        {
+          "allowed": [
+            "lrgb",
+            "rgb",
+            "haRgb",
+            "haLrgb",
+            "sho",
+            "hoo",
+            "osc",
+            "custom"
+          ],
+          "kind": "enum",
+          "name": "palette",
+          "required": true
+        },
+        {
+          "kind": "channelMix",
+          "max": 2.0,
+          "min": 0.0,
+          "name": "mix",
+          "required": false
+        },
+        {
+          "kind": "object",
+          "name": "inputs",
+          "required": true
+        },
+        {
+          "kind": "object",
+          "name": "crop",
+          "required": true
+        },
+        {
+          "kind": "object",
+          "name": "fits",
+          "required": false
+        },
+        {
+          "default": 1.0,
+          "kind": "number",
+          "max": 8.0,
+          "min": 0.0,
+          "name": "chromaSmoothing",
+          "required": false
+        },
+        {
+          "kind": "object",
+          "name": "starSigma",
+          "required": false
+        },
+        {
+          "default": 0.5,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "haRedWeight",
+          "required": false
+        },
+        {
+          "default": 0.3,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "haLuminanceWeight",
+          "required": false
+        },
+        {
+          "kind": "object",
+          "name": "flatten",
+          "required": false
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    },
+    {
+      "id": "scnr",
+      "params": [
+        {
+          "default": 1.0,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "amount",
+          "required": false
+        },
+        {
+          "allowed": [
+            "average",
+            "maximum"
+          ],
+          "default": "average",
+          "kind": "enum",
+          "name": "neutral",
+          "required": false
+        },
+        {
+          "default": true,
+          "kind": "boolean",
+          "name": "preserveLightness",
+          "required": false
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    },
+    {
+      "id": "chroma_denoise",
+      "params": [
+        {
+          "default": 6.0,
+          "kind": "number",
+          "max": 64.0,
+          "min": 0.5,
+          "name": "smoothingPx",
+          "required": false
+        },
+        {
+          "default": 8.0,
+          "kind": "number",
+          "max": 100.0,
+          "min": 0.5,
+          "name": "protection",
+          "required": false
+        },
+        {
+          "default": 1.0,
+          "kind": "number",
+          "max": 1.0,
+          "min": 0.0,
+          "name": "amount",
+          "required": false
+        }
+      ],
+      "stage": "linear",
+      "version": 1
+    }
+  ],
+  "recipeSchemaVersion": 1
+}

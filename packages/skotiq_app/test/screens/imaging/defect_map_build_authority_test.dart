@@ -24,7 +24,8 @@ class _SwitchingBackendNotifier extends BackendNotifier {
 }
 
 class _RecordingDefectMapService extends DefectMapService {
-  _RecordingDefectMapService(super.ref);
+  _RecordingDefectMapService(Ref ref)
+      : super(() => ref.read(linkedHostCalibrationToolsProvider));
 
   final directories = <String?>[];
 

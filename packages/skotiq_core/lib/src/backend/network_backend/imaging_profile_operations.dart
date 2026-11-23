@@ -500,22 +500,22 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
 
   CapturedImage _capturedImageFromRow(Map<String, dynamic> row, int index) {
     final context = 'sessions image row $index';
-    final id = _requiredImageInt(row, 'id', context, min: 1);
+    final id = requiredInt(row, 'id', context, min: 1);
     final path = _requiredImageString(row, 'filePath', context);
-    final timestamp = _requiredImageInt(row, 'capturedAt', context, min: 1);
+    final timestamp = requiredInt(row, 'capturedAt', context, min: 1);
     final exposure = _requiredImageDouble(
       row,
       'exposureDuration',
       context,
       min: 0,
     );
-    final gain = _optionalImageInt(row, 'gain', context, min: 0) ?? 0;
-    final offset = _optionalImageInt(row, 'offset', context, min: 0) ?? 0;
-    final binX = _requiredImageInt(row, 'binX', context, min: 1);
-    final binY = _requiredImageInt(row, 'binY', context, min: 1);
+    final gain = optionalInt(row, 'gain', context, min: 0) ?? 0;
+    final offset = optionalInt(row, 'offset', context, min: 0) ?? 0;
+    final binX = requiredInt(row, 'binX', context, min: 1);
+    final binY = requiredInt(row, 'binY', context, min: 1);
     final filter = _optionalImageString(row, 'filter', context);
     final hfr = _optionalImageDouble(row, 'hfr', context, min: 0);
-    final starCount = _optionalImageInt(row, 'starCount', context, min: 0);
+    final starCount = optionalInt(row, 'starCount', context, min: 0);
 
     final DateTime capturedAt;
     try {
@@ -546,36 +546,6 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
         _requiredImageString(row, 'fileFormat', context),
       ),
     );
-  }
-
-  int _requiredImageInt(
-    Map<String, dynamic> row,
-    String key,
-    String context, {
-    required int min,
-  }) {
-    if (!row.containsKey(key)) {
-      throw FormatException('$context is missing $key');
-    }
-    final value = row[key];
-    if (value is! num || !value.isFinite || value != value.truncateToDouble()) {
-      throw FormatException('$context.$key must be an integer');
-    }
-    final result = value.toInt();
-    if (result < min) {
-      throw FormatException('$context.$key must be at least $min');
-    }
-    return result;
-  }
-
-  int? _optionalImageInt(
-    Map<String, dynamic> row,
-    String key,
-    String context, {
-    required int min,
-  }) {
-    if (!row.containsKey(key) || row[key] == null) return null;
-    return _requiredImageInt(row, key, context, min: min);
   }
 
   double _requiredImageDouble(
@@ -839,7 +809,7 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
   }
 
   @override
-  Future<void> saveProfile(EquipmentProfile profile) =>
+  Future<int> saveProfile(EquipmentProfile profile) =>
       saveProfileFields(profile, fields: null);
 
   @override
@@ -873,14 +843,14 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
     );
   }
 
-  /// Save [profile]; when [fields] is given, ask the host to update only those
-  /// fields of its existing row, so edits made elsewhere to the other fields
-  /// survive.
-  Future<void> saveProfileFields(
+  /// Save [profile] and return the id of the row the host saved; when
+  /// [fields] is given, ask the host to update only those fields of its
+  /// existing row, so edits made elsewhere to the other fields survive.
+  @override
+  Future<int> saveProfileFields(
     EquipmentProfile profile, {
     required Set<String>? fields,
   }) async {
-    _lastSavedProfileId = null;
     final response = await _post(
       ProfileApi.saveProfile,
       body: {
@@ -889,13 +859,13 @@ mixin _NetworkBackendImagingProfileOperations on NetworkBackendTransport {
       },
     );
     final rawId = response['id'];
-    final id = rawId?.toString();
-    if (id == null || id.isEmpty || (int.tryParse(id) ?? 0) <= 0) {
+    final id = rawId == null ? null : int.tryParse('$rawId');
+    if (id == null || id <= 0) {
       throw const FormatException(
         'Profile save response did not contain a valid positive id',
       );
     }
-    _lastSavedProfileId = id;
+    return id;
   }
 }
 

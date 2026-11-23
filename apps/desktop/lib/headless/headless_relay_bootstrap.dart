@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:skotiq_core/utils.dart';
-import 'package:skotiq_relay/skotiq_relay.dart';
+import 'package:skotiq_relay/uplink.dart';
 
+import '../launch_arguments.dart' show LaunchOption;
 import 'headless_env.dart';
 
 const _headlessLogSource = 'HeadlessMain';
@@ -23,23 +24,23 @@ Future<RelayUplink?> startRelayUplink({
   required int localPort,
   void Function(String? applianceId)? onApplianceId,
 }) async {
-  String? relayUrlRaw = trimToNull(Platform.environment['SKOTIQ_RELAY_URL']);
-  for (final arg in args) {
-    if (arg.startsWith('--relay-url=')) {
-      relayUrlRaw = trimToNull(arg.substring('--relay-url='.length));
-    }
+  String? relayUrlRaw = trimToNull(
+    Platform.environment[LaunchOption.relayUrl.env!],
+  );
+  for (final value in LaunchOption.relayUrl.valuesIn(args)) {
+    relayUrlRaw = trimToNull(value);
   }
   if (relayUrlRaw == null) return null;
 
   // Off by default: only trust a self-signed relay cert when the operator
   // explicitly opts in (relays they run themselves before getting a real cert).
   final allowInsecureTls =
-      args.contains('--relay-allow-insecure-tls') ||
-      envFlag('SKOTIQ_RELAY_ALLOW_INSECURE_TLS');
+      args.contains(LaunchOption.relayAllowInsecureTls.flag) ||
+      envFlag(LaunchOption.relayAllowInsecureTls.env!);
 
   final Uri relayUrl;
   try {
-    relayUrl = RelayUplink.normalizeRelayUrl(Uri.parse(relayUrlRaw));
+    relayUrl = normalizeRelayUrl(Uri.parse(relayUrlRaw));
   } catch (e) {
     logger.error(
       'Invalid relay URL "$relayUrlRaw": $e. Relay disabled; LAN access '

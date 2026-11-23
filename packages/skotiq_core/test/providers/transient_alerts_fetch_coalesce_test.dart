@@ -370,7 +370,7 @@ void main() {
     });
   }
 
-  // SY-02: a linked client's badge counts what the host's badge counts. The
+  // A linked client's badge counts what the host's badge counts. The
   // host now serves its First Light detections with their state; one the
   // host already reviewed is not new on the client either.
   test('the remote feed keeps the state the host gives each alert', () async {

@@ -61,6 +61,7 @@ typedef MirrorClient = ({ProviderContainer container, MockLinkBackend backend});
 MirrorClient mirrorClient(
   ProviderContainer? host, {
   List<HostRuntimeUpdate> Function()? snapshot,
+  List<Override> overrides = const [],
 }) {
   final backend = MockLinkBackend();
   when(
@@ -80,6 +81,7 @@ MirrorClient mirrorClient(
       backendProvider.overrideWith(
         (ref) => _FixedBackendNotifier(ref, backend),
       ),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);

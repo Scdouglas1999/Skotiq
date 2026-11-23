@@ -6,11 +6,12 @@ use crate::post_session::integrate::LoadedLight;
 use skotiq_imaging::frame_weighting::{
     analyze_frame_quality, FrameQuality, FrameQualityConfig, WeightFormula,
 };
-use skotiq_imaging::integration::{Combine, IntegrationConfig, Reject};
+use skotiq_imaging::integration::{Combine, IntegrationConfig, Reject, RejectBounds, RejectChoice};
 use skotiq_imaging::normalization::{NormMode, NormalizationConfig};
 use skotiq_imaging::registration::{
     min_registration_stars, registrable_star_count, Interpolator, RegistrationConfig, TransformKind,
 };
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_frame_header, read_image, FitsHeader, ImageData, PixelType};
 use std::path::Path;
 
@@ -366,33 +367,18 @@ pub(crate) fn build_integration_config(
         "median" => Combine::Median,
         other => return Err(format!("unknown combine '{other}'")),
     };
-    let reject = match a.reject.trim().to_ascii_lowercase().as_str() {
-        "auto" | "" => auto_reject(sub_count, a.reject_low, a.reject_high),
-        "none" => Reject::None,
-        "sigmaclip" | "sigma_clip" => Reject::SigmaClip {
-            low: a.reject_low,
-            high: a.reject_high,
-        },
-        "winsorizedsigma" | "winsorized_sigma" | "winsorizedsigmaclip" => {
-            Reject::WinsorizedSigmaClip {
-                low: a.reject_low,
-                high: a.reject_high,
-            }
-        }
-        "linearfit" | "linear_fit" | "linearfitclip" => Reject::LinearFitClip {
-            low: a.reject_low,
-            high: a.reject_high,
-        },
-        "percentile" | "percentileclip" => Reject::PercentileClip {
-            low: a.reject_low,
-            high: a.reject_high,
-        },
-        "minmax" | "min_max" => Reject::MinMax {
-            n_low: a.min_max_low,
-            n_high: a.min_max_high,
-        },
-        other => return Err(format!("unknown reject algorithm '{other}'")),
+    let bounds = RejectBounds {
+        low_high: Some((a.reject_low, a.reject_high)),
+        min_max: Some((a.min_max_low, a.min_max_high)),
     };
+    let reject = RejectChoice::from_token(&a.reject)
+        .ok_or_else(|| {
+            format!(
+                "unknown reject algorithm '{}'",
+                a.reject.trim().to_ascii_lowercase()
+            )
+        })?
+        .resolve(sub_count, bounds);
     let output_type = match a.output_bit_depth.trim().to_ascii_lowercase().as_str() {
         "" | "f32" => PixelType::F32,
         "u16" => PixelType::U16,
@@ -408,23 +394,6 @@ pub(crate) fn build_integration_config(
     })
 }
 
-/// Smart reject-algorithm selection by sub count (PixInsight-style):
-/// `<8 → percentile`, `8–24 → winsorized-σ`, `≥25 → linear-fit`.
-pub(crate) fn auto_reject(sub_count: usize, low: f64, high: f64) -> Reject {
-    if sub_count < 8 {
-        // Percentile bounds are fractions; map the sigma-style inputs to a
-        // sensible default trim band when in "auto" mode.
-        Reject::PercentileClip {
-            low: 0.2,
-            high: 0.1,
-        }
-    } else if sub_count < 25 {
-        Reject::WinsorizedSigmaClip { low, high }
-    } else {
-        Reject::LinearFitClip { low, high }
-    }
-}
-
 /// One keyword of a frame's header as trimmed text, whatever its value type;
 /// an empty value counts as absent rather than writing a blank card onto the
 /// master.
@@ -436,10 +405,10 @@ pub(crate) fn header_string(header: &FitsHeader, key: &str) -> Option<String> {
 
 /// Observation metadata carried from the constituent lights onto the master.
 ///
-/// Every field here was previously absent from batch-integrated masters, which
-/// left all four per-filter masters of a session byte-identical in metadata —
-/// nothing recorded which filter, target, instrument or night a master came
-/// from. The values are read from the subs' own headers, never invented.
+/// Without it all four per-filter masters of a session are byte-identical in
+/// metadata — nothing records which filter, target, instrument or night a
+/// master came from.
+/// The values are read from the subs' own headers, never invented.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct MasterProvenance {
     /// `FILTER` from the subs, when they agree.
@@ -505,7 +474,7 @@ pub(crate) fn collect_master_provenance(
 /// `IntegrationArgs::reject` is the *request* token, so recording it directly
 /// stamps `REJECTM = 'auto'` on every default-path master — naming the wire
 /// protocol rather than the science. `auto` resolves by sub count in
-/// [`auto_reject`], and this reports what that resolved to.
+/// [`RejectChoice::resolve`], and this reports what that resolved to.
 pub(crate) fn reject_label(reject: &Reject) -> String {
     match reject {
         Reject::None => "none".to_string(),
@@ -541,10 +510,9 @@ pub(crate) fn build_master_header(
     calibration: &CalibrationReport,
 ) -> FitsHeader {
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq post-session integration");
-    header.set_int("NFRAMES", sub_count as i64);
+    ProductCards::master("MASTER_LIGHT", "Skotiq post-session integration")
+        .with_frames(sub_count as i64)
+        .write_to(&mut header);
     // FITS keywords are capped at 8 chars (see `fits::is_valid_keyword`).
     header.set_string("COMBMETH", &int_args.combine);
     let reject = reject_label(resolved_reject);

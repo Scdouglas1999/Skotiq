@@ -483,27 +483,19 @@ fn fits_time(time: &str) -> Option<String> {
     Some(dt.format("%Y-%m-%dT%H:%M:%S%.f").to_string())
 }
 
-/// The `imageType` literal for an `IMAGETYP` card, which writers spell many
-/// ways ("Light", "LIGHT", "Light Frame", "Master Dark", "MASTER_LIGHT").
+/// The `imageType` literal for an `IMAGETYP` card, read as
+/// [`skotiq_frame::FrameKind::from_imagetyp`] reads the spellings writers use.
 fn image_type_of(card: &str) -> Option<&'static str> {
-    let t = card.to_ascii_lowercase();
-    let master = t.contains("master");
-    let base = if t.contains("bias") || t.contains("offset") {
-        "Bias"
-    } else if t.contains("dark") {
-        "Dark"
-    } else if t.contains("flat") {
-        "Flat"
-    } else if t.contains("light") || t.contains("science") || t.contains("object") {
-        "Light"
-    } else {
-        return None;
-    };
-    Some(match (master, base) {
-        (false, base) => base,
-        (true, "Bias") => "MasterBias",
-        (true, "Dark") => "MasterDark",
-        (true, "Flat") => "MasterFlat",
+    use skotiq_frame::FrameType;
+    let kind = skotiq_frame::FrameKind::from_imagetyp(card)?;
+    Some(match (kind.master, kind.base) {
+        (false, FrameType::Bias) => "Bias",
+        (false, FrameType::Dark | FrameType::DarkFlat) => "Dark",
+        (false, FrameType::Flat) => "Flat",
+        (false, _) => "Light",
+        (true, FrameType::Bias) => "MasterBias",
+        (true, FrameType::Dark | FrameType::DarkFlat) => "MasterDark",
+        (true, FrameType::Flat) => "MasterFlat",
         (true, _) => "MasterLight",
     })
 }
@@ -706,5 +698,27 @@ fn solution_to_cards(image: &XisfImageHeader, header: &mut FitsHeader) {
     }
     if let Some(equinox) = equinox {
         header.set_float("EQUINOX", equinox);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::image_type_of;
+
+    /// A dark-flat is written to XISF as the dark it is taken as, as before
+    /// the frame vocabulary told it apart.
+    #[test]
+    fn a_dark_flat_card_is_written_as_a_dark() {
+        for (card, image_type) in [
+            ("DarkFlat", Some("Dark")),
+            ("Dark Flat", Some("Dark")),
+            ("Master DarkFlat", Some("MasterDark")),
+            ("Master Dark", Some("MasterDark")),
+            ("FLAT", Some("Flat")),
+            ("Light", Some("Light")),
+            ("MASTER_REF", None),
+        ] {
+            assert_eq!(image_type_of(card), image_type, "{card:?}");
+        }
     }
 }

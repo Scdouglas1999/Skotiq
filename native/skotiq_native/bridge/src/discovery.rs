@@ -330,7 +330,7 @@ pub(crate) fn drivers_for_device_type(device_type: DeviceType) -> Vec<DriverType
 /// devices on success or a backend-specific error string on failure. Each
 /// branch only scans the backend identified by `driver_type`, so e.g. asking
 /// for (Camera, Ascom) never touches the Alpaca network or the INDI clients.
-async fn scan_devices_for_pair(
+pub(crate) async fn scan_devices_for_pair(
     device_type: DeviceType,
     driver_type: DriverType,
 ) -> Result<Vec<DeviceInfo>, String> {
@@ -730,27 +730,6 @@ async fn scan_indi_for_type(device_type: DeviceType) -> Result<Vec<DeviceInfo>, 
     Ok(out)
 }
 
-/// The simulator a type's discovery offers first: its id and the name every
-/// screen shows for it.
-fn simulator_for_type(device_type: DeviceType) -> Option<(&'static str, &'static str)> {
-    Some(match device_type {
-        DeviceType::Camera if crate::simulator::camera::sim_imaging_camera_is_dslr() => {
-            ("sim_camera_1", crate::simulator::camera::SIM_DSLR_NAME)
-        }
-        DeviceType::Camera => ("sim_camera_1", "Simulated Camera"),
-        DeviceType::Mount => ("sim_mount_1", "Simulated Mount"),
-        DeviceType::Focuser => ("sim_focuser_1", "Simulated Focuser"),
-        DeviceType::FilterWheel => ("sim_filterwheel_1", "Simulated Filter Wheel"),
-        DeviceType::Rotator => ("sim_rotator_1", "Simulated Rotator"),
-        DeviceType::Dome => ("sim_dome_1", "Simulated Dome"),
-        DeviceType::Weather => ("sim_weather_1", "Simulated Weather Station"),
-        DeviceType::SafetyMonitor => ("sim_safety_monitor_1", "Simulated Safety Monitor"),
-        DeviceType::Switch => ("sim_switch_1", "Simulated Power Switch"),
-        DeviceType::CoverCalibrator => ("sim_cover_calibrator_1", "Simulated Flat Panel"),
-        _ => return None,
-    })
-}
-
 /// The name discovery gives the simulator with [device_id], so a device
 /// reads the same in discovery, the connected list and on a linked client.
 pub(crate) fn simulator_display_name(device_id: &str, device_type: DeviceType) -> Option<String> {
@@ -762,14 +741,14 @@ pub(crate) fn simulator_display_name(device_id: &str, device_type: DeviceType) -
         && device_id == crate::simulator::camera::SIM_GUIDE_CAMERA_ID
     {
         // The imaging camera, re-enumerated at the guide camera's id.
-        return simulator_for_type(device_type).map(|(_, name)| name.to_string());
+        return crate::simulator::listed_simulator(device_type).map(|(_, name)| name.to_string());
     }
-    let (id, name) = simulator_for_type(device_type)?;
+    let (id, name) = crate::simulator::listed_simulator(device_type)?;
     (id == device_id).then(|| name.to_string())
 }
 
 fn scan_simulator_for_type(device_type: DeviceType) -> Vec<DeviceInfo> {
-    let Some((id, name)) = simulator_for_type(device_type) else {
+    let Some((id, name)) = crate::simulator::listed_simulator(device_type) else {
         return Vec::new();
     };
 

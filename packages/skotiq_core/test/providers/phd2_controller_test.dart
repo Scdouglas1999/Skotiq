@@ -678,6 +678,62 @@ void main() {
       });
     });
 
+    group('Disconnect stops only a guider that is capturing', () {
+      const words = <String, bool>{
+        'Connected': false,
+        'Stopped': false,
+        'Selected': false,
+        'Looping': true,
+        'Calibrating': true,
+        'Guiding': true,
+        'Settling': true,
+        'Paused': true,
+        'LostLock': true,
+        'SomethingNew': true,
+      };
+      for (final MapEntry(key: word, value: stops) in words.entries) {
+        test('$word: ${stops ? 'stop' : 'no stop'}', () {
+          fakeAsync((async) {
+            final events = StreamController<SkotiqEvent>.broadcast();
+            final backend = _MockBackend();
+            when(() => backend.eventStream).thenAnswer((_) => events.stream);
+            when(() => backend.phd2Disconnect()).thenAnswer((_) async {});
+            when(() => backend.guiderStopGuiding()).thenAnswer((_) async {});
+            when(() => backend.guiderGetStatus()).thenAnswer(
+              (_) async => Phd2Status(
+                deviceId: kPhd2CanonicalId,
+                state: word,
+                connected: true,
+                rmsRa: 0,
+                rmsDec: 0,
+                rmsTotal: 0,
+                snr: 0,
+                starMass: 0,
+                avgDistance: 0,
+              ),
+            );
+
+            final container = _container(backend);
+            _markConnected(container);
+            final controller = container.read(phd2ControllerProvider);
+            async.flushMicrotasks();
+
+            controller.disconnect();
+            async.flushMicrotasks();
+
+            if (stops) {
+              verify(() => backend.guiderStopGuiding()).called(1);
+            } else {
+              verifyNever(() => backend.guiderStopGuiding());
+            }
+
+            events.close();
+            container.dispose();
+          });
+        });
+      }
+    });
+
     // PHD2 restarted (or crashed) on the rig and nothing reconnected it. The
     // native layer now reconnects to PHD2 on its own, for as long as it
     // takes; this controller must leave that alone (a disconnect or connect

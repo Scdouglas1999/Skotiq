@@ -131,6 +131,15 @@ class TargetHeaderNode extends SequenceNode {
     return parts.join(' · ');
   }
 
+  /// Whether the node still has the (0h, +0°) it is born with: the node has
+  /// no nullable coordinate to mean "no pointing chosen yet", and that point
+  /// in Pisces is in range, so every surface and check treats the exact
+  /// origin as unset. A deliberate origin pointing reads as unset as well;
+  /// nudging either value by the ten-thousandth of a unit the coordinate
+  /// editor exposes claims it back. The Rust run-time check
+  /// (`instructions/gating.rs`) uses the same rule.
+  bool get coordinatesUnset => raHours == 0 && decDegrees == 0;
+
   @override
   NodeKind<TargetHeaderNode> get kind => NodeKinds.targetHeader;
 
@@ -153,16 +162,16 @@ class TargetHeaderNode extends SequenceNode {
     DateTime? startAfter,
     DateTime? endBefore,
     MosaicPanelInfo? mosaicPanel,
-    // Keep-or-replace: omitted or null = keep, non-null = replace. Clearing
-    // any of these back to null is rebuild-explicit at the editor — see
-    // _target_node_properties.dart's integration-budget toggle for the
-    // canonical recipe.
     IntegrationBudget? integrationBudget,
     TargetTrigger? startWhen,
     TargetTrigger? endWhen,
     int? triggerPollIntervalSecs,
     BrightnessTier? brightnessTierHint,
     int? catalogTargetId,
+    // A null argument keeps the field; these set it back to null.
+    bool clearStartAfter = false,
+    bool clearEndBefore = false,
+    bool clearIntegrationBudget = false,
   }) {
     return TargetHeaderNode(
       id: id ?? this.id,
@@ -179,10 +188,12 @@ class TargetHeaderNode extends SequenceNode {
       priority: priority ?? this.priority,
       minAltitude: minAltitude ?? this.minAltitude,
       maxAltitude: maxAltitude ?? this.maxAltitude,
-      startAfter: startAfter ?? this.startAfter,
-      endBefore: endBefore ?? this.endBefore,
+      startAfter: clearStartAfter ? null : (startAfter ?? this.startAfter),
+      endBefore: clearEndBefore ? null : (endBefore ?? this.endBefore),
       mosaicPanel: mosaicPanel ?? this.mosaicPanel,
-      integrationBudget: integrationBudget ?? this.integrationBudget,
+      integrationBudget: clearIntegrationBudget
+          ? null
+          : (integrationBudget ?? this.integrationBudget),
       startWhen: startWhen ?? this.startWhen,
       endWhen: endWhen ?? this.endWhen,
       triggerPollIntervalSecs:

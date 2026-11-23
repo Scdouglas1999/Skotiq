@@ -19,9 +19,10 @@ import '../../../services/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
-import '../actions/armed_start_provider.dart';
-import '../actions/manual_action_gating.dart' show manualActionKey;
-import '../actions/night_action_controller.dart';
+import '../../../services/night_actions/armed_start_provider.dart';
+import '../../../services/night_actions/manual_action_gating.dart'
+    show manualActionKey;
+import '../../../services/night_actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
 import '../data/plan/night_run_phase_provider.dart';
@@ -363,7 +364,7 @@ class NightHeaderBar extends ConsumerWidget {
           label: l10n.text('nightCtlStartNow'),
           control: control,
           variant: ButtonVariant.primary,
-          onPressed: () => _startNow(context, ref),
+          onPressed: () => startWithPreflight(context, ref),
         ),
       );
     }
@@ -378,21 +379,6 @@ class NightHeaderBar extends ConsumerWidget {
     final result = await command(ref.read(sequenceActionServiceProvider));
     if (!context.mounted) return;
     context.showCommandActionResult(result);
-  }
-
-  /// Start now goes through the same pre-flight gate every other Start in
-  /// the app uses, so the header cannot skip the safety checks.
-  static Future<void> _startNow(BuildContext context, WidgetRef ref) {
-    return showDialog<void>(
-      context: context,
-      builder: (_) => PreFlightValidationDialog(
-        onStartSequence: () async {
-          final result = await ref.read(sequenceActionServiceProvider).start();
-          if (!context.mounted) return;
-          context.showCommandActionResult(result);
-        },
-      ),
-    );
   }
 
   /// Arming goes through the same pre-flight as Start now, checked as if

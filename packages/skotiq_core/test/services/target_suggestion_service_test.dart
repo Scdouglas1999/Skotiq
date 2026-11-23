@@ -243,6 +243,74 @@ void main() {
         expect(suggestions.map((s) => s.targetName), contains('M39'));
       });
 
+      // The type is read as a catalog type (DsoType.parse), not by the word
+      // "star": a SIMBAD "*" or a double star without a size is a point
+      // source, and a star cloud is an extended subject even when its row
+      // carries no size.
+      test('reads star rows by catalog type, not by the word star', () async {
+        final suggestions = await service.getSuggestionsForTonight(
+          config: const TargetSuggestionConfig(minScore: 0.0),
+          latitude: 40.0,
+          longitude: -105.0,
+          targets: [
+            createTarget(
+              id: 1,
+              name: 'Simbad star',
+              ra: 20.37,
+              dec: 40.26,
+              objectType: '*',
+              magnitude: 2.2,
+            ),
+            createTarget(
+              id: 2,
+              name: 'Albireo',
+              ra: 19.51,
+              dec: 27.96,
+              objectType: 'Double Star',
+              magnitude: 3.1,
+            ),
+            createTarget(
+              id: 3,
+              name: 'Star cloud',
+              ra: 20.37,
+              dec: 40.26,
+              objectType: 'Star Cloud',
+              magnitude: 4.0,
+            ),
+          ],
+          sessions: [],
+          observationTime: DateTime(2024, 7, 15, 22),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
+        );
+
+        expect(suggestions.map((s) => s.targetName), ['Star cloud']);
+      });
+
+      // Free text that names no catalog type ("Variable Star", a SIMBAD long
+      // name) is not read as a star, so a sizeless row of it stays offered.
+      test('a type no catalog names is not dropped as a star', () async {
+        final suggestions = await service.getSuggestionsForTonight(
+          config: const TargetSuggestionConfig(minScore: 0.0),
+          latitude: 40.0,
+          longitude: -105.0,
+          targets: [
+            createTarget(
+              id: 1,
+              name: 'chi Cyg',
+              ra: 19.84,
+              dec: 32.91,
+              objectType: 'Variable Star',
+              magnitude: 5.0,
+            ),
+          ],
+          sessions: [],
+          observationTime: DateTime(2024, 7, 15, 22),
+          floor: AltitudeFloor(horizon: null, minimumDeg: 0.0),
+        );
+
+        expect(suggestions.map((s) => s.targetName), ['chi Cyg']);
+      });
+
       // A star the user explicitly asked for is still theirs to image, and a
       // star-typed row with a real angular size (an extended emission region
       // carrying a stellar type) is a legitimate subject.

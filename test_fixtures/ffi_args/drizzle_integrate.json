@@ -1,0 +1,30 @@
+{
+  "bayer": "bool",
+  "calibration": {
+    "bias": "string",
+    "cosmeticCorrection": "bool",
+    "dark": "string",
+    "flat": "string",
+    "scaleDark": "bool"
+  },
+  "config": {
+    "kernel": "string",
+    "pixfrac": "number",
+    "scale": "number"
+  },
+  "coverageFits": "string",
+  "coveragePngPath": "string",
+  "frames": [
+    {
+      "fitsPath": "string",
+      "transform": [
+        "number"
+      ],
+      "weight": "number"
+    }
+  ],
+  "outputFits": "string",
+  "previewPngPath": "string",
+  "refH": "number",
+  "refW": "number"
+}

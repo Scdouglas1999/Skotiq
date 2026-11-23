@@ -1,31 +1,23 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../errors/error_text.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/calibration/dark_library_match_tolerances.dart';
 import 'stacking_engine_seam.dart';
 import '../models/imaging/stack_and_share_models.dart';
-import '../providers/auto_stretch_provider.dart';
-import '../providers/capability_provider.dart';
-import '../providers/dark_library_provider.dart';
 import '../database/daos/images_dao.dart';
 import '../database/daos/sessions_dao.dart';
 import '../database/daos/stacked_results_dao.dart';
-import '../providers/database_provider.dart';
-import '../providers/async_scope.dart';
 import 'calibration/calibration_selection.dart';
 import 'calibration_service.dart';
 import 'dark_library_service.dart';
 import '../utils/logging_service.dart';
 import 'stack_light_selector.dart';
-import '../providers/calibration_service_providers.dart';
-import '../providers/live_stacking_service_provider.dart';
-import '../providers/logging_service_provider.dart';
-import '../providers/stack_light_selector_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
+import '../models/backend/device_capabilities.dart';
+import '../utils/async_scope.dart';
+import 'live_stacking_service.dart';
 part 'stack_and_share_service/stack_results.dart';
 part 'stack_and_share_service/rejection_reasons.dart';
 part 'stack_and_share_service/stack_frame_io.dart';
@@ -87,18 +79,57 @@ part 'stack_and_share_service/stack_run_helpers.dart';
 /// the provider layer and the share/export step can consume them
 /// without re-stacking.
 class StackAndShareService {
-  StackAndShareService(
-    this._ref, {
+  /// [host] is the backend the service was built for; a run stops once it is
+  /// stale. The other collaborators are asked for when the run needs them, so
+  /// a run follows the Drift instance, calibration settings and camera in use
+  /// at that step.
+  StackAndShareService({
+    required AsyncScope<SkotiqBackend> host,
+    required LoggingService logger,
+    required StackLightSelector Function() selector,
+    required CalibrationService Function() calibration,
+    required DarkLibraryService Function() darkLibrary,
+    required ImagesDao Function() imagesDao,
+    required SessionsDao Function() sessionsDao,
+    required StackedResultsDao Function() resultsDao,
+    required LiveStackingService Function() liveStacking,
+    required CalibrationSettings Function() calibrationSettings,
+    required DarkLibraryMatchTolerances Function() darkMatchTolerances,
+    required String? Function() connectedCameraId,
+    required Future<CameraCapabilities?> Function(String cameraId)
+    cameraCapabilities,
     StackingEngineSeam engine = const BridgeStackingEngineSeam(),
     StackResultPreviewPersister? persistPreview,
-  }) : _host = _ref.providerBackendScope(),
-       _logger = _ref.read(loggingServiceProvider),
+  }) : _host = host,
+       _logger = logger,
+       _selectorOf = selector,
+       _calibrationOf = calibration,
+       _darkLibraryOf = darkLibrary,
+       _imagesDaoOf = imagesDao,
+       _sessionsDaoOf = sessionsDao,
+       _resultsDaoOf = resultsDao,
+       _liveStackingOf = liveStacking,
+       _calibrationSettings = calibrationSettings,
+       _darkMatchTolerances = darkMatchTolerances,
+       _connectedCameraId = connectedCameraId,
+       _cameraCapabilities = cameraCapabilities,
        _engine = engine,
        _persistPreview = persistPreview;
 
-  final Ref _ref;
   final AsyncScope<SkotiqBackend> _host;
   final LoggingService _logger;
+  final StackLightSelector Function() _selectorOf;
+  final CalibrationService Function() _calibrationOf;
+  final DarkLibraryService Function() _darkLibraryOf;
+  final ImagesDao Function() _imagesDaoOf;
+  final SessionsDao Function() _sessionsDaoOf;
+  final StackedResultsDao Function() _resultsDaoOf;
+  final LiveStackingService Function() _liveStackingOf;
+  final CalibrationSettings Function() _calibrationSettings;
+  final DarkLibraryMatchTolerances Function() _darkMatchTolerances;
+  final String? Function() _connectedCameraId;
+  final Future<CameraCapabilities?> Function(String cameraId)
+  _cameraCapabilities;
 
   // The native stacking engine is process-wide. This admission lock closes
   // the gap before the engine reports itself active (selection/calibration can
@@ -127,12 +158,12 @@ class StackAndShareService {
   StackedRgbaResult? get lastRgbaResult => _lastRgbaResult;
   StackedRgbaResult? _lastRgbaResult;
 
-  StackLightSelector get _selector => _ref.read(stackLightSelectorProvider);
-  CalibrationService get _calibration => _ref.read(calibrationServiceProvider);
-  DarkLibraryService get _darkLibrary => _ref.read(darkLibraryServiceProvider);
-  ImagesDao get _imagesDao => _ref.read(imagesDaoProvider);
-  SessionsDao get _sessionsDao => _ref.read(sessionsDaoProvider);
-  StackedResultsDao get _resultsDao => _ref.read(stackedResultsDaoProvider);
+  StackLightSelector get _selector => _selectorOf();
+  CalibrationService get _calibration => _calibrationOf();
+  DarkLibraryService get _darkLibrary => _darkLibraryOf();
+  ImagesDao get _imagesDao => _imagesDaoOf();
+  SessionsDao get _sessionsDao => _sessionsDaoOf();
+  StackedResultsDao get _resultsDao => _resultsDaoOf();
 
   void _ensureSameHost() {
     if (_host.isCurrent) return;
@@ -167,14 +198,14 @@ class StackAndShareService {
       );
     }
 
-    // Capture every provider value used after the first await while this
-    // service's Ref is still current. Authority checks prevent later work from
+    // Capture every collaborator used after the first await while the
+    // providers behind them are still current. Authority checks prevent later work from
     // continuing, but the cleanup path must still be able to reach the exact
     // old-host DAO and stacker after Riverpod rebuilds this provider.
     final selector = _selector;
     final sessionsDao = _sessionsDao;
     final resultsDao = _resultsDao;
-    final liveStacking = _ref.read(liveStackingServiceProvider);
+    final liveStacking = _liveStackingOf();
 
     final runOwner = Object();
     _processRunOwner = runOwner;
@@ -252,7 +283,6 @@ class StackAndShareService {
       // the dominant cause instead of just quoting a number.
       final rejectionReasons = <String, int>{};
 
-      // Start the stack from the reference frame.
       await _startStack(
         frame: reference,
         stackingConfig: stackingConfig,

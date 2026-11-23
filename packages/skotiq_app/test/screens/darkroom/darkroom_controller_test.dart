@@ -26,6 +26,7 @@ import 'package:skotiq_core/services.dart';
 import 'darkroom_scratch.dart';
 import '../../harness/mock_database.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
+import '../../harness/args_fixture.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -228,6 +229,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     final reply = <String, dynamic>{
       'schemaVersion': 1,
       'ops': [
@@ -296,6 +298,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
     cancelArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     return {
       'renderId': args['renderId'],
       'op': args['op'],
@@ -421,8 +424,7 @@ void main() {
     final state = await settle(const DarkroomScope.recipe(4242));
     expect(state.loadError, contains('Recipe 4242 no longer has a row'));
     // `recipes.master_id` is ON DELETE SET NULL, so a deleted master cannot
-    // take a recipe row with it. The sentence used to speculate that it might
-    // have, which read as "the master is gone" over a master still on disk.
+    // take a recipe row with it.
     expect(state.loadError, contains('still in the library'));
     expect(state.loadError, isNot(contains('deleted along with the master')));
   });

@@ -13,10 +13,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../device_connection_mixin.dart';
 import '../../../utils/device_type_ui.dart';
 import '../../../utils/snackbar_helper.dart';
-import '../../../widgets/troubleshooter/connection_troubleshooter_dialog.dart';
 import '../dialogs/fujifilm_disclaimer_dialog.dart';
 import '../profile_actions.dart';
 import '../utils/profile_mutation_epoch.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 part 'discovery_panel/device_row_item.dart';
 
@@ -49,42 +49,17 @@ class DiscoveryPanel extends ConsumerStatefulWidget {
   @override
   ConsumerState<DiscoveryPanel> createState() => _DiscoveryPanelState();
 
-  /// Derives the troubleshooter inputs from the backend the user actually tried
-  /// to connect and shows [ConnectionTroubleshooterDialog], resolving to `true`
-  /// when the user asked to retry.
-  ///
-  /// Exposed for testing so the connect-failure → troubleshooter orchestration
-  /// can be exercised directly without standing up the full discovery panel and
-  /// its device-state providers. The caller is responsible for the `mounted`
-  /// guards around the (async) dialog.
   /// Resolves the namespaced [DriverType] for the backend the user actually
   /// tried to connect, so the troubleshooter playbook is protocol-aware.
   ///
   /// `availableBackends` may not contain the resolved key in pathological
   /// cases, so we fall back to the backend identity itself rather than
   /// guessing. This is the authoritative resolution for the discovery surface
-  /// (more accurate than deriving the driver from the device-id prefix), and it
-  /// is shared by both the inline connect path and the test-only
-  /// [showConnectionTroubleshooter] entry point.
-  @visibleForTesting
+  /// (more accurate than deriving the driver from the device-id prefix).
   static DriverType resolveDriverType(UnifiedDevice device) {
     final backend = device.selectedBackend ?? device.recommendedBackend;
     final info = device.availableBackends[backend];
     return info?.driverType ?? backend;
-  }
-
-  @visibleForTesting
-  static Future<bool> showConnectionTroubleshooter(
-    BuildContext context,
-    UnifiedDevice device,
-    Object error,
-  ) {
-    return ConnectionTroubleshooterDialog.show(
-      context,
-      deviceType: device.type,
-      driverType: resolveDriverType(device),
-      rawError: error.toString(),
-    );
   }
 }
 
@@ -523,9 +498,12 @@ class _DiscoveryPanelState extends ConsumerState<DiscoveryPanel>
     // Fujifilm warranty disclaimer check — must clear before we attempt the
     // connection, so it stays out of the shared mixin connect path.
     if (device.type == DeviceType.camera &&
-        isFujifilmDevice(deviceId, device.displayName)) {
-      final accepted = await showFujifilmDisclaimerIfNeeded(context);
-      if (!accepted) return;
+        !await askCameraConsentBeforeConnect(
+          context,
+          deviceId: deviceId,
+          deviceName: device.displayName,
+        )) {
+      return;
     }
 
     // Route through the shared [DeviceConnectionMixin.connectDevice] so the

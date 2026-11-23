@@ -164,11 +164,7 @@ pub async fn dither(
         guard.settling = true;
         guard.settle_timeout_deadline =
             Some(Instant::now() + Duration::from_secs_f64(timeout_secs));
-        // Install THIS dither's settle spec. The guiding loop used to judge every
-        // settle by the tolerance captured when guiding started, so the
-        // sequencer's per-dither `settle_pixels`/`settle_time` — passed all the
-        // way down from the Dither instruction through `guider_dither` — were
-        // dropped on the floor while the log line claimed "settle: <Xpx in Ys".
+        // Install THIS dither's settle spec.
         guard.settle_spec = SettleSpec {
             pixels: settle_pixels,
             time: settle_time,

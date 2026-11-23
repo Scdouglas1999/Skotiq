@@ -182,9 +182,6 @@ where
     let timeout_duration = if let Some(current) = current_position {
         let distance = (target_position - current).abs();
         let full_travel_time = 120.0; // 120s for full travel
-                                      // Why: i32 → f64 widening, exact. The resulting
-                                      // timeout is clamped to [30, 180] seconds via min/max below, so
-                                      // any precision artifact is invisible.
         let estimated_secs =
             (f64::from(distance) / f64::from(max_position)) * full_travel_time + 10.0;
         Duration::from_secs_f64(estimated_secs.max(30.0).min(180.0))
@@ -198,6 +195,17 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn long_slew_is_the_shared_figure_the_app_waits() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../test_fixtures/timeouts/long_slew.json"
+        )))
+        .expect("the long-slew fixture is JSON");
+        let seconds = fixture["long_slew_seconds"].as_u64().expect("seconds");
+        assert_eq!(Timeouts::long_slew(), Duration::from_secs(seconds));
+    }
 
     #[tokio::test]
     async fn test_timeout_success() {

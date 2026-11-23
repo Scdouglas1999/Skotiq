@@ -630,8 +630,8 @@ impl CameraDriver for TouptekCamera {
                 None
             },
             cooler_on,
-            gain,
-            offset: self.core.offset,
+            gain: Some(gain),
+            offset: Some(self.core.offset),
             bin_x: self.core.bin_x,
             bin_y: self.core.bin_y,
             exposure_remaining,
@@ -1261,6 +1261,7 @@ impl CameraDriver for TouptekCamera {
     }
 
     async fn get_offset(&self) -> Result<i32, DriverError> {
+        self.core.require_connected()?;
         if !self.core.capabilities.can_set_offset {
             return Ok(0);
         }

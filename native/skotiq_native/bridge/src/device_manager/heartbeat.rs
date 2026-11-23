@@ -1,9 +1,7 @@
 //! Device heartbeat monitoring loop and lifecycle.
-//!
-//! Methods in this module are an additional impl block on `DeviceManager`
-//! using Rust's split-impl-block feature.
 
 use crate::device::{DeviceType, DriverType};
+use crate::device_manager::failure::DeviceFailure;
 use crate::device_manager::policy::policy;
 use crate::device_manager::{DeviceManager, HeartbeatConfig};
 use crate::event::equipment::{EquipmentEvent, EventSeverity};
@@ -26,15 +24,13 @@ pub(crate) enum HeartbeatEventKind {
     /// The device crossed the failure threshold: emit
     /// `HeartbeatStatusChanged { status: Disconnected }` followed by an
     /// `Error` carrying the human-readable reason. These two travel
-    /// together and replace the old (redundant) standalone `Disconnected`
-    /// event so the disconnect surfaces exactly one user-facing toast.
+    /// together so the disconnect surfaces exactly one user-facing toast.
     DisconnectedAndError,
 }
 
 /// Longest a heartbeat holds off in a row for the camera's USB use. A run
 /// exposes nearly all the time, so without a bound a focuser or wheel behind
-/// the camera was never polled, and one that dropped off the bus stayed lost
-/// (rig, 2026-11-17).
+/// the camera was never polled, and one that dropped off the bus stayed lost.
 pub(crate) const MAX_USB_DEFERRAL: Duration = Duration::from_secs(60);
 
 /// Whether a heartbeat holds off this poll for the camera's USB use: only
@@ -56,11 +52,13 @@ pub(crate) fn defers_for_camera_usb(
 /// [`crate::device_manager::read_health`].
 pub(crate) fn with_status_reads(
     probe: Result<bool, String>,
-    failing_reads: Option<String>,
-) -> Result<bool, String> {
+    failing_reads: Option<DeviceFailure>,
+) -> Result<bool, DeviceFailure> {
     match (probe, failing_reads) {
-        (Ok(true), Some(reason)) => Err(format!("Status reads are failing: {reason}")),
-        (probe, _) => probe,
+        (Ok(true), Some(reason)) => {
+            Err(reason.reworded(|reason| format!("Status reads are failing: {reason}")))
+        }
+        (probe, _) => probe.map_err(DeviceFailure::words),
     }
 }
 
@@ -77,8 +75,7 @@ pub(crate) fn with_status_reads(
 /// * below threshold + latch set     -> no events, latch stays set;
 /// * at/above threshold + escalate   -> exactly one `DisconnectedAndError`
 ///   (never a standalone Degraded *and* a disconnect on the same poll, and
-///   never a standalone `Disconnected` event — that was the duplicate toast
-///   removed in the polish pass). The latch value is irrelevant past the
+///   never a standalone `Disconnected` event). The latch value is irrelevant past the
 ///   threshold because the loop terminates after a disconnect.
 /// * at/above threshold + NOT escalate -> at most one `Degraded` (latched), and
 ///   NEVER a disconnect. The slow auxiliary devices (focuser/filter wheel/
@@ -140,15 +137,11 @@ impl DeviceManager {
     /// driver call ahead of it in the queue times the probe out transiently.
     ///
     /// Applying the retry ONCE here, above the per-driver dispatch, gives ASCOM,
-    /// Native, INDI and Alpaca identical behavior by construction (the user
-    /// asked for parity across all four). The alternative — duplicating the
-    /// retry inside each driver's mount/focuser/wheel arm — is twelve copies
+    /// Native, INDI and Alpaca identical behavior by construction; a retry inside
+    /// each driver's mount/focuser/wheel arm would be twelve copies
     /// that drift out of parity. Camera/etc. poll fast, reliable properties and
     /// are checked once. A genuinely-gone device fails the retry too and is
     /// still escalated by the surrounding loop.
-    ///
-    /// Visibility note: `pub(super)` so the in-module tests in
-    /// `device_manager::tests` (one level up) can call it directly.
     pub(super) async fn perform_health_check(
         &self,
         device_id: &str,
@@ -205,7 +198,7 @@ impl DeviceManager {
             // handle.
             DriverType::Alpaca | DriverType::Ascom | DriverType::Simulator => Err(format!(
                 "No {} heartbeat implementation for device {} ({:?})",
-                crate::device_manager::handle::protocol_label(*driver_type),
+                driver_type.label(),
                 device_id,
                 device_type
             )),
@@ -228,7 +221,6 @@ impl DeviceManager {
         device_id: &str,
         config: HeartbeatConfig,
     ) -> Result<(), String> {
-        // Check if device exists and get its info
         let (device_type, device_type_str, driver_type) = {
             let devices = self.devices.read().await;
             match devices.get(device_id) {
@@ -241,7 +233,6 @@ impl DeviceManager {
             }
         };
 
-        // Stop any existing heartbeat for this device
         self.stop_heartbeat(device_id).await?;
 
         tracing::info!(
@@ -278,8 +269,10 @@ impl DeviceManager {
         // kill heartbeat for the whole session.
         let device_id_clone = device_id.to_string();
         let app_state = self.app_state.clone();
-        // We need a reference to perform health checks - clone Arc pointer from the global singleton
-        let manager = crate::device_manager::get_device_manager().clone();
+        let manager = self
+            .me
+            .upgrade()
+            .ok_or_else(|| format!("Heartbeat for {device_id}: the device manager is gone"))?;
 
         let give_up_app_state = app_state.clone();
         let give_up_device_type_str = device_type_str.clone();
@@ -469,10 +462,11 @@ impl DeviceManager {
                             device.heartbeat_deferred_at = None;
                         }
                     }
-                    let error_msg = match &health_check_result {
+                    let failure = match &health_check_result {
                         Err(e) => e.clone(),
-                        _ => "Device not responding".to_string(),
+                        _ => DeviceFailure::words("Device not responding"),
                     };
+                    let error_msg = failure.to_string();
 
                     tracing::warn!(
                         "Heartbeat failure {}/{} for device {}: {}",
@@ -485,15 +479,14 @@ impl DeviceManager {
                     // A device lost to a hub that dropped is reopened at
                     // once, off this task: the reopen restarts this
                     // heartbeat.
-                    if manager.wants_reopen(&device_id_clone, &error_msg).await {
+                    if manager.wants_reopen(&device_id_clone, &failure).await {
                         crate::device_manager::device_reopen::reopen_in_background(
                             manager.clone(),
                             device_id_clone.clone(),
-                            error_msg.clone(),
+                            failure.clone(),
                         );
                     }
 
-                    // Apply exponential backoff
                     let new_interval = Duration::from_secs_f64(
                         current_interval.as_secs_f64() * config.backoff_multiplier,
                     );
@@ -536,54 +529,22 @@ impl DeviceManager {
                                 );
 
                                 if manager
-                                    .mark_lost(
+                                    .record_lost(
                                         &device_id_clone,
+                                        device_type,
                                         config.auto_reconnect,
-                                        &format!(
-                                            "Unresponsive after {consecutive_failures} heartbeat failures: {error_msg}"
-                                        ),
+                                        crate::device_manager::connection::Loss::Unresponsive {
+                                            failures: consecutive_failures,
+                                            error: &error_msg,
+                                        },
                                     )
                                     .await
-                                    .is_some()
+                                    && config.auto_reconnect
                                 {
-                                    // De-dupe: emit exactly two events on
-                                    // disconnect — one canonical status change
-                                    // (drives the UI/health state) plus one
-                                    // Error carrying the human message (drives
-                                    // the notification toast). The standalone
-                                    // EquipmentEvent::Disconnected was redundant
-                                    // with the HeartbeatStatusChanged{Disconnected}
-                                    // status and produced a third, duplicate
-                                    // user-facing toast.
-                                    app_state.publish_equipment_event(
-                                        EquipmentEvent::HeartbeatStatusChanged {
-                                            device_type: device_type_str.clone(),
-                                            device_id: device_id_clone.clone(),
-                                            status: crate::event::equipment::HeartbeatStatus::Disconnected,
-                                            consecutive_failures,
-                                            last_rtt_ms: None,
-                                        },
-                                        EventSeverity::Error,
+                                    tracing::info!(
+                                        "Device {} marked for reconnection via reconnection_loop (heartbeat auto_reconnect)",
+                                        device_id_clone
                                     );
-
-                                    app_state.publish_equipment_event(
-                                        EquipmentEvent::Error {
-                                            device_type: device_type_str.clone(),
-                                            device_id: device_id_clone.clone(),
-                                            message: format!(
-                                                "Device unresponsive after {} heartbeat failures: {}",
-                                                consecutive_failures, error_msg
-                                            ),
-                                        },
-                                        EventSeverity::Error,
-                                    );
-
-                                    if config.auto_reconnect {
-                                        tracing::info!(
-                                            "Device {} marked for reconnection via reconnection_loop (heartbeat auto_reconnect)",
-                                            device_id_clone
-                                        );
-                                    }
                                 }
                             }
                         }
@@ -715,12 +676,12 @@ impl DeviceManager {
 #[cfg(test)]
 mod heartbeat_event_tests {
     use super::{
-        defers_for_camera_usb, heartbeat_events_for_poll, with_status_reads, HeartbeatEventKind,
-        MAX_USB_DEFERRAL,
+        defers_for_camera_usb, heartbeat_events_for_poll, with_status_reads, DeviceFailure,
+        HeartbeatEventKind, MAX_USB_DEFERRAL,
     };
     use std::time::Duration;
 
-    /// Rig, 2026-11-17: through a run the camera exposes nearly all the
+    /// Through a run the camera exposes nearly all the
     /// time, and the EAF's heartbeat held off for it on every poll, so a
     /// focuser that dropped off the bus was never found lost. The hold-off is
     /// bounded, and a device whose reads already fail is polled at once.
@@ -747,17 +708,19 @@ mod heartbeat_event_tests {
     /// and arms the latch.
     #[test]
     fn failing_status_reads_overrule_a_passing_probe() {
-        let reads = Some("the last 3 status reads failed: Failed to get RA".to_string());
+        let reads = Some(DeviceFailure::words(
+            "the last 3 status reads failed: Failed to get RA",
+        ));
         let result = with_status_reads(Ok(true), reads.clone());
         assert!(
-            matches!(&result, Err(e) if e.contains("Failed to get RA")),
+            matches!(&result, Err(e) if e.to_string().contains("Failed to get RA")),
             "{result:?}"
         );
         assert_eq!(with_status_reads(Ok(true), None), Ok(true));
         // A failing probe keeps its own, more specific reason.
         assert_eq!(
             with_status_reads(Err("probe".into()), reads),
-            Err("probe".to_string())
+            Err(DeviceFailure::words("probe"))
         );
     }
 

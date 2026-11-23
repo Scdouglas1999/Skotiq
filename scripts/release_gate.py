@@ -11,6 +11,7 @@ refuses and exits 1 when there is one.
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -27,6 +28,54 @@ REQUIRED_CHECKS = (
     "Format Check",
     "Build Test (Desktop) (ubuntu-latest)",
 )
+
+CI_WORKFLOW = Path(__file__).resolve().parent.parent / ".github" / "workflows" / "ci.yml"
+
+
+def ci_check_names(workflow_text):
+    """The check-run names the jobs of a workflow produce.
+
+    A job is named by its `name:`; a job with an `os` matrix produces one
+    check per runner, named `<name> (<os>)`.
+    """
+    names = set()
+    in_jobs = False
+    name = None
+    oses = None
+
+    def close():
+        if name is None:
+            return
+        if oses:
+            names.update(f"{name} ({os_name})" for os_name in oses)
+        else:
+            names.add(name)
+
+    for line in workflow_text.splitlines():
+        if re.match(r"^\S", line):
+            in_jobs = line.startswith("jobs:")
+            continue
+        if not in_jobs:
+            continue
+        if re.match(r"^  [\w-]+:\s*$", line):
+            close()
+            name, oses = None, None
+            continue
+        job_name = re.match(r"^    name:\s*(.+?)\s*$", line)
+        if job_name:
+            name = job_name.group(1).strip("'\"")
+            continue
+        matrix_os = re.match(r"^\s+os:\s*\[(.*)\]\s*$", line)
+        if matrix_os:
+            oses = [part.strip().strip("'\"") for part in matrix_os.group(1).split(",")]
+    close()
+    return names
+
+
+def missing_required_checks(workflow_text):
+    """Required checks that no job of the CI workflow produces."""
+    produced = ci_check_names(workflow_text)
+    return [name for name in REQUIRED_CHECKS if name not in produced]
 
 
 def run(command):

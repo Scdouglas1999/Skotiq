@@ -171,37 +171,10 @@ async fn connect_device_expecting(
         device_id
     );
 
-    // Special handling for PHD2 auto-launch
     if crate::guider::phd2::is_device_id(&device_id) {
-        if !skotiq_phd2::is_phd2_running() {
-            tracing::info!("PHD2 not running, attempting to launch...");
-            if let Err(e) = skotiq_phd2::launch_phd2() {
-                tracing::error!("Failed to launch PHD2: {}", e);
-                return Err(SkotiqError::connection_failed(
-                    &device_id,
-                    format!("Failed to launch PHD2: {}", e),
-                ));
-            }
-
-            // Wait for it to start
-            tracing::info!("Waiting for PHD2 to start...");
-            let mut started = false;
-            for _ in 0..20 {
-                // Wait up to 10 seconds
-                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                if skotiq_phd2::is_phd2_running() {
-                    started = true;
-                    break;
-                }
-            }
-
-            if !started {
-                return Err(SkotiqError::connection_failed(
-                    &device_id,
-                    "Timed out waiting for PHD2 to start",
-                ));
-            }
-        }
+        crate::guider::phd2::bring_back(crate::guider::phd2::Launch::IfNotRunning, None)
+            .await
+            .map_err(|e| SkotiqError::connection_failed(&device_id, e))?;
     }
 
     // Check if device is registered in DeviceManager, if not, discover and register it
@@ -266,13 +239,6 @@ pub async fn api_disconnect_device(
         .disconnect_device(&device_id)
         .await
         .map_err(|e| SkotiqError::OperationFailed(e))
-}
-
-/// Check if a device is connected
-pub async fn api_is_device_connected(device_type: DeviceType, device_id: String) -> bool {
-    get_device_manager()
-        .is_device_connected(device_type, &device_id)
-        .await
 }
 
 /// Get list of connected devices

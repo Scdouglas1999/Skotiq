@@ -1,3 +1,5 @@
+import 'package:skotiq_remote_protocol/wire.dart' show ApiErrorCodes;
+
 /// What the guider did when a mount move this app started asked it to stop.
 ///
 /// The rule has one owner, the host's native mount commands: a GoTo, a park
@@ -55,7 +57,7 @@ class GuiderNotAnsweringException implements Exception {
   const GuiderNotAnsweringException([this.reason]);
 
   /// The host's error code for this refusal.
-  static const code = 'guider_not_answering';
+  static const code = ApiErrorCodes.guiderNotAnswering;
 
   /// One sentence for the operator.
   static const message =

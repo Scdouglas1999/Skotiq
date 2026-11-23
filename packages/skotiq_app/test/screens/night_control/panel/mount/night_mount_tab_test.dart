@@ -31,18 +31,23 @@ void main() {
       const NightMountTab(),
       overrides: panelOverrides(),
     );
-    handle.container.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
-    handle.container.read(flipCurrentStepProvider.notifier).state =
-        FlipStep.enablingTracking;
+    handle.container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.executing));
+    handle.container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(step: FlipStep.enablingTracking));
     await tester.pump();
 
     expect(find.text('Turning tracking on'), findsOneWidget);
     expect(find.text('A meridian flip is running'), findsWidgets);
 
-    handle.container.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.idle;
-    handle.container.read(flipCurrentStepProvider.notifier).state = null;
+    handle.container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.idle));
+    handle.container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(clearStep: true));
     await tester.pump();
     expect(find.text('Turning tracking on'), findsNothing);
   });

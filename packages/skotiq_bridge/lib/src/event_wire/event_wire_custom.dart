@@ -65,11 +65,17 @@ Map<String, Object?> _encodeStop(SequencerStop stop) => switch (stop) {
   SequencerStop_Operator() => const {'by': 'operator'},
   SequencerStop_Autopilot() => const {'by': 'autopilot'},
   SequencerStop_System(:final origin) => {'by': 'system', 'origin': origin},
-  SequencerStop_Trigger(:final triggerId, :final triggerName) => {
-    'by': 'trigger',
-    'trigger_id': triggerId,
-    'trigger_name': triggerName,
-  },
+  SequencerStop_Trigger(
+    :final triggerId,
+    :final triggerName,
+    :final nightEnd,
+  ) =>
+    {
+      'by': 'trigger',
+      'trigger_id': triggerId,
+      'trigger_name': triggerName,
+      'night_end': nightEnd == null ? null : encodeSequencerNightEnd(nightEnd),
+    },
 };
 
 SequencerStop? _decodeStop(Map<String, Object?> d) => switch (d['by']) {
@@ -80,6 +86,7 @@ SequencerStop? _decodeStop(Map<String, Object?> d) => switch (d['by']) {
   'trigger' => SequencerStop.trigger(
     triggerId: wireString(d, 'trigger_id'),
     triggerName: wireString(d, 'trigger_name'),
+    nightEnd: decodeSequencerNightEnd(d['night_end']),
   ),
   _ => null,
 };

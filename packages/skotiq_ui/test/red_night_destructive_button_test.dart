@@ -174,7 +174,7 @@ void main() {
   testWidgets('every theme now spends fill weight, not hue', (tester) async {
     // 05 §6 promotes the red-night repair to the whole app: destructive is
     // hollow with an `error` ring in EVERY theme. Hue still separates the pair
-    // in dark and light, but it is no longer the only thing that does, so a
+    // in dark and light, but it is not the only thing that does, so a
     // screenshot of the footer reads the same way in all three modes.
     for (final entry in <String, ThemeData>{
       'dark': SkotiqTheme.dark,

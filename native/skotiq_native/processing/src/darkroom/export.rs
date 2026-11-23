@@ -44,6 +44,7 @@
 //! export of one is refused unless the caller asks for the engine's own auto
 //! screen transfer — which is then named in the reply.
 
+use skotiq_imaging::atomic_file::{replace_file, Replace, ReplaceError};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -57,7 +58,7 @@ use skotiq_imaging::{FitsHeader, ImageData, PixelType, RasterFormat, DEFAULT_JPE
 use crate::darkroom::args::{empty_report_json, report_json, CancelledRender, DarkroomExportArgs};
 use crate::darkroom::render::{
     build_context, level_json, load_pyramid, parse_recipe, quantise_unit, run_render,
-    screen_transfer,
+    screen_transfer, MasterSource,
 };
 use crate::darkroom::state::{registry, RENDERS};
 
@@ -167,7 +168,7 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
     }
 
     let token = RENDERS.register(&args.render_id)?;
-    let master = load_pyramid(&args.master_path, None, &token)?;
+    let master = load_pyramid(&MasterSource::required(&args.master_path, None)?, &token)?;
     let base = Arc::clone(master.pyramid.base());
     let (ctx, catalog_stars) = build_context(&recipe, &base, 0, &token, &args.catalog_stars)?;
 
@@ -255,9 +256,10 @@ pub(crate) fn run_export(recipe_json: &str, args: DarkroomExportArgs) -> Result<
             return Err(format!("output '{format}' has no path"));
         }
         let path = PathBuf::from(path);
-        let entry = match format.as_str() {
-            "png" | "tiff" | "jpeg" => write_raster(&path, &raster_image, &format, output.quality)?,
-            other => {
+        let entry = match RasterFormat::from_extension(&format) {
+            Some(raster) => write_raster(&path, &raster_image, &format, raster, output.quality)?,
+            None => {
+                let other = format.as_str();
                 let frame_format = frame_format_of(other).ok_or_else(|| {
                     format!("unknown export format '{other}'; expected fits/xisf/png/jpeg/tiff")
                 })?;
@@ -428,10 +430,10 @@ fn write_frame_atomic(
     header: &FitsHeader,
 ) -> Result<Value, String> {
     let data = image.to_image_data().with_range(range);
-    let temp = temp_sibling(path);
-    skotiq_imaging::write_frame_as(format, &temp, &data, header, &Default::default())
-        .map_err(|e| format!("cannot write '{}': {e}", path.display()))?;
-    finish_atomic(&temp, path)?;
+    write_atomic(path, |temp| {
+        skotiq_imaging::write_frame_as(format, temp, &data, header, &Default::default())
+            .map_err(|e| format!("cannot write '{}': {e}", path.display()))
+    })?;
     Ok(json!({
         "format": skotiq_imaging::frame_extension(format),
         "path": path.to_string_lossy(),
@@ -449,6 +451,7 @@ fn write_raster(
     path: &Path,
     image: &OpImage,
     format: &str,
+    raster: RasterFormat,
     quality: Option<u8>,
 ) -> Result<Value, String> {
     let channels = image.channels();
@@ -458,15 +461,16 @@ fn write_raster(
         ));
     }
     let mut clamped = 0usize;
-    let temp = temp_sibling(path);
-    let (pixel_type, bits) = match format {
-        "jpeg" => ("u8", 8u32),
-        _ => ("u16", 16u32),
+    let is_jpeg = matches!(raster, RasterFormat::Jpeg { .. });
+    let (pixel_type, bits) = if is_jpeg {
+        ("u8", 8u32)
+    } else {
+        ("u16", 16u32)
     };
     let quality = quality.unwrap_or(DEFAULT_JPEG_QUALITY).clamp(1, 100);
 
-    match format {
-        "jpeg" => {
+    write_atomic(path, |temp| match raster {
+        RasterFormat::Jpeg { .. } => {
             let samples: Vec<u8> = image
                 .data()
                 .iter()
@@ -480,30 +484,19 @@ fn write_raster(
                 data: samples,
                 range: skotiq_imaging::SampleRange::of(PixelType::U8),
             };
-            skotiq_imaging::write_raster(&temp, &data, RasterFormat::Jpeg { quality })
-                .map_err(|e| e.to_string())?;
+            skotiq_imaging::write_raster(temp, &data, RasterFormat::Jpeg { quality })
+                .map_err(|e| e.to_string())
         }
-        "png" | "tiff" => {
+        RasterFormat::Png | RasterFormat::Tiff => {
             let samples: Vec<u16> = image
                 .data()
                 .iter()
                 .map(|value| quantise_unit(*value, 65535.0, &mut clamped) as u16)
                 .collect();
             let data = ImageData::from_u16(image.width(), image.height(), channels, &samples);
-            let format = if format == "png" {
-                RasterFormat::Png
-            } else {
-                RasterFormat::Tiff
-            };
-            skotiq_imaging::write_raster(&temp, &data, format).map_err(|e| e.to_string())?;
+            skotiq_imaging::write_raster(temp, &data, raster).map_err(|e| e.to_string())
         }
-        other => {
-            return Err(format!(
-                "unknown raster format '{other}'; expected png/jpeg/tiff"
-            ))
-        }
-    }
-    finish_atomic(&temp, path)?;
+    })?;
 
     let mut entry = json!({
         "format": format,
@@ -516,7 +509,7 @@ fn write_raster(
         "bitsPerSample": bits,
         "clampedSamples": clamped,
     });
-    if format == "jpeg" {
+    if is_jpeg {
         entry["quality"] = json!(quality);
     }
     Ok(entry)
@@ -582,10 +575,10 @@ fn write_sidecar(
         "canonicalRecipe": canonical_recipe,
     });
     let body = canonical_json(&document);
-    let temp = temp_sibling(&path);
-    std::fs::write(&temp, body.as_bytes())
-        .map_err(|e| format!("cannot write '{}': {e}", path.display()))?;
-    finish_atomic(&temp, &path)?;
+    write_atomic(&path, |temp| {
+        std::fs::write(temp, body.as_bytes())
+            .map_err(|e| format!("cannot write '{}': {e}", path.display()))
+    })?;
 
     Ok(SidecarOutcome {
         path: Value::String(path.to_string_lossy().to_string()),
@@ -615,21 +608,38 @@ fn append_extension(path: &Path, suffix: &str) -> PathBuf {
     path.with_extension(extension)
 }
 
-/// Rename a completed temporary into place, removing it if the rename fails so
-/// no half-named file is left behind.
-fn finish_atomic(temp: &Path, path: &Path) -> Result<(), String> {
-    match std::fs::rename(temp, path) {
-        Ok(()) => Ok(()),
-        Err(rename_error) => {
-            if let Err(cleanup_error) = std::fs::remove_file(temp) {
+/// Write `path` through its temporary sibling and rename it into place,
+/// removing the temporary if the rename fails so no half-named file is left
+/// behind.
+fn write_atomic(
+    path: &Path,
+    write: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<(), String> {
+    let temp = temp_sibling(path);
+    let how = Replace {
+        sync: false,
+        ..Replace::DURABLE
+    };
+    replace_file(path, &temp, how, write).map_err(|e| match e {
+        ReplaceError::Write { error, cleanup } => {
+            if let Some(cleanup_error) = cleanup {
+                tracing::warn!(
+                    "Darkroom export could not remove '{}' after a failed write: {cleanup_error}",
+                    temp.display()
+                );
+            }
+            error
+        }
+        ReplaceError::Place { error, cleanup } => {
+            if let Some(cleanup_error) = cleanup {
                 tracing::warn!(
                     "Darkroom export could not remove '{}' after a failed rename: {cleanup_error}",
                     temp.display()
                 );
             }
-            Err(format!("cannot place '{}': {rename_error}", path.display()))
+            format!("cannot place '{}': {error}", path.display())
         }
-    }
+    })
 }
 
 /// The size of a written file, or `null` when it cannot be read back.

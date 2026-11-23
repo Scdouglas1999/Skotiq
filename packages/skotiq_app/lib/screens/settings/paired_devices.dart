@@ -10,6 +10,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 
 import '../../localization/skotiq_localizations.dart';
 import '../../utils/snackbar_helper.dart';
+import 'pairing_qr.dart';
 import 'widgets/settings_widgets.dart';
 
 part 'paired_devices_parts/_notifier.dart';
@@ -56,14 +57,12 @@ class PairingSettings extends ConsumerWidget {
                   code: code,
                   timeRemaining: state.timeRemaining,
                   webState: webState,
-                  appVersion: ref.watch(appVersionProvider).version,
                   busy: state.isLoading,
                   onStop: notifier.cancelPairing,
                 ),
               )
             else
               SettingRow(
-                icon: SkotiqIcons.link,
                 title: 'Pair a phone, tablet or browser',
                 subtitle: l10n.text('pairingStartDesc'),
                 trailing: SkotiqButton(
@@ -77,7 +76,6 @@ class PairingSettings extends ConsumerWidget {
               ),
             if (fingerprint.isNotEmpty)
               SettingRow(
-                icon: LucideIcons.fingerprint,
                 title: l10n.text('remoteAccessFingerprint'),
                 subtitle: 'The phone shows it too. Check that they match '
                     'before you connect.',
@@ -103,7 +101,6 @@ class _PairingCodePanel extends StatelessWidget {
     required this.code,
     required this.timeRemaining,
     required this.webState,
-    required this.appVersion,
     required this.busy,
     required this.onStop,
   });
@@ -111,7 +108,6 @@ class _PairingCodePanel extends StatelessWidget {
   final String code;
   final Duration? timeRemaining;
   final WebServerState webState;
-  final String appVersion;
   final bool busy;
   final VoidCallback onStop;
 
@@ -127,18 +123,7 @@ class _PairingCodePanel extends StatelessWidget {
         host == '127.0.0.1') {
       return null;
     }
-    return EnhancedSkotiqDiscovery.generateQrData(
-      host: host,
-      webPort: webState.actualPort,
-      version: appVersion,
-      fingerprint: webState.serverFingerprint,
-      serverName: 'Skotiq',
-      mode: 'desktop',
-      authRequired: webState.requiresAuthentication,
-      authenticationMode: webState.requiresAuthentication ? 'token' : 'none',
-      pairingSupported: true,
-      pairingCode: code,
-    );
+    return pairingQrData(webState, host: host, pairingCode: code);
   }
 
   @override

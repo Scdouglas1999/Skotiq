@@ -8,7 +8,7 @@
 //! driver that hands back exactly those samples.
 
 use super::*;
-use crate::device::{DeviceInfo, DriverType};
+use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
 use skotiq_device::{
     BayerPattern, CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver,
@@ -21,7 +21,7 @@ use skotiq_sequencer::ImageData;
 struct FixedFrameCamera {
     id: String,
     frame: Arc<(u32, u32, Vec<u16>)>,
-    bayer_pattern: Option<skotiq_cfa::ColorFilterArray>,
+    bayer_pattern: Option<skotiq_frame::ColorFilterArray>,
 }
 
 #[async_trait::async_trait]
@@ -64,8 +64,8 @@ impl CameraDriver for FixedFrameCamera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: 0,
-            offset: 0,
+            gain: Some(0),
+            offset: Some(0),
             bin_x: 1,
             bin_y: 1,
             exposure_remaining: None,
@@ -216,7 +216,7 @@ fn full_sensor_frame() -> (u32, u32, Vec<u16>) {
 async fn connect_fixed_camera(
     device_id: &str,
     frame: Arc<(u32, u32, Vec<u16>)>,
-    bayer_pattern: Option<skotiq_cfa::ColorFilterArray>,
+    bayer_pattern: Option<skotiq_frame::ColorFilterArray>,
 ) {
     let mgr = get_device_manager();
     mgr.register_device(
@@ -642,4 +642,51 @@ async fn frame_path_stage_times() {
         }
     }
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Which frames may be uniform: any frame under 0.1 s, and a bias at any
+/// length. A uniform 0.05 s flat passes as a bias would; the same flat at
+/// 0.5 s is refused.
+#[tokio::test]
+async fn a_uniform_frame_passes_validation_by_its_length() {
+    let uniform = Arc::new((64, 64, vec![1000u16; 64 * 64]));
+    let device_id = "native:pin_uniform";
+    connect_fixed_camera(device_id, uniform, None).await;
+    let flat = |secs: f64| {
+        let ops = create_unified_device_ops();
+        async move {
+            ops.camera_start_exposure(
+                skotiq_sequencer::ExposureRequest::new("native:pin_uniform", secs)
+                    .frame_type(skotiq_sequencer::FrameType::Flat),
+            )
+            .await
+        }
+    };
+    let short = flat(0.05).await;
+    let long = flat(0.5).await;
+    disconnect_fixed_camera(device_id).await;
+    assert!(short.is_ok(), "{short:?}");
+    assert!(
+        matches!(long, Err(skotiq_sequencer::DeviceError::InvalidFrame(_))),
+        "{long:?}"
+    );
+}
+
+/// P8-3: a bias may be uniform at any length (a camera whose shortest
+/// exposure is 0.1 s or more still takes biases); nothing accepted before is
+/// refused.
+#[tokio::test]
+async fn a_uniform_bias_passes_validation_at_any_length() {
+    let uniform = Arc::new((64, 64, vec![1000u16; 64 * 64]));
+    let device_id = "native:pin_uniform_bias";
+    connect_fixed_camera(device_id, uniform, None).await;
+    let ops = create_unified_device_ops();
+    let long_bias = ops
+        .camera_start_exposure(
+            skotiq_sequencer::ExposureRequest::new(device_id, 0.5)
+                .frame_type(skotiq_sequencer::FrameType::Bias),
+        )
+        .await;
+    disconnect_fixed_camera(device_id).await;
+    assert!(long_bias.is_ok(), "{long_bias:?}");
 }

@@ -1,8 +1,10 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
+
+final _updatePromptStoreLog = Logger('skotiq.UpdatePromptStore');
 
 /// How long a background check waits before asking GitHub again.
 ///
@@ -60,11 +62,7 @@ class UpdatePromptStore {
         },
       );
     } catch (e) {
-      developer.log(
-        'Failed to read update prompt state: $e',
-        name: 'UpdatePromptStore',
-        level: 900,
-      );
+      _updatePromptStoreLog.warning('Failed to read update prompt state: $e');
       return const UpdatePromptState();
     }
   }
@@ -74,8 +72,7 @@ class UpdatePromptStore {
   ///
   /// Callers fire some of these without awaiting them, so writes are queued
   /// behind one another (the last call wins) and each is written to a
-  /// side file that is then renamed over the record. Two overlapping writes
-  /// used to open the same file twice and interleave into unreadable JSON.
+  /// side file that is then renamed over the record.
   Future<void> write(UpdatePromptState state) {
     final next = _lastWrite.then((_) => _writeNow(state));
     _lastWrite = next;
@@ -100,10 +97,8 @@ class UpdatePromptStore {
       );
       await temp.rename(file.path);
     } catch (e) {
-      developer.log(
+      _updatePromptStoreLog.warning(
         'Failed to persist update prompt state: $e',
-        name: 'UpdatePromptStore',
-        level: 900,
       );
     }
   }

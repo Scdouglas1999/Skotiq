@@ -1,4 +1,4 @@
-/// SCI-40: pre-flight demanded darks at the cooling SETPOINT for a camera with
+/// Pre-flight demanded darks at the cooling SETPOINT for a camera with
 /// no cooler.
 ///
 /// The simulated (and any uncooled) camera sits at ambient and reports it

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/adaptive_dialog_constraints.dart';
 import '../utils/responsive_utils.dart';
 

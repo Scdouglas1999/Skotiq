@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/models.dart';
@@ -79,8 +80,8 @@ void main() {
     );
   });
 
-  // 2026-11-03: the mount reached the east side at 22:38 and the flip's
-  // recovery then failed. The flip is marked when the pier changes, so the
+  // A flip whose recovery fails after the pier change still flipped. The flip
+  // is marked when the pier changes, so the
   // "next flip" displays stop announcing it, and a success after a pier
   // change is the same flip.
   test('a flip is marked when the pier changes, once', () async {

@@ -558,7 +558,6 @@ class HeadlessApiServer {
         upper == 'PATCH';
   }
 
-  /// Generates a cryptographically secure random token.
   static String _generateRandomToken({int length = 32}) {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -635,7 +634,7 @@ class HeadlessApiServer {
     return mock;
   }
 
-  /// Phase D — load [PushConfig] from [appSupportDir] (or the
+  /// Load [PushConfig] from [appSupportDir] (or the
   /// `SKOTIQ_PUSH_CONFIG` env override) and wire the resulting delivery:
   ///
   ///  * a real FCM and/or APNs delivery when the operator has dropped a valid

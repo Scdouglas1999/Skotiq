@@ -1,0 +1,11 @@
+{
+  "biasOrDarkFlat": "string",
+  "flatPaths": [
+    "string"
+  ],
+  "method": "string",
+  "outputBitDepth": "string",
+  "outputPath": "string",
+  "sigmaIterations": "number",
+  "sigmaKappa": "number"
+}

@@ -23,5 +23,5 @@ class FullScreenSkyView extends AdaptiveInteractiveSkyView {
     super.horizonAltitudes,
     super.measurementMode,
     super.backgroundLayer,
-  }) : super(syncViewPoseFromV1: true);
+  });
 }

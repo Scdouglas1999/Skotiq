@@ -17,7 +17,7 @@ import '../models/scheduler/scheduler_readiness.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/sequence/active_plan_owner.dart';
 import '../models/sequence/sequence_models.dart';
-import '../services/safe_rig_service.dart';
+import 'safe_rig_service.dart';
 import '../services/disk_space_guard.dart' show kSafetyMarginBytes;
 import '../models/site/horizon_profile.dart';
 import '../services/scheduler/horizon_profile_store.dart';
@@ -28,12 +28,15 @@ import '../services/scheduler/target_constraint_service.dart';
 import '../services/smart_night_models.dart'
     show smartNightPlanningFilters, smartNightRotatesFilters;
 import '../backend/remote_host.dart';
+import '../backend/skotiq_backend.dart';
 import '../database/daos/settings_dao.dart';
+import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'clock_provider.dart';
 import 'database_provider.dart';
 import 'disk_space_provider.dart';
 import 'event_provider.dart';
+import 'host_reread.dart';
 import 'readiness_provider.dart';
 import 'equipment/guider_state_provider.dart';
 import 'weather_safety_provider.dart';
@@ -67,6 +70,7 @@ import 'scheduler/target_constraint_service_provider.dart';
 part 'scheduler/scheduler_engine_providers.dart';
 part 'scheduler/scheduler_candidate_loader.dart';
 part 'scheduler/scheduler_config.dart';
+part 'scheduler/autopilot_view.dart';
 part 'scheduler/scheduler_control.dart';
 part 'scheduler/scheduler_readiness.dart';
 part 'scheduler/scheduler_remote_and_goals.dart';
@@ -83,7 +87,7 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
     next,
   ) {
     next.whenData((event) {
-      final mapped = _mapEventToTrigger(event);
+      final mapped = schedulerTriggerFor(event);
       if (mapped != null) controller.add(mapped);
     });
   });
@@ -94,35 +98,31 @@ final schedulerTriggerStreamProvider = Provider<Stream<SchedulerTriggerEvent>>((
   return controller.stream;
 });
 
-SchedulerTriggerEvent? _mapEventToTrigger(SkotiqEvent event) {
+/// The scheduler trigger [event] raises, or null when it raises none.
+SchedulerTriggerEvent? schedulerTriggerFor(SkotiqEvent event) {
   switch (event.category) {
     case EventCategory.safety:
       return SchedulerTriggerEvent.weatherChange;
     case EventCategory.guiding:
-      // The payload distinguishes loss vs recovery; we surface both as
-      // discrete triggers so the engine can react. A finer-grained
-      // mapping can be added when the payload accessor is stable.
-      final payload = event.payload;
-      if (payload is EventPayload_Guiding) {
-        final name = payload.field0.toString().toLowerCase();
-        if (name.contains('lost') || name.contains('stopped')) {
-          return SchedulerTriggerEvent.guidingLost;
-        }
-        if (name.contains('settled') || name.contains('started')) {
-          return SchedulerTriggerEvent.guidingRecovered;
-        }
-      }
-      return null;
+      return switch (event.payload) {
+        EventPayload_Guiding(
+          field0: GuidingEvent_GuidingStopped() || GuidingEvent_LostStar(),
+        ) =>
+          SchedulerTriggerEvent.guidingLost,
+        EventPayload_Guiding(
+          field0: GuidingEvent_GuidingStarted() || GuidingEvent_Settled(),
+        ) =>
+          SchedulerTriggerEvent.guidingRecovered,
+        _ => null,
+      };
     case EventCategory.equipment:
-      final payload = event.payload;
-      if (payload is EventPayload_Equipment) {
-        final name = payload.field0.toString().toLowerCase();
-        if (name.contains('parked')) return SchedulerTriggerEvent.mountParked;
-        if (name.contains('unparked')) {
-          return SchedulerTriggerEvent.mountUnparked;
-        }
-      }
-      return null;
+      // A finished park raises no trigger: an evaluation right after an
+      // operator or safety park could dispatch a target and unpark the mount.
+      return switch (event.payload) {
+        EventPayload_Equipment(field0: EquipmentEvent_MountUnparked()) =>
+          SchedulerTriggerEvent.mountUnparked,
+        _ => null,
+      };
     case EventCategory.sequencer:
       // A natural whole-sequence completion means the autopilot's dispatched
       // work for the current target finished. Without reacting, the rig sits
@@ -216,6 +216,7 @@ class CurrentSchedulerDecisionNotifier
 /// auto-reeval listeners that poke the engine cover the underlying data edits.
 final schedulerPreviewDecisionProvider =
     FutureProvider.autoDispose<SchedulerDecision>((ref) async {
+      ref.rereadsWithTheHost();
       // On a remote SLAVE the local scheduler engine has no candidate data — the
       // catalog/targets live in the HOST's database, never the slave's — so
       // previewDecision() would always return "nothing eligible". Mirror the

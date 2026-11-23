@@ -3,6 +3,7 @@ import '../models/imaging/imaging_models.dart' show FrameType;
 import 'package:uuid/uuid.dart';
 import 'package:skotiq_astro/skotiq_astro.dart'
     show
+        MosaicGrid,
         MosaicPanel,
         MosaicStartCorner,
         mosaicPanelCenters,
@@ -38,21 +39,19 @@ class MosaicConfig {
 
   int get totalPanels => panelsHorizontal * panelsVertical;
 
-  /// The mosaic's total angular extent on the sky, in degrees.
-  ///
-  /// Overlapping panels do NOT add their full width: adjacent centres are
-  /// [overlapPercent] closer than a panel width, so an N-panel row spans
-  /// `panelWidth * (1 + (N-1) * (1 - overlap))`, not `panelWidth * N`. This is
-  /// the same overlap-reduced step [MosaicService.generatePanels] lays the grid
-  /// out with, so the reported extent describes the grid that will actually be
-  /// imaged.
+  /// The grid's shape: columns, rows and overlap.
+  MosaicGrid get grid => MosaicGrid(
+    columns: panelsHorizontal,
+    rows: panelsVertical,
+    overlapPercent: overlapPercent,
+  );
+
+  /// The mosaic's total angular extent on the sky, in degrees, overlap
+  /// included ([MosaicGrid.extent]): the grid [MosaicService.generatePanels]
+  /// lays out.
   (double widthDeg, double heightDeg) get totalExtentDegrees {
-    final overlapFactor = 1.0 - (overlapPercent / 100.0);
-    final widthDeg =
-        panelWidthArcmin * (1 + (panelsHorizontal - 1) * overlapFactor) / 60.0;
-    final heightDeg =
-        panelHeightArcmin * (1 + (panelsVertical - 1) * overlapFactor) / 60.0;
-    return (widthDeg, heightDeg);
+    final (width, height) = grid.extent(panelWidthArcmin, panelHeightArcmin);
+    return (width / 60.0, height / 60.0);
   }
 
   /// Sky area the finished mosaic covers, in square degrees.
@@ -66,15 +65,9 @@ class MosaicConfig {
   }
 }
 
-/// A single filter's contribution to a multi-filter mosaic panel.
-///
-/// Each panel of a multi-filter mosaic images every entry in
-/// [MosaicExposureSettings.filters] in order, accumulating [exposuresPerPanel]
-/// subs of [exposureSeconds] through [filterName]. This is the per-filter
-/// analogue of the legacy single-filter [MosaicExposureSettings] fields and
-/// reuses the same [binning]/[gain]/[offset] semantics so a filter can carry
-/// narrowband-specific capture parameters (e.g. higher gain + longer subs for
-/// Ha) independent of the broadband channels.
+/// One filter's share of every mosaic panel: [exposuresPerPanel] subs of
+/// [exposureSeconds] through [filterName], with its own [binning], [gain] and
+/// [offset] (narrowband often takes higher gain and longer subs).
 class MosaicFilterExposure {
   final String? filterName;
   final double exposureSeconds;
@@ -93,80 +86,44 @@ class MosaicFilterExposure {
   });
 }
 
-/// Exposure settings for each panel.
+/// What each mosaic panel images: [filters], in order, never empty.
 ///
-/// Supports two interchangeable shapes:
-///
-/// * **Single-filter (legacy):** populate [exposureSeconds] /
-///   [exposuresPerPanel] / [filterName] / [binning] / [gain] / [offset]
-///   directly and leave [filters] null. Every existing caller and the Smart
-///   Night recommender produce this shape, so the default constructor and all
-///   field semantics are unchanged.
-/// * **Multi-filter:** pass a non-empty [filters] list via
-///   [MosaicExposureSettings.multiFilter]; each panel images every filter in
-///   order. The top-level scalar fields then mirror the first filter so that
-///   code reading [exposureSeconds]/[filterName] (e.g. time estimation,
-///   summaries) still sees a sensible single value without branching.
-///
-/// Use [isMultiFilter] to detect which path is active and [resolvedFilters]
-/// to iterate the per-filter plan uniformly regardless of shape.
+/// The scalar fields read the first filter, for summaries that show one
+/// value.
 class MosaicExposureSettings {
-  final double exposureSeconds;
-  final int exposuresPerPanel;
-  final String? filterName;
-  final int? binning;
-  final double? gain;
-  final double? offset;
+  final List<MosaicFilterExposure> filters;
 
-  /// Per-filter exposure plan for a multi-filter mosaic, or null for the
-  /// legacy single-filter path. When non-null this is guaranteed non-empty.
-  final List<MosaicFilterExposure>? filters;
+  /// One filter for every panel.
+  MosaicExposureSettings({
+    required double exposureSeconds,
+    required int exposuresPerPanel,
+    String? filterName,
+    int? binning,
+    double? gain,
+    double? offset,
+  }) : filters = List.unmodifiable([
+         MosaicFilterExposure(
+           exposureSeconds: exposureSeconds,
+           exposuresPerPanel: exposuresPerPanel,
+           filterName: filterName,
+           binning: binning,
+           gain: gain,
+           offset: offset,
+         ),
+       ]);
 
-  const MosaicExposureSettings({
-    required this.exposureSeconds,
-    required this.exposuresPerPanel,
-    this.filterName,
-    this.binning,
-    this.gain,
-    this.offset,
-    this.filters,
-  });
-
-  /// Build a multi-filter mosaic exposure plan from a non-empty list of
-  /// per-filter settings. The scalar fields are seeded from [filters.first]
-  /// so single-value readers stay correct without inspecting [filters].
+  /// Each panel images every one of [filters] in order.
   MosaicExposureSettings.multiFilter({
     required List<MosaicFilterExposure> filters,
   }) : assert(filters.isNotEmpty, 'multiFilter requires at least one filter'),
-       exposureSeconds = filters.first.exposureSeconds,
-       exposuresPerPanel = filters.first.exposuresPerPanel,
-       filterName = filters.first.filterName,
-       binning = filters.first.binning,
-       gain = filters.first.gain,
-       offset = filters.first.offset,
        filters = List.unmodifiable(filters);
 
-  /// True when this carries an explicit per-filter plan ([filters] non-null
-  /// and non-empty); false for the legacy single-filter path.
-  bool get isMultiFilter => filters != null && filters!.isNotEmpty;
-
-  /// The per-filter plan to image each panel with, regardless of shape.
-  ///
-  /// For the multi-filter path this is [filters]; for the legacy single-filter
-  /// path it is a one-element list synthesized from the scalar fields so
-  /// callers can iterate uniformly.
-  List<MosaicFilterExposure> get resolvedFilters => isMultiFilter
-      ? filters!
-      : [
-          MosaicFilterExposure(
-            exposureSeconds: exposureSeconds,
-            exposuresPerPanel: exposuresPerPanel,
-            filterName: filterName,
-            binning: binning,
-            gain: gain,
-            offset: offset,
-          ),
-        ];
+  double get exposureSeconds => filters.first.exposureSeconds;
+  int get exposuresPerPanel => filters.first.exposuresPerPanel;
+  String? get filterName => filters.first.filterName;
+  int? get binning => filters.first.binning;
+  double? get gain => filters.first.gain;
+  double? get offset => filters.first.offset;
 }
 
 class MosaicSequenceOptions {
@@ -219,6 +176,15 @@ class MosaicValidation {
 class MosaicService {
   const MosaicService();
 
+  /// The [InstructionSetNode] at the root of a graph that
+  /// [createMosaicSequence] or [sequenceForPanels] built.
+  static InstructionSetNode rootOf(Map<String, SequenceNode> nodes) {
+    for (final node in nodes.values) {
+      if (node is InstructionSetNode && node.parentId == null) return node;
+    }
+    throw StateError('The mosaic node graph has no root InstructionSetNode.');
+  }
+
   BinningMode _intToBinningMode(int binning) {
     switch (binning) {
       case 1:
@@ -237,14 +203,14 @@ class MosaicService {
   /// The mosaic's panels in capture order, numbered as the app numbers them
   /// everywhere ([mosaicPanelCenters]).
   List<MosaicPanel> generatePanels(MosaicConfig config) {
-    final overlapFactor = 1.0 - (config.overlapPercent / 100.0);
+    final grid = config.grid;
     return mosaicPanelCenters(
       centerRaHours: config.centerRa,
       centerDecDegrees: config.centerDec,
-      stepRaDegrees: config.panelWidthArcmin * overlapFactor / 60.0,
-      stepDecDegrees: config.panelHeightArcmin * overlapFactor / 60.0,
-      columns: config.panelsHorizontal,
-      rows: config.panelsVertical,
+      stepRaDegrees: grid.step(config.panelWidthArcmin) / 60.0,
+      stepDecDegrees: grid.step(config.panelHeightArcmin) / 60.0,
+      columns: grid.columns,
+      rows: grid.rows,
       rotationDegrees: config.rotation,
       startCorner: config.startCorner,
       serpentine: config.serpentine,
@@ -277,7 +243,7 @@ class MosaicService {
     // legacy `exposuresPerPanel * exposureSeconds`; a multi-filter plan sums
     // every channel's contribution since each panel images all of them.
     var exposureTimePerPanel = 0.0;
-    for (final filterExposure in exposure.resolvedFilters) {
+    for (final filterExposure in exposure.filters) {
       exposureTimePerPanel +=
           filterExposure.exposuresPerPanel * filterExposure.exposureSeconds;
     }
@@ -334,7 +300,6 @@ class MosaicService {
       );
     }
 
-    // Check if target is near celestial poles
     if (config.centerDec.abs() > 80) {
       warnings.add(
         'Targets near celestial poles may have distorted panel layout',
@@ -461,7 +426,7 @@ class MosaicService {
       // legacy shape); a multi-filter plan produces one sibling loop per
       // filter, each repeating that filter's own per-panel sub count, so the
       // panel is fully imaged in every channel before the next panel.
-      for (final filterExposure in exposure.resolvedFilters) {
+      for (final filterExposure in exposure.filters) {
         final loopId = uuid.v4();
         childIds.add(loopId);
         final loopOrderIndex = childIds.length - 1;
@@ -469,7 +434,6 @@ class MosaicService {
         final exposureId = uuid.v4();
         final exposureChildIds = <String>[exposureId];
 
-        // Add dither if enabled
         if (options.ditherBetweenExposures) {
           final ditherId = uuid.v4();
           exposureChildIds.add(ditherId);

@@ -1,5 +1,4 @@
-// Provider tests for the built-in multi-star guider's UI data path
-// (Phase F, guider-ui):
+// Provider tests for the built-in multi-star guider's UI data path:
 //
 //   1. guideGraphProvider — the SAME graph the PHD2 path uses must populate for
 //      the internal guider too. The internal guider publishes `Correction`

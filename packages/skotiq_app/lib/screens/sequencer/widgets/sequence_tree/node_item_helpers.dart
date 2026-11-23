@@ -270,34 +270,7 @@ class _SaveAsSnippetDialogState extends State<_SaveAsSnippetDialog> {
   }
 }
 
-/// The one colour a run STATUS is allowed to paint on a row.
-///
-/// Transparent for pending / unknown: a step that has not run has no status to
-/// report, and the row must not imply one.
-Color nodeStatusColor(NodeStatus? status, SkotiqColors colors) {
-  switch (status) {
-    case NodeStatus.running:
-      return colors.info;
-    case NodeStatus.success:
-      return colors.success;
-    case NodeStatus.failure:
-      return colors.error;
-    case NodeStatus.skipped:
-      return colors.textMuted;
-    case NodeStatus.cancelled:
-      return colors.warning;
-    default:
-      return Colors.transparent;
-  }
-}
-
 extension _NodeItemHelpers on _NodeItemState {
-  // _getCategoryColor is gone: a step's CATEGORY is not a status, and the
-  // four-colour scheme it drove painted chrome in four hues that meant
-  // nothing to the operator (02: "Not a colour-coded rainbow"). Colour on a
-  // step row now means exactly one of: selected (primary), succeeded
-  // (success), failed (error), skipped (muted).
-
   Color _getStatusColor() => nodeStatusColor(widget.nodeStatus, widget.colors);
 
   /// Build the plain-text accessibility string for the at-a-glance summary by

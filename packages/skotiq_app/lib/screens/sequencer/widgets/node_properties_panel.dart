@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
@@ -15,15 +16,14 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 
-import '../../../widgets/accessible_dropdown.dart';
 import '../../../widgets/altitude_floor_rule.dart';
 import '../../../widgets/sensitivity_field.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
 import 'delete_node_confirmation.dart';
 import 'live_stacking_properties.dart';
 import 'meridian_flip_edit_helper.dart';
+import 'next_dawn.dart';
 import 'node_activity_tab.dart';
 import 'node_notes_tab.dart';
 import 'node_progress_panels.dart';
@@ -31,7 +31,6 @@ import 'node_property_widgets.dart';
 import 'node_timing_section.dart';
 import 'science_photometry_properties.dart';
 import 'smart_exposure_properties.dart';
-import 'target_coordinates.dart';
 import 'target_node_properties.dart';
 import 'target_scheduler_properties.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -148,10 +147,7 @@ class NodePropertiesPanel extends ConsumerWidget {
   Widget _buildDesktopSidebarContent(
       BuildContext context, WidgetRef ref, SequenceNode? selectedNode) {
     // A side panel with no strip: 300 px of content, 16 px padding, each
-    // section opening with a SectionTitle (05 §15). The old 48 px "Properties"
-    // header bar is gone — a panel that only ever holds one thing does not
-    // need a row to say what that thing is, and the SectionTitle already names
-    // the node.
+    // section opening with a SectionTitle (05 §15).
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,

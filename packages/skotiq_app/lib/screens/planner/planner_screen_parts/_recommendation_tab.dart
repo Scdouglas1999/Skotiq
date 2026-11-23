@@ -42,15 +42,11 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       target: target,
       includeSessionPreamble: true,
     ),
-    run: (plan) async {
-      // takeOwnership keeps any unsaved manual sequence and restores it when
-      // the run stops, instead of discarding the operator's draft.
-      ref.read(currentSequenceProvider.notifier).takeOwnership(
-            plan.sequence,
-            ActivePlanOwner.smartNight,
-          );
-      await ref.read(sequenceExecutorProvider).start();
-    },
+    run: (plan) => ref.read(sequenceActionServiceProvider).startOwnedPlan(
+          plan.sequence,
+          ActivePlanOwner.smartNight,
+          confirm: () => confirmPreflight(context),
+        ),
   )..addListener(_onImageTonightChanged);
 
   @override
@@ -146,11 +142,12 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
       );
     }
 
-    // With no site or no catalog the tab is one empty state with its fix;
+    // With no site, no catalog or no night the tab is one empty state;
     // filters over nothing would only be dead controls (§1: an empty page
     // hides its filters).
     final nothingToFilter =
         plannerSiteUnset(ref.watch(appObserverLocationProvider)) ||
+            ref.watch(tonightSunStaysUpProvider) ||
             (candidatesAsync.valueOrNull?.isEmpty == true &&
                 _plannerCatalogMissing(ref));
 

@@ -59,7 +59,8 @@ impl SequenceExecutor {
     /// loops, integration-budget cap engaged) zero out the totals and
     /// clear the ETA so the dashboard renders "?" instead of a
     /// misleading finite number.
-    pub fn load_sequence(&mut self, sequence: SequenceDefinition) -> Result<(), String> {
+    pub fn load_sequence(&mut self, mut sequence: SequenceDefinition) -> Result<(), String> {
+        super::start::night_end::defer_shutdown_warm_up(&mut sequence);
         let root_node = self.build_node_tree(&sequence)?;
 
         self.publish_totals(&sequence);
@@ -172,7 +173,6 @@ impl SequenceExecutor {
 
             match &node.node_type {
                 NodeType::TakeExposure(config) => {
-                    // Why: `config.count` is u32; widening u32 -> u64 is lossless.
                     let count = u64::from(config.count);
                     *total_exposures =
                         total_exposures.saturating_add(count.saturating_mul(multiplier));
@@ -202,8 +202,6 @@ impl SequenceExecutor {
                     let mut plan_total_count: u64 = 0;
                     let mut plan_total_secs: f64 = 0.0;
                     for plan in &config.plans {
-                        // Why: u32 -> u64 widens losslessly; saturating ops
-                        // mirror the TakeExposure branch above.
                         let plan_count = u64::from(plan.count);
                         plan_total_count = plan_total_count.saturating_add(plan_count);
                         plan_total_secs += plan.duration_secs * plan_count as f64;
@@ -234,7 +232,6 @@ impl SequenceExecutor {
                             // construction time (enforced by `node.rs:1697` and the UI), so
                             // None is unreachable. `1` ensures the totals-rollup is at least
                             // self-consistent if a future refactor breaks the invariant.
-                            // Why: u32 -> u64 widening on Option<u32> default is lossless.
                             multiplier.saturating_mul(u64::from(config.iterations.unwrap_or(1)))
                         }
                         _ => {

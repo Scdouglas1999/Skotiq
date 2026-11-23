@@ -6,7 +6,8 @@
 //! that the name exists. Adding a new variable means:
 //! 1. Add the [`VariableEntry`] to `catalog::variable_catalog()`.
 //! 2. Add a match arm in [`resolve_variable`].
-//! 3. Copy the entry into the app's catalog (`interpolation_catalog.dart`).
+//! 3. Regenerate `test_fixtures/interpolation_catalog/catalog.json` and copy
+//!    the entry into the app's catalog (`interpolation_catalog.dart`).
 
 use super::catalog::variable_catalog;
 use super::errors::InterpolationError;
@@ -16,8 +17,7 @@ use chrono::{DateTime, Utc};
 
 /// Synthetic filter label for rigs with no filter wheel.
 ///
-/// Must match the label used by the non-template filename path in
-/// `instructions.rs`. Deliberately NOT "L": a missing filter on a
+/// Deliberately NOT "L": a missing filter on a
 /// narrowband/RGB capture must not be recorded as luminance.
 pub(crate) const NO_FILTER_LABEL: &str = "nofilter";
 
@@ -239,17 +239,7 @@ pub fn resolve_variable(
         // Filter
         // A rig with no filter wheel (OSC / DSLR) has no filter, and that is
         // NORMAL — not an error. `${filter}` appears in the DEFAULT save-path
-        // template (`${target.name}_${filter}_${frame:04}.fits`), so making it
-        // unresolvable aborted the very first frame of any sequence on such a
-        // rig: "Save-path template render failed … Variable `${filter}` cannot
-        // be resolved: no filter set. Aborting exposure". Reproduced by running
-        // a plain TakeExposure node with no filter against the simulator camera.
-        //
-        // The sibling filename path in `instructions.rs` already handles this
-        // by substituting the synthetic label `nofilter`, with a comment
-        // explaining it must NOT be "L" (that would mis-label narrowband/RGB
-        // frames as luminance). Resolve to the same label here so the two
-        // filename paths agree instead of one aborting the capture.
+        // template (`${target.name}_${filter}_${frame:04}.fits`).
         "filter" => Ok(VariableValue::Str(
             ctx.current_filter
                 .as_deref()
@@ -278,11 +268,15 @@ pub fn resolve_variable(
         ),
         "session.id" => Ok(VariableValue::Str(ctx.run.identity.session_id.clone())),
         "session.date" => {
-            let dt = frame.session_start.unwrap_or_else(|| ctx.clock.now_utc());
+            let dt = frame
+                .session_start
+                .unwrap_or_else(|| ctx.run.clock.now_utc());
             Ok(VariableValue::Str(dt.format("%Y-%m-%d").to_string()))
         }
         "session.start" => {
-            let dt = frame.session_start.unwrap_or_else(|| ctx.clock.now_utc());
+            let dt = frame
+                .session_start
+                .unwrap_or_else(|| ctx.run.clock.now_utc());
             Ok(VariableValue::Str(
                 dt.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
             ))
@@ -290,7 +284,7 @@ pub fn resolve_variable(
         "time.now" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .format("%Y-%m-%dT%H:%M:%SZ")
                 .to_string(),
         )),
@@ -298,7 +292,7 @@ pub fn resolve_variable(
             // chrono::Local applies the system local offset.
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .with_timezone(&chrono::Local)
                 .format("%Y-%m-%d %H:%M:%S %:z")
                 .to_string(),
@@ -306,21 +300,21 @@ pub fn resolve_variable(
         "time.date" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .format("%Y-%m-%d")
                 .to_string(),
         )),
         "time.clock" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .format("%H-%M-%S")
                 .to_string(),
         )),
         "time.local_clock" => Ok(VariableValue::Str(
             frame
                 .now_override
-                .unwrap_or_else(|| ctx.clock.now_utc())
+                .unwrap_or_else(|| ctx.run.clock.now_utc())
                 .with_timezone(&chrono::Local)
                 .format("%H:%M")
                 .to_string(),
@@ -333,7 +327,9 @@ pub fn resolve_variable(
         "moon.phase" => float_or_unresolvable(
             name,
             frame.moon_phase.or_else(|| {
-                let now = frame.now_override.unwrap_or_else(|| ctx.clock.now_utc());
+                let now = frame
+                    .now_override
+                    .unwrap_or_else(|| ctx.run.clock.now_utc());
                 Some(crate::scheduling::ephemeris::moon_illumination_percent(&now) / 100.0)
             }),
             "moon phase requires a system clock",

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
@@ -102,7 +101,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
           title: l10n.text('weatherSafetyActions'),
           children: [
             SettingRow(
-              icon: LucideIcons.shield,
               title: l10n.text('weatherSafetyEnable'),
               subtitle: l10n.text('weatherSafetyEnableDesc'),
               trailing: SettingsSwitch(
@@ -115,7 +113,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               masterEnabled: settings.weatherSafetyEnabled,
             ),
             SettingRow(
-              icon: LucideIcons.mapPin,
               title: l10n.text('weatherSafetyAutoPark'),
               subtitle: _withPrerequisite(
                 l10n.text('weatherSafetyAutoParkDesc'),
@@ -132,7 +129,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.cloud,
               title: l10n.text('weatherSafetyForecastHolds'),
               subtitle: _withPrerequisite(
                 l10n.text('weatherSafetyForecastHoldsDesc'),
@@ -147,7 +143,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.sparkles,
               title: l10n.text('weatherSafetyStarEvidence'),
               subtitle: _withPrerequisite(
                 l10n.text('weatherSafetyStarEvidenceDesc'),
@@ -162,7 +157,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.play,
               title: l10n.text('weatherSafetyAutoResume'),
               subtitle: _withPrerequisite(
                 l10n.text('weatherSafetyAutoResumeDesc'),
@@ -172,7 +166,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 value: settings.autoResumeEnabled,
                 onChanged: (value) => _updateSettings(autoResumeEnabled: value),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -180,7 +173,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
           title: l10n.text('weatherSafetyHardware'),
           children: [
             SettingRow(
-              icon: LucideIcons.droplets,
               title: l10n.text('weatherSafetyMaxHumidity'),
               subtitle: l10n.text('weatherSafetyMaxHumidityDesc'),
               trailing: SettingsNumberInput(
@@ -194,7 +186,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.wind,
               title: l10n.text('weatherSafetyMaxWind'),
               subtitle: l10n.text('weatherSafetyMaxWindDesc'),
               trailing: SettingsNumberInput(
@@ -207,7 +198,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.cloud,
               title: l10n.text('weatherSafetyMaxCloud'),
               subtitle: l10n.text('weatherSafetyMaxCloudDesc'),
               trailing: SettingsNumberInput(
@@ -219,7 +209,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(maxCloudCoverPercent: value),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -227,7 +216,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
           title: l10n.text('weatherSafetyAlertTiming'),
           children: [
             SettingRow(
-              icon: LucideIcons.radar,
               title: l10n.text('weatherSafetyAlertDistance'),
               subtitle: l10n.text('weatherSafetyAlertDistanceDesc'),
               trailing: SettingsNumberInput(
@@ -240,7 +228,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.timerReset,
               title: l10n.text('weatherSafetyLeadTime'),
               subtitle: l10n.text('weatherSafetyLeadTimeDesc'),
               trailing: SettingsNumberInput(
@@ -252,7 +239,6 @@ class _WeatherSafetySettingsState extends ConsumerState<WeatherSafetySettings> {
                 onChanged: (value) =>
                     _updateSettings(leadTimeMinutes: value.toInt()),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -323,7 +309,6 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
     return Column(
       children: [
         SettingRow(
-          icon: LucideIcons.satelliteDish,
           title: 'Safety sources',
           subtitle: _withPrerequisite(
             sourceSummary(sources, failMode),
@@ -332,7 +317,6 @@ class WeatherSafetyPolicyRows extends ConsumerWidget {
           trailing: const SizedBox.shrink(),
         ),
         SettingRow(
-          icon: LucideIcons.alertTriangle,
           title: 'Safety fail mode',
           subtitle: failMode.description,
           trailing: settingsTrailingChoice<SafetyFailMode>(

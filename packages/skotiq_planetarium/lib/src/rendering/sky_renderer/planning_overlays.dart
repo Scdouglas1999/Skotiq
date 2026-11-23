@@ -34,26 +34,26 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final raDeg = target.ra * 15;
     final decDeg = target.dec;
 
-    // Tonight's rise/transit/set, computed with the accurate body-aware
-    // astronomy (feature 1). Catalog targets are fixed, so positionAt is null.
+    // The night under way at the site: after local midnight it is the one
+    // that began the evening before.
+    final night = AstronomyCalculations.nightDateOf(
+      observationTime,
+      longitudeDeg: longitude,
+    );
+    // Catalog targets are fixed, so positionAt is null.
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDeg,
-      // The night containing the clock, not its calendar day: after local
-      // midnight those differ and the overlay would describe tomorrow night.
-      date: AstronomyCalculations.nightDateOf(observationTime),
+      date: night,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
 
-    // Sample apparent altitude across the local night window (noon→noon), the
-    // same 24h span the object-details altitude chart uses, so the on-sky track
-    // and the side-panel chart agree.
-    final localNoon = DateTime(
-      observationTime.year,
-      observationTime.month,
-      observationTime.day,
-      12,
+    // Sample apparent altitude across the site's night (solar noon to solar
+    // noon), the same 24h span the twilight gauge uses.
+    final nightStart = AstronomyCalculations.nightStartOf(
+      night,
+      longitudeDeg: longitude,
     );
     const samples = 48; // every 30 minutes
     // Memoized on (target, day, site): this runs on the animated overlay layer,
@@ -61,14 +61,14 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final (altitudes, maxAlt) = _planningAstronomyCache.altitudeTrack(
       raDeg: raDeg,
       decDeg: decDeg,
-      localNoon: localNoon,
+      nightStart: nightStart,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       compute: () {
         final result = <double>[];
         var peak = -90.0;
         for (var i = 0; i <= samples; i++) {
-          final t = localNoon.add(Duration(minutes: (24 * 60 * i ~/ samples)));
+          final t = nightStart.add(Duration(minutes: (24 * 60 * i ~/ samples)));
           final lst = AstronomyCalculations.localSiderealTime(t, longitude);
           final (alt, _) = AstronomyCalculations.equatorialToHorizontal(
             raDeg: raDeg,
@@ -154,7 +154,8 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     );
 
     // "Now" marker on the curve.
-    final nowFrac = observationTime.difference(localNoon).inMinutes / (24 * 60);
+    final nowFrac =
+        observationTime.difference(nightStart).inMinutes / (24 * 60);
     if (nowFrac >= 0 && nowFrac <= 1) {
       final nowX = o.dx + nowFrac * trackWidth;
       canvas.drawLine(
@@ -169,7 +170,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // Transit (meridian-flip) tick + label.
     final transit = visibility.transitTime;
     if (transit != null) {
-      final tFrac = transit.difference(localNoon).inMinutes / (24 * 60);
+      final tFrac = transit.difference(nightStart).inMinutes / (24 * 60);
       if (tFrac >= 0 && tFrac <= 1) {
         final tx = o.dx + tFrac * trackWidth;
         canvas.drawLine(
@@ -192,9 +193,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
           : 'Flip ${ClockFormat.hm(transit)}';
       final tp = _TextCache.get(
         label,
-        const TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        SkotiqTypography.canvas(
           color: _flipColor,
           fontSize: 9,
           fontWeight: FontWeight.w600,
@@ -204,9 +203,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     } else if (visibility.neverRises) {
       final tp = _TextCache.get(
         'Never rises',
-        TextStyle(
-          fontFamily: SkotiqTypography.fontFamily,
-          fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+        SkotiqTypography.canvas(
           color: Colors.white.withValues(alpha: 0.7),
           fontSize: 9,
           fontWeight: FontWeight.w500,
@@ -222,12 +219,16 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
   void _drawTwilightIndicator(Canvas canvas, Size size) {
     // Memoized on (day, site) — see [_PlanningAstronomyCache]. This overlay is
     // on the animated layer, and the solve is iterative.
+    final night = AstronomyCalculations.nightDateOf(
+      observationTime,
+      longitudeDeg: longitude,
+    );
     final twilight = _planningAstronomyCache.twilight(
-      date: observationTime,
+      night: night,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       compute: () => AstronomyCalculations.calculateTwilightTimes(
-        date: observationTime,
+        date: night,
         latitudeDeg: latitude,
         longitudeDeg: longitude,
       ),
@@ -237,17 +238,16 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final dawn = twilight.astronomicalDawn ?? twilight.nauticalDawn;
     if (dusk == null || dawn == null) return;
 
-    // Gauge spans the local night window (noon→noon) so "now" and the band map
-    // consistently with the altitude track.
-    final localNoon = DateTime(
-      observationTime.year,
-      observationTime.month,
-      observationTime.day,
-      12,
+    // Gauge spans the site's night (solar noon to solar noon), the window the
+    // twilight times are read from, so "now" and the band map consistently
+    // with the altitude track.
+    final nightStart = AstronomyCalculations.nightStartOf(
+      night,
+      longitudeDeg: longitude,
     );
     const windowMinutes = 24 * 60;
     double frac(DateTime t) =>
-        (t.difference(localNoon).inMinutes / windowMinutes).clamp(0.0, 1.0);
+        (t.difference(nightStart).inMinutes / windowMinutes).clamp(0.0, 1.0);
 
     const double left = 16;
     const double top = 16;
@@ -285,9 +285,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // Dusk / dawn labels.
     final duskTp = _TextCache.get(
       'Dusk ${ClockFormat.hm(dusk)}',
-      TextStyle(
-        fontFamily: SkotiqTypography.fontFamily,
-        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+      SkotiqTypography.canvas(
         color: _twilightColor.withValues(alpha: 0.95),
         fontSize: 9,
         fontWeight: FontWeight.w500,
@@ -297,9 +295,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
 
     final dawnTp = _TextCache.get(
       'Dawn ${ClockFormat.hm(dawn)}',
-      TextStyle(
-        fontFamily: SkotiqTypography.fontFamily,
-        fontFamilyFallback: SkotiqTypography.fontFamilyFallback,
+      SkotiqTypography.canvas(
         color: _twilightColor.withValues(alpha: 0.95),
         fontSize: 9,
         fontWeight: FontWeight.w500,

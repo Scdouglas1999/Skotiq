@@ -85,8 +85,7 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         // at the old one. The next launch then re-runs the whole chain over
         // it, and every step is only as re-runnable as its own guard: the
         // `IF NOT EXISTS` ones survive it, while the rename-create-copy-drop
-        // rebuilds do not (see the v30 `guide_rms_history` block, which is why
-        // that one now resumes).
+        // rebuilds do not.
         //
         // Committing the statements and the version together leaves the file
         // either entirely before the upgrade or entirely after it. A kill
@@ -98,9 +97,8 @@ extension _SkotiqDatabaseMigration on SkotiqDatabase {
         // transaction of its OWN to run SQLite's twelve-step table rebuild. A
         // raw `customStatement('BEGIN')` is invisible to drift's transaction
         // bookkeeping, so drift then issues a second `BEGIN` and SQLite
-        // rejects it — `cannot start a transaction within a transaction`,
-        // which broke every upgrade from a schema old enough to reach an
-        // `alterTable` step. Going through `transaction()` lets drift see the
+        // rejects it — `cannot start a transaction within a transaction`.
+        // Going through `transaction()` lets drift see the
         // outer one and nest the inner as a savepoint. `onCreate` calls only
         // `createAll`, which opens nothing, so its raw form is left alone.
         //

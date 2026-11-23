@@ -179,7 +179,9 @@ async fn connected_ccd_simulator() -> skotiq_indi::IndiClient {
     let mut client = skotiq_indi::IndiClient::new("127.0.0.1", Some(port));
     client.connect().await.expect("connect");
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
-    while !client.has_property("CCD Simulator", "CCD_INFO").await {
+    // FILTER_NAME is the recording's last definition, so every property the
+    // camera checks for has arrived once it has.
+    while !client.has_property("CCD Simulator", "FILTER_NAME").await {
         assert!(
             tokio::time::Instant::now() < deadline,
             "definitions arrived"
@@ -265,7 +267,9 @@ async fn exposing_ccd_simulator_on_a_busy_connection() -> skotiq_indi::IndiClien
     let mut client = skotiq_indi::IndiClient::new("127.0.0.1", Some(port));
     client.connect().await.expect("connect");
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
-    while !client.has_property("CCD Simulator", "CCD_INFO").await {
+    // FILTER_NAME is the recording's last definition, so every property the
+    // camera checks for has arrived once it has.
+    while !client.has_property("CCD Simulator", "FILTER_NAME").await {
         assert!(
             tokio::time::Instant::now() < deadline,
             "definitions arrived"
@@ -366,7 +370,9 @@ async fn recording_ccd_simulator() -> (
     let mut client = skotiq_indi::IndiClient::new("127.0.0.1", Some(port));
     client.connect().await.expect("connect");
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
-    while !client.has_property("CCD Simulator", "CCD_INFO").await {
+    // FILTER_NAME is the recording's last definition, so every property the
+    // camera checks for has arrived once it has.
+    while !client.has_property("CCD Simulator", "FILTER_NAME").await {
         assert!(
             tokio::time::Instant::now() < deadline,
             "definitions arrived"

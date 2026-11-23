@@ -179,6 +179,7 @@ void main() {
       expect(find.byType(IndiServerDialog), findsOneWidget);
       expect(find.text('INDI server'), findsOneWidget);
     },
+    // Windows offers no INDI server entry (INDI runs on Linux and macOS).
     skip: Platform.isWindows,
   );
 

@@ -233,8 +233,7 @@ class _MountTabState extends ConsumerState<MountTab> {
             // reaches for mid-run lead; Park follows — it is never pressed
             // unasked, so it does not get the first, loudest slot — beside
             // Home, the other "put the mount somewhere known" action; Polar
-            // alignment, which used to be a card holding a single button,
-            // closes the grid.
+            // alignment closes the grid.
             child: _ActionPairs(
               cells: <AdaptiveCell>[
                 _actionCell(

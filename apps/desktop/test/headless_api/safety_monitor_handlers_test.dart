@@ -11,6 +11,7 @@ import 'package:skotiq_desktop/headless_api/handlers/safety_monitor_handlers.dar
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_core/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

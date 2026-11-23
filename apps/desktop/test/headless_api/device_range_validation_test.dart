@@ -8,6 +8,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 /// Out-of-range device requests must be refused as bad requests, naming the
 /// valid range, instead of reaching the driver and surfacing as
@@ -38,7 +39,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    handlers = DeviceHandlers(container);
+    handlers = DeviceHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    );
   });
 
   Request post(String path, Map<String, Object?> body) => Request(

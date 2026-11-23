@@ -64,7 +64,7 @@ void main() {
 
     // The convention the painter uses: mesh (u,v) -> image (tx=v, ty=u).
     (double, double) painterConv(double u, double v) => (v, u);
-    // The two strongest WRONG alternatives — a flip (the previously-shipped bug)
+    // The two strongest WRONG alternatives — a flip
     // and the other transpose — which must both score strictly worse.
     (double, double) flipConv(double u, double v) => (v, 1 - u);
     (double, double) otherTranspose(double u, double v) => (u, v);

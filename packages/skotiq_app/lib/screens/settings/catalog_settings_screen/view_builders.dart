@@ -411,11 +411,7 @@ extension _CatalogSettingsViewBuilders on _CatalogSettingsScreenState {
                   value: _formatBytes(_annotationStatus!.sizeBytes),
                 ),
                 // No "Package" chip here either — see the note on the shared
-                // installed-catalog card in card_builders.dart. The download
-                // tier was a placebo and has been retired; printing the grade
-                // off the legacy sidecar labels the user's install with
-                // something they can no longer choose and that never described
-                // the bytes on disk.
+                // installed-catalog card in card_builders.dart.
                 if (_annotationStatus!.installedAt != null)
                   _buildStatusChip(
                     context: context,

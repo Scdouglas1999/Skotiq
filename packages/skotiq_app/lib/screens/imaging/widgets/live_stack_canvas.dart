@@ -4,17 +4,13 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../../utils/darkroom_navigation.dart';
-import '../../../utils/snackbar_helper.dart';
 import 'depthlock/depthlock_hint.dart';
 import 'depthlock/depthlock_region_layer.dart';
 import 'depthlock/depthlock_selection.dart';
@@ -30,6 +26,7 @@ import 'stacking_panel.dart'
         StackedPreviewStretch,
         StackedPreviewStretchAsync,
         stackedPreviewStretchAsyncProvider;
+import 'live_stack/live_stack_open_in_darkroom.dart';
 
 /// Where the live stack canvas is zoomed and panned to.
 ///
@@ -82,15 +79,16 @@ class LiveStackCanvas extends ConsumerWidget {
         stack.previewWidth <= 0 ||
         stack.previewHeight <= 0) {
       final isRunning = stack.status == LiveStackingStatus.running;
-      final isRemote = ref.watch(isRemoteModeProvider);
       final plan = ref.watch(sessionStackPlanProvider);
       final currentFilePath = ref.watch(
         currentImageProvider.select((img) => img?.filePath),
       );
+      // The stacker here reads the frame's file, which a linked client
+      // cannot open.
       final canStartFromCurrent = !isRunning &&
-          !isRemote &&
           currentFilePath != null &&
-          currentFilePath.isNotEmpty;
+          currentFilePath.isNotEmpty &&
+          ref.watch(hostPathsProvider).local(currentFilePath) != null;
 
       return Container(
         color: colors.isRedNight
@@ -161,9 +159,7 @@ class LiveStackCanvas extends ConsumerWidget {
       );
     }
 
-    final activeKey = stack.selectedFilterKey ??
-        stack.activeFilterStack?.filterKey ??
-        kDefaultLiveStackFilterKey;
+    final activeKey = stack.viewedFilterKey;
     final darkroomRender = darkroom.enabled && !darkroom.compareBeforeAfter
         ? darkroom.renderFor(activeKey)
         : null;
@@ -318,33 +314,12 @@ class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
 
   Future<void> _openInDarkroom(String filterKey) async {
     if (_isPromoting) return;
-    final refusal = darkroomHostOnlyRefusal(ref);
-    if (refusal != null) {
-      context.showInfoSnackBar(refusal);
-      return;
-    }
-    setState(() => _isPromoting = true);
-    try {
-      final promoted = await promoteLiveStackToDarkroom(
-        ref: ref,
-        filterKey: filterKey,
-      );
-      if (!mounted) return;
-      final loc = promoted.recipeId != null
-          ? darkroomEditLocation(
-              masterId: promoted.masterId,
-              recipeId: promoted.recipeId,
-            )
-          : darkroomEditLocation(masterId: promoted.masterId);
-      unawaited(context.push(loc));
-    } catch (error) {
-      if (!mounted) return;
-      context.showErrorSnackBar(
-        'Could not open in Darkroom: ${userFacingError(error)}',
-      );
-    } finally {
-      if (mounted) setState(() => _isPromoting = false);
-    }
+    await openLiveStackInDarkroom(
+      context,
+      ref,
+      filterKey,
+      setBusy: (busy) => setState(() => _isPromoting = busy),
+    );
   }
 
   @override
@@ -352,9 +327,7 @@ class _StackCanvasToolbarState extends ConsumerState<_StackCanvasToolbar> {
     final colors = context.skotiqColors;
     final stack = ref.watch(liveStackingProvider);
     final filters = stack.availableFilters;
-    final activeKey = stack.selectedFilterKey ??
-        stack.activeFilterStack?.filterKey ??
-        kDefaultLiveStackFilterKey;
+    final activeKey = stack.viewedFilterKey;
     final darkroom = ref.watch(liveStackDarkroomProvider);
     final isRemoteClient = ref.watch(isRemoteClientProvider);
     final selection = ref.watch(depthLockStackSelectionProvider);

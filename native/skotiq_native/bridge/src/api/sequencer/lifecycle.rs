@@ -1,12 +1,12 @@
 use super::SequencerState;
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 use crate::event::bus::EventPayload;
 use crate::event::correlation::create_event_auto_id;
 use crate::event::equipment::{EventCategory, EventSeverity};
 use crate::event::sequencer::SequencerEvent;
 use crate::state::get_state;
 use crate::unified_device_ops::create_unified_device_ops;
-use skotiq_sequencer::{ExecutorState, SequenceDefinition};
+use skotiq_sequencer::{ExecutorState, SequenceDefinition, StartError};
 
 // Keep the standalone flip's admission and a sequence start from both passing.
 // Held for the whole standalone flip, and only while a sequence start is
@@ -80,10 +80,7 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
 
     let mut executor = skotiq_sequencer::get_executor().write().await;
     seed_executor_site_from_settings(&executor).await;
-    executor
-        .start()
-        .await
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start sequence: {}", e)))?;
+    executor.start().await.map_err(start_refused)?;
 
     // A run starts only with a plan loaded.
     let sequence_name = executor.sequence_name().unwrap_or_default().to_string();
@@ -94,6 +91,15 @@ pub async fn api_sequencer_start() -> Result<(), SkotiqError> {
     ));
 
     Ok(())
+}
+
+fn start_refused(e: StartError) -> SkotiqError {
+    let message = format!("Failed to start sequence: {e}");
+    match e {
+        StartError::NotIdle(_) => SkotiqError::refused(Refusal::ExecutorNotIdle, message),
+        StartError::NoSequence => SkotiqError::refused(Refusal::NoSequenceLoaded, message),
+        StartError::Refused(_) => SkotiqError::OperationFailed(message),
+    }
 }
 
 /// Pause the sequence executor
@@ -481,6 +487,46 @@ pub fn api_sequencer_clear_checkpoint() -> Result<(), SkotiqError> {
 }
 
 #[cfg(test)]
+mod start_refusal_tests {
+    use super::*;
+
+    /// The start refusals a caller answers by kind carry it; every refusal
+    /// keeps the words and the display it always had.
+    #[test]
+    fn start_refusals_carry_their_kind_and_keep_their_words() {
+        let cases = [
+            (
+                StartError::NotIdle(ExecutorState::Running),
+                Some(Refusal::ExecutorNotIdle),
+                "Failed to start sequence: Cannot start: executor is Running",
+            ),
+            (
+                StartError::NoSequence,
+                Some(Refusal::NoSequenceLoaded),
+                "Failed to start sequence: No sequence loaded",
+            ),
+            (
+                StartError::Refused("no save path".into()),
+                None,
+                "Failed to start sequence: no save path",
+            ),
+        ];
+        for (error, kind, words) in cases {
+            let refused = start_refused(error);
+            assert_eq!(refused.to_string(), format!("Operation failed: {words}"));
+            match (refused, kind) {
+                (SkotiqError::Refused { kind: got, message }, Some(kind)) => {
+                    assert_eq!(got, kind);
+                    assert_eq!(message, words);
+                }
+                (SkotiqError::OperationFailed(message), None) => assert_eq!(message, words),
+                (other, kind) => panic!("{other:?} for {kind:?}"),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
 mod executor_site_tests {
     use crate::api::sequencer::lifecycle::api_sequencer_start;
     use crate::state::get_state;
@@ -596,8 +642,7 @@ mod executor_site_tests {
     }
 
     /// The run's start names the plan it runs; the app shows "Started
-    /// sequence: <name>" and used to show "Started sequence: Sequence" for
-    /// every plan.
+    /// sequence: <name>".
     #[tokio::test]
     async fn starting_a_run_announces_the_plan_by_name() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
@@ -658,22 +703,17 @@ mod executor_site_tests {
             children: vec![],
         });
         sequence.root_node_id = Some("wait".to_string());
-        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
-        let mut run_events = {
+        {
             let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
             executor.load_sequence(sequence).expect("sequence loads");
-            executor.handle().subscribe()
-        };
-        let bridge = tokio::spawn(async move {
-            crate::api::sequencer::event_bridge::run_sequencer_event_loop(
-                &mut run_events,
-                get_state(),
-            )
-            .await;
-        });
+        }
+        // The process's one pair of event bridges, as the host starts them:
+        // a test-local loop beside them would deliver every event twice.
+        crate::api::sequencer::event_bridge::start_sequencer_event_bridges()
+            .expect("the event bridges start");
         let mut events = get_state().event_bus.subscribe();
 
         api_sequencer_start().await.expect("run starts");
@@ -704,7 +744,6 @@ mod executor_site_tests {
                 Ok(Err(_)) | Err(_) => break,
             }
         }
-        bridge.abort();
         assert_eq!(stopped, 1, "one stop is one Stopped on the wire");
     }
 

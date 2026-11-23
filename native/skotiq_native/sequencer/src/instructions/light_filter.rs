@@ -4,7 +4,7 @@
 //! blocks light, and a run that is stopped or fails can leave the wheel there.
 //! A step that captures the sky without a filter of its own (Center, the
 //! recenter paths that reuse it, autofocus) would then shoot through that
-//! slot: on 2026-11-03 every centering solve failed through "DARK" and the
+//! slot: every centering solve failed through "DARK" and the
 //! run went on uncentered. Before such a capture the wheel is moved to a
 //! light filter.
 

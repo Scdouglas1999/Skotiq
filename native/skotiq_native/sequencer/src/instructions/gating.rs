@@ -57,11 +57,11 @@ pub(crate) fn unset_target_pointing_reason(
     ))
 }
 
-/// W1 native daylight gate decision.
+/// Native daylight gate decision.
 ///
 /// Structural START gate applied by `execute_slew` (when slewing to a
 /// sky/science target) and `execute_exposure` (when capturing a LIGHT frame on
-/// a science target). It enforces the W1 "no daylight imaging" invariant for
+/// a science target). It enforces the "no daylight imaging" invariant for
 /// EVERY executor-run sequence — including a raw sequence started via
 /// `api_sequencer_start` (e.g. a mosaic) — not just the autopilot path that
 /// `scheduler_engine.dart` already gates. The same Sun-position math behind
@@ -72,7 +72,7 @@ pub(crate) fn unset_target_pointing_reason(
 /// a genuine on-sky LIGHT capture: when the observer location is unknown the
 /// gate ABSTAINS (returns `None`) rather than blocking, because without a
 /// location the Sun altitude cannot be computed and blocking would break
-/// location-less rigs doing legitimate work — the Dart W1 gate remains the
+/// location-less rigs doing legitimate work — the Dart gate remains the
 /// belt-and-suspenders for the autopilot path. Flats/darks/bias/park and a
 /// parked rig never reach this function (their callers pass nothing that looks
 /// like an on-sky LIGHT capture), so daytime calibration / testing is
@@ -82,6 +82,7 @@ pub(crate) fn daylight_gate_block_reason(
     longitude: Option<f64>,
     max_sun_altitude_degrees: f64,
     what: &str,
+    now: chrono::DateTime<chrono::Utc>,
 ) -> Option<String> {
     // (0, 0) is the shape an unset site arrives in, not a site in the Gulf of
     // Guinea: quoting a Greenwich Sun altitude refused every light frame of an
@@ -91,7 +92,7 @@ pub(crate) fn daylight_gate_block_reason(
     let (lat, lon) = match (latitude, longitude) {
         (Some(lat), Some(lon)) => (lat, lon),
         _ => {
-            // No location => cannot compute Sun altitude. Abstain (the Dart W1
+            // No location => cannot compute Sun altitude. Abstain (the Dart
             // gate still protects the autopilot path); never fabricate a block
             // that would wedge a location-less rig.
             tracing::warn!(
@@ -102,7 +103,7 @@ pub(crate) fn daylight_gate_block_reason(
         }
     };
 
-    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon, now);
     let max_alt = if max_sun_altitude_degrees.is_finite() {
         max_sun_altitude_degrees
     } else {
@@ -162,6 +163,7 @@ pub(crate) async fn wait_for_darkness(
         ctx.run.rig.longitude,
         max_sun_alt,
         what,
+        ctx.run.clock.now_utc(),
     )?;
     let (latitude, longitude) = crate::node::context::normalized_observer_location(
         ctx.run.rig.latitude,
@@ -174,9 +176,13 @@ pub(crate) async fn wait_for_darkness(
         tracing::warn!("{reason}");
         Some(InstructionResult::failure_because(reason, Setback::SunUp))
     };
-    let Some(minutes) =
-        minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)
-    else {
+    let Some(minutes) = minutes_until_dark(
+        lat,
+        lon,
+        max_sun_alt,
+        ctx.run.clock.now_utc(),
+        MAX_DARKNESS_WAIT,
+    ) else {
         return refuse(reason);
     };
 
@@ -186,7 +192,8 @@ pub(crate) async fn wait_for_darkness(
              {max_sun_alt:.1}°, in about {minutes} min."
         )
     };
-    let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+    let sun_alt =
+        crate::node::context::current_sun_altitude_degrees(lat, lon, ctx.run.clock.now_utc());
     let message = waiting(sun_alt, minutes);
     tracing::info!("{message}");
     if let Err(e) = ctx
@@ -203,7 +210,8 @@ pub(crate) async fn wait_for_darkness(
         if let Some(result) = ctx.check_cancelled() {
             return Some(result);
         }
-        let sun_alt = crate::node::context::current_sun_altitude_degrees(lat, lon);
+        let sun_alt =
+            crate::node::context::current_sun_altitude_degrees(lat, lon, ctx.run.clock.now_utc());
         if sun_alt <= max_sun_alt {
             tracing::info!("Dark: the Sun is at {sun_alt:.1}°; the slew goes ahead");
             return None;
@@ -216,16 +224,21 @@ pub(crate) async fn wait_for_darkness(
             ));
         }
         if let Some(cb) = progress_callback {
-            let left =
-                minutes_until_dark(lat, lon, max_sun_alt, chrono::Utc::now(), MAX_DARKNESS_WAIT)
-                    .unwrap_or(0);
+            let left = minutes_until_dark(
+                lat,
+                lon,
+                max_sun_alt,
+                ctx.run.clock.now_utc(),
+                MAX_DARKNESS_WAIT,
+            )
+            .unwrap_or(0);
             cb(0.0, waiting(sun_alt, left));
         }
         sleep(DARKNESS_POLL).await;
     }
 }
 
-/// W1 native daylight gate — resolve the effective maximum Sun altitude for a
+/// Native daylight gate — resolve the effective maximum Sun altitude for a
 /// running sequence. Reads the executor-seeded value from the shared trigger
 /// state (mirrors `RunConfig::max_sun_altitude_degrees`), falling back to
 /// [`DEFAULT_MAX_SUN_ALTITUDE_DEGREES`] when no trigger state is wired (one-shot

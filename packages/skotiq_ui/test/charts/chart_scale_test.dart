@@ -104,7 +104,6 @@ void main() {
     });
 
     test('elapsed ticks use round time steps', () {
-      // 7 h 8 min used to be cut into four equal parts: 1h47m, 3h34m, ...
       expect(ChartScale.elapsedTicks(0, 25680, 5), <double>[
         0,
         7200,

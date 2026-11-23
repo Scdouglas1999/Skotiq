@@ -39,6 +39,8 @@ struct Sensor {
     gain: i32,
     offset: i32,
     frames: Vec<TakenAt>,
+    /// The frame type each frame was asked for.
+    frame_types: Vec<skotiq_device::FrameType>,
     /// Raised when a frame starts, to end the step that asked for it.
     stop_after_frame: Option<Arc<AtomicBool>>,
 }
@@ -94,8 +96,8 @@ impl CameraDriver for SettingsCamera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: sensor.gain,
-            offset: sensor.offset,
+            gain: Some(sensor.gain),
+            offset: Some(sensor.offset),
             bin_x: 1,
             bin_y: 1,
             exposure_remaining: None,
@@ -116,6 +118,7 @@ impl CameraDriver for SettingsCamera {
             bin: (params.bin_x, params.bin_y),
         };
         sensor.frames.push(taken);
+        sensor.frame_types.push(params.frame_type);
         if let Some(stop) = &sensor.stop_after_frame {
             stop.store(true, Ordering::Relaxed);
         }
@@ -249,6 +252,7 @@ async fn camera_left_at_gain_600(device_id: &str) -> Arc<Mutex<Sensor>> {
         gain: 139,
         offset: 21,
         frames: Vec::new(),
+        frame_types: Vec::new(),
         stop_after_frame: None,
     }));
     let mgr = get_device_manager();
@@ -294,6 +298,7 @@ async fn camera_left_at_gain_600(device_id: &str) -> Arc<Mutex<Sensor>> {
         }]
     );
     sensor.lock().unwrap().frames.clear();
+    sensor.lock().unwrap().frame_types.clear();
     sensor
 }
 
@@ -409,5 +414,31 @@ async fn a_frame_that_names_its_gain_takes_it() {
             offset: 15,
             bin: (1, 1)
         }]
+    );
+}
+
+/// A camera is never asked for a snapshot: a run's snapshot is taken as a
+/// light (shutter open), and a dark as a dark.
+#[tokio::test]
+async fn a_snapshot_is_taken_as_a_light() {
+    let device_id = "native:frame_defaults_snapshot";
+    let sensor = camera_left_at_gain_600(device_id).await;
+    let ops = super::create_unified_device_ops();
+    for frame_type in [
+        skotiq_sequencer::FrameType::Snapshot,
+        skotiq_sequencer::FrameType::Dark,
+    ] {
+        ops.camera_start_exposure(ExposureRequest::new(device_id, 0.01).frame_type(frame_type))
+            .await
+            .expect("frame");
+    }
+    let frame_types = sensor.lock().unwrap().frame_types.clone();
+    disconnect(device_id).await;
+    assert_eq!(
+        frame_types,
+        [
+            skotiq_device::FrameType::Light,
+            skotiq_device::FrameType::Dark
+        ]
     );
 }

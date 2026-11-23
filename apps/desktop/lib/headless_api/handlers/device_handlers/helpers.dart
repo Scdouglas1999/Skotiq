@@ -14,17 +14,6 @@ FrameType _parseFrameType(String type) =>
       message: 'Unknown frame type "$type"',
     ));
 
-/// Internal sentinel raised by `_dispatchConnect` when the requested
-/// device id does not match anything `DeviceService.discoverDevices`
-/// returned. The connect handler translates this into a structured
-/// `device_not_found` HTTP 404 with the original service message.
-class _DeviceNotFoundFailure implements Exception {
-  final String message;
-  _DeviceNotFoundFailure(this.message);
-  @override
-  String toString() => message;
-}
-
 /// Sentinel used to flag the cancellation branch of a `Future.any` race
 /// against a long-running backend call. We can't pass `null` because the
 /// race's result type is non-nullable; a sentinel keeps the type system

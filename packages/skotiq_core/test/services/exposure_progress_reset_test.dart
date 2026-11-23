@@ -8,6 +8,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,6 +31,8 @@ import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
 import 'package:skotiq_core/src/providers/capture_preview_loader_provider.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
 import 'package:skotiq_core/src/providers/science/science_processing_service_provider.dart';
+import '../harness/event_wire.dart';
+import '../harness/imaging_event_rows.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -95,6 +98,7 @@ void main() {
   late MockBackend backend;
   late StreamController<SkotiqEvent> events;
   late Directory outputDir;
+  late void Function() onExposureStarted;
 
   setUpAll(() {
     registerMocktailFallbackValues();
@@ -109,6 +113,14 @@ void main() {
 
   setUp(() {
     outputDir = Directory.systemTemp.createTempSync('sk_progress_reset');
+    onExposureStarted = () => events.add(
+      ffiWireEvent(
+        const bridge.EventPayload.imaging(
+          bridge.ImagingEvent.exposureComplete(success: true),
+        ),
+        timestamp: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
     backend = MockBackend();
     events = StreamController<SkotiqEvent>.broadcast();
     when(() => backend.eventStream).thenAnswer((_) => events.stream);
@@ -129,15 +141,7 @@ void main() {
         binY: any(named: 'binY'),
       ),
     ).thenAnswer((_) async {
-      events.add(
-        SkotiqEvent(
-          timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureComplete',
-          data: const {},
-        ),
-      );
+      onExposureStarted();
     });
     when(
       () => backend.cameraGetLastImage(any()),
@@ -244,5 +248,76 @@ void main() {
       throwsA(anything),
     );
     expect(container.read(exposureProgressProvider), ExposureProgress.idle());
+  });
+
+  // Which events end a capture's wait for its exposure and how, over both
+  // transports. A row that does not end the wait is ended by a completion
+  // sent 200 ms later. Pinned on the capture pipeline's name compares.
+  test('the events that end a capture\'s exposure wait', () async {
+    final container = await buildContainer(const SystemClock());
+    final service = container.read(imagingServiceProvider);
+
+    Future<String> outcomeOf(SkotiqEvent event) async {
+      var fallbackSent = false;
+      onExposureStarted = () {
+        events.add(event);
+        Timer(const Duration(milliseconds: 200), () {
+          fallbackSent = true;
+          events.add(
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
+            ),
+          );
+        });
+      };
+      final progress = <double>[];
+      final sub = container.listen(
+        exposureProgressProvider,
+        (_, next) => progress.add(next.percent),
+      );
+      String outcome;
+      try {
+        final image = await service.captureUtilityFrame(settings: _settings);
+        outcome = image == null ? 'none' : 'frame';
+      } catch (e) {
+        outcome = 'error(${e.toString().replaceAll('Exception: ', '')})';
+      }
+      sub.close();
+      final when = fallbackSent ? 'after the fallback' : 'at once';
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      final halfway = progress.contains(50.0) ? ' progress=50' : '';
+      return '$outcome $when$halfway';
+    }
+
+    final table = <String, String>{};
+    for (final row in imagingEventRows.entries) {
+      final ffi = await outcomeOf(ffiWireEvent(row.value));
+      final network = await outcomeOf(networkWireEvent(row.value));
+      expect(network, ffi, reason: '${row.key}: the transports disagree');
+      table[row.key] = ffi;
+    }
+    expect(table, <String, String>{
+      'exposureStarted': 'frame after the fallback',
+      'exposureStartedWithFrame': 'frame after the fallback',
+      'exposureProgress': 'frame after the fallback progress=50',
+      'exposureCompleted': 'frame after the fallback',
+      'exposureCompletedWithFrame': 'frame after the fallback',
+      'exposureFailed': 'error(Exposure failed: timeout) at once',
+      'exposureFailedOld': 'error(Exposure failed: Unknown error) at once',
+      'exposureCancelled': 'none at once',
+      'downloadStarted': 'frame after the fallback',
+      'downloadCompleted': 'frame after the fallback',
+      'imageReady': 'frame after the fallback',
+      'imageSaved': 'frame after the fallback',
+      'integrationProgress': 'frame after the fallback',
+      'integrationTelemetry': 'frame after the fallback',
+      'temperatureChanged': 'frame after the fallback',
+      'exposureComplete ok': 'frame at once',
+      'exposureComplete failed': 'frame at once',
+      'depthLock goalChanged': 'frame after the fallback',
+      'sequencer ExposureCompleted': 'frame after the fallback',
+    });
   });
 }

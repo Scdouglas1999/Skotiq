@@ -61,6 +61,13 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
   /// Every field of the host's typed settings a setting stands behind.
   static final Set<String> wireFields = AppSettingsCodec.wireFields;
 
+  /// A fresh install's settings as the wire carries them: each setting at the
+  /// settings table's default, which for the optional checks that default on
+  /// is not the wire model's null.
+  static final models.AppSettings installDefaults = AppSettingsCodec.toWire(
+    const AppSettingsState(),
+  );
+
   /// [settings] as the stored rows would hold them.
   Map<String, String> storedRowsOf(AppSettingsState settings) =>
       AppSettingsCodec.toRows(settings);
@@ -358,6 +365,7 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
 
   @override
   Future<AppSettingsState> build() async {
+    ref.rereadsWithTheHost();
     final generation = ++_backendGeneration;
     _remoteFetchSucceeded = false;
     _remoteSettingsSnapshot = null;
@@ -471,7 +479,9 @@ class AppSettingsNotifier extends AsyncNotifier<AppSettingsState> {
       // not `_saveSetting`: this runs while `build()` is still resolving, so
       // the loaded-state guard and the remote write path do not apply — this
       // is by construction the local store.
-      await ref.read(settingsDaoProvider).setSetting('plate_solver', label);
+      await ref
+          .read(settingsDaoProvider)
+          .setSetting(AppSettingDefs.plateSolver.key, label);
       return stored.copyWith(plateSolver: label);
     } catch (error) {
       Log.debug(

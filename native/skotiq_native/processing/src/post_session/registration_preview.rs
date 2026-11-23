@@ -884,3 +884,14 @@ mod tests {
         assert_eq!(result.frames[0].side.as_deref(), Some("West"));
     }
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::RegistrationPreviewArgs>(
+            "master_accumulate_registration_preview",
+        );
+    }
+}

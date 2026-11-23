@@ -4,7 +4,6 @@ part of '../sequence_time_estimator.dart';
 class _LocationContext {
   final double latitude;
   final double longitude;
-  final DateTime date;
 
   /// When the run is stopped whatever the plan says (the dawn park), or null
   /// when nothing stops it.
@@ -13,7 +12,6 @@ class _LocationContext {
   const _LocationContext({
     required this.latitude,
     required this.longitude,
-    required this.date,
     this.runEndsBy,
   });
 }

@@ -122,7 +122,6 @@ class SkyBrightnessTracker {
     final samples = _recentSamples();
     if (samples.length < _minSamples) return null;
 
-    // Use linear regression for rate calculation
     final n = samples.length;
     final now = DateTime.now();
 

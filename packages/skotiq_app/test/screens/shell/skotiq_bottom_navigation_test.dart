@@ -84,10 +84,8 @@ void main() {
 
   // The bar is the rail's phone-width replacement, so it owes assistive tech
   // the same three answers the rail's NavItem gives: this is a button, this is
-  // the one you are standing in, and it is live. Measured on the running app at
-  // 420x900 before the fix, all seven destinations came back from AT-SPI as
-  // `panel` with states [focusable, showing, visible] — no role, no selected,
-  // no enabled.
+  // the one you are standing in, and it is live — not a bare `panel` with no
+  // role, no selected and no enabled.
   testWidgets('every destination publishes role, selection and enabled', (
     tester,
   ) async {
@@ -108,7 +106,7 @@ void main() {
     // Walked from the semantics tree, not from `getSemantics(find.text(...))`:
     // each slot's Semantics node EXCLUDES its Text child (otherwise the node
     // merges into "More\nMore" and a screen reader says it twice), so the
-    // Text is no longer a node of its own to look up.
+    // Text is not a node of its own to look up.
     final nodes = <SemanticsData>[];
     void visit(SemanticsNode node) {
       final data = node.getSemanticsData();

@@ -12,8 +12,8 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 /// `AstronomyCalculations.calculateObjectVisibility` — 289 altitude samples
 /// across a 24 h window, plus bisection of every horizon crossing and a ternary
 /// transit search — on the UI isolate. Every one of those solves is anchored on
-/// `nightDateOf(...)`, which changes only at local noon, so the same answer was
-/// recomputed on the order of 86,400 times a night.
+/// `nightDateOf(...)`, which changes only at the site's solar noon, so the
+/// same answer was recomputed on the order of 86,400 times a night.
 void main() {
   const target = DeepSkyObject(
     id: 'M31',

@@ -1,0 +1,10 @@
+{
+  "filter": "string",
+  "referencePath": "string",
+  "settings": {
+    "onlineClipHigh": "number",
+    "onlineClipLow": "number"
+  },
+  "sidecarPath": "string",
+  "target": "string"
+}

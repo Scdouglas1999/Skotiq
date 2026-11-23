@@ -1,11 +1,13 @@
 import 'dart:collection';
-import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import '../celestial_object.dart';
 import 'deep_star_tile.dart';
+
+final _deepStarTileStoreLog = Logger('skotiq.DeepStarTileStore');
 
 /// Read side of the installed deep-star tier: loads SKDT tiles on demand,
 /// keeps a small LRU of decoded tiles, and answers brightest-in-viewport
@@ -59,11 +61,9 @@ class DeepStarTileStore {
       _cache.clear();
       return true;
     } catch (e) {
-      developer.log(
+      _deepStarTileStoreLog.warning(
         '[DeepStar] Failed to read manifest: $e',
-        name: 'DeepStarTileStore',
-        level: 900,
-        error: e,
+        e,
       );
       _manifest = null;
       _tilesByKey.clear();
@@ -91,11 +91,9 @@ class DeepStarTileStore {
         final tile = DeepStarTile.decode(await file.readAsBytes());
         return tile.toStars();
       } catch (e) {
-        developer.log(
+        _deepStarTileStoreLog.warning(
           '[DeepStar] Failed to load tile ${entry.file}: $e',
-          name: 'DeepStarTileStore',
-          level: 900,
-          error: e,
+          e,
         );
         return const <Star>[];
       }

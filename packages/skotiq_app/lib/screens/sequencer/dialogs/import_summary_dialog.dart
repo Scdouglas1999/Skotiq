@@ -447,7 +447,7 @@ class _UnsupportedSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Unsupported nodes (${unsupported.length})',
           subtitle: forced
               ? 'These were skipped because force-import was requested. '

@@ -88,4 +88,20 @@ void main() {
       isNull,
     );
   });
+
+  test('temperatures are read from the cards each one is written to', () {
+    final both = FrameHeader({
+      'CCD_TEMP': -9.6,
+      'SET_TEMP': -10,
+      'SET-TEMP': -8,
+    });
+    expect(both.sensorTempC, -9.6);
+    expect(both.setPointC, -8);
+    expect(both.libraryTempC, -9.6);
+    final cooled = FrameHeader({'SET_TEMP': -10});
+    expect(cooled.setPointC, -10);
+    expect(cooled.sensorTempC, isNull);
+    expect(cooled.libraryTempC, isNull, reason: 'only SET-TEMP stands in');
+    expect(FrameHeader({'SET-TEMP': -10}).libraryTempC, -10);
+  });
 }

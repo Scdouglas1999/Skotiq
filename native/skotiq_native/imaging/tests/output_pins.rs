@@ -390,7 +390,7 @@ fn pin_live_stack(pins: &mut Pins) {
             &format!("live_stack/mono.add{i}"),
             match &outcome {
                 Ok(image) => image_digest(image),
-                Err(e) => fnv(e.as_bytes()),
+                Err(e) => fnv(e.message.as_bytes()),
             },
         );
     }
@@ -409,7 +409,7 @@ fn pin_live_stack(pins: &mut Pins) {
             &format!("live_stack/rgb.add{i}"),
             match &outcome {
                 Ok(image) => image_digest(image),
-                Err(e) => fnv(e.as_bytes()),
+                Err(e) => fnv(e.message.as_bytes()),
             },
         );
     }
@@ -1045,7 +1045,7 @@ fn pin_resampling(pins: &mut Pins) {
     for sigma in [0.6, 1.7, 4.2] {
         pins.add(
             &format!("resample/gaussian_blur.{sigma}"),
-            f32_digest(&color_composite::mix::gaussian_blur(
+            f32_digest(&recipe::composite::mix::gaussian_blur(
                 &plane, 400, 400, sigma,
             )),
         );
@@ -1076,7 +1076,7 @@ fn pin_finishing(pins: &mut Pins) {
         }
         pins.add(
             &format!("finishing/star_reduction.{name}"),
-            match reduce_stars(image, &StarReductionConfig::default()) {
+            match recipe::ops::star_reduce::reduce_stars_in_frame(image, 0.5, 2.0) {
                 Ok(out) => image_digest(&out),
                 Err(e) => debug_digest(&e),
             },

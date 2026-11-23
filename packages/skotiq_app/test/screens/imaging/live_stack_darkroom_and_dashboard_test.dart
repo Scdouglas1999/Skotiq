@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -17,8 +19,13 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../../harness/args_fixture.dart';
 
 class _ScriptedDarkroomSeam implements DarkroomSeam {
+  _ScriptedDarkroomSeam({this.registryReply});
+
+  /// The reply `registry` answers with; a scripted stretch draft when null.
+  final Map<String, dynamic>? registryReply;
   int registryCalls = 0;
   int renderCalls = 0;
   Completer<void>? registryGate;
@@ -28,22 +35,27 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> registry(Map<String, dynamic> args) async {
     registryCalls++;
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_registry']);
     final gate = registryGate;
     if (gate != null) await gate.future;
+    final scripted = registryReply;
+    if (scripted != null) return scripted;
     return <String, dynamic>{
       'draft': <String, dynamic>{
-        'steps': <Map<String, dynamic>>[
-          <String, dynamic>{
-            'opId': 'stretch',
-            'params': <String, dynamic>{
-              'blackPoint': 980.0,
-              'whitePoint': 42000.0,
-              'd': 3.5,
-              'b': 2.0,
-              'symmetryPoint': 0.04,
+        'recipe': <String, dynamic>{
+          'steps': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'opId': 'stretch',
+              'params': <String, dynamic>{
+                'blackPoint': 980.0,
+                'whitePoint': 42000.0,
+                'd': 3.5,
+                'b': 2.0,
+                'symmetryPoint': 0.04,
+              },
             },
-          },
-        ],
+          ],
+        },
       },
     };
   }
@@ -78,6 +90,7 @@ class _ScriptedDarkroomSeam implements DarkroomSeam {
 
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     final id = args['renderId'] as String?;
     if (id != null) cancelledIds.add(id);
     return const <String, dynamic>{'cancelled': true};
@@ -495,6 +508,48 @@ void main() {
       gate2.complete();
       await enableFuture2;
       expect(seam.renderCalls, rendersBefore);
+    },
+  );
+
+  test(
+    "Auto-develop takes the stretch anchors from the engine's draft as the "
+    'engine writes it',
+    () async {
+      // A real registry reply over a synthetic master, written by
+      // processing/src/darkroom/tests.rs.
+      final reply = jsonDecode(
+        File(
+          '../../test_fixtures/ffi_replies/darkroom_registry.json',
+        ).readAsStringSync(),
+      ) as Map<String, dynamic>;
+      final stretch = DarkroomRegistryDraft.of(reply)!.paramsOf('stretch')!;
+      final seam = _ScriptedDarkroomSeam(registryReply: reply);
+      final container = ProviderContainer(
+        overrides: [
+          darkroomSeamProvider.overrideWithValue(seam),
+          liveStackingProvider.overrideWith(
+            (ref) => _TestLiveStackNotifier(ref, _twoFilterActiveState()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(liveStackDarkroomProvider.notifier).autoDevelop('L');
+
+      final settings =
+          container.read(liveStackDarkroomProvider).settingsFor('L');
+      expect(seam.registryCalls, 1);
+      expect(settings.stretchMeasured, isTrue);
+      expect(
+        settings.stretchBlackPoint,
+        closeTo((stretch['blackPoint'] as num).toDouble(), 1e-9),
+      );
+      expect(
+        settings.stretchWhitePoint,
+        closeTo((stretch['whitePoint'] as num).toDouble(), 1e-9),
+      );
+      expect(
+          settings.stretchD, closeTo((stretch['d'] as num).toDouble(), 1e-9));
     },
   );
 }

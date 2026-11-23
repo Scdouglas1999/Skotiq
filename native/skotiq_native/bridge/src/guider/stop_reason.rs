@@ -55,9 +55,11 @@ pub(crate) fn note_operator_stop() {
 /// The stop reason a status in `state` reports. A guider that is guiding
 /// again (started outside the run, say) reports none, except while it
 /// settles after a dither.
-pub(crate) fn reported(state: &str) -> Option<String> {
+pub(crate) fn reported(state: &super::GuiderActivity) -> Option<String> {
     current()
-        .filter(|reason| state != "Guiding" || *reason == GuidingStopReason::DitherSettle)
+        .filter(|reason| {
+            *state != super::GuiderActivity::Guiding || *reason == GuidingStopReason::DitherSettle
+        })
         .map(|reason| reason.as_wire().to_string())
 }
 
@@ -81,14 +83,20 @@ mod tests {
             Some(GuidingStopReason::Autofocus),
             "an autofocus stop is never relabelled as the operator's"
         );
-        assert_eq!(reported("Stopped").as_deref(), Some("autofocus"));
         assert_eq!(
-            reported("Guiding"),
+            reported(&super::super::GuiderActivity::Stopped).as_deref(),
+            Some("autofocus")
+        );
+        assert_eq!(
+            reported(&super::super::GuiderActivity::Guiding),
             None,
             "a guider guiding again is not reported stopped"
         );
         set(Some(GuidingStopReason::DitherSettle));
-        assert_eq!(reported("Guiding").as_deref(), Some("dither_settle"));
+        assert_eq!(
+            reported(&super::super::GuiderActivity::Guiding).as_deref(),
+            Some("dither_settle")
+        );
         set(None);
         assert_eq!(current(), None);
     }

@@ -17,7 +17,7 @@ void main() {
     final v = AstronomyCalculations.calculateObjectVisibility(
       raDeg: 22 * 15.0,
       decDeg: 20,
-      date: DateTime(2024, 1, 15),
+      date: NightDate.ofCalendarDay(DateTime(2024, 1, 15)),
       latitudeDeg: 40,
       longitudeDeg: -105,
     );
@@ -55,7 +55,7 @@ void main() {
               final v = AstronomyCalculations.calculateObjectVisibility(
                 raDeg: raHours * 15.0,
                 decDeg: dec,
-                date: DateTime(2025, month, 12),
+                date: NightDate.ofCalendarDay(DateTime(2025, month, 12)),
                 latitudeDeg: lat,
                 longitudeDeg: lon,
               );

@@ -1,7 +1,6 @@
 //! Pre-run validation: which devices a sequence tree needs, whether the
 //! assigned profile supplies them, whether every instruction is reachable,
-//! and whether the capture save path is writable. Moved verbatim out of
-//! `executor/mod.rs`.
+//! and whether the capture save path is writable.
 
 use super::*;
 
@@ -25,6 +24,16 @@ pub(super) fn tree_contains_centering(node: &dyn Node) -> bool {
     crate::node::enabled_nodes(node)
         .iter()
         .any(|node| matches!(node.node_type(), NodeType::CenterTarget(_)))
+}
+
+/// The sync choice of the first enabled Center step, in run order.
+pub(super) fn first_center_sync(node: &dyn Node) -> Option<bool> {
+    crate::node::enabled_nodes(node)
+        .iter()
+        .find_map(|node| match node.node_type() {
+            NodeType::CenterTarget(config) => Some(config.sync_mount),
+            _ => None,
+        })
 }
 
 /// True when an enabled step captures frames it must persist through the
@@ -128,15 +137,6 @@ pub(super) fn collect_required_devices(
                 // `None` — so even a plan whose filter name is empty triggers the
                 // change, and `execute_filter_change` reads `filterwheel_id()`
                 // before it looks at the name at all.
-                //
-                // Reproduced against the Linux appliance on 2026-08-09 with the
-                // sim camera/mount/focuser connected and NO wheel: a one-plan
-                // SmartExposure with `filter_name: ""` answered
-                // `POST /api/sequencer/start -> 200 {"status":"started"}` and then
-                // logged `ERROR Change Filter failed: No filter wheel connected` /
-                // `WARN [RECOVERY] Change Filter promoted device disconnect to
-                // recovery`, five futile retries, run failed — the exact loop this
-                // preflight exists to prevent.
                 if !config.plans.is_empty() {
                     require(RequiredDevice::FilterWheel, false);
                 }
@@ -161,9 +161,7 @@ pub(super) fn collect_required_devices(
                 // An AF node pinned to a filter reads the wheel before it sweeps:
                 // `execute_autofocus_admitted_with_pause` fails outright with
                 // "Autofocus is configured to use filter \"…\", but no filter wheel
-                // is connected". Reproduced on the Linux appliance on 2026-08-09
-                // with camera + focuser connected and no wheel: `start` answered
-                // 200 and the node then failed with exactly that line.
+                // is connected".
                 //
                 // `filter_settings` alone is NOT enough to require a wheel — with
                 // no wheel that branch simply leaves the per-filter overrides
@@ -246,9 +244,8 @@ pub(super) fn validate_required_devices(
 pub(super) fn device_refusal(role: RequiredDevice, requirement: &DeviceRequirement) -> String {
     let step = &requirement.node_name;
     match role {
-        // The capture wording is kept verbatim: it is the refusal the live rig
-        // produced on 2026-08-09 and the one the headless API's 400 envelope is
-        // documented against.
+        // The capture wording is kept verbatim: the headless API's 400 envelope is
+        // documented against it.
         RequiredDevice::Camera if requirement.captures_frames => {
             "This sequence captures frames but no camera is assigned to the run. Connect a \
              camera and assign it before starting — every exposure would otherwise fail and \

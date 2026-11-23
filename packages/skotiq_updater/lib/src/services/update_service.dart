@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import '../models/update_manifest.dart';
@@ -14,6 +14,8 @@ import 'github_release_source.dart';
 import 'update_compatibility.dart';
 import 'update_downloader.dart';
 import 'update_verifier.dart';
+
+final _updateServiceLog = Logger('skotiq.UpdateService');
 
 /// Filename of the staged manifest persisted alongside `ready.json`.
 /// Both staging paths (HTTPS download + LAN push) write this so apply-time
@@ -31,6 +33,67 @@ const String _stagedVerifiedMarker = 'staged_verified.marker';
 /// apply-time so the on-disk copy is never read after the manifest has
 /// been hash-verified.
 const String _expectedHashesFile = 'expected_hashes.json';
+
+/// The restore point the updater leaves in `--backup-dir` after an apply.
+const String updaterRollbackLogFile = 'rollback_log.json';
+
+/// The updater command line that applies [stagingDir] over [installDir].
+/// The flags are the updater's (`native/skotiq_native/updater/src/main.rs`
+/// `Args`); `test_fixtures/updater_cli/contract.json` pins both sides.
+List<String> updaterApplyArguments({
+  required int parentPid,
+  required String stagingDir,
+  required String installDir,
+  required String backupDir,
+  required String pendingFile,
+  required String expectedHashesFile,
+  required List<String> relaunchFlags,
+}) => [
+  '--parent-pid',
+  parentPid.toString(),
+  '--staging-dir',
+  stagingDir,
+  '--install-dir',
+  installDir,
+  '--backup-dir',
+  backupDir,
+  '--pending-file',
+  pendingFile,
+  '--expected-hashes',
+  expectedHashesFile,
+  ...relaunchFlags,
+  '--launch-after',
+];
+
+/// The updater command line that restores the restore point in [backupDir].
+List<String> updaterRollbackArguments({
+  required int parentPid,
+  required String installDir,
+  required String backupDir,
+  required String pendingFile,
+  required List<String> relaunchFlags,
+}) => [
+  '--parent-pid',
+  parentPid.toString(),
+  // Staging is unused in rollback mode but the arg is required; point it
+  // at the backup dir so the path is valid.
+  '--staging-dir',
+  backupDir,
+  '--install-dir',
+  installDir,
+  '--backup-dir',
+  backupDir,
+  '--pending-file',
+  pendingFile,
+  // expected-hashes is unused in rollback mode but required by the parser;
+  // point it at a path that need not exist (the rollback branch returns
+  // before reading it).
+  '--expected-hashes',
+  path.join(backupDir, _expectedHashesFile),
+  '--rollback',
+  ...relaunchFlags,
+  '--launch-after',
+];
 
 /// Deadline for the two small metadata fetches (`/api/version` and the
 /// manifest), so they stay bounded: the controller has a single operation slot,
@@ -52,11 +115,7 @@ final String updaterExecutableName = Platform.isWindows
 
 /// The command line this process was started with, as its `main` received it.
 ///
-/// Handed to the updater so the app comes back the way it was started. A
-/// headless rig launched as `skotiq_desktop --headless --port=...` used to
-/// be relaunched with no arguments at all, which starts the GUI: on a machine
-/// with no display that is nothing, and the rig drops off the network after
-/// what looked like a successful update.
+/// Handed to the updater so the app comes back the way it was started.
 List<String> _relaunchArguments = const [];
 
 /// Record the app's own command line for the updater to reuse. Called once
@@ -375,7 +434,6 @@ class UpdateService {
         );
       }
 
-      // Check if newer version available
       final latestVersion = channelInfo.version;
       final manifest = await _fetchManifest(channelInfo.manifestUrl);
       if (manifest.version != latestVersion) {
@@ -630,7 +688,6 @@ class UpdateService {
     // cancellable network phase has ended.
     onVerifying?.call();
 
-    // Verify package integrity: size and SHA-256 hash
     final packageFile = File(packagePath);
     final verified = await _verifier.verifyPackage(packageFile, manifest);
     if (!verified) {
@@ -639,6 +696,7 @@ class UpdateService {
         'Package integrity verification failed: '
         'the package hash or manifest signature did not verify. '
         'The download may be corrupted or tampered with.',
+        isVerificationFailure: true,
       );
     }
 
@@ -658,7 +716,10 @@ class UpdateService {
     final verification = await _verifier.verifyDirectory(extractDir, manifest);
     if (!verification.success) {
       await extractDir.delete(recursive: true);
-      throw UpdateException('Verification failed: $verification');
+      throw UpdateException(
+        'Verification failed: $verification',
+        isVerificationFailure: true,
+      );
     }
 
     await persistStagedManifest(stagingDir, manifest);
@@ -761,6 +822,7 @@ class UpdateService {
         'Package integrity verification failed: '
         'the package hash or manifest signature did not verify. '
         'The download may be corrupted or tampered with.',
+        isVerificationFailure: true,
       );
     }
 
@@ -842,11 +904,9 @@ class UpdateService {
         _currentVersion,
         _currentBuildNumber,
       )) {
-        developer.log(
+        _updateServiceLog.info(
           'Discarding staged update $version+$buildNumber: the running build '
           '$_currentVersion+$_currentBuildNumber is not older.',
-          name: 'UpdateService',
-          level: 800,
         );
         await clearStagedUpdate();
         return null;
@@ -859,10 +919,8 @@ class UpdateService {
         extractPath: extractPath,
       );
     } catch (e) {
-      developer.log(
+      _updateServiceLog.warning(
         'Discarding corrupted staged-update marker (${markerFile.path}): $e',
-        name: 'UpdateService',
-        level: 900,
       );
       _noticeQueue.enqueue(
         'A staged update was found in an inconsistent state and was '
@@ -940,6 +998,7 @@ class UpdateService {
         'Staged manifest failed Ed25519 signature re-verification at apply '
         'time; refusing to apply. The staging tree may have been tampered '
         'with after download (a recomputed hash marker is not sufficient).',
+        isVerificationFailure: true,
       );
     }
 
@@ -980,25 +1039,17 @@ class UpdateService {
         staged.extractPath,
         updaterExecutableName,
       );
-      developer.log(
+      _updateServiceLog.warning(
         'Updater not in install dir, checking staging: $stagedUpdaterPath',
-        name: 'UpdateService',
-        level: 900,
       );
 
       if (await File(stagedUpdaterPath).exists()) {
-        developer.log(
+        _updateServiceLog.info(
           'Found updater in staging, copying to install directory',
-          name: 'UpdateService',
-          level: 800,
         );
         try {
           await File(stagedUpdaterPath).copy(updaterPath);
-          developer.log(
-            'Updater bootstrapped successfully',
-            name: 'UpdateService',
-            level: 800,
-          );
+          _updateServiceLog.info('Updater bootstrapped successfully');
         } catch (e) {
           throw UpdateException(
             'Failed to bootstrap updater from staged update: $e\n'
@@ -1033,28 +1084,17 @@ class UpdateService {
       }),
     );
 
-    final args = <String>[
-      '--parent-pid',
-      pid.toString(),
-      '--staging-dir',
-      staged.extractPath,
-      '--install-dir',
-      installDir.path,
-      '--backup-dir',
-      backupDir.path,
-      '--pending-file',
-      pendingFile.path,
-      '--expected-hashes',
-      expectedHashesFile.path,
-      ...updaterRelaunchFlags(),
-      '--launch-after',
-    ];
-
-    developer.log(
-      'Launching updater: $updaterPath with args: $args',
-      name: 'UpdateService',
-      level: 800,
+    final args = updaterApplyArguments(
+      parentPid: pid,
+      stagingDir: staged.extractPath,
+      installDir: installDir.path,
+      backupDir: backupDir.path,
+      pendingFile: pendingFile.path,
+      expectedHashesFile: expectedHashesFile.path,
+      relaunchFlags: updaterRelaunchFlags(),
     );
+
+    _updateServiceLog.info('Launching updater: $updaterPath with args: $args');
 
     final Process updaterProcess;
     try {
@@ -1073,10 +1113,8 @@ class UpdateService {
           await pendingFile.delete();
         }
       } catch (cleanupError) {
-        developer.log(
+        _updateServiceLog.severe(
           'Failed to remove pending marker after spawn failure: $cleanupError',
-          name: 'UpdateService',
-          level: 1000,
         );
       }
       throw UpdateException(
@@ -1096,10 +1134,8 @@ class UpdateService {
         // Cleanup of the pending marker is secondary here; the spawn failure
         // thrown below is the load-bearing error. Log the delete failure so it
         // is not lost.
-        developer.log(
+        _updateServiceLog.warning(
           'Failed to delete pending marker during pid=0 cleanup: $e',
-          name: 'UpdateService',
-          level: 900,
         );
       }
       throw UpdateException(
@@ -1108,18 +1144,14 @@ class UpdateService {
       );
     }
 
-    developer.log(
-      'updater launched, pid=${updaterProcess.pid}',
-      name: 'UpdateService',
-      level: 800,
-    );
+    _updateServiceLog.info('updater launched, pid=${updaterProcess.pid}');
 
     // Hold the parent open for 500 ms so the OS commits the child process
     // and the log flush reaches disk before exit(0) tears down stdio.
     // Without it a child that fails to start leaves no trace in the
     // user-visible log.
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    await _flushDeveloperLog();
+    await _flushStdio();
 
     exit(0);
   }
@@ -1136,7 +1168,7 @@ class UpdateService {
     // read-only probe that must not have side effects.
     final appData = await _applicationSupportDirectoryProvider();
     final logFile = File(
-      path.join(appData.path, 'updates', 'backup', 'rollback_log.json'),
+      path.join(appData.path, 'updates', 'backup', updaterRollbackLogFile),
     );
     return logFile.exists();
   }
@@ -1170,33 +1202,16 @@ class UpdateService {
     final backupDir = await _getBackupDirectory();
     final pendingFile = await _getPendingInstallFile();
 
-    final args = <String>[
-      '--parent-pid',
-      pid.toString(),
-      // Staging is unused in rollback mode but the arg is required; point it
-      // at the backup dir so the path is valid.
-      '--staging-dir',
-      backupDir.path,
-      '--install-dir',
-      installDir.path,
-      '--backup-dir',
-      backupDir.path,
-      '--pending-file',
-      pendingFile.path,
-      // expected-hashes is unused in rollback mode but required by the parser;
-      // point it at a path that need not exist (the rollback branch returns
-      // before reading it).
-      '--expected-hashes',
-      path.join(backupDir.path, 'expected_hashes.json'),
-      '--rollback',
-      ...updaterRelaunchFlags(),
-      '--launch-after',
-    ];
+    final args = updaterRollbackArguments(
+      parentPid: pid,
+      installDir: installDir.path,
+      backupDir: backupDir.path,
+      pendingFile: pendingFile.path,
+      relaunchFlags: updaterRelaunchFlags(),
+    );
 
-    developer.log(
+    _updateServiceLog.info(
       'Launching updater for rollback: $updaterPath with args: $args',
-      name: 'UpdateService',
-      level: 800,
     );
 
     final Process updaterProcess;
@@ -1219,14 +1234,12 @@ class UpdateService {
       );
     }
 
-    developer.log(
+    _updateServiceLog.info(
       'rollback updater launched, pid=${updaterProcess.pid}',
-      name: 'UpdateService',
-      level: 800,
     );
 
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    await _flushDeveloperLog();
+    await _flushStdio();
 
     exit(0);
   }
@@ -1322,11 +1335,7 @@ class UpdateService {
       final version = data['skippedVersion'];
       return version is String ? version : null;
     } catch (e) {
-      developer.log(
-        'Failed to read skipped-version marker: $e',
-        name: 'UpdateService',
-        level: 900,
-      );
+      _updateServiceLog.warning('Failed to read skipped-version marker: $e');
       return null;
     }
   }
@@ -1342,11 +1351,7 @@ class UpdateService {
       }
       await file.writeAsString(jsonEncode({'skippedVersion': version}));
     } catch (e) {
-      developer.log(
-        'Failed to persist skipped-version marker: $e',
-        name: 'UpdateService',
-        level: 900,
-      );
+      _updateServiceLog.warning('Failed to persist skipped-version marker: $e');
     }
   }
 
@@ -1406,6 +1411,7 @@ class UpdateService {
       throw UpdateException(
         'Staged update is missing the verified marker '
         '(${markerFile.path}). Refusing to apply: redownload the update.',
+        isVerificationFailure: true,
       );
     }
 
@@ -1416,6 +1422,7 @@ class UpdateService {
         'Verified marker at ${markerFile.path} does not match the staged '
         'manifest hash. Refusing to apply: the staging tree may have '
         'been tampered with after download.',
+        isVerificationFailure: true,
       );
     }
   }
@@ -1437,23 +1444,15 @@ class UpdateService {
     return expectedFile;
   }
 
-  /// Force the developer.log buffer to drain before `exit(0)`. The log
-  /// channel is fundamentally async; without an explicit flush the spawn
-  /// pid is silently lost on early exit. Best we can do without dart:io
-  /// `stdout.flush` because developer.log routes through the Dart VM
-  /// service.
-  Future<void> _flushDeveloperLog() async {
+  /// Drains stdout and stderr before `exit(0)`.
+  Future<void> _flushStdio() async {
     try {
       await stdout.flush();
       await stderr.flush();
     } catch (e) {
       // Why: stdio may be detached in headless mode. Surface but do not
       // block exit on a non-essential flush.
-      developer.log(
-        'stdout/stderr flush failed: $e',
-        name: 'UpdateService',
-        level: 900,
-      );
+      _updateServiceLog.warning('stdout/stderr flush failed: $e');
     }
   }
 
@@ -1561,12 +1560,6 @@ class PendingInstallStatus {
 }
 
 /// How [UpdateService.applyUpdate] handed the update off.
-///
-/// Callers used to infer this from still being alive afterwards — the desktop
-/// path exits the process, so any return meant something had gone wrong. That
-/// inference is false on Android, where the OS installer takes over and this
-/// process keeps running normally, and it made a successful install report
-/// itself as "the app should have restarted".
 enum UpdateApplyOutcome {
   /// A helper process was launched and this process is exiting. Reaching a
   /// caller at all means the handoff failed.
@@ -1582,7 +1575,11 @@ class UpdateException implements Exception {
   /// update status as it is.
   final String message;
 
-  UpdateException(this.message);
+  /// The package or its signature did not verify, as opposed to a download,
+  /// disk or network failure.
+  final bool isVerificationFailure;
+
+  UpdateException(this.message, {this.isVerificationFailure = false});
 
   @override
   String toString() => message;

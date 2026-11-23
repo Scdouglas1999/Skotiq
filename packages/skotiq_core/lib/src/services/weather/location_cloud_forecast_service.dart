@@ -1,9 +1,9 @@
 import 'package:http/http.dart' as http;
 
+import '../../models/weather/cloud_cover_series.dart';
 import 'providers/metno_cloud_provider.dart';
 import 'providers/nws_cloud_provider.dart';
 import 'providers/openmeteo_cloud_provider.dart';
-import 'radar_provider.dart';
 
 /// The one owner of the site's hourly cloud forecast.
 ///
@@ -37,11 +37,11 @@ class LocationCloudForecastService {
       latitude <= 75 &&
       (longitude <= -60 || longitude >= 125);
 
-  Future<RadarFetchResult> fetchRadarFrames({
+  Future<CloudCoverSeries> fetchCloudCover({
     required double latitude,
     required double longitude,
   }) async {
-    final model = await _openMeteo.fetchRadarFrames(
+    final model = await _openMeteo.fetchCloudCover(
       latitude: latitude,
       longitude: longitude,
     );
@@ -49,25 +49,25 @@ class LocationCloudForecastService {
       return model.withProviderName('Open-Meteo');
     }
     if (_mayHaveNwsCoverage(latitude, longitude)) {
-      final regional = await _nws.fetchRadarFrames(
+      final regional = await _nws.fetchCloudCover(
         latitude: latitude,
         longitude: longitude,
       );
       if (_hasFutureForecast(regional)) return regional;
     }
-    final fallback = await _metNorway.fetchRadarFrames(
+    final fallback = await _metNorway.fetchCloudCover(
       latitude: latitude,
       longitude: longitude,
     );
     if (_hasFutureForecast(fallback)) {
       return fallback.withProviderName(_metNorway.name);
     }
-    return RadarFetchResult.error('No cloud forecast source is available');
+    return CloudCoverSeries.error('No cloud forecast source is available');
   }
 
-  bool _hasFutureForecast(RadarFetchResult result) =>
+  bool _hasFutureForecast(CloudCoverSeries result) =>
       result.isSuccess &&
-      result.frames.any((frame) => !frame.timestamp.isBefore(_clock().toUtc()));
+      result.samples.any((sample) => !sample.time.isBefore(_clock().toUtc()));
 
   /// The facade owns the one shared client; providers must not close it early.
   void dispose() {

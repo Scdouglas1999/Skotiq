@@ -1,0 +1,10 @@
+{
+  "calibration": {
+    "bias": "string",
+    "cosmeticCorrection": "bool",
+    "dark": "string",
+    "flat": "string",
+    "scaleDark": "bool"
+  },
+  "path": "string"
+}

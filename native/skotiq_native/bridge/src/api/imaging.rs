@@ -110,6 +110,10 @@ pub struct AutofocusConfigApi {
     /// make that unavoidable move shorter and aimed at a known clearance
     /// instead of running all the way back to the sweep's start.
     pub measured_backlash_in: Option<i32>,
+    /// The operator's `afFailureHfrToleranceRatio`: how far above the
+    /// reference HFR a failed autofocus may leave the frames and still be
+    /// called usable, and the sweep's landing tolerance.
+    pub failure_hfr_tolerance_ratio: f64,
 }
 
 /// A single focus data point (position and HFR)
@@ -134,17 +138,13 @@ pub struct AutofocusResultApi {
     pub backlash_applied: bool,
 }
 
-/// Run autofocus
-pub async fn api_run_autofocus(
-    device_id: String, // Focuser ID
-    camera_id: String,
-    config: AutofocusConfigApi,
-) -> Result<AutofocusResultApi, SkotiqError> {
-    tracing::info!(
-        "Starting autofocus with camera {} and focuser {}",
-        camera_id,
-        device_id
-    );
+/// The sequencer's config for an operator-run autofocus, or why the
+/// request is refused. An unknown curve method is refused rather than run as
+/// V-curve.
+fn sequencer_autofocus_config(
+    config: &AutofocusConfigApi,
+) -> Result<skotiq_sequencer::AutofocusConfig, SkotiqError> {
+    use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning};
 
     if !config.exposure_time.is_finite() || config.exposure_time <= 0.0 {
         return Err(SkotiqError::InvalidParameter(
@@ -182,21 +182,17 @@ pub async fn api_run_autofocus(
             "autofocus settle/backlash settings are out of range".to_string(),
         ));
     }
+    if !config.failure_hfr_tolerance_ratio.is_finite() || config.failure_hfr_tolerance_ratio < 0.0 {
+        return Err(SkotiqError::InvalidParameter(
+            "autofocus failure HFR tolerance must be finite and not negative".to_string(),
+        ));
+    }
     if config.gain.is_some_and(|gain| gain < 0) || config.offset.is_some_and(|offset| offset < 0) {
         return Err(SkotiqError::InvalidParameter(
             "autofocus gain and offset cannot be negative".to_string(),
         ));
     }
 
-    use serde::Deserialize;
-    use skotiq_sequencer::instructions::{
-        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
-    };
-    use skotiq_sequencer::{AutofocusConfig, AutofocusMethod, Binning, NodeStatus};
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    // Map method string to enum before acquiring the AF gate; reject
-    // unrecognized methods rather than silently falling back to VCurve.
     let method = match config.method.trim().to_ascii_lowercase().as_str() {
         "" | "vcurve" | "v-curve" | "v_curve" => AutofocusMethod::VCurve,
         "hyperbolic" => AutofocusMethod::Hyperbolic,
@@ -209,27 +205,6 @@ pub async fn api_run_autofocus(
         }
     };
 
-    #[derive(Debug, Deserialize)]
-    struct LegacyAutofocusPayload {
-        best_position: i32,
-        best_hfr: f64,
-        r_squared: f64,
-        focus_data: Vec<(i32, f64)>,
-    }
-
-    let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
-        device_id: device_id.clone(),
-        current_operation: "autofocus".to_string(),
-    })?;
-
-    // Reset cancellation token only after admission. A rejected second Start
-    // must never clear the active run's pending cancellation request.
-    let cancel_token = get_autofocus_cancel_token();
-    cancel_token.store(false, Ordering::Relaxed);
-
-    let method_str = config.method.clone();
-
-    // Map binning
     let binning = match config.binning {
         2 => Binning::Two,
         3 => Binning::Three,
@@ -241,7 +216,7 @@ pub async fn api_run_autofocus(
         .backlash_comp_method
         .trim()
         .eq_ignore_ascii_case("none");
-    let af_config = AutofocusConfig {
+    Ok(AutofocusConfig {
         exposure_duration: config.exposure_time,
         step_size: config.step_size,
         steps_out: config.steps_out as u32,
@@ -269,8 +244,42 @@ pub async fn api_run_autofocus(
             0
         },
         measured_backlash_in: config.measured_backlash_in,
+        failure_hfr_tolerance_ratio: config.failure_hfr_tolerance_ratio,
         ..AutofocusConfig::default()
+    })
+}
+
+/// Run autofocus
+pub async fn api_run_autofocus(
+    device_id: String, // Focuser ID
+    camera_id: String,
+    config: AutofocusConfigApi,
+) -> Result<AutofocusResultApi, SkotiqError> {
+    tracing::info!(
+        "Starting autofocus with camera {} and focuser {}",
+        camera_id,
+        device_id
+    );
+
+    use skotiq_sequencer::instructions::{
+        execute_autofocus_admitted, try_admit_autofocus_run, AutofocusProgress,
     };
+    use skotiq_sequencer::NodeStatus;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let af_config = sequencer_autofocus_config(&config)?;
+
+    let autofocus_guard = try_admit_autofocus_run().ok_or_else(|| SkotiqError::DeviceBusy {
+        device_id: device_id.clone(),
+        current_operation: "autofocus".to_string(),
+    })?;
+
+    // Reset cancellation token only after admission. A rejected second Start
+    // must never clear the active run's pending cancellation request.
+    let cancel_token = get_autofocus_cancel_token();
+    cancel_token.store(false, Ordering::Relaxed);
+
+    let method_str = config.method.clone();
 
     // Create context - use UnifiedDeviceOps which routes through DeviceManager
     let device_ops = create_unified_device_ops();
@@ -307,14 +316,10 @@ pub async fn api_run_autofocus(
         let Some(sweep) = progress.sweep() else {
             return;
         };
-        get_state().publish_equipment_event(
-            EquipmentEvent::PropertyChanged {
-                device_type: "focuser".to_string(),
-                device_id: progress_focuser_id.clone(),
-                property: "AutofocusProgress".to_string(),
-                value: sweep.to_json(),
-            },
-            EventSeverity::Info,
+        crate::util::executor_event_bridge::publish_autofocus_progress(
+            get_state(),
+            &progress_focuser_id,
+            sweep.to_json(),
         );
     };
 
@@ -334,60 +339,34 @@ pub async fn api_run_autofocus(
                 )
             })?;
 
-            // Canonical payload (skotiq_sequencer::AutofocusResult)
-            if let Ok(af_result) =
-                serde_json::from_value::<skotiq_sequencer::AutofocusResult>(data.clone())
-            {
-                let focus_data: Vec<FocusDataPoint> = af_result
-                    .data_points
-                    .iter()
-                    .map(|dp| FocusDataPoint {
-                        position: dp.position,
-                        hfr: dp.hfr,
-                        fwhm: dp.fwhm,
-                        star_count: dp.star_count,
-                    })
-                    .collect();
+            let af_result = serde_json::from_value::<skotiq_sequencer::AutofocusResult>(data)
+                .map_err(|_| {
+                    SkotiqError::OperationFailed(
+                        "Autofocus completed but returned an unrecognized payload format"
+                            .to_string(),
+                    )
+                })?;
+            let focus_data: Vec<FocusDataPoint> = af_result
+                .data_points
+                .iter()
+                .map(|dp| FocusDataPoint {
+                    position: dp.position,
+                    hfr: dp.hfr,
+                    fwhm: dp.fwhm,
+                    star_count: dp.star_count,
+                })
+                .collect();
 
-                return Ok(AutofocusResultApi {
-                    best_position: af_result.best_position,
-                    best_hfr: af_result.best_hfr,
-                    focus_data,
-                    method: method_str,
-                    temperature: af_result.temperature_celsius.or(temperature),
-                    timestamp,
-                    curve_fit_quality: af_result.curve_fit_quality,
-                    backlash_applied: af_result.backlash_applied,
-                });
-            }
-
-            // Backward compatibility for legacy tuple payloads
-            if let Ok(legacy) = serde_json::from_value::<LegacyAutofocusPayload>(data.clone()) {
-                let focus_data = legacy
-                    .focus_data
-                    .into_iter()
-                    .map(|(position, hfr)| FocusDataPoint {
-                        position,
-                        hfr,
-                        fwhm: None,
-                        star_count: 0,
-                    })
-                    .collect();
-                return Ok(AutofocusResultApi {
-                    best_position: legacy.best_position,
-                    best_hfr: legacy.best_hfr,
-                    focus_data,
-                    method: method_str,
-                    temperature,
-                    timestamp,
-                    curve_fit_quality: legacy.r_squared,
-                    backlash_applied: false,
-                });
-            }
-
-            Err(SkotiqError::OperationFailed(
-                "Autofocus completed but returned an unrecognized payload format".to_string(),
-            ))
+            Ok(AutofocusResultApi {
+                best_position: af_result.best_position,
+                best_hfr: af_result.best_hfr,
+                focus_data,
+                method: method_str,
+                temperature: af_result.temperature_celsius.or(temperature),
+                timestamp,
+                curve_fit_quality: af_result.curve_fit_quality,
+                backlash_applied: af_result.backlash_applied,
+            })
         }
         NodeStatus::Failure => Err(SkotiqError::OperationFailed(
             result.message.unwrap_or("Autofocus failed".to_string()),
@@ -592,31 +571,6 @@ pub struct ImageStatsResult {
     pub star_count: u32,
 }
 
-/// Start a camera exposure
-/// Returns progress updates via events, final image available via api_get_last_image
-/// Public bridge entry point. Gain/offset are explicit (`i32`) here so the
-/// generated FFI signature stays stable; this delegates to
-/// [`camera_start_exposure_opt`] with `Some(..)`, commanding both values
-/// exactly as before.
-pub async fn api_camera_start_exposure(
-    device_id: String,
-    duration_secs: f64,
-    gain: i32,
-    offset: i32,
-    bin_x: i32,
-    bin_y: i32,
-) -> Result<(), SkotiqError> {
-    camera_start_exposure_opt(
-        device_id,
-        duration_secs,
-        Some(gain),
-        Some(offset),
-        bin_x,
-        bin_y,
-    )
-    .await
-}
-
 /// Start an exposure without collapsing omitted controls to zero and with the
 /// complete per-frame geometry/frame-type contract.
 #[allow(clippy::too_many_arguments)]
@@ -669,9 +623,32 @@ pub async fn api_camera_start_exposure_configured(
         bin_x,
         bin_y,
         subframe,
-        skotiq_device::FrameType::from_str_lenient(&frame_type),
+        requested_frame_type(&frame_type),
     )
     .await
+}
+
+/// The frame a capture from the app asks for. A name the capture does not
+/// know is taken as a light, so a night never loses a frame to a spelling,
+/// and is logged the first time it is seen.
+fn requested_frame_type(name: &str) -> skotiq_device::FrameType {
+    skotiq_device::FrameType::from_app_name(name).unwrap_or_else(|| {
+        if first_sight_of_unknown_frame_type(name) {
+            tracing::warn!(
+                "Capture asked for an unknown frame type {name:?}; taking it as a light"
+            );
+        }
+        skotiq_device::FrameType::Light
+    })
+}
+
+/// Whether `name` is an unknown frame type name not seen before.
+fn first_sight_of_unknown_frame_type(name: &str) -> bool {
+    static SEEN: std::sync::Mutex<std::collections::BTreeSet<String>> =
+        std::sync::Mutex::new(std::collections::BTreeSet::new());
+    SEEN.lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .insert(name.to_string())
 }
 
 /// Start a camera exposure with *optional* gain/offset.
@@ -723,9 +700,9 @@ fn classify_exposure_failure(device_id: &str, error: skotiq_sequencer::DeviceErr
         DeviceError::Rejected(reason) => SkotiqError::InvalidParameter(reason),
         DeviceError::Timeout(reason) => SkotiqError::Timeout(reason),
         DeviceError::Cancelled(_) => SkotiqError::ExposureCancelled,
-        other @ (DeviceError::NotConfigured { .. } | DeviceError::Failed(_)) => {
-            SkotiqError::OperationFailed(other.to_string())
-        }
+        other @ (DeviceError::NotConfigured { .. }
+        | DeviceError::Failed(_)
+        | DeviceError::SessionLost(_)) => SkotiqError::OperationFailed(other.to_string()),
     }
 }
 
@@ -757,7 +734,7 @@ pub(crate) async fn camera_start_exposure_configured_opt(
                 .offset(offset)
                 .binning(bin_x, bin_y)
                 .subframe(subframe)
-                .frame_type(frame_type.as_str()),
+                .frame_type(frame_type),
         )
         .await
         .map_err(|e| classify_exposure_failure(&device_id, e))?;
@@ -790,14 +767,9 @@ pub async fn api_clear_device_image(device_id: String) -> Result<(), SkotiqError
 }
 
 /// Cancel current exposure.
-///
-/// The abort generation moves first: it is what stops the exposure waiting
-/// in `UnifiedDeviceOps`, and some SDKs report a finished exposure right after
-/// the stop, which must not be downloaded as a frame.
 pub async fn api_camera_cancel_exposure(device_id: String) -> Result<(), SkotiqError> {
-    crate::unified_device_ops::exposure_wait::mark_camera_exposure_aborted(&device_id).await;
     get_device_manager()
-        .camera_abort_exposure(&device_id)
+        .abort_capture(&device_id)
         .await
         .map_err(SkotiqError::from)
 }
@@ -880,6 +852,8 @@ pub struct QualityMapsResultApi {
     pub tiles: Vec<QualityTileMetricApi>,
 }
 
+#[cfg(test)]
+mod autofocus_config_tests;
 #[cfg(test)]
 mod linear_decode_tests;
 
@@ -1030,9 +1004,6 @@ pub async fn api_compute_last_capture_quality_maps(
         .await
         .ok_or(SkotiqError::NoImageAvailable)?;
 
-    // Why: raw_info.width/height are u32; widening to usize via `as` is value-preserving
-    // on every Tier 1 target. raw_info.data is Vec<u16>; widening u16 -> f64 is lossless
-    // (53-bit mantissa easily holds 16-bit values).
     let width = raw_info.width as usize;
     let height = raw_info.height as usize;
     let linear_data = raw_info
@@ -2038,6 +2009,7 @@ mod autofocus_validation_tests {
             backlash_in: 0,
             backlash_out: 0,
             measured_backlash_in: None,
+            failure_hfr_tolerance_ratio: 1.6,
         };
         let err = api_run_autofocus("foc-1".to_string(), "cam-1".to_string(), config)
             .await
@@ -2045,6 +2017,27 @@ mod autofocus_validation_tests {
         assert!(
             matches!(err, SkotiqError::InvalidParameter(ref msg) if msg.contains("typomethod")),
             "expected InvalidParameter mentioning 'typomethod', got {err:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod requested_frame_type_tests {
+    use super::*;
+
+    /// F1-4: an unknown name is still taken as a light (a capture never
+    /// fails at night for a spelling), and is reported once.
+    #[test]
+    fn an_unknown_frame_type_is_taken_as_a_light_and_reported_once() {
+        assert_eq!(
+            requested_frame_type("Darks-f1-4"),
+            skotiq_device::FrameType::Light
+        );
+        assert!(!first_sight_of_unknown_frame_type("Darks-f1-4"));
+        assert!(first_sight_of_unknown_frame_type("Lights-f1-4"));
+        assert_eq!(
+            requested_frame_type("darkFlat"),
+            skotiq_device::FrameType::DarkFlat
         );
     }
 }

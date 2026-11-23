@@ -97,7 +97,7 @@ void main() {
   );
 
   // A run that ended mid-frame left "Exposing 25 s 0 s left" on Tonight
-  // with nothing out (qa-pair QP-10). With no run going, an idle camera ends
+  // with nothing out. With no run going, an idle camera ends
   // it on the second reading in a row.
   test('an idle camera ends a stale exposure after two readings', () async {
     container.read(cameraStateProvider.notifier).setExposing(true);

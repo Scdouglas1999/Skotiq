@@ -21,6 +21,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../utils/guide_distance.dart';
+import '../../../utils/guider_state_label.dart';
 import '../../../localization/skotiq_localizations.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../data/session/session_format.dart';
@@ -355,7 +356,7 @@ List<double> _values(SeriesLineVm? line) => <double>[
           if (point.y case final y?) y,
     ];
 
-/// The legend swatch for a legend entry, by the label key P1b gives it.
+/// The legend swatch for a legend entry, by its label key.
 const Map<String, NightSeriesId> _legendLine = <String, NightSeriesId>{
   'nightSessionHfr': NightSeriesId.hfr,
   'nightSessionStars': NightSeriesId.stars,

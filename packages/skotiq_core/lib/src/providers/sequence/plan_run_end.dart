@@ -5,7 +5,6 @@
 // the dawn park bounds the night itself, so a window that would run past it
 // ends there.
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../settings_provider.dart' show siteLocationIsSet;
 
 /// How long before astronomical dawn the dawn rule parks a running run, as
 /// `WeatherSafetyNotifier` applies it.

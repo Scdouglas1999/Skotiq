@@ -9,7 +9,7 @@ import '../error.dart';
 import '../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `get_qhy_discovery_timeout_ms`
+// These functions are ignored because they are not marked as `pub`: `api_get_rotator_capabilities`, `get_qhy_discovery_timeout_ms`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 /// Get capabilities for any device by its device ID.
@@ -49,13 +49,6 @@ Future<FilterWheelCapabilities> apiGetFilterwheelCapabilities({
   deviceId: deviceId,
 );
 
-/// Get rotator capabilities for a specific rotator device.
-Future<RotatorCapabilities> apiGetRotatorCapabilities({
-  required String deviceId,
-}) => RustLib.instance.api.crateApiDiagnosticsApiGetRotatorCapabilities(
-  deviceId: deviceId,
-);
-
 /// Get dome capabilities for a specific dome device.
 Future<DomeCapabilities> apiGetDomeCapabilities({required String deviceId}) =>
     RustLib.instance.api.crateApiDiagnosticsApiGetDomeCapabilities(
@@ -80,11 +73,13 @@ Future<SwitchCapabilities> apiGetSwitchCapabilities({
 ///
 /// Returns a list of known device characteristics and workarounds that are
 /// automatically applied. This information can be displayed in the equipment
-/// screen to inform users about device-specific behaviors.
-List<QuirkInfo> apiGetDeviceQuirks({required String deviceId}) => RustLib
-    .instance
-    .api
-    .crateApiDiagnosticsApiGetDeviceQuirks(deviceId: deviceId);
+/// screen to inform users about device-specific behaviors. `model` is the
+/// name the driver reported for it, when it is connected.
+List<QuirkInfo> apiGetDeviceQuirks({required String deviceId, String? model}) =>
+    RustLib.instance.api.crateApiDiagnosticsApiGetDeviceQuirks(
+      deviceId: deviceId,
+      model: model,
+    );
 
 /// Check if QHY camera discovery is enabled.
 ///

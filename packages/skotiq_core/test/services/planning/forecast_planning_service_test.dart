@@ -1,7 +1,7 @@
 // Tests for ForecastPlanningService — the pure, I/O-free multi-night scorer.
 //
-// The service consumes already-fetched hourly cloud data (a RadarFetchResult of
-// synthetic RadarFrames, constructed directly — no HTTP) plus a decoupled list
+// The service consumes already-fetched hourly cloud data (a CloudCoverSeries of
+// synthetic samples, constructed directly — no HTTP) plus a decoupled list
 // of ProjectTargetCandidates, and emits a WeekForecast. These tests cover the
 // fail-closed contract (error feed, partial horizon), the polar no-darkness
 // path, target-up scoring, and bestNight selection.
@@ -15,10 +15,9 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/models/site/altitude_floor.dart';
-import 'package:skotiq_core/src/models/weather/radar_frame.dart';
+import 'package:skotiq_core/src/models/weather/cloud_cover_series.dart';
 import 'package:skotiq_core/src/services/planning/forecast_planning_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_core/src/services/weather/radar_provider.dart';
 
 /// No horizon set and a 30 degree minimum altitude.
 const minimum30 = AltitudeFloor(horizon: null, minimumDeg: 30);
@@ -54,34 +53,26 @@ void main() {
     );
   }
 
-  /// Builds hourly cloud frames at a fixed [opacity] covering
+  /// Builds hourly cloud samples at a fixed [fraction] covering
   /// `[from - pad, to + pad]` at top-of-hour, so every dark-hour sample finds a
-  /// frame within the service's 90-minute tolerance.
-  List<RadarFrame> hourlyFrames({
+  /// forecast hour within the service's 90-minute tolerance.
+  List<CloudCoverSample> hourlySamples({
     required DateTime from,
     required DateTime to,
-    required double opacity,
+    required double fraction,
     Duration pad = const Duration(hours: 3),
   }) {
-    final frames = <RadarFrame>[];
+    final samples = <CloudCoverSample>[];
     final start = from.subtract(pad);
     final end = to.add(pad);
     var t = DateTime.utc(start.year, start.month, start.day, start.hour);
     while (!t.isAfter(end)) {
-      frames.add(
-        RadarFrame(
-          timestamp: t,
-          tileUrlTemplate: '',
-          north: lat + 0.5,
-          south: lat - 0.5,
-          east: lon + 0.5,
-          west: lon - 0.5,
-          opacity: opacity,
-        ),
+      samples.add(
+        CloudCoverSample(time: t, fraction: fraction, isForecast: false),
       );
       t = t.add(const Duration(hours: 1));
     }
-    return frames;
+    return samples;
   }
 
   // A circumpolar / high-dec target that is always well above 30° at lat 40:
@@ -135,11 +126,11 @@ void main() {
     test('rejects a non-positive nights count', () {
       expect(
         () => service().buildWeek(
-          cloudResult: RadarFetchResult.success(
-            hourlyFrames(
+          cloudResult: CloudCoverSeries.success(
+            hourlySamples(
               from: nowLocal.toUtc(),
               to: nowLocal.add(const Duration(days: 8)).toUtc(),
-              opacity: 0.0,
+              fraction: 0.0,
             ),
           ),
           targets: const [alwaysUp],
@@ -154,7 +145,7 @@ void main() {
   group('fail-closed', () {
     test('error cloud result → unavailable week, no nights, no bestNight', () {
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.error('network down'),
+        cloudResult: CloudCoverSeries.error('network down'),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
       );
@@ -168,7 +159,7 @@ void main() {
       'empty-frames success → unavailable week (never fabricates clear)',
       () {
         final week = service().buildWeek(
-          cloudResult: RadarFetchResult.success(const []),
+          cloudResult: CloudCoverSeries.success(const []),
           targets: const [alwaysUp],
           nowLocal: nowLocal,
         );
@@ -182,10 +173,10 @@ void main() {
   group('per-night scoring', () {
     test('clear night with a target up scores high (clear fraction ~1)', () {
       final win = darkWindow(nowLocal);
-      final frames = hourlyFrames(from: win.dusk, to: win.dawn, opacity: 0.0);
+      final frames = hourlySamples(from: win.dusk, to: win.dawn, fraction: 0.0);
 
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
         nights: 1,
@@ -209,10 +200,10 @@ void main() {
 
     test('fully clouded night scores ~0 even with a target up', () {
       final win = darkWindow(nowLocal);
-      final frames = hourlyFrames(from: win.dusk, to: win.dawn, opacity: 1.0);
+      final frames = hourlySamples(from: win.dusk, to: win.dawn, fraction: 1.0);
 
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
         nights: 1,
@@ -232,10 +223,14 @@ void main() {
       'clear night with NO target up has empty bestTargets and scores 0',
       () {
         final win = darkWindow(nowLocal);
-        final frames = hourlyFrames(from: win.dusk, to: win.dawn, opacity: 0.0);
+        final frames = hourlySamples(
+          from: win.dusk,
+          to: win.dawn,
+          fraction: 0.0,
+        );
 
         final week = service().buildWeek(
-          cloudResult: RadarFetchResult.success(frames),
+          cloudResult: CloudCoverSeries.success(frames),
           targets: const [neverUp],
           nowLocal: nowLocal,
           nights: 1,
@@ -255,14 +250,14 @@ void main() {
       () {
         final win = darkWindow(nowLocal);
         // opacity == threshold (0.35) must be treated as clear (<=).
-        final frames = hourlyFrames(
+        final frames = hourlySamples(
           from: win.dusk,
           to: win.dawn,
-          opacity: 0.35,
+          fraction: 0.35,
         );
 
         final week = service().buildWeek(
-          cloudResult: RadarFetchResult.success(frames),
+          cloudResult: CloudCoverSeries.success(frames),
           targets: const [alwaysUp],
           nowLocal: nowLocal,
           nights: 1,
@@ -275,13 +270,13 @@ void main() {
 
     test('a target just over threshold opacity is NOT clear', () {
       final win = darkWindow(nowLocal);
-      final frames = hourlyFrames(
+      final frames = hourlySamples(
         from: win.dusk,
         to: win.dawn,
-        opacity: 0.3501,
+        fraction: 0.3501,
       );
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
         nights: 1,
@@ -303,14 +298,14 @@ void main() {
       final polarNoon = DateTime(2026, 6, 21, 12);
       // Frames are irrelevant (no dark hours to sample) but must be non-empty
       // to pass the fail-closed gate.
-      final frames = hourlyFrames(
+      final frames = hourlySamples(
         from: polarNoon.toUtc(),
         to: polarNoon.add(const Duration(days: 1)).toUtc(),
-        opacity: 0.0,
+        fraction: 0.0,
       );
 
       final week = polarService.buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: polarNoon,
         nights: 1,
@@ -344,12 +339,12 @@ void main() {
       final win0 = darkWindow(nowLocal);
       final win1 = darkWindow(nowLocal.add(const Duration(days: 1)));
       final frames = [
-        ...hourlyFrames(from: win0.dusk, to: win0.dawn, opacity: 0.0),
-        ...hourlyFrames(from: win1.dusk, to: win1.dawn, opacity: 0.0),
+        ...hourlySamples(from: win0.dusk, to: win0.dawn, fraction: 0.0),
+        ...hourlySamples(from: win1.dusk, to: win1.dawn, fraction: 0.0),
       ];
 
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
         nights: 7,
@@ -395,28 +390,28 @@ void main() {
       final mid2 = win2.dusk.add(
         Duration(seconds: win2.dawn.difference(win2.dusk).inSeconds ~/ 2),
       );
-      final night2Clear = hourlyFrames(
+      final night2Clear = hourlySamples(
         from: win2.dusk,
         to: mid2,
-        opacity: 0.0,
+        fraction: 0.0,
         pad: Duration.zero,
       );
-      final night2Cloud = hourlyFrames(
+      final night2Cloud = hourlySamples(
         from: mid2.add(const Duration(hours: 1)),
         to: win2.dawn,
-        opacity: 1.0,
+        fraction: 1.0,
         pad: Duration.zero,
       );
 
       final frames = [
-        ...hourlyFrames(from: win0.dusk, to: win0.dawn, opacity: 0.0),
-        ...hourlyFrames(from: win1.dusk, to: win1.dawn, opacity: 1.0),
+        ...hourlySamples(from: win0.dusk, to: win0.dawn, fraction: 0.0),
+        ...hourlySamples(from: win1.dusk, to: win1.dawn, fraction: 1.0),
         ...night2Clear,
         ...night2Cloud,
       ];
 
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
         nights: 3,
@@ -438,7 +433,7 @@ void main() {
   group('bestTargets ranking', () {
     test('ranks targets by up-time descending and caps at five', () {
       final win = darkWindow(nowLocal);
-      final frames = hourlyFrames(from: win.dusk, to: win.dawn, opacity: 0.0);
+      final frames = hourlySamples(from: win.dusk, to: win.dawn, fraction: 0.0);
 
       // Seven always-up targets at varying declinations; all clear 30° all
       // night, so up-hours tie and the tie-break is peak altitude (higher dec
@@ -455,7 +450,7 @@ void main() {
       ];
 
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: targets,
         nowLocal: nowLocal,
         nights: 1,
@@ -482,9 +477,9 @@ void main() {
   group('altitude correctness (cross-check against scheduler formula)', () {
     test('alwaysUp peak altitude matches the standard alt formula', () {
       final win = darkWindow(nowLocal);
-      final frames = hourlyFrames(from: win.dusk, to: win.dawn, opacity: 0.0);
+      final frames = hourlySamples(from: win.dusk, to: win.dawn, fraction: 0.0);
       final week = service().buildWeek(
-        cloudResult: RadarFetchResult.success(frames),
+        cloudResult: CloudCoverSeries.success(frames),
         targets: const [alwaysUp],
         nowLocal: nowLocal,
         nights: 1,

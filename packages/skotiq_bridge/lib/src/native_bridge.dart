@@ -37,9 +37,16 @@ abstract final class NativeBridge {
 
   static bool get isNativeAvailable => _nativeAvailable;
 
-  /// Loads the native library and initializes the Rust side. Safe to call
-  /// more than once. A failed load leaves [isNativeAvailable] false.
-  static Future<void> init({String? logDirectory}) async {
+  /// True once [init] started the native side as a host
+  /// (`api_init_host`), which also starts its file logging.
+  static bool get hostInitialized => _hostInitialized;
+  static bool _hostInitialized = false;
+
+  /// Loads the native library and initializes the Rust side: a host with
+  /// [host] (its data, log and profile directories), anything else with
+  /// console logging only. Safe to call more than once. A failed load leaves
+  /// [isNativeAvailable] false.
+  static Future<void> init({gen_api.HostPaths? host}) async {
     if (_initialized) return;
 
     final libraryPath = await _findNativeLibrary();
@@ -55,11 +62,7 @@ abstract final class NativeBridge {
         await frb.RustLib.init();
       }
 
-      if (logDirectory != null) {
-        gen_api.apiInitWithLogging(logDirectory: logDirectory);
-      } else {
-        gen_api.apiInit();
-      }
+      if (host == null) gen_api.apiInit();
 
       final version = gen_api.apiGetVersion();
       _log('Native bridge v$version ready', level: 800);
@@ -70,6 +73,14 @@ abstract final class NativeBridge {
     }
 
     _initialized = true;
+
+    // A loaded library whose stores cannot open (an unwritable profile
+    // directory, a store another process still holds) fails with its own
+    // error, not as a missing library.
+    if (_nativeAvailable && host != null) {
+      gen_api.apiInitHost(paths: host);
+      _hostInitialized = true;
+    }
 
     if (!_nativeAvailable) {
       // Warning level: the app keeps running, but every hardware operation

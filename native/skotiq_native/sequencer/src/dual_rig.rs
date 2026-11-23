@@ -700,38 +700,46 @@ async fn capture_secondary_frame(
         return Ok(SecondaryFrameOutcome::Aborted);
     }
 
-    // Start the exposure. `camera_start_exposure` blocks until the frame is
-    // downloaded; for an abort we race it against an abort watcher.
+    // The exposure blocks until the frame is downloaded; a stop or a dither
+    // that cuts the sub short aborts it.
     let exposure_started_at = chrono::Utc::now();
-    let exposure = device_ops.camera_start_exposure(
+    let stop = || {
+        if cancel.load(Ordering::Acquire) {
+            Some(crate::instructions::FrameStop::Cancel)
+        } else if barrier.should_abort_in_flight() {
+            Some(crate::instructions::FrameStop::CutShort)
+        } else {
+            None
+        }
+    };
+    let image = match crate::instructions::expose_frame(
+        device_ops,
         crate::device_ops::ExposureRequest::new(&config.camera_id, config.exposure_secs)
             .gain(config.gain)
             .offset(config.offset)
             .binning(config.bin_x, config.bin_y),
-    );
-    tokio::pin!(exposure);
-
-    let image = loop {
-        tokio::select! {
-            res = &mut exposure => {
-                break res.map_err(|e| format!("exposure failed: {e}"))?;
-            }
-            _ = tokio::time::sleep(Duration::from_millis(100)) => {
-                if cancel.load(Ordering::Acquire) {
-                    device_ops
-                        .camera_abort_exposure(&config.camera_id)
-                        .await
-                        .map_err(|e| format!("failed to abort exposure while stopping: {e}"))?;
-                    return Ok(SecondaryFrameOutcome::Cancelled);
-                }
-                if barrier.should_abort_in_flight() {
-                    // Cut the sub short so the primary can dither. Best-effort
-                    // abort; we still return Aborted regardless.
-                    let _ = device_ops.camera_abort_exposure(&config.camera_id).await;
-                    return Ok(SecondaryFrameOutcome::Aborted);
-                }
-            }
+        crate::instructions::CaptureSite::SecondaryRig.policy(),
+        &stop,
+    )
+    .await
+    {
+        Ok(image) => image,
+        Err(crate::instructions::Unexposed::Failed(e)) => {
+            return Err(format!("exposure failed: {e}"))
         }
+        Err(crate::instructions::Unexposed::Stopped {
+            stop: crate::instructions::FrameStop::Cancel,
+            abort,
+        }) => {
+            abort.map_err(|e| format!("failed to abort exposure while stopping: {e}"))?;
+            return Ok(SecondaryFrameOutcome::Cancelled);
+        }
+        // Cut the sub short so the primary can dither. Best-effort abort; the
+        // frame is Aborted regardless.
+        Err(crate::instructions::Unexposed::Stopped {
+            stop: crate::instructions::FrameStop::CutShort,
+            ..
+        }) => return Ok(SecondaryFrameOutcome::Aborted),
     };
 
     // The rig as every saved frame records it, read through the secondary

@@ -1,7 +1,5 @@
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'package:flutter/material.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
 
 enum StatusPillStatus { active, warning, error, inactive, success }
 
@@ -182,7 +180,7 @@ class _StatusPillState extends State<StatusPill>
     return Semantics(
       // Semantics publishes isEnabled only when this field is given;
       // omitting it makes assistive tech announce a live control as
-      // disabled. Measured on the running app 2026-08-09.
+      // disabled.
       enabled: true,
       button: true,
       label: '${widget.label} ${widget.value}',

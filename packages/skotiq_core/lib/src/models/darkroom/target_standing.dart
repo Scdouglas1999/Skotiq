@@ -137,10 +137,11 @@ String captureReason(
   if (captures.keptLights < rule.minKeptFrames) {
     return 'Fewer than ${rule.minKeptFrames} kept subs';
   }
-  return 'Under ${_minutes(rule.minKeptMinutes)} of kept subs';
+  return 'Under ${describeRuleMinutes(rule.minKeptMinutes)} of kept subs';
 }
 
-String _minutes(int minutes) =>
+/// A project rule's minutes as the rule is told: "30 min", "2 h".
+String describeRuleMinutes(int minutes) =>
     minutes % 60 == 0 && minutes >= 60 ? '${minutes ~/ 60} h' : '$minutes min';
 
 /// The user's placements, by target name. Names are compared without case,

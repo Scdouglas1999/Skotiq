@@ -10,6 +10,15 @@ import 'command_action_result.dart';
 final sequenceActionServiceProvider =
     Provider((ref) => SequenceActionService(ref));
 
+/// The operator closed the pre-flight checks of a generated plan without
+/// starting it ([SequenceActionService.startOwnedPlan]).
+class PlanStartCanceled implements Exception {
+  const PlanStartCanceled();
+
+  @override
+  String toString() => 'The plan was not started: pre-flight was closed.';
+}
+
 /// The distinct playback commands, keyed for the shared single-flight latch.
 enum _SequenceCommand { start, pause, resume, stop, skip, reset }
 
@@ -68,13 +77,21 @@ class SequenceActionService {
   /// async disk-space check — so it MUST be awaited. Without the await this
   /// returns `ok` before validation completes and swallows any
   /// [SequenceValidationException].
-  Future<CommandActionResult> start() =>
+  Future<CommandActionResult> start() => _start(_executor.start);
+
+  /// Starts the sequence for a start nobody is at the keyboard for (Start
+  /// at dark): a manual capture left running is ended first
+  /// ([SequenceExecutor.startUnattended]).
+  Future<CommandActionResult> startUnattended() =>
+      _start(_executor.startUnattended);
+
+  Future<CommandActionResult> _start(Future<void> Function() run) =>
       _single(_SequenceCommand.start, () async {
         if (!_ref.read(sequenceExecutionStateProvider).canStart) {
           return CommandActionResult.ok;
         }
         try {
-          await _executor.start();
+          await run();
           return CommandActionResult.ok;
         } catch (e) {
           // The Start control that asked may be gone by the time the refusal
@@ -94,6 +111,107 @@ class SequenceActionService {
           );
         }
       });
+
+  /// Hands the editor to the generated [sequence], owned by [owner], and
+  /// starts it: Smart Night, a planner recommendation and a mosaic project.
+  /// Taking ownership keeps the operator's unsaved sequence, which a stop of
+  /// the run restores. The start shares the Start command's single-flight
+  /// latch. A refusal to start is thrown to the caller; one the executor's
+  /// state or a start already under way makes is thrown before the editor
+  /// changes, so the editor keeps showing the run that is on.
+  ///
+  /// A caller with a screen passes [confirm], the pre-flight checks the
+  /// editor's own Start shows: the plan is loaded for them, and closing them
+  /// gives the editor back and throws [PlanStartCanceled]. Without [confirm]
+  /// (no window to show them on) the checks run beside the start and their
+  /// findings are posted as a notification; they never hold the start back.
+  Future<void> startOwnedPlan(
+    Sequence sequence,
+    ActivePlanOwner owner, {
+    Future<bool> Function()? confirm,
+  }) async {
+    _ensureStartAdmissible();
+    final editor = _ref.read(currentSequenceProvider.notifier);
+    Future<void> report = Future<void>.value();
+    if (confirm != null) {
+      editor.takeOwnership(sequence, owner);
+      final bool go;
+      try {
+        go = await confirm();
+      } on Object {
+        editor.releaseOwnership();
+        rethrow;
+      }
+      if (!go) {
+        editor.releaseOwnership();
+        throw const PlanStartCanceled();
+      }
+      try {
+        _ensureStartAdmissible();
+      } on Object {
+        editor.releaseOwnership();
+        rethrow;
+      }
+    } else {
+      // Beside the start, not before it: the run does not wait for the check.
+      report = _reportPreflight(sequence);
+    }
+    (Object, StackTrace)? refusal;
+    await _single(_SequenceCommand.start, () async {
+      if (confirm == null) editor.takeOwnership(sequence, owner);
+      try {
+        await _executor.start();
+        return CommandActionResult.ok;
+      } catch (e, stack) {
+        // A Start, Pause or Stop pressed meanwhile waits on this latch and
+        // gets the refusal as a result; the plan's caller gets it thrown.
+        refusal = (e, stack);
+        return CommandActionResult.failure(
+          'The run did not start: ${userFacingError(e)}',
+        );
+      }
+    });
+    await report;
+    if (refusal case (final error, final stack)) {
+      Error.throwWithStackTrace(error, stack);
+    }
+  }
+
+  void _ensureStartAdmissible() {
+    final state = _ref.read(sequenceExecutionStateProvider);
+    if (_inFlight.containsKey(_SequenceCommand.start) || !state.canStart) {
+      throw StateError(
+        'Cannot start: a sequence start is already in flight or the executor '
+        'is not in an admissible state (state: ${state.name}).',
+      );
+    }
+    _executor.ensureRigFreeForStart();
+  }
+
+  /// The pre-flight findings of a plan started without a screen to show them
+  /// on, as one notification.
+  Future<void> _reportPreflight(Sequence sequence) async {
+    try {
+      final result = await _ref.read(sequenceValidatorProvider).validate(
+            sequence,
+          );
+      final issues = [
+        for (final issue in result.issues)
+          if (issue.severity != ValidationSeverity.info) issue,
+      ];
+      if (issues.isEmpty) return;
+      final more = issues.length > 1 ? ' (and ${issues.length - 1} more)' : '';
+      _ref.read(uiNotificationProvider.notifier).showWarning(
+            '${issues.first.title}$more',
+            title: 'Pre-flight for ${sequence.name}',
+          );
+    } catch (e) {
+      _ref.read(loggingServiceProvider).warning(
+            'The pre-flight check of ${sequence.name} did not run: $e',
+            source: 'SequenceActionService',
+          );
+    }
+  }
 
   Future<CommandActionResult> pause() => _single(
       _SequenceCommand.pause,

@@ -1,10 +1,10 @@
 part of '../guiding_provider.dart';
 
-/// Provider for star image polling configuration
-final starImageSizeProvider = StateProvider<int>((ref) => 50);
+/// Side of the guide-star crop the guider is asked for, in pixels.
+const int _starImageSize = 50;
 
-/// Provider for star image polling interval (milliseconds)
-final starImagePollIntervalProvider = StateProvider<int>((ref) => 500);
+/// How often the guide-star crop is fetched.
+const Duration _starImagePollInterval = Duration(milliseconds: 500);
 
 /// Provider for star image data.
 ///
@@ -42,7 +42,6 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
       }
     }, fireImmediately: true);
 
-    // Stop polling and reset state when PHD2 disconnects
     ref.listen<GuiderState>(guiderStateProvider, (previous, next) {
       if (next.connectionState == DeviceConnectionState.disconnected) {
         _stopPolling();
@@ -63,8 +62,7 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
   void _startPolling() {
     _stopPolling();
     final generation = _pollGeneration;
-    final interval = ref.read(starImagePollIntervalProvider);
-    _pollTimer = Timer.periodic(Duration(milliseconds: interval), (_) {
+    _pollTimer = Timer.periodic(_starImagePollInterval, (_) {
       unawaited(_fetchStarImage(generation));
     });
     unawaited(_fetchStarImage(generation));
@@ -80,7 +78,6 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
   Future<void> _fetchStarImage(int generation) async {
     if (!mounted || generation != _pollGeneration || _pollInFlight) return;
     final backend = ref.read(backendProvider);
-    final size = ref.read(starImageSizeProvider);
     final guiderId = ref.read(guiderStateProvider).deviceId;
 
     if (guiderId == null || guiderId.isEmpty) {
@@ -89,7 +86,7 @@ class StarImageNotifier extends StateNotifier<AsyncValue<Phd2StarImage>> {
 
     _pollInFlight = true;
     try {
-      final image = await backend.guiderGetStarImage(size: size);
+      final image = await backend.guiderGetStarImage(size: _starImageSize);
       if (mounted &&
           generation == _pollGeneration &&
           ref.backendScopeOver(backend).isCurrent &&
@@ -147,32 +144,27 @@ class TargetDisplayHistoryNotifier
   }
 
   void _onBackendEvent(SkotiqEvent event) {
-    if (!mounted ||
-        ref.read(hostGuidingMirrorActiveProvider) ||
-        event.category != EventCategory.guiding) {
-      return;
-    }
-    switch (event.eventType) {
-      case 'GuideStep':
+    if (!mounted || ref.read(hostGuidingMirrorActiveProvider)) return;
+    switch (guidingEventOf(event)) {
+      case final GuidingEvent_Correction step:
         _logger.debug(
           'Received GuideStep event',
           source: 'TargetDisplayHistoryNotifier',
         );
-        final json = event.data;
-        final raError = finiteGuideAxis(json, isRa: true);
-        final decError = finiteGuideAxis(json, isRa: false);
-        if (raError == null || decError == null) return;
+        final residuals = finiteGuideResiduals(step);
+        if (residuals == null) return;
         _addPoint(
-          raError,
-          decError,
+          residuals.ra,
+          residuals.dec,
           event.timestamp > 0
               ? DateTime.fromMillisecondsSinceEpoch(event.timestamp)
               : DateTime.now(),
         );
         break;
-      case 'GuidingStopped':
-      case 'GuidingStarted':
+      case GuidingEvent_GuidingStopped() || GuidingEvent_GuidingStarted():
         clear();
+        break;
+      case _:
         break;
     }
   }

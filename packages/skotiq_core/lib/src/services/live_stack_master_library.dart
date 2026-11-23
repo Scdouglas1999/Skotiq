@@ -39,6 +39,10 @@ class LiveStackLibrarySave {
 }
 
 /// Saves the live stack and registers its FITS master.
+/// How a live stack master is named in the library: its [name], the filter
+/// it is filed under ([band]) and the target it is filed under.
+typedef LiveStackMasterLabel = ({String name, String? band, String? target});
+
 class LiveStackMasterLibrary {
   final Future<LiveStackingResult> Function() _currentResult;
   final Future<LiveStackingResult> Function(String filterKey)?
@@ -83,10 +87,14 @@ class LiveStackMasterLibrary {
   /// The stacked master's header carries no `OBJECT` or `FILTER`, so the
   /// target and filter are read from [sourceFramePath], a frame of the stack
   /// (its reference), when the master names none.
+  ///
+  /// A caller that already names the master passes [label]: its name,
+  /// filter and target are stored as given and no header is read.
   Future<LiveStackLibrarySave> save(
     String filePath, {
     String? sourceFramePath,
     String? filterKey,
+    LiveStackMasterLabel? label,
   }) async {
     final normalizedFilter = explicitLiveStackFilterKey(filterKey);
     final LiveStackingResult result;
@@ -125,28 +133,13 @@ class LiveStackMasterLibrary {
       );
       preview = null;
     }
-    // The master's own cards win over its source frame's.
-    final headers = <FrameHeader>[];
-    for (final path in [saved.filePath, ?sourceFramePath]) {
-      try {
-        headers.add(await _readHeader(path));
-      } catch (error) {
-        Log.warning(
-          'Live stack: the header of $path could not be read, so the master '
-          'may name no target or filter: $error',
-          source: 'LiveStackMasterLibrary',
+    final (:name, :band, :target) =
+        label ??
+        await _labelFromHeaders(
+          saved.filePath,
+          sourceFramePath,
+          normalizedFilter,
         );
-      }
-    }
-    String? card(String keyword) =>
-        headers.map((h) => h.string(keyword)).nonNulls.firstOrNull;
-    final target = card('OBJECT');
-    final band = card('FILTER') ?? normalizedFilter;
-    final name = [
-      target ?? 'Live stack',
-      if (band != null) band,
-      if (target != null) 'live stack',
-    ].join(' ');
     final id = await _masters.insertMaster(
       name: name,
       masterFitsPath: saved.filePath,
@@ -172,5 +165,36 @@ class LiveStackMasterLibrary {
       masterId: id,
       previewPath: preview,
     );
+  }
+
+  /// The master's name, filter and target from its own cards, else its
+  /// source frame's.
+  Future<LiveStackMasterLabel> _labelFromHeaders(
+    String masterPath,
+    String? sourceFramePath,
+    String? filterKey,
+  ) async {
+    final headers = <FrameHeader>[];
+    for (final path in [masterPath, ?sourceFramePath]) {
+      try {
+        headers.add(await _readHeader(path));
+      } catch (error) {
+        Log.warning(
+          'Live stack: the header of $path could not be read, so the master '
+          'may name no target or filter: $error',
+          source: 'LiveStackMasterLibrary',
+        );
+      }
+    }
+    String? card(String keyword) =>
+        headers.map((h) => h.string(keyword)).nonNulls.firstOrNull;
+    final target = card('OBJECT');
+    final band = card('FILTER') ?? filterKey;
+    final name = [
+      target ?? 'Live stack',
+      if (band != null) band,
+      if (target != null) 'live stack',
+    ].join(' ');
+    return (name: name, band: band, target: target);
   }
 }

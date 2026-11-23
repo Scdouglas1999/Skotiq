@@ -22,11 +22,12 @@ extension _ImagingServiceCapturePipeline on ImagingService {
     int? purposeStep,
     int? purposeSteps,
   }) async {
-    if (_flatCaptureBusy()) {
-      throw const DeviceBusyException(
-        message: 'Flat capture in progress',
-        userMessage: 'A flat capture is using the camera',
-        currentOperation: 'flat capture',
+    final held = _rigHeld();
+    if (held != null) {
+      throw DeviceBusyException(
+        message: 'Rig busy: ${held.operation} in progress',
+        userMessage: held.busy,
+        currentOperation: held.operation,
       );
     }
     if (_isCapturing) {
@@ -127,23 +128,24 @@ extension _ImagingServiceCapturePipeline on ImagingService {
         milliseconds: (settings.exposureTime * 1000).toInt() + 30000,
       );
 
-      // Listen for exposure events and complete when done
       final eventSubscription = backend.eventStream.listen((event) {
         if (!_hasBackendAuthority(backend)) return;
-        if (event.category == EventCategory.imaging) {
-          if (!ImagingService._eventNamesCamera(event, deviceId)) return;
-          if (event.eventType == 'ExposureProgress') {
-            final progress = event.data['progress'] as double? ?? 0.0;
-            final remainingSecs = event.data['remainingSecs'] as double? ?? 0.0;
+        final imaging = imagingEventOf(event);
+        if (imaging == null) return;
+        if (!ImagingService._eventNamesCamera(event, deviceId)) return;
+        switch (imaging) {
+          case ImagingEvent_ExposureProgress(
+            :final progress,
+            :final remainingSecs,
+          ):
             final elapsed = settings.exposureTime - remainingSecs;
-
             cameraNotifier.setExposing(true, progress: progress);
             progressNotifier.updateProgress(
               elapsed,
               remainingSecs,
               progress * 100,
             );
-          } else if (event.eventType == 'ExposureComplete') {
+          case ImagingEvent_ExposureComplete():
             _logger.debug(
               'ExposureComplete event received',
               source: 'ImagingService',
@@ -151,21 +153,24 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             if (!exposureCompleter.isCompleted) {
               exposureCompleter.complete(true);
             }
-          } else if (event.eventType == 'ExposureCancelled') {
-            // Exposure was cancelled
+          case ImagingEvent_ExposureCancelled():
             if (!exposureCompleter.isCompleted) {
               exposureCompleter.complete(false);
             }
-          } else if (event.eventType == 'ExposureFailed') {
-            // Exposure failed
+          case ImagingEvent_ExposureFailed(:final error):
             if (!exposureCompleter.isCompleted) {
-              final errorMsg =
-                  event.data['error'] as String? ?? 'Unknown error';
               exposureCompleter.completeError(
-                Exception('Exposure failed: $errorMsg'),
+                Exception('Exposure failed: $error'),
               );
             }
-          }
+          case ImagingEvent_ExposureFailedOld():
+            // This form names its cause under `reason`, which was never read.
+            if (!exposureCompleter.isCompleted) {
+              exposureCompleter.completeError(
+                Exception('Exposure failed: Unknown error'),
+              );
+            }
+          default:
         }
       });
 
@@ -452,7 +457,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
             );
           }
 
-          // Call native FITS save API
           // Note: This uses the raw data still in memory on the Rust side
           final recordedPath = await _saveFitsFile(
             backend: backend,
@@ -604,6 +608,7 @@ extension _ImagingServiceCapturePipeline on ImagingService {
                 binX: settings.binningX,
                 binY: settings.binningY,
                 sensorTemperature: cameraState.temperature,
+                filter: settings.filter,
               );
               if (!_hasBackendAuthority(backend)) return null;
               _logger.info(
@@ -722,7 +727,6 @@ extension _ImagingServiceCapturePipeline on ImagingService {
           'Inner finally: canceling event subscription',
           source: 'ImagingService',
         );
-        // Add timeout to prevent hanging
         try {
           await eventSubscription.cancel().timeout(
             const Duration(seconds: 2),

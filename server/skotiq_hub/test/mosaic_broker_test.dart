@@ -337,7 +337,7 @@ void main() {
 
   test(
     'assembly lifecycle: open -> assembling -> complete + output served',
-    () {
+    () async {
       final id = publish4();
       for (var i = 0; i < 4; i++) {
         broker.claimPanel(mosaicId: id, panelIndex: i, accountId: alice);
@@ -358,7 +358,7 @@ void main() {
       final tmp = Directory.systemTemp.createTempSync('skhub_mosaic_');
       addTearDown(() => tmp.deleteSync(recursive: true));
       final store = MosaicMasterStore('${tmp.path}/atlas');
-      final outPath = store.saveOutput(
+      final outPath = await store.saveOutputAsync(
         mosaicId: id,
         masterId: 'out',
         bytes: Uint8List.fromList([1, 2, 3, 4]),

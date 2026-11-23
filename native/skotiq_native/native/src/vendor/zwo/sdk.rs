@@ -187,7 +187,7 @@ pub(crate) fn check_asi_error(code: c_int) -> Result<(), DriverError> {
         13 => Err(DriverError::SdkError("ASI_ERROR_BUFFER_TOO_SMALL: Buffer size is too small".to_string())),
         14 => Err(DriverError::SdkError("ASI_ERROR_VIDEO_MODE_ACTIVE: Camera is in video mode - may be in use by another application".to_string())),
         15 => Err(DriverError::SdkError("ASI_ERROR_EXPOSURE_IN_PROGRESS: Exposure in progress".to_string())),
-        16 => Err(DriverError::SdkError(format!("{GENERAL_ERROR}: General error - camera may be in use by another application (NINA, SharpCap, etc.)"))),
+        16 => Err(DriverError::SessionLost(format!("{GENERAL_ERROR}: General error - camera may be in use by another application (NINA, SharpCap, etc.)"))),
         17 => Err(DriverError::SdkError("ASI_ERROR_INVALID_MODE: Invalid mode".to_string())),
         _ => Err(DriverError::SdkError(format!("Unknown ASI error code: {}", code))),
     }

@@ -1,62 +1,72 @@
-// The Sequencer palette switch must publish a role and a state, not just a
-// label.
+// The Sequencer palette switch must publish a role and a state on the node
+// that carries the label, the one an AT-SPI client reads. A Material `TabBar`
+// puts the tab role on an ancestor, so its label node dumps as
+// `panel: Nodes / Tab 1 of 3`.
 //
-// It used to be a Material `TabBar`, which sets `role: SemanticsRole.tab` on an
-// ANCESTOR node while the node that carries the LABEL — the one an AT-SPI
-// client reads — dumped as `panel: Nodes / Tab 1 of 3`. The screen worked
-// around that with its own `_tabLabel` builder.
-//
-// Wave 3 replaced the strip with `SegmentedControl`, which annotates every
-// segment with `button` + `enabled` + `selected` + `label` itself (its own
-// tests in `skotiq_ui` pin that). What is left to guard here is that this
-// screen keeps using it, and does not drift back to a bare TabBar with an
-// unnamed label node.
-//
-// `_ToolboxPanel` is private to SequencerScreen and cannot be pumped on its
-// own, and pumping the whole screen for a semantics flag is not a trade worth
-// making, so this guard reads the widget's source.
+// The third pane is named for what it holds: the app has three things called
+// a queue (the planetarium wishlist, the autopilot's scheduler queue and this
+// pane), and naming the pane after one of them told the owner nothing about
+// the targets already in his loaded sequence. The label is also the segment's
+// accessible name, the word a screen reader announces for the pane.
 
-import 'dart:io';
-
+import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_app/screens/sequencer/sequencer_screen.dart';
+import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
+import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
+
+import '../../harness/pump_app_screen.dart';
+
+List<Override> _overrides() {
+  final notifier = CurrentSequenceNotifier();
+  final root = InstructionSetNode(name: 'Root');
+  // ignore: invalid_use_of_protected_member
+  notifier.state = Sequence.create(
+    name: 'New Sequence',
+    nodes: {root.id: root},
+    rootNodeId: root.id,
+  );
+  return [
+    currentSequenceProvider.overrideWith((_) => notifier),
+    // The ETA column's wall clock would leave a periodic timer behind.
+    ledgerClockProvider.overrideWith((ref) => const Stream<DateTime>.empty()),
+  ];
+}
 
 void main() {
-  test('the palette switch is a SegmentedControl, not a bare TabBar', () {
-    final file = File(
-      'lib/screens/sequencer/sequencer_screen_parts/toolbox_panel.dart',
-    );
-    expect(file.existsSync(), isTrue, reason: 'run from packages/skotiq_app');
-    final source = file.readAsStringSync();
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-    expect(
-      source,
-      contains('SegmentedControl('),
-      reason: 'the palette switch must be the shared segmented control, which '
-          'names and roles each segment',
+  testWidgets(
+      'each palette segment is a named button that says whether it is open',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpAppScreen(
+      tester,
+      const SequencerScreen(),
+      size: const Size(1600, 900),
+      extraOverrides: _overrides(),
+      settle: false,
     );
-    expect(
-      source,
-      isNot(contains('TabBar(')),
-      reason: 'a Material TabBar puts the role on an ancestor of the node that '
-          'carries the label, so the label node reads as a role-less panel',
-    );
-  });
+    await tester.pump(const Duration(milliseconds: 600));
 
-  test('the third segment is named for what it holds, not for a queue', () {
-    final file = File(
-      'lib/screens/sequencer/sequencer_screen_parts/toolbox_panel.dart',
-    );
-    final source = file.readAsStringSync();
+    const segments = ['Nodes', 'Snippets', 'Targets'];
+    for (final label in segments) {
+      final data = tester.getSemantics(find.text(label)).getSemanticsData();
+      expect(data.label, label, reason: 'the "$label" node carries its name');
+      // ignore: deprecated_member_use
+      expect(data.hasFlag(SemanticsFlag.isButton), isTrue,
+          reason: 'the node that carries "$label" also carries the role');
+      expect(
+        // ignore: deprecated_member_use
+        data.hasFlag(SemanticsFlag.isSelected),
+        label == 'Nodes',
+        reason: 'the Nodes pane opens first; only its segment is selected',
+      );
+    }
 
-    // The app has three things called a queue — the planetarium wishlist, the
-    // autopilot's scheduler queue, and this pane — and naming the pane after
-    // one of them told the owner nothing about the targets already in his
-    // loaded sequence. The label is also the segment's accessible name, so it
-    // is the word a screen reader announces for the pane.
-    expect(
-      source,
-      contains("segments: const ['Nodes', 'Snippets', 'Targets']"),
-      reason: 'the toolbox segments name their panes; the third is Targets',
-    );
+    semantics.dispose();
   });
 }

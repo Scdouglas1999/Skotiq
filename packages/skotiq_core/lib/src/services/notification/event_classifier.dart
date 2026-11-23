@@ -182,7 +182,6 @@ class ClassifiedNotification {
 /// Maps a core [SkotiqEvent] to its [NotificationCategory] (+ context),
 /// or `null` when the event is not one the cross-platform notification
 /// system surfaces (those events are consumed by dedicated UI surfaces).
-///
 class NotificationEventClassifier {
   const NotificationEventClassifier._();
 
@@ -589,7 +588,7 @@ class NotificationEventClassifier {
   /// -> a generic noun. The empty-string case is real: some backend
   /// disconnect events carry no `device_id` at all (see
   /// `UsbDisconnectLog.recordDisconnect`, which synthesises `<unknown>` for
-  /// the same reason), and "` disconnected.`" was the resulting sentence.
+  /// the same reason).
   static String _disconnectedDeviceName(String deviceId, String deviceType) {
     if (deviceId.isNotEmpty) {
       final friendly = friendlyNameFromDeviceId(deviceId);

@@ -1,7 +1,7 @@
 // The header: run pill, plan, the progress line and which run controls can
 // be pressed. The controls only report their enabled state and why not; the
-// header widget (P4) wires them to SequenceActionService and to the action
-// controller (P2).
+// header widget wires them to SequenceActionService and to the action
+// controller.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';

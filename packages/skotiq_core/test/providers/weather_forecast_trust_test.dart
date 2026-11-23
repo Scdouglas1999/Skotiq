@@ -13,13 +13,15 @@ import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
-import 'package:skotiq_core/src/services/safe_rig_service.dart';
+import 'package:skotiq_core/src/providers/safe_rig_service.dart';
 import 'package:skotiq_core/src/services/safety_config_service.dart';
 import 'package:skotiq_core/src/services/weather/weather_alert_service.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
+import 'package:skotiq_core/src/models/weather/sky_star_evidence.dart';
 
 class _FakeAppSettingsNotifier extends AppSettingsNotifier {
   _FakeAppSettingsNotifier(this._initial);

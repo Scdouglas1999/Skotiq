@@ -2,8 +2,8 @@
 //!
 //! [`Run`] holds what the run's tasks share: the state cell and control
 //! flags, the rig, the settings, the trigger manager, the recovery handles,
-//! the checkpoint writer, the plan it executes, and the two protocols that
-//! used to be loose flags: how the run is torn down ([`Teardown`]) and what
+//! the checkpoint writer, the plan it executes, and two protocols:
+//! how the run is torn down ([`Teardown`]) and what
 //! outside the node tree can fail it ([`OutsideFailures`]). The node tree's
 //! `ExecutionContext` takes its shared handles from here.
 
@@ -57,9 +57,7 @@ impl FlipFailureLatch {
     }
 
     /// A later flip reached the new pier side, so no earlier failure says
-    /// where the mount is. On 2026-11-03 the window flip failed with the mount
-    /// still west, the flip after the resume reached the east side, and the
-    /// run that then finished its plan was filed failed with "still West".
+    /// where the mount is.
     pub(crate) fn clear(&self) {
         self.failed.store(false, Ordering::Release);
         *self.failure.write() = None;
@@ -377,7 +375,6 @@ impl Run {
         started: std::time::Instant,
         recovery_requests: mpsc::Sender<RecoveryCause>,
     ) -> ExecutionContext {
-        let config = self.config.snapshot();
         let slots = self.config.slots();
         let mut context = ExecutionContext::new("root".to_string(), self.device_ops.clone());
         context.run = self.instruction_shared(recovery_requests).await;
@@ -401,7 +398,6 @@ impl Run {
         context.depth_goal_ops = self.shared.depth_goal_ops.clone();
         context.default_adaptive_exposure = slots.default_adaptive_exposure.clone();
         context.safety_fail_mode = slots.safety_fail_mode.clone();
-        context.max_sun_altitude_degrees = config.max_sun_altitude();
 
         context.progress_callback = Some(build_progress_callback(ProgressCallbackArgs {
             exposure_node_metadata: self.plan.exposure_nodes.clone(),

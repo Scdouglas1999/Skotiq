@@ -1,9 +1,9 @@
 import '../database/rows/frame_type_record.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
-import 'package:skotiq_remote_protocol/wire.dart' show tryParseWireTime;
 import 'linked_host.dart';
 import '../errors/error_text.dart';
 import '../models/weather/weather_models.dart';
@@ -17,7 +17,7 @@ import '../models/sequence/sequence_models.dart'
 import '../backend/skotiq_backend.dart';
 import 'sequence/plan_run_end.dart';
 import '../services/adaptive_swap_service.dart';
-import '../services/safe_rig_service.dart';
+import 'safe_rig_service.dart';
 import '../services/safety_config_service.dart';
 import '../services/weather/weather_threshold_evaluator.dart';
 import '../database/database.dart' as db;
@@ -37,13 +37,13 @@ import 'end_of_night_calibration/eon_providers.dart'
     show calibrationOnlyRunActiveProvider;
 import '../settings/app_settings_state.g.dart';
 import '../utils/logging_service.dart';
+import '../models/weather/weather_safety_state.dart';
+import '../models/weather/sky_star_evidence.dart';
 
-part 'weather_safety/weather_safety_models.dart';
 part 'weather_safety/weather_safety_sources.dart';
 part 'weather_safety/weather_safety_remote.dart';
 part 'weather_safety/weather_safety_enforcement.dart';
 part 'weather_safety/weather_safety_executor_push.dart';
-part 'weather_safety/weather_star_evidence.dart';
 
 // Note: All async callbacks and stream listeners check `mounted`
 // before updating state to prevent updates after disposal.
@@ -127,7 +127,7 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// reporting itself connected.
 
   /// Push cadence for cloud-motion data into the Rust
-  /// executor. 60 seconds matches the brief's "every 60s say".
+  /// executor.
   static const _cloudMotionPushInterval = Duration(seconds: 60);
 
   /// How often the verdict is re-sent to the sequencer and the forecast's age
@@ -167,6 +167,17 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
   /// Wall clock for the park-before-dawn check. Injectable so a test can
   /// stand half an hour before dawn without waiting for one.
   final DateTime Function() _clock;
+
+  /// Show the linked host's [verdict], as its runtime channel delivers it.
+  /// Only a linked client takes one; the host keeps its own evaluation.
+  void applyHostVerdict(WeatherSafetyState verdict) {
+    if (!mounted || _ref.read(linkedHostWeatherProvider) == null) return;
+    if (jsonEncode(verdict.toJson()) == jsonEncode(state.toJson()) &&
+        !state.hostVerdictUnavailable) {
+      return;
+    }
+    state = verdict;
+  }
 
   WeatherSafetyNotifier(
     Ref ref, {
@@ -447,7 +458,6 @@ class WeatherSafetyNotifier extends StateNotifier<WeatherSafetyState> {
       dataSource = SafetyDataSource.weatherApi;
     }
 
-    // Check for failures requiring fail mode handling
     String? failModeWarning = unreachableWarning;
     if (alertStale) {
       failModeWarning ??=

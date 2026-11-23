@@ -305,10 +305,6 @@ void main() {
     expect(line.sentence, isNot(contains('1 file of')));
   });
 
-  // The wave-7 shape, from the release bundle: `case8-strand` held four of
-  // job 4's drafts `failed` with destinationConflict and four of job 5's
-  // `delivered`, and the row read "Delivered 17:55, 4 files, 1.4 MB." in green
-  // with no Retry control.
   test('an older job\'s terminal failures outrank the newest job\'s green', () {
     final earlier = DateTime.utc(2026, 8, 15, 6, 30);
     final line = DeliveryStatusLine.of(
@@ -442,14 +438,8 @@ void main() {
     expect(line.sentence, contains('could not be checked (Permission denied)'));
   });
 
-  // The wave-9 shape, from the release bundle: nine `delivered` rows and a
-  // folder that is not there rendered
-  //   "Delivered 23:20, 9 files, 33.0 MB. There is no directory at
-  //    /mnt/nas-that-is-not-mounted/drop — delivery never creates one, so
-  //    nothing can be written there."
-  // with the dot AND the whole sentence in the dark theme's success token
-  // (0xFF3DAA6D, sampled off the capture). Glance-level the row read healthy;
-  // the refusal was the second half of a paragraph.
+  // A row whose folder is missing must not read healthy at a glance: the
+  // refusal is not the second half of a green paragraph.
   test(
       'a blocker outranks a delivered history, and green comes back with the '
       'folder', () {
@@ -600,10 +590,8 @@ void main() {
     expect(line.sentence, isNot(contains('directory')));
   });
 
-  // D2-5, from the release bundle: the D1 night's ten delivered files sum to
-  // 34,641,423 bytes and the card read "Delivered 15:07, 10 files, 33.0 MB."
-  // 33.0 is the MEBIbyte count; 34.6 is the megabyte one. The divisor is 1024,
-  // so the suffix has to be the one that means 1024.
+  // The divisor is 1024, so the suffix has to be the one that means 1024
+  // (34,641,423 bytes is 33.0 MiB and 34.6 MB).
   test('a byte total is labeled with the unit it was divided into', () {
     final line = DeliveryStatusLine.of(
       DeliveryDestinationView(

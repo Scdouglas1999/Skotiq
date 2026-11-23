@@ -403,12 +403,10 @@ class FramingMosaicGridPainter extends CustomPainter {
     final panelWidth = fovWidth * scale;
     final panelHeight = fovHeight * scale;
 
-    final overlapFactor = 1 - (config.overlapPercent / 100);
-    final stepX = panelWidth * overlapFactor;
-    final stepY = panelHeight * overlapFactor;
-
-    final totalWidth = panelWidth + (config.columns - 1) * stepX;
-    final totalHeight = panelHeight + (config.rows - 1) * stepY;
+    final grid = config.grid;
+    final stepX = grid.step(panelWidth);
+    final stepY = grid.step(panelHeight);
+    final (totalWidth, totalHeight) = grid.extent(panelWidth, panelHeight);
 
     // Starting offset (top-left corner of mosaic relative to center)
     final startX = center.dx - totalWidth / 2 + panelWidth / 2;

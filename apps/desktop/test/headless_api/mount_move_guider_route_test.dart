@@ -11,6 +11,7 @@ import 'package:skotiq_desktop/headless_api/handlers/framing_handlers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/planetarium_handlers.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 /// Every route that moves the mount goes through the host's mount commands,
 /// which stop the guider first, and answers with what the guider did. A GoTo
@@ -58,8 +59,14 @@ void main() {
   const mountTarget = {'deviceId': 'sim_mount_1', ...target};
 
   Map<String, Future<Response> Function(Request)> goToRoutes() => {
-    'mount slew': DeviceHandlers(container).handleMountSlew,
-    'framing slew': FramingHandlers(container).handleSlewToTarget,
+    'mount slew': DeviceHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    ).handleMountSlew,
+    'framing slew': FramingHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    ).handleSlewToTarget,
     'planetarium slew': PlanetariumHandlers(container).handleSlewTo,
   };
 
@@ -103,10 +110,16 @@ void main() {
 
   test('a park and a home go ahead with the guider not answering', () async {
     backend.guider = GuiderForMove.unanswered;
-    final device = DeviceHandlers(container);
+    final device = DeviceHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    );
     final routes = {
       'mount park': device.handleMountPark,
-      'framing park': FramingHandlers(container).handleParkMount,
+      'framing park': FramingHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      ).handleParkMount,
       'mount home': device.handleMountHome,
     };
     for (final MapEntry(key: name, value: route) in routes.entries) {

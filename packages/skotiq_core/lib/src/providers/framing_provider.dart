@@ -10,7 +10,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:skotiq_astro/skotiq_astro.dart'
-    show MosaicPanel, MosaicStartCorner, mosaicPanelCenters;
+    show MosaicPanel, MosaicStartCorner;
 
 import 'linked_host.dart';
 import '../errors/error_text.dart';
@@ -23,6 +23,7 @@ import '../models/target/target_models.dart';
 import '../services/sensor_specs/camera_sensor_specs.dart';
 import '../services/target_library_service.dart';
 import '../utils/coordinate_parser.dart';
+import '../utils/device_display_name.dart';
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'camera_sensor_specs_provider.dart';
@@ -609,19 +610,16 @@ class FramingNotifier extends StateNotifier<FramingState> {
 
     final (fovWidth, fovHeight) = fov;
     final config = state.mosaicConfig;
-    final overlapFactor = 1 - (config.overlapPercent / 100);
 
     // The mosaic is a capture plan around where the telescope will point, so
     // panels are built around the effective AIM (the dragged reticle
     // position), not the view-center target. They coincide whenever the box
     // has not been dragged off-center.
-    final panels = mosaicPanelCenters(
+    final panels = config.grid.panelCenters(
       centerRaHours: state.effectiveAimRaHours!,
       centerDecDegrees: state.effectiveAimDecDegrees!,
-      stepRaDegrees: fovWidth * overlapFactor,
-      stepDecDegrees: fovHeight * overlapFactor,
-      columns: config.columns,
-      rows: config.rows,
+      panelWidthDegrees: fovWidth,
+      panelHeightDegrees: fovHeight,
       rotationDegrees: state.rotation,
       startCorner: config.startCorner,
       serpentine: config.serpentine,
@@ -647,10 +645,7 @@ class FramingNotifier extends StateNotifier<FramingState> {
             ? state.previewFovDegrees *
                   (state.surveyImage!.height / state.surveyImage!.width)
             : state.previewFovDegrees);
-    return (
-      config.effectiveWidthMultiplier * baseWidthDeg,
-      config.effectiveHeightMultiplier * baseHeightDeg,
-    );
+    return config.grid.extent(baseWidthDeg, baseHeightDeg);
   }
 
   /// Persist the currently-framed mosaic as a DURABLE mosaic project (the same

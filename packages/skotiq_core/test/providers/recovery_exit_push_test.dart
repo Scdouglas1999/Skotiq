@@ -1,4 +1,4 @@
-// 4.0 Phase D (event-routing) — recovery-exit "and here's what I did" pushes.
+// Recovery-exit "and here's what I did" pushes.
 //
 // The entry push ("Recovering — <cause>") already existed. Phase D adds the
 // EXIT push so an operator on cellular learns the *outcome* of every recovery

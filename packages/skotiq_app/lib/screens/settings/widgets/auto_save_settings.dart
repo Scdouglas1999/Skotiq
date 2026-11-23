@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import 'settings_widgets.dart';
@@ -120,13 +119,11 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
             title: 'Host-owned setting',
             children: [
               SettingRow(
-                icon: LucideIcons.server,
                 title: 'Configure on the host',
                 subtitle:
                     'Automatic backup scheduling is stored and executed on '
                     'the computer connected to your equipment.',
                 trailing: SizedBox.shrink(),
-                isLast: true,
               ),
             ],
           ),
@@ -170,7 +167,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
           title: 'Sequence auto-save',
           children: [
             SettingRow(
-              icon: LucideIcons.fileCheck,
               title: 'Enable sequence auto-save',
               subtitle: 'Persist local sequence edits in the background',
               trailing: SettingsSwitch(
@@ -180,7 +176,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.clock,
               title: 'Sequence save interval',
               subtitle: 'How often to save pending sequence edits',
               trailing: SettingsNumberInput(
@@ -200,7 +195,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   sequenceInterval: Duration(minutes: value.round()),
                 ),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -210,7 +204,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
           title: 'Automatic backups',
           children: [
             SettingRow(
-              icon: LucideIcons.hardDrive,
               title: 'Enable automatic backups',
               subtitle: 'Periodically create full database backups',
               trailing: SettingsSwitch(
@@ -220,7 +213,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.clock,
               title: 'Backup interval',
               subtitle: 'How often to create backups (hours)',
               trailing: SettingsNumberInput(
@@ -237,7 +229,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.archive,
               title: 'Maximum backups',
               subtitle: 'Number of auto-save backups to retain',
               trailing: SettingsNumberInput(
@@ -252,7 +243,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
                   maxBackups: value.round(),
                 ),
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -262,7 +252,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
           title: 'Status',
           children: [
             SettingRow(
-              icon: LucideIcons.checkCircle,
               title: 'Last backup',
               subtitle: _formatDateTime(status.lastBackup),
               trailing: status.isBackingUp
@@ -283,8 +272,6 @@ class _AutoSaveSettingsState extends ConsumerState<AutoSaveSettings> {
             ),
             if (status.lastError != null)
               SettingRow(
-                icon: LucideIcons.alertTriangle,
-                iconColor: colors.error,
                 title: 'Last error',
                 subtitle: status.lastError,
                 trailing: const SizedBox.shrink(),

@@ -5,14 +5,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// The Tonight screen's primary action — "Image this target tonight" — renders
 /// dimmed and does nothing when no target has been picked, which is correct
-/// (`onPressed: (hasPick && !state.isBusy) ? onGo : null`). Driving the running
-/// desktop app on 2026-08-10, the accessibility tree nonetheless listed it as a
-/// plain enabled button, with no disabled marker of the kind the same tree
-/// prints for other controls (`Sort: Score [DISABLED]`), and pressing it
-/// produced no feedback at all.
-///
-/// This pins what the widget actually publishes, because an AT-SPI tree read is
-/// good for finding candidates and bad for confirming them.
+/// (`onPressed: (hasPick && !state.isBusy) ? onGo : null`). This pins what
+/// the widget publishes for it — a disabled button, not a plain enabled one —
+/// because an AT-SPI tree read is good for finding candidates and bad for
+/// confirming them.
 void main() {
   Future<void> pump(WidgetTester tester, {required bool disabled}) {
     return tester.pumpWidget(

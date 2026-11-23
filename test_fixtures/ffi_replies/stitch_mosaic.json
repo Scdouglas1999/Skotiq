@@ -1,0 +1,9 @@
+{
+  "coveragePath": "/out/M31_mosaic_coverage.fits",
+  "meanPanelGain": 1.07,
+  "outHeight": 7600,
+  "outWidth": 11800,
+  "outputPath": "/out/M31_mosaic.fits",
+  "overlapPairs": 3,
+  "previewPngPath": "/out/M31_mosaic.png"
+}

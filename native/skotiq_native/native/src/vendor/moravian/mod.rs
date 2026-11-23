@@ -10,13 +10,13 @@
 
 use crate::camera_core::{CameraCore, SdkHandle};
 use async_trait::async_trait;
-use skotiq_cfa::BayerPattern;
 use skotiq_device::camera::{
     CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
     SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::Vendor;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError};
+use skotiq_frame::BayerPattern;
 use std::ffi::{c_char, c_double, c_float, c_int, c_void};
 
 mod camera;

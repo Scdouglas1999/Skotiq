@@ -1,14 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../backend/roles/device_backend.dart';
 import '../models/backend/device_types.dart';
 import '../models/equipment/equipment_models.dart';
-import '../models/equipment/filter_names.dart';
-import '../providers/backend_provider.dart';
-import '../providers/equipment/device_slots.dart';
-import '../providers/equipment/switch_state_provider.dart';
+import 'package:skotiq_astro/filters.dart';
 import 'device_service.dart';
-import '../providers/device_service_providers.dart';
 
 /// One path for a device command that names its device, whoever sends it.
 ///
@@ -33,20 +27,41 @@ import '../providers/device_service_providers.dart';
 /// in progress, autofocus running), an [ArgumentError] or [RangeError] (a bad
 /// target) or an [UnsupportedError] (the driver cannot); callers map those.
 class DeviceCommands {
-  DeviceCommands(this._ref);
+  /// Each collaborator is asked for at each command, so a backend swap or a
+  /// newly connected slot device applies from the next command.
+  ///
+  /// [slotDevice] gives the state and id of the device in the host's slot for
+  /// a type, or null when nobody has used that slot yet; it must not create
+  /// the slot, since creating it would only start its profile listener and no
+  /// device can be in it. [switchChannelCount] is the connected switch's
+  /// channel count.
+  DeviceCommands({
+    required DeviceService Function() service,
+    required DeviceBackend Function() backend,
+    required ({DeviceConnectionState connectionState, String? deviceId})?
+    Function(DeviceType type)
+    slotDevice,
+    required int Function() switchChannelCount,
+  }) : _serviceOf = service,
+       _backendOf = backend,
+       _slotDevice = slotDevice,
+       _switchChannelCount = switchChannelCount;
 
-  final Ref _ref;
+  final DeviceService Function() _serviceOf;
+  final DeviceBackend Function() _backendOf;
+  final ({DeviceConnectionState connectionState, String? deviceId})? Function(
+    DeviceType type,
+  )
+  _slotDevice;
+  final int Function() _switchChannelCount;
 
-  DeviceService get _service => _ref.read(deviceServiceProvider);
-  DeviceBackend get _backend => _ref.read(deviceBackendProvider);
+  DeviceService get _service => _serviceOf();
+  DeviceBackend get _backend => _backendOf();
 
   /// Whether [deviceId] is the connected device in the host's [type] slot.
-  ///
-  /// A slot nobody has used is not created here: creating it would only
-  /// start its profile listener, and no device can be in it.
   bool isSlotDevice(DeviceType type, String deviceId) {
-    if (!_ref.exists(type.slot.state)) return false;
-    final slot = readDeviceSlot(_ref.container, type);
+    final slot = _slotDevice(type);
+    if (slot == null) return false;
     return slot.connectionState == DeviceConnectionState.connected &&
         slot.deviceId == deviceId;
   }
@@ -221,7 +236,7 @@ class DeviceCommands {
     Object value,
   ) async {
     if (!isSlotDevice(DeviceType.switch_, deviceId)) return false;
-    if (switchId >= _ref.read(switchStateProvider).channelCount) return false;
+    if (switchId >= _switchChannelCount()) return false;
     if (value is bool) {
       await _service.setSwitchChannel(switchId, value);
     } else if (value is num) {

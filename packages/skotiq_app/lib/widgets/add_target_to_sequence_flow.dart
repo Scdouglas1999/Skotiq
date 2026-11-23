@@ -11,6 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import '../utils/open_in_editor.dart';
 import '../utils/plan_tonight_sequencer_helper.dart';
 import '../utils/snackbar_helper.dart';
 
@@ -211,55 +212,36 @@ Future<bool> addFramedTargetToExistingSequence({
   }
 
   try {
-    if (chosen.isNew) {
-      notifier.createSequence(
-        name: target.name.isEmpty ? 'New Sequence' : target.name,
-        discardUnsaved: false,
-      );
-      addAll();
-    } else if (chosen.isCurrent) {
-      addAll();
-    } else {
-      // A different saved sequence — open a fresh-ID copy into the editor,
-      // then append the header(s).
-      notifier.loadCopyForEditing(chosen.savedSequence!);
-      addAll();
-    }
+    final opened = await openInEditor(
+      context,
+      load: ({required discardUnsaved}) {
+        if (chosen.isNew) {
+          notifier.createSequence(
+            name: target.name.isEmpty ? 'New Sequence' : target.name,
+            discardUnsaved: discardUnsaved,
+          );
+        } else if (!chosen.isCurrent) {
+          // A different saved sequence: open a fresh-ID copy into the
+          // editor, then append the header(s).
+          notifier.loadCopyForEditing(
+            chosen.savedSequence!,
+            discardUnsaved: discardUnsaved,
+          );
+        }
+        addAll();
+      },
+      prompt: DiscardUnsavedPrompt(
+        consequence: 'Switching to "${chosen.label}" will discard them.',
+        confirmLabel: 'Discard and continue',
+        destructive: false,
+      ),
+    );
+    if (!opened) return false;
     if (!insertLanded()) {
       reportNotAdded();
       return false;
     }
     return true;
-  } on UnsavedChangesException catch (e) {
-    if (!context.mounted) return false;
-    final discard = await _confirmDiscard(
-      context,
-      currentName: e.currentSequenceName,
-      destinationName: chosen.label,
-    );
-    if (discard != true || !context.mounted) return false;
-    try {
-      if (chosen.isNew) {
-        notifier.createSequence(
-          name: target.name.isEmpty ? 'New Sequence' : target.name,
-          discardUnsaved: true,
-        );
-      } else {
-        notifier.loadCopyForEditing(chosen.savedSequence!,
-            discardUnsaved: true);
-      }
-      addAll();
-      if (!insertLanded()) {
-        reportNotAdded();
-        return false;
-      }
-      return true;
-    } on SequenceLockedException catch (lockErr) {
-      if (context.mounted) {
-        context.showInfoSnackBar(lockErr.message);
-      }
-      return false;
-    }
   } on SequenceLockedException catch (e) {
     if (context.mounted) {
       context.showInfoSnackBar(e.message);
@@ -326,38 +308,6 @@ String? _targetCountSubtitle(Sequence sequence) {
   final count = sequence.nodes.values.whereType<TargetHeaderNode>().length;
   if (count == 0) return 'No targets yet';
   return '$count target${count == 1 ? '' : 's'}';
-}
-
-Future<bool?> _confirmDiscard(
-  BuildContext context, {
-  required String currentName,
-  required String destinationName,
-}) {
-  return showDialog<bool>(
-    context: context,
-    builder: (ctx) => SkotiqDialog(
-      title: 'Discard unsaved changes?',
-      icon: SkotiqIcons.warning,
-      width: 440,
-      actions: [
-        SkotiqButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          label: 'Cancel',
-          variant: ButtonVariant.ghost,
-          size: ButtonSize.small,
-        ),
-        SkotiqButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          label: 'Discard and continue',
-          size: ButtonSize.small,
-        ),
-      ],
-      child: Text(
-        '"$currentName" has unsaved changes. Switching to "$destinationName" '
-        'will discard them.',
-      ),
-    ),
-  );
 }
 
 /// Radio-list dialog letting the user choose where the framed target goes.

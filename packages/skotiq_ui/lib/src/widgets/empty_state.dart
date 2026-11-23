@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../components/skotiq_button.dart';
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_icons.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 
 /// The ONE empty-state pattern: a 28px muted glyph, a title, one sentence and
 /// one button, centred in whatever container it was given. A load that failed

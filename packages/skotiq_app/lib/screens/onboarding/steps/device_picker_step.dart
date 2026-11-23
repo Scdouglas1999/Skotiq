@@ -650,21 +650,12 @@ class _DeviceTileState extends State<_DeviceTile> {
     // One accessible node for the row, declared as what it is: a radio in a
     // mutually-exclusive group.
     //
-    // Read off the live accessibility tree during the GUI drive 2026-08-09, the
-    // camera step's only device came out as:
-    //
-    //   panel: Simulated Camera
-    //   Sim [DISABLED]
-    //
-    // — focusable, no selected state, announced as not enabled, on a row that
-    // selects perfectly well with a click. A bare `InkWell` publishes a
-    // tappable, focusable node that never sets `isEnabled`, and nothing in the
-    // subtree carries the selection (it is drawn as an icon swap, which has no
-    // semantics at all). So a screen-reader user is told the row is dead and is
-    // never told which device is chosen.
-    //
-    // This tile is shared by the camera, mount, focuser, filter-wheel and guider
-    // steps, so the same two untruths were on five of the thirteen onboarding
+    // A bare `InkWell` publishes a tappable, focusable node that never sets
+    // `isEnabled`, and nothing in the subtree carries the selection (it is
+    // drawn
+    // as an icon swap, which has no semantics at all), so a screen reader would
+    // announce the row as disabled and never say which device is chosen. This
+    // tile is shared by the camera, mount, focuser, filter-wheel and guider
     // steps.
     return Semantics(
       container: true,

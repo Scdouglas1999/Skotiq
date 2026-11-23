@@ -1,9 +1,7 @@
 import '../theme/skotiq_slider_style.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// Canonical Skotiq slider — Material [Slider] themed with the design
 /// system track and thumb colors.

@@ -1,6 +1,6 @@
 // PURE unit tests for the at-a-glance summary classifier (`node_summary.dart`,
-// C1). No widget pump: these exercise the dependency-free `nodeSummary` /
-// `summaryHasInlineEdits` logic directly.
+// C1). No widget pump: these exercise the dependency-free `nodeSummary`
+// logic directly.
 //
 // Three things are pinned here:
 //   1. Per-type fragment shape — each major node renders the expected
@@ -9,7 +9,7 @@
 //      non-empty summary and never throws. This locks the "summary for every
 //      node type" contract: a new subtype that forgets a summary fails the
 //      sealed `switch` at compile time AND would trip this test.
-//   3. CLASSIFICATION — `summaryHasInlineEdits` is true for exactly the set of
+//   3. CLASSIFICATION — a summary has an editable fragment for exactly the set of
 //      node types that expose a single safe inline-editable scalar/enum/pick,
 //      and false for everything else (coordinates, watchdogs, terminal
 //      actions, multi-field config).
@@ -277,7 +277,7 @@ void main() {
     });
   });
 
-  group('summaryHasInlineEdits: classification', () {
+  group('inline-edit classification', () {
     final editable = <SequenceNode>[
       ExposureNode(),
       LoopNode(conditionType: LoopConditionType.count),
@@ -308,21 +308,17 @@ void main() {
 
     for (final node in editable) {
       test('${node.runtimeType} is classified inline-editable', () {
-        expect(summaryHasInlineEdits(node), isTrue);
+        expect(_hasInlineEdit(node), isTrue);
       });
     }
 
     for (final node in notEditable) {
       test('${node.runtimeType} is classified NOT inline-editable', () {
-        expect(summaryHasInlineEdits(node), isFalse);
+        expect(_hasInlineEdit(node), isFalse);
       });
     }
-
-    test('summaryHasInlineEdits agrees with the fragment list', () {
-      for (final node in [...editable, ...notEditable]) {
-        final hasEditable = nodeSummary(node).any((f) => f is EditableFragment);
-        expect(summaryHasInlineEdits(node), hasEditable);
-      }
-    });
   });
 }
+
+bool _hasInlineEdit(SequenceNode node) =>
+    nodeSummary(node).any((f) => f is EditableFragment);

@@ -4,13 +4,15 @@ use crate::output::write_preview_png;
 use crate::sky_atlas::fold::{default_order, default_weight, fold_impl, FoldArgs, FoldFrameArgs};
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::wcs_sip::SipWcs;
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{write_fits, FitsHeader};
 use std::path::Path;
 
 // Named convenience wrappers over the sky_atlas actions
 
-/// The work behind the bridge's `api_sky_atlas_add_frame`, which describes the request
-/// and the reply.
+/// Fold one plate-solved capture into the atlas: the `"fold"` action for a
+/// single frame, its fields given at the top level instead of in a `frames`
+/// array. Replies with the same [`FoldResult`] JSON.
 pub fn sky_atlas_add_frame(args_json: String) -> Result<String, String> {
     let one: AddFrameArgs =
         serde_json::from_str(&args_json).map_err(|e| format!("invalid addFrame args: {e}"))?;
@@ -187,8 +189,7 @@ pub(crate) fn query_cutout_impl(args: QueryCutoutArgs) -> Result<QueryCutoutResu
     let path = Path::new(&args.fits_path);
     ensure_parent_dir(path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq sky-atlas cutout");
+    ProductCards::product("MASTER_LIGHT", "Skotiq sky-atlas cutout").write_to(&mut header);
     out_wcs.write_to_header(&mut header);
     header.add_history(&format!(
         "Sky-atlas cone cutout: RA {:.4} Dec {:.4} radius {:.4}deg, mean coverage {:.2}",
@@ -236,4 +237,15 @@ pub(crate) fn query_cutout_impl(args: QueryCutoutArgs) -> Result<QueryCutoutResu
         max_coverage: max_cov,
         tiles_used,
     })
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::QueryCutoutArgs>(
+            "sky_atlas_query_cutout",
+        );
+    }
 }

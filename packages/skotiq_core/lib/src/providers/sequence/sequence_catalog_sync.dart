@@ -9,13 +9,14 @@ import '../../models/backend/host_mutation_event.dart';
 import '../../services/sequence_repository.dart';
 import '../../backend/remote_host.dart';
 import '../backend_provider.dart';
+import '../host_reread.dart';
 import '../host_mutation_event_provider.dart';
 import '../sequence_provider.dart';
 import '../../models/backend/backend_types.dart';
+import '../../models/backend/event_types.dart' show sequenceUpdatedEventType;
 import '../sequence_repository_provider.dart';
 import '../../utils/logging_service.dart';
 
-const sequenceUpdatedEventType = 'SequenceUpdated';
 const _logSource = 'SequenceCatalogSync';
 
 /// Describes a change to the persisted sequence catalog (library / templates).
@@ -78,6 +79,7 @@ final sequenceCatalogUpdateBusProvider = Provider<SequenceCatalogUpdateBus>((
 final savedSequencesProvider = FutureProvider.autoDispose<List<Sequence>>((
   ref,
 ) async {
+  ref.rereadsWithTheHost();
   final repository = ref.watch(sequenceRepositoryProvider);
   return repository.loadAllSequences();
 });
@@ -90,6 +92,7 @@ final savedSequencesProvider = FutureProvider.autoDispose<List<Sequence>>((
 /// [savedSequencesProvider] whenever the catalog changes.
 final savedSequenceSummariesProvider =
     FutureProvider.autoDispose<List<SequenceSummary>>((ref) async {
+      ref.rereadsWithTheHost();
       final repository = ref.watch(sequenceRepositoryProvider);
       return repository.loadSequenceSummaries();
     });

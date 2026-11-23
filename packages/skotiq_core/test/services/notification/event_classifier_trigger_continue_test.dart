@@ -1,4 +1,4 @@
-// reverify RV-04: with rotating filters, master and client toasted "Trigger
+// With rotating filters, master and client toasted "Trigger
 // fired / Trigger Filter Change fired." on every frame; that trigger's action
 // is to carry on, so it changed nothing.
 import 'package:flutter_test/flutter_test.dart';

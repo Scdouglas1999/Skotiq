@@ -66,8 +66,7 @@ NodeRollups computeNodeRollups(
     );
   }
   // Compute any node not reached from the root (detached subtrees, or the
-  // no-root case) so every tree row still gets its own value — matching the
-  // pre-memoization behaviour where the family computed each id on demand.
+  // no-root case) so every tree row still gets its own value.
   // Already-computed nodes short-circuit via the cache inside the walk.
   for (final id in sequence.nodes.keys) {
     if (!secsById.containsKey(id)) {
@@ -212,8 +211,8 @@ double _computeRollupSecs(
   final double result;
   if (node is LoopNode) {
     result = switch (node.conditionType) {
-      LoopConditionType.count =>
-        selfOverhead + (childSum * (node.repeatCount ?? 1)),
+      LoopConditionType.count || LoopConditionType.integrationTime =>
+        selfOverhead + childSum * (loopPasses(node, sequence.nodes) ?? 1),
       // We don't have a reference time here; reuse the Sequence-level
       // estimator's logic to get fittable iterations. Falling back to
       // single-iteration when the deadline is in the past matches
@@ -224,12 +223,6 @@ double _computeRollupSecs(
         childSum,
         selfOverhead,
         walked: walk?.leaf[node.id],
-      ),
-      LoopConditionType.integrationTime => _integrationTimeRollup(
-        sequence,
-        node,
-        childSum,
-        selfOverhead,
       ),
       // Unbounded: report a single iteration. Marking this as "~∞" would be
       // more honest but the tree row already shows the loop condition; the
@@ -255,21 +248,10 @@ double _computeRollupSecs(
 
 /// What ends an open-ended [node]: the end condition of the target it runs
 /// under, or nothing but a stop.
-NodeOpenEnd _openEndOf(Sequence sequence, SequenceNode node) {
-  String? parentId = node.parentId;
-  while (parentId != null) {
-    final parent = sequence.nodes[parentId];
-    if (parent is TargetHeaderNode) {
-      final ends =
-          parent.endWhen != null ||
-          parent.endBefore != null ||
-          parent.maxAltitude != null;
-      return ends ? NodeOpenEnd.targetWindow : NodeOpenEnd.stopped;
-    }
-    parentId = parent?.parentId;
-  }
-  return NodeOpenEnd.stopped;
-}
+NodeOpenEnd _openEndOf(Sequence sequence, SequenceNode node) =>
+    sequence.isBoundedByTargetWindow(node.id)
+    ? NodeOpenEnd.targetWindow
+    : NodeOpenEnd.stopped;
 
 /// untilTime loop rollup: the time until the earlier of the loop's own
 /// deadline and the parent target's end, or the walked length when tonight's
@@ -312,30 +294,4 @@ DateTime? _untilTimeDeadline(Sequence sequence, LoopNode node) {
     parentId = parent?.parentId;
   }
   return deadline;
-}
-
-/// integrationTime loop rollup: iterate until the target integration time is
-/// met, mirroring `_estimateNodeIntegration` so the numbers agree.
-double _integrationTimeRollup(
-  Sequence sequence,
-  LoopNode node,
-  double childSum,
-  double selfOverhead,
-) {
-  if (node.integrationTimeTarget != null &&
-      node.integrationTimeTarget! > 0 &&
-      childSum > 0) {
-    double exposurePerIteration = 0;
-    for (final childId in node.childIds) {
-      final c = sequence.nodes[childId];
-      if (c is ExposureNode && c.isEnabled) {
-        exposurePerIteration += c.totalDurationSecs;
-      }
-    }
-    if (exposurePerIteration > 0) {
-      final iters = (node.integrationTimeTarget! / exposurePerIteration).ceil();
-      return selfOverhead + (childSum * iters);
-    }
-  }
-  return selfOverhead + childSum;
 }

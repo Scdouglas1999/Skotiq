@@ -231,7 +231,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // The built-in notice is shown.
-      expect(find.byType(SkotiqInlineBanner), findsOneWidget);
+      expect(find.byType(SkotiqBanner), findsOneWidget);
 
       // Change the model and save.
       await tester.enterText(

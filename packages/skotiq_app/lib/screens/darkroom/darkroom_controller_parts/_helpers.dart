@@ -262,21 +262,20 @@ List<DarkroomParamSpec> _decodeParams(List<dynamic> raw) {
 /// "draft for me" that silently produced an empty stack would look like an
 /// operation that ran and decided on nothing.
 List<DarkroomStep> decodeDarkroomDraft(Map<String, dynamic> reply) {
-  final draft = reply['draft'];
-  if (draft is! Map<String, dynamic>) {
+  final draft = DarkroomRegistryDraft.of(reply);
+  if (draft == null) {
     throw const DarkroomRecipeFormatException(
       'Skotiq answered without a draft, so there are no '
       'measured parameters to build one from',
     );
   }
-  final recipe = draft['recipe'];
-  if (recipe is! Map<String, dynamic>) {
+  if (draft.recipe == null) {
     throw const DarkroomRecipeFormatException(
       'the registry draft carries no recipe, so it names no operations',
     );
   }
-  final steps = recipe['steps'];
-  if (steps is! List) {
+  final steps = draft.steps;
+  if (steps == null) {
     throw const DarkroomRecipeFormatException(
       'the registry draft recipe carries no step list',
     );
@@ -289,30 +288,17 @@ List<DarkroomStep> decodeDarkroomDraft(Map<String, dynamic> reply) {
 
 /// The notes the registry recorded while composing a draft — the operations it
 /// decided about and did not carry. Empty when the reply carried none.
-List<RecipeDraftNote> decodeDarkroomDraftNotes(Map<String, dynamic> reply) {
-  final draft = reply['draft'];
-  if (draft is! Map<String, dynamic>) return const [];
-  final notes = draft['notes'];
-  if (notes is! List) return const [];
-  final out = <RecipeDraftNote>[];
-  for (final entry in notes) {
-    if (entry is! Map<String, dynamic>) continue;
-    final opId = entry['opId'];
-    final reason = entry['reason'];
-    final outcome = entry['outcome'];
-    if (opId is! String) continue;
-    out.add(
-      RecipeDraftNote(
-        opId: opId,
-        outcome: outcome is String ? outcome : 'omitted',
-        reason: reason is String && reason.isNotEmpty
-            ? reason
-            : 'Skotiq stated no reason',
-      ),
-    );
-  }
-  return List.unmodifiable(out);
-}
+List<RecipeDraftNote> decodeDarkroomDraftNotes(Map<String, dynamic> reply) =>
+    List.unmodifiable([
+      for (final note in DarkroomRegistryDraft.of(reply)?.notes ?? const [])
+        RecipeDraftNote(
+          opId: note.opId,
+          outcome: note.outcome ?? 'omitted',
+          reason: note.reason != null && note.reason!.isNotEmpty
+              ? note.reason!
+              : 'Skotiq stated no reason',
+        ),
+    ]);
 
 /// The whole composition account for a draft: the registry's own [notes], plus
 /// one `included` line for every step it DID carry that no note already covers.

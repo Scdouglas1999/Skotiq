@@ -314,12 +314,6 @@ fn polar_globals_test_lock() -> &'static tokio::sync::Mutex<()> {
 
 /// A rotation step on an of-date mount turns the RA axis and leaves the
 /// declination axis where it was.
-///
-/// This is the 2026-11-07 defect on the simulator, which keeps coordinates of
-/// date like the rig's mount: the step was built from the mount's of-date
-/// read-back and sent down the J2000 slew path, which precessed it a second
-/// time, so the mount's declination moved by the precession in declination at
-/// that RA (several arcminutes in 2026) on every step.
 #[tokio::test]
 async fn a_rotation_step_leaves_an_of_date_mounts_declination_alone() {
     use crate::device::{DeviceInfo, DeviceType, DriverType};

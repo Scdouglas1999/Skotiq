@@ -1,8 +1,9 @@
 // The user's per-plugin enable/disable choices, kept as one `app_settings`
 // JSON document, [StoreSettings.pluginEnablement]. A plugin id absent from the
-// map reads as enabled, the same default as the plugin package's
-// [AllEnabledPluginEnablementStore], so the bundled integrations start on and
-// a user's explicit "off" is the only thing written.
+// map reads as its own default ([pluginEnabledByDefault]), the same default as
+// the plugin package's [DefaultPluginEnablementStore]: the bundled
+// integrations start on, the Weather Logger (a background writer) starts off,
+// and the user's choice either way is written.
 //
 // [SettingsPluginEnablementStore] implements the plugin package's
 // [PluginEnablementStore]; each application installs it over
@@ -11,31 +12,27 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:logging/logging.dart';
 import 'package:skotiq_plugins/skotiq_plugins.dart';
 
 import '../database/daos/settings_dao.dart';
 import '../settings/store_settings.dart';
+import '../utils/logging_service.dart';
 import 'database_provider.dart';
 
-final _log = Logger('PluginEnablementProvider');
+const _logSource = 'PluginEnablementProvider';
 
 // [StoreSettings.pluginEnablement] holds a JSON object
 // `{ "<pluginId>": bool }`. Only explicit user choices are recorded; an absent
-// id is treated as enabled (see the file header), so a fresh install persists
-// nothing and every bundled plugin runs.
-
-/// Default enablement for a plugin id that has no persisted choice.
-///
-/// Centralised so the notifier, the store, and tests all agree on the policy.
-const bool kPluginEnabledByDefault = true;
+// id takes its default (see the file header), so a fresh install persists
+// nothing.
 
 /// Parses the persisted enablement JSON into a `{ id: bool }` map.
 ///
 /// Returns an empty map (i.e. "no explicit choices → everything default") for
 /// `null`/empty input. Malformed JSON is NOT silently swallowed: it is logged
 /// at WARNING with the offending value and then treated as "no explicit
-/// choices", which fails *closed to enabled* (the safe, fresh-install state).
+/// choices", which falls back to each plugin's default (the fresh-install
+/// state).
 /// The log is what makes a corrupted settings row diagnosable instead of
 /// mysteriously turning integrations off.
 Map<String, bool> _decodeEnablementMap(String? raw) {
@@ -57,19 +54,21 @@ Map<String, bool> _decodeEnablementMap(String? raw) {
         // A malformed entry (non-string key or non-bool value) is a corruption
         // signal, not something to paper over silently. Surface it and skip the
         // single bad entry rather than discarding the whole map.
-        _log.warning(
+        Log.warning(
           'Ignoring malformed plugin_enablement entry: '
           '$key=$value (expected String=>bool)',
+          source: _logSource,
         );
       }
     });
     return result;
   } on FormatException catch (error, stackTrace) {
-    _log.warning(
-      'Malformed plugin_enablement JSON; defaulting all plugins to enabled. '
+    Log.warning(
+      'Malformed plugin_enablement JSON; every plugin takes its default. '
       'Raw value: $raw',
-      error,
-      stackTrace,
+      source: _logSource,
+      error: error,
+      stackTrace: stackTrace,
     );
     return const <String, bool>{};
   }
@@ -77,7 +76,7 @@ Map<String, bool> _decodeEnablementMap(String? raw) {
 
 /// Resolves the enabled set from a decoded choice map for [allPluginIds].
 ///
-/// An id absent from [choices] resolves to [kPluginEnabledByDefault]. Only ids
+/// An id absent from [choices] resolves to [pluginEnabledByDefault]. Only ids
 /// in [allPluginIds] are considered so a stale persisted id (e.g. a plugin that
 /// was removed from a build) never leaks into the live set.
 Set<String> _enabledSetFor(
@@ -86,7 +85,7 @@ Set<String> _enabledSetFor(
 ) {
   return {
     for (final id in allPluginIds)
-      if (choices[id] ?? kPluginEnabledByDefault) id,
+      if (choices[id] ?? pluginEnabledByDefault(id)) id,
   };
 }
 
@@ -129,18 +128,18 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
 
   /// Whether [pluginId] is currently enabled.
   ///
-  /// Unknown / not-yet-loaded ids resolve to [kPluginEnabledByDefault] so this
+  /// Unknown / not-yet-loaded ids resolve to [pluginEnabledByDefault] so this
   /// is safe to call before [build] completes or for ids outside the managed
   /// list.
   bool isEnabled(String pluginId) {
     final current = state.valueOrNull;
     if (current == null) {
-      return kPluginEnabledByDefault;
+      return pluginEnabledByDefault(pluginId);
     }
     if (_managedIds.contains(pluginId)) {
       return current.contains(pluginId);
     }
-    return kPluginEnabledByDefault;
+    return pluginEnabledByDefault(pluginId);
   }
 
   /// Persists [enabled] for [pluginId], drives the live [PluginHost], and
@@ -202,11 +201,12 @@ class PluginEnablementNotifier extends AsyncNotifier<Set<String>> {
           try {
             await host.setPluginEnabled(pluginId, wasEnabled);
           } catch (rollbackError, rollbackStackTrace) {
-            _log.severe(
+            Log.error(
               'Failed to roll back live plugin $pluginId after its '
               'enablement preference could not be saved.',
-              rollbackError,
-              rollbackStackTrace,
+              source: _logSource,
+              error: rollbackError,
+              stackTrace: rollbackStackTrace,
             );
           }
         }
@@ -239,7 +239,7 @@ class SettingsPluginEnablementStore implements PluginEnablementStore {
   Future<bool> isEnabled(String pluginId) async {
     final raw = await _dao.read(StoreSettings.pluginEnablement);
     final choices = _decodeEnablementMap(raw);
-    return choices[pluginId] ?? kPluginEnabledByDefault;
+    return choices[pluginId] ?? pluginEnabledByDefault(pluginId);
   }
 }
 

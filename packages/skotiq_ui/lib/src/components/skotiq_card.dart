@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 enum CardVariant {
   /// Standard card with surface background
@@ -107,7 +106,7 @@ class _SkotiqCardState extends State<SkotiqCard> {
     return Semantics(
       // Semantics publishes isEnabled only when this field is given;
       // omitting it makes assistive tech announce a live control as
-      // disabled. Measured on the running app 2026-08-09.
+      // disabled.
       enabled: true,
       button: true,
       child: FocusableActionDetector(

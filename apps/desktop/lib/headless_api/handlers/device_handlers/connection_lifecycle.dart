@@ -68,17 +68,10 @@ extension DeviceConnectionHandlers on DeviceHandlers {
     final service = container.read(deviceServiceProvider);
     try {
       await _dispatchConnect(service, deviceType, deviceId);
-    } on _DeviceNotFoundFailure catch (e) {
-      throw HandlerFailure(
-        code: 'device_not_found',
-        message: e.message,
-        statusCode: 404,
-        details: {'deviceId': deviceId, 'deviceType': deviceType.name},
-      );
     } catch (e, stackTrace) {
-      // The connect threw after passing discovery — most likely the
-      // underlying driver refused (cable unplugged, ASCOM driver not
-      // installed, INDI server unreachable, etc.). Surface a 409 (NOT a 502)
+      // The driver refused (cable unplugged, ASCOM driver not installed,
+      // INDI server unreachable, a device the driver cannot find, etc.).
+      // Surface a 409 (NOT a 502)
       // with the service's own message: 502 is classified transient by the
       // slave's HTTP layer, so a 502 here would invite an auto re-POST that
       // re-enters the serial bus. 409 is a definite, non-retryable result —
@@ -292,32 +285,16 @@ extension DeviceConnectionHandlers on DeviceHandlers {
     DeviceType type,
     String deviceId,
   ) async {
-    try {
-      // A linked client's sweep asks for the profile's guide camera as a
-      // camera; connected as one it would take the imaging camera's place.
-      if (type == DeviceType.camera &&
-          isProfileGuideCamera(
-            container.read(activeEquipmentProfileProvider),
-            deviceId,
-          )) {
-        await service.connectGuideCamera(deviceId);
-      } else {
-        await service.connect(type, deviceId);
-      }
-    } on Exception catch (e) {
-      // DeviceService throws `Exception('<Kind> not found: <id>')` when
-      // discovery doesn't surface the requested device. Translate that
-      // into a structured 404 so remote clients can distinguish
-      // "you asked for a device that does not exist" from
-      // "the driver failed to open the device".
-      // Internal use only: the curated "<Kind> not found: <id>" service
-      // message is matched here and re-thrown as a structured 404 below —
-      // the raw exception object itself is never serialized.
-      final message = '$e';
-      if (message.contains('not found:')) {
-        throw _DeviceNotFoundFailure(message.replaceFirst('Exception: ', ''));
-      }
-      rethrow;
+    // A linked client's sweep asks for the profile's guide camera as a
+    // camera; connected as one it would take the imaging camera's place.
+    if (type == DeviceType.camera &&
+        isProfileGuideCamera(
+          container.read(activeEquipmentProfileProvider),
+          deviceId,
+        )) {
+      await service.connectGuideCamera(deviceId);
+    } else {
+      await service.connect(type, deviceId);
     }
   }
 

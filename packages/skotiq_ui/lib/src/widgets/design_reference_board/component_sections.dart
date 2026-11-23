@@ -222,25 +222,22 @@ class _StatusAndFeedbackSection extends StatelessWidget {
           const SizedBox(height: SkotiqTokens.spaceLg),
           _SubLabel('Alerts', colors: colors),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          const SkotiqAlert(
+          const SkotiqBanner(
             title: 'Self-test complete',
             message: 'Backend, storage, and route metadata passed.',
-            severity: SkotiqAlertSeverity.info,
-            compact: true,
+            tone: BannerTone.info,
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          const SkotiqAlert(
+          const SkotiqBanner(
             title: 'Unsafe weather',
             message: 'Sequence start is blocked until safety clears.',
-            severity: SkotiqAlertSeverity.warning,
-            compact: true,
+            tone: BannerTone.warning,
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
-          const SkotiqAlert(
+          const SkotiqBanner(
             title: 'Restore failed',
             message: 'Backup file is missing a version field.',
-            severity: SkotiqAlertSeverity.error,
-            compact: true,
+            tone: BannerTone.error,
           ),
         ],
       ),
@@ -248,7 +245,7 @@ class _StatusAndFeedbackSection extends StatelessWidget {
   }
 }
 
-// Layout primitives (SectionHeader / SectionWell)
+// Layout primitives (SectionTitle / SectionWell)
 
 class _LayoutPrimitivesSection extends StatelessWidget {
   const _LayoutPrimitivesSection({required this.colors});
@@ -260,13 +257,13 @@ class _LayoutPrimitivesSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SubLabel('SectionHeader + SectionWell', colors: colors),
+        _SubLabel('SectionTitle + SectionWell', colors: colors),
         const SizedBox(height: SkotiqTokens.spaceSm),
         SectionWell(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SectionHeader(
+              const SectionTitle(
                 title: 'Cooling',
                 subtitle: 'Set point and ramp behavior',
               ),

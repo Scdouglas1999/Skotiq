@@ -37,15 +37,14 @@ pub async fn execute_parallel(
     update.total_children = Some(total_children);
     context.send_progress(update);
 
-    // /P2: honor an operator Pause / recovery freeze before launching the
+    // Honor an operator Pause / recovery freeze before launching the
     // parallel branches, matching sequential.rs (which gates `wait_while_paused`
     // at every child boundary). Without this gate a paused-then-executing
     // parallel node spawns its branch tasks regardless of the pause flag, so a
     // parallel subtree whose children are hardware instructions (slew, expose,
     // dome control) keeps driving the rig while the UI reports "Paused". Block
     // here until resumed; unwind (Cancelled) if the sequence is cancelled while
-    // paused. This is the sole pause-enforcement seam for parallel — it adds the
-    // missing gate without altering any W1-W5 decision/dispatch/enforcement math.
+    // paused. This is the sole pause-enforcement seam for parallel.
     if !context.wait_while_paused().await {
         tracing::debug!("Execution cancelled while paused before parallel branches");
         return NodeStatus::Cancelled;

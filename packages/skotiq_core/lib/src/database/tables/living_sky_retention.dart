@@ -39,7 +39,7 @@ class LivingSkyRetention extends Table {
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 }
 
-/// Stable [LivingSkyRetention.scope] keys, one per Wave 3 sweep. Kept as
+/// Stable [LivingSkyRetention.scope] keys, one per sweep. Kept as
 /// constants (not an enum) so a forward-compatible reader/writer degrades
 /// gracefully and a new sweep can be added without a schema change.
 abstract final class LivingSkyRetentionScope {

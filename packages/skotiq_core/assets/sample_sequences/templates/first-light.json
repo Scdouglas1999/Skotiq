@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "version": "2.0",
+  "qualityStopsMovedToNotify": true,
+  "name": "First Light",
+  "description": "Simple sequence for absolute beginners - just point and shoot",
+  "rootNodeId": "fl-root",
+  "isTemplate": true,
+  "nodes": {
+    "fl-root": {
+      "id": "fl-root",
+      "nodeType": "InstructionSet",
+      "name": "First Light Sequence",
+      "parentId": null,
+      "childIds": [
+        "fl-cool",
+        "fl-slew",
+        "fl-loop",
+        "fl-warm",
+        "fl-park"
+      ],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null
+    },
+    "fl-cool": {
+      "id": "fl-cool",
+      "nodeType": "CoolCamera",
+      "name": "Cool Camera",
+      "parentId": "fl-root",
+      "childIds": [],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null,
+      "targetTemp": -10.0,
+      "durationMins": 10.0
+    },
+    "fl-slew": {
+      "id": "fl-slew",
+      "nodeType": "SlewToTarget",
+      "name": "Slew to Target",
+      "parentId": "fl-root",
+      "childIds": [],
+      "orderIndex": 1,
+      "isEnabled": true,
+      "comment": null,
+      "useTargetCoords": true,
+      "customRa": null,
+      "customDec": null
+    },
+    "fl-loop": {
+      "id": "fl-loop",
+      "nodeType": "Loop",
+      "name": "Capture Loop",
+      "parentId": "fl-root",
+      "childIds": [
+        "fl-exp"
+      ],
+      "orderIndex": 2,
+      "isEnabled": true,
+      "comment": null,
+      "conditionType": "count",
+      "repeatCount": 20,
+      "repeatUntil": null,
+      "repeatUntilAltitude": null,
+      "integrationTimeTarget": null,
+      "maxSafetyIterations": null
+    },
+    "fl-exp": {
+      "id": "fl-exp",
+      "nodeType": "TakeExposure",
+      "name": "Light Frame",
+      "parentId": "fl-loop",
+      "childIds": [],
+      "orderIndex": 0,
+      "isEnabled": true,
+      "comment": null,
+      "durationSecs": 30.0,
+      "count": 1,
+      "frameType": "light",
+      "filter": null,
+      "filterIndex": null,
+      "gain": null,
+      "offset": null,
+      "readoutMode": null,
+      "binning": "one",
+      "ditherEvery": 3,
+      "triggers": [],
+      "adaptiveExposure": null
+    },
+    "fl-warm": {
+      "id": "fl-warm",
+      "nodeType": "WarmCamera",
+      "name": "Warm Camera",
+      "parentId": "fl-root",
+      "childIds": [],
+      "orderIndex": 3,
+      "isEnabled": true,
+      "comment": null,
+      "ratePerMin": 5.0,
+      "targetTemp": 20.0
+    },
+    "fl-park": {
+      "id": "fl-park",
+      "nodeType": "Park",
+      "name": "Park Mount",
+      "parentId": "fl-root",
+      "childIds": [],
+      "orderIndex": 4,
+      "isEnabled": true,
+      "comment": null
+    }
+  }
+}

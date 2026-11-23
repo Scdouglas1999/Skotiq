@@ -8,6 +8,7 @@ import '../models/optical_config.dart';
 import '../models/planning/target_suggestion.dart';
 import '../models/site/altitude_floor.dart';
 import 'target_scorer.dart';
+import 'tonight_dark_window.dart';
 import '../utils/logging_service.dart';
 
 /// Service for generating target suggestions for tonight's imaging session.
@@ -15,17 +16,6 @@ import '../utils/logging_service.dart';
 /// Scores targets over the night with the app's [TargetScorer] (altitude,
 /// moon distance, transit timing, usable hours and airmass).
 /// Also factors in data collection progress to prioritize incomplete targets.
-///
-/// SCOPE (architecture-unification plan, subsystem 1): this is the whole-night
-/// OUTLOOK supplement — peak altitude, transit timing, imaging-window hours,
-/// framing-fit and human-readable reasoning across the entire dusk→dawn window.
-/// It is NOT the authoritative "what will run tonight" ranker. That authority
-/// belongs solely to the live `SchedulerEngine`, whose pure
-/// `previewDecision`/`previewRanking` the Planner surfaces as the headline pick
-/// (see `schedulerPreviewDecisionProvider`). This service samples the whole
-/// night rather than the imaging instant, so its #1 can legitimately differ
-/// from the autopilot's instantaneous pick; the UI presents it as advisory
-/// outlook beneath the autopilot banner, never as a competing live decider.
 class TargetSuggestionService {
   final LoggingService _logging;
   final TargetScorer _scorer;
@@ -143,6 +133,7 @@ class _TonightSuggestionScorer {
     final now = observationTime;
 
     final nightWindow = _calculateNightWindow(now, latitude, longitude);
+    if (nightWindow == null) return const [];
 
     // The Moon at the middle of the night (it moves slowly), in the catalog's
     // J2000 frame like the targets it is measured from.
@@ -211,7 +202,6 @@ class _TonightSuggestionScorer {
     required double moonIllumination,
     OpticalConfig? opticalConfig,
   }) {
-    // Compute FOV short axis in arcminutes if optical config is available
     double? fovShortAxisArcmin;
     final fov = opticalConfig?.fieldOfView;
     if (fov != null) {
@@ -225,14 +215,11 @@ class _TonightSuggestionScorer {
         continue;
       }
 
-      // A bare star with no angular size is not a deep-sky imaging subject.
-      // Live, tonight's #1 pick (score 96) was "gam Cyg / IC1318" carrying
-      // gamma Cygni's stellar type and mag 2.2 — a naked-eye point source
-      // recommended over every nebula and galaxy in the list, with the
-      // exposure suggestion and the magnitude sort inheriting the error. Rows
-      // typed as a star are only offered when the user asked for them.
+      // A star with no angular size is a point source, not a deep-sky
+      // imaging subject; it is only offered when the user asked for stars.
+      final type = DsoType.parse(target.objectType);
       if (config.preferredObjectTypes.isEmpty &&
-          _parseDsoType(target.objectType) == DsoType.star &&
+          (type == DsoType.star || type == DsoType.doubleStar) &&
           (target.sizeArcmin == null || target.sizeArcmin! <= 0)) {
         continue;
       }
@@ -391,7 +378,7 @@ class _TonightSuggestionScorer {
     // Target.ra is in decimal hours, Target.dec is in decimal degrees
     final coordinate = CelestialCoordinate(ra: target.ra, dec: target.dec);
 
-    final dsoType = _parseDsoType(target.objectType);
+    final dsoType = DsoType.parse(target.objectType) ?? DsoType.other;
 
     return DeepSkyObject(
       id: target.id.toString(),
@@ -403,33 +390,6 @@ class _TonightSuggestionScorer {
       constellation: target.constellation,
       catalogIds: target.catalogId != null ? [target.catalogId!] : [],
     );
-  }
-
-  DsoType _parseDsoType(String? objectType) {
-    if (objectType == null || objectType.isEmpty) {
-      return DsoType.other;
-    }
-
-    final type = objectType.toLowerCase();
-
-    if (type.contains('galaxy')) return DsoType.galaxy;
-    if (type.contains('nebula')) {
-      if (type.contains('planetary')) return DsoType.planetaryNebula;
-      if (type.contains('emission')) return DsoType.emissionNebula;
-      if (type.contains('reflection')) return DsoType.reflectionNebula;
-      if (type.contains('dark')) return DsoType.darkNebula;
-      return DsoType.nebula;
-    }
-    if (type.contains('cluster')) {
-      if (type.contains('globular')) return DsoType.globularCluster;
-      if (type.contains('open')) return DsoType.openCluster;
-      return DsoType.openCluster;
-    }
-    if (type.contains('hii') || type.contains('h ii')) return DsoType.hiiRegion;
-    if (type.contains('supernova')) return DsoType.supernova;
-    if (type.contains('star')) return DsoType.star;
-
-    return DsoType.other;
   }
 
   /// Calculate data collection progress for a target.
@@ -452,8 +412,6 @@ class _TonightSuggestionScorer {
 
     final plannedSubs = target.totalPlannedSubs;
     if (plannedSubs <= 0) {
-      // If no planned subs, we can't calculate progress
-      // Return 0 if no data, or a small value if we have some data
       if (totalIntegrationSecs > 0) {
         // We have data but no plan - show as partially complete
         return 0.1; // 10% to indicate some data exists
@@ -469,60 +427,34 @@ class _TonightSuggestionScorer {
 
   /// The night window (astronomical dusk to dawn) at [now]: the night in
   /// progress, or once its dark has ended, the coming one
-  /// ([AstronomyCalculations.nightAt]).
-  /// Falls back to nautical or civil twilight at high latitudes where
-  /// astronomical darkness may not occur.
-  _NightWindow _calculateNightWindow(
+  /// ([AstronomyCalculations.nightAt]), falling back to nautical or civil
+  /// twilight at high latitudes. Polar night takes the planners' clock window
+  /// ([polarNightClockWindow]); under midnight sun there is none, and Smart
+  /// Night refuses the same night.
+  _NightWindow? _calculateNightWindow(
     DateTime now,
     double latitude,
     double longitude,
   ) {
-    final night = AstronomyCalculations.nightAt(
+    final window = AstronomyCalculations.darkWindow(
       now: now,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
-    final bounds = _extractNightBounds(night);
-    if (bounds != null) {
-      return _NightWindow(start: bounds.start, end: bounds.end);
+    switch (window) {
+      case NightDarkWindow(:final start, :final end):
+        return _NightWindow(start: start, end: end);
+      case NoDarkWindow(polarNight: true):
+        final clock = polarNightClockWindow(now);
+        return _NightWindow(start: clock.start, end: clock.end);
+      case NoDarkWindow(polarNight: false):
+        warnings.add(midnightSunNotice);
+        return null;
     }
-
-    // No astronomical/nautical/civil darkness (e.g. polar midnight sun).
-    // Use a reasonable default window: 9 PM to 5 AM local.
-    warnings.add(
-      'No twilight boundaries found - using default 21:00-05:00 window',
-    );
-    final defaultStart = DateTime(now.year, now.month, now.day, 21);
-    var defaultEnd = DateTime(now.year, now.month, now.day + 1, 5);
-    if (now.isAfter(defaultEnd)) {
-      // If we're past 5 AM, shift to tonight
-      defaultEnd = defaultEnd.add(const Duration(days: 1));
-    }
-    return _NightWindow(start: defaultStart, end: defaultEnd);
   }
 
   /// Extract the best available night bounds from twilight times.
   /// Prefers astronomical darkness, falls back to nautical then civil.
-  ({DateTime start, DateTime end})? _extractNightBounds(TwilightTimes tw) {
-    // Prefer astronomical darkness
-    if (tw.astronomicalDusk != null && tw.astronomicalDawn != null) {
-      return (start: tw.astronomicalDusk!, end: tw.astronomicalDawn!);
-    }
-    // Fallback to nautical twilight (high latitudes in summer)
-    if (tw.nauticalDusk != null && tw.nauticalDawn != null) {
-      return (start: tw.nauticalDusk!, end: tw.nauticalDawn!);
-    }
-    // Fallback to civil twilight
-    if (tw.civilDusk != null && tw.civilDawn != null) {
-      return (start: tw.civilDusk!, end: tw.civilDawn!);
-    }
-    // Fallback to sunset/sunrise
-    if (tw.sunset != null && tw.sunrise != null) {
-      return (start: tw.sunset!, end: tw.sunrise!);
-    }
-    return null;
-  }
-
   String _generateNightReasoning(
     TargetScore score,
     double dataProgress,
@@ -619,7 +551,6 @@ class _TonightSuggestionScorer {
       }
     }
 
-    // Add warning summary if any significant warnings
     final criticalWarnings = score.warnings
         .where(
           (w) =>

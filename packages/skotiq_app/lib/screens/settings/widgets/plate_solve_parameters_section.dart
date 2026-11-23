@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
 
@@ -36,11 +35,9 @@ class _PlateSolveParametersSectionState
         title: 'Solve parameters',
         children: [
           SettingRow(
-            icon: LucideIcons.loader,
             title: 'Loading…',
             subtitle: 'Reading saved solve parameters',
             trailing: SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       ),
@@ -48,11 +45,9 @@ class _PlateSolveParametersSectionState
         title: 'Solve parameters',
         children: [
           SettingRow(
-            icon: LucideIcons.alertCircle,
             title: 'Failed to load solve parameters',
             subtitle: userFacingError(error),
             trailing: const SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       ),
@@ -62,7 +57,6 @@ class _PlateSolveParametersSectionState
           title: 'Solve parameters',
           children: [
             SettingRow(
-              icon: LucideIcons.timer,
               title: 'Timeout',
               subtitle: 'Maximum time to attempt a solve before giving up',
               trailing: SettingsNumberInput(
@@ -80,7 +74,6 @@ class _PlateSolveParametersSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.search,
               title: 'Search radius',
               helpId: FieldHelpId.plateSolverSearchRadius,
               subtitle: 'How far around the expected position to search',
@@ -99,7 +92,6 @@ class _PlateSolveParametersSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.compass,
               title: 'Blind solve',
               subtitle: 'Always ignore position hints (slower, but useful '
                   'when the mount reports the wrong position)',
@@ -113,7 +105,6 @@ class _PlateSolveParametersSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.crosshair,
               title: 'Sync mount when centering',
               subtitle: 'Sync the mount to each solved position so Slew & '
                   'Center converges. Turn off only for mounts that build a '
@@ -128,7 +119,6 @@ class _PlateSolveParametersSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.target,
               title: 'Centering tolerance',
               subtitle: 'Default: 5 arcseconds. How close to the target a '
                   'centering must land. The Center step, the recenters during '
@@ -148,7 +138,6 @@ class _PlateSolveParametersSectionState
                       .setCenteringToleranceArcsec(value);
                 },
               ),
-              isLast: true,
             ),
           ],
         );

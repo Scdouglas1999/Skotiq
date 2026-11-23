@@ -131,7 +131,7 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
       _lastShownRefusal = 0;
     } else if (state.reorderRefusalAttempt != _lastShownRefusal) {
       _lastShownRefusal = state.reorderRefusalAttempt;
-      _toast(state.reorderRefusal!, SkotiqAlertSeverity.warning);
+      _toast(state.reorderRefusal!, BannerTone.warning);
     }
     // Announced as well as printed: the chooser closes on the choice, so a
     // refused insert leaves a stack that looks untouched.
@@ -139,13 +139,13 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
       _lastShownInsertRefusal = 0;
     } else if (state.insertRefusalAttempt != _lastShownInsertRefusal) {
       _lastShownInsertRefusal = state.insertRefusalAttempt;
-      _toast(state.insertRefusal!, SkotiqAlertSeverity.warning);
+      _toast(state.insertRefusal!, BannerTone.warning);
     }
     if (state.saveError == null) {
       _lastShownSaveError = null;
     } else if (state.saveError != _lastShownSaveError) {
       _lastShownSaveError = state.saveError;
-      _toast(state.saveError!, SkotiqAlertSeverity.error);
+      _toast(state.saveError!, BannerTone.error);
     }
 
     final image = _openImage(state);
@@ -231,17 +231,17 @@ class _DarkroomEditorState extends ConsumerState<DarkroomEditor> {
     );
   }
 
-  void _toast(String message, SkotiqAlertSeverity severity) {
+  void _toast(String message, BannerTone severity) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       switch (severity) {
-        case SkotiqAlertSeverity.error:
+        case BannerTone.error:
           context.showErrorSnackBar(message);
-        case SkotiqAlertSeverity.warning:
+        case BannerTone.warning:
           context.showWarningSnackBar(message);
-        case SkotiqAlertSeverity.success:
+        case BannerTone.success:
           context.showSuccessSnackBar(message);
-        case SkotiqAlertSeverity.info:
+        case BannerTone.info:
           context.showInfoSnackBar(message);
       }
     });

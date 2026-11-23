@@ -37,10 +37,12 @@ async fn start_recycles_a_terminal_executor_instead_of_refusing() {
             .start()
             .await
             .expect_err("a bare executor has no sequence loaded");
-        assert!(
-            !err.contains("Cannot start"),
-            "start() from {terminal:?} must recycle to Idle, not refuse; got: {err}"
+        assert_eq!(
+            err,
+            StartError::NoSequence,
+            "start() from {terminal:?} must recycle to Idle, not refuse"
         );
+        assert_eq!(err.to_string(), "No sequence loaded");
         assert_eq!(
             executor.get_state().await,
             ExecutorState::Idle,
@@ -63,9 +65,10 @@ async fn start_still_refuses_a_busy_executor() {
         executor.run_state.transition(busy);
 
         let err = executor.start().await.expect_err("busy must be refused");
-        assert!(
-            err.contains("Cannot start"),
-            "start() during {busy:?} must be refused; got: {err}"
+        assert_eq!(err, StartError::NotIdle(busy));
+        assert_eq!(
+            err.to_string(),
+            format!("Cannot start: executor is {busy:?}")
         );
         assert_eq!(
             executor.get_state().await,
@@ -351,7 +354,6 @@ fn test_get_set_state() {
         .unwrap();
 
     rt.block_on(async {
-        // Test state transitions
         assert_eq!(executor.get_state().await, ExecutorState::Idle);
 
         executor.run_state.transition(ExecutorState::Running);
@@ -1022,13 +1024,6 @@ async fn update_location_writes_through_runtime_config() {
     assert_eq!(guard.settings.observer_longitude, Some(-74.0));
 }
 
-/// R2: `update_location` wrote `runtime_config` and the executor's own
-/// fields and stopped there. The live `TriggerState` — the only place
-/// `AltitudeLimit`, `DawnApproaching` and the meridian hour-angle read the
-/// observer's position from — was written by exactly one code path, the
-/// `ExecutorCommand::UpdateLocation` arm, which had no sender anywhere in
-/// the workspace. So a mid-run location change reached nothing, and the
-/// method's own doc comment claimed it did.
 #[tokio::test]
 async fn a_mid_run_location_change_reaches_the_altitude_dawn_and_meridian_inputs() {
     const NEW_YORK: (f64, f64) = (40.71, -74.01);
@@ -1319,7 +1314,7 @@ async fn update_max_sun_altitude_writes_through_runtime_config_and_trigger_state
     }
 
     // A None / non-finite push resolves to the DEFAULT (-12°) in the live
-    // trigger state so the gate is NEVER weaker than the Dart W1 gate, while
+    // trigger state so the gate is NEVER weaker than the Dart gate, while
     // the runtime config records the raw None (unset).
     executor
         .handle()
@@ -2013,7 +2008,7 @@ async fn weather_turning_unsafe_during_a_pause_still_fires_the_weather_trigger()
 }
 
 /// A firing dropped because the run is held must not spend the trigger's
-/// cooldown. On the rig (2026-10-21) the meridian flip fired twice under an
+/// cooldown. On the rig the meridian flip fired twice under an
 /// operator pause, each dropped by the hold filter, and the run resumed with
 /// the flip still cooling down for another four minutes: the next frame went
 /// ahead and the flip never ran. The trigger here has a ten-minute cooldown, so
@@ -2216,7 +2211,7 @@ async fn a_guider_already_guiding_at_start_does_not_arm_the_guiding_triggers() {
 }
 
 /// Run 1 starts guiding and the operator stops it; PHD2 is left looping. Run 2
-/// has no StartGuiding node. On the rig (2026-10-07 01:15 UTC) run 2 fired
+/// has no StartGuiding node. On the rig run 2 fired
 /// Guide Star Lost 1.6 s after Start with no guider event in between, and the
 /// recovery stopped mount tracking: the previous run's latch survived into it.
 #[tokio::test]
@@ -3398,6 +3393,114 @@ async fn guiding_rms_over_the_limit_holds_the_run_when_the_operator_asked_for_it
     assert!(run.recovery_started, "the recovery driver took the run");
 }
 
+/// The mount syncs a drift recenter sent while `plan` (whether the plan has
+/// a Center step, and its sync choice) runs. A disabled Center step with the
+/// other choice comes first and is not read.
+async fn drift_recenter_syncs(plan: Option<bool>) -> usize {
+    let mut sequence = SequenceDefinition::new("New Sequence".to_string());
+    let mut children = vec!["wait".to_string()];
+    if let Some(sync_mount) = plan {
+        // The start pre-flight refuses a centering sequence on a machine with
+        // no solver; the double never runs one, so a file at the configured
+        // ASTAP path is all it needs to see.
+        let solver_dir = std::env::temp_dir().join(format!("sk-recenter-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&solver_dir).unwrap();
+        let astap = solver_dir.join("astap");
+        std::fs::write(&astap, b"").unwrap();
+        skotiq_platesolve::set_solver_preference(astap.to_str(), None, None, None);
+        children.insert(0, "skipped".to_string());
+        children.push("center".to_string());
+        for (id, enabled, sync_mount) in [
+            ("skipped", false, !sync_mount),
+            ("center", true, sync_mount),
+        ] {
+            sequence.nodes.push(crate::NodeDefinition {
+                id: id.to_string(),
+                name: "Center".to_string(),
+                node_type: crate::NodeType::CenterTarget(crate::CenterConfig {
+                    sync_mount,
+                    ..Default::default()
+                }),
+                enabled,
+                children: vec![],
+            });
+        }
+    }
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "night".to_string(),
+        name: "Night".to_string(),
+        node_type: crate::NodeType::Loop(crate::LoopConfig::default()),
+        enabled: true,
+        children,
+    });
+    sequence.nodes.push(crate::NodeDefinition {
+        id: "wait".to_string(),
+        name: "Wait".to_string(),
+        node_type: crate::NodeType::Delay(crate::DelayConfig { seconds: 120.0 }),
+        enabled: true,
+        children: vec![],
+    });
+    sequence.root_node_id = Some("night".to_string());
+
+    let ops = Arc::new(crate::executor::scenario_sim_tests::ScriptedDeviceOps::new());
+    ops.solve_dec_offsets_deg.lock().unwrap().push_back(0.1);
+    let mut executor = SequenceExecutor::new();
+    executor.set_device_ops(ops.clone());
+    executor.set_devices(
+        Some("sim_camera_1".to_string()),
+        Some("mount-1".to_string()),
+        None,
+        None,
+        None,
+    );
+    {
+        let mut manager = executor.trigger_manager.write().await;
+        let ids: Vec<String> = manager.triggers().iter().map(|t| t.id.clone()).collect();
+        for id in ids {
+            manager.remove_trigger(&id);
+        }
+        manager.add_trigger(
+            Trigger::new(
+                "drift_limit",
+                "Plate-Solve Drift Limit",
+                crate::TriggerType::DriftLimit { max_pixels: 30.0 },
+                crate::RecoveryAction::Recenter,
+            )
+            .with_cooldown(600),
+        );
+    }
+    executor.load_sequence(sequence).expect("sequence loads");
+    executor.start().await.expect("run starts");
+    {
+        let manager = executor.trigger_manager.read().await;
+        let state = manager.state();
+        let mut state = state.write().await;
+        state.set_target(10.684, 41.269);
+        state.update_plate_solve(10.784, 41.269, 1.5);
+    }
+    let corrected = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        while !ops.calls().iter().any(|call| call == "mount_slew:mount-1") {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    })
+    .await;
+    executor.stop().await.ok();
+    assert!(corrected.is_ok(), "no correction slew: {:?}", ops.calls());
+    ops.calls()
+        .iter()
+        .filter(|call| *call == "mount_sync:mount-1")
+        .count()
+}
+
+/// A run's own recenter corrects as the plan's first enabled Center step
+/// does; a plan without one syncs.
+#[tokio::test]
+async fn a_drift_recenter_takes_the_plans_center_sync_choice() {
+    assert_eq!(drift_recenter_syncs(None).await, 1);
+    assert_eq!(drift_recenter_syncs(Some(true)).await, 1);
+    assert_eq!(drift_recenter_syncs(Some(false)).await, 0);
+}
+
 /// What a run did after a DriftLimit recenter could not solve.
 struct FailedRecenterRun {
     state: ExecutorState,
@@ -3808,10 +3911,6 @@ async fn push_dither_settle(executor: &mut SequenceExecutor) -> (crate::GuiderSe
     (settle, announced)
 }
 
-/// The idle setter used to leave the trigger state's dither settle for the
-/// next start to copy, while the running path wrote it at once, and a running
-/// executor announced the change twice (the setter and the forwarded
-/// command). One path now: same result and one announcement either way.
 #[tokio::test]
 async fn a_dither_push_takes_effect_and_is_announced_once_idle_or_running() {
     let expected = crate::GuiderSettle {

@@ -15,6 +15,13 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 void apiInitWithLogging({String? logDirectory}) => RustLib.instance.api
     .crateApiInitApiInitWithLogging(logDirectory: logDirectory);
 
+/// Start the native side of a host: logging, device manager, hotplug, pass
+/// reports, the profile and settings stores rooted at `paths`, and the
+/// sequencer event bridges.
+/// Called once at app start, before any other API call.
+void apiInitHost({required HostPaths paths}) =>
+    RustLib.instance.api.crateApiInitApiInitHost(paths: paths);
+
 /// Initialize the native bridge and return success (console logging only)
 /// Must be called once at app startup before any other API calls
 void apiInit() => RustLib.instance.api.crateApiInitApiInit();
@@ -25,3 +32,39 @@ String apiGetVersion() => RustLib.instance.api.crateApiInitApiGetVersion();
 /// Get the current log file path (today's log)
 String? apiGetCurrentLogFile() =>
     RustLib.instance.api.crateApiInitApiGetCurrentLogFile();
+
+/// Where a host keeps what the native side writes. The app resolves each
+/// directory (honoring `SKOTIQ_DATA_DIR` and `SKOTIQ_DATABASE_DIR`) and
+/// creates it before the call.
+class HostPaths {
+  /// Defect maps and camera files kept when a download failed.
+  final String dataDirectory;
+
+  /// The native rolling log.
+  final String logDirectory;
+
+  /// Equipment profiles, settings, the plate-solver choice and DepthLock
+  /// goals.
+  final String profileDirectory;
+
+  const HostPaths({
+    required this.dataDirectory,
+    required this.logDirectory,
+    required this.profileDirectory,
+  });
+
+  @override
+  int get hashCode =>
+      dataDirectory.hashCode ^
+      logDirectory.hashCode ^
+      profileDirectory.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HostPaths &&
+          runtimeType == other.runtimeType &&
+          dataDirectory == other.dataDirectory &&
+          logDirectory == other.logDirectory &&
+          profileDirectory == other.profileDirectory;
+}

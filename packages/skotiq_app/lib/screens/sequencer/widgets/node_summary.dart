@@ -603,12 +603,6 @@ List<SummaryFragment> nodeSummary(
   };
 }
 
-/// Convenience: true iff [node]'s summary contains at least one inline-
-/// editable fragment. The tree uses this to decide whether to show the
-/// "quick-edit" affordance on a row.
-bool summaryHasInlineEdits(SequenceNode node) =>
-    nodeSummary(node).any((f) => f is EditableFragment);
-
 /// Build the Loop summary. Only the `count` condition yields an editable
 /// iteration count; every other condition is a static descriptor.
 List<SummaryFragment> _loopSummary(

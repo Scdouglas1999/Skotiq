@@ -10,6 +10,7 @@ import '../database/database.dart';
 import 'async_scope.dart';
 import 'backend_provider.dart';
 import 'database_provider.dart';
+import '../utils/async_scope.dart';
 
 const _notProvided = Object();
 

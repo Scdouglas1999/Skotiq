@@ -40,7 +40,6 @@ import 'api/polar_alignment/run_loop.dart';
 import 'api/post_session/entrypoints.dart';
 import 'api/secondary_rig.dart';
 import 'api/sequencer.dart';
-import 'api/sequencer/event_bridge.dart';
 import 'api/sequencer/lifecycle.dart';
 import 'api/sequencer/mosaic.dart';
 import 'api/sequencer/runtime_config.dart';
@@ -122,7 +121,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -857581642;
+  int get rustContentHash => -1686779812;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -234,15 +233,6 @@ abstract class RustLibApi extends BaseApi {
     required String location,
   });
 
-  Future<void> crateApiImagingApiCameraStartExposure({
-    required String deviceId,
-    required double durationSecs,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-  });
-
   Future<void> crateApiImagingApiCameraStartExposureConfigured({
     required String deviceId,
     required double durationSecs,
@@ -317,23 +307,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiDevicesCoverCalibratorApiCoverCalibratorCloseCover({
-    required String deviceId,
-  });
-
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightness({
-    required String deviceId,
-  });
-
-  Future<int>
-  crateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorState({
-    required String deviceId,
-  });
-
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverState({
-    required String deviceId,
-  });
-
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightness({
     required String deviceId,
   });
 
@@ -609,6 +582,7 @@ abstract class RustLibApi extends BaseApi {
 
   List<QuirkInfo> crateApiDiagnosticsApiGetDeviceQuirks({
     required String deviceId,
+    String? model,
   });
 
   Future<DomeCapabilities> crateApiDiagnosticsApiGetDomeCapabilities({
@@ -652,15 +626,9 @@ abstract class RustLibApi extends BaseApi {
     required String deviceId,
   });
 
-  String? crateApiPlateSolveApiGetPlateSolverPath();
-
   List<EquipmentProfile> crateApiStorageApiGetProfiles();
 
   QhyDiscoveryStatus crateApiDiagnosticsApiGetQhyDiscoveryStatus();
-
-  Future<RotatorCapabilities> crateApiDiagnosticsApiGetRotatorCapabilities({
-    required String deviceId,
-  });
 
   Future<RotatorStatus> crateApiDevicesRotatorApiGetRotatorStatus({
     required String deviceId,
@@ -729,9 +697,7 @@ abstract class RustLibApi extends BaseApi {
 
   void crateApiInitApiInit();
 
-  void crateApiStorageApiInitProfileStorage({required String storagePath});
-
-  void crateApiStorageApiInitSettingsStorage({required String storagePath});
+  void crateApiInitApiInitHost({required HostPaths paths});
 
   void crateApiInitApiInitWithLogging({String? logDirectory});
 
@@ -740,11 +706,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<void> crateApiDiscoveryApiInvalidateDiscoveryCache();
-
-  Future<bool> crateApiConnectionApiIsDeviceConnected({
-    required DeviceType deviceType,
-    required String deviceId,
-  });
 
   bool crateApiDiagnosticsApiIsQhyDiscoveryEnabled();
 
@@ -1106,8 +1067,6 @@ abstract class RustLibApi extends BaseApi {
 
   Future<void> crateApiSequencerLifecycleApiSequencerStop({String? origin});
 
-  Future<void> crateApiSequencerEventBridgeApiSequencerSubscribeEvents();
-
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateCloudMotion({
     double? currentCoverPercent,
     double? predictedArrivalMinutes,
@@ -1149,10 +1108,6 @@ abstract class RustLibApi extends BaseApi {
   void crateApiDiagnosticsApiSetQhyDiscoveryEnabled({required bool enabled});
 
   Future<String> crateApiSkyAtlasApiSkyAtlas({required String argsJson});
-
-  Future<String> crateApiSkyAtlasFramesApiSkyAtlasAddFrame({
-    required String argsJson,
-  });
 
   Future<String> crateApiSkyAtlasRegionsApiSkyAtlasGrowth({
     required String argsJson,
@@ -2137,58 +2092,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiImagingApiCameraStartExposure({
-    required String deviceId,
-    required double durationSecs,
-    required int gain,
-    required int offset,
-    required int binX,
-    required int binY,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          var arg1 = cst_encode_f_64(durationSecs);
-          var arg2 = cst_encode_i_32(gain);
-          var arg3 = cst_encode_i_32(offset);
-          var arg4 = cst_encode_i_32(binX);
-          var arg5 = cst_encode_i_32(binY);
-          return wire.wire__crate__api__imaging__api_camera_start_exposure(
-            port_,
-            arg0,
-            arg1,
-            arg2,
-            arg3,
-            arg4,
-            arg5,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiImagingApiCameraStartExposureConstMeta,
-        argValues: [deviceId, durationSecs, gain, offset, binX, binY],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiImagingApiCameraStartExposureConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_camera_start_exposure",
-        argNames: [
-          "deviceId",
-          "durationSecs",
-          "gain",
-          "offset",
-          "binX",
-          "binY",
-        ],
-      );
-
-  @override
   Future<void> crateApiImagingApiCameraStartExposureConfigured({
     required String deviceId,
     required double durationSecs,
@@ -2743,139 +2646,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   get kCrateApiDevicesCoverCalibratorApiCoverCalibratorCloseCoverConstMeta =>
       const TaskConstMeta(
         debugName: "api_cover_calibrator_close_cover",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightness({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_brightness(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightnessConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetBrightnessConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_brightness",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int>
-  crateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorState({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_calibrator_state(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorStateConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCalibratorStateConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_calibrator_state",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverState({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_cover_state(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverStateConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetCoverStateConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_cover_state",
-        argNames: ["deviceId"],
-      );
-
-  @override
-  Future<int> crateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightness({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__devices__cover_calibrator__api_cover_calibrator_get_max_brightness(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_i_32,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightnessConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiDevicesCoverCalibratorApiCoverCalibratorGetMaxBrightnessConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_cover_calibrator_get_max_brightness",
         argNames: ["deviceId"],
       );
 
@@ -4912,13 +4682,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @override
   List<QuirkInfo> crateApiDiagnosticsApiGetDeviceQuirks({
     required String deviceId,
+    String? model,
   }) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           var arg0 = cst_encode_String(deviceId);
+          var arg1 = cst_encode_opt_String(model);
           return wire.wire__crate__api__diagnostics__api_get_device_quirks(
             arg0,
+            arg1,
           );
         },
         codec: DcoCodec(
@@ -4926,7 +4699,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeErrorData: null,
         ),
         constMeta: kCrateApiDiagnosticsApiGetDeviceQuirksConstMeta,
-        argValues: [deviceId],
+        argValues: [deviceId, model],
         apiImpl: this,
       ),
     );
@@ -4935,7 +4708,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   TaskConstMeta get kCrateApiDiagnosticsApiGetDeviceQuirksConstMeta =>
       const TaskConstMeta(
         debugName: "api_get_device_quirks",
-        argNames: ["deviceId"],
+        argNames: ["deviceId", "model"],
       );
 
   @override
@@ -5265,28 +5038,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  String? crateApiPlateSolveApiGetPlateSolverPath() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          return wire
-              .wire__crate__api__plate_solve__api_get_plate_solver_path();
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_opt_String,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiPlateSolveApiGetPlateSolverPathConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiPlateSolveApiGetPlateSolverPathConstMeta =>
-      const TaskConstMeta(debugName: "api_get_plate_solver_path", argNames: []);
-
-  @override
   List<EquipmentProfile> crateApiStorageApiGetProfiles() {
     return handler.executeSync(
       SyncTask(
@@ -5330,37 +5081,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_get_qhy_discovery_status",
         argNames: [],
-      );
-
-  @override
-  Future<RotatorCapabilities> crateApiDiagnosticsApiGetRotatorCapabilities({
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(deviceId);
-          return wire
-              .wire__crate__api__diagnostics__api_get_rotator_capabilities(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_rotator_capabilities,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiDiagnosticsApiGetRotatorCapabilitiesConstMeta,
-        argValues: [deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiDiagnosticsApiGetRotatorCapabilitiesConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_get_rotator_capabilities",
-        argNames: ["deviceId"],
       );
 
   @override
@@ -5925,56 +5645,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "api_init", argNames: []);
 
   @override
-  void crateApiStorageApiInitProfileStorage({required String storagePath}) {
+  void crateApiInitApiInitHost({required HostPaths paths}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
-          var arg0 = cst_encode_String(storagePath);
-          return wire.wire__crate__api__storage__api_init_profile_storage(arg0);
+          var arg0 = cst_encode_box_autoadd_host_paths(paths);
+          return wire.wire__crate__api__init__api_init_host(arg0);
         },
         codec: DcoCodec(
           decodeSuccessData: dco_decode_unit,
           decodeErrorData: dco_decode_skotiq_error,
         ),
-        constMeta: kCrateApiStorageApiInitProfileStorageConstMeta,
-        argValues: [storagePath],
+        constMeta: kCrateApiInitApiInitHostConstMeta,
+        argValues: [paths],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiStorageApiInitProfileStorageConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_init_profile_storage",
-        argNames: ["storagePath"],
-      );
-
-  @override
-  void crateApiStorageApiInitSettingsStorage({required String storagePath}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          var arg0 = cst_encode_String(storagePath);
-          return wire.wire__crate__api__storage__api_init_settings_storage(
-            arg0,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta: kCrateApiStorageApiInitSettingsStorageConstMeta,
-        argValues: [storagePath],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiStorageApiInitSettingsStorageConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_init_settings_storage",
-        argNames: ["storagePath"],
-      );
+  TaskConstMeta get kCrateApiInitApiInitHostConstMeta =>
+      const TaskConstMeta(debugName: "api_init_host", argNames: ["paths"]);
 
   @override
   void crateApiInitApiInitWithLogging({String? logDirectory}) {
@@ -6058,39 +5748,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(
         debugName: "api_invalidate_discovery_cache",
         argNames: [],
-      );
-
-  @override
-  Future<bool> crateApiConnectionApiIsDeviceConnected({
-    required DeviceType deviceType,
-    required String deviceId,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_device_type(deviceType);
-          var arg1 = cst_encode_String(deviceId);
-          return wire.wire__crate__api__connection__api_is_device_connected(
-            port_,
-            arg0,
-            arg1,
-          );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_bool,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiConnectionApiIsDeviceConnectedConstMeta,
-        argValues: [deviceType, deviceId],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiConnectionApiIsDeviceConnectedConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_is_device_connected",
-        argNames: ["deviceType", "deviceId"],
       );
 
   @override
@@ -8959,35 +8616,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       );
 
   @override
-  Future<void> crateApiSequencerEventBridgeApiSequencerSubscribeEvents() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          return wire
-              .wire__crate__api__sequencer__event_bridge__api_sequencer_subscribe_events(
-                port_,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_unit,
-          decodeErrorData: dco_decode_skotiq_error,
-        ),
-        constMeta:
-            kCrateApiSequencerEventBridgeApiSequencerSubscribeEventsConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta
-  get kCrateApiSequencerEventBridgeApiSequencerSubscribeEventsConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_sequencer_subscribe_events",
-        argNames: [],
-      );
-
-  @override
   Future<void> crateApiSequencerRuntimeConfigApiSequencerUpdateCloudMotion({
     double? currentCoverPercent,
     double? predictedArrivalMinutes,
@@ -9310,37 +8938,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSkyAtlasApiSkyAtlasConstMeta =>
       const TaskConstMeta(debugName: "api_sky_atlas", argNames: ["argsJson"]);
-
-  @override
-  Future<String> crateApiSkyAtlasFramesApiSkyAtlasAddFrame({
-    required String argsJson,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          var arg0 = cst_encode_String(argsJson);
-          return wire
-              .wire__crate__api__sky_atlas__frames__api_sky_atlas_add_frame(
-                port_,
-                arg0,
-              );
-        },
-        codec: DcoCodec(
-          decodeSuccessData: dco_decode_String,
-          decodeErrorData: dco_decode_String,
-        ),
-        constMeta: kCrateApiSkyAtlasFramesApiSkyAtlasAddFrameConstMeta,
-        argValues: [argsJson],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSkyAtlasFramesApiSkyAtlasAddFrameConstMeta =>
-      const TaskConstMeta(
-        debugName: "api_sky_atlas_add_frame",
-        argNames: ["argsJson"],
-      );
 
   @override
   Future<String> crateApiSkyAtlasRegionsApiSkyAtlasGrowth({
@@ -11340,8 +10937,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ApiAcquisitionSettings dco_decode_api_acquisition_settings(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 10)
+      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
     return ApiAcquisitionSettings(
       instrument: dco_decode_String(arr[0]),
       filter: dco_decode_String(arr[1]),
@@ -11351,6 +10948,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: dco_decode_i_32(arr[5]),
       binY: dco_decode_i_32(arr[6]),
       ccdTempC: dco_decode_opt_box_autoadd_f_64(arr[7]),
+      setPointC: dco_decode_opt_box_autoadd_f_64(arr[8]),
+      readMode: dco_decode_opt_String(arr[9]),
     );
   }
 
@@ -11927,8 +11526,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   AutofocusConfigApi dco_decode_autofocus_config_api(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 18)
-      throw Exception('unexpected arr length: expect 18 but see ${arr.length}');
+    if (arr.length != 19)
+      throw Exception('unexpected arr length: expect 19 but see ${arr.length}');
     return AutofocusConfigApi(
       exposureTime: dco_decode_f_64(arr[0]),
       stepSize: dco_decode_i_32(arr[1]),
@@ -11948,6 +11547,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       backlashIn: dco_decode_i_32(arr[15]),
       backlashOut: dco_decode_i_32(arr[16]),
       measuredBacklashIn: dco_decode_opt_box_autoadd_i_32(arr[17]),
+      failureHfrToleranceRatio: dco_decode_f_64(arr[18]),
     );
   }
 
@@ -12187,6 +11787,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HostPaths dco_decode_box_autoadd_host_paths(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_host_paths(raw);
+  }
+
+  @protected
   int dco_decode_box_autoadd_i_32(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw as int;
@@ -12315,6 +11921,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SequencerEvent dco_decode_box_autoadd_sequencer_event(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_sequencer_event(raw);
+  }
+
+  @protected
+  SequencerNightEnd dco_decode_box_autoadd_sequencer_night_end(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return dco_decode_sequencer_night_end(raw);
   }
 
   @protected
@@ -13376,6 +12988,35 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuiderActivity dco_decode_guider_activity(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return GuiderActivity_Disconnected();
+      case 1:
+        return GuiderActivity_Connected();
+      case 2:
+        return GuiderActivity_Stopped();
+      case 3:
+        return GuiderActivity_Calibrating();
+      case 4:
+        return GuiderActivity_Guiding();
+      case 5:
+        return GuiderActivity_Looping();
+      case 6:
+        return GuiderActivity_Paused();
+      case 7:
+        return GuiderActivity_Settling();
+      case 8:
+        return GuiderActivity_LostLock();
+      case 9:
+        return GuiderActivity_Unknown(dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   GuiderCalibration dco_decode_guider_calibration(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -13399,7 +13040,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return GuiderStatus(
       deviceId: dco_decode_String(arr[0]),
       connected: dco_decode_bool(arr[1]),
-      state: dco_decode_String(arr[2]),
+      state: dco_decode_guider_activity(arr[2]),
       rmsRa: dco_decode_f_64(arr[3]),
       rmsDec: dco_decode_f_64(arr[4]),
       rmsTotal: dco_decode_f_64(arr[5]),
@@ -13477,6 +13118,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   HeartbeatStatus dco_decode_heartbeat_status(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return HeartbeatStatus.values[raw as int];
+  }
+
+  @protected
+  HostPaths dco_decode_host_paths(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return HostPaths(
+      dataDirectory: dco_decode_String(arr[0]),
+      logDirectory: dco_decode_String(arr[1]),
+      profileDirectory: dco_decode_String(arr[2]),
+    );
   }
 
   @protected
@@ -14240,6 +13894,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd? dco_decode_opt_box_autoadd_sequencer_night_end(
+    dynamic raw,
+  ) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return raw == null ? null : dco_decode_box_autoadd_sequencer_night_end(raw);
+  }
+
+  @protected
   SequencerNotice? dco_decode_opt_box_autoadd_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_sequencer_notice(raw);
@@ -14569,6 +14231,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Refusal dco_decode_refusal(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return Refusal.values[raw as int];
+  }
+
+  @protected
   RetainedCaptureInfo dco_decode_retained_capture_info(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -14840,6 +14508,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           triggerId: dco_decode_String(raw[1]),
           triggerName: dco_decode_String(raw[2]),
           action: dco_decode_sequencer_trigger_action(raw[3]),
+          nightEnd: dco_decode_opt_box_autoadd_sequencer_night_end(raw[4]),
         );
       case 16:
         return SequencerEvent_InstructionProgress(
@@ -15055,6 +14724,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd dco_decode_sequencer_night_end(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return SequencerNightEnd.values[raw as int];
+  }
+
+  @protected
   SequencerNotice dco_decode_sequencer_notice(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     switch (raw[0]) {
@@ -15112,6 +14787,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         return SequencerStop_Trigger(
           triggerId: dco_decode_String(raw[1]),
           triggerName: dco_decode_String(raw[2]),
+          nightEnd: dco_decode_opt_box_autoadd_sequencer_night_end(raw[3]),
         );
       default:
         throw Exception("unreachable");
@@ -15209,71 +14885,76 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           currentOperation: dco_decode_String(raw[2]),
         );
       case 17:
-        return SkotiqError_InvalidState(dco_decode_String(raw[1]));
+        return SkotiqError_Refused(
+          kind: dco_decode_refusal(raw[1]),
+          message: dco_decode_String(raw[2]),
+        );
       case 18:
-        return SkotiqError_ImageError(dco_decode_String(raw[1]));
+        return SkotiqError_InvalidState(dco_decode_String(raw[1]));
       case 19:
-        return SkotiqError_CameraError(dco_decode_String(raw[1]));
+        return SkotiqError_ImageError(dco_decode_String(raw[1]));
       case 20:
-        return SkotiqError_NoImageAvailable();
+        return SkotiqError_CameraError(dco_decode_String(raw[1]));
       case 21:
-        return SkotiqError_ExposureCancelled();
+        return SkotiqError_NoImageAvailable();
       case 22:
+        return SkotiqError_ExposureCancelled();
+      case 23:
         return SkotiqError_ExposureFailed(
           cameraId: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 23:
+      case 24:
         return SkotiqError_DownloadFailed(
           cameraId: dco_decode_String(raw[1]),
           reason: dco_decode_String(raw[2]),
         );
-      case 24:
-        return SkotiqError_IoError(dco_decode_String(raw[1]));
       case 25:
-        return SkotiqError_SerializationError(dco_decode_String(raw[1]));
+        return SkotiqError_IoError(dco_decode_String(raw[1]));
       case 26:
-        return SkotiqError_PlateSolveError(dco_decode_String(raw[1]));
+        return SkotiqError_SerializationError(dco_decode_String(raw[1]));
       case 27:
-        return SkotiqError_SequenceError(dco_decode_String(raw[1]));
+        return SkotiqError_PlateSolveError(dco_decode_String(raw[1]));
       case 28:
+        return SkotiqError_SequenceError(dco_decode_String(raw[1]));
+      case 29:
         return SkotiqError_AscomError(
           progId: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
           errorCode: dco_decode_i_32(raw[3]),
         );
-      case 29:
+      case 30:
         return SkotiqError_AlpacaError(
           baseUrl: dco_decode_String(raw[1]),
           deviceNumber: dco_decode_u_32(raw[2]),
           message: dco_decode_String(raw[3]),
           errorCode: dco_decode_i_32(raw[4]),
         );
-      case 30:
+      case 31:
         return SkotiqError_IndiError(
           server: dco_decode_String(raw[1]),
           port: dco_decode_u_16(raw[2]),
           deviceName: dco_decode_String(raw[3]),
           message: dco_decode_String(raw[4]),
         );
-      case 31:
+      case 32:
         return SkotiqError_NativeError(
           vendor: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
           errorCode: dco_decode_i_32(raw[3]),
         );
-      case 32:
+      case 33:
         return SkotiqError_ComError(
           message: dco_decode_String(raw[1]),
           hresult: dco_decode_u_32(raw[2]),
         );
-      case 33:
-        return SkotiqError_Internal(dco_decode_String(raw[1]));
       case 34:
-        return SkotiqError_Cancelled();
+        return SkotiqError_Internal(dco_decode_String(raw[1]));
       case 35:
-        return SkotiqError_RuntimeInitFailed(dco_decode_String(raw[1]));
+        return SkotiqError_Cancelled();
       case 36:
+        return SkotiqError_RuntimeInitFailed(dco_decode_String(raw[1]));
+      case 37:
         return SkotiqError_ResourceExhausted(
           resource: dco_decode_String(raw[1]),
           message: dco_decode_String(raw[2]),
@@ -15606,6 +15287,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_binX = sse_decode_i_32(deserializer);
     var var_binY = sse_decode_i_32(deserializer);
     var var_ccdTempC = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_setPointC = sse_decode_opt_box_autoadd_f_64(deserializer);
+    var var_readMode = sse_decode_opt_String(deserializer);
     return ApiAcquisitionSettings(
       instrument: var_instrument,
       filter: var_filter,
@@ -15615,6 +15298,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       binX: var_binX,
       binY: var_binY,
       ccdTempC: var_ccdTempC,
+      setPointC: var_setPointC,
+      readMode: var_readMode,
     );
   }
 
@@ -16424,6 +16109,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_backlashIn = sse_decode_i_32(deserializer);
     var var_backlashOut = sse_decode_i_32(deserializer);
     var var_measuredBacklashIn = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_failureHfrToleranceRatio = sse_decode_f_64(deserializer);
     return AutofocusConfigApi(
       exposureTime: var_exposureTime,
       stepSize: var_stepSize,
@@ -16443,6 +16129,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       backlashIn: var_backlashIn,
       backlashOut: var_backlashOut,
       measuredBacklashIn: var_measuredBacklashIn,
+      failureHfrToleranceRatio: var_failureHfrToleranceRatio,
     );
   }
 
@@ -16725,6 +16412,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  HostPaths sse_decode_box_autoadd_host_paths(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_host_paths(deserializer));
+  }
+
+  @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_i_32(deserializer));
@@ -16869,6 +16562,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_sequencer_event(deserializer));
+  }
+
+  @protected
+  SequencerNightEnd sse_decode_box_autoadd_sequencer_night_end(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    return (sse_decode_sequencer_night_end(deserializer));
   }
 
   @protected
@@ -18300,6 +18001,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  GuiderActivity sse_decode_guider_activity(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        return GuiderActivity_Disconnected();
+      case 1:
+        return GuiderActivity_Connected();
+      case 2:
+        return GuiderActivity_Stopped();
+      case 3:
+        return GuiderActivity_Calibrating();
+      case 4:
+        return GuiderActivity_Guiding();
+      case 5:
+        return GuiderActivity_Looping();
+      case 6:
+        return GuiderActivity_Paused();
+      case 7:
+        return GuiderActivity_Settling();
+      case 8:
+        return GuiderActivity_LostLock();
+      case 9:
+        var var_field0 = sse_decode_String(deserializer);
+        return GuiderActivity_Unknown(var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   GuiderCalibration sse_decode_guider_calibration(
     SseDeserializer deserializer,
   ) {
@@ -18323,7 +18056,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_deviceId = sse_decode_String(deserializer);
     var var_connected = sse_decode_bool(deserializer);
-    var var_state = sse_decode_String(deserializer);
+    var var_state = sse_decode_guider_activity(deserializer);
     var var_rmsRa = sse_decode_f_64(deserializer);
     var var_rmsDec = sse_decode_f_64(deserializer);
     var var_rmsTotal = sse_decode_f_64(deserializer);
@@ -18421,6 +18154,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var inner = sse_decode_i_32(deserializer);
     return HeartbeatStatus.values[inner];
+  }
+
+  @protected
+  HostPaths sse_decode_host_paths(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_dataDirectory = sse_decode_String(deserializer);
+    var var_logDirectory = sse_decode_String(deserializer);
+    var var_profileDirectory = sse_decode_String(deserializer);
+    return HostPaths(
+      dataDirectory: var_dataDirectory,
+      logDirectory: var_logDirectory,
+      profileDirectory: var_profileDirectory,
+    );
   }
 
   @protected
@@ -19624,6 +19370,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd? sse_decode_opt_box_autoadd_sequencer_night_end(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    if (sse_decode_bool(deserializer)) {
+      return (sse_decode_box_autoadd_sequencer_night_end(deserializer));
+    } else {
+      return null;
+    }
+  }
+
+  @protected
   SequencerNotice? sse_decode_opt_box_autoadd_sequencer_notice(
     SseDeserializer deserializer,
   ) {
@@ -20054,6 +19813,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  Refusal sse_decode_refusal(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return Refusal.values[inner];
+  }
+
+  @protected
   RetainedCaptureInfo sse_decode_retained_capture_info(
     SseDeserializer deserializer,
   ) {
@@ -20423,10 +20189,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         var var_triggerId = sse_decode_String(deserializer);
         var var_triggerName = sse_decode_String(deserializer);
         var var_action = sse_decode_sequencer_trigger_action(deserializer);
+        var var_nightEnd = sse_decode_opt_box_autoadd_sequencer_night_end(
+          deserializer,
+        );
         return SequencerEvent_TriggerFired(
           triggerId: var_triggerId,
           triggerName: var_triggerName,
           action: var_action,
+          nightEnd: var_nightEnd,
         );
       case 16:
         var var_nodeId = sse_decode_String(deserializer);
@@ -20807,6 +20577,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  SequencerNightEnd sse_decode_sequencer_night_end(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return SequencerNightEnd.values[inner];
+  }
+
+  @protected
   SequencerNotice sse_decode_sequencer_notice(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
@@ -20882,9 +20661,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case 4:
         var var_triggerId = sse_decode_String(deserializer);
         var var_triggerName = sse_decode_String(deserializer);
+        var var_nightEnd = sse_decode_opt_box_autoadd_sequencer_night_end(
+          deserializer,
+        );
         return SequencerStop_Trigger(
           triggerId: var_triggerId,
           triggerName: var_triggerName,
+          nightEnd: var_nightEnd,
         );
       default:
         throw UnimplementedError('');
@@ -21020,45 +20803,49 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           currentOperation: var_currentOperation,
         );
       case 17:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_InvalidState(var_field0);
+        var var_kind = sse_decode_refusal(deserializer);
+        var var_message = sse_decode_String(deserializer);
+        return SkotiqError_Refused(kind: var_kind, message: var_message);
       case 18:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_ImageError(var_field0);
+        return SkotiqError_InvalidState(var_field0);
       case 19:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_CameraError(var_field0);
+        return SkotiqError_ImageError(var_field0);
       case 20:
-        return SkotiqError_NoImageAvailable();
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_CameraError(var_field0);
       case 21:
-        return SkotiqError_ExposureCancelled();
+        return SkotiqError_NoImageAvailable();
       case 22:
+        return SkotiqError_ExposureCancelled();
+      case 23:
         var var_cameraId = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return SkotiqError_ExposureFailed(
           cameraId: var_cameraId,
           reason: var_reason,
         );
-      case 23:
+      case 24:
         var var_cameraId = sse_decode_String(deserializer);
         var var_reason = sse_decode_String(deserializer);
         return SkotiqError_DownloadFailed(
           cameraId: var_cameraId,
           reason: var_reason,
         );
-      case 24:
-        var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_IoError(var_field0);
       case 25:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_SerializationError(var_field0);
+        return SkotiqError_IoError(var_field0);
       case 26:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_PlateSolveError(var_field0);
+        return SkotiqError_SerializationError(var_field0);
       case 27:
         var var_field0 = sse_decode_String(deserializer);
-        return SkotiqError_SequenceError(var_field0);
+        return SkotiqError_PlateSolveError(var_field0);
       case 28:
+        var var_field0 = sse_decode_String(deserializer);
+        return SkotiqError_SequenceError(var_field0);
+      case 29:
         var var_progId = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         var var_errorCode = sse_decode_i_32(deserializer);
@@ -21067,7 +20854,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
           errorCode: var_errorCode,
         );
-      case 29:
+      case 30:
         var var_baseUrl = sse_decode_String(deserializer);
         var var_deviceNumber = sse_decode_u_32(deserializer);
         var var_message = sse_decode_String(deserializer);
@@ -21078,7 +20865,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
           errorCode: var_errorCode,
         );
-      case 30:
+      case 31:
         var var_server = sse_decode_String(deserializer);
         var var_port = sse_decode_u_16(deserializer);
         var var_deviceName = sse_decode_String(deserializer);
@@ -21089,7 +20876,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           deviceName: var_deviceName,
           message: var_message,
         );
-      case 31:
+      case 32:
         var var_vendor = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         var var_errorCode = sse_decode_i_32(deserializer);
@@ -21098,19 +20885,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           message: var_message,
           errorCode: var_errorCode,
         );
-      case 32:
+      case 33:
         var var_message = sse_decode_String(deserializer);
         var var_hresult = sse_decode_u_32(deserializer);
         return SkotiqError_ComError(message: var_message, hresult: var_hresult);
-      case 33:
+      case 34:
         var var_field0 = sse_decode_String(deserializer);
         return SkotiqError_Internal(var_field0);
-      case 34:
-        return SkotiqError_Cancelled();
       case 35:
+        return SkotiqError_Cancelled();
+      case 36:
         var var_field0 = sse_decode_String(deserializer);
         return SkotiqError_RuntimeInitFailed(var_field0);
-      case 36:
+      case 37:
         var var_resource = sse_decode_String(deserializer);
         var var_message = sse_decode_String(deserializer);
         return SkotiqError_ResourceExhausted(
@@ -21526,7 +21313,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  int cst_encode_refusal(Refusal raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
   int cst_encode_sequencer_error_kind(SequencerErrorKind raw) {
+    // Codec=Cst (C-struct based), see doc to use other codecs
+    return cst_encode_i_32(raw.index);
+  }
+
+  @protected
+  int cst_encode_sequencer_night_end(SequencerNightEnd raw) {
     // Codec=Cst (C-struct based), see doc to use other codecs
     return cst_encode_i_32(raw.index);
   }
@@ -21690,6 +21489,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.binX, serializer);
     sse_encode_i_32(self.binY, serializer);
     sse_encode_opt_box_autoadd_f_64(self.ccdTempC, serializer);
+    sse_encode_opt_box_autoadd_f_64(self.setPointC, serializer);
+    sse_encode_opt_String(self.readMode, serializer);
   }
 
   @protected
@@ -22233,6 +22034,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_32(self.backlashIn, serializer);
     sse_encode_i_32(self.backlashOut, serializer);
     sse_encode_opt_box_autoadd_i_32(self.measuredBacklashIn, serializer);
+    sse_encode_f_64(self.failureHfrToleranceRatio, serializer);
   }
 
   @protected
@@ -22537,6 +22339,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_box_autoadd_host_paths(
+    HostPaths self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_host_paths(self, serializer);
+  }
+
+  @protected
   void sse_encode_box_autoadd_i_32(int self, SseSerializer serializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self, serializer);
@@ -22702,6 +22513,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_sequencer_event(self, serializer);
+  }
+
+  @protected
+  void sse_encode_box_autoadd_sequencer_night_end(
+    SequencerNightEnd self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_sequencer_night_end(self, serializer);
   }
 
   @protected
@@ -23804,6 +23624,37 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_guider_activity(
+    GuiderActivity self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case GuiderActivity_Disconnected():
+        sse_encode_i_32(0, serializer);
+      case GuiderActivity_Connected():
+        sse_encode_i_32(1, serializer);
+      case GuiderActivity_Stopped():
+        sse_encode_i_32(2, serializer);
+      case GuiderActivity_Calibrating():
+        sse_encode_i_32(3, serializer);
+      case GuiderActivity_Guiding():
+        sse_encode_i_32(4, serializer);
+      case GuiderActivity_Looping():
+        sse_encode_i_32(5, serializer);
+      case GuiderActivity_Paused():
+        sse_encode_i_32(6, serializer);
+      case GuiderActivity_Settling():
+        sse_encode_i_32(7, serializer);
+      case GuiderActivity_LostLock():
+        sse_encode_i_32(8, serializer);
+      case GuiderActivity_Unknown(field0: final field0):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(field0, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_guider_calibration(
     GuiderCalibration self,
     SseSerializer serializer,
@@ -23821,7 +23672,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.deviceId, serializer);
     sse_encode_bool(self.connected, serializer);
-    sse_encode_String(self.state, serializer);
+    sse_encode_guider_activity(self.state, serializer);
     sse_encode_f_64(self.rmsRa, serializer);
     sse_encode_f_64(self.rmsDec, serializer);
     sse_encode_f_64(self.rmsTotal, serializer);
@@ -23904,6 +23755,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
+  void sse_encode_host_paths(HostPaths self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.dataDirectory, serializer);
+    sse_encode_String(self.logDirectory, serializer);
+    sse_encode_String(self.profileDirectory, serializer);
   }
 
   @protected
@@ -24965,6 +24824,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_opt_box_autoadd_sequencer_night_end(
+    SequencerNightEnd? self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    sse_encode_bool(self != null, serializer);
+    if (self != null) {
+      sse_encode_box_autoadd_sequencer_night_end(self, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_opt_box_autoadd_sequencer_notice(
     SequencerNotice? self,
     SseSerializer serializer,
@@ -25313,6 +25185,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_refusal(Refusal self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_retained_capture_info(
     RetainedCaptureInfo self,
     SseSerializer serializer,
@@ -25598,11 +25476,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         triggerId: final triggerId,
         triggerName: final triggerName,
         action: final action,
+        nightEnd: final nightEnd,
       ):
         sse_encode_i_32(15, serializer);
         sse_encode_String(triggerId, serializer);
         sse_encode_String(triggerName, serializer);
         sse_encode_sequencer_trigger_action(action, serializer);
+        sse_encode_opt_box_autoadd_sequencer_night_end(nightEnd, serializer);
       case SequencerEvent_InstructionProgress(
         nodeId: final nodeId,
         instruction: final instruction,
@@ -25964,6 +25844,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_sequencer_night_end(
+    SequencerNightEnd self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_sequencer_notice(
     SequencerNotice self,
     SseSerializer serializer,
@@ -26024,10 +25913,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       case SequencerStop_Trigger(
         triggerId: final triggerId,
         triggerName: final triggerName,
+        nightEnd: final nightEnd,
       ):
         sse_encode_i_32(4, serializer);
         sse_encode_String(triggerId, serializer);
         sse_encode_String(triggerName, serializer);
+        sse_encode_opt_box_autoadd_sequencer_night_end(nightEnd, serializer);
     }
   }
 
@@ -26155,51 +26046,55 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         sse_encode_i_32(16, serializer);
         sse_encode_String(deviceId, serializer);
         sse_encode_String(currentOperation, serializer);
-      case SkotiqError_InvalidState(field0: final field0):
+      case SkotiqError_Refused(kind: final kind, message: final message):
         sse_encode_i_32(17, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_ImageError(field0: final field0):
+        sse_encode_refusal(kind, serializer);
+        sse_encode_String(message, serializer);
+      case SkotiqError_InvalidState(field0: final field0):
         sse_encode_i_32(18, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_CameraError(field0: final field0):
+      case SkotiqError_ImageError(field0: final field0):
         sse_encode_i_32(19, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_NoImageAvailable():
+      case SkotiqError_CameraError(field0: final field0):
         sse_encode_i_32(20, serializer);
-      case SkotiqError_ExposureCancelled():
+        sse_encode_String(field0, serializer);
+      case SkotiqError_NoImageAvailable():
         sse_encode_i_32(21, serializer);
-      case SkotiqError_ExposureFailed(
-        cameraId: final cameraId,
-        reason: final reason,
-      ):
+      case SkotiqError_ExposureCancelled():
         sse_encode_i_32(22, serializer);
-        sse_encode_String(cameraId, serializer);
-        sse_encode_String(reason, serializer);
-      case SkotiqError_DownloadFailed(
+      case SkotiqError_ExposureFailed(
         cameraId: final cameraId,
         reason: final reason,
       ):
         sse_encode_i_32(23, serializer);
         sse_encode_String(cameraId, serializer);
         sse_encode_String(reason, serializer);
-      case SkotiqError_IoError(field0: final field0):
+      case SkotiqError_DownloadFailed(
+        cameraId: final cameraId,
+        reason: final reason,
+      ):
         sse_encode_i_32(24, serializer);
-        sse_encode_String(field0, serializer);
-      case SkotiqError_SerializationError(field0: final field0):
+        sse_encode_String(cameraId, serializer);
+        sse_encode_String(reason, serializer);
+      case SkotiqError_IoError(field0: final field0):
         sse_encode_i_32(25, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_PlateSolveError(field0: final field0):
+      case SkotiqError_SerializationError(field0: final field0):
         sse_encode_i_32(26, serializer);
         sse_encode_String(field0, serializer);
-      case SkotiqError_SequenceError(field0: final field0):
+      case SkotiqError_PlateSolveError(field0: final field0):
         sse_encode_i_32(27, serializer);
+        sse_encode_String(field0, serializer);
+      case SkotiqError_SequenceError(field0: final field0):
+        sse_encode_i_32(28, serializer);
         sse_encode_String(field0, serializer);
       case SkotiqError_AscomError(
         progId: final progId,
         message: final message,
         errorCode: final errorCode,
       ):
-        sse_encode_i_32(28, serializer);
+        sse_encode_i_32(29, serializer);
         sse_encode_String(progId, serializer);
         sse_encode_String(message, serializer);
         sse_encode_i_32(errorCode, serializer);
@@ -26209,7 +26104,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         message: final message,
         errorCode: final errorCode,
       ):
-        sse_encode_i_32(29, serializer);
+        sse_encode_i_32(30, serializer);
         sse_encode_String(baseUrl, serializer);
         sse_encode_u_32(deviceNumber, serializer);
         sse_encode_String(message, serializer);
@@ -26220,7 +26115,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         deviceName: final deviceName,
         message: final message,
       ):
-        sse_encode_i_32(30, serializer);
+        sse_encode_i_32(31, serializer);
         sse_encode_String(server, serializer);
         sse_encode_u_16(port, serializer);
         sse_encode_String(deviceName, serializer);
@@ -26230,27 +26125,27 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         message: final message,
         errorCode: final errorCode,
       ):
-        sse_encode_i_32(31, serializer);
+        sse_encode_i_32(32, serializer);
         sse_encode_String(vendor, serializer);
         sse_encode_String(message, serializer);
         sse_encode_i_32(errorCode, serializer);
       case SkotiqError_ComError(message: final message, hresult: final hresult):
-        sse_encode_i_32(32, serializer);
+        sse_encode_i_32(33, serializer);
         sse_encode_String(message, serializer);
         sse_encode_u_32(hresult, serializer);
       case SkotiqError_Internal(field0: final field0):
-        sse_encode_i_32(33, serializer);
+        sse_encode_i_32(34, serializer);
         sse_encode_String(field0, serializer);
       case SkotiqError_Cancelled():
-        sse_encode_i_32(34, serializer);
-      case SkotiqError_RuntimeInitFailed(field0: final field0):
         sse_encode_i_32(35, serializer);
+      case SkotiqError_RuntimeInitFailed(field0: final field0):
+        sse_encode_i_32(36, serializer);
         sse_encode_String(field0, serializer);
       case SkotiqError_ResourceExhausted(
         resource: final resource,
         message: final message,
       ):
-        sse_encode_i_32(36, serializer);
+        sse_encode_i_32(37, serializer);
         sse_encode_String(resource, serializer);
         sse_encode_String(message, serializer);
     }

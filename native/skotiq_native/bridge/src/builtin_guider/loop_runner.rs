@@ -12,10 +12,12 @@ use crate::builtin_guider::state::{
 };
 use crate::device::DeviceType;
 use crate::device_manager::get_device_manager;
+use crate::device_manager::roles::RigRole;
 use crate::error::SkotiqError;
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::event::system::SystemEvent;
+use crate::guider::GuiderActivity;
 use crate::state::get_state;
 use skotiq_imaging::{detect_stars_with_stats, DetectedStar, ImageData, StarDetectionConfig};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -82,10 +84,9 @@ pub(crate) fn choose_guide_camera(
 
 pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     let app_state = get_state();
-    let imaging_camera = match app_state.get_profile_device_id(DeviceType::Camera).await {
-        Some(id) => Some(id),
-        None => first_connected_device(DeviceType::Camera).await,
-    };
+    let imaging_camera = get_device_manager()
+        .rig_device(RigRole::GuiderImagingCamera, None)
+        .await;
     let profile_guide_camera = app_state
         .get_profile()
         .await
@@ -104,12 +105,10 @@ pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     )
     .map_err(SkotiqError::OperationFailed)?;
 
-    let mount_id = if let Some(device_id) = app_state.get_profile_device_id(DeviceType::Mount).await
-    {
-        device_id
-    } else if let Some(device_id) = first_connected_device(DeviceType::Mount).await {
-        device_id
-    } else {
+    let Some(mount_id) = get_device_manager()
+        .rig_device(RigRole::GuiderMount, None)
+        .await
+    else {
         return Err(SkotiqError::OperationFailed(
             "Built-in guider requires a connected mount in the active profile".to_string(),
         ));
@@ -130,12 +129,6 @@ pub(crate) async fn resolve_devices() -> Result<(String, String), SkotiqError> {
     }
 
     Ok((camera_id, mount_id))
-}
-
-pub(crate) async fn first_connected_device(device_type: DeviceType) -> Option<String> {
-    get_device_manager()
-        .first_connected_device_id(device_type)
-        .await
 }
 
 /// Focal length the guide camera sees through: the guide scope's when the
@@ -330,9 +323,9 @@ pub(crate) async fn capture_and_store_loop_frame(
     update_snapshot_from_frame(&mut guard, &frame, 50);
     guard.last_status.connected = true;
     guard.last_status.state = if guard.looping {
-        "Looping".to_string()
+        GuiderActivity::Looping
     } else {
-        "Connected".to_string()
+        GuiderActivity::Connected
     };
     publish_star_measurement(&mut guard, selected.as_ref());
     guard.last_frame = Some(frame);
@@ -465,7 +458,7 @@ pub(crate) async fn run_guiding_loop(
         let mut guard = controller.write().await;
         guard.calibration = Some(calibration);
         guard.calibrating = false;
-        guard.last_status.state = "Guiding".to_string();
+        guard.last_status.state = GuiderActivity::Guiding;
         // Arm the settle timeout for the initial settle after calibration, and
         // publish the spec this episode is judged by so `apply_settle_state`
         // reads one source of truth (a dither later replaces it with its own).
@@ -553,7 +546,7 @@ pub(crate) async fn run_guiding_loop(
             record_per_star_residuals(&mut guard.reference_stars, &frame.stars, desired);
             update_snapshot_from_frame(&mut guard, &frame, 50);
             if guard.paused {
-                guard.last_status.state = "Paused".to_string();
+                guard.last_status.state = GuiderActivity::Paused;
                 guard.last_frame = Some(frame.clone());
                 continue;
             }
@@ -564,7 +557,7 @@ pub(crate) async fn run_guiding_loop(
                     )
                 })?;
             guard.last_status.connected = true;
-            guard.last_status.state = "Guiding".to_string();
+            guard.last_status.state = GuiderActivity::Guiding;
             // Public guider RMS is consumed by the sequencer's arcsecond
             // GuidingFailed threshold. Internal correction, settle, and dither
             // calculations below deliberately remain in guide-camera pixels.

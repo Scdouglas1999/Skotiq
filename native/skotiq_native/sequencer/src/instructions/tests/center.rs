@@ -15,9 +15,10 @@ async fn centering_waits_for_slew_startup_before_accepting_idle() {
         .await
         .expect("slew should start after the driver's delayed status update and then finish");
 
+    // Two idle reads in a row end the slew once it was seen moving.
     assert_eq!(
         ops.mount_slew_state_calls.load(Ordering::SeqCst),
-        5,
+        6,
         "the initial idle polls must not be mistaken for slew completion"
     );
 }
@@ -54,9 +55,11 @@ async fn a_center_waits_for_a_slew_in_progress_before_its_first_frame() {
 
     let _ = execute_center(&config, &ctx, None).await;
 
+    // The read that found it slewing, two more while it moves, then two
+    // idle reads in a row.
     assert_eq!(
         watch.await.unwrap(),
-        4,
+        5,
         "the first frame waits until the mount reports it has stopped"
     );
 }
@@ -354,7 +357,7 @@ async fn a_center_step_takes_the_centering_tolerance_setting() {
         let ops = Arc::new(
             ScriptedDomeRotatorOps::new()
                 .with_every_solve_off_by_arcsec(6.0)
-                .with_mount_slewing_states(vec![false, true, false, true, false, true, false])
+                .with_mount_slewing_states(vec![false, true, false, false, false, true, false])
                 .with_scripted_mount_coordinates(0.712, 41.27),
         );
         let mut ctx = ctx_with_ops(ops.clone()).await;
@@ -385,4 +388,90 @@ async fn a_center_step_takes_the_centering_tolerance_setting() {
         "{:?}",
         outcomes[1].message
     );
+}
+
+/// A run's own recenter (mount fault, weather hold, drift trigger): three
+/// attempts of 5 s frames at the operator's tolerance, syncing.
+#[test]
+fn a_runs_own_recenter() {
+    let config = RunShared::new(Arc::new(NullDeviceOps)).recenter_config();
+    assert!(config.use_target_coords);
+    assert_eq!((config.custom_ra, config.custom_dec), (None, None));
+    assert_eq!(config.accuracy_arcsec, None);
+    assert_eq!(config.max_attempts, 3);
+    assert_eq!(config.exposure_duration, 5.0);
+    assert_eq!(config.filter, None);
+    assert!(config.sync_mount);
+}
+
+/// How each centering judges and corrects the pointing.
+#[test]
+fn the_centering_policies() {
+    let setting = 5.0;
+    let table = [
+        (
+            "Center step (defaults)",
+            CenterPolicy::for_step(&crate::CenterConfig::default(), setting),
+            CenterPolicy {
+                tolerance_arcsec: 5.0,
+                max_attempts: 5,
+                sync_mount: true,
+            },
+        ),
+        (
+            "Center step with its own accuracy, no sync",
+            CenterPolicy::for_step(
+                &crate::CenterConfig {
+                    accuracy_arcsec: Some(3600.0),
+                    max_attempts: 1,
+                    sync_mount: false,
+                    ..Default::default()
+                },
+                setting,
+            ),
+            CenterPolicy {
+                tolerance_arcsec: 3600.0,
+                max_attempts: 1,
+                sync_mount: false,
+            },
+        ),
+        (
+            "run recenter",
+            CenterPolicy::for_step(&crate::CenterConfig::run_recenter(true), setting),
+            CenterPolicy {
+                tolerance_arcsec: 5.0,
+                max_attempts: 3,
+                sync_mount: true,
+            },
+        ),
+        (
+            "post-flip centering, outside a run",
+            crate::meridian_flip_executor::MeridianFlipExecutor::new(
+                crate::MeridianFlipConfig::default(),
+                Arc::new(NullDeviceOps),
+            )
+            .centering_policy(),
+            CenterPolicy {
+                tolerance_arcsec: 5.0,
+                max_attempts: 3,
+                sync_mount: true,
+            },
+        ),
+    ];
+    for (site, actual, expected) in table {
+        assert_eq!(actual, expected, "{site}");
+    }
+    let at_five = CenterPolicy::for_step(&crate::CenterConfig::default(), 5.0);
+    assert!(at_five.is_centered(5.0));
+    assert!(!at_five.is_centered(5.01));
+}
+
+/// The pointing error's components and its angle on the sky.
+#[test]
+fn the_pointing_error() {
+    let error = pointing_error((10.0, 45.0), (150.0 + 20.0 / 3600.0, 45.0 + 10.0 / 3600.0));
+    let flat = (error.ra_arcsec.powi(2) + error.dec_arcsec.powi(2)).sqrt();
+    assert!((flat - error.total_arcsec).abs() < 0.01);
+    assert!((error.ra_arcsec - 20.0 * 45f64.to_radians().cos()).abs() < 1e-6);
+    assert!((error.dec_arcsec - 10.0).abs() < 1e-6);
 }

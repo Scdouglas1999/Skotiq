@@ -27,6 +27,7 @@ import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/models/imaging/stack_and_share_models.dart';
 import 'package:skotiq_core/src/providers/profiles_provider.dart';
+import 'package:skotiq_core/src/providers/logging_service_provider.dart';
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/services/stack_share_export_service.dart';
 import 'package:path/path.dart' as p;
@@ -151,11 +152,11 @@ void main() {
     }
   });
 
-  /// Construct the service with the injected save substitutes, reading the
-  /// `Ref` from the test container so it shares the in-memory database.
+  /// Construct the service with the injected save substitutes, reading from
+  /// the test container so it shares the in-memory database.
   StackShareExportService service() {
-    return StackShareExportService(
-      container.read(_refProvider),
+    return _serviceOver(
+      container,
       savePng: savePng,
       saveJpeg: saveJpeg,
       applicationSupportDirectoryProvider: () async => tempDir,
@@ -504,11 +505,7 @@ void main() {
         ],
       );
       addTearDown(scoped.dispose);
-      final svc = StackShareExportService(
-        scoped.read(_refProvider),
-        savePng: savePng,
-        saveJpeg: saveJpeg,
-      );
+      final svc = _serviceOver(scoped, savePng: savePng, saveJpeg: saveJpeg);
       final meta = svc.buildAstroBinMetadata(result: _sampleResult());
       expect(meta.telescope, 'Esprit 100ED');
       expect(meta.camera, 'ASI2600MM Pro');
@@ -628,4 +625,16 @@ void main() {
 
 /// Exposes the enclosing [ProviderContainer]'s [Ref] to construct services that
 /// take a `Ref`. A throwaway provider whose body simply returns its own `ref`.
-final _refProvider = Provider<Ref>((ref) => ref);
+StackShareExportService _serviceOver(
+  ProviderContainer container, {
+  SaveRgbaPng? savePng,
+  SaveRgbaJpeg? saveJpeg,
+  Future<Directory> Function()? applicationSupportDirectoryProvider,
+}) => StackShareExportService(
+  logger: () => container.read(loggingServiceProvider),
+  resultsDao: () => container.read(stackedResultsDaoProvider),
+  activeProfile: () => container.read(activeEquipmentProfileProvider),
+  savePng: savePng,
+  saveJpeg: saveJpeg,
+  applicationSupportDirectoryProvider: applicationSupportDirectoryProvider,
+);

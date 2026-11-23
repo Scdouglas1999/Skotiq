@@ -1,13 +1,16 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import 'catalog_manager.dart';
 import 'deep_star_tile.dart';
+
+final _deepStarCatalogManagerLog = Logger('skotiq.DeepStarCatalogManager');
+final _planetariumLog = Logger('skotiq.planetarium');
 
 /// Installation status of the deep-star tier.
 class DeepStarStatus {
@@ -132,11 +135,7 @@ class DeepStarCatalogManager {
         }
       }
     } catch (e) {
-      developer.log(
-        '[DeepStar] config read error: $e',
-        name: 'DeepStarCatalogManager',
-        level: 900,
-      );
+      _deepStarCatalogManagerLog.warning('[DeepStar] config read error: $e');
     }
     return defaultBaseUrl;
   }
@@ -183,9 +182,8 @@ class DeepStarCatalogManager {
       // Metadata is cosmetic (install date in Settings); a corrupt or
       // unreadable meta file must not block status reporting, but log it so
       // a damaged install directory is visible in diagnostics.
-      developer.log(
+      _planetariumLog.fine(
         'DeepStarCatalog: failed to read install metadata: $e',
-        name: 'skotiq.planetarium',
       );
     }
 
@@ -256,10 +254,8 @@ class DeepStarCatalogManager {
     try {
       for (final t in manifest.tiles) {
         if (isCancelled != null && await isCancelled()) {
-          developer.log(
+          _deepStarCatalogManagerLog.info(
             '[DeepStar] download paused/canceled',
-            name: 'DeepStarCatalogManager',
-            level: 800,
           );
           return false;
         }
@@ -368,9 +364,8 @@ class DeepStarCatalogManager {
         // Keep deleting the rest of the tileset — one locked tile (e.g. an
         // open file handle on Windows) should not strand the other files —
         // but record what was left behind.
-        developer.log(
+        _planetariumLog.fine(
           'DeepStarCatalog: failed to delete ${entity.path}: $e',
-          name: 'skotiq.planetarium',
         );
         failures.add((entity.path, e));
       }
@@ -382,9 +377,8 @@ class DeepStarCatalogManager {
       try {
         await manifestEntity.delete(recursive: true);
       } catch (e) {
-        developer.log(
+        _planetariumLog.fine(
           'DeepStarCatalog: failed to delete ${manifestEntity.path}: $e',
-          name: 'skotiq.planetarium',
         );
         failures.add((manifestEntity.path, e));
       }

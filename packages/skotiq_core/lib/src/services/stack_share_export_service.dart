@@ -2,19 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
 import '../database/daos/stacked_results_dao.dart';
-import '../providers/database_provider.dart';
 import '../models/imaging/stack_and_share_models.dart';
-import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../utils/skotiq_data_directory.dart';
 import '../utils/logging_service.dart';
 import 'share_card_renderer.dart';
-import '../providers/logging_service_provider.dart';
 
 /// Signature of the function used to persist an 8-bit RGBA buffer as a PNG.
 ///
@@ -93,26 +89,36 @@ class ShareExportBufferException implements Exception {
 /// functions are injectable so this service is unit-testable without the Rust
 /// dynamic library loaded.
 class StackShareExportService {
-  StackShareExportService(
-    this._ref, {
+  /// [logger], [resultsDao] and [activeProfile] are asked for at each call,
+  /// so the service follows the Drift instance and the profile in use at that
+  /// moment.
+  StackShareExportService({
+    required LoggingService Function() logger,
+    required StackedResultsDao Function() resultsDao,
+    required EquipmentProfileModel? Function() activeProfile,
     SaveRgbaPng? savePng,
     SaveRgbaJpeg? saveJpeg,
     ShareCardRenderer cardRenderer = const ShareCardRenderer(),
     Future<Directory> Function()? applicationSupportDirectoryProvider,
-  }) : _savePng = savePng ?? bridge.apiSaveRgbaPngFile,
+  }) : _loggerOf = logger,
+       _resultsDaoOf = resultsDao,
+       _activeProfile = activeProfile,
+       _savePng = savePng ?? bridge.apiSaveRgbaPngFile,
        _saveJpeg = saveJpeg ?? bridge.apiSaveRgbaJpegFile,
        _cardRenderer = cardRenderer,
        _applicationSupportDirectoryProvider =
            applicationSupportDirectoryProvider ?? resolveSkotiqDataDirectory;
 
-  final Ref _ref;
+  final LoggingService Function() _loggerOf;
+  final StackedResultsDao Function() _resultsDaoOf;
+  final EquipmentProfileModel? Function() _activeProfile;
   final SaveRgbaPng _savePng;
   final SaveRgbaJpeg _saveJpeg;
   final ShareCardRenderer _cardRenderer;
   final Future<Directory> Function() _applicationSupportDirectoryProvider;
 
-  LoggingService get _logger => _ref.read(loggingServiceProvider);
-  StackedResultsDao get _resultsDao => _ref.read(stackedResultsDaoProvider);
+  LoggingService get _logger => _loggerOf();
+  StackedResultsDao get _resultsDao => _resultsDaoOf();
 
   /// Canonical host-local path for a result's durable viewer preview.
   ///
@@ -356,7 +362,7 @@ class StackShareExportService {
   /// Build the AstroBin-style acquisition metadata for [result].
   ///
   /// Equipment fields are taken from [profile] when supplied, otherwise from the
-  /// active equipment profile ([activeEquipmentProfileProvider]). The telescope
+  /// active equipment profile. The telescope
   /// description prefers the explicit [EquipmentProfileModel.telescopeName],
   /// falling back to the camera-side optical-train fields; the camera comes from
   /// [EquipmentProfileModel.cameraName]. Focal length / aperture prefer the
@@ -371,25 +377,15 @@ class StackShareExportService {
     EquipmentProfileModel? profile,
     DateTime? acquisitionDate,
   }) {
-    final p0 = profile ?? _ref.read(activeEquipmentProfileProvider);
+    final p0 = profile ?? _activeProfile();
 
     final telescope = _firstNonEmpty([p0?.telescopeName]);
     final camera = _firstNonEmpty([p0?.cameraName]);
 
-    // Prefer the profile-level optical values — these are the *effective*
-    // focal length / aperture of the imaging train (post reducer / barlow),
-    // which is the true acquisition value AstroBin wants. Fall back to the bare
-    // telescope optics only when the profile-level value is unset. This matches
-    // the `EquipmentProfileExtension.effectiveFocalLength` convention used
-    // elsewhere (base field preferred over the telescope field); preferring the
-    // telescope value first would report the wrong focal length / f-ratio for
-    // anyone using a focal reducer or barlow. A non-positive value is treated
-    // as "unknown" so f-ratio math never divides by zero.
-    final focalLength = _firstPositive([
-      p0?.focalLength,
-      p0?.telescopeFocalLength,
-    ]);
-    final aperture = _firstPositive([p0?.aperture, p0?.telescopeAperture]);
+    // The effective train (after a reducer or barlow) is what AstroBin wants;
+    // the telescope's own optics only stand in when it is not set.
+    final focalLength = _firstPositive([p0?.effectiveFocalLength]);
+    final aperture = _firstPositive([p0?.effectiveAperture]);
 
     return AstroBinExportMetadata(
       title: result.targetName,

@@ -4,8 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
+import 'package:skotiq_app/services/night_session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_recent_solves.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -31,6 +34,21 @@ Request _post(Map<String, dynamic> body) => Request(
   headers: {'content-type': 'application/json'},
 );
 
+/// [payload] as the host's own event stream carries it.
+SkotiqEvent _wire(bridge.EventPayload payload, int at) => wireEventFromTyped(
+  bridge.SkotiqEvent(
+    eventId: BigInt.from(at),
+    timestamp: at,
+    severity: bridge.EventSeverity.info,
+    category: switch (payload) {
+      bridge.EventPayload_Imaging() => bridge.EventCategory.imaging,
+      bridge.EventPayload_Guiding() => bridge.EventCategory.guiding,
+      _ => bridge.EventCategory.sequencer,
+    },
+    payload: payload,
+  ),
+);
+
 void main() {
   late ProviderContainer container;
   late List<SkotiqEvent> broadcast;
@@ -49,13 +67,14 @@ void main() {
         ),
       ],
     );
+    // Registered after the database's close, so the container (whose
+    // channels hold database watches) is disposed first.
+    addTearDown(container.dispose);
     broadcast = <SkotiqEvent>[];
     container.read(hostMutationEventHubProvider).wsBroadcast = broadcast.add;
     nightEvents = NightEventLog();
     handlers = RuntimeStateHandlers(container, nightEvents: nightEvents);
   });
-
-  tearDown(() => container.dispose());
 
   test('GET serves the latest value of every channel', () async {
     final response = await handlers.handleGetState(
@@ -91,7 +110,11 @@ void main() {
       _post({
         'channel': 'centeringResult',
         'origin': 'linux-client',
-        'value': {'success': false, 'iterations': 5, 'error': 'gave up'},
+        'value': CenteringResult.failure(
+          errorMessage: 'gave up',
+          iterations: 5,
+          iterationHistory: const [],
+        ).toJson(),
       }),
     );
 
@@ -120,18 +143,29 @@ void main() {
   });
 
   test('recent events leave out telemetry and sync envelopes', () async {
-    SkotiqEvent event(String type, int at) => SkotiqEvent(
-      timestamp: at,
-      severity: EventSeverity.info,
-      category: EventCategory.sequencer,
-      eventType: type,
-      data: const {},
-    );
     [
-      event('Started', 1),
-      event('ExposureProgress', 2),
+      _wire(
+        const bridge.EventPayload.sequencer(
+          bridge.SequencerEvent.started(sequenceName: 'M31'),
+        ),
+        1,
+      ),
+      _wire(
+        const bridge.EventPayload.imaging(
+          bridge.ImagingEvent.exposureProgress(
+            progress: 0.5,
+            remainingSecs: 30,
+          ),
+        ),
+        2,
+      ),
       const HostRuntimeUpdate(channel: 'plateSolve', revision: 3).toEvent(),
-      event('NodeCompleted', 4),
+      _wire(
+        const bridge.EventPayload.sequencer(
+          bridge.SequencerEvent.nodeCompleted(nodeId: 'n1', status: 'success'),
+        ),
+        4,
+      ),
     ].forEach(nightEvents.append);
 
     final response = await handlers.handleRecentEvents(
@@ -199,12 +233,16 @@ void main() {
     );
     for (var at = 2; at < 20000; at++) {
       nightEvents.append(
-        SkotiqEvent(
-          timestamp: at,
-          severity: EventSeverity.info,
-          category: EventCategory.guiding,
-          eventType: 'GuideStep',
-          data: const {},
+        _wire(
+          const bridge.EventPayload.guiding(
+            bridge.GuidingEvent.correction(
+              ra: 0.2,
+              dec: -0.1,
+              raRaw: 0.2,
+              decRaw: -0.1,
+            ),
+          ),
+          at,
         ),
       );
     }
@@ -235,6 +273,61 @@ void main() {
     expect(history.guideSamples.single.decPx, -0.3);
     expect(history.events.autofocusRuns, isEmpty);
     expect(history.solves, isEmpty);
+  });
+
+  // The night-history body clients read (`/api/runtime/night-history`); a
+  // client of the same release decodes it with NightHistory.fromJson.
+  test('the night-history body keeps its shape', () {
+    final t = DateTime.utc(2026, 11, 3, 18, 22);
+    final ms = t.millisecondsSinceEpoch;
+    final body = encodeNightHistory(
+      guideSamples: [NightGuideSample(t, 0.4, -0.3)],
+      events: NightSessionEvents(
+        autofocusRuns: [
+          NightAutofocusRun(
+            at: t,
+            position: 6620,
+            hfr: 2.94,
+            duration: const Duration(seconds: 95),
+          ),
+        ],
+        dithers: [NightDither(at: t, pixels: 5.0)],
+        flips: [t],
+        starLost: [t],
+      ),
+      solves: [
+        NightSolveRecord(
+          at: t,
+          kind: NightSolveKind.center,
+          success: true,
+          raDegrees: 83.8,
+          decDegrees: -5.4,
+          offsetArcsec: 12.5,
+          iterations: 2,
+          duration: const Duration(seconds: 40),
+          byRun: true,
+        ),
+      ],
+      cooler: [
+        TemperaturePoint(
+          temperature: -10.0,
+          targetTemp: -10.0,
+          coolerPower: 42.0,
+          time: t,
+        ),
+      ],
+    );
+    expect(
+      jsonEncode(body),
+      '{"guideSamples":[[$ms,0.4,-0.3]],'
+      '"autofocusRuns":[{"at":$ms,"position":6620,"hfr":2.94,"durationMs":95000}],'
+      '"dithers":[{"at":$ms,"pixels":5.0}],'
+      '"flips":[$ms],"starLost":[$ms],'
+      '"cooler":[[$ms,-10.0,-10.0,42.0]],'
+      '"solves":[{"at":$ms,"kind":"center","success":true,"raDegrees":83.8,'
+      '"decDegrees":-5.4,"offsetArcsec":12.5,"iterations":2,'
+      '"durationMs":40000,"byRun":true}]}',
+    );
   });
 
   test(

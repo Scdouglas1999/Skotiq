@@ -41,6 +41,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
         .addMiddleware(_linkVersionMiddleware())
         .addMiddleware(_pairedTokenHydrationGate())
         .addMiddleware(_authMiddleware())
+        .addMiddleware(_linkedWindowMiddleware())
         .addMiddleware(_chunkedBodyLimitMiddleware())
         .addMiddleware(_rateLimitMiddleware())
         .addMiddleware(_highRiskAuditMiddleware())
@@ -53,7 +54,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
 
     // Paired session tokens load from the pairing database, whose file only
     // opens on the first query. Start that before binding and hold requests
-    // behind it: a request that arrived first used to be judged against an
+    // behind it: a request that arrived first would be judged against an
     // empty map, answered 403 "Invalid authentication token", and a remote
     // client takes that answer as final and asks its operator to re-pair.
     // Hydration swallows its own errors, so a broken database still lets the
@@ -453,16 +454,6 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
           _equipmentHandlers.forgetSharedStatus();
         }
         final stamped = broadcastEvent(event);
-        // Host-side live-stacking auto-feed: every frame the host writes to
-        // disk is offered to the stacker, which ignores it unless stacking is
-        // armed. This is what lets a running sequence stack live with no client
-        // in the loop. Fire-and-forget; the coordinator serializes internally.
-        if (event.eventType == 'ImageSaved') {
-          final path = event.data['file_path'];
-          if (path is String && path.isNotEmpty) {
-            _stackingHandlers.onImageSaved(path);
-          }
-        }
         // re-broadcast onto the SSE fan-out controller. Two
         // separate sinks (WS clients + SSE clients) read from the same
         // upstream so a phone subscribing via SSE sees the same events
@@ -490,11 +481,9 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
   }
 
   void _dispatchPluginNodeIfRequested(SkotiqEvent event) {
-    if (!dispatchPluginNodes ||
-        event.category != EventCategory.sequencer ||
-        event.eventType != 'PluginNodeRequested') {
-      return;
-    }
+    if (!dispatchPluginNodes) return;
+    final request = pluginNodeRequestOf(event);
+    if (request == null) return;
 
     final backend = container.read(backendProvider);
     if (!backend.dispatchPluginNodesLocally) {
@@ -505,14 +494,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
       return;
     }
 
-    final nodeId = event.data['node_id'] as String? ?? '';
-    final pluginId = event.data['plugin_id'] as String? ?? '';
-    final nodeTypeId = event.data['node_type_id'] as String? ?? '';
-    final configJson = event.data['config_json'] as String? ?? '';
-    final displayName = event.data['display_name'] as String?;
-    final rawTimeout = event.data['timeout_secs'];
-    final timeoutSecs = rawTimeout is num ? rawTimeout.toInt() : 600;
-
+    final PluginNodeDispatchRequest(:nodeId, :pluginId, :nodeTypeId) = request;
     if (nodeId.isEmpty) {
       _logWarning(
         '[plugin-node] PluginNodeRequested event missing node_id '
@@ -534,16 +516,7 @@ extension _HeadlessApiServerLifecycle on HeadlessApiServer {
     unawaited(() async {
       late PluginNodeDispatchResult result;
       try {
-        result = await dispatcher(
-          PluginNodeDispatchRequest(
-            nodeId: nodeId,
-            pluginId: pluginId,
-            nodeTypeId: nodeTypeId,
-            configJson: configJson,
-            displayName: displayName,
-            timeoutSecs: timeoutSecs,
-          ),
-        );
+        result = await dispatcher(request);
       } catch (e, st) {
         _logError(
           '[plugin-node] Dispatcher threw for $pluginId/$nodeTypeId '

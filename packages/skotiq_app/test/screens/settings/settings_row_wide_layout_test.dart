@@ -1,11 +1,9 @@
 // Geometry tests for SettingRow / SettingsPage on wide desktop windows.
 //
-// Audit 2026-07-29: on a 5120x1440 window every settings control sat at the
-// row's horizontal MIDPOINT with ~2100px of empty panel to its right, because
-// `Expanded(title) + Flexible(trailing)` splits the free space 50/50 and the
-// trailing control was left-aligned inside its half. At ~1600px it lands near
-// the right edge by coincidence, which is why the defect only showed on wide
-// monitors.
+// `Expanded(title) + Flexible(trailing)` splits the free space 50/50, so on a
+// 5120x1440 window a left-aligned trailing control sits at the row's
+// MIDPOINT with ~2100px of empty panel to its right; at ~1600px it lands near
+// the right edge by coincidence.
 //
 // These tests measure real render-object rects rather than comparing pixels, so
 // they hold on any host and do not touch the golden baselines.
@@ -33,7 +31,6 @@ class _ProbeLeaf extends StatelessWidget {
           title: 'Probe section',
           children: [
             SettingRow(
-              icon: Icons.settings,
               title: 'Probe row',
               subtitle: 'A short label',
               trailing: SizedBox(
@@ -42,7 +39,6 @@ class _ProbeLeaf extends StatelessWidget {
                 height: 24,
                 child: ColoredBox(color: Color(0xFF00FF00)),
               ),
-              isLast: true,
             ),
           ],
         ),

@@ -95,9 +95,8 @@ class WeatherHandlers implements RouteSource {
 
     // Back the forecast with the same regional hourly cloud feed the desktop
     // planner uses (weekForecastCloudProvider, keyed only on the site so remote
-    // and local share one cached fetch). It returns a RadarFetchResult whose
-    // frames are hourly cloud-cover samples (opacity 0-1 == cloud cover 0-100%)
-    // spanning the provider's available forecast days.
+    // and local share one cached fetch): hourly cloud cover samples spanning
+    // the provider's available forecast days.
     try {
       final result = await container.read(
         weekForecastCloudProvider(ForecastSite(lat, lon)).future,
@@ -111,14 +110,13 @@ class WeatherHandlers implements RouteSource {
       }
 
       final now = DateTime.now().toUtc();
-      final hourly = result.frames
-          .where((f) => !f.timestamp.toUtc().isBefore(now))
+      final hourly = result.samples
+          .where((s) => !s.time.toUtc().isBefore(now))
           .map(
-            (f) => {
-              'timestamp': f.timestamp.toUtc().millisecondsSinceEpoch,
-              'time': f.timestamp.toWireTime(),
-              // Numerical cloud frames carry cloud cover as opacity in [0, 1].
-              'cloudCoverPercent': (f.opacity.clamp(0.0, 1.0) * 100.0),
+            (s) => {
+              'timestamp': s.time.toUtc().millisecondsSinceEpoch,
+              'time': s.time.toWireTime(),
+              'cloudCoverPercent': (s.fraction.clamp(0.0, 1.0) * 100.0),
             },
           )
           .toList();

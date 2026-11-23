@@ -1,0 +1,103 @@
+[
+  {
+    "attempt_count": 2,
+    "cause": "GuideStarLost",
+    "last_attempt_at": "2026-11-21T03:14:45.250Z",
+    "last_error": "slew timed out",
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Waiting",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:14:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "SlewFailed",
+    "last_attempt_at": null,
+    "last_error": null,
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Attempting",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:15:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "PlateSolveFailed",
+    "last_attempt_at": "2026-11-21T03:16:45.250Z",
+    "last_error": "slew timed out",
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Recovered",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:16:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "WeatherUnsafe",
+    "last_attempt_at": null,
+    "last_error": null,
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "GaveUp",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:17:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "MountTrackingLost",
+    "last_attempt_at": "2026-11-21T03:18:45.250Z",
+    "last_error": "slew timed out",
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Waiting",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:18:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "FocusDriftCritical",
+    "last_attempt_at": null,
+    "last_error": null,
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Attempting",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:19:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "ConsecutiveRejectsExceeded",
+    "last_attempt_at": "2026-11-21T03:20:45.250Z",
+    "last_error": "slew timed out",
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Recovered",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:20:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": "DeviceDisconnected",
+    "last_attempt_at": null,
+    "last_error": null,
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "GaveUp",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:21:15.250Z"
+  },
+  {
+    "attempt_count": 2,
+    "cause": {
+      "Custom": "dew heater script failed"
+    },
+    "last_attempt_at": "2026-11-21T03:22:45.250Z",
+    "last_error": "slew timed out",
+    "max_attempts": 6,
+    "max_duration_secs": 270.0,
+    "phase": "Waiting",
+    "retry_interval_secs": 45.0,
+    "started_at": "2026-11-21T03:22:15.250Z"
+  }
+]

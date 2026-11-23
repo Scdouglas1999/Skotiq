@@ -470,12 +470,9 @@ class OverlaysMenuButton extends ConsumerStatefulWidget {
 
 class _OverlaysMenuButtonState extends ConsumerState<OverlaysMenuButton> {
   /// Opens the menu from the button's own `onPressed`, so the control the
-  /// operator sees is the control that acts. The button used to be wrapped in
-  /// an `IgnorePointer` with an empty callback, leaving `PopupMenuButton`'s
-  /// own detector to catch the tap — a button that, read on its own, did
-  /// nothing. Per-instance rather than static: two toolbars alive at once (a
-  /// route transition) would otherwise share one key, and a release build
-  /// silently drops the second widget claiming it.
+  /// operator sees is the control that acts. Per-instance rather than static:
+  /// two toolbars alive at once (a route transition) would otherwise share one
+  /// key, and a release build silently drops the second widget claiming it.
   final GlobalKey<PopupMenuButtonState<int>> _menuKey =
       GlobalKey<PopupMenuButtonState<int>>();
 
@@ -913,7 +910,7 @@ class _CatalogOverlayPopoverEntryState
   Widget build(BuildContext context) {
     // `_PopupMenu` wraps its entries in `IntrinsicWidth(stepWidth: 56)`, so
     // every entry is tightened to the same 56-stepped width. The popover's
-    // `clampPanelWidth` answer (200–240) is not a 56 multiple; aligning the
+    // `panelWidthFromFraction` answer (200–240) is not a 56 multiple; aligning the
     // child inside the entry keeps the card at its designed width instead of
     // being stretched to the menu's.
     return Align(

@@ -63,7 +63,7 @@ class CapturePanel extends ConsumerWidget {
     // night"). `recentSessionFramesProvider` is the night's kept frames on the
     // host and, mirrored, on a linked client, rebuilt from the database after
     // a crash or a restart, so a restored run's session row (which starts
-    // over) no longer decides the count. Both numbers come from that one list
+    // over) does not decide the count. Both numbers come from that one list
     // so they cannot contradict each other; the session row stands in only
     // until the night has a frame.
     final nightCounted = sessionImages.isNotEmpty;

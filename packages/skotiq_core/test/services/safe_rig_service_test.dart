@@ -6,7 +6,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../mocks/mock_backend.dart';
 
@@ -662,7 +661,7 @@ void main() {
       expect(container.read(uiNotificationProvider), isEmpty);
     });
 
-    // Audit 2026-07-29: with only a simulated weather station connected, the
+    // With only a simulated weather station connected, the
     // safing toast read "Rig safed: secondary rig stopped, mount already safe"
     // while the status bar said Mount Disconnected and no secondary rig had ever
     // been configured. Both clauses described work that never happened.
@@ -727,7 +726,7 @@ void main() {
         },
       );
 
-      // Audit 2026-08-03: enabling weather safety with no weather source
+      // Enabling weather safety with no weather source
       // resolves fail-closed to unsafe, and the safing pass ran on an idle,
       // fully disconnected app. Nothing was commanded, yet the operator got a
       // red CRITICAL asserting both that the rig had been safed AND that

@@ -4,78 +4,74 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart';
-import 'package:skotiq_core/services.dart' show TargetScorer;
 import 'package:skotiq_core/utils.dart';
 
-/// Mirrors the persisted observer location into the planetarium provider and the
-/// Rust backend. Settings is the single source of truth; this only fans changes
-/// out. Uses `ref.listen` to avoid modifying providers during build.
+/// Pushes the persisted observer site to the Rust backend whenever settings
+/// change. Settings are the one source of truth; the planetarium reads them
+/// through [planetariumInputOverrides].
 ///
 /// This deliberately does **not** auto-detect a location on first launch. Free
 /// IP services resolve to the ISP's egress point and disagree with each other
-/// by a hundred kilometres or more, yet a persisted estimate is rendered
-/// exactly like a site the user typed — twilight times, the astro-dark
-/// countdown and the imaging window all quoted off it with no hint that
-/// anything is approximate.
-///
-/// 0/0 is the designed "not set" sentinel and every location-driven surface has
-/// an honest empty state for it. The estimate stays one click away: the
-/// onboarding observing-site step offers it as a labelled suggestion, and
+/// by a hundred kilometers or more, yet a persisted estimate is rendered
+/// exactly like a site the user typed. The estimate stays one click away: the
+/// onboarding observing-site step offers it as a labeled suggestion, and
 /// Settings → Location has the same affordance.
 ///
-/// The Rust backend is the one consumer that must NOT receive the sentinel.
-/// Its site is `Option<ObserverLocation>`, `None` is its only way to say "no
-/// site", and every native consumer reads a `Some` as a site the user chose:
-/// the simulated mount reported a parked altitude of −78° on a fresh install
-/// because this provider had handed it 0/0/0 as a real site, and the Dashboard
-/// printed that number beside a status bar that said `LST --:--`. So the
-/// backend is given [AppSettingsState.observerSite] — null until the user sets
-/// a site — while the planetarium provider below keeps receiving the raw
-/// geometry, for the reason given at the initial-value push.
+/// The backend must NOT receive the 0/0 sentinel. Its site is
+/// `Option<ObserverLocation>`, `None` is its only way to say "no site", and
+/// every native consumer reads a `Some` as a site the user chose (the
+/// simulated mount reported a parked altitude of −78° when it was handed
+/// 0/0/0). So the backend is given [AppSettingsState.observerSite], null until
+/// the user sets a site.
 final locationSyncProvider = Provider<void>((ref) {
   ref.listen(appSettingsProvider, (previous, next) {
     next.whenData((settings) {
       // Deferred to a microtask: Riverpod throws if a provider is modified during build.
-      Future.microtask(() async {
-        // This is a temporary update (doesn't persist) - only settings persists
-        ref.read(observerLocationProvider.notifier).setLocation(
-              latitude: settings.latitude,
-              longitude: settings.longitude,
-              elevation: settings.elevation,
-            );
-
-        // Also sync to Rust backend for astronomical calculations. Null
-        // until a site is set — see the provider doc.
-        await _syncLocationToBackend(ref, settings.observerSite);
-      });
+      Future.microtask(
+        () => _syncLocationToBackend(ref, settings.observerSite),
+      );
     });
   });
 
-  // Handle initial value if settings are already loaded.
-  //
-  // This pushes unconditionally, exactly as the listener above does. Gating it
-  // on "not 0/0" made the planetarium observer depend on whether any settings
-  // change had fired yet: before one, it held the package's Los Angeles
-  // constructor default; after one, the 0/0 sentinel. Both are wrong for an
-  // unconfigured site and neither is distinguishable from a real site, so the
-  // two paths agree on one value instead.
-  //
-  // "Is there a site at all" is not this provider's question to answer —
-  // `observerLocationProvider` is non-nullable geometry. Surfaces that must
-  // not invent a night gate on `observingSiteProvider` /
-  // `appObserverLocationProvider`, which return null at the 0/0 sentinel.
-  final settingsAsync = ref.read(appSettingsProvider);
-  settingsAsync.whenData((settings) {
-    Future.microtask(() async {
-      ref.read(observerLocationProvider.notifier).setLocation(
-            latitude: settings.latitude,
-            longitude: settings.longitude,
-            elevation: settings.elevation,
-          );
-      await _syncLocationToBackend(ref, settings.observerSite);
-    });
+  ref.read(appSettingsProvider).whenData((settings) {
+    Future.microtask(() => _syncLocationToBackend(ref, settings.observerSite));
   });
 });
+
+/// The planetarium cannot depend on skotiq_core, so the app overrides the
+/// planetarium's inputs with readers of core: the site from settings, the
+/// site's altitude floor by azimuth, and the target scorer for Best Targets
+/// Tonight (this process's, or the linked host's).
+List<Override> planetariumInputOverrides() => [
+      observerLocationProvider.overrideWith((ref) {
+        final observer = PlanetariumObserverNotifier();
+        final site = ref.watch(
+          appSettingsProvider.select(
+            (s) => s
+                .whenData(
+                  (s) => (
+                    latitude: s.latitude,
+                    longitude: s.longitude,
+                    elevation: s.elevation,
+                  ),
+                )
+                .valueOrNull,
+          ),
+        );
+        if (site != null) {
+          observer.setLocation(
+            latitude: site.latitude,
+            longitude: site.longitude,
+            elevation: site.elevation,
+          );
+        }
+        return observer;
+      }),
+      planetariumAltitudeFloorProvider
+          .overrideWith((ref) => ref.watch(altitudeFloorProvider).asSamples()),
+      planetariumNightScorerProvider
+          .overrideWith((ref) => ref.watch(targetScorerProvider).scoreForNight),
+    ];
 
 /// Sync location to the Rust backend (for Provider ref).
 ///
@@ -112,27 +108,3 @@ Future<void> _syncLocationToBackend(Ref ref, ObserverLocation? site) async {
     );
   }
 }
-
-/// The planetarium package cannot depend on skotiq_core, so the app pumps the
-/// site's altitude floor across, by azimuth: the planetarium's altitude card,
-/// rise/set times and Best Targets Tonight read its own floor provider.
-final planetariumAltitudeFloorSyncProvider = Provider<void>((ref) {
-  ref.listen<AltitudeFloor>(altitudeFloorProvider, (previous, next) {
-    Future.microtask(
-      () => ref.read(planetariumAltitudeFloorProvider.notifier).state =
-          next.asSamples(),
-    );
-  }, fireImmediately: true);
-});
-
-/// The planetarium cannot reach the native sequencer, so the app hands it its
-/// target scorer for Best Targets Tonight: this process's, or the linked
-/// host's.
-final planetariumNightScorerSyncProvider = Provider<void>((ref) {
-  ref.listen<TargetScorer>(targetScorerProvider, (previous, next) {
-    Future.microtask(
-      () => ref.read(planetariumNightScorerProvider.notifier).state =
-          next.scoreForNight,
-    );
-  }, fireImmediately: true);
-});

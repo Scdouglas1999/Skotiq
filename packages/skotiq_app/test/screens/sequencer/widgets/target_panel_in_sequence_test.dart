@@ -1,9 +1,6 @@
 // The "In this sequence" section of the Targets panel.
 //
-// The tab used to be called Queue and showed only the planetarium wishlist, so
-// loading the bundled "Mono LRGB M51" starter — a sequence with a target in it
-// — produced a panel reading "Your target queue is empty." These tests pin the
-// repair: the panel lists the sequence's own target headers, in the order the
+// The panel lists the sequence's own target headers, in the order the
 // canvas bar counts them, with the coordinates and the planned capture the
 // tree row carries, and a tap that selects the header and scrolls the tree to
 // it.
@@ -160,6 +157,38 @@ void main() {
         hasUnboundedRepeat: true,
       );
       expect(targetPlanSummary(planned), '4 frames · 4m per pass');
+    });
+
+    test('an integration-time loop counts every pass it needs', () {
+      final exposure = ExposureNode(
+        id: 'e',
+        parentId: 'loop',
+        count: 2,
+        durationSecs: 300,
+      );
+      final loop = LoopNode(
+        id: 'loop',
+        parentId: 't',
+        childIds: const ['e'],
+        conditionType: LoopConditionType.integrationTime,
+        integrationTimeTarget: 3600,
+      );
+      final target = TargetHeaderNode(
+        id: 't',
+        targetName: 'M31',
+        raHours: 0.7,
+        decDegrees: 41.3,
+        childIds: const ['loop'],
+      );
+      final sequence = Sequence.create(
+        name: 'night',
+        rootNodeId: 't',
+        nodes: {target.id: target, loop.id: loop, exposure.id: exposure},
+      );
+      expect(
+        targetPlanSummary(plannedCaptureUnder(sequence, 't')),
+        '12 frames · 1h',
+      );
     });
 
     test('an open-ended loop is described, never counted as zero', () {

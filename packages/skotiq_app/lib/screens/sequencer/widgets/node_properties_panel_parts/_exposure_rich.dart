@@ -221,12 +221,7 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
             const <String>[];
     void setGain(int gain) {
       setState(() => _userOverrides.add('gain'));
-      ref.read(currentSequenceProvider.notifier).updateNode(
-            node.copyWith(gain: gain),
-          );
-      ref
-          .read(sequencerDefaultsProvider.notifier)
-          .updateExposureDefaults(gain: gain);
+      ref.commitExposureEdit(node.copyWith(gain: gain), gain: gain);
     }
 
     final exposureContext =
@@ -260,14 +255,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               // matter for lucky imaging / fast photometry.
               decimals: 3,
               onChanged: (value) {
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(durationSecs: value),
-                    );
-                ref
-                    .read(sequencerDefaultsProvider.notifier)
-                    .updateExposureDefaults(
-                      duration: value,
-                    );
+                ref.commitExposureEdit(node.copyWith(durationSecs: value),
+                    duration: value);
               },
             ),
           ),
@@ -288,14 +277,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               currentDurationSecs: node.durationSecs,
               onApply: () {
                 final seconds = exposureRecommendation.seconds;
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(durationSecs: seconds),
-                    );
-                ref
-                    .read(sequencerDefaultsProvider.notifier)
-                    .updateExposureDefaults(
-                      duration: seconds,
-                    );
+                ref.commitExposureEdit(node.copyWith(durationSecs: seconds),
+                    duration: seconds);
               },
             ),
           ],
@@ -310,14 +293,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               max: ExposureFieldLimits.frameCount.max.toDouble(),
               onChanged: (value) {
                 final count = value.toInt();
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(count: count),
-                    );
-                ref
-                    .read(sequencerDefaultsProvider.notifier)
-                    .updateExposureDefaults(
-                      count: count,
-                    );
+                ref.commitExposureEdit(node.copyWith(count: count),
+                    count: count);
               },
             ),
           ),
@@ -355,14 +332,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               labelBuilder: (b) => b.label,
               onChanged: (value) {
                 setState(() => _userOverrides.add('binning'));
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(binning: value),
-                    );
-                ref
-                    .read(sequencerDefaultsProvider.notifier)
-                    .updateExposureDefaults(
-                      binning: value,
-                    );
+                ref.commitExposureEdit(node.copyWith(binning: value),
+                    binning: value);
               },
             ),
           ),
@@ -416,14 +387,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                       onChanged: (value) {
                         final offset = value.toInt();
                         setState(() => _userOverrides.add('offset'));
-                        ref.read(currentSequenceProvider.notifier).updateNode(
-                              node.copyWith(offset: offset),
-                            );
-                        ref
-                            .read(sequencerDefaultsProvider.notifier)
-                            .updateExposureDefaults(
-                              offset: offset,
-                            );
+                        ref.commitExposureEdit(node.copyWith(offset: offset),
+                            offset: offset);
                       },
                     ),
                   ),
@@ -474,14 +439,8 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
               max: ExposureFieldLimits.ditherEvery.max.toDouble(),
               onChanged: (value) {
                 final ditherEvery = value.toInt();
-                ref.read(currentSequenceProvider.notifier).updateNode(
-                      node.copyWith(ditherEvery: ditherEvery),
-                    );
-                ref
-                    .read(sequencerDefaultsProvider.notifier)
-                    .updateExposureDefaults(
-                      ditherEvery: ditherEvery,
-                    );
+                ref.commitExposureEdit(node.copyWith(ditherEvery: ditherEvery),
+                    ditherEvery: ditherEvery);
               },
             ),
           ),
@@ -593,15 +552,10 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                   hint: noFiltersToPickHint,
                   onChanged: (value) {
                     final filter = value.isEmpty ? null : value;
-                    ref.read(currentSequenceProvider.notifier).updateNode(
-                          node.copyWith(
-                              filter: filter, clearFilter: filter == null),
-                        );
-                    ref
-                        .read(sequencerDefaultsProvider.notifier)
-                        .updateExposureDefaults(
-                          filter: filter,
-                        );
+                    ref.commitExposureEdit(
+                        node.copyWith(
+                            filter: filter, clearFilter: filter == null),
+                        filter: filter);
                   },
                 )
               : Container(
@@ -648,18 +602,13 @@ class _ExposureRichState extends ConsumerState<_ExposureProperties> {
                           final isNone = newValue.index < 0;
                           final filter = isNone ? null : newValue.name;
                           final filterIndex = isNone ? null : newValue.index;
-                          ref.read(currentSequenceProvider.notifier).updateNode(
-                                node.copyWith(
-                                  filter: filter,
-                                  filterIndex: filterIndex,
-                                  clearFilter: isNone,
-                                ),
-                              );
-                          ref
-                              .read(sequencerDefaultsProvider.notifier)
-                              .updateExposureDefaults(
+                          ref.commitExposureEdit(
+                              node.copyWith(
                                 filter: filter,
-                              );
+                                filterIndex: filterIndex,
+                                clearFilter: isNone,
+                              ),
+                              filter: filter);
                         }
                       },
                     ),

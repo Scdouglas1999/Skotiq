@@ -6,16 +6,6 @@ import 'backend/device_capabilities.dart';
 part 'polar_alignment_config.freezed.dart';
 part 'polar_alignment_config.g.dart';
 
-/// Coerce a wire value that may arrive as an `int`, `double`, or numeric
-/// `String` into a `double`. JSON transport (the `NetworkBackend` path)
-/// collapses whole numbers to `int`, so a blind `as double` cast throws and
-/// tears down the event subscription. Returns [fallback] for null/unparseable.
-double _wireDouble(Object? value, {double fallback = 0.0}) {
-  if (value is num) return value.toDouble();
-  if (value is String) return double.tryParse(value) ?? fallback;
-  return fallback;
-}
-
 enum PolarAlignPhase {
   /// Not running - waiting to start
   idle,
@@ -337,25 +327,6 @@ abstract class PolarAlignmentError with _$PolarAlignmentError {
 
   factory PolarAlignmentError.fromJson(Map<String, dynamic> json) =>
       _$PolarAlignmentErrorFromJson(json);
-
-  /// Create from backend event data.
-  ///
-  /// Numeric fields are parsed defensively: over the JSON wire (the
-  /// `NetworkBackend` path) whole numbers arrive as `int`, not `double`, and a
-  /// raw `.toDouble()` on a non-num (or a missing key) would throw and kill the
-  /// event subscription. [_wireDouble] accepts `int`/`double`/`String`.
-  factory PolarAlignmentError.fromEventData(Map<String, dynamic> data) {
-    return PolarAlignmentError(
-      azimuthError: _wireDouble(data['azimuth_error']),
-      altitudeError: _wireDouble(data['altitude_error']),
-      totalError: _wireDouble(data['total_error']),
-      currentRa: _wireDouble(data['current_ra']),
-      currentDec: _wireDouble(data['current_dec']),
-      targetRa: _wireDouble(data['target_ra']),
-      targetDec: _wireDouble(data['target_dec']),
-      timestamp: DateTime.now(),
-    );
-  }
 
   bool isWithinTolerance(double thresholdArcsec) =>
       totalError <= thresholdArcsec;

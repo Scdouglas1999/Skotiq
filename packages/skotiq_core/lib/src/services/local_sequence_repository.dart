@@ -70,7 +70,6 @@ final class LocalSequenceRepository implements SequenceRepository {
 
   @override
   Future<int> saveSequence(Sequence sequence, {bool isTemplate = false}) async {
-    // Check if this sequence already exists in database
     final existingId = sequence.databaseId;
 
     if (existingId != null) {

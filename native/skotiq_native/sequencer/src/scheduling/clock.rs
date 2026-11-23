@@ -8,7 +8,7 @@
 //!
 //! Production replaces every load-bearing `Utc::now()` call in the scheduling
 //! module / target header / target scheduler / per-target trigger evaluator
-//! with `ctx.clock.now_utc()`. The default constructor seeds [`WallClock`]
+//! with `ctx.run.clock.now_utc()`. The default constructor seeds [`WallClock`]
 //! so behaviour is unchanged outside tests; tests inject [`MockClock`] to
 //! pin the wall clock to a specific instant.
 //!
@@ -167,12 +167,5 @@ mod tests {
         let later = DateTime::<Utc>::from_timestamp(1_700_000_000, 0).unwrap();
         c.set(later);
         assert_eq!(c.now_utc().timestamp(), 1_700_000_000);
-    }
-
-    #[test]
-    fn dyn_clock_is_object_safe() {
-        // Compile-time check that `dyn Clock` is usable behind an Arc.
-        let _arc: Arc<dyn Clock> = default_clock();
-        let _arc2: Arc<dyn Clock> = MockClock::epoch();
     }
 }

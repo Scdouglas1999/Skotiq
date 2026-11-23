@@ -104,25 +104,6 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
   bool _isCurrentGuider(Phd2Controller guider) =>
       mounted && identical(ref.read(phd2ControllerProvider), guider);
 
-  /// Strips stacked `Exception:` / `Operation failed:` prefixes so a guider
-  /// failure reads as English. The raw chain arrives as
-  /// "Exception: Guiding stopped: Operation failed: Calibration star match
-  /// failed" — each layer adds its own label on the way up from Rust.
-  static String _cleanErrorText(String raw) {
-    var text = raw.trim();
-    final prefixes = RegExp(
-      r'^(Exception|_Exception|StateError|Operation failed|SkotiqException(\([^)]*\))?)\s*:\s*',
-      caseSensitive: false,
-    );
-    // Peel repeatedly: the chain nests more than one label deep.
-    for (var i = 0; i < 4; i++) {
-      final stripped = text.replaceFirst(prefixes, '').trim();
-      if (stripped == text || stripped.isEmpty) break;
-      text = stripped;
-    }
-    return text.isEmpty ? raw.trim() : text;
-  }
-
   /// One guide-error readout (RMS or Peak).
   ///
   /// Every `Phd2GuideStats` error field defaults to 0.0, which on screen is
@@ -227,7 +208,7 @@ class _GuidingPanelState extends ConsumerState<GuidingPanel> {
                   Expanded(
                     child: Text(
                       guiderState.lastError != null
-                          ? 'Guider error: ${_cleanErrorText(guiderState.lastError!.message)}'
+                          ? 'Guider error: ${userFacingError(guiderState.lastError!.message)}'
                           : (guiderState.deviceId != null
                               ? 'Guider ${guiderState.deviceName ?? guiderState.deviceId!} is not connected'
                               : 'No guider connected'),

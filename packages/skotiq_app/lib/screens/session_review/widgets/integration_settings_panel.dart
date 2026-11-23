@@ -605,7 +605,6 @@ class _DropdownRow<T> extends StatelessWidget {
         width: 180,
         child: SkotiqDropdown(
           isExpanded: true,
-          isDense: true,
           value: value.toString(),
           items: names,
           itemLabels: labels,

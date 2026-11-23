@@ -1,7 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../database/daos/settings_dao.dart';
-import '../../providers/database_provider.dart';
 import '../darkroom_build_plan.dart' show defaultMinRetainedArea;
 import '../end_of_night_calibration/eon_settings.dart';
 
@@ -78,41 +75,4 @@ class NightEndAutomationSettings {
     if (build && deliver) 'deliver',
     if (anyOn && morningMessage) 'message',
   ];
-}
-
-final nightEndAutomationSettingsProvider =
-    FutureProvider.autoDispose<NightEndAutomationSettings>((ref) {
-      return NightEndAutomationSettings.load(ref.watch(settingsDaoProvider));
-    });
-
-/// Writes the night-end switches.
-class NightEndAutomationActions {
-  const NightEndAutomationActions(this._ref);
-
-  final Ref _ref;
-
-  Future<void> _write(String key, String value) async {
-    await _ref.read(settingsDaoProvider).setSetting(key, value);
-    _ref.invalidate(nightEndAutomationSettingsProvider);
-  }
-
-  Future<void> setCalibrate(bool on) =>
-      _write(NightEndAutomationSettings.calibrateKey, '$on');
-  Future<void> setBuild(bool on) =>
-      _write(NightEndAutomationSettings.buildKey, '$on');
-  Future<void> setAllowIncompleteCalibration(bool on) =>
-      _write(NightEndAutomationSettings.allowIncompleteCalibrationKey, '$on');
-  Future<void> setDeliver(bool on) =>
-      _write(NightEndAutomationSettings.deliverKey, '$on');
-  Future<void> setMorningMessage(bool on) =>
-      _write(NightEndAutomationSettings.morningMessageKey, '$on');
-  Future<void> setMinRetainedArea(double value) => _write(
-    NightEndAutomationSettings.minRetainedAreaKey,
-    value
-        .clamp(
-          NightEndAutomationSettings.minField,
-          NightEndAutomationSettings.maxField,
-        )
-        .toStringAsFixed(2),
-  );
 }

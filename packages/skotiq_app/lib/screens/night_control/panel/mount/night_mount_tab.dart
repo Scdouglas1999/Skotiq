@@ -18,8 +18,8 @@ import '../../../../localization/skotiq_localizations.dart';
 import '../../../../services/command_action_result.dart';
 import '../../../../services/mount_command_service.dart';
 import '../../../../utils/snackbar_helper.dart';
-import '../../actions/manual_action_gating.dart';
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/manual_action_gating.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import 'mount_actions_section.dart';
 import 'mount_go_to.dart';
@@ -349,7 +349,7 @@ class _PositionSectionState extends ConsumerState<_PositionSection> {
             ),
             MetricGridItem(
               label: l10n.text('nightScopeLst'),
-              value: lst == null ? null : formatHm(lst),
+              value: lst == null ? null : CoordinateFormat.raCompact(lst),
             ),
             MetricGridItem(
               label: l10n.text('nightScopeFlipIn'),
@@ -497,14 +497,6 @@ String _rateKey(TrackingRate rate) => switch (rate) {
 
 String? _degrees(double? value) =>
     value == null || !value.isFinite ? null : '${value.toStringAsFixed(1)}°';
-
-/// `00h38m` for an angle in hours, wrapped into [0, 24).
-String formatHm(double hours) {
-  var minutes = (hours * 60).round() % (24 * 60);
-  if (minutes < 0) minutes += 24 * 60;
-  return '${(minutes ~/ 60).toString().padLeft(2, '0')}h'
-      '${(minutes % 60).toString().padLeft(2, '0')}m';
-}
 
 /// `-0h59m`, `+1h05m`: a signed hour angle.
 String formatSignedHm(double hours) {

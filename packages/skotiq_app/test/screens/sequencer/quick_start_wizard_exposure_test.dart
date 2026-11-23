@@ -129,7 +129,7 @@ void main() {
             bortleClass: exposureContext.bortleClass,
             focalLengthMm: exposureContext.focalLengthMm,
             apertureMm: exposureContext.apertureMm,
-            pixelSizeMicrons: exposureContext.pixelSizeMicrons,
+            pixelSizeMicrons: exposureContext.pixelSizeMicrons!,
             userCapSeconds: exposureContext.userCapSeconds,
             floorSeconds: exposureContext.floorSeconds,
           ),
@@ -629,7 +629,7 @@ void main() {
     expect(editor.state?.name, 'Manual draft');
     expect(editor.isDirty, isTrue);
 
-    final confirmation = find.byType(AlertDialog);
+    final confirmation = find.byType(SkotiqDialog);
     await tester.tap(
       find.descendant(of: confirmation, matching: find.text('Cancel')),
     );

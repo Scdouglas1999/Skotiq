@@ -107,15 +107,17 @@ void main() {
     );
     container.read(flatWizardProvider.notifier).releaseStartPrompt();
 
-    container.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
+    container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.executing));
     await expectLater(
       container.read(sequenceExecutorProvider).start(),
       throwsA(isA<StateError>()),
     );
     verifyNever(() => backend.sequencerStart());
-    container.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.idle;
+    container
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.idle));
 
     await container.read(sequenceExecutorProvider).start();
     verify(() => backend.sequencerStart()).called(1);

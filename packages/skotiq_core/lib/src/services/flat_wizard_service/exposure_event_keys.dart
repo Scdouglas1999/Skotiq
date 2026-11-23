@@ -10,16 +10,6 @@ int? _clampToRange(int? value, int? lo, int? hi) {
   return v;
 }
 
-/// Imaging event types that terminate an in-flight exposure. Anything else
-/// on the stream (progress, temperature, download-started, unrelated
-/// categories) is ignored so the wait cannot be woken by a stray event.
-const Set<String> _terminalExposureEventTypes = {
-  'ExposureComplete',
-  'ExposureCompleted',
-  'ExposureFailed',
-  'ExposureCancelled',
-};
-
 /// Keys under which an imaging event may carry the originating camera id.
 /// FFI-originated exposure events do NOT carry any of these (the native side
 /// has a single active camera), so absence means "accept" (operation

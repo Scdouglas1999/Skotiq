@@ -120,7 +120,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
           title: 'Logging',
           children: [
             _row(
-              icon: LucideIcons.history,
               title: 'Replay decision logging',
               subtitle: 'When enabled, every adaptive-exposure swap, trigger '
                   'firing, frame accept or reject, and recovery step is '
@@ -144,7 +143,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
               isLast: false,
             ),
             _row(
-              icon: LucideIcons.calendar,
               title: 'Retention (days)',
               subtitle: 'Decisions older than this are pruned daily. Range '
                   '1..3650. Default $replayDebugDefaultRetentionDays.',
@@ -284,7 +282,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
       ref.backendScopeOver(authority).isCurrent;
 
   Widget _row({
-    required IconData icon,
     required String title,
     String? subtitle,
     required Widget trailing,
@@ -292,7 +289,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
   }) {
     if (SettingsFormScope.narrowOf(context)) {
       return SettingRow(
-        icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,
@@ -301,7 +297,6 @@ class _ReplayDebugSettingsState extends ConsumerState<ReplayDebugSettings> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: SettingRow(
-        icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,

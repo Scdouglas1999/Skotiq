@@ -1,0 +1,25 @@
+{
+  "curve": [
+    {
+      "cumulativeIntegrationS": 300.0,
+      "fwhm": 2.75,
+      "n": 1,
+      "snr": 12.5
+    },
+    {
+      "cumulativeIntegrationS": 600.0,
+      "fwhm": 2.8,
+      "n": 2,
+      "snr": 17.25
+    }
+  ],
+  "recommendation": {
+    "keepN": 2,
+    "keptIndices": [
+      0,
+      3
+    ],
+    "predictedSnrGainPct": 4.5,
+    "reason": "dropping the hazy subs raises SNR"
+  }
+}

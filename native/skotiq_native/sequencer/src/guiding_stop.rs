@@ -34,6 +34,19 @@ pub enum GuidingStopReason {
 }
 
 impl GuidingStopReason {
+    pub const ALL: [Self; 10] = [
+        Self::Autofocus,
+        Self::MeridianFlip,
+        Self::TrackingLimitHold,
+        Self::MountMove,
+        Self::PreMeridianHold,
+        Self::SequenceStep,
+        Self::DitherSettle,
+        Self::RunStopped,
+        Self::Operator,
+        Self::MountFault,
+    ];
+
     /// Stable snake_case name for the wire and the REST API.
     pub fn as_wire(self) -> &'static str {
         match self {
@@ -51,19 +64,9 @@ impl GuidingStopReason {
     }
 
     pub fn from_wire(wire: &str) -> Option<Self> {
-        Some(match wire {
-            "autofocus" => Self::Autofocus,
-            "meridian_flip" => Self::MeridianFlip,
-            "tracking_limit_hold" => Self::TrackingLimitHold,
-            "mount_move" => Self::MountMove,
-            "pre_meridian_hold" => Self::PreMeridianHold,
-            "sequence_step" => Self::SequenceStep,
-            "dither_settle" => Self::DitherSettle,
-            "run_stopped" => Self::RunStopped,
-            "operator" => Self::Operator,
-            "mount_fault" => Self::MountFault,
-            _ => return None,
-        })
+        Self::ALL
+            .into_iter()
+            .find(|reason| reason.as_wire() == wire)
     }
 
     /// Plain words for a status line: "Guiding paused for autofocus".
@@ -207,18 +210,7 @@ mod tests {
 
     #[test]
     fn every_reason_round_trips_through_its_wire_name() {
-        for reason in [
-            GuidingStopReason::Autofocus,
-            GuidingStopReason::MeridianFlip,
-            GuidingStopReason::TrackingLimitHold,
-            GuidingStopReason::MountMove,
-            GuidingStopReason::PreMeridianHold,
-            GuidingStopReason::SequenceStep,
-            GuidingStopReason::DitherSettle,
-            GuidingStopReason::RunStopped,
-            GuidingStopReason::Operator,
-            GuidingStopReason::MountFault,
-        ] {
+        for reason in GuidingStopReason::ALL {
             assert_eq!(GuidingStopReason::from_wire(reason.as_wire()), Some(reason));
             assert_eq!(
                 serde_json::to_value(reason).unwrap(),
@@ -226,6 +218,21 @@ mod tests {
             );
             assert!(!reason.describe().to_lowercase().contains("lost"));
         }
+    }
+
+    /// The app names these reasons and their sentences from the file its
+    /// `guiding_stop_reason_test.dart` reads.
+    #[test]
+    fn stop_reasons_match_the_app() {
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../packages/skotiq_core/test/fixtures/guiding_stop_reasons.json"
+        ))
+        .expect("the fixture is JSON");
+        let sent: serde_json::Map<String, serde_json::Value> = GuidingStopReason::ALL
+            .into_iter()
+            .map(|reason| (reason.as_wire().to_string(), reason.describe().into()))
+            .collect();
+        assert_eq!(serde_json::Value::Object(sent), expected);
     }
 
     /// A guider scripted to be in one condition when a move asks it to stop.

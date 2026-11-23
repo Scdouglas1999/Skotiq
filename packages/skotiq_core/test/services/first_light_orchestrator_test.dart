@@ -14,7 +14,7 @@ import 'package:skotiq_core/src/providers/equipment_provider.dart';
 import 'package:skotiq_core/src/providers/first_light_provider.dart';
 import 'package:skotiq_core/src/services/annotation_service.dart'
     show currentAnnotationProvider;
-import 'package:skotiq_core/src/services/first_light/first_light_orchestrator.dart';
+import 'package:skotiq_core/src/providers/first_light/first_light_orchestrator.dart';
 import 'package:skotiq_core/src/services/imaging_service.dart';
 import 'package:skotiq_core/src/services/plate_solve_service.dart';
 import 'package:skotiq_core/src/providers/imaging_service_providers.dart';
@@ -26,7 +26,7 @@ import 'package:skotiq_core/src/providers/plate_solve_service_provider.dart';
 /// throws a caller-supplied error, so each test can drive the exposure stage.
 class _FakeImagingService extends ImagingService {
   _FakeImagingService(super.ref, {this.result, this.error})
-    : super(flatCaptureBusy: () => false);
+    : super(rigHeld: () => null);
 
   final CapturedImageData? result;
   final Object? error;

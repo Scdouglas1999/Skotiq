@@ -39,7 +39,7 @@ class DepthLockMasterChoice {
 ///
 /// The form asks two questions an observer can answer — how deep, and is the
 /// calibration right — and keeps every number that follows from those behind
-/// **Advanced**. The error floor in particular is no longer typed: it is
+/// **Advanced**. The error floor in particular is not typed: it is
 /// derived from the operator's own masters, because a number invented at the
 /// keyboard is the one input that can make a calibration artefact look like
 /// sky signal.
@@ -541,9 +541,10 @@ class _DepthLockGoalEditorState extends ConsumerState<DepthLockGoalEditor> {
           ),
           const SizedBox(height: SkotiqTokens.spaceSm),
           Text(
-            'DepthLock measures signed ADU, so it needs Skotiq-format '
-            'masters: FRAMETYP=MASTER, a flat normalized to unit mean, and at '
-            'least 8 frames behind each one.',
+            'DepthLock measures signed ADU, so it needs monochrome masters '
+            'whose header says they are masters, as the calibration '
+            'library\'s are, each built from at least 8 frames: a dark at the '
+            'goal\'s exposure and a flat in its filter.',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textMuted,
             ),
@@ -806,9 +807,9 @@ class _MeasurementVerdict extends StatelessWidget {
     if (apertureCount == null) {
       return const SizedBox.shrink();
     }
-    return SkotiqInlineBanner(
-      message: '$apertureCount apertures across the region.',
-      severity: SkotiqAlertSeverity.success,
+    return SkotiqBanner(
+      title: '$apertureCount apertures across the region.',
+      tone: BannerTone.success,
     );
   }
 }

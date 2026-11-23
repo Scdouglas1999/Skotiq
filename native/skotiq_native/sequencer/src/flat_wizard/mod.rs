@@ -16,9 +16,9 @@
 //!
 //! ## Implementation
 //!
-//! The wizard is implemented on top of [`crate::wizard::Wizard`] so the
-//! binary-search iterations are step-checkpointable: a sequence killed
-//! mid-search resumes on the next iteration. The cover/calibrator
+//! The wizard is implemented on top of [`crate::wizard::Wizard`], so each
+//! binary-search iteration is a plan step. It runs with no checkpoint sink,
+//! so a sequence killed mid-search starts the search again. The cover/calibrator
 //! device dance lives in [`panel`].
 //!
 //! Final frames use the sequencer's normal exposure pipeline so their
@@ -316,7 +316,6 @@ impl<'a> FlatWizardRun<'a> {
         let test_exposure = (self.min_exp + self.max_exp) / 2.0;
 
         // Iterations span 30%..85% of overall progress.
-        // Why: iteration and the attempt cap are small u32s; lossless to f64.
         let fraction = 0.30 + (f64::from(iteration) / f64::from(self.max_iterations())) * 0.55;
         progress.report(
             fraction,
@@ -337,19 +336,20 @@ impl<'a> FlatWizardRun<'a> {
         );
 
         let (bin_x, bin_y) = binning_dimensions(ctx.current_binning);
-        let image_data = match ctx
-            .run
-            .device_ops
-            .camera_start_exposure(
-                crate::device_ops::ExposureRequest::new(camera_id, test_exposure)
-                    .binning(bin_x, bin_y),
-            )
-            .await
+        let image_data = match crate::instructions::take_frame(
+            ctx,
+            crate::instructions::CaptureSite::FlatWizardTest,
+            crate::device_ops::ExposureRequest::new(camera_id, test_exposure).binning(bin_x, bin_y),
+            "on the flat test exposure",
+        )
+        .await
         {
             Ok(data) => data,
-            Err(e) => {
-                let message = format!("Test exposure failed: {}", e);
-                self.cause = Some(e);
+            Err(end) => {
+                let message = format!("Test exposure failed: {}", end);
+                if let crate::instructions::FrameEnd::Failed(failure) = end {
+                    self.cause = Some(failure.error);
+                }
                 return WizardStepOutcome::Failed(message);
             }
         };
@@ -699,7 +699,6 @@ mod tests {
     fn test_median_adu_with_variation() {
         let mut data = Vec::new();
         for i in 0..10000_u16 {
-            // Why: test fixture; 0..10000, so 20000 + i <= 30000 fits in u16.
             data.push(20000 + i);
         }
         let image = make_test_image(100, 100, data);

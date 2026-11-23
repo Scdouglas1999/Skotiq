@@ -31,6 +31,7 @@ use skotiq_imaging::color_calibration::{
 };
 use skotiq_imaging::frame_weighting::FrameQuality;
 use skotiq_imaging::optimizer::{integration_curve, recommend_subset, OptimizerConfig};
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{
     carry_source_header, detect_stars, read_frame, write_fits, FitsHeader, ImageData,
     StarDetectionConfig,
@@ -482,8 +483,8 @@ fn color_calibrate_impl(args: ColorCalibrateArgs) -> Result<ColorCalibrateResult
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq photometric color calibration");
+    ProductCards::product("MASTER_LIGHT", "Skotiq photometric color calibration")
+        .write_to(&mut header);
     // FITS keywords are capped at 8 chars (see `fits::is_valid_keyword`).
     header.set_float("WHITEBV", white_ref_bv);
     header.set_int("CCSTARS", calibration.matched as i64);
@@ -1142,5 +1143,81 @@ mod tests {
             out.get_string("CALSTAT"),
             Some("Skotiq photometric color calibration")
         );
+    }
+}
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn analyze_reply_fixtures() {
+        check_or_write(
+            "analyze_night",
+            &AnalyzeNightResult {
+                curve: vec![
+                    CurvePointDto {
+                        n: 1,
+                        snr: 12.5,
+                        fwhm: 2.75,
+                        cumulative_integration_s: 300.0,
+                    },
+                    CurvePointDto {
+                        n: 2,
+                        snr: 17.25,
+                        fwhm: 2.8,
+                        cumulative_integration_s: 600.0,
+                    },
+                ],
+                recommendation: RecommendationDto {
+                    keep_n: 2,
+                    kept_indices: vec![0, 3],
+                    predicted_snr_gain_pct: 4.5,
+                    reason: "dropping the hazy subs raises SNR".to_string(),
+                },
+            },
+        );
+        check_or_write(
+            "detect_stars_photometry",
+            &DetectStarsPhotometryResult {
+                width: 6248,
+                height: 4176,
+                channels: 3,
+                stars: vec![StarPhotometryDto {
+                    x: 101.5,
+                    y: 202.25,
+                    flux: 40213.0,
+                    snr: 88.5,
+                    hfr: 1.75,
+                    fwhm: 3.5,
+                    eccentricity: 0.21,
+                    peak: 0.62,
+                    channel_flux: vec![14000.0, 13500.5, 12712.5],
+                }],
+            },
+        );
+        check_or_write(
+            "color_calibrate",
+            &ColorCalibrateResult {
+                output_path: "/out/M31_cc.fits".to_string(),
+                channel_scale: vec![1.12, 1.0, 0.87],
+                matched: 143,
+                residual: 0.034,
+            },
+        );
+    }
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::AnalyzeNightArgs>("analyze_night");
+        crate::args_fixtures::check_or_write_args::<super::DetectStarsPhotometryArgs>(
+            "detect_stars_photometry",
+        );
+        crate::args_fixtures::check_or_write_args::<super::ColorCalibrateArgs>("color_calibrate");
     }
 }

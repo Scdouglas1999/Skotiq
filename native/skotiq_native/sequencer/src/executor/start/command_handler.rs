@@ -231,9 +231,6 @@ mod tests {
         }
     }
 
-    /// Stop used to move the executor state and announce it while the
-    /// progress snapshot, which is what the status API reports, kept saying
-    /// `running` until the run reached its terminal state.
     #[tokio::test]
     async fn stop_reports_stopping_in_the_progress_snapshot() {
         let mut handler = running_handler();

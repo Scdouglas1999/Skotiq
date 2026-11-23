@@ -36,6 +36,7 @@ import '../database/daos/tutorial_progress_dao.dart';
 import '../services/catalog_target_types.dart';
 import '../services/local_imaging_records.dart';
 import 'logging_service_provider.dart';
+import 'host_reread.dart';
 import 'host_settings/host_settings_providers.dart';
 import 'captured_image_rows.dart';
 
@@ -203,10 +204,12 @@ final sessionHistoryProvider = hostRoleProvider<SessionHistory>(
 // Note: These use the database entity types (prefixed with db.)
 
 final allProfilesProvider = StreamProvider<List<db.DbEquipmentProfile>>((ref) {
+  ref.rereadsWithTheHost();
   return ref.watch(equipmentProfileLibraryProvider).watchAllProfiles();
 });
 
 final activeProfileProvider = StreamProvider<db.DbEquipmentProfile?>((ref) {
+  ref.rereadsWithTheHost();
   return ref.watch(equipmentProfileLibraryProvider).watchActiveProfile();
 });
 

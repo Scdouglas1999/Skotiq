@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/settings.dart' show PortRange;
 import '../utils/snackbar_helper.dart';
 
 /// Reusable PHD2 connection configuration dialog.
@@ -162,7 +163,7 @@ class _Phd2ConnectionDialogState extends ConsumerState<Phd2ConnectionDialog> {
     final host = _hostController.text.trim();
     final port = int.tryParse(_portController.text.trim());
     final messenger = ScaffoldMessenger.of(context);
-    if (host.isEmpty || port == null || port < 1 || port > 65535) {
+    if (host.isEmpty || port == null || !PortRange.any.contains(port)) {
       messenger.showErrorSnackBar(
         'Enter a PHD2 host and a port between 1 and 65535.',
       );

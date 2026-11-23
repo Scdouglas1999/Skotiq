@@ -1,6 +1,5 @@
-// Starting a co-imaging session used to mean typing RA and Dec in DEGREES by
-// hand, next to a connected mount already pointing at the target and a catalog
-// search the app runs on the adjacent tab.
+// A co-imaging session's center can come from the connected mount or from a
+// catalog search, not only from RA and Dec typed in degrees.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

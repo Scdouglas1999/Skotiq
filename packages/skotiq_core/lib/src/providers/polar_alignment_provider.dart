@@ -3,10 +3,11 @@ import '../errors/error_text.dart';
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../backend/bridge_event_codec.dart' show typedEventFromWire;
+import '../backend/bridge_events.dart' as bridge;
 import '../backend/skotiq_backend.dart';
 import '../database/database.dart';
 import '../models/polar_alignment_config.dart';
@@ -22,7 +23,6 @@ import '../models/backend/backend_types.dart';
 import '../database/daos/settings_dao.dart';
 import '../utils/logging_service.dart';
 
-part 'polar_alignment/polar_wire_decoding.dart';
 part 'polar_alignment/polar_config_notifier.dart';
 part 'polar_alignment/polar_ui_state.dart';
 part 'polar_alignment/polar_history.dart';
@@ -193,7 +193,7 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
       if (generation != _backendGeneration) return; // stale subscription
 
       if (event.category == EventCategory.polarAlignment) {
-        _handlePolarAlignmentEvent(event.eventType, event.data);
+        _handlePolarAlignmentEvent(typedEventFromWire(event)?.payload);
       }
     });
 
@@ -202,31 +202,30 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     previous?.cancel();
   }
 
-  void _handlePolarAlignmentEvent(String eventType, Map<String, dynamic> data) {
+  void _handlePolarAlignmentEvent(bridge.EventPayload? payload) {
     if (!mounted) return;
-
-    Log.debug(
-      '[PolarAlignmentStateNotifier] Received event: $eventType',
-      source: 'PolarAlignmentStateNotifier',
-    );
-
-    switch (eventType) {
-      case 'PolarAlignment':
-        _handleErrorUpdate(data);
-        break;
-
-      case 'PolarAlignmentStatus':
-        _handleStatusUpdate(data);
-        break;
-
-      case 'PolarAlignmentImage':
-        _handleImageUpdate(data);
-        break;
+    switch (payload) {
+      case bridge.EventPayload_PolarAlignment(:final field0):
+        _handleErrorUpdate(field0);
+      case bridge.EventPayload_PolarAlignmentStatus(:final field0):
+        _handleStatusUpdate(field0);
+      case bridge.EventPayload_PolarAlignmentImage(:final field0):
+        _handleImageUpdate(field0);
+      default:
     }
   }
 
-  void _handleErrorUpdate(Map<String, dynamic> data) {
-    final error = PolarAlignmentError.fromEventData(data);
+  void _handleErrorUpdate(bridge.PolarAlignmentEvent event) {
+    final error = PolarAlignmentError(
+      azimuthError: event.azimuthError,
+      altitudeError: event.altitudeError,
+      totalError: event.totalError,
+      currentRa: event.currentRa,
+      currentDec: event.currentDec,
+      targetRa: event.targetRa,
+      targetDec: event.targetDec,
+      timestamp: DateTime.now(),
+    );
 
     // Capture initial error when first entering adjustment phase
     if (state.phase == PolarAlignPhase.adjusting &&
@@ -240,10 +239,10 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     ref.read(polarAlignmentErrorHistoryProvider.notifier).addError(error);
   }
 
-  void _handleStatusUpdate(Map<String, dynamic> data) {
-    final statusStr = data['status'] as String? ?? '';
-    final phaseStr = data['phase'] as String? ?? '';
-    final point = _wireInt(data['point']) ?? 0;
+  void _handleStatusUpdate(bridge.PolarAlignmentStatus status) {
+    final statusStr = status.status;
+    final phaseStr = status.phase;
+    final point = status.point;
 
     final phase = _parsePhase(phaseStr);
 
@@ -354,31 +353,16 @@ class PolarAlignmentStateNotifier extends StateNotifier<PolarAlignmentState> {
     }
   }
 
-  void _handleImageUpdate(Map<String, dynamic> data) {
-    // The image payload arrives as raw bytes over the local FFI path
-    // (`Uint8List`) but as a JSON array of ints (`List<dynamic>`) — or, on some
-    // transports, a base64 string — over the network. Decode all shapes and,
-    // critically, reject a malformed payload *without* tearing down the event
-    // subscription.
-    final Uint8List bytes;
-    try {
-      bytes = _decodeImageBytes(data['image_data']);
-    } catch (e) {
-      Log.warning(
-        '[PolarAlignmentStateNotifier] Ignoring malformed polar image payload: $e',
-        source: 'PolarAlignmentStateNotifier',
-      );
-      return; // keep prior image/state; subscription stays alive
-    }
-
+  void _handleImageUpdate(bridge.PolarAlignmentImageEvent image) {
+    // A payload that held no bytes keeps the image shown.
+    if (image.imageData.isEmpty) return;
     state = state.copyWith(
-      imageData: bytes,
-      imageWidth: _wireInt(data['width']) ?? state.imageWidth,
-      imageHeight: _wireInt(data['height']) ?? state.imageHeight,
-      // solved_ra / solved_dec are null on the pre-solve image emit and numeric
-      // (int OR double over JSON) once solved. Preserve prior solve on absence.
-      solvedRa: _wireDoubleOrNull(data['solved_ra']) ?? state.solvedRa,
-      solvedDec: _wireDoubleOrNull(data['solved_dec']) ?? state.solvedDec,
+      imageData: image.imageData,
+      imageWidth: image.width,
+      imageHeight: image.height,
+      // Null on the image sent before the solve; the prior solve stays.
+      solvedRa: image.solvedRa ?? state.solvedRa,
+      solvedDec: image.solvedDec ?? state.solvedDec,
     );
   }
 

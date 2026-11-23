@@ -1,0 +1,968 @@
+{
+  "deviceNotFound": {
+    "core": {
+      "category": "connection",
+      "message": "Device not found: native:zwo:9",
+      "userMessage": "Device not found: native:zwo:9",
+      "reason": "Device 'native:zwo:9' was not found",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "native:zwo:9",
+      "errorCode": null,
+      "bridgeErrorMessage": "Device 'native:zwo:9' was not found"
+    },
+    "host": {
+      "status": 404,
+      "body": {
+        "error": "device_error",
+        "message": "Device not found: native:zwo:9",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Device not found: native:zwo:9"
+    }
+  },
+  "connectionFailed": {
+    "core": {
+      "category": "connection",
+      "message": "Device connection failed: native:zwo:0 - USB device busy",
+      "userMessage": "Could not connect to native:zwo:0: USB device busy",
+      "reason": "USB device busy",
+      "isRecoverable": true,
+      "shouldReconnect": true,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "USB device busy"
+    },
+    "host": {
+      "status": 502,
+      "body": {
+        "error": "device_unreachable",
+        "message": "Could not connect to native:zwo:0: USB device busy",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Could not connect to native:zwo:0: USB device busy"
+    }
+  },
+  "alreadyConnected": {
+    "core": {
+      "category": "connection",
+      "message": "Device already connected: native:zwo:0",
+      "userMessage": "Device already connected: native:zwo:0",
+      "reason": "'native:zwo:0' is already connected",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "'native:zwo:0' is already connected"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Device already connected: native:zwo:0",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Device already connected: native:zwo:0"
+    }
+  },
+  "notConnected": {
+    "core": {
+      "category": "connection",
+      "message": "Device not connected: native:zwo:0",
+      "userMessage": "Device not connected: native:zwo:0",
+      "reason": "'native:zwo:0' is not connected",
+      "isRecoverable": false,
+      "shouldReconnect": true,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "'native:zwo:0' is not connected"
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "Device not connected: native:zwo:0",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Device not connected: native:zwo:0"
+    }
+  },
+  "deviceDisconnected": {
+    "core": {
+      "category": "connection",
+      "message": "Device disconnected unexpectedly: native:zwo:0 - cable pulled",
+      "userMessage": "Device native:zwo:0 disconnected: cable pulled",
+      "reason": "cable pulled",
+      "isRecoverable": true,
+      "shouldReconnect": true,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "cable pulled"
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "Device native:zwo:0 disconnected: cable pulled",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Device native:zwo:0 disconnected: cable pulled"
+    }
+  },
+  "hardwareError": {
+    "core": {
+      "category": "hardware",
+      "message": "Hardware error: native:zwo:0 - shutter jam",
+      "userMessage": "Hardware error on native:zwo:0: shutter jam",
+      "reason": "shutter jam",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": 7,
+      "bridgeErrorMessage": "shutter jam"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Hardware error on native:zwo:0: shutter jam",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Hardware error on native:zwo:0: shutter jam"
+    }
+  },
+  "hardwareErrorNoDevice": {
+    "core": {
+      "category": "hardware",
+      "message": "Hardware error:  - shutter jam",
+      "userMessage": "Hardware error on : shutter jam",
+      "reason": "shutter jam",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "",
+      "errorCode": null,
+      "bridgeErrorMessage": "shutter jam"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Hardware error on : shutter jam",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Hardware error on : shutter jam"
+    }
+  },
+  "communicationError": {
+    "core": {
+      "category": "hardware",
+      "message": "Communication error: native:zwo:0 - usb stall",
+      "userMessage": "Communication error with native:zwo:0: usb stall",
+      "reason": "usb stall",
+      "isRecoverable": true,
+      "shouldReconnect": true,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "usb stall"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Communication error with native:zwo:0: usb stall",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Communication error with native:zwo:0: usb stall"
+    }
+  },
+  "timeout": {
+    "core": {
+      "category": "timeout",
+      "message": "Operation timed out: slew",
+      "userMessage": "Operation timed out: slew",
+      "reason": "slew",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": true,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "slew"
+    },
+    "host": {
+      "status": 504,
+      "body": {
+        "error": "device_timeout",
+        "message": "slew",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "slew"
+    }
+  },
+  "deviceTimeout": {
+    "core": {
+      "category": "timeout",
+      "message": "Operation timed out: download after 30.3s",
+      "userMessage": "native:zwo:0 timed out after 30.25s during download",
+      "reason": null,
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": true,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": null
+    },
+    "host": {
+      "status": 504,
+      "body": {
+        "error": "device_timeout",
+        "message": "native:zwo:0 timed out after 30.25s during download",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "native:zwo:0 timed out after 30.25s during download"
+    }
+  },
+  "connectionTimeout": {
+    "core": {
+      "category": "timeout",
+      "message": "Connection timeout: native:zwo:0 after 10.0s",
+      "userMessage": "Connecting to native:zwo:0 timed out after 10.0s",
+      "reason": null,
+      "isRecoverable": true,
+      "shouldReconnect": true,
+      "isTimeout": true,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": null
+    },
+    "host": {
+      "status": 504,
+      "body": {
+        "error": "device_timeout",
+        "message": "Connecting to native:zwo:0 timed out after 10.0s",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Connecting to native:zwo:0 timed out after 10.0s"
+    }
+  },
+  "invalidParameter": {
+    "core": {
+      "category": "validation",
+      "message": "Invalid parameter: gain",
+      "userMessage": "Invalid parameter: gain",
+      "reason": "gain",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "gain"
+    },
+    "host": {
+      "status": 400,
+      "body": {
+        "error": "device_error",
+        "message": "gain",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "gain"
+    }
+  },
+  "invalidInput": {
+    "core": {
+      "category": "validation",
+      "message": "Invalid input: nope",
+      "userMessage": "Invalid input: nope",
+      "reason": "nope",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "nope"
+    },
+    "host": {
+      "status": 400,
+      "body": {
+        "error": "device_error",
+        "message": "nope",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "nope"
+    }
+  },
+  "invalidDeviceId": {
+    "core": {
+      "category": "validation",
+      "message": "Invalid device ID: indi:x - Invalid INDI device ID format",
+      "userMessage": "Invalid INDI device ID format (device indi:x)",
+      "reason": "Invalid INDI device ID format",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "indi:x",
+      "errorCode": null,
+      "bridgeErrorMessage": "Invalid INDI device ID format"
+    },
+    "host": {
+      "status": 400,
+      "body": {
+        "error": "device_error",
+        "message": "Invalid INDI device ID format (device indi:x)",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Invalid INDI device ID format (device indi:x)"
+    }
+  },
+  "invalidDeviceIdEmpty": {
+    "core": {
+      "category": "validation",
+      "message": "Invalid device ID:  - Invalid INDI device ID format",
+      "userMessage": "Invalid INDI device ID format",
+      "reason": "Invalid INDI device ID format",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "",
+      "errorCode": null,
+      "bridgeErrorMessage": "Invalid INDI device ID format"
+    },
+    "host": {
+      "status": 400,
+      "body": {
+        "error": "device_error",
+        "message": "Invalid INDI device ID format",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Invalid INDI device ID format"
+    }
+  },
+  "parameterOutOfRange": {
+    "core": {
+      "category": "validation",
+      "message": "Parameter out of range: gain = 99999 (valid: 0 to 600)",
+      "userMessage": "gain 99999 is outside the valid range 0 to 600",
+      "reason": null,
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": null
+    },
+    "host": {
+      "status": 400,
+      "body": {
+        "error": "device_error",
+        "message": "gain 99999 is outside the valid range 0 to 600",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "gain 99999 is outside the valid range 0 to 600"
+    }
+  },
+  "operationFailed": {
+    "core": {
+      "category": "system",
+      "message": "Operation failed: sdk blew up",
+      "userMessage": "sdk blew up",
+      "reason": "sdk blew up",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "sdk blew up"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "sdk blew up",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "sdk blew up"
+    }
+  },
+  "operationFailedEmpty": {
+    "core": {
+      "category": "system",
+      "message": "Operation failed:   ",
+      "userMessage": "Operation failed:   ",
+      "reason": "  ",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "  "
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "The device reported an unspecified error",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "The device reported an unspecified error"
+    }
+  },
+  "notSupported": {
+    "core": {
+      "category": "unsupported",
+      "message": "Operation not supported: setGain on device ascom:X",
+      "userMessage": "'ascom:X' does not support: setGain",
+      "reason": "'ascom:X' does not support setGain",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "ascom:X",
+      "errorCode": null,
+      "bridgeErrorMessage": "'ascom:X' does not support setGain"
+    },
+    "host": {
+      "status": 501,
+      "body": {
+        "error": "not_supported",
+        "message": "setGain (device ascom:X)",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "setGain (device ascom:X)"
+    }
+  },
+  "deviceBusy": {
+    "core": {
+      "category": "busy",
+      "message": "Device busy: native:zwo:0 - exposing",
+      "userMessage": "native:zwo:0 is busy: exposing",
+      "reason": "'native:zwo:0' is busy with exposing",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "'native:zwo:0' is busy with exposing"
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "native:zwo:0 is busy: exposing",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "native:zwo:0 is busy: exposing"
+    }
+  },
+  "refused": {
+    "core": {
+      "category": "system",
+      "message": "Operation failed: Failed to get lock position: no lock",
+      "userMessage": "Failed to get lock position: no lock",
+      "reason": "Failed to get lock position: no lock",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "Failed to get lock position: no lock"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Failed to get lock position: no lock",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Failed to get lock position: no lock"
+    }
+  },
+  "refusedLightLeak": {
+    "core": {
+      "category": "validation",
+      "message": "Invalid input: light leak: 3 of 9 frames",
+      "userMessage": "Invalid input: light leak: 3 of 9 frames",
+      "reason": "light leak: 3 of 9 frames",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "light leak: 3 of 9 frames"
+    },
+    "host": {
+      "status": 400,
+      "body": {
+        "error": "device_error",
+        "message": "light leak: 3 of 9 frames",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "light leak: 3 of 9 frames"
+    }
+  },
+  "invalidState": {
+    "core": {
+      "category": "busy",
+      "message": "Guiding is paused. Resume guiding before dithering.",
+      "userMessage": "Guiding is paused. Resume guiding before dithering.",
+      "reason": "Guiding is paused. Resume guiding before dithering.",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "Guiding is paused. Resume guiding before dithering."
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "Guiding is paused. Resume guiding before dithering.",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Guiding is paused. Resume guiding before dithering."
+    }
+  },
+  "imageError": {
+    "core": {
+      "category": "imaging",
+      "message": "Image error: bad stride",
+      "userMessage": "Image error: bad stride",
+      "reason": "bad stride",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "bad stride"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "bad stride",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "bad stride"
+    }
+  },
+  "cameraError": {
+    "core": {
+      "category": "imaging",
+      "message": "Camera error: no sensor",
+      "userMessage": "Camera error: no sensor",
+      "reason": "no sensor",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "no sensor"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "no sensor",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "no sensor"
+    }
+  },
+  "noImageAvailable": {
+    "core": {
+      "category": "imaging",
+      "message": "No image available",
+      "userMessage": "No image is available yet — capture an exposure first",
+      "reason": null,
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": null
+    },
+    "host": {
+      "status": 404,
+      "body": {
+        "error": "device_error",
+        "message": "No image is available yet — capture an exposure first",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "No image is available yet — capture an exposure first"
+    }
+  },
+  "exposureCancelled": {
+    "core": {
+      "category": "system",
+      "message": "Operation cancelled",
+      "userMessage": "Exposure canceled",
+      "reason": null,
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": null
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "Exposure canceled",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Exposure canceled"
+    }
+  },
+  "exposureFailed": {
+    "core": {
+      "category": "imaging",
+      "message": "Exposure failed: native:zwo:0 - Image is completely saturated",
+      "userMessage": "Image is completely saturated",
+      "reason": "Image is completely saturated",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "Image is completely saturated"
+    },
+    "host": {
+      "status": 422,
+      "body": {
+        "error": "device_error",
+        "message": "Image is completely saturated",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Image is completely saturated"
+    }
+  },
+  "downloadFailed": {
+    "core": {
+      "category": "imaging",
+      "message": "Image download failed: native:zwo:0 - usb reset",
+      "userMessage": "Image download failed: native:zwo:0 - usb reset",
+      "reason": "usb reset",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": "native:zwo:0",
+      "errorCode": null,
+      "bridgeErrorMessage": "usb reset"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Image download failed: native:zwo:0 - usb reset",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Image download failed: native:zwo:0 - usb reset"
+    }
+  },
+  "ioError": {
+    "core": {
+      "category": "io",
+      "message": "I/O error: disk gone",
+      "userMessage": "I/O error: disk gone",
+      "reason": "disk gone",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "disk gone"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "disk gone",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "disk gone"
+    }
+  },
+  "serializationError": {
+    "core": {
+      "category": "io",
+      "message": "Serialization error: bad json",
+      "userMessage": "Serialization error: bad json",
+      "reason": "bad json",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "bad json"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "bad json",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "bad json"
+    }
+  },
+  "plateSolveError": {
+    "core": {
+      "category": "io",
+      "message": "Plate solve failed: no match",
+      "userMessage": "Plate solve failed: no match",
+      "reason": "no match",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "no match"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "no match",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "no match"
+    }
+  },
+  "sequenceError": {
+    "core": {
+      "category": "sequence",
+      "message": "Sequence error: node missing",
+      "userMessage": "Sequence error: node missing",
+      "reason": "node missing",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "node missing"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "node missing",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "node missing"
+    }
+  },
+  "ascomError": {
+    "core": {
+      "category": "driver",
+      "message": "ASCOM error: ASCOM.ASICamera2.Camera - Gain not implemented (code: 1024)",
+      "userMessage": "ASCOM driver ASCOM.ASICamera2.Camera reported: Gain not implemented (code 1024)",
+      "reason": "Gain not implemented",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": 1024,
+      "bridgeErrorMessage": "Gain not implemented"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "ASCOM driver ASCOM.ASICamera2.Camera reported: Gain not implemented (code 1024)",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "ASCOM driver ASCOM.ASICamera2.Camera reported: Gain not implemented (code 1024)"
+    }
+  },
+  "alpacaError": {
+    "core": {
+      "category": "driver",
+      "message": "Alpaca error: http://127.0.0.1:11111 device 0 - NotImplemented (code: 1024)",
+      "userMessage": "Alpaca device 0 at http://127.0.0.1:11111 reported: NotImplemented (code 1024)",
+      "reason": "NotImplemented",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": 1024,
+      "bridgeErrorMessage": "NotImplemented"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Alpaca device 0 at http://127.0.0.1:11111 reported: NotImplemented (code 1024)",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Alpaca device 0 at http://127.0.0.1:11111 reported: NotImplemented (code 1024)"
+    }
+  },
+  "indiError": {
+    "core": {
+      "category": "driver",
+      "message": "INDI error: localhost:7624 device CCD Simulator - BLOB timeout",
+      "userMessage": "INDI device CCD Simulator on localhost:7624 reported: BLOB timeout",
+      "reason": "BLOB timeout",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "BLOB timeout"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "INDI device CCD Simulator on localhost:7624 reported: BLOB timeout",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "INDI device CCD Simulator on localhost:7624 reported: BLOB timeout"
+    }
+  },
+  "nativeError": {
+    "core": {
+      "category": "driver",
+      "message": "Native SDK error: ZWO - ASI_ERROR_INVALID_SIZE (code: 6)",
+      "userMessage": "ZWO SDK reported: ASI_ERROR_INVALID_SIZE (code 6)",
+      "reason": "ASI_ERROR_INVALID_SIZE",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": 6,
+      "bridgeErrorMessage": "ASI_ERROR_INVALID_SIZE"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "ZWO SDK reported: ASI_ERROR_INVALID_SIZE (code 6)",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "ZWO SDK reported: ASI_ERROR_INVALID_SIZE (code 6)"
+    }
+  },
+  "comError": {
+    "core": {
+      "category": "driver",
+      "message": "COM error: Member not found (HRESULT: 0x80020003)",
+      "userMessage": "Windows COM call failed: Member not found (HRESULT 0x80020003)",
+      "reason": "Member not found",
+      "isRecoverable": false,
+      "shouldReconnect": true,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": 2147614723,
+      "bridgeErrorMessage": "Member not found"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "Windows COM call failed: Member not found (HRESULT 0x80020003)",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Windows COM call failed: Member not found (HRESULT 0x80020003)"
+    }
+  },
+  "internal": {
+    "core": {
+      "category": "system",
+      "message": "Internal error: bug",
+      "userMessage": "Internal error: bug",
+      "reason": "bug",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "bug"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "bug",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "bug"
+    }
+  },
+  "cancelled": {
+    "core": {
+      "category": "system",
+      "message": "Operation cancelled",
+      "userMessage": "Operation canceled",
+      "reason": null,
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": null
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "Operation canceled",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "Operation canceled"
+    }
+  },
+  "runtimeInitFailed": {
+    "core": {
+      "category": "system",
+      "message": "Runtime initialization failed: no tokio",
+      "userMessage": "Runtime initialization failed: no tokio",
+      "reason": "no tokio",
+      "isRecoverable": false,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "no tokio"
+    },
+    "host": {
+      "status": 500,
+      "body": {
+        "error": "internal_error",
+        "message": "no tokio",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "no tokio"
+    }
+  },
+  "resourceExhausted": {
+    "core": {
+      "category": "system",
+      "message": "Resource exhausted: disk - no space left",
+      "userMessage": "disk exhausted: no space left",
+      "reason": "no space left",
+      "isRecoverable": true,
+      "shouldReconnect": false,
+      "isTimeout": false,
+      "deviceId": null,
+      "errorCode": null,
+      "bridgeErrorMessage": "no space left"
+    },
+    "host": {
+      "status": 409,
+      "body": {
+        "error": "device_error",
+        "message": "disk exhausted: no space left",
+        "requestId": "test-request-id"
+      },
+      "describeBackendError": "disk exhausted: no space left"
+    }
+  }
+}

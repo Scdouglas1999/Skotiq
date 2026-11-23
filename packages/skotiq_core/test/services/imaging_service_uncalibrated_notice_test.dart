@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,6 +32,7 @@ import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
 import 'package:skotiq_core/src/providers/notification_service_provider.dart';
 import 'package:skotiq_core/src/services/calibration_service.dart';
 import 'package:skotiq_core/src/services/notification_service.dart';
+import '../harness/event_wire.dart';
 
 class _NoOpScienceProcessingService extends ScienceProcessingService {
   _NoOpScienceProcessingService(super.ref);
@@ -71,6 +73,7 @@ class _ScriptedCalibration extends CalibrationService {
     int binX = 1,
     int binY = 1,
     double? sensorTemperature,
+    String? filter,
   }) async {
     final reason = failure;
     if (reason != null) throw StateError(reason);
@@ -202,12 +205,11 @@ void main() {
       ),
     ).thenAnswer((_) async {
       events.add(
-        SkotiqEvent(
+        ffiWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureComplete(success: true),
+          ),
           timestamp: DateTime.now().millisecondsSinceEpoch,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureComplete',
-          data: const {},
         ),
       );
     });

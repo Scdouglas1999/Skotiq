@@ -722,6 +722,30 @@ void main() {
     await _drainValidationDebounce(tester);
   });
 
+  testWidgets('a completed step says Completed, as its target header does',
+      (tester) async {
+    final exposure = ExposureNode(
+      name: 'L subs',
+      filter: 'L',
+      durationSecs: 60,
+      count: 10,
+    );
+    final built = _threeLevelSequence([exposure]);
+    final progress = RunRecordNotifier();
+    await _pumpTree(tester, built.sequence, progressNotifier: progress);
+    progress.updateNodeStatus(exposure.id, NodeStatus.success);
+    await tester.pump();
+
+    final semantics = tester.getSemantics(
+      find
+          .ancestor(of: find.text('L subs'), matching: find.byType(Semantics))
+          .first,
+    );
+    expect(semantics.label, contains('Completed'));
+    expect(semantics.label, isNot(contains('done')));
+    await _drainValidationDebounce(tester);
+  });
+
   testWidgets('a started-but-unobserved ETA renders muted', (tester) async {
     final exposure = ExposureNode(
       name: 'L subs',

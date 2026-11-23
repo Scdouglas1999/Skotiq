@@ -436,11 +436,7 @@ impl Node for RuntimeNode {
         // string is not load-bearing); we log and fall back to the raw
         // template so the operator still sees something.
         let display_name = render_node_display_name(self.name(), context);
-        context.send_progress(ProgressUpdate::lifecycle(
-            self.id().clone(),
-            NodeStatus::Running,
-            format!("Executing: {}", display_name),
-        ));
+        context.send_progress(ProgressUpdate::node_entry(self.id().clone(), display_name));
 
         // Cloning is cheap on serde-derived configs; this avoids a mutable
         // borrow of self.definition while we also need &mut self for the
@@ -486,22 +482,11 @@ impl Node for RuntimeNode {
         // Re-render in case interpolation values changed between Running
         // and Completed events (e.g. a target swap between events).
         let display_name = render_node_display_name(self.name(), context);
-        // The verb must follow `result`. This message was hardcoded to
-        // "Completed: {}" for EVERY outcome, so a node that failed, was
-        // cancelled or was skipped still announced that it had completed. It is
+        // The verb must follow `result`. It is
         // the last progress message a run emits (the root container is the last
         // node to reach a terminal status), and it lands in
         // `SequenceProgress.message`, which `/api/sequencer/status` returns
         // alongside the authoritative `state`.
-        //
-        // Observed verbatim on the live rig, on a run that genuinely failed at a
-        // Move Rotator node with no rotator connected:
-        //   {"state":"failed", ...,
-        //    "message":"Completed: CLAUDE SEQ AUDIT R4 FAIL"}
-        // The DB row for that run is `status='failed'` and its vitals carry
-        // "Sequence failed", so `state` was right and the message was the lie —
-        // but a client rendering the message (every status banner does) told the
-        // operator the night had finished cleanly.
         let verb = match result {
             NodeStatus::Success => "Completed",
             NodeStatus::Failure => "Failed",

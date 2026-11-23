@@ -1,0 +1,277 @@
+{
+  "variables": [
+    {
+      "description": "Name of the active target (e.g. \"M42\")",
+      "example": "M42",
+      "group": "target",
+      "name": "target.name",
+      "supportsFormat": false
+    },
+    {
+      "description": "Stable internal identifier of the active target",
+      "example": "tgt-7c3a",
+      "group": "target",
+      "name": "target.id",
+      "supportsFormat": false
+    },
+    {
+      "description": "Right ascension of the active target (hours)",
+      "example": "5.59",
+      "group": "target",
+      "name": "target.ra",
+      "supportsFormat": true
+    },
+    {
+      "description": "Declination of the active target (degrees)",
+      "example": "-5.39",
+      "group": "target",
+      "name": "target.dec",
+      "supportsFormat": true
+    },
+    {
+      "description": "Position-angle rotation for the target (degrees)",
+      "example": "45.0",
+      "group": "target",
+      "name": "target.rotation",
+      "supportsFormat": true
+    },
+    {
+      "description": "Current altitude of the target (degrees)",
+      "example": "42.7",
+      "group": "target",
+      "name": "target.alt",
+      "supportsFormat": true
+    },
+    {
+      "description": "Current azimuth of the target (degrees)",
+      "example": "138.2",
+      "group": "target",
+      "name": "target.az",
+      "supportsFormat": true
+    },
+    {
+      "description": "Currently selected filter name",
+      "example": "Ha",
+      "group": "filter",
+      "name": "filter",
+      "supportsFormat": false
+    },
+    {
+      "description": "Filter-wheel position (1-based)",
+      "example": "3",
+      "group": "filter",
+      "name": "filter.position",
+      "supportsFormat": true
+    },
+    {
+      "description": "Current frame number within the active burst",
+      "example": "8",
+      "group": "frame",
+      "name": "frame",
+      "supportsFormat": true
+    },
+    {
+      "description": "Total frames requested in the active burst",
+      "example": "30",
+      "group": "frame",
+      "name": "frame.total",
+      "supportsFormat": true
+    },
+    {
+      "description": "Unique identifier of the active imaging session",
+      "example": "5f9a-…-83b1",
+      "group": "session",
+      "name": "session.id",
+      "supportsFormat": false
+    },
+    {
+      "description": "UTC date the session started (YYYY-MM-DD)",
+      "example": "2026-01-15",
+      "group": "session",
+      "name": "session.date",
+      "supportsFormat": false
+    },
+    {
+      "description": "ISO-8601 UTC timestamp when the session started",
+      "example": "2026-01-15T22:14:33Z",
+      "group": "session",
+      "name": "session.start",
+      "supportsFormat": false
+    },
+    {
+      "description": "Current UTC timestamp (ISO-8601)",
+      "example": "2026-01-15T22:47:12Z",
+      "group": "time",
+      "name": "time.now",
+      "supportsFormat": false
+    },
+    {
+      "description": "Current local timestamp (ISO-8601 with offset)",
+      "example": "2026-01-15 17:47:12 -05:00",
+      "group": "time",
+      "name": "time.local",
+      "supportsFormat": false
+    },
+    {
+      "description": "Current UTC date (YYYY-MM-DD)",
+      "example": "2026-01-15",
+      "group": "time",
+      "name": "time.date",
+      "supportsFormat": false
+    },
+    {
+      "description": "Current UTC time of day, file-name safe (HH-MM-SS)",
+      "example": "22-47-12",
+      "group": "time",
+      "name": "time.clock",
+      "supportsFormat": false
+    },
+    {
+      "description": "Current local time of day (HH:MM)",
+      "example": "17:47",
+      "group": "time",
+      "name": "time.local_clock",
+      "supportsFormat": false
+    },
+    {
+      "description": "Moon illuminated fraction (0.0 – 1.0)",
+      "example": "0.42",
+      "group": "moon",
+      "name": "moon.phase",
+      "supportsFormat": true
+    },
+    {
+      "description": "Angular separation between the moon and the target (degrees)",
+      "example": "67.3",
+      "group": "moon",
+      "name": "moon.separation",
+      "supportsFormat": true
+    },
+    {
+      "description": "Ambient temperature (°C) from the active weather source",
+      "example": "12.4",
+      "group": "weather",
+      "name": "weather.temp_c",
+      "supportsFormat": true
+    },
+    {
+      "description": "Relative humidity percentage (0 – 100)",
+      "example": "67",
+      "group": "weather",
+      "name": "weather.humidity",
+      "supportsFormat": true
+    },
+    {
+      "description": "Sky-quality reading (mag / arcsec²) from the active sensor",
+      "example": "21.2",
+      "group": "weather",
+      "name": "sqm",
+      "supportsFormat": true
+    },
+    {
+      "description": "Observer name from app settings",
+      "example": "Alice",
+      "group": "observer",
+      "name": "observer.name",
+      "supportsFormat": false
+    },
+    {
+      "description": "Observer latitude (degrees)",
+      "example": "40.7128",
+      "group": "observer",
+      "name": "observer.lat",
+      "supportsFormat": true
+    },
+    {
+      "description": "Observer longitude (degrees)",
+      "example": "-74.0060",
+      "group": "observer",
+      "name": "observer.lon",
+      "supportsFormat": true
+    },
+    {
+      "description": "Observer elevation (meters)",
+      "example": "150",
+      "group": "observer",
+      "name": "observer.elevation",
+      "supportsFormat": true
+    },
+    {
+      "description": "Camera make + model from the active equipment profile",
+      "example": "ZWO ASI2600MM",
+      "group": "equipment",
+      "name": "equipment.camera",
+      "supportsFormat": false
+    },
+    {
+      "description": "Telescope name from the active equipment profile",
+      "example": "TS-Optics 130/910 APO",
+      "group": "equipment",
+      "name": "equipment.telescope",
+      "supportsFormat": false
+    },
+    {
+      "description": "Telescope focal length (mm)",
+      "example": "910",
+      "group": "equipment",
+      "name": "equipment.focal_length",
+      "supportsFormat": true
+    },
+    {
+      "description": "Telescope aperture (mm)",
+      "example": "130",
+      "group": "equipment",
+      "name": "equipment.aperture",
+      "supportsFormat": true
+    },
+    {
+      "description": "Exposure duration of the active burst (seconds)",
+      "example": "180",
+      "group": "exposure",
+      "name": "exposure.duration",
+      "supportsFormat": true
+    },
+    {
+      "description": "Camera gain of the active burst",
+      "example": "100",
+      "group": "exposure",
+      "name": "exposure.gain",
+      "supportsFormat": true
+    },
+    {
+      "description": "Camera offset of the active burst",
+      "example": "10",
+      "group": "exposure",
+      "name": "exposure.offset",
+      "supportsFormat": true
+    },
+    {
+      "description": "Binning of the active burst (e.g. \"1x1\")",
+      "example": "1x1",
+      "group": "exposure",
+      "name": "exposure.binning",
+      "supportsFormat": false
+    },
+    {
+      "description": "Sensor temperature with the frame (°C); the cooler setpoint, else 0, when the camera reports none",
+      "example": "-10",
+      "group": "equipment",
+      "name": "camera.temp_c",
+      "supportsFormat": true
+    },
+    {
+      "description": "Target cooler temperature (°C)",
+      "example": "-10",
+      "group": "exposure",
+      "name": "exposure.temp_c",
+      "supportsFormat": true
+    },
+    {
+      "description": "Total burst integration time (minutes: duration_secs × count / 60)",
+      "example": "30",
+      "group": "exposure",
+      "name": "exposure.total",
+      "supportsFormat": true
+    }
+  ]
+}

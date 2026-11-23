@@ -6,17 +6,24 @@
 //! `crate::dispatch`.
 
 pub(crate) mod accessory;
+pub(crate) mod busy;
+pub(crate) mod capture;
+pub(crate) mod connect_check;
 pub(crate) mod connection;
 pub(crate) mod device_reopen;
 pub(crate) mod epoch;
+pub(crate) mod failure;
+pub(crate) mod follow;
 pub(crate) mod handle;
 pub(crate) mod heartbeat;
 pub mod identity;
+pub(crate) mod keep_state;
 pub(crate) mod motion_guard;
 pub(crate) mod ops;
 pub(crate) mod policy;
 pub(crate) mod read_health;
 pub(crate) mod rig;
+pub(crate) mod roles;
 
 use crate::device::{ConnectionState, DeviceInfo, DeviceType};
 use crate::state::SharedAppState;
@@ -78,6 +85,16 @@ impl Default for ReconnectConfig {
     }
 }
 
+/// The tracking a mount held, for a reconnect to keep.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeldTracking {
+    pub tracking: bool,
+    /// The rate it tracked at, when known.
+    pub rate: Option<crate::device::TrackingRate>,
+    /// Whether it read at home, when it says.
+    pub at_home: Option<bool>,
+}
+
 /// The camera state a reopen restores, from the camera's last good status
 /// read and the gain and offset last set on it.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -122,12 +139,11 @@ pub struct ManagedDevice {
     /// and offset last set on it. With `desired_cooler` this is what a reopen
     /// of the camera restores. Cameras only.
     pub held_camera_state: Option<HeldCameraState>,
-    /// Last commanded mount tracking state, recorded whenever
-    /// `mount_set_tracking` succeeds. Re-applied after an unplanned reconnect
-    /// so a mount that was tracking before the disconnect resumes tracking
-    /// instead of sitting parked while the sequence "resumes". `None` until
-    /// tracking has been commanded at least once; mounts only.
-    pub desired_tracking: Option<bool>,
+    /// The mount's tracking as it last read or was last commanded (see
+    /// [`HeldTracking`]): what a reconnect keeps
+    /// ([`DeviceManager::keep_mount_tracking`]). `None` until the mount has
+    /// been read or commanded once; mounts only.
+    pub held_tracking: Option<HeldTracking>,
     /// The equatorial frame the mount's driver declared at its last connect
     /// (ASCOM `EquatorialSystem`). `None` when it declared none Skotiq can
     /// use; [`DeviceManager::mount_frame`] then falls back to the driver
@@ -137,6 +153,9 @@ pub struct ManagedDevice {
 
 /// The Device Manager handles all device connections
 pub struct DeviceManager {
+    /// This manager, for the tasks it spawns (a device's heartbeat).
+    me: std::sync::Weak<DeviceManager>,
+
     /// Application state for publishing events
     pub(crate) app_state: SharedAppState,
 
@@ -263,6 +282,14 @@ pub struct DeviceManager {
     /// (camera, read mode) pairs already told about as not listed.
     pub(crate) unlisted_read_mode_notices:
         std::sync::Mutex<std::collections::HashSet<(String, String)>>,
+
+    /// What is kept of each device across its connections.
+    pub(crate) sessions: device_reopen::DeviceSessions,
+    /// Devices followed to another id: where each old id's device is now.
+    pub(crate) moved: follow::MovedDevices,
+    /// The last position of each focuser, wheel and rotator, for the
+    /// connect check.
+    pub(crate) positions: connect_check::positions::Positions,
 }
 
 /// RAII marker that keeps a device id in [`DeviceManager::active_operations`]
@@ -372,7 +399,31 @@ impl DeviceManager {
 impl DeviceManager {
     /// Create a new device manager
     pub fn new(app_state: SharedAppState) -> Arc<Self> {
-        let manager = Arc::new(Self {
+        let manager = Self::without_reconnection(app_state);
+        // A test process shares one data root across its tests; their
+        // managers keep positions in memory.
+        if cfg!(not(test)) {
+            manager.positions.keep_under_data_root();
+        }
+
+        // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
+        let manager_clone = Arc::clone(&manager);
+        // We use the crate-level runtime which must be initialized first
+        if let Ok(runtime) = crate::ensure_runtime() {
+            runtime.handle().spawn(async move {
+                manager_clone.reconnection_loop().await;
+            });
+        } else {
+            tracing::error!("Cannot start reconnection loop: runtime initialization failed");
+        }
+
+        manager
+    }
+
+    /// A manager with no reconnection task running.
+    pub(crate) fn without_reconnection(app_state: SharedAppState) -> Arc<Self> {
+        Arc::new_cyclic(|me| Self {
+            me: me.clone(),
             app_state,
             devices: RwLock::new(HashMap::new()),
             observed_identities: RwLock::new(HashMap::new()),
@@ -393,22 +444,10 @@ impl DeviceManager {
             retained_captures: Default::default(),
             stated_frame_defaults: Default::default(),
             unlisted_read_mode_notices: Default::default(),
-        });
-
-        // Start the reconnection background task
-        // Note: Must have runtime available - ensured by api_init() calling ensure_runtime()
-        let manager_clone = Arc::clone(&manager);
-        // Get the runtime handle and spawn the task
-        // We use the crate-level runtime which must be initialized first
-        if let Ok(runtime) = crate::ensure_runtime() {
-            runtime.handle().spawn(async move {
-                manager_clone.reconnection_loop().await;
-            });
-        } else {
-            tracing::error!("Cannot start reconnection loop: runtime initialization failed");
-        }
-
-        manager
+            sessions: Default::default(),
+            moved: Default::default(),
+            positions: Default::default(),
+        })
     }
 
     /// Get devices by type, in [`listing_order`].
@@ -497,14 +536,18 @@ impl DeviceManager {
     }
 
     /// The connected device of a type that comes first in [`listing_order`]
-    /// (live `DeviceManager` registry).
+    /// (live `DeviceManager` registry). A device a reopen is closing and
+    /// opening counts: for that moment its state reads disconnected, and a
+    /// role must not pass to another device (a second safety monitor, the
+    /// guide camera) for it.
     pub async fn first_connected_device_id(&self, device_type: DeviceType) -> Option<String> {
         let devices = self.devices.read().await;
         devices
             .values()
             .filter(|d| {
                 d.info.device_type == device_type
-                    && d.connection_state == ConnectionState::Connected
+                    && (d.connection_state == ConnectionState::Connected
+                        || self.is_reopening(&d.info.id))
             })
             .map(|d| d.info.id.clone())
             .min()

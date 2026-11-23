@@ -289,7 +289,8 @@ pub(crate) async fn save_uncorrected_raw_frame(
 pub(crate) fn target_altitude_now(ctx: &InstructionContext) -> Option<f64> {
     let (ra_hours, dec) = (ctx.target_ra?, ctx.target_dec?);
     let (lat, lon) = (ctx.run.rig.latitude?, ctx.run.rig.longitude?);
-    let (alt, _) = crate::meridian::calculate_alt_az(ra_hours, dec, lat, lon, chrono::Utc::now());
+    let (alt, _) =
+        crate::meridian::calculate_alt_az(ra_hours, dec, lat, lon, ctx.run.clock.now_utc());
     Some(alt)
 }
 
@@ -657,10 +658,7 @@ pub(crate) async fn emit_grade_progress(
             // frame is still graded and the rejects stay in the Reject folder
             // (owner decision 2026-10-06: "this limit should never stop a
             // sequence or end a night. Again, just notify users of these
-            // issues"). This used to hand the streak to the recovery driver,
-            // which paused the run, or parked the mount under the opt-in
-            // give-up policy, and it raised an Error banner on every further
-            // reject. Told once, at the crossing: `consecutive` resets to 0 on
+            // issues"). Told once, at the crossing: `consecutive` resets to 0 on
             // the next accepted frame, so a later streak is told about again.
             if max_consecutive > 0 && consecutive == max_consecutive {
                 let pointing = match (capture.mount_altitude_deg, capture.mount_azimuth_deg) {

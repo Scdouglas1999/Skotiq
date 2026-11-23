@@ -1,113 +1,60 @@
 import 'dart:typed_data';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:path/path.dart' as p;
 
 import '../utils/logging_service.dart';
 import '../backend/network_backend.dart';
-import '../providers/logging_service_provider.dart';
 import '../models/imaging/live_stacking_models.dart';
 
-/// Service that wraps the native live stacking bridge calls.
+/// The live stacker: this process's native stacker.
 ///
 /// The live stacking engine aligns and averages incoming frames in real time,
-/// providing a continuously improving preview for EAA and outreach.
+/// providing a continuously improving preview for EAA and outreach. Every
+/// stack operation takes an optional `filterKey`: null means the active
+/// slot, a key means that filter's slot. [LinkedLiveStackingService] is the
+/// same role on a linked client, where the stacker is the host's.
 class LiveStackingService {
   final LoggingService _logger;
   final SaveStackMasterFits _saveFitsMaster;
 
-  /// The linked host's stacker, or null where the stacker is this process's.
-  /// When set every operation routes over `/api/stacking/*`: the local FFI
-  /// bridge's stacker is empty on a linked client.
-  final HostLiveStack? _remote;
+  LiveStackingService(this._logger, {SaveStackMasterFits? saveFitsMaster})
+    : _saveFitsMaster = saveFitsMaster ?? bridge.apiStackingSaveMasterFits;
 
-  LiveStackingService(
-    Ref ref, {
-    HostLiveStack? host,
-    SaveStackMasterFits? saveFitsMaster,
-  }) : _remote = host,
-       _logger = ref.read(loggingServiceProvider),
-       _saveFitsMaster = saveFitsMaster ?? bridge.apiStackingSaveMasterFits;
-
-  /// Arm host-side live stacking without a local reference frame: the next
-  /// frame the host captures becomes the reference and subsequent frames are
-  /// auto-fed. This is the remote entry point — the tablet has no local file to
-  /// hand the host. Only valid on a remote (NetworkBackend) connection; locally
-  /// the operator picks a reference file via [startFromFile].
-  Future<LiveStackingStats> startArmed({
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    final remote = _remote;
-    if (remote == null) {
-      throw StateError(
-        'startArmed is only valid on a remote connection; use startFromFile '
-        'with a reference frame when running on the imaging host.',
-      );
-    }
-    _logger.info(
-      'Arming host-side live stacking',
-      source: 'LiveStackingService',
-    );
-    return remote.stackingStart(config: config);
-  }
+  /// Whether the stack lives on a linked imaging host rather than here.
+  bool get readsHost => false;
 
   /// Start live stacking with a reference image file.
   ///
   /// The reference frame defines the coordinate system; all subsequent frames
-  /// are star-matched and aligned to it.
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
+  /// are star-matched and aligned to it. Here a reference is required; a
+  /// linked host also arms without one (the next frame it captures becomes
+  /// the reference).
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
-    _logger.info(
-      'Starting live stacking from file: $referenceImagePath',
-      source: 'LiveStackingService',
-    );
-
-    final remote = _remote;
-    if (remote != null) {
-      // On a remote client the path is a HOST path; the host starts its stacker.
-      return remote.stackingStart(
-        referencePath: referenceImagePath,
-        config: config,
+    if (referenceImagePath == null) {
+      throw StateError(
+        'Live stacking on the imaging host starts from a reference frame.',
       );
     }
-
-    final result = await bridge.apiStackingStart(
-      referenceImagePath: referenceImagePath,
-      config: config.toBridge(),
-    );
-
-    return LiveStackingStats.fromBridge(result);
-  }
-
-  /// Start live stacking for a dedicated optical filter slot.
-  Future<LiveStackingStats> startFromFileForFilter({
-    required String filterKey,
-    required String referenceImagePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
     _logger.info(
-      'Starting live stacking from file: $referenceImagePath (filter=$filterKey)',
+      'Starting live stacking from file: $referenceImagePath'
+      '${filterKey != null ? ' (filter=$filterKey)' : ''}',
       source: 'LiveStackingService',
     );
-
-    final remote = _remote;
-    if (remote != null) {
-      return remote.stackingStart(
-        referencePath: referenceImagePath,
-        config: config,
-        filterKey: filterKey,
-      );
-    }
-
-    final result = await bridge.apiStackingStartForFilter(
-      filterKey: filterKey,
-      referenceImagePath: referenceImagePath,
-      config: config.toBridge(),
-    );
-
+    final result = filterKey != null
+        ? await bridge.apiStackingStartForFilter(
+            filterKey: filterKey,
+            referenceImagePath: referenceImagePath,
+            config: config.toBridge(),
+          )
+        : await bridge.apiStackingStart(
+            referenceImagePath: referenceImagePath,
+            config: config.toBridge(),
+          );
     return LiveStackingStats.fromBridge(result);
   }
 
@@ -119,59 +66,30 @@ class LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
     _logger.info(
       'Starting live stacking from data: ${width}x$height',
       source: 'LiveStackingService',
     );
-
-    if (_remote != null) {
-      // Raw pixel upload to the host is intentionally unsupported (the host
-      // captures and stacks its own frames). Remote clients arm the host
-      // ([startArmed]) or pass a host reference path ([startFromFile]).
-      throw StateError(
-        'startFromData is not available on a remote connection; the imaging '
-        'host stacks the frames it captures. Use startArmed() instead.',
-      );
-    }
-
-    final result = await bridge.apiStackingStartFromData(
-      width: width,
-      height: height,
-      data: data,
-      pedestal: pedestal,
-      config: config.toBridge(),
-    );
-
-    return LiveStackingStats.fromBridge(result);
-  }
-
-  /// Start live stacking from raw pixel data for a specific filter slot.
-  Future<LiveStackingStats> startFromDataForFilter({
-    required String filterKey,
-    required int width,
-    required int height,
-    required List<int> data,
-    double pedestal = 0.0,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    if (_remote != null) {
-      throw StateError(
-        'startFromDataForFilter is not available on a remote connection.',
-      );
-    }
-
-    final result = await bridge.apiStackingStartFromDataForFilter(
-      filterKey: filterKey,
-      width: width,
-      height: height,
-      data: data,
-      pedestal: pedestal,
-      config: config.toBridge(),
-    );
-
+    final result = filterKey != null
+        ? await bridge.apiStackingStartFromDataForFilter(
+            filterKey: filterKey,
+            width: width,
+            height: height,
+            data: data,
+            pedestal: pedestal,
+            config: config.toBridge(),
+          )
+        : await bridge.apiStackingStartFromData(
+            width: width,
+            height: height,
+            data: data,
+            pedestal: pedestal,
+            config: config.toBridge(),
+          );
     return LiveStackingStats.fromBridge(result);
   }
 
@@ -182,45 +100,33 @@ class LiveStackingService {
   /// A refusal (alignment residual too high, too few stars, wrong dimensions)
   /// arrives as [LiveStackingFrameRejected] carrying the engine's own tally,
   /// so the rejection is countable rather than invisible.
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
-    _logger.info(
-      'Adding frame to stack: $imagePath',
-      source: 'LiveStackingService',
-    );
-
-    return _asCountedRejection(() async {
-      final remote = _remote;
-      if (remote != null) {
-        return remote.stackingAddFrame(imagePath);
-      }
-
-      final result = await bridge.apiStackingAddFrame(imagePath: imagePath);
-      return LiveStackingResult.fromBridge(result);
-    });
-  }
-
-  /// Add a frame to a specific filter's live stack from a file path.
-  Future<LiveStackingResult> addFrameFromFileForFilter(
+  Future<LiveStackingResult> addFrameFromFile(
     String imagePath, {
-    required String filterKey,
+    String? filterKey,
   }) async {
     _logger.info(
-      'Adding frame to $filterKey stack: $imagePath',
+      filterKey != null
+          ? 'Adding frame to $filterKey stack: $imagePath'
+          : 'Adding frame to stack: $imagePath',
       source: 'LiveStackingService',
     );
+    return _asCountedRejection(
+      () => _addFrameFromFile(imagePath, filterKey: filterKey),
+      filterKey: filterKey,
+    );
+  }
 
-    return _asCountedRejection(() async {
-      final remote = _remote;
-      if (remote != null) {
-        return remote.stackingAddFrame(imagePath);
-      }
-
-      final result = await bridge.apiStackingAddFrameForFilter(
-        filterKey: filterKey,
-        imagePath: imagePath,
-      );
-      return LiveStackingResult.fromBridge(result);
-    }, filterKey: filterKey);
+  Future<LiveStackingResult> _addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
+    final result = filterKey != null
+        ? await bridge.apiStackingAddFrameForFilter(
+            filterKey: filterKey,
+            imagePath: imagePath,
+          )
+        : await bridge.apiStackingAddFrame(imagePath: imagePath);
+    return LiveStackingResult.fromBridge(result);
   }
 
   /// Add a frame to the stack from raw pixel data carrying [pedestal] ADU.
@@ -228,46 +134,24 @@ class LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
-  }) async {
-    if (_remote != null) {
-      throw StateError(
-        'addFrameFromData is not available on a remote connection; the imaging '
-        'host stacks the frames it captures.',
-      );
-    }
-    return _asCountedRejection(() async {
-      final result = await bridge.apiStackingAddFrameFromData(
-        width: width,
-        height: height,
-        data: data,
-        pedestal: pedestal,
-      );
-      return LiveStackingResult.fromBridge(result);
-    });
-  }
-
-  /// Add a frame to a specific filter's stack from raw pixel data.
-  Future<LiveStackingResult> addFrameFromDataForFilter({
-    required String filterKey,
-    required int width,
-    required int height,
-    required List<int> data,
     double pedestal = 0.0,
-  }) async {
-    if (_remote != null) {
-      throw StateError(
-        'addFrameFromDataForFilter is not available on a remote connection.',
-      );
-    }
+    String? filterKey,
+  }) {
     return _asCountedRejection(() async {
-      final result = await bridge.apiStackingAddFrameFromDataForFilter(
-        filterKey: filterKey,
-        width: width,
-        height: height,
-        data: data,
-        pedestal: pedestal,
-      );
+      final result = filterKey != null
+          ? await bridge.apiStackingAddFrameFromDataForFilter(
+              filterKey: filterKey,
+              width: width,
+              height: height,
+              data: data,
+              pedestal: pedestal,
+            )
+          : await bridge.apiStackingAddFrameFromData(
+              width: width,
+              height: height,
+              data: data,
+              pedestal: pedestal,
+            );
       return LiveStackingResult.fromBridge(result);
     }, filterKey: filterKey);
   }
@@ -287,35 +171,24 @@ class LiveStackingService {
     } catch (error, stackTrace) {
       final LiveStackingStats stats;
       try {
-        stats = filterKey != null
-            ? await getStatsForFilter(filterKey)
-            : await getStats();
+        stats = await getStats(filterKey: filterKey);
       } catch (_) {
         Error.throwWithStackTrace(error, stackTrace);
       }
-      throw LiveStackingFrameRejected(reason: error.toString(), stats: stats);
+      final refusal = liveStackRefusalOf(error);
+      throw LiveStackingFrameRejected(
+        reason: refusal?.legacyText ?? error.toString(),
+        stats: stats,
+        refusal: refusal,
+      );
     }
   }
 
-  /// Get the current stacked result without adding a frame.
-  Future<LiveStackingResult> getCurrentResult() async {
-    final remote = _remote;
-    if (remote != null) {
-      return remote.stackingGetResult();
-    }
-    final result = await bridge.apiStackingGetResult();
-    return LiveStackingResult.fromBridge(result);
-  }
-
-  /// Get the current stacked result for a specific filter slot.
-  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) async {
-    final remote = _remote;
-    if (remote != null) {
-      return remote.stackingGetResult(filterKey: filterKey);
-    }
-    final result = await bridge.apiStackingGetResultForFilter(
-      filterKey: filterKey,
-    );
+  /// The current stacked result without adding a frame.
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async {
+    final result = filterKey != null
+        ? await bridge.apiStackingGetResultForFilter(filterKey: filterKey)
+        : await bridge.apiStackingGetResult();
     return LiveStackingResult.fromBridge(result);
   }
 
@@ -402,12 +275,6 @@ class LiveStackingService {
     String? filterKey,
     int maxDimension = 2048,
   }) async {
-    if (_remote != null) {
-      throw StateError(
-        'renderStackPreviewRgba reads the local native stacker and is not '
-        'available on a remote connection.',
-      );
-    }
     final result = await bridge.apiStackingRenderPreviewRgba(
       filterKey: filterKey,
       maxDimension: maxDimension,
@@ -444,19 +311,7 @@ class LiveStackingService {
   /// The returned [LiveStackingMasterSave] carries the path actually written,
   /// the form it took, and (for a FITS master) the integration and `DATE-OBS`
   /// that went into the header.
-  Future<LiveStackingMasterSave> saveMaster({required String filePath}) {
-    return _saveMasterImpl(filePath: filePath);
-  }
-
-  /// Write a specific filter slot's accumulated master to [filePath].
-  Future<LiveStackingMasterSave> saveMasterForFilter({
-    required String filterKey,
-    required String filePath,
-  }) {
-    return _saveMasterImpl(filePath: filePath, filterKey: filterKey);
-  }
-
-  Future<LiveStackingMasterSave> _saveMasterImpl({
+  Future<LiveStackingMasterSave> saveMaster({
     required String filePath,
     String? filterKey,
   }) async {
@@ -476,9 +331,9 @@ class LiveStackingService {
 
     // No extension means "the data product": the FITS master locally, and the
     // render on a remote client, which is all a client can write.
-    final wantsFits = isFits || (requested.isEmpty && _remote == null);
+    final wantsFits = isFits || (requested.isEmpty && !readsHost);
     if (wantsFits) {
-      if (_remote != null) {
+      if (readsHost) {
         throw LiveStackingMasterFormatUnsupported(
           requested,
           reason:
@@ -493,9 +348,7 @@ class LiveStackingService {
       );
     }
 
-    final result = filterKey != null
-        ? await getCurrentResultForFilter(filterKey)
-        : await getCurrentResult();
+    final result = await getCurrentResult(filterKey: filterKey);
     if (result.stats.stackedFrameCount <= 0 ||
         result.width <= 0 ||
         result.height <= 0) {
@@ -577,37 +430,21 @@ class LiveStackingService {
     );
   }
 
-  Future<LiveStackingStats> getStats() async {
-    final remote = _remote;
-    if (remote != null) {
-      return remote.stackingGetStats();
-    }
-    final result = await bridge.apiStackingGetStats();
-    return LiveStackingStats.fromBridge(result);
-  }
-
-  /// Get stacking statistics for a specific filter slot.
-  Future<LiveStackingStats> getStatsForFilter(String filterKey) async {
-    final remote = _remote;
-    if (remote != null) {
-      return remote.stackingGetStats();
-    }
-    final result = await bridge.apiStackingGetStatsForFilter(
-      filterKey: filterKey,
-    );
+  Future<LiveStackingStats> getStats({String? filterKey}) async {
+    final result = filterKey != null
+        ? await bridge.apiStackingGetStatsForFilter(filterKey: filterKey)
+        : await bridge.apiStackingGetStats();
     return LiveStackingStats.fromBridge(result);
   }
 
   /// List all active per-filter stacks on the local native engine.
   Future<List<LiveStackFilterSummary>> listFilters() async {
-    if (_remote != null) return const [];
     final list = await bridge.apiStackingListFilters();
     return list.map(LiveStackFilterSummary.fromBridge).toList(growable: false);
   }
 
   /// Read recent per-frame alignment/rejection events (newest first).
   Future<List<LiveStackFrameEvent>> getEvents({String? filterKey}) async {
-    if (_remote != null) return const [];
     final list = await bridge.apiStackingGetEvents(filterKey: filterKey);
     return list.map(LiveStackFrameEvent.fromBridge).toList(growable: false);
   }
@@ -618,7 +455,6 @@ class LiveStackingService {
     LiveStackingConfig config, {
     String? filterKey,
   }) async {
-    if (_remote != null) return;
     await bridge.apiStackingUpdateConfig(
       filterKey: filterKey,
       config: config.toBridge(),
@@ -626,56 +462,197 @@ class LiveStackingService {
   }
 
   /// Reset the stacker, clearing accumulated data but keeping the reference.
-  Future<void> reset() async {
-    _logger.info('Resetting live stacker', source: 'LiveStackingService');
-    final remote = _remote;
-    if (remote != null) {
-      await remote.stackingReset();
-      return;
-    }
-    await bridge.apiStackingReset();
-  }
-
-  /// Reset a specific filter's live stacker.
-  Future<void> resetForFilter(String filterKey) async {
+  Future<void> reset({String? filterKey}) async {
     _logger.info(
-      'Resetting live stacker for $filterKey',
+      'Resetting live stacker${filterKey != null ? ' for $filterKey' : ''}',
       source: 'LiveStackingService',
     );
-    final remote = _remote;
-    if (remote != null) {
-      await remote.stackingReset(filterKey: filterKey);
-      return;
+    if (filterKey != null) {
+      await bridge.apiStackingResetForFilter(filterKey: filterKey);
+    } else {
+      await bridge.apiStackingReset();
     }
-    await bridge.apiStackingResetForFilter(filterKey: filterKey);
   }
 
-  /// Stop live stacking and release all resources.
-  Future<void> stop() async {
-    _logger.info('Stopping live stacker', source: 'LiveStackingService');
-    final remote = _remote;
-    if (remote != null) {
-      await remote.stackingStop();
-      return;
-    }
-    await bridge.apiStackingStop();
-  }
-
-  /// Stop a single filter's live stack slot.
-  Future<void> stopForFilter(String filterKey) async {
+  /// Stop live stacking and release its resources.
+  Future<void> stop({String? filterKey}) async {
     _logger.info(
-      'Stopping live stacker for $filterKey',
+      'Stopping live stacker${filterKey != null ? ' for $filterKey' : ''}',
       source: 'LiveStackingService',
     );
-    final remote = _remote;
-    if (remote != null) {
-      await remote.stackingStop(filterKey: filterKey);
-      return;
+    if (filterKey != null) {
+      await bridge.apiStackingStopForFilter(filterKey: filterKey);
+    } else {
+      await bridge.apiStackingStop();
     }
-    await bridge.apiStackingStopForFilter(filterKey: filterKey);
   }
 
-  bool get isActive => _remote == null && bridge.apiStackingIsActive();
+  bool get isActive => bridge.apiStackingIsActive();
 
-  int get frameCount => _remote == null ? bridge.apiStackingFrameCount() : 0;
+  int get frameCount => bridge.apiStackingFrameCount();
 }
+
+/// The live stacker on a linked client: the imaging host's, reached over
+/// `/api/stacking/*`. This process's own native stacker is empty there.
+///
+/// Stretching and rendering a buffer still run here.
+class LinkedLiveStackingService extends LiveStackingService {
+  final HostLiveStack _host;
+
+  LinkedLiveStackingService(super.logger, this._host, {super.saveFitsMaster});
+
+  @override
+  bool get readsHost => true;
+
+  /// Without [referenceImagePath] the host arms and the next frame it
+  /// captures becomes the reference; with one, it is a host path.
+  @override
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
+    LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
+  }) {
+    _logger.info(
+      referenceImagePath == null
+          ? 'Arming host-side live stacking'
+          : 'Starting live stacking from file: $referenceImagePath'
+                '${filterKey != null ? ' (filter=$filterKey)' : ''}',
+      source: 'LiveStackingService',
+    );
+    return _host.stackingStart(
+      referencePath: referenceImagePath,
+      config: config,
+      filterKey: filterKey,
+    );
+  }
+
+  /// Raw pixel upload to the host is not supported: the host stacks the
+  /// frames it captures.
+  @override
+  Future<LiveStackingStats> startFromData({
+    required int width,
+    required int height,
+    required List<int> data,
+    double pedestal = 0.0,
+    LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
+  }) async {
+    throw StateError(
+      'startFromData is not available on a remote connection; the imaging '
+      'host stacks the frames it captures. Arm the host instead.',
+    );
+  }
+
+  /// The host adds [imagePath] (a host path) to its active slot; the host
+  /// route takes no filter.
+  @override
+  Future<LiveStackingResult> _addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) => _host.stackingAddFrame(imagePath);
+
+  @override
+  Future<LiveStackingResult> addFrameFromData({
+    required int width,
+    required int height,
+    required List<int> data,
+    double pedestal = 0.0,
+    String? filterKey,
+  }) async {
+    throw StateError(
+      'addFrameFromData is not available on a remote connection; the imaging '
+      'host stacks the frames it captures.',
+    );
+  }
+
+  @override
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) =>
+      _host.stackingGetResult(filterKey: filterKey);
+
+  @override
+  Future<StretchedPreviewFrame> renderStackPreviewRgba({
+    String? filterKey,
+    int maxDimension = 2048,
+  }) async {
+    throw StateError(
+      'renderStackPreviewRgba reads the local native stacker and is not '
+      'available on a remote connection.',
+    );
+  }
+
+  /// The host's stats route has no filter: its active slot's tally.
+  @override
+  Future<LiveStackingStats> getStats({String? filterKey}) =>
+      _host.stackingGetStats();
+
+  @override
+  Future<List<LiveStackFilterSummary>> listFilters() async => const [];
+
+  @override
+  Future<List<LiveStackFrameEvent>> getEvents({String? filterKey}) async =>
+      const [];
+
+  @override
+  Future<void> updateLiveConfig(
+    LiveStackingConfig config, {
+    String? filterKey,
+  }) async {}
+
+  @override
+  Future<void> reset({String? filterKey}) async {
+    _logger.info(
+      'Resetting live stacker${filterKey != null ? ' for $filterKey' : ''}',
+      source: 'LiveStackingService',
+    );
+    await _host.stackingReset(filterKey: filterKey);
+  }
+
+  @override
+  Future<void> stop({String? filterKey}) async {
+    _logger.info(
+      'Stopping live stacker${filterKey != null ? ' for $filterKey' : ''}',
+      source: 'LiveStackingService',
+    );
+    await _host.stackingStop(filterKey: filterKey);
+  }
+
+  @override
+  bool get isActive => false;
+
+  @override
+  int get frameCount => 0;
+}
+
+/// The kind the engine left a frame out by, read from an add-frame failure:
+/// the native refusal, or the [LiveStackingFrameRejected] it was counted as.
+LiveStackRefusal? liveStackRefusalOf(Object error) => switch (error) {
+  LiveStackingFrameRejected(:final refusal) => refusal,
+  bridge.SkotiqError_Refused(:final kind, :final message) => switch (kind) {
+    bridge.Refusal.liveStackMisaligned => LiveStackRefusal(
+      LiveStackRefusalKind.misaligned,
+      message,
+    ),
+    bridge.Refusal.liveStackOtherFilter => LiveStackRefusal(
+      LiveStackRefusalKind.otherFilter,
+      message,
+    ),
+    bridge.Refusal.liveStackUnreadable => LiveStackRefusal(
+      LiveStackRefusalKind.unreadable,
+      message,
+    ),
+    _ => null,
+  },
+  _ => null,
+};
+
+/// The refusal of a reference frame with too few stars, when [error] is
+/// one.
+LiveStackReferenceRefusal? liveStackReferenceRefusalOf(Object error) =>
+    switch (error) {
+      bridge.SkotiqError_Refused(
+        kind: bridge.Refusal.liveStackTooFewReferenceStars,
+        :final message,
+      ) =>
+        LiveStackReferenceRefusal.fromMessage(message),
+      _ => null,
+    };

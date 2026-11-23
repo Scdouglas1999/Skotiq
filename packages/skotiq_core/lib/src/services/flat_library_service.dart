@@ -31,46 +31,6 @@ class FlatLibraryService {
   final FrameHeaderReader _readFrameHeader;
 
   /// Build a master flat from [flatPaths], write it to [outputPath], and
-  /// register it in the library. Returns the new `flat_library` row id.
-  ///
-  /// See [buildMasterFlat] for the arguments.
-  Future<int> createMasterFlat({
-    required List<String> flatPaths,
-    required String outputPath,
-    String? biasOrDarkFlatPath,
-    String? filter,
-    int? equipmentProfileId,
-    String? opticalTrainId,
-    double? temperature,
-    int? gain,
-    int? offset,
-    int? binX,
-    int? binY,
-    String flatKind = 'sky',
-    String method = 'sigmaClip',
-    double sigmaKappa = 3.0,
-    int sigmaIterations = 5,
-    String outputBitDepth = 'f32',
-  }) async => (await buildMasterFlat(
-    flatPaths: flatPaths,
-    outputPath: outputPath,
-    biasOrDarkFlatPath: biasOrDarkFlatPath,
-    filter: filter,
-    equipmentProfileId: equipmentProfileId,
-    opticalTrainId: opticalTrainId,
-    temperature: temperature,
-    gain: gain,
-    offset: offset,
-    binX: binX,
-    binY: binY,
-    flatKind: flatKind,
-    method: method,
-    sigmaKappa: sigmaKappa,
-    sigmaIterations: sigmaIterations,
-    outputBitDepth: outputBitDepth,
-  )).libraryId;
-
-  /// Build a master flat from [flatPaths], write it to [outputPath], and
   /// register it in the library.
   ///
   /// [biasOrDarkFlatPath] is the optional pedestal: a master bias (for short
@@ -138,9 +98,7 @@ class FlatLibraryService {
       filter: filter ?? header.string('FILTER'),
       equipmentProfileId: equipmentProfileId,
       opticalTrainId: opticalTrainId,
-      temperature:
-          temperature ??
-          header.firstNumber(const ['CCD-TEMP', 'CCD_TEMP', 'SET-TEMP']),
+      temperature: temperature ?? header.libraryTempC,
       // A flat without the cards is from a camera with no such control.
       gain: gain ?? header.integer('GAIN'),
       offset: offset ?? header.integer('OFFSET'),
@@ -178,6 +136,25 @@ class FlatLibraryService {
     return rows.firstWhere((row) => row.id == selection.record.id);
   }
 
+  /// The master flat for a light being calibrated as it is captured
+  /// ([liveFlatFor] over this library).
+  Future<FlatLibraryEntry?> findLiveFlat({
+    required String? filter,
+    required int? gain,
+    required int? offset,
+    int binX = 1,
+    int binY = 1,
+    double? temperature,
+  }) async => liveFlatFor(
+    await _dao.getAllEntries(),
+    filter: filter,
+    gain: gain,
+    offset: offset,
+    binX: binX,
+    binY: binY,
+    temperature: temperature,
+  );
+
   /// All registered master flats, newest first.
   Future<List<FlatLibraryEntry>> getAllEntries() => _dao.getAllEntries();
 
@@ -201,4 +178,49 @@ class FlatMasterBuild {
 
   final int libraryId;
   final BuildMasterFlatResult result;
+}
+
+/// The master flat of [rows] for a light being calibrated as it is captured:
+/// a flat of exactly the light's [filter] (the same name ignoring case and
+/// surrounding space; no filter takes a flat recorded with none), then
+/// [selectFlat] over the capture tuple, binning and temperature. Null when
+/// none qualifies: a light never takes another filter's flat.
+FlatLibraryEntry? liveFlatFor(
+  List<FlatLibraryEntry> rows, {
+  required String? filter,
+  required int? gain,
+  required int? offset,
+  int binX = 1,
+  int binY = 1,
+  double? temperature,
+}) {
+  final candidates = [
+    for (final row in rows)
+      if (_sameFilterName(row.filter, filter)) row,
+  ];
+  final selection = selectFlat(
+    candidates.map(flatLibraryRecord),
+    LightFrameContext(
+      gain: gain,
+      offset: offset,
+      exposureSeconds: 0,
+      temperature: temperature,
+      filter: filter,
+      binX: binX,
+      binY: binY,
+    ),
+    temperatureToleranceC: CalibrationMatchTolerances.defaults.flatTemperatureC,
+  );
+  if (selection == null) return null;
+  return candidates.firstWhere((row) => row.id == selection.record.id);
+}
+
+/// Whether a flat recorded with filter [flat] is the light's [light] filter
+/// by name: the same text ignoring case and surrounding space, or both none.
+bool _sameFilterName(String? flat, String? light) {
+  final a = flat?.trim().toLowerCase();
+  final b = light?.trim().toLowerCase();
+  final aNone = a == null || a.isEmpty;
+  final bNone = b == null || b.isEmpty;
+  return aNone || bNone ? aNone && bNone : a == b;
 }

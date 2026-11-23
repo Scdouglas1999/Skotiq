@@ -24,7 +24,6 @@ Future<void> _blur(WidgetTester tester) async {
 Widget _host(Widget child) => Column(
       children: [
         SettingRow(
-          icon: Icons.abc,
           title: 'Dither every',
           trailing: child,
         ),
@@ -375,7 +374,6 @@ void main() {
       SettingsFormScope(
         narrow: true,
         child: SettingRow(
-          icon: Icons.abc,
           title: 'Stacks on a phone',
           stackWhenNarrow: true,
           trailing: SettingsSwitch(value: false, onChanged: (_) {}),

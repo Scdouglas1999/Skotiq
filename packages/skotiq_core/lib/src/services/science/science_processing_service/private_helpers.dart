@@ -689,7 +689,7 @@ extension _ScienceProcessingPrivateHelpers on ScienceProcessingService {
   }) async {
     final settings = _ref.read(appSettingsProvider).valueOrNull;
     if (settings == null ||
-        settings.latitude == 0.0 && settings.longitude == 0.0) {
+        !siteLocationIsSet(settings.latitude, settings.longitude)) {
       return null;
     }
     try {

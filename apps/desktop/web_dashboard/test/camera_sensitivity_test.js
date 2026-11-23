@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+require('./load_wire_errors');
 
 const { makeDocument } = require('./dom_shim');
 

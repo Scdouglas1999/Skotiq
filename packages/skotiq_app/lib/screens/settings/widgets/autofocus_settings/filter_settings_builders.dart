@@ -17,12 +17,10 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
         title: 'Autofocus filter settings',
         children: [
           SettingRow(
-            icon: LucideIcons.info,
             title: 'No filter wheel connected',
             subtitle:
                 'Connect a filter wheel to configure per-filter autofocus settings.',
             trailing: SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       );
@@ -159,7 +157,6 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
     // Autofocus filter selector
     widgets.add(
       SettingRow(
-        icon: LucideIcons.focus,
         title: 'Designated autofocus filter',
         subtitle: 'Filter to switch to for AF runs',
         trailing: SettingsDropdown(
@@ -173,7 +170,6 @@ extension _AutofocusFilterSettingsBuilders on _AutofocusSettingsState {
             );
           },
         ),
-        isLast: true,
       ),
     );
 

@@ -42,7 +42,7 @@ void main() {
       container.read(_testOpticalConfig.notifier).state = _fullRig;
 
       // Nothing has touched the planetarium provider yet: this is the "open the
-      // planetarium fresh and press F" state that used to draw nothing.
+      // planetarium fresh and press F" state.
       expect(container.read(equipmentFOVProvider).fov, isNull);
 
       container.read(equipmentFovBindingProvider);

@@ -39,6 +39,10 @@ SkotiqEvent _polarEvent() => SkotiqEvent(
     'azimuth_error': 1.5,
     'altitude_error': -0.75,
     'total_error': 1.68,
+    'current_ra': 2.5,
+    'current_dec': 89.1,
+    'target_ra': 2.5,
+    'target_dec': 89.26,
   },
 );
 

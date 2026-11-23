@@ -12,9 +12,13 @@
 //! degrees; calibrated intensities are signed ADU per native pixel.
 
 use super::ApertureFrame;
+use crate::calibration::is_calibrated;
 use crate::fits::FitsHeader;
 use crate::registration::{RegistrationStats, TransformKind, TransformModel};
-use crate::{detect_stars, ImageData, PixelType, SipWcs, StarDetectionConfig};
+use crate::{
+    detect_stars, Acquisition, AgreementPolicy, ExposureTolerance, FrameType, ImageData,
+    MasterProvenance, NumberMatch, PixelType, Setting, SipWcs, StarDetectionConfig,
+};
 use serde::{Deserialize, Serialize};
 
 /// U16 lights at or above this level are treated as saturated. Two-thirds of
@@ -372,7 +376,7 @@ pub fn source_mask(light: &ImageData) -> Result<Vec<bool>, String> {
         // Elongated sources above the round-star selection ceiling are masked
         // when they are genuine trails (high SNR), not marginal 5σ noise
         // percolation clusters sitting on faint target nebulosity.
-        if star.eccentricity > crate::SELECTION_MAX_ECCENTRICITY && star.snr < 8.0 {
+        if star.kind() == crate::SourceKind::NoiseCluster {
             continue;
         }
         mark_disk(star.x, star.y, (3.0 * star.fwhm).clamp(6.0, 25.0));
@@ -458,23 +462,32 @@ pub struct AcquisitionSettings {
     pub bin_x: i32,
     pub bin_y: i32,
     pub ccd_temp_c: Option<f64>,
+    /// `SET-TEMP`: the cooler's set-point. Goals defined before it was read
+    /// carry none, and are not held to one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set_point_c: Option<f64>,
+    /// `READOUTM`, as stated; held to the same rule as `set_point_c`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read_mode: Option<String>,
 }
+
+/// The binning of a light whose header does not state it: unbinned.
+const UNSTATED_BINNING: i32 = 1;
 
 /// Read and vet a light's header: an unprocessed monochrome `Light` with the
 /// cards the compatibility checks need.
 pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String> {
-    let image_type = header.get_string("IMAGETYP").unwrap_or("");
-    if !image_type.eq_ignore_ascii_case("light") && !image_type.eq_ignore_ascii_case("light frame")
+    let provenance = MasterProvenance::from_header(header);
+    if !provenance
+        .kind()
+        .is_some_and(|kind| kind.base == FrameType::Light)
     {
+        let image_type = header.get_string("IMAGETYP").unwrap_or("");
         return Err(format!(
             "Only light exposures may be measured; this file is IMAGETYP {image_type:?}"
         ));
     }
-    if header.get_string("CALSTAT").is_some()
-        || header
-            .get_string("FRAMETYP")
-            .is_some_and(|v| v.eq_ignore_ascii_case("master"))
-    {
+    if is_calibrated(header) || provenance.says_master() {
         return Err(
             "Only unprocessed lights may be measured; this file is already calibrated or stacked"
                 .into(),
@@ -485,39 +498,38 @@ pub fn light_settings(header: &FitsHeader) -> Result<AcquisitionSettings, String
             "DepthLock measures monochrome data; this light carries a Bayer pattern".into(),
         );
     }
-    let instrument = header
-        .get_string("INSTRUME")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("Light has no camera identity (INSTRUME)")?
-        .to_string();
-    let filter = header
-        .get_string("FILTER")
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("Light has no filter identity (FILTER)")?
-        .to_string();
-    let exposure_secs = numeric(header, "EXPTIME")?;
+    let taken = crate::acquisition(header);
+    let name = |card: Option<String>| {
+        card.map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty())
+    };
+    let instrument = name(taken.instrument).ok_or("Light has no camera identity (INSTRUME)")?;
+    let filter = name(taken.filter).ok_or("Light has no filter identity (FILTER)")?;
+    let exposure_secs = taken
+        .exposure_s
+        .filter(|v| v.is_finite())
+        .ok_or("DepthLock requires a finite EXPTIME FITS keyword")?;
     if exposure_secs <= 0.0 {
         return Err("Light has a non-positive EXPTIME".into());
     }
-    let int_card = |key: &str| -> Result<Option<i32>, String> {
-        match header.get_int(key) {
-            None => Ok(None),
-            Some(v) => i32::try_from(v)
-                .map(Some)
-                .map_err(|_| format!("{key} is out of range")),
-        }
+    let whole = |card: Setting, value: Option<f64>| -> Result<Option<i32>, String> {
+        value
+            .map(|v| {
+                i32::try_from(v as i64).map_err(|_| format!("{} is out of range", card.card()))
+            })
+            .transpose()
     };
     Ok(AcquisitionSettings {
         instrument,
         filter,
         exposure_secs,
-        gain: int_card("GAIN")?,
-        offset: int_card("OFFSET")?,
-        bin_x: int_card("XBINNING")?.unwrap_or(1),
-        bin_y: int_card("YBINNING")?.unwrap_or(1),
-        ccd_temp_c: header.get_float("CCD-TEMP").filter(|v| v.is_finite()),
+        gain: whole(Setting::Gain, taken.gain)?,
+        offset: whole(Setting::Offset, taken.offset)?,
+        bin_x: whole(Setting::BinX, taken.bin_x)?.unwrap_or(UNSTATED_BINNING),
+        bin_y: whole(Setting::BinY, taken.bin_y)?.unwrap_or(UNSTATED_BINNING),
+        ccd_temp_c: taken.sensor_temp_c.filter(|v| v.is_finite()),
+        set_point_c: taken.set_point_c.filter(|v| v.is_finite()),
+        read_mode: name(taken.read_mode),
     })
 }
 
@@ -539,6 +551,60 @@ impl Default for CompatibilityPolicy {
     }
 }
 
+impl AcquisitionSettings {
+    fn acquisition(&self) -> Acquisition {
+        Acquisition {
+            instrument: Some(self.instrument.clone()),
+            filter: Some(self.filter.clone()),
+            exposure_s: Some(self.exposure_secs),
+            gain: self.gain.map(f64::from),
+            offset: self.offset.map(f64::from),
+            bin_x: Some(f64::from(self.bin_x)),
+            bin_y: Some(f64::from(self.bin_y)),
+            sensor_temp_c: self.ccd_temp_c,
+            set_point_c: self.set_point_c,
+            read_mode: self.read_mode.clone(),
+        }
+    }
+}
+
+/// A number a [`Disagreement`](crate::Disagreement) states, to one decimal.
+fn one_decimal(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .map_or_else(|_| value.to_string(), |v| format!("{v:.1}"))
+}
+
+/// A number a [`Disagreement`](crate::Disagreement) states, to three decimals.
+fn three_decimals(value: &str) -> String {
+    value
+        .parse::<f64>()
+        .map_or_else(|_| value.to_string(), |v| format!("{v:.3}"))
+}
+
+/// How far a set-point may differ: rounding of the card, as the dark
+/// library's builder allows.
+const DEPTHLOCK_SET_POINT_TOLERANCE_C: f64 = 0.05;
+
+/// DepthLock's agreement rule: names and read mode in any case, exposure
+/// within 0.1 % of the goal's (darks are not scaled), the set-point within
+/// rounding, whole gain, offset and binning. A card is compared only when
+/// both frames state it.
+const DEPTHLOCK_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    instrument: true,
+    filter: true,
+    exposure: Some(ExposureTolerance {
+        absolute_s: 0.0,
+        relative: 0.001,
+    }),
+    set_point_c: Some(DEPTHLOCK_SET_POINT_TOLERANCE_C),
+    read_mode: true,
+    numbers: NumberMatch::Whole,
+    text_ignores_case: true,
+    first_states_numbers: false,
+    sensor_temp_c: None,
+};
+
 /// Refuse a light whose acquisition differs from the goal's. Gain and offset
 /// are compared when the goal knows them; a goal defined without them is
 /// pooling on the calibration library's word alone, and says so.
@@ -547,53 +613,68 @@ pub fn check_compatible(
     light: &AcquisitionSettings,
     policy: &CompatibilityPolicy,
 ) -> Result<(), String> {
-    if !light.instrument.eq_ignore_ascii_case(&goal.instrument) {
-        return Err(format!(
+    let agreement = AgreementPolicy {
+        first_states_numbers: true,
+        sensor_temp_c: Some(policy.temperature_tolerance_c),
+        ..DEPTHLOCK_AGREEMENT
+    };
+    // Binning is named before gain and offset, the sensor temperature last.
+    let rank = |setting: Setting| match setting {
+        Setting::BinX | Setting::BinY => 0,
+        Setting::Gain | Setting::Offset | Setting::ReadMode => 1,
+        Setting::SetPoint | Setting::SensorTemp => 2,
+        _ => -1,
+    };
+    let Some(first) = goal
+        .acquisition()
+        .disagreements(&light.acquisition(), &agreement)
+        .into_iter()
+        .min_by_key(|d| rank(d.setting))
+    else {
+        return Ok(());
+    };
+    let stated = |value: Option<i32>| value.map_or("unstated".to_string(), |v| v.to_string());
+    Err(match first.setting {
+        Setting::Instrument => format!(
             "Camera differs: goal was defined for {:?}, light is from {:?}",
             goal.instrument, light.instrument
-        ));
-    }
-    if !light.filter.eq_ignore_ascii_case(&goal.filter) {
-        return Err(format!(
+        ),
+        Setting::Filter => format!(
             "Filter differs: goal is for {:?}, light was taken through {:?}",
             goal.filter, light.filter
-        ));
-    }
-    if (light.exposure_secs - goal.exposure_secs).abs() > 0.001 * goal.exposure_secs {
-        return Err(format!(
+        ),
+        Setting::Exposure => format!(
             "Exposure differs: goal and its master dark are for {:.3} s, light is {:.3} s \
              (DepthLock does not scale darks)",
             goal.exposure_secs, light.exposure_secs
-        ));
-    }
-    if light.bin_x != goal.bin_x || light.bin_y != goal.bin_y {
-        return Err(format!(
+        ),
+        Setting::BinX | Setting::BinY => format!(
             "Binning differs: goal is {}x{}, light is {}x{}",
             goal.bin_x, goal.bin_y, light.bin_x, light.bin_y
-        ));
-    }
-    for (name, goal_value, light_value) in [
-        ("Gain", goal.gain, light.gain),
-        ("Offset", goal.offset, light.offset),
-    ] {
-        if let Some(expected) = goal_value {
-            if light_value != Some(expected) {
-                return Err(format!(
-                    "{name} differs: goal is {expected}, light is {}",
-                    light_value.map_or("unstated".to_string(), |v| v.to_string())
-                ));
-            }
-        }
-    }
-    if let (Some(goal_temp), Some(light_temp)) = (goal.ccd_temp_c, light.ccd_temp_c) {
-        if (goal_temp - light_temp).abs() > policy.temperature_tolerance_c {
-            return Err(format!(
-                "Sensor temperature differs by more than {:.1} °C: goal {:.1} °C, light {:.1} °C",
-                policy.temperature_tolerance_c, goal_temp, light_temp
-            ));
-        }
-    }
-    Ok(())
+        ),
+        Setting::Gain => format!(
+            "Gain differs: goal is {}, light is {}",
+            stated(goal.gain),
+            stated(light.gain)
+        ),
+        Setting::Offset => format!(
+            "Offset differs: goal is {}, light is {}",
+            stated(goal.offset),
+            stated(light.offset)
+        ),
+        Setting::SensorTemp => format!(
+            "Sensor temperature differs by more than {:.1} °C: goal {} °C, light {} °C",
+            policy.temperature_tolerance_c,
+            one_decimal(&first.first),
+            one_decimal(&first.other)
+        ),
+        Setting::SetPoint | Setting::ReadMode => format!(
+            "{} differs: goal is {}, light is {}",
+            first.setting.card(),
+            first.first,
+            first.other
+        ),
+    })
 }
 
 /// Which master a file must declare itself to be.
@@ -604,10 +685,10 @@ pub enum MasterKind {
 }
 
 /// Vet a master frame's header and geometry against the light it will
-/// calibrate. Skotiq's own masters declare `FRAMETYP = MASTER`,
-/// `IMAGETYP = DARK|FLAT` and `NFRAMES`, and nothing about the acquisition
-/// — that part of the provenance comes from the frozen goal settings. When a
-/// master does carry acquisition cards they must agree.
+/// calibrate. A master says so by `FRAMETYP = MASTER` or in `IMAGETYP` (the
+/// dark library writes `IMAGETYP = 'Master Dark'`), names its kind in
+/// `IMAGETYP`, and counts its frames in `NFRAMES`, else `NCOMBINE`. Acquisition cards a master carries must agree with the
+/// frozen goal settings.
 pub fn validate_master(
     kind: MasterKind,
     header: &FitsHeader,
@@ -619,25 +700,18 @@ pub fn validate_master(
         MasterKind::Dark => "Master dark",
         MasterKind::Flat => "Master flat",
     };
-    let wanted = match kind {
-        MasterKind::Dark => "dark",
-        MasterKind::Flat => "flat",
+    let (wanted, base) = match kind {
+        MasterKind::Dark => ("dark", FrameType::Dark),
+        MasterKind::Flat => ("flat", FrameType::Flat),
     };
-    if !header
-        .get_string("FRAMETYP")
-        .is_some_and(|v| v.eq_ignore_ascii_case("master"))
-    {
+    let provenance = MasterProvenance::from_header(header);
+    if !provenance.says_master() {
         return Err(format!(
-            "{label} is not a master frame (FRAMETYP is not MASTER)"
+            "{label} is not a master frame (neither FRAMETYP nor IMAGETYP says MASTER)"
         ));
     }
     let image_type = header.get_string("IMAGETYP").unwrap_or("").trim();
-    let is_kind = image_type.eq_ignore_ascii_case(wanted)
-        || image_type
-            .to_ascii_lowercase()
-            .split(|c: char| !c.is_ascii_alphanumeric())
-            .any(|w| w == wanted);
-    if !is_kind {
+    if !provenance.kind().is_some_and(|kind| kind.base == base) {
         return Err(format!(
             "{label} declares IMAGETYP {image_type:?}, not a {wanted}"
         ));
@@ -647,11 +721,19 @@ pub fn validate_master(
             "{label} carries a Bayer pattern; DepthLock is monochrome only"
         ));
     }
-    let frames = header.get_int("NFRAMES").unwrap_or(0);
-    if frames < MIN_MASTER_FRAMES {
-        return Err(format!(
+    match provenance.frames.or(provenance.combined) {
+        Some(frames) if frames >= MIN_MASTER_FRAMES => {}
+        Some(frames) => {
+            return Err(format!(
             "{label} was built from {frames} frames; DepthLock needs at least {MIN_MASTER_FRAMES}"
-        ));
+        ))
+        }
+        None => {
+            return Err(format!(
+                "{label} does not say how many frames it was built from (NFRAMES or NCOMBINE); \
+                 DepthLock needs at least {MIN_MASTER_FRAMES}"
+            ))
+        }
     }
     if image.width != reference.width || image.height != reference.height {
         return Err(format!(
@@ -660,47 +742,56 @@ pub fn validate_master(
         ));
     }
     master_pixels(image)?;
-    if let Some(instrument) = header.get_string("INSTRUME") {
-        if !instrument.trim().eq_ignore_ascii_case(&goal.instrument) {
-            return Err(format!(
-                "{label} is from camera {instrument:?}, goal is for {:?}",
-                goal.instrument
-            ));
-        }
-    }
-    if kind == MasterKind::Dark {
-        if let Some(exposure) = header.get_float("EXPTIME") {
-            if (exposure - goal.exposure_secs).abs() > 0.001 * goal.exposure_secs {
-                return Err(format!(
-                    "{label} exposure {exposure:.3} s does not match the goal's {:.3} s",
-                    goal.exposure_secs
-                ));
-            }
-        }
-    }
-    if kind == MasterKind::Flat {
-        if let Some(filter) = header.get_string("FILTER") {
-            if !filter.trim().eq_ignore_ascii_case(&goal.filter) {
-                return Err(format!(
-                    "{label} is for filter {filter:?}, goal is for {:?}",
-                    goal.filter
-                ));
-            }
-        }
-    }
-    for (key, expected) in [
-        ("GAIN", goal.gain.map(i64::from)),
-        ("OFFSET", goal.offset.map(i64::from)),
-        ("XBINNING", Some(i64::from(goal.bin_x))),
-        ("YBINNING", Some(i64::from(goal.bin_y))),
-    ] {
-        if let (Some(actual), Some(expected)) = (header.get_int(key), expected) {
-            if actual != expected {
-                return Err(format!("{label} {key} is {actual}, goal is {expected}"));
-            }
-        }
-    }
-    Ok(())
+    let card_text = |key: &str| header.get_string(key).map(|v| v.trim().to_string());
+    let card_number = |key: &str| header.get_int(key).map(|v| v as f64);
+    let taken = crate::acquisition(header);
+    let master = Acquisition {
+        instrument: card_text("INSTRUME"),
+        filter: card_text("FILTER"),
+        exposure_s: header.get_float("EXPTIME"),
+        gain: card_number("GAIN"),
+        offset: card_number("OFFSET"),
+        bin_x: card_number("XBINNING"),
+        bin_y: card_number("YBINNING"),
+        set_point_c: taken.set_point_c,
+        read_mode: taken.read_mode.map(|mode| mode.trim().to_string()),
+        ..Acquisition::default()
+    };
+    // A master dark is held to the goal's exposure, a master flat to its filter.
+    let agreement = AgreementPolicy {
+        filter: kind == MasterKind::Flat,
+        exposure: DEPTHLOCK_AGREEMENT
+            .exposure
+            .filter(|_| kind == MasterKind::Dark),
+        ..DEPTHLOCK_AGREEMENT
+    };
+    let Some(first) = goal.acquisition().disagreement(&master, &agreement) else {
+        return Ok(());
+    };
+    let raw = |key: &str| header.get_string(key).unwrap_or(first.other.as_str());
+    Err(match first.setting {
+        Setting::Instrument => format!(
+            "{label} is from camera {:?}, goal is for {:?}",
+            raw("INSTRUME"),
+            goal.instrument
+        ),
+        Setting::Filter => format!(
+            "{label} is for filter {:?}, goal is for {:?}",
+            raw("FILTER"),
+            goal.filter
+        ),
+        Setting::Exposure => format!(
+            "{label} exposure {} s does not match the goal's {:.3} s",
+            three_decimals(&first.other),
+            goal.exposure_secs
+        ),
+        setting => format!(
+            "{label} {} is {}, goal is {}",
+            setting.card(),
+            first.other,
+            first.first
+        ),
+    })
 }
 
 /// One measured exposure, assembled from its vetted parts.

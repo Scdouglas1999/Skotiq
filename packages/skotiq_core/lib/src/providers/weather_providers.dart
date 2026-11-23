@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 import '../models/weather/weather_models.dart';
 import '../models/weather/current_sky.dart';
 
@@ -24,7 +25,7 @@ export 'weather_safety_provider.dart';
 /// Manages radar data fetching from multiple providers (NOAA, RainViewer, OpenMeteo).
 /// Initializes on first access and disposes when the provider is destroyed.
 final weatherRadarServiceProvider = Provider<WeatherRadarService>((ref) {
-  final service = WeatherRadarService(ref);
+  final service = WeatherRadarService(() => ref.read(databaseProvider));
   service.initialize();
   ref.onDispose(() => service.dispose());
   return service;
@@ -467,7 +468,7 @@ final weatherRadarFramesProvider = FutureProvider<List<RadarFrame>>((
   final longitude = observerLocation.longitude;
 
   // Skip fetch if location not set
-  if (latitude == 0.0 && longitude == 0.0) {
+  if (!siteLocationIsSet(latitude, longitude)) {
     Log.debug('Location not set, returning empty', source: 'WeatherRadar');
     return [];
   }
@@ -648,7 +649,7 @@ final analyzeCloudMotionDetailedProvider =
       final longitude = observerLocation.longitude;
 
       // Skip analysis if location not set
-      if (latitude == 0.0 && longitude == 0.0) {
+      if (!siteLocationIsSet(latitude, longitude)) {
         return const CloudMotionResult.unavailable(
           CloudMotionUnavailableReason.insufficientFrames,
         );

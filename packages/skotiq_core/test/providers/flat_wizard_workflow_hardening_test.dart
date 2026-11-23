@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
@@ -28,6 +29,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../mocks/mock_database.dart';
+import '../harness/event_wire.dart';
 
 const String _cam = 'native:cam:0';
 const String _fw = 'native:fw:0';
@@ -163,12 +165,12 @@ class _WorkflowBackend extends Mock implements SkotiqBackend {
     scheduleMicrotask(() {
       if (_events.isClosed) return;
       _events.add(
-        SkotiqEvent(
+        cameraTaggedWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureCompleted(hfr: 2, starsDetected: 0),
+          ),
+          deviceId: deviceId,
           timestamp: ++_seq,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureCompleted',
-          data: {'deviceId': deviceId},
         ),
       );
     });
@@ -285,12 +287,12 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
     scheduleMicrotask(() {
       if (_events.isClosed) return;
       _events.add(
-        SkotiqEvent(
+        cameraTaggedWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureCompleted(hfr: 2, starsDetected: 0),
+          ),
+          deviceId: deviceId,
           timestamp: ++_seq,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureCompleted',
-          data: {'deviceId': deviceId},
         ),
       );
     });
@@ -825,7 +827,7 @@ void main() {
         'output': {},
         'previewKey': 'old',
       };
-      wizard.applyHostSnapshot(old);
+      wizard.applyHostSnapshot(FlatRunSnapshot.fromJson(old));
       expect(wizard.isBusy, isTrue);
       (container.read(backendProvider.notifier) as _FixedBackendNotifier).use(
         newHost,
@@ -862,11 +864,13 @@ void main() {
         'mode': 'quick',
         'showAduGraph': true,
       };
-      wizard.applyHostSnapshot({
-        'state': {...state, 'statusMessage': 'Completed'},
-        'busy': false,
-        'output': {},
-      });
+      wizard.applyHostSnapshot(
+        FlatRunSnapshot.fromJson({
+          'state': {...state, 'statusMessage': 'Completed'},
+          'busy': false,
+          'output': {},
+        }),
+      );
       host.pendingStart!.complete({'state': state, 'busy': true, 'output': {}});
       await start;
       expect(wizard.isBusy, isFalse);

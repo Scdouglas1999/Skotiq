@@ -5,11 +5,13 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         SkotiqEvent,
         EventCategory,
         EventSeverity,
+        EquipmentEvent_Error,
         EventPayload_Guiding,
         GuidingEvent,
         GuidingEvent_Calibrating,
         GuidingEvent_CalibrationComplete,
         GuidingEvent_Connected,
+        SystemEvent_Notification,
         GuidingEvent_Disconnected,
         GuidingEvent_GuidingStarted,
         GuidingEvent_GuidingStopped,
@@ -25,9 +27,12 @@ import '../models/backend/host_runtime_update.dart' show isHostSyncEnvelope;
 import '../services/device_service_lifecycle.dart';
 import '../utils/logging_service.dart';
 import '../services/notification/event_classifier.dart';
+import '../services/notification/notification_router.dart'
+    show nodeNotificationTransports;
 import '../backend/remote_host.dart';
 import 'backend_provider.dart';
 import 'host_mutation_event_provider.dart';
+import 'notification_router_provider.dart' show notificationRouterProvider;
 import 'ui_notification_provider.dart';
 
 /// The typed event stream: every sequencer, device, imaging, guiding and
@@ -243,6 +248,15 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
         return;
       }
 
+      // A Notification node that names its own transports is sent by the
+      // notification router on exactly those, while it routes at all.
+      if (systemEventOf(event) case final SystemEvent_Notification notification
+          when nodeNotificationTransports(notification) != null &&
+              ref.exists(notificationRouterProvider) &&
+              ref.read(notificationRouterProvider).matrix.enabled) {
+        return;
+      }
+
       // A failed step is told by the run's end, whose notice carries this
       // reason, or by recovery's own notices when recovery saves the run.
       if (sequencerErrorOf(event)?.kind == SequencerErrorKind.stepFailed) {
@@ -257,8 +271,7 @@ final errorNotificationBridgeProvider = Provider<void>((ref) {
       // have none, and after a backend swap it can still be listening to the
       // old backend. Then this bridge is the only surface left.
       // Warning-severity ones always go through here.
-      if (event.category == core.EventCategory.equipment &&
-          event.eventType == 'Error' &&
+      if (equipmentEventOf(event) is EquipmentEvent_Error &&
           (event.severity == core.EventSeverity.error ||
               event.severity == core.EventSeverity.critical) &&
           DeviceServiceLifecycle.surfacesDeviceErrorsFrom(backend)) {
@@ -323,10 +336,10 @@ String? _eventMessage(core.SkotiqEvent event) {
 /// Build a title string from the event's category and device type.
 String _eventTitle(core.SkotiqEvent event) {
   // A system notification names itself ("Database needs repair").
-  if (event.category == core.EventCategory.system &&
-      event.eventType == 'Notification') {
-    final title = event.data['title'];
-    if (title is String && title.trim().isNotEmpty) return title;
+  if (systemEventOf(event) case SystemEvent_Notification(
+    :final title,
+  ) when title.trim().isNotEmpty) {
+    return title;
   }
   final deviceType = event.data['device_type'] as String?;
   final categoryLabel = switch (event.category) {

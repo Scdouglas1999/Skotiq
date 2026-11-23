@@ -1,0 +1,298 @@
+{
+  "defaults color": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": []
+  },
+  "defaults mono": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": []
+  },
+  "every step on color": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": [
+      {
+        "opId": "background_extract",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "modelOrder": 2,
+          "sampleSpacing": 64.0,
+          "exclusionPercentile": 0.75
+        }
+      },
+      {
+        "opId": "denoise",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "scaleCount": 4,
+          "thresholdSigma": 2.5,
+          "strength": 0.45,
+          "chromaStrength": 0.5
+        }
+      },
+      {
+        "opId": "color_calibrate",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "channelScale": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      },
+      {
+        "opId": "stretch",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "blackPoint": 0.0,
+          "whitePoint": 65535.0,
+          "d": 3.0,
+          "b": 2.0,
+          "symmetryPoint": 0.05
+        }
+      },
+      {
+        "opId": "saturation",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 0.25,
+          "protection": 0.5
+        }
+      },
+      {
+        "opId": "star_reduce",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 0.35,
+          "maskThresholdSigma": 5.0,
+          "maskDilatePx": 2.0
+        }
+      }
+    ]
+  },
+  "every step on mono": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": [
+      {
+        "opId": "background_extract",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "modelOrder": 2,
+          "sampleSpacing": 64.0,
+          "exclusionPercentile": 0.75
+        }
+      },
+      {
+        "opId": "denoise",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "scaleCount": 4,
+          "thresholdSigma": 2.5,
+          "strength": 0.45,
+          "chromaStrength": 0.0
+        }
+      },
+      {
+        "opId": "stretch",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "blackPoint": 0.0,
+          "whitePoint": 65535.0,
+          "d": 3.0,
+          "b": 2.0,
+          "symmetryPoint": 0.05
+        }
+      },
+      {
+        "opId": "star_reduce",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 0.35,
+          "maskThresholdSigma": 5.0,
+          "maskDilatePx": 2.0
+        }
+      }
+    ]
+  },
+  "out of range color": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": [
+      {
+        "opId": "background_extract",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "modelOrder": 6,
+          "sampleSpacing": 8.0,
+          "exclusionPercentile": 1.0
+        }
+      },
+      {
+        "opId": "denoise",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "scaleCount": 4,
+          "thresholdSigma": 10.0,
+          "strength": 1.0,
+          "chromaStrength": 0.0
+        }
+      },
+      {
+        "opId": "color_calibrate",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "channelScale": [
+            0.1,
+            10.0,
+            2.0
+          ]
+        }
+      },
+      {
+        "opId": "stretch",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "blackPoint": 100.0,
+          "whitePoint": 1100.0,
+          "d": 100.0,
+          "b": -5.0,
+          "symmetryPoint": 1.0
+        }
+      },
+      {
+        "opId": "saturation",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 3.0,
+          "protection": 0.0
+        }
+      },
+      {
+        "opId": "star_reduce",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 1.0,
+          "maskThresholdSigma": 1.0,
+          "maskDilatePx": 2.0
+        }
+      }
+    ]
+  },
+  "out of range mono": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": [
+      {
+        "opId": "background_extract",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "modelOrder": 6,
+          "sampleSpacing": 8.0,
+          "exclusionPercentile": 1.0
+        }
+      },
+      {
+        "opId": "denoise",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "scaleCount": 4,
+          "thresholdSigma": 10.0,
+          "strength": 1.0,
+          "chromaStrength": 0.0
+        }
+      },
+      {
+        "opId": "stretch",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "blackPoint": 100.0,
+          "whitePoint": 1100.0,
+          "d": 100.0,
+          "b": -5.0,
+          "symmetryPoint": 1.0
+        }
+      },
+      {
+        "opId": "star_reduce",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 1.0,
+          "maskThresholdSigma": 1.0,
+          "maskDilatePx": 2.0
+        }
+      }
+    ]
+  },
+  "saturation only color": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": [
+      {
+        "opId": "stretch",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "blackPoint": 0.0,
+          "whitePoint": 65535.0,
+          "d": 3.0,
+          "b": 2.0,
+          "symmetryPoint": 0.05
+        }
+      },
+      {
+        "opId": "saturation",
+        "opVersion": 1,
+        "enabled": true,
+        "params": {
+          "amount": 0.25,
+          "protection": 0.5
+        }
+      }
+    ]
+  },
+  "saturation only mono": {
+    "id": "live-L",
+    "schemaVersion": 1,
+    "baseMasterRef": "livestack:L",
+    "createdBy": "user",
+    "steps": []
+  }
+}

@@ -21,27 +21,19 @@ import 'current_frame_analysis_provider.dart' show hostFrameSolvesProvider;
 import 'database_provider.dart';
 import 'host_settings/host_settings_providers.dart'
     show hostSettingsStoreProvider;
+import 'host_reread.dart';
 import 'async_scope.dart';
 import 'equipment_provider.dart';
 import 'event_provider.dart' show eventHistoryProvider;
 import 'guiding_provider.dart' show guidingStopReasonProvider;
 import 'imaging_provider.dart'
     show exposureSettingsProvider, lastImageStatsProvider;
-import 'observing_list_provider.dart'
-    show listedCatalogIdsProvider, observingListsProvider;
 import 'profiles_provider.dart';
 import 'runtime_mirror/client_runtime_mirror.dart';
-import 'planning_provider.dart' show projectListProvider;
-import 'scheduler_provider.dart'
-    show
-        integrationGoalsStreamProvider,
-        schedulerPreviewDecisionProvider,
-        targetConstraintsStreamProvider;
+import 'scheduler_provider.dart' show schedulerPreviewDecisionProvider;
 import '../backend/sequencer_run_events.dart' show sequencerEventOf;
 import 'sequence_provider.dart';
-import 'sequence_stats_provider.dart' show sequenceRunsProvider;
 import 'session_provider.dart';
-import 'settings_provider.dart' show appSettingsProvider;
 import 'target_progress_provider.dart' show targetProgressProvider;
 import '../models/backend/backend_types.dart';
 import 'capture_preview_loader_provider.dart';
@@ -125,9 +117,9 @@ void applyHostEventOnClient(
       // The capture publisher runs only on the host, so the host's frame is
       // fetched here when it says one is ready; a saved or captured frame
       // counts too, in case the ready event was missed.
-      if (event.eventType == 'ImageReady' ||
-          event.eventType == 'ImageSaved' ||
-          event.eventType == 'ImageCaptured') {
+      if (imagingEventOf(event)
+          case bridge.ImagingEvent_ImageReady() ||
+              bridge.ImagingEvent_ImageSaved()) {
         unawaited(_publishRemoteCurrentFrame(container, backend));
       }
     case EventCategory.equipment:
@@ -142,7 +134,7 @@ void applyHostEventOnClient(
 }
 
 void _rereadImagesAfter(ProviderContainer container, SkotiqEvent event) {
-  if (event.eventType == 'ImageCaptured' || event.eventType == 'ImageSaved') {
+  if (imagingEventOf(event) is bridge.ImagingEvent_ImageSaved) {
     _invalidateHostCapturedImages(container);
   }
 }

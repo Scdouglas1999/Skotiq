@@ -590,7 +590,39 @@ void main() {
       },
     );
 
-    test('Error event for unknown device type does not crash', () async {
+    // A warning-level Error is a notice about a device that still works (a
+    // setting not restored after a reconnect, a connect-check note).
+    test('a warning-level Error leaves a working device connected', () async {
+      final cameraNotifier = container.read(cameraStateProvider.notifier);
+      cameraNotifier.setConnecting('camera-1', 'Test Camera');
+      cameraNotifier.setConnected();
+
+      eventStreamController.add(
+        SkotiqEvent(
+          timestamp: DateTime.now().millisecondsSinceEpoch,
+          severity: EventSeverity.warning,
+          category: EventCategory.equipment,
+          eventType: 'Error',
+          data: {
+            'device_type': 'camera',
+            'device_id': 'camera-1',
+            'message': 'Cooler set-point was not restored after reconnect',
+          },
+        ),
+      );
+
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final state = container.read(cameraStateProvider);
+      expect(state.connectionState, DeviceConnectionState.connected);
+      expect(state.lastError, isNull);
+    });
+
+    test('Error event for unknown device type touches no device', () async {
+      final mountNotifier = container.read(mountStateProvider.notifier);
+      mountNotifier.setConnecting('mount-1');
+      mountNotifier.setConnected();
+
       eventStreamController.add(
         SkotiqEvent(
           timestamp: DateTime.now().millisecondsSinceEpoch,
@@ -606,8 +638,9 @@ void main() {
       );
 
       await Future.delayed(const Duration(milliseconds: 50));
-      // Should not throw; warning path is exercised.
-      expect(true, isTrue);
+      final mount = container.read(mountStateProvider);
+      expect(mount.connectionState, DeviceConnectionState.connected);
+      expect(mount.lastError, isNull);
     });
 
     test('Error event with missing message still routes through', () async {

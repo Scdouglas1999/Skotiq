@@ -18,11 +18,14 @@ use skotiq_native::catalog::{NativeHandle, OpenRequest};
 use std::sync::Arc;
 
 impl DeviceManager {
-    pub(crate) async fn connect_native(&self, info: &DeviceInfo) -> Result<(), String> {
+    pub(crate) async fn connect_native(
+        &self,
+        info: &DeviceInfo,
+    ) -> Result<(), crate::device_manager::connection::ConnectError> {
         // Parse device ID: native:vendor:id
         let parts: Vec<&str> = info.id.split(':').collect();
         if parts.len() < 3 {
-            return Err("Invalid native device ID format".to_string());
+            return Err("Invalid native device ID format".into());
         }
 
         let vendor = parts[1];
@@ -65,15 +68,32 @@ impl DeviceManager {
                 elevation_m: Some(location.elevation),
             })
         });
+        let data_root = match crate::data_root::root() {
+            Ok(root) => Some(root),
+            Err(e) => {
+                tracing::debug!("{} opens without a data root: {e}", info.id);
+                None
+            }
+        };
         let handle = family
             .open(OpenRequest {
                 address,
                 name: &info.name,
                 site,
+                data_root: data_root.as_deref(),
             })
             .await
             .map_err(|e| e.to_string())?;
+        self.hold_native(info, handle).await
+    }
 
+    /// Connect a driver `connect_native` opened for `info` and hold it.
+    pub(crate) async fn hold_native(
+        &self,
+        info: &DeviceInfo,
+        handle: NativeHandle,
+    ) -> Result<(), crate::device_manager::connection::ConnectError> {
+        use crate::device_manager::connection::ConnectError;
         match (handle, info.device_type) {
             (NativeHandle::Camera(mut camera), DeviceType::Camera) => {
                 // Close the previous instance first: a reconnect after a lost
@@ -83,7 +103,7 @@ impl DeviceManager {
                     let _ = old.disconnect().await;
                     tracing::info!("Closed the previous native camera for {}", info.id);
                 }
-                camera.connect().await.map_err(|e| e.to_string())?;
+                camera.connect().await.map_err(ConnectError::from_driver)?;
                 self.tell_long_exposure_noise_reduction(
                     &info.name,
                     camera.long_exposure_noise_reduction(),
@@ -100,7 +120,7 @@ impl DeviceManager {
                     let _ = old.disconnect().await;
                     tracing::info!("Closed the previous native focuser for {}", info.id);
                 }
-                focuser.connect().await.map_err(|e| e.to_string())?;
+                focuser.connect().await.map_err(ConnectError::from_driver)?;
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::Focuser(Arc::new(DriverFocuser::vendor(&info.id, focuser))),
@@ -114,7 +134,10 @@ impl DeviceManager {
                     let _ = old.disconnect().await;
                     tracing::info!("Disconnected old native filter wheel for {}", info.id);
                 }
-                filterwheel.connect().await.map_err(|e| e.to_string())?;
+                filterwheel
+                    .connect()
+                    .await
+                    .map_err(ConnectError::from_driver)?;
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::FilterWheel(Arc::new(DriverFilterWheel::vendor(
@@ -137,7 +160,7 @@ impl DeviceManager {
                     stale.release().await;
                     tracing::info!("Released the previous native mount handle for {}", info.id);
                 }
-                mount.connect().await.map_err(|e| e.to_string())?;
+                mount.connect().await.map_err(ConnectError::from_driver)?;
                 self.handles.insert(
                     &info.id,
                     DeviceHandle::Mount(Arc::new(DriverMount::vendor(&info.id, mount))),
@@ -145,21 +168,37 @@ impl DeviceManager {
                 tracing::info!("Connected to native mount: {}", info.name);
             }
             // A camera registered as another kind of device (a guide camera
-            // as a guider) is held as a plain device.
-            (NativeHandle::Camera(camera), _) => {
-                let mut device: Box<dyn DeviceDriver> = camera;
-                device.connect().await.map_err(|e| e.to_string())?;
-                self.native_devices
-                    .write()
-                    .await
-                    .insert(info.id.clone(), device);
-                tracing::info!("Connected to native device: {}", info.name);
+            // as a guider) is held as a camera, so its heartbeat reads the
+            // camera's status, not the driver's connected flag, which stays
+            // true after the camera is unplugged.
+            (NativeHandle::Camera(mut camera), _) => {
+                if let Some(old) = self.handles.remove(&info.id) {
+                    match old.disconnect().await {
+                        Ok(()) => {
+                            tracing::info!("Closed the previous native camera for {}", info.id)
+                        }
+                        Err(e) => tracing::warn!(
+                            "Closing the previous native camera for {} reported {e}",
+                            info.id
+                        ),
+                    }
+                }
+                camera.connect().await.map_err(ConnectError::from_driver)?;
+                self.handles.insert(
+                    &info.id,
+                    DeviceHandle::Camera(Arc::new(DriverCamera::vendor(&info.id, camera))),
+                );
+                tracing::info!(
+                    "Connected to native camera as a {}: {}",
+                    info.device_type.noun(),
+                    info.name
+                );
             }
         }
         Ok(())
     }
 
-    /// Native driver liveness probe for the heartbeat loop (FB-).
+    /// Native driver liveness probe for the heartbeat loop.
     ///
     /// Uses a lightweight SDK read per device class instead of the in-process
     /// `connected` flag, which can stay true after USB unplug.

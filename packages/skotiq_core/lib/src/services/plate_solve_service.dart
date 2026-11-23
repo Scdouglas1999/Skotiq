@@ -1,15 +1,18 @@
 // ignore_for_file: unused_local_variable
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../errors/error_text.dart';
+import '../models/imaging/plate_solve_wire.dart';
 import '../models/plate_solver.dart' as ps_model;
 import '../providers/async_scope.dart';
 import '../providers/profiles_provider.dart' show opticalConfigProvider;
 import '../providers/settings_provider.dart';
 import '../providers/logging_service_provider.dart';
+import '../utils/async_scope.dart';
 
 final _kEmptyCoeffs = Float64List(0);
 
@@ -149,9 +152,7 @@ class PlateSolveService {
         timeoutSeconds: config.timeoutSeconds,
       );
     } catch (e) {
-      // The native solver's own answer is the one shown. A second solver in
-      // Dart used to run here and reported a worse solution than the one the
-      // native side would have (no `--crpix-center`, CD/PC rotation lost).
+      // The native solver's own answer is the one shown.
       return _failureResult('Plate solve failed: ${userFacingError(e)}');
     }
   }
@@ -472,21 +473,14 @@ class PlateSolveService {
   }
 }
 
-bool _sameMeasurement(double a, double b) => a == b || (a.isNaN && b.isNaN);
-
 /// Whether two results describe the same solve outcome.
 ///
 /// `PlateSolveResult ==` compares its SIP coefficient lists by identity, so a
-/// result that crossed the wire never equals the original; this compares the
-/// fields a solve is identified by instead.
+/// result that crossed the wire never equals the original; this compares
+/// their wire forms, in which an unmeasured value is null on both sides.
 bool samePlateSolveOutcome(PlateSolveResult a, PlateSolveResult b) =>
-    a.success == b.success &&
-    a.ra == b.ra &&
-    a.dec == b.dec &&
-    _sameMeasurement(a.pixelScale, b.pixelScale) &&
-    _sameMeasurement(a.rotation, b.rotation) &&
-    _sameMeasurement(a.solveTimeSecs, b.solveTimeSecs) &&
-    a.error == b.error;
+    jsonEncode(plateSolveResultToJson(a)) ==
+    jsonEncode(plateSolveResultToJson(b));
 
 class PlateSolveState {
   final bool isSolving;

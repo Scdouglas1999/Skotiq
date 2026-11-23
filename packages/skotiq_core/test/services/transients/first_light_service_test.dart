@@ -6,6 +6,8 @@ import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
 
+import '../../harness/args_fixture.dart';
+
 /// Recording fake seam returning a canned `api_difference_image` envelope.
 class _FakeDifferenceSeam implements DifferenceImageSeam {
   _FakeDifferenceSeam(this.result);
@@ -16,16 +18,16 @@ class _FakeDifferenceSeam implements DifferenceImageSeam {
   @override
   Future<Map<String, dynamic>> difference(Map<String, dynamic> args) async {
     dispatched.add(args);
+    expectNativeReadsEveryKey(args, ['difference_image']);
     if (throws) throw StateError('difference failed');
     return result;
   }
 
   @override
-  Future<Map<String, dynamic>> tileCenter(Map<String, dynamic> args) async => {
-    'tileId': args['tileId'],
-    'ra': 0.0,
-    'dec': 0.0,
-  };
+  Future<Map<String, dynamic>> tileCenter(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKey(args, ['difference_tile_center']);
+    return {'tileId': args['tileId'], 'ra': 0.0, 'dec': 0.0};
+  }
 }
 
 /// Catalog matcher that returns a fixed star list (empty = no match).

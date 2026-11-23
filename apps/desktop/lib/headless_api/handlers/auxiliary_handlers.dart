@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// bridge-boundary: auxiliary_handlers
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:shelf/shelf.dart';
 
+import '../accessory_devices.dart';
 import '../device_commands_route.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
@@ -39,16 +38,14 @@ class AuxiliaryHandlers implements RouteSource {
     String deviceId,
     String deviceName,
   ) async {
-    final caps = await bridge.apiGetSwitchCapabilities(deviceId: deviceId);
+    final accessories = accessoriesOf(container);
+    final caps = await accessories.readSwitchChannels(deviceId);
     final logger = container.read(loggingServiceProvider);
     final switches = await Future.wait(
-      caps.switches.map((s) async {
+      caps.channels.map((s) async {
         double? liveValue;
         try {
-          liveValue = await bridge.apiSwitchGetValue(
-            deviceId: deviceId,
-            switchId: s.index,
-          );
+          liveValue = await accessories.readSwitchValue(deviceId, s.index);
         } catch (error, stackTrace) {
           logger.warning(
             'Live switch value read failed for $deviceId channel ${s.index}: '
@@ -85,43 +82,9 @@ class AuxiliaryHandlers implements RouteSource {
       'connected': true,
       'deviceId': deviceId,
       'deviceName': deviceName,
-      'switchCount': caps.switchCount,
+      'switchCount': caps.count,
       'switches': switches,
     };
-  }
-
-  String _mapCoverState(bridge.CoverState state) {
-    switch (state) {
-      case bridge.CoverState.notPresent:
-        return 'notPresent';
-      case bridge.CoverState.closed:
-        return 'closed';
-      case bridge.CoverState.moving:
-        return 'moving';
-      case bridge.CoverState.open:
-        return 'open';
-      case bridge.CoverState.unknown:
-        return 'unknown';
-      case bridge.CoverState.error:
-        return 'error';
-    }
-  }
-
-  String _mapCalibratorState(bridge.CalibratorState state) {
-    switch (state) {
-      case bridge.CalibratorState.notPresent:
-        return 'notPresent';
-      case bridge.CalibratorState.off:
-        return 'off';
-      case bridge.CalibratorState.notReady:
-        return 'notReady';
-      case bridge.CalibratorState.ready:
-        return 'ready';
-      case bridge.CalibratorState.unknown:
-        return 'unknown';
-      case bridge.CalibratorState.error:
-        return 'error';
-    }
   }
 
   /// GET /api/switch/status
@@ -207,7 +170,9 @@ class AuxiliaryHandlers implements RouteSource {
       });
     }
 
-    final maxSwitches = await bridge.apiSwitchGetMax(deviceId: deviceId);
+    final maxSwitches = await accessoriesOf(
+      container,
+    ).switchChannelCount(deviceId);
     if (switchId < 0 || switchId >= maxSwitches) {
       throw BadRequestError(
         field: 'switchId',
@@ -228,17 +193,13 @@ class AuxiliaryHandlers implements RouteSource {
     );
     if (!viaSlot) {
       if (value is bool) {
-        await bridge.apiSwitchSetState(
-          deviceId: deviceId,
-          switchId: switchId,
-          state: value,
-        );
+        await accessoriesOf(
+          container,
+        ).writeSwitchState(deviceId, switchId, value);
       } else if (value is num) {
-        await bridge.apiSwitchSetValue(
-          deviceId: deviceId,
-          switchId: switchId,
-          value: value.toDouble(),
-        );
+        await accessoriesOf(
+          container,
+        ).writeSwitchValue(deviceId, switchId, value.toDouble());
       } else {
         throw BadRequestError(field: 'value', expected: 'boolean or number');
       }
@@ -274,17 +235,16 @@ class AuxiliaryHandlers implements RouteSource {
     }
     final device = matchingCovers.first;
 
-    final status = await bridge.apiCoverCalibratorGetStatus(deviceId: deviceId);
-    final hasCover = status.coverState != bridge.CoverState.notPresent;
-    final hasCalibrator =
-        status.calibratorState != bridge.CalibratorState.notPresent;
+    final status = await accessoriesOf(container).readCoverCalibrator(deviceId);
+    final hasCover = status.cover != CoverStatus.notPresent;
+    final hasCalibrator = status.calibrator != CalibratorStatus.notPresent;
 
     return jsonOk({
       'connected': status.connected,
       'deviceId': deviceId,
       'deviceName': device.name,
-      'coverState': _mapCoverState(status.coverState),
-      'calibratorState': _mapCalibratorState(status.calibratorState),
+      'coverState': status.cover.name,
+      'calibratorState': status.calibrator.name,
       'brightness': status.brightness,
       'maxBrightness': status.maxBrightness,
       'hasCover': hasCover,

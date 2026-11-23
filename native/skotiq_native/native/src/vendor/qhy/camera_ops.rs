@@ -106,8 +106,8 @@ impl CameraDriver for QhyCamera {
                 Some(false)
             },
             cooler_power: self.cooler_power(&sdk),
-            gain: self.core.gain,
-            offset: self.core.offset,
+            gain: Some(self.core.gain),
+            offset: Some(self.core.offset),
             bin_x: self.core.bin_x,
             bin_y: self.core.bin_y,
             exposure_remaining,

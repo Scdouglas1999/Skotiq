@@ -104,7 +104,6 @@ async fn test_exponential_backoff_with_jitter() {
     };
     let rng = make_jitter_rng("test", 7624);
 
-    // Test exponential growth without jitter
     let delay1 = config.calculate_delay(1, &rng);
     assert_eq!(delay1, Duration::from_secs(1));
 
@@ -120,7 +119,6 @@ async fn test_exponential_backoff_with_jitter() {
     let delay5 = config.calculate_delay(5, &rng);
     assert_eq!(delay5, Duration::from_secs(16));
 
-    // Test capping at max
     let delay6 = config.calculate_delay(6, &rng);
     assert_eq!(delay6, Duration::from_secs(30)); // Capped at max
 }
@@ -435,7 +433,6 @@ async fn test_reader_task_config_delay_calculation() {
     };
     let rng = make_jitter_rng("test", 7624);
 
-    // Test exponential growth
     assert_eq!(
         config.calculate_restart_delay(1, &rng),
         Duration::from_secs(1)
@@ -902,7 +899,6 @@ async fn test_connect_resets_keepalive_state() {
 async fn test_keepalive_atomic_guard_acquire_release() {
     let client = IndiClient::new("localhost", Some(7624));
 
-    // Acquire the lock
     let acquired = client
         .keepalive_in_progress
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -917,7 +913,6 @@ async fn test_keepalive_atomic_guard_acquire_release() {
         .is_ok();
     assert!(!acquired_again);
 
-    // Release the lock
     client.keepalive_in_progress.store(false, Ordering::SeqCst);
     assert!(!client.is_keepalive_in_progress());
 
@@ -1297,9 +1292,9 @@ async fn test_parser_caches_decoded_blob_for_late_subscribers() {
 
 #[tokio::test]
 async fn test_disconnect_clears_cached_blobs_and_update_timestamps() {
-    // Why: R6.1 — a decoded frame (tens to hundreds of MB) survived
-    // `disconnect()`, and stale `property_updated_ms` entries made every
-    // staleness check read pre-disconnect values as fresh after reconnect.
+    // A decoded frame (tens to hundreds of MB) must not survive
+    // `disconnect()`, and stale `property_updated_ms` entries must not make
+    // staleness checks read pre-disconnect values as fresh after reconnect.
     let mut client = IndiClient::new("localhost", None);
     client.latest_blobs.write().await.insert(
         ("CCD".to_string(), "CCD1".to_string(), "Image".to_string()),
@@ -1328,9 +1323,9 @@ async fn test_disconnect_clears_cached_blobs_and_update_timestamps() {
 
 #[tokio::test]
 async fn test_writer_task_marks_disconnected_on_write_error() {
-    // Why: R6.2 — the writer task broke out of its loop on a socket write
-    // error without touching `connected`, so a half-open connection left
-    // `is_connected()` reporting true while every send failed.
+    // The writer task must mark the client disconnected on a socket write
+    // error, or a half-open connection leaves
+    // `is_connected()` reporting true while every send fails.
     use std::io::ErrorKind;
     use std::pin::Pin;
     use std::task::{Context, Poll};
@@ -1610,4 +1605,46 @@ async fn a_focuser_compensation_property_without_a_value_stays_unknown() {
     }
     client.read().await.property_values.write().await.clear();
     assert_eq!(focuser.temp_comp().await, None);
+}
+
+/// P5-6: a value that is missing because the server link dropped or the
+/// device's whole property set vanished reads as a lost device; a property
+/// the device never had stays a plain failure, so it never starts a
+/// reconnect loop.
+#[tokio::test]
+async fn a_value_lost_with_its_device_reads_as_disconnected_and_one_never_offered_does_not() {
+    use skotiq_device::DriverError;
+    let client = Arc::new(RwLock::new(IndiClient::new("localhost", Some(7624))));
+    let focuser = crate::IndiFocuser::new(client.clone(), "Focuser");
+    let kind = |e: IndiError| DriverError::from(e);
+
+    // The server link is down.
+    let lost = focuser.get_position().await.expect_err("no link");
+    assert!(matches!(kind(lost), DriverError::Disconnected));
+
+    // Linked, and the focuser has published nothing (its properties vanished).
+    client.read().await.connected.store(true, Ordering::SeqCst);
+    let vanished = focuser.get_position().await.expect_err("nothing published");
+    assert_eq!(vanished.to_string(), "Position not available");
+    assert!(matches!(kind(vanished), DriverError::Disconnected));
+
+    // Linked, the focuser is there, and it has no temperature property.
+    client.read().await.properties.write().await.insert(
+        ("Focuser".into(), FOCUS_TEMPERATURE_COMP.into()),
+        IndiProperty {
+            device: "Focuser".into(),
+            name: FOCUS_TEMPERATURE_COMP.into(),
+            label: String::new(),
+            group: String::new(),
+            property_type: IndiPropertyType::Switch,
+            state: IndiPropertyState::Ok,
+            perm: IndiPermission::ReadWrite,
+            elements: vec![INDI_ENABLED.into()],
+            element_labels: vec![INDI_ENABLED.into()],
+            switch_rule: None,
+        },
+    );
+    let never = focuser.get_temperature().await.expect_err("no thermometer");
+    assert_eq!(never.to_string(), "Temperature not available");
+    assert!(matches!(kind(never), DriverError::Backend(_)));
 }

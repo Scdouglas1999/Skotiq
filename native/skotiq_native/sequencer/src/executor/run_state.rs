@@ -72,6 +72,17 @@ impl RunCell {
         self.inner.progress.read().state
     }
 
+    /// Whether a run is under way: started and not yet at its end.
+    pub(crate) fn run_in_flight(&self) -> bool {
+        matches!(
+            self.get(),
+            ExecutorState::Running
+                | ExecutorState::Paused
+                | ExecutorState::Recovering
+                | ExecutorState::Stopping
+        )
+    }
+
     /// The progress snapshot, state included.
     pub(crate) fn progress(&self) -> SequenceProgress {
         self.inner.progress.read().clone()
@@ -362,8 +373,7 @@ mod tests {
     }
 
     /// A runaway that ends in a lost position holds the run twice, and a
-    /// trigger can pause a run the operator already paused. Each used to log
-    /// "Sequence paused" again.
+    /// trigger can pause a run the operator already paused.
     #[test]
     fn pausing_a_paused_run_takes_the_new_reason_and_announces_nothing() {
         let (state, mut events) = cell();

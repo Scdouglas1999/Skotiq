@@ -3,9 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 
 import '../../../../harness/mock_backend.dart';
 import '../../../../harness/mock_database.dart';

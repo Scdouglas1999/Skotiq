@@ -572,10 +572,7 @@ async fn run_both_scans(
     if let Some(cb) = progress_callback {
         // `to_string` fails here only if the outcome carries a non-finite
         // float — a NaN out of a degenerate curve fit, which JSON cannot
-        // represent. That is rare but not impossible, and the old
-        // `unwrap_or_default()` turned it into an empty detail string: the
-        // wizard would take a 100 % tick carrying nothing and show the
-        // operator silence at the end of a full calibration run. The run's
+        // represent. That is rare but not impossible. The run's
         // real answer still returns through `Ok(outcome)` below, so the frame
         // is not the only copy — but a frame that cannot be built has to be
         // recorded rather than swallowed.
@@ -656,19 +653,16 @@ async fn scan_one_direction(
             if ctx.cancellation_token.load(Ordering::Relaxed) {
                 return Err(BACKLASH_CALIBRATION_CANCELLED.to_string());
             }
-            let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.to_string());
-            let exposure = ctx
-                .run
-                .device_ops
-                .camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(camera_id, config.exposure_duration)
-                        .gain(config.gain)
-                        .offset(config.offset)
-                        .binning(bin_x, bin_y),
-                )
-                .await;
-            abort_guard.disarm();
+            let exposure = take_frame(
+                ctx,
+                CaptureSite::BacklashCalibration,
+                crate::device_ops::ExposureRequest::new(camera_id, config.exposure_duration)
+                    .gain(config.gain)
+                    .offset(config.offset)
+                    .binning(bin_x, bin_y),
+                "on a backlash calibration sample",
+            )
+            .await;
             let image = exposure.map_err(|error| {
                 format!("Calibration exposure at {} failed: {}", position, error)
             })?;

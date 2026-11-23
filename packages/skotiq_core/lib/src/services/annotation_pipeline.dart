@@ -172,13 +172,6 @@ extension AnnotationPipeline on AnnotationService {
       }
 
       // Solve through the shared service, not `backend.plateSolve` directly.
-      // The direct call was the only solve path in the app that skipped the
-      // service, and it therefore skipped everything the service does: the
-      // operator's configured search radius, the solver-choice validation, the
-      // ASTAP→astrometry fallback, the single-flight gate (two annotate solves
-      // could run ASTAP on the same frame concurrently), and — the reason a
-      // failed annotate solve left no trace anywhere — the one log line that
-      // records a solve's outcome.
       final PlateSolveResult? result;
       try {
         result = await _ref
@@ -271,7 +264,6 @@ extension AnnotationPipeline on AnnotationService {
         fieldHeight: fieldSize.height,
       );
 
-      // Store plate solve for progressive re-annotation
       _lastPlateSolve = plateSolveData;
 
       // STEP 3: Calculate initial SNR-based magnitude limit

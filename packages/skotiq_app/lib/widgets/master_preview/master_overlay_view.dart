@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:path/path.dart' as p;
 
 import '../annotation_type_colors.dart';
 
@@ -41,15 +40,6 @@ class FinishingResultLayer {
   });
 }
 
-/// The conventional sibling preview PNG for a finishing-artifact FITS at
-/// [fitsPath]: the same path with a `.png` extension — what the controller's
-/// finishing actions render beside each `_bgx`/`_decon`/`_starred` FITS.
-String _siblingPng(String fitsPath) {
-  final dir = p.dirname(fitsPath);
-  final stem = p.basenameWithoutExtension(fitsPath);
-  return p.join(dir, '$stem.png');
-}
-
 /// The finishing-result "after" layers for [master] that exist on disk — one
 /// per persisted finishing FITS path (background extraction / deconvolution /
 /// star reduction / colour calibration), pointing at its sibling preview PNG so
@@ -69,7 +59,7 @@ List<FinishingResultLayer> finishingLayersForMaster(IntegratedMaster? master) {
   final out = <FinishingResultLayer>[];
   void add(String? fits, String label, IconData icon) {
     if (fits == null || fits.trim().isEmpty) return;
-    final png = _siblingPng(fits);
+    final png = masterPreviewPath(fits);
     if (!exists(png)) return;
     out.add(FinishingResultLayer(label: label, pngPath: png, icon: icon));
   }

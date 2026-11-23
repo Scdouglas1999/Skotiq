@@ -436,11 +436,13 @@ class TileFoldView {
     required this.contributor,
   });
 
+  /// One entry of the native `info` reply's `provenance.folds`, which keeps
+  /// the snake-case keys the `.skt` sidecar header stores.
   factory TileFoldView.fromJson(Map<String, dynamic> json) => TileFoldView(
-    framesAdded: (json['framesAdded'] as num?)?.toInt() ?? 0,
-    weightAdded: (json['weightAdded'] as num?)?.toDouble() ?? 0.0,
+    framesAdded: (json['frames_added'] as num?)?.toInt() ?? 0,
+    weightAdded: (json['weight_added'] as num?)?.toDouble() ?? 0.0,
     integrationSecondsAdded:
-        (json['integrationSecondsAdded'] as num?)?.toDouble() ?? 0.0,
+        (json['integration_seconds_added'] as num?)?.toDouble() ?? 0.0,
     rejected: (json['rejected'] as num?)?.toInt() ?? 0,
     label: json['label'] as String? ?? '',
     contributor: json['contributor'] as String? ?? '',
@@ -495,9 +497,9 @@ class TileProvenanceView {
       centerDecDeg: (json['centerDec'] as num?)?.toDouble() ?? 0.0,
       channels: (json['channels'] as num?)?.toInt() ?? 0,
       coverageMean: (json['coverageMean'] as num?)?.toDouble() ?? 0.0,
-      totalFrames: (prov['totalFrames'] as num?)?.toInt() ?? 0,
+      totalFrames: (prov['total_frames'] as num?)?.toInt() ?? 0,
       totalIntegrationSeconds:
-          (prov['totalIntegrationSeconds'] as num?)?.toDouble() ?? 0.0,
+          (prov['total_integration_seconds'] as num?)?.toDouble() ?? 0.0,
       contributors: contributors,
       folds: folds,
     );

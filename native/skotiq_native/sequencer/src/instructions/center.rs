@@ -68,9 +68,30 @@ impl CenterProgress {
     }
 }
 
-pub(crate) const CENTER_CORRECTION_SLEW_START_TIMEOUT: Duration = Duration::from_secs(5);
-pub(crate) const CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT: Duration = Duration::from_secs(300);
-pub(crate) const CENTER_CORRECTION_SLEW_POLL_INTERVAL: Duration = Duration::from_millis(500);
+/// How long a centering frame's solve may take: a hung solver (stalled IO, a
+/// bad catalog, a zombie child) would otherwise hold the step until someone
+/// presses cancel, which an unattended night never does.
+pub(crate) const CENTER_SOLVE_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// A Center's correction slew: the mount must report moving within 5 s and
+/// stop within 300 s; a failed state read is polled again.
+pub(crate) const CENTER_CORRECTION_SLEW: SlewWaitBounds = SlewWaitBounds {
+    start: Some(SlewStartBound {
+        within: Duration::from_secs(5),
+        poll: Duration::from_millis(500),
+        proceed_if_never: false,
+    }),
+    ..CENTER_SLEW_IN_PROGRESS
+};
+
+/// A slew already under way when a Center starts.
+pub(crate) const CENTER_SLEW_IN_PROGRESS: SlewWaitBounds = SlewWaitBounds {
+    start: None,
+    complete: Duration::from_secs(300),
+    poll: Duration::from_millis(500),
+    deadline_inclusive: true,
+    read_errors: SlewReadErrors::Retry { label: "Centering" },
+};
 
 /// Wait for an asynchronous correction slew to first report motion and then
 /// report idle. The startup phase is essential for ASCOM/Alpaca/INDI drivers
@@ -79,45 +100,7 @@ pub(crate) async fn wait_for_centering_correction_slew(
     mount_id: &str,
     ctx: &InstructionContext,
 ) -> Result<(), InstructionResult> {
-    let start_deadline = tokio::time::Instant::now() + CENTER_CORRECTION_SLEW_START_TIMEOUT;
-    loop {
-        if let Some(result) = ctx.check_cancelled() {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
-                tracing::warn!(
-                    "Centering: abort-slew failed while cancelling before the correction slew \
-                     started ({}); the mount may still be moving",
-                    error
-                );
-            }
-            return Err(result);
-        }
-
-        match ctx.run.device_ops.mount_is_slewing(mount_id).await {
-            Ok(true) => break,
-            Ok(false) => {}
-            Err(error) => tracing::warn!(
-                "Centering: slew-state read failed while waiting for startup ({}); retrying",
-                error
-            ),
-        }
-
-        if tokio::time::Instant::now() >= start_deadline {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
-                tracing::warn!(
-                    "Centering: abort-slew failed after the correction slew never reported \
-                     startup ({}); the mount may still be moving",
-                    error
-                );
-            }
-            return Err(InstructionResult::failure(format!(
-                "Centering correction slew did not report startup within {}s",
-                CENTER_CORRECTION_SLEW_START_TIMEOUT.as_secs()
-            )));
-        }
-        sleep(CENTER_CORRECTION_SLEW_POLL_INTERVAL).await;
-    }
-
-    wait_until_mount_stops(mount_id, ctx).await
+    centering_slew_wait(mount_id, ctx, CENTER_CORRECTION_SLEW).await
 }
 
 /// Wait for the mount to report it is no longer slewing, aborting the slew
@@ -126,43 +109,154 @@ pub(crate) async fn wait_until_mount_stops(
     mount_id: &str,
     ctx: &InstructionContext,
 ) -> Result<(), InstructionResult> {
-    let complete_deadline = tokio::time::Instant::now() + CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT;
-    loop {
-        if let Some(result) = ctx.check_cancelled() {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
+    centering_slew_wait(mount_id, ctx, CENTER_SLEW_IN_PROGRESS).await
+}
+
+async fn centering_slew_wait(
+    mount_id: &str,
+    ctx: &InstructionContext,
+    bounds: SlewWaitBounds,
+) -> Result<(), InstructionResult> {
+    match wait_for_slew(&ctx.run.device_ops, mount_id, bounds, &|| {
+        ctx.check_cancelled()
+    })
+    .await
+    {
+        SlewWait::Done => Ok(()),
+        SlewWait::Stopped {
+            reason,
+            phase,
+            abort,
+        } => {
+            if let Err(error) = abort {
+                match phase {
+                    SlewPhase::Starting => tracing::warn!(
+                        "Centering: abort-slew failed while cancelling before the correction \
+                         slew started ({}); the mount may still be moving",
+                        error
+                    ),
+                    SlewPhase::Moving => tracing::warn!(
+                        "Centering: abort-slew failed while cancelling the in-progress \
+                         slew ({}); the mount may still be moving",
+                        error
+                    ),
+                }
+            }
+            Err(reason)
+        }
+        SlewWait::NeverStarted { abort } => {
+            if let Err(error) = abort {
                 tracing::warn!(
-                    "Centering: abort-slew failed while cancelling the in-progress \
-                     slew ({}); the mount may still be moving",
+                    "Centering: abort-slew failed after the correction slew never reported \
+                     startup ({}); the mount may still be moving",
                     error
                 );
             }
-            return Err(result);
+            Err(InstructionResult::failure(format!(
+                "Centering correction slew did not report startup within {}s",
+                bounds.start.map_or(0, |start| start.within.as_secs())
+            )))
         }
-
-        match ctx.run.device_ops.mount_is_slewing(mount_id).await {
-            Ok(false) => return Ok(()),
-            Ok(true) => {}
-            Err(error) => tracing::warn!(
-                "Centering: slew-state read failed while waiting for completion ({}); retrying",
-                error
-            ),
-        }
-
-        if tokio::time::Instant::now() >= complete_deadline {
-            if let Err(error) = ctx.run.device_ops.mount_abort_slew(mount_id).await {
+        SlewWait::Overran { abort } => {
+            if let Err(error) = abort {
                 tracing::warn!(
                     "Centering: abort-slew failed after the correction slew overran its \
                      completion timeout ({}); the mount may still be moving",
                     error
                 );
             }
-            return Err(InstructionResult::failure(format!(
+            Err(InstructionResult::failure(format!(
                 "The mount was still slewing after {}s; centering stopped instead of \
                  taking a frame while it moved",
-                CENTER_CORRECTION_SLEW_COMPLETE_TIMEOUT.as_secs()
-            )));
+                bounds.complete.as_secs()
+            )))
         }
-        sleep(CENTER_CORRECTION_SLEW_POLL_INTERVAL).await;
+        SlewWait::ReadFailed(error) => Err(InstructionResult::failure(format!(
+            "The mount's slewing state could not be read: {error}"
+        ))
+        .caused_by(&error)),
+    }
+}
+
+/// How a centering run judges and corrects the pointing. A Center step and a
+/// run's own recenters take theirs from the step's [`CenterConfig`] and the
+/// operator's tolerance ([`CenterPolicy::for_step`]); the post-flip centering
+/// takes the run's recenter policy.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct CenterPolicy {
+    /// How close to the target counts as centered, in arcseconds.
+    pub tolerance_arcsec: f64,
+    pub max_attempts: u32,
+    /// Each correction syncs the mount to the solve and slews to the target;
+    /// off, it slews by the measured error and leaves the pointing model.
+    pub sync_mount: bool,
+}
+
+/// How far a solve landed from the target.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct PointingError {
+    pub ra_arcsec: f64,
+    pub dec_arcsec: f64,
+    /// The angle between the two on the sky.
+    pub total_arcsec: f64,
+}
+
+/// From `target` (RA hours, Dec degrees) to `solved` (RA degrees, Dec
+/// degrees), as a plate solve answers.
+pub(crate) fn pointing_error(target: (f64, f64), solved: (f64, f64)) -> PointingError {
+    let (target_ra_hours, target_dec) = target;
+    let (solved_ra_deg, solved_dec) = solved;
+    let ra_offset_hours = crate::meridian::wrap_hours((solved_ra_deg / 15.0) - target_ra_hours);
+    PointingError {
+        ra_arcsec: ra_offset_hours * 15.0 * 3600.0 * target_dec.to_radians().cos(),
+        dec_arcsec: (solved_dec - target_dec) * 3600.0,
+        total_arcsec: calculate_separation_arcsec(
+            target_ra_hours * 15.0,
+            target_dec,
+            solved_ra_deg,
+            solved_dec,
+        ),
+    }
+}
+
+impl CenterPolicy {
+    /// A Center step's policy: its attempts and sync choice, at its own
+    /// accuracy or else the operator's centering tolerance.
+    pub(crate) fn for_step(config: &CenterConfig, tolerance_setting_arcsec: f64) -> Self {
+        Self {
+            tolerance_arcsec: config.accuracy_arcsec.unwrap_or(tolerance_setting_arcsec),
+            max_attempts: config.max_attempts,
+            sync_mount: config.sync_mount,
+        }
+    }
+
+    pub(crate) fn is_centered(&self, separation_arcsec: f64) -> bool {
+        separation_arcsec <= self.tolerance_arcsec
+    }
+}
+
+/// The correction a centering attempt makes: sync the mount to the solve and
+/// send it to the target, or, without sync, offset where it was last sent by
+/// the measured error. Returns where to slew; `Err` is a failed sync.
+pub(crate) async fn correct_pointing(
+    device_ops: &SharedDeviceOps,
+    mount_id: &str,
+    sync_mount: bool,
+    commanded: (f64, f64),
+    target: (f64, f64),
+    solved_ra_hours_dec: (f64, f64),
+) -> Result<(f64, f64), crate::device_ops::DeviceError> {
+    if sync_mount {
+        device_ops
+            .mount_sync(mount_id, solved_ra_hours_dec.0, solved_ra_hours_dec.1)
+            .await?;
+        Ok(target)
+    } else {
+        Ok(offset_by_pointing_error(
+            commanded,
+            target,
+            solved_ra_hours_dec,
+        ))
     }
 }
 
@@ -184,9 +278,8 @@ async fn center(
     ctx: &InstructionContext,
     progress_callback: CenterProgressSink<'_>,
 ) -> InstructionResult {
-    let accuracy_arcsec = config
-        .accuracy_arcsec
-        .unwrap_or_else(|| ctx.run.centering_tolerance_arcsec());
+    let policy = CenterPolicy::for_step(config, ctx.run.centering_tolerance_arcsec());
+    let accuracy_arcsec = policy.tolerance_arcsec;
     let mount_id = match ctx.mount_id() {
         Ok(id) => id.to_string(),
         Err(e) => return e,
@@ -287,15 +380,15 @@ async fn center(
         cb(0.0, &CenterProgress::Starting { accuracy_arcsec });
     }
 
-    for attempt in 1..=config.max_attempts {
+    for attempt in 1..=policy.max_attempts {
         if let Some(result) = ctx.check_cancelled() {
             return result;
         }
 
         // Why: attempt is a u32 loop counter bounded by max_attempts (also u32);
         // both lossless to f64.
-        let attempt_progress = (f64::from(attempt - 1) / f64::from(config.max_attempts)) * 100.0;
-        tracing::info!("Center attempt {}/{}", attempt, config.max_attempts);
+        let attempt_progress = (f64::from(attempt - 1) / f64::from(policy.max_attempts)) * 100.0;
+        tracing::info!("Center attempt {}/{}", attempt, policy.max_attempts);
 
         if let Some(cb) = progress_callback {
             cb(attempt_progress, &CenterProgress::Capturing { attempt });
@@ -304,68 +397,49 @@ async fn center(
         // A transient camera fault retries the capture under the run's camera
         // retry budget; it is not a centering attempt, which is about the
         // solve and the pointing.
-        let mut camera_retries = CameraRetries::new(&camera_id);
-        let image_data = loop {
-            let result = tokio::select! {
-                // Full resolution + 1x1 binning gives the plate solver the highest
-                // possible star count; binning would reduce SNR enough to fail on
-                // sparse fields.
-                result = ctx.run.device_ops.camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration),
-                ) => result,
-                _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
-                    tracing::info!("Center cancelled during exposure, aborting...");
-                    if let Err(error) = ctx.run.device_ops.camera_abort_exposure(&camera_id).await {
-                        tracing::warn!(
-                            "Center: abort-exposure failed on cancel ({}); the camera may still be \
-                             integrating and the next instruction can find it busy",
-                            error
-                        );
-                    }
-                    return InstructionResult::cancelled("Center cancelled");
-                }
-            };
-            match result {
-                Ok(data) => {
-                    tracing::info!(
-                        "[SEQ] Exposure completed: {}x{} image ({} pixels)",
-                        data.width,
-                        data.height,
-                        data.data.len()
+        //
+        // Full resolution + 1x1 binning gives the plate solver the highest
+        // possible star count; binning would reduce SNR enough to fail on
+        // sparse fields.
+        let image_data = match take_frame(
+            ctx,
+            CaptureSite::CenterFrame,
+            crate::device_ops::ExposureRequest::new(&camera_id, config.exposure_duration),
+            &format!("on the centering frame (attempt {})", attempt),
+        )
+        .await
+        {
+            Ok(data) => {
+                tracing::info!(
+                    "[SEQ] Exposure completed: {}x{} image ({} pixels)",
+                    data.width,
+                    data.height,
+                    data.data.len()
+                );
+                data
+            }
+            Err(FrameEnd::Stopped { abort, .. }) => {
+                if let Err(error) = abort {
+                    tracing::warn!(
+                        "Center: abort-exposure failed on cancel ({}); the camera may still be \
+                         integrating and the next instruction can find it busy",
+                        error
                     );
-                    break data;
                 }
-                Err(e) => match camera_retries
-                    .after_failure(
-                        ctx,
-                        e,
-                        &format!("on the centering frame (attempt {})", attempt),
-                    )
-                    .await
-                {
-                    RetryOutcome::Retry => {}
-                    RetryOutcome::Cancelled => {
-                        return InstructionResult::cancelled("Center cancelled")
-                    }
-                    RetryOutcome::GiveUp(failure) => {
-                        return InstructionResult::failure(format!(
-                            "Failed to capture image: {failure}"
-                        ))
-                        .caused_by(&failure.error)
-                    }
-                },
+                return InstructionResult::cancelled("Center cancelled");
+            }
+            Err(FrameEnd::Cancelled) => return InstructionResult::cancelled("Center cancelled"),
+            Err(FrameEnd::Failed(failure)) => {
+                return InstructionResult::failure(format!("Failed to capture image: {failure}"))
+                    .caused_by(&failure.error)
             }
         };
 
-        // Hard cap on the solver call: a hung solver process (stalled IO,
-        // bad catalog, zombie child) would otherwise block this select
-        // indefinitely — cancellation is the only other exit, and an
-        // unattended night never presses cancel. Treated exactly like a
-        // failed solve so the attempt loop's retry applies.
-        const PLATE_SOLVE_TIMEOUT: Duration = Duration::from_secs(180);
+        // A solve that runs out of time counts as a failed one, so the
+        // attempt loop's retry applies.
         let solve_result = tokio::select! {
             result = tokio::time::timeout(
-                PLATE_SOLVE_TIMEOUT,
+                CENTER_SOLVE_TIMEOUT,
                 ctx.run.device_ops.plate_solve(
                     &image_data,
                     Some(target_ra_deg),
@@ -389,7 +463,7 @@ async fn center(
                     Err(_) => {
                         tracing::warn!(
                             "Plate solve timed out after {}s on attempt {}",
-                            PLATE_SOLVE_TIMEOUT.as_secs(),
+                            CENTER_SOLVE_TIMEOUT.as_secs(),
                             attempt
                         );
                         continue;
@@ -402,12 +476,11 @@ async fn center(
             }
         };
 
-        let separation_arcsec = calculate_separation_arcsec(
-            target_ra_deg,
-            target_dec,
-            solve_result.ra_degrees,
-            solve_result.dec_degrees,
-        );
+        let separation_arcsec = pointing_error(
+            (target_ra_hours, target_dec),
+            (solve_result.ra_degrees, solve_result.dec_degrees),
+        )
+        .total_arcsec;
         tracing::info!("Current separation: {:.1}\" from target", separation_arcsec);
 
         // Feeding the solve back into trigger state is what enables the
@@ -418,7 +491,7 @@ async fn center(
         // fired DriftLimit's own recenter in the middle of this one, which then
         // exposed over this loop's next frame and failed the node with "No
         // exposure is available to download" (found by the simulator soak).
-        if separation_arcsec <= accuracy_arcsec {
+        if policy.is_centered(separation_arcsec) {
             if let Some(trigger_state_lock) = &ctx.run.trigger_state {
                 let mut trigger_state = trigger_state_lock.write().await;
                 trigger_state.update_plate_solve(
@@ -437,8 +510,7 @@ async fn center(
 
         if let Some(cb) = progress_callback {
             cb(
-                // Why: config.max_attempts is u32; lossless to f64.
-                attempt_progress + 50.0 / f64::from(config.max_attempts),
+                attempt_progress + 50.0 / f64::from(policy.max_attempts),
                 &CenterProgress::Solved {
                     attempt,
                     ra_hours: solve_result.ra_degrees / 15.0,
@@ -448,7 +520,7 @@ async fn center(
             );
         }
 
-        if separation_arcsec <= accuracy_arcsec {
+        if policy.is_centered(separation_arcsec) {
             if let Some(cb) = progress_callback {
                 cb(95.0, &CenterProgress::Centered { separation_arcsec });
             }
@@ -484,39 +556,32 @@ async fn center(
             crate::GuidingStopReason::MountMove,
         )
         .await;
-        if config.sync_mount {
-            // The mount is told where it really points, so the slew to the
-            // target moves by the true pointing error.
-            if let Err(e) = ctx
-                .run
-                .device_ops
-                .mount_sync(
-                    &mount_id,
-                    solve_result.ra_degrees / 15.0,
-                    solve_result.dec_degrees,
-                )
-                .await
-            {
+        // Synced, the mount is told where it really points, so the slew to
+        // the target moves by the true pointing error.
+        commanded = match correct_pointing(
+            &ctx.run.device_ops,
+            &mount_id,
+            policy.sync_mount,
+            commanded,
+            (target_ra_hours, target_dec),
+            (solve_result.ra_degrees / 15.0, solve_result.dec_degrees),
+        )
+        .await
+        {
+            Ok(commanded) => commanded,
+            Err(e) => {
                 return InstructionResult::failure(format!(
                     "Mount sync failed during centering on attempt {}: {}",
                     attempt, e
                 ))
-                .caused_by(&e);
+                .caused_by(&e)
             }
-            commanded = (target_ra_hours, target_dec);
-        } else {
-            commanded = offset_by_pointing_error(
-                commanded,
-                (target_ra_hours, target_dec),
-                (solve_result.ra_degrees / 15.0, solve_result.dec_degrees),
-            );
-        }
+        };
 
         tracing::info!("Slewing to correct position...");
         if let Some(cb) = progress_callback {
             cb(
-                // Why: config.max_attempts is u32; lossless to f64.
-                attempt_progress + 75.0 / f64::from(config.max_attempts),
+                attempt_progress + 75.0 / f64::from(policy.max_attempts),
                 &CenterProgress::Correcting { attempt },
             );
         }
@@ -564,7 +629,7 @@ async fn center(
     InstructionResult::failure_because(
         format!(
             "Failed to center within {:.1}\" after {} attempts ({CENTERING_TOLERANCE_SETTING})",
-            accuracy_arcsec, config.max_attempts
+            accuracy_arcsec, policy.max_attempts
         ),
         Setback::CenterNotConverged,
     )
@@ -661,8 +726,7 @@ pub(crate) async fn apply_center_rotation(
 /// Returns `None` to proceed with the exposure, `Some(cancelled)` when the
 /// sequence was cancelled while holding. Bounded: gives up with a loud
 /// warning after [`MERIDIAN_GATE_MAX_WAIT`] so a failed or disabled flip can
-/// never deadlock the night — the post-crossing trigger remains the backstop
-/// exactly as before this gate existed.
+/// never deadlock the night; the post-crossing trigger remains the backstop.
 ///
 /// With a pre-meridian hold configured, a frame that would still be exposing
 /// when tracking is due to stop holds instead, with tracking off, until the
@@ -862,7 +926,7 @@ async fn wait_for_flip(
         // Overdue is not the same as never firing, though. A trigger that can
         // fire and has not because the run was held (paused, or in a recovery)
         // fires on the first running tick after the hold, and the frame must
-        // not race it: on the rig (2026-10-21) the run resumed 16 minutes past
+        // not race it: on the rig the run resumed 16 minutes past
         // a 5-minute threshold, this hatch let a 90 s frame go, and the night
         // lost its flip. So when the trigger could still fire, it is given its
         // first running evaluation to do so before the hatch lets the frame go.
@@ -908,20 +972,6 @@ async fn wait_for_flip(
         // way for the trigger to be unable to fire is for the monitor not to
         // have published a value yet — no target stamped into the trigger
         // state, or no observing site.
-        //
-        // That gap used to be a permanent disagreement rather than a startup
-        // race: the trigger evaluated the MOUNT's hour angle. Live repro
-        // (headless Linux build, sim camera + sim mount, site 40N 42E, target
-        // pinned 12 min west of the meridian, threshold 5 min): the run
-        // reached 1/3 and reported
-        //   Waiting for the meridian flip before the next 2s exposure: the
-        //   flip became due 423s ago (hour angle +0.20h, threshold 5 min past
-        //   meridian) and would interrupt the frame
-        // then sat there, because the mount was never slewed to the target so
-        // its own hour angle never made the trigger fire. The overdue escape
-        // hatch above does not catch this: at 12 minutes past a 5-minute
-        // threshold the flip is only 7 minutes late, well inside
-        // OVERDUE_GRACE_SECS, so every frame paid the full 30-minute bound.
         //
         // Checked at gate ENTRY only (`!announced`) so a hold that began
         // legitimately still runs to MERIDIAN_GATE_MAX_WAIT while a flip is

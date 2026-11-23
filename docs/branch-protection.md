@@ -18,11 +18,6 @@ They were red on every commit from 2026-11-01 until the 9.0.1 fixes; check the
 live state with `gh run list --workflow ci.yml --branch main`.
 
 Deliberately **not** required:
-- **`Code Coverage`** — currently overruns its 20-minute timeout because it
-  re-runs the full instrumented test suite (it roughly duplicates `Dart Tests`).
-  It is slow, not broken; requiring it would block merges on a timeout rather
-  than a code problem. Re-add it once the timeout is raised or the run is
-  de-duplicated.
 - **`Rust Tests (windows)`** — conditional (push, schedule, `release/*` and
   `fix/*` PRs, `ci:windows-rust` label), so it does not run on most PRs;
   requiring it would block PRs where it never starts. The release gate
@@ -54,17 +49,16 @@ maps to one or more required status checks in branch protection:
 | `test-rust` | Rust Tests (linux) | Every PR + push |
 | `format-check` | Format Check | Every PR + push |
 | `build-test` | Build Test (Desktop) — Ubuntu, Windows, macOS matrix | Every PR + push |
-| `coverage` | Code Coverage | Every PR + push |
 | `test-rust-windows` | Rust Tests (windows) | Conditional — see section 2 |
 
-The `cargo-duplicates` job is **advisory**: it only emits a build warning
-annotation and never exits non-zero, so it should **not** be a required check.
-See the advisory tier in `docs/ci-gates.md`.
+The `cargo-duplicates` job fails when the resolved duplicate-version set
+differs from its baseline, but it is **not** a required check, so a drift does
+not block a merge on its own (see `docs/ci-gates.md`).
 
-The individual gate steps inside `analyze` and `launch-gate` (placeholder
-audit, fail-closed policy, behavioral audit, bridge boundary, dependency
-hygiene, analyzer rollup) are documented gate-by-gate in `docs/ci-gates.md`. Failing any one of
-them fails its job, which turns the corresponding required check red.
+The checks inside `analyze` and `launch-gate` are stages of
+`tools/production/gate.dart` (`melos run gate`), documented check by check in
+`docs/ci-gates.md`. Failing any one of them fails its job, which turns the
+corresponding required check red.
 
 CI also runs on `push` to `main`, `master`, and `develop`, and on a nightly
 `schedule` (cron `0 4 * * *`). Those triggers do not gate merges directly, but

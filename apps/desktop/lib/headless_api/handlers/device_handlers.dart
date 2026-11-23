@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/filters.dart';
 // bridge-boundary: device_handlers
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_error;
 import 'package:skotiq_core/backend.dart';
@@ -32,23 +33,6 @@ part 'device_handlers/focuser_handlers.dart';
 part 'device_handlers/filter_wheel_handlers.dart';
 part 'device_handlers/rotator_handlers.dart';
 part 'device_handlers/helpers.dart';
-
-/// MIME-style `Accept` header value that opts the caller into the
-/// pre-synchronous response shape for autofocus / plate-solve /
-/// center-on-target / polar-alignment. New clients should not send this;
-/// the audit's spec keeps the legacy path so pinned mobile builds stay
-/// functional during the rollout.
-const String legacyBlockingAcceptType = 'application/x.skotiq.legacy-blocking';
-
-/// True when the request's `Accept` header explicitly opts into the
-/// legacy synchronous response shape.
-bool requestPrefersLegacyBlocking(Request request) {
-  final accept = request.headers['accept'] ?? '';
-  if (accept.isEmpty) return false;
-  // Accept may be a comma-separated list; do a case-insensitive contains
-  // check against the documented opt-in type.
-  return accept.toLowerCase().contains(legacyBlockingAcceptType);
-}
 
 /// Handlers for device control endpoints (camera, mount, focuser, filter wheel, rotator)
 class DeviceHandlers implements RouteSource {
@@ -126,18 +110,19 @@ class DeviceHandlers implements RouteSource {
   /// generates a UUID v4 commandId and includes it in the response. The
   /// later SkotiqEvent that completes the command picks the id back
   /// up via `correlatingCommandId`. Null in unit tests that don't care
-  /// about correlation (those tests still validate the legacy response
-  /// shape).
+  /// about correlation.
   final CommandCorrelator? commandCorrelator;
 
-  /// optional job manager. When set, long-running endpoints
-  /// (currently autofocus) return `{jobId, status: queued, commandId}`
-  /// immediately and surface progress via the WS event stream. When null
-  /// (unit tests / legacy callers), the handler falls back to the
-  /// blocking response shape.
-  final JobManager? jobManager;
+  /// Runs the long-running endpoints (autofocus, backlash calibration): they
+  /// answer `{jobId, status: queued, commandId}` at once and report progress
+  /// on the WS event stream.
+  final JobManager jobManager;
 
-  DeviceHandlers(this.container, {this.commandCorrelator, this.jobManager});
+  DeviceHandlers(
+    this.container, {
+    this.commandCorrelator,
+    required this.jobManager,
+  });
 
   LoggingService get _logger => container.read(loggingServiceProvider);
 

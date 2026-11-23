@@ -1,8 +1,6 @@
 //! Master-flat construction and cosmetic (hot/cold pixel) correction.
 //!
-//! This module closes the two calibration-completeness gaps called out in the
-//! post-session integration design (`docs/design/2026-06-07-post-session-integration-design.md`,
-//! §1.7) that sit between the existing pieces:
+//! It sits between two existing pieces:
 //!
 //! - [`calibration.rs`](crate::calibration) only *applies* masters (it has no
 //!   builder for a master flat).

@@ -220,10 +220,8 @@ class _StackResultScreenState extends ConsumerState<StackResultScreen> {
         ? 'No imaging session, so no linear master'
         : (hostOnly == null ? null : 'The Darkroom runs on the imaging host');
     // ONE overflow menu plus ONE primary, at every width (05 §5: a page header
-    // carries at most two actions). The four export buttons used to sit inline
-    // on anything wider than a phone, which overflowed the header Row by 247 px
-    // at an 800 px window; the menu that already existed for the phone is now
-    // the only export surface, so the header trailing stays narrow everywhere.
+    // carries at most two actions), so the header trailing stays narrow
+    // everywhere.
     final exportMenu = PopupMenuButton<_StackResultAction>(
       key: const ValueKey('stack_result_export_menu'),
       icon: Icon(SkotiqIcons.share, color: colors.textPrimary),

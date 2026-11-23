@@ -30,6 +30,7 @@ use crate::builtin_guider::state::{
 use crate::device::DeviceType;
 use crate::error::SkotiqError;
 use crate::event::guiding::GuidingEvent;
+use crate::guider::GuiderActivity;
 use crate::state::get_state;
 use skotiq_imaging::{DetectedStar, ImageData};
 use std::sync::{Arc, OnceLock};
@@ -349,8 +350,7 @@ fn crop_raw_image_returns_16bit_payload() {
 //
 // These exercise the pure functions directly with synthetic star fields so
 // the guiding-quality logic is validated without a mount or camera. Honest
-// gap: none of this is a substitute for an on-sky calibration/guiding run,
-// which belongs in the on-sky campaign.
+// gap: none of this is a substitute for an on-sky calibration/guiding run.
 
 /// Build a `DetectedStar` with explicit quality fields for selection tests.
 fn star_q(x: f64, y: f64, flux: f64, snr: f64, peak: f64, ecc: f64) -> DetectedStar {
@@ -930,8 +930,8 @@ fn compute_pulse_durations_does_not_panic_on_inverted_or_negative_pulse_bounds()
     let small = compute_pulse_durations(calib, offset, &inverted, None, PulseDebt::default());
     assert!(small.ra_ms.is_none());
     assert!(small.debt.ra_ms.abs() <= 100.0);
-    // Large error exceeding min_pulse_ms enters the clamp path (which previously
-    // panicked with min > max) and clamps safely to max_pulse_ms.
+    // Large error exceeding min_pulse_ms enters the clamp path and clamps
+    // safely to max_pulse_ms.
     let large = compute_pulse_durations(
         calib,
         Vec2 { x: 10.0, y: -10.0 },
@@ -1211,11 +1211,7 @@ async fn a_dither_opens_a_new_settle_episode() {
 ///
 /// `dither(amount, ra_only, settle_pixels, settle_time, settle_timeout)` is how
 /// the sequencer's Dither instruction states how tightly this dither must
-/// settle. The loop used to judge every settle by the tolerance captured back at
-/// `start_guiding` and discarded the dither's own pair outright, so a sequence
-/// asking to settle inside 0.2px
-/// was told it had settled at 1.5px — with `guider_dither` logging the 0.2px it
-/// never enforced.
+/// settle.
 #[tokio::test]
 async fn a_dither_settles_on_its_own_tolerance_not_the_sessions() {
     let controller = Arc::new(RwLock::new(BuiltinGuiderState {
@@ -1635,12 +1631,15 @@ async fn the_builtin_guider_calibrates_and_guides_on_the_simulated_guide_camera(
     let mut guiding = false;
     while Instant::now() < deadline {
         let guard = state().read().await;
-        if guard.calibration.is_some() && guard.last_status.state == "Guiding" && !guard.settling {
+        if guard.calibration.is_some()
+            && guard.last_status.state == GuiderActivity::Guiding
+            && !guard.settling
+        {
             guiding = true;
             break;
         }
         assert!(
-            guard.last_status.state != "Stopped" && guard.last_status.state != "Error",
+            guard.last_status.state != GuiderActivity::Stopped,
             "guiding stopped: {:?}",
             guard.last_status
         );
@@ -1687,13 +1686,13 @@ async fn a_failed_guiding_task_leaves_the_guider_connected_and_stopped() {
         guard.guiding = true;
         guard.calibrating = true;
         guard.last_status.connected = true;
-        guard.last_status.state = "Guiding".to_string();
+        guard.last_status.state = GuiderActivity::Guiding;
     }
     finish_failed_guiding(state(), "Guiding stopped: Settle timeout exceeded").await;
     let guard = state().read().await;
     assert!(guard.connected);
     assert!(!guard.guiding && !guard.calibrating);
-    assert_eq!(guard.last_status.state, "Stopped");
+    assert_eq!(guard.last_status.state, GuiderActivity::Stopped);
     assert!(guard.last_status.connected);
     drop(guard);
     reset_guider_state().await;
@@ -1775,7 +1774,7 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
         begin_loop(
             |guard| {
                 guard.guiding = true;
-                guard.last_status.state = "Guiding".to_string();
+                guard.last_status.state = GuiderActivity::Guiding;
             },
             GuidingEvent::Calibrating,
             |controller, stop_flag| async move {
@@ -1784,7 +1783,7 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
                 }
                 // The frame in flight completes after the stop was asked for.
                 tokio::time::sleep(Duration::from_millis(20)).await;
-                controller.write().await.last_status.state = "Guiding".to_string();
+                controller.write().await.last_status.state = GuiderActivity::Guiding;
             },
         )
         .await;
@@ -1793,7 +1792,7 @@ async fn a_stop_during_a_guide_frame_leaves_the_guider_connected() {
     stop().await.expect("stop");
 
     let guard = state().read().await;
-    assert_eq!(guard.last_status.state, "Connected");
+    assert_eq!(guard.last_status.state, GuiderActivity::Connected);
     assert!(!guard.guiding);
     drop(guard);
     reset_guider_state().await;

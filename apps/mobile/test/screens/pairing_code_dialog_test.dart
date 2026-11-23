@@ -1,18 +1,14 @@
 // Submitting an EMPTY pairing code must tell the operator why nothing
 // happened.
 //
-// Observed live on an Android 15 emulator against a real headless host: with
-// the code field blank, the "Pair" button rendered in full enabled styling
-// (solid accent fill) but tapping it was a total no-op — no error text, no
-// snackbar, no dialog dismissal, nothing in the logs, because the handler was
-// a bare `if (trimmed.isEmpty) return;`. A user who taps Pair before typing
-// (or after a paste that silently failed) gets zero feedback and no way to
-// tell whether the app is broken, busy, or ignoring them.
+// A "Pair" button that renders enabled but does nothing on an empty code
+// leaves a user who taps Pair before typing (or after a paste that silently
+// failed) no way to tell whether the app is broken, busy, or ignoring them.
 //
-// A wrong-but-non-empty code was already handled correctly (the host's
-// "The pairing code is not recognised." surfaced in the connect screen's error
-// box), so only the empty case is pinned here — plus the happy path, so
-// "always show an error" would not pass.
+// A wrong-but-non-empty code surfaces the host's "The pairing code is not
+// recognised." in the connect screen's error box, so only the empty case is
+// pinned here — plus the happy path, so "always show an error" would not
+// pass.
 import 'dart:async';
 
 import 'package:flutter/material.dart';

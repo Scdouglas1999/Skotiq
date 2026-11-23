@@ -56,7 +56,10 @@ void main() {
       // What the planner shows for the night that contains `now`: rise and
       // set nearest the middle of its darkness.
       final twilight = AstronomyCalculations.calculateTwilightTimes(
-        date: AstronomyCalculations.nightDateOf(now),
+        date: AstronomyCalculations.nightDateOf(
+          now,
+          longitudeDeg: _longitude,
+        ),
         latitudeDeg: _latitude,
         longitudeDeg: _longitude,
       );

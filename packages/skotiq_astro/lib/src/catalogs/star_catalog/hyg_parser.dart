@@ -21,8 +21,8 @@ Future<_StarLoad> _loadStarsInIsolate(String path) async {
     } catch (e) {
       // HYG CSV contains ~120k rows; a single malformed line (truncated
       // export, encoding glitch, unexpected NaN in a numeric column) must not
-      // abort the whole load. FINE surfaces a systemic format change (e.g. an
-      // upstream column reorder) without spamming the user.
+      // abort the whole load. This runs in a worker isolate, which has no
+      // app-log listener.
       developer.log(
         'HYG line parse failed; skipping: $e',
         name: 'HygStarCatalog',

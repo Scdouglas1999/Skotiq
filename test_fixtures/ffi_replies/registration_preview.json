@@ -1,0 +1,56 @@
+{
+  "crop": [
+    12,
+    8,
+    6230,
+    4160
+  ],
+  "frames": [
+    {
+      "corners": [
+        [
+          1.5,
+          2.5
+        ],
+        [
+          6246.0,
+          3.0
+        ],
+        [
+          6245.5,
+          4174.0
+        ],
+        [
+          2.0,
+          4173.5
+        ]
+      ],
+      "failure": "none",
+      "group": "2026-11-20",
+      "included": true,
+      "overlap": 0.97,
+      "path": "/subs/M31_Ha_0001.fits",
+      "reason": "within the overlap limit",
+      "rmsPx": 0.22,
+      "rotationDeg": 0.12,
+      "shiftPx": [
+        3.5,
+        -1.25
+      ],
+      "side": "east",
+      "starsMatched": 214
+    }
+  ],
+  "height": 4176,
+  "limiting": [
+    {
+      "group": "2026-11-21",
+      "path": "/subs/M31_Ha_0044.fits",
+      "retainedWithout": 0.96
+    }
+  ],
+  "meetsMinimum": true,
+  "minRetainedArea": 0.8,
+  "retainedArea": 0.93,
+  "width": 6248
+}

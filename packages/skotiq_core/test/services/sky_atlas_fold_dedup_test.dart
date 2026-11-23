@@ -1,4 +1,4 @@
-// Pillar A ("Your Sky") — Wave 0 fold dedup at the solve-persist hook.
+// Pillar A ("Your Sky") fold dedup at the solve-persist hook.
 //
 // A re-solved frame fires the SolvedFrameFoldHook a SECOND time for the same
 // capturedImageId (a duplicate inbound `updateCapturedImage{isPlateSolved:true}`

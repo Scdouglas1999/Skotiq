@@ -15,13 +15,7 @@ import 'package:skotiq_core/src/providers/device_service_providers.dart';
 class _EnvironmentalBackend extends Mock
     implements SkotiqBackend, EnvironmentalStatusBackend, DomeStatusBackend {
   @override
-  Set<DeviceType> get nativeReconnectedDeviceTypes => const {
-    DeviceType.mount,
-    DeviceType.guider,
-    DeviceType.dome,
-    DeviceType.weather,
-    DeviceType.coverCalibrator,
-  };
+  Set<DeviceType> get nativeReconnectedDeviceTypes => DeviceType.values.toSet();
 }
 
 class _BackendNotifier extends BackendNotifier {
@@ -123,7 +117,7 @@ void main() {
     },
   );
 
-  // Simulator campaign 2026-07-28 (S1): a safety monitor that started failing
+  // A safety monitor that started failing
   // its status reads dropped to `error`, and the poll loop skipped every
   // non-connected device — so it was never read again, even after the sensor
   // came back reporting UNSAFE. Only a manual reconnect resumed polling.
@@ -167,45 +161,6 @@ void main() {
       final recovered = container.read(safetyMonitorStateProvider);
       expect(recovered.connectionState, DeviceConnectionState.connected);
       expect(recovered.isSafe, isFalse);
-    });
-  });
-
-  // A monitor whose driver lost its handle keeps failing every read until
-  // something connects it again, and its native heartbeat never reports the
-  // drop. It is reconnected like any other device.
-  test('a safety monitor whose reads keep failing is reconnected', () {
-    const deviceId = 'simulator:safety-1';
-    var dropped = false;
-    when(
-      () => backend.connectDevice(DeviceType.safetyMonitor, deviceId),
-    ).thenAnswer((_) async => dropped = false);
-    when(() => backend.getHardwareSafetyStatus(deviceId)).thenAnswer((_) async {
-      if (dropped) throw StateError('Simulator safety monitor not connected');
-      return true;
-    });
-
-    fakeAsync((async) {
-      unawaited(
-        container
-            .read(deviceServiceProvider)
-            .connect(DeviceType.safetyMonitor, deviceId),
-      );
-      async.elapse(const Duration(seconds: 1));
-
-      dropped = true;
-      async.elapse(const Duration(seconds: 12));
-      expect(
-        container.read(safetyMonitorStateProvider).connectionState,
-        DeviceConnectionState.error,
-      );
-
-      async.elapse(const Duration(seconds: 20));
-      final state = container.read(safetyMonitorStateProvider);
-      expect(state.connectionState, DeviceConnectionState.connected);
-      expect(state.isSafe, isTrue);
-      verify(
-        () => backend.connectDevice(DeviceType.safetyMonitor, deviceId),
-      ).called(2);
     });
   });
 

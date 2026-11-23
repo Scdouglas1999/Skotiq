@@ -14,7 +14,7 @@ import 'package:skotiq_core/utils.dart';
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 
 import '../desktop_app_bootstrap.dart';
 import '../headless/headless_disk_watchdog_bootstrap.dart';
@@ -555,7 +555,7 @@ Future<void> _startUpdateReceiver(HostStartup host) async {
   try {
     await receiver.startServer();
   } catch (e) {
-    if ('$e'.contains('no trusted public key compiled in')) {
+    if (e is LanPushKeyMissing) {
       // Unsigned local/development builds deliberately disable LAN updates.
       // This is an expected capability state, not an operational failure.
       logger.info(
@@ -573,7 +573,10 @@ Future<void> _startUpdateReceiver(HostStartup host) async {
     return;
   }
   host.onStop('LAN push receiver', receiver.stopServer);
-  logger.info('LAN push receiver started on port 45680', source: source);
+  logger.info(
+    'LAN push receiver started on port ${LanPushReceiver.pushPort}',
+    source: source,
+  );
   bool isReceiving() => receiver.versionInfo['isReceiving'] == true;
 
   if (host.daemonConfig?.bindLocalOnly ?? false) {

@@ -69,7 +69,6 @@ class _TelegramTransportSectionState
           title: 'Telegram',
           children: [
             _SecretFieldRow(
-              icon: LucideIcons.key,
               title: 'Bot token',
               controller: _bot,
               hasStoredValue: cfg.botToken.isNotEmpty,
@@ -78,7 +77,6 @@ class _TelegramTransportSectionState
               onClear: () => setState(() => _clearBotToken = true),
             ),
             SettingRow(
-              icon: LucideIcons.messageCircle,
               title: 'Chat ID',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -87,7 +85,6 @@ class _TelegramTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.bellOff,
               title: 'Silent notification',
               trailing: SettingsSwitch(
                 value: _silent,
@@ -95,7 +92,6 @@ class _TelegramTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save Telegram config',
               trailing: _SaveButton(
                 successMessage: 'Telegram config saved',
@@ -103,13 +99,11 @@ class _TelegramTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.send,
               title: 'Test Telegram',
               trailing: _TestSendButton(
                 kind: NotificationTransportKind.telegram,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

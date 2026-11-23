@@ -200,7 +200,7 @@ async fn take_burst(
     // the filter-identity read that follows it, so a trigger-fired action
     // cannot be part-way through its own filter move while this one runs.
     //
-    // Unarbitrated, the two fought and both lost: on 2026-09-14 a trigger
+    // Unarbitrated, the two fought and both lost: a trigger
     // autofocus commanded the wheel to "L" while this burst was cycling
     // Ha/SII/OIII, and autofocus then timed out after 120 s watching a healthy,
     // idle wheel sit at "SII". Ordering matters too — this claim is taken
@@ -247,7 +247,6 @@ async fn take_burst(
     let mut dither_skip_noted = false;
     let mut hfr_values = Vec::new();
 
-    // Image Grading: local bindings for the per-frame grading state.
     // All these are Arc<_> handles shared with ExecutionContext so the
     // dashboard sees consistent totals across instruction boundaries.
     let frame_baseline_handle = ctx.run.grading.hfr_baseline.clone();
@@ -285,6 +284,12 @@ async fn take_burst(
         // between. Nothing is written for a failed attempt: the FITS save and
         // the frame's registration below happen once, for the attempt that
         // returned an image, so frames on disk still equal frames recorded.
+        let capture_policy = CaptureSite::ExposureFrame.policy();
+        let stop = || cancel_of(&ctx.cancellation_token);
+        let retry_scope = RetryScope {
+            run: &ctx.run,
+            stop: &stop,
+        };
         let mut camera_retries = CameraRetries::new(&camera_id);
         let mut waiting_for_tracking_since: Option<tokio::time::Instant> = None;
         let (mut image_data, exposure_started_at) = loop {
@@ -294,11 +299,8 @@ async fn take_burst(
 
             // Operator Pause, honoured BETWEEN frames. The node tree checks
             // `is_paused` at instruction boundaries, but a burst is N frames
-            // inside ONE instruction — so a Pause pressed during frame 2 of 3 used
-            // to show a PAUSED badge, a Resume button and "Paused 33%" while the
-            // camera went on to expose frame 3 and the run then recorded
-            // `completed`. An operator pauses to walk in front of the telescope,
-            // so no NEW exposure may start while paused.
+            // inside ONE instruction. An operator pauses to walk in front of the
+            // telescope, so no NEW exposure may start while paused.
             //
             // The frame already integrating is allowed to finish: aborting it
             // throws away data the operator did not ask to lose, and the shutter
@@ -426,40 +428,20 @@ async fn take_burst(
             // frame late by its own exposure time.
             let exposure_started_at = chrono::Utc::now();
 
-            // tokio::select! is the only way to honour cancellation during a
-            // blocking exposure without driver support; the abort branch tells
-            // the camera to stop so it does not continue exposing in the
-            // background after we abandon the future.
-            let mut abort_guard =
-                CameraExposureAbortGuard::new(ctx.run.device_ops.clone(), camera_id.clone());
-            let exposure_result = tokio::select! {
-                biased;
-                _ = wait_for_cancellation(ctx.cancellation_token.clone()) => {
-                    tracing::info!("Exposure cancelled, aborting camera...");
-                    match ctx.run.device_ops.camera_abort_exposure(&camera_id).await {
-                        Ok(()) => abort_guard.disarm(),
-                        Err(error) => tracing::error!(
-                            "Camera abort failed during exposure cancellation: {}",
-                            error
-                        ),
-                    }
-                    frame_claim.release(ctx).await;
-                    return InstructionResult::cancelled("Exposure cancelled");
-                }
-                // Thread the frame type so shuttered cameras (Moravian, FLI, some
-                // CCDs) keep the shutter CLOSED for dark/bias frames.
-                result = ctx.run.device_ops.camera_start_exposure(
-                    crate::device_ops::ExposureRequest::new(&camera_id, config.duration_secs)
-                        .gain(config.gain)
-                        .offset(config.offset)
-                        .binning(bin_x, bin_y)
-                        .frame_type(config.frame_type.as_str())
-                        .readout_mode(config.readout_mode.as_deref()),
-                ) => {
-                    abort_guard.disarm();
-                    result
-                }
-            };
+            // Thread the frame type so shuttered cameras (Moravian, FLI, some
+            // CCDs) keep the shutter CLOSED for dark/bias frames.
+            let exposure_result = expose_frame(
+                &ctx.run.device_ops,
+                crate::device_ops::ExposureRequest::new(&camera_id, config.duration_secs)
+                    .gain(config.gain)
+                    .offset(config.offset)
+                    .binning(bin_x, bin_y)
+                    .frame_type(config.frame_type)
+                    .readout_mode(config.readout_mode.as_deref()),
+                capture_policy,
+                &stop,
+            )
+            .await;
             // The frame is off the camera (or failed): release the claim on both
             // paths. A failure that returned without releasing would leave the hold
             // to lapse on its expiry, which is safe but delays the next
@@ -476,12 +458,27 @@ async fn take_burst(
                     );
                     break (data, exposure_started_at);
                 }
-                Err(error) => match camera_retries
-                    .after_failure(ctx, error, &format!("on frame {}/{}", frame, config.count))
+                Err(Unexposed::Stopped { abort, .. }) => {
+                    if let Err(error) = abort {
+                        tracing::error!(
+                            "Camera abort failed during exposure cancellation: {}",
+                            error
+                        );
+                    }
+                    return InstructionResult::cancelled("Exposure cancelled");
+                }
+                Err(Unexposed::Failed(error)) => match camera_retries
+                    .after_failure(
+                        retry_scope,
+                        error,
+                        &format!("on frame {}/{}", frame, config.count),
+                    )
                     .await
                 {
                     RetryOutcome::Retry => {
-                        if camera_retries.take_reopened() {
+                        if capture_policy.hold_set_point_after_reopen
+                            && camera_retries.take_reopened()
+                        {
                             if let Some(result) = hold_frame_for_set_point(
                                 config, ctx, &camera_id, control, frame, true,
                             )
@@ -1198,16 +1195,7 @@ async fn recenter_after_mount_fault(
             Ok(claim) => claim,
             Err(cancelled) => return MountFaultRecenter::Stop(cancelled),
         };
-    let config = crate::CenterConfig {
-        use_target_coords: true,
-        custom_ra: None,
-        custom_dec: None,
-        accuracy_arcsec: None,
-        max_attempts: 3,
-        exposure_duration: 5.0,
-        filter: None,
-        sync_mount: true,
-    };
+    let config = ctx.run.recenter_config();
     let result = crate::instructions::execute_center(&config, ctx, None).await;
     claim.release(ctx).await;
     if let Some(cancelled) = ctx.check_cancelled() {

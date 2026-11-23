@@ -3,7 +3,7 @@
 
 use skotiq_imaging::{
     copy_header_cards, is_instrument_keyword, read_frame_header, replace_astrometry_headers,
-    FitsHeader,
+    FitsHeader, PlateSolveResult, SipWcs,
 };
 use std::path::Path;
 
@@ -26,13 +26,14 @@ pub(crate) fn copy_optics_cards(header: &mut FitsHeader, source: &FitsHeader) {
     });
 }
 
-/// Whether `header` holds a celestial WCS.
+/// Whether `header` holds a celestial WCS a master can use: `CTYPE1` names
+/// RA and the cards make a whole solution (a reference point and a linear
+/// part) that [`SipWcs::from_header`] reads.
 pub(crate) fn has_wcs(header: &FitsHeader) -> bool {
     header
         .get_string("CTYPE1")
         .is_some_and(|t| t.contains("RA"))
-        && header.get_float("CRVAL1").is_some()
-        && header.get_float("CRVAL2").is_some()
+        && SipWcs::from_header(header).is_some()
 }
 
 pub(crate) struct WcsAttachment {
@@ -45,12 +46,31 @@ pub(crate) struct WcsAttachment {
 /// Every master is resampled onto the grid reference, so the reference's own
 /// solve describes it: from the reference's header, or from the `.wcs` file
 /// ASTAP writes beside a solved frame. Failing both, the written master is
-/// solved with ASTAP when it is installed. `None` when no WCS could be found.
+/// solved with ASTAP when it is installed, one solver process at a time with
+/// every other solve in the app. `None` when no WCS could be found.
 pub(crate) fn attach_wcs(
     header: &mut FitsHeader,
     grid_path: &str,
     master_path: &Path,
     size: (u32, u32),
+) -> Option<WcsAttachment> {
+    attach_wcs_solved_by(header, grid_path, master_path, size, solve_with_astap)
+}
+
+/// ASTAP's solve of `path` near the `RA`/`DEC` hint, or `None` when ASTAP
+/// is not installed.
+fn solve_with_astap(path: &Path, ra: Option<f64>, dec: Option<f64>) -> Option<PlateSolveResult> {
+    let solver = skotiq_platesolve::AstapSolver::with_default_config()?;
+    Some(solver.solve(path, ra, dec, None))
+}
+
+/// [`attach_wcs`], with `solve` standing in for the solver.
+fn attach_wcs_solved_by(
+    header: &mut FitsHeader,
+    grid_path: &str,
+    master_path: &Path,
+    size: (u32, u32),
+    solve: impl FnOnce(&Path, Option<f64>, Option<f64>) -> Option<PlateSolveResult>,
 ) -> Option<WcsAttachment> {
     if let Some(grid) = fits_header_of(grid_path).filter(has_wcs) {
         replace_astrometry_headers(header, &grid);
@@ -67,14 +87,16 @@ pub(crate) fn attach_wcs(
             inherited: true,
         });
     }
-    let solver = skotiq_platesolve::AstapSolver::with_default_config()?;
     let hint = |key: &str| header.get_float(key);
-    let result = solver.solve(master_path, hint("RA"), hint("DEC"), None);
+    let result = {
+        let _gate = skotiq_platesolve::acquire_solve_gate_blocking("master");
+        solve(master_path, hint("RA"), hint("DEC"))?
+    };
     if !result.success || result.cd1_1 == 0.0 {
         tracing::info!(
-            "no WCS for '{}': ASTAP could not solve it ({})",
-            master_path.display(),
-            result.error.unwrap_or_default()
+            error = ?result.error,
+            "no WCS for '{}': ASTAP could not solve it",
+            master_path.display()
         );
         return None;
     }
@@ -134,5 +156,115 @@ mod tests {
             assert!(master.get(key).is_none(), "{key}");
         }
         assert_eq!(master.get_float("EXPTIME"), Some(7200.0));
+    }
+
+    /// A grid reference whose header names a reference point but no linear
+    /// part has no WCS a master can use, so the master is solved instead of
+    /// taking it; a whole solution is taken without a solve.
+    #[test]
+    fn a_reference_without_a_linear_part_is_not_inherited() {
+        let dir = std::env::temp_dir().join(format!("skotiq-mc-wcs-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let grid = dir.join("grid.fits");
+        let mut reference = FitsHeader::new();
+        reference.set_string("CTYPE1", "RA---TAN");
+        reference.set_string("CTYPE2", "DEC--TAN");
+        reference.set_float("CRVAL1", 10.0);
+        reference.set_float("CRVAL2", 41.0);
+        let image = skotiq_imaging::ImageData::from_u16(16, 16, 1, &[100; 256]);
+        let attach = |reference: &FitsHeader| {
+            skotiq_imaging::write_fits(&grid, &image, reference).unwrap();
+            let mut asked = false;
+            let mut header = FitsHeader::new();
+            let attached = attach_wcs_solved_by(
+                &mut header,
+                grid.to_str().unwrap(),
+                &dir.join("master.fits"),
+                (16, 16),
+                |_, _, _| {
+                    asked = true;
+                    None
+                },
+            );
+            (attached.map(|a| a.inherited), asked)
+        };
+        assert_eq!(attach(&reference), (None, true), "no CD: solved");
+        reference.set_float("CD1_1", -2.8e-4);
+        reference.set_float("CD2_2", 2.8e-4);
+        assert_eq!(attach(&reference), (Some(true), false), "CD: inherited");
+        let mut written = FitsHeader::new();
+        SipWcs::from_pointing(10.0, 41.0, 12.0, 1.5, 16, 16).write_to_header(&mut written);
+        assert_eq!(
+            attach(&written),
+            (Some(true), false),
+            "a solution Skotiq wrote: inherited"
+        );
+
+        // A grid reference with no WCS of its own takes the solve ASTAP wrote
+        // beside it.
+        skotiq_imaging::write_fits(&grid, &image, &FitsHeader::new()).unwrap();
+        let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("../test-fixtures");
+        for sidecar in [
+            "solver-wcs-2026-11-12/astap-sip.wcs",
+            "rig-2026-09-14/solve-verify.wcs",
+        ] {
+            std::fs::copy(fixtures.join(sidecar), dir.join("grid.wcs")).unwrap();
+            let mut asked = false;
+            let mut header = FitsHeader::new();
+            let attached = attach_wcs_solved_by(
+                &mut header,
+                grid.to_str().unwrap(),
+                &dir.join("master.fits"),
+                (16, 16),
+                |_, _, _| {
+                    asked = true;
+                    None
+                },
+            );
+            assert_eq!(
+                (attached.map(|a| a.inherited), asked),
+                (Some(true), false),
+                "{sidecar}"
+            );
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The master's own solve holds the app's one-solver gate: a solve asked
+    /// for while it runs waits until it returns.
+    #[test]
+    fn a_master_solve_holds_the_solver_gate() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let (started_tx, started) = channel();
+        let (finish_tx, finish) = channel::<()>();
+        let master = std::thread::spawn(move || {
+            let mut header = FitsHeader::new();
+            attach_wcs_solved_by(
+                &mut header,
+                "",
+                Path::new("master.fits"),
+                (16, 16),
+                |_, _, _| {
+                    started_tx.send(()).unwrap();
+                    finish.recv().unwrap();
+                    None
+                },
+            )
+        });
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (solved_tx, solved) = channel();
+        let other = std::thread::spawn(move || {
+            let _gate = skotiq_platesolve::acquire_solve_gate_blocking("other");
+            solved_tx.send(()).unwrap();
+        });
+        assert!(
+            solved.recv_timeout(Duration::from_millis(300)).is_err(),
+            "another solve ran while the master was being solved"
+        );
+        finish_tx.send(()).unwrap();
+        solved.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert!(master.join().unwrap().is_none());
+        other.join().unwrap();
     }
 }

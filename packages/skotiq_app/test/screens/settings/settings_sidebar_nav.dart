@@ -68,12 +68,11 @@ Future<void> tapInSettingsSidebar(
 
 /// Brings a sidebar group's (upper-cased) header into view.
 ///
-/// The groups no longer collapse — the Observatory nav is a flat list under
-/// three quiet eyebrows (06 §Settings) — so there is nothing to open. The
-/// helper stays because every caller's next step is to tap a row inside the
-/// group, and scrolling the header into view is still what puts that row within
-/// reach; it now also ASSERTS the group is present, which is the claim the old
-/// tap was making implicitly.
+/// The groups do not collapse — the nav is a flat list under three quiet
+/// eyebrows (06 §Settings) — so there is nothing to open. Every caller's next
+/// step is to tap a row inside the group, and scrolling the header into view
+/// is what puts that row within reach; the helper also ASSERTS the group is
+/// present.
 Future<void> expandSettingsGroup(
   WidgetTester tester,
   String groupTitle,

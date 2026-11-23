@@ -58,7 +58,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       final endTime = currentTime.add(nodeDuration);
       final warnings = <String>[];
 
-      // Add loop iteration note if applicable
       if (loopIterationNote != null) {
         warnings.add(loopIterationNote);
       }
@@ -80,7 +79,6 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       currentTime = endTime;
     }
 
-    // Process children in order
     if (node.childIds.isNotEmpty) {
       final children = sequence.getChildren(node.id);
 
@@ -88,9 +86,10 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
       // SINGLE iteration (with a "1 of N" warning), but the cumulative clock
       // must advance by the full loop so downstream nodes + the
       // meridian/dawn conflict checks see the real end time: advancing one
-      // pass under-reports a Count loop by the loop factor. For unbounded or
-      // condition-based loops the iteration count is not known statically, so
-      // the single-pass estimate stands and the warning note says so.
+      // pass under-reports a loop by its pass count ([loopPasses]: a count, or
+      // the passes an integration target takes). For loops that run by time
+      // or sky the pass count is not known statically, so the single-pass
+      // estimate stands and the warning note says so.
       if (node is LoopNode) {
         final loopNote = _getLoopIterationNote(node);
         if (node.conditionType == LoopConditionType.untilTime) {
@@ -161,15 +160,13 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
             windowEnd: windowEnd,
           );
         }
-        if (node.conditionType == LoopConditionType.count) {
-          final iterations = node.repeatCount ?? 1;
-          if (iterations > 1) {
-            final singlePass = currentTime.difference(loopStartTime);
-            // Advance the clock by the remaining (count - 1) iterations'
-            // worth of body time. The first pass is already reflected in
-            // `currentTime` (and rendered in the timeline).
-            currentTime = currentTime.add(singlePass * (iterations - 1));
-          }
+        final iterations = loopPasses(node, sequence.nodes) ?? 1;
+        if (iterations > 1) {
+          final singlePass = currentTime.difference(loopStartTime);
+          // Advance the clock by the remaining (passes - 1) passes' worth of
+          // body time. The first pass is already reflected in `currentTime`
+          // (and rendered in the timeline).
+          currentTime = currentTime.add(singlePass * (iterations - 1));
         }
         // The target's window ends a loop inside it at the next boundary.
         if (windowEnd != null && currentTime.isAfter(windowEnd)) {
@@ -255,51 +252,39 @@ extension _SequenceTimeEstimatorNodeDurations on SequenceTimeEstimator {
     return '${ClockFormat.hm(time)} on $month-$day';
   }
 
-  /// Calculate when the specified twilight type will occur.
-  ///
-  /// Returns the next occurrence of the specified twilight (dusk or dawn),
-  /// or null if it can't be calculated (e.g., polar regions in summer).
+  /// When a wait for [twilightType] reached at [currentTime] ends: the
+  /// evening twilight of the site's night under way while it is still to
+  /// come, null once that night is dark (no wait), and the next evening's
+  /// after that night's matching dawn. Null as well when the Sun never
+  /// crosses that altitude (polar summer).
   DateTime? _calculateTwilightWaitTime(
     DateTime currentTime,
     TwilightType twilightType,
     _LocationContext locationContext,
   ) {
-    final twilightTimes = AstronomyCalculations.calculateTwilightTimes(
-      date: locationContext.date,
-      latitudeDeg: locationContext.latitude,
+    TwilightTimes nightOf(NightDate date) =>
+        AstronomyCalculations.calculateTwilightTimes(
+          date: date,
+          latitudeDeg: locationContext.latitude,
+          longitudeDeg: locationContext.longitude,
+        );
+    (DateTime?, DateTime?) duskAndDawn(TwilightTimes t) =>
+        switch (twilightType) {
+          TwilightType.civil => (t.civilDusk, t.civilDawn),
+          TwilightType.nautical => (t.nauticalDusk, t.nauticalDawn),
+          TwilightType.astronomical => (t.astronomicalDusk, t.astronomicalDawn),
+        };
+
+    final night = AstronomyCalculations.nightDateOf(
+      currentTime,
       longitudeDeg: locationContext.longitude,
     );
-
-    // Determine which twilight time to use based on type
-    // For imaging, we typically wait for evening twilight (dusk)
-    DateTime? targetTime;
-    switch (twilightType) {
-      case TwilightType.civil:
-        // Civil twilight: sun 6° below horizon
-        targetTime = twilightTimes.civilDusk;
-        break;
-      case TwilightType.nautical:
-        // Nautical twilight: sun 12° below horizon
-        targetTime = twilightTimes.nauticalDusk;
-        break;
-      case TwilightType.astronomical:
-        // Astronomical twilight: sun 18° below horizon (truly dark)
-        targetTime = twilightTimes.astronomicalDusk;
-        break;
-    }
-
-    if (targetTime == null) {
-      // Twilight doesn't occur (e.g., polar summer)
-      return null;
-    }
-
-    // If the twilight time has already passed today, it means we're
-    // already past dusk - no wait needed
-    if (targetTime.isBefore(currentTime)) {
-      return null;
-    }
-
-    return targetTime;
+    final (dusk, dawn) = duskAndDawn(nightOf(night));
+    if (dusk == null) return null;
+    if (!dusk.isBefore(currentTime)) return dusk;
+    if (dawn == null || currentTime.isBefore(dawn)) return null;
+    final (nextDusk, _) = duskAndDawn(nightOf(night.addDays(1)));
+    return nextDusk;
   }
 
   Duration _estimateNodeDuration(

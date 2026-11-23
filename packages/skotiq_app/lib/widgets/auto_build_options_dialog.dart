@@ -124,7 +124,7 @@ Future<AutoBuildOptions?> showAutoBuildOptions(
           await prefs.save(CustomFilterSet(
               name: set.label, filters: set.filters, shares: set.shares));
         }
-        await prefs.choose(target, set, recommended: filterChoice.recommended);
+        await prefs.pick(target, set, filterChoice);
       },
       previewPlans: (options) async =>
           (await buildPlanTonightTargetSequenceFromSuggestion(

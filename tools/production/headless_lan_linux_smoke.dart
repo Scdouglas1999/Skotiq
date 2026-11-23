@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// The release this tree builds. Every API request names it in
-/// `x-skotiq-version`; a host refuses a request that does not.
-final String _skotiqRelease = RegExp(
-  r'^version:\s*"([^"]+)"',
-  multiLine: true,
-).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+import 'src/host_client.dart';
 
 const _defaultExePath = 'apps/desktop/build/linux/x64/release/bundle/skotiq';
 const _adminToken = 'skotiq-smoke-admin-token';
@@ -139,7 +134,7 @@ void main(List<String> args) async {
       'application/javascript',
     );
 
-    await _expectWebSocketPong(baseUri, _viewToken);
+    await expectEventsPong(baseUri, _viewToken);
 
     if (options.logPath != null) {
       await _writeSmokeLog(
@@ -241,11 +236,7 @@ Future<_HttpResponseBody> _request(
   Map<String, Object?>? body,
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
-  request.headers.set('x-skotiq-version', _skotiqRelease);
-  request.headers.contentType = ContentType.json;
-  if (token != null) {
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-  }
+  setHostHeaders(request, token: token);
   if (body != null) {
     request.write(jsonEncode(body));
   }
@@ -332,32 +323,6 @@ Future<void> _expectTextAsset(
   }
   if (body.isEmpty) {
     throw StateError('$path returned an empty body');
-  }
-}
-
-Future<void> _expectWebSocketPong(Uri baseUri, String token) async {
-  final uri = Uri(
-    scheme: 'ws',
-    host: baseUri.host,
-    port: baseUri.port,
-    path: '/events',
-    queryParameters: {'token': token},
-  );
-  final socket = await WebSocket.connect(uri.toString());
-  try {
-    socket.add(jsonEncode({'type': 'ping'}));
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    await for (final message in socket) {
-      final data = jsonDecode(message as String) as Map<String, dynamic>;
-      if (data['type'] == 'pong') {
-        return;
-      }
-      if (DateTime.now().isAfter(deadline)) {
-        throw TimeoutException('Timed out waiting for WebSocket pong');
-      }
-    }
-  } finally {
-    await socket.close();
   }
 }
 

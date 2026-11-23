@@ -1,13 +1,7 @@
-// The magnitude that decides whether an alert is auto-queued shipped with a
-// default of 10.0 — brighter than almost every transient an amateur rig can
-// reach — and no control anywhere in the app. It was settable over the headless
-// API (`transient_handlers.dart`) and by `setAutoQueueMagnitude`, which had zero
-// UI callers, so switching "Auto-queue bright transients" on gave the operator a
-// feature that could never fire and no way to loosen it.
-//
-// Reproduced live 2026-08-09 on the release desktop build: Plan Tonight >
-// Recommendation > Transient Alerts > gear, toggled auto-queue to [ON], and the
-// dialog offered nothing but the hard-coded "brighter than mag 10" caption.
+// The magnitude that decides whether an alert is auto-queued defaults to 10.0
+// — brighter than almost every transient an amateur rig can reach — so the
+// dialog must offer a control for it, or switching "Auto-queue bright
+// transients" on gives a feature that can never fire.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

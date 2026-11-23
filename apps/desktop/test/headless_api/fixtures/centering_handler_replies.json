@@ -1,0 +1,493 @@
+{
+  "framing.cancelled": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "cancelled",
+      "result": null,
+      "error": {
+        "code": "job_cancelled",
+        "message": "Center-on-target cancellation requested by client"
+      }
+    },
+    "centering": [
+      {
+        "ra": 3.0,
+        "dec": 4.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 1,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.defaults": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "iterations": 2,
+      "finalOffsetArcsec": 4.5,
+      "errorMessage": null,
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.overrides": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "iterations": 2,
+      "finalOffsetArcsec": 4.5,
+      "errorMessage": null,
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 0.0,
+        "dec": 89.9,
+        "maxIterations": 7,
+        "toleranceArcsec": 12.5,
+        "exposureTime": 2.0,
+        "syncMount": false,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.missed": {
+    "status": 200,
+    "body": {
+      "success": false,
+      "iterations": 5,
+      "finalOffsetArcsec": 300.0,
+      "errorMessage": "Did not converge",
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.throws": {
+    "status": 500,
+    "body": {
+      "error": "internal_error",
+      "message": "mount gone",
+      "requestId": "test-request-id"
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.ra_out_of_range": {
+    "status": 400,
+    "body": {
+      "error": "Value must be <= 24.0",
+      "code": "invalid_request",
+      "field": "ra",
+      "expected": "number",
+      "message": "Value must be <= 24.0"
+    },
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.bad_iterations": {
+    "status": 400,
+    "body": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "maxIterations",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    },
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "planetarium.published": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "iterations": 2,
+      "finalOffsetArcsec": 4.5,
+      "errorMessage": null,
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "completed",
+    "hostLastResult": true
+  },
+  "planetarium.published_missed": {
+    "status": 200,
+    "body": {
+      "success": false,
+      "iterations": 5,
+      "finalOffsetArcsec": 300.0,
+      "errorMessage": "Did not converge",
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "error",
+    "hostLastResult": true
+  },
+  "planetarium.not_published": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "iterations": 2,
+      "finalOffsetArcsec": 4.5,
+      "errorMessage": null,
+      "iterationHistory": []
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.defaults": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "success": true,
+        "iterations": 2,
+        "finalOffsetArcsec": 4.5,
+        "errorMessage": null,
+        "iterationHistory": []
+      },
+      "error": null
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.overrides": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "success": true,
+        "iterations": 2,
+        "finalOffsetArcsec": 4.5,
+        "errorMessage": null,
+        "iterationHistory": []
+      },
+      "error": null
+    },
+    "centering": [
+      {
+        "ra": 0.0,
+        "dec": 89.9,
+        "maxIterations": 7,
+        "toleranceArcsec": 12.5,
+        "exposureTime": 2.0,
+        "syncMount": false,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.missed": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "centering_failed",
+        "message": "Did not converge",
+        "details": {
+          "success": false,
+          "iterations": 5,
+          "finalOffsetArcsec": 300.0,
+          "errorMessage": "Did not converge",
+          "iterationHistory": []
+        }
+      }
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.throws": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "job_failed",
+        "message": "Bad state: mount gone",
+        "details": {
+          "exceptionType": "StateError"
+        }
+      }
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.ra_out_of_range": {
+    "status": 400,
+    "body": {
+      "error": "Value must be <= 24.0",
+      "code": "invalid_request",
+      "field": "ra",
+      "expected": "number",
+      "message": "Value must be <= 24.0"
+    },
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.bad_iterations": {
+    "status": 400,
+    "body": {
+      "error": "Value must be >= 1.0",
+      "code": "invalid_request",
+      "field": "maxIterations",
+      "expected": "number",
+      "message": "Value must be >= 1.0"
+    },
+    "centering": [],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  },
+  "framing.published": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "success": true,
+        "iterations": 2,
+        "finalOffsetArcsec": 4.5,
+        "errorMessage": null,
+        "iterationHistory": []
+      },
+      "error": null
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "completed",
+    "hostLastResult": true
+  },
+  "framing.published_missed": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "failed",
+      "result": null,
+      "error": {
+        "code": "centering_failed",
+        "message": "Did not converge",
+        "details": {
+          "success": false,
+          "iterations": 5,
+          "finalOffsetArcsec": 300.0,
+          "errorMessage": "Did not converge",
+          "iterationHistory": []
+        }
+      }
+    },
+    "centering": [
+      {
+        "ra": 12.0,
+        "dec": 30.0,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "error",
+    "hostLastResult": true
+  },
+  "framing.not_published": {
+    "status": 200,
+    "body": {
+      "jobId": "<job>",
+      "status": "queued",
+      "operation": "framing.center-on-target"
+    },
+    "job": {
+      "state": "succeeded",
+      "result": {
+        "success": true,
+        "iterations": 2,
+        "finalOffsetArcsec": 4.5,
+        "errorMessage": null,
+        "iterationHistory": []
+      },
+      "error": null
+    },
+    "centering": [
+      {
+        "ra": 5.5,
+        "dec": -5.4,
+        "maxIterations": 5,
+        "toleranceArcsec": 5.0,
+        "exposureTime": 5.0,
+        "syncMount": true,
+        "overallTimeoutSecs": 600
+      }
+    ],
+    "stops": 0,
+    "hostStatus": "idle",
+    "hostLastResult": false
+  }
+}

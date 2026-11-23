@@ -89,14 +89,10 @@ void main() {
       expect(response.body.containsKey('minimumSupportedApiVersion'), isFalse);
     });
 
-    // D4W-4. The auth-exempt surface used to be written out twice — once as
-    // the middleware's allowlist, once as `/api/info`'s `publicEndpoints` —
-    // and the published copy had drifted: it named seven paths while the
-    // server actually answered thirteen without a token, omitting every
-    // broadcast endpoint, the site root and the favicon. Both now read the one
-    // declaration in `headless_api/auth/public_paths.dart`, and what is
+    // The middleware's allowlist and `/api/info`'s `publicEndpoints` both read
+    // the one declaration in `headless_api/auth/public_paths.dart`; what is
     // asserted here is the behaviour: everything published answers
-    // unauthenticated, and the omitted six are back in the catalog.
+    // unauthenticated.
     test('publishes the endpoints it really serves without a token', () async {
       final info = await _request(client, baseUri, '/api/info');
 
@@ -873,7 +869,7 @@ void main() {
       // The back-compat coarse pair is NOT emitted here, and that is the
       // point: `camera:control,mount:view` projects to the coarse scope
       // `control`, and the route's coarse requirement is `control`, so the
-      // pair used to read requiredScope=control beside tokenScope=control —
+      // pair would read requiredScope=control beside tokenScope=control —
       // the body asserting the requirement was satisfied on a refusal. A pair
       // that does not explain the outcome is left out rather than printed as
       // a contradiction; the coarse-shortfall case keeps it (see 'rejects

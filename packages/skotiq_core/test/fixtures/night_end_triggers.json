@@ -1,0 +1,20 @@
+{
+  "hfr_degraded": null,
+  "meridian_flip": null,
+  "guiding_failed": null,
+  "altitude_limit": null,
+  "weather_unsafe": null,
+  "temperature_shift": null,
+  "filter_change": null,
+  "dawn_approaching": "dawn",
+  "mount_tracking_lost": null,
+  "dome_shutter_not_open": null,
+  "guide_star_lost": null,
+  "focus_drift": null,
+  "drift_limit": null,
+  "dither_interval": null,
+  "autofocus_interval": null,
+  "obstruction": "obstruction",
+  "recovery_node:n1": null,
+  "": null
+}

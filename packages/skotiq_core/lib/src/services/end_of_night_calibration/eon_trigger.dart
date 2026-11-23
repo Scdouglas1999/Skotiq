@@ -1,29 +1,20 @@
 import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerNightEnd;
 
 import '../../models/sequence/active_plan_owner.dart';
-import '../../providers/backend_provider.dart';
-import '../../providers/equipment_provider.dart';
-import '../../providers/database_provider.dart';
-import '../../providers/sequence/sequence_executor.dart';
 import '../../models/sequence/run_stop_classification.dart';
-import '../../providers/sequence/sequence_progress.dart';
-import '../../providers/sequence/sequence_selection.dart';
-import '../../models/sequence/sequence_models.dart'
-    show SequenceExecutionStateCapabilities;
-import '../../providers/sequence_stats_provider.dart';
 import '../../models/sequence/sequence_run_status.dart';
 import '../../models/sequence/terminal_run_result.dart';
-import '../../providers/settings_provider.dart';
 import '../../utils/logging_service.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import '../../providers/end_of_night_calibration/eon_providers.dart';
 import 'eon_settings.dart';
-import '../../providers/end_of_night_calibration/eon_deferral_provider.dart';
-import '../../providers/logging_service_provider.dart';
+import '../../backend/skotiq_backend.dart';
+import '../../database/daos/images_dao.dart';
+import '../../database/daos/settings_dao.dart';
 import '../../models/calibration/eon_status.dart';
+import 'eon_service.dart';
 
 /// Why the night's imaging ended.
 enum EonEndReason {
@@ -70,18 +61,24 @@ bool isNightEnding({
   return now >= eonDawnSunAltitudeDeg && later > now;
 }
 
-/// Stop origins of the native triggers that end the night: the run's stop
-/// origin is the id of the trigger that parked it.
-const eonDawnStopOrigin = 'dawn_approaching';
-const eonObstructionStopOrigin = 'obstruction';
+/// The end-of-night reason a native night end gives.
+EonEndReason? _nightEndReason(SequencerNightEnd? nightEnd) =>
+    switch (nightEnd) {
+      SequencerNightEnd.dawn => EonEndReason.dawn,
+      SequencerNightEnd.obstruction => EonEndReason.obstruction,
+      null => null,
+    };
 
 /// Whether a finished imaging run ended the night, and why. Null when it did
 /// not: an operator stop, a failure, or a weather stop in the middle of the
-/// night leave the night open.
+/// night leave the night open. [nightEnd] is the native trigger table's
+/// answer for the trigger that parked the run; [stopOrigin] is who stopped
+/// it otherwise.
 EonEndReason? classifyRunEnd({
   required SequenceRunStatus runStatus,
   required String? stopOrigin,
   required bool nightEnding,
+  SequencerNightEnd? nightEnd,
   bool parked = false,
 }) {
   if (runStatus == SequenceRunStatus.completed) {
@@ -90,12 +87,12 @@ EonEndReason? classifyRunEnd({
   // A recovered failure cause remains the run's verdict even when dawn
   // subsequently parks it. That verdict must not suppress night-end work.
   if (runStatus == SequenceRunStatus.failed && parked) {
-    if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
-    if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
+    final reason = _nightEndReason(nightEnd);
+    if (reason != null) return reason;
   }
   if (!runStatus.endedByStop) return null;
-  if (stopOrigin == eonDawnStopOrigin) return EonEndReason.dawn;
-  if (stopOrigin == eonObstructionStopOrigin) return EonEndReason.obstruction;
+  final reason = _nightEndReason(nightEnd);
+  if (reason != null) return reason;
   final safetyStop =
       stopOrigin == 'weather_unsafe' ||
       stopOrigin == 'safety' ||
@@ -116,12 +113,6 @@ class NightIntegrationRequest {
   final int sessionId;
 }
 
-/// The latest [NightIntegrationRequest]; the post-session integration
-/// coordinator acts on each new one.
-final nightIntegrationRequestProvider = StateProvider<NightIntegrationRequest?>(
-  (ref) => null,
-);
-
 /// Starts the end-of-night calibration step when the night's imaging ends.
 ///
 /// It watches every finished run. A run that took light frames and completed,
@@ -133,31 +124,83 @@ final nightIntegrationRequestProvider = StateProvider<NightIntegrationRequest?>(
 /// integration, waits on [runEnded] and [nightSettled] for the run's
 /// generation, so tonight's darks are in the library before it reads them.
 class EndOfNightCalibrationCoordinator {
-  EndOfNightCalibrationCoordinator(this._ref) {
-    _ref.listen<SequenceTerminalRunResult?>(sequenceTerminalRunResultProvider, (
-      _,
-      next,
-    ) {
-      if (next == null || next.generation == _lastGeneration) return;
-      _lastGeneration = next.generation;
-      final owner = next.isCalibration
-          ? ActivePlanOwner.calibration
-          : _ref.read(currentSequenceProvider.notifier).activeOwner;
-      final evidence = _ref.read(sequenceStopEvidenceProvider);
-      final origin = switch (evidence?.author) {
-        SequenceStopAuthor.operatorPress => 'operator',
-        SequenceStopAuthor.autopilot => 'autopilot',
-        SequenceStopAuthor.system => evidence?.origin,
-        null =>
-          next.runStatus == SequenceRunStatus.completed
-              ? null
-              : _ref.read(sequenceExecutorProvider).lastRunEndOrigin,
-      };
-      unawaited(_settle(next, owner, origin));
-    });
+  /// Every collaborator is asked for when it is needed, so a setting edited
+  /// during the night applies to the next run that ends.
+  ///
+  /// [observerLocation] is the site, or null while it is not set.
+  /// [takeDeferredWarmUp] returns whether the finished run left its camera
+  /// warm-up to this step and clears that flag. [requestIntegration] hands a
+  /// night the operator stopped to the post-session integration. The owner
+  /// calls [runFinished] with each finished run.
+  EndOfNightCalibrationCoordinator({
+    required ActivePlanOwner Function() activeOwner,
+    required SequenceStopDecision? Function() stopEvidence,
+    required String? Function() lastRunEndOrigin,
+    required LoggingService Function() log,
+    required bool Function() takeDeferredWarmUp,
+    required EndOfNightCalibrationService Function() calibration,
+    required ({double latitude, double longitude})? Function() observerLocation,
+    required String? Function() mountId,
+    required SkotiqBackend Function() backend,
+    required ImagesDao Function() imagesDao,
+    required void Function(NightIntegrationRequest request) requestIntegration,
+    required bool Function() isRemote,
+    required SettingsDao Function() settingsDao,
+    required bool Function() canStartRun,
+  }) : _activeOwner = activeOwner,
+       _stopEvidence = stopEvidence,
+       _lastRunEndOrigin = lastRunEndOrigin,
+       _logOf = log,
+       _takeDeferredWarmUp = takeDeferredWarmUp,
+       _calibration = calibration,
+       _observerLocation = observerLocation,
+       _mountId = mountId,
+       _backend = backend,
+       _imagesDao = imagesDao,
+       _requestIntegration = requestIntegration,
+       _isRemote = isRemote,
+       _settingsDao = settingsDao,
+       _canStartRun = canStartRun;
+
+  final ActivePlanOwner Function() _activeOwner;
+  final SequenceStopDecision? Function() _stopEvidence;
+  final String? Function() _lastRunEndOrigin;
+  final LoggingService Function() _logOf;
+  final bool Function() _takeDeferredWarmUp;
+  final EndOfNightCalibrationService Function() _calibration;
+  final ({double latitude, double longitude})? Function() _observerLocation;
+  final String? Function() _mountId;
+  final SkotiqBackend Function() _backend;
+  final ImagesDao Function() _imagesDao;
+  final void Function(NightIntegrationRequest request) _requestIntegration;
+  final bool Function() _isRemote;
+  final SettingsDao Function() _settingsDao;
+  final bool Function() _canStartRun;
+
+  /// Classifies the run that just finished and starts what its end calls
+  /// for. A generation already seen is ignored.
+  void runFinished(SequenceTerminalRunResult? next) {
+    if (next == null || next.generation == _lastGeneration) return;
+    _lastGeneration = next.generation;
+    final owner = next.isCalibration
+        ? ActivePlanOwner.calibration
+        : _activeOwner();
+    final evidence = _stopEvidence();
+    final origin = switch (evidence?.author) {
+      SequenceStopAuthor.operatorPress => 'operator',
+      SequenceStopAuthor.autopilot => 'autopilot',
+      SequenceStopAuthor.system => evidence?.origin,
+      null =>
+        next.runStatus == SequenceRunStatus.completed
+            ? null
+            : _lastRunEndOrigin(),
+    };
+    final nightEnd = evidence?.author == SequenceStopAuthor.system
+        ? evidence?.nightEnd
+        : null;
+    unawaited(_settle(next, owner, origin, nightEnd));
   }
 
-  final Ref _ref;
   int? _lastGeneration;
   final _decided = <int, Completer<EonEndReason?>>{};
 
@@ -167,7 +210,7 @@ class EndOfNightCalibrationCoordinator {
   int _integrationRequests = 0;
   final _settled = <int, Completer<void>>{};
 
-  LoggingService get _log => _ref.read(loggingServiceProvider);
+  LoggingService get _log => _logOf();
 
   /// Whether the run of [generation] ended the night, and why; null when it
   /// left the night open. Completes as soon as the run is classified.
@@ -183,13 +226,13 @@ class EndOfNightCalibrationCoordinator {
     SequenceTerminalRunResult result,
     ActivePlanOwner owner,
     String? stopOrigin,
+    SequencerNightEnd? nightEnd,
   ) async {
     final decided = _decided[result.generation] ??= Completer();
     final settled = _settled[result.generation] ??= Completer();
-    final deferredWarmUp = _ref.read(shutdownWarmUpDeferredProvider);
-    _ref.read(shutdownWarmUpDeferredProvider.notifier).state = false;
+    final deferredWarmUp = _takeDeferredWarmUp();
     try {
-      final reason = await _classify(result, owner, stopOrigin);
+      final reason = await _classify(result, owner, stopOrigin, nightEnd);
       if (!decided.isCompleted) decided.complete(reason);
       if (owner != ActivePlanOwner.calibration) {
         _openNightSession = reason == null ? result.dbSessionId : null;
@@ -201,12 +244,10 @@ class EndOfNightCalibrationCoordinator {
       // for whatever reason the run ended, the warm-up is owed now. After the
       // operator's own Stop the run puts nothing away, so neither does this.
       if (deferredWarmUp && !calibrated && stopOrigin != 'operator') {
-        await _ref
-            .read(endOfNightCalibrationProvider.notifier)
-            .warmUpDeferredCamera(
-              'End-of-night calibration did not run, so the camera is '
-              'warmed now',
-            );
+        await _calibration().warmUpDeferredCamera(
+          'End-of-night calibration did not run, so the camera is '
+          'warmed now',
+        );
       }
     } catch (e, stack) {
       _log.error(
@@ -241,27 +282,24 @@ class EndOfNightCalibrationCoordinator {
     SequenceTerminalRunResult result,
     ActivePlanOwner owner,
     String? stopOrigin,
+    SequencerNightEnd? nightEnd,
   ) async {
     // A calibration run is the step's own and ends nothing.
     if (owner == ActivePlanOwner.calibration) return null;
-    final settings = _ref.read(appSettingsProvider).valueOrNull;
+    final site = _observerLocation();
     final nightEnding =
-        settings != null &&
-        settings.hasObserverLocation &&
+        site != null &&
         isNightEnding(
           time: DateTime.now(),
-          latitude: settings.latitude,
-          longitude: settings.longitude,
+          latitude: site.latitude,
+          longitude: site.longitude,
         );
     var parked = false;
-    if (result.runStatus == SequenceRunStatus.failed &&
-        (stopOrigin == eonDawnStopOrigin ||
-            stopOrigin == eonObstructionStopOrigin)) {
-      final mountId = _ref.read(mountStateProvider).deviceId;
+    if (result.runStatus == SequenceRunStatus.failed && nightEnd != null) {
+      final mountId = _mountId();
       if (mountId != null) {
         try {
-          final mount = await _ref
-              .read(backendProvider)
+          final mount = await _backend()
               .getMountStatus(mountId)
               .timeout(const Duration(seconds: 5));
           parked = mount.connected && mount.parked && !mount.slewing;
@@ -282,6 +320,7 @@ class EndOfNightCalibrationCoordinator {
     return classifyRunEnd(
       runStatus: result.runStatus,
       stopOrigin: stopOrigin,
+      nightEnd: nightEnd,
       nightEnding: nightEnding,
       parked: parked,
     );
@@ -299,9 +338,9 @@ class EndOfNightCalibrationCoordinator {
     if (owner == ActivePlanOwner.autopilot) return false;
     final runId = result.runId;
     if (runId == null) return false;
-    final frames = await _ref
-        .read(imagesDaoProvider)
-        .getImagesByProducingRun(producingRunId: '$runId');
+    final frames = await _imagesDao().getImagesByProducingRun(
+      producingRunId: '$runId',
+    );
     if (!frames.any((f) => f.isLight)) return false;
     return _start(reason, waitForCompletion: true, forceWarmUp: deferredWarmUp);
   }
@@ -312,7 +351,7 @@ class EndOfNightCalibrationCoordinator {
   /// is handed to the post-session integration, as a dawn end is. Null when
   /// the step is already running.
   Future<EonReport?> runNow({bool retake = false}) async {
-    final service = _ref.read(endOfNightCalibrationProvider.notifier);
+    final service = _calibration();
     if (service.isRunning) return null;
     final report = await service.run(
       reason: EonEndReason.manual.description,
@@ -321,11 +360,11 @@ class EndOfNightCalibrationCoordinator {
     final session = _openNightSession;
     if (session != null) {
       _openNightSession = null;
-      _ref
-          .read(nightIntegrationRequestProvider.notifier)
-          .state = NightIntegrationRequest(
-        generation: ++_integrationRequests,
-        sessionId: session,
+      _requestIntegration(
+        NightIntegrationRequest(
+          generation: ++_integrationRequests,
+          sessionId: session,
+        ),
       );
     }
     return report;
@@ -340,8 +379,8 @@ class EndOfNightCalibrationCoordinator {
     bool waitForCompletion = false,
     bool forceWarmUp = false,
   }) async {
-    if (_ref.read(isRemoteModeProvider)) return false;
-    final settings = await EonSettings.load(_ref.read(settingsDaoProvider));
+    if (_isRemote()) return false;
+    final settings = await EonSettings.load(_settingsDao());
     if (!settings.enabled) {
       _log.info(
         'Imaging ended (${reason.description}); end-of-night calibration is '
@@ -350,9 +389,9 @@ class EndOfNightCalibrationCoordinator {
       );
       return false;
     }
-    final service = _ref.read(endOfNightCalibrationProvider.notifier);
+    final service = _calibration();
     if (service.isRunning) return false;
-    if (!_ref.read(sequenceExecutionStateProvider).canStart) {
+    if (!_canStartRun()) {
       _log.warning(
         'Imaging ended (${reason.description}) but a run is still active; '
         'end-of-night calibration was not started',

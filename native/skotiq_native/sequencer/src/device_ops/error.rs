@@ -82,6 +82,12 @@ pub enum DeviceError {
     /// The driver or the device layer reported a failure, in its own words.
     #[error("{0}")]
     Failed(String),
+
+    /// A failure after which the device answers but its SDK session is
+    /// broken: closing and opening it again is the cure. Otherwise retried
+    /// as [`Self::Failed`] is.
+    #[error("{0}")]
+    SessionLost(String),
 }
 
 /// What an [`DeviceError::InvalidFrame`] message starts with.
@@ -142,6 +148,7 @@ impl DeviceError {
             Self::Timeout(message) => Self::Timeout(words(message)),
             Self::InvalidFrame(message) => Self::InvalidFrame(words(message)),
             Self::Failed(message) => Self::Failed(words(message)),
+            Self::SessionLost(message) => Self::SessionLost(words(message)),
         }
     }
 

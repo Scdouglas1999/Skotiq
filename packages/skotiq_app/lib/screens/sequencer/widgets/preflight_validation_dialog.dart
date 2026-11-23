@@ -13,6 +13,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../../../services/sequence_action_service.dart';
+import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/gated_action.dart';
 import '../../../services/mount_command_service.dart';
 import 'sequence_diff_dialog.dart';
@@ -33,6 +35,30 @@ part 'preflight_validation_dialog/section_builders.dart';
 // file only renders the result. It consumes that engine's ValidationIssue /
 // ValidationSeverity / ValidationResult types directly, so there is one source
 // of truth for sequence validation across the app.
+
+/// Start the open sequence through the pre-flight checks: the dialog's Start
+/// starts the run, and the result is reported on [context].
+Future<void> startWithPreflight(BuildContext context, WidgetRef ref) async {
+  if (!await confirmPreflight(context)) return;
+  final result = await ref.read(sequenceActionServiceProvider).start();
+  if (!context.mounted) return;
+  context.showCommandActionResult(result);
+}
+
+/// Shows the pre-flight checks for the sequence in the editor. Completes with
+/// true once the operator pressed Start and the start's own steps (the
+/// carry-over choice, the unpark the dialog listed) are done; false when the
+/// dialog was closed without starting.
+Future<bool> confirmPreflight(BuildContext context) async {
+  var start = false;
+  await showDialog<void>(
+    context: context,
+    builder: (_) => PreFlightValidationDialog(
+      onStartSequence: () => start = true,
+    ),
+  );
+  return start;
+}
 
 class PreFlightValidationDialog extends ConsumerStatefulWidget {
   final VoidCallback? onStartSequence;

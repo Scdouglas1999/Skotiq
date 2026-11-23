@@ -21,6 +21,9 @@ class BehavioralRule {
   });
 }
 
+/// The file types [scanBehavioral] reads.
+const behavioralScanExtensions = <String>{'.dart', '.rs'};
+
 final behavioralRules = <BehavioralRule>[
   BehavioralRule(
     id: 'empty_catch',
@@ -128,12 +131,13 @@ class BehavioralScan {
   const BehavioralScan(this.files, this.findings, this.highRisk);
 }
 
-/// Applies every rule to every runtime `.dart` / `.rs` file under [scope].
+/// Applies every rule to every runtime file of [behavioralScanExtensions]
+/// under [scope].
 BehavioralScan scanBehavioral(AuditScope scope) {
   final files = <String>[];
   final findings = <Finding>[];
   final highRisk = <Finding>{};
-  for (final path in scope.runtimeFiles(extensions: const {'.dart', '.rs'})) {
+  for (final path in scope.runtimeFiles(extensions: behavioralScanExtensions)) {
     final file = File(path);
     if (file.statSync().size > 2 * 1024 * 1024) {
       continue;

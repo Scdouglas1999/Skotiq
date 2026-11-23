@@ -194,25 +194,26 @@ MosaicCaptureLauncher buildMosaicCaptureLauncher(Ref ref) {
 
     // Reuse the canonical "wrap nodes + load into editor" path so the durable
     // project capture is byte-identical to the wizard/framing sequence shape.
-    final rootNode = nodes.values.firstWhere(
-      (n) => n is InstructionSetNode && n.parentId == null,
-      orElse: () => throw StateError(
-        'MosaicService.createMosaicSequence did not produce a root '
-        'InstructionSetNode — refusing to launch a malformed mosaic.',
-      ),
-    );
+    final rootNode = MosaicService.rootOf(nodes);
     final sequence = Sequence.create(
       name: mosaicName,
       nodes: nodes,
       rootNodeId: rootNode.id,
     );
 
-    // Hand the editor slot to the mosaic owner instead of clobbering unsaved
-    // manual work: takeOwnership stashes the operator's sequence and flips the
-    // owner so a later stop restores it.
-    ref
-        .read(currentSequenceProvider.notifier)
-        .takeOwnership(sequence, ActivePlanOwner.mosaic);
-    await ref.read(sequenceExecutorProvider).start();
+    // Capture is pressed on the project screen, so the pre-flight checks are
+    // shown on the app's window; with no window they run beside the start.
+    final uiContext = ref
+        .read(appRouterProvider)
+        .routerDelegate
+        .navigatorKey
+        .currentState
+        ?.overlay
+        ?.context;
+    await ref.read(sequenceActionServiceProvider).startOwnedPlan(
+          sequence,
+          ActivePlanOwner.mosaic,
+          confirm: uiContext == null ? null : () => confirmPreflight(uiContext),
+        );
   };
 }

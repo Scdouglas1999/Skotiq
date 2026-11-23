@@ -19,6 +19,7 @@ import '../../../widgets/frame_exclusion_badge.dart';
 import '../../../widgets/frame_thumbnail_loader.dart';
 import '../data/session/session_format.dart';
 import '../data/session/session_frames_provider.dart';
+import '../../../services/night_session/night_session_id.dart';
 import '../night_control_contracts.dart';
 import 'center_format.dart';
 import 'frame_stage.dart';

@@ -411,8 +411,7 @@ fn every_demosaic_quality_ingests_with_consistent_geometry() {
 
         // The declared dims must match the demosaiced output (half for
         // superpixel, full otherwise) and the buffer must be exactly
-        // width*height*3 — never the short buffer that the old
-        // input-dims-assumption produced for superpixel.
+        // width*height*3.
         let (expect_w, expect_h) = if quality == "superpixel" {
             (IMG_W / 2, IMG_H / 2)
         } else {
@@ -512,8 +511,8 @@ fn a_frame_file_of_another_filter_does_not_enter_the_stack() {
 
     let refusal = api_stacking_add_frame(other).expect_err("an R frame is left out");
     assert!(
-        matches!(&refusal, SkotiqError::ImageError(m)
-            if m.starts_with(skotiq_imaging::stacking::OTHER_FILTER_REFUSAL)),
+        matches!(&refusal, SkotiqError::Refused { kind: crate::error::Refusal::LiveStackOtherFilter, message }
+            if message.starts_with(skotiq_imaging::stacking::OTHER_FILTER_REFUSAL)),
         "unexpected refusal: {refusal}"
     );
     let stats = api_stacking_get_stats().expect("stats");
@@ -880,4 +879,128 @@ fn buffer_length_mismatch_and_filter_alias_routing_behave_safely() {
     assert!(!api_stacking_is_active());
 
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A frame the stacker leaves out is raised by its kind; it reads as the
+/// image error it was raised as before, so logs and the GUI read the same.
+#[test]
+fn a_left_out_frame_is_raised_by_its_kind() {
+    use crate::error::Refusal;
+    use skotiq_imaging::stacking::{FrameRefusal, FrameRefusalKind};
+    let refusal = |kind, message: &str| {
+        frame_refused(FrameRefusal {
+            kind,
+            message: message.to_string(),
+        })
+    };
+    let misaligned = refusal(
+        FrameRefusalKind::Misaligned,
+        "Inconsistent star matches for alignment: 3 of 9 agree on one transform, 5 required",
+    );
+    assert!(matches!(
+        &misaligned,
+        SkotiqError::Refused {
+            kind: Refusal::LiveStackMisaligned,
+            ..
+        }
+    ));
+    assert_eq!(
+        misaligned.to_string(),
+        "Image error: Inconsistent star matches for alignment: 3 of 9 agree on one transform, \
+         5 required"
+    );
+    assert!(matches!(
+        refusal(
+            FrameRefusalKind::OtherFilter,
+            "Frame of another filter not stacked: x"
+        ),
+        SkotiqError::Refused {
+            kind: Refusal::LiveStackOtherFilter,
+            ..
+        }
+    ));
+    assert!(matches!(
+        refusal(FrameRefusalKind::Incompatible, "Frame dimensions 2x2 don't match"),
+        SkotiqError::ImageError(m) if m == "Frame dimensions 2x2 don't match"
+    ));
+}
+
+#[test]
+fn a_frame_file_that_cannot_be_read_is_raised_as_unreadable() {
+    let error = api_stacking_add_frame("/nonexistent/skotiq/frame.fits".to_string())
+        .expect_err("no such file");
+    assert!(
+        matches!(&error, SkotiqError::Refused { kind: crate::error::Refusal::LiveStackUnreadable, message }
+            if message.starts_with("Failed to read frame image: ")),
+        "{error:?}"
+    );
+    assert!(error
+        .to_string()
+        .starts_with("Image error: Failed to read frame image: "));
+}
+
+const TOO_FEW_STARS_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json"
+);
+
+/// `test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json`: the
+/// refusal a reference with too few stars is raised as, with the counts its
+/// message carries. The app reads the counts back from the message, held to
+/// this sample. Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p
+/// skotiq_bridge too_few_reference_stars`.
+#[test]
+fn a_reference_with_too_few_stars_is_refused_with_both_counts() {
+    let error = stack_not_started(StackerStartError::TooFewReferenceStars {
+        detected: 3,
+        required: 8,
+    });
+    let SkotiqError::Refused {
+        kind: Refusal::LiveStackTooFewReferenceStars,
+        message,
+    } = &error
+    else {
+        panic!("{error:?}");
+    };
+    let sample = serde_json::json!({
+        "message": message,
+        "detectedStars": 3,
+        "requiredStars": 8,
+    });
+    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+        let mut text = serde_json::to_string_pretty(&sample).expect("pretty");
+        text.push('\n');
+        std::fs::write(TOO_FEW_STARS_FIXTURE, text).expect("write fixture");
+        return;
+    }
+    let committed: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(TOO_FEW_STARS_FIXTURE).expect("fixture"))
+            .expect("JSON");
+    assert_eq!(
+        committed, sample,
+        "the too-few-stars refusal changed; regenerate the fixture and update the app's reader"
+    );
+    assert_eq!(
+        error.to_string(),
+        "Image error: Failed to initialize stacker: Reference frame has only 3 stars, need at \
+         least 8 for alignment"
+    );
+}
+
+#[test]
+fn a_starless_reference_does_not_start_the_stack() {
+    let _guard = singleton_guard();
+    let blank = vec![1000u16; (IMG_W * IMG_H) as usize];
+    let error =
+        api_stacking_start_from_data(IMG_W, IMG_H, blank, 0.0, config()).expect_err("no stars");
+    assert!(
+        matches!(&error, SkotiqError::Refused { kind: Refusal::LiveStackTooFewReferenceStars, message }
+            if message == "Failed to initialize stacker: Reference frame has only 0 stars, need \
+                           at least 5 for alignment"),
+        "{error:?}"
+    );
+    assert!(matches!(
+        stack_not_started(StackerStartError::Unusable("Reference frame is empty".into())),
+        SkotiqError::ImageError(m) if m == "Failed to initialize stacker: Reference frame is empty"
+    ));
 }

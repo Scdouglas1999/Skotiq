@@ -416,7 +416,7 @@ async fn camera_ops_simulator_gates_on_singleton_connected() {
     use crate::simulator::camera::get_sim_camera;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_camera_ops_1";
     let info = build_sim_info(device_id, DeviceType::Camera);
     manager.register_device(info.clone(), false).await;
@@ -485,7 +485,7 @@ async fn focuser_ops_simulator_gates_on_singleton_connected() {
     use crate::simulator::focuser::get_sim_focuser;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_focuser_ops_1";
     let info = build_sim_info(device_id, DeviceType::Focuser);
     manager.register_device(info.clone(), false).await;
@@ -549,7 +549,7 @@ async fn switch_and_cover_simulators_answer_only_while_connected() {
     // an earlier test's open cover cannot masquerade as this one's.
     crate::simulator::cover_calibrator::reset_sim_cover_calibrator().await;
     crate::simulator::switch::reset_sim_switch().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
 
     let switch_info = build_sim_info("sim_switch_1", DeviceType::Switch);
     let cover_info = build_sim_info("sim_cover_calibrator_1", DeviceType::CoverCalibrator);

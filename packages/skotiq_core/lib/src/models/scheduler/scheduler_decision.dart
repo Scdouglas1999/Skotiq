@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'scheduler_rejection.dart';
+
 /// A single scoring factor contribution for a candidate target.
 ///
 /// Carries the normalized factor value (0..1), its configured weight, and
@@ -57,8 +59,9 @@ class TargetScore extends Equatable {
   /// but the target is excluded from selection.
   final bool hardConstraintFailed;
 
-  /// Constraint failure reasons (one entry per failing constraint).
-  final List<String> rejectionReasons;
+  /// The failed hard constraints, one per failing constraint, in the order
+  /// the engine checked them.
+  final List<SchedulerRejection> rejections;
 
   const TargetScore({
     required this.targetId,
@@ -66,8 +69,11 @@ class TargetScore extends Equatable {
     required this.totalScore,
     required this.factors,
     this.hardConstraintFailed = false,
-    this.rejectionReasons = const [],
+    this.rejections = const [],
   });
+
+  /// The sentence of each failed constraint, as the queue row shows it.
+  List<String> get rejectionReasons => [for (final r in rejections) r.reason];
 
   @override
   List<Object?> get props => [
@@ -76,7 +82,7 @@ class TargetScore extends Equatable {
     totalScore,
     factors,
     hardConstraintFailed,
-    rejectionReasons,
+    rejections,
   ];
 
   Map<String, dynamic> toJson() => {
@@ -86,6 +92,7 @@ class TargetScore extends Equatable {
     'factors': factors.map((f) => f.toJson()).toList(),
     'hardConstraintFailed': hardConstraintFailed,
     'rejectionReasons': rejectionReasons,
+    'rejections': [for (final r in rejections) r.toJson()],
   };
 
   factory TargetScore.fromJson(Map<String, dynamic> j) => TargetScore(
@@ -96,9 +103,17 @@ class TargetScore extends Equatable {
         .map((e) => ScoreFactor.fromJson(e as Map<String, dynamic>))
         .toList(),
     hardConstraintFailed: j['hardConstraintFailed'] as bool? ?? false,
-    rejectionReasons: ((j['rejectionReasons'] as List?) ?? const [])
-        .map((e) => e as String)
-        .toList(),
+    // A host from before the kinds sends the sentences alone.
+    rejections: switch (j['rejections']) {
+      final List<dynamic> typed => [
+        for (final e in typed)
+          SchedulerRejection.fromJson(e as Map<String, dynamic>),
+      ],
+      _ => [
+        for (final e in (j['rejectionReasons'] as List?) ?? const [])
+          SchedulerRejection.fromSentence(e as String),
+      ],
+    },
   );
 }
 

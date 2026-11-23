@@ -39,7 +39,7 @@ class _TargetDetail extends ConsumerWidget {
         'mag ${target.magnitude!.toStringAsFixed(1)}',
     ].join(' · ');
     final byFilter = [...progress.filters]
-      ..sort((a, b) => compareDarkroomFilters(a.filter, b.filter));
+      ..sort((a, b) => compareFilterNames(a.filter, b.filter));
     final done = progress.integratedSecs;
     final wholeHours = done >= 3600;
     final sky = SkyTarget(

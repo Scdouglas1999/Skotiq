@@ -22,6 +22,22 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import '../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
+/// A rule that always finds one warning, for the non-blocking pre-flight.
+class _WarnRule extends SequenceValidator {
+  @override
+  String get name => 'warn';
+
+  @override
+  List<ValidationIssue> validate(Sequence sequence) => const [
+        ValidationIssue(
+          severity: ValidationSeverity.warning,
+          category: ValidationCategory.targets,
+          title: 'Target sets before the plan ends',
+          description: 'test',
+        ),
+      ];
+}
+
 /// A [SequenceExecutor] stand-in that only records the playback calls the
 /// service makes and lets each be parked on a [Completer] so a test can hold a
 /// command "in flight" while it races a second call. Every other executor
@@ -87,6 +103,7 @@ class _RecordingExecutor extends SequenceExecutor {
   _RecordingExecutor executor,
 }) _harness({
   SequenceExecutionState state = SequenceExecutionState.running,
+  List<Override> overrides = const [],
 }) {
   late _RecordingExecutor executor;
   final container = ProviderContainer(overrides: [
@@ -98,6 +115,7 @@ class _RecordingExecutor extends SequenceExecutor {
     runRecordProvider.overrideWith(
       (ref) => RunRecordNotifier(ref, RunRecord(lifecycle: state)),
     ),
+    ...overrides,
   ]);
   // Force the executor override to build so `executor` is captured before any
   // command runs.
@@ -241,5 +259,304 @@ void main() {
     expect(shown.single.level, UiNotificationLevel.error);
     expect(shown.single.title, 'The run did not start');
     expect(shown.single.message, startsWith('Session already active.'));
+  });
+
+  group('startOwnedPlan', () {
+    Sequence plan(String name) {
+      final root = InstructionSetNode(id: 'root-$name', name: name);
+      return Sequence.create(
+        id: name,
+        name: name,
+        rootNodeId: root.id,
+        nodes: {root.id: root},
+      );
+    }
+
+    test('closing the pre-flight gives the editor back and starts nothing',
+        () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      String? checked;
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async {
+            checked = h.container.read(currentSequenceProvider)?.name;
+            return false;
+          },
+        ),
+        throwsA(isA<PlanStartCanceled>()),
+      );
+
+      expect(checked, 'Generated', reason: 'pre-flight checks the plan');
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test('a pre-flight that fails gives the editor back', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async => throw StateError('dialog failed'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test('Start in the pre-flight starts the plan', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      var asked = 0;
+
+      await h.service.startOwnedPlan(
+        plan('Generated'),
+        ActivePlanOwner.smartNight,
+        confirm: () async {
+          asked++;
+          return true;
+        },
+      );
+
+      expect(asked, 1);
+      expect(h.executor.startCount, 1);
+      expect(h.container.read(currentSequenceProvider)?.name, 'Generated');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.smartNight,
+      );
+    });
+
+    test(
+        'a plan started with no screen posts its pre-flight findings and '
+        'starts anyway', () async {
+      final h = _harness(
+        state: SequenceExecutionState.idle,
+        overrides: [
+          sequenceValidatorProvider.overrideWith(
+            (ref) => SequenceValidatorService(
+              ref: ref,
+              syncRules: [_WarnRule()],
+              refAwareRules: const [],
+              asyncRules: const [],
+            ),
+          ),
+        ],
+      );
+      addTearDown(h.container.dispose);
+
+      await h.service.startOwnedPlan(plan('Mosaic'), ActivePlanOwner.mosaic);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(h.executor.startCount, 1);
+      final shown = h.container.read(uiNotificationProvider);
+      expect(
+        shown.map((n) => n.message),
+        contains('Target sets before the plan ends'),
+      );
+    });
+
+    test('a run that cannot start leaves the editor as it was', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.executor.startError = StateError('Cannot start');
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      h.container
+          .read(runRecordProvider.notifier)
+          .setLifecycle(SequenceExecutionState.running);
+
+      await expectLater(
+        h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.smartNight),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    // A flip or a flat capture holding the rig refused the start only after
+    // the plan had taken the editor, so the operator's sequence was replaced
+    // by a plan that never ran.
+    test(
+        'a rig another activity holds refuses the plan before it takes the '
+        'editor', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.executor.startError = StateError(
+        'Cannot start: A meridian flip is using the mount.',
+      );
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      h.container
+          .read(flipMonitorProgressProvider.notifier)
+          .set(const FlipMonitorProgress(
+            state: FlipExecutionState.executing,
+            attempt: 1,
+            step: null,
+            percent: 10,
+            error: null,
+          ));
+
+      await expectLater(
+        h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.smartNight),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            'Cannot start: A meridian flip is using the mount.',
+          ),
+        ),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test(
+        'a flip that starts while the pre-flight is open gives the editor '
+        'back', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      h.executor.startError = StateError(
+        'Cannot start: A meridian flip is using the mount.',
+      );
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+
+      await expectLater(
+        h.service.startOwnedPlan(
+          plan('Generated'),
+          ActivePlanOwner.smartNight,
+          confirm: () async {
+            h.container.read(flipMonitorProgressProvider.notifier).set(
+                  const FlipMonitorProgress(
+                    state: FlipExecutionState.executing,
+                    attempt: 1,
+                    step: null,
+                    percent: 0,
+                    error: null,
+                  ),
+                );
+            return true;
+          },
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.manual,
+      );
+      expect(h.executor.startCount, 0);
+    });
+
+    test('a start already in flight is not replaced by the plan', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor.startGate = gate;
+      h.container
+          .read(currentSequenceProvider.notifier)
+          .loadSequence(plan('Operator'));
+      final first = h.service.start();
+
+      await expectLater(
+        h.service.startOwnedPlan(plan('Mosaic'), ActivePlanOwner.mosaic),
+        throwsA(isA<StateError>()),
+      );
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Operator');
+      expect(h.executor.startCount, 1);
+      gate.complete();
+      expect((await first).isSuccess, isTrue);
+    });
+
+    test('a Start pressed while a plan starts joins that start', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor.startGate = gate;
+
+      final owned =
+          h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+      final pressed = h.service.start();
+      gate.complete();
+      await owned;
+
+      expect((await pressed).isSuccess, isTrue);
+      expect(h.executor.startCount, 1);
+    });
+
+    test('a refused plan start answers a joined Start with a failure',
+        () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+      final gate = Completer<void>();
+      h.executor
+        ..startGate = gate
+        ..startError = StateError('validation failed');
+
+      final owned =
+          h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+      final pressed = h.service.start();
+      final paused = h.service.pause();
+      gate.complete();
+
+      await expectLater(owned, throwsA(isA<StateError>()));
+      final result = await pressed;
+      expect(result.isSuccess, isFalse);
+      expect(result.message, contains('validation failed'));
+      expect((await paused).isSuccess, isTrue);
+      expect(h.executor.startCount, 1);
+    });
+
+    test('an idle executor takes the plan and starts it', () async {
+      final h = _harness(state: SequenceExecutionState.idle);
+      addTearDown(h.container.dispose);
+
+      await h.service.startOwnedPlan(plan('Generated'), ActivePlanOwner.mosaic);
+
+      expect(h.container.read(currentSequenceProvider)?.name, 'Generated');
+      expect(
+        h.container.read(activePlanOwnerProvider),
+        ActivePlanOwner.mosaic,
+      );
+      expect(h.executor.startCount, 1);
+    });
   });
 }

@@ -3,9 +3,7 @@ import 'skotiq_control_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../components/skotiq_switch_style.dart';
-import 'skotiq_colors.dart';
-import 'skotiq_tokens.dart';
-import 'skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// App-specific theme modes including red night for astronomy.
 enum AppThemeMode {

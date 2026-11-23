@@ -270,6 +270,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'idle': 'Idle',
     'sequenceRunning': 'Running',
     'sequencePaused': 'Paused',
+    'sequencePausingStepFinishing': 'Pausing: step finishing',
     'temp': 'Temp',
     'focus': 'Focus',
     'hfr': 'HFR',
@@ -513,7 +514,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstTooltip': 'Local sidereal time at your observing site',
     'statusLstNoSite': 'No observing site set. Sidereal time is unknown. '
         'Set it in Settings > Location.',
-    // Observatory wave 3 — Plan screen.
+    // Plan screen.
     'plannerTitleShort': 'Plan',
     'plannerTabTonight': 'Best tonight',
     'plannerTabYourSky': 'Your sky',
@@ -569,17 +570,18 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerNoMatchesBody':
         '{total} candidates were scored and {passed} passed the filters.',
     'plannerNoMatchesAction': 'Reset filters',
+    'plannerMidnightSunTitle': 'The Sun does not set here tonight',
+    'plannerMidnightSunBody':
+        'With no dark window there are no targets to suggest. Choose another '
+            'date, or build a sequence by hand for twilight imaging.',
     'plannerPlanFailedAction': 'Retry',
-    // Wave 3 Analytics: 06-screens names the tab "Equipment" and the copy
-    // rules require sentence case, so this replaces 'Equipment Stats' at the
-    // call site. The old key stays; other surfaces still read it.
     // The live dot's chip. One word, because the panel head beside it
     // already says which session this is.
     'analyticsLive': 'Live',
     // Tonight night control: the plan column as a drawer at medium widths.
     'nightPlanDrawer': 'Plan',
     'nightPlanDrawerClose': 'Close plan',
-    // Tonight night control (P1a): why a header run control is disabled.
+    // Tonight night control: why a header run control is disabled.
     'ncPlanCannotCommand': 'This app cannot send commands to the rig right now',
     'ncPlanRecovering': 'The run is recovering from a fault',
     'ncPlanStopping': 'The run is stopping',
@@ -593,7 +595,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'ncPlanNoSite': 'Set an observing site to know when it gets dark',
     'ncPlanNoDarkTonight': 'The sky does not get fully dark tonight',
     'ncPlanAlreadyDark': 'It is already dark, so the run can start now',
-    // Tonight night control, manual actions (P2). Labels, sub-labels, the
+    // Tonight night control, manual actions. Labels, sub-labels, the
     // reasons a button is disabled, progress and failures.
     'nightActSnapshot': 'Snapshot',
     'nightActLoop': 'Loop',
@@ -685,7 +687,7 @@ final Map<String, Map<String, String>> _localizedValues = {
         'No astronomical dark tonight, or no observing site is set',
     'nightActErrArmAlreadyDark': 'It is already dark. Start the run now.',
     'nightActErrArmStart': 'Start at dark could not start the run: {detail}',
-    // Tonight night control, session data (P1b): the Overview blocks, the
+    // Tonight night control, session data: the Overview blocks, the
     // session charts' legends and the Before you start rows.
     'nightSessionActionAdd': 'Add',
     'nightSessionActionChoose': 'Choose',
@@ -717,7 +719,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckFilterSlotsAt': '{count} slots · {name}',
     'nightSessionCheckFocuser': 'Focuser',
     'nightSessionCheckGuider': 'Guider',
-    'nightSessionCheckGuiderIdle': 'connected · not looping',
+    'nightSessionCheckGuiderIdle': 'connected · not guiding',
     'nightSessionCheckMount': 'Mount',
     'nightSessionCheckMountIdle': 'unparked · not tracking',
     'nightSessionCheckMountParked': 'parked',
@@ -762,16 +764,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionGuidePeak': 'peak',
     'nightSessionGuideRa': 'RA',
     'nightSessionGuideSnr': 'SNR',
-    'nightSessionGuiderCalibrating': 'calibrating',
-    'nightSessionGuiderGuiding': 'guiding',
-    'nightSessionGuiderLooping': 'looping',
-    'nightSessionGuiderLostStar': 'star lost',
     'nightSessionGuiderMass': 'mass {mass}',
-    'nightSessionGuiderNotLooping': 'not looping',
-    'nightSessionGuiderPaused': 'paused',
-    'nightSessionGuiderSettling': 'settling',
-    'nightSessionGuiderStarSelected': 'star selected',
-    'nightSessionGuiderUnknown': 'state unknown',
     'nightSessionHfr': 'HFR',
     'nightSessionHfrMin': 'min',
     'nightSessionHumidity': 'Humidity',
@@ -856,9 +849,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActivityTotalRms': 'Total RMS',
     'nightActivitySettleThreshold': 'Settle threshold',
     'nightActivityFlipPauseGuide': 'Pausing guider',
-    'nightActivityFlipStopTracking': 'Stopping tracking',
     'nightActivityFlipVerifySide': 'Verifying pier side',
-    'nightActivityFlipResumeTracking': 'Resuming tracking',
 
     'nightPanelBinning': 'Binning',
     'nightPanelCancelAutofocus': 'Cancel',
@@ -1346,7 +1337,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideConnecting': 'Connecting to PHD2',
     'nightScopeGuideConnectingDevice': 'Connecting the guider',
     'nightScopeGuideConnectFailed': 'Could not connect to PHD2: {error}',
-    'nightScopeGuideStopped': 'Stopped',
+    'nightScopeGuideStopped': 'Not guiding',
     'nightScopeGuideSelected': 'Star selected',
     'nightScopeGuideLooping': 'Looping',
     'nightScopeGuideCalibrating': 'Calibrating',
@@ -1416,6 +1407,8 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideHeld_run_stopped':
         'Guiding stopped because the run was stopped',
     'nightScopeGuideHeld_operator': 'Guiding stopped from the guider controls',
+    'nightScopeGuideHeld_mount_fault':
+        'Guiding stopped: the mount moved on its own',
     'nightScopeGuideHeldOther': 'Guiding stopped ({reason})',
     'nightScopeGuideSettleTimedOut':
         'Last settle ran out of time at {time}; not a lost star',
@@ -1488,7 +1481,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveRecentCenter': 'center',
     'nightScopeSolveRecentCenterTries': 'center · {count} tries',
     'nightScopeSolveRecentFailed': 'failed',
-    // Tonight night control, center column (P5): the frame stage, the
+    // Tonight night control, center column: the frame stage, the
     // action bar, the frame strip and the chart row.
     'nightCtrNothingYet': 'Nothing captured yet',
     'nightCtrNothingYetBody':
@@ -1600,15 +1593,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrFocusLatest': 'latest {position} steps · HFR {hfr} px',
     'nightCtrSemFocusLive': 'Autofocus running, {count} points: {details}',
     'nightCtrGuideNotConnected': 'Guider not connected',
-    'nightCtrGuideIdle': 'Guider idle',
-    'nightCtrGuideLooping': 'Looping',
-    'nightCtrGuideGuiding': 'Guiding',
-    'nightCtrGuideCalibrating': 'Calibrating',
-    'nightCtrGuideSettling': 'Settling',
-    'nightCtrGuidePaused': 'Paused',
-    'nightCtrGuideLost': 'Star lost',
-    'nightCtrGuideSelected': 'Star selected',
-    'nightCtrGuideUnknown': 'State unknown',
     'nightCtrGuideIdleBody': 'Connected · not looping',
     'nightCtrGuideOpenBody': 'Open PHD2 to guide tonight\'s run.',
     'nightCtrGuideStartLooping': 'Start looping',
@@ -1941,6 +1925,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'idle': 'Inactivo',
     'sequenceRunning': 'En curso',
     'sequencePaused': 'En pausa',
+    'sequencePausingStepFinishing': 'Pausando: terminando el paso',
     'temp': 'Temp',
     'focus': 'Enfoque',
     'hfr': 'HFR',
@@ -2186,7 +2171,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'statusLstNoSite':
         'No hay lugar de observación definido: la hora sidérea es desconocida. '
             'Defínelo en Ajustes → Ubicación.',
-    // Observatory wave 3 — Plan screen.
+    // Plan screen.
     'plannerTitleShort': 'Planificar',
     'plannerTabTonight': 'Lo mejor de hoy',
     'plannerTabYourSky': 'Tu cielo',
@@ -2243,6 +2228,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'plannerNoMatchesBody':
         'Se puntuaron {total} candidatos y {passed} pasaron los filtros.',
     'plannerNoMatchesAction': 'Restablecer filtros',
+    'plannerMidnightSunTitle': 'El Sol no se pone aquí esta noche',
+    'plannerMidnightSunBody':
+        'Sin ventana oscura no hay objetivos que sugerir. Elige otra fecha o '
+            'crea una secuencia a mano para imágenes en el crepúsculo.',
     'plannerPlanFailedAction': 'Reintentar',
     'analyticsLive': 'En vivo',
     'nightPlanDrawer': 'Plan',
@@ -2386,7 +2375,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckFilterSlotsAt': '{count} posiciones · {name}',
     'nightSessionCheckFocuser': 'Enfocador',
     'nightSessionCheckGuider': 'Guiado',
-    'nightSessionCheckGuiderIdle': 'conectado · sin bucle',
+    'nightSessionCheckGuiderIdle': 'conectado · sin guiar',
     'nightSessionCheckMount': 'Montura',
     'nightSessionCheckMountIdle': 'desaparcada · sin seguimiento',
     'nightSessionCheckMountParked': 'aparcada',
@@ -2432,16 +2421,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionGuidePeak': 'pico',
     'nightSessionGuideRa': 'AR',
     'nightSessionGuideSnr': 'SNR',
-    'nightSessionGuiderCalibrating': 'calibrando',
-    'nightSessionGuiderGuiding': 'guiando',
-    'nightSessionGuiderLooping': 'en bucle',
-    'nightSessionGuiderLostStar': 'estrella perdida',
     'nightSessionGuiderMass': 'masa {mass}',
-    'nightSessionGuiderNotLooping': 'sin bucle',
-    'nightSessionGuiderPaused': 'en pausa',
-    'nightSessionGuiderSettling': 'estabilizando',
-    'nightSessionGuiderStarSelected': 'estrella elegida',
-    'nightSessionGuiderUnknown': 'estado desconocido',
     'nightSessionHfr': 'HFR',
     'nightSessionHfrMin': 'mín',
     'nightSessionHumidity': 'Humedad',
@@ -2526,9 +2506,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightActivityTotalRms': 'RMS total',
     'nightActivitySettleThreshold': 'Umbral de estabilización',
     'nightActivityFlipPauseGuide': 'Pausando guiado',
-    'nightActivityFlipStopTracking': 'Deteniendo seguimiento',
     'nightActivityFlipVerifySide': 'Verificando lado de la montura',
-    'nightActivityFlipResumeTracking': 'Reanudando seguimiento',
 
     'nightPanelBinning': 'Binning',
     'nightPanelCancelAutofocus': 'Cancelar',
@@ -3033,7 +3011,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeGuideConnecting': 'Conectando con PHD2',
     'nightScopeGuideConnectingDevice': 'Conectando el guiador',
     'nightScopeGuideConnectFailed': 'No se pudo conectar con PHD2: {error}',
-    'nightScopeGuideStopped': 'Detenido',
+    'nightScopeGuideStopped': 'Sin guiar',
     'nightScopeGuideSelected': 'Estrella elegida',
     'nightScopeGuideLooping': 'En bucle',
     'nightScopeGuideCalibrating': 'Calibrando',
@@ -3110,6 +3088,8 @@ final Map<String, Map<String, String>> _localizedValues = {
         'Guiado detenido porque se detuvo la sesión',
     'nightScopeGuideHeld_operator':
         'Guiado detenido desde los controles del guiador',
+    'nightScopeGuideHeld_mount_fault':
+        'Guiado detenido: la montura se movió por sí sola',
     'nightScopeGuideHeldOther': 'Guiado detenido ({reason})',
     'nightScopeGuideSettleTimedOut':
         'La última estabilización agotó su tiempo a las {time}; no es una estrella perdida',
@@ -3183,7 +3163,7 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightScopeSolveRecentCenter': 'centrado',
     'nightScopeSolveRecentCenterTries': 'centrado · {count} intentos',
     'nightScopeSolveRecentFailed': 'falló',
-    // Tonight night control, center column (P5): the frame stage, the
+    // Tonight night control, center column: the frame stage, the
     // action bar, the frame strip and the chart row.
     'nightCtrNothingYet': 'Aún no hay capturas',
     'nightCtrNothingYetBody':
@@ -3297,15 +3277,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightCtrFocusLatest': 'último {position} pasos · HFR {hfr} px',
     'nightCtrSemFocusLive': 'Autoenfoque en curso, {count} puntos: {details}',
     'nightCtrGuideNotConnected': 'Guiado sin conectar',
-    'nightCtrGuideIdle': 'Guiado inactivo',
-    'nightCtrGuideLooping': 'En bucle',
-    'nightCtrGuideGuiding': 'Guiando',
-    'nightCtrGuideCalibrating': 'Calibrando',
-    'nightCtrGuideSettling': 'Estabilizando',
-    'nightCtrGuidePaused': 'En pausa',
-    'nightCtrGuideLost': 'Estrella perdida',
-    'nightCtrGuideSelected': 'Estrella elegida',
-    'nightCtrGuideUnknown': 'Estado desconocido',
     'nightCtrGuideIdleBody': 'Conectado · sin bucle',
     'nightCtrGuideOpenBody': 'Abre PHD2 para guiar la sesión de esta noche.',
     'nightCtrGuideStartLooping': 'Iniciar bucle',

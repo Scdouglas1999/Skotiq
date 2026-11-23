@@ -195,7 +195,6 @@ impl TriggerManager {
         // without requiring a sequence reload.
         self.sync_state_from_config().await;
 
-        // Clone the state once before the loop
         let state = self.state.read().await.clone();
         let mut fired = Vec::new();
 

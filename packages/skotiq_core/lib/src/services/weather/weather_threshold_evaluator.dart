@@ -1,13 +1,6 @@
 /// Pure, side-effect-free evaluation of hardware-weather telemetry against the
 /// operator's configured maxima.
 ///
-/// Architecture-unification 2026-06-05 (Subsystem 2 step 3): this logic was
-/// inlined in `WeatherSafetyNotifier._evaluateHardwareWeather`, making it
-/// impossible to unit-test in isolation and a candidate for drifting out of
-/// sync with any other place that needs the same thresholds. It is now a single
-/// pure definition with no Riverpod / provider dependencies so it can be tested
-/// directly and reused.
-///
 /// "Safe" means EVERY available reading is within its configured maximum. A
 /// reading that is absent (`null`) is treated as "no evidence of danger from
 /// this metric" and does not, on its own, make conditions unsafe — the absence

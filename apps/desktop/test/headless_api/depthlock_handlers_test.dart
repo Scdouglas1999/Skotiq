@@ -84,25 +84,27 @@ DepthLockGoalDefinition definition({
 /// In-memory stand-in for the native goal store.
 ///
 /// Extends [DisconnectedBackend] so every method this feature does not touch
-/// keeps failing closed, and raises the same
-/// `SkotiqError.operationFailed(<reason>)` with the same sentences the
-/// Rust store raises — the handler classifies on those sentences, so a fake
-/// that invented friendlier ones would test nothing.
+/// keeps failing closed, and raises what the Rust store raises: a missing
+/// goal and a stale revision as `SkotiqError.refused` of their kind, other
+/// refusals as `SkotiqError.operationFailed(<reason>)`, with the store's own
+/// sentences, which every surface shows verbatim.
 class _FakeDepthLockBackend extends DisconnectedBackend {
   final Map<String, DepthLockGoal> goals = {};
   final List<String> ingested = [];
   var _generated = 0;
 
-  Never _missing(String goalId) => throw bridge.SkotiqError.operationFailed(
-    'DepthLock goal $goalId does not exist',
+  Never _missing(String goalId) => throw bridge.SkotiqError.refused(
+    kind: bridge.Refusal.depthLockNoSuchGoal,
+    message: 'DepthLock goal $goalId does not exist',
   );
 
   DepthLockGoal _require(String goalId, int expectedRevision) {
     final goal = goals[goalId];
     if (goal == null) _missing(goalId);
     if (goal.revision != expectedRevision) {
-      throw bridge.SkotiqError.operationFailed(
-        'stale revision for DepthLock goal $goalId',
+      throw bridge.SkotiqError.refused(
+        kind: bridge.Refusal.depthLockStaleRevision,
+        message: 'stale revision for DepthLock goal $goalId',
       );
     }
     return goal;

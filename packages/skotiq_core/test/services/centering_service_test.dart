@@ -169,6 +169,7 @@ void main() {
           .centerOnTarget(
             targetRa: 10,
             targetDec: 45,
+            config: const CenteringConfig(),
             onStatusUpdate: statuses.add,
           );
 
@@ -199,7 +200,11 @@ void main() {
     ]);
     final result = await containerFor(runner)
         .read(centeringServiceProvider)
-        .centerOnTarget(targetRa: 10, targetDec: 45);
+        .centerOnTarget(
+          targetRa: 10,
+          targetDec: 45,
+          config: const CenteringConfig(),
+        );
 
     expect(result.success, isFalse);
     expect(result.errorMessage, contains('Failed to center'));
@@ -211,7 +216,11 @@ void main() {
       ApiCenteringStep.capturing(attempt: 1),
     ])..holdBeforeEnd = true;
     final service = containerFor(runner).read(centeringServiceProvider);
-    final run = service.centerOnTarget(targetRa: 10, targetDec: 45);
+    final run = service.centerOnTarget(
+      targetRa: 10,
+      targetDec: 45,
+      config: const CenteringConfig(),
+    );
     await pumpEventQueue();
     expect(service.isRunning, isTrue);
 
@@ -226,10 +235,18 @@ void main() {
   test('a second centering while one runs is refused', () async {
     final runner = _ScriptedRunner(const [])..holdBeforeEnd = true;
     final service = containerFor(runner).read(centeringServiceProvider);
-    final first = service.centerOnTarget(targetRa: 10, targetDec: 45);
+    final first = service.centerOnTarget(
+      targetRa: 10,
+      targetDec: 45,
+      config: const CenteringConfig(),
+    );
     await pumpEventQueue();
 
-    final second = await service.centerOnTarget(targetRa: 11, targetDec: 40);
+    final second = await service.centerOnTarget(
+      targetRa: 11,
+      targetDec: 40,
+      config: const CenteringConfig(),
+    );
     expect(second.errorMessage, contains('already running'));
     expect(runner.requests, hasLength(1));
 
@@ -257,7 +274,11 @@ void main() {
     final runner = _ScriptedRunner(const []);
     final result = await containerFor(runner)
         .read(centeringServiceProvider)
-        .centerOnTarget(targetRa: 25, targetDec: 45);
+        .centerOnTarget(
+          targetRa: 25,
+          targetDec: 45,
+          config: const CenteringConfig(),
+        );
 
     expect(result.success, isFalse);
     expect(runner.requests, isEmpty);
@@ -282,7 +303,11 @@ void main() {
 
       final result = await container
           .read(centeringServiceProvider)
-          .centerOnTarget(targetRa: 10, targetDec: 45);
+          .centerOnTarget(
+            targetRa: 10,
+            targetDec: 45,
+            config: const CenteringConfig(),
+          );
 
       expect(result.errorMessage, 'Mount not connected');
       expect(runner.requests, isEmpty);
@@ -346,7 +371,11 @@ void main() {
       );
       final result = await containerFor(runner)
           .read(centeringServiceProvider)
-          .centerOnTarget(targetRa: 10, targetDec: 45);
+          .centerOnTarget(
+            targetRa: 10,
+            targetDec: 45,
+            config: const CenteringConfig(),
+          );
 
       expect(result.success, isFalse);
       expect(result.errorMessage, contains('Failed to center'));

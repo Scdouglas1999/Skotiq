@@ -88,6 +88,9 @@ extension _SequencerLifecycle on SequencerHandlers {
       'currentTarget': currentTarget,
       'progress': _publishedProgress(progressRecord, status),
       'message': status.message,
+      // While paused: whether the step the run was in has finished, so a
+      // client knows when the rig is free to act on. Null when not paused.
+      'pausedIdle': container.read(pausedRunIdleProvider),
       if (runVitals != null) 'runVitals': runVitals,
     });
   }
@@ -362,21 +365,9 @@ extension _SequencerLifecycle on SequencerHandlers {
       // Pressing Start with nothing loaded is an ordinary operator mistake, not
       // a server fault. Every other sequencer verb (pause/resume/stop/skip)
       // already answers cleanly when idle; this one surfaced a 500.
-      //
-      // `Executor::start()` returns the bare string "No sequence loaded"
-      // (sequencer/src/executor/mod.rs), which `sequencer_api::sequencer_start`
-      // wraps as `OperationFailed`. Match that typed variant first; the
-      // stringified fallback only covers a chained network backend that
-      // re-raises the host message untyped. Neither value reaches the response
-      // body — it selects the status code and nothing more.
-      const marker = 'No sequence loaded';
       final isNoSequenceLoaded =
-          (error is bridge_api.SkotiqError &&
-              error.maybeMap(
-                operationFailed: (failure) => failure.field0.contains(marker),
-                orElse: () => false,
-              )) ||
-          error.toString().contains(marker);
+          error is bridge_api.SkotiqError_Refused &&
+          error.kind == bridge_api.Refusal.noSequenceLoaded;
       if (isNoSequenceLoaded) {
         _logInfo(
           '[API] POST /api/sequencer/start rejected: no sequence loaded',
@@ -446,10 +437,8 @@ extension _SequencerLifecycle on SequencerHandlers {
         }
       }
     }
-    // Shared stop/abort no-op contract — see [kWasRunningField]. Observed live
-    // with the sequencer idle:
-    //   POST /api/sequencer/stop -> 200 {"status":"stopped","preserveCheckpoint":true}
-    // which reports a run stopped when none was in flight.
+    // Shared stop/abort no-op contract — see [kWasRunningField]: a stop on an
+    // idle sequencer must not report a run stopped.
     //
     // A failed status read still runs the stop: a stop that silently declines
     // to act is worse than a redundant one.
@@ -551,7 +540,7 @@ extension _SequencerLifecycle on SequencerHandlers {
     }
     if (!_kNoRunInFlightStates.contains(state)) return;
     throw HandlerFailure(
-      code: 'sequencer_not_running',
+      code: ApiErrorCodes.sequencerNotRunning,
       message: 'No sequence is running; nothing to $verb.',
       statusCode: 409,
       // The did-anything-happen verdict stop already carries, in the same
@@ -654,13 +643,10 @@ extension _SequencerLifecycle on SequencerHandlers {
 
     // Also close a durable session that no run owns any more.
     //
-    // Reset clears the executor, but the `imaging_sessions` row survived it. A
-    // run that failed early left its row `active`, so EVERY later start was
-    // refused with "Imaging session N is already active" — and reset, the
-    // obvious recovery, did not help. The sequencer was then wedged for the
-    // night with no in-app way out (reproduced end-to-end: a run that aborted on
-    // frame 1 blocked all subsequent starts). Only abort the session when the
-    // executor is genuinely idle, so this can never tear down a live run.
+    // Reset clears the executor, but not the `imaging_sessions` row: a run that
+    // failed early leaves its row `active`, and every later start is refused
+    // with "Imaging session N is already active". Only abort the session when
+    // the executor is genuinely idle, so this can never tear down a live run.
     int? abortedSessionId;
     try {
       final status = await backend.sequencerGetStatus();

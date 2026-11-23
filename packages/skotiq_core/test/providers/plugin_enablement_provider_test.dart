@@ -12,12 +12,14 @@ import 'package:drift/drift.dart' show InsertMode;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:logging/logging.dart';
 import 'package:skotiq_core/src/database/daos/settings_dao.dart';
 import 'package:skotiq_core/src/database/database.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
 import 'package:skotiq_core/src/providers/plugin_enablement_provider.dart';
+import 'package:skotiq_core/utils.dart' show LogLevel;
 import 'package:skotiq_plugins/skotiq_plugins.dart';
+
+import '../harness/captured_log.dart';
 
 const _pluginA = 'com.test.plugin_a';
 const _pluginB = 'com.test.plugin_b';
@@ -165,11 +167,7 @@ void main() {
       () async {
         await _seedSetting(database, '{ this is not json');
 
-        final records = <LogRecord>[];
-        final sub = Logger(
-          'PluginEnablementProvider',
-        ).onRecord.listen(records.add);
-        addTearDown(sub.cancel);
+        final appLog = await captureAppLog();
 
         final enabled = await container.read(pluginEnablementProvider.future);
 
@@ -177,8 +175,9 @@ void main() {
         expect(enabled, unorderedEquals(_allIds));
 
         // The corruption was surfaced, not silently swallowed.
+        final records = logFrom(appLog, 'PluginEnablementProvider');
         expect(
-          records.where((r) => r.level >= Level.WARNING),
+          records.where((r) => r.level.index >= LogLevel.warning.index),
           isNotEmpty,
           reason: 'malformed plugin_enablement JSON must be logged',
         );
@@ -197,21 +196,18 @@ void main() {
         jsonEncode({_pluginA: 'yes', _pluginB: false}),
       );
 
-      final records = <LogRecord>[];
-      final sub = Logger(
-        'PluginEnablementProvider',
-      ).onRecord.listen(records.add);
-      addTearDown(sub.cancel);
+      final appLog = await captureAppLog();
 
       final enabled = await container.read(pluginEnablementProvider.future);
 
       // _pluginA's bad entry is ignored → defaults to enabled; _pluginB stays
       // disabled per its valid entry; _pluginC defaults to enabled.
       expect(enabled, unorderedEquals([_pluginA, _pluginC]));
+      final records = logFrom(appLog, 'PluginEnablementProvider');
       expect(
         records.any(
           (r) =>
-              r.level >= Level.WARNING &&
+              r.level.index >= LogLevel.warning.index &&
               r.message.contains('malformed plugin_enablement entry'),
         ),
         isTrue,

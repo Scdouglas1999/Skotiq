@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io' show Directory;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 
 import '../models/update_manifest.dart';
 import '../models/update_state.dart';
@@ -9,6 +9,8 @@ import 'update_compatibility.dart';
 import 'update_controller.dart';
 import 'update_prompt_store.dart';
 import 'update_service.dart';
+
+final _updateNotifierLog = Logger('skotiq.UpdateNotifier');
 
 typedef UpdateApplySafetyCheck = Future<void> Function();
 
@@ -98,10 +100,9 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     await _controller.bootstrap();
     final status = _controller.status;
     if (status.message != null || status.lastError != null) {
-      developer.log(
+      _updateNotifierLog.log(
+        status.state == UpdateLifecycleState.failed ? Level.SEVERE : Level.INFO,
         status.lastError ?? status.message!,
-        name: 'UpdateNotifier',
-        level: status.state == UpdateLifecycleState.failed ? 1000 : 800,
       );
     }
     _project();
@@ -212,9 +213,8 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     await _startupState;
     final at = now ?? DateTime.now().toUtc();
     if (!_promptState.isCheckDue(at, _checkInterval)) {
-      developer.log(
+      _updateNotifierLog.fine(
         'Update check not due yet (last checked ${_promptState.lastCheckAt})',
-        name: 'UpdateNotifier',
       );
       return;
     }
@@ -255,9 +255,8 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
     if (state.isBusy || _controller.hasActiveOperation) return;
     _applyError = null;
     if (!_controller.hasUpdateSource) {
-      developer.log(
+      _updateNotifierLog.fine(
         'No update source configured, skipping update check',
-        name: 'UpdateNotifier',
       );
       _checkedThisRun = true;
       _lastCheckTime = DateTime.now();
@@ -339,13 +338,7 @@ class UpdateNotifier extends StateNotifier<UpdateState> {
             'restarted.';
       }
     } catch (e, stackTrace) {
-      developer.log(
-        'Error applying update: $e',
-        name: 'UpdateNotifier',
-        level: 1000,
-        error: e,
-        stackTrace: stackTrace,
-      );
+      _updateNotifierLog.severe('Error applying update: $e', e, stackTrace);
       _applyError = e.toString();
     } finally {
       _applying = false;

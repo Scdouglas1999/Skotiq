@@ -325,6 +325,45 @@ void main() {
       );
     });
 
+    test('an integration loop that may not fit warns and does not refuse '
+        'the run', () async {
+      // 10 h of 5 min subs is 120 frames of ~50 MB (~6 GB) on a disk with
+      // 5 GB free. A target window or dawn may end the loop sooner, so only
+      // the frames the run takes for certain may refuse it.
+      final exposure = ExposureNode(
+        id: 'e',
+        parentId: 'loop',
+        durationSecs: 300,
+      );
+      final loop = LoopNode(
+        id: 'loop',
+        childIds: const ['e'],
+        conditionType: LoopConditionType.integrationTime,
+        integrationTimeTarget: 36000,
+      );
+      final sequence = Sequence.create(
+        id: 'seq',
+        name: 'night',
+        nodes: {loop.id: loop, exposure.id: exposure},
+        rootNodeId: loop.id,
+      );
+      fake.set(
+        DiskSpaceInfo(
+          path: 'C:/',
+          totalBytes: _gb(500),
+          freeBytes: _gb(5),
+          sampledAt: DateTime.now(),
+        ),
+      );
+      final projection = await guard.projectSequence(
+        capturePath: 'C:/data',
+        sequence: sequence,
+        capabilities: _cap6kMono16,
+      );
+      expect(projection.severity, DiskSpaceSeverity.warning);
+      expect(projection.projectedBytes, 120 * (6000 * 4000 * 2 + 65536));
+    });
+
     test('propagates DiskSpaceException from underlying service', () async {
       fake.setError(const DiskSpaceException('C:/data', 'drive missing'));
       expect(

@@ -6,6 +6,7 @@ import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 
 import 'widgets/weather_radar_map.dart';
 import 'widgets/radar_timeline_scrubber.dart';
@@ -142,7 +143,7 @@ class _WeatherScreenState extends ConsumerState<WeatherScreen>
 
     final latitude = appSettings?.latitude ?? 0.0;
     final longitude = appSettings?.longitude ?? 0.0;
-    final hasLocation = !(latitude == 0.0 && longitude == 0.0);
+    final hasLocation = siteLocationIsSet(latitude, longitude);
 
     // Get weather settings for alert radius. The map needs a number and reads
     // 0 as "draw no ring"; the readout must NOT — a settings store that has not

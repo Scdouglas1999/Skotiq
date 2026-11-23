@@ -5,8 +5,9 @@ import 'package:skotiq_core/services.dart';
 /// Pre-flight told the operator that a node scheduled at 12:47 ran "before
 /// target rises at 03:41" for a target that was near the zenith at 12:47.
 ///
-/// The rise/set solver scans one local-noon-to-noon window, so a target that
-/// is ALREADY up at the anchor has no rise inside its own visible interval;
+/// The rise/set solver scans one window from the site's solar noon, so a
+/// target that is ALREADY up at the anchor has no rise inside its own visible
+/// interval;
 /// what comes back is the NEXT night's rise. Testing membership of that
 /// interval is guaranteed to report a target at the zenith as "not up yet".
 void main() {
@@ -47,21 +48,15 @@ void main() {
     );
   }
 
-  /// Find a date on which the reported shape actually occurs in this
-  /// process's timezone: the target is comfortably above the altitude floor
-  /// at 12:47 local, yet the solved window's rise time is still in the
-  /// future. Sidereal time at local noon sweeps a full 24 h over a year, so
-  /// such a date always exists for a fixed RA whatever the host offset is.
+  /// Find a date on which the reported shape actually occurs: the target is
+  /// comfortably above the altitude floor at 12:47 site solar time (UTC at
+  /// longitude 0), just after the window opens, yet the solved window's rise
+  /// time is still in the future. Sidereal time at solar noon sweeps a full
+  /// 24 h over a year, so such a date always exists for a fixed RA.
   ({DateTime scheduled, TargetWindow window}) findZenithNoonCase() {
     final sequence = buildSequence();
     for (var dayOffset = 0; dayOffset < 366; dayOffset++) {
-      final scheduled = DateTime(
-        2024,
-        1,
-        1,
-        12,
-        47,
-      ).add(Duration(days: dayOffset));
+      final scheduled = DateTime.utc(2024, 1, 1 + dayOffset, 12, 47).toLocal();
       final windows = estimator.calculateTargetWindows(
         sequence,
         scheduled,
@@ -77,7 +72,7 @@ void main() {
         return (scheduled: scheduled, window: window);
       }
     }
-    fail('No date produced a target up at local 12:47 with a later rise time');
+    fail('No date produced a target up at 12:47 UTC with a later rise time');
   }
 
   test('a target at the zenith is not reported as "before target rises"', () {

@@ -105,7 +105,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text('Quick Capture'), findsOneWidget);
-    // The four summary numbers are Readouts since the Observatory pass. The
+    // The four summary numbers are Readouts. The
     // charts below carry readouts of their own (median / p90 / range / n), so
     // this asserts the four the summary panel owns, by label.
     final labels = tester
@@ -115,18 +115,21 @@ void main() {
     expect(labels, containsAll(<String>['Exposures', 'Median HFR']));
   });
 
-  testWidgets('with sessions on record the picker stays and says so',
+  testWidgets('with sessions on record the tab reviews the newest one',
       (tester) async {
     await tester.pumpWidget(
       _app(standalone: const [], sessions: [_session(1)]),
     );
     await tester.pump(const Duration(milliseconds: 300));
 
-    // No session is under review (no live run, no science session resolved),
-    // so the tab would previously have fabricated the Quick Capture card.
+    // No live run and no science session resolved: the tab falls back to the
+    // newest session, as the Science tab does, not to empty quick captures.
     expect(find.text('Quick Capture'), findsNothing);
-    expect(find.text('No quick captures'), findsOneWidget);
-    expect(find.text('Choose a session above to review it.'), findsOneWidget);
+    expect(find.text('No quick captures'), findsNothing);
     expect(find.byType(SessionPicker<int>), findsOneWidget);
+    expect(
+      tester.widget<SessionPicker<int>>(find.byType(SessionPicker<int>)).value,
+      1,
+    );
   });
 }

@@ -1,8 +1,32 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/errors/bridge_error_message.dart';
+import 'package:skotiq_core/src/errors/skotiq_error.dart';
 
 void main() {
+  test('a refusal reads as the variant it was raised as before its kind', () {
+    String fields(SkotiqError e) =>
+        '${e.category} ${e.message} ${e.userMessage} ${e.reason} '
+        '${e.isRecoverable} ${e.shouldReconnect} ${e.isTimeout}';
+    for (final kind in bridge.Refusal.values) {
+      final refused = skotiqErrorFromBridge(
+        bridge.SkotiqError.refused(kind: kind, message: 'words'),
+      );
+      final before = skotiqErrorFromBridge(switch (kind) {
+        bridge.Refusal.lightLeak => const bridge.SkotiqError.invalidInput(
+          'words',
+        ),
+        bridge.Refusal.liveStackMisaligned ||
+        bridge.Refusal.liveStackOtherFilter ||
+        bridge.Refusal.liveStackUnreadable ||
+        bridge.Refusal.liveStackTooFewReferenceStars =>
+          const bridge.SkotiqError.imageError('words'),
+        _ => const bridge.SkotiqError.operationFailed('words'),
+      });
+      expect(fields(refused), fields(before), reason: '$kind');
+    }
+  });
+
   group('bridgeErrorMessage', () {
     test('returns the authored reason, not the freezed debug rendering', () {
       const error = bridge.SkotiqError.connectionFailed(

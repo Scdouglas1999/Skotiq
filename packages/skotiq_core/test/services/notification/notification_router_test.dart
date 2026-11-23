@@ -555,7 +555,7 @@ void main() {
   });
 
   test(
-    'sequencer Notification event with explicit_transports overrides matrix',
+    'a Notification node with its own transports reaches exactly those',
     () async {
       final discord = _RecordingTransport(NotificationTransportKind.discord);
       final telegram = _RecordingTransport(NotificationTransportKind.telegram);
@@ -575,13 +575,16 @@ void main() {
       final ctrl = StreamController<SkotiqEvent>();
       router.attachEventStream(ctrl.stream);
 
+      // As the sequencer's Notification node publishes it: a system
+      // notification naming its transports.
       ctrl.add(
         _evt(
-          cat: EventCategory.sequencer,
+          cat: EventCategory.system,
           type: 'Notification',
           data: {
             'title': 'Custom T',
             'message': 'Custom B',
+            'level': 'info',
             'explicit_transports': ['telegram'],
           },
         ),
@@ -598,7 +601,7 @@ void main() {
   );
 
   test(
-    'sequencer Notification event with no explicit_transports uses matrix',
+    'a system Notification with no transports of its own is not routed',
     () async {
       final discord = _RecordingTransport(NotificationTransportKind.discord);
       final telegram = _RecordingTransport(NotificationTransportKind.telegram);
@@ -617,13 +620,14 @@ void main() {
 
       ctrl.add(
         _evt(
-          cat: EventCategory.sequencer,
+          cat: EventCategory.system,
           type: 'Notification',
-          data: {'title': 'T', 'message': 'B'},
+          severity: EventSeverity.warning,
+          data: {'title': 'T', 'message': 'B', 'level': 'warning'},
         ),
       );
       await Future<void>.delayed(Duration.zero);
-      expect(discord.sent.length, 1);
+      expect(discord.sent, isEmpty);
       expect(telegram.sent, isEmpty);
 
       await ctrl.close();

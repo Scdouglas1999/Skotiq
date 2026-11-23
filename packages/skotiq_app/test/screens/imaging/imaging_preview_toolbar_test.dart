@@ -260,7 +260,7 @@ void main() {
     expect(popover, findsOneWidget,
         reason: 'Tapping the catalog settings glyph must open the popover.');
 
-    // clampPanelWidth(1600 * 0.3, min: 200, max: 240) = 240. The defect
+    // panelWidthFromFraction(1600 * 0.3, min: 200, max: 240) = 240. The defect
     // rendered it at exactly SkotiqTokens.iconButtonSizeSm (28).
     expect(tester.getSize(popover).width, closeTo(240.0, 0.5),
         reason: 'The popover must render at its intended 200–240 px width. '
@@ -384,7 +384,7 @@ void main() {
     final popover = find.byType(CatalogOverlayPopover);
     expect(popover, findsOneWidget);
     final rect = tester.getRect(popover);
-    // clampPanelWidth(420 * 0.3 = 126, min: 200, max: 240) = 200.
+    // panelWidthFromFraction(420 * 0.3 = 126, min: 200, max: 240) = 200.
     expect(rect.width, closeTo(200.0, 0.5),
         reason: 'The popover keeps its 200 px floor on a narrow window.');
     expect(rect.left, greaterThanOrEqualTo(0.0));

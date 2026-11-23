@@ -8,6 +8,7 @@ import 'package:skotiq_app/screens/night_control/panel/overview/overview_section
 import 'package:skotiq_core/providers.dart';
 
 import 'panel_test_support.dart';
+import 'package:skotiq_core/models.dart';
 
 const _utc = FixedOffsetClock(utcOffset: Duration.zero, label: 'UTC');
 

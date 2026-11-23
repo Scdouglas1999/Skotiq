@@ -18,9 +18,12 @@ import 'src/audit_scope.dart';
 ///                       node types) outside the node table.
 ///   core-layers         skotiq_core's `lib/src/` directories are layered
 ///                       ([_coreLayers], lowest first) and a file imports
-///                       only its own layer and the layers below it; a
-///                       service that needs a Riverpod Ref is listed in the
-///                       baseline with the reason.
+///                       only its own layer and the layers below it.
+///   core-services-riverpod
+///                       No file under skotiq_core's `lib/src/services/`
+///                       imports Riverpod: a service takes its collaborators
+///                       as arguments and the provider that builds it passes
+///                       them.
 ///   core-barrels        skotiq_core has one barrel per `lib/src/` directory
 ///                       and no union of them: a barrel exports only its own
 ///                       directory, nothing under `src/` re-exports another
@@ -30,16 +33,24 @@ import 'src/audit_scope.dart';
 ///                       utils/, tours/, localization/ and the route table
 ///                       in router/) import no screen and none of the files
 ///                       that put the app together.
+///   host-screens        apps/desktop (the host, its headless API and their
+///                       tests) imports no skotiq_app screen: what the host
+///                       serves cannot change when a screen folder moves.
 ///   app-feedback        A transient notice is a snackbar shown through
 ///                       skotiq_app's utils/snackbar_helper.dart, which places
 ///                       it clear of the shell's bottom chrome; no other
 ///                       library code calls `showSnackBar` or shows a toast, or
 ///                       shows a failure as an info snackbar.
+///   leaf-logger         A `package:logging` logger in library code is
+///                       built as `Logger('skotiq.<Name>')`: the app log
+///                       takes only records under `skotiq.`. An app's
+///                       `main` starts with `Log.listen();`, so records
+///                       logged before the logging service exists are kept.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
 /// names the package and import (src-import), the layer and file name
-/// (core-layers) or the file name and enclosing declaration (the other two),
+/// (core-layers, core-services-riverpod) or the file name and enclosing declaration (the other two),
 /// never a line number, so moving code does not touch the baseline. Only a
 /// count above the baseline fails.
 ///
@@ -95,7 +106,7 @@ const _dartPackages = <String, _DartPackage>{
         'formatters). Keep it free of Flutter and of other Skotiq packages; '
         'callers pass in what it needs.',
   ),
-  'skotiq_design': _DartPackage({}),
+  'skotiq_design': _DartPackage({'skotiq_astro'}),
   'skotiq_relay': _DartPackage(
     {},
     pureDart: true,
@@ -197,11 +208,11 @@ const _dartPackages = <String, _DartPackage>{
 
 /// The layering of the Rust workspace (`native/skotiq_native`), lowest first.
 const _rustCrates = <String, Set<String>>{
-  // The color filter array: what a camera reports and what the imaging code
-  // demosaics, one type below both.
-  'skotiq_cfa': {},
-  'skotiq_device': {'skotiq_cfa'},
-  'skotiq_imaging': {'skotiq_cfa'},
+  // The frame vocabulary: the color filter array a camera reports and the
+  // imaging code demosaics, and the filter-name rule, one crate below both.
+  'skotiq_frame': {},
+  'skotiq_device': {'skotiq_frame'},
+  'skotiq_imaging': {'skotiq_frame'},
   'skotiq_phd2': {},
   'skotiq_updater': {},
   'skotiq_platesolve': {'skotiq_imaging'},
@@ -211,9 +222,9 @@ const _rustCrates = <String, Set<String>>{
   // An INDI camera sends its frames as FITS or XISF files, which the imaging
   // crate alone decodes, as the native drivers' camera raw files.
   'skotiq_indi': {'skotiq_device', 'skotiq_imaging'},
-  'skotiq_native': {'skotiq_cfa', 'skotiq_device', 'skotiq_imaging'},
+  'skotiq_native': {'skotiq_frame', 'skotiq_device', 'skotiq_imaging'},
   'skotiq_sequencer': {
-    'skotiq_cfa',
+    'skotiq_frame',
     'skotiq_device',
     'skotiq_imaging',
     'skotiq_platesolve',
@@ -221,7 +232,7 @@ const _rustCrates = <String, Set<String>>{
   'skotiq_bridge': {
     'skotiq_alpaca',
     'skotiq_ascom',
-    'skotiq_cfa',
+    'skotiq_frame',
     'skotiq_device',
     'skotiq_imaging',
     'skotiq_indi',
@@ -316,9 +327,20 @@ const _coreLayersInstead =
     'lower layer needs moves down to the lowest layer that uses it (plain '
     'values to models/); an interface moves down to the layer of its lowest '
     'implementer; a call upward becomes a parameter or a callback the higher '
-    'layer passes in. A service that needs a Riverpod Ref may import '
-    'providers/ only with a coreLayers entry in the baseline that says what it '
-    'reads.';
+    'layer passes in. A service takes what it reads from a provider as a '
+    'constructor or function argument (a reader closure when the value can '
+    'change), and the provider that builds the service passes it; a class that '
+    'only wires providers together belongs in providers/.';
+
+const _riverpodPackages = {'flutter_riverpod', 'riverpod', 'hooks_riverpod'};
+
+const _coreServicesRiverpodInstead =
+    'Services are plain Dart. Take the collaborators the service reads as '
+    'constructor or function arguments (a `T Function()` reader where the '
+    'value changes under the service, a callback for a write) and build the '
+    'service in a provider under providers/, which reads and watches the '
+    'other providers. Declare providers in providers/, not beside the service. '
+    'A class that only wires providers together belongs in providers/.';
 
 const _appLib = 'packages/skotiq_app/lib/';
 
@@ -346,6 +368,11 @@ const _appSharedInstead =
     'something a screen declares, move that declaration down beside it (a '
     'route or tab enum goes in router/), or pass the value in.';
 
+const _hostScreensInstead =
+    'The host reads state and APIs that live in skotiq_app/services or '
+    'skotiq_core. Move the declaration the host needs out of screens/ into '
+    'services/ (a screen keeps its view models and imports it from there).';
+
 const _snackbarHelper = '${_appLib}utils/snackbar_helper.dart';
 
 const _appFeedbackInstead =
@@ -355,6 +382,21 @@ const _appFeedbackInstead =
     'await). The helper keeps the snackbar off the shell\'s bottom bar and any '
     'bar the screen declares, colors it by its tone and keeps it up long '
     'enough to read.';
+
+const _leafLoggerInstead =
+    "Name it Logger('skotiq.<Name>'), a string literal starting with "
+    "'skotiq.'. Leaf packages cannot import skotiq_core's Log, so they log "
+    'through package:logging, and Log forwards only records whose logger '
+    "name starts with 'skotiq.' to the app log (file, Log Viewer, remote "
+    'tail). Any other name, and a detached logger, is dropped. A worker '
+    'isolate has no forwarder: log there with dart:developer, or send the '
+    'message back to the main isolate. See docs/architecture/logging.md.';
+
+const _mainListensInstead =
+    'Make Log.listen(); the first statement of main. Leaf records logged '
+    'before the logging service exists (catalogs opening, network set-up) '
+    'are lost unless the forwarder is already listening. See '
+    'docs/architecture/logging.md.';
 
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
@@ -381,7 +423,10 @@ void main(List<String> args) {
   violations.addAll(_checkRustDirection());
   violations.addAll(_checkCoreBarrels(dartFiles));
   violations.addAll(_checkAppShared(dartFiles));
+  violations.addAll(_checkHostScreens(dartFiles));
   violations.addAll(_checkAppFeedback(dartFiles));
+  violations.addAll(_checkLeafLogger(dartFiles));
+  violations.addAll(_checkMainListens(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
   final srcImportSites = _srcImportSites(dartPackages, dartFiles);
@@ -390,6 +435,7 @@ void main(List<String> args) {
     ..._rustDispatchSites(runtimeRust),
   ];
   final coreLayerSites = _coreLayerSites(runtimeDart);
+  final servicesRiverpodSites = _coreServicesRiverpodSites(runtimeDart);
   final hostStoreSites = _hostStoreSites(runtimeDart);
 
   final counted = {
@@ -397,6 +443,7 @@ void main(List<String> args) {
     _Rule.srcImport: srcImportSites,
     _Rule.nodeDispatch: dispatchSites,
     _Rule.coreLayers: coreLayerSites,
+    _Rule.coreServicesRiverpod: servicesRiverpodSites,
     _Rule.hostStore: hostStoreSites,
   };
   final current = <_Rule, Map<String, int>>{};
@@ -529,6 +576,11 @@ enum _Rule {
     'A core layer imports only itself and the layers below it.',
     _coreLayersInstead,
   ),
+  coreServicesRiverpod(
+    'core-services-riverpod',
+    'A core service does not depend on Riverpod.',
+    _coreServicesRiverpodInstead,
+  ),
   hostStore(
     'host-store',
     'One owner picks which store serves host data.',
@@ -544,10 +596,20 @@ enum _Rule {
     'A shared folder of skotiq_app imports no screen.',
     _appSharedInstead,
   ),
+  hostScreens(
+    'host-screens',
+    'The host imports no skotiq_app screen.',
+    _hostScreensInstead,
+  ),
   appFeedback(
     'app-feedback',
     'A snackbar is shown through the one feedback helper.',
     _appFeedbackInstead,
+  ),
+  leafLogger(
+    'leaf-logger',
+    'Leaf package log records reach the app log.',
+    _leafLoggerInstead,
   );
 
   const _Rule(this.id, this.summary, this.instead);
@@ -561,6 +623,7 @@ enum _Rule {
     srcImport,
     nodeDispatch,
     coreLayers,
+    coreServicesRiverpod,
     hostStore,
   ];
 }
@@ -1002,6 +1065,27 @@ List<_Site> _coreLayerSites(List<String> files) {
   return out;
 }
 
+List<_Site> _coreServicesRiverpodSites(List<String> files) {
+  const services = '${_coreSrc}services/';
+  final out = <_Site>[];
+  for (final path in files) {
+    if (!path.startsWith(services)) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final m = _directiveUri.firstMatch(lines[i]);
+      if (m == null) continue;
+      final uri = m.group(1)!;
+      if (!uri.startsWith('package:')) continue;
+      final package = uri.substring('package:'.length).split('/').first;
+      if (!_riverpodPackages.contains(package)) continue;
+      out.add(
+        _Site('services/${_basename(path)}', '$path:${i + 1}', 'imports $uri'),
+      );
+    }
+  }
+  return out;
+}
+
 /// The layer a skotiq_core library path belongs to: its `lib/src/` directory,
 /// or the directory a barrel exports. Null for anything else.
 String? _coreLayerOf(String path) {
@@ -1108,6 +1192,80 @@ List<_Violation> _checkAppFeedback(List<String> files) {
 }
 
 // ---------------------------------------------------------------------------
+// leaf-logger
+
+/// A `package:logging` logger built in code: `Logger(` or `Logger.detached(`,
+/// prefixed or not, with the start of its first argument.
+final _loggerConstruction = RegExp(
+  r'''(?<!\w)Logger(\.detached)?\(\s*(['"]skotiq\.)?''',
+);
+
+final _libraryCode = RegExp(r'^(?:packages|apps)/[^/]+/lib/');
+
+final _appMain = RegExp(r'^apps/[^/]+/lib/main[^/]*\.dart$');
+final _mainDeclaration = RegExp(r'^(?:Future<void>|void)\s+main\s*\(');
+
+List<_Violation> _checkMainListens(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_appMain.hasMatch(path)) continue;
+    final lines = _readLines(path);
+    final start = lines.indexWhere(_mainDeclaration.hasMatch);
+    if (start < 0) continue;
+    final first = lines
+        .skip(start + 1)
+        .map((line) => line.split('//').first.trim())
+        .firstWhere((code) => code.isNotEmpty, orElse: () => '');
+    if (first == 'Log.listen();') continue;
+    out.add(
+      _Violation(
+        _Rule.leafLogger,
+        '$path:${start + 1}',
+        'main does not start with Log.listen()',
+        _mainListensInstead,
+      ),
+    );
+  }
+  return out;
+}
+
+List<_Violation> _checkLeafLogger(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_libraryCode.hasMatch(path)) continue;
+    if (path.endsWith('.g.dart') || path.endsWith('.freezed.dart')) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final code = lines[i].split('//').first;
+      for (final m in _loggerConstruction.allMatches(code)) {
+        final String what;
+        if (m.group(1) != null) {
+          what = 'builds a detached logger';
+        } else if (m.group(2) == null) {
+          final open = code.indexOf('(', m.start);
+          final rest = _callArguments(lines, i, open).substring(1).trimLeft();
+          if (rest.startsWith("'skotiq.") || rest.startsWith('"skotiq.')) {
+            continue;
+          }
+          what = 'names a logger outside skotiq.';
+        } else {
+          continue;
+        }
+        out.add(
+          _Violation(
+            _Rule.leafLogger,
+            '$path:${i + 1}',
+            what,
+            _leafLoggerInstead,
+          ),
+        );
+      }
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // app-shared
 
 final _appDirectiveUri = RegExp(
@@ -1165,6 +1323,32 @@ String? _appTarget(String from, String uri) {
   }
   final path = segments.join('/');
   return path.startsWith(_appLib) ? path : null;
+}
+
+// ---------------------------------------------------------------------------
+// host-screens
+
+List<_Violation> _checkHostScreens(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!path.startsWith('apps/desktop/')) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final m = _appDirectiveUri.firstMatch(lines[i]);
+      if (m == null) continue;
+      final uri = m.group(1)!;
+      if (!uri.startsWith('package:skotiq_app/screens/')) continue;
+      out.add(
+        _Violation(
+          _Rule.hostScreens,
+          '$path:${i + 1}',
+          'imports ${uri.substring('package:skotiq_app/'.length)}',
+          _hostScreensInstead,
+        ),
+      );
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -1692,6 +1876,7 @@ class _Baseline {
     _Rule.srcImport: 'srcImport',
     _Rule.nodeDispatch: 'nodeDispatch',
     _Rule.coreLayers: 'coreLayers',
+    _Rule.coreServicesRiverpod: 'coreServicesRiverpod',
     _Rule.hostStore: 'hostStore',
   };
 

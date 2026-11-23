@@ -83,7 +83,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     // `sim_capture::shared_platesolver_store`.
     crate::simulator::capture::shared_platesolver_store();
     let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-    crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
+    crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
         catalog_path: catalog.path().to_string_lossy().to_string(),
         ..previous.clone()
     })
@@ -124,7 +124,7 @@ async fn the_manual_capture_path_renders_the_catalogue_sky() {
     // Put the singletons back before asserting, so a failure here does not
     // leave a catalogue sky armed for every other simulator test.
     get_sim_mount().write().await.status.connected = false;
-    let _ = crate::state::save_platesolver_preference(&previous);
+    let _ = crate::solver::save_solver_preference(&previous);
     detach_sim_camera(&device_id).await;
 
     capture.expect("simulated exposure should complete");
@@ -363,7 +363,7 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     // same database ASTAP will match against.
     crate::simulator::capture::shared_platesolver_store();
     let previous = crate::state::get_platesolver_preference().unwrap_or_default();
-    crate::state::save_platesolver_preference(&crate::storage::PlateSolverPreference {
+    crate::solver::save_solver_preference(&crate::storage::PlateSolverPreference {
         astap_path: binary.to_string_lossy().to_string(),
         catalog_path: dir.to_string_lossy().to_string(),
         ..previous.clone()
@@ -405,7 +405,7 @@ async fn a_manual_capture_frame_solves_at_the_mounts_pointing() {
     // Put the singletons back before asserting, so a failure here does not
     // leave a catalogue sky armed for every other simulator test.
     get_sim_mount().write().await.status.connected = false;
-    let _ = crate::state::save_platesolver_preference(&previous);
+    let _ = crate::solver::save_solver_preference(&previous);
     detach_sim_camera(&device_id).await;
 
     capture.expect("simulated exposure should complete");

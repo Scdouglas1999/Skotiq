@@ -6,7 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-import '../../data/session/guide_series_provider.dart';
+import '../../../../services/night_session/night_guide_samples.dart';
 
 /// How many of the newest samples the plot draws.
 const int kGuideScatterSamples = 200;

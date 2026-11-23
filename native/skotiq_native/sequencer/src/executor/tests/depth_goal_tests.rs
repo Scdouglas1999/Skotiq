@@ -640,7 +640,7 @@ fn with_sub_length(mut sequence: SequenceDefinition, secs: f64) -> SequenceDefin
 
 /// "Dither every 3" counts the node's frames across its filters. Counted per
 /// filter, a rotation through L, R, G and B dithered on four frames in a row
-/// and then not for eight (rig, 2026-11-15). The dither that falls due on the
+/// and then not for eight. The dither that falls due on the
 /// third frame runs at the next visit, after the filter move, and the node's
 /// last frame leaves no dither behind.
 #[tokio::test]
@@ -946,7 +946,7 @@ async fn resume_or_fresh(
 }
 
 /// A fresh start of a sequence after a resume was prepared (the rig's
-/// load-and-start, 2026-10-20) is a new run: it takes all of its frames and
+/// load-and-start) is a new run: it takes all of its frames and
 /// does not measure temperature against the old run's baseline.
 #[tokio::test]
 async fn a_fresh_start_does_not_inherit_a_prepared_resume() {
@@ -984,9 +984,7 @@ async fn a_resume_keeps_its_progress_and_remeasures_the_temperature_baseline() {
 }
 
 /// Frames go in a folder for their target, and each filter's numbers
-/// continue across the Smart Exposure's one-frame visits. On the rig
-/// (2026-10-20) every visit restarted at 0001 and the files collected
-/// collision suffixes.
+/// continue across the Smart Exposure's one-frame visits.
 #[tokio::test]
 async fn smart_exposure_visits_number_their_files_in_sequence() {
     let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));
@@ -1043,7 +1041,7 @@ async fn a_targets_end_time_ends_its_smart_exposure() {
     );
 }
 
-/// The rig on 2026-11-16 at 04:25:36: the Altitude Limit trigger asked for the
+/// The Altitude Limit trigger asked for the
 /// next target while the Smart Exposure dithered, and the node still started
 /// another 30 s frame of the target that had dropped below the floor.
 #[tokio::test]
@@ -1081,9 +1079,7 @@ async fn a_next_target_request_during_a_dither_starts_no_frame() {
 }
 
 /// A Smart Exposure dithers with the operator's dither settings as they stand
-/// when each dither starts, as the Dither Interval trigger does. It used to
-/// take the library default (and so ignored the operator's setting) for the
-/// whole night.
+/// when each dither starts, as the Dither Interval trigger does.
 #[tokio::test]
 async fn a_smart_exposure_dithers_with_the_operators_settings_as_they_stand() {
     let ops = Arc::new(RecordingOps::new(Arc::new(AtomicU32::new(0))));

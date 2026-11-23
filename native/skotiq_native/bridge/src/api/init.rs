@@ -31,6 +31,40 @@ pub fn api_init_with_logging(log_directory: Option<String>) -> Result<(), Skotiq
     Ok(())
 }
 
+/// Where a host keeps what the native side writes. The app resolves each
+/// directory (honoring `SKOTIQ_DATA_DIR` and `SKOTIQ_DATABASE_DIR`) and
+/// creates it before the call.
+pub struct HostPaths {
+    /// Defect maps and camera files kept when a download failed.
+    pub data_directory: String,
+    /// The native rolling log.
+    pub log_directory: String,
+    /// Equipment profiles, settings, the plate-solver choice and DepthLock
+    /// goals.
+    pub profile_directory: String,
+}
+
+/// Start the native side of a host: logging, device manager, hotplug, pass
+/// reports, the profile and settings stores rooted at `paths`, and the
+/// sequencer event bridges.
+/// Called once at app start, before any other API call.
+#[flutter_rust_bridge::frb(sync)]
+pub fn api_init_host(paths: HostPaths) -> Result<(), SkotiqError> {
+    crate::data_root::set(std::path::PathBuf::from(&paths.data_directory))
+        .map_err(SkotiqError::OperationFailed)?;
+    api_init_with_logging(Some(paths.log_directory.clone()))?;
+    tracing::info!(
+        "Host paths: data={} log={} profile={}",
+        paths.data_directory,
+        paths.log_directory,
+        paths.profile_directory
+    );
+    crate::api::storage::init_profile_storage(paths.profile_directory.clone())?;
+    crate::api::storage::init_settings_storage(paths.profile_directory)?;
+    crate::api::sequencer::event_bridge::start_sequencer_event_bridges()?;
+    Ok(())
+}
+
 /// Initialize the native bridge and return success (console logging only)
 /// Must be called once at app startup before any other API calls
 #[flutter_rust_bridge::frb(sync)]

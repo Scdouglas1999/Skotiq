@@ -4,9 +4,8 @@ use crate::storage::{AppSettings, ObserverLocation};
 
 // Equipment profiles
 
-/// Initialize profile storage
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_init_profile_storage(storage_path: String) -> Result<(), SkotiqError> {
+/// Open the equipment profile store in `storage_path`.
+pub(crate) fn init_profile_storage(storage_path: String) -> Result<(), SkotiqError> {
     crate::state::init_profile_storage(std::path::PathBuf::from(storage_path))
         .map_err(|e| SkotiqError::OperationFailed(e))
 }
@@ -48,9 +47,9 @@ pub async fn api_get_active_profile() -> Result<Option<EquipmentProfile>, Skotiq
     Ok(get_state().get_profile().await)
 }
 
-/// Initialize settings storage and load observer location into memory
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError> {
+/// Open the settings, plate-solver and DepthLock stores in `storage_path` and
+/// load the observer location into memory.
+pub(crate) fn init_settings_storage(storage_path: String) -> Result<(), SkotiqError> {
     let path = std::path::PathBuf::from(storage_path);
     crate::state::init_settings_storage(path.clone())
         .map_err(|e| SkotiqError::OperationFailed(e))?;
@@ -64,30 +63,10 @@ pub fn api_init_settings_storage(storage_path: String) -> Result<(), SkotiqError
     // from the first run of the launch.
     crate::depthlock_service::init(&path).map_err(SkotiqError::OperationFailed)?;
 
-    // Push the persisted plate-solver paths into the imaging crate's
-    // process-global so every subsequent solve call (blind_solve, solve_near,
-    // the sequencer centering, the imaging auto-solve) sees the configured
-    // paths immediately — without waiting for the UI to call
-    // api_platesolve_set_config.
+    // Every solve this launch (blind, near, sequencer centering, auto-solve)
+    // uses the saved solver paths from here on.
     if let Ok(pref) = crate::state::get_platesolver_preference() {
-        skotiq_platesolve::set_solver_preference(
-            if pref.astap_path.is_empty() {
-                None
-            } else {
-                Some(pref.astap_path.as_str())
-            },
-            if pref.astrometry_path.is_empty() {
-                None
-            } else {
-                Some(pref.astrometry_path.as_str())
-            },
-            if pref.catalog_path.is_empty() {
-                None
-            } else {
-                Some(pref.catalog_path.as_str())
-            },
-            Some(pref.solver_choice.as_str()),
-        );
+        crate::solver::apply_solver_preference(&pref);
         tracing::info!(
             "Plate-solver preference loaded at startup: astap={:?} catalog={:?}",
             if pref.astap_path.is_empty() {

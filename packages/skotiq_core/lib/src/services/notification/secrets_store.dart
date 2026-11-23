@@ -36,6 +36,7 @@ import '../../models/notification/notification_categories.dart';
 import '../../utils/legacy_install_migration.dart'
     show migrateLegacySecretsNamespace;
 import '../../utils/logging_service.dart';
+import '../../utils/retryable_once.dart';
 
 /// Stable key prefix inside the secure store. Versioned so a future
 /// breaking change (e.g. encrypting per-field) can migrate again.
@@ -180,24 +181,18 @@ class SecretsStore {
   /// Re-key of entries written under the pre-rename keyring namespace.
   /// Memoized per instance; the underlying migration is idempotent, so a
   /// fresh store instance harmlessly re-runs it against a clean keyring.
-  Future<void>? _legacyNamespaceMigration;
-
-  Future<void> _ensureLegacyNamespaceMigrated() async {
-    final future = _legacyNamespaceMigration ??= migrateLegacySecretsNamespace(
+  late final RetryableOnce<void> _legacyNamespaceMigration = RetryableOnce(
+    () => migrateLegacySecretsNamespace(
       (key) => _store.read(key: key),
       (key, value) => _store.write(key: key, value: value),
       (key) => _store.delete(key: key),
       SecretField.all,
       _secretsKeyPrefix,
-    );
-    try {
-      await future;
-    } catch (_) {
-      if (identical(_legacyNamespaceMigration, future)) {
-        _legacyNamespaceMigration = null;
-      }
-      rethrow;
-    }
+    ),
+  );
+
+  Future<void> _ensureLegacyNamespaceMigrated() async {
+    await _legacyNamespaceMigration();
   }
 
   /// Read a single secret. Returns an empty string when not present so

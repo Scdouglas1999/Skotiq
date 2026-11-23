@@ -1,18 +1,18 @@
 // In-app banner transport.
 //
-// Wraps the existing `UiNotificationNotifier` so the routing matrix
+// Wraps the operator's on-screen notices (`UiNotices`) so the routing matrix
 // can treat in-app banners as just another transport. The message's severity
 // maps onto the four-level success/info/warning/error palette the UI notifier
 // already speaks.
 
 import '../../../models/backend/event_types.dart';
 import '../../../models/notification/notification_categories.dart';
-import '../../../providers/ui_notification_provider.dart';
+import '../ui_notices.dart';
 import '../notification_presentation.dart';
 import 'notification_transport.dart';
 
 class InAppTransport extends NotificationTransport {
-  final UiNotificationNotifier _notifier;
+  final UiNotices _notifier;
 
   InAppTransport(this._notifier);
 

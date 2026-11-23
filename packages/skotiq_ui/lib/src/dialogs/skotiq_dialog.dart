@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../utils/adaptive_dialog_constraints.dart';
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 
 /// Size of the optional glyph beside a dialog title, in logical pixels.
 ///
@@ -375,9 +373,9 @@ class _Footer extends StatelessWidget {
         SkotiqTokens.space2xl,
       ),
       // The footer is a region of its own for the same reason the title is:
-      // whatever the header leaves unclaimed lands on the surface node, and
-      // with the close button no longer publishing a spare node of its own the
-      // first footer action was landing there — the whole dialog then read as
+      // whatever the header leaves unclaimed lands on the surface node, and the
+      // close button publishes no spare node of its own, so without this the
+      // first footer action would land there — the whole dialog would read as
       // one button named after it.
       child: Semantics(
         container: true,

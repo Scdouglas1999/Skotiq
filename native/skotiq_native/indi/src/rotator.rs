@@ -62,9 +62,13 @@ impl IndiRotator {
     pub async fn get_angle(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, ABS_ROTATOR_ANGLE, ANGLE)
+            .require_number(
+                &self.device_name,
+                ABS_ROTATOR_ANGLE,
+                ANGLE,
+                "Angle not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Angle not available".to_string()))
     }
 
     pub async fn abort_motion(&self) -> IndiResult<()> {
@@ -104,9 +108,9 @@ impl IndiRotator {
                 return Ok(angle);
             }
         }
-        Err(IndiError::Unavailable(
-            "Mechanical position not available".to_string(),
-        ))
+        Err(client
+            .missing(&self.device_name, "Mechanical position not available")
+            .await)
     }
 
     pub async fn set_reverse(&self, reverse: bool) -> IndiResult<()> {

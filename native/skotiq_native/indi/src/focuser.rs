@@ -38,7 +38,6 @@ impl IndiFocuser {
                 &self.device_name,
                 ABS_FOCUS_POSITION,
                 FOCUS_ABSOLUTE_POSITION,
-                // Why: i32 focuser position -> f64 (INDI wire); lossless.
                 f64::from(position),
             )
             .await?;
@@ -66,7 +65,7 @@ impl IndiFocuser {
     /// returned as an error. An Ok update already at `target` (or any Ok update
     /// for a relative move, which has no position to compare) is a move that
     /// finished before the first poll. A driver that never answers within
-    /// `timeout` is logged and let through, which is what this did before.
+    /// `timeout` is logged and let through.
     async fn wait_for_move_answer(
         &self,
         property: &str,
@@ -74,51 +73,30 @@ impl IndiFocuser {
         target: Option<i32>,
         timeout: Duration,
     ) -> IndiResult<()> {
-        let deadline = tokio::time::Instant::now() + timeout;
-        loop {
-            {
-                let client = self.client.read().await;
-                let updated = client
-                    .get_property_last_update_ms(&self.device_name, property)
-                    .await;
-                if updated > updated_before {
-                    match client.get_property_state(&self.device_name, property).await {
-                        Some(crate::IndiPropertyState::Busy) => return Ok(()),
-                        Some(crate::IndiPropertyState::Alert) => {
-                            return Err(crate::error::IndiError::DeviceAlert(format!(
-                                "{} refused the focuser move ({} went to Alert)",
-                                self.device_name, property
-                            )));
-                        }
-                        _ => match target {
-                            None => return Ok(()),
-                            Some(target) => {
-                                let position = client
-                                    .get_number(
-                                        &self.device_name,
-                                        ABS_FOCUS_POSITION,
-                                        FOCUS_ABSOLUTE_POSITION,
-                                    )
-                                    .await;
-                                if position.is_some_and(|p| (p - f64::from(target)).abs() < 0.5) {
-                                    return Ok(());
-                                }
-                            }
-                        },
-                    }
-                }
-            }
-            if tokio::time::Instant::now() >= deadline {
-                tracing::warn!(
+        crate::answer::wait_for_answer(
+            &self.client,
+            &self.device_name,
+            crate::answer::Sent {
+                property,
+                updated_before,
+                at_target: crate::answer::AtTarget::FocuserPosition(target),
+            },
+            timeout,
+            || {
+                format!(
+                    "{} refused the focuser move ({} went to Alert)",
+                    self.device_name, property
+                )
+            },
+            || {
+                format!(
                     "{} did not answer the focuser move within {:?}; move completion may read \
                      the old position",
-                    self.device_name,
-                    timeout
-                );
-                return Ok(());
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+                    self.device_name, timeout
+                )
+            },
+        )
+        .await
     }
 
     pub async fn move_to_with_timeout(
@@ -170,7 +148,6 @@ impl IndiFocuser {
                 &self.device_name,
                 REL_FOCUS_POSITION,
                 FOCUS_RELATIVE_POSITION,
-                // Why: i32 steps -> f64 (INDI wire); lossless.
                 f64::from(abs_steps),
             )
             .await?;
@@ -217,16 +194,16 @@ impl IndiFocuser {
     pub async fn get_position(&self) -> IndiResult<i32> {
         let client = self.client.read().await;
         client
-            .get_number(
+            .require_number(
                 &self.device_name,
                 ABS_FOCUS_POSITION,
                 FOCUS_ABSOLUTE_POSITION,
+                "Position not available",
             )
             .await
             // Why: INDI wire f64 -> i32 focuser position; bounded by focuser
             // max (typically <2^31). f64 -> i32 saturates per Rust 1.45 spec.
             .map(|p| p as i32)
-            .ok_or_else(|| IndiError::Unavailable("Position not available".to_string()))
     }
 
     pub async fn is_moving(&self) -> bool {
@@ -244,9 +221,13 @@ impl IndiFocuser {
     pub async fn get_temperature(&self) -> IndiResult<f64> {
         let client = self.client.read().await;
         client
-            .get_number(&self.device_name, FOCUS_TEMPERATURE, TEMPERATURE)
+            .require_number(
+                &self.device_name,
+                FOCUS_TEMPERATURE,
+                TEMPERATURE,
+                "Temperature not available",
+            )
             .await
-            .ok_or_else(|| IndiError::Unavailable("Temperature not available".to_string()))
     }
 
     /// Maximum focuser travel in steps (`FOCUS_MAX` / `FOCUS_MAX_VALUE`).

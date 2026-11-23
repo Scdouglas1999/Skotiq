@@ -159,14 +159,12 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
                     label: 'Version',
                     value: status.version!,
                   ),
-                // No "Package" chip. It printed the download TIER off the
-                // metadata sidecar — Essential / Standard / Complete — and the
-                // tiers were retired because they were a placebo: all three
-                // downloaded the same bytes (byte-identical SHA-256 for an
-                // `essential` and a `standard` sidecar). A grade the user can
-                // no longer choose, that never described anything, is not a
-                // fact about their install. Everything the sidecar can honestly
-                // say is already on the card: the dataset name is the title and
+                // No "Package" chip: the download tiers were a placebo (all
+                // three
+                // downloaded the same bytes) and were retired. Everything the
+                // sidecar can
+                // honestly say is already on the card: the dataset name is the
+                // title and
                 // the object count, size, version and install date are chips.
                 if (_magnitudeDepth(catalog) != null)
                   _buildStatusChip(
@@ -224,12 +222,6 @@ mixin _CatalogCardBuilders on ConsumerState<CatalogSettingsScreen> {
   /// back to "not newer": an unrecognised string is not evidence of an update,
   /// and the badge exists to send the user to a download that will actually
   /// give them something they do not have.
-  ///
-  /// The predicate this replaced was `installed != latest` against a hardcoded
-  /// literal on the screen. When HYG rolled from v4.2 to v4.4 the constant in
-  /// [catalogDownloadCandidates] moved and the one on the card did not, so a
-  /// fresh install of the newest asset the app can fetch wore a permanent amber
-  /// "Update available" pointing at a version that no longer exists.
   static bool _isNewerCatalogVersion(String installed, String fetchable) {
     if (installed == fetchable) return false;
     final a = _versionComponents(installed);

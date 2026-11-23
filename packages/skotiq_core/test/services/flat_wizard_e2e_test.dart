@@ -31,10 +31,12 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import '../harness/event_wire.dart';
 
 void main() {
   group('FlatWizardService end-to-end through fake bridge', () {
@@ -300,15 +302,12 @@ class _FlatWizardTestBackend extends Mock implements SkotiqBackend {
       if (_events.isClosed) return;
       _eventCounter++;
       _events.add(
-        SkotiqEvent(
+        cameraTaggedWireEvent(
+          const bridge.EventPayload.imaging(
+            bridge.ImagingEvent.exposureComplete(success: true),
+          ),
+          deviceId: deviceId,
           timestamp: DateTime.now().millisecondsSinceEpoch + _eventCounter,
-          severity: EventSeverity.info,
-          category: EventCategory.imaging,
-          eventType: 'ExposureComplete',
-          data: <String, dynamic>{
-            'deviceId': deviceId,
-            'exposureTime': exposureTime,
-          },
         ),
       );
     });

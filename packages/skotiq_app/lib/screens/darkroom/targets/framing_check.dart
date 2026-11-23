@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
@@ -22,7 +23,6 @@ import '../build_masters/job_views.dart' show describeEta, percent;
 import 'darkroom_targets_model.dart';
 import 'darkroom_targets_providers.dart';
 import 'target_detail.dart' show describeBuiltMasters, joinWords;
-import 'nights_strip.dart' show darkroomNightLabel;
 import 'package:skotiq_core/providers.dart';
 
 part 'framing_check_parts/_field.dart';

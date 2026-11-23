@@ -16,7 +16,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'mux/mux_session.dart';
-import 'relay_uplink.dart' show RelayUplink;
+import 'relay_url.dart';
 import 'socket_bridge.dart';
 
 /// Structured failure from the relay's connect handshake (e.g.
@@ -68,7 +68,7 @@ class RelayTunnelClient {
     bool allowBadTlsCertificate = false,
     void Function(String message)? onLog,
   }) async {
-    final normalized = RelayUplink.normalizeRelayUrl(relayUrl);
+    final normalized = normalizeRelayUrl(relayUrl);
     final uri = normalized.replace(
       path: '${normalized.path}/connect/$applianceId',
     );

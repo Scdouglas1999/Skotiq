@@ -11,7 +11,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+import 'package:skotiq_core/services.dart';
 
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/site_angle.dart';
@@ -170,7 +170,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     ),
                   ),
                 SettingRow(
-                  icon: LucideIcons.search,
                   title: 'Search place',
                   subtitle:
                       'Town or observatory by name. Accurate on a desktop '
@@ -216,7 +215,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   // so there is deliberately no regression test here rather
                   // than one that would pass either way.
                   key: const ValueKey('site-latitude-row'),
-                  icon: LucideIcons.mapPin,
                   title: 'Latitude',
                   subtitle: 'Decimal degrees or DMS (44 3 29 N). Positive is '
                       'North, negative is South',
@@ -237,7 +235,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 ),
                 SettingRow(
                   key: const ValueKey('site-longitude-row'),
-                  icon: LucideIcons.mapPin,
                   title: 'Longitude',
                   subtitle: 'Decimal degrees or DMS (121 18 55 W). Positive is '
                       'East, negative is West',
@@ -258,7 +255,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 ),
                 SettingRow(
                   key: const ValueKey('site-elevation-row'),
-                  icon: LucideIcons.mountain,
                   title: 'Elevation',
                   subtitle: 'Height above sea level',
                   trailing: SettingsNumberInput(
@@ -274,7 +270,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .setElevation(value);
                     },
                   ),
-                  isLast: false,
                 ),
                 // Only a remote session HAS a server to read from: over a local
                 // backend `profileSettingsBackendProvider` reads this app's own
@@ -282,7 +277,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 // and still reported "Location synced from server".
                 if (isRemoteMode)
                   SettingRow(
-                    icon: LucideIcons.refreshCw,
                     title: 'Sync from server',
                     subtitle: 'Fetch location from the connected imaging host',
                     trailing: SkotiqIconButton(
@@ -333,10 +327,8 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                         }
                       },
                     ),
-                    isLast: false,
                   ),
                 SettingRow(
-                  icon: LucideIcons.locate,
                   // Not "GPS": the same click walks all three tiers, and the
                   // subtitle names the one that actually gets you a yard.
                   title: isRemoteMode
@@ -361,11 +353,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     isLoading: _detecting,
                     onPressed: _detecting ? null : () => _detectLocation(),
                   ),
-                  isLast: !_wifiRadioOffersPrecision,
                 ),
                 if (_wifiRadioOffersPrecision)
                   SettingRow(
-                    icon: LucideIcons.wifi,
                     title: 'Turn Wi-Fi on for a precise fix',
                     subtitle: 'Wi-Fi is switched off, so the precise scan was '
                         'skipped. Skotiq will switch it on, scan for '
@@ -379,7 +369,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           ? null
                           : () => _detectLocation(mayEnableWifiRadio: true),
                     ),
-                    isLast: true,
                   ),
               ],
             ),
@@ -387,7 +376,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
               title: 'Advanced',
               children: [
                 SettingRow(
-                  icon: LucideIcons.key,
                   title: 'Google Geolocation API key',
                   subtitle: 'Optional. beaconDB, the key-free service Detect '
                       'location uses, is mapped by volunteers and has no '
@@ -409,7 +397,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     ),
                   ),
                   controlFlex: 2,
-                  isLast: true,
                 ),
               ],
             ),
@@ -417,7 +404,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
               title: 'Observing environment',
               children: [
                 SettingRow(
-                  icon: LucideIcons.sun,
                   title: 'Bortle class',
                   subtitle: BortleScale.description(settings.bortleClass),
                   trailing: SettingsDropdown(
@@ -437,7 +423,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.eye,
                   title: 'Limiting magnitude',
                   subtitle:
                       'Estimated naked-eye limit for Bortle ${settings.bortleClass}',
@@ -446,13 +431,31 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                     style: SkotiqTypography.bodyStrong
                         .copyWith(color: SkotiqColors.of(context).textPrimary),
                   ),
-                  isLast: true,
                 ),
               ],
             ),
             SettingsSection(
               title: 'Local horizon mask',
               children: [
+                if (!SiteHorizonProfile.storedJsonIsReadable(
+                  settings.horizonProfileJson,
+                ))
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      SkotiqTokens.spaceLg,
+                      SkotiqTokens.spaceLg,
+                      SkotiqTokens.spaceLg,
+                      0,
+                    ),
+                    child: SkotiqBanner(
+                      tone: BannerTone.warning,
+                      title: 'The stored horizon could not be read',
+                      message: 'Skotiq is using the compass values it could '
+                          'read from it, or a flat horizon, so plans may '
+                          'count on sky your horizon hides. Set the mask '
+                          'below again, or import a horizon.',
+                    ),
+                  ),
                 _AltitudeFloorInForce(floor: ref.watch(altitudeFloorProvider)),
                 Padding(
                   padding:
@@ -483,7 +486,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   final dir = horizonDirections[i];
                   final azimuth = horizonDirectionAzimuths[i];
                   return SettingRow(
-                    icon: _compassIcon(dir),
                     title: '$dir (${azimuth.toStringAsFixed(0)}\u00B0)',
                     subtitle: 'Horizon altitude at $dir',
                     trailing: SettingsNumberInput(
@@ -496,7 +498,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       decimals: 0,
                       onChanged: (_) => _updateHorizonProfile(),
                     ),
-                    isLast: i == horizonDirections.length - 1,
                   );
                 }),
                 Padding(
@@ -550,7 +551,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
               title: 'Time',
               children: [
                 SettingRow(
-                  icon: LucideIcons.clock,
                   title: 'Timezone',
                   subtitle: _timezoneSubtitle(settings),
                   trailing: SettingsDropdown(
@@ -566,7 +566,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.globe,
                   title: 'Use system time',
                   subtitle: 'Sync time from operating system',
                   trailing: SettingsSwitch(
@@ -577,7 +576,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           .setUseSystemTime(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -939,20 +937,6 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
     }
     final json = '{${parts.join(',')}}';
     await ref.read(appSettingsProvider.notifier).setHorizonProfileJson(json);
-  }
-
-  IconData _compassIcon(String direction) {
-    return switch (direction) {
-      'N' => LucideIcons.arrowUp,
-      'NE' => LucideIcons.arrowUpRight,
-      'E' => LucideIcons.arrowRight,
-      'SE' => LucideIcons.arrowDownRight,
-      'S' => LucideIcons.arrowDown,
-      'SW' => LucideIcons.arrowDownLeft,
-      'W' => LucideIcons.arrowLeft,
-      'NW' => LucideIcons.arrowUpLeft,
-      _ => LucideIcons.compass,
-    };
   }
 
   /// What the Timezone row can honestly say about the value below it.

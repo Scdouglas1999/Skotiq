@@ -3,21 +3,19 @@ use crate::device::DriverType;
 
 // Hot-plug reconnect: re-apply essential device state.
 //
-// After an *unplanned* reconnect (the device's connection_state was Error,
-// i.e. heartbeat-lost), `connect_device_internal` must
-// re-apply the last commanded camera cooling setpoint and mount tracking
-// state — the driver comes back in power-on defaults and would otherwise
-// silently warm the sensor / leave the mount parked while the sequence
-// "resumes". A *fresh* connect (from Disconnected) must NOT re-apply mount
-// tracking; a camera restores what it held on any connect (camera_reopen.rs).
+// After a reconnect `connect_device_internal` re-applies the camera cooling
+// setpoint and the mount tracking the device held: the driver comes back in
+// power-on defaults and would otherwise silently warm the sensor or leave the
+// mount still while the sequence "resumes". A manual disconnect and connect
+// keeps them too (keep_state.rs).
 
-/// Setting tracking records `desired_tracking`; an Error->reconnect replays it.
+/// Setting tracking records the held tracking; an Error->reconnect replays it.
 #[tokio::test]
 async fn reconnect_reapplies_mount_tracking() {
     use crate::simulator::mount::get_sim_mount;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_mount_reapply";
     let info = build_sim_info(device_id, DeviceType::Mount);
     manager.register_device(info.clone(), false).await;
@@ -25,6 +23,9 @@ async fn reconnect_reapplies_mount_tracking() {
         .connect_device(device_id)
         .await
         .expect("initial connect should succeed");
+    // A tracking mount is unparked; the simulator starts parked, and a
+    // reconnect never switches tracking on for a parked mount.
+    get_sim_mount().write().await.status.parked = false;
 
     // Operator/sequencer commands tracking on; this records desired state.
     manager
@@ -38,9 +39,10 @@ async fn reconnect_reapplies_mount_tracking() {
             .await
             .get(device_id)
             .unwrap()
-            .desired_tracking,
+            .held_tracking
+            .map(|held| held.tracking),
         Some(true),
-        "successful set_tracking must record desired_tracking"
+        "successful set_tracking must record the held tracking"
     );
 
     // Simulate a heartbeat-lost disconnect: device goes to Error and the
@@ -71,6 +73,7 @@ async fn reconnect_reapplies_mount_tracking() {
     );
 
     get_sim_mount().write().await.status.tracking = false;
+    get_sim_mount().write().await.status.parked = true;
     get_sim_mount().write().await.status.connected = false;
 }
 
@@ -80,7 +83,7 @@ async fn reconnect_reapplies_camera_cooler() {
     use crate::simulator::camera::get_sim_camera;
 
     let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_camera_reapply";
     let info = build_sim_info(device_id, DeviceType::Camera);
     manager.register_device(info.clone(), false).await;
@@ -136,57 +139,6 @@ async fn reconnect_reapplies_camera_cooler() {
     cam.status.connected = false;
 }
 
-/// A *fresh* connect (state was Disconnected, not Error) must NOT replay any
-/// recorded desired state — only an unplanned reconnect re-applies.
-#[tokio::test]
-async fn fresh_connect_does_not_reapply_state() {
-    use crate::simulator::mount::get_sim_mount;
-
-    let _guard = simulator_singleton_test_lock().lock().await;
-    let manager = Arc::new(build_device_manager());
-    let device_id = "sim_mount_fresh";
-    let info = build_sim_info(device_id, DeviceType::Mount);
-    manager.register_device(info.clone(), false).await;
-    manager
-        .connect_device(device_id)
-        .await
-        .expect("initial connect should succeed");
-    manager
-        .mount_set_tracking(device_id, true)
-        .await
-        .expect("set_tracking should succeed");
-
-    // A clean disconnect (NOT an error): state goes to Disconnected.
-    manager
-        .disconnect_device(device_id)
-        .await
-        .expect("disconnect should succeed");
-    assert_ne!(
-        manager
-            .devices
-            .read()
-            .await
-            .get(device_id)
-            .unwrap()
-            .connection_state,
-        ConnectionState::Error,
-        "a clean disconnect must not leave the device in Error"
-    );
-    get_sim_mount().write().await.status.tracking = false;
-
-    // Fresh connect from Disconnected — must NOT auto-resume tracking.
-    manager
-        .connect_device(device_id)
-        .await
-        .expect("fresh connect should succeed");
-    assert!(
-        !get_sim_mount().read().await.status.tracking,
-        "a fresh connect must not silently re-apply tracking the user did not re-request"
-    );
-
-    get_sim_mount().write().await.status.connected = false;
-}
-
 // Cooler setpoint: what actually reaches the driver
 
 /// A native camera that records every `set_cooler` argument it is handed.
@@ -199,6 +151,8 @@ struct RecordingCoolerCamera {
     /// Captures the camera kept, with the bytes a retrieve hands over.
     retained: Vec<(skotiq_device::RetainedCapture, Vec<u8>)>,
     notices: Vec<skotiq_device::DriverNotice>,
+    /// What a retrieve fails with instead of handing over the file.
+    retrieve_error: Option<fn() -> skotiq_device::DriverError>,
 }
 
 #[async_trait::async_trait]
@@ -237,11 +191,19 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
         &mut self,
         location: &str,
     ) -> Result<skotiq_device::CameraFile, skotiq_device::DriverError> {
+        if let Some(error) = self.retrieve_error {
+            let error = error();
+            if matches!(error, skotiq_device::DriverError::FileGone(_)) {
+                self.retained
+                    .retain(|(kept, _)| !(kept.location == location && kept.in_camera_memory));
+            }
+            return Err(error);
+        }
         let index = self
             .retained
             .iter()
             .position(|(kept, _)| kept.location == location)
-            .ok_or_else(|| skotiq_device::DriverError::SdkError(format!("{location} not found")))?;
+            .ok_or_else(|| skotiq_device::DriverError::FileGone(format!("{location} not found")))?;
         let (kept, bytes) = self.retained.remove(index);
         Ok(skotiq_device::CameraFile {
             file_name: kept.location.rsplit('/').next().unwrap().to_string(),
@@ -262,8 +224,8 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
             cooler_power: Some(0.0),
             target_temp: Some(-10.0),
             cooler_on: Some(false),
-            gain: 0,
-            offset: 0,
+            gain: Some(0),
+            offset: Some(0),
             bin_x: 1,
             bin_y: 1,
             exposure_remaining: None,
@@ -504,6 +466,134 @@ async fn a_capture_kept_on_the_camera_is_listed_blocks_no_reconnect_and_is_retri
     assert!(manager.camera_retained_captures().is_empty());
 }
 
+/// A camera holding one capture it could not download, whose retrieve fails
+/// with `error`, and the record the device manager keeps of it.
+async fn manager_keeping_a_capture(
+    id: &str,
+    in_camera_memory: bool,
+    error: fn() -> skotiq_device::DriverError,
+) -> Arc<DeviceManager> {
+    let manager = build_device_manager();
+    manager
+        .register_connected_device(build_native_camera_info(id))
+        .await;
+    manager.hold_vendor_camera(
+        id,
+        Box::new(RecordingCoolerCamera {
+            retained: vec![(
+                skotiq_device::RetainedCapture {
+                    location: "/store_00010001/capt0000.cr2".to_string(),
+                    in_camera_memory,
+                    in_hand: false,
+                    reason: "the download failed".to_string(),
+                },
+                Vec::new(),
+            )],
+            retrieve_error: Some(error),
+            ..Default::default()
+        }),
+    );
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+    manager
+}
+
+fn retained_counts_published(
+    events: &mut tokio::sync::broadcast::Receiver<crate::event::bus::SkotiqEvent>,
+) -> Vec<u32> {
+    let mut counts = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::bus::EventPayload::Equipment(
+            crate::event::equipment::EquipmentEvent::CameraRetainedCapturesChanged {
+                count, ..
+            },
+        ) = event.payload
+        {
+            counts.push(count);
+        }
+    }
+    counts
+}
+
+/// A capture in the camera's memory that the camera no longer has (the
+/// memory was cleared) leaves the list when a retrieve finds it gone, with
+/// the error gPhoto2 raises for a missing file.
+#[tokio::test]
+async fn a_memory_capture_the_camera_no_longer_has_leaves_the_list() {
+    let id = "native:test:retained_gone";
+    let manager = manager_keeping_a_capture(id, true, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_FILE_NOT_FOUND,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+    let mut events = manager.app_state.event_bus.subscribe();
+
+    let error = manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert!(
+        error.to_string().contains("no longer has the file"),
+        "{error}"
+    );
+    assert!(manager.camera_retained_captures().is_empty());
+    assert_eq!(retained_counts_published(&mut events), [0]);
+
+    // The next frame's report does not bring it back.
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+    assert!(manager.camera_retained_captures().is_empty());
+    assert!(retained_counts_published(&mut events).is_empty());
+}
+
+/// A capture on the camera's card stays listed when a retrieve cannot find
+/// it: the card may be out of the camera and back later.
+#[tokio::test]
+async fn a_card_capture_stays_listed_when_a_retrieve_cannot_find_it() {
+    let id = "native:test:retained_card";
+    let manager = manager_keeping_a_capture(id, false, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_FILE_NOT_FOUND,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+
+    manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+}
+
+/// A memory capture stays listed when its retrieve fails because the
+/// camera's USB port went away: the camera is gone, not the file, and a
+/// retrieve after the camera is back says whether the file is still there.
+#[tokio::test]
+async fn a_memory_capture_stays_listed_when_the_camera_port_is_gone() {
+    let id = "native:test:retained_port_gone";
+    let manager = manager_keeping_a_capture(id, true, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_UNKNOWN_PORT,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+
+    let error = manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("USB port is gone"), "{error}");
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+}
+
 /// A raw file that was read and could not be decoded is saved as the camera
 /// made it at once, and is not left for the user to retrieve.
 #[tokio::test]
@@ -559,7 +649,7 @@ async fn an_undecodable_camera_file_is_saved_at_once() {
 /// safe-rig shutdown both need to do.
 #[tokio::test]
 async fn turning_the_cooler_off_sends_no_setpoint_to_the_driver() {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "native:test:cooler_off";
     manager
         .register_device(build_native_camera_info(device_id), false)
@@ -589,7 +679,7 @@ async fn turning_the_cooler_off_sends_no_setpoint_to_the_driver() {
 /// the write is a separate property that may not exist.
 #[tokio::test]
 async fn a_setpoint_supplied_with_a_cooler_off_command_is_dropped() {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "native:test:cooler_off_with_target";
     manager
         .register_device(build_native_camera_info(device_id), false)
@@ -627,7 +717,7 @@ async fn a_setpoint_supplied_with_a_cooler_off_command_is_dropped() {
 /// through verbatim, and an absent one is still not invented.
 #[tokio::test]
 async fn enabling_passes_the_callers_setpoint_through_unchanged() {
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "native:test:cooler_on";
     manager
         .register_device(build_native_camera_info(device_id), false)
@@ -715,7 +805,7 @@ fn spawn_fake_onstep_pty() -> String {
 #[tokio::test]
 async fn a_native_serial_mount_reconnects_after_a_heartbeat_loss() {
     let path = spawn_fake_onstep_pty();
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = format!("native:onstep:{}:9600", path);
     let info = build_mount_info(&device_id, DriverType::Native);
     manager.register_device(info.clone(), false).await;

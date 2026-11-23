@@ -3,7 +3,8 @@
 //!
 //! This module is the JSON-in / JSON-out bridge for the committed native
 //! "finishing" passes that run *after* a master is integrated:
-//! `skotiq_imaging::{background_extraction, deconvolution, star_reduction}`.
+//! `skotiq_imaging::{background_extraction, deconvolution}` and the Darkroom
+//! recipe's star reduction (`recipe::ops::star_reduce`).
 //! It mirrors [`crate::post_session`] exactly — the same **minimal**
 //! `String -> Result<String, String>` boundary, the same serde DTOs that ride
 //! *inside* the JSON payload so new knobs never trigger another FRB regen, and
@@ -17,8 +18,8 @@
 //!   background model and write the flattened linear frame.
 //! * [`deconvolve_preview`] — estimate (or accept) a PSF and run bounded,
 //!   regularized Richardson–Lucy, writing the restored frame.
-//! * [`reduce_stars_preview`] — mask-confined morphological / screened
-//!   residual star-size reduction, writing the reduced frame.
+//! * [`reduce_stars_preview`] — the Darkroom recipe's mask-confined star
+//!   erosion over the master, writing the reduced frame.
 //!
 //! These are **stateless per call** (no process-wide singleton), CPU-bound, and
 //! synchronous; the Dart side runs them off the UI isolate. Masters that are
@@ -30,7 +31,8 @@ use crate::output::ensure_parent_dir;
 use serde::{Deserialize, Serialize};
 use skotiq_imaging::background_extraction::{self, BackgroundConfig};
 use skotiq_imaging::deconvolution::{self, DeconvConfig, PsfEstimateConfig, PsfKind, PsfModel};
-use skotiq_imaging::star_reduction::{self, StarReduceMethod, StarReductionConfig};
+use skotiq_imaging::recipe::ops::star_reduce::reduce_stars_in_frame;
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{
     carry_source_header, read_frame, write_fits, FitsHeader, ImageData, PixelType,
 };
@@ -141,8 +143,7 @@ fn extract_background_impl(args: ExtractBackgroundArgs) -> Result<ExtractBackgro
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq background-extracted");
+    ProductCards::product("MASTER_LIGHT", "Skotiq background-extracted").write_to(&mut header);
     header.set_int("BGDEGREE", model.degree as i64);
     // Background extraction rewrites pixel values on the input's own grid, so
     // the input's astrometry describes this output unchanged.
@@ -282,8 +283,7 @@ fn deconvolve_preview_impl(args: DeconvolvePreviewArgs) -> Result<DeconvolvePrev
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut out_header = FitsHeader::new();
-    out_header.set_string("IMAGETYP", "MASTER_LIGHT");
-    out_header.set_string("CALSTAT", "Skotiq deconvolution preview");
+    ProductCards::product("MASTER_LIGHT", "Skotiq deconvolution preview").write_to(&mut out_header);
     out_header.set_float("PSFFWHM", psf.fwhm);
     carry_source_header(&mut out_header, &header);
     write_fits(out_path, &restored, &out_header)
@@ -410,17 +410,21 @@ fn psf_kind_str(kind: PsfKind) -> &'static str {
 
 // reduce_stars_preview
 
-/// Star-reduction knobs (subset of [`StarReductionConfig`]). Each unset field
-/// keeps the production [`StarReductionConfig::default`] value.
+/// Reduction strength when the request gives none.
+const STAR_REDUCTION_STRENGTH: f64 = 0.5;
+/// Mask dilation in pixels when the request gives none.
+const STAR_MASK_DILATE_PX: usize = 2;
+
+/// Star-reduction knobs, the recipe step's `amount` and `maskDilatePx`.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct ReduceStarsConfigArgs {
-    /// Reduction strength in `[0, 1]`. `None` ⇒ default (0.5). `0` is identity.
+    /// Reduction strength in `[0, 1]`. `None` ⇒ 0.5. `0` is identity.
     strength: Option<f64>,
-    /// `"morphological_erosion"` | `"screened_residual"`. `None` ⇒ default
-    /// (screened residual).
+    /// `"morphological_erosion"` | `"screened_residual"`; both run the
+    /// recipe's erosion.
     method: Option<String>,
-    /// Extra mask dilation in px before feathering. `None` ⇒ default (2).
+    /// Extra mask dilation in px before feathering, at most 32. `None` ⇒ 2.
     mask_dilate: Option<usize>,
 }
 
@@ -454,43 +458,40 @@ fn reduce_stars_preview_impl(
     let (image, source_header) = read_frame(Path::new(&args.input_fits))
         .map_err(|e| format!("failed to read '{}': {e:?}", args.input_fits))?;
 
-    let defaults = StarReductionConfig::default();
-    let method = match args
+    // Both methods the request can name run the one erosion the Darkroom
+    // recipe step runs; the name is still checked so a typo is refused.
+    match args
         .config
         .method
         .as_deref()
         .map(|m| m.trim().to_ascii_lowercase())
         .as_deref()
     {
-        None | Some("") => defaults.method,
-        Some("screened_residual") | Some("screenedresidual") => {
-            StarReduceMethod::ScreenedResidual
-        }
-        Some("morphological_erosion") | Some("morphologicalerosion") => {
-            StarReduceMethod::MorphologicalErosion
-        }
+        None
+        | Some("")
+        | Some("screened_residual")
+        | Some("screenedresidual")
+        | Some("morphological_erosion")
+        | Some("morphologicalerosion") => {}
         Some(other) => {
             return Err(format!(
                 "unknown star-reduction method '{other}'; expected morphological_erosion or screened_residual"
             ))
         }
-    };
-    let cfg = StarReductionConfig {
-        strength: args.config.strength.unwrap_or(defaults.strength),
-        method,
-        mask_dilate: args.config.mask_dilate.unwrap_or(defaults.mask_dilate),
-    };
-
-    let reduced = star_reduction::reduce_stars(&image, &cfg)
-        .map_err(|e| format!("star reduction failed: {e}"))?;
+    }
+    let reduced = reduce_stars_in_frame(
+        &image,
+        args.config.strength.unwrap_or(STAR_REDUCTION_STRENGTH),
+        args.config.mask_dilate.unwrap_or(STAR_MASK_DILATE_PX) as f64,
+    )
+    .map_err(|e| format!("star reduction failed: {e}"))?;
 
     // The reduced frame keeps the source pixel type and the source grid, so the
     // input's astrometry and observation identity carry straight through.
     let out_path = Path::new(&args.output_fits);
     ensure_parent_dir(out_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("CALSTAT", "Skotiq star-reduction preview");
+    ProductCards::product("MASTER_LIGHT", "Skotiq star-reduction preview").write_to(&mut header);
     carry_source_header(&mut header, &source_header);
     write_fits(out_path, &reduced, &header)
         .map_err(|e| format!("failed to write star-reduced FITS: {e:?}"))?;
@@ -754,6 +755,71 @@ mod tests {
         assert_eq!(img.height, size);
     }
 
+    /// Finishing reduces stars exactly as the Darkroom recipe step does with
+    /// the same amount and mask dilation, and keeps the master's pixel type.
+    #[test]
+    fn reduce_stars_preview_runs_the_recipe_step() {
+        use skotiq_imaging::recipe::ops::star_reduce::StarReduceV1;
+        use skotiq_imaging::recipe::{DarkroomOp, OpContext, OpImage};
+        let size = 128u32;
+        let field = render_field_f32(size, &field_stars(size as f64), 700.0);
+        let dir = temp_dir("reduce_stars_preview_runs_the_recipe_step");
+        let in_path = dir.join("in.fits");
+        let out_path = dir.join("out.fits");
+        write_master(&in_path, &field);
+        let (master, _) = read_frame(in_path.as_path()).unwrap();
+        for method in ["screened_residual", "morphological_erosion"] {
+            let args = serde_json::json!({
+                "inputFits": in_path.to_string_lossy(),
+                "outputFits": out_path.to_string_lossy(),
+                "config": { "strength": 0.4, "method": method, "maskDilate": 3 }
+            });
+            reduce_stars_preview(args.to_string()).expect("reduce stars");
+            let (finished, _) = read_frame(out_path.as_path()).unwrap();
+            let step = StarReduceV1
+                .apply(
+                    &OpImage::from_image_data(&master, FitsHeader::new()).unwrap(),
+                    &serde_json::json!({ "amount": 0.4, "maskDilatePx": 3.0 }),
+                    &OpContext::new(),
+                )
+                .unwrap();
+            assert_eq!(finished.pixel_type, master.pixel_type, "{method}");
+            assert_eq!(finished.samples_f32(), step.data(), "{method}");
+            assert_ne!(finished.samples_f32(), master.samples_f32(), "{method}");
+        }
+
+        let field_u16 = ImageData::from_u16(
+            size,
+            size,
+            1,
+            &field
+                .samples_f64()
+                .iter()
+                .map(|v| v.round().clamp(0.0, 65535.0) as u16)
+                .collect::<Vec<_>>(),
+        );
+        write_master(&in_path, &field_u16);
+        let args = serde_json::json!({
+            "inputFits": in_path.to_string_lossy(),
+            "outputFits": out_path.to_string_lossy(),
+            "config": { "strength": 0.4 }
+        });
+        reduce_stars_preview(args.to_string()).expect("reduce stars");
+        let (finished, _) = read_frame(out_path.as_path()).unwrap();
+        let (master, _) = read_frame(in_path.as_path()).unwrap();
+        let step = StarReduceV1
+            .apply(
+                &OpImage::from_image_data(&master, FitsHeader::new()).unwrap(),
+                &serde_json::json!({ "amount": 0.4, "maskDilatePx": 2.0 }),
+                &OpContext::new(),
+            )
+            .unwrap();
+        let rounded: Vec<u16> = step.data().iter().map(|v| v.round() as u16).collect();
+        assert_eq!(finished.pixel_type, PixelType::U16);
+        assert_eq!(finished.as_u16().unwrap(), rounded);
+        assert_ne!(finished.as_u16(), master.as_u16());
+    }
+
     // Error paths
 
     /// Bad JSON, a missing required path, and a nonexistent input FITS all surface
@@ -948,6 +1014,60 @@ mod tests {
                 .any(|h| h.contains("Carried 0 astrometry")),
             "the absence must be stated, not silent: {:?}",
             out.history
+        );
+    }
+}
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn enhance_reply_fixtures() {
+        check_or_write(
+            "extract_background",
+            &ExtractBackgroundResult {
+                output_path: "/out/M31_bg.fits".to_string(),
+                degree: 3,
+                channels: 3,
+                mean_level: vec![0.012, 0.011, 0.0135],
+            },
+        );
+        check_or_write(
+            "deconvolve_preview",
+            &DeconvolvePreviewResult {
+                output_path: "/out/M31_deconv.fits".to_string(),
+                psf: PsfReport {
+                    kind: "moffat".to_string(),
+                    fwhm: 2.9,
+                    beta: 4.5,
+                    size: 25,
+                },
+            },
+        );
+        check_or_write(
+            "reduce_stars_preview",
+            &ReduceStarsPreviewResult {
+                output_path: "/out/M31_reduced.fits".to_string(),
+            },
+        );
+    }
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::ExtractBackgroundArgs>(
+            "extract_background",
+        );
+        crate::args_fixtures::check_or_write_args::<super::DeconvolvePreviewArgs>(
+            "deconvolve_preview",
+        );
+        crate::args_fixtures::check_or_write_args::<super::ReduceStarsPreviewArgs>(
+            "reduce_stars_preview",
         );
     }
 }

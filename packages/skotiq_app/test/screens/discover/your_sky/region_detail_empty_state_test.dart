@@ -72,7 +72,7 @@ void main() {
       findsOneWidget,
     );
 
-    // The preview no longer eats the viewport: the coordinate line under it is
+    // The preview does not eat the viewport: the coordinate line under it is
     // near the top of the window, not a screen and a half down.
     final coordinates = find.textContaining('r 0.50°');
     expect(coordinates, findsOneWidget);

@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
-import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
+import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
+import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_app/screens/night_control/panel/panel_widgets.dart';
@@ -185,8 +185,10 @@ class RecordingMountCommands extends MountCommandService {
   @override
   Future<CommandActionResult> setTrackingRate(TrackingRate rate) =>
       _ok('setTrackingRate:${rate.name}');
+
+  /// The GoTo past the service's altitude question, recorded as a slew.
   @override
-  Future<CommandActionResult> slewTo(double ra, double dec,
+  Future<CommandActionResult> sendSlew(double ra, double dec,
           {bool showFeedback = true}) =>
       _ok('slewTo');
   @override

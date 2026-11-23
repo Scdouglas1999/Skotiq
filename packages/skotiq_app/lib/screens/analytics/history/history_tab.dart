@@ -13,7 +13,6 @@ import '../../../router/analytics_route.dart';
 import '../../../router/app_routes.dart';
 import '../../../utils/count_label.dart';
 import '../../../widgets/run_status/run_status_presentation.dart';
-import '../../darkroom/targets/nights_strip.dart' show darkroomNightLabel;
 import '../../sequencer/widgets/notes_panel.dart';
 import '../../sequencer/widgets/pending_session_reports_card.dart';
 import '../analytics_providers.dart';
@@ -35,7 +34,7 @@ const double _chevronColumn = SkotiqTokens.iconSm + SkotiqTokens.spaceMd;
 /// The label of an observing night, which spans two dates and names both:
 /// `Night of Oct 31 to Nov 1`, with the year when it is not [now]'s.
 String observingNightLabel(DateTime night, {required DateTime now}) {
-  final label = 'Night of ${darkroomNightLabel(night)}';
+  final label = 'Night of ${ClockFormat.nightOf(night)}';
   return night.year == now.year ? label : '$label, ${night.year}';
 }
 

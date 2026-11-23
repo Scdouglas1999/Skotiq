@@ -110,6 +110,7 @@ void main() {
     );
     when(() => backend.saveProfile(any())).thenAnswer((invocation) async {
       duplicated = true;
+      return 8;
     });
 
     await _pumpEquipment(tester, backend);
@@ -144,13 +145,13 @@ void main() {
     when(() => backend.deleteProfile('7')).thenAnswer((_) async {
       deleted = true;
     });
-    when(() => backend.lastSavedProfileId).thenReturn('9');
     // Saves go through the per-field call; a restored profile has no loaded
     // copy to diff against, so it is sent whole (fields: null).
     when(
       () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
     ).thenAnswer((_) async {
       restored = true;
+      return 9;
     });
     when(() => backend.loadProfile('9')).thenAnswer((_) async {});
 
@@ -181,7 +182,7 @@ void main() {
       (tester) async {
     final hostA = _MockNetworkBackend();
     final hostB = _MockNetworkBackend();
-    final save = Completer<void>();
+    final save = Completer<int>();
 
     when(() => hostA.eventStream)
         .thenAnswer((_) => const Stream<SkotiqEvent>.empty());
@@ -212,7 +213,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    save.complete();
+    save.complete(8);
     await tester.pump();
     await tester.pump();
 

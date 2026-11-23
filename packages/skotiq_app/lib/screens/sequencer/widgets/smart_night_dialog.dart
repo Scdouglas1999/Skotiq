@@ -11,6 +11,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 
 import '../smart_night_plan_launcher.dart';
 import '../../../utils/authority_bound_dialog.dart';
@@ -20,6 +21,8 @@ import '../../../widgets/filter_set_picker.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../equipment/dialogs/profile_editor_dialog.dart';
 import '../../../router/app_routes.dart';
+import '../../../services/sequence_action_service.dart' show PlanStartCanceled;
+import 'preflight_validation_dialog.dart' show confirmPreflight;
 
 part 'smart_night_dialog/inline_widgets.dart';
 part 'smart_night_dialog/safety_watchdogs.dart';
@@ -395,24 +398,10 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
     if (_settingsSeededFromAppSettings) return;
     _settingsSeededFromAppSettings = true;
 
-    // Translate the persisted minutes/hours into the wizard's native
-    // units. `null` => use SmartNightSettings constructor default
-    // (12h cap for max session, infinite per-target budget capped by
-    // window in practice).
-    final maxHours = app.smartNightMaxSessionHours;
-    final defaultIntegrationHours =
-        app.smartNightDefaultIntegrationBudgetMinsPerTarget / 60.0;
-    _settings = _settings.copyWith(
-      maxSessionHours: maxHours ?? _settings.maxSessionHours,
-      afEveryFrames: app.smartNightDefaultAfCadenceFrames,
-      defaultIntegrationBudgetHours: defaultIntegrationHours,
-      includeFlatsAtEnd: app.smartNightIncludeFlatsAtEnd,
-      useSchedulerForMultiTarget: app.smartNightUseSchedulerForMultiTarget,
-      schedulerTargetThreshold: app.smartNightSchedulerTargetThreshold,
-      polarAlignmentStaleAfterDays: app.smartNightPolarAlignmentStaleAfterDays,
-      subExposureFloorSecs: app.smartNightSubExposureFloorSecs,
-      subExposureCeilingSecs: app.smartNightSubExposureCeilingSecs,
-      targetSnr: app.smartNightTargetSnr,
+    _settings = SmartNightInputs.forNight(
+      app,
+      ref.read(activeEquipmentProfileProvider),
+      _settings,
     );
     _strategy = _strategyFromPersistedName(app.smartNightDefaultStrategy);
     final seed = widget.seedTargetIds;
@@ -446,7 +435,7 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
       final activeProfile = profile;
       final location = ref.read(appObserverLocationProvider);
       if (location == null ||
-          (location.latitude == 0.0 && location.longitude == 0.0)) {
+          !siteLocationIsSet(location.latitude, location.longitude)) {
         setState(() => _previewError =
             'No observer location set. Configure latitude / longitude in '
                 'Settings first.');
@@ -492,13 +481,16 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
           ref.read(lastPolarAlignmentProvider(activeProfile.id)).valueOrNull;
       int? daysSinceLastPolar;
       if (lastPolarAlign != null) {
-        daysSinceLastPolar =
-            DateTime.now().difference(lastPolarAlign.completedAt).inDays;
+        daysSinceLastPolar = ref
+            .read(clockProvider)
+            .nowUtc()
+            .difference(lastPolarAlign.completedAt)
+            .inDays;
       }
 
       final effectiveSettings = _settings.copyWith(
         hasCoverCalibrator: _settings.hasCoverCalibrator ||
-            activeProfile.coverCalibratorId != null,
+            SmartNightInputs.hasCoverCalibrator(activeProfile),
       );
       var exposureContext =
           await ref.read(smartNightExposureContextProvider.future);
@@ -536,33 +528,24 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
           availableFilters: planningFilters,
           exposureContext: exposureContext,
         );
-        final sets = choice.sets(saved: filterPrefs.custom);
-        final global = _strategy;
-        final fallback = global == null
-            ? choice.recommended
-            : FilterSet.preset(global, choice.filtersFor(global));
         _targetChoices[suggestion.targetId] = choice;
-        _targetSets[suggestion.targetId] = filterPrefs.targetChoices
-                .containsKey(filterSetTargetKey(suggestion))
-            ? filterPrefs.setFor(suggestion, sets: sets, recommended: fallback)
-            : fallback;
+        _targetSets[suggestion.targetId] = resolveTargetFilterSet(
+          suggestion,
+          choice: choice,
+          prefs: filterPrefs,
+          strategy: _strategy,
+        );
       }
 
-      // On a remote client the local dark library is the tablet's — empty —
-      // not the rig's. Evaluating coverage against it would falsely report
-      // every dark as missing and, with auto-schedule enabled, waste rig time
-      // re-capturing darks the appliance already has. The rig owns its
-      // calibration library, so skip the meaningless local computation here
-      // (the plan's exposures/timing/targets come from synced settings +
-      // profile and are unaffected). Browse the rig's darks via the
-      // Calibration Library screen instead.
-      final isRemoteBackend = ref.read(isRemoteModeProvider);
+      // The imaging host's dark library: a linked client's own table is
+      // empty, and coverage against it would report every dark missing and,
+      // with auto-schedule on, spend rig time on darks the host already has.
       final SmartNightDarkLibraryMissing darkLibraryMissing;
-      if (exposureContext == null || isRemoteBackend) {
+      if (exposureContext == null) {
         darkLibraryMissing = const SmartNightDarkLibraryMissing.empty();
       } else {
         darkLibraryMissing = await SmartNightDarkLibraryCoverage(
-          darkLibraryService: ref.read(darkLibraryServiceProvider),
+          readEntries: ref.read(darkLibraryEntriesReadProvider),
         ).missing(
           profile: activeProfile,
           filters: {

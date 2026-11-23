@@ -8,7 +8,7 @@ import 'settings_provider.dart' show appSettingsProvider;
 // QR/pairing validator and the NetworkBackend timeout tuning so the three
 // never drift.
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
-    show TailnetDetector, kDefaultHeadlessPort;
+    show HostAdvert, TailnetDetector, kDefaultHeadlessPort;
 
 /// Holds runtime state for the embedded web server.
 ///
@@ -62,6 +62,10 @@ class WebServerState {
   /// evidence-backed signal, never an optimistic default.
   final bool tailscaleReachable;
 
+  /// What the server last started advertises about itself (its computer
+  /// name, release, fingerprint); null before one has started.
+  final HostAdvert? advert;
+
   const WebServerState({
     this.isRunning = false,
     this.configuredPort = kDefaultHeadlessPort,
@@ -76,6 +80,7 @@ class WebServerState {
     this.serverFingerprint = '',
     this.tailscaleIp = '',
     this.tailscaleReachable = false,
+    this.advert,
   });
 
   /// Path the dashboard SPA is served from.
@@ -126,6 +131,7 @@ class WebServerState {
     String? serverFingerprint,
     String? tailscaleIp,
     bool? tailscaleReachable,
+    HostAdvert? advert,
   }) {
     return WebServerState(
       isRunning: isRunning ?? this.isRunning,
@@ -142,6 +148,7 @@ class WebServerState {
       serverFingerprint: serverFingerprint ?? this.serverFingerprint,
       tailscaleIp: tailscaleIp ?? this.tailscaleIp,
       tailscaleReachable: tailscaleReachable ?? this.tailscaleReachable,
+      advert: advert ?? this.advert,
     );
   }
 }
@@ -164,6 +171,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
     bool? dashboardAvailable,
     String? lastError,
     String? serverFingerprint,
+    HostAdvert? advert,
   }) {
     state = state.copyWith(
       isRunning: isRunning,
@@ -175,6 +183,7 @@ class WebServerStateNotifier extends StateNotifier<WebServerState> {
       dashboardAvailable: dashboardAvailable ?? state.dashboardAvailable,
       lastError: lastError ?? '',
       serverFingerprint: serverFingerprint ?? state.serverFingerprint,
+      advert: advert,
     );
     if (isRunning) {
       unawaited(_resolveLocalIp());

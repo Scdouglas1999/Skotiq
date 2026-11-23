@@ -1,17 +1,15 @@
-// SY-01 addendum (sync night 2026-11-03): a client that joined after the
-// host's run showed "No guide data yet", "No autofocus run yet this session"
-// and "No solve yet this session" beside a host that had all three. The host
-// serves what its Tonight gathered; the client adds the part from before it
-// connected.
+// A client that joins after the host's run shows the host's guide data,
+// autofocus runs and solves: the host serves what its Tonight gathered, and
+// the client adds the part from before it connected.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
-import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
+import 'package:skotiq_app/services/night_session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
+import 'package:skotiq_app/services/night_session/night_session_id.dart';
+import 'package:skotiq_app/services/night_session/night_recent_solves.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

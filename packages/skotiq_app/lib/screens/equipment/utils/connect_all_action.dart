@@ -6,6 +6,7 @@ import 'package:skotiq_core/services.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../utils/snackbar_helper.dart';
+import '../dialogs/fujifilm_disclaimer_dialog.dart';
 import 'connect_all_summary.dart';
 
 /// Connects every device [profile] names and reports the outcome as a
@@ -27,13 +28,37 @@ Future<void> runConnectAllForProfile(
     return;
   }
 
-  if (context.mounted) {
-    context.showInfoSnackBar('Connecting devices...');
+  // A camera whose maker's consent the operator does not give is left out of
+  // the sweep; the rest of the rig still connects.
+  var sweepProfile = profile;
+  final cameraId = profile.cameraId;
+  if (cameraId != null &&
+      cameraId.isNotEmpty &&
+      !await askCameraConsentBeforeConnect(
+        context,
+        deviceId: cameraId,
+        deviceName: profile.cameraName,
+      )) {
+    sweepProfile = sweepProfile.copyWith(cameraId: '');
   }
+  final guideCameraId = profile.guideCameraId;
+  if (context.mounted &&
+      guideCameraId != null &&
+      guideCameraId.isNotEmpty &&
+      !await askCameraConsentBeforeConnect(
+        context,
+        deviceId: guideCameraId,
+        deviceName: profile.guideCameraName,
+      )) {
+    sweepProfile = sweepProfile.copyWith(guideCameraId: '');
+  }
+  if (!context.mounted) return;
+
+  context.showInfoSnackBar('Connecting devices...');
   // Only the profile's devices are connected here. A device that is not in
   // the profile is assigned in Discovery, once, on purpose; reaching past the
   // profile would make two identical presses connect different rigs.
-  final sweep = await deviceService.connectProfile(profile);
+  final sweep = await deviceService.connectProfile(sweepProfile);
   final successCount = sweep.connected;
   final failCount = sweep.failures.length;
   final failures = [

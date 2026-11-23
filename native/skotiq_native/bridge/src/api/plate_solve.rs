@@ -58,12 +58,6 @@ impl From<skotiq_imaging::PlateSolveResult> for PlateSolveResult {
     }
 }
 
-/// Get the path to the installed plate solver
-#[flutter_rust_bridge::frb(sync)]
-pub fn api_get_plate_solver_path() -> Option<String> {
-    skotiq_platesolve::get_solver_path().map(|p| p.to_string_lossy().to_string())
-}
-
 /// Blind solve of the image file at `file_path`, told the field scale.
 pub async fn api_plate_solve_blind(
     file_path: String,
@@ -273,11 +267,8 @@ pub fn api_platesolve_get_config() -> Result<PlateSolverConfigPayload, SkotiqErr
 /// filesystem with the new paths.
 #[flutter_rust_bridge::frb(sync)]
 pub fn api_platesolve_set_config(config: PlateSolverConfigPayload) -> Result<(), SkotiqError> {
-    // Live before it is saved, so the paths the operator just set are honored
-    // this session even if the storage write fails.
-    let pref = config.into_pref();
-    crate::solver::apply_solver_preference(&pref);
-    crate::state::save_platesolver_preference(&pref).map_err(SkotiqError::OperationFailed)?;
+    crate::solver::save_solver_preference(&config.into_pref())
+        .map_err(SkotiqError::OperationFailed)?;
     skotiq_platesolve::invalidate_solver_availability_cache();
     Ok(())
 }

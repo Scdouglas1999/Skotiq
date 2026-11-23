@@ -1,18 +1,24 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nsd/nsd.dart';
 
 import 'discovery.dart';
+import 'host_advert.dart';
 import 'host_info.dart';
 import 'network_uri.dart';
+import 'ports.dart';
 import 'link_version.dart';
+import 'rig_discovery.dart' show skotiqMdnsServiceType;
 import 'tailnet_detector.dart';
 import 'wire/routes/system_api.dart';
+
+final _enhancedDiscoveryLog = Logger('skotiq.EnhancedDiscovery');
 
 /// SharedPreferences keys for server persistence.
 ///
@@ -75,9 +81,8 @@ Future<void> _migrateAuthTokenIfNeeded(SharedPreferences prefs) async {
   }
   await prefs.remove(_DiscoveryPrefs.lastServerAuthToken);
   await prefs.setBool(_DiscoveryPrefs.authTokenMigrated, true);
-  developer.log(
+  _enhancedDiscoveryLog.fine(
     'Migrated auth token from SharedPreferences to secure storage',
-    name: 'EnhancedDiscovery',
   );
 }
 
@@ -147,13 +152,19 @@ class QrConnectionData {
   /// compatibility with pre-2.6 QR payloads that omit the field.
   final String scheme;
 
+  /// The computer's name and `gui`/`headless`, as `/api/info` says them.
+  /// Codes printed before these keys existed carry neither; [serverName] and
+  /// [mode] keep the values every release printed.
+  final String? hostName;
+  final String? hostMode;
+
   QrConnectionData({
     this.service = kQrServiceMarker,
     required this.host,
     required this.webPort,
     required this.version,
     required this.fingerprint,
-    this.signalingPort = 45678,
+    this.signalingPort = kDefaultSignalingPort,
     this.serverName,
     this.mode = 'desktop',
     this.authRequired = false,
@@ -162,6 +173,8 @@ class QrConnectionData {
     this.authToken,
     this.pairingCode,
     this.scheme = 'http',
+    this.hostName,
+    this.hostMode,
   });
 
   /// `true` when the QR advertised a TLS endpoint.
@@ -187,12 +200,14 @@ class QrConnectionData {
     if (authToken != null && authToken!.isNotEmpty) 'authToken': authToken,
     if (pairingCode != null && pairingCode!.isNotEmpty)
       'pairingCode': pairingCode,
+    if (hostName != null) 'hostName': hostName,
+    if (hostMode != null) 'hostMode': hostMode,
   };
 
   String toQrString() => jsonEncode(toJson());
 
-  /// Strict parser. Throws [QrValidationException] on any schema violation —
-  /// the audit calls out that lenient parsing was the bug. Callers are
+  /// Strict parser. Throws [QrValidationException] on any schema violation.
+  /// Callers are
   /// expected to surface the reason to the operator.
   static QrConnectionData parseStrict(String data) {
     final dynamic decoded;
@@ -290,7 +305,7 @@ class QrConnectionData {
     final signalingPort = decoded['signalingPort'];
     final int parsedSignalingPort;
     if (signalingPort == null) {
-      parsedSignalingPort = 45678;
+      parsedSignalingPort = kDefaultSignalingPort;
     } else if (signalingPort is int &&
         signalingPort > 0 &&
         signalingPort <= 65535) {
@@ -321,6 +336,7 @@ class QrConnectionData {
       );
     }
 
+    final advert = HostAdvertRead.fromJson(decoded);
     return QrConnectionData(
       service: service,
       host: host,
@@ -346,6 +362,8 @@ class QrConnectionData {
       pairingCode: decoded['pairingCode'] is String
           ? decoded['pairingCode'] as String
           : null,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode,
     );
   }
 
@@ -362,6 +380,8 @@ class QrConnectionData {
     authToken: authToken,
     fingerprint: fingerprint,
     scheme: scheme,
+    hostName: hostName,
+    hostMode: hostMode,
   );
 }
 
@@ -493,9 +513,8 @@ class EnhancedSkotiqDiscovery {
     } else {
       await _secureStorage.delete(key: _secureAuthTokenKey);
     }
-    developer.log(
+    _enhancedDiscoveryLog.fine(
       'Saved server: ${server.name} at ${server.host}',
-      name: 'EnhancedDiscovery',
     );
   }
 
@@ -517,7 +536,8 @@ class EnhancedSkotiqDiscovery {
       host: host,
       webPort: port,
       signalingPort:
-          prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ?? 45678,
+          prefs.getInt(_DiscoveryPrefs.lastServerSignalingPort) ??
+          kDefaultSignalingPort,
       name: prefs.getString(_DiscoveryPrefs.lastServerName) ?? 'Skotiq',
       version: prefs.getString(_DiscoveryPrefs.lastServerVersion),
       mode: prefs.getString(_DiscoveryPrefs.lastServerMode) ?? 'desktop',
@@ -553,43 +573,43 @@ class EnhancedSkotiqDiscovery {
     // in case the user wiped storage out from under us.
     await prefs.remove(_DiscoveryPrefs.lastServerAuthToken);
     await _secureStorage.delete(key: _secureAuthTokenKey);
-    developer.log('Cleared saved server', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('Cleared saved server');
   }
 
-  static Map<String, String> _authHeaders(String? authToken) {
-    final headers = {LinkVersion.header: skotiqRelease};
-    if (authToken == null || authToken.isEmpty) {
-      return headers;
-    }
-    return {...headers, 'Authorization': 'Bearer $authToken'};
-  }
+  static Map<String, String> _authHeaders(String? authToken) =>
+      LinkVersion.hostHeaders(token: authToken);
 
   static DiscoveredServer _mergeServerInfo(
     DiscoveredServer seed,
     Map<String, dynamic> info,
   ) {
+    final advert = HostAdvertRead.fromJson(info);
+    String? text(String key) => switch (info[key]) {
+      final String value => value,
+      _ => null,
+    };
     return seed.copyWith(
-      name: info['name'] as String? ?? seed.name,
-      version: info['version'] as String? ?? seed.version,
-      mode: info['mode'] as String? ?? seed.mode,
-      authRequired: info['authRequired'] as bool? ?? seed.authRequired,
-      authenticationMode:
-          info['authenticationMode'] as String? ?? seed.authenticationMode,
-      pairingSupported:
-          info['pairingSupported'] as bool? ?? seed.pairingSupported,
-      fingerprint: info['fingerprint'] as String? ?? seed.fingerprint,
-      lanPairing: info['lanPairing'] as bool? ?? seed.lanPairing,
-      scheme: _normalizeTransportScheme(info['scheme'], fallback: seed.scheme),
-      // /api/info now advertises the rig's tailnet address and relay
-      // appliance id when those uplinks are up. Carry them through so the
-      // connect path can persist them into the saved-server row and the
-      // Tailscale/relay setup sheets prefill them on the next reconnect.
-      tailscaleHost: info['tailscaleHost'] as String? ?? seed.tailscaleHost,
-      relayApplianceId:
-          info['relayApplianceId'] as String? ?? seed.relayApplianceId,
-      hostName: _nonEmpty(info['hostName']) ?? seed.hostName,
+      name: advert.name ?? seed.name,
+      version: advert.version ?? seed.version,
+      mode: advert.mode ?? seed.mode,
+      authRequired: advert.authRequired ?? seed.authRequired,
+      authenticationMode: advert.authenticationMode ?? seed.authenticationMode,
+      pairingSupported: advert.pairingSupported ?? seed.pairingSupported,
+      fingerprint: advert.fingerprint ?? seed.fingerprint,
+      lanPairing: switch (info['lanPairing']) {
+        final bool value => value,
+        _ => seed.lanPairing,
+      },
+      scheme: advert.scheme ?? seed.scheme,
+      // /api/info advertises the rig's tailnet address and relay appliance id
+      // when those uplinks are up. Carry them through so the connect path can
+      // persist them into the saved-server row and the Tailscale/relay setup
+      // sheets prefill them on the next reconnect.
+      tailscaleHost: text('tailscaleHost') ?? seed.tailscaleHost,
+      relayApplianceId: text('relayApplianceId') ?? seed.relayApplianceId,
+      hostName: advert.hostName ?? seed.hostName,
       platform: _nonEmpty(info['platform']) ?? seed.platform,
-      hostMode: _nonEmpty(info['hostMode']) ?? seed.hostMode,
+      hostMode: advert.hostMode ?? seed.hostMode,
     );
   }
 
@@ -624,11 +644,9 @@ class EnhancedSkotiqDiscovery {
       case HostInfoAnswer(:final info):
         return ServerRead(_mergeServerInfo(server, info), read.problem);
       case HostInfoFailure(:final problem):
-        developer.log(
+        _enhancedDiscoveryLog.warning(
           'No Skotiq host at ${server.host}:${server.webPort}: '
           '${problem.kind.name}',
-          name: 'EnhancedDiscovery',
-          level: 900,
         );
         return ServerRead(server, problem);
     }
@@ -706,17 +724,14 @@ class EnhancedSkotiqDiscovery {
             : ServerProbeOutcome.unreachable;
       }
       if (read.problem != null) return ServerProbeOutcome.incompatible;
-      final info = read.info;
-
-      final authRequired = info['authRequired'] as bool? ?? false;
-      if (!authRequired) {
+      final advert = HostAdvertRead.fromJson(read.info);
+      if (advert.authRequired != true) {
         return ServerProbeOutcome.reachable;
       }
 
       if (authToken == null || authToken.isEmpty) {
         // Host is up; mobile will pair via /api/pairing/* before connecting.
-        final pairingSupported = info['pairingSupported'] as bool? ?? false;
-        return pairingSupported
+        return advert.pairingSupported == true
             ? ServerProbeOutcome.reachable
             : ServerProbeOutcome.unreachable;
       }
@@ -744,10 +759,8 @@ class EnhancedSkotiqDiscovery {
       // failure, timeout, TLS error) is by definition "not reachable" and
       // the caller treats it accordingly. Log so an operator chasing
       // "why doesn't my server show up" can see the actual cause.
-      developer.log(
+      _enhancedDiscoveryLog.warning(
         'probeServer failed for $host:$port: $e\n$stackTrace',
-        name: 'EnhancedDiscovery',
-        level: 900,
       );
       return ServerProbeOutcome.unreachable;
     }
@@ -778,13 +791,12 @@ class EnhancedSkotiqDiscovery {
     onStatus?.call('Checking last server...');
     final server = await loadLastServer();
     if (server == null) {
-      developer.log('No saved server found', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('No saved server found');
       return null;
     }
 
-    developer.log(
+    _enhancedDiscoveryLog.fine(
       'Testing saved server: ${server.host}:${server.webPort}',
-      name: 'EnhancedDiscovery',
     );
     final isReachable = await testServerConnection(
       server.host,
@@ -795,11 +807,11 @@ class EnhancedSkotiqDiscovery {
     );
 
     if (isReachable) {
-      developer.log('Saved server is reachable', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('Saved server is reachable');
       return (await readServer(server, timeout: timeout)).server;
     }
 
-    developer.log('Saved server not reachable', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('Saved server not reachable');
     return null;
   }
 
@@ -810,7 +822,7 @@ class EnhancedSkotiqDiscovery {
     DiscoveryStatusCallback? onStatus,
   }) async {
     onStatus?.call('Searching via Bonjour...');
-    developer.log('mDNS discovery starting...', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('mDNS discovery starting...');
 
     final List<DiscoveredServer> servers = [];
 
@@ -818,7 +830,7 @@ class EnhancedSkotiqDiscovery {
     Timer? timeoutTimer;
 
     try {
-      discovery = await startDiscovery('_skotiq._tcp');
+      discovery = await startDiscovery(skotiqMdnsServiceType);
 
       // Collect discovered services
       final completer = Completer<List<DiscoveredServer>>();
@@ -842,59 +854,11 @@ class EnhancedSkotiqDiscovery {
               // broadcast) lands on the right scheme and can cross-check the
               // fingerprint against a previously-saved value before sending
               // its bearer token.
-              String serverName = resolvedService.name ?? 'Skotiq';
-              String version = '2.0.0';
-              int signalingPort = 45678;
-              String scheme = 'http';
-              String? fingerprint;
-              bool pairingSupported = false;
-
-              final txtRecords = resolvedService.txt;
-              if (txtRecords != null && txtRecords.isNotEmpty) {
-                for (final record in txtRecords.entries) {
-                  final key = record.key;
-                  final rawValue = record.value;
-                  final value = _decodeTxtValue(rawValue);
-                  if (value == null) continue;
-
-                  switch (key) {
-                    case 'version':
-                      version = value;
-                      break;
-                    case 'name':
-                      serverName = value;
-                      break;
-                    case 'signaling_port':
-                      signalingPort = int.tryParse(value) ?? signalingPort;
-                      break;
-                    case 'scheme':
-                      final lowered = value.toLowerCase();
-                      if (lowered == 'http' || lowered == 'https') {
-                        scheme = lowered;
-                      }
-                      break;
-                    case 'fingerprint':
-                      if (value.isNotEmpty) {
-                        fingerprint = value;
-                      }
-                      break;
-                    case 'pairingSupported':
-                      pairingSupported =
-                          value.toLowerCase() == 'true' || value == '1';
-                      break;
-                  }
-                }
-              }
-
-              final server = DiscoveredServer(
+              final server = serverFromNsd(
                 host: host,
-                webPort: port,
-                signalingPort: signalingPort,
-                name: serverName,
-                version: version,
-                scheme: scheme,
-                fingerprint: fingerprint,
-                pairingSupported: pairingSupported,
+                port: port,
+                serviceName: resolvedService.name,
+                txt: resolvedService.txt,
               );
 
               // Avoid duplicates
@@ -909,10 +873,8 @@ class EnhancedSkotiqDiscovery {
             // must not abort the whole sweep — another service in the same
             // broadcast may still resolve cleanly. Log at fine level so a
             // systemic Bonjour failure is visible in the dev console.
-            developer.log(
+            _enhancedDiscoveryLog.fine(
               'mDNS service resolution failed; skipping: $e\n$stackTrace',
-              name: 'EnhancedDiscovery',
-              level: 500,
             );
           }
         }
@@ -924,7 +886,6 @@ class EnhancedSkotiqDiscovery {
         }
       });
 
-      // Wait for timeout
       await completer.future;
 
       return servers;
@@ -941,14 +902,39 @@ class EnhancedSkotiqDiscovery {
           // completed (or timed out); failing to close the mDNS handle is
           // non-fatal but should not propagate and mask the real outcome.
           // Log so a leaking handle pattern would be visible.
-          developer.log(
+          _enhancedDiscoveryLog.fine(
             'stopDiscovery cleanup failed: $e\n$stackTrace',
-            name: 'EnhancedDiscovery',
-            level: 500,
           );
         }
       }
     }
+  }
+
+  /// The server an nsd-resolved `_skotiq._tcp` service at [host]:[port]
+  /// describes, before its `/api/info` is read.
+  @visibleForTesting
+  static DiscoveredServer serverFromNsd({
+    required String host,
+    required int port,
+    String? serviceName,
+    Map<String, Object?>? txt,
+  }) {
+    final advert = HostTxt.parse({
+      for (final record in (txt ?? const <String, Object?>{}).entries)
+        if (_decodeTxtValue(record.value) case final value?) record.key: value,
+    });
+    return DiscoveredServer(
+      host: host,
+      webPort: port,
+      signalingPort: advert.signalingPort ?? kDefaultSignalingPort,
+      name: advert.name ?? serviceName ?? 'Skotiq',
+      version: advert.version,
+      scheme: advert.scheme ?? 'http',
+      fingerprint: advert.fingerprint,
+      pairingSupported: advert.pairingSupported,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode,
+    );
   }
 
   static Future<List<DiscoveredServer>> discoverViaUdp({
@@ -972,7 +958,7 @@ class EnhancedSkotiqDiscovery {
   static Future<DiscoveredServer?> discoverWithFallback({
     DiscoveryStatusCallback? onStatus,
   }) async {
-    developer.log('Starting cascading discovery...', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('Starting cascading discovery...');
 
     // 1. Try last saved server (2s timeout)
     onStatus?.call('Reconnecting to last server...');
@@ -981,7 +967,7 @@ class EnhancedSkotiqDiscovery {
       onStatus: onStatus,
     );
     if (lastServer != null) {
-      developer.log('Connected via saved server', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('Connected via saved server');
       return lastServer;
     }
 
@@ -992,7 +978,7 @@ class EnhancedSkotiqDiscovery {
       onStatus: onStatus,
     );
     if (mdnsServers.isNotEmpty) {
-      developer.log('Found server via mDNS', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('Found server via mDNS');
       return firstLinkableServer(mdnsServers);
     }
 
@@ -1003,60 +989,54 @@ class EnhancedSkotiqDiscovery {
       onStatus: onStatus,
     );
     if (udpServers.isNotEmpty) {
-      developer.log(
-        'Found server via UDP broadcast',
-        name: 'EnhancedDiscovery',
-      );
+      _enhancedDiscoveryLog.fine('Found server via UDP broadcast');
       return firstLinkableServer(udpServers);
     }
 
     // 4. No server found
-    developer.log(
-      'No server found via any method',
-      name: 'EnhancedDiscovery',
-      level: 900,
-    );
+    _enhancedDiscoveryLog.warning('No server found via any method');
     onStatus?.call('No server found');
     return null;
   }
 
-  /// Generate QR code data string for a server.
+  /// The pairing QR of the host that publishes [advert], reached at
+  /// [host]:[webPort]. [pairingCode] enrolls the phone in one scan.
   ///
-  /// `version` and `fingerprint` are mandatory — the mobile scanner refuses
-  /// payloads without them.
-  static String generateQrData({
+  /// `name` and `mode` keep the values every release has printed (`Skotiq`,
+  /// `desktop`), because printed codes and older phones read them; the
+  /// computer's name and `gui`/`headless` are in `hostName` and `hostMode`.
+  static String generateQrData(
+    HostAdvert advert, {
     required String host,
     required int webPort,
-    required String version,
-    required String fingerprint,
-    int signalingPort = 45678,
-    String? serverName,
-    String mode = 'desktop',
-    bool authRequired = false,
-    String authenticationMode = 'none',
-    bool pairingSupported = false,
+    int signalingPort = kDefaultSignalingPort,
     String? authToken,
     String? pairingCode,
-    String scheme = 'http',
   }) {
-    final lowered = scheme.toLowerCase();
-    if (lowered != 'http' && lowered != 'https') {
-      throw ArgumentError.value(scheme, 'scheme', 'must be "http" or "https"');
+    final scheme = advert.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') {
+      throw ArgumentError.value(
+        advert.scheme,
+        'advert.scheme',
+        'must be "http" or "https"',
+      );
     }
     final data = QrConnectionData(
       host: host,
       webPort: webPort,
       signalingPort: signalingPort,
-      version: version,
-      fingerprint: fingerprint,
-      serverName: serverName,
-      mode: mode,
-      authRequired: authRequired,
-      authenticationMode: authenticationMode,
-      pairingSupported: pairingSupported,
+      version: advert.version,
+      fingerprint: advert.fingerprint,
+      serverName: 'Skotiq',
+      mode: 'desktop',
+      authRequired: advert.authRequired,
+      authenticationMode: advert.authenticationMode,
+      pairingSupported: advert.pairingSupported,
       authToken: authToken,
       pairingCode: pairingCode,
-      scheme: lowered,
+      scheme: scheme,
+      hostName: advert.hostName,
+      hostMode: advert.hostMode.wire,
     );
     return data.toQrString();
   }

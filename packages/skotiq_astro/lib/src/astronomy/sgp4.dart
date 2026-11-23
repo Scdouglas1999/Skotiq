@@ -638,7 +638,6 @@ class OrbitalElements {
   /// Revolution number at epoch
   final int revolutionNumber;
 
-  /// Element set number
   final int elementSetNumber;
 
   const OrbitalElements({

@@ -240,6 +240,40 @@ extension _HeadlessApiServerHttpMiddleware on HeadlessApiServer {
     };
   }
 
+  /// Refuses the API of a window that is linked to another imaging host.
+  ///
+  /// The window's devices, runs and data are that host's, reached through the
+  /// link; answering here would act on this machine or forward a request with
+  /// this machine's paths. The server keeps running (the Remote Access
+  /// setting is unchanged), and the identity, version and update routes stay
+  /// open.
+  Middleware _linkedWindowMiddleware() {
+    return (innerHandler) {
+      return (request) {
+        final link = container.read(linkedHostLinkProvider);
+        if (link == null) return innerHandler(request);
+        final path = '/${request.url.path}';
+        if (RouteTable.of(request).policy.scope == ApiScope.public ||
+            LinkVersion.openToOtherReleases(path)) {
+          return innerHandler(request);
+        }
+        final host = link.serverHost;
+        return jsonConflict(
+          ApiErrorBody(
+            code: ApiErrorCodes.linkedToHost,
+            message:
+                'This window is linked to $host; send the request to $host.',
+            layout: ApiErrorLayout.codeAsError,
+            details: {'host': host},
+          ).toJson(),
+          headers: {
+            HeadlessApiServer._requestIdHeader: _requestIdFrom(request),
+          },
+        );
+      };
+    };
+  }
+
   /// Holds every API request to the same-release rule ([LinkVersion]).
   ///
   /// A request says which release sent it in the `x-skotiq-version` header;

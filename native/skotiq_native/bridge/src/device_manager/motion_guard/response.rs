@@ -542,21 +542,11 @@ pub struct RecoverySolve {
 /// The camera a recovery frame is taken with: the one asked for, the run's,
 /// the profile's, or the only connected camera.
 async fn recovery_camera(camera_id: Option<String>) -> Option<String> {
-    if camera_id.is_some() {
-        return camera_id;
-    }
-    let run_camera = skotiq_sequencer::executor_handle().devices().camera_id;
-    if run_camera.is_some() {
-        return run_camera;
-    }
-    if let Some(id) = crate::state::get_state()
-        .get_profile_device_id(crate::device::DeviceType::Camera)
-        .await
-    {
-        return Some(id);
-    }
     crate::device_manager::get_device_manager()
-        .first_connected_device_id(crate::device::DeviceType::Camera)
+        .rig_device(
+            crate::device_manager::roles::RigRole::RecoveryCamera,
+            camera_id.as_deref(),
+        )
         .await
 }
 
@@ -582,14 +572,9 @@ pub(crate) fn recovery_slot(names: &[String]) -> Option<usize> {
 /// mount; the run's next frame sets its own filter.
 async fn wheel_to_recovery_filter() {
     let manager = crate::device_manager::get_device_manager();
-    let wheel = match skotiq_sequencer::executor_handle().devices().filterwheel_id {
-        Some(id) => Some(id),
-        None => {
-            manager
-                .first_connected_device_id(crate::device::DeviceType::FilterWheel)
-                .await
-        }
-    };
+    let wheel = manager
+        .rig_device(crate::device_manager::roles::RigRole::RecoveryWheel, None)
+        .await;
     let Some(wheel) = wheel else {
         return;
     };
@@ -643,8 +628,8 @@ pub async fn solve_for_recovery(
     wheel_to_recovery_filter().await;
     let ops = crate::unified_device_ops::create_unified_device_ops();
     let exposure = exposure_secs.clamp(0.5, 60.0);
-    let image = ops
-        .camera_start_exposure(skotiq_sequencer::ExposureRequest::new(&camera, exposure))
+    let image = crate::device_manager::get_device_manager()
+        .capture(skotiq_sequencer::ExposureRequest::new(&camera, exposure))
         .await
         .map_err(|e| format!("The recovery frame failed: {e}"))?;
     let solved = tokio::time::timeout(
@@ -873,15 +858,13 @@ mod recovery_frame_tests {
 mod hold_tests {
 
     use super::hold_run_or_stop_guiding;
-    use crate::api::sequencer::event_bridge::run_sequencer_event_loop;
     use crate::api::sequencer::lifecycle::api_sequencer_start;
     use crate::event::bus::EventPayload;
     use crate::event::sequencer::SequencerEvent;
     use crate::state::get_state;
 
     /// The guard asks the run to pause and the run announces it when its
-    /// state turns Paused. The guard used to publish a Paused of its own as
-    /// well, so one mount fault logged "Sequence paused" twice.
+    /// state turns Paused.
     #[tokio::test]
     async fn a_mount_fault_hold_puts_one_paused_on_the_wire() {
         let _serialized = crate::simulator::sim_singleton_test_lock().lock().await;
@@ -896,18 +879,17 @@ mod hold_tests {
             children: vec![],
         });
         sequence.root_node_id = Some("wait".to_string());
-        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
-        let mut run_events = {
+        {
             let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
             executor.load_sequence(sequence).expect("sequence loads");
-            executor.handle().subscribe()
-        };
-        let bridge = tokio::spawn(async move {
-            run_sequencer_event_loop(&mut run_events, get_state()).await;
-        });
+        }
+        // The process's one pair of event bridges, as the host starts them:
+        // a test-local loop beside them would deliver every event twice.
+        crate::api::sequencer::event_bridge::start_sequencer_event_bridges()
+            .expect("the event bridges start");
         api_sequencer_start().await.expect("run starts");
         let mut events = get_state().event_bus.subscribe();
 
@@ -931,7 +913,6 @@ mod hold_tests {
             .stop()
             .await
             .expect("the held run stops");
-        bridge.abort();
 
         assert!(first && second, "the run was held both times");
         assert_eq!(paused, 1, "one fault is one Paused on the wire");

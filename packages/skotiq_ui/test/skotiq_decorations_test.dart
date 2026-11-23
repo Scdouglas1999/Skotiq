@@ -58,35 +58,6 @@ void main() {
       expect(decoration.shape, BoxShape.circle);
     });
 
-    test('cardSelected uses a 4% tint and a 50% ring, without shadow', () {
-      const accent = Color(0xFF5B9EC4);
-      const background = Color(0xFF111418);
-      final decoration = SkotiqDecorations.cardSelected(
-        accent,
-        background: background,
-      );
-
-      expect(
-        decoration.color,
-        Color.alphaBlend(accent.withValues(alpha: 0.04), background),
-      );
-      expect(decoration.boxShadow, isNull);
-      expect(
-        decoration.border,
-        Border.all(
-          color: accent.withValues(alpha: SkotiqTokens.opacitySelectedRing),
-        ),
-      );
-    });
-
-    test('dragFeedback is the popover decoration', () {
-      const colors = SkotiqColors.dark;
-      final decoration = SkotiqDecorations.dragFeedback(colors);
-
-      expect(decoration, SkotiqDecorations.popover(colors));
-      expect(decoration.boxShadow, isNotNull);
-    });
-
     test('statusChip uses status fill alpha', () {
       const color = Color(0xFF3DAA6D);
       final decoration = SkotiqDecorations.statusChip(color);

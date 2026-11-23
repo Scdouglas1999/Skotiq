@@ -52,8 +52,8 @@ class _LoopProperties extends ConsumerWidget {
             child: NodeNumberInput(
               colors: colors,
               value: (node.repeatCount ?? 1).toDouble(),
-              min: 1,
-              max: 9999,
+              min: NodeFieldLimits.loopRepeatCount.min.toDouble(),
+              max: NodeFieldLimits.loopRepeatCount.max.toDouble(),
               onChanged: (value) {
                 ref.read(currentSequenceProvider.notifier).updateNode(
                       node.copyWith(repeatCount: value.toInt()),
@@ -123,28 +123,12 @@ class _LoopProperties extends ConsumerWidget {
                         // record there is no dawn to set the wait against.
                         final site = ref.read(observerLocationProvider).site;
                         if (site == null) return;
-                        final now = DateTime.now();
-
-                        var twilight =
-                            AstronomyCalculations.calculateTwilightTimes(
-                          date: now,
+                        final target = nextDawn(
+                          DateTime.now(),
                           latitudeDeg: site.latitude,
                           longitudeDeg: site.longitude,
+                          dawn: (twilight) => twilight.civilDawn,
                         );
-
-                        var target = twilight.civilDawn;
-
-                        // If dawn passed or not available today, try tomorrow
-                        if (target == null || target.isBefore(now)) {
-                          twilight =
-                              AstronomyCalculations.calculateTwilightTimes(
-                            date: now.add(const Duration(days: 1)),
-                            latitudeDeg: site.latitude,
-                            longitudeDeg: site.longitude,
-                          );
-                          target = twilight.civilDawn;
-                        }
-
                         if (target != null) {
                           ref.read(currentSequenceProvider.notifier).updateNode(
                                 node.copyWith(repeatUntil: target),
@@ -161,28 +145,12 @@ class _LoopProperties extends ConsumerWidget {
                         // record there is no dawn to set the wait against.
                         final site = ref.read(observerLocationProvider).site;
                         if (site == null) return;
-                        final now = DateTime.now();
-
-                        var twilight =
-                            AstronomyCalculations.calculateTwilightTimes(
-                          date: now,
+                        final target = nextDawn(
+                          DateTime.now(),
                           latitudeDeg: site.latitude,
                           longitudeDeg: site.longitude,
+                          dawn: (twilight) => twilight.nauticalDawn,
                         );
-
-                        var target = twilight.nauticalDawn;
-
-                        // If dawn passed or not available today, try tomorrow
-                        if (target == null || target.isBefore(now)) {
-                          twilight =
-                              AstronomyCalculations.calculateTwilightTimes(
-                            date: now.add(const Duration(days: 1)),
-                            latitudeDeg: site.latitude,
-                            longitudeDeg: site.longitude,
-                          );
-                          target = twilight.nauticalDawn;
-                        }
-
                         if (target != null) {
                           ref.read(currentSequenceProvider.notifier).updateNode(
                                 node.copyWith(repeatUntil: target),
@@ -280,8 +248,8 @@ class _DelayProperties extends ConsumerWidget {
             colors: colors,
             value: node.seconds,
             suffix: 's',
-            min: 0.1,
-            max: 3600,
+            min: NodeFieldLimits.delaySecs.min,
+            max: NodeFieldLimits.delaySecs.max,
             decimals: 1,
             onChanged: (value) {
               ref.read(currentSequenceProvider.notifier).updateNode(
@@ -547,25 +515,12 @@ class _SafetyMonitorPicker extends ConsumerWidget {
 
   void _setMonitor(WidgetRef ref, String? monitorId) {
     final notifier = ref.read(currentSequenceProvider.notifier);
-    if (monitorId == null) {
-      // Rebuild to clear — copyWith can't null the field.
-      notifier.updateNode(
-        ConditionalNode(
-          id: node.id,
-          name: node.name,
-          isEnabled: node.isEnabled,
-          childIds: node.childIds,
-          parentId: node.parentId,
-          orderIndex: node.orderIndex,
-          comment: node.comment,
-          conditionType: node.conditionType,
-          thresholdValue: node.thresholdValue,
-          thresholdTime: node.thresholdTime,
-        ),
-      );
-    } else {
-      notifier.updateNode(node.copyWith(safetyMonitorId: monitorId));
-    }
+    notifier.updateNode(
+      node.copyWith(
+        safetyMonitorId: monitorId,
+        clearSafetyMonitorId: monitorId == null,
+      ),
+    );
   }
 
   @override

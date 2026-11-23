@@ -1,6 +1,58 @@
 part of '../smart_night_service.dart';
 
 extension _SmartNightSequenceEmitter on SmartNightService {
+  /// Cool the camera and unpark the mount: how every night opens.
+  void _addSessionPreamble(
+    SmartNightSettings settings,
+    String rootId,
+    List<String> childOrder,
+    SequenceNode Function(SequenceNode) addRootChild,
+  ) {
+    addRootChild(
+      CoolCameraNode(
+        id: SmartNightService._uuid.v4(),
+        name:
+            'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
+        targetTemp: settings.coolDownTargetC,
+        durationMins: 10.0,
+        parentId: rootId,
+        orderIndex: childOrder.length - 1,
+      ),
+    );
+    addRootChild(
+      UnparkNode(
+        id: SmartNightService._uuid.v4(),
+        name: 'Unpark mount',
+        parentId: rootId,
+        orderIndex: childOrder.length - 1,
+      ),
+    );
+  }
+
+  /// Warm the camera and park the mount: how every night closes.
+  void _addSessionShutdown(
+    String rootId,
+    List<String> childOrder,
+    SequenceNode Function(SequenceNode) addRootChild,
+  ) {
+    addRootChild(
+      WarmCameraNode(
+        id: SmartNightService._uuid.v4(),
+        name: 'Warm camera',
+        parentId: rootId,
+        orderIndex: childOrder.length - 1,
+      ),
+    );
+    addRootChild(
+      ParkNode(
+        id: SmartNightService._uuid.v4(),
+        name: 'Park mount',
+        parentId: rootId,
+        orderIndex: childOrder.length - 1,
+      ),
+    );
+  }
+
   Sequence _emitSingleTargetSequence({
     required EquipmentProfileModel profile,
     required SmartNightPlannedTarget planned,
@@ -21,25 +73,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     }
 
     if (includeSessionPreamble) {
-      addRootChild(
-        CoolCameraNode(
-          id: SmartNightService._uuid.v4(),
-          name:
-              'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
-          targetTemp: settings.coolDownTargetC,
-          durationMins: 10.0,
-          parentId: rootId,
-          orderIndex: childOrder.length - 1,
-        ),
-      );
-      addRootChild(
-        UnparkNode(
-          id: SmartNightService._uuid.v4(),
-          name: 'Unpark mount',
-          parentId: rootId,
-          orderIndex: childOrder.length - 1,
-        ),
-      );
+      _addSessionPreamble(settings, rootId, childOrder, addRootChild);
     }
 
     final header = _emitTargetHeaderSubtree(
@@ -58,22 +92,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     childOrder.add(updatedHeader.id);
 
     if (includeSessionShutdown ?? includeSessionPreamble) {
-      addRootChild(
-        WarmCameraNode(
-          id: SmartNightService._uuid.v4(),
-          name: 'Warm camera',
-          parentId: rootId,
-          orderIndex: childOrder.length - 1,
-        ),
-      );
-      addRootChild(
-        ParkNode(
-          id: SmartNightService._uuid.v4(),
-          name: 'Park mount',
-          parentId: rootId,
-          orderIndex: childOrder.length - 1,
-        ),
-      );
+      _addSessionShutdown(rootId, childOrder, addRootChild);
     }
 
     final root = InstructionSetNode(
@@ -113,17 +132,11 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       ),
     );
     return CameraExposureSpec(
-      readNoiseE: specs.readNoiseE?.value ?? _kUnknownCameraReadNoiseE,
-      fullWellE: specs.fullWellE?.value ?? _kUnknownCameraFullWellE,
-      qePeak: specs.qePeakFraction?.value ?? _kUnknownCameraQePeak,
+      readNoiseE: specs.readNoiseE?.value ?? UnknownCameraFigures.readNoiseE,
+      fullWellE: specs.fullWellE?.value ?? UnknownCameraFigures.fullWellE,
+      qePeak: specs.qePeakFraction?.value ?? UnknownCameraFigures.qePeak,
     );
   }
-
-  /// Conservative stand-ins for a camera whose figures nothing publishes.
-  /// Kept in step with `session_optimizer_provider`'s planning estimates.
-  static const double _kUnknownCameraReadNoiseE = 3.5;
-  static const double _kUnknownCameraFullWellE = 18000;
-  static const double _kUnknownCameraQePeak = 0.65;
 
   /// Seconds of integration budget for one target: sampled time above the
   /// altitude floor tonight, capped by its window and optional budget.
@@ -222,28 +235,8 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       return node;
     }
 
-    // -- 1. Cool camera (always — needed before any imaging)
-    addRootChild(
-      CoolCameraNode(
-        id: SmartNightService._uuid.v4(),
-        name:
-            'Cool camera to ${formatCelsius(settings.coolDownTargetC, decimals: 0)}',
-        targetTemp: settings.coolDownTargetC,
-        durationMins: 10.0,
-        parentId: rootId,
-        orderIndex: childOrder.length - 1,
-      ),
-    );
-
-    // -- 2. Unpark mount
-    addRootChild(
-      UnparkNode(
-        id: SmartNightService._uuid.v4(),
-        name: 'Unpark mount',
-        parentId: rootId,
-        orderIndex: childOrder.length - 1,
-      ),
-    );
+    // -- 1, 2. Cool camera and unpark (always — needed before any imaging)
+    _addSessionPreamble(settings, rootId, childOrder, addRootChild);
 
     // -- 3. Polar alignment if stale
     if (settings.prependPolarAlignmentIfStale &&
@@ -453,22 +446,7 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     }
 
     // -- 6. Warm camera + park (always — clean shutdown)
-    addRootChild(
-      WarmCameraNode(
-        id: SmartNightService._uuid.v4(),
-        name: 'Warm camera',
-        parentId: rootId,
-        orderIndex: childOrder.length - 1,
-      ),
-    );
-    addRootChild(
-      ParkNode(
-        id: SmartNightService._uuid.v4(),
-        name: 'Park mount',
-        parentId: rootId,
-        orderIndex: childOrder.length - 1,
-      ),
-    );
+    _addSessionShutdown(rootId, childOrder, addRootChild);
 
     // -- 7. Weather recovery (optional, prepended as a sibling under
     // the root so the executor's parallel watchdog can interrupt the
@@ -795,12 +773,11 @@ extension _SmartNightSequenceEmitter on SmartNightService {
       children.add(loop);
     }
 
-    // 6. Optional meridian flip recovery — only inject when the target
-    // crosses the meridian during its imaging window and the capture does
-    // not already run until that window closes. A fill-window capture is
-    // cut off at the window; the runtime flip policy is what crosses the
-    // meridian during it. A short plan still gets the node.
-    if (!fillWindow && SmartNightService.willInjectMeridianFlip(planned)) {
+    // 6. Optional meridian flip recovery.
+    if (SmartNightService.willInjectMeridianFlip(
+      planned,
+      fillWindow: fillWindow,
+    )) {
       children.add(
         MeridianFlipNode(
           id: SmartNightService._uuid.v4(),
@@ -868,9 +845,9 @@ extension _SmartNightSequenceEmitter on SmartNightService {
     final loop = fillWindow && rotate;
     return SmartExposureNode(
       id: SmartNightService._uuid.v4(),
-      name:
-          'Smart Exposure: '
-          '${planned.filterPlans.map((p) => p.filterName).join("+")}',
+      name: SmartExposureNode.autoName(
+        planned.filterPlans.map((p) => p.filterName),
+      ),
       plans: [
         for (final fp in planned.filterPlans)
           _smartExposureRow(profile: profile, plan: fp, settings: settings),

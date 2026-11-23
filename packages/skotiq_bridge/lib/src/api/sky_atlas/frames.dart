@@ -6,22 +6,6 @@
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-/// Fold a single plate-solved capture into the atlas. A thin convenience over the
-/// `"fold"` action for the common one-frame case — the same JSON shape minus the
-/// `frames` array wrapper:
-///
-/// ```jsonc
-/// { "atlasRoot": "/…", "order": 9, "contributor": "", "interp": "lanczos3",
-///   "label": "2026-06-19", "framePath": "/…/light_001.fits",
-///   "weight": 1.0, "exposureSec": 300.0, "wcs": <SipWcs JSON>,
-///   "onlineClipLow": 4.0, "onlineClipHigh": 4.0 /* optional */ }
-/// ```
-/// Returns the same [`FoldResult`] JSON as the dispatcher's `"fold"` action.
-Future<String> apiSkyAtlasAddFrame({required String argsJson}) => RustLib
-    .instance
-    .api
-    .crateApiSkyAtlasFramesApiSkyAtlasAddFrame(argsJson: argsJson);
-
 /// Co-add a cone of the atlas into a finalized, sharable cutout (FITS + optional
 /// PNG) and report its statistics:
 ///

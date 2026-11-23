@@ -12,7 +12,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
-import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show formatDeviceId;
 import '../../../utils/device_type_ui.dart';
 import 'operation_status_bar.dart';
 import '../../../router/settings_sections.dart';
@@ -349,10 +349,8 @@ class RigCard extends ConsumerWidget {
       _RigRow(
         icon: SkotiqIcons.crosshair,
         dotTone: _connectionTone(guiderState.connectionState),
-        // "Idle" here used to mean "no guider" — the same word the app uses
-        // for a connected, ready guider that simply is not guiding. At a
-        // glance the strip said the guider was present and calm when there
-        // was no guider at all.
+        // "Idle" is the word the app uses for a connected, ready guider that
+        // simply is not guiding, so it never stands for "no guider".
         value: guiderValue,
         semanticLabel: deviceRowSemanticLabel(
           l10n.text('statusGuider'),

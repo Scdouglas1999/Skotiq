@@ -25,12 +25,15 @@
 //! reads brighter than the first frames of its group. Such frames are left out
 //! of the master and reported.
 
+use crate::atomic_file::{replace_file, Replace, ReplaceError};
 use crate::fits::{copy_header_cards, write_fits, FitsError, FitsHeader};
 use crate::fits_reader::FitsReader;
 use crate::integration::{integrate_columns, Combine, IntegrationConfig, IntegrationFrame, Reject};
 use crate::robust_stats::median_and_sigma_upper;
 use crate::{frame_format, FitsCopy, ImageFormat};
-use crate::{ImageData, PixelType};
+use crate::{
+    AgreementPolicy, ExposureTolerance, ImageData, NumberMatch, PixelType, ProductCards, Setting,
+};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -315,8 +318,8 @@ fn working_copy_bytes(paths: &[PathBuf]) -> u64 {
         .filter(|path| !matches!(frame_format(path), Ok(ImageFormat::Fits)))
         .map(|path| {
             let from_header = crate::read_frame_header(path).ok().and_then(|header| {
-                let axis = |key: &str| header.get_int(key).filter(|n| *n > 0).map(|n| n as u64);
-                let samples = axis("NAXIS1")? * axis("NAXIS2")? * axis("NAXIS3").unwrap_or(1);
+                let (width, height) = header.image_size()?;
+                let samples = u64::from(width) * u64::from(height) * u64::from(header.planes());
                 let bytes = header.get_int("BITPIX").map_or(2, |b| b.unsigned_abs() / 8);
                 Some(samples * bytes.max(2))
             });
@@ -383,6 +386,22 @@ fn card_i64(header: &FitsHeader, keys: &[&str]) -> Option<i64> {
     })
 }
 
+/// How closely the frames of one dark or bias master must agree.
+const STREAMED_AGREEMENT: AgreementPolicy = AgreementPolicy {
+    instrument: false,
+    filter: false,
+    exposure: Some(ExposureTolerance {
+        absolute_s: 1e-3,
+        relative: 1e-4,
+    }),
+    set_point_c: Some(0.05),
+    read_mode: true,
+    numbers: NumberMatch::Whole,
+    text_ignores_case: false,
+    first_states_numbers: false,
+    sensor_temp_c: None,
+};
+
 /// Every source must agree with the first on a card, when both carry it: size,
 /// exposure, set-point, read mode, gain, offset and binning.
 fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
@@ -399,49 +418,27 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
                 first.height
             ));
         }
-        let exposure = |h: &FitsHeader| card_f64(h, &["EXPTIME", "EXPOSURE"]);
-        if let (Some(a), Some(b)) = (exposure(first.header()), exposure(source.header())) {
-            if (a - b).abs() > 1e-3_f64.max(a.abs() * 1e-4) {
-                return Err(format!(
-                    "{} was exposed {b} s but {} was exposed {a} s",
-                    source.path.display(),
-                    first.path.display()
-                ));
-            }
-        }
-        let set_point = |h: &FitsHeader| card_f64(h, &["SET-TEMP", "SET_TEMP"]);
-        if let (Some(a), Some(b)) = (set_point(first.header()), set_point(source.header())) {
-            if (a - b).abs() > 0.05 {
-                return Err(format!(
-                    "{} was taken at a {b} °C set-point but {} at {a} °C",
-                    source.path.display(),
-                    first.path.display()
-                ));
-            }
-        }
-        let mode = |h: &FitsHeader| h.get_string("READOUTM").map(str::to_string);
-        if let (Some(a), Some(b)) = (mode(first.header()), mode(source.header())) {
-            if a != b {
-                return Err(format!(
-                    "{} was read out in mode {b} but {} in mode {a}",
-                    source.path.display(),
-                    first.path.display()
-                ));
-            }
-        }
-        for key in ["GAIN", "OFFSET", "XBINNING", "YBINNING"] {
-            if let (Some(a), Some(b)) = (
-                card_i64(first.header(), &[key]),
-                card_i64(source.header(), &[key]),
-            ) {
-                if a != b {
-                    return Err(format!(
-                        "{} has {key}={b} but {} has {key}={a}",
-                        source.path.display(),
-                        first.path.display()
-                    ));
+        let taken = crate::acquisition(source.header());
+        if let Some(d) =
+            crate::acquisition(first.header()).disagreement(&taken, &STREAMED_AGREEMENT)
+        {
+            let (this, other) = (source.path.display(), first.path.display());
+            let (a, b) = (d.first, d.other);
+            return Err(match d.setting {
+                Setting::Exposure => {
+                    format!("{this} was exposed {b} s but {other} was exposed {a} s")
                 }
-            }
+                Setting::SetPoint => {
+                    format!("{this} was taken at a {b} °C set-point but {other} at {a} °C")
+                }
+                Setting::ReadMode => {
+                    format!("{this} was read out in mode {b} but {other} in mode {a}")
+                }
+                setting => {
+                    let key = setting.card();
+                    format!("{this} has {key}={b} but {other} has {key}={a}")
+                }
+            });
         }
     }
     Ok(())
@@ -451,10 +448,14 @@ fn check_agreement(sources: &[BandSource]) -> Result<(), String> {
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum MasterBuildError {
     /// The frames cannot make one master: too few, unreadable, not a single
-    /// plane, disagreeing on how they were taken, or leaking light. Nothing
-    /// was written; other frames would do.
+    /// plane, or disagreeing on how they were taken. Nothing was written;
+    /// other frames would do.
     #[error("{0}")]
     Refused(String),
+    /// The frames brightened during the set (a light leak): a refusal too,
+    /// told apart for the report that names it.
+    #[error("{0}")]
+    LightLeak(String),
     /// The master could not be combined or written.
     #[error("{0}")]
     Failed(String),
@@ -541,7 +542,7 @@ fn build_with_free_space(
     // When most of the group brightened, the opening frames are suspect too:
     // the light was already climbing when the baseline was taken.
     if kept.len() < 2 || leaking_frames.len() * 2 > paths.len() {
-        return Err(Refused(format!(
+        return Err(MasterBuildError::LightLeak(format!(
             "light leak: {} of {} frames read more than {:.1} ADU above the first frames \
              ({:.1} ADU); no master was written",
             leaking_frames.len(),
@@ -625,7 +626,12 @@ fn build_with_free_space(
     };
 
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", config.kind.image_type());
+    ProductCards {
+        frame_type: true,
+        frames: Some(kept.len() as i64),
+        ..ProductCards::image_type(config.kind.image_type())
+    }
+    .write_to(&mut header);
     if let Some(v) = exposure_secs {
         header.set_float("EXPTIME", v);
         header.set_float("EXPOSURE", v);
@@ -683,10 +689,21 @@ fn build_with_free_space(
     let image = ImageData::from_u16(width as u32, height as u32, 1, &master);
     drop(master);
     let partial = output.with_extension("partial.fits");
-    write_fits(&partial, &image, &header)
-        .map_err(|e| Failed(format!("writing {}: {e}", partial.display())))?;
-    std::fs::rename(&partial, output)
-        .map_err(|e| Failed(format!("moving master into {}: {e}", output.display())))?;
+    let how = Replace {
+        sync: false,
+        ..Replace::DURABLE
+    };
+    replace_file(output, &partial, how, |partial| {
+        write_fits(partial, &image, &header)
+    })
+    .map_err(|e| match e {
+        ReplaceError::Write { error: e, .. } => {
+            Failed(format!("writing {}: {e}", partial.display()))
+        }
+        ReplaceError::Place { error, .. } => {
+            Failed(format!("moving master into {}: {error}", output.display()))
+        }
+    })?;
 
     Ok(StreamedMasterResult {
         output_path: output.to_path_buf(),
@@ -829,6 +846,8 @@ mod tests {
         assert_eq!(header.get_float("CCD-TEMP"), Some(-10.0));
         assert_eq!(header.get_float("SET-TEMP"), Some(-10.0));
         assert_eq!(header.get_int("NCOMBINE"), Some(9));
+        assert_eq!(header.get_string("FRAMETYP"), Some("MASTER"));
+        assert_eq!(header.get_int("NFRAMES"), Some(9));
         assert!(header.history.iter().any(|h| h.contains("Winsorized")));
         assert!(!dir.path().join("master.partial.fits").exists());
     }
@@ -1094,7 +1113,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(
-            matches!(&err, MasterBuildError::Refused(m) if m.contains("light leak")),
+            matches!(&err, MasterBuildError::LightLeak(m) if m.starts_with("light leak")),
             "{err}"
         );
         assert!(!out.exists());
@@ -1116,6 +1135,60 @@ mod tests {
         assert!(
             matches!(&err, MasterBuildError::Refused(m) if m.contains("exposed")),
             "{err}"
+        );
+    }
+
+    /// A master that cannot take its name leaves no staged file beside it.
+    #[test]
+    fn a_master_that_cannot_be_placed_leaves_no_partial_file() {
+        let dir = tempdir();
+        let a = write_frame(dir.path(), "a.fits", &noisy(1, 4, 4, 300.0), 4, 4, CARDS);
+        let b = write_frame(dir.path(), "b.fits", &noisy(2, 4, 4, 300.0), 4, 4, CARDS);
+        let taken = dir.path().join("m.fits");
+        std::fs::create_dir_all(taken.join("inside")).unwrap();
+        let err = build_streamed_master(
+            &[a, b],
+            &taken,
+            &StreamedMasterConfig::new(StreamedMasterKind::Dark),
+        )
+        .unwrap_err();
+        assert!(matches!(err, MasterBuildError::Failed(_)), "{err}");
+        assert!(!dir.path().join("m.partial.fits").exists());
+    }
+
+    /// Gain, offset and binning agree when their whole parts do; the refusal
+    /// names the card and both frames' values.
+    #[test]
+    fn whole_number_cards_agree_on_their_whole_part() {
+        let dir = tempdir();
+        let config = StreamedMasterConfig::new(StreamedMasterKind::Dark);
+        let with_gain = |name: &str, seed: u64, gain: f64| {
+            let path = write_frame(dir.path(), name, &noisy(seed, 4, 4, 300.0), 4, 4, CARDS);
+            crate::rewrite_frame_header(&path, |h| h.set_float("GAIN", gain)).unwrap();
+            path
+        };
+        let a = with_gain("a.fits", 1, 76.0);
+        let fractional = with_gain("b.fits", 2, 76.9);
+        build_streamed_master(
+            &[a.clone(), fractional],
+            &dir.path().join("m.fits"),
+            &config,
+        )
+        .unwrap();
+        let other = with_gain("c.fits", 3, 77.2);
+        let err = build_streamed_master(
+            &[a.clone(), other.clone()],
+            &dir.path().join("n.fits"),
+            &config,
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            MasterBuildError::Refused(format!(
+                "{} has GAIN=77 but {} has GAIN=76",
+                other.display(),
+                a.display()
+            ))
         );
     }
 

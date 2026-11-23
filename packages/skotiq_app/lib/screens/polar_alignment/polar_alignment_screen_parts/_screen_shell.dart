@@ -4,8 +4,7 @@ extension _ScreenShell on _PolarAlignmentScreenState {
   /// The page header: identity, the method tabs, the device chips and the
   /// ONE primary, on one row.
   ///
-  /// The method switch and the device chips used to sit on a second 60px row
-  /// under the header, leaving the header itself mostly empty. Every other
+  /// Every other
   /// screen with tabs (Imaging, Equipment, Analytics) carries them in the
   /// header's tab slot, so this one does too; the chips are status, so they
   /// lead the actions. Below the shell breakpoint [PageHeader] moves the tabs

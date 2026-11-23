@@ -16,7 +16,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
@@ -112,7 +111,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               title: 'Master toggle',
               children: [
                 SettingRow(
-                  icon: LucideIcons.toggleLeft,
                   title: 'Enable image grading',
                   subtitle:
                       'When on, every captured frame is scored against the thresholds below. Bad frames are moved to the reject folder.',
@@ -122,7 +120,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                       await notifier.setEnableImageGrading(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -130,7 +127,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               title: 'Against the night',
               children: [
                 SettingRow(
-                  icon: LucideIcons.trendingUp,
                   title: 'HFR above baseline',
                   subtitle:
                       'Reject if HFR is more than this percent above the baseline: the median of the recent accepted frames of the same target and filter. Leave blank to disable.',
@@ -152,7 +148,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.move,
                   title: 'Eccentricity above baseline',
                   subtitle:
                       'Reject if star eccentricity is more than this percent above the baseline of the same target and filter. Trailed or elongated stars trip it; also turns on the trail check. Leave blank to disable.',
@@ -176,7 +171,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.star,
                   title: 'Star count below baseline',
                   subtitle:
                       'Reject if the star count falls more than this percent below the baseline of the same target and filter, scaled to the frame\'s altitude. Trips when clouds roll in, stars trail, or the slew misses the target. Leave blank to disable.',
@@ -197,7 +191,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     enabled: enabled,
                     onChanged: notifier.setImageGradingStarCountDropPercent,
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -205,7 +198,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               title: 'Absolute limits',
               children: [
                 SettingRow(
-                  icon: LucideIcons.crosshair,
                   title: 'HFR max (pixels)',
                   subtitle: _withNote(
                     'Off by default. Reject if the median HFR exceeds this many pixels, whatever the night\'s seeing. A sharp frame at 0.8 arcsec/px measures about 2.5 px. Leave blank to grade against the night only.',
@@ -231,7 +223,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.move,
                   title: 'Eccentricity max',
                   subtitle: _withNote(
                     'Off by default. Reject if median star eccentricity exceeds this value. 0.8 is a 1.7:1 smear: in-focus frames on a fast Newtonian can measure 0.7 or a little more. The field stops at 0.94 because the detector reads anything past 0.95 as a satellite trail. Leave blank to grade against the night only.',
@@ -257,7 +248,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.star,
                   title: 'Star count min',
                   subtitle:
                       'Off by default. Reject if fewer stars than this are detected. Leave blank to grade against the night only.',
@@ -271,7 +261,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     enabled: enabled,
                     onChanged: notifier.setImageGradingStarCountMin,
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -279,7 +268,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               title: 'Reject streaks',
               children: [
                 SettingRow(
-                  icon: LucideIcons.alertOctagon,
                   title: 'Notify after consecutive rejects',
                   subtitle:
                       'Send one notification when this many frames in a row are rejected: something is probably wrong (drifted focus, clouds, dome misalignment). The run keeps going and every frame is kept; rejects go to the Reject folder.',
@@ -290,7 +278,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                     enabled: enabled,
                     onChanged: notifier.setImageGradingMaxConsecutiveRejects,
                   ),
-                  isLast: true,
                 ),
               ],
             ),
@@ -299,7 +286,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
               title: 'Reject folder',
               children: [
                 SettingRow(
-                  icon: LucideIcons.folderX,
                   title: 'Reject folder path',
                   subtitle:
                       'Where rejected frames go. Leave blank for a Reject folder beside the frames, <save_path>/<target>/Reject/. A relative path is taken from the frames\' folder; an absolute path is used as it is.',
@@ -313,7 +299,6 @@ class _ImageGradingSettingsState extends ConsumerState<ImageGradingSettings> {
                       await notifier.setImageGradingRejectFolderPath(value);
                     },
                   ),
-                  isLast: true,
                 ),
               ],
             ),

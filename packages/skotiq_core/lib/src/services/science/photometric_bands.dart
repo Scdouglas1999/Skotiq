@@ -5,6 +5,8 @@
 /// as, another band.
 library;
 
+import 'package:skotiq_astro/filters.dart';
+
 /// A catalog photometric band the science pipeline can calibrate against.
 enum PhotometricBand {
   /// Johnson B (APASS `Bmag`).
@@ -64,36 +66,34 @@ class FilterBandMapping {
   final String label;
 }
 
-/// Normalize a FITS FILTER value or a filter wheel slot name.
+/// The key photometry files a FITS FILTER value or a filter wheel slot name
+/// under: "L", "R", "G", "B", "V", "Ha", "OIII" or "SII" for those bands,
+/// "" for no filter, else the name. Bands are read by the filter-name rule
+/// (`filterBands`), so "ZWO R" is R and "Baader Ha 7nm" is Ha; the Johnson
+/// and photometric spellings the rule has no band for are read first.
 String normalizeFilterKey(String? filter) {
   final raw = (filter ?? '').trim();
   if (raw.isEmpty) return '';
   final lower = raw.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-  const aliases = {
-    'l': 'L',
-    'lum': 'L',
-    'luminance': 'L',
-    'clear': 'L',
+  const photometric = {
     'clr': 'L',
     'none': '',
-    'r': 'R',
-    'red': 'R',
     'rc': 'R',
-    'g': 'G',
-    'green': 'G',
-    'b': 'B',
-    'blue': 'B',
     'v': 'V',
     'johnsonv': 'V',
     'johnsonb': 'B',
-    'ha': 'Ha',
-    'halpha': 'Ha',
-    'oiii': 'OIII',
-    'o3': 'OIII',
-    'sii': 'SII',
-    's2': 'SII',
   };
-  return aliases[lower] ?? raw;
+  if (photometric[lower] case final key?) return key;
+  return switch (filterIdentity(raw)) {
+    'L' => 'L',
+    'R' => 'R',
+    'G' => 'G',
+    'B' => 'B',
+    'HA' => 'Ha',
+    'OIII' => 'OIII',
+    'SII' => 'SII',
+    _ => raw,
+  };
 }
 
 /// The calibration mapping for [filter].

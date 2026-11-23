@@ -1011,12 +1011,8 @@ class _DarkroomNameDialogState extends State<_DarkroomNameDialog> {
   /// The suggestion arrives SELECTED, because the field arrives focused.
   ///
   /// A controller built from `text:` alone leaves the caret collapsed at the
-  /// end of that text. With `autofocus: true` the first keystroke therefore
-  /// landed AFTER the suggestion instead of replacing it: measured against the
-  /// release bundle, "Duplicate as variant" proposed "Master · B draft
-  /// variant", the operator typed "Harder stretch" without touching the field,
-  /// and the branch was created — in the recipes table and on the branch bar —
-  /// as "Master · B draft variantHarder stretch".
+  /// end of that text, so with `autofocus: true` the first keystroke would land
+  /// AFTER the suggestion instead of replacing it.
   ///
   /// A name this dialog proposed is a proposal, and a selected proposal is how
   /// the platform states that: typing replaces it, and one arrow key or a click

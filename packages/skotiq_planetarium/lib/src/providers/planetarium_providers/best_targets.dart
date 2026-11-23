@@ -54,7 +54,7 @@ final bestTargetsProvider = FutureProvider<List<TonightTarget>?>((ref) async {
   final dsos = await ref.watch(loadedDsosProvider.future);
   // The night in progress, so this list and the sidebar's Info tab (which reads
   // selectedObjectVisibilityProvider) describe the SAME night.
-  final nightDate = ref.watch(_currentNightDateProvider);
+  final nightDate = ref.watch(_currentNightDateProvider(site.longitude));
   final fov = ref.watch(equipmentFOVProvider).fov;
 
   final ranked = await rankTonightTargets(

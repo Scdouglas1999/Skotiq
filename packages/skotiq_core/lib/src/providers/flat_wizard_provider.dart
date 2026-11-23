@@ -13,17 +13,12 @@ import '../backend/skotiq_backend.dart';
 import '../utils/host_paths.dart';
 import '../errors/error_text.dart';
 import 'host_role.dart';
-import 'sequence/sequence_progress.dart';
-import 'session_provider.dart';
 import '../models/equipment/equipment_models.dart' show DeviceConnectionState;
 import '../models/flat_wizard/flat_capture_config.dart';
-import '../models/sequence/sequence_models.dart'
-    show SequenceExecutionStateCapabilities;
 import '../models/imaging/imaging_models.dart' show ExposureSettings, FrameType;
 import '../models/flat_wizard/flat_wizard_state.dart';
 import '../models/flat_wizard/flat_wizard_settings.dart';
 import '../models/flat_wizard/flat_exposure_calculator.dart';
-import '../services/calibration_backlog_service.dart';
 import '../services/flat_exposure_follower.dart';
 import '../services/frame_identity.dart';
 import 'settings_provider.dart';
@@ -33,7 +28,10 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'flat_wizard_output.dart';
+import '../models/flat_wizard/flat_run_snapshot.dart';
 import 'imaging_service_providers.dart';
+import 'rig_activity.dart';
+import '../models/rig_activity.dart';
 import 'profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
 import '../database/daos/settings_dao.dart';
@@ -54,32 +52,17 @@ final flatWizardProvider =
       return FlatWizardNotifier(ref);
     });
 
-/// Encode the nested Freezed settings and filters into plain wire maps.
-Map<String, dynamic> flatWizardStateWire(FlatWizardState state) =>
-    jsonDecode(jsonEncode(state)) as Map<String, dynamic>;
-
 /// Run metadata a linked client mirrors. Preview pixels travel separately.
-final flatWizardSnapshotProvider = Provider<Map<String, dynamic>>((ref) {
+final flatWizardSnapshotProvider = Provider<FlatRunSnapshot>((ref) {
   final state = ref.watch(flatWizardProvider);
   final output = ref.watch(flatRunOutputProvider);
   final image = state.lastImageData;
-  return {
-    'state': flatWizardStateWire(state),
-    'busy': ref.read(flatWizardProvider.notifier).isBusy,
-    'previewKey': image is CapturedImageResult ? image.timestamp : null,
-    'output': {
-      for (final entry in output.filters.entries)
-        entry.key: {
-          'filter': entry.value.filter,
-          'exposureSeconds': entry.value.exposureSeconds,
-          'paths': entry.value.paths,
-          'gain': entry.value.gain,
-          'offset': entry.value.offset,
-          'binX': entry.value.binX,
-          'binY': entry.value.binY,
-        },
-    },
-  };
+  return FlatRunSnapshot(
+    state: state,
+    busy: ref.read(flatWizardProvider.notifier).isBusy,
+    previewKey: image is CapturedImageResult ? image.timestamp : null,
+    output: output.filters,
+  );
 });
 
 /// The folder flats are saved under: the one the operator chose, else
@@ -135,7 +118,7 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   int _previewGeneration = 0;
 
   /// Test-only diagnostic sink. When set, the remote flat-history fault path
-  /// invokes this with the caught error IN ADDITION to `developer.log`, so a
+  /// invokes this with the caught error IN ADDITION to the app log, so a
   /// test can prove a transport fault was distinguished from an empty host
   /// history (it fires on the fault path and stays silent on empty history).
   /// Null in production — behaviour is unchanged.
@@ -207,14 +190,9 @@ class FlatWizardNotifier extends StateNotifier<FlatWizardState> {
   /// The host checks this synchronously at the point it admits a draft.
   String? get startBlockReason {
     if (isBusy) return 'A flat capture is already in progress';
-    if (ref.read(sequenceLaunchInFlightProvider) ||
-        ref.read(sequenceExecutionStateProvider).ownsHardware) {
-      return 'The sequencer is using the camera';
-    }
-    if (ref.read(rawCameraExposureInFlightProvider) ||
-        ref.read(cameraStateProvider).isExposing ||
-        ref.read(sessionStateProvider).isCapturing ||
-        ref.read(imagingServiceProvider).isCapturing) {
+    final held = rigHeldBy(ref.read, starting: RigActivity.flats);
+    if (held != null) return held.busy;
+    if (ref.read(cameraStateProvider).isExposing) {
       return 'Camera is busy with another exposure';
     }
     return null;

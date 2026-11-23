@@ -1,0 +1,45 @@
+{
+  "atlasRoot": "string",
+  "cropHalf": "number",
+  "cropOutDir": "string",
+  "detectionSigma": "number",
+  "edgeMarginPx": "number",
+  "framePath": "string",
+  "interp": "string",
+  "layer": "string",
+  "maxArea": "number",
+  "minArea": "number",
+  "minBrighteningMag": "number",
+  "minSignificance": "number",
+  "minSnr": "number",
+  "minTemplateCoverage": "number",
+  "order": "number",
+  "residualOutDir": "string",
+  "saturationLevel": "number",
+  "wcs": {
+    "aCoeffs": [
+      "number"
+    ],
+    "aOrder": "number",
+    "apCoeffs": [
+      "number"
+    ],
+    "apOrder": "number",
+    "bCoeffs": [
+      "number"
+    ],
+    "bOrder": "number",
+    "bpCoeffs": [
+      "number"
+    ],
+    "bpOrder": "number",
+    "cd1_1": "number",
+    "cd1_2": "number",
+    "cd2_1": "number",
+    "cd2_2": "number",
+    "crpix1": "number",
+    "crpix2": "number",
+    "crval1": "number",
+    "crval2": "number"
+  }
+}

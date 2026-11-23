@@ -5,18 +5,16 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../linked_host.dart';
 import '../async_scope.dart';
-import '../../backend/remote_host.dart';
 import '../../backend/skotiq_backend.dart';
 import '../../models/sequence/active_plan_owner.dart';
 import '../../models/sequence/sequence_models.dart';
 import '../../models/sequence/sequence_run_status.dart';
-import '../../services/safe_rig_service.dart';
+import '../safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../utils/logging_service.dart';
 import '../backend_provider.dart';
-import '../database_provider.dart' show targetsDaoProvider;
+import '../database_provider.dart' show settingsDaoProvider, targetsDaoProvider;
 import '../disk_space_provider.dart';
 import '../notification_router_provider.dart';
 import '../../models/notification/notification_categories.dart';
@@ -27,10 +25,10 @@ import '../frame_watch_settings_provider.dart' show frameWatchSettingsProvider;
 // shared between flat-wizard and adaptive-exposure paths).
 import '../live_stacking_provider.dart';
 import '../../services/live_stacking_broadcast_service.dart';
-import '../flat_wizard_provider.dart';
 import '../meridian_flip_provider.dart';
-import '../session_handoff_provider.dart';
-import '../../services/session_handoff_service.dart';
+import '../rig_activity.dart';
+import '../imaging_service_providers.dart' show imagingServiceProvider;
+import '../../models/rig_activity.dart';
 import '../profiles_provider.dart';
 import '../sequence_provider.dart'
     show
@@ -49,7 +47,9 @@ import '../settings_provider.dart';
 import '../../models/sequence/run_stop_classification.dart';
 import 'sequence_validation.dart' as validation;
 import '../../models/sequence/validation/validation_issue.dart' as validation;
+import '../linked_host.dart';
 import 'sequence_executor/eta_smoothing.dart';
+import 'sequence_executor/host_run_control.dart';
 import 'sequence_executor/run_finalization.dart';
 import 'sequence_executor/run_lifecycle.dart';
 import 'sequence_executor/run_stats_ledger.dart';
@@ -69,6 +69,7 @@ import '../live_stacking_broadcast_service_providers.dart';
 import '../logging_service_provider.dart';
 import '../sequence_file_service_provider.dart';
 import '../sequence_repository_provider.dart';
+import '../../models/imaging/live_stacking_state.dart';
 
 export 'sequence_executor/eta_smoothing.dart'
     show EtaSmoother, kEtaEmaAlpha, kEtaWindowSize;
@@ -76,27 +77,19 @@ export 'sequence_executor/run_finalization.dart' show RunFinalization;
 export 'sequence_executor/run_lifecycle.dart';
 export 'sequence_executor/session_diagnostics.dart'
     show kCoolerSetpointBandDegC;
-export 'sequence_executor/sequence_serializer.dart'
-    show SequenceSerializer, shutdownWarmUpIds;
+export 'sequence_executor/sequence_serializer.dart' show SequenceSerializer;
 export 'sequence_executor/stop_confirmation.dart'
     show
         NativeStopConfirmer,
         kNativeStopConfirmationPollInterval,
-        kNativeStopConfirmationTimeout,
-        kNativeTerminalStates;
+        kNativeStopConfirmationTimeout;
 
-/// Sequence executor that manages execution.
-///
 /// The provider wires `ref.onDispose(executor.dispose)` so owned timers and
 /// the native event subscription are guaranteed to be torn down with the
 /// provider lifetime, even if a sequence is invalidated mid-run.
 final sequenceExecutorProvider = Provider<SequenceExecutor>((ref) {
   final backend = ref.watch(backendProvider);
   final executor = SequenceExecutor(ref, backend: backend);
-  // Owned timers/subscriptions must be torn down with the provider lifetime —
-  // otherwise an invalidation mid-sequence leaks the periodic progress timer,
-  // the checkpoint timer, and the native event stream subscription past the
-  // disposed Ref. stop() handles the running case; this handles teardown.
   ref.onDispose(executor.dispose);
   return executor;
 });
@@ -149,9 +142,9 @@ class SequenceExecutor {
   /// The checkpoint prepared for the next start.
   _RestoredCheckpoint? _restored;
 
-  /// A remote client asked the host to restore its checkpoint; the next start
-  /// continues that run on the host instead of sending the editor's plan.
-  bool _hostRestoreAwaitingStart = false;
+  /// The run on the imaging host, for a client linked to one; null where the
+  /// imaging host is this process.
+  late final HostRunControl? _hostRun;
   bool _isCalibrationRun = false;
 
   /// Owns the run phases and operation latches.
@@ -214,7 +207,7 @@ class SequenceExecutor {
     }
     final inner = _ref.read(liveStackingBroadcastServiceProvider);
     final wrapped = _SequenceArmedBroadcast(
-      ref: _ref,
+      logger: () => _logger,
       inner: inner,
       onArmed: (armed) => _sequenceLiveStackArmed = armed,
     );
@@ -272,7 +265,6 @@ class SequenceExecutor {
   /// through [_ref] afterwards — the container may be gone, and the read
   /// throws "Tried to read a provider from a ProviderContainer that was
   /// already disposed" out of an unhandled async error.
-  // NOT final: set to true in [dispose].
   bool _disposed = false;
 
   /// Per-frame cadence smoother backing the run's ETA.
@@ -295,7 +287,19 @@ class SequenceExecutor {
   );
 
   SequenceExecutor(this._ref, {SkotiqBackend? backend})
-    : _backend = backend ?? _ref.read(backendProvider);
+    : _backend = backend ?? _ref.read(backendProvider) {
+    final host = _ref.read(linkedHostRunStateProvider);
+    _hostRun = host == null
+        ? null
+        : HostRunControl(
+            host,
+            ref: _ref,
+            backend: _backend,
+            logger: () => _logger,
+            setExecutionState: _setExecutionState,
+            noSequenceLoaded: _noSequenceLoaded,
+          );
+  }
 
   void _ensureBackendAuthority() {
     if (_disposed || _ref.backendScopeOver(_backend).isStale) {
@@ -339,10 +343,7 @@ class SequenceExecutor {
   /// Completes when every live-stacking feed AND fire-and-forget frame
   /// persistence queued SO FAR has finished (the feed chain serialises
   /// feeds, so awaiting the current tail covers all frames pumped before
-  /// this call). Tests await this instead of sleeping a wall-clock
-  /// margin — fixed delays were flaky on slow CI runners, where a
-  /// still-running feed outlived the test body and failed it "after
-  /// completion".
+  /// this call). Tests await this instead of sleeping a wall-clock margin.
   @visibleForTesting
   Future<void> get liveStackingFeedSettledForTest async {
     // Re-read in a loop: a feed step can append to the chain while we
@@ -388,11 +389,6 @@ class SequenceExecutor {
   Future<void> seedIntegrationCarryOverFromHandoffForTest(Sequence sequence) =>
       _runtimeConfig.seedIntegrationCarryOver(sequence);
 
-  /// Convert Dart sequence to JSON for native executor
-  ///
-  /// Why: this is the point where per-sequence and per-node values are
-  /// combined with global AppSettings defaults. Per-node values always win;
-  /// AppSettings is consulted only when the node provides no explicit value.
   Future<validation.ValidationResult> validateSequenceForStart(
     Sequence sequence,
   ) async {
@@ -400,21 +396,46 @@ class SequenceExecutor {
     return validator.validate(sequence);
   }
 
+  /// A start nobody is at the keyboard for: the autopilot, end-of-night
+  /// calibration, Start at dark. A manual capture left running (a Loop left
+  /// on at dusk) is ended first, so it does not cost the night; any other
+  /// activity holding the rig still refuses the start.
+  Future<void> startUnattended() async {
+    bool captureHolds() =>
+        rigHeldBy(_ref.read, starting: RigActivity.sequence) ==
+        RigActivity.manualCapture;
+    if (captureHolds()) {
+      _logger.warning(
+        'Ending the manual capture so the run can start',
+        source: 'SequenceExecutor',
+      );
+      _ref.read(imagingServiceProvider).cancelExposure();
+      final deadline = DateTime.now().add(_manualCaptureYield);
+      while (captureHolds() && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+    await start();
+  }
+
+  /// How long an unattended start waits for a manual capture to end.
+  static const _manualCaptureYield = Duration(seconds: 30);
+
+  /// Throws when another activity holds the camera or the mount, so a run
+  /// cannot start now. A caller that hands the run its plan asks first, so a
+  /// refused plan never replaces the operator's sequence.
+  void ensureRigFreeForStart() {
+    final held = rigHeldBy(_ref.read, starting: RigActivity.sequence);
+    if (held != null) throw StateError('Cannot start: ${held.busy}.');
+  }
+
   Future<void> start() async {
     _ensureBackendAuthority();
-    // A flat run or a flip already owns the mount and the camera. Refuse
-    // before the launch latch, so this start opens no session and no run.
-    if (_ref.read(flatWizardProvider.notifier).isBusy ||
-        _ref.read(isFlipInProgressProvider)) {
-      throw StateError(
-        'Cannot start: a flat capture or a meridian flip is in progress.',
-      );
-    }
+    // Refuse before the launch latch, so this start opens no session and no
+    // run.
+    ensureRigFreeForStart();
     // A. Start serialization + admissible-state gate.
-    // Reject a second concurrent start (latch) or a start while the executor
-    // is already busy (running / paused / stopping / recovering). A
-    // completed/failed prior run may start again once its cleanup has settled
-    // (idle / completed / failed are admissible). This gate mutates nothing,
+    // This gate mutates nothing,
     // so a rejected concurrent caller leaves the in-flight run — and its
     // Smart Night / mosaic handoff — completely untouched.
     final admissionState = _ref.read(sequenceExecutionStateProvider);
@@ -426,10 +447,9 @@ class SequenceExecutor {
     }
     _acquireLaunchLatch();
     try {
-      final backend = _backend;
-      final host = _ref.read(linkedHostRunStateProvider);
-      if (host != null) {
-        await _startOnHost(backend, host);
+      final hostRun = _hostRun;
+      if (hostRun != null) {
+        await hostRun.start();
         return;
       }
       final sequence = _ref.read(currentSequenceProvider);
@@ -473,7 +493,7 @@ class SequenceExecutor {
         rethrow;
       }
 
-      // Audit C3 — full pre-flight pass. Every start path (UI button via
+      // Full pre-flight pass. Every start path (UI button via
       // sequence_action_service, headless POST /api/sequencer/start,
       // scheduler autopilot) reaches this code, so they all see the same
       // equipment / disk-space / dark-library / settings checks the pre-flight
@@ -525,116 +545,6 @@ class SequenceExecutor {
           validatedAt: DateTime.now(),
         ),
       );
-
-  /// Start the run on the imaging host this client controls.
-  ///
-  /// The host owns the hardware, the database and the run, so a remote client
-  /// opens no session or run record of its own: it puts the plan the operator
-  /// sees into the host's editor and asks the host to start it, which runs the
-  /// host's own pre-flight and records. A plan restored from the host's
-  /// checkpoint is already in the host's executor and is started as it is.
-  Future<void> _startOnHost(SkotiqBackend backend, HostRunState host) async {
-    final ignoreHistory = _ref.read(
-      sessionHandoffIgnoreUnavailableOnceProvider,
-    );
-    if (ignoreHistory) {
-      _ref.read(sessionHandoffIgnoreUnavailableOnceProvider.notifier).state =
-          false;
-    }
-    if (!_hostRestoreAwaitingStart) {
-      _ref.read(runRecordProvider.notifier).setFramesDoneBeforeRun(const {});
-      final sequence = _ref.read(currentSequenceProvider);
-      if (sequence == null) throw _noSequenceLoaded();
-      await host.putOpenEditorSequence(
-        _ref.read(sequenceFileServiceProvider).sequenceToMap(sequence),
-        databaseId: sequence.databaseId,
-        isDirty: _ref.read(currentSequenceProvider.notifier).isDirty,
-      );
-    }
-    final decisions = await _clientHandoffForHost(ignoreHistory);
-    if (decisions.isEmpty && !ignoreHistory) {
-      await backend.sequencerStart();
-    } else {
-      await host.sequencerStartOnHost(
-        handoffDecisions: decisions,
-        ignoreUnavailableHistory: ignoreHistory,
-      );
-    }
-    if (_hostRestoreAwaitingStart) {
-      _hostRestoreAwaitingStart = false;
-      _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(null);
-    }
-    _logger.info(
-      'Started the run on the imaging host '
-      '${_ref.read(linkedHostLinkProvider)?.serverHost}',
-      source: 'SequenceExecutor',
-    );
-    await _reflectHostRunState(backend);
-  }
-
-  /// The operator's handoff choices on this client. The host seeds from its
-  /// own history after Start, so the choices have to travel with the request.
-  /// A history read that throws is not "no history": without an explicit
-  /// confirmation the start fails and the host is not asked to run.
-  Future<Map<String, String>> _clientHandoffForHost(bool ignoreHistory) async {
-    final sequence = _ref.read(currentSequenceProvider);
-    final decisions = <String, String>{};
-    if (sequence != null && sequence.targetHeaders.isNotEmpty) {
-      List<SessionCarryOver> carry = const [];
-      try {
-        carry = await _ref.read(sessionCarryOverProvider.future);
-      } catch (error, stackTrace) {
-        if (!ignoreHistory) {
-          Error.throwWithStackTrace(error, stackTrace);
-        }
-      }
-      for (final entry in carry) {
-        final decision = _ref.read(
-          sessionHandoffDecisionProvider((
-            sequenceId: sequence.databaseId,
-            targetId: entry.targetId,
-          )),
-        );
-        if (decision != null) {
-          decisions['${entry.targetId}'] = decision.name;
-        }
-      }
-    }
-    return decisions;
-  }
-
-  /// Stop the run on the imaging host through the host's own executor, which
-  /// finalizes its run and session records.
-  Future<void> _stopOnHost(
-    SkotiqBackend backend,
-    HostRunState host, {
-    required bool preserveCheckpoint,
-  }) async {
-    final before = _ref.read(sequenceExecutionStateProvider);
-    if (!before.canStop) return;
-    _setExecutionState(SequenceExecutionState.stopping);
-    try {
-      await host.sequencerStopOnHost(preserveCheckpoint: preserveCheckpoint);
-    } catch (_) {
-      _setExecutionState(before);
-      rethrow;
-    }
-    await _reflectHostRunState(backend);
-  }
-
-  /// Show the host's run state at once rather than after the next mirrored
-  /// event. A failed read leaves the state to the event mirror.
-  Future<void> _reflectHostRunState(SkotiqBackend backend) async {
-    try {
-      final status = await backend.sequencerGetStatus();
-      _ref.read(runRecordProvider.notifier).mirrorHostState(status.state);
-    } catch (e) {
-      _logger.debug(
-        'Could not read the host run state after a command: $e',
-        source: 'SequenceExecutor',
-      );
-    }
-  }
 
   void _acquireLaunchLatch() {
     _lifecycle.launch.acquire();
@@ -881,7 +791,7 @@ class SequenceExecutor {
         // a busy executor refuses it, and ending a live run's session on the
         // way to that refusal would corrupt the run still in progress.
         final state = (await _backend.sequencerGetStatus()).state;
-        if (_nativeRunInProgressStates.contains(state)) {
+        if (NativeRunState.parse(state).isUnderWay) {
           _logger.warning(
             'A session is open and the native executor reports "$state"; '
             'leaving the session alone and letting the start be refused',
@@ -1059,7 +969,6 @@ class SequenceExecutor {
 
     _startPerRunTimers();
 
-    // Always use backend/native sequencer engine to avoid divergent semantics.
     // This is the last acquisition step; it sets up the native event
     // subscription + settings watchers and issues sequencerStart(). A throw
     // anywhere in the transaction (including here) is rolled back by [start].
@@ -1086,8 +995,9 @@ class SequenceExecutor {
     // With end-of-night calibration to follow, the plan's closing warm-up
     // waits for it so the camera stays at the darks' set-point.
     final deferWarmUp = await endOfNightCalibrationFollows(
-      _ref,
       _ref.read(currentSequenceProvider.notifier).activeOwner,
+      isRemote: () => _ref.read(isRemoteModeProvider),
+      settingsDao: () => _ref.read(settingsDaoProvider),
     );
     _ref.read(shutdownWarmUpDeferredProvider.notifier).state = deferWarmUp;
     await _backend.sequencerLoadJson(
@@ -1812,10 +1722,10 @@ class SequenceExecutor {
       if (!confirmed) {
         // A pause placed during a recovery that is still under way only
         // withdraws: the run goes back to `recovering`, not `running`.
-        final state = (await backend.sequencerGetStatus()).state.toLowerCase();
-        if (state == 'running') {
+        final state = (await backend.sequencerGetStatus()).runState;
+        if (state == NativeRunState.running) {
           _setExecutionState(SequenceExecutionState.running);
-        } else if (state != 'recovering') {
+        } else if (state != NativeRunState.recovering) {
           throw Exception('Resume operation timed out - state not confirmed');
         }
       }
@@ -1870,8 +1780,6 @@ class SequenceExecutor {
   /// null (completed, failed, or nothing settled yet).
   String? get lastRunEndOrigin => _lifecycle.lastRunEndOrigin;
 
-  /// Stop the sequencer.
-  ///
   /// The caller declares checkpoint intent via [preserveCheckpoint]:
   ///   * `true` for an operator Stop (`SequenceActionService.stop`) — the
   ///     resume point survives and the session row is finalised as
@@ -1885,10 +1793,9 @@ class SequenceExecutor {
   /// (e.g. [reset]).
   Future<void> stop({bool preserveCheckpoint = false, String? origin}) {
     _ensureBackendAuthority();
-    final backend = _backend;
-    final host = _ref.read(linkedHostRunStateProvider);
-    if (host != null) {
-      return _stopOnHost(backend, host, preserveCheckpoint: preserveCheckpoint);
+    final hostRun = _hostRun;
+    if (hostRun != null) {
+      return hostRun.stop(preserveCheckpoint: preserveCheckpoint);
     }
     // Join an in-flight finalization — a natural terminal, another stop(), or a
     // rollback: the caller observes the SAME outcome, and native stop + cleanup
@@ -2098,7 +2005,7 @@ class SequenceExecutor {
 
     await _backend.sequencerReset();
     // A linked host's reset endpoint already clears its durable checkpoint.
-    if (!_backend.linksToHost) {
+    if (_hostRun == null) {
       await _backend.discardCheckpoint();
     }
 
@@ -2111,7 +2018,7 @@ class SequenceExecutor {
     // that survived this would make that start continue the old tree, on
     // this process and on a client that was waiting to continue the host.
     _clearRestored();
-    _hostRestoreAwaitingStart = false;
+    _hostRun?.forgetRestore();
 
     _setExecutionState(SequenceExecutionState.idle);
 
@@ -2160,17 +2067,9 @@ class SequenceExecutor {
     }
     _acquireLaunchLatch();
     try {
-      final backend = _backend;
-      if (_ref.read(isRemoteModeProvider)) {
-        // The host restores its own checkpoint into its executor and editor;
-        // the next start continues it there.
-        await backend.resumeFromCheckpoint();
-        _hostRestoreAwaitingStart = true;
-        final info = await backend.getCheckpointInfo();
-        _ref.read(runRecordProvider.notifier).setRestoredCheckpoint(info);
-        _ref
-            .read(runRecordProvider.notifier)
-            .setFramesDoneBeforeRun(info?.framesDoneByStep ?? const {});
+      final hostRun = _hostRun;
+      if (hostRun != null) {
+        await hostRun.restoreFromCheckpoint();
         return;
       }
       await _restoreFromCheckpointInner();
@@ -2192,7 +2091,7 @@ class SequenceExecutor {
 
   /// Whether a checkpoint restore is waiting for [start].
   bool get hasRestoredCheckpoint =>
-      _restored != null || _hostRestoreAwaitingStart;
+      _restored != null || _hostRun?.hasRestoredCheckpoint == true;
 
   void _clearRestored() {
     _restored = null;
@@ -2345,10 +2244,7 @@ class SequenceExecutor {
     // Acquisition transaction.
     // From the UI running-state flip onward every resource is part of one
     // lifecycle transaction, protected by the same [_rollbackStart] path as
-    // start(). Every resource from the running-state flip onward is inside
-    // that one rollback transaction, not just the native start — a failure
-    // creating the session/run row must not leave a running UI with an active
-    // session and no native run.
+    // start().
     _beginLaunch();
     try {
       final progressNotifier = _ref.read(runRecordProvider.notifier);
@@ -2366,9 +2262,7 @@ class SequenceExecutor {
       // a Dart DB id, but by this point [_recoverResumedSequence] has put the
       // tree back into `currentSequenceProvider` and the active profile never
       // left memory — so a resumed session carries exactly the identity a
-      // fresh run's does. Recording nulls here is what made the Continue
-      // Session dialog offer "Unknown Profile" / "No Sequence" after the one
-      // event that dialog exists for: an interrupted night.
+      // fresh run's does.
       final loadedForResume = _ref.read(currentSequenceProvider);
       final resumedSequence = loadedForResume == null
           ? null
@@ -2422,11 +2316,6 @@ class SequenceExecutor {
       _clearRestored();
       await backend.sequencerStart();
     } catch (e, st) {
-      // Single rollback path shared with start(): cancels every acquired
-      // resource, finalizes the run failed, ends the session, clears the
-      // stale run id, releases a Smart Night / mosaic handoff, and leaves a
-      // truthful failed state — so a resumed night never shows a permanently
-      // "running" ghost sequence.
       await _rollbackStart(e, st);
       rethrow;
     }
@@ -2562,12 +2451,6 @@ class SequenceExecutor {
 
 /// Native executor states that mean a run is still under way, as
 /// `api/sequencer.rs` serializes them.
-const _nativeRunInProgressStates = <String>{
-  'running',
-  'paused',
-  'stopping',
-  'recovering',
-};
 
 /// What a run of a tree loaded straight into the native executor is filed
 /// under: the editor holds no plan to take a name, coordinates or a frame
@@ -2641,12 +2524,12 @@ class _RestoredCheckpoint {
 /// only signals that this executor, rather than the operator, owns the session.
 final class _SequenceArmedBroadcast extends LiveStackingBroadcastService {
   _SequenceArmedBroadcast({
-    required Ref ref,
+    required LoggingService Function() logger,
     required LiveStackingBroadcastService inner,
     required void Function(bool armed) onArmed,
   }) : _inner = inner,
        _onArmed = onArmed,
-       super(ref);
+       super(logger);
 
   final LiveStackingBroadcastService _inner;
   final void Function(bool armed) _onArmed;

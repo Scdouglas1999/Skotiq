@@ -5,24 +5,10 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/harness.dart';
 
-/// Live GUI drive 2026-08-10: Settings → General exposed
-/// `toggle button: Start minimized` with NO on/off state, while the same
-/// switch component on the Imaging screen published `[off]`. `SettingRow`
-/// wraps every row in `MergeSemantics`, added earlier to bind the label to a
-/// switch that was "correctly-toggled but ANONYMOUS".
-///
-/// This test asked the decisive question the accessibility tree could not: does
-/// the MERGED node carry both the label and the toggled state?
-///
-/// **It does.** The merged node comes out as
-/// `flags: [hasEnabledState, isEnabled, hasToggledState, isToggled],
-/// label: "Start minimized\nLaunch app minimized to system tray"` — so the
-/// widget layer is right, the merge did NOT trade the state away, and the loss
-/// I measured is in the AT-SPI bridge or in how the audit harness reads it.
-///
-/// Kept as a regression guard: if a future change to `SettingRow` or
-/// `SkotiqSwitch` drops either half, this fails at the widget layer where
-/// it is cheap to see.
+/// `SettingRow` wraps every row in `MergeSemantics` to bind the label to the
+/// switch. This pins that the MERGED node carries both the label and the
+/// toggled state, at the widget layer where it is cheap to see (an AT-SPI
+/// reading of the same row can drop the state).
 void main() {
   testWidgets('a settings row publishes its label AND its switch state',
       (tester) async {
@@ -56,7 +42,6 @@ class _RowUnderTest extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: SettingRow(
-          icon: Icons.power_settings_new,
           title: 'Start minimized',
           subtitle: 'Launch app minimized to system tray',
           trailing: SkotiqSwitch(value: true, onChanged: (_) {}),

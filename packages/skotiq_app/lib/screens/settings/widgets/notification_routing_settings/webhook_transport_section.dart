@@ -67,7 +67,6 @@ class _WebhookTransportSectionState
           title: 'Generic webhook',
           children: [
             SettingRow(
-              icon: LucideIcons.link,
               title: 'URL',
               subtitle: 'POST target (Home Assistant, n8n, etc.)',
               trailing: settingsTrailingTextInput(
@@ -77,7 +76,6 @@ class _WebhookTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.fileText,
               title: 'Body template',
               subtitle: r'Variables: ${title} ${body} ${category} ${timestamp}',
               trailing: settingsTrailingTextInput(
@@ -87,7 +85,6 @@ class _WebhookTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.list,
               title: 'Headers',
               subtitle: 'One per line, format: Name: value',
               trailing: settingsTrailingTextInput(
@@ -97,7 +94,6 @@ class _WebhookTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save webhook config',
               trailing: _SaveButton(
                 successMessage: 'Webhook config saved',
@@ -105,13 +101,11 @@ class _WebhookTransportSectionState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.send,
               title: 'Test webhook',
               trailing: _TestSendButton(
                 kind: NotificationTransportKind.webhookGeneric,
                 onBeforeSend: saveConfig,
               ),
-              isLast: true,
             ),
           ],
         );

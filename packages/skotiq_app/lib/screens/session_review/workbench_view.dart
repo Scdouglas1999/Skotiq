@@ -6,7 +6,6 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
-import 'package:path/path.dart' as p;
 
 import '../diagnostics/diagnostics_screen/psf_field_map_view.dart';
 import '../sequencer/widgets/run_dashboard/frame_detail_dialog.dart';
@@ -615,15 +614,6 @@ class _NarrowbandCompositeCard extends StatelessWidget {
 
   const _NarrowbandCompositeCard({required this.composite});
 
-  /// The sibling preview PNG for a composite FITS at [fitsPath]: the same path
-  /// with a `.png` extension. The native combine wrote only the FITS, so this
-  /// is usually absent.
-  String _siblingPreviewPath(String fitsPath) {
-    final dir = p.dirname(fitsPath);
-    final stem = p.basenameWithoutExtension(fitsPath);
-    return p.join(dir, '$stem.png');
-  }
-
   bool _exists(String path) {
     try {
       return File(path).existsSync();
@@ -636,7 +626,7 @@ class _NarrowbandCompositeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = composite;
     final colors = SkotiqColors.of(context);
-    final previewPath = _siblingPreviewPath(c.outputPath);
+    final previewPath = masterPreviewPath(c.outputPath);
     final hasPreview = _exists(previewPath);
 
     final components = c.componentMasterIds.isEmpty

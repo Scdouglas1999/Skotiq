@@ -488,7 +488,6 @@ extension _DeviceServiceFocuserRotatorControls on DeviceService {
     var commandWasSent = false;
     var hardwareStillMoving = false;
     try {
-      // Get current angle to compute target for verification
       final currentStatus = await _backend.getRotatorStatus(deviceId);
       if (!_isStillConnectedToRotator(deviceId)) {
         throw StateError('Rotator connection changed; move was not sent.');

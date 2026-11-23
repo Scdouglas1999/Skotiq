@@ -42,6 +42,7 @@ import '../../harness/mock_backend.dart';
 import '../../harness/mock_database.dart';
 import '../../harness/pump_app_screen.dart';
 import 'package:skotiq_app/router/darkroom_route.dart';
+import '../../harness/args_fixture.dart';
 
 /// A Darkroom seam whose every reply the test writes.
 class _ScriptedDarkroom implements DarkroomSeam {
@@ -150,6 +151,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
     required Map<String, dynamic> args,
   }) async {
     exportArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_render_export']);
     exportRecipes.add(recipeJson);
     final hold = holdExport;
     if (hold != null) {
@@ -209,6 +211,7 @@ class _ScriptedDarkroom implements DarkroomSeam {
   @override
   Future<Map<String, dynamic>> cancel(Map<String, dynamic> args) async {
     cancelArgs.add(args);
+    expectNativeReadsEveryKeyAtEnd(args, ['darkroom_cancel']);
     return {'renderId': args['renderId'], 'running': true};
   }
 }
@@ -1802,14 +1805,6 @@ void main() {
   // ---------------------------------------------------------------------
   // The export sheet on a recipe with nothing in it, and the auto stretch as
   // a control that stays put.
-  //
-  // Measured on the release bundle before these landed: a zero-step recipe
-  // offered "After a step" greyed out with its reason nowhere on the sheet and
-  // nowhere in its accessible name, under a stage line reading "Every enabled
-  // step…" over a History panel saying the recipe carries no operations; and
-  // switching the auto stretch ON deleted the switch, the alert and every
-  // sentence about the transfer, leaving a sheet identical to a genuinely
-  // stretched stage with no way back.
   // ---------------------------------------------------------------------
 
   testWidgets('a zero-step recipe states WHY "After a step" is dead', (
@@ -2507,12 +2502,11 @@ void main() {
     await drain(tester);
   });
 
-  // D2-6, from the release bundle: the autopilot names its recipes
-  // `Master · <filter> draft`, and the Save dialog opened pre-filled with
-  // `Master_·_B_draft-final.fits`. That name is written to this disk, to a
-  // `.skrecipe` sidecar beside it, and from there to a watched folder or an
-  // SFTP target — four filesystems and a wire, none of them this app's. Every
-  // name the autopilot itself writes in the same directory is ASCII.
+  // The autopilot names its recipes `Master · <filter> draft`, and a proposed
+  // file name is written to this disk, to a `.skrecipe` sidecar beside it, and
+  // from there to a watched folder or an SFTP target — four filesystems and a
+  // wire, none of them this app's. Every name the autopilot itself writes in
+  // the same directory is ASCII.
   testWidgets('the proposed file name is portable ASCII', (tester) async {
     final root = await seedRecipe(
       [_step('background_extract')],

@@ -7,7 +7,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getCameraStatus',
       () => bridge.getCameraStatus(deviceId: deviceId),
     );
-    return _fromBridgeCameraStatus(bridgeStatus);
+    return cameraStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -16,7 +16,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getMountStatus',
       () => bridge.apiGetMountStatus(deviceId: deviceId),
     );
-    return _fromBridgeMountStatus(bridgeStatus);
+    return mountStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -25,7 +25,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getFocuserStatus',
       () => bridge.apiGetFocuserStatus(deviceId: deviceId),
     );
-    return _fromBridgeFocuserStatus(bridgeStatus);
+    return focuserStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -34,13 +34,13 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       'getFilterWheelStatus',
       () => bridge.apiGetFilterwheelStatus(deviceId: deviceId),
     );
-    return _fromBridgeFilterWheelStatus(bridgeStatus);
+    return filterWheelStatusFromBridge(bridgeStatus);
   }
 
   @override
   Future<RotatorStatus> getRotatorStatus(String deviceId) async {
     final bridgeStatus = await bridge.apiGetRotatorStatus(deviceId: deviceId);
-    return _fromBridgeRotatorStatus(bridgeStatus);
+    return rotatorStatusFromBridge(bridgeStatus);
   }
 
   @override
@@ -73,7 +73,9 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
 
   @override
   Future<HardwareDomeStatus> getHardwareDomeStatus(String deviceId) async {
-    final status = await bridge.apiGetDomeStatus(deviceId: deviceId);
+    final status = await (this as AccessoryDeviceBackend).readDomeStatus(
+      deviceId,
+    );
     if (!status.connected) {
       throw StateError('Dome $deviceId reported disconnected');
     }
@@ -83,7 +85,7 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       // `canSetShutter: false` means the driver has no shutter property at all;
       // reporting `closed` there would be a fabrication, so leave it unknown.
       shutterStatus: status.canSetShutter
-          ? _shutterStateCode(status.shutterStatus)
+          ? _shutterStateCode(status.shutter)
           : null,
       isSlewing: status.slewing,
       isAtHome: status.atHome,
@@ -92,22 +94,14 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
     );
   }
 
-  static int? _shutterStateCode(bridge.ShutterState state) {
-    switch (state) {
-      case bridge.ShutterState.open:
-        return 0;
-      case bridge.ShutterState.closed:
-        return 1;
-      case bridge.ShutterState.opening:
-        return 2;
-      case bridge.ShutterState.closing:
-        return 3;
-      case bridge.ShutterState.error:
-        return 4;
-      case bridge.ShutterState.unknown:
-        return null;
-    }
-  }
+  static int? _shutterStateCode(ShutterStatus state) => switch (state) {
+    ShutterStatus.open => 0,
+    ShutterStatus.closed => 1,
+    ShutterStatus.opening => 2,
+    ShutterStatus.closing => 3,
+    ShutterStatus.error => 4,
+    ShutterStatus.unknown => null,
+  };
 
   @override
   Future<CameraCapabilities?> getCameraCapabilities(String deviceId) async {
@@ -115,9 +109,9 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetCameraCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeCameraCapabilities(bridgeCaps);
+      return cameraCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get camera capabilities: $e');
+      Log.warning('Failed to get camera capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -128,9 +122,9 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetMountCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeMountCapabilities(bridgeCaps);
+      return mountCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get mount capabilities: $e');
+      Log.warning('Failed to get mount capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -141,9 +135,9 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetFocuserCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeFocuserCapabilities(bridgeCaps);
+      return focuserCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get focuser capabilities: $e');
+      Log.warning('Failed to get focuser capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -156,9 +150,12 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
       final bridgeCaps = await bridge.apiGetFilterwheelCapabilities(
         deviceId: deviceId,
       );
-      return _fromBridgeFilterWheelCapabilities(bridgeCaps);
+      return filterWheelCapabilitiesFromBridge(bridgeCaps);
     } catch (e) {
-      _logger.warning('Failed to get filter wheel capabilities: $e');
+      Log.warning(
+        'Failed to get filter wheel capabilities: $e',
+        source: _logSource,
+      );
       return null;
     }
   }
@@ -168,11 +165,11 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
     try {
       final result = await bridge.apiGetDeviceCapabilities(deviceId: deviceId);
       if (result is bridge.DeviceCapabilities_Rotator) {
-        return _fromBridgeRotatorCapabilities(result.field0);
+        return rotatorCapabilitiesFromBridge(result.field0);
       }
       return null;
     } catch (e) {
-      _logger.warning('Failed to get rotator capabilities: $e');
+      Log.warning('Failed to get rotator capabilities: $e', source: _logSource);
       return null;
     }
   }
@@ -248,8 +245,9 @@ mixin _FfiStatusProfileOperations on _FfiBackendBase {
   @override
   Future<void> setLocation(models.ObserverLocation? location) async {
     final bridgeLoc = location != null ? _toBridgeLocation(location) : null;
-    _logger.fine(
+    Log.debug(
       'setLocation: ${location != null ? "lat=${location.latitude}, lon=${location.longitude}, elev=${location.elevation}" : "null"}',
+      source: _logSource,
     );
     await _native(
       'apiSetLocation',

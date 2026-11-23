@@ -98,8 +98,8 @@ Future<_Harness> _pumpEquipment(WidgetTester tester) async {
   ).thenAnswer((invocation) async {
     saved.add(invocation.positionalArguments.first as EquipmentProfile);
     deleted = false;
+    return 7;
   });
-  when(() => backend.lastSavedProfileId).thenReturn('7');
   when(() => backend.loadProfile(any())).thenAnswer((_) async {});
 
   await tester.pumpWidget(

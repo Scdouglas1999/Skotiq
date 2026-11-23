@@ -9,6 +9,7 @@ import '../services/catalog_target_types.dart';
 import '../utils/logging_service.dart';
 import '../services/smart_night_service.dart';
 import '../services/target_suggestion_service.dart';
+import '../services/tonight_dark_window.dart';
 import 'clock_provider.dart';
 import 'database_provider.dart';
 import 'hardware_presets_provider.dart';
@@ -53,7 +54,7 @@ final catalogEmissionObjectsProvider = FutureProvider<List<DeepSkyObject>>((
   final objects = await manager.dsos.load();
   return [
     for (final object in objects)
-      if (targetLight(object.type.displayName) == TargetLight.emission) object,
+      if (object.type.light == TargetLight.emission) object,
   ];
 });
 
@@ -72,18 +73,16 @@ final targetSuggestionConfigProvider = StateProvider<TargetSuggestionConfig>((
   );
 });
 
-/// Simple counter provider to trigger suggestion refresh.
-///
-/// UI can call `ref.read(refreshSuggestionsProvider.notifier).state++` to
-/// force a rebuild of the suggestions list.
-final refreshSuggestionsProvider = StateProvider<int>((ref) => 0);
-
 /// Catalog targets built from one OpenNGC reader. The catalog manager
-/// replaces the reader when the file changes, which retires this entry.
-final Expando<Future<List<db.DbTarget>>> _catalogTargets = Expando();
+/// replaces the reader when the file changes, which retires the entry.
+class _CatalogTargetsCache {
+  OpenNgcDsoCatalog? reader;
+  Future<List<db.DbTarget>>? targets;
+}
 
-/// The reader [_catalogTargets] was filled from. Replaced on install.
-OpenNgcDsoCatalog? _catalogReader;
+final _catalogTargetsCacheProvider = Provider<_CatalogTargetsCache>(
+  (ref) => _CatalogTargetsCache(),
+);
 
 /// Fires when a catalog file is installed or removed. Suggestions watch this
 /// so a list scored before the file arrived is dropped.
@@ -148,8 +147,6 @@ final tonightSuggestionsProvider =
     FutureProvider.autoDispose<List<TargetSuggestion>>((ref) async {
       final config = ref.watch(targetSuggestionConfigProvider);
 
-      ref.watch(refreshSuggestionsProvider);
-
       final remote = ref.watch(linkedHostPlanningProvider);
       if (remote != null) {
         final suggestions = await remote.fetchRankedTonightSuggestions(config);
@@ -165,6 +162,21 @@ final tonightSuggestionsProvider =
       return suggestions;
     });
 
+/// Whether the Sun stays up all night at the site tonight, so tonight's
+/// suggestions are empty and the planner says why ([midnightSunNotice]).
+/// False with no site set.
+final tonightSunStaysUpProvider = Provider.autoDispose<bool>((ref) {
+  final site = ref.watch(appObserverLocationProvider);
+  if (site == null || !siteLocationIsSet(site.latitude, site.longitude)) {
+    return false;
+  }
+  return sunStaysUpTonight(
+    now: ref.read(clockProvider).instant,
+    latitudeDeg: site.latitude,
+    longitudeDeg: site.longitude,
+  );
+});
+
 /// Tonight's ranking computed on this machine from its own catalog, optics,
 /// horizon, targets and sessions.
 ///
@@ -175,7 +187,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       ref,
       config,
     ) async {
-      ref.watch(refreshSuggestionsProvider);
       // Install and uninstall, not a status refresh: a timer must not re-score.
       ref.watch(catalogChangeProvider);
 
@@ -191,7 +202,7 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final latitude = observerLocation.latitude;
       final longitude = observerLocation.longitude;
 
-      if (latitude == 0.0 && longitude == 0.0) {
+      if (!siteLocationIsSet(latitude, longitude)) {
         // No location configured, return empty list
         // The UI should prompt user to set location in settings
         return [];
@@ -201,7 +212,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
       final logging = ref.read(loggingServiceProvider);
 
       try {
-        // Fetch host-backed targets and sessions when connected remotely.
         final List<db.DbTarget> userTargets = await ref.watch(
           allDbTargetsProvider.future,
         );
@@ -209,7 +219,10 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
           allSessionsProvider.future,
         );
 
-        final catalogTargets = await _loadCatalogTargets(logging);
+        final catalogTargets = await _loadCatalogTargets(
+          ref.read(_catalogTargetsCacheProvider),
+          logging,
+        );
         final allTargets = joinUserAndCatalogTargets(
           userTargets,
           catalogTargets,
@@ -236,7 +249,6 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 
         return suggestions;
       } catch (e, stackTrace) {
-        // Log the error but don't crash - return empty list
         logging.error(
           'Failed to generate target suggestions: $e',
           source: 'TargetSuggestionProvider',
@@ -254,7 +266,10 @@ final localTonightSuggestionsProvider = FutureProvider.autoDispose
 /// Suggestion candidates from the OpenNGC catalog: every object to
 /// magnitude 14 (which covers most imageable objects), as [db.DbTarget] rows
 /// with negative ids so they cannot be mistaken for the user's own targets.
-Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
+Future<List<db.DbTarget>> _loadCatalogTargets(
+  _CatalogTargetsCache cache,
+  LoggingService logging,
+) async {
   final manager = CatalogManager.instance;
 
   if (!manager.isInitialized) {
@@ -274,16 +289,14 @@ Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
   }
 
   final reader = manager.dsos;
-  if (!identical(reader, _catalogReader)) {
-    final previous = _catalogReader;
-    if (previous != null) _catalogTargets[previous] = null;
-    _catalogReader = reader;
+  if (!identical(reader, cache.reader)) {
+    cache
+      ..reader = reader
+      ..targets = null;
   }
+  final targets = cache.targets ??= _readCatalogTargets(reader, logging);
   try {
-    return await (_catalogTargets[reader] ??= _readCatalogTargets(
-      reader,
-      logging,
-    ));
+    return await targets;
   } catch (e, stackTrace) {
     logging.error(
       'Failed to load OpenNGC catalog: $e',
@@ -293,7 +306,7 @@ Future<List<db.DbTarget>> _loadCatalogTargets(LoggingService logging) async {
       'Stack trace: $stackTrace',
       source: 'TargetSuggestionProvider',
     );
-    _catalogTargets[reader] = null;
+    if (identical(cache.targets, targets)) cache.targets = null;
     rethrow;
   }
 }

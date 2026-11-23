@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show immutable, visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show siteLocationIsSet;
 import 'linked_host.dart';
 import 'async_scope.dart';
 import '../backend/remote_host.dart';
@@ -10,6 +11,7 @@ import '../backend/skotiq_backend.dart';
 import 'database_provider.dart';
 import 'backend_provider.dart';
 import 'frame_watch_settings_provider.dart';
+import 'host_reread.dart';
 import 'host_settings/host_settings_providers.dart';
 import '../models/plate_solver.dart';
 import '../models/site/learned_obstruction.dart';
@@ -155,12 +157,9 @@ final appObserverLocationProvider = Provider<LocationSettings?>((ref) {
 /// This avoids every consumer needing to manually pluck out individual
 /// `af_*` fields and parse the filter settings JSON.
 final autofocusSettingsProvider = Provider<AutofocusSettings>((ref) {
-  final settingsAsync = ref.watch(appSettingsProvider);
-  final settings = settingsAsync.valueOrNull;
-  if (settings == null) {
-    return const AutofocusSettings();
-  }
-
+  // Before the stored settings load, the table's defaults.
+  final settings =
+      ref.watch(appSettingsProvider).valueOrNull ?? const AppSettingsState();
   return AutofocusSettings(
     method: settings.afMethod,
     curveFitting: settings.afCurveFitting,

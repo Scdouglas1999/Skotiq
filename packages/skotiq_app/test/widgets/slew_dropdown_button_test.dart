@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
+import 'package:skotiq_app/services/goto_altitude_check.dart';
 import 'package:skotiq_app/services/mount_command_service.dart';
 import 'package:skotiq_app/widgets/slew_dropdown_button.dart';
 import 'package:skotiq_core/backend.dart';
@@ -11,6 +12,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_core/settings.dart';
+import 'package:skotiq_astro/skotiq_astro.dart' show AstronomyCalculations;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../harness/harness.dart';
@@ -52,6 +54,23 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
       );
 }
 
+class _FixedClock implements Clock {
+  const _FixedClock(this._at);
+  final DateTime _at;
+
+  @override
+  DateTime now() => _at;
+
+  @override
+  DateTime nowUtc() => _at.toUtc();
+
+  @override
+  Duration get utcOffset => Duration.zero;
+
+  @override
+  DateTime fromUtc(DateTime utc) => utc;
+}
+
 class _FailingSiteSettingsNotifier extends AppSettingsNotifier {
   @override
   Future<AppSettingsState> build() =>
@@ -65,7 +84,7 @@ class _ControlledMountService extends MountCommandService {
   int calls = 0;
 
   @override
-  Future<CommandActionResult> slewTo(
+  Future<CommandActionResult> sendSlew(
     double ra,
     double dec, {
     bool showFeedback = true,
@@ -195,7 +214,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Connect an imaging camera before using Slew & Center.'),
         findsOneWidget);
-    expect(service, isNull);
+    expect(service?.calls ?? 0, 0, reason: 'no GoTo is sent');
   });
 
   testWidgets('the chevron half meets the design system touch minimum',
@@ -220,8 +239,7 @@ void main() {
   testWidgets('both halves fit the narrow half-row mount_tab gives them',
       (tester) async {
     // mount_tab.dart:431 puts this in one Expanded half of a Row beside Sync;
-    // on a 360dp phone that is ~158dp. The chevron grew when it was split out,
-    // so the primary half has to survive the loss.
+    // on a 360dp phone that is ~158dp, and the primary half has to survive it.
     await tester.pumpWidget(_harness(mountConnected: true, width: 158));
 
     expect(tester.takeException(), isNull);
@@ -367,14 +385,30 @@ void main() {
       WidgetTester tester, {
       required double dec,
       double horizonFloorDeg = 0.0,
+      double ra = 12,
+      Clock? clock,
+      bool canCenter = false,
     }) async {
       final handle = await pumpAppScreen(
         tester,
         SizedBox(
           width: 220,
-          child: SlewDropdownButton(ra: 12, dec: dec, targetName: 'NGC 7000'),
+          child: SlewDropdownButton(ra: ra, dec: dec, targetName: 'NGC 7000'),
         ),
         extraOverrides: [
+          // The app's startup asks on its navigator; here, on the button's.
+          goToAltitudeAskProvider.overrideWithValue(
+            (question) => askGoToAltitudeOn(
+              tester.element(find.byType(SlewDropdownButton)),
+              question,
+            ),
+          ),
+          if (clock != null) clockProvider.overrideWithValue(clock),
+          if (canCenter) ...[
+            cameraStateProvider.overrideWith(_ConnectedCameraNotifier.new),
+            activeEquipmentProfileProvider.overrideWithValue(null),
+            plateSolveServiceProvider.overrideWith(_AvailableSolver.new),
+          ],
           appSettingsProvider.overrideWith(
             () => _SiteSettingsNotifier(horizonFloorDeg: horizonFloorDeg),
           ),
@@ -436,6 +470,40 @@ void main() {
       await tester.pump();
     });
 
+    testWidgets('the altitude is judged at the app clock, not the wall clock',
+        (tester) async {
+      // Twelve hours from now a target on the meridian is about 45 degrees
+      // below the horizon at the wall clock.
+      final appNow = DateTime.now().toUtc().add(const Duration(hours: 12));
+      double altitudeAt(double ra, DateTime at) =>
+          AstronomyCalculations.objectAltAz(
+            raDeg: ra * 15,
+            decDeg: 0,
+            dt: at,
+            latitudeDeg: 45,
+            longitudeDeg: 0,
+          ).$1;
+      var ra = 0.0;
+      for (var h = 0.0; h < 24; h += 0.05) {
+        if (altitudeAt(h, appNow) > altitudeAt(ra, appNow)) ra = h;
+      }
+      expect(altitudeAt(ra, appNow), greaterThan(40));
+      expect(altitudeAt(ra, DateTime.now().toUtc()), lessThan(-30));
+
+      final service = await pumpSlew(
+        tester,
+        dec: 0,
+        ra: ra,
+        clock: _FixedClock(appNow),
+      );
+      await chooseSlew(tester);
+
+      expect(find.text('Target is below the horizon'), findsNothing);
+      expect(service.calls, 1);
+      service.result.complete(CommandActionResult.ok);
+      await tester.pump();
+    });
+
     testWidgets('the configured horizon floor is enforced above 0 degrees',
         (tester) async {
       final service =
@@ -450,7 +518,8 @@ void main() {
 
     testWidgets('Slew & Center is gated too, not just the plain slew',
         (tester) async {
-      final service = await pumpSlew(tester, dec: belowHorizonDec);
+      final service =
+          await pumpSlew(tester, dec: belowHorizonDec, canCenter: true);
 
       await tester.tap(find.byType(PopupMenuButton<SlewMode>));
       await tester.pumpAndSettle();

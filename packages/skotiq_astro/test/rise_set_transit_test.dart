@@ -29,10 +29,14 @@ void main() {
       expect(visibility.neverRises, isFalse);
     });
 
-    test('transit altitude equals 90 - |lat - dec| on the equinox (~49.5)', () {
-      // On the equinox the Sun's declination is ~0, so the noon altitude is
-      // 90 - latitude. Apparent (refracted) altitude is a hair higher.
-      expect(visibility.transitAltitude, closeTo(90 - lat, 0.4));
+    test('transit altitude equals 90 - |lat - dec| at the transit', () {
+      // The noon altitude is 90 - |latitude - declination| for the Sun's
+      // declination at that moment (~0 on the equinox). Apparent (refracted)
+      // altitude is a hair higher.
+      final (_, dec) = AstronomyCalculations.sunPosition(
+        visibility.transitTime!,
+      );
+      expect(visibility.transitAltitude, closeTo(90 - (lat - dec).abs(), 0.1));
     });
 
     // The -0.8333 deg limb is a GEOMETRIC sun-centre altitude: the -34' in it
@@ -92,7 +96,7 @@ void main() {
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: 279.2347,
       decDeg: 38.7837,
-      date: DateTime(2024, 7, 15),
+      date: NightDate.ofCalendarDay(DateTime(2024, 7, 15)),
       latitudeDeg: 40.0,
       longitudeDeg: -75.0,
     );
@@ -132,7 +136,7 @@ void main() {
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: 12.5 * 15.0,
       decDeg: 35.0,
-      date: DateTime(2026, 7, 23),
+      date: NightDate.ofCalendarDay(DateTime(2026, 7, 23)),
       latitudeDeg: 39.9719,
       longitudeDeg: -75.3576,
     );
@@ -153,7 +157,7 @@ void main() {
       final v = AstronomyCalculations.calculateObjectVisibility(
         raDeg: 100.0,
         decDeg: 85.0,
-        date: DateTime(2024, 1, 15),
+        date: NightDate.ofCalendarDay(DateTime(2024, 1, 15)),
         latitudeDeg: 60.0,
         longitudeDeg: 0.0,
       );
@@ -167,7 +171,7 @@ void main() {
       final v = AstronomyCalculations.calculateObjectVisibility(
         raDeg: 100.0,
         decDeg: -85.0,
-        date: DateTime(2024, 1, 15),
+        date: NightDate.ofCalendarDay(DateTime(2024, 1, 15)),
         latitudeDeg: 60.0,
         longitudeDeg: 0.0,
       );
@@ -181,7 +185,7 @@ void main() {
 
   group('Twilight ordering', () {
     final tw = AstronomyCalculations.calculateTwilightTimes(
-      date: DateTime(2024, 3, 20),
+      date: NightDate.ofCalendarDay(DateTime(2024, 3, 20)),
       latitudeDeg: lat,
       longitudeDeg: lon,
     );
@@ -284,7 +288,7 @@ void main() {
       final frozen = AstronomyCalculations.calculateObjectVisibility(
         raDeg: frozenRa,
         decDeg: frozenDec,
-        date: date,
+        date: NightDate.ofCalendarDay(date),
         latitudeDeg: lat,
         longitudeDeg: lon,
         standardAltitude: -0.8333,

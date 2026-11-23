@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 class ResponsiveCardGrid extends StatelessWidget {
   final List<Widget> children;

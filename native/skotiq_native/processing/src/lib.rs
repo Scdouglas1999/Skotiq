@@ -14,11 +14,15 @@
 //! * [`sky_atlas`]: the all-sky accumulator; [`difference_image`] compares a new
 //!   frame against it.
 
+#[cfg(test)]
+mod args_fixtures;
 pub mod darkroom;
 pub mod difference_image;
 pub mod finishing;
 pub mod mosaic;
 mod output;
 pub mod post_session;
+#[cfg(test)]
+mod reply_fixtures;
 mod run_cancel;
 pub mod sky_atlas;

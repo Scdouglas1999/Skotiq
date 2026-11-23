@@ -131,10 +131,8 @@ class DesktopSessionRecord {
 /// ended on a shutdown path.
 ///
 /// A session that just vanished safed nothing, which matters only for one
-/// that drove equipment. A companion linked to an imaging host drives none:
-/// its startup log said "nothing was safed on the way out. Check the rig."
-/// after the companion alone had been stopped (rig, 2026-11-03). A record
-/// that does not say which it was is read by this launch's own role.
+/// that drove equipment; a companion linked to an imaging host drives none.
+/// A record that does not say which it was is read by this launch's own role.
 ({bool checkTheRig, String message})? previousSessionShutdownReport(
   DesktopSessionRecord? previous, {
   required bool thisLaunchOwnsRig,

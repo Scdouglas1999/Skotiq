@@ -1,12 +1,10 @@
-// Widget and unit tests for the Darkroom editor seams closed in wave 4.
+// Widget and unit tests for the Darkroom editor seams.
 //
 // Each of these asserts a statement the screen makes — or a control it offers —
-// that a reader of the code cannot see, and that was measurably absent from the
-// running app before:
+// that a reader of the code cannot see:
 //
 //  * the registry's draft NOTES reach the screen, so a mono master's draft says
-//    the colour calibration was left out and why (the decoder had zero callers,
-//    and the notes reached only the night report on disk);
+//    the colour calibration was left out and why;
 //  * a cascade delete that takes the open recipe lands on the MASTER, and the
 //    load failure blames nothing that is still on disk;
 //  * every step card offers a keyboard-reachable move up / move down beside the
@@ -476,7 +474,7 @@ void main() {
     await pump(tester, location: '/darkroom?master=$masterId');
     expect(find.text('Master · B has no recipe yet'), findsOneWidget);
     expect(find.text('No recipe yet'), findsOneWidget, reason: 'its list row');
-    // The offer no longer promises colour on a master that has one channel.
+    // The offer does not promise colour on a master that has one channel.
     expect(
       find.textContaining('no color calibration, because the fit needs three'),
       findsOneWidget,
@@ -1449,7 +1447,7 @@ void main() {
   });
 
   // -------------------------------------------------------------------
-  // W9-B — the start offer's header is text, not a control's name
+  // The start offer's header is text, not a control's name
   // -------------------------------------------------------------------
 
   testWidgets('the start offer reads its header as text, not as Reload\'s name',

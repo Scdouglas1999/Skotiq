@@ -17,9 +17,7 @@ import '../../router/app_routes.dart';
 
 /// A live polar alignment run, floating over every screen but its own.
 ///
-/// A run started from the API or from a linked window used to show on this
-/// window only as lines in the log: the frame, the step and the error lived
-/// on the polar alignment screen alone. Mounted once in the app shell, this
+/// Mounted once in the app shell, this
 /// shows the latest frame, what the run is doing and, while adjusting, which
 /// way to turn the bolts, wherever the operator is, with the way into the
 /// full view and a Stop. On a linked window it reads the same mirrored run.

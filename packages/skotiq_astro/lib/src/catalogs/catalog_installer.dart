@@ -1,18 +1,20 @@
 import '../format/byte_format.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:meta/meta.dart' show protected, visibleForTesting;
 import 'package:path/path.dart' as path;
 
 import 'catalog_install_models.dart';
 import 'catalog_transfer.dart';
 import 'sky_catalog.dart';
+
+final _catalogManagerLog = Logger('skotiq.CatalogManager');
 
 /// The catalog files on disk: what is installed, and the one way a catalog
 /// gets there or leaves (download, install from a file, uninstall, verify).
@@ -100,7 +102,7 @@ class CatalogInstaller {
       } catch (e) {
         _log(
           'the built-in ${catalog.displayName} could not be installed: $e',
-          level: 1000,
+          level: Level.SEVERE,
         );
       }
     }
@@ -154,11 +156,11 @@ class CatalogInstaller {
           );
         } catch (e) {
           // A locked or unreadable leftover is not worth failing startup over.
-          _log('could not remove ${entity.path}: $e', level: 900);
+          _log('could not remove ${entity.path}: $e', level: Level.WARNING);
         }
       }
     } catch (e) {
-      _log('could not scan for abandoned downloads: $e', level: 900);
+      _log('could not scan for abandoned downloads: $e', level: Level.WARNING);
     }
     return reclaimed;
   }
@@ -235,7 +237,10 @@ class CatalogInstaller {
             : null,
       );
     } catch (e) {
-      _log('status(${catalog.name}): malformed metadata: $e', level: 900);
+      _log(
+        'status(${catalog.name}): malformed metadata: $e',
+        level: Level.WARNING,
+      );
       return CatalogStatus(
         catalog: catalog,
         state: CatalogInstallStatus.partial,
@@ -369,7 +374,7 @@ class CatalogInstaller {
             'Candidate ${i + 1}/${candidates.length} for '
             '${catalog.displayName} ($url) failed: $e'
             '${i + 1 < candidates.length ? '; trying the next one' : ''}',
-            level: 900,
+            level: Level.WARNING,
           );
           // Never carry a partial from a failed candidate into the next try.
           await _deleteQuietly(tempFile);
@@ -423,12 +428,10 @@ class CatalogInstaller {
       report(DownloadProgress.cancelled(catalog));
       rethrow;
     } catch (e, stackTrace) {
-      developer.log(
+      _catalogManagerLog.severe(
         '[Catalog] Download of ${catalog.displayName} failed: $e',
-        name: 'CatalogManager',
-        level: 1000,
-        error: e,
-        stackTrace: stackTrace,
+        e,
+        stackTrace,
       );
       _events.add(
         CatalogEvent.downloadFailed(
@@ -479,7 +482,7 @@ class CatalogInstaller {
   }
 
   CatalogDownloadException _unreachable(String url, Object cause) {
-    _log('$url unreachable: $cause', level: 900);
+    _log('$url unreachable: $cause', level: Level.WARNING);
     return CatalogDownloadException(
       phase: 'network',
       message:
@@ -864,7 +867,7 @@ class CatalogInstaller {
     } catch (e) {
       _log(
         'verify(${catalog.name}): failed to update lastVerified: $e',
-        level: 900,
+        level: Level.WARNING,
       );
     }
   }
@@ -890,10 +893,10 @@ class CatalogInstaller {
       if (await file.exists()) await file.delete();
     } catch (e) {
       // A leftover is swept at the next start.
-      _log('could not remove ${file.path}: $e', level: 900);
+      _log('could not remove ${file.path}: $e', level: Level.WARNING);
     }
   }
 
-  void _log(String message, {int level = 800}) =>
-      developer.log('[Catalog] $message', name: 'CatalogManager', level: level);
+  void _log(String message, {Level level = Level.INFO}) =>
+      _catalogManagerLog.log(level, '[Catalog] $message');
 }

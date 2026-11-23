@@ -372,7 +372,6 @@ class _AutofocusSettingsState extends ConsumerState<AutofocusSettingsPage> {
                 else
                   for (final row in _afBehaviorRows)
                     SettingRow(
-                      icon: row.icon,
                       title: row.field.label,
                       subtitle: row.subtitle,
                       trailing: row.control(settings),

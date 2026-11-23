@@ -1,6 +1,5 @@
-// SY-24 (sync night 2026-11-03): the run's warnings (the tracking-limit
-// stop, "did not flip early", a centering that missed) were in the host's
-// run stats and on neither machine's Tonight.
+// The run's warnings (the tracking-limit stop, "did not flip early", a
+// centering that missed) reach Tonight on the host and on a linked client.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

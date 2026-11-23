@@ -10,6 +10,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 /// POST /api/mount/home: sends the mount home without parking it, refuses a
 /// parked mount with 409 rather than unparking it, and refuses a mount with no
@@ -30,7 +31,10 @@ void main() {
       ],
     );
     addTearDown(container.dispose);
-    handlers = DeviceHandlers(container);
+    handlers = DeviceHandlers(
+      container,
+      jobManager: JobManager(emitEvent: (_) {}),
+    );
   });
 
   Future<(int, Map<String, Object?>)> home({

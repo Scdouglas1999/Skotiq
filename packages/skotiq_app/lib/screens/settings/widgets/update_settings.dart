@@ -460,7 +460,7 @@ class _UpdateSettingsState extends ConsumerState<UpdateSettings> {
                 style: SkotiqTypography.caption.copyWith(
                   color: colors.textMuted,
                 )),
-            // A rig with no update server is no longer a rig that cannot
+            // A rig with no update server is not a rig that cannot
             // update: with none set it reads the project's GitHub releases.
             // Warning about a missing server there would report a fault that
             // is not one.

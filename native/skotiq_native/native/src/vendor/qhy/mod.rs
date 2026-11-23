@@ -23,11 +23,11 @@
 
 #![allow(dead_code)] // FFI types must match SDK headers even if not all variants are used
 
+use crate::buffer_pool::global_u8_pool;
 use async_trait::async_trait;
 use skotiq_device::camera::*;
 use skotiq_device::Vendor;
 use skotiq_device::*;
-use skotiq_imaging::buffer_pool::global_u8_pool;
 use std::ffi::{c_char, c_double, c_int, c_uint, c_void, CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
@@ -45,8 +45,15 @@ mod session;
 #[cfg(test)]
 mod tests;
 
-pub use camera::*;
-pub use discovery::*;
-pub use ffi::*;
-pub use filter_wheel::*;
-pub use sdk::*;
+// What the driver files share through `use super::*`; the public names
+// are the ones below.
+use camera::*;
+use discovery::*;
+use ffi::*;
+use sdk::*;
+
+pub use camera::QhyCamera;
+pub use discovery::{discover_devices, is_sdk_available, QhyCameraInfo};
+pub use ffi::QhyControl;
+pub use filter_wheel::{discover_filter_wheels, QhyFilterWheel, QhyFilterWheelInfo};
+pub use sdk::{is_qhy_discovery_enabled, set_qhy_discovery_enabled, QhyDiscoveryConfig};

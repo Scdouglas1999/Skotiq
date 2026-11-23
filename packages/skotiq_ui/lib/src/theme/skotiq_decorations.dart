@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'skotiq_colors.dart';
-import 'skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 
 /// Shared [BoxDecoration] helpers for the Skotiq UI.
 ///
@@ -13,7 +12,7 @@ import 'skotiq_tokens.dart';
 /// reserved for dividers and focused controls.
 ///
 /// Everything below the Observatory set is the pre-overhaul API, kept so the
-/// screen layer compiles; each is deprecated and deleted in wave 4.
+/// screen layer compiles; each is deprecated.
 abstract final class SkotiqDecorations {
   SkotiqDecorations._();
 
@@ -280,7 +279,7 @@ abstract final class SkotiqDecorations {
   }
 
   // ---------------------------------------------------------------------
-  // Pre-overhaul API — deprecated, deleted in wave 4
+  // Pre-overhaul API — deprecated
   // ---------------------------------------------------------------------
 
   /// The chip fill, expressed from a bare tone so the deprecated badge and
@@ -322,7 +321,7 @@ abstract final class SkotiqDecorations {
     BorderRadius? borderRadius,
   }) {
     // Cannot reach `panel` from a bare Color for the same reason as
-    // [iconChip]; wave 3 rewrites these call sites screen by screen.
+    // [iconChip].
     return BoxDecoration(
       color: color.withValues(alpha: SkotiqTokens.opacitySubtle),
       borderRadius:
@@ -345,7 +344,7 @@ abstract final class SkotiqDecorations {
     BorderRadius? borderRadius,
     bool bordered = true,
   }) {
-    // `bordered` is honoured no longer: a chip has no border in this language,
+    // `bordered` is not honoured: a chip has no border in this language,
     // the fill is its boundary. The parameter stays so the call sites compile.
     return _chipOfTone(color, borderRadius: borderRadius);
   }
@@ -388,72 +387,6 @@ abstract final class SkotiqDecorations {
         color: color.withValues(alpha: SkotiqTokens.opacitySelectedRing),
       ),
     );
-  }
-
-  /// Selected navigation rail / sidebar item.
-  @Deprecated('Use SkotiqDecorations.railItemSelected. Removed in wave 4.')
-  static BoxDecoration navSelected(
-    SkotiqColors colors, {
-    BorderRadius? borderRadius,
-  }) {
-    final base = railItemSelected(colors);
-    return borderRadius == null
-        ? base
-        : base.copyWith(borderRadius: borderRadius);
-  }
-
-  /// Selected card with accent tint and emphasis border.
-  @Deprecated('Use SkotiqDecorations.panelSelected. Removed in wave 4.')
-  static BoxDecoration cardSelected(
-    Color accent, {
-    Color? background,
-    BorderRadius? borderRadius,
-    double borderWidth = 1,
-  }) {
-    final fill = background != null
-        ? Color.alphaBlend(
-            accent.withValues(alpha: SkotiqTokens.opacityTint),
-            background,
-          )
-        : accent.withValues(alpha: SkotiqTokens.opacityTint);
-    return BoxDecoration(
-      color: fill,
-      borderRadius:
-          borderRadius ?? BorderRadius.circular(SkotiqTokens.radiusLg),
-      border: Border.all(
-        color: accent.withValues(alpha: SkotiqTokens.opacitySelectedRing),
-        width: borderWidth,
-      ),
-    );
-  }
-
-  /// Hover state for interactive rows.
-  @Deprecated(
-    'A panel has no hover; a tappable row takes a surfaceHover fill. '
-    'Removed in wave 4.',
-  )
-  static BoxDecoration cardHover(
-    SkotiqColors colors, {
-    BorderRadius? borderRadius,
-  }) {
-    return BoxDecoration(
-      color: colors.surfaceHover,
-      borderRadius:
-          borderRadius ?? BorderRadius.circular(SkotiqTokens.radiusLg),
-    );
-  }
-
-  /// Drag-and-drop feedback frame.
-  @Deprecated('Use SkotiqDecorations.popover. Removed in wave 4.')
-  static BoxDecoration dragFeedback(
-    SkotiqColors colors, {
-    BorderRadius? borderRadius,
-    Color? accentColor,
-  }) {
-    final base = popover(colors);
-    return borderRadius == null
-        ? base
-        : base.copyWith(borderRadius: borderRadius);
   }
 
   /// Circular or rounded KPI / score badge.

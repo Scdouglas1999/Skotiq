@@ -270,8 +270,8 @@ impl CameraDriver for ZwoCamera {
             target_temp,
             cooler_on,
             cooler_power,
-            gain: self.core.gain,
-            offset: self.core.offset,
+            gain: Some(self.core.gain),
+            offset: Some(self.core.offset),
             bin_x: self.core.bin_x,
             bin_y: self.core.bin_y,
             exposure_remaining: None,
@@ -366,7 +366,7 @@ impl CameraDriver for ZwoCamera {
             self.exposure_active.store(false, Ordering::Release);
         } else if status == ASIExposureStatus::Failed as c_int {
             self.exposure_active.store(false, Ordering::Release);
-            return Err(DriverError::SdkError(FAILED_EXPOSURE.to_string()));
+            return Err(DriverError::SessionLost(FAILED_EXPOSURE.to_string()));
         }
         // Log status for debugging (0=Idle, 1=Working, 2=Success, 3=Failed)
         if is_complete || status == ASIExposureStatus::Failed as c_int {

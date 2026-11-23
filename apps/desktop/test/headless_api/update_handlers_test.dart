@@ -19,6 +19,8 @@ import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:skotiq_desktop/headless_api_server.dart';
 import 'package:skotiq_updater/skotiq_updater.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart'
+    show JobOperation, JobState;
 
 import 'handler_test_helpers.dart';
 
@@ -212,9 +214,9 @@ void main() {
     test(
       'a host reading GitHub releases names that source, not an empty one',
       () async {
-        // A null updateServerUrl used to be the client's only signal, and it
-        // rendered as "No update server configured" — telling the operator
-        // OTA was off on a rig that updates perfectly well.
+        // A null updateServerUrl alone renders as "No update server
+        // configured" —
+        // telling the operator OTA is off on a rig that updates perfectly well.
         controller.serverUrl = null;
         final response = await translateHandlerErrors(
           handlers.handleGetVersion(
@@ -514,7 +516,7 @@ void main() {
       // something to cancel.
       final waitForever = Completer<Map<String, Object?>>();
       final hung = jobManager.start(
-        operation: 'system.update.download',
+        operation: JobOperation.updateDownload,
         work: (sink, cancellation) => waitForever.future,
       );
       await _pumpUntil(

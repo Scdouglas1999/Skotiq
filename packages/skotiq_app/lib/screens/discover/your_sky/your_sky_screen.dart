@@ -32,7 +32,7 @@ class YourSkyView extends ConsumerWidget {
 
   /// Re-reads the atlas.
   ///
-  /// Public because the view no longer carries a header of its own: the Plan
+  /// Public because the view carries no header of its own: the Plan
   /// screen's "Your sky" tab owns the one refresh button for all three
   /// discovery surfaces (06 §Plan removes the second header row).
   static void refreshYourSky(WidgetRef ref) {
@@ -140,7 +140,7 @@ class _YourSkyAtlas extends ConsumerWidget {
                 totals: ref.watch(skyAtlasTotalsProvider).valueOrNull,
               ),
               const SizedBox(height: SkotiqTokens.spaceLg),
-              SectionHeader(
+              SectionTitle(
                 title: 'Regions',
                 subtitle: regions.isEmpty
                     ? 'Tiles are accumulating: name a region to track its depth.'

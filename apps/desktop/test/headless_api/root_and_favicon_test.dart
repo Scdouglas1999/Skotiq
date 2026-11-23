@@ -12,14 +12,10 @@ import 'handler_test_helpers.dart';
 /// Someone typing the appliance's address into a browser must get something
 /// comprehensible.
 ///
-/// Measured against the running server: `GET /` returned
-/// `{"error":"Authentication required", ...}` with `content-type:
-/// application/json` and a 401 when unauthenticated, and a plain-text
-/// `Route not found` (404) once authenticated. The site root had no route at
-/// all, so an operator who did not already know `/dashboard` existed had nothing
-/// to work from. `/favicon.ico` — which browsers request unprompted on every
-/// page load — also 401'd, putting an authentication failure in the server log
-/// and an error in the console for every page view.
+/// The site root needs a route of its own, or an operator who does not
+/// already know `/dashboard` exists has nothing to work from; `/favicon.ico`
+/// — which browsers request unprompted on every page load — must not 401 and
+/// put an authentication failure in the server log for every page view.
 void main() {
   group('site root and favicon', () {
     late ProviderContainer container;

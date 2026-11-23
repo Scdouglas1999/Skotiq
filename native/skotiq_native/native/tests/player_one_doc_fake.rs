@@ -299,7 +299,7 @@ async fn exposure_gain_temperature_and_cooler_controls_have_the_header_types() {
     assert_eq!(status.target_temp, Some(-10.0));
     assert_eq!(status.sensor_temp, Some(-10.5));
     assert_eq!(status.cooler_power, Some(42.0));
-    assert_eq!(status.gain, 250);
+    assert_eq!(status.gain, Some(250));
 
     // A one-hour light frame is inside POA_EXP's range.
     camera

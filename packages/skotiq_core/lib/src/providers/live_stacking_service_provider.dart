@@ -1,9 +1,13 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'backend_provider.dart';
-import 'linked_host.dart';
+import 'host_role.dart';
+import 'logging_service_provider.dart';
 import '../services/live_stacking_service.dart';
 
-final liveStackingServiceProvider = Provider<LiveStackingService>((ref) {
-  ref.watch(backendProvider);
-  return LiveStackingService(ref, host: ref.watch(linkedHostLiveStackProvider));
-});
+/// The live stacker of the imaging host: this process's native one, or the
+/// linked host's.
+final liveStackingServiceProvider = hostRoleProvider<LiveStackingService>(
+  here: (ref) => LiveStackingService(ref.read(loggingServiceProvider)),
+  linked: (ref, host) => LinkedLiveStackingService(
+    ref.read(loggingServiceProvider),
+    host.liveStack,
+  ),
+);

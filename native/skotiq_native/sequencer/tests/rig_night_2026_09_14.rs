@@ -582,8 +582,8 @@ fn is_streak_notice(message: &str) -> bool {
 
 /// The guider as PHD2 really behaved: guiding nine seconds after the resume.
 /// The lights that follow are the night's real trailed frames; the grader
-/// must reject them, and the third reject tells the operator once. It used to
-/// hold the run there; the owner's decision of 2026-10-06 is that a reject
+/// must reject them, and the third reject tells the operator once. The
+/// owner's decision of 2026-10-06 is that a reject
 /// limit never stops a sequence or ends a night, so the run keeps imaging and
 /// nothing is parked.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

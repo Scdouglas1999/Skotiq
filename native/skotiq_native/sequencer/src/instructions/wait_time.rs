@@ -38,7 +38,6 @@ pub async fn execute_wait_time(
                     return result;
                 }
 
-                // Emit progress every 10 seconds
                 if elapsed % 10 == 0 {
                     // Why: u64 -> f64. Wait durations under ~285k years fit
                     // losslessly in f64's 53-bit mantissa.
@@ -72,9 +71,21 @@ pub async fn execute_wait_time(
                 );
             }
         };
-        let twilight_time = calculate_twilight_time(lat, lon, twilight);
-
-        let now = chrono::Utc::now().timestamp();
+        let now = ctx.run.clock.now_utc();
+        // Already dark enough: nothing to wait for. The next evening crossing
+        // is a day away once tonight's is behind, so a plan started late
+        // would lose the night waiting for it.
+        if crate::solar::sun_altitude_degrees(lat, lon, &now) <= twilight_altitude(twilight) {
+            if let Some(cb) = progress_callback {
+                cb(100.0, format!("{:?} twilight reached", twilight));
+            }
+            return InstructionResult::success_with_message(format!(
+                "{:?} twilight reached",
+                twilight
+            ));
+        }
+        let twilight_time = calculate_twilight_time(lat, lon, twilight, &now);
+        let now = now.timestamp();
         if twilight_time == crate::solar::SUN_ALTITUDE_NEVER_REACHED {
             return InstructionResult::failure(format!(
                 "{:?} twilight does not occur at latitude {:.3} and longitude {:.3} for the current date. \
@@ -101,7 +112,6 @@ Sequence cannot wait for an unreachable twilight state.",
                     return result;
                 }
 
-                // Emit progress every 30 seconds
                 if elapsed % 30 == 0 {
                     // Why: u64 -> f64. Twilight wait durations (~hours) fit
                     // losslessly in f64's 53-bit mantissa.
@@ -144,16 +154,22 @@ pub(crate) fn calculate_twilight_time(
     latitude: f64,
     longitude: f64,
     twilight_type: &TwilightType,
+    now: &chrono::DateTime<chrono::Utc>,
 ) -> i64 {
-    let altitude_threshold: f64 = match twilight_type {
+    crate::solar::time_of_sun_altitude_at(
+        latitude,
+        longitude,
+        twilight_altitude(twilight_type),
+        crate::solar::SunCrossing::Setting,
+        now,
+    )
+}
+
+/// The Sun's altitude at which `twilight` begins, in degrees.
+fn twilight_altitude(twilight: &TwilightType) -> f64 {
+    match twilight {
         TwilightType::Civil => -6.0,
         TwilightType::Nautical => -12.0,
         TwilightType::Astronomical => -18.0,
-    };
-    crate::solar::time_of_sun_altitude(
-        latitude,
-        longitude,
-        altitude_threshold,
-        crate::solar::SunCrossing::Setting,
-    )
+    }
 }

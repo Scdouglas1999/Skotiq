@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/backend/roles/depthlock_backend.dart';
 import 'package:skotiq_core/src/models/backend/event_types.dart';
 import 'package:skotiq_core/src/models/depthlock/depthlock_models.dart';
 import 'package:skotiq_core/src/errors/skotiq_error.dart';
 import 'package:skotiq_core/src/providers/depthlock_provider.dart';
+
+import '../harness/event_wire.dart';
 
 /// A [DepthLockBackend] that records what it was asked and answers from a
 /// script, so the tests can assert on the exact arguments the provider sends
@@ -325,12 +328,27 @@ ProviderContainer _container(
   return container;
 }
 
-SkotiqEvent _event(String eventType) => SkotiqEvent(
-  timestamp: 0,
-  severity: EventSeverity.info,
-  category: EventCategory.imaging,
-  eventType: eventType,
-  data: const <String, dynamic>{},
+final _goalUpdated = bridge.EventPayload.depthLock(
+  bridge.DepthLockEvent.goalUpdated(
+    goalId: 'goal-1',
+    revision: BigInt.two,
+    filterName: 'L',
+    state: 'collecting',
+    threshold: 5,
+    coverage: 0.8,
+    evidenceFrames: 32,
+    confirmationFrames: 0,
+    reason: '',
+    automaticCompletion: false,
+    reachable: true,
+  ),
+);
+
+/// An imaging event of the same family that is not DepthLock's.
+final _frameSaved = ffiWireEvent(
+  const bridge.EventPayload.imaging(
+    bridge.ImagingEvent.imageSaved(filePath: '/frames/m31_L_001.fits'),
+  ),
 );
 
 void main() {
@@ -480,7 +498,7 @@ void main() {
         definition: _definition(label: 'Second region'),
       ),
     ];
-    events.add(_event('DepthLockGoalUpdated'));
+    events.add(ffiWireEvent(_goalUpdated));
     await pumpEventQueue();
 
     expect(backend.listCalls, 2);
@@ -494,16 +512,48 @@ void main() {
     final container = _container(backend, events: events.stream);
     await container.read(depthLockGoalsProvider.future);
 
-    events.add(_event('FrameAccepted'));
+    events.add(_frameSaved);
     await pumpEventQueue();
 
     expect(backend.listCalls, 1);
   });
 
-  test('the DepthLock event predicate accepts both mapper spellings', () {
-    expect(isDepthLockEvent(_event('DepthLockGoalUpdated')), isTrue);
-    expect(isDepthLockEvent(_event('depthLock')), isTrue);
-    expect(isDepthLockEvent(_event('SequencerFrameAccepted')), isFalse);
+  test('the DepthLock event predicate takes every DepthLock event over both '
+      'transports, and nothing else', () {
+    final depthLock = [
+      _goalUpdated,
+      bridge.EventPayload.depthLock(
+        bridge.DepthLockEvent.evidenceRejected(
+          goalId: 'goal-1',
+          revision: BigInt.two,
+          sourcePath: '/f.fits',
+          reason: 'clouds',
+        ),
+      ),
+      const bridge.EventPayload.depthLock(
+        bridge.DepthLockEvent.analysisDropped(
+          sourcePath: '/f.fits',
+          reason: 'queue full',
+        ),
+      ),
+      bridge.EventPayload.depthLock(
+        bridge.DepthLockEvent.goalChanged(
+          goalId: 'goal-1',
+          revision: BigInt.two,
+          change: 'edited',
+        ),
+      ),
+    ];
+    for (final path in EventPath.values) {
+      for (final payload in depthLock) {
+        expect(
+          isDepthLockEvent(wireEventOver(path, payload)),
+          isTrue,
+          reason: '$path $payload',
+        );
+      }
+    }
+    expect(isDepthLockEvent(_frameSaved), isFalse);
   });
 
   test('goals are selectable by filter and by target', () async {
@@ -558,7 +608,7 @@ void main() {
         projected: false,
       ),
     ];
-    events.add(_event('DepthLockGoalUpdated'));
+    events.add(ffiWireEvent(_goalUpdated));
     await pumpEventQueue();
 
     final points = await container.read(

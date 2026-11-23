@@ -4,17 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:skotiq_core/backend.dart';
-import 'package:skotiq_core/errors.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../services/mount_command_service.dart';
-import 'centering_dialog.dart';
-import '../utils/confirm_dialog.dart';
+import '../services/slew_and_center.dart';
 import '../utils/snackbar_helper.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 
 enum SlewMode {
   /// Basic slew to coordinates.
@@ -250,12 +247,6 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     final revision = ++_operationRevision;
     final backend = ref.read(backendProvider);
 
-    // The horizon gate runs before anything is dispatched and before the
-    // button latches into its working state, so a refused slew leaves the
-    // control exactly as it was.
-    if (!await _confirmHorizon()) return;
-    if (!_isCurrentOperation(revision, backend)) return;
-
     setState(() => _operationInFlight = true);
     try {
       switch (mode) {
@@ -278,7 +269,11 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
 
   Future<void> _handleSlew(int revision, SkotiqBackend backend) async {
     final mountService = ref.read(mountCommandServiceProvider);
-    final result = await mountService.slewTo(widget.ra, widget.dec);
+    final result = await mountService.slewTo(
+      widget.ra,
+      widget.dec,
+      targetName: widget.targetName,
+    );
     if (!mounted ||
         !_isCurrentOperation(revision, backend) ||
         !identical(ref.read(mountCommandServiceProvider), mountService)) {
@@ -287,202 +282,39 @@ class _SlewDropdownButtonState extends ConsumerState<SlewDropdownButton> {
     context.showCommandActionResult(result);
   }
 
+  // The button is busy for the run, not for the dialog: after an abort or a
+  // failure it has to offer the slew again, not sit on "Working..." behind a
+  // finished result.
   Future<void> _handleSlewAndCenter(int revision, SkotiqBackend backend) =>
-      _slewAndCenter(revision, backend);
-
-  /// Slews, then opens the centering dialog on the target. Completes with
-  /// the first centering run's result once that run ends, or null when the
-  /// slew failed or the dialog closed without a run.
-  ///
-  /// The dialog stays open on its result until the user closes it. The
-  /// button is busy for the run, not for the dialog: after an abort or a
-  /// failure it has to offer the slew again, not sit on "Working..." behind
-  /// a finished result.
-  Future<CenteringResult?> _slewAndCenter(
-    int revision,
-    SkotiqBackend backend,
-  ) async {
-    if (!await _preflightCentering(revision, backend)) return null;
-
-    final mountService = ref.read(mountCommandServiceProvider);
-    final slewResult = await mountService.slewTo(
-      widget.ra,
-      widget.dec,
-      showFeedback: false,
-    );
-
-    if (!mounted ||
-        !_isCurrentOperation(revision, backend) ||
-        !identical(ref.read(mountCommandServiceProvider), mountService)) {
-      return null;
-    }
-
-    if (!slewResult.isSuccess) {
-      context.showCommandActionResult(slewResult);
-      return null;
-    }
-
-    return showCenteringDialog(
-      context: context,
-      targetRa: widget.ra,
-      targetDec: widget.dec,
-      targetName: widget.targetName ?? 'Target',
-    );
-  }
+      slewAndCenter(
+        ref,
+        context,
+        ra: widget.ra,
+        dec: widget.dec,
+        targetName: widget.targetName,
+        dialogTitle: widget.targetName ?? 'Target',
+        isCurrent: () => _isCurrentOperation(revision, backend),
+        sameMountAfterSlew: true,
+      );
 
   Future<void> _handleSlewCenterRotate(
     int revision,
     SkotiqBackend backend,
-  ) async {
-    final centeringResult = await _slewAndCenter(revision, backend);
-    if (!mounted || !_isCurrentOperation(revision, backend)) return;
-
-    if (centeringResult == null || !centeringResult.success) {
-      if (centeringResult != null) {
-        final reason =
-            centeringResult.errorMessage ?? 'Unknown centering error';
-        context.showWarningSnackBar(
-          'Centering failed: $reason Rotation was skipped.',
-        );
-      }
-      return;
-    }
-
-    if (widget.targetRotation != null) {
-      try {
-        final rotatorState = ref.read(rotatorStateProvider);
-        if (rotatorState.connectionState == DeviceConnectionState.connected &&
-            rotatorState.deviceId != null) {
-          final deviceBackend = ref.read(deviceBackendProvider);
-          await deviceBackend.rotatorMoveTo(
-            rotatorState.deviceId!,
-            widget.targetRotation!,
-          );
-          if (mounted &&
-              _isCurrentOperation(revision, backend) &&
-              identical(ref.read(deviceBackendProvider), deviceBackend) &&
-              ref.read(rotatorStateProvider).deviceId ==
-                  rotatorState.deviceId) {
-            context.showSuccessSnackBar(
-              'Rotating to ${widget.targetRotation!.toStringAsFixed(1)}°',
-            );
-          }
-        }
-      } catch (e) {
-        if (mounted && _isCurrentOperation(revision, backend)) {
-          context.showErrorSnackBar('Rotation failed: ${userFacingError(e)}');
-        }
-      }
-    }
-  }
-
-  /// Confirms a below-horizon GoTo before dispatching it.
-  ///
-  /// No configured site means there is no altitude to judge. A settings-load
-  /// failure blocks the command because it cannot be distinguished from a
-  /// hidden configured site.
-  Future<bool> _confirmHorizon() async {
-    try {
-      await ref.read(appSettingsProvider.future);
-    } catch (error) {
-      if (mounted) {
-        context.showErrorSnackBar(
-          'Unable to verify target altitude because settings could not be '
-          'loaded. Slew was not sent.',
-        );
-      }
-      return false;
-    }
-    if (!mounted) return false;
-
-    // Whether a site exists at all is [appObserverLocationProvider]'s call, not
-    // ours — (0, 0) is a real place and only that provider gets to decide it
-    // means "unset".
-    final site = ref.read(appObserverLocationProvider);
-    if (site == null) return true;
-
-    // Same alt/az model the scheduler uses to decide what is worth imaging, so
-    // the slew gate and the planner never disagree about where a target is.
-    final (altitudeDeg, azimuthDeg) = AstronomyCalculations.objectAltAz(
-      raDeg: widget.ra * 15.0,
-      decDeg: widget.dec,
-      dt: DateTime.now().toUtc(),
-      latitudeDeg: site.latitude,
-      longitudeDeg: site.longitude,
-    );
-
-    // The site's altitude floor toward the target; a site cannot opt out of
-    // the ground.
-    final floorDeg = ref.read(altitudeFloorProvider).atAzimuth(azimuthDeg);
-    if (altitudeDeg >= 0 && altitudeDeg >= floorDeg) return true;
-    if (!mounted) return false;
-
-    final target = widget.targetName ?? 'That target';
-    final where = 'azimuth ${azimuthDeg.toStringAsFixed(0)}°';
-
-    if (altitudeDeg < 0) {
-      return ConfirmDialog.show(
-        context: context,
-        title: 'Target is below the horizon',
-        message: '$target is ${(-altitudeDeg).toStringAsFixed(1)}° below the '
-            'horizon right now ($where): it is under the ground. Slewing '
-            'there can drive the telescope into the pier, a tripod leg or the '
-            'ground. Check the coordinates, and check your site in '
-            'Settings > Location.',
-        confirmLabel: 'Slew anyway',
-        isDestructive: true,
+  ) =>
+      slewCenterAndRotate(
+        ref,
+        context,
+        ra: widget.ra,
+        dec: widget.dec,
+        targetName: widget.targetName,
+        dialogTitle: widget.targetName ?? 'Target',
+        isCurrent: () => _isCurrentOperation(revision, backend),
+        sameMountAfterSlew: true,
+        rotation: () => widget.targetRotation,
+        rotationSkipped: (failed) =>
+            'Centering failed: ${failed.errorMessage ?? 'Unknown centering error'} '
+            'Rotation was skipped.',
       );
-    }
-
-    return ConfirmDialog.show(
-      context: context,
-      title: 'Target is below your horizon limit',
-      message: '$target is only ${altitudeDeg.toStringAsFixed(1)}° above the '
-          'horizon ($where), under the site\'s ${floorDeg.toStringAsFixed(0)}° '
-          '${ref.read(altitudeFloorProvider).followsHorizon ? 'horizon there (Settings > Location)' : 'minimum altitude'}. '
-          'It may be behind trees or a roof, and it will be looking through '
-          'a lot of air.',
-      confirmLabel: 'Slew anyway',
-    );
-  }
-
-  Future<bool> _preflightCentering(int revision, SkotiqBackend backend) async {
-    final camera = ref.read(cameraStateProvider);
-    if (camera.connectionState != DeviceConnectionState.connected) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showWarningSnackBar(
-          'Connect an imaging camera before using Slew & Center.',
-        );
-      }
-      return false;
-    }
-
-    final centering = ref.read(centeringServiceProvider);
-    if (centering.isRunning) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showWarningSnackBar(
-          'A centering operation is already running.',
-        );
-      }
-      return false;
-    }
-
-    try {
-      await ref.read(plateSolveServiceProvider).ensureSolverAvailable();
-      return _isCurrentOperation(revision, backend);
-    } on SolverNotAvailableError catch (e) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showWarningSnackBar(e.message);
-      }
-      return false;
-    } catch (e) {
-      if (mounted && _isCurrentOperation(revision, backend)) {
-        context.showErrorSnackBar(
-            'Could not check the plate solver: ${userFacingError(e)}');
-      }
-      return false;
-    }
-  }
 
   bool _isCurrentOperation(int revision, SkotiqBackend backend) =>
       mounted &&

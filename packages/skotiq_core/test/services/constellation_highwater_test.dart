@@ -1,4 +1,4 @@
-// Pillar C ("Constellation") — Wave 0 substrate keystone: contribution
+// Pillar C ("Constellation") substrate keystone: contribution
 // high-water / true-delta export + repeat-contribute idempotency, and the
 // pull-side high-water (re-pull does not re-inflate community depth).
 //

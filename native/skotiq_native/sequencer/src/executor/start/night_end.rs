@@ -72,6 +72,37 @@ pub(crate) fn plan_shutdown_steps(sequence: &SequenceDefinition) -> Vec<&NodeDef
     steps
 }
 
+/// The `metadata` key by which the app asks for the plan's closing warm-up to
+/// wait for end-of-night calibration.
+pub const DEFER_SHUTDOWN_WARM_UP_METADATA_KEY: &str = "defer_shutdown_warm_up";
+
+/// With end-of-night calibration to follow (the app sets
+/// [`DEFER_SHUTDOWN_WARM_UP_METADATA_KEY`] to `"true"`), the Warm Camera steps
+/// among the plan's shutdown steps are left to calibration, so the camera
+/// stays at its set-point for the darks. Calibration warms the camera however
+/// it ends.
+pub(crate) fn defer_shutdown_warm_up(sequence: &mut SequenceDefinition) {
+    let wanted = sequence
+        .metadata
+        .get(DEFER_SHUTDOWN_WARM_UP_METADATA_KEY)
+        .is_some_and(|value| value == "true");
+    if !wanted {
+        return;
+    }
+    let warm_ups: Vec<NodeId> = plan_shutdown_steps(sequence)
+        .into_iter()
+        .filter(|step| matches!(step.node_type, NodeType::WarmCamera(_)))
+        .map(|step| step.id.clone())
+        .collect();
+    for node in &mut sequence.nodes {
+        if let NodeType::WarmCamera(config) = &mut node.node_type {
+            if warm_ups.contains(&node.id) {
+                config.defer_to_calibration = true;
+            }
+        }
+    }
+}
+
 /// What the end-of-night sweep already did before the plan's steps run.
 #[derive(Default, Clone, Copy)]
 pub(crate) struct AlreadySafe {
@@ -391,11 +422,118 @@ mod tests {
         assert_eq!(ids(plan_shutdown_steps(&sequence)), vec!["park", "warm"]);
     }
 
+    fn deferred(sequence: &SequenceDefinition) -> Vec<String> {
+        sequence
+            .nodes
+            .iter()
+            .filter(|n| matches!(&n.node_type, NodeType::WarmCamera(c) if c.defer_to_calibration))
+            .map(|n| n.id.clone())
+            .collect()
+    }
+
+    fn wanting_deferral(mut sequence: SequenceDefinition) -> SequenceDefinition {
+        sequence.metadata.insert(
+            DEFER_SHUTDOWN_WARM_UP_METADATA_KEY.to_string(),
+            "true".to_string(),
+        );
+        defer_shutdown_warm_up(&mut sequence);
+        sequence
+    }
+
+    /// Only the warm-up among the closing steps waits for calibration.
+    #[test]
+    fn the_closing_warm_up_is_left_to_calibration() {
+        let sequence = wanting_deferral(plan(vec![
+            node("early-warm", NodeType::WarmCamera(WarmConfig::default())),
+            node("target", light()),
+            node("stop", NodeType::StopGuiding),
+            node("warm", NodeType::WarmCamera(WarmConfig::default())),
+        ]));
+        assert_eq!(deferred(&sequence), vec!["warm"]);
+    }
+
+    /// A wizard plan holds its warm-up inside its one target, with a flip
+    /// and recovery watchers after it.
+    #[test]
+    fn a_wizard_plans_warm_up_is_left_to_calibration() {
+        let mut target = node("m34", once());
+        target.children = vec!["l".into(), "warm".into()];
+        let mut sequence = plan(vec![
+            target,
+            node("flip", NodeType::MeridianFlip(Default::default())),
+            recovery("weather"),
+        ]);
+        sequence.nodes.push(node("l", light()));
+        sequence
+            .nodes
+            .push(node("warm", NodeType::WarmCamera(WarmConfig::default())));
+        assert_eq!(deferred(&wanting_deferral(sequence)), vec!["warm"]);
+    }
+
+    /// The app's wish travels in the loaded plan's metadata.
+    #[test]
+    fn a_loaded_plan_that_asks_has_its_warm_up_deferred() {
+        let mut sequence = plan(vec![
+            node("target", light()),
+            node("warm", NodeType::WarmCamera(WarmConfig::default())),
+            node("flip", NodeType::MeridianFlip(Default::default())),
+        ]);
+        sequence.metadata.insert(
+            DEFER_SHUTDOWN_WARM_UP_METADATA_KEY.to_string(),
+            "true".to_string(),
+        );
+        let mut executor = SequenceExecutor::new();
+        executor.load_sequence(sequence).unwrap();
+        assert_eq!(deferred(executor.sequence.as_ref().unwrap()), vec!["warm"]);
+    }
+
+    #[test]
+    fn without_calibration_to_follow_nothing_is_deferred() {
+        let mut sequence = plan(vec![
+            node("target", light()),
+            node("warm", NodeType::WarmCamera(WarmConfig::default())),
+        ]);
+        defer_shutdown_warm_up(&mut sequence);
+        assert!(deferred(&sequence).is_empty());
+        let sequence = wanting_deferral(plan(vec![node("target", light())]));
+        assert!(deferred(&sequence).is_empty());
+    }
+
     #[test]
     fn dawn_and_obstruction_end_the_night_and_weather_does_not() {
         assert!(ends_the_night("dawn_approaching"));
         assert!(ends_the_night(OBSTRUCTION_TRIGGER_ID));
         assert!(!ends_the_night("weather_unsafe"));
         assert!(!ends_the_night("guide_star_lost"));
+    }
+
+    const WIRE_WORDS_FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../test_fixtures/wire_words/sequence_metadata.json"
+    );
+
+    /// `test_fixtures/wire_words/sequence_metadata.json`: the sequence
+    /// metadata keys the app writes for the executor to read. Regenerate with
+    /// `SKOTIQ_WRITE_FIXTURES=1 cargo test -p skotiq_sequencer sequence_metadata_wire_words`.
+    #[test]
+    fn sequence_metadata_wire_words_fixture() {
+        let value = serde_json::json!({
+            "deferShutdownWarmUp": DEFER_SHUTDOWN_WARM_UP_METADATA_KEY,
+        });
+        if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+            let path = std::path::Path::new(WIRE_WORDS_FIXTURE);
+            std::fs::create_dir_all(path.parent().expect("dir")).expect("fixture dir");
+            let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+            text.push('\n');
+            std::fs::write(path, text).expect("write fixture");
+            return;
+        }
+        let committed: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(WIRE_WORDS_FIXTURE).expect("fixture"))
+                .expect("JSON");
+        assert_eq!(
+            committed, value,
+            "a sequence metadata key changed; regenerate the fixture and update the app"
+        );
     }
 }

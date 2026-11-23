@@ -141,7 +141,9 @@ void main() {
     final container = makeContainer();
     pressStop(container, base: 1);
 
-    final recent = container.read(runDashboardRecentEventsProvider(5));
+    final recent = runDashboardFeedRows(container.read(eventHistoryProvider))
+        .take(5)
+        .toList();
 
     expect(
       recent,
@@ -175,7 +177,9 @@ void main() {
     }
     pressStop(container, base: 1);
 
-    final recent = container.read(runDashboardRecentEventsProvider(5));
+    final recent = runDashboardFeedRows(container.read(eventHistoryProvider))
+        .take(5)
+        .toList();
     expect(recent.first.title, 'Sequence stopped');
     expect(recent.length, 5);
     expect(
@@ -197,7 +201,9 @@ void main() {
     history.addEvent(_stopped(2, earlier));
     pressStop(container, base: 10);
 
-    final recent = container.read(runDashboardRecentEventsProvider(5));
+    final recent = runDashboardFeedRows(container.read(eventHistoryProvider))
+        .take(5)
+        .toList();
     expect(recent, hasLength(2));
     expect(recent.every((e) => e.title == 'Sequence stopped'), isTrue);
     expect(recent.first.time, _stopAt);
@@ -212,7 +218,9 @@ void main() {
     );
     pressStop(container, base: 10);
 
-    final recent = container.read(runDashboardRecentEventsProvider(5));
+    final recent = runDashboardFeedRows(container.read(eventHistoryProvider))
+        .take(5)
+        .toList();
     expect(recent, hasLength(2));
     expect(recent.first.title, 'Sequence stopped');
     expect(recent.last.message, 'Temperature compensation cancelled');

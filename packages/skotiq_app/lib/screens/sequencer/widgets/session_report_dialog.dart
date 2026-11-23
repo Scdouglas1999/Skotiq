@@ -22,6 +22,7 @@ import 'notes_panel.dart';
 import '../../../router/settings_sections.dart';
 import '../../../router/analytics_route.dart';
 import '../../../router/app_routes.dart';
+import '../../../utils/exported_file_reveal.dart';
 import '../../../utils/snackbar_helper.dart';
 part 'session_report_dialog/header_overview.dart';
 part 'session_report_dialog/target_conditions.dart';
@@ -230,7 +231,7 @@ class _ReportBody extends ConsumerWidget {
                 titleColor: colors.error),
             const SizedBox(height: 8),
             SelectableText(
-              runFailureMessage(_failureCause!),
+              userFacingError(_failureCause!),
               style:
                   SkotiqTypography.bodySm.copyWith(color: colors.textPrimary),
             ),
@@ -634,11 +635,11 @@ class _ReportBody extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
-            runFailureMessage(msg),
+            userFacingError(msg),
             style: SkotiqTypography.caption.copyWith(color: colors.error),
           ),
         ),
-      if (_errorMessages.any((msg) => runFailureMessage(msg) != msg))
+      if (_errorMessages.any((msg) => userFacingError(msg) != msg))
         ExpansionTile(
           title: const Text('Technical details'),
           children: [SelectableText(_errorMessages.join('\n'))],
@@ -684,22 +685,6 @@ class _ReportBody extends ConsumerWidget {
     );
   }
 
-  /// Platforms with a system share sheet `share_plus` can drive. Desktop
-  /// (Windows / Linux) has none, so those write to the documents dir and
-  /// report the path instead. Mirrors the snippet-palette share gate.
-  bool get _platformHasShareSheet {
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.iOS:
-      case TargetPlatform.android:
-      case TargetPlatform.macOS:
-        return true;
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return false;
-    }
-  }
-
   Future<void> _exportText(BuildContext context, WidgetRef ref) async {
     final service = ref.read(sessionReportServiceProvider);
     final text = service.renderPlainText(report);
@@ -712,7 +697,7 @@ class _ReportBody extends ConsumerWidget {
       // On mobile, route through the system share sheet so the .txt is
       // actually reachable (the documents-dir write + 4s snackbar path was
       // a dead end on phones). Stage in the OS temp dir for the share.
-      if (_platformHasShareSheet) {
+      if (platformHasShareSheet()) {
         final tmpDir = await getTemporaryDirectory();
         final tmpFile = File(p.join(tmpDir.path, filename));
         await tmpFile.writeAsString(text);

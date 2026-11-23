@@ -5,9 +5,7 @@
 /// Split from `sequence_fold_model.dart` on purpose: the model is pure Dart,
 /// while this file needs riverpod and [VisibleNode] (declared in
 /// `sequence_tree_shortcuts.dart`, which transitively imports
-/// `flutter/material`). Wave 2 wires [applyFoldsToVisibleOrder] into
-/// `visibleNodeOrderProvider` — that file is owned by another workstream, so
-/// the projection is exposed here as a pure function instead.
+/// `flutter/material`).
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

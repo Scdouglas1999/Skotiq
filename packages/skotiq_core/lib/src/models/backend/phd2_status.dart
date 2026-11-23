@@ -112,24 +112,53 @@ List<GuideStar> decodeTrackedStars(Object? raw) {
   return const [];
 }
 
+/// Why the guider is stopped or held, as the guider status names it
+/// (`GuidingStopReason` in the native sequencer, whose wire names and
+/// sentences these are).
+enum GuidingStopReason {
+  autofocus('autofocus', 'Guiding paused for autofocus'),
+  meridianFlip('meridian_flip', 'Guiding paused for the meridian flip'),
+  trackingLimitHold(
+    'tracking_limit_hold',
+    'Guiding paused: the mount is at its tracking limit and waits for the flip',
+  ),
+  mountMove('mount_move', 'Guiding paused while the mount moves'),
+  preMeridianHold(
+    'pre_meridian_hold',
+    'Guiding paused: the run waits at the meridian for the flip',
+  ),
+  sequenceStep(
+    'sequence_step',
+    "Guiding stopped by the sequence's Stop Guiding step",
+  ),
+  ditherSettle('dither_settle', 'Guiding is settling after a dither'),
+  runStopped('run_stopped', 'Guiding stopped because the run was stopped'),
+  operator('operator', 'Guiding stopped from the guider controls'),
+  mountFault('mount_fault', 'Guiding stopped: the mount moved on its own');
+
+  const GuidingStopReason(this.wire, this.text);
+
+  /// The snake_case name on the wire and in the REST API.
+  final String wire;
+
+  /// Plain words for a status line.
+  final String text;
+
+  /// The reason [wire] names, or null for one this build does not know.
+  static GuidingStopReason? fromWire(String? wire) {
+    for (final reason in values) {
+      if (reason.wire == wire) return reason;
+    }
+    return null;
+  }
+}
+
 /// Plain words for a guider stop reason (see [Phd2Status.stopReason]), or
 /// null for none. An unknown reason is shown as given rather than hidden.
 String? guidingStopReasonText(String? reason) {
-  return switch (reason) {
-    null || '' => null,
-    'autofocus' => 'Guiding paused for autofocus',
-    'meridian_flip' => 'Guiding paused for the meridian flip',
-    'tracking_limit_hold' =>
-      'Guiding paused: the mount is at its tracking limit and waits for the flip',
-    'mount_move' => 'Guiding paused while the mount moves',
-    'pre_meridian_hold' =>
-      'Guiding paused: the run waits at the meridian for the flip',
-    'sequence_step' => "Guiding stopped by the sequence's Stop Guiding step",
-    'dither_settle' => 'Guiding is settling after a dither',
-    'run_stopped' => 'Guiding stopped because the run was stopped',
-    'operator' => 'Guiding stopped from the guider controls',
-    _ => 'Guiding stopped ($reason)',
-  };
+  if (reason == null || reason.isEmpty) return null;
+  return GuidingStopReason.fromWire(reason)?.text ??
+      'Guiding stopped ($reason)';
 }
 
 /// What the host's guider (PHD2 or the built-in multi-star guider) is doing.

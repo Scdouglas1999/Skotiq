@@ -1,6 +1,6 @@
 // The manual-action bar under the frame: Snapshot, Loop, Autofocus, Solve &
 // sync, Center, plus Dither and Flip during a run. The buttons and their
-// gating come from the action controller (P2). Every one of them only opens
+// gating come from the action controller. Every one of them only opens
 // its panel tab, where the action itself starts. Each says which tab it
 // opens and is outlined while that tab is open, so none reads as a button
 // that did nothing.
@@ -19,8 +19,9 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../polar_alignment/polar_alignment_activity.dart';
-import '../actions/manual_action_gating.dart' show manualActionKey;
-import '../actions/night_action_controller.dart';
+import '../../../services/night_actions/manual_action_gating.dart'
+    show manualActionKey;
+import '../../../services/night_actions/night_action_controller.dart';
 import '../data/plan/night_run_phase_provider.dart';
 import '../night_control_contracts.dart';
 import '../night_control_layout.dart';

@@ -8,10 +8,7 @@
 //! preview therefore returns RGBA bytes and reuses that path whole; no new
 //! decoding, caching or transform plumbing appears on the Dart side.
 //!
-//! What it does **not** reuse is the display stretch behind that path.
-//! `auto_stretch_stf` decodes its input as `u16` pairs with no pixel-type check,
-//! and masters are `F32`, so the existing screen transfer reads a master's bytes
-//! as numbers that are not in it. Every pixel here comes from the recipe
+//! Every pixel here comes from the recipe
 //! engine's own `F32` arithmetic.
 //!
 //! # Encodings
@@ -85,6 +82,35 @@ pub(crate) fn parse_recipe(recipe_json: &str) -> Result<Recipe, String> {
     Recipe::from_json(recipe_json).map_err(|e| e.to_string())
 }
 
+/// Where a render's base master comes from: a file, or an active live stack
+/// the host keeps in memory, named by its filter key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum MasterSource {
+    File(String),
+    LiveStack(String),
+}
+
+impl MasterSource {
+    /// The source a request names: its `liveStackKey` when it has one, else
+    /// its `masterPath`; `None` when it names neither.
+    pub(crate) fn of(master_path: &str, live_stack_key: Option<&str>) -> Option<Self> {
+        if let Some(key) = live_stack_key.map(str::trim).filter(|s| !s.is_empty()) {
+            return Some(Self::LiveStack(key.to_string()));
+        }
+        let path = master_path.trim();
+        (!path.is_empty()).then(|| Self::File(path.to_string()))
+    }
+
+    /// The source a render needs, refusing a request that names none.
+    pub(crate) fn required(
+        master_path: &str,
+        live_stack_key: Option<&str>,
+    ) -> Result<Self, String> {
+        Self::of(master_path, live_stack_key)
+            .ok_or_else(|| "masterPath is required to render".to_string())
+    }
+}
+
 /// The master at `master_path` — its pyramid and the identity of the bytes read
 /// — honouring cancellation around the read.
 ///
@@ -92,28 +118,16 @@ pub(crate) fn parse_recipe(recipe_json: &str) -> Result<Recipe, String> {
 /// run has to key its step boundaries on the master it actually read, not on the
 /// `baseMasterRef` the recipe was authored with.
 pub(crate) fn load_pyramid(
-    master_path: &str,
-    live_stack_key: Option<&str>,
+    source: &MasterSource,
     token: &CancelToken,
 ) -> Result<LoadedMaster, String> {
-    if let Some(key) = live_stack_key.map(str::trim).filter(|s| !s.is_empty()) {
-        if token.is_cancelled() {
-            return Err(CancelledRender::err(token.id(), "read"));
-        }
-        let master = live_stack_pyramid(key)?;
-        if token.is_cancelled() {
-            return Err(CancelledRender::err(token.id(), "pyramid"));
-        }
-        return Ok(master);
-    }
-    let path = master_path.trim();
-    if path.is_empty() {
-        return Err("masterPath is required to render".to_string());
-    }
     if token.is_cancelled() {
         return Err(CancelledRender::err(token.id(), "read"));
     }
-    let master = base_pyramid(std::path::Path::new(path))?;
+    let master = match source {
+        MasterSource::LiveStack(key) => live_stack_pyramid(key)?,
+        MasterSource::File(path) => base_pyramid(std::path::Path::new(path))?,
+    };
     if token.is_cancelled() {
         return Err(CancelledRender::err(token.id(), "pyramid"));
     }

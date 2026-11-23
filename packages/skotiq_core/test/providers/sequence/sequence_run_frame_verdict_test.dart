@@ -422,7 +422,7 @@ void main() {
       expect(parsed.framesCaptured, 2);
       expect(parsed.framesRejected, 1);
       expect(parsed.integrationSecs, 300.0);
-      expect(parsed.targetBreakdown['M31']!['L']!['integrationSecs'], 300.0);
+      expect(parsed.targetBreakdown['M31']!['L']!.integrationSecs, 300.0);
       expect(
         parsed.overheadSecs,
         parsed.wallClockSecs - 300.0,

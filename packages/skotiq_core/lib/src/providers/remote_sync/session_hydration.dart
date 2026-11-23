@@ -5,7 +5,7 @@ part of '../remote_sync_handler.dart';
 ///
 /// The host's runtime channels carry its devices, guider, open plan and the
 /// results only its process computes; the data the host stores (profiles,
-/// settings, plans, history) is the list [_rereadWithTheHost].
+/// settings, plans, history) is read again ([rereadStoredHostData]).
 ///
 /// [refreshCurrentFrame] is false for the periodic re-read. The host's last
 /// frame is a full-resolution JPEG plus its raw pixels (tens of MB), and new
@@ -56,40 +56,13 @@ Future<void> hydrateRemoteSessionState(
   host.runtimeMirror.invalidateDeviceCache();
 }
 
-/// Read again everything in [_rereadWithTheHost] and the host's key/value
-/// settings (sequencer defaults, presets, scheduler config and the rest),
-/// whose readers are told only when a value changed.
+/// Read again the stored host data ([rereadHostData]) and the host's
+/// key/value settings (sequencer defaults, presets, scheduler config and the
+/// rest), whose readers are told only when a value changed.
 void rereadStoredHostData(ProviderContainer container) {
-  for (final provider in _rereadWithTheHost) {
-    container.invalidate(provider);
-  }
+  rereadHostData(container);
   container.read(hostSettingsStoreProvider)?.refresh();
 }
-
-/// What a linked client reads again from its host on connect, on reconnect
-/// and with each periodic re-read: the stored data the host announces no
-/// change of, or whose announcement a client that was not listening missed.
-/// Each then shows the host's value at once instead of after its own poll.
-///
-/// Add a provider here when a linked client fetches it from the host and
-/// nothing else refreshes it.
-final _rereadWithTheHost = <ProviderOrFamily>[
-  // Equipment profiles and the one that is active.
-  equipmentProfilesProvider,
-  allProfilesProvider,
-  activeProfileProvider,
-  appSettingsProvider,
-  savedSequencesProvider,
-  savedSequenceSummariesProvider,
-  // What the host's autopilot would slew to next.
-  schedulerPreviewDecisionProvider,
-  projectListProvider,
-  integrationGoalsStreamProvider,
-  targetConstraintsStreamProvider,
-  sequenceRunsProvider,
-  observingListsProvider,
-  listedCatalogIdsProvider,
-];
 
 /// Fill an empty event log with the host's recent events. Only into an empty
 /// history, so nothing is added twice.

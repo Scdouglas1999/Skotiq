@@ -255,45 +255,21 @@ class _TemplateCardState extends ConsumerState<_TemplateCard> {
       isTemplate: false,
     );
 
-    try {
-      sequenceNotifier.loadSequence(newSequence);
-    } on UnsavedChangesException catch (e) {
-      if (!context.mounted) return;
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints:
-                AdaptiveDialogConstraints.hybrid(ctx, designMaxWidth: 440),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Creating a sequence from "${widget.template.name}" will '
-                'discard them.'),
-          ),
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and create',
-              variant: ButtonVariant.destructive,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
-        ),
-      );
-      if (discard != true || !context.mounted || host.isStale) {
-        return;
-      }
-      sequenceNotifier.loadSequence(newSequence, discardUnsaved: true);
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) context.showErrorSnackBar(e.message);
-      return;
-    }
+    final opened = await openInEditor(
+      context,
+      load: ({required discardUnsaved}) => sequenceNotifier.loadSequence(
+        newSequence,
+        discardUnsaved: discardUnsaved,
+      ),
+      prompt: DiscardUnsavedPrompt(
+        consequence: 'Creating a sequence from "${widget.template.name}" '
+            'will discard them.',
+        confirmLabel: 'Discard and create',
+      ),
+      proceed: () => !host.isStale,
+      onLocked: (e) => context.showErrorSnackBar(e.message),
+    );
+    if (!opened) return;
 
     // Switch to the Builder tab so user can see the loaded sequence
     ref.read(sequencerTabProvider.notifier).state = 0;
@@ -308,33 +284,16 @@ class _TemplateCardState extends ConsumerState<_TemplateCard> {
 
     if (editor.isDirty) {
       final currentName = ref.read(currentSequenceProvider)?.name ?? 'sequence';
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints:
-                AdaptiveDialogConstraints.hybrid(ctx, designMaxWidth: 440),
-            child: Text('"$currentName" has unsaved changes. Opening '
-                '"${widget.template.name}" for editing will discard them.'),
-          ),
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and edit',
-              variant: ButtonVariant.destructive,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
+      final discard = await confirmDiscardUnsaved(
+        context,
+        currentName: currentName,
+        prompt: DiscardUnsavedPrompt(
+          consequence: 'Opening "${widget.template.name}" for editing will '
+              'discard them.',
+          confirmLabel: 'Discard and edit',
         ),
       );
-      if (discard != true || !context.mounted) return;
+      if (!discard || !context.mounted) return;
     }
 
     if (host.isStale) {

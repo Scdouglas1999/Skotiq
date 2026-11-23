@@ -64,13 +64,17 @@ class _FullTimeline extends ConsumerStatefulWidget {
   ConsumerState<_FullTimeline> createState() => _FullTimelineState();
 }
 
+/// The most nights the overlay draws twilight for; a longer plan shows the
+/// first fortnight's.
+const _maxTwilightNights = 14;
+
 class _FullTimelineState extends ConsumerState<_FullTimeline>
     with WidgetsBindingObserver {
   Timer? _nowTimer;
   DateTime _now = DateTime.now();
 
-  TwilightTimes? _twilightTimes;
-  DateTime? _twilightCacheDate;
+  List<TwilightTimes>? _twilightTimes;
+  (NightDate, NightDate)? _twilightCacheNights;
   double? _twilightCacheLat;
   double? _twilightCacheLon;
 
@@ -115,56 +119,73 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     super.dispose();
   }
 
-  TwilightTimes? _getTwilightTimes(double lat, double lon, DateTime date) {
-    final cacheDate = DateTime(date.year, date.month, date.day);
+  /// Twilight of each of the site's nights from the one that holds [start]
+  /// to the one that holds [end]: a run after midnight shows this morning's
+  /// dawn, one planned in the morning the coming evening's dusk.
+  List<TwilightTimes> _getTwilightTimes(
+    double lat,
+    double lon,
+    DateTime start,
+    DateTime end,
+  ) {
+    final first = AstronomyCalculations.nightDateOf(start, longitudeDeg: lon);
+    final last = AstronomyCalculations.nightDateOf(end, longitudeDeg: lon);
+    final nights = (first, last);
 
-    if (_twilightTimes != null &&
-        _twilightCacheDate == cacheDate &&
+    final cached = _twilightTimes;
+    if (cached != null &&
+        _twilightCacheNights == nights &&
         _twilightCacheLat == lat &&
         _twilightCacheLon == lon) {
-      return _twilightTimes;
+      return cached;
     }
 
-    _twilightTimes = AstronomyCalculations.calculateTwilightTimes(
-      date: date,
-      latitudeDeg: lat,
-      longitudeDeg: lon,
-    );
-    _twilightCacheDate = cacheDate;
+    final twilight = <TwilightTimes>[];
+    for (var night = first;
+        night != last.addDays(1) && twilight.length < _maxTwilightNights;
+        night = night.addDays(1)) {
+      twilight.add(AstronomyCalculations.calculateTwilightTimes(
+        date: night,
+        latitudeDeg: lat,
+        longitudeDeg: lon,
+      ));
+    }
+    _twilightTimes = twilight;
+    _twilightCacheNights = nights;
     _twilightCacheLat = lat;
     _twilightCacheLon = lon;
 
-    return _twilightTimes;
+    return twilight;
   }
 
   /// Calculate target visibility windows for rise/set markers.
   ///
-  /// [date] is the timeline's start INSTANT, so it is resolved to the night
-  /// that contains it: the visibility scan runs local noon to noon, and a run
-  /// starting after midnight otherwise drew its rise/set markers from the
-  /// following night.
+  /// [date] is the timeline's start INSTANT, so it is resolved to the site's
+  /// night that contains it: a run starting after midnight otherwise drew its
+  /// rise/set markers from the following night.
   Map<String, ObjectVisibility> _getTargetWindows(
     double lat,
     double lon,
     DateTime date,
   ) {
     final windows = <String, ObjectVisibility>{};
-    final nightDate = AstronomyCalculations.nightDateOf(date);
+    final nightDate = AstronomyCalculations.nightDateOf(
+      date,
+      longitudeDeg: lon,
+    );
     final floor = ref.read(altitudeFloorProvider);
 
     for (final node in widget.sequence.nodes.values) {
       if (node is TargetHeaderNode && node.isEnabled) {
         // When it clears and leaves the site's altitude floor (and its own
-        // minimum), over that night's local noon to noon.
+        // minimum), over that night.
         final visibility =
             floor.forTargetMinimum(node.minAltitude).visibilityAround(
                   raDeg: node.raHours * 15.0,
                   decDeg: node.decDegrees,
-                  center: DateTime(
-                    nightDate.year,
-                    nightDate.month,
-                    nightDate.day,
-                    24,
+                  center: AstronomyCalculations.nightMiddleOf(
+                    nightDate,
+                    longitudeDeg: lon,
                   ),
                   latitudeDeg: lat,
                   longitudeDeg: lon,
@@ -225,11 +246,16 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
         final shouldShowOverlay =
             widget.showAstronomicalOverlay && hasValidLocation;
 
-        TwilightTimes? twilight;
+        List<TwilightTimes>? twilight;
         Map<String, ObjectVisibility>? targetWindows;
 
         if (shouldShowOverlay) {
-          twilight = _getTwilightTimes(lat, lon, _effectiveStartTime);
+          twilight = _getTwilightTimes(
+            lat,
+            lon,
+            _effectiveStartTime,
+            _estimatedEndTime,
+          );
           targetWindows = _getTargetWindows(lat, lon, _effectiveStartTime);
         }
 
@@ -251,7 +277,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
   }
 
   Widget _buildTimeline({
-    required TwilightTimes? twilight,
+    required List<TwilightTimes>? twilight,
     required Map<String, ObjectVisibility>? targetWindows,
     required bool showOverlay,
   }) {
@@ -401,7 +427,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
   }
 
   Widget _buildTwilightOverlay(
-    TwilightTimes twilight,
+    List<TwilightTimes> nights,
     double totalWidth,
     _TwilightBandColors bands,
   ) {
@@ -435,23 +461,25 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
       }
     }
 
-    // Civil twilight (evening): sunset to civil dusk
-    addRegion(twilight.sunset, twilight.civilDusk, bands.civil);
+    for (final twilight in nights) {
+      // Civil twilight (evening): sunset to civil dusk
+      addRegion(twilight.sunset, twilight.civilDusk, bands.civil);
 
-    // Nautical twilight (evening): civil dusk to nautical dusk
-    addRegion(twilight.civilDusk, twilight.nauticalDusk, bands.nautical);
+      // Nautical twilight (evening): civil dusk to nautical dusk
+      addRegion(twilight.civilDusk, twilight.nauticalDusk, bands.nautical);
 
-    // Astronomical twilight (evening): nautical dusk to astronomical dusk
-    addRegion(twilight.nauticalDusk, twilight.astronomicalDusk, bands.astro);
+      // Astronomical twilight (evening): nautical dusk to astronomical dusk
+      addRegion(twilight.nauticalDusk, twilight.astronomicalDusk, bands.astro);
 
-    // Astronomical twilight (morning): astronomical dawn to nautical dawn
-    addRegion(twilight.astronomicalDawn, twilight.nauticalDawn, bands.astro);
+      // Astronomical twilight (morning): astronomical dawn to nautical dawn
+      addRegion(twilight.astronomicalDawn, twilight.nauticalDawn, bands.astro);
 
-    // Nautical twilight (morning): nautical dawn to civil dawn
-    addRegion(twilight.nauticalDawn, twilight.civilDawn, bands.nautical);
+      // Nautical twilight (morning): nautical dawn to civil dawn
+      addRegion(twilight.nauticalDawn, twilight.civilDawn, bands.nautical);
 
-    // Civil twilight (morning): civil dawn to sunrise
-    addRegion(twilight.civilDawn, twilight.sunrise, bands.civil);
+      // Civil twilight (morning): civil dawn to sunrise
+      addRegion(twilight.civilDawn, twilight.sunrise, bands.civil);
+    }
 
     return Stack(
       children: regions.map((region) {

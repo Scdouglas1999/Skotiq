@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../connection/linked_rig_panel.dart';
+import '../pairing_qr.dart';
 import '../paired_devices.dart' show PairingSettings, pairingProvider;
 import 'admin_only.dart';
 import 'settings_widgets.dart';
@@ -67,7 +68,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     required bool showFeedback,
   }) {
     final port = int.tryParse(_portController.text);
-    if (port != null && port >= 1024 && port <= 65535) {
+    if (port != null && PortRange.webServer.contains(port)) {
       if (port == settings.webServerPort || port == _lastSubmittedPort) {
         _lastSubmittedPort = port;
         return;
@@ -173,6 +174,7 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
           dashboardAvailable: webState.dashboardAvailable,
           lastError: webState.lastError,
           serverFingerprint: webState.serverFingerprint,
+          advert: webState.advert,
         );
   }
 
@@ -181,7 +183,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
     final settingsAsync = ref.watch(appSettingsProvider);
     final webState = ref.watch(webServerStateProvider);
     final pairingState = ref.watch(pairingProvider);
-    final appVersion = ref.watch(appVersionProvider);
     // On a remote client (phone/tablet paired to a host) the local
     // webServerStateProvider never runs, while `webServerEnabled` mirrors the
     // HOST's setting — without this the pane shows "Starting remote access"
@@ -219,7 +220,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               title: l10n.text('remoteAccessWebServer'),
               children: [
                 SettingRow(
-                  icon: LucideIcons.globe,
                   title: l10n.text('remoteAccessEnableTitle'),
                   subtitle: l10n.text('remoteAccessEnableDesc'),
                   trailing: AdminOnlyControl(
@@ -234,7 +234,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.hash,
                   title: l10n.text('remoteAccessPortTitle'),
                   subtitle: l10n.text('remoteAccessPortDesc'),
                   trailing: AdminOnlyControl(
@@ -297,7 +296,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               children: [
                 if (isRemote)
                   SettingRow(
-                    icon: LucideIcons.wifi,
                     title: l10n.text('remoteAccessHostActiveTitle'),
                     subtitle: l10n.text('remoteAccessHostActiveBody'),
                     trailing: const SizedBox.shrink(),
@@ -367,7 +365,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                     ),
                 ] else
                   SettingRow(
-                    icon: LucideIcons.power,
                     title: settings.webServerEnabled
                         ? l10n.text('remoteAccessStartingTitle')
                         : l10n.text('remoteAccessDisabledTitle'),
@@ -379,7 +376,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
                         : const SizedBox.shrink(),
                   ),
                 SettingRow(
-                  icon: LucideIcons.shield,
                   title: 'Who can connect',
                   subtitle: describeRemoteAccessPairing(
                     requiresAuthentication: webState.requiresAuthentication,
@@ -398,7 +394,6 @@ class _RemoteAccessSettingsState extends ConsumerState<RemoteAccessSettings> {
               _RemoteTailscalePanel(
                 webState: webState,
                 pairingCode: pairingState.pairingCode,
-                appVersion: appVersion.version,
                 onStartPairing: pairingState.pairingCode == null
                     ? () => ref.read(pairingProvider.notifier).startPairing()
                     : null,

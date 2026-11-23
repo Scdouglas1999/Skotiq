@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+import '../harness/event_wire.dart';
 
 /// Snapshot cover for the ADU-convergence math.
 ///
@@ -54,12 +56,10 @@ class _LinearPanelBackend {
       scheduleMicrotask(() {
         if (!_eventController.isClosed) {
           _eventController.add(
-            const SkotiqEvent(
-              timestamp: 0,
-              severity: EventSeverity.info,
-              category: EventCategory.imaging,
-              eventType: 'ExposureComplete',
-              data: {},
+            ffiWireEvent(
+              const bridge.EventPayload.imaging(
+                bridge.ImagingEvent.exposureComplete(success: true),
+              ),
             ),
           );
         }

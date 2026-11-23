@@ -7,6 +7,8 @@ import '../../error.dart';
 import '../../frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
+// These functions are ignored because they are not marked as `pub`: `master_build_failed`
+
 /// One-shot batch integration of a sub list into a linear FITS master.
 ///
 /// Pipeline: optional calibration (dark/flat/bias) + cosmetic correction →
@@ -76,8 +78,9 @@ Future<String> apiBuildMasterFlat({required String argsJson}) => RustLib
 ///
 /// `args_json` is a [`BuildCalibrationMasterArgs`]; the result is a
 /// [`BuildCalibrationMasterResult`]. Frames that cannot make one master (too
-/// few, unreadable, disagreeing, leaking light) are `InvalidInput` with the
-/// reason; a master that could not be written is `OperationFailed`.
+/// few, unreadable, disagreeing) are `InvalidInput` with the reason, and a
+/// light leak is refused as `Refusal::LightLeak`; a master that could not be
+/// written is `OperationFailed`.
 Future<String> apiBuildCalibrationMaster({required String argsJson}) => RustLib
     .instance
     .api

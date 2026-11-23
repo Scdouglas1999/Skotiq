@@ -1,5 +1,5 @@
 // A stopped or dawn-ended run settles idle like a plan that never ran; this
-// record is what keeps the night's results on Tonight (qa-pair QP-22).
+// record is what keeps the night's results on Tonight.
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/models.dart';

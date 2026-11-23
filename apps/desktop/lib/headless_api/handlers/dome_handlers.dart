@@ -1,10 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// bridge-boundary: dome_handlers
-import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:shelf/shelf.dart';
 
+import '../accessory_devices.dart';
 import '../device_commands_route.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
@@ -57,38 +56,9 @@ class DomeHandlers implements RouteSource {
     );
   }
 
-  String _mapShutterState(bridge.ShutterState state) {
-    switch (state) {
-      case bridge.ShutterState.open:
-        return 'open';
-      case bridge.ShutterState.closed:
-        return 'closed';
-      case bridge.ShutterState.opening:
-        return 'opening';
-      case bridge.ShutterState.closing:
-        return 'closing';
-      case bridge.ShutterState.error:
-        return 'error';
-      case bridge.ShutterState.unknown:
-        return 'unknown';
-    }
-  }
-
-  String _mapShutterStatus(bridge.ShutterStatus? status) {
-    if (status == null) return 'unknown';
-    switch (status) {
-      case bridge.ShutterStatus.open:
-        return 'open';
-      case bridge.ShutterStatus.closed:
-        return 'closed';
-      case bridge.ShutterStatus.opening:
-        return 'opening';
-      case bridge.ShutterStatus.closing:
-        return 'closing';
-      case bridge.ShutterStatus.unknown:
-        return 'unknown';
-    }
-  }
+  Future<DomeCapabilities> _capabilities(String deviceId) async =>
+      await container.read(domeCapabilityFetcherProvider)(deviceId) ??
+      const DomeCapabilities();
 
   /// POST /api/dome/open
   Future<Response> handleDomeOpen(Request request) async {
@@ -100,7 +70,7 @@ class DomeHandlers implements RouteSource {
         'deviceId': deviceId,
       });
     }
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canSetShutter,
@@ -121,7 +91,7 @@ class DomeHandlers implements RouteSource {
         'deviceId': deviceId,
       });
     }
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canSetShutter,
@@ -146,7 +116,7 @@ class DomeHandlers implements RouteSource {
         'deviceId': deviceId,
       });
     }
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canSetAzimuth,
@@ -175,7 +145,7 @@ class DomeHandlers implements RouteSource {
       });
     }
 
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canSlave,
@@ -201,7 +171,7 @@ class DomeHandlers implements RouteSource {
         'deviceId': deviceId,
       });
     }
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canPark,
@@ -223,7 +193,7 @@ class DomeHandlers implements RouteSource {
       });
     }
 
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canFindHome,
@@ -246,7 +216,7 @@ class DomeHandlers implements RouteSource {
       });
     }
 
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
+    final caps = await _capabilities(deviceId);
     await _requireCapability(
       deviceId: deviceId,
       supported: caps.canAbort,
@@ -276,11 +246,11 @@ class DomeHandlers implements RouteSource {
       });
     }
 
-    final status = await bridge.apiGetDomeStatus(deviceId: deviceId);
+    final status = await accessoriesOf(container).readDomeStatus(deviceId);
     return jsonOk({
       'connected': status.connected,
       'deviceId': deviceId,
-      'shutterState': _mapShutterState(status.shutterStatus),
+      'shutterState': status.shutter.name,
       'azimuth': status.azimuth,
       'altitude': status.altitude,
       'slewing': status.slewing,
@@ -311,23 +281,7 @@ class DomeHandlers implements RouteSource {
       });
     }
 
-    final caps = await bridge.apiGetDomeCapabilities(deviceId: deviceId);
-    return jsonOk({
-      'deviceId': deviceId,
-      'canSetAzimuth': caps.canSetAzimuth,
-      'canSetShutter': caps.canSetShutter,
-      'canPark': caps.canPark,
-      'canFindHome': caps.canFindHome,
-      'canSyncAzimuth': caps.canSyncAzimuth,
-      'canSlave': caps.canSlave,
-      'canSetSlave': caps.canSlave,
-      'canAbort': caps.canAbort,
-      'slewing': caps.slewing,
-      'atHome': caps.atHome,
-      'atPark': caps.atPark,
-      'slaved': caps.slaved,
-      'azimuth': caps.azimuth,
-      'shutterStatus': _mapShutterStatus(caps.shutterStatus),
-    });
+    final caps = await _capabilities(deviceId);
+    return jsonOk({'deviceId': deviceId, ...caps.toJson()});
   }
 }

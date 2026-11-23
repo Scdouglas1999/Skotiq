@@ -1,0 +1,7 @@
+{
+  "channels": 3,
+  "height": 768,
+  "outputPath": "/masters/M31_L_export.fits",
+  "pixelType": "u16",
+  "width": 1024
+}

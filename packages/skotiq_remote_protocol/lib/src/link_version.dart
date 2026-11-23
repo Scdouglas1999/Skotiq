@@ -2,10 +2,11 @@
 library;
 
 import 'wire/api_error.dart';
+import 'wire/api_error_codes.dart';
 
 /// The Skotiq release this build is. `version.yaml` is the source; the
 /// version-consistency audit fails CI when this differs from it.
-const String skotiqRelease = '9.1.0';
+const String skotiqRelease = '9.2.0';
 
 /// A client links only to a host of the same Skotiq release.
 ///
@@ -22,11 +23,23 @@ abstract final class LinkVersion {
 
   /// [ApiErrorBody.code] of the host's refusal of a request from another
   /// release.
-  static const mismatchCode = 'version_mismatch';
+  static const mismatchCode = ApiErrorCodes.versionMismatch;
 
   /// [ApiErrorBody.code] of the host's refusal of an API request that does
   /// not say which release sent it.
-  static const releaseRequiredCode = 'release_required';
+  static const releaseRequiredCode = ApiErrorCodes.releaseRequired;
+
+  /// The headers of a request to a host: [headers], the bearer [token] when
+  /// there is one, and this build's release. Every request a client sends a
+  /// host is built with these, so none goes out without the release.
+  static Map<String, String> hostHeaders({
+    String? token,
+    Map<String, String> headers = const {},
+  }) => {
+    ...headers,
+    if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    header: skotiqRelease,
+  };
 
   /// Null when [host] and [client] are the same release; otherwise what is
   /// wrong and which side to update. [host] is the release a host actually

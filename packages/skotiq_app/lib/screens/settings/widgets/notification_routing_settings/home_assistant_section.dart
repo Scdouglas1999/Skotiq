@@ -51,9 +51,9 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
 
     return cfgAsync.when(
       loading: () => const SizedBox.shrink(),
-      error: (e, _) => const SkotiqInlineBanner(
-        message: 'Could not load Home Assistant routing configuration.',
-        severity: SkotiqAlertSeverity.error,
+      error: (e, _) => const SkotiqBanner(
+        title: 'Could not load Home Assistant routing configuration.',
+        tone: BannerTone.error,
       ),
       data: (cfg) {
         if (!_initialized) {
@@ -64,7 +64,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
           title: 'Home Assistant',
           children: [
             SettingRow(
-              icon: LucideIcons.home,
               title: 'Publish to Home Assistant',
               subtitle: brokerConfigured
                   ? 'Auto-discover this observatory as a Home Assistant '
@@ -87,7 +86,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.tag,
               title: 'Device name',
               subtitle: 'Blank = "Skotiq Observatory <profile>"',
               trailing: settingsTrailingTextInput(
@@ -97,7 +95,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shieldAlert,
               title: 'Allow control from Home Assistant',
               subtitle: 'Lets HA pause/resume and abort the running sequence. '
                   'Off = read-only sensors.',
@@ -107,7 +104,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
               ),
             ),
             SettingRow(
-              icon: LucideIcons.save,
               title: 'Save Home Assistant config',
               trailing: SkotiqButton(
                 label: 'Save',
@@ -120,7 +116,6 @@ class _HomeAssistantSectionState extends ConsumerState<_HomeAssistantSection> {
                   context.showInfoSnackBar('Home Assistant config saved');
                 },
               ),
-              isLast: true,
             ),
           ],
         );
@@ -146,7 +141,6 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
         title: 'Home Assistant (imaging host)',
         children: [
           SettingRow(
-            icon: LucideIcons.home,
             title: 'Publish to Home Assistant',
             subtitle: 'Uses the imaging host\'s MQTT broker and its password.',
             trailing: AdminOnlyNotice(),
@@ -161,10 +155,8 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
         title: 'Home Assistant (imaging host)',
         children: [
           SettingRow(
-            icon: LucideIcons.loader,
             title: 'Loading host configuration…',
             trailing: SizedBox.shrink(),
-            isLast: true,
           ),
         ],
       ),
@@ -172,7 +164,6 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
         title: 'Home Assistant (imaging host)',
         children: [
           SettingRow(
-            icon: LucideIcons.alertTriangle,
             title: 'Host configuration unavailable',
             subtitle: 'Reconnect to the imaging host and try again.',
             trailing: SkotiqButton(
@@ -182,7 +173,6 @@ class _RemoteHomeAssistantSection extends ConsumerWidget {
               onPressed: () =>
                   ref.invalidate(remoteHomeAssistantHostSettingsProvider),
             ),
-            isLast: true,
           ),
         ],
       ),
@@ -367,23 +357,21 @@ class _RemoteHomeAssistantFormState
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: SkotiqTokens.spaceMd),
-            child: SkotiqInlineBanner(
-              message: _error!,
-              severity: SkotiqAlertSeverity.error,
+            child: SkotiqBanner(
+              title: _error!,
+              tone: BannerTone.error,
             ),
           ),
         SettingsSection(
           title: 'Home Assistant (imaging host)',
           children: [
             const SettingRow(
-              icon: LucideIcons.server,
               title: 'Runs on the imaging host',
               subtitle: 'This broker is separate from notification MQTT on '
                   'this phone and remains active after the phone disconnects.',
               trailing: SizedBox.shrink(),
             ),
             SettingRow(
-              icon: LucideIcons.home,
               title: 'Publish to Home Assistant',
               subtitle: 'Auto-discover this observatory over host-side MQTT',
               trailing: SettingsSwitch(
@@ -397,7 +385,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.tag,
               title: 'Device name',
               subtitle: 'Blank = Skotiq Observatory and active profile',
               trailing: settingsTrailingTextInput(
@@ -408,7 +395,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.shieldAlert,
               title: 'Allow control from Home Assistant',
               subtitle: 'Permit pause, resume, and abort commands',
               trailing: SettingsSwitch(
@@ -422,7 +408,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.server,
               title: 'Host MQTT broker',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -432,7 +417,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.hash,
               title: 'Broker port',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -442,7 +426,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.user,
               title: 'Broker username',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -452,7 +435,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             _SecretFieldRow(
-              icon: LucideIcons.keyRound,
               title: 'Broker password',
               subtitle: 'Write-only secret stored on the imaging host.',
               controller: _password,
@@ -461,7 +443,6 @@ class _RemoteHomeAssistantFormState
               onChanged: _markPasswordChanged,
             ),
             SettingRow(
-              icon: LucideIcons.messageSquare,
               title: 'State topic',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -471,7 +452,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.fingerprint,
               title: 'MQTT client ID',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -481,7 +461,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.lock,
               title: 'Use TLS',
               trailing: SettingsSwitch(
                 value: _useTls,
@@ -494,7 +473,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.folderTree,
               title: 'Discovery prefix',
               trailing: settingsTrailingTextInput(
                 context: context,
@@ -504,7 +482,6 @@ class _RemoteHomeAssistantFormState
               ),
             ),
             SettingRow(
-              icon: LucideIcons.save,
               title: _dirty ? 'Save host configuration' : 'Host is up to date',
               trailing: SkotiqButton(
                 label: 'Save',
@@ -513,7 +490,6 @@ class _RemoteHomeAssistantFormState
                 isLoading: _saving,
                 onPressed: _saving || !_dirty ? null : _save,
               ),
-              isLast: true,
             ),
           ],
         ),

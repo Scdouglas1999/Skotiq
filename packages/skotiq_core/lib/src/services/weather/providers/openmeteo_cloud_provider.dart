@@ -47,10 +47,18 @@ class OpenMeteoCloudProvider extends RadarProvider {
     required double latitude,
     required double longitude,
     double radiusKm = 100.0,
+  }) async => cloudCoverFrames(
+    await fetchCloudCover(latitude: latitude, longitude: longitude),
+    latitude: latitude,
+    longitude: longitude,
+  );
+
+  /// The site's hourly cloud cover, a day back and the forecast days ahead.
+  Future<CloudCoverSeries> fetchCloudCover({
+    required double latitude,
+    required double longitude,
   }) async {
     try {
-      // Build the API URL.
-      //
       // `timezone=UTC` is REQUIRED, not cosmetic: without it Open-Meteo returns
       // hourly timestamps in the location's local time as naive ISO-8601
       // strings (e.g. "2026-05-30T18:00", no zone designator). `DateTime.parse`
@@ -60,7 +68,7 @@ class OpenMeteoCloudProvider extends RadarProvider {
       // tolerance, so a multi-hour shift would push nearly every dark hour out
       // of tolerance and silently collapse the whole week to "unavailable" for
       // any non-UTC user. Pinning the API to UTC and parsing the (now genuinely
-      // UTC) naive strings as UTC keeps RadarFrame.timestamp a true UTC instant.
+      // UTC) naive strings as UTC keeps each sample's time a true UTC instant.
       final uri = Uri.parse(_baseUrl).replace(
         queryParameters: {
           'latitude': latitude.toString(),
@@ -77,7 +85,7 @@ class OpenMeteoCloudProvider extends RadarProvider {
       final response = await getWithTransientRetry(_httpClient, uri);
 
       if (response.statusCode != 200) {
-        return RadarFetchResult.error(
+        return CloudCoverSeries.error(
           'Open-Meteo API returned status ${response.statusCode}',
         );
       }
@@ -86,33 +94,33 @@ class OpenMeteoCloudProvider extends RadarProvider {
       try {
         json = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (e) {
-        return RadarFetchResult.error('Failed to parse JSON response: $e');
+        return CloudCoverSeries.error('Failed to parse JSON response: $e');
       }
 
       final hourly = json['hourly'] as Map<String, dynamic>?;
       if (hourly == null) {
-        return RadarFetchResult.error('Missing hourly data in response');
+        return CloudCoverSeries.error('Missing hourly data in response');
       }
 
       final timeList = hourly['time'] as List<dynamic>?;
       final cloudCoverList = hourly['cloud_cover'] as List<dynamic>?;
 
       if (timeList == null || cloudCoverList == null) {
-        return RadarFetchResult.error(
+        return CloudCoverSeries.error(
           'Missing time or cloud_cover data in response',
         );
       }
 
       if (timeList.length != cloudCoverList.length) {
-        return RadarFetchResult.error(
+        return CloudCoverSeries.error(
           'Time and cloud_cover arrays have different lengths',
         );
       }
 
-      // Convert to RadarFrame objects. Timestamps are UTC (we requested
-      // `timezone=UTC`), so compare against a UTC "now" for the forecast flag.
+      // Timestamps are UTC (we requested `timezone=UTC`), so compare against
+      // a UTC "now" for the forecast flag.
       final now = DateTime.now().toUtc();
-      final frames = <RadarFrame>[];
+      final samples = <CloudCoverSample>[];
 
       for (int i = 0; i < timeList.length; i++) {
         final timeStr = timeList[i] as String?;
@@ -147,40 +155,24 @@ class OpenMeteoCloudProvider extends RadarProvider {
 
         final clampedCloudCover = cloudCover.clamp(0.0, 100.0);
 
-        // Convert cloud cover percentage to opacity (0.0-1.0)
-        final opacity = clampedCloudCover / 100.0;
-
-        final isForecast = timestamp.isAfter(now);
-
-        // Create point bounds (±0.5 degrees around the requested location)
-        final north = latitude + 0.5;
-        final south = latitude - 0.5;
-        final east = longitude + 0.5;
-        final west = longitude - 0.5;
-
-        frames.add(
-          RadarFrame(
-            timestamp: timestamp,
-            tileUrlTemplate: '', // No tiles for this provider
-            north: north,
-            south: south,
-            east: east,
-            west: west,
-            opacity: opacity,
-            isForecast: isForecast,
+        samples.add(
+          CloudCoverSample(
+            time: timestamp,
+            fraction: clampedCloudCover / 100.0,
+            isForecast: timestamp.isAfter(now),
           ),
         );
       }
 
-      if (frames.isEmpty) {
-        return RadarFetchResult.error('No valid cloud cover data available');
+      if (samples.isEmpty) {
+        return CloudCoverSeries.error('No valid cloud cover data available');
       }
 
-      return RadarFetchResult.success(frames);
+      return CloudCoverSeries.success(samples);
     } on http.ClientException catch (e) {
-      return RadarFetchResult.error('Network error: $e');
+      return CloudCoverSeries.error('Network error: $e');
     } catch (e) {
-      return RadarFetchResult.error('Unexpected error: $e');
+      return CloudCoverSeries.error('Unexpected error: $e');
     }
   }
 
@@ -220,44 +212,8 @@ class OpenMeteoCloudProvider extends RadarProvider {
 
   @override
   String buildTileUrl(RadarFrame frame, int z, int x, int y) {
-    // This provider doesn't have map tiles - cloud cover is stored as opacity
+    // No map tiles: the frames are uniform boxes (see [cloudCoverFrames]).
     return '';
-  }
-
-  /// Gets cloud cover percentage at a specific time.
-  ///
-  /// Finds the closest frame to the requested time and returns the
-  /// cloud cover percentage (0-100). Returns null if no data is available
-  /// or if the frames list is empty.
-  ///
-  /// Parameters:
-  /// - [time]: The time to query cloud cover for
-  /// - [frames]: List of radar frames to search
-  ///
-  /// Returns the cloud cover percentage or null if unavailable.
-  double? getCloudCoverAt(DateTime time, List<RadarFrame> frames) {
-    if (frames.isEmpty) {
-      return null;
-    }
-
-    RadarFrame? closestFrame;
-    Duration? minDifference;
-
-    for (final frame in frames) {
-      final difference = (frame.timestamp.difference(time)).abs();
-
-      if (minDifference == null || difference < minDifference) {
-        minDifference = difference;
-        closestFrame = frame;
-      }
-    }
-
-    if (closestFrame == null) {
-      return null;
-    }
-
-    // Convert opacity back to percentage (0-100)
-    return closestFrame.opacity * 100.0;
   }
 
   @override

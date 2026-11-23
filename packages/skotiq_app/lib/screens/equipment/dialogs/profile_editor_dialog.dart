@@ -14,7 +14,7 @@ import '../../../widgets/sensitivity_field.dart';
 import '../utils/profile_save_errors.dart';
 import '../widgets/profile_glyph.dart';
 import '../../../utils/count_label.dart';
-import '../../../utils/device_format_utils.dart';
+import 'package:skotiq_core/utils.dart' show formatDeviceId;
 import 'package:skotiq_astro/skotiq_astro.dart';
 
 part 'profile_editor_dialog/profile_data_operations.dart';
@@ -186,7 +186,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
 
   final _gainController = TextEditingController();
   final _offsetController = TextEditingController();
-  int _binning = 1;
+  int _binX = 1;
+  int _binY = 1;
   final _coolingTargetController = TextEditingController();
   bool _coolOnConnect = false;
   final _centeringExposureController = TextEditingController();
@@ -267,7 +268,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
         ],
         _gainController.text,
         _offsetController.text,
-        _binning,
+        _binX,
+        _binY,
         _coolingTargetController.text,
         _coolOnConnect,
         _centeringExposureController.text,
@@ -396,7 +398,8 @@ class _ProfileEditorDialogState extends ConsumerState<ProfileEditorDialog> {
       if (profile.defaultOffset != null) {
         _offsetController.text = profile.defaultOffset!.toString();
       }
-      _binning = profile.defaultBinX;
+      _binX = profile.defaultBinX;
+      _binY = profile.defaultBinY;
       if (profile.defaultCoolingTemp != null) {
         _coolingTargetController.text = profile.defaultCoolingTemp!.toString();
       }

@@ -1,20 +1,13 @@
-// Two things the Darkroom did to a reader who pressed a control.
+// Two things the Darkroom must not do to a reader who presses a control.
 //
-// PRESSING "Show more" SHOWED LESS. The Recipe panel is a fixed-height scroll
-// region beside the History stack. Measured against the release bundle
-// 2026-08-31 at 1600x1000 on an autopilot draft, opening "the draft's
-// omissions" left the first paragraph sliced through the glyphs at the panel's
-// bottom edge ("…and draft that composite"), the second omission entirely below
-// it, and pushed the "Render / Up to date with the stack. / Render again" block
-// that HAD been on screen out of view. The content was all reachable by wheel —
-// it is a presentation failure, not a clipped one — and the only thing saying
-// so was a 2-pixel scrollbar thumb.
+// PRESSING "Show more" MUST NOT SHOW LESS. The Recipe panel is a fixed-height
+// scroll region beside the History stack; an account that grows where it
+// stands can slice its own text at the panel's edge and push what was on
+// screen out of view.
 //
-// TYPING A NAME APPENDED IT. "Duplicate as variant" opens with the field
-// focused and the suggested name in it, caret at the end and nothing selected,
-// so a name typed straight into the focused field landed AFTER the suggestion:
-// the branch was written as "Master · B draft variantHarder stretch", in the
-// recipes table and on the branch bar both.
+// TYPING A NAME MUST REPLACE THE SUGGESTION. "Duplicate as variant" opens
+// with the field focused and the suggested name in it; with the caret at the
+// end and nothing selected, a typed name lands AFTER the suggestion.
 //
 // Driven at widget level because both defects are this screen's own: the scroll
 // position, the edges, and the controller's selection.
@@ -132,7 +125,7 @@ Map<String, dynamic> _step(String opId) => {
     };
 
 /// The two omissions the dawn autopilot writes over a one-channel master, in
-/// the words the release bundle printed. Long on purpose: the panel collapses
+/// the words the engine prints. Long on purpose: the panel collapses
 /// an account past [kDarkroomDraftNoteCollapsedChars], and the whole point is
 /// what opening it does.
 const List<RecipeDraftNote> _omissions = [

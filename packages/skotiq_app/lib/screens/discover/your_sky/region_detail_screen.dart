@@ -648,7 +648,7 @@ class _ChangedPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Contributing frames',
           subtitle: anchor == null
               ? 'Every session that has deepened this region.'
@@ -802,7 +802,7 @@ class _ProvenancePanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const SectionTitle(
           title: 'Depth & provenance',
           subtitle: 'How this region was built, tile by tile.',
         ),

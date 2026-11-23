@@ -101,7 +101,7 @@ impl MountDriver for Lx200Mount {
             .park_state
             .lock()
             .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(true);
-        if let Err(e) = write_persisted_park_state(&self.device_id, true) {
+        if let Err(e) = write_persisted_park_state(&self.park_state_file, &self.device_id, true) {
             // Persistence failure must not silently mask a real park — log
             // loudly and propagate so the operator knows the cache is broken.
             tracing::error!(
@@ -136,7 +136,7 @@ impl MountDriver for Lx200Mount {
             .park_state
             .lock()
             .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(false);
-        if let Err(e) = write_persisted_park_state(&self.device_id, false) {
+        if let Err(e) = write_persisted_park_state(&self.park_state_file, &self.device_id, false) {
             tracing::error!(
                 "Failed to persist LX200 unpark state for {}: {}",
                 self.device_id,
@@ -163,10 +163,9 @@ impl MountDriver for Lx200Mount {
         }
 
         // Every other LX200 flavour: ask the distance bar while a goto is
-        // latched. Without it the latch was only ever cleared by an abort, so
-        // a Meade, Losmandy or 10Micron mount read as slewing forever after its
-        // first goto and every sequencer slew waited out its limit and failed.
-        // A mount that does not answer keeps the latched value, as before.
+        // latched; without it a Meade, Losmandy or 10Micron mount would read as
+        // slewing forever after its first goto.
+        // A mount that does not answer keeps the latched value.
         let latched = *self.is_slewing.lock().unwrap_or_else(|e| e.into_inner());
         if latched && !self.mount_type.is_onstep() {
             if let Ok(bars) = self.send_command(commands::DISTANCE_BARS) {
@@ -197,7 +196,9 @@ impl MountDriver for Lx200Mount {
                 .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? = Some(is_parked);
             // Best-effort persist: a write failure logs but does not mask
             // a successful telemetry read.
-            if let Err(e) = write_persisted_park_state(&self.device_id, is_parked) {
+            if let Err(e) =
+                write_persisted_park_state(&self.park_state_file, &self.device_id, is_parked)
+            {
                 tracing::warn!(
                     "Persist OnStep park telemetry failed for {}: {}",
                     self.device_id,
@@ -221,7 +222,7 @@ impl MountDriver for Lx200Mount {
                             .lock()
                             .map_err(|_| DriverError::SdkError("Lock poisoned".into()))? =
                             Some(false);
-                        if let Err(e) = write_persisted_park_state(&self.device_id, false) {
+                        if let Err(e) = write_persisted_park_state(&self.park_state_file, &self.device_id, false) {
                             tracing::warn!(
                                 "Persist Meade park telemetry failed for {}: {}",
                                 self.device_id,
@@ -672,23 +673,9 @@ impl MountDriver for Lx200Mount {
             return Err(DriverError::NotConnected);
         }
 
-        // OnStep and standard LX200 use the same commands for tracking rates
-        let cmd = match rate {
-            TrackingRate::Sidereal => commands::SET_TRACK_SIDEREAL,
-            TrackingRate::Lunar => commands::SET_TRACK_LUNAR,
-            TrackingRate::Solar => commands::SET_TRACK_SOLAR,
-            TrackingRate::King => {
-                // King rate is only supported by OnStep
-                if self.mount_type.is_onstep() {
-                    commands::ONSTEP_SET_RATE_KING
-                } else {
-                    return Err(DriverError::NotSupported);
-                }
-            }
-            TrackingRate::Custom => {
-                return Err(DriverError::NotSupported);
-            }
-        };
+        let cmd = self
+            .tracking_rate_command(rate)
+            .ok_or(DriverError::NotSupported)?;
 
         self.send_command_no_response(cmd)?;
         *self
@@ -730,17 +717,11 @@ impl MountDriver for Lx200Mount {
         true
     }
 
-    /// King rate only on OnStep; no custom rate is set.
     async fn tracking_rates(&self) -> Vec<TrackingRate> {
-        let mut rates = vec![
-            TrackingRate::Sidereal,
-            TrackingRate::Lunar,
-            TrackingRate::Solar,
-        ];
-        if self.mount_type.is_onstep() {
-            rates.push(TrackingRate::King);
-        }
-        rates
+        TrackingRate::ALL
+            .into_iter()
+            .filter(|&rate| self.tracking_rate_command(rate).is_some())
+            .collect()
     }
 
     async fn can_find_home(&self) -> Result<bool, DriverError> {

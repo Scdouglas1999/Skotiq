@@ -68,7 +68,6 @@ class _AdaptiveConditionsSettingsState
               title: 'Swap defaults',
               children: [
                 SettingRow(
-                  icon: LucideIcons.toggleLeft,
                   title: 'Enabled for new schedulers',
                   subtitle:
                       'New TargetScheduler nodes start with adaptive swap enabled and use the score floor below. Existing nodes are not changed.',
@@ -83,7 +82,6 @@ class _AdaptiveConditionsSettingsState
                   ),
                 ),
                 SettingRow(
-                  icon: LucideIcons.gauge,
                   title: 'Score floor',
                   subtitle:
                       'When the live conditions score falls below this 0-100 floor, the scheduler can swap to a better target.',
@@ -102,7 +100,6 @@ class _AdaptiveConditionsSettingsState
                   stackWhenNarrow: true,
                 ),
                 SettingRow(
-                  icon: LucideIcons.timerReset,
                   title: 'Swap hysteresis',
                   subtitle:
                       'Minimum seconds between adaptive target swaps. Range 0-3600.',
@@ -121,7 +118,6 @@ class _AdaptiveConditionsSettingsState
                     },
                   ),
                   stackWhenNarrow: true,
-                  isLast: true,
                 ),
               ],
             ),
@@ -131,7 +127,6 @@ class _AdaptiveConditionsSettingsState
               children: [
                 _WeightRow(
                   key: const ValueKey('adaptiveSwapTransparencyWeightRow'),
-                  icon: LucideIcons.eye,
                   title: 'Transparency weight',
                   subtitle:
                       'Influence of cloudless, clear-sky transparency in the composed conditions score.',
@@ -145,7 +140,6 @@ class _AdaptiveConditionsSettingsState
                       _setWeight(notifier, settings, 'transparency', value),
                 ),
                 _WeightRow(
-                  icon: LucideIcons.aperture,
                   title: 'Seeing weight',
                   subtitle:
                       'Influence of star sharpness and atmospheric steadiness.',
@@ -158,7 +152,6 @@ class _AdaptiveConditionsSettingsState
                       _setWeight(notifier, settings, 'seeing', value),
                 ),
                 _WeightRow(
-                  icon: LucideIcons.cloud,
                   title: 'Cloud weight',
                   subtitle: 'Influence of cloud cover and opacity estimates.',
                   controller: _weightControllers['cloud']!,
@@ -170,7 +163,6 @@ class _AdaptiveConditionsSettingsState
                       _setWeight(notifier, settings, 'cloud', value),
                 ),
                 _WeightRow(
-                  icon: LucideIcons.wind,
                   title: 'Wind weight',
                   subtitle:
                       'Influence of wind speed when choosing whether to stay on target.',
@@ -181,7 +173,6 @@ class _AdaptiveConditionsSettingsState
                   authorityKey: authority,
                   onChanged: (value) =>
                       _setWeight(notifier, settings, 'wind', value),
-                  isLast: true,
                 ),
               ],
             ),
@@ -236,7 +227,6 @@ class _AdaptiveConditionsSettingsState
 }
 
 class _WeightRow extends StatelessWidget {
-  final IconData icon;
   final String title;
   final String subtitle;
   final TextEditingController controller;
@@ -249,11 +239,9 @@ class _WeightRow extends StatelessWidget {
   /// value. A `void` signature would swallow the rejection and leave the
   /// field showing a number that was never saved.
   final Future<void> Function(double) onChanged;
-  final bool isLast;
 
   const _WeightRow({
     super.key,
-    required this.icon,
     required this.title,
     required this.subtitle,
     required this.controller,
@@ -261,13 +249,11 @@ class _WeightRow extends StatelessWidget {
     required this.authoritativeValue,
     required this.authorityKey,
     required this.onChanged,
-    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return SettingRow(
-      icon: icon,
       title: title,
       subtitle: subtitle,
       trailing: SettingsNumberInput(
@@ -282,7 +268,6 @@ class _WeightRow extends StatelessWidget {
         onChanged: onChanged,
       ),
       stackWhenNarrow: true,
-      isLast: isLast,
     );
   }
 }

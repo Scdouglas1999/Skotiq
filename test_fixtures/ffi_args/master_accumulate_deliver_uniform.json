@@ -1,0 +1,13 @@
+{
+  "composites": "bool",
+  "masters": [
+    {
+      "coveragePath": "string",
+      "filter": "string",
+      "path": "string"
+    }
+  ],
+  "minRetainedArea": "number",
+  "outputDir": "string",
+  "scale": "string"
+}

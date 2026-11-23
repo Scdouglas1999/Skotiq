@@ -107,8 +107,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   /// cannot link to it (another Skotiq release), or null.
   Future<LinkVersionMismatch?> _readHostInfo() async {
     final uri = _apiUri(_endpointPath(SystemApi.info, ApiMethod.get));
-    final headers = <String, String>{
-      LinkVersion.header: skotiqRelease,
+    final headers = {
       NetworkBackendTransport._requestIdHeader: _nextRequestId('info'),
     };
     // The handshake probe gets a fixed short ceiling regardless of the
@@ -120,9 +119,12 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     final probeTimeout = isRemoteHost
         ? const Duration(seconds: 6)
         : const Duration(seconds: 3);
-    final response = await _http
-        .get(uri, headers: headers)
-        .timeout(probeTimeout);
+    final response = await getHostInfo(
+      uri,
+      headers: headers,
+      timeout: probeTimeout,
+      client: _http,
+    );
     if (response.statusCode != 200) {
       throw HttpException(
         'GET /api/info failed with HTTP ${response.statusCode}',
@@ -137,17 +139,17 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
     // operator paired with (MITM, stale QR, or a re-keyed host). Throwing here
     // propagates to [connect], which surfaces it as a terminal
     // [BackendConnectionState.error] rather than spinning on reconnect.
-    _verifyPinnedFingerprint(info['fingerprint']);
-    final authRequired = info['authRequired'];
-    _hostRequiresPairing = authRequired is bool ? authRequired : null;
+    final advert = HostAdvertRead.fromJson(info);
+    _verifyPinnedFingerprint(advert.fingerprint);
+    _hostRequiresPairing = advert.authRequired;
     // The server instance decides whether the event cursor cached on the
     // previous attachment still applies to the server about to be joined.
     final advertisedInstance = info['serverInstanceId'];
     if (advertisedInstance is String && advertisedInstance.isNotEmpty) {
       _reconcileInstanceFromInfo(advertisedInstance);
     }
-    final release = info['version'];
-    if (release is! String || release.trim().isEmpty) {
+    final release = advert.version;
+    if (release == null || release.trim().isEmpty) {
       throw HttpException(
         'GET /api/info did not answer as a Skotiq host (no release)',
         uri: uri,
@@ -161,13 +163,13 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
   /// null/empty (pinning disabled). Throws a typed connection error on
   /// mismatch — including when the client pinned a fingerprint but the server
   /// advertised none (a downgrade an attacker could otherwise exploit).
-  void _verifyPinnedFingerprint(Object? advertised) {
+  void _verifyPinnedFingerprint(String? advertised) {
     final pinned = pinnedFingerprint;
     if (pinned == null || pinned.isEmpty) {
       return;
     }
-    final serverFp = advertised is String ? advertised.trim() : '';
-    if (serverFp.isEmpty) {
+    final serverFp = advertised?.trim();
+    if (serverFp == null || serverFp.isEmpty) {
       throw dart_error.ServerIdentityMismatchError(
         expectedFingerprint: pinned,
         actualFingerprint: null,
@@ -304,7 +306,6 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
         queryParameters['ticket'] = wsTicket;
         upgradeUsedTicket = true;
       }
-      queryParameters[LinkVersion.queryParameter] = skotiqRelease;
       // If we've previously attached to this server instance and have
       // a seq cursor to ask replay from, include both. The server-side
       // /events handler treats omitting either parameter as "fresh
@@ -473,10 +474,7 @@ extension _NetworkBackendConnectionLifecycle on NetworkBackendTransport {
       // completes; `ready` resolves only when the server accepts it and
       // throws the refusal otherwise (401/403 auth rejection, 429 auth
       // lockout). Awaiting it is what makes `connected` mean the
-      // handshake actually succeeded — previously we marked the backend
-      // connected while the upgrade was still in flight, so a refused
-      // upgrade surfaced as a connect → hydration fan-out → disconnect
-      // thrash loop on every retry.
+      // handshake actually succeeded.
       await attemptChannel.ready.timeout(requestTimeout);
       if (_isStaleConnect(generation) ||
           !identical(_wsChannel, attemptChannel)) {

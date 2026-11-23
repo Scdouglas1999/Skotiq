@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import 'skotiq_icon_button.dart';
 
 /// A row of grouped actions, separated by hairlines rather than boxes.

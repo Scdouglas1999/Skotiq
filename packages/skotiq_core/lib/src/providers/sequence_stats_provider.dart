@@ -13,6 +13,7 @@ import '../database/daos/session_diagnostics_dao.dart';
 import 'package:skotiq_astro/format.dart';
 import '../database/stores/host_records.dart';
 import 'database_provider.dart';
+import 'host_reread.dart';
 import 'sequence/run_record.dart';
 import '../models/sequence/run_stop_classification.dart';
 
@@ -342,13 +343,8 @@ class SequenceRunStats {
         final filters = targetEntry.value as Map<String, dynamic>;
         stats.targetBreakdown[targetEntry.key] = {};
         for (final filterEntry in filters.entries) {
-          final fMap = filterEntry.value as Map<String, dynamic>;
-          final fs = FilterStats();
-          fs.captured = (fMap['captured'] as num?)?.toInt() ?? 0;
-          fs.rejected = (fMap['rejected'] as num?)?.toInt() ?? 0;
-          fs.integrationSecs =
-              (fMap['integrationSecs'] as num?)?.toDouble() ?? 0.0;
-          stats.targetBreakdown[targetEntry.key]![filterEntry.key] = fs;
+          stats.targetBreakdown[targetEntry.key]![filterEntry.key] =
+              FilterStats.fromJson(filterEntry.value as Map<String, dynamic>);
         }
       }
     }
@@ -361,6 +357,15 @@ class FilterStats {
   int captured = 0;
   int rejected = 0;
   double integrationSecs = 0.0;
+
+  FilterStats();
+
+  /// One filter's entry of `stats_json.targetBreakdown`; a missing count
+  /// reads as zero.
+  factory FilterStats.fromJson(Map<String, dynamic> json) => FilterStats()
+    ..captured = (json['captured'] as num?)?.toInt() ?? 0
+    ..rejected = (json['rejected'] as num?)?.toInt() ?? 0
+    ..integrationSecs = (json['integrationSecs'] as num?)?.toDouble() ?? 0.0;
 }
 
 /// Parsed stats from a SequenceRun for easy UI consumption.
@@ -384,7 +389,8 @@ class ParsedRunStats {
   /// [SequenceRunStats.terminalCause].
   final String? terminalCause;
 
-  final Map<String, Map<String, Map<String, dynamic>>> targetBreakdown;
+  /// Per-target, per-filter breakdown: targetName -> filterName -> stats.
+  final Map<String, Map<String, FilterStats>> targetBreakdown;
   final List<String> errorMessages;
   final List<String> warningMessages;
 
@@ -408,14 +414,16 @@ class ParsedRunStats {
   factory ParsedRunStats.fromJson(String json) {
     final map = jsonDecode(json) as Map<String, dynamic>;
 
-    final breakdown = <String, Map<String, Map<String, dynamic>>>{};
+    final breakdown = <String, Map<String, FilterStats>>{};
     final rawBreakdown = map['targetBreakdown'] as Map<String, dynamic>?;
     if (rawBreakdown != null) {
       for (final te in rawBreakdown.entries) {
         breakdown[te.key] = {};
         final filters = te.value as Map<String, dynamic>;
         for (final fe in filters.entries) {
-          breakdown[te.key]![fe.key] = fe.value as Map<String, dynamic>;
+          breakdown[te.key]![fe.key] = FilterStats.fromJson(
+            fe.value as Map<String, dynamic>,
+          );
         }
       }
     }
@@ -503,6 +511,7 @@ final runHistoryProvider = hostRoleProvider<RunHistory>(
 /// Every sequence run on the imaging host, newest first. The dashboard recap,
 /// the Morning Report and the History tab read this.
 final sequenceRunsProvider = StreamProvider<List<SequenceRun>>((ref) {
+  ref.rereadsWithTheHost();
   return ref.watch(runHistoryProvider).watchAllRuns();
 });
 

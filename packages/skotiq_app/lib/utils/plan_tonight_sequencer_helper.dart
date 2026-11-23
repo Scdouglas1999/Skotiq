@@ -4,10 +4,10 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
-import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:uuid/uuid.dart';
 import '../widgets/auto_build_options_dialog.dart';
 import 'held_future.dart';
+import 'open_in_editor.dart';
 import 'snackbar_helper.dart';
 
 Future<SingleTargetSequenceResult> buildPlanTonightTargetSequence({
@@ -168,22 +168,19 @@ Future<SingleTargetSequenceResult> _buildPlanTonightTargetSequenceCore({
   final connected = camera.connectionState == DeviceConnectionState.connected;
   final captureProfile =
       connected ? profile.copyWith(cameraName: camera.deviceName) : profile;
-  final smartNightSettings = SmartNightSettings(
-    gainOverride: options?.gain,
-    offsetOverride: options?.offset,
-    rotateFilters: options?.rotateFilters,
-    useExposurePresets: options != null && !options.useCalculator,
-    defaultFrameDurationSecs: options?.exposures ??
-        const SmartNightSettings().defaultFrameDurationSecs,
-    defaultIntegrationBudgetHours: integrationBudgetHours ??
-        const SmartNightSettings().defaultIntegrationBudgetHours,
-    targetSnr: settings.smartNightTargetSnr,
-    subExposureCeilingSecs: settings.smartNightSubExposureCeilingSecs,
-    subExposureFloorSecs: settings.smartNightSubExposureFloorSecs,
-    coolDownTargetC: profile.defaultCoolingTemp ?? -10.0,
-    hasCoverCalibrator: profile.coverCalibratorId != null &&
-        profile.coverCalibratorId!.trim().isNotEmpty,
-  );
+  final smartNightSettings = SmartNightInputs.forNight(
+    settings,
+    profile,
+    SmartNightSettings(
+      gainOverride: options?.gain,
+      offsetOverride: options?.offset,
+      rotateFilters: options?.rotateFilters,
+      useExposurePresets: options != null && !options.useCalculator,
+      defaultFrameDurationSecs: options?.exposures ??
+          const SmartNightSettings().defaultFrameDurationSecs,
+      hasCoverCalibrator: SmartNightInputs.hasCoverCalibrator(profile),
+    ),
+  ).copyWith(defaultIntegrationBudgetHours: integrationBudgetHours);
 
   return ref.read(smartNightServiceProvider).buildSingleTargetSequence(
         profile: captureProfile,
@@ -490,32 +487,21 @@ Future<bool> _loadMosaicNodesIntoEditor({
 }) async {
   final notifier = ref.read(currentSequenceProvider.notifier);
 
-  // The mosaic node graph has a single InstructionSetNode at its root
-  // whose children are the per-panel TargetHeaderNodes.
-  final rootNode = nodes.values.firstWhere(
-    (n) => n is InstructionSetNode && n.parentId == null,
-    orElse: () => throw StateError(
-      'MosaicService.createMosaicSequence did not produce a root '
-      'InstructionSetNode — refusing to load a malformed mosaic into the '
-      'sequencer.',
-    ),
-  );
+  final rootNode = MosaicService.rootOf(nodes);
 
-  Future<bool> loadReplacing() async {
-    try {
-      final sequence = Sequence.create(
-        name: mosaicName,
-        nodes: nodes,
-        rootNodeId: rootNode.id,
-      );
-      notifier.loadSequence(sequence, discardUnsaved: true);
-      return true;
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) {
-        context.showInfoSnackBar(e.message);
-      }
-      return false;
-    }
+  Future<bool> loadReplacing() {
+    final sequence = Sequence.create(
+      name: mosaicName,
+      nodes: nodes,
+      rootNodeId: rootNode.id,
+    );
+    return openInEditor(
+      context,
+      load: ({required discardUnsaved}) =>
+          notifier.loadSequence(sequence, discardUnsaved: discardUnsaved),
+      prompt: openLoadedSequencePrompt,
+      onLocked: (e) => context.showInfoSnackBar(e.message),
+    );
   }
 
   if (replaceSequence || ref.read(currentSequenceProvider) == null) {
@@ -565,41 +551,6 @@ Future<bool> _loadMosaicNodesIntoEditor({
     }
     return false;
   }
-}
-
-String dsoTypeLabel(DsoType type) => type.displayName;
-
-/// Extract optional catalog metadata from any [CelestialObject].
-({
-  String? catalogId,
-  String? objectType,
-  double? sizeArcmin,
-  String? constellation
-}) celestialObjectMetadata(CelestialObject object) {
-  if (object is DeepSkyObject) {
-    return (
-      catalogId:
-          object.catalogIds.isNotEmpty ? object.catalogIds.first : object.name,
-      objectType: dsoTypeLabel(object.type),
-      sizeArcmin: object.sizeArcMin,
-      constellation: object.constellation,
-    );
-  }
-  if (object is Star) {
-    return (
-      catalogId:
-          object.catalogIds.isNotEmpty ? object.catalogIds.first : object.name,
-      objectType: 'Star',
-      sizeArcmin: null,
-      constellation: object.constellation,
-    );
-  }
-  return (
-    catalogId: object.name,
-    objectType: null,
-    sizeArcmin: null,
-    constellation: null,
-  );
 }
 
 String annotationObjectTypeLabel(ObjectType type) {
@@ -658,50 +609,15 @@ Future<bool> loadPlanTonightSequenceIntoEditor({
       result.sequence.nodes.values.whereType<TargetHeaderNode>().firstOrNull;
   if (templateHeader == null) return false;
 
-  Future<bool> loadReplacing() async {
-    try {
-      notifier.loadSequence(result.sequence, discardUnsaved: false);
-      return true;
-    } on UnsavedChangesException catch (e) {
-      if (!context.mounted) return false;
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Discard unsaved changes?'),
-          content: ConstrainedBox(
-            constraints: AdaptiveDialogConstraints.hybrid(
-              ctx,
-              designMaxWidth: 440,
-            ),
-            child: Text('"${e.currentSequenceName}" has unsaved changes. '
-                'Open the loaded sequence anyway?'),
-          ),
-          actions: [
-            SkotiqButton(
-              label: 'Cancel',
-              variant: ButtonVariant.ghost,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(false),
-            ),
-            SkotiqButton(
-              label: 'Discard and open',
-              variant: ButtonVariant.primary,
-              size: ButtonSize.small,
-              onPressed: () => Navigator.of(ctx).pop(true),
-            ),
-          ],
+  Future<bool> loadReplacing() => openInEditor(
+        context,
+        load: ({required discardUnsaved}) => notifier.loadSequence(
+          result.sequence,
+          discardUnsaved: discardUnsaved,
         ),
+        prompt: openLoadedSequencePrompt,
+        onLocked: (e) => context.showInfoSnackBar(e.message),
       );
-      if (discard != true) return false;
-      notifier.loadSequence(result.sequence, discardUnsaved: true);
-      return true;
-    } on SequenceLockedException catch (e) {
-      if (context.mounted) {
-        context.showInfoSnackBar(e.message);
-      }
-      return false;
-    }
-  }
 
   if (replaceSequence || ref.read(currentSequenceProvider) == null) {
     return loadReplacing();

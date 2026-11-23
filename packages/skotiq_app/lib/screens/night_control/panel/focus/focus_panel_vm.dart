@@ -10,25 +10,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../data/plan/night_run_phase_provider.dart';
-import '../../data/session/session_events_provider.dart';
+import '../../../../services/night_session/night_session_events.dart';
 import '../../night_control_contracts.dart';
 
 enum NightAutofocusStatus { idle, running, done, failed, cancelled }
 
-/// What the Focus tab calls a run. Cancel is its own outcome: the overlay
-/// records it as the status text, with no error and no result.
+/// What the Focus tab calls a run.
 NightAutofocusStatus nightAutofocusStatus({
   required bool isRunning,
   required bool hasError,
   required bool hasResult,
-  required String status,
+  required bool cancelled,
 }) {
   if (isRunning) return NightAutofocusStatus.running;
   if (hasError) return NightAutofocusStatus.failed;
   if (hasResult) return NightAutofocusStatus.done;
-  if (status == 'Autofocus cancelled') return NightAutofocusStatus.cancelled;
+  if (cancelled) return NightAutofocusStatus.cancelled;
   return NightAutofocusStatus.idle;
 }
 
@@ -142,7 +141,7 @@ final nightFocusPanelProvider = Provider<NightFocusPanelVm>((ref) {
     isRunning: overlay.isRunning,
     hasError: overlay.hasError,
     hasResult: result != null,
-    status: overlay.status,
+    cancelled: overlay.cancelled,
   );
 
   final position = connected ? focuser.position : null;

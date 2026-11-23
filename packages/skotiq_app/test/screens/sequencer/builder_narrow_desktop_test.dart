@@ -22,6 +22,7 @@ import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree.dart';
 import 'package:skotiq_app/screens/sequencer/widgets/sequence_tree/ledger_columns.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_ui/skotiq_ui.dart' show SegmentedControl;
 
 import '../../harness/pump_app_screen.dart';
 
@@ -137,16 +138,15 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 600));
 
-    final tabBar = find.byType(TabBar);
-    if (tabBar.evaluate().isEmpty) {
-      // The toolbox collapsed at this width — nothing to clip.
-      return;
-    }
-    final stripRect = tester.getRect(tabBar.first);
+    final strip = find.ancestor(
+      of: find.text('Snippets'),
+      matching: find.byType(SegmentedControl),
+    );
+    expect(strip, findsOneWidget,
+        reason: 'the palette stays open with its tab strip at 1000px');
+    final stripRect = tester.getRect(strip);
     for (final label in const ['Nodes', 'Snippets', 'Targets']) {
-      final finder = find.text(label);
-      if (finder.evaluate().isEmpty) continue;
-      final rect = tester.getRect(finder.first);
+      final rect = tester.getRect(find.text(label));
       expect(
         rect.left,
         greaterThanOrEqualTo(stripRect.left - 0.5),

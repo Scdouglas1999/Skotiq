@@ -14,7 +14,8 @@ import 'host_role.dart';
 import 'capability_provider.dart' show cameraSensitivityProvider;
 import 'equipment/camera_state_provider.dart';
 import 'database_provider.dart';
-import '../services/darkroom_build_service.dart' show observingNight;
+import '../services/calibration/calibration_frame_groups.dart'
+    show observingNight;
 import 'host_settings/host_settings_providers.dart'
     show settingsRowChangesProvider;
 import 'profiles_provider.dart';
@@ -924,7 +925,6 @@ class TemperatureHistoryNotifier extends StateNotifier<List<TemperaturePoint>> {
       }
     }
 
-    // Add some padding
     return (minTemp - 5, maxTemp + 5);
   }
 }

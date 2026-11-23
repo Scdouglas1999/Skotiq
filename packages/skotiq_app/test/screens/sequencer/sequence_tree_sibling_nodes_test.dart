@@ -1,12 +1,8 @@
 // Two sibling instruction nodes of the SAME type at depth 1 must both
-// render. Live drive 2026-08-13 (waveH-final, 38-two-siblings.png): adding a
-// second "Take Exposures" node beside the first left the tree showing ONE
-// instruction card painted over the root card, and the second card absent
-// from the accessibility tree — every model surface (header, pre-flight,
-// timeline) counted two. Root cause: the depth-1 tutorial anchor was a
-// static GlobalKey handed to EVERY node of the matching type, and Flutter
-// resolves a duplicate GlobalKey by stealing the element from its first
-// holder.
+// render. A static GlobalKey handed to EVERY node of the matching type (the
+// depth-1 tutorial anchor) leaves the tree showing ONE card and the second
+// absent from the accessibility tree, because Flutter resolves a duplicate
+// GlobalKey by stealing the element from its first holder.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

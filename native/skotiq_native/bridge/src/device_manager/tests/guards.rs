@@ -311,7 +311,7 @@ async fn insert_camera(
             heartbeat_active: false,
             desired_cooler: None,
             held_camera_state: None,
-            desired_tracking: None,
+            held_tracking: None,
             declared_mount_frame: None,
         },
     );
@@ -329,7 +329,7 @@ async fn overlapped_health_check_does_not_count_until_the_download_ends() {
         release: std::sync::Mutex::new(Some(release_rx)),
         probes: std::sync::atomic::AtomicU32::new(0),
     });
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let id = "alpaca:probe:camera:0";
     insert_camera(&manager, id, camera).await;
     let mut rx = manager.app_state.event_bus.subscribe();
@@ -437,7 +437,7 @@ async fn alpaca_imagearray_holds_the_operation_guard() {
         }
     });
 
-    let manager = Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let id = format!("alpaca:{base_url}:camera:0");
     let driver = skotiq_alpaca::AlpacaCameraDriver::new(skotiq_alpaca::AlpacaCamera::from_server(
         &base_url, 0,
@@ -467,4 +467,61 @@ async fn alpaca_imagearray_holds_the_operation_guard() {
         .expect("join");
     assert!(result.is_err());
     assert!(!manager.is_operation_active(&id));
+}
+
+/// A manager's heartbeat checks that manager's devices: a probe that keeps
+/// failing records the device lost on it, with the heartbeat's sentence.
+#[tokio::test]
+async fn a_heartbeat_checks_the_manager_that_started_it() {
+    let (entered_tx, _entered_rx) = tokio::sync::oneshot::channel();
+    let camera = Arc::new(GatedProbe {
+        aborts: crate::device_manager::rig::camera::ExposureAborts::new(),
+        entered: std::sync::Mutex::new(Some(entered_tx)),
+        release: std::sync::Mutex::new(None),
+        probes: std::sync::atomic::AtomicU32::new(0),
+    });
+    let manager = build_device_manager();
+    let id = "alpaca:probe:camera:own-manager";
+    insert_camera(&manager, id, camera).await;
+    let mut rx = manager.app_state.event_bus.subscribe();
+    manager
+        .start_heartbeat_with_config(
+            id,
+            HeartbeatConfig {
+                base_interval_secs: 1,
+                max_interval_secs: 1,
+                failure_threshold: 1,
+                backoff_multiplier: 1.0,
+                auto_reconnect: false,
+                escalate_to_disconnect: true,
+            },
+        )
+        .await
+        .expect("heartbeat starts");
+    let message = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            match rx.recv().await {
+                Ok(event) => {
+                    if let crate::event::bus::EventPayload::Equipment(
+                        crate::event::equipment::EquipmentEvent::Error {
+                            device_id, message, ..
+                        },
+                    ) = &event.payload
+                    {
+                        if device_id == id {
+                            return message.clone();
+                        }
+                    }
+                }
+                Err(e) => panic!("event bus: {e}"),
+            }
+        }
+    })
+    .await
+    .expect("the device is recorded lost on its own manager");
+    assert_eq!(
+        message,
+        "Device unresponsive after 1 heartbeat failures: probe failed"
+    );
+    manager.stop_heartbeat(id).await.expect("stop");
 }

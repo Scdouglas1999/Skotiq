@@ -10,8 +10,9 @@
 /// assigned", canonicalize PHD2 variants, or derive a fallback display name
 /// MUST route through here rather than re-deriving the logic.
 ///
-/// Format conventions (mirrors `native/skotiq_native/bridge/src/device_id.rs`,
-/// the canonical Rust parser — see the canonical device-ID rules):
+/// Format conventions (mirrors `native/skotiq_native/bridge/src/device_id/mod.rs`,
+/// the canonical Rust parser; test_fixtures/device_id/cases.json records
+/// both parsers' answers):
 ///   - `ascom:<prog_id>`                       (Windows ASCOM COM driver)
 ///   - `alpaca:<proto>://<host>:<port>:<type>:<num>` (cross-platform ASCOM HTTP)
 ///   - `indi:<host>:<port>:<device_name>`      (Linux/macOS INDI server)
@@ -276,6 +277,26 @@ String canonicalGuiderId(String id) {
 /// short-circuit; `DeviceService`, `profile_sidebar` and `equipment_screen` all
 /// route through it rather than inlining their own.
 bool isPhd2DeviceId(String id) => isPhd2WireToken(id.trim().toLowerCase());
+
+/// The PHD2 server a PHD2 [id] names: the host and port of `phd2://host:port`
+/// or `phd2:host:port`, and `localhost:4400` for the bare forms or a part
+/// that is missing.
+({String host, int port}) phd2Endpoint(String id) {
+  String? host;
+  int? port;
+  if (id.startsWith('phd2://')) {
+    final uri = Uri.tryParse(id);
+    host = uri?.host;
+    port = uri?.port == 0 ? null : uri?.port;
+  } else if (id.startsWith('phd2:')) {
+    final parts = id.split(':');
+    if (parts.length >= 3) {
+      host = parts[1];
+      port = int.tryParse(parts[2]) ?? 4400;
+    }
+  }
+  return (host: host ?? 'localhost', port: port ?? 4400);
+}
 
 /// Canonical id of the built-in multi-star guider, as minted by
 /// `bridge/src/builtin_guider/config.rs`.

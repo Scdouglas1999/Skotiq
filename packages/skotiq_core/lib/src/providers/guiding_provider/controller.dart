@@ -8,6 +8,34 @@ final phd2ControllerProvider = Provider<Phd2Controller>((ref) {
   return controller;
 });
 
+/// The guider state a guiding event leaves, or null for an event that says
+/// nothing about it (a guide step, a star statistic). An `AppState` this
+/// build does not know is [Phd2State.unknown], never stopped: that would
+/// offer Start over a guider that may be running.
+Phd2State? phd2StateAfterEvent(GuidingEvent event) => switch (event) {
+  GuidingEvent_AppState(:final state) =>
+    phd2StateFromGuiderWord(state) ?? Phd2State.unknown,
+  GuidingEvent_GuidingStarted() ||
+  GuidingEvent_Resumed() ||
+  GuidingEvent_Settled() => Phd2State.guiding,
+  GuidingEvent_GuidingStopped() => Phd2State.stopped,
+  GuidingEvent_Paused() => Phd2State.paused,
+  GuidingEvent_LostStar() => Phd2State.lostLock,
+  GuidingEvent_Settling() => Phd2State.settling,
+  GuidingEvent_Looping() => Phd2State.looping,
+  GuidingEvent_Calibrating() => Phd2State.calibrating,
+  GuidingEvent_Connected() ||
+  GuidingEvent_Disconnected() ||
+  GuidingEvent_SettleTimedOut() ||
+  GuidingEvent_StopReason() ||
+  GuidingEvent_DitherStarted() ||
+  GuidingEvent_DitherCompleted() ||
+  GuidingEvent_Correction() ||
+  GuidingEvent_CalibrationComplete() ||
+  GuidingEvent_StarSelected() ||
+  GuidingEvent_GuideStats() => null,
+};
+
 /// Serialises guiding commands issued through [Phd2Controller] so a double-tap
 /// — or a UI command racing a programmatic one — cannot fire the same native
 /// call twice or leave a late Start active after the user pressed Stop. Stop is
@@ -15,39 +43,6 @@ final phd2ControllerProvider = Provider<Phd2Controller>((ref) {
 /// in-flight positive command drains. That final stop is the ordering fence:
 /// even if the first stop reached the host before Start did, the terminal
 /// command observed by PHD2 is still Stop.
-/// The guider state an `AppState` string names (the guiding events and the
-/// guider status use the same words); null for one this build does not know.
-Phd2State? phd2StateFromAppState(String? appState) => switch (appState) {
-  'Stopped' => Phd2State.stopped,
-  'Selected' => Phd2State.selected,
-  'Calibrating' => Phd2State.calibrating,
-  'Guiding' => Phd2State.guiding,
-  'LostLock' => Phd2State.lostLock,
-  'Paused' => Phd2State.paused,
-  'Looping' => Phd2State.looping,
-  _ => null,
-};
-
-/// The guider state a guiding event leaves, or null for an event that says
-/// nothing about it (a guide step, a star statistic). An `AppState` this
-/// build does not know is [Phd2State.unknown], never stopped: that would
-/// offer Start over a guider that may be running.
-Phd2State? phd2StateAfterEvent(String eventType, Map<String, dynamic> data) =>
-    switch (eventType) {
-      'AppState' => switch (data['State']) {
-        final String name => phd2StateFromAppState(name) ?? Phd2State.unknown,
-        _ => null,
-      },
-      'GuidingStarted' || 'Resumed' || 'SettleDone' => Phd2State.guiding,
-      'GuidingStopped' => Phd2State.stopped,
-      'Paused' => Phd2State.paused,
-      'StarLost' => Phd2State.lostLock,
-      'Settling' => Phd2State.settling,
-      'LoopingExposures' => Phd2State.looping,
-      'Calibrating' => Phd2State.calibrating,
-      _ => null,
-    };
-
 class _GuidingCommandGate {
   bool _positiveInFlight = false;
   bool _stopInFlight = false;
@@ -318,14 +313,16 @@ class Phd2Controller {
           source: 'Phd2Controller',
         );
 
+        final guiding = guidingEventOf(event);
+        if (guiding == null) return;
         final guiderNotifier = ref.read(guiderStateProvider.notifier);
-        final stateAfter = phd2StateAfterEvent(event.eventType, event.data);
+        final stateAfter = phd2StateAfterEvent(guiding);
         if (stateAfter != null) {
           ref.read(phd2StateProvider.notifier).state = stateAfter;
         }
 
-        switch (event.eventType) {
-          case 'Connected':
+        switch (guiding) {
+          case GuidingEvent_Connected():
             _linkLossHandled = false;
             // The native layer reconnected PHD2 after its connection dropped,
             // which emptied the guider slot.
@@ -335,53 +332,52 @@ class Phd2Controller {
             guiderNotifier.setConnected();
             unawaited(_refreshPixelScale());
             break;
-          case 'Disconnected':
+          case GuidingEvent_Disconnected():
             _handlePhd2LinkLost();
             return;
-          case 'AppState':
-            _afterAppState(event.data['State'], stateAfter);
+          case GuidingEvent_AppState(:final state):
+            _afterAppState(state, stateAfter);
             break;
-          case 'GuideStep':
+          case GuidingEvent_Correction():
             _logger.debug(
               'Processing GuideStep event',
               source: 'Phd2Controller',
             );
-            _handleGuideStep(event.data);
+            _handleGuideStep();
             break;
-          case 'GuideStats':
+          case GuidingEvent_GuideStats(:final snr, :final starMass):
             _logger.debug(
               'Processing GuideStats event',
               source: 'Phd2Controller',
             );
-            _handleGuideStats(event.data);
+            ref.read(guideStatsProvider.notifier).updateStarData(snr, starMass);
             break;
-          case 'StopReason':
-            ref.read(guidingStopReasonProvider.notifier).state =
-                event.data['reason'] as String?;
+          case GuidingEvent_StopReason(:final reason):
+            ref.read(guidingStopReasonProvider.notifier).state = reason;
             break;
-          case 'SettleTimedOut':
-            _handleSettleTimedOut(event.data['error'] as String? ?? '');
+          case GuidingEvent_SettleTimedOut(:final error):
+            _handleSettleTimedOut(error);
             break;
-          case 'GuidingStarted':
+          case GuidingEvent_GuidingStarted():
             ref.read(guidingStopReasonProvider.notifier).state = null;
             guiderNotifier.setGuiding(true);
             unawaited(_refreshPixelScale());
             break;
-          case 'GuidingStopped':
+          case GuidingEvent_GuidingStopped():
             _resetStarLoss();
             guiderNotifier.setGuiding(false);
             break;
-          case 'Resumed':
+          case GuidingEvent_Resumed():
             guiderNotifier.setGuiding(true);
             break;
-          case 'StarLost':
+          case GuidingEvent_LostStar():
             _handleStarLost();
             break;
-          case 'SettleDone':
+          case GuidingEvent_Settled():
             ref.read(guiderSettleTimeoutProvider.notifier).state = null;
             _logger.info('Settle complete', source: 'PHD2');
             break;
-          case 'CalibrationComplete':
+          case GuidingEvent_CalibrationComplete():
             _logger.info('Calibration complete', source: 'PHD2');
             final calibrationNotifier = ref.read(
               calibrationStateProvider.notifier,
@@ -391,11 +387,19 @@ class Phd2Controller {
             }
             unawaited(_refreshPixelScale());
             break;
-          // Note: StarSelected is handled by LockPositionNotifier's own event listener
+          // The lock position follows StarSelected in LockPositionNotifier.
+          case GuidingEvent_Paused() ||
+              GuidingEvent_DitherStarted() ||
+              GuidingEvent_DitherCompleted() ||
+              GuidingEvent_Looping() ||
+              GuidingEvent_Settling() ||
+              GuidingEvent_Calibrating() ||
+              GuidingEvent_StarSelected():
+            break;
         }
 
         // Liveness traffic only — never promote back to connected after Disconnected.
-        if (isPhd2GuidingHeartbeatEvent(event.eventType) &&
+        if (isPhd2GuidingHeartbeatEvent(guiding) &&
             ref.read(guiderStateProvider).connectionState !=
                 DeviceConnectionState.connected) {
           guiderNotifier.setConnected();
@@ -430,7 +434,7 @@ class Phd2Controller {
         .setGuiding(state == Phd2State.guiding);
   }
 
-  void _handleGuideStep(Map<String, dynamic> json) {
+  void _handleGuideStep() {
     // GuideStatsNotifier handles the proper rolling RMS calculation
     // Just update the UI state provider with the current stats
     final stats = ref.read(guideStatsProvider);
@@ -456,13 +460,6 @@ class Phd2Controller {
     ref
         .read(guiderStateProvider.notifier)
         .updateRms(stats.rmsRa, stats.rmsDec, stats.rmsTotal);
-  }
-
-  void _handleGuideStats(Map<String, dynamic> json) {
-    final snr = (json['SNR'] as num?)?.toDouble() ?? 0;
-    final starMass = (json['StarMass'] as num?)?.toDouble() ?? 0;
-
-    ref.read(guideStatsProvider.notifier).updateStarData(snr, starMass);
   }
 
   void _resetStarLoss() {
@@ -649,8 +646,14 @@ class Phd2Controller {
       }
     }
 
+    // An idle guider ("Connected", "Stopped", a star "Selected") is sent
+    // nothing; a word this build does not know may be any active state.
     final status = await readPhd2StatusOrDisconnected(backend);
-    if (status.connected && status.state.toLowerCase() != 'stopped') {
+    final idle = switch (phd2StateFromGuiderWord(status.state)) {
+      Phd2State.stopped || Phd2State.selected => true,
+      _ => false,
+    };
+    if (status.connected && !idle) {
       await backend.guiderStopGuiding();
     }
 

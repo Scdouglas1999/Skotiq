@@ -60,7 +60,7 @@ void main() {
     );
   });
 
-  // A substring test on "cancelled" inside `isRunCancellationNotice` drops a
+  // A substring test on "cancelled" inside `isStoredRunStopNotice` drops a
   // REAL fault whose text contains that word when Stop is pressed, leaving the
   // Session Report with no Errors section at all. These four inputs are each
   // shaped like a message the stack really emits.

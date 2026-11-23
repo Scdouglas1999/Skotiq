@@ -854,7 +854,7 @@ mod tests {
         outcomes
     }
 
-    /// The 2026-11-03 flip after the resume: the mount reached the east side
+    /// The flip after the resume: the mount reached the east side
     /// and tracked, and the guider found no star it would take. Under the
     /// default settings that is a quality problem. The operator is told, the
     /// hold ends and the run images on; the flip is counted when the pier

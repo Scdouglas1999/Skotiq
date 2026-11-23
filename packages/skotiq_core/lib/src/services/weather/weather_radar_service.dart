@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/weather/weather_models.dart';
-import '../../providers/database_provider.dart';
+import '../../database/database.dart';
 import 'radar_provider.dart';
 import 'radar_provider_factory.dart';
 import 'providers/goes_satellite_provider.dart';
@@ -31,7 +30,7 @@ import '../../utils/logging_service.dart';
 /// }
 /// ```
 class WeatherRadarService {
-  final Ref _ref;
+  final SkotiqDatabase Function() _database;
 
   late final RadarProviderFactory _providerFactory;
 
@@ -52,7 +51,7 @@ class WeatherRadarService {
   /// Creates a weather radar service instance.
   ///
   /// The service must be initialized via [initialize] before use.
-  WeatherRadarService(this._ref);
+  WeatherRadarService(this._database);
 
   /// Initializes the service and registers all radar providers.
   ///
@@ -134,7 +133,7 @@ class WeatherRadarService {
   }) async {
     _ensureInitialized();
 
-    final database = _ref.read(databaseProvider);
+    final database = _database();
     final settingsRow = await database.weatherSettingsDao.getOrCreateSettings();
     final refreshInterval = Duration(
       seconds: settingsRow.refreshIntervalSeconds,

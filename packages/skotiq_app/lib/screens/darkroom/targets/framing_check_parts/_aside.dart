@@ -40,9 +40,8 @@ class _Aside extends ConsumerWidget {
       for (final g in planJson['groups'] as List)
         if ((g as Map)['calibration']?['flat'] == null) g['filter'] as String,
     }.where((f) => !noFlat.contains(f)).toList()
-      ..sort(compareDarkroomFilters);
-    final missingFlats = [...noFlat, ...partialFlat]
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
+    final missingFlats = [...noFlat, ...partialFlat]..sort(compareFilterNames);
     final needsAck = missingFlats.isNotEmpty && !session.withoutFlats;
     final belowMinimum = !preview.meetsMinimum;
     final buildReason = busy
@@ -531,7 +530,7 @@ class _NightsChooser extends StatelessWidget {
           _CheckRow(
             key: ValueKey('darkroom_night_${night.key}'),
             value: paths.any((path) => !session.leftOut.containsKey(path)),
-            label: '${darkroomNightLabel(night.evening)} · '
+            label: '${ClockFormat.nightOf(night.evening)} · '
                 '${paths.length} subs'
                 '${paths.contains(reference) ? ' · holds the reference' : ''}',
             onChanged: busy || paths.contains(reference)

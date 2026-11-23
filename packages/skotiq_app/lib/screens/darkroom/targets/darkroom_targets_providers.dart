@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_astro/skotiq_astro.dart' show DsoDesignations;
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -56,6 +55,7 @@ final darkroomTargetsProvider =
   final used = <int, Set<int>>{};
   final drafts = <int, String>{};
   final recipes = RecipesDao(db);
+  final records = await mastersDao.getFramesByMaster();
   for (final m in masters) {
     final path = m.masterFitsPath;
     if (path != null) {
@@ -64,10 +64,10 @@ final darkroomTargetsProvider =
       );
       if (draft != null) drafts[m.id] = draft;
     }
-    final records = await mastersDao.getFramesForMaster(m.id);
-    folded[m.id] = {for (final r in records) r.imageId};
+    final own = records[m.id] ?? const [];
+    folded[m.id] = {for (final r in own) r.imageId};
     used[m.id] = {
-      for (final r in records)
+      for (final r in own)
         if (r.accepted) r.imageId,
     };
   }
@@ -83,46 +83,6 @@ final darkroomTargetsProvider =
     placements: placements,
   );
 });
-
-/// The masters the Targets tab files under the targets [imageIds] belong to,
-/// newest first. A night's Workbench lists these, so the two places agree on
-/// which masters are a target's.
-Future<List<IntegratedMaster>> darkroomMastersOfFrames(
-  SkotiqDatabase db,
-  IntegratedMastersDao mastersDao,
-  DsoDesignations catalog,
-  Set<int> imageIds,
-) async {
-  if (imageIds.isEmpty) return const [];
-  final grouped = await loadDarkroomTargets(db, catalog);
-  final rowsByName = {
-    for (final t in await db.targetsDao.getAllTargets()) t.name: t,
-  };
-  final masters = await mastersDao.getAll();
-  final folded = <int, Set<int>>{
-    for (final m in masters)
-      m.id: {
-        for (final r in await mastersDao.getFramesForMaster(m.id)) r.imageId,
-      },
-  };
-  final own = <IntegratedMaster>{};
-  for (final MapEntry(key: key, value: frames) in grouped.byTarget.entries) {
-    final frameIds = {for (final f in frames) f.id};
-    if (!frameIds.any(imageIds.contains)) continue;
-    for (final m in masters) {
-      if (darkroomMasterBelongsTo(
-        m,
-        key,
-        rowIds: darkroomTargetRowIds(frames, rowsByName[key]),
-        frameIds: frameIds,
-        foldedIds: folded[m.id] ?? const {},
-      )) {
-        own.add(m);
-      }
-    }
-  }
-  return own.toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-}
 
 /// The calibration masters the library offers one filter of a target.
 class DarkroomFilterCalibration {

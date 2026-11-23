@@ -16,7 +16,7 @@
 //! Both ASCOM transports carry this same enum, so the mapping lives here,
 //! compiled and tested on every platform.
 
-use skotiq_cfa::BayerPattern;
+use skotiq_frame::BayerPattern;
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
@@ -51,8 +51,8 @@ pub fn is_colour_sensor(sensor_type: i32) -> bool {
 ///
 /// A colour sensor with no RGGB-style order — `SensorType` 1 (direct colour) or
 /// the 3..=5 CMYG/CMYG2/LRGB mosaics — is left undebayered and writes no
-/// `BAYERPAT` card. That is correct for those families, but once the OSC gate
-/// moved from `SensorType == 1` to `== 2` a Bayer one-shot-colour camera whose
+/// `BAYERPAT` card. That is correct for those families, but a Bayer
+/// one-shot-colour camera whose
 /// driver MISREPORTS its `SensorType` as 1 loses its debayering and its
 /// `BAYERPAT` card silently. Naming the reason lets that misreport be
 /// recognised from the app rather than hunted, and keeps the copy in one place
@@ -347,9 +347,9 @@ mod tests {
         for (x, y) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
             let pattern =
                 bayer_pattern_from_sensor(2, Some(x), Some(y)).expect("offsets name a pattern");
-            let cfa = skotiq_cfa::ColorFilterArray::from(pattern);
+            let cfa = skotiq_frame::ColorFilterArray::from(pattern);
             let name = cfa.letters();
-            let back = skotiq_cfa::ColorFilterArray::parse(&name).unwrap_or_else(|| {
+            let back = skotiq_frame::ColorFilterArray::parse(&name).unwrap_or_else(|| {
                 panic!("offsets ({x}, {y}) produced unmappable BAYERPAT {name}")
             });
             assert_eq!(back, cfa);

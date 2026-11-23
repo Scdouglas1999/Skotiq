@@ -19,15 +19,12 @@ import '../utils/logging_service.dart';
 /// `smart_night.`, from the host that owns the camera when paired.
 ///
 /// One provider so the planner's exposure context and the sensor-spec chain
-/// share a single fetch. They used to load it separately, which on a remote
-/// client meant two `GET /api/smart-night/settings` round trips for every
-/// planner rebuild.
+/// share a single fetch.
 ///
 /// Locally it rides the settings table's own stream rather than reading it
 /// once, so a correction saved anywhere — the camera sensor specs dialog, the
 /// headless API — reaches the planner without a manual invalidation somebody
-/// has to remember. A one-shot read here left the Plan screen still warning
-/// about a camera the user had just described.
+/// has to remember.
 final rigCameraSettingsProvider = FutureProvider<Map<String, String>>((
   ref,
 ) async {

@@ -138,7 +138,6 @@ extension _DeviceServiceMountControls on DeviceService {
     mountNotifier.updatePosition(ra, dec, 0.0, 0.0);
   }
 
-  /// Park the mount
   Future<void> _parkMount() async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {
@@ -167,7 +166,6 @@ extension _DeviceServiceMountControls on DeviceService {
     }
   }
 
-  /// Unpark the mount
   Future<void> _unparkMount() async {
     final deviceId = await _getMountDeviceId();
     if (deviceId == null || deviceId.isEmpty) {

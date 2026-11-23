@@ -6,8 +6,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../widgets/altitude_chart.dart';
+import 'node_status_color.dart';
 import 'notes_panel.dart';
-import 'target_coordinates.dart';
 
 /// A rich card widget for displaying target header nodes in the sequencer.
 /// Shows coordinates, altitude chart, progress tracking, and mosaic panel info.
@@ -44,8 +44,7 @@ class TargetHeaderCard extends ConsumerStatefulWidget {
 /// The step's icon square and the glyph inside it (06 Sequencer).
 ///
 /// File-level so the spinning form of the glyph is the same size as the still
-/// one: it used to be built at a hard-coded 18, so the target's icon grew by
-/// 4 px the moment the run reached it and shrank again when it moved on.
+/// one.
 const double _iconSquare = 28;
 const double _iconGlyph = 14;
 
@@ -59,22 +58,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     _showAltitudeChart = !widget.isMobile;
   }
 
-  Color _getStatusColor() {
-    switch (widget.nodeStatus) {
-      case NodeStatus.running:
-        return widget.colors.info;
-      case NodeStatus.success:
-        return widget.colors.success;
-      case NodeStatus.failure:
-        return widget.colors.error;
-      case NodeStatus.skipped:
-        return widget.colors.textMuted;
-      case NodeStatus.cancelled:
-        return widget.colors.warning;
-      default:
-        return Colors.transparent;
-    }
-  }
+  Color _getStatusColor() => nodeStatusColor(widget.nodeStatus, widget.colors);
 
   /// Whether this target header's subtree is being executed **right now**.
   ///
@@ -239,10 +223,11 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
           // Altitude chart toggle
           // SkotiqIconButton is a fixed 28/32/36 box on every platform: 05 §6
           // gives it no touch behaviour, so on a phone its tappable rect is 20 dp
-          // under Android's 48 dp rule. Until wave 4 grows the component's hit area
-          // (see reports/observatory/w3-sequencer/notes.md), touch platforms keep
-          // the skotiq_ui button that already implements that padding
-          // correctly. Same glyph, same tooltip, legal target.
+          // under Android's 48 dp rule, so touch platforms keep the skotiq_ui
+          // button
+          // that already implements that padding correctly. Same glyph, same
+          // tooltip,
+          // legal target.
           SkotiqIconButton(
             icon: _showAltitudeChart
                 ? LucideIcons.chevronUp
@@ -315,7 +300,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     // pointing. Say "Not set" instead, in the same amber the card already
     // uses for the target category, so an unaimed target is obvious in the
     // tree without opening the properties panel.
-    final unset = targetCoordinatesUnset(node);
+    final unset = node.coordinatesUnset;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -392,7 +377,7 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
     //
     // Same predicate as the coordinate row and the "Needs coordinates" footer,
     // so the three cannot disagree.
-    final unset = targetCoordinatesUnset(node);
+    final unset = node.coordinatesUnset;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -507,26 +492,25 @@ class _TargetHeaderCardState extends ConsumerState<TargetHeaderCard> {
         : null;
 
     // The pre-run label is the node's *execution* status, so everything that
-    // has not run yet lands on the default arm. Saying "Ready" there is a claim
-    // the card has already contradicted two rows above: seen during the GUI
-    // drive 2026-08-09, a target reading `RA Not set  Dec Not set`, carrying the
-    // card's own red blocking-issue dot, and refused by pre-flight with "Target
-    // Coordinates Not Set", still announced itself as **Ready**.
+    // has not run yet lands on the default arm. Saying "Ready" there would
+    // contradict the card two rows above for a target with unset coordinates
+    // that pre-flight refuses.
     //
     // "Ready" is the right word for a target that has not started and could;
     // it is the wrong word for one the app will refuse to run. The same
-    // `targetCoordinatesUnset` predicate the coordinate row uses decides which
+    // `TargetHeaderNode.coordinatesUnset` predicate the coordinate row uses decides which
     // of the two this is.
-    final statusLabel = switch (widget.nodeStatus) {
-      NodeStatus.running => currentNodeDetail ?? progress.message ?? 'Running',
-      NodeStatus.success => 'Completed',
-      NodeStatus.failure => 'Failed',
-      NodeStatus.skipped => 'Skipped',
-      NodeStatus.cancelled
+    final presentation = NodeStatusPresentation.of(widget.nodeStatus);
+    final statusLabel = switch (presentation) {
+      NodeStatusPresentation.running => currentNodeDetail ??
+          progress.message ??
+          NodeStatusPresentation.running.word,
+      NodeStatusPresentation.stopped
           when stats.hasPlannedFrames && stats.hasKnownCompletion =>
-        'Stopped · ${stats.completedFrames} of ${stats.totalFrames} frames',
-      NodeStatus.cancelled => 'Stopped',
-      _ => targetCoordinatesUnset(widget.node) ? 'Needs coordinates' : 'Ready',
+        '${NodeStatusPresentation.stopped.word} · ${stats.completedFrames} of '
+            '${stats.totalFrames} frames',
+      final shown? => shown.word,
+      null => widget.node.coordinatesUnset ? 'Needs coordinates' : 'Ready',
     };
 
     // Build the plan summary. A loop-until-stopped SmartExposure is

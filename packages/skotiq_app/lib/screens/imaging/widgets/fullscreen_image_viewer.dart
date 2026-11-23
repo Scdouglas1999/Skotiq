@@ -37,8 +37,7 @@ class FullscreenImageViewer extends StatelessWidget {
     // Escape has to close this route. It is an opaque full-screen page whose
     // ONLY exit on a desktop-sized window is a 40 px circle in the corner:
     // there is no system back button, no barrier to click away, and the route
-    // covers the whole app. Verified live at 420x900 — Escape did nothing and
-    // the viewer stayed up. Every other modal in the app (pre-flight dialog,
+    // covers the whole app. Every other modal in the app (pre-flight dialog,
     // popup menus) dismisses on Escape, so this one silently breaks the habit.
     return CallbackShortcuts(
       bindings: {

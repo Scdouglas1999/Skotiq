@@ -152,11 +152,12 @@ class DarkLibraryService {
     if (frames.isEmpty) {
       throw ArgumentError('frames must not be empty');
     }
-    if (frames.length < 2) {
-      throw ArgumentError('Need at least 2 frames to create a master dark');
+    if (frames.length < calibrationMasterMinFrames) {
+      throw ArgumentError(
+        'Need at least $calibrationMasterMinFrames frames to create a master dark',
+      );
     }
 
-    // Validate all frames share matching parameters
     final first = frames.first;
     for (final frame in frames.skip(1)) {
       if (frame.exposureTime != first.exposureTime ||

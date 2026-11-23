@@ -1,11 +1,10 @@
 // Remote Access must hand the operator the one detail they need to fix a
 // failed start.
 //
-// Audit 2026-07-29: enabling remote access on a port another process held showed
-// "Remote access failed to start: SocketException: Failed to create server
-// socket (OS Error: Address already in use, errno = 98), address = 0.0.0...." —
-// ellipsised after two lines, cutting off the port. The row now shows a
-// plain-language summary (and keeps the raw text copyable).
+// A raw SocketException ("Failed to create server socket (OS Error: Address
+// already in use, errno = 98), address = 0.0.0....") ellipsised after two
+// lines cuts off the port, so the row shows a plain-language summary (and
+// keeps the raw text copyable).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/settings/widgets/remote_access_settings.dart';

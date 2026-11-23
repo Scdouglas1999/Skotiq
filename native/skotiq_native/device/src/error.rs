@@ -14,8 +14,23 @@ pub enum DriverError {
     #[error("Invalid device: {0}")]
     InvalidDevice(String),
 
+    /// The vendor SDK no longer lists the device, so a cached device list
+    /// that offers it is out of date. Worded as an invalid device.
+    #[error("Invalid device: {0}")]
+    NotEnumerated(String),
+
     #[error("SDK error: {0}")]
     SdkError(String),
+
+    /// The device still answers, but its SDK session is broken: it takes no
+    /// exposure until it is closed and opened again. Worded as an SDK error.
+    #[error("SDK error: {0}")]
+    SessionLost(String),
+
+    /// The file asked for is not on the device (a camera whose memory was
+    /// cleared). Worded as an SDK error.
+    #[error("SDK error: {0}")]
+    FileGone(String),
 
     #[error("SDK not loaded")]
     SdkNotLoaded,

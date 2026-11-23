@@ -9,7 +9,10 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
         MountTimeInfo;
 
 import '../../models/backend/backend_types.dart';
+import '../../models/equipment/equipment_models.dart'
+    show CalibratorStatus, CoverStatus, ShutterStatus;
 import '../../models/equipment/guider_for_move.dart';
+import '../../models/imaging/autofocus_request.dart';
 import '../../models/imaging/imaging_models.dart' show FrameType;
 
 /// Typed environmental telemetry shared by local FFI and remote HTTP
@@ -90,6 +93,105 @@ class HardwareDomeStatus {
 /// label, which read hardware state rather than the last command sent.
 abstract interface class DomeStatusBackend {
   Future<HardwareDomeStatus> getHardwareDomeStatus(String deviceId);
+}
+
+/// A dome's status as its driver reports it: every field of the native
+/// reading, the shutter included when the driver has none
+/// ([HardwareDomeStatus] is the dome card's narrower view of it).
+class DomeStatusReading {
+  final bool connected;
+  final double azimuth;
+  final double? altitude;
+  final ShutterStatus shutter;
+  final bool slewing;
+  final bool atHome;
+  final bool atPark;
+  final bool canSetAltitude;
+  final bool canSetAzimuth;
+  final bool canSetShutter;
+  final bool canSlave;
+  final bool isSlaved;
+
+  const DomeStatusReading({
+    required this.connected,
+    required this.azimuth,
+    required this.altitude,
+    required this.shutter,
+    required this.slewing,
+    required this.atHome,
+    required this.atPark,
+    required this.canSetAltitude,
+    required this.canSetAzimuth,
+    required this.canSetShutter,
+    required this.canSlave,
+    required this.isSlaved,
+  });
+}
+
+/// One channel of a switch device as the driver describes it.
+class SwitchChannelInfo {
+  final int index;
+  final String name;
+  final String description;
+  final bool isBoolean;
+  final double minValue;
+  final double maxValue;
+  final double step;
+  final bool canWrite;
+  final double value;
+
+  const SwitchChannelInfo({
+    required this.index,
+    required this.name,
+    required this.description,
+    required this.isBoolean,
+    required this.minValue,
+    required this.maxValue,
+    required this.step,
+    required this.canWrite,
+    required this.value,
+  });
+}
+
+/// A cover/calibrator's status as its driver reports it.
+class CoverCalibratorReading {
+  final bool connected;
+  final CoverStatus cover;
+  final CalibratorStatus calibrator;
+  final int brightness;
+  final int maxBrightness;
+
+  const CoverCalibratorReading({
+    required this.connected,
+    required this.cover,
+    required this.calibrator,
+    required this.brightness,
+    required this.maxBrightness,
+  });
+}
+
+/// Reads and writes of the accessories this process drives, by device id:
+/// domes, switches and cover/calibrators. Implemented by the backend that owns
+/// the device drivers; the host's API answers from it.
+abstract interface class AccessoryDeviceBackend {
+  Future<DomeStatusReading> readDomeStatus(String deviceId);
+
+  /// The switch's channel count as the driver states it, and its channels.
+  Future<({int count, List<SwitchChannelInfo> channels})> readSwitchChannels(
+    String deviceId,
+  );
+
+  /// The live value of channel [switchId].
+  Future<double> readSwitchValue(String deviceId, int switchId);
+
+  /// How many channels the switch has.
+  Future<int> switchChannelCount(String deviceId);
+
+  Future<void> writeSwitchState(String deviceId, int switchId, bool state);
+
+  Future<void> writeSwitchValue(String deviceId, int switchId, double value);
+
+  Future<CoverCalibratorReading> readCoverCalibrator(String deviceId);
 }
 
 /// A known quirk of a device model and the workaround the driver applies for
@@ -356,33 +458,7 @@ abstract class DeviceBackend {
 
   /// Run autofocus
   /// Returns the full autofocus result including focus curve data
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 10,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-
-    /// Backlash this app measured on [deviceId], from its stored calibration,
-    /// or null when it has never been calibrated. Never overrides
-    /// [backlashIn]: a figure the operator typed outranks a measured one.
-    int? measuredBacklashIn,
-  });
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request);
 
   Future<void> autofocusCancel();
 

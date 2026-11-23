@@ -175,7 +175,9 @@ void main() {
         final site = siteByName[ev['site']]!;
         final date = DateTime.parse(ev['date'] as String);
         final times = AstronomyCalculations.calculateTwilightTimes(
-          date: DateTime(date.year, date.month, date.day),
+          date: NightDate.ofCalendarDay(
+            DateTime(date.year, date.month, date.day),
+          ),
           latitudeDeg: n(site['lat']),
           longitudeDeg: n(site['lon']),
         );

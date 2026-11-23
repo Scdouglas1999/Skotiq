@@ -220,7 +220,7 @@ class MountOffTargetRule implements RefAwareSequenceValidator {
     final issues = <ValidationIssue>[];
     for (final node in sequence.enabledNodes) {
       if (node is! TargetHeaderNode) continue;
-      if (node.raHours == 0.0 && node.decDegrees == 0.0) continue;
+      if (node.coordinatesUnset) continue;
 
       final capturesLight = sequence.descendantsOf(node.id).any((id) {
         final child = sequence.nodes[id];

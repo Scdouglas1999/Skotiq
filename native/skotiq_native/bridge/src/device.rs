@@ -23,6 +23,44 @@ pub enum DeviceType {
 }
 
 impl DeviceType {
+    /// Every device type, in declaration order.
+    pub(crate) const ALL: [DeviceType; 11] = [
+        DeviceType::Camera,
+        DeviceType::Mount,
+        DeviceType::Focuser,
+        DeviceType::FilterWheel,
+        DeviceType::Guider,
+        DeviceType::Dome,
+        DeviceType::Rotator,
+        DeviceType::Weather,
+        DeviceType::SafetyMonitor,
+        DeviceType::Switch,
+        DeviceType::CoverCalibrator,
+    ];
+
+    /// The type as the hotplug events name it (`device_class`), which the
+    /// app keys off.
+    pub(crate) fn wire_name(self) -> &'static str {
+        match self {
+            DeviceType::Camera => "camera",
+            DeviceType::Mount => "mount",
+            DeviceType::Focuser => "focuser",
+            DeviceType::FilterWheel => "filterWheel",
+            DeviceType::Rotator => "rotator",
+            DeviceType::Dome => "dome",
+            DeviceType::Weather => "weather",
+            DeviceType::SafetyMonitor => "safetyMonitor",
+            DeviceType::CoverCalibrator => "coverCalibrator",
+            DeviceType::Switch => "switch",
+            DeviceType::Guider => "guider",
+        }
+    }
+
+    /// The type in a sentence: "dome", "safety monitor".
+    pub(crate) fn noun(self) -> String {
+        self.as_str().to_lowercase()
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             DeviceType::Camera => "Camera",
@@ -136,6 +174,30 @@ pub enum DriverType {
     Simulator,
 }
 
+impl DriverType {
+    /// The protocol as the hotplug events name it (`driver`).
+    pub(crate) fn wire_name(self) -> &'static str {
+        match self {
+            DriverType::Native => "native",
+            DriverType::Ascom => "ascom",
+            DriverType::Alpaca => "alpaca",
+            DriverType::Indi => "indi",
+            DriverType::Simulator => "simulator",
+        }
+    }
+
+    /// How the protocol names itself in messages.
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            DriverType::Ascom => "ASCOM",
+            DriverType::Alpaca => "Alpaca",
+            DriverType::Indi => "INDI",
+            DriverType::Native => "Native",
+            DriverType::Simulator => "Simulator",
+        }
+    }
+}
+
 /// Current status of a camera
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CameraStatus {
@@ -179,14 +241,18 @@ pub enum CameraState {
     Error,
 }
 
-/// Frame type for camera exposures
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum FrameType {
+pub use skotiq_frame::FrameType;
+
+/// What a captured frame is (`skotiq_frame::FrameType`). A camera is never
+/// asked for a snapshot; it takes a light.
+#[flutter_rust_bridge::frb(mirror(FrameType))]
+pub enum _FrameType {
     Light,
     Dark,
     Flat,
     Bias,
     DarkFlat,
+    Snapshot,
 }
 
 /// Per-field availability for `MountStatus` so the UI can distinguish
@@ -302,6 +368,33 @@ pub enum TrackingRate {
     Solar,
     King,
     Custom,
+}
+
+impl TrackingRate {
+    /// The rate `mount_set_tracking_rate` takes as `wire` (ASCOM
+    /// `DriveRates`, with 4 for a custom rate).
+    pub(crate) fn from_wire(wire: i32) -> Option<Self> {
+        Some(match wire {
+            0 => Self::Sidereal,
+            1 => Self::Lunar,
+            2 => Self::Solar,
+            3 => Self::King,
+            4 => Self::Custom,
+            _ => return None,
+        })
+    }
+
+    /// [`Self::from_wire`] the other way; `None` for a custom rate, which
+    /// has no value to set it back with.
+    pub(crate) fn to_wire(self) -> Option<i32> {
+        match self {
+            Self::Sidereal => Some(0),
+            Self::Lunar => Some(1),
+            Self::Solar => Some(2),
+            Self::King => Some(3),
+            Self::Custom => None,
+        }
+    }
 }
 
 /// Current status of a focuser

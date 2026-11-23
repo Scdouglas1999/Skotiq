@@ -116,9 +116,7 @@ class EquipmentConnectionRule implements RefAwareSequenceValidator {
         // when no enabled node could be attributed.
         //
         // The remediation follows the guider actually in hand — see
-        // [_guiderResolutionHint]. Naming PHD2 unconditionally sent an
-        // operator running the built-in guider to a panel that has no
-        // Connect button for it.
+        // [_guiderResolutionHint].
         final hint = _guiderResolutionHint(gs);
         final perNode = <ValidationIssue>[];
         for (final node in sequence.enabledNodes) {

@@ -188,7 +188,6 @@ mixin _NetworkBackendPlanningAccessoryOperations on NetworkBackendTransport {
     );
   }
 
-  /// Check if refocus needed based on temperature drift
   Future<Map<String, dynamic>> shouldRefocus({
     required double currentTemp,
     required double lastFocusTemp,

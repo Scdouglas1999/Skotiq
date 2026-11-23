@@ -23,8 +23,13 @@ class _SwappableBackendNotifier extends BackendNotifier {
 }
 
 void main() {
-  setUpAll(() {
+  // The built-in templates are bundled files; widget tests run in fake time,
+  // where reading an asset does not complete, so they are read once here.
+  late List<Sequence> builtIns;
+  setUpAll(() async {
     registerFallbackValue(Sequence.create(name: 'fallback'));
+    TestWidgetsFlutterBinding.ensureInitialized();
+    builtIns = await const BuiltInTemplateService().load(now: DateTime.now());
   });
 
   test('saving a custom template does not replace the built-in catalog',
@@ -41,6 +46,7 @@ void main() {
       overrides: [
         inMemoryDatabaseOverride(),
         sequenceRepositoryProvider.overrideWithValue(repository),
+        builtInTemplatesProvider.overrideWith((ref) async => builtIns),
       ],
     );
     addTearDown(container.dispose);
@@ -78,6 +84,7 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           sequenceRepositoryProvider.overrideWithValue(repository),
+          builtInTemplatesProvider.overrideWith((ref) async => builtIns),
           currentSequenceProvider.overrideWith((ref) => editor),
           allSnippetsProvider.overrideWithValue(const []),
         ],
@@ -154,6 +161,7 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           sequenceRepositoryProvider.overrideWithValue(repository),
+          builtInTemplatesProvider.overrideWith((ref) async => builtIns),
           currentSequenceProvider.overrideWith((ref) => editor),
           allSnippetsProvider.overrideWithValue(const []),
         ],
@@ -208,6 +216,7 @@ void main() {
         overrides: [
           inMemoryDatabaseOverride(),
           sequenceRepositoryProvider.overrideWithValue(repository),
+          builtInTemplatesProvider.overrideWith((ref) async => builtIns),
           currentSequenceProvider.overrideWith((ref) => editor),
           allSnippetsProvider.overrideWithValue(const []),
           sampleSequencesProvider.overrideWith((ref) async => [starter]),
@@ -269,6 +278,7 @@ void main() {
             (ref) => notifier = _SwappableBackendNotifier(ref, hostA),
           ),
           sequenceRepositoryProvider.overrideWithValue(repository),
+          builtInTemplatesProvider.overrideWith((ref) async => builtIns),
           allSnippetsProvider.overrideWithValue(const []),
         ],
         child: MaterialApp(

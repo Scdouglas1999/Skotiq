@@ -203,7 +203,6 @@ extension ClickIdentifyService on AnnotationService {
         radiusArcmin: radiusArcmin,
       );
       if (simbadData != null) {
-        // Merge with local data or use as base
         result = _mergeObjectData(result, simbadData);
       }
     } catch (e) {

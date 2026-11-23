@@ -2106,8 +2106,8 @@ dependencies = [
  "serde_json",
  "skotiq_alpaca",
  "skotiq_ascom",
- "skotiq_cfa",
  "skotiq_device",
+ "skotiq_frame",
  "skotiq_imaging",
  "skotiq_indi",
  "skotiq_native",
@@ -2125,14 +2125,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "skotiq_cfa"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "skotiq_device"
 version = "0.1.0"
 dependencies = [
@@ -2140,10 +2132,18 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
- "skotiq_cfa",
+ "skotiq_frame",
  "thiserror",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "skotiq_frame"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2166,7 +2166,7 @@ dependencies = [
  "sha1",
  "sha2",
  "sha3",
- "skotiq_cfa",
+ "skotiq_frame",
  "tempfile",
  "thiserror",
  "tracing",
@@ -2203,8 +2203,8 @@ dependencies = [
  "serde",
  "serde_json",
  "serialport",
- "skotiq_cfa",
  "skotiq_device",
+ "skotiq_frame",
  "skotiq_imaging",
  "thiserror",
  "tokio",
@@ -2227,6 +2227,7 @@ dependencies = [
  "serde_json",
  "skotiq_imaging",
  "thiserror",
+ "tokio",
  "tracing",
 ]
 
@@ -2262,8 +2263,8 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
- "skotiq_cfa",
  "skotiq_device",
+ "skotiq_frame",
  "skotiq_imaging",
  "skotiq_platesolve",
  "thiserror",

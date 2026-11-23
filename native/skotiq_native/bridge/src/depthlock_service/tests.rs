@@ -22,7 +22,7 @@ use skotiq_imaging::depthlock::input::{
     AcquisitionSettings, CompatibilityPolicy, ReferenceGeometry,
 };
 use skotiq_imaging::depthlock::DepthState;
-use skotiq_imaging::{write_fits, FitsHeader, ImageData};
+use skotiq_imaging::{write_fits, FitsHeader, ImageData, ProductCards};
 use skotiq_sequencer::depth_goal::{DepthGoalBinding, DepthGoalOps, DepthGoalVerdict};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -214,12 +214,10 @@ fn render_light(
 
 fn master_header(kind: &str) -> FitsHeader {
     let mut h = FitsHeader::new();
-    h.set_string("IMAGETYP", kind);
-    h.set_string("FRAMETYP", "MASTER");
-    h.set_string("CALSTAT", &format!("Skotiq master {kind}"));
-    h.set_int("NFRAMES", 20);
-    h.set_string("COMBMETH", "SIGMA_CLIP");
-    h.set_string("MASTRTYP", "F32");
+    let calstat = format!("Skotiq master {kind}");
+    ProductCards::master(kind, &calstat)
+        .with_frames(20)
+        .write_to(&mut h);
     h
 }
 
@@ -348,6 +346,8 @@ fn definition(night: &Night) -> GoalDefinition {
             bin_x: 1,
             bin_y: 1,
             ccd_temp_c: Some(-10.0),
+            set_point_c: None,
+            read_mode: None,
         },
         compatibility: CompatibilityPolicy::default(),
         dark_path: night.dark.to_string_lossy().into_owned(),

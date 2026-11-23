@@ -10,10 +10,7 @@ import 'sequence_tree_shortcuts.dart';
 
 /// "Find a step" — type a name, pick a match, land on it in the canvas.
 ///
-/// This is the in-tree search that used to be a 160 px field wedged into the
-/// tree's own header row. The header is gone (the canvas bar names the
-/// sequence now), so the search moved into the canvas bar's overflow menu and
-/// became a proper dialog: the same
+/// A dialog in the canvas bar's overflow menu, using the same
 /// [visibleNodeOrderProvider] filter, the same "select then
 /// [revealSequenceRow] through [treeNodeKeyRegistryProvider]" jump the
 /// run's auto-follow uses, and no bespoke overlay portal.

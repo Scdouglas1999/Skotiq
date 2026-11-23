@@ -209,7 +209,7 @@ fn main() {
     line(
         "gaussian_blur sigma 2",
         best_of(5, || {
-            color_composite::mix::gaussian_blur(&plane, W as usize, H as usize, 2.0)
+            recipe::composite::mix::gaussian_blur(&plane, W as usize, H as usize, 2.0)
         }),
     );
     let mut stacker = LiveStacker::new(&frame, LiveStackConfig::default()).unwrap();

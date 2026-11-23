@@ -210,7 +210,7 @@ void main() {
 
     final labels = _semanticsLabels(tester);
     // The top-band icons the live tree could not find. The equipment-profile
-    // shortcut is no longer among them: profiles live on Equipment and in the
+    // shortcut is not among them: profiles live on Equipment and in the
     // instrument bar, and a third way in was a third thing to keep in sync.
     expect(labels, _publishes('Settings'));
     expect(labels, _publishes('Help for this screen'));

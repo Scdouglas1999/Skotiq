@@ -1,7 +1,8 @@
 import 'dart:io';
 
 import 'src/audit_scope.dart';
-import 'src/behavioral_scan.dart' show readLinesLenient;
+import 'src/behavioral_scan.dart'
+    show behavioralScanExtensions, readLinesLenient;
 import 'src/site_register.dart';
 
 /// Placeholder/stub marker audit.
@@ -80,14 +81,24 @@ final _highRiskPattern = RegExp(
   r'placeholder\s*-\s*to be implemented|'
   r'for now\s+return|for now,\s*return|for now\s+we\s+\w+\s+support|'
   r'no-?op in stub mode|silent no-?op|would be\b.+stub mode|'
-  r'simulator implementation for now|'
-  // Empty Dart catch swallows runtime errors entirely — high-risk.
+  r'simulator implementation for now',
+  caseSensitive: false,
+);
+
+/// Silent-fallback shapes (empty catch, `.unwrap_or_default()`, `.ok();`).
+/// In the languages the behavioral audit reads, that audit and its register
+/// own them; here they are high-risk only in the other languages.
+final _silentFallbackPattern = RegExp(
   r'catch\s*\(\s*_\s*\)\s*\{\s*\}|'
-  // `.unwrap_or_default()` and `.ok();` actively discard error/None info.
   r'\.unwrap_or_default\(\)|'
   r'\.ok\(\)\s*;',
   caseSensitive: false,
 );
+
+bool _isHighRisk(String line, String path) =>
+    _highRiskPattern.hasMatch(line) ||
+    (!behavioralScanExtensions.contains(extensionOf(path)) &&
+        _silentFallbackPattern.hasMatch(line));
 
 class PlaceholderScan {
   final List<String> files;
@@ -130,7 +141,7 @@ PlaceholderScan scanPlaceholders(AuditScope scope, String allowlistPath) {
         continue;
       }
       hits.add(entry);
-      if (_highRiskPattern.hasMatch(line)) {
+      if (_isHighRisk(line, path)) {
         highRiskHits.add(entry);
         highRisk.add(
           Finding(

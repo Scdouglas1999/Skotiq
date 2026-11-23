@@ -634,3 +634,143 @@ fn local_drizzle_build_preserves_faint_structure_and_removes_changing_gradients(
     println!("local+2x drizzle: background left={l:.3}, right={r:.3}, faint contrast={:.3}, rejected={}, retained={}", f-l, result["rejected"], delivered["retainedArea"]);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// The rejection tokens a multi-night build takes, and what each one runs:
+/// every rejector, with PixInsight's default bounds.
+#[test]
+fn multi_night_rejection_tokens_name_its_rejectors() {
+    use crate::post_session::multi_night::build_rejection;
+    use skotiq_imaging::integration::Reject;
+    let pi = |n| Reject::pixinsight_auto(n);
+    for (token, frames, expected) in [
+        (None, 22, pi(22)),
+        (Some(""), 5, pi(5)),
+        (Some(" AUTO "), 30, pi(30)),
+        (Some("none"), 9, Reject::None),
+        (
+            Some("percentile"),
+            9,
+            Reject::PercentileClip {
+                low: 0.2,
+                high: 0.1,
+            },
+        ),
+        (
+            Some("winsorized"),
+            9,
+            Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0,
+            },
+        ),
+        (
+            Some("winsorizedSigma"),
+            9,
+            Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0,
+            },
+        ),
+        (
+            Some("linearFit"),
+            9,
+            Reject::LinearFitClip {
+                low: 5.0,
+                high: 4.0,
+            },
+        ),
+        (Some("esd"), 9, pi(25)),
+        (Some("generalizedESD"), 9, pi(25)),
+        (
+            Some("percentileClip"),
+            9,
+            Reject::PercentileClip {
+                low: 0.2,
+                high: 0.1,
+            },
+        ),
+        (
+            Some("linear_fit"),
+            9,
+            Reject::LinearFitClip {
+                low: 5.0,
+                high: 4.0,
+            },
+        ),
+        (
+            Some("winsorized_sigma"),
+            9,
+            Reject::WinsorizedSigmaClip {
+                low: 4.0,
+                high: 3.0,
+            },
+        ),
+        (
+            Some("sigmaClip"),
+            9,
+            Reject::SigmaClip {
+                low: 4.0,
+                high: 3.0,
+            },
+        ),
+        (
+            Some("minMax"),
+            9,
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 1,
+            },
+        ),
+        (
+            Some("min_max"),
+            9,
+            Reject::MinMax {
+                n_low: 1,
+                n_high: 1,
+            },
+        ),
+    ] {
+        assert_eq!(build_rejection(token, frames), Ok(expected), "{token:?}");
+    }
+    assert_eq!(
+        build_rejection(Some("bogus"), 9),
+        Err("unknown rejection 'bogus'".to_string())
+    );
+}
+
+/// A multi-night build of the app's min/max rejection setting runs it (it was
+/// refused as an unknown rejection) and names it on the master.
+#[test]
+fn a_multi_night_build_runs_min_max_rejection() {
+    let dir = scratch("min_max_build");
+    let bias = write_u16(&dir.join("bias.fits"), &vec![100.0; (W * H) as usize]);
+    let lights: Vec<String> = (0..4u64)
+        .map(|i| {
+            let light = write_u16(
+                &dir.join(format!("light{i}.fits")),
+                &render(1.0, 900.0, (0.0, 0.0), false, 81 + i),
+            );
+            let (raw, mut h) = read_frame(Path::new(&light)).unwrap();
+            skotiq_imaging::SipWcs::from_pointing(35.0, 42.0, 0.0, 1.2, W, H)
+                .write_to_header(&mut h);
+            write_fits(Path::new(&light), &raw, &h).unwrap();
+            light
+        })
+        .collect();
+    let master = dir.join("master.fits");
+    let request = serde_json::json!({
+        "op": "build", "gridReference": {"path": lights[0], "calibration": {"bias": bias}},
+        "groups": [{"label": "n", "calibration": {"bias": bias},
+            "lights": lights.iter().map(|path| serde_json::json!({"path": path, "exposureSec": 180.0})).collect::<Vec<_>>()}],
+        "settings": {"normalization": {"enabled": false}, "weighting": {"enabled": false}},
+        "rejection": "minMax", "masterFitsPath": master,
+        "memoryBudgetMb": 1
+    });
+    let result: serde_json::Value =
+        serde_json::from_str(&master_accumulate(request.to_string()).expect("minMax build"))
+            .unwrap();
+    assert_eq!(result["rejection"], "minMax(1,1)");
+    let (_, header) = read_frame(&master).unwrap();
+    assert_eq!(header.get_string("REJECTM"), Some("minMax(1,1)"));
+    std::fs::remove_dir_all(dir).unwrap();
+}

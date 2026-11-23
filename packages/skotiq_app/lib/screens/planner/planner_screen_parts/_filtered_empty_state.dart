@@ -1,5 +1,5 @@
-// The Tonight tab's one empty state: the catalog is missing, or the filters
-// left nothing. Never both, never a stack of cards.
+// The Tonight tab's one empty state: the catalog is missing, the Sun does not
+// set tonight, or the filters left nothing. Never two, never a stack of cards.
 part of '../planner_screen.dart';
 
 /// The single [EmptyState] the candidate list falls back to.
@@ -28,6 +28,16 @@ class _PlannerFilteredEmptyState extends ConsumerWidget {
           body: '${l10n.text('plannerNoCatalogBody')} '
               '${skyCatalogDownloadContents()}',
           settingsLabel: l10n.text('plannerNoCatalogAction'),
+        ),
+      );
+    }
+
+    if (ref.watch(tonightSunStaysUpProvider)) {
+      return plannerCentredEmptyState(
+        EmptyState(
+          icon: LucideIcons.sun,
+          title: l10n.text('plannerMidnightSunTitle'),
+          body: l10n.text('plannerMidnightSunBody'),
         ),
       );
     }

@@ -100,13 +100,11 @@ class IntegrationsSettings extends ConsumerWidget {
             title: 'Imaging host',
             children: [
               SettingRow(
-                icon: LucideIcons.server,
                 title: 'Managed on the imaging host',
                 subtitle: 'Open Skotiq on the rig to enable plugins and enter '
                     'their credentials. Local changes on this client would '
                     'not affect remote sequence execution.',
                 trailing: Icon(LucideIcons.lock, size: 16),
-                isLast: true,
                 stackWhenNarrow: true,
               ),
             ],

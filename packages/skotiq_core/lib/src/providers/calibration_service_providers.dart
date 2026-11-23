@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'linked_host.dart';
 import 'backend_provider.dart';
-import '../services/calibration/auto_calibration_notice.dart';
+import 'calibration/auto_calibration_notice.dart';
 import '../services/calibration_service.dart';
 
 final calibrationServiceProvider = Provider<CalibrationService>((ref) {

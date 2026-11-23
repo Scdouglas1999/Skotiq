@@ -1,4 +1,5 @@
 import 'package:skotiq_ui/skotiq_ui.dart' show SkotiqColors;
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
@@ -19,7 +20,6 @@ import 'package:window_manager/window_manager.dart';
 import 'desktop_app_bootstrap.dart';
 import 'desktop_last_gasp.dart';
 import 'desktop_shutdown_safing.dart';
-import 'desktop_instance.dart';
 import 'desktop_logging_init.dart';
 import 'desktop_relaunch.dart';
 import 'frame_timing_probe.dart';
@@ -59,16 +59,12 @@ class _RemoteClientTarget {
   });
 }
 
-/// Resolve `--flag=value` from [args], falling back to [envKey]. Returns null
-/// when neither is present so callers can apply their own defaults.
-String? _flagValue(List<String> args, String flag, String envKey) {
-  final prefix = '--$flag=';
-  for (final arg in args) {
-    if (arg.startsWith(prefix)) {
-      return arg.substring(prefix.length);
-    }
-  }
-  final env = Platform.environment[envKey];
+/// The first value given to [option] in [args], else its environment variable.
+/// Null when neither is present so callers can apply their own defaults.
+String? _flagValue(List<String> args, LaunchOption option) {
+  final value = option.valuesIn(args).firstOrNull;
+  if (value != null) return value;
+  final env = Platform.environment[option.env!];
   return (env != null && env.isNotEmpty) ? env : null;
 }
 
@@ -80,31 +76,29 @@ String? _flagValue(List<String> args, String flag, String envKey) {
 /// `web_server_enabled` setting true for this run WITHOUT flipping the global
 /// default (so a plain desktop launch never silently exposes a LAN server).
 bool _parseServeFlag(List<String> args) {
-  for (final flag in const ['serve', 'master']) {
-    final prefix = '--$flag';
+  for (final option in const [LaunchOption.serve, LaunchOption.master]) {
     for (final arg in args) {
-      if (arg == prefix) {
+      if (arg == option.flag) {
         return true;
       }
-      if (arg.startsWith('$prefix=')) {
-        final value = arg.substring(prefix.length + 1).toLowerCase();
+      if (arg.startsWith('${option.flag}=')) {
+        final value = arg.substring(option.flag.length + 1).toLowerCase();
         return value == '1' || value == 'true' || value.isEmpty;
       }
     }
   }
-  final env = Platform.environment['SKOTIQ_SERVE'];
+  final env = Platform.environment[LaunchOption.serve.env!];
   return env == '1' || env == 'true';
 }
 
 _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
-  final host = _flagValue(args, 'remote-host', 'SKOTIQ_REMOTE_HOST');
+  final host = _flagValue(args, LaunchOption.remoteHostAddress);
   if (host == null || host.isEmpty) {
     return null;
   }
-  final portRaw = _flagValue(args, 'remote-port', 'SKOTIQ_REMOTE_PORT');
-  final token = _flagValue(args, 'remote-token', 'SKOTIQ_REMOTE_TOKEN');
-  final scheme =
-      _flagValue(args, 'remote-scheme', 'SKOTIQ_REMOTE_SCHEME') ?? 'http';
+  final portRaw = _flagValue(args, LaunchOption.remotePort);
+  final token = _flagValue(args, LaunchOption.remoteToken);
+  final scheme = _flagValue(args, LaunchOption.remoteScheme) ?? 'http';
   return _RemoteClientTarget(
     host: host,
     port: int.tryParse(portRaw ?? '') ?? kDefaultHeadlessPort,
@@ -114,11 +108,12 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 }
 
 void main(List<String> args) async {
+  Log.listen();
   startupTimeline.mark('main');
   WidgetsFlutterBinding.ensureInitialized();
   final isHeadless =
-      args.contains('--headless') ||
-      Platform.environment['SKOTIQ_HEADLESS'] == '1';
+      args.contains(LaunchOption.headless.flag) ||
+      Platform.environment[LaunchOption.headless.env!] == '1';
   await answerLaunchArguments(
     args,
     isHeadless ? LaunchMode.headless : LaunchMode.desktop,
@@ -129,7 +124,7 @@ void main(List<String> args) async {
   final relaunchedFrom = relaunchedFromPid(args);
   final launchArgs = [
     for (final arg in args)
-      if (!arg.startsWith('$relaunchedFromFlag=')) arg,
+      if (!arg.startsWith('${LaunchOption.relaunchedFrom.flag}=')) arg,
   ];
   // An update restarts the app through the updater, which needs to know how
   // it was started (for example --headless --port=...) to start it the same way.
@@ -158,9 +153,9 @@ void main(List<String> args) async {
 
   if (relaunchedFrom != null) {
     // This start replaces process $relaunchedFrom, which is still closing. It
-    // must be gone before anything here opens a store: logging init already
-    // opens native stores that allow one process, and failed with "already
-    // open" when the restart raced the old window's teardown.
+    // must be gone before anything here opens a store: the native start opens
+    // stores that allow one process, and failed with "already open" when the
+    // restart raced the old window's teardown.
     final databaseFile = await resolveDefaultDatabaseFile();
     await waitForPreviousInstance(() async {
       if (processStillRunning(relaunchedFrom)) return true;
@@ -168,15 +163,7 @@ void main(List<String> args) async {
     });
   }
 
-  // Hold the database before logging opens native stores. A probe here used
-  // to take the lock and drop it; the second process could then pass and
-  // open SQLite, and SQLITE_BUSY was read as corruption. The claim stays
-  // for the process. The database open shares it. exit(75) is EX_TEMPFAIL,
-  // and it has to be exit() — returning leaves the process alive.
-  await claimDesktopInstance();
-  startupTimeline.mark('single-instance claim');
-
-  final bootPaths = await initialiseDesktopLogging();
+  final bootPaths = await startDesktopProcess();
 
   // The role, decided once for the life of this process. Flags and variables
   // win; without them, the rig the connect flow remembered makes this a linked

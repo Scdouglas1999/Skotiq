@@ -1,11 +1,9 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-import '../theme/skotiq_colors.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../theme/skotiq_decorations.dart';
 import '../theme/skotiq_icons.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
 import '../utils/text_measure.dart';
 import '../utils/touch_target.dart';
 import 'skotiq_chip.dart';
@@ -512,12 +510,6 @@ class _AdaptiveTabButtonState extends State<_AdaptiveTabButton> {
 
     return Semantics(
       button: true,
-      // Measured on the running app during the GUI drive 2026-08-09: the
-      // sequencer's four tabs came off the accessibility tree as
-      // `Builder [DISABLED]`, `Templates [DISABLED]`, `Sequences [DISABLED]`,
-      // `History [DISABLED]` — every one of them live and clickable. Fifteen
-      // controls on that one screen carried the same false flag.
-      //
       // `Semantics` publishes SemanticsFlag.isEnabled ONLY when `enabled` is
       // passed; `button: true` alone leaves the flag unset, and AT-SPI treats
       // an interactive node with no enabled/sensitive state as disabled. The

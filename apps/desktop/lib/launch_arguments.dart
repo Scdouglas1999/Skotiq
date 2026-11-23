@@ -1,27 +1,193 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:skotiq_core/providers.dart' show AppVersionInfo;
-
-import 'desktop_relaunch.dart' show relaunchedFromFlag;
 
 /// Which start the options belong to: the desktop window or the headless host.
 enum LaunchMode { desktop, headless }
 
-/// One command-line option the app understands.
-@immutable
-class LaunchOption {
+const _both = {LaunchMode.desktop, LaunchMode.headless};
+const _desktop = {LaunchMode.desktop};
+const _headless = {LaunchMode.headless};
+
+/// Every command-line option either start reads, with the environment variable
+/// that stands in for it. A flag that is not here is refused before the app
+/// opens a window, a database or a device.
+enum LaunchOption {
+  help('--help', summary: 'Print this help and exit.', modes: _both),
+  version('--version', summary: 'Print the version and exit.', modes: _both),
+  headless(
+    '--headless',
+    summary: 'Run as a host with no window (also SKOTIQ_HEADLESS=1).',
+    modes: _both,
+    env: 'SKOTIQ_HEADLESS',
+  ),
+  serve(
+    '--serve',
+    optionalValue: true,
+    summary: 'Own the equipment and turn remote access on for this run.',
+    modes: _desktop,
+    env: 'SKOTIQ_SERVE',
+    fixesRole: true,
+  ),
+  master(
+    '--master',
+    optionalValue: true,
+    summary: 'Same as --serve.',
+    modes: _desktop,
+    fixesRole: true,
+  ),
+  remoteHostAddress(
+    '--remote-host',
+    value: 'host',
+    summary: 'Drive the host at this address instead of local equipment.',
+    modes: _desktop,
+    env: 'SKOTIQ_REMOTE_HOST',
+    fixesRole: true,
+  ),
+  remotePort(
+    '--remote-port',
+    value: 'port',
+    summary: 'Port of the remote host.',
+    modes: _desktop,
+    env: 'SKOTIQ_REMOTE_PORT',
+    fixesRole: true,
+  ),
+  remoteToken(
+    '--remote-token',
+    value: 'token',
+    summary: 'Access token for the remote host.',
+    modes: _desktop,
+    env: 'SKOTIQ_REMOTE_TOKEN',
+    fixesRole: true,
+  ),
+  remoteScheme(
+    '--remote-scheme',
+    value: 'http|https',
+    summary: 'Scheme of the remote host (default http).',
+    modes: _desktop,
+    env: 'SKOTIQ_REMOTE_SCHEME',
+    fixesRole: true,
+  ),
+  relaunchedFrom(
+    '--relaunched-from',
+    value: 'pid',
+    summary: 'The process this start replaces.',
+    modes: _desktop,
+    hidden: true,
+    fixesRole: true,
+  ),
+  port(
+    '--port',
+    value: 'port',
+    summary: 'Server port (also SKOTIQ_PORT).',
+    modes: _headless,
+    env: 'SKOTIQ_PORT',
+  ),
+  authToken(
+    '--auth-token',
+    value: 'token',
+    summary: 'Admin access token.',
+    modes: _headless,
+    env: 'SKOTIQ_AUTH_TOKEN',
+  ),
+  viewToken(
+    '--view-token',
+    value: 'token',
+    summary: 'Read-only token.',
+    modes: _headless,
+    env: 'SKOTIQ_VIEW_TOKEN',
+  ),
+  controlToken(
+    '--control-token',
+    value: 'token',
+    summary: 'Imaging-control token.',
+    modes: _headless,
+    env: 'SKOTIQ_CONTROL_TOKEN',
+  ),
+  scopedToken(
+    '--scoped-token',
+    value: 'token=grants',
+    summary: 'Token with per-resource grants; may be repeated.',
+    modes: _headless,
+    env: 'SKOTIQ_SCOPED_TOKEN',
+  ),
+  requireAuth(
+    '--require-auth',
+    summary: 'Generate a random access token.',
+    modes: _headless,
+  ),
+  allowUnauthenticated(
+    '--allow-unauthenticated',
+    summary: 'Serve every endpoint without a token. Unsafe.',
+    modes: _headless,
+    env: 'SKOTIQ_ALLOW_UNAUTHENTICATED',
+  ),
+  allowUnauthenticatedLan(
+    '--allow-unauthenticated-lan',
+    summary: 'Bind to the LAN without a token. Unsafe.',
+    modes: _headless,
+    env: 'SKOTIQ_ALLOW_UNAUTHENTICATED_LAN',
+  ),
+  corsOrigin(
+    '--cors-origin',
+    value: 'origin',
+    summary: 'Allow another web origin; may be repeated.',
+    modes: _headless,
+    env: 'SKOTIQ_CORS_ORIGINS',
+  ),
+  pairingPrintCodes(
+    '--pairing-print-codes',
+    summary: 'Print each pairing code to stdout.',
+    modes: _headless,
+    env: 'SKOTIQ_PAIRING_PRINT_CODES',
+  ),
+  tls(
+    '--tls',
+    summary: 'Serve HTTPS with a self-signed certificate.',
+    modes: _headless,
+    env: 'SKOTIQ_TLS',
+  ),
+  tlsCert(
+    '--tls-cert',
+    value: 'path',
+    summary: 'Certificate PEM to serve HTTPS with.',
+    modes: _headless,
+    env: 'SKOTIQ_TLS_CERT',
+  ),
+  tlsKey(
+    '--tls-key',
+    value: 'path',
+    summary: 'Private key PEM for --tls-cert.',
+    modes: _headless,
+    env: 'SKOTIQ_TLS_KEY',
+  ),
+  relayUrl(
+    '--relay-url',
+    value: 'url',
+    summary: 'Dial out to a Skotiq relay (ws:// or wss://).',
+    modes: _headless,
+    env: 'SKOTIQ_RELAY_URL',
+  ),
+  relayAllowInsecureTls(
+    '--relay-allow-insecure-tls',
+    summary: "Trust the relay's self-signed certificate.",
+    modes: _headless,
+    env: 'SKOTIQ_RELAY_ALLOW_INSECURE_TLS',
+  );
+
   const LaunchOption(
-    this.name, {
-    required this.help,
+    this.flag, {
+    required this.summary,
     required this.modes,
     this.value,
     this.optionalValue = false,
     this.hidden = false,
+    this.env,
+    this.fixesRole = false,
   });
 
   /// The option as typed, with its leading dashes.
-  final String name;
+  final String flag;
 
   /// What the value stands for in the usage text (`--port=<port>`), or null
   /// for a switch.
@@ -30,155 +196,47 @@ class LaunchOption {
   /// True when the switch also takes `=value` (`--serve=true`).
   final bool optionalValue;
 
-  final String help;
+  final String summary;
   final Set<LaunchMode> modes;
 
   /// Set by the app itself between its own processes; left out of the usage.
   final bool hidden;
+
+  /// The environment variable that sets the same thing, if there is one.
+  final String? env;
+
+  /// True when the option picks the desktop's role (host, linked client). A
+  /// relaunch that changes role drops these and blanks their [env].
+  final bool fixesRole;
+
+  /// The option [arg] spells, with its value: `--port=80` is (port, '80'),
+  /// `--tls` is (tls, null). Null for anything else, which includes a value
+  /// option typed without `=value` and a plain switch typed with one.
+  static ({LaunchOption option, String? value})? read(String arg) {
+    final equals = arg.indexOf('=');
+    final flag = equals < 0 ? arg : arg.substring(0, equals);
+    for (final option in values) {
+      if (option.flag != flag) continue;
+      if (equals < 0) {
+        return option.value == null ? (option: option, value: null) : null;
+      }
+      if (option.value == null && !option.optionalValue) return null;
+      return (option: option, value: arg.substring(equals + 1));
+    }
+    return null;
+  }
+
+  /// True when [arg] is this option, with or without a value.
+  bool matches(String arg) => arg == flag || arg.startsWith('$flag=');
+
+  /// The values given to this option in [args], in order.
+  Iterable<String> valuesIn(List<String> args) sync* {
+    final prefix = '$flag=';
+    for (final arg in args) {
+      if (arg.startsWith(prefix)) yield arg.substring(prefix.length);
+    }
+  }
 }
-
-const _both = {LaunchMode.desktop, LaunchMode.headless};
-const _desktop = {LaunchMode.desktop};
-const _headless = {LaunchMode.headless};
-
-/// Every option either start reads. A flag that is not here is refused before
-/// the app opens a window, a database or a device.
-const launchOptions = <LaunchOption>[
-  LaunchOption('--help', help: 'Print this help and exit.', modes: _both),
-  LaunchOption('--version', help: 'Print the version and exit.', modes: _both),
-  LaunchOption(
-    '--headless',
-    help: 'Run as a host with no window (also SKOTIQ_HEADLESS=1).',
-    modes: _both,
-  ),
-  LaunchOption(
-    '--serve',
-    optionalValue: true,
-    help: 'Own the equipment and turn remote access on for this run.',
-    modes: _desktop,
-  ),
-  LaunchOption(
-    '--master',
-    optionalValue: true,
-    help: 'Same as --serve.',
-    modes: _desktop,
-  ),
-  LaunchOption(
-    '--remote-host',
-    value: 'host',
-    help: 'Drive the host at this address instead of local equipment.',
-    modes: _desktop,
-  ),
-  LaunchOption(
-    '--remote-port',
-    value: 'port',
-    help: 'Port of the remote host.',
-    modes: _desktop,
-  ),
-  LaunchOption(
-    '--remote-token',
-    value: 'token',
-    help: 'Access token for the remote host.',
-    modes: _desktop,
-  ),
-  LaunchOption(
-    '--remote-scheme',
-    value: 'http|https',
-    help: 'Scheme of the remote host (default http).',
-    modes: _desktop,
-  ),
-  LaunchOption(
-    relaunchedFromFlag,
-    value: 'pid',
-    help: 'The process this start replaces.',
-    modes: _desktop,
-    hidden: true,
-  ),
-  LaunchOption(
-    '--port',
-    value: 'port',
-    help: 'Server port (also SKOTIQ_PORT).',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--auth-token',
-    value: 'token',
-    help: 'Admin access token.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--view-token',
-    value: 'token',
-    help: 'Read-only token.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--control-token',
-    value: 'token',
-    help: 'Imaging-control token.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--scoped-token',
-    value: 'token=grants',
-    help: 'Token with per-resource grants; may be repeated.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--require-auth',
-    help: 'Generate a random access token.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--allow-unauthenticated',
-    help: 'Serve every endpoint without a token. Unsafe.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--allow-unauthenticated-lan',
-    help: 'Bind to the LAN without a token. Unsafe.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--cors-origin',
-    value: 'origin',
-    help: 'Allow another web origin; may be repeated.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--pairing-print-codes',
-    help: 'Print each pairing code to stdout.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--tls',
-    help: 'Serve HTTPS with a self-signed certificate.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--tls-cert',
-    value: 'path',
-    help: 'Certificate PEM to serve HTTPS with.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--tls-key',
-    value: 'path',
-    help: 'Private key PEM for --tls-cert.',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--relay-url',
-    value: 'url',
-    help: 'Dial out to a Skotiq relay (ws:// or wss://).',
-    modes: _headless,
-  ),
-  LaunchOption(
-    '--relay-allow-insecure-tls',
-    help: "Trust the relay's self-signed certificate.",
-    modes: _headless,
-  ),
-];
 
 /// What the command line asks for.
 sealed class LaunchRequest {
@@ -202,13 +260,13 @@ final class StartApp extends LaunchRequest {
   const StartApp();
 }
 
-const _portOptions = {'--port', '--remote-port'};
+const _portOptions = {LaunchOption.port, LaunchOption.remotePort};
 
 /// Reads [args] for a [mode] start. `--help` wins over everything, then
 /// `--version`; any argument the [mode] does not take is a usage error.
 LaunchRequest readLaunchArguments(List<String> args, LaunchMode mode) {
-  if (args.contains('--help')) return const ShowHelp();
-  if (args.contains('--version')) return const ShowVersion();
+  if (args.contains(LaunchOption.help.flag)) return const ShowHelp();
+  if (args.contains(LaunchOption.version.flag)) return const ShowVersion();
   for (final arg in args) {
     final error = _checkArgument(arg, mode);
     if (error != null) return LaunchUsageError(error);
@@ -221,8 +279,8 @@ String? _checkArgument(String arg, LaunchMode mode) {
   final name = equals < 0 ? arg : arg.substring(0, equals);
   final value = equals < 0 ? null : arg.substring(equals + 1);
   LaunchOption? option;
-  for (final candidate in launchOptions) {
-    if (candidate.name == name) option = candidate;
+  for (final candidate in LaunchOption.values) {
+    if (candidate.flag == name) option = candidate;
   }
   if (option == null) return 'unknown option "$arg"';
   if (!option.modes.contains(mode)) {
@@ -237,7 +295,7 @@ String? _checkArgument(String arg, LaunchMode mode) {
     return null;
   }
   if (value == null) return '$name needs a value: $name=<${option.value}>';
-  if (_portOptions.contains(name)) {
+  if (_portOptions.contains(option)) {
     final port = int.tryParse(value);
     if (port == null || port < 1 || port > 65535) {
       return '$name needs a port number from 1 to 65535, not "$value"';
@@ -255,12 +313,12 @@ String launchUsage() {
     buffer
       ..writeln()
       ..writeln(title);
-    for (final option in launchOptions) {
+    for (final option in LaunchOption.values) {
       if (option.hidden || !include(option)) continue;
       final spelled = option.value == null
-          ? option.name
-          : '${option.name}=<${option.value}>';
-      buffer.writeln('  ${spelled.padRight(30)} ${option.help}');
+          ? option.flag
+          : '${option.flag}=<${option.value}>';
+      buffer.writeln('  ${spelled.padRight(30)} ${option.summary}');
     }
   }
 

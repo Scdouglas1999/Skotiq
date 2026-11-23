@@ -238,7 +238,6 @@ extension _DeviceServiceImagingChainConnections on DeviceService {
     final notifier = _ref.read(mountStateProvider.notifier);
     notifier.setConnected();
 
-    // Fetch actual mount status from hardware instead of hardcoding defaults
     try {
       final status = await _backend.getMountStatus(deviceId);
       notifier.updatePosition(

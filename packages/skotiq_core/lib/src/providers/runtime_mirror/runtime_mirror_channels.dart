@@ -16,6 +16,7 @@ import 'channels/focus_baseline_channel.dart';
 import 'channels/host_session_channel.dart';
 import 'channels/frame_solve_channel.dart';
 import 'channels/live_broadcast_channel.dart';
+import 'channels/live_stack_channel.dart';
 import 'channels/framing_geometry_channel.dart';
 import 'channels/framing_target_channel.dart';
 import 'channels/guider_status_channel.dart';
@@ -30,6 +31,7 @@ import 'channels/run_record_channel.dart';
 import 'channels/scheduled_start_channel.dart';
 import 'channels/sequence_run_channel.dart';
 import 'channels/session_frames_channel.dart';
+import 'channels/weather_safety_channel.dart';
 import 'runtime_mirror_channel.dart';
 
 /// Every runtime channel the host shares with linked clients. Host and client
@@ -71,8 +73,10 @@ final runtimeMirrorChannelsProvider =
         const SwitchChannelsChannel(),
         const NoticeAcknowledgmentsChannel(),
         const LiveBroadcastChannel(),
+        const LiveStackChannel(),
         const ScheduledStartChannel(),
         const EndOfNightChannel(),
+        const WeatherSafetyChannel(),
       ],
     );
 

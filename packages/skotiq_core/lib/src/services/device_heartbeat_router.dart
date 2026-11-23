@@ -101,35 +101,19 @@ class DeviceHeartbeatRouter {
     );
   }
 
-  /// Surface a Dart-driven "reconnecting" health state for [deviceId].
-  ///
-  /// Why this exists (DEV-P1 reconnect-UI gap): the native heartbeat
-  /// monitor defines `HeartbeatReconnecting` / `HeartbeatReconnected`
-  /// events but never emits them (bridge `event.rs` ~220-226). So the
-  /// `reconnecting` indicator was permanently dead during real
-  /// reconnects — whether the native `reconnection_loop` or the Dart
-  /// [DeviceReconnectCoordinator] is doing the reconnecting. This method
-  /// lets the Dart side drive the indicator from the signals it DOES
-  /// receive (a heartbeat-loss disconnect followed by a reconnect
-  /// attempt owned by one of the two engines), so the card reads
-  /// "Reconnecting…" instead of falling back to gray "unknown".
-  ///
-  /// [attempt]/[maxAttempts] are surfaced on the tooltip when known.
-  /// `maxAttempts == 0` means "unknown / open-ended" (the native loop
-  /// retries with no Dart-visible cap), which renders without the
-  /// "of N" suffix.
-  void surfaceReconnecting({
-    required String deviceId,
-    int attempt = 0,
-    int maxAttempts = 0,
-  }) {
+  /// Show [deviceId] as reconnecting while the native reconnection loop
+  /// works on it. The native side defines `HeartbeatReconnecting` but never
+  /// publishes it, so the app lights the indicator from the
+  /// heartbeat-loss disconnect it does see. No attempt count is known, so the
+  /// tooltip shows none.
+  void surfaceReconnecting({required String deviceId}) {
     if (deviceId.isEmpty) return;
     _safeApply(
       contextTag: 'heartbeat-surface-reconnecting',
       apply: (notifier) => notifier.applyReconnecting(
         deviceId: deviceId,
-        attempt: attempt,
-        maxAttempts: maxAttempts,
+        attempt: 0,
+        maxAttempts: 0,
       ),
     );
   }

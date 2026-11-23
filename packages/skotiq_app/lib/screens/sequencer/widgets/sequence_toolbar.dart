@@ -17,6 +17,7 @@ import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/exported_file_reveal.dart';
+import '../../../utils/open_in_editor.dart';
 import '../../settings/widgets/frame_watch_settings_section.dart';
 import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -30,7 +31,6 @@ import 'sequence_overview_prefs.dart';
 import 'sequencer_density.dart';
 import 'sequence_step_finder.dart';
 import 'sequence_tree_shortcuts.dart';
-import 'slew_to_target_dialog.dart';
 import 'smart_night_dialog.dart';
 import 'trigger_configuration_dialog.dart';
 import 'visual_timeline.dart';
@@ -323,46 +323,15 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
 
           Future<void> createNewSequence() async {
             final editor = ref.read(currentSequenceProvider.notifier);
-            try {
-              editor.createSequence();
-            } on UnsavedChangesException catch (e) {
-              // The editor has unsaved edits; ask the user before
-              // throwing them away to start a new sequence. Matches the
-              // Open / Import flows above so all three "clobber"
-              // entry-points behave identically.
-              if (!context.mounted) return;
-              final discard = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('Discard unsaved changes?'),
-                  content: ConstrainedBox(
-                    constraints: AdaptiveDialogConstraints.hybrid(
-                      ctx,
-                      designMaxWidth: 440,
-                    ),
-                    child:
-                        Text('"${e.currentSequenceName}" has unsaved changes. '
-                            'Discard them and start a new sequence?'),
-                  ),
-                  actions: [
-                    SkotiqButton(
-                      label: 'Cancel',
-                      variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(ctx).pop(false),
-                    ),
-                    SkotiqButton(
-                      label: 'Discard',
-                      variant: ButtonVariant.destructive,
-                      size: ButtonSize.small,
-                      onPressed: () => Navigator.of(ctx).pop(true),
-                    ),
-                  ],
-                ),
-              );
-              if (discard != true) return;
-              editor.createSequence(discardUnsaved: true);
-            }
+            await openInEditor(
+              context,
+              load: ({required discardUnsaved}) =>
+                  editor.createSequence(discardUnsaved: discardUnsaved),
+              prompt: const DiscardUnsavedPrompt(
+                consequence: 'Discard them and start a new sequence?',
+                confirmLabel: 'Discard',
+              ),
+            );
           }
 
           Future<void> openSequenceFile() async {
@@ -405,54 +374,26 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                   return;
                 }
                 final editor = ref.read(currentSequenceProvider.notifier);
-                try {
-                  editor.loadSequence(imported);
-                } on UnsavedChangesException catch (e) {
-                  // The editor has unsaved edits; ask the user before
-                  // clobbering them with the freshly loaded sequence.
-                  if (!context.mounted) return;
-                  final discard = await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('Discard unsaved changes?'),
-                      content: ConstrainedBox(
-                        constraints: AdaptiveDialogConstraints.hybrid(
-                          ctx,
-                          designMaxWidth: 440,
-                        ),
-                        child: Text(
-                            '"${e.currentSequenceName}" has unsaved changes. '
-                            'Open the loaded sequence anyway?'),
-                      ),
-                      actions: [
-                        SkotiqButton(
-                          label: 'Cancel',
-                          variant: ButtonVariant.ghost,
-                          size: ButtonSize.small,
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                        ),
-                        SkotiqButton(
-                          label: 'Discard and open',
-                          variant: ButtonVariant.primary,
-                          size: ButtonSize.small,
-                          onPressed: () => Navigator.of(ctx).pop(true),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (discard != true) return;
-                  if (!requireCurrentContext() || !requireUnchangedEditor()) {
-                    return;
-                  }
-                  if (!ref.read(canEditSequenceProvider)) {
-                    if (!context.mounted) return;
+                if (!context.mounted) return;
+                final opened = await openInEditor(
+                  context,
+                  load: ({required discardUnsaved}) => editor.loadSequence(
+                    imported,
+                    discardUnsaved: discardUnsaved,
+                  ),
+                  prompt: openLoadedSequencePrompt,
+                  proceed: () {
+                    if (!requireCurrentContext() || !requireUnchangedEditor()) {
+                      return false;
+                    }
+                    if (ref.read(canEditSequenceProvider)) return true;
                     context.showWarningSnackBar(
                       'Stop the active sequence before opening another file.',
                     );
-                    return;
-                  }
-                  editor.loadSequence(imported, discardUnsaved: true);
-                }
+                    return false;
+                  },
+                );
+                if (!opened) return;
                 if (context.mounted) {
                   context.showSuccessSnackBar(
                       'Sequence "${imported.name}" loaded');
@@ -547,8 +488,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
             }
           }
 
-          // A slew is a physical action that can point the mount below the
-          // horizon, so it is confirmed before it is commanded.
+          // The toolbar's Slew always asks first; below the horizon or the
+          // site's floor that one question carries the warning.
           Future<void> slewToTarget() async {
             final target = ref.read(runDashboardActiveTargetProvider);
             if (target == null) {
@@ -558,21 +499,6 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               return;
             }
             final logger = ref.read(loggingServiceProvider);
-            final confirmed = await showSlewToTargetConfirmation(
-              context,
-              targetName: target.targetName,
-              raHours: target.raHours,
-              decDegrees: target.decDegrees,
-              altitudeDegrees:
-                  ref.read(runDashboardSkyStatsProvider)?.altitudeDeg,
-            );
-            if (!confirmed) {
-              logger.info(
-                'Slew to ${target.targetName} canceled at the confirmation.',
-                source: 'Sequencer',
-              );
-              return;
-            }
             logger.info(
               'Slewing to ${target.targetName} '
               '(RA ${CoordinateFormat.raReadout(target.raHours)}, '
@@ -580,12 +506,13 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               'from the sequencer toolbar.',
               source: 'Sequencer',
             );
-            if (context.mounted) {
-              context.showInfoSnackBar('Slewing to ${target.targetName}…');
-            }
-            final result = await ref
-                .read(mountCommandServiceProvider)
-                .slewTo(target.raHours, target.decDegrees, showFeedback: false);
+            final result = await ref.read(mountCommandServiceProvider).slewTo(
+                  target.raHours,
+                  target.decDegrees,
+                  showFeedback: false,
+                  targetName: target.targetName,
+                  alwaysConfirms: true,
+                );
             if (result.isSuccess) {
               logger.info(
                 'Slew to ${target.targetName} commanded.',
@@ -594,6 +521,11 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
               if (context.mounted) {
                 context.showInfoSnackBar('Mount is on ${target.targetName}.');
               }
+            } else if (!result.hasMessage) {
+              logger.info(
+                'Slew to ${target.targetName} canceled at the confirmation.',
+                source: 'Sequencer',
+              );
             } else {
               logger.error(
                 'Slew to ${target.targetName} failed: ${result.message}',
@@ -718,8 +650,8 @@ class _SequenceToolbarState extends ConsumerState<SequenceToolbar> {
                 onPressed: canEdit ? slewToTarget : null,
               ),
             const _ToolbarAction.divider(),
-            // Canvas view actions that used to sit in the tree's own header
-            // row. They belong to the document, so they follow it into the
+            // Canvas view actions. They belong to the document, so they live
+            // in the
             // canvas bar rather than getting a second bar of their own.
             _ToolbarAction(
               icon: LucideIcons.search,

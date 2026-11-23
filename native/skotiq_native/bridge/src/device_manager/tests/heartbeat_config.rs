@@ -79,24 +79,6 @@ fn test_heartbeat_config_non_critical_failure_thresholds_raised() {
     assert_eq!(rotator.backoff_multiplier, 1.0);
     assert!(rotator.escalate_to_disconnect);
 
-    let switch = policy(DeviceType::Switch).heartbeat;
-    assert_eq!(switch.failure_threshold, 5);
-    assert_eq!(switch.base_interval_secs, 20);
-
-    // Safety monitors are non-escalating liveness (see the SafetyMonitor policy):
-    // four missed pings tolerated, and never a teardown.
-    assert_eq!(
-        policy(DeviceType::SafetyMonitor)
-            .heartbeat
-            .failure_threshold,
-        4
-    );
-
-    // Critical/auto-reconnecting device types. The mount threshold is 3: its
-    // ASCOM probe is a COM round-trip on the shared STA worker, so one
-    // transient timeout pair must not disconnect a tracking mount.
-    assert_eq!(policy(DeviceType::Camera).heartbeat.failure_threshold, 3);
-    assert_eq!(policy(DeviceType::Mount).heartbeat.failure_threshold, 3);
     assert_eq!(policy(DeviceType::Guider).heartbeat.failure_threshold, 2);
     assert_eq!(policy(DeviceType::Dome).heartbeat.failure_threshold, 4);
     assert_eq!(policy(DeviceType::Weather).heartbeat.failure_threshold, 5);

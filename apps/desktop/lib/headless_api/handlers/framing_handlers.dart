@@ -11,7 +11,6 @@ import '../mount_move.dart';
 import '../response_helpers.dart';
 import '../validation.dart';
 import 'centering_request.dart';
-import 'device_handlers.dart' show requestPrefersLegacyBlocking;
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
 import 'package:skotiq_core/utils.dart';
@@ -33,13 +32,13 @@ class FramingHandlers implements RouteSource {
 
   final ProviderContainer container;
 
-  /// optional job manager. When wired, center-on-target
-  /// returns `{jobId, status: queued}` immediately and the multi-step
+  /// Runs center-on-target requests: they answer `{jobId, status: queued}`
+  /// at once and the multi-step
   /// slew/solve/adjust loop runs in the background, with each iteration
   /// reported as a progress update on the same job.
-  final JobManager? jobManager;
+  final JobManager jobManager;
 
-  FramingHandlers(this.container, {this.jobManager});
+  FramingHandlers(this.container, {required this.jobManager});
 
   LoggingService get _logger => container.read(loggingServiceProvider);
 
@@ -90,84 +89,55 @@ class FramingHandlers implements RouteSource {
     final dec = requireDouble(payload, 'dec', min: -90, max: 90);
     final centering = await centeringForRequest(container, payload);
 
-    Map<String, Object?> resultToJson(CenteringResult result) => {
-      'success': result.success,
-      'iterations': result.iterations,
-      'finalOffsetArcsec': result.finalOffsetArcsec,
-      'errorMessage': result.errorMessage,
-      'iterationHistory': result.iterationHistory
-          .map(
-            (i) => {
-              'iterationNumber': i.iterationNumber,
-              'solvedRa': i.solvedRa,
-              'solvedDec': i.solvedDec,
-              'targetRa': i.targetRa,
-              'targetDec': i.targetDec,
-              'offsetArcsec': i.offsetArcsec,
-              'offsetArcmin': i.offsetArcmin,
-              'plateSolveSuccess': i.plateSolveSuccess,
-              'errorMessage': i.errorMessage,
-              'timestamp': i.timestamp.millisecondsSinceEpoch,
-            },
-          )
-          .toList(),
-    };
+    final run = container.read(centeringRunProvider);
+    Future<CenteringResult> runCentering() async => (await run.center(
+      raHours: ra,
+      decDegrees: dec,
+      config: centering,
+      publishes: centeringPublishedFor(payload),
+    ))!;
 
-    Future<CenteringResult> runCentering() => container
-        .read(centeringServiceProvider)
-        .centerOnTarget(targetRa: ra, targetDec: dec, config: centering);
-
-    final mgr = jobManager;
-    final preferLegacy = requestPrefersLegacyBlocking(request);
-    if (mgr != null && !preferLegacy) {
-      final job = mgr.start(
-        operation: 'framing.center-on-target',
-        deviceId: null,
-        work: (sink, cancellation) async {
-          sink.update(0.0, 'Centering on RA=$ra DEC=$dec');
-          final centeringService = container.read(centeringServiceProvider);
-          final workFuture = runCentering();
-          final raced = await Future.any<dynamic>([
-            workFuture,
-            cancellation.whenCancelled.then(
-              (_) => _CenteringCancelled.instance,
-            ),
-          ]);
-          if (raced is _CenteringCancelled) {
-            await centeringService.stop();
-            try {
-              await workFuture;
-            } catch (e) {
-              _logger.debug(
-                'Centering exited with the expected cancellation error: $e',
-                source: 'FramingHandlers',
-              );
-            }
-            throw const JobCancelledException(
-              'Center-on-target cancellation requested by client',
+    final job = jobManager.start(
+      operation: JobOperation.centerOnTarget,
+      deviceId: null,
+      work: (sink, cancellation) async {
+        sink.update(0.0, 'Centering on RA=$ra DEC=$dec');
+        final workFuture = runCentering();
+        final raced = await Future.any<dynamic>([
+          workFuture,
+          cancellation.whenCancelled.then((_) => _CenteringCancelled.instance),
+        ]);
+        if (raced is _CenteringCancelled) {
+          await run.cancel();
+          try {
+            await workFuture;
+          } catch (e) {
+            _logger.debug(
+              'Centering exited with the expected cancellation error: $e',
+              source: 'FramingHandlers',
             );
           }
-          final result = raced as CenteringResult;
-          if (!result.success) {
-            throw JobFailedException(
-              code: 'centering_failed',
-              message:
-                  result.errorMessage ?? 'Centering did not reach the target.',
-              details: resultToJson(result),
-            );
-          }
-          return resultToJson(result);
-        },
-      );
-      return jsonOk({
-        'jobId': job.jobId,
-        'status': job.state.wireName,
-        'operation': job.operation,
-      });
-    }
-
-    final result = await runCentering();
-    return jsonOk(resultToJson(result));
+          throw const JobCancelledException(
+            'Center-on-target cancellation requested by client',
+          );
+        }
+        final result = raced as CenteringResult;
+        if (!result.success) {
+          throw JobFailedException(
+            code: 'centering_failed',
+            message:
+                result.errorMessage ?? 'Centering did not reach the target.',
+            details: result.toJson(),
+          );
+        }
+        return result.toJson();
+      },
+    );
+    return jsonOk({
+      'jobId': job.jobId,
+      'status': job.state.wireName,
+      'operation': job.operation,
+    });
   }
 
   Future<Response> handleSyncMount(Request request) async {
@@ -256,12 +226,10 @@ class FramingHandlers implements RouteSource {
       return jsonBadRequest({'error': 'No mount connected'});
     }
 
-    // Shared stop/abort no-op contract — see [kWasRunningField]. Observed live
-    // with no slew in progress:
-    //   POST /api/framing/abort-slew -> 200 {"status":"aborted"}
-    // An operator hitting abort in a hurry reads that as "the mount was
-    // stopped". This is the most dangerous instance of the pattern, because it
-    // can mask the fact that a slew is still running somewhere else.
+    // Shared stop/abort no-op contract — see [kWasRunningField]. An operator
+    // hitting abort in a hurry reads a bare {"status":"aborted"} as "the mount
+    // was stopped". This is the most dangerous instance of the pattern, because
+    // it can mask the fact that a slew is still running somewhere else.
     //
     // Never skip a mount abort because we could not confirm motion: a failed
     // status read still issues the abort.

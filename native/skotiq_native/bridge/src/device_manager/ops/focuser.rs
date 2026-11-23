@@ -2,6 +2,7 @@
 //! bookkeeping around the focuser's handle (see
 //! [`crate::device_manager::rig::focuser`]).
 
+use crate::device_manager::busy::Busy;
 use std::time::{Duration, Instant};
 
 use crate::device_manager::DeviceManager;
@@ -19,8 +20,23 @@ impl DeviceManager {
     /// focuser reached, which after backlash or a stall is not the commanded
     /// position. Returns when the focuser has stopped.
     ///
+    /// A move that fails because the focuser's session broke after a bus
+    /// change reopens it and moves again ([`Self::with_reopen`]), for the run
+    /// and the app alike.
+    ///
     /// [`state_events`]: crate::device_manager::ops::state_events
     pub async fn focuser_move_abs(
+        &self,
+        device_id: &str,
+        position: i32,
+    ) -> Result<(), DeviceOpError> {
+        self.with_reopen(device_id, || {
+            self.focuser_move_abs_once(device_id, position)
+        })
+        .await
+    }
+
+    async fn focuser_move_abs_once(
         &self,
         device_id: &str,
         position: i32,
@@ -30,7 +46,7 @@ impl DeviceManager {
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         self.publish_state_event(EquipmentEvent::FocuserMoveStarted {
             device_id: device_id.to_string(),
             target_position: position,
@@ -46,14 +62,15 @@ impl DeviceManager {
 
     /// Move by `steps`, with the same events as [`Self::focuser_move_abs`].
     /// `FocuserMoveStarted` needs a target, so it is published only when the
-    /// starting position can be read.
+    /// starting position can be read. Not repeated after a reopen: a
+    /// focuser lost mid-move may have moved part of the way.
     pub async fn focuser_move_rel(&self, device_id: &str, steps: i32) -> Result<(), DeviceOpError> {
         // An unknown id has nothing to report on; answer before announcing a
         // move that cannot start.
         if self.registered_driver_type(device_id).await.is_none() {
             return Err(DeviceOpError::device_not_found(device_id));
         }
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         let target = self
             .focuser_get_position(device_id)
             .await
@@ -76,7 +93,7 @@ impl DeviceManager {
 
     /// Stop the focuser and publish where it stopped.
     pub async fn focuser_halt(&self, device_id: &str) -> Result<(), DeviceOpError> {
-        let _command = self.command_activity.begin(device_id);
+        let _command = self.busy(device_id, Busy::Command);
         let result = match self.focuser(device_id).await {
             Ok(focuser) => focuser.halt().await,
             Err(e) => Err(e),
@@ -129,7 +146,7 @@ impl DeviceManager {
         position: i32,
     ) -> Result<(), DeviceOpError> {
         let focuser = self.focuser(device_id).await?;
-        let _op = self.begin_operation(device_id);
+        let _op = self.busy(device_id, Busy::BlockingCall);
         focuser.move_to(position).await
     }
 
@@ -139,7 +156,7 @@ impl DeviceManager {
         steps: i32,
     ) -> Result<(), DeviceOpError> {
         let focuser = self.focuser(device_id).await?;
-        let _op = self.begin_operation(device_id);
+        let _op = self.busy(device_id, Busy::BlockingCall);
         focuser.move_by(steps).await
     }
 

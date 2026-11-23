@@ -6,6 +6,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 void main() {
   group('DeviceHandlers live view', () {
@@ -14,7 +15,10 @@ void main() {
 
     setUp(() {
       container = ProviderContainer();
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     tearDown(() {

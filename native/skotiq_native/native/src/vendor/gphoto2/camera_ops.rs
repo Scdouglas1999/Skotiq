@@ -131,7 +131,18 @@ impl CameraDriver for GPhoto2Camera {
             DriverError::InvalidParameter(format!("{location} is not a file on the camera"))
         })?;
         let sdk = GPhoto2Sdk::lock().await?;
-        let bytes = self.download_file(&sdk, &file)?;
+        let bytes = match self.download_file(&sdk, &file) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                // A memory file the camera no longer has cannot come back.
+                if let (DriverError::FileGone(_), Some(index)) = (&error, known) {
+                    if self.facts.captures_to_ram() {
+                        self.retained.remove(index);
+                    }
+                }
+                return Err(error);
+            }
+        };
         if let Some(index) = known {
             self.retained.remove(index);
         }
@@ -176,8 +187,8 @@ impl CameraDriver for GPhoto2Camera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: self.core.gain,
-            offset: self.core.offset,
+            gain: Some(self.core.gain),
+            offset: Some(self.core.offset),
             bin_x: self.core.bin_x,
             bin_y: self.core.bin_y,
             exposure_remaining,

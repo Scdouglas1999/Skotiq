@@ -12,10 +12,11 @@ use crate::builtin_guider::state::{
     binned_guide_pixel_scale, build_tracked_stars, op_lock, state, BuiltinGuideStatus,
     BuiltinGuiderState, GuideCalibration,
 };
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
 use crate::event::system::SystemEvent;
+use crate::guider::GuiderActivity;
 use crate::guider::{GuideStarImage, GuiderCalibration, GuiderStatus};
 use crate::state::get_state;
 use std::sync::Arc;
@@ -56,7 +57,7 @@ pub async fn connect() -> Result<(), SkotiqError> {
     guard.unbinned_pixel_scale = Some(unbinned_pixel_scale);
     guard.last_status = BuiltinGuideStatus {
         connected: true,
-        state: "Connected".to_string(),
+        state: GuiderActivity::Connected,
         pixel_scale,
         ..BuiltinGuideStatus::default()
     };
@@ -91,7 +92,7 @@ pub async fn start_guiding(
             guard.guiding = true;
             guard.looping = false;
             guard.calibrating = true;
-            guard.last_status.state = "Calibrating".to_string();
+            guard.last_status.state = GuiderActivity::Calibrating;
             guard.last_status.connected = true;
         },
         GuidingEvent::Calibrating,
@@ -133,7 +134,7 @@ pub async fn loop_exposures() -> Result<(), SkotiqError> {
             guard.guiding = false;
             guard.looping = true;
             guard.calibrating = false;
-            guard.last_status.state = "Looping".to_string();
+            guard.last_status.state = GuiderActivity::Looping;
             guard.last_status.connected = true;
         },
         GuidingEvent::Looping,
@@ -277,9 +278,9 @@ pub(crate) async fn stop_locked() -> Result<(), SkotiqError> {
         guard.last_status.rms_dec = 0.0;
         guard.last_status.rms_total = 0.0;
         guard.last_status.state = if guard.connected {
-            "Connected".to_string()
+            GuiderActivity::Connected
         } else {
-            "Disconnected".to_string()
+            GuiderActivity::Disconnected
         };
     }
 
@@ -301,8 +302,9 @@ pub async fn find_star() -> Result<(f64, f64), SkotiqError> {
             "Auto Select: no usable guide star among {} detections in the guide frame",
             guide_frame.stars.len()
         );
-        return Err(SkotiqError::OperationFailed(
-            "No guide star found".to_string(),
+        return Err(SkotiqError::refused(
+            Refusal::NoGuideStarFound,
+            "No guide star found",
         ));
     };
     tracing::info!(
@@ -472,7 +474,11 @@ pub async fn set_paused(paused: bool) -> Result<(), SkotiqError> {
         }
         guard.paused = paused;
         if !guard.calibrating {
-            guard.last_status.state = if paused { "Paused" } else { "Guiding" }.to_string();
+            guard.last_status.state = if paused {
+                GuiderActivity::Paused
+            } else {
+                GuiderActivity::Guiding
+            };
         }
     }
     get_state().publish_guiding_event(
@@ -532,7 +538,7 @@ pub(crate) async fn finish_failed_guiding(
     guard.looping = false;
     guard.calibrating = false;
     guard.settling = false;
-    guard.last_status.state = "Stopped".to_string();
+    guard.last_status.state = GuiderActivity::Stopped;
     guard.last_status.connected = guard.connected;
     tracing::info!("Built-in guider stopped and stays connected: {}", reason);
 }

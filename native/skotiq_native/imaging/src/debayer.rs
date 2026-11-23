@@ -1,7 +1,7 @@
 //! Image debayering algorithms for color cameras
 
 use rayon::prelude::*;
-use skotiq_cfa::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
+use skotiq_frame::{BayerColor, BayerPattern, ColorFilterArray, XTransPattern};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum DebayerAlgorithm {
@@ -641,36 +641,6 @@ fn debayer_superpixel(pixels: &[u16], width: u32, height: u32, pattern: BayerPat
     }
 }
 
-/// One luminance sample per whole filter cell (the mean of the cell), so a
-/// reduced view of a mosaic holds every color equally rather than
-/// whichever color the sampling grid lands on. Returns width, height and
-/// samples.
-pub fn bin_cells(
-    cfa: &ColorFilterArray,
-    pixels: &[u16],
-    width: u32,
-    height: u32,
-) -> (u32, u32, Vec<u16>) {
-    let cell = cfa.cell_size();
-    let (w, h) = (width as usize, height as usize);
-    let (out_w, out_h) = ((w / cell).max(1), (h / cell).max(1));
-    let (cell_w, cell_h) = (cell.min(w), cell.min(h));
-    let samples = (cell_w * cell_h) as u32;
-    let mut out = vec![0u16; out_w * out_h];
-    out.par_chunks_mut(out_w).enumerate().for_each(|(by, row)| {
-        for (bx, value) in row.iter_mut().enumerate() {
-            let mut sum = 0u32;
-            for y in by * cell_h..by * cell_h + cell_h {
-                for x in bx * cell_w..bx * cell_w + cell_w {
-                    sum += pixels[y * w + x] as u32;
-                }
-            }
-            *value = ((sum + samples / 2) / samples) as u16;
-        }
-    });
-    (out_w as u32, out_h as u32, out)
-}
-
 /// Demosaic a mosaic to RGB. X-Trans has one method (same-color
 /// neighbor averaging); `algorithm` chooses among the Bayer methods.
 pub fn demosaic(
@@ -792,24 +762,6 @@ mod color_filter_array_tests {
                 assert_eq!(moved.color_at(x, y), xtrans.color_at(x + 2, y + 1));
             }
         }
-    }
-
-    #[test]
-    fn binning_cells_averages_every_color_once() {
-        let cfa = ColorFilterArray::parse(XT3).unwrap();
-        let mosaic: Vec<u16> = (0..12 * 6)
-            .map(|i| {
-                if cfa.color_at(i % 12, i / 12) == BayerColor::Green {
-                    30
-                } else {
-                    12
-                }
-            })
-            .collect();
-        let (w, h, binned) = bin_cells(&cfa, &mosaic, 12, 6);
-        assert_eq!((w, h), (2, 1));
-        // 20 green and 16 red or blue sites per X-Trans cell.
-        assert_eq!(binned, vec![22, 22]);
     }
 
     #[test]

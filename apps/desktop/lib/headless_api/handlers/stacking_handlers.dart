@@ -12,21 +12,18 @@ import '../response_helpers.dart';
 import '../validation.dart';
 import 'package:skotiq_remote_protocol/wire.dart';
 import '../route_table.dart';
-import 'package:skotiq_core/utils.dart';
 
 /// Headless control surface for live stacking (real-time EAA integration).
 ///
-/// The live-stacking engine runs on the HOST (the appliance that captures the
-/// frames) — pixel data never crosses the wire on the way *in*. A remote tablet
-/// drives it through these endpoints: configure + start, then poll the stacked
-/// preview/stats; the host auto-feeds each newly-saved frame into the stacker.
+/// The live stack runs on the HOST (the appliance that captures the frames);
+/// pixel data never crosses the wire on the way in. A linked client drives it
+/// through these endpoints: configure and start, then read the stacked
+/// preview and stats.
 ///
-/// Why a host-side coordinator rather than client-driven add-frame: the primary
-/// couch scenario is "watch my running sequence stack live". Sequencer captures
-/// happen on the host with no client in the loop, so the host must feed the
-/// stacker itself ([onImageSaved], wired to the `ImageSaved` event stream in
-/// the server lifecycle). This also means stacking keeps accumulating even if
-/// the tablet disconnects.
+/// The host has one live stack, [LiveStackingNotifier]: the routes drive it,
+/// the host's screens show it, and a run feeds it every accepted light frame
+/// while it is armed. So a stack a client arms keeps accumulating when the
+/// client disconnects, and one the host started is the one the routes read.
 class StackingHandlers implements RouteSource {
   @override
   Map<ApiEndpoint, Function> get routes => {
@@ -68,22 +65,25 @@ class StackingHandlers implements RouteSource {
 
   LiveStackingService get _service =>
       container.read(liveStackingServiceProvider);
-  LoggingService get _logger => container.read(loggingServiceProvider);
+  LiveStackingNotifier get _stack =>
+      container.read(liveStackingProvider.notifier);
+  LiveStackingState get _stackState => container.read(liveStackingProvider);
   StackedResultsDao get _resultsDao =>
       container.read(stackedResultsDaoProvider);
 
-  /// True once the client has started stacking and the host should feed frames.
-  bool _armed = false;
+  /// Whether the stack is armed or running. One whose start failed is
+  /// neither: a run's frames are not fed to it.
+  bool get _armed => _stackState.status == LiveStackingStatus.running;
 
-  /// True once a reference frame has been established (the first fed frame in
-  /// arm-mode, or the explicit reference path passed to [handleStart]).
-  bool _started = false;
+  /// Whether a reference frame has been established.
+  bool get _started => _stackState.filterStacks.isNotEmpty;
 
+  /// The settings a start without a `config` uses: the last ones a client
+  /// sent.
   LiveStackingConfig _config = const LiveStackingConfig();
 
-  /// Serializes all stacker mutations (start/add/reset/stop) so an auto-fed
-  /// frame can't race a client-initiated op or another frame. The Rust stacker
-  /// is single-threaded; overlapping calls would interleave alignment state.
+  /// Serializes the routes' operations, so a start's stop-then-arm is not
+  /// interleaved with another request.
   Future<void> _chain = Future<void>.value();
 
   Future<T> _enqueue<T>(Future<T> Function() op) {
@@ -100,30 +100,27 @@ class StackingHandlers implements RouteSource {
     String? filterKey,
   }) async {
     try {
-      if (filterKey != null) {
-        return await _service.startFromFileForFilter(
-          filterKey: filterKey,
-          referenceImagePath: referencePath,
-          config: config,
-        );
-      }
-      return await _service.startFromFile(
-        referenceImagePath: referencePath,
+      await _stack.startFromFileOrThrow(
+        referencePath,
         config: config,
+        filterKey: filterKey,
       );
+      final state = _stackState;
+      final slot = filterKey == null
+          ? null
+          : normalizeLiveStackFilterKey(filterKey);
+      return state.filterStacks[slot]?.stats ?? state.stats;
     } catch (error, stackTrace) {
-      final match = RegExp(
-        r'Reference frame has only (\d+) stars, need at least (\d+)',
-      ).firstMatch(error.toString());
-      if (match != null) {
+      final refusal = liveStackReferenceRefusalOf(error);
+      if (refusal != null) {
         throw HandlerFailure(
           code: 'stacking_reference_rejected',
           message:
               'Reference frame does not contain enough stars for live-stack alignment.',
           statusCode: HttpStatus.unprocessableEntity,
           details: {
-            'detectedStars': int.parse(match.group(1)!),
-            'requiredStars': int.parse(match.group(2)!),
+            'detectedStars': refusal.detectedStars,
+            'requiredStars': refusal.requiredStars,
           },
           cause: error,
           stackTrace: stackTrace,
@@ -133,42 +130,11 @@ class StackingHandlers implements RouteSource {
     }
   }
 
-  /// Called by the server's `ImageSaved` event subscription for every frame the
-  /// host writes to disk. No-op unless stacking is armed.
-  Future<void> onImageSaved(String filePath) async {
-    if (!_armed || filePath.isEmpty) return;
-    await _enqueue(() async {
-      if (!_armed) return;
-      try {
-        if (!_started) {
-          await _service.startFromFile(
-            referenceImagePath: filePath,
-            config: _config,
-          );
-          _started = true;
-          _logger.info(
-            '[stacking] reference frame established from $filePath',
-            source: 'StackingHandlers',
-          );
-        } else {
-          await _service.addFrameFromFile(filePath);
-        }
-      } catch (e) {
-        // A single rejected frame (alignment failure, unreadable file) must not
-        // tear down the stack — log and keep going.
-        _logger.warning(
-          '[stacking] auto-feed of $filePath failed: $e',
-          source: 'StackingHandlers',
-        );
-      }
-    });
-  }
-
   /// POST /api/stacking/start
   /// Body: `{ config?: {...}, referencePath?: "host-path" }`
   /// With a referencePath the stack starts immediately from that host frame.
-  /// Without one, stacking is "armed": the next saved frame becomes the
-  /// reference and subsequent frames are added automatically.
+  /// Without one, stacking is "armed": the next light frame a run saves
+  /// becomes its filter's reference and later ones are added.
   Future<Response> handleStart(Request request, [String? slot]) async {
     // Arming with defaults needs no body, so tolerate an empty/absent one
     // rather than forcing clients to POST a bare `{}`.
@@ -194,11 +160,10 @@ class StackingHandlers implements RouteSource {
           config: requestedConfig,
         );
       }
-      // Reset an existing stack before restarting. A fresh armed start has not
-      // initialized the native stacker yet, so there is nothing to clear.
-      if (_service.isActive) {
+      // Reset an existing stack before restarting.
+      if (_armed || _service.isActive) {
         try {
-          await _service.stop();
+          await _stack.stopOrThrow();
         } catch (e, stackTrace) {
           throw HandlerFailure(
             code: 'stacking_reset_failed',
@@ -210,13 +175,11 @@ class StackingHandlers implements RouteSource {
         }
       }
       _config = requestedConfig;
-      _armed = true;
-      _started = false;
       if (referencePath != null && referencePath.isNotEmpty) {
         final stats = await _startReference(referencePath, _config);
-        _started = true;
         return jsonOk({'status': 'started', 'stats': _statsToJson(stats)});
       }
+      await _stack.arm(config: _config);
       // Armed with no reference frame yet: nothing has stacked, so report a
       // complete zero-valued stats object. The remote client
       // ([NetworkBackend.stackingStart]) treats every start response as a
@@ -251,14 +214,18 @@ class StackingHandlers implements RouteSource {
     }
     return _enqueue(() async {
       if (!_started) {
-        final stats = await _startReference(imagePath, _config);
-        _armed = true;
-        _started = true;
+        // An armed stack is already running and waits for its reference: the
+        // frame starts the unfiltered slot in it.
+        final stats = await _startReference(
+          imagePath,
+          _config,
+          filterKey: _armed ? kDefaultLiveStackFilterKey : null,
+        );
         return jsonOk({'status': 'started', 'stats': _statsToJson(stats)});
       }
       final LiveStackingResult result;
       try {
-        result = await _service.addFrameFromFile(imagePath);
+        result = await _stack.addFrameFromFileOrThrow(imagePath);
       } catch (e) {
         throw _classifyAddFrameFailure(e, imagePath);
       }
@@ -275,60 +242,56 @@ class StackingHandlers implements RouteSource {
   /// Translate an add-frame failure into something a client can branch on.
   ///
   /// A frame the stacker declines is ORDINARY in live stacking — cloud, wind, a
-  /// satellite trail, a bumped focuser. The native layer raises these as
-  /// unstructured failures that the error translator turns into
+  /// satellite trail, a bumped focuser. The native stacker says which by
+  /// kind. Left to the error translator they would answer
   /// `500 internal_error`, which tells a remote client the host broke and
-  /// invites a retry storm; worse, it is indistinguishable from the stacker
-  /// actually being broken, so a client cannot tell "skip this frame and carry
-  /// on" from "stop and tell the operator". Mirrors the `guide_star_not_found`
-  /// treatment in the guiding handlers.
+  /// invites a retry storm, indistinguishable from the stacker actually being
+  /// broken. Anything else stays the error it was.
   Object _classifyAddFrameFailure(Object error, String imagePath) {
-    final text = error.toString().toLowerCase();
-
-    // Rejected for not matching the reference. Counted in
-    // `rejectedAlignmentFailures`; the accumulation is untouched.
-    if (text.contains('alignment residual too high') ||
-        text.contains('alignment failed') ||
-        text.contains('insufficient') && text.contains('star')) {
-      return HandlerFailure(
+    final refusal = liveStackRefusalOf(error);
+    if (refusal == null) return error;
+    // Bodies keep the text the refusal had before it had a kind, and add the
+    // engine's sentence.
+    final legacy = refusal.legacyText;
+    return switch (refusal.kind) {
+      // Rejected for not matching the reference. Counted in
+      // `rejectedAlignmentFailures`; the accumulation is untouched.
+      LiveStackRefusalKind.misaligned => HandlerFailure(
         code: 'frame_rejected',
         message:
             'Frame did not align to the reference and was not stacked. The '
             'accumulation is unchanged; check tracking, focus and cloud.',
         statusCode: 422,
-        details: {'imagePath': imagePath, 'reason': error.toString()},
+        details: {
+          'imagePath': imagePath,
+          'reason': legacy,
+          'sentence': refusal.message,
+        },
         cause: error,
-      );
-    }
-
-    // Taken through another filter than the stack's: left out before any
-    // alignment and counted in `otherFilterFrames`. The engine's sentence
-    // names both filters.
-    final otherFilter = text.indexOf('frame of another filter not stacked');
-    if (otherFilter >= 0) {
-      return HandlerFailure(
+      ),
+      // Taken through another filter than the stack's: left out before any
+      // alignment and counted in `otherFilterFrames`. The engine's sentence
+      // names both filters.
+      LiveStackRefusalKind.otherFilter => HandlerFailure(
         code: 'frame_other_filter',
-        message: error.toString().substring(otherFilter),
+        message: legacy.substring(legacy.indexOf(refusal.message)),
         statusCode: 422,
-        details: {'imagePath': imagePath},
+        details: {'imagePath': imagePath, 'sentence': refusal.message},
         cause: error,
-      );
-    }
-
-    // A path the caller got wrong is the caller's error, not a host fault.
-    if (text.contains('no such file') ||
-        text.contains('failed to read frame') ||
-        text.contains('not found')) {
-      return HandlerFailure(
+      ),
+      // A path the caller got wrong is the caller's error, not a host fault.
+      LiveStackRefusalKind.unreadable => HandlerFailure(
         code: 'frame_unreadable',
         message: 'Could not read the frame at the supplied path.',
         statusCode: 404,
-        details: {'imagePath': imagePath, 'reason': error.toString()},
+        details: {
+          'imagePath': imagePath,
+          'reason': legacy,
+          'sentence': refusal.message,
+        },
         cause: error,
-      );
-    }
-
-    return error;
+      ),
+    };
   }
 
   /// GET /api/stacking/status -> liveness + counters (cheap, no pixels).
@@ -364,9 +327,7 @@ class StackingHandlers implements RouteSource {
         statusCode: 404,
       );
     }
-    final result = slot == null
-        ? await _service.getCurrentResult()
-        : await _service.getCurrentResultForFilter(slot);
+    final result = await _service.getCurrentResult(filterKey: slot);
     return jsonOk({
       'active': true,
       'width': result.width,
@@ -387,9 +348,7 @@ class StackingHandlers implements RouteSource {
         statusCode: 404,
       );
     }
-    final result = slot == null
-        ? await _service.getCurrentResult()
-        : await _service.getCurrentResultForFilter(slot);
+    final result = await _service.getCurrentResult(filterKey: slot);
     final samples = Uint16List.fromList(result.data);
     final bytes = samples.buffer.asUint8List(
       samples.offsetInBytes,
@@ -510,10 +469,8 @@ class StackingHandlers implements RouteSource {
 
   /// POST /api/stacking/reset -> clear accumulation, keep armed.
   ///
-  /// Like [handleStop], tolerates the armed-but-never-started case: with no
-  /// reference frame yet the native stacker isn't initialized, so resetting the
-  /// engine would throw "not initialized". There's nothing accumulated to
-  /// clear, so we just drop back to the armed-waiting-for-reference state.
+  /// Like [handleStop], tolerates the armed-but-never-started case: there is
+  /// nothing accumulated to clear, so the stack stays armed for a reference.
   ///
   /// A `filterKey` resets that slot and leaves the others, and the
   /// coordinator, alone. No key resets the whole stack.
@@ -522,33 +479,28 @@ class StackingHandlers implements RouteSource {
         slot ?? _explicitFilterKey(await readJsonObjectOrEmpty(request));
     return _enqueue(() async {
       if (filterKey != null) {
-        try {
-          await _service.resetForFilter(filterKey);
-        } catch (e) {
-          if (!_slotWasAbsent(e)) rethrow;
-          _logger.warning(
-            '[stacking] reset of $filterKey on an uninitialized stacker '
-            'ignored: $e',
-            source: 'StackingHandlers',
-          );
-        }
+        // A slot the stack does not hold is left alone.
+        await _stack.resetFilter(filterKey, throwOnFailure: true);
         return jsonOk({'status': 'reset', 'filterKey': filterKey});
       }
       // The next saved frame establishes a new reference. Release every old
-      // slot together before arming it; a native reset keeps its reference.
-      if (_service.isActive) await _service.stop();
-      _started = false;
+      // slot together before arming again; a native reset keeps its reference.
+      if (_started || _service.isActive) {
+        final wasArmed = _armed;
+        // The stack keeps its own settings; POST /config applies at the next
+        // start.
+        final config = _stackState.config;
+        await _stack.stopOrThrow();
+        if (wasArmed) await _stack.arm(config: config);
+      }
       return jsonOk({'status': 'reset'});
     });
   }
 
   /// POST /api/stacking/stop -> stop the stacker and disarm auto-feed.
   ///
-  /// Tolerates the armed-but-never-started case: if no reference frame has
-  /// landed yet the native stacker was never initialized, so calling stop on it
-  /// throws "not initialized". That's not an error from the caller's view; they
-  /// just want stacking off. Only stop the engine when it actually
-  /// started, and always clear the coordinator's armed/started state.
+  /// Tolerates the armed-but-never-started case: nothing was started, and the
+  /// caller just wants stacking off.
   /// Implements the shared stop/abort no-op contract — see [kWasRunningField]:
   /// the armed/started/active state is known here, so the response reports
   /// which state was actually torn down rather than claiming a stack was
@@ -560,22 +512,8 @@ class StackingHandlers implements RouteSource {
       if (filterKey != null) {
         return _stopNamedFilter(filterKey);
       }
-      // Captured BEFORE the `finally` clears the flags, so it reflects the
-      // state the caller actually found.
       final wasRunning = _armed || _started || _service.isActive;
-      try {
-        if (_started || _service.isActive) {
-          await _service.stop();
-        }
-      } catch (e) {
-        _logger.warning(
-          '[stacking] stop on an uninitialized stacker ignored: $e',
-          source: 'StackingHandlers',
-        );
-      } finally {
-        _armed = false;
-        _started = false;
-      }
+      if (wasRunning) await _stack.stop();
       return jsonOk({
         'status': 'stopped',
         kWasRunningField: wasRunning,
@@ -593,9 +531,6 @@ class StackingHandlers implements RouteSource {
     );
   }
 
-  bool _slotWasAbsent(Object error) =>
-      error.toString().contains('Live stacker not initialized');
-
   String _requiredSlot(String raw) {
     final key = explicitLiveStackFilterKey(raw);
     if (key == null || key.length > 128) {
@@ -608,25 +543,26 @@ class StackingHandlers implements RouteSource {
     return key;
   }
 
-  /// Start one filter slot. Does not reset the other slots. No reference
-  /// leaves the coordinator's started flag as it was: the next saved frame
-  /// still follows the whole-stack auto-feed, which has no filter of its own.
+  /// Start one filter slot. Does not reset the other slots. Without a
+  /// reference the stack is armed: the next saved frame of each filter
+  /// starts that filter's slot.
   Future<Response> _startNamedFilter(
     String filterKey, {
     required String? referencePath,
     required LiveStackingConfig config,
   }) async {
     _config = config;
-    _armed = true;
     if (referencePath != null && referencePath.isNotEmpty) {
+      // A slot the stack already has starts again from the new reference.
+      await _stack.stopFilter(filterKey, throwOnFailure: true);
       final stats = await _startReference(
         referencePath,
         config,
         filterKey: filterKey,
       );
-      _started = true;
       return jsonOk({'status': 'started', 'stats': _statsToJson(stats)});
     }
+    await _stack.arm(config: config);
     return jsonOk({
       'status': 'armed',
       'message':
@@ -638,21 +574,10 @@ class StackingHandlers implements RouteSource {
   /// Stop one filter slot. The session stays armed while any other slot is
   /// still active. A slot that was never started is a successful no-op.
   Future<Response> _stopNamedFilter(String filterKey) async {
-    var stopped = false;
-    try {
-      await _service.stopForFilter(filterKey);
-      stopped = true;
-    } catch (e) {
-      if (!_slotWasAbsent(e)) rethrow;
-      _logger.warning(
-        '[stacking] stop of $filterKey on an uninitialized stacker ignored: $e',
-        source: 'StackingHandlers',
-      );
-    }
-    if (stopped && !_service.isActive) {
-      _armed = false;
-      _started = false;
-    }
+    final stopped = _stackState.filterStacks.containsKey(
+      normalizeLiveStackFilterKey(filterKey),
+    );
+    await _stack.stopFilter(filterKey, throwOnFailure: true);
     return jsonOk({
       'status': 'stopped',
       'filterKey': filterKey,
@@ -815,19 +740,21 @@ class StackingHandlers implements RouteSource {
       sensorMode: sensorMode,
       bayerPattern: bayerPattern,
       demosaicQuality: demosaicQuality,
+      // The feeder's gates for the frames of this host's run. A key the
+      // client sends null turns its gate off; a key it does not send keeps
+      // the host's.
+      separateByFilter:
+          optionalBool(json, 'separateByFilter') ?? defaults.separateByFilter,
+      autoFeedEnabled:
+          optionalBool(json, 'autoFeedEnabled') ?? defaults.autoFeedEnabled,
+      maxHfrPx: json.containsKey('maxHfrPx')
+          ? optionalDouble(json, 'maxHfrPx', min: 0.1, max: 100)
+          : defaults.maxHfrPx,
+      minStarCount: json.containsKey('minStarCount')
+          ? optionalInt(json, 'minStarCount', min: 1, max: 100000)
+          : defaults.minStarCount,
     );
   }
 
-  Map<String, Object?> _statsToJson(LiveStackingStats s) => {
-    'stackedFrameCount': s.stackedFrameCount,
-    'totalFramesAttempted': s.totalFramesAttempted,
-    'rejectedAlignmentFailures': s.rejectedAlignmentFailures,
-    'avgMatchedPairs': s.avgMatchedPairs,
-    'avgAlignmentResidual': s.avgAlignmentResidual,
-    'totalSigmaRejectedPixels': s.totalSigmaRejectedPixels,
-    'totalIntegrationSecs': s.totalIntegrationSecs,
-    'filter': s.filter,
-    'otherFilterFrames': s.otherFilterFrames,
-    'lastOtherFilter': s.lastOtherFilter,
-  };
+  Map<String, Object?> _statsToJson(LiveStackingStats s) => s.toJson();
 }

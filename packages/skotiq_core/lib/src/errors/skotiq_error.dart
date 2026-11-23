@@ -1,7 +1,8 @@
-/// Structured error types for Skotiq.
-///
-/// These types mirror the Rust error types from `native/bridge/src/error.rs`,
-/// providing structured error information across FFI and network boundaries.
+/// The one Dart error type: what failed, in which category, and whether
+/// trying again or reconnecting can help. A native error becomes one in
+/// `skotiqErrorFromBridge`, text with no type of its own in
+/// [SkotiqError.fromString], and Skotiq's own Dart code raises the kinds in
+/// `skotiq_exception.dart`.
 library;
 
 import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
@@ -9,8 +10,6 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
 import 'error_text_kind.dart';
 
 /// Backend error category classifications.
-///
-/// These categories match the Rust `SkotiqError::error_category()` values.
 enum BackendErrorCategory {
   connection,
 
@@ -38,29 +37,9 @@ enum BackendErrorCategory {
   unknown,
 }
 
-extension BackendErrorCategoryParsing on BackendErrorCategory {
-  static BackendErrorCategory fromString(String value) {
-    return switch (value.toLowerCase()) {
-      'connection' => BackendErrorCategory.connection,
-      'hardware' => BackendErrorCategory.hardware,
-      'timeout' => BackendErrorCategory.timeout,
-      'validation' => BackendErrorCategory.validation,
-      'unsupported' => BackendErrorCategory.unsupported,
-      'busy' => BackendErrorCategory.busy,
-      'imaging' => BackendErrorCategory.imaging,
-      'io' => BackendErrorCategory.io,
-      'sequence' => BackendErrorCategory.sequence,
-      'driver' => BackendErrorCategory.driver,
-      'system' => BackendErrorCategory.system,
-      _ => BackendErrorCategory.unknown,
-    };
-  }
-}
-
-/// Structured error information from the Skotiq native library.
+/// Structured error information, from the native library or Dart.
 ///
-/// This class mirrors the Rust `ErrorInfo` struct and provides all the
-/// context needed to:
+/// It provides the context needed to:
 /// - Display appropriate error messages to users
 /// - Decide whether to retry operations
 /// - Determine if reconnection is needed
@@ -89,6 +68,11 @@ class SkotiqError implements Exception {
   /// Vendor-specific error code if available (ASCOM, Alpaca, native SDK)
   final int? errorCode;
 
+  /// The sentence the driver or host authored, when the error carries one
+  /// that says more than [userMessage] ("No Alpaca server answered on port
+  /// 11111"). Null when the error's meaning is in values only.
+  final String? reason;
+
   const SkotiqError({
     required this.category,
     required this.message,
@@ -98,212 +82,42 @@ class SkotiqError implements Exception {
     this.isTimeout = false,
     this.deviceId,
     this.errorCode,
+    this.reason,
   }) : userMessage = userMessage ?? message;
-
-  /// Create from JSON (for network transport and FRB bridge)
-  factory SkotiqError.fromJson(Map<String, dynamic> json) {
-    return SkotiqError(
-      category: BackendErrorCategoryParsing.fromString(
-        json['category'] as String? ?? 'unknown',
-      ),
-      message: json['message'] as String? ?? 'Unknown error',
-      userMessage:
-          json['user_message'] as String? ?? json['userMessage'] as String?,
-      isRecoverable:
-          json['is_recoverable'] as bool? ??
-          json['isRecoverable'] as bool? ??
-          false,
-      shouldReconnect:
-          json['should_reconnect'] as bool? ??
-          json['shouldReconnect'] as bool? ??
-          false,
-      isTimeout:
-          json['is_timeout'] as bool? ?? json['isTimeout'] as bool? ?? false,
-      deviceId: json['device_id'] as String? ?? json['deviceId'] as String?,
-      errorCode: json['error_code'] as int? ?? json['errorCode'] as int?,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-    'category': category.name,
-    'message': message,
-    'user_message': userMessage,
-    'is_recoverable': isRecoverable,
-    'should_reconnect': shouldReconnect,
-    'is_timeout': isTimeout,
-    'device_id': deviceId,
-    'error_code': errorCode,
-  };
 
   /// An error that carries no category of its own (a Dart exception, a plain
   /// native or host message), classified from its text. The one reading of
   /// error text: `DeviceError.fromException` and the FFI backend's fallback
   /// both come here. Prefer [fromJson] when structured data is available.
   factory SkotiqError.fromString(String message) {
-    final (category, recoverable, reconnect) = switch (classifyErrorText(
-      message,
-    )) {
-      ErrorTextKind.timeout => (BackendErrorCategory.timeout, true, false),
-      ErrorTextKind.connection => (BackendErrorCategory.connection, true, true),
-      ErrorTextKind.notFound => (BackendErrorCategory.connection, false, false),
-      ErrorTextKind.permission => (BackendErrorCategory.system, false, false),
-      ErrorTextKind.busy => (BackendErrorCategory.busy, true, false),
-      ErrorTextKind.hardware => (BackendErrorCategory.hardware, true, false),
-      ErrorTextKind.invalid => (BackendErrorCategory.validation, false, false),
-      ErrorTextKind.unsupported => (
-        BackendErrorCategory.unsupported,
-        false,
-        false,
-      ),
-      ErrorTextKind.imaging => (BackendErrorCategory.imaging, false, false),
-      ErrorTextKind.driver => (BackendErrorCategory.driver, false, false),
-      ErrorTextKind.unknown => (BackendErrorCategory.unknown, false, false),
-    };
+    final kind = classifyErrorText(message);
     final deviceMatch = RegExp(
       r'device:\s*(\S+)',
       caseSensitive: false,
     ).firstMatch(message);
     return SkotiqError(
-      category: category,
+      category: kind.category,
       message: message,
-      isRecoverable: recoverable,
-      shouldReconnect: reconnect,
-      isTimeout: category == BackendErrorCategory.timeout,
+      isRecoverable: kind.recoverable,
+      shouldReconnect: kind.reconnect,
+      isTimeout: kind == ErrorTextKind.timeout,
       deviceId: deviceMatch?.group(1),
     );
   }
 
-  factory SkotiqError.fromException(
-    Object exception, [
-    StackTrace? stackTrace,
-  ]) {
-    if (exception is SkotiqError) {
-      return exception;
-    }
-    return SkotiqError.fromString(exception.toString());
-  }
-
-  factory SkotiqError.deviceNotFound(String deviceId) {
-    return SkotiqError(
-      category: BackendErrorCategory.connection,
-      message: 'Device not found: $deviceId',
-      userMessage: "Device '$deviceId' not found",
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.connectionFailed(String deviceId, String reason) {
-    return SkotiqError(
-      category: BackendErrorCategory.connection,
-      message: 'Device connection failed: $deviceId - $reason',
-      userMessage: "Could not connect to '$deviceId'",
-      isRecoverable: true,
-      shouldReconnect: true,
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.notConnected(String deviceId) {
-    return SkotiqError(
-      category: BackendErrorCategory.connection,
-      message: 'Device not connected: $deviceId',
-      userMessage: "'$deviceId' is not connected",
-      shouldReconnect: true,
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.deviceDisconnected(String deviceId, String reason) {
-    return SkotiqError(
-      category: BackendErrorCategory.connection,
-      message: 'Device disconnected unexpectedly: $deviceId - $reason',
-      userMessage: "'$deviceId' disconnected unexpectedly",
-      isRecoverable: true,
-      shouldReconnect: true,
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.timeout(
-    String operation, {
-    String? deviceId,
-    double? timeoutSecs,
-  }) {
-    final timeoutMsg = timeoutSecs != null
-        ? ' after ${timeoutSecs.toStringAsFixed(1)}s'
-        : '';
-    return SkotiqError(
-      category: BackendErrorCategory.timeout,
-      message: 'Operation timed out: $operation$timeoutMsg',
-      userMessage: 'Operation timed out: $operation',
-      isRecoverable: true,
-      isTimeout: true,
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.notSupported(String deviceId, String operation) {
-    return SkotiqError(
-      category: BackendErrorCategory.unsupported,
-      message: 'Operation not supported: $operation on device $deviceId',
-      userMessage: "'$deviceId' does not support: $operation",
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.deviceBusy(String deviceId, String currentOperation) {
-    return SkotiqError(
-      category: BackendErrorCategory.busy,
-      message: 'Device busy: $deviceId - $currentOperation',
-      userMessage: "'$deviceId' is busy: $currentOperation",
-      isRecoverable: true,
-      deviceId: deviceId,
-    );
-  }
-
-  factory SkotiqError.hardwareError(
-    String deviceId,
-    String message, {
-    int? errorCode,
-  }) {
-    return SkotiqError(
-      category: BackendErrorCategory.hardware,
-      message: 'Hardware error: $deviceId - $message',
-      userMessage: "Hardware error on '$deviceId': $message",
-      isRecoverable: true,
-      deviceId: deviceId,
-      errorCode: errorCode,
-    );
-  }
-
-  factory SkotiqError.cancelled() {
-    return const SkotiqError(
-      category: BackendErrorCategory.system,
-      message: 'Operation cancelled',
-      userMessage: 'Operation canceled',
-    );
-  }
-
-  factory SkotiqError.internal(String message) {
-    return SkotiqError(
-      category: BackendErrorCategory.system,
-      message: 'Internal error: $message',
-    );
-  }
-
-  bool get isHardwareError => category == BackendErrorCategory.hardware;
-
-  bool get isNotSupported => category == BackendErrorCategory.unsupported;
-
-  bool get isValidationError => category == BackendErrorCategory.validation;
-
   /// Whether this is a cancellation (not really an error)
-  bool get isCancellation =>
-      message.toLowerCase().contains('cancelled') ||
-      message.toLowerCase().contains('canceled');
+  bool get isCancellation => saysCanceled(message);
 
   @override
   String toString() => message;
+}
+
+/// True when [text] says an operation was canceled, in either spelling.
+/// The one reading of a cancellation from text, for errors that arrive
+/// without a type (a host's message, a native string).
+bool saysCanceled(String text) {
+  final lower = text.toLowerCase();
+  return lower.contains('cancelled') || lower.contains('canceled');
 }
 
 /// A fail-closed, terminal server-identity error: the host we connected to

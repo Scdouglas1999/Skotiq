@@ -6,7 +6,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_planetarium/skotiq_planetarium.dart'
     show loadedDsosProvider, loadedStarsProvider;
-import 'package:skotiq_astro/skotiq_astro.dart' show CelestialObject;
+import 'package:skotiq_astro/skotiq_astro.dart'
+    show CelestialObject, normalizeCatalogSearchText;
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../router/show_in_sky.dart';
@@ -18,6 +19,7 @@ import '../../../router/planner_route.dart';
 import '../shell_navigation.dart';
 import '../../../services/mount_command_service.dart';
 import '../../../services/sequence_action_service.dart';
+import '../../sequencer/widgets/preflight_validation_dialog.dart';
 import 'command_entry.dart';
 
 /// Every rail destination, every Settings section, and the screens that own a
@@ -152,7 +154,7 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
       enabled: !isRunning,
       disabledReason: isRunning ? 'Already running' : null,
       keywords: const ['run', 'begin', 'sequence'],
-      invoke: (context, ref) => ref.read(sequenceActionServiceProvider).start(),
+      invoke: (context, ref) => startWithPreflight(context, ref),
     ),
     CommandEntry(
       id: 'action:sequence-stop',
@@ -210,9 +212,6 @@ List<CommandEntry> buildActionEntries(BuildContext context, WidgetRef ref) {
 
 const int _maxTargetEntries = 8;
 
-String _normalizeDesignation(String text) =>
-    text.toLowerCase().replaceAll(RegExp(r'\s+'), '');
-
 typedef TargetSearchIndex = ({
   List<_SearchableTarget> dsos,
   List<_SearchableTarget> stars,
@@ -230,7 +229,7 @@ class _SearchableTarget {
   final CelestialObject object;
   final String label;
 
-  /// Its catalog designations, lower-cased and without spaces.
+  /// Its catalog designations as [normalizeCatalogSearchText] keys them.
   final List<String> designations;
 
   /// Its name and common names, lower-cased; a star's proper name.
@@ -240,9 +239,9 @@ class _SearchableTarget {
 /// The installed catalogs as the palette searches them, built once per
 /// catalog load.
 ///
-/// A keystroke used to walk both catalogs (some 13,000 objects and 118,000
-/// stars), normalizing every designation with a regular expression and
-/// lower-casing every name: 50 to 100 ms on the UI isolate per letter typed.
+/// Walking both catalogs on every keystroke (some 13,000 objects and 118,000
+/// stars), normalizing every designation, costs 50 to 100 ms on the UI
+/// isolate per letter typed.
 /// Only the 400 or so stars that have a name can be found, so the rest are
 /// not kept.
 final targetSearchIndexProvider = Provider<TargetSearchIndex>((ref) {
@@ -264,8 +263,8 @@ final targetSearchIndexProvider = Provider<TargetSearchIndex>((ref) {
                 ? '$designation · $firstCommon'
                 : designation,
             designations: [
-              _normalizeDesignation(dso.id),
-              for (final id in dso.catalogIds) _normalizeDesignation(id),
+              normalizeCatalogSearchText(dso.id),
+              for (final id in dso.catalogIds) normalizeCatalogSearchText(id),
             ],
             names: [
               dso.name.toLowerCase(),
@@ -291,7 +290,8 @@ final targetSearchIndexProvider = Provider<TargetSearchIndex>((ref) {
 /// [query]. Choosing one opens it in Framing, or, [inSky] (the planetarium on
 /// screen), centers the sky on it; Shift+Enter does the other.
 ///
-/// Designations match with or without spaces ("NGC 891", "ngc891", "M31"),
+/// Designations match as every catalog search reads them ("NGC 891",
+/// "ngc891", "Messier 31", "M031"),
 /// common names by substring, and stars by their proper name. Nothing is
 /// listed before two characters are typed or while the catalogs load.
 List<CommandEntry> buildTargetEntries(
@@ -299,7 +299,7 @@ List<CommandEntry> buildTargetEntries(
   String query, {
   bool inSky = false,
 }) {
-  final normalized = _normalizeDesignation(query);
+  final normalized = normalizeCatalogSearchText(query);
   if (normalized.length < 2) return const [];
   final index = ref.read(targetSearchIndexProvider);
 

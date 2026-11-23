@@ -1,10 +1,10 @@
 use super::*;
 use crate::device::{DeviceInfo, DeviceType, DriverType};
-use crate::device_manager::{get_device_manager, DeviceManager};
-use crate::event::imaging::ImagingEvent;
-use crate::unified_device_ops::exposure_wait::{
+use crate::device_manager::capture::exposure_wait::{
     exposure_abort_generation, wait_for_camera_exposure_complete,
 };
+use crate::device_manager::{get_device_manager, DeviceManager};
+use crate::event::imaging::ImagingEvent;
 use crate::unified_device_ops::rich_header::build_rich_header;
 use skotiq_device::{
     CameraCapabilities, CameraDriver, CameraState, CameraStatus, DeviceDriver, DriverError,
@@ -98,8 +98,8 @@ impl CameraDriver for InstantCompleteCamera {
             cooler_power: None,
             target_temp: None,
             cooler_on: Some(false),
-            gain: 0,
-            offset: 0,
+            gain: Some(0),
+            offset: Some(0),
             bin_x: 1,
             bin_y: 1,
             exposure_remaining: None,

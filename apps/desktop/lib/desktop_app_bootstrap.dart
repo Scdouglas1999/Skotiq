@@ -27,16 +27,10 @@ const String _logSource = 'DesktopBootstrap';
 /// same obligation — the job rows and the journal rows outlive the process that
 /// wrote them, so whichever mode starts next owes them a pass.
 ///
-/// **The sweep belongs to delivery, not to remote access.** It used to be armed
-/// inside [HeadlessApiServer]'s start, which a desktop GUI only reaches when
-/// `web_server_enabled` is on — and that setting is off on a fresh install. So
-/// a GUI with remote access off had no periodic sweep at all, while a stopped
-/// dawn pass told the operator in as many words that "the retry sweep resumes
-/// them": measured against the release bundle, a destination that came back 28
-/// seconds after the startup pass failed still had nothing written to it four
-/// minutes past the row's due time, and the rows only moved on the next launch.
-/// Arming it here makes that sentence true in every mode that owns the journal,
-/// and [DeliveryRetrySweeper.start] is idempotent, so the daemon — which runs
+/// **The sweep belongs to delivery, not to remote access.** A desktop GUI
+/// only reaches [HeadlessApiServer]'s start when `web_server_enabled` is on,
+/// and that setting is off on a fresh install.
+/// [DeliveryRetrySweeper.start] is idempotent, so the daemon — which runs
 /// this seam and the API server both — still arms exactly one timer.
 ///
 /// **Armed before the catch-up, not after.** The catch-up is network-bound and
@@ -276,6 +270,7 @@ class GuiRemoteAccess {
           requiresAuthentication: true,
           dashboardAvailable: true,
           serverFingerprint: server.serverFingerprint,
+          advert: running.advert,
         );
 
     _collaborationSubscription = server.collaborationManager.stream.listen((
@@ -332,7 +327,7 @@ Future<bool> shouldStartMinimized(ProviderContainer container) async {
   final logger = container.read(loggingServiceProvider);
   try {
     final dao = container.read(settingsDaoProvider);
-    final value = await dao.getSetting('start_minimized');
+    final value = await dao.getSetting(AppSettingDefs.startMinimized.key);
     return value == 'true';
   } catch (e) {
     logger.warning(

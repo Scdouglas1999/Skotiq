@@ -9,6 +9,27 @@ import 'package:skotiq_bridge/skotiq_bridge.dart'
 import 'package:skotiq_core/src/models/sequence/run_stop_classification.dart';
 
 void main() {
+  group('isStoredRunStopNotice', () {
+    test('every stop notice an older run row can carry', () {
+      for (final notice in const [
+        'Sequence cancelled',
+        'Sequence canceled',
+        'Stopped by user',
+        'stopped by the user',
+        'Stopped by operator',
+        'Stopped by the operator',
+        ' Stopped by request ',
+      ]) {
+        expect(isStoredRunStopNotice(notice), isTrue, reason: notice);
+      }
+    });
+
+    test('a fault that mentions a stop is still a fault', () {
+      expect(isStoredRunStopNotice('Stopped by request: mount fault'), isFalse);
+      expect(isStoredRunStopNotice('Slew canceled by the mount'), isFalse);
+    });
+  });
+
   group('isSequenceCancelledNotice', () {
     test('recognises the notice, in either spelling', () {
       expect(isSequenceCancelledNotice(kSequenceCancelledNotice), isTrue);

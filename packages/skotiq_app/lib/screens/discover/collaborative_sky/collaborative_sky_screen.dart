@@ -66,7 +66,7 @@ class CollaborativeSkyView extends ConsumerWidget {
 
   /// Re-reads everything the collaborative view shows.
   ///
-  /// Public because the view no longer carries a header of its own: the Plan
+  /// Public because the view carries no header of its own: the Plan
   /// screen's "Your sky" tab owns the one refresh button for all three
   /// discovery surfaces (06 §Plan removes the second header row).
   static void refreshCollaborativeSky(WidgetRef ref) {
@@ -278,7 +278,7 @@ class _CoImagingSectionState extends ConsumerState<_CoImagingSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
+        SectionTitle(
           title: 'Live co-imaging',
           subtitle: 'Pool integration on one target across rigs and longitudes',
           trailing: SkotiqButton(
@@ -611,7 +611,7 @@ class _MosaicsSection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const SectionTitle(
           title: 'Collaborative mosaics',
           subtitle: 'Split a mosaic across rigs and get one fused result',
         ),
@@ -693,7 +693,7 @@ class _SharedLibrarySection extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const SectionTitle(
           title: 'Shared calibration',
           subtitle: 'Pull a sensor-matched master instead of re-shooting',
         ),

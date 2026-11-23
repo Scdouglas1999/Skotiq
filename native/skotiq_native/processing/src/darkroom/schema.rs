@@ -21,7 +21,7 @@
 use std::sync::Arc;
 
 use serde_json::{json, Map, Value};
-use skotiq_imaging::color_composite::Palette;
+use skotiq_imaging::recipe::composite::Palette;
 use skotiq_imaging::recipe::ops::crop::auto_rect;
 use skotiq_imaging::recipe::ops::stretch::auto_params;
 use skotiq_imaging::recipe::{

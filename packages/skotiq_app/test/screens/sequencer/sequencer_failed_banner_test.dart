@@ -1,11 +1,9 @@
 // The Sequencer screen's "Sequence failed" banner must name the fault that
 // ended the run, not the step the teardown cancelled after it.
 //
-// On 2026-09-14 the only message the operator saw was "Change Filter:
-// Operation cancelled": the filter wheel's wait loop noticing the cancellation
-// a second after recovery had already given up. The native executor now ships
-// the real cause on `SequenceFailed.error` and Dart files it as
-// `terminalCause`, but the cascade keeps the teardown step as its LAST entry.
+// The cascade keeps the teardown step ("Change Filter: Operation cancelled")
+// as its LAST entry; the native executor ships the real cause on
+// `SequenceFailed.error`, and Dart files it as `terminalCause`.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

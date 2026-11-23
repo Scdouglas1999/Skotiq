@@ -13,6 +13,7 @@ import 'package:skotiq_desktop/headless_api/handlers/device_handlers.dart';
 import 'package:skotiq_desktop/headless_api/job_manager.dart';
 import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire_models.dart' show JobState;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,6 +122,48 @@ void main() {
     await _pumpUntil(() => jobs.get(jobId)?.state != JobState.running);
   });
 
+  for (final (sent, expected) in [(2.4, 2.4), (null, 1.6)]) {
+    test('an autofocus request runs with the failure HFR tolerance it sends '
+        '(sent: $sent)', () async {
+      final backend = _PendingAutofocusBackend();
+      final container = ProviderContainer(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+          _memoryDatabase(),
+        ],
+      );
+      addTearDown(container.dispose);
+      final jobs = JobManager(emitEvent: (_) {});
+      addTearDown(jobs.dispose);
+      final handlers = DeviceHandlers(container, jobManager: jobs);
+
+      final response = await handlers.handleAutofocusStart(
+        Request(
+          'POST',
+          Uri.parse('http://localhost/api/focuser/autofocus/start'),
+          headers: {'content-type': 'application/json'},
+          body: jsonEncode({
+            'deviceId': 'native:focuser:1',
+            'cameraId': 'native:camera:1',
+            'exposureTime': 2.0,
+            'stepSize': 50,
+            'stepsOut': 4,
+            if (sent != null) 'failureHfrToleranceRatio': sent,
+          }),
+        ),
+      );
+      final body = jsonDecode(await response.readAsString()) as Map;
+      final jobId = body['jobId'] as String;
+      await _pumpUntil(() => jobs.get(jobId)?.state == JobState.running);
+      expect(backend.failureHfrToleranceRatio, expected);
+
+      backend.pending.completeError(StateError('test over'));
+      await _pumpUntil(() => jobs.get(jobId)?.state != JobState.running);
+    });
+  }
+
   test('an autofocus a client asks for trains the host focus model', () async {
     final backend = _PendingAutofocusBackend();
     final predictive = _RecordingPredictiveAf();
@@ -200,7 +243,10 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     Future<Response> moveTo(int position) => handlers.handleFocuserMoveTo(
@@ -313,34 +359,14 @@ class _PendingAutofocusBackend extends DisconnectedBackend {
   int? gain;
   int? offset;
   int? useBrightestNStars;
+  double? failureHfrToleranceRatio;
 
   @override
-  Future<AutofocusResult> autofocusStart({
-    required String deviceId,
-    required String cameraId,
-    required double exposureTime,
-    required int stepSize,
-    required int stepsOut,
-    String method = 'VCurve',
-    int binning = 1,
-    int? gain,
-    int? offset,
-    String curveFitting = 'Hyperbolic',
-    int numberOfAttempts = 1,
-    int exposuresPerPoint = 1,
-    double rSquaredThreshold = 0.7,
-    double outerCropRatio = 1.0,
-    double innerCropRatio = 0.0,
-    int useBrightestNStars = 0,
-    int focuserSettleTimeMs = 500,
-    String backlashCompMethod = 'Overshoot',
-    int backlashIn = 350,
-    int backlashOut = 0,
-    int? measuredBacklashIn,
-  }) {
-    this.gain = gain;
-    this.offset = offset;
-    this.useBrightestNStars = useBrightestNStars;
+  Future<AutofocusResult> autofocusStart(AutofocusRequest request) {
+    gain = request.gain;
+    offset = request.offset;
+    useBrightestNStars = request.useBrightestNStars;
+    failureHfrToleranceRatio = request.failureHfrToleranceRatio;
     return pending.future;
   }
 

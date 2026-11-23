@@ -8,18 +8,16 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 
 import '../backend/roles/host_data/calibration_library.dart';
 import '../database/database.dart';
-import '../database/daos/flat_library_dao.dart';
 import '../database/daos/integrated_masters_dao.dart';
 import '../models/imaging/integrated_master.dart';
 import '../models/calibration/calibration_library_models.dart';
 import 'frame_header.dart';
-import 'calibration_master_builder.dart';
-import 'dark_library_service.dart';
 import 'disk_space_service.dart';
+import 'calibration/calibration_frame_groups.dart';
 import 'calibration/calibration_selection.dart';
+import 'darkroom_autopilot/darkroom_replies.dart' show DarkroomUniformDelivery;
 import 'darkroom_build_plan.dart';
 import 'darkroom_registration_preview.dart';
-import 'package:skotiq_astro/skotiq_astro.dart';
 import '../database/rows/frame_gain.dart';
 export 'darkroom_build_plan.dart';
 export 'darkroom_registration_preview.dart';
@@ -38,10 +36,6 @@ const int darkroomSpoolMemoryBudgetMb = 1024;
 /// Space kept free beyond the working folder, for the masters and the rest
 /// of the system.
 const int darkroomSpoolHeadroomBytes = 512 << 20;
-
-/// Sensor temperatures closer than this, within one night and setup, are one
-/// group: cooler drift during a night must not split its calibration.
-const double darkroomTemperatureGapC = 3;
 
 /// Weighting the build asks the native side for. Star signal over noise,
 /// squared, is the closest native measure to PixInsight's default PSF Signal
@@ -104,14 +98,6 @@ String? darkroomColorRole(String filter) {
 String describeIntegration(num seconds) => seconds < 3600
     ? '${(seconds / 60).round()} min'
     : '${(seconds / 3600).toStringAsFixed(1)} h';
-
-/// The observing night [time] belongs to as a `YYYY-MM-DD` key: the evening
-/// date [observingNightOf] names.
-String observingNight(DateTime time) {
-  final evening = observingNightOf(time);
-  String two(int v) => v.toString().padLeft(2, '0');
-  return '${evening.year}-${two(evening.month)}-${two(evening.day)}';
-}
 
 class DarkroomBuildGroup {
   DarkroomBuildGroup({
@@ -232,56 +218,31 @@ class DarkroomUnattendedOutcome {
   bool get built => report != null;
 }
 
-String flatSetupKey(
-  String? filter,
-  int? gain,
-  int? offset,
-  int binX,
-  int binY,
-) => '${filter ?? ''}|$gain|$offset|${binX}x$binY';
-
 class DarkroomBuildService {
   DarkroomBuildService({
     required this.operation,
     required this.library,
     required this.masters,
     FrameHeaderReader readHeader = readFrameHeader,
-    CalibrationMasterBuild? buildMaster,
-    DarkroomBuildOperation? buildFlat,
-    this.darkLibrary,
-    this.flatLibrary,
     this.processingSettings,
     DarkroomFreeSpace? freeSpace,
   }) : _readHeader = readHeader,
        _freeSpace =
            freeSpace ??
            ((directory) async =>
-               (await DiskSpaceService().query(directory)).freeBytes),
-       _buildMaster = buildMaster ?? buildCalibrationMasterNative,
-       _buildFlat = buildFlat ?? _nativeBuildFlat;
+               (await DiskSpaceService().query(directory)).freeBytes);
 
   final DarkroomBuildOperation operation;
   final CalibrationLibrary library;
   final IntegratedMastersDao masters;
   final Future<DarkroomProcessingOptions> Function()? processingSettings;
-  final DarkLibraryService? darkLibrary;
-  final FlatLibraryDao? flatLibrary;
   final FrameHeaderReader _readHeader;
   final DarkroomFreeSpace _freeSpace;
-  final CalibrationMasterBuild _buildMaster;
-  final DarkroomBuildOperation _buildFlat;
   bool _running = false;
   bool _stop = false;
   String? _runId;
 
   bool get isRunning => _running;
-
-  static Future<Map<String, dynamic>> _nativeBuildFlat(
-    Map<String, dynamic> request,
-  ) async => Map<String, dynamic>.from(
-    jsonDecode(await bridge.apiBuildMasterFlat(argsJson: jsonEncode(request)))
-        as Map,
-  );
 
   /// Group accepted lights by observing night, equipment and acquisition
   /// settings, and match calibration masters from the local library. A filter's
@@ -291,7 +252,7 @@ class DarkroomBuildService {
     bool shareFlats = true,
     Map<String, String> selectedFlats = const {},
   }) async {
-    final lights = frames.where((f) => f.isAccepted && f.isLight).toList();
+    final lights = frames.where((f) => f.isAcceptedLight).toList();
     final headers = <int, FrameHeader>{};
     for (final f in lights) {
       headers[f.id] = await _readHeader(f.filePath);
@@ -508,63 +469,6 @@ class DarkroomBuildService {
       throw StateError('No accepted light frames remain.');
     }
     return candidates.first.filePath;
-  }
-
-  /// Build a calibration master from raw frames and register it in the
-  /// calibration library so later builds and captures find it.
-  Future<String> buildCalibration({
-    required String kind,
-    required List<String> paths,
-    required String output,
-    String? bias,
-    DarkroomBuildGroup? forGroup,
-  }) async {
-    if (kind == 'flat') {
-      if (bias == null) {
-        throw ArgumentError('Flats need a master bias or dark-flat.');
-      }
-      final built = await _buildFlat({
-        'flatPaths': paths,
-        'biasOrDarkFlat': bias,
-        'outputPath': output,
-        'outputBitDepth': 'f32',
-        'method': 'sigmaClip',
-        'sigmaKappa': 3,
-        'sigmaIterations': 3,
-      });
-      final sample = forGroup?.frames.firstOrNull;
-      // Without a group to file it under, the flat is registered with the
-      // settings its own frames were taken with, so the matcher can pair it
-      // with lights by filter, gain, offset and binning.
-      final header = sample == null
-          ? await _readHeader(paths.first)
-          : FrameHeader(const {});
-      await flatLibrary?.addEntry(
-        filePath: output,
-        filter: forGroup?.filter ?? header.string('FILTER'),
-        temperature:
-            sample?.sensorTemp ??
-            header.firstNumber(const ['CCD-TEMP', 'SET-TEMP']),
-        gain: sample?.gain ?? header.integer('GAIN'),
-        offset: sample?.offset ?? header.integer('OFFSET'),
-        binX: sample?.binX ?? header.integer('XBINNING') ?? 1,
-        binY: sample?.binY ?? header.integer('YBINNING') ?? 1,
-        width: (built['width'] as num?)?.toInt(),
-        height: (built['height'] as num?)?.toInt(),
-        masterFrameCount:
-            (built['frameCount'] as num?)?.toInt() ?? paths.length,
-      );
-    } else {
-      final built = await _buildMaster(
-        CalibrationMasterBuildRequest(
-          kind: kind,
-          framePaths: paths,
-          outputPath: output,
-        ),
-      );
-      await darkLibrary?.registerMaster(built, frameType: kind);
-    }
-    return output;
   }
 
   Future<void> checkCalibration(List<DarkroomBuildGroup> groups) async {
@@ -976,9 +880,7 @@ class DarkroomBuildService {
         delivery = Map<String, dynamic>.from(
           jsonDecode(await deliveryReceipt.readAsString()) as Map,
         );
-        final saved = [
-          for (final m in delivery['masters'] as List) (m as Map)['filter'],
-        ];
+        final saved = DarkroomUniformDelivery(delivery).filters;
         if (jsonEncode(saved) != jsonEncode(built)) delivery = null;
       }
       final newExport = delivery == null;
@@ -1163,41 +1065,36 @@ class DarkroomBuildService {
         for (final light in group['lights'] as List)
           light['path'] as String: light['id'] as int,
     };
+    final delivered = DarkroomUniformDelivery(delivery);
     for (var i = 0; i < results.length; i++) {
-      final file = (delivery['masters'] as List)[i] as Map;
+      final file = delivered.master(i);
       final filter = results[i]['filter'] as String;
-      if (!await File(file['path'] as String).exists()) {
+      if (!await File(file.path).exists()) {
         throw StateError(
           'Exported $filter master is missing. Restore it before resuming.',
         );
       }
       final existing = library
-          .where((m) => m.masterFitsPath == file['path'])
+          .where((m) => m.masterFitsPath == file.path)
           .firstOrNull;
       if (existing != null) continue;
       final masterId = await masters.insertMaster(
         name: '${plan['target']} $filter',
-        masterFitsPath: file['path'] as String,
-        previewPngPath: file['previewPath'] as String,
+        masterFitsPath: file.path,
+        previewPngPath: file.previewPath,
         filter: filter,
-        channels: file['channels'] as int,
+        channels: file.channels,
         status: IntegratedMasterStatus.finalized,
         accumulationMode: AccumulationMode.runningWeightedMean,
-        width: delivery['width'] as int,
-        height: delivery['height'] as int,
+        width: delivered.width,
+        height: delivered.height,
         frameCount: results[i]['frameCount'] as int,
         totalIntegrationSeconds: (results[i]['totalIntegrationSec'] as num)
             .toDouble(),
         settingsJson: jsonEncode(plan),
         statsJson: jsonEncode(results[i]),
       );
-      await _replaceEarlier(
-        directory,
-        library,
-        filter,
-        masterId,
-        file['path'] as String,
-      );
+      await _replaceEarlier(directory, library, filter, masterId, file.path);
       for (final frame in results[i]['folded'] as List) {
         final id = inputsByPath[frame['path']];
         if (id == null) continue;
@@ -1234,8 +1131,9 @@ class DarkroomBuildService {
     Map<String, dynamic> delivery,
     List<IntegratedMaster> library,
   ) async {
-    final composites = delivery['composites'];
-    if (composites is! Map) return;
+    final delivered = DarkroomUniformDelivery(delivery);
+    final composites = delivered.composites;
+    if (composites == null) return;
     for (final (kind, pathKey, xisfKey, previewKey, roles) in const [
       ('RGB', 'rgbPath', 'rgbXisfPath', 'rgbPreviewPath', {'R', 'G', 'B'}),
       (
@@ -1267,8 +1165,8 @@ class DarkroomBuildService {
         channels: 3,
         status: IntegratedMasterStatus.finalized,
         accumulationMode: AccumulationMode.runningWeightedMean,
-        width: delivery['width'] as int,
-        height: delivery['height'] as int,
+        width: delivered.width,
+        height: delivered.height,
         frameCount: used.fold<int>(0, (n, r) => n + (r['frameCount'] as int)),
         totalIntegrationSeconds: used.fold<double>(
           0,

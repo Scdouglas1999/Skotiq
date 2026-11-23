@@ -86,12 +86,9 @@ void main() {
         httpClient: client,
         clock: () => _now,
       );
-      final hours = await service.fetchRadarFrames(
-        latitude: 40,
-        longitude: -75,
-      );
+      final hours = await service.fetchCloudCover(latitude: 40, longitude: -75);
       expect(hours.providerName, 'Open-Meteo');
-      expect(hours.frames.first.opacity, .08);
+      expect(hours.samples.first.fraction, .08);
       expect(hosts, ['api.open-meteo.com']);
       expect(client.closeCount, 0);
       service.dispose();
@@ -110,9 +107,9 @@ void main() {
       clock: () => _now,
     );
     addTearDown(service.dispose);
-    final hours = await service.fetchRadarFrames(latitude: 40, longitude: -75);
+    final hours = await service.fetchCloudCover(latitude: 40, longitude: -75);
     expect(hours.providerName, 'National Weather Service');
-    expect(hours.frames.first.opacity, .87);
+    expect(hours.samples.first.fraction, .87);
   });
 
   test('outside the NWS region its endpoints are never asked', () async {
@@ -128,7 +125,7 @@ void main() {
       clock: () => _now,
     );
     addTearDown(service.dispose);
-    final hours = await service.fetchRadarFrames(latitude: 48, longitude: 2);
+    final hours = await service.fetchCloudCover(latitude: 48, longitude: 2);
     expect(hours.providerName, 'MET Norway');
     expect(hosts, isNot(contains('api.weather.gov')));
   });
@@ -144,9 +141,9 @@ void main() {
       clock: () => _now,
     );
     addTearDown(service.dispose);
-    final hours = await service.fetchRadarFrames(latitude: 40, longitude: -75);
+    final hours = await service.fetchCloudCover(latitude: 40, longitude: -75);
     expect(hours.providerName, 'MET Norway');
-    expect(hours.frames.first.opacity, closeTo(.961, 1e-9));
+    expect(hours.samples.first.fraction, closeTo(.961, 1e-9));
   });
 
   test('all sources unavailable return a failed result', () async {
@@ -157,7 +154,7 @@ void main() {
     );
     addTearDown(service.dispose);
     expect(
-      (await service.fetchRadarFrames(latitude: 40, longitude: -75)).isSuccess,
+      (await service.fetchCloudCover(latitude: 40, longitude: -75)).isSuccess,
       isFalse,
     );
   });

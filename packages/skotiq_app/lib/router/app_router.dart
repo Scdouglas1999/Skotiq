@@ -10,6 +10,7 @@ import '../screens/imaging/imaging_screen.dart';
 import '../screens/guiding/guiding_screen.dart';
 import '../screens/sequencer/sequencer_screen.dart';
 import '../screens/analytics/analytics_screen.dart';
+import 'sequencer_route.dart' show SequencerTab;
 import 'darkroom_route.dart' show DarkroomRoute;
 import '../screens/darkroom/darkroom_screen.dart';
 import '../screens/stack_result/stack_result_screen.dart';

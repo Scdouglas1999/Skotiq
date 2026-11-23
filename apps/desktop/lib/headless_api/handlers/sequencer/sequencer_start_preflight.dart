@@ -190,15 +190,17 @@ extension _SequencerStartPreflight on SequencerHandlers {
     final native = error is bridge_api.SkotiqError
         ? error.maybeMap(
             operationFailed: (failure) => failure.field0,
+            refused: (refusal) => refusal.message,
             orElse: () => null,
           )
         : null;
-    final message = native ?? error.toString();
+    final message = native ?? describeBackendError(error);
     _logInfo('[API] POST /api/sequencer/start refused by pre-flight: $message');
 
-    // "Cannot start: executor is Running" is a state conflict, not a bad
-    // request: the caller's payload was fine, the appliance is simply busy.
-    if (message.contains('Cannot start: executor is')) {
+    // An executor that is not idle is a state conflict, not a bad request:
+    // the caller's payload was fine, the appliance is simply busy.
+    if (error is bridge_api.SkotiqError_Refused &&
+        error.kind == bridge_api.Refusal.executorNotIdle) {
       return jsonConflict({'error': 'sequencer_busy', 'message': message});
     }
     return jsonBadRequest({
@@ -213,10 +215,7 @@ extension _SequencerStartPreflight on SequencerHandlers {
   ///
   /// The native executor resolves hardware through the ids handed to it by
   /// `sequencerSetDevices`, NOT through the device manager's connection table
-  /// and NOT through the equipment profile. Those two can therefore disagree,
-  /// and on the headless `load -> start` path they always did: nothing ever
-  /// called `sequencerSetDevices`, so the executor's ids were all null while
-  /// `GET /api/devices/connected` happily listed live hardware.
+  /// and NOT through the equipment profile. Those two can therefore disagree.
   ///
   /// [DeviceBackend.getConnectedDevices] is the same source
   /// `GET /api/devices/connected` renders, so after this call the executor and
@@ -225,20 +224,9 @@ extension _SequencerStartPreflight on SequencerHandlers {
   ///
   /// A connected device wins, but where none is connected an id the caller
   /// assigned through `POST /api/sequencer/devices` is kept rather than
-  /// overwritten with null. Without that fallback this method silently undid
-  /// that endpoint — reproduced against the Linux appliance on 2026-08-09:
-  ///
-  /// ```
-  /// POST /api/sequencer/devices {"cameraId":"sim_camera_1"} -> {"status":"ok"}
-  /// POST /api/sequencer/start -> 400 {"error":"preflight_rejected",
-  ///   "message":"... no camera is assigned to the run ..."}
-  /// ```
-  ///
-  /// A camera *was* assigned, through the one endpoint that assigns it, and the
-  /// appliance discarded it a line before reading it back and reporting it
-  /// missing. `POST /api/sequencer/devices` is the only way a headless-only
-  /// operator can assign hardware at all (see L9: `POST /api/profiles` cannot
-  /// be driven), so a silent no-op there strands them with no path forward.
+  /// overwritten with null. That endpoint is the only way a headless-only
+  /// operator can assign hardware at all (`POST /api/profiles` cannot be
+  /// driven).
   ///
   /// A failure here is not fatal on its own: the native camera preflight in
   /// `SequenceExecutor::start()` refuses a capture sequence with no camera

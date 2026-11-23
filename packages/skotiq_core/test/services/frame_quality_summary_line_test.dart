@@ -1,10 +1,10 @@
-// SCI-38: the frame inspector graded a frame "Good" and then printed a fault as
+// The frame inspector graded a frame "Good" and then printed a fault as
 // the only reason — "Good — Low star count (39)" on every frame of a clean
 // session. The assessor collects every observation it makes into `reasons`,
 // including ones that never moved the verdict, and the UI joined them onto the
 // label with an em dash, which reads as the reason FOR the grade.
 //
-// SCI-37: the same assessment carries two numbers that both get called "the
+// The same assessment carries two numbers that both get called "the
 // score" — the recorded `quality_score` and the assessor's `advisoryScore`,
 // which is that score minus review penalties. They must be nameable apart.
 

@@ -5,7 +5,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
-import 'package:skotiq_app/screens/night_control/data/session/camera_exposure_provider.dart';
+import 'package:skotiq_app/services/night_session/night_camera_exposure.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 

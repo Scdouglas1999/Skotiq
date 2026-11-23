@@ -1,9 +1,11 @@
-import 'dart:developer' as developer;
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'plugin_api.dart';
 import 'plugin_context.dart';
 import 'plugin_node_registry.dart';
+
+final _pluginHostLog = Logger('skotiq.PluginHost');
 
 class LoadedPlugin {
   final SkotiqPlugin plugin;
@@ -158,6 +160,11 @@ class PluginHost {
   SkotiqPlugin? getPlugin(String pluginId) {
     return _plugins[pluginId]?.plugin;
   }
+
+  /// Publishes an app event ([eventName] with [data]) to the plugins that
+  /// listen for it on their event bus.
+  void publishHostEvent(String eventName, Map<String, dynamic> data) =>
+      _contextFactory.publish(eventName, data);
 
   /// Return the live [PluginContext] associated with [pluginId], or `null`
   /// if no such plugin is registered. Plugin nodes use this to access the
@@ -429,11 +436,7 @@ class PluginHost {
         await unregisterPlugin(pluginId);
       } catch (e) {
         // Log but continue disposing other plugins
-        developer.log(
-          'Error disposing plugin $pluginId: $e',
-          name: 'PluginHost',
-          level: 1000,
-        );
+        _pluginHostLog.severe('Error disposing plugin $pluginId: $e');
       }
     }
 

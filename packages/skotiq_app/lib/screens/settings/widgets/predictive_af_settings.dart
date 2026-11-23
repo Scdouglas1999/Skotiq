@@ -215,7 +215,6 @@ class _PredictiveAfSettingsPageState
         title: 'Gates',
         children: [
           _settingRow(
-            icon: LucideIcons.brainCircuit,
             title: 'Auto-learn focus models',
             subtitle: 'When enabled, each successful AF run appends a sample '
                 'to the matching (camera, filter) model and re-fits the '
@@ -229,7 +228,6 @@ class _PredictiveAfSettingsPageState
             ),
           ),
           _settingRow(
-            icon: LucideIcons.barChart3,
             title: 'Minimum samples for trust',
             subtitle: 'Below this count, even a high-R² model still forces a '
                 'real AF sweep so the predictor cannot lock onto a tiny '
@@ -249,7 +247,6 @@ class _PredictiveAfSettingsPageState
             ),
           ),
           _settingRow(
-            icon: LucideIcons.checkCircle,
             title: 'High-confidence threshold (R²)',
             subtitle: 'R² ≥ this → apply prediction directly.',
             trailing: SettingsNumberInput(
@@ -267,7 +264,6 @@ class _PredictiveAfSettingsPageState
             ),
           ),
           _settingRow(
-            icon: LucideIcons.alertCircle,
             title: 'Low-confidence threshold (R²)',
             subtitle: 'R² < this → force a real AF sweep.',
             trailing: SettingsNumberInput(
@@ -285,7 +281,6 @@ class _PredictiveAfSettingsPageState
             ),
           ),
           _settingRow(
-            icon: LucideIcons.activity,
             title: 'Drift threshold (steps)',
             subtitle: 'How many focuser steps a prediction can be off before '
                 'counting as a "bad" run for drift tracking.',
@@ -304,7 +299,6 @@ class _PredictiveAfSettingsPageState
             ),
           ),
           _settingRow(
-            icon: LucideIcons.alertTriangle,
             title: 'Bad runs before warning',
             subtitle: 'Consecutive bad predictions required before the app '
                 'surfaces a re-train notification.',
@@ -340,7 +334,6 @@ class _PredictiveAfSettingsPageState
   }
 
   Widget _settingRow({
-    required IconData icon,
     required String title,
     String? subtitle,
     required Widget trailing,
@@ -348,7 +341,6 @@ class _PredictiveAfSettingsPageState
   }) {
     if (SettingsFormScope.narrowOf(context)) {
       return SettingRow(
-        icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,
@@ -357,7 +349,6 @@ class _PredictiveAfSettingsPageState
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: SettingRow(
-        icon: icon,
         title: title,
         subtitle: subtitle,
         trailing: trailing,

@@ -104,20 +104,8 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
   }) async {
     // PHD2 is reached through its own client, not the device registry.
     if (isPhd2WireToken(deviceId)) {
-      String? host;
-      int? port;
-      if (deviceId.startsWith('phd2://')) {
-        final uri = Uri.tryParse(deviceId);
-        host = uri?.host;
-        port = uri?.port == 0 ? null : uri?.port;
-      } else if (deviceId.startsWith('phd2:')) {
-        final parts = deviceId.split(':');
-        if (parts.length >= 3) {
-          host = parts[1];
-          port = int.tryParse(parts[2]) ?? 4400;
-        }
-      }
-      await phd2Connect(host: host ?? 'localhost', port: port ?? 4400);
+      final endpoint = phd2Endpoint(deviceId);
+      await phd2Connect(host: endpoint.host, port: endpoint.port);
       return;
     }
 
@@ -142,7 +130,12 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
         );
       }
     } catch (e, stackTrace) {
-      _logger.severe('Native connection failed for $deviceId', e, stackTrace);
+      Log.error(
+        'Native connection failed for $deviceId',
+        source: _logSource,
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw DeviceConnectException(deviceId, e, reason: bridgeErrorMessage(e));
     }
   }
@@ -185,9 +178,9 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     bridge.apiSetQhyDiscoveryEnabled(enabled: enabled);
   }
 
-  /// The quirk table is keyed by the model name for most vendors
-  /// (`native:<vendor>:<model>`, as each driver looks its own quirks up) and
-  /// by the device id for the rest, so both keys are asked.
+  /// The quirk table is keyed by the model name for most rows and by the
+  /// device's family for the rest, so the bridge is given the id and the
+  /// model name the driver reported.
   Future<List<DeviceQuirk>> deviceQuirks(String deviceId) async {
     // Only the native vendor drivers have entries; the table logs a warning
     // for an id it cannot key, such as a simulator's.
@@ -200,20 +193,12 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
     for (final device in await _connectedNativeDevices()) {
       if (device.id == deviceId) name = device.name;
     }
-    final keys = [
-      deviceId,
-      if (name != null && id.segments.isNotEmpty)
-        'native:${id.segments.first}:$name',
-    ];
-    final seen = <String>{};
     return [
-      for (final key in keys)
-        for (final quirk in bridge.apiGetDeviceQuirks(deviceId: key))
-          if (seen.add('${quirk.category}\n${quirk.description}'))
-            DeviceQuirk(
-              category: quirk.category,
-              description: quirk.description,
-            ),
+      for (final quirk in bridge.apiGetDeviceQuirks(
+        deviceId: deviceId,
+        model: name,
+      ))
+        DeviceQuirk(category: quirk.category, description: quirk.description),
     ];
   }
 
@@ -226,7 +211,10 @@ mixin _FfiDiscoveryCameraOperations on _FfiBackendBase {
         return _NativeProcessState.lastConnectedDevices = await bridge
             .apiGetConnectedDevices();
       } catch (e) {
-        _logger.warning('Failed to read connected devices from native: $e');
+        Log.warning(
+          'Failed to read connected devices from native: $e',
+          source: _logSource,
+        );
       }
     }
     return _NativeProcessState.lastConnectedDevices;

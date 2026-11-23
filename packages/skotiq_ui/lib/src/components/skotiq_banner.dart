@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../theme/skotiq_colors.dart';
-import '../theme/skotiq_tokens.dart';
-import '../theme/skotiq_typography.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/intrinsic_safe_layout.dart';
 import 'skotiq_icon_button.dart';
 
 /// The four banner tones.
 enum BannerTone {
-  /// Something the operator should know. Painted in `primary`.
+  /// Something the operator should know. Painted in `info` (blue): the red
+  /// family is kept for problems.
   info,
 
   /// Something finished. Rare on a banner — success is usually silent.
@@ -85,7 +84,7 @@ class SkotiqBanner extends StatelessWidget {
   };
 
   Color _toneColor(SkotiqColors colors) => switch (tone) {
-    BannerTone.info => colors.primary,
+    BannerTone.info => colors.info,
     BannerTone.success => colors.success,
     BannerTone.warning => colors.warning,
     BannerTone.error => colors.error,

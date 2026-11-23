@@ -5,16 +5,19 @@
 use super::{stop_reason, GuideStarImage, GuiderCalibration, GuiderStatus};
 use crate::device::{DeviceInfo, DeviceType, DriverType};
 use crate::device_manager::get_device_manager;
-use crate::error::SkotiqError;
+use crate::error::{Refusal, SkotiqError};
 use crate::event::equipment::EventSeverity;
 use crate::event::guiding::GuidingEvent;
+use crate::guider::GuiderActivity;
 use crate::state::get_state;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
+mod link;
 mod watch;
+
+use link::LINK;
 
 /// The event for PHD2's SettleDone. A failed settle (non-zero status) must
 /// not masquerade as a clean "Settled" event, and it is not a lost star
@@ -54,9 +57,6 @@ fn alert_says_equipment_dropped(message: &str) -> bool {
     message.contains("disconnect")
 }
 
-/// A PHD2 equipment reconnect is running.
-static RECONNECTING_EQUIPMENT: AtomicBool = AtomicBool::new(false);
-
 /// [`reconnect_equipment`] on the bridge runtime, for PHD2's event thread.
 fn reconnect_equipment_in_background(reason: &'static str) {
     match crate::get_runtime() {
@@ -73,13 +73,13 @@ fn reconnect_equipment_in_background(reason: &'static str) {
 
 /// Disconnect and reconnect PHD2's camera and mount, the way the operator
 /// does in PHD2's Connect Equipment dialog. PHD2 keeps a link that went
-/// stale when the hub or power box behind it dropped (rig, 2026-11-15:
-/// every guide pulse failed until the equipment was reconnected). Guiding
+/// stale when the hub or power box behind it dropped (every guide pulse
+/// failed until the equipment was reconnected). Guiding
 /// stops for it; a run that was guiding sees its guiding stop and its
 /// guide-star recovery starts guiding again on a fresh star and settles
 /// before the next frame. One reconnect runs at a time.
 pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError> {
-    if RECONNECTING_EQUIPMENT.swap(true, Ordering::SeqCst) {
+    if !LINK.begin_equipment_reconnect() {
         return Ok(());
     }
     let result = async {
@@ -97,7 +97,7 @@ pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError>
         let connected = phd2_client()
             .await?
             .get_connected()
-            .map_err(SkotiqError::OperationFailed)?;
+            .map_err(|e| SkotiqError::OperationFailed(e.into()))?;
         if !connected {
             return Err(SkotiqError::OperationFailed(
                 "PHD2 says its equipment is still not connected".to_string(),
@@ -109,7 +109,7 @@ pub(crate) async fn reconnect_equipment(reason: &str) -> Result<(), SkotiqError>
         Ok(())
     }
     .await;
-    RECONNECTING_EQUIPMENT.store(false, Ordering::SeqCst);
+    LINK.end_equipment_reconnect();
     result
 }
 
@@ -132,7 +132,7 @@ pub(crate) async fn check_equipment_after_bus_change() {
 /// PHD2 answers JSON null when its profile has no focal length or pixel size,
 /// which the client reports as an error; a zero or negative number is no scale
 /// either. Both read as unknown.
-fn known_pixel_scale(reply: Result<f64, String>) -> Option<f64> {
+fn known_pixel_scale(reply: Result<f64, skotiq_phd2::Phd2Error>) -> Option<f64> {
     reply.ok().filter(|scale| scale.is_finite() && *scale > 0.0)
 }
 
@@ -154,10 +154,8 @@ pub(crate) fn is_device_id(device_id: &str) -> bool {
 /// answer in time.
 pub(crate) const PHD2_NOT_RESPONDING: &str = "NotResponding";
 
-static CLIENT: OnceLock<Arc<RwLock<Option<skotiq_phd2::Phd2Client>>>> = OnceLock::new();
-
 fn client_slot() -> &'static Arc<RwLock<Option<skotiq_phd2::Phd2Client>>> {
-    CLIENT.get_or_init(|| Arc::new(RwLock::new(None)))
+    LINK.client()
 }
 
 /// The live client under the slot's write lock, or `NotConnected("PHD2")`.
@@ -169,21 +167,6 @@ async fn phd2_client(
     tokio::sync::RwLockWriteGuard::try_map(storage, |slot| slot.as_mut())
         .map_err(|_| SkotiqError::NotConnected("PHD2".to_string()))
 }
-
-/// Bumped by every connect and disconnect the app asks for. A reconnect
-/// started for one link stops when it changes: the user disconnected, or
-/// connected again on their own.
-static LINK_GENERATION: AtomicU64 = AtomicU64::new(0);
-
-/// Where the last connect reached PHD2.
-static ENDPOINT: std::sync::Mutex<Option<(String, u16)>> = std::sync::Mutex::new(None);
-
-/// Numbers each client [`connect_endpoint`] opens, so a lost connection is
-/// recovered once however many times its loss is reported.
-static CLIENT_EPOCH: AtomicU64 = AtomicU64::new(0);
-
-/// The client whose lost connection a reconnect is recovering.
-static RECOVERING_EPOCH: AtomicU64 = AtomicU64::new(0);
 
 /// Waits between attempts to reach a PHD2 whose socket closed. Short first
 /// (PHD2 restarting), then once a minute for as long as it takes: a PHD2
@@ -217,17 +200,16 @@ fn reconnect_server_in_background(client_epoch: u64) {
 /// again, with backoff, until it answers or the app connects or disconnects
 /// PHD2 itself. This is the guider's share of the rule every device follows
 /// (`device_manager::device_reopen`): it comes back without anyone touching
-/// it. A run that was guiding sees guiding stop, and its guide-star recovery
-/// starts guiding again once PHD2 answers.
+/// it. During a run a local PHD2 that is no longer running is started again
+/// ([`reconnect_launch`]). A run that was guiding sees guiding stop, and its
+/// guide-star recovery starts guiding again once PHD2 answers.
 async fn reconnect_server(client_epoch: u64) {
     // Only the current client's loss, and only once.
-    if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
-        || RECOVERING_EPOCH.swap(client_epoch, Ordering::SeqCst) == client_epoch
-    {
+    if !LINK.claim_recovery(client_epoch) {
         return;
     }
-    let link_generation = LINK_GENERATION.load(Ordering::SeqCst);
-    let endpoint = ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()).clone();
+    let link_generation = LINK.generation();
+    let endpoint = LINK.endpoint();
     let Some((host, port)) = endpoint else {
         return;
     };
@@ -236,9 +218,7 @@ async fn reconnect_server(client_epoch: u64) {
         let mut storage = client_slot().write().await;
         // The app connected or disconnected PHD2 since the loss: that is
         // the link now, and nothing here may touch it.
-        if CLIENT_EPOCH.load(Ordering::SeqCst) != client_epoch
-            || LINK_GENERATION.load(Ordering::SeqCst) != link_generation
-        {
+        if !LINK.unchanged(client_epoch, link_generation) {
             return;
         }
         if let Some(mut dead) = storage.take() {
@@ -250,11 +230,12 @@ async fn reconnect_server(client_epoch: u64) {
     let mut attempt = 0;
     loop {
         tokio::time::sleep(reconnect_delay(attempt)).await;
-        if LINK_GENERATION.load(Ordering::SeqCst) != link_generation {
+        if LINK.generation() != link_generation {
             break;
         }
         attempt += 1;
-        match connect_endpoint(host.clone(), port).await {
+        let launch = reconnect_launch(crate::device_manager::motion_guard::run_is_active(), &host);
+        match bring_back(launch, Some((host.clone(), port))).await {
             Ok(()) => {
                 tracing::info!("[GUIDING] Reconnected to PHD2 after {attempt} attempt(s)");
                 publish_guiding_notice(
@@ -276,6 +257,66 @@ async fn reconnect_server(client_epoch: u64) {
     }
 }
 
+/// Whether the reconnect after PHD2's socket closed may start PHD2 again:
+/// only while a run is active, so a PHD2 that crashed mid-night comes back
+/// and the run's guide-star recovery can guide again, and only when PHD2 runs
+/// on this computer. Outside a run a PHD2 the operator closed stays closed.
+fn reconnect_launch(run_active: bool, host: &str) -> Launch {
+    let local = matches!(
+        skotiq_phd2::normalize_phd2_tcp_host(host).as_str(),
+        "127.0.0.1"
+    );
+    if run_active && local {
+        Launch::IfNotRunning
+    } else {
+        Launch::Never
+    }
+}
+
+/// Whether bringing PHD2 back may start the PHD2 program.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Launch {
+    IfNotRunning,
+    Never,
+}
+
+/// Bring PHD2 back: start the program when `launch` allows it and it is not
+/// running, wait up to 10 s for it to start, then, given an endpoint,
+/// connect to it and list it as the connected guider. The app's connect
+/// launches; the reconnect after a lost socket launches only during a run
+/// ([`reconnect_launch`]).
+pub(crate) async fn bring_back(
+    launch: Launch,
+    endpoint: Option<(String, u16)>,
+) -> Result<(), String> {
+    if launch == Launch::IfNotRunning && !skotiq_phd2::is_phd2_running() {
+        tracing::info!("PHD2 not running, attempting to launch...");
+        if let Err(e) = skotiq_phd2::launch_phd2() {
+            tracing::error!("Failed to launch PHD2: {}", e);
+            return Err(format!("Failed to launch PHD2: {}", e));
+        }
+
+        tracing::info!("Waiting for PHD2 to start...");
+        let mut started = false;
+        for _ in 0..20 {
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            if skotiq_phd2::is_phd2_running() {
+                started = true;
+                break;
+            }
+        }
+        if !started {
+            return Err("Timed out waiting for PHD2 to start".to_string());
+        }
+    }
+    match endpoint {
+        Some((host, port)) => connect_endpoint(host, port)
+            .await
+            .map_err(|e| e.to_string()),
+        None => Ok(()),
+    }
+}
+
 /// Connect to PHD2 and list it as the connected guider.
 pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(), SkotiqError> {
     // Why: localhost + PHD2 default port 4400 are the
@@ -285,7 +326,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
         skotiq_phd2::normalize_phd2_tcp_host(&host.unwrap_or_else(|| "127.0.0.1".to_string()));
     let port = port.unwrap_or(skotiq_phd2::PHD2_DEFAULT_PORT);
 
-    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
+    LINK.new_generation();
     connect_endpoint(host, port).await
 }
 
@@ -293,8 +334,7 @@ pub(crate) async fn connect(host: Option<String>, port: Option<u16>) -> Result<(
 /// guider. A loss of the socket this opens starts [`reconnect_server`].
 async fn connect_endpoint(host: String, port: u16) -> Result<(), SkotiqError> {
     tracing::info!("Connecting to PHD2 at {}:{}", host, port);
-    let client_epoch = CLIENT_EPOCH.fetch_add(1, Ordering::SeqCst) + 1;
-    *ENDPOINT.lock().unwrap_or_else(|p| p.into_inner()) = Some((host.clone(), port));
+    let client_epoch = LINK.open_client(&host, port);
 
     {
         let mut storage = client_slot().write().await;
@@ -500,8 +540,8 @@ async fn connect_endpoint(host: String, port: u16) -> Result<(), SkotiqError> {
 }
 
 pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
-    LINK_GENERATION.fetch_add(1, Ordering::SeqCst);
-    PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
+    LINK.new_generation();
+    LINK.stop();
     let mut storage = client_slot().write().await;
     if let Some(mut client) = storage.take() {
         client.disconnect();
@@ -515,18 +555,6 @@ pub(crate) async fn disconnect() -> Result<(), SkotiqError> {
 
     Ok(())
 }
-
-/// Serializes the PHD2 operations that start guiding or move the guide star:
-/// a fresh star selection, a start with its settle, and a dither with its
-/// settle. PHD2 refuses a `guide` while an earlier guide or dither is still
-/// settling ("Cannot initiate guide while guide is in progress"), and a
-/// selection that stops capture under a running start breaks both. A stop
-/// never waits for this lock: it is how a running settle is ended.
-static PHD2_GUIDE_OPS: Mutex<()> = Mutex::const_new(());
-
-/// Bumped by every stop and disconnect. A settle wait that sees it change
-/// ends at once instead of running out its timeout.
-static PHD2_STOP_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 /// How long a start waits for calibration on top of its settle. PHD2 starts
 /// the settle clock only after calibration, and a calibration of both axes
@@ -586,7 +614,7 @@ async fn stop_capture_and_wait(exposure: Duration) -> Result<bool, SkotiqError> 
             tracing::warn!(
                 "[GUIDING] PHD2 was still capturing {} s after it was asked to stop ({})",
                 (exposure + STOP_GRACE).as_secs(),
-                state.unwrap_or_else(|e| e)
+                state.unwrap_or_else(String::from)
             );
             return Ok(false);
         }
@@ -622,7 +650,7 @@ async fn await_settle(
         if let Some(result) = waiter.check() {
             return result.map(|_| ()).map_err(SettleEnd::Phd2);
         }
-        if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
+        if LINK.stop_generation() != stop_generation {
             return Err(SettleEnd::Stopped);
         }
         let now = tokio::time::Instant::now();
@@ -691,16 +719,16 @@ pub(crate) async fn start_guiding(
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), SkotiqError> {
-    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let _ops = LINK.guide_ops.lock().await;
     finish_pending_settle().await?;
-    let stop_generation = PHD2_STOP_GENERATION.load(Ordering::SeqCst);
+    let stop_generation = LINK.stop_generation();
     let waiter = phd2_client()
         .await?
         .guide_arm(settle_pixels, settle_time, settle_timeout)
         .map_err(|e| SkotiqError::OperationFailed(format!("Failed to start guiding: {}", e)))?;
     let settle_wait = skotiq_phd2::Phd2Client::settle_wait_duration(settle_time, settle_timeout);
     if let Err(error) = await_settle(waiter, settle_wait, stop_generation).await {
-        if PHD2_STOP_GENERATION.load(Ordering::SeqCst) != stop_generation {
+        if LINK.stop_generation() != stop_generation {
             return Err(error.into_error("Guiding did not settle"));
         }
         let mut client = phd2_client().await?;
@@ -732,7 +760,7 @@ pub(crate) async fn start_guiding(
 /// is not moved under a guide pulse and the next start is not refused. A
 /// settle another call is waiting on ends at once.
 pub(crate) async fn stop_guiding() -> Result<(), SkotiqError> {
-    PHD2_STOP_GENERATION.fetch_add(1, Ordering::SeqCst);
+    LINK.stop();
     // Acknowledging stop_capture is not enough: callers may move the mount
     // once this returns, so capture must actually have ended.
     stop_capture_completely(guide_exposure().await?)
@@ -756,9 +784,9 @@ pub(crate) async fn dither(
     settle_time: f64,
     settle_timeout: f64,
 ) -> Result<(), SkotiqError> {
-    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let _ops = LINK.guide_ops.lock().await;
     finish_pending_settle().await?;
-    let stop_generation = PHD2_STOP_GENERATION.load(Ordering::SeqCst);
+    let stop_generation = LINK.stop_generation();
 
     // Issue the dither RPC and arm settle tracking under the client lock, then
     // release it for the settle wait so status polls and stop are not stalled.
@@ -809,20 +837,18 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
 
     let pixel_scale = known_pixel_scale(client.get_pixel_scale());
 
-    // Why: forward the raw PHD2 state name when unrecognised so the desktop
-    // UI can render "PHD2 says: GuidingPaused" instead of pretending
-    // everything is fine. Known variants stay as &'static str literals;
-    // Unknown owns its String, so we convert to String at the join point.
-    let state_str: String = match state {
-        skotiq_phd2::Phd2State::Disconnected => "Disconnected".to_string(),
-        skotiq_phd2::Phd2State::Connected => "Connected".to_string(),
-        skotiq_phd2::Phd2State::Calibrating => "Calibrating".to_string(),
-        skotiq_phd2::Phd2State::Guiding => "Guiding".to_string(),
-        skotiq_phd2::Phd2State::Looping => "Looping".to_string(),
-        skotiq_phd2::Phd2State::Paused => "Paused".to_string(),
-        skotiq_phd2::Phd2State::Settling => "Settling".to_string(),
-        skotiq_phd2::Phd2State::LostLock => "LostLock".to_string(),
-        skotiq_phd2::Phd2State::Unknown(raw) => raw,
+    // A state PHD2 names that this build does not know is forwarded as PHD2
+    // spells it, so the app can show it rather than pretend all is well.
+    let activity = match state {
+        skotiq_phd2::Phd2State::Disconnected => GuiderActivity::Disconnected,
+        skotiq_phd2::Phd2State::Connected => GuiderActivity::Connected,
+        skotiq_phd2::Phd2State::Calibrating => GuiderActivity::Calibrating,
+        skotiq_phd2::Phd2State::Guiding => GuiderActivity::Guiding,
+        skotiq_phd2::Phd2State::Looping => GuiderActivity::Looping,
+        skotiq_phd2::Phd2State::Paused => GuiderActivity::Paused,
+        skotiq_phd2::Phd2State::Settling => GuiderActivity::Settling,
+        skotiq_phd2::Phd2State::LostLock => GuiderActivity::LostLock,
+        skotiq_phd2::Phd2State::Unknown(raw) => GuiderActivity::Unknown(raw),
     };
 
     // Report the real rolling guide statistics accumulated from the PHD2
@@ -837,7 +863,7 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
     Ok(GuiderStatus {
         device_id: DEVICE_ID.to_string(),
         connected: client.is_connected(),
-        state: state_str,
+        state: activity,
         rms_ra: stats.rms_ra,
         rms_dec: stats.rms_dec,
         rms_total: stats.rms_total,
@@ -852,9 +878,14 @@ pub(crate) async fn status() -> Result<GuiderStatus, SkotiqError> {
 pub(crate) async fn star_image(size: u32) -> Result<GuideStarImage, SkotiqError> {
     let mut client = phd2_client().await?;
 
-    let image_data = client
-        .get_star_image_data(size)
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get star image: {}", e)))?;
+    let image_data = client.get_star_image_data(size).map_err(|e| {
+        refused_in_phd2_words(
+            &e,
+            "no star selected",
+            Refusal::NoStarSelected,
+            format!("Failed to get star image: {e}"),
+        )
+    })?;
 
     Ok(GuideStarImage {
         frame: image_data.frame,
@@ -949,7 +980,6 @@ pub(crate) async fn calibration() -> Result<GuiderCalibration, SkotiqError> {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
 
-    // Extract calibration parameters if available
     let (ra_angle, dec_angle, ra_rate, dec_rate) = if is_calibrated {
         let xangle = result.get("xAngle").and_then(|v| v.as_f64());
         let yangle = result.get("yAngle").and_then(|v| v.as_f64());
@@ -972,9 +1002,40 @@ pub(crate) async fn calibration() -> Result<GuiderCalibration, SkotiqError> {
 pub(crate) async fn find_star() -> Result<(f64, f64), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client
-        .find_star()
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to find star: {}", e)))
+    client.find_star().map_err(|e| {
+        refused_in_phd2_words(
+            &e,
+            "no guide star found",
+            Refusal::NoGuideStarFound,
+            format!("Failed to find star: {e}"),
+        )
+    })
+}
+
+fn lock_position_failed(e: skotiq_phd2::Phd2Error) -> SkotiqError {
+    let message = format!("Failed to get lock position: {e}");
+    match e {
+        skotiq_phd2::Phd2Error::NoLockPosition(_) => {
+            SkotiqError::refused(Refusal::NoLockPosition, message)
+        }
+        _ => SkotiqError::OperationFailed(message),
+    }
+}
+
+/// PHD2 states some refusals only in the words of its reply: `message` is
+/// refused as `kind` when PHD2's words contain `words` (any case), and is an
+/// `OperationFailed` otherwise.
+fn refused_in_phd2_words(
+    error: &skotiq_phd2::Phd2Error,
+    words: &str,
+    kind: Refusal,
+    message: String,
+) -> SkotiqError {
+    if error.message().to_lowercase().contains(words) {
+        SkotiqError::refused(kind, message)
+    } else {
+        SkotiqError::OperationFailed(message)
+    }
 }
 
 pub(crate) async fn set_lock_position(x: f64, y: f64, exact: bool) -> Result<(), SkotiqError> {
@@ -988,9 +1049,7 @@ pub(crate) async fn set_lock_position(x: f64, y: f64, exact: bool) -> Result<(),
 pub(crate) async fn lock_position() -> Result<(f64, f64), SkotiqError> {
     let mut client = phd2_client().await?;
 
-    client
-        .get_lock_position()
-        .map_err(|e| SkotiqError::OperationFailed(format!("Failed to get lock position: {}", e)))
+    client.get_lock_position().map_err(lock_position_failed)
 }
 
 pub(crate) async fn loop_exposures() -> Result<(), SkotiqError> {
@@ -1076,7 +1135,7 @@ async fn wait_for_looping_frame(after: u64, exposure: Duration) -> Result<u64, S
 pub(crate) async fn select_fresh_star(
     floor: Option<skotiq_sequencer::GuideStarFloor>,
 ) -> Result<(f64, f64), SkotiqError> {
-    let _ops = PHD2_GUIDE_OPS.lock().await;
+    let _ops = LINK.guide_ops.lock().await;
     let exposure = guide_exposure().await?;
     tracing::info!(
         "[GUIDING] Selecting a fresh guide star: stopping PHD2's capture, then looping \
@@ -1087,8 +1146,7 @@ pub(crate) async fn select_fresh_star(
     let selected = find_fresh_star(exposure, floor).await;
     if selected.is_err() {
         // PHD2 found nothing to guide on; left looping it exposes the guide
-        // camera until someone stops it (rig, 2026-11-03: still looping after
-        // the run parked).
+        // camera until someone stops it.
         let stopped = phd2_client().await.and_then(|mut client| {
             client
                 .stop_capture()
@@ -1128,7 +1186,7 @@ async fn find_fresh_star(
                 tracing::warn!(
                     "[GUIDING] No guide star found in frame {attempt}/{FRESH_STAR_ATTEMPTS}: {e}"
                 );
-                last_error = e;
+                last_error = e.into();
                 continue;
             }
         };
@@ -1176,11 +1234,84 @@ async fn find_fresh_star(
 }
 
 #[cfg(test)]
+mod refusal_tests {
+    use super::*;
+    use skotiq_phd2::Phd2Error;
+
+    #[test]
+    fn phd2_words_name_the_refusal_in_any_case_and_any_kind() {
+        let message = || "Failed to get star image: PHD2 error: No Star Selected".to_string();
+        for error in [
+            Phd2Error::Refused("PHD2 error: No Star Selected".into()),
+            Phd2Error::Protocol("no star selected".into()),
+        ] {
+            match refused_in_phd2_words(
+                &error,
+                "no star selected",
+                Refusal::NoStarSelected,
+                message(),
+            ) {
+                SkotiqError::Refused {
+                    kind,
+                    message: words,
+                } => {
+                    assert_eq!(kind, Refusal::NoStarSelected);
+                    assert_eq!(words, message());
+                }
+                other => panic!("{other:?}"),
+            }
+        }
+        let other = refused_in_phd2_words(
+            &Phd2Error::Refused("PHD2 error: camera not connected".into()),
+            "no star selected",
+            Refusal::NoStarSelected,
+            message(),
+        );
+        assert!(matches!(other, SkotiqError::OperationFailed(m) if m == message()));
+    }
+
+    #[test]
+    fn only_a_missing_lock_position_is_refused_as_one() {
+        let words = "Failed to get lock position: get_lock_position: expected array, got null";
+        match lock_position_failed(Phd2Error::NoLockPosition(
+            "get_lock_position: expected array, got null".into(),
+        )) {
+            SkotiqError::Refused { kind, message } => {
+                assert_eq!(kind, Refusal::NoLockPosition);
+                assert_eq!(message, words);
+            }
+            other => panic!("{other:?}"),
+        }
+        let other = lock_position_failed(Phd2Error::Protocol(
+            "get_lock_position: expected array, got 5".into(),
+        ));
+        assert!(matches!(other, SkotiqError::OperationFailed(m)
+            if m == "Failed to get lock position: get_lock_position: expected array, got 5"));
+    }
+}
+
+#[cfg(test)]
 use crate::simulator::sim_singleton_test_lock;
 
 #[cfg(test)]
 mod client_slot_tests {
     use super::*;
+
+    /// P5-7: the reconnect after PHD2's socket closed starts PHD2 again
+    /// only during a run and only on this computer.
+    #[test]
+    fn the_reconnect_starts_a_local_phd2_again_only_during_a_run() {
+        for host in ["127.0.0.1", "localhost", "", "::1"] {
+            assert_eq!(
+                reconnect_launch(true, host),
+                Launch::IfNotRunning,
+                "{host:?}"
+            );
+            assert_eq!(reconnect_launch(false, host), Launch::Never, "{host:?}");
+        }
+        assert_eq!(reconnect_launch(true, "192.168.1.32"), Launch::Never);
+        assert_eq!(reconnect_launch(false, "192.168.1.32"), Launch::Never);
+    }
 
     #[test]
     fn the_device_id_is_the_one_dart_holds() {
@@ -1283,20 +1414,16 @@ mod connected_devices_registry_tests {
             .iter()
             .map(|d| d.id.clone())
             .collect::<Vec<_>>();
-        let is_connected = crate::api::connection::api_is_device_connected(
-            DeviceType::Guider,
-            DEVICE_ID.to_string(),
-        )
-        .await;
+        let is_connected = crate::device_manager::get_device_manager()
+            .is_device_connected(DeviceType::Guider, DEVICE_ID)
+            .await;
 
         disconnect().await.expect("disconnect PHD2");
 
         let listed_after = phd2_in_connected_devices().await;
-        let is_connected_after = crate::api::connection::api_is_device_connected(
-            DeviceType::Guider,
-            DEVICE_ID.to_string(),
-        )
-        .await;
+        let is_connected_after = crate::device_manager::get_device_manager()
+            .is_device_connected(DeviceType::Guider, DEVICE_ID)
+            .await;
 
         server.join().expect("mock PHD2 server thread finished");
 
@@ -1307,7 +1434,7 @@ mod connected_devices_registry_tests {
         );
         assert!(
             is_connected,
-            "api_is_device_connected must agree that PHD2 is connected"
+            "the device manager must agree that PHD2 is connected"
         );
 
         assert!(
@@ -1316,7 +1443,7 @@ mod connected_devices_registry_tests {
         );
         assert!(
             !is_connected_after,
-            "api_is_device_connected must report a disconnected PHD2 as gone"
+            "the device manager must report a disconnected PHD2 as gone"
         );
     }
 
@@ -1486,7 +1613,7 @@ mod fresh_guide_star_tests {
         );
     }
 
-    /// On the rig (2026-11-03) a search that found no star left PHD2 looping,
+    /// A search that found no star left PHD2 looping,
     /// and it was still looping after the run had parked.
     #[tokio::test]
     async fn a_search_that_finds_no_star_stops_the_looping() {
@@ -1523,7 +1650,7 @@ mod post_flip_protocol_tests {
     use super::*;
     use std::io::{BufRead, BufReader, Write};
     use std::net::TcpListener;
-    use std::sync::atomic::AtomicBool;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     fn server(settle_status: i32, deliver_frame: bool) -> (u16, std::thread::JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();

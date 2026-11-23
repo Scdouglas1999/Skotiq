@@ -1,5 +1,6 @@
 import 'package:skotiq_astro/format.dart';
 import 'dart:async';
+import 'dart:math' as math;
 
 import '../models/backend/device_capabilities.dart';
 import '../models/sequence/sequence_models.dart';
@@ -146,14 +147,38 @@ class DiskSpaceGuardService {
   /// surface a warning rather than guessing).
   ///
   /// The tree is walked from its roots: a disabled node drops its whole
-  /// subtree, a counted loop multiplies its children by its repeat count, and
-  /// a Smart Exposure contributes each filter plan's frames at that plan's
-  /// binning. A Smart Exposure looping until its target window closes counts
-  /// its planned frames. Loops that run until a condition (dark, altitude)
-  /// count one pass, so the figure is a floor.
+  /// subtree, a loop multiplies its children by the passes [loopPasses]
+  /// gives it, and a Smart Exposure contributes each filter plan's frames at
+  /// that plan's binning. A Smart Exposure looping until its target window
+  /// closes counts its planned frames. Loops that run until a condition
+  /// (time, dark, altitude) count one pass, so the figure is a floor.
   static int? projectSequenceBytes(
     Sequence sequence,
     CameraCapabilities? capabilities,
+  ) => _projectBytes(
+    sequence,
+    capabilities,
+    (loop) => math.max(0, loopPasses(loop, sequence.nodes) ?? 1),
+  );
+
+  /// [projectSequenceBytes] with an integration-time loop counted as one
+  /// pass: a target window, dawn or the night's end may stop the loop before
+  /// it reaches its target, so only these bytes may refuse a run.
+  static int? _certainSequenceBytes(
+    Sequence sequence,
+    CameraCapabilities? capabilities,
+  ) => _projectBytes(
+    sequence,
+    capabilities,
+    (loop) => loop.conditionType == LoopConditionType.integrationTime
+        ? 1
+        : math.max(0, loopPasses(loop, sequence.nodes) ?? 1),
+  );
+
+  static int? _projectBytes(
+    Sequence sequence,
+    CameraCapabilities? capabilities,
+    int Function(LoopNode loop) passes,
   ) {
     if (capabilities == null) return null;
     final roots = <SequenceNode>[];
@@ -178,7 +203,7 @@ class DiskSpaceGuardService {
         total += bytes * multiplier;
       }
       final childMultiplier = node is LoopNode
-          ? multiplier * _loopPasses(node)
+          ? multiplier * passes(node)
           : multiplier;
       for (final childId in node.childIds) {
         final child = sequence.nodes[childId];
@@ -197,14 +222,6 @@ class DiskSpaceGuardService {
       total += bytes;
     }
     return total;
-  }
-
-  static int _loopPasses(LoopNode loop) {
-    if (loop.conditionType == LoopConditionType.count) {
-      final count = loop.repeatCount ?? 1;
-      return count < 1 ? 1 : count;
-    }
-    return 1;
   }
 
   static int? _smartExposureBytes(
@@ -285,8 +302,9 @@ class DiskSpaceGuardService {
 
     final free = snapshot.freeBytes;
     final afterRun = free - projected;
+    final certain = _certainSequenceBytes(sequence, capabilities)!;
 
-    if (afterRun < kSafetyMarginBytes) {
+    if (free - certain < kSafetyMarginBytes) {
       return DiskSpaceProjection(
         freeBytes: free,
         totalBytes: snapshot.totalBytes,
@@ -300,6 +318,24 @@ class DiskSpaceGuardService {
             'this sequence with a ${ByteFormat.size(kSafetyMarginBytes)} safety '
             'margin. Free up space, choose a '
             'different drive, or shorten the run before starting.',
+      );
+    }
+
+    if (afterRun < kSafetyMarginBytes) {
+      return DiskSpaceProjection(
+        freeBytes: free,
+        totalBytes: snapshot.totalBytes,
+        projectedBytes: projected,
+        severity: DiskSpaceSeverity.warning,
+        headline:
+            'Run may not fit: its integration loops would leave only '
+            '${ByteFormat.size(afterRun)} free '
+            '(${ByteFormat.size(projected)} needed, ${ByteFormat.size(free)} available)',
+        detail:
+            'The integration-time loops plan more frames than the capture '
+            'directory holds with a ${ByteFormat.size(kSafetyMarginBytes)} '
+            'safety margin. A target window or dawn may end them sooner. Free '
+            'up space or choose a different drive to be sure.',
       );
     }
 

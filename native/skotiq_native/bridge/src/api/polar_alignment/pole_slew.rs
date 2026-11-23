@@ -335,9 +335,7 @@ pub(crate) async fn rotate_for_next_point(
 
     // The target is in the mount's frame (of date on every real mount) and
     // the slew path takes J2000 and precesses it on the way out. Handing it
-    // the mount-frame numbers precessed them twice: on 2026-11-07 that moved
-    // the declination axis 75-384" between points and the fitted axis about
-    // 1° off, with a sign that followed the pier side. Express the target in
+    // the mount-frame numbers would precess them twice. Express the target in
     // J2000 here so the slew path's conversion lands it back on exactly the
     // mount-frame position computed above.
     let (slew_ra_hours, slew_dec) = device_ops

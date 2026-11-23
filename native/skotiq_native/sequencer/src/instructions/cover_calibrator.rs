@@ -41,8 +41,6 @@ pub async fn execute_open_cover(
         return InstructionResult::failure(format!("Failed to open cover: {}", e)).caused_by(&e);
     }
 
-    // Wait for cover to reach open state with timeout
-    // Why: u32 timeout_secs -> u64 widening is lossless.
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_cover_state(&device_id, 3, ctx, timeout).await {
         Ok(_) => {
@@ -90,8 +88,6 @@ pub async fn execute_close_cover(
         return InstructionResult::failure(format!("Failed to close cover: {}", e)).caused_by(&e);
     }
 
-    // Wait for cover to reach closed state with timeout
-    // Why: u32 timeout_secs -> u64 widening is lossless.
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_cover_state(&device_id, 1, ctx, timeout).await {
         Ok(_) => {
@@ -147,12 +143,9 @@ pub async fn execute_calibrator_on(
             .caused_by(&e);
     }
 
-    // Wait for calibrator to reach ready state with timeout
-    // Why: u32 timeout_secs -> u64 widening is lossless.
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_calibrator_state(&device_id, 3, ctx, timeout).await {
         Ok(_) => {
-            // Verify brightness is set correctly
             // Why: post-set verification readback; an Err here would mean
             // the driver dropped the cover-calibrator session between SetBrightness and
             // GetBrightness — falling back to the requested value `config.brightness`
@@ -217,8 +210,6 @@ pub async fn execute_calibrator_off(
             .caused_by(&e);
     }
 
-    // Wait for calibrator to reach off state with timeout
-    // Why: u32 timeout_secs -> u64 widening is lossless.
     let timeout = Duration::from_secs(u64::from(config.timeout_secs));
     match wait_for_calibrator_state(&device_id, 1, ctx, timeout).await {
         Ok(_) => {

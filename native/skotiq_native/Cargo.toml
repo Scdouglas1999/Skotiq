@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "cfa",
+    "frame",
     "device",
     "bridge",
     "sequencer",

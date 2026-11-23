@@ -32,12 +32,6 @@
 // runs a shimmer animation; pumpAndSettle would hang on it. A handful of
 // 50ms pumps drains the StreamProvider override into the dropdown selector
 // without waiting on the shimmer.
-//
-// Note: the header no longer overflows at any tested width — the responsive
-// rework made the title flex and dropped the session selector to its own
-// line (or a width-bounded, isExpanded dropdown) on a phone. These tests no
-// longer need to swallow "overflowed" FlutterErrors; see
-// diagnostics_responsive_test.dart for the phone-size/orientation coverage.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,7 +39,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/diagnostics/diagnostic_dump_screen.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../../harness/harness.dart';
 import 'package:skotiq_app/screens/analytics/quick_capture_selection.dart';

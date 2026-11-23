@@ -97,6 +97,7 @@ void main() {
     expect(cancelled.isRunning, isFalse);
     expect(cancelled.result, isNull);
     expect(cancelled.hasError, isFalse);
+    expect(cancelled.cancelled, isTrue);
   });
 
   test('panel visibility stays on the window that opened it', () {

@@ -266,7 +266,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         if (!_socketMayPostToSession(
           socket,
           authIdentity,
-          '/api/collaboration/preview',
+          CollaborationApi.preview,
         )) {
           return;
         }
@@ -287,7 +287,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         if (!_socketMayPostToSession(
           socket,
           authIdentity,
-          '/api/collaboration/chat',
+          CollaborationApi.chat,
         )) {
           return;
         }
@@ -337,7 +337,7 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         if (!_socketMayPostToSession(
           socket,
           authIdentity,
-          '/api/collaboration/annotations',
+          CollaborationApi.annotation,
         )) {
           return;
         }
@@ -386,7 +386,11 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'session_handoff.set':
-        if (!_socketMayChangeSessionHandoff(socket, authIdentity, 'POST')) {
+        if (!_socketMayChangeSessionHandoff(
+          socket,
+          authIdentity,
+          CollaborationApi.setSessionHandoff,
+        )) {
           return;
         }
         final handoff = data['handoff'];
@@ -404,7 +408,11 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
         );
         return;
       case 'session_handoff.clear':
-        if (!_socketMayChangeSessionHandoff(socket, authIdentity, 'DELETE')) {
+        if (!_socketMayChangeSessionHandoff(
+          socket,
+          authIdentity,
+          CollaborationApi.clearSessionHandoff,
+        )) {
           return;
         }
         _collaborationManager.setSessionHandoff(null);
@@ -439,25 +447,22 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
   bool _socketMay(
     WebSocketChannel socket,
     String? authIdentity, {
-    required String method,
-    required String path,
+    required ApiEndpoint endpoint,
     required String refusal,
   }) {
+    final route = endpoint.route;
     if (authIdentity == null) {
       return true;
     }
     final grant = _grantForIdentity(authIdentity);
     if (grant != null &&
-        HeadlessAuthPolicy.permits(
-          grant: grant,
-          route: _routeTable.index.policyFor(method, path),
-        )) {
+        HeadlessAuthPolicy.permits(grant: grant, route: route)) {
       return true;
     }
     _logWarning(
-      '[AUTH] Refused $method $path over the event socket for '
+      '[AUTH] Refused ${route.signature} over the event socket for '
       '${HeadlessApiServer._redactBearer(authIdentity)}: the token may not '
-      '$method $path',
+      '${route.signature}',
     );
     socket.sink.add(jsonEncode({'type': 'error', 'message': refusal}));
     return false;
@@ -466,12 +471,11 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
   bool _socketMayChangeSessionHandoff(
     WebSocketChannel socket,
     String? authIdentity,
-    String method,
+    ApiEndpoint endpoint,
   ) => _socketMay(
     socket,
     authIdentity,
-    method: method,
-    path: '/api/session-handoff',
+    endpoint: endpoint,
     refusal:
         'Changing the session handoff needs an admin token; this '
         'connection is not allowed to.',
@@ -480,12 +484,11 @@ extension _HeadlessApiServerWebSocketSessions on HeadlessApiServer {
   bool _socketMayPostToSession(
     WebSocketChannel socket,
     String? authIdentity,
-    String path,
+    ApiEndpoint endpoint,
   ) => _socketMay(
     socket,
     authIdentity,
-    method: 'POST',
-    path: path,
+    endpoint: endpoint,
     refusal:
         'Posting to the shared session needs a control token; this '
         'connection is not allowed to.',

@@ -32,7 +32,7 @@ class _TargetRow {
 /// Joins [targets] with tonight's windows and the autopilot's view of each.
 List<_TargetRow> _rows(
   List<PlanTarget> targets,
-  _AutopilotView autopilot,
+  AutopilotView autopilot,
   Map<int, _TonightWindow> windows,
   DateTime now, {
   TargetHeaderNode? runTarget,
@@ -65,20 +65,9 @@ List<_TargetRow> _rows(
           if (target.id == nextId) return ('Next up', _StatusTone.good, 1.0);
           final rises = window?.start;
           if (score != null && score.hardConstraintFailed) {
-            final reason = score.rejectionReasons.firstOrNull;
-            final kind =
-                reason == null ? null : classifySchedulerRejection(reason);
-            // Rising cures being too low or the sky being too bright; it
-            // does not cure the moon, a missing filter or a time window.
-            final waitsForSky = switch (kind) {
-              null ||
-              SchedulerRejectionKind.belowHorizon ||
-              SchedulerRejectionKind.tooLowForSite ||
-              SchedulerRejectionKind.behindHorizonProfile ||
-              SchedulerRejectionKind.other =>
-                true,
-              _ => false,
-            };
+            final rejection = score.rejections.firstOrNull;
+            final kind = rejection?.kind;
+            final waitsForSky = kind == null || kind.curedByRising;
             if (waitsForSky && rises != null && rises.isAfter(now)) {
               return (
                 'Up ${ClockFormat.hm(rises.toLocal())}',
@@ -91,7 +80,7 @@ List<_TargetRow> _rows(
                   ? (window != null && !window.isUp
                       ? 'Too low tonight'
                       : 'Not now')
-                  : schedulerRejectionChipLabel(reason!),
+                  : schedulerRejectionChipLabel(rejection!),
               _StatusTone.quiet,
               4.0,
             );
@@ -139,7 +128,7 @@ int _byNextUp(_TargetRow a, _TargetRow b) {
 
 /// What the autopilot will do next, in one line.
 String _nextLine(
-  _AutopilotView view,
+  AutopilotView view,
   List<_TargetRow> rows,
   Project? group,
   DateTime now,
@@ -690,7 +679,7 @@ class _TargetRowTile extends StatelessWidget {
         row.target.groups.map((g) => g.name).join(', '),
       if (progress.filters.isNotEmpty)
         (progress.filters.map((f) => f.filter).toList()
-              ..sort(compareDarkroomFilters))
+              ..sort(compareFilterNames))
             .join(' '),
     ].join(' · ');
 

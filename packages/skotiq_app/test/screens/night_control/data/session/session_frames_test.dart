@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/night_control/data/session/last_frame_metrics_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_format.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_id.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_series_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_stats_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
@@ -179,9 +180,6 @@ void main() {
     expect(noise.delta, '0.0');
   });
 
-  // IC 405, 2026-11-16: frame #2 showed HFR 4.50 in Last frame and was
-  // rejected for "HFR 4.12 px exceeds ...", and Last frame said nothing of
-  // the run's verdict. Last frame now shows the run's figures and verdict.
   test('last frame shows the run\'s HFR, verdict and reason', () async {
     final h = await sessionHarness(
       overrides: <Override>[
@@ -341,9 +339,8 @@ void main() {
     );
   });
 
-  // Rig, 2026-11-03: the run's grader rejected 1 of 8 and the science
-  // pipeline's auto-grader 3 more. Tonight read "7 accepted, 1 rejected, 7m"
-  // from the run's counters while Analytics read "4/8" from the rows.
+  // The run's grader and the science pipeline's auto-grader both reject
+  // frames; Tonight counts the rows, as Analytics does.
   test(
       'session stats count the rows once frames are recorded, not the run '
       'counters', () async {

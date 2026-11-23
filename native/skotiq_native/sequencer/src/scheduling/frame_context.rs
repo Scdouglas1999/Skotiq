@@ -58,10 +58,6 @@ pub struct DefectMapCorrectionRecord {
 /// from the active `ExposureConfig`, and live telemetry from the most
 /// recent device reads (sensor temp, focuser position, rotator angle,
 /// guide RMS, plate-solve result).
-///
-/// Why a struct instead of growing the `save_fits` signature: 25+ optional
-/// fields as positional args would be a maintenance nightmare and every
-/// new field would require updating every implementor of `DeviceOps`.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FrameContext {
     // Session / run identification

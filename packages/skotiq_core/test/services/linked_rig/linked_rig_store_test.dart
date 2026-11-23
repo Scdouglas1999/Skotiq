@@ -201,4 +201,18 @@ void main() {
     expect(normalizePairingCode(' orbit nebula 4821 '), 'ORBIT-NEBULA-4821');
     expect(normalizePairingCode('Orbit--Nebula-4821'), 'ORBIT-NEBULA-4821');
   });
+
+  test('the same rig is matched by fingerprint, else by address', () {
+    final rig = _rig();
+    expect(
+      rig.isSameRig(host: '10.0.0.9', port: 1, fingerprint: 'DC2F261109B13423'),
+      isTrue,
+    );
+    expect(
+      rig.isSameRig(host: '192.168.1.50', port: 8099, fingerprint: 'other'),
+      isFalse,
+    );
+    expect(rig.isSameRig(host: '192.168.1.50', port: 8099), isTrue);
+    expect(rig.isSameRig(host: '192.168.1.50', port: 8080), isFalse);
+  });
 }

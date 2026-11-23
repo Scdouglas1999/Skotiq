@@ -1,18 +1,16 @@
-// SY-28 / SY-33 (sync night 2026-11-03). During a flip that kept failing
-// after the pier change, a client linked to the host showed only "Running
-// 28%": no attempt, no failure, no next try, although the host sent a
-// progress event per failed attempt ("attempt 2/4 failed, retrying in
-// 60s"). After the flip had moved the mount to pier east and the host said
-// it must not flip again, Tonight still offered "Flip now" and announced a
-// flip in Coming up and on the altitude chart.
+// During a flip that keeps failing after the pier change, a linked client
+// must show the attempts, failures and next try the host's progress events
+// carry, and once the host says the mount must not flip again, Tonight must
+// stop offering "Flip now" and announcing a flip.
 //
 // The events are built the way a linked client gets them: the host's wire
 // envelope read back by `typedEventFromWire`.
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
+import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
+import 'package:skotiq_app/services/night_session/night_flip.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';

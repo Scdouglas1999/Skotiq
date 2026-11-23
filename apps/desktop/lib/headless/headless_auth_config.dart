@@ -4,6 +4,7 @@ import 'package:skotiq_remote_protocol/skotiq_remote_protocol.dart'
     show kDefaultHeadlessPort;
 
 import '../headless_api/auth_policy.dart';
+import '../launch_arguments.dart' show LaunchOption;
 import '../headless_api/handlers/pairing_handlers.dart' show PairingMode;
 import 'headless_env.dart';
 
@@ -64,50 +65,56 @@ HeadlessAuthConfig parseHeadlessAuthConfig(List<String> args) {
   var requireAuth = false;
   // Serve-open escape hatch (authentication), distinct from the LAN-bind flag
   // below (network exposure). Default off => FAIL CLOSED.
-  var allowUnauthenticated = envFlag('SKOTIQ_ALLOW_UNAUTHENTICATED');
-  var allowUnauthenticatedLan = envFlag('SKOTIQ_ALLOW_UNAUTHENTICATED_LAN');
+  var allowUnauthenticated = envFlag(LaunchOption.allowUnauthenticated.env!);
+  var allowUnauthenticatedLan = envFlag(
+    LaunchOption.allowUnauthenticatedLan.env!,
+  );
   var port = kDefaultHeadlessPort;
   final scopedTokens = <String, HeadlessTokenScope>{};
   final fineGrainedTokens = <String, HeadlessAuthGrant>{};
   final corsAllowedOrigins = <String>[];
-  var pairingPrintCodes = envFlag('SKOTIQ_PAIRING_PRINT_CODES');
+  var pairingPrintCodes = envFlag(LaunchOption.pairingPrintCodes.env!);
   // Default to one-tap LAN pairing; operators can tighten to code-required.
   final pairingMode = PairingMode.fromWire(
     Platform.environment['SKOTIQ_PAIRING_MODE'],
   );
-  var tlsEnabled = envFlag('SKOTIQ_TLS');
-  String? tlsCertPath = trimToNull(Platform.environment['SKOTIQ_TLS_CERT']);
-  String? tlsKeyPath = trimToNull(Platform.environment['SKOTIQ_TLS_KEY']);
+  var tlsEnabled = envFlag(LaunchOption.tls.env!);
+  String? tlsCertPath = trimToNull(
+    Platform.environment[LaunchOption.tlsCert.env!],
+  );
+  String? tlsKeyPath = trimToNull(
+    Platform.environment[LaunchOption.tlsKey.env!],
+  );
 
-  token = Platform.environment['SKOTIQ_AUTH_TOKEN'];
+  token = Platform.environment[LaunchOption.authToken.env!];
   _addScopedTokenFromEnv(
     scopedTokens,
-    'SKOTIQ_VIEW_TOKEN',
+    LaunchOption.viewToken.env!,
     HeadlessTokenScope.view,
   );
   _addScopedTokenFromEnv(
     scopedTokens,
-    'SKOTIQ_CONTROL_TOKEN',
+    LaunchOption.controlToken.env!,
     HeadlessTokenScope.control,
   );
   // Fine-grained tokens: SKOTIQ_SCOPED_TOKEN carries one or more
   // `<token>=<grant-spec>` entries separated by `;`, e.g.
   // `secretA=camera:control,mount:view;secretB=admin`.
-  final envScoped = Platform.environment['SKOTIQ_SCOPED_TOKEN'];
+  final envScoped = Platform.environment[LaunchOption.scopedToken.env!];
   if (envScoped != null && envScoped.trim().isNotEmpty) {
     for (final entry in envScoped.split(';')) {
       _addFineGrainedToken(fineGrainedTokens, entry);
     }
   }
-  if (Platform.environment['SKOTIQ_PORT'] != null) {
+  if (Platform.environment[LaunchOption.port.env!] != null) {
     port =
-        int.tryParse(Platform.environment['SKOTIQ_PORT']!) ??
+        int.tryParse(Platform.environment[LaunchOption.port.env!]!) ??
         kDefaultHeadlessPort;
   }
 
   // Why env-first: SKOTIQ_CORS_ORIGINS is the systemd/docker idiom; CLI
   // overrides allow operators to extend the list at launch time.
-  final envCors = Platform.environment['SKOTIQ_CORS_ORIGINS'];
+  final envCors = Platform.environment[LaunchOption.corsOrigin.env!];
   if (envCors != null && envCors.trim().isNotEmpty) {
     for (final raw in envCors.split(',')) {
       final trimmed = raw.trim();
@@ -118,46 +125,41 @@ HeadlessAuthConfig parseHeadlessAuthConfig(List<String> args) {
   }
 
   for (final arg in args) {
-    if (arg.startsWith('--auth-token=')) {
-      token = arg.substring('--auth-token='.length);
-    } else if (arg == '--require-auth') {
-      requireAuth = true;
-    } else if (arg == '--allow-unauthenticated') {
-      allowUnauthenticated = true;
-    } else if (arg == '--allow-unauthenticated-lan') {
-      allowUnauthenticatedLan = true;
-    } else if (arg.startsWith('--view-token=')) {
-      _addScopedToken(
-        scopedTokens,
-        arg.substring('--view-token='.length),
-        HeadlessTokenScope.view,
-      );
-    } else if (arg.startsWith('--control-token=')) {
-      _addScopedToken(
-        scopedTokens,
-        arg.substring('--control-token='.length),
-        HeadlessTokenScope.control,
-      );
-    } else if (arg.startsWith('--scoped-token=')) {
-      _addFineGrainedToken(
-        fineGrainedTokens,
-        arg.substring('--scoped-token='.length),
-      );
-    } else if (arg.startsWith('--port=')) {
-      port = int.tryParse(arg.substring('--port='.length)) ?? port;
-    } else if (arg.startsWith('--cors-origin=')) {
-      final value = arg.substring('--cors-origin='.length).trim();
-      if (value.isNotEmpty) {
-        corsAllowedOrigins.add(value);
-      }
-    } else if (arg == '--pairing-print-codes') {
-      pairingPrintCodes = true;
-    } else if (arg == '--tls') {
-      tlsEnabled = true;
-    } else if (arg.startsWith('--tls-cert=')) {
-      tlsCertPath = trimToNull(arg.substring('--tls-cert='.length));
-    } else if (arg.startsWith('--tls-key=')) {
-      tlsKeyPath = trimToNull(arg.substring('--tls-key='.length));
+    final parsed = LaunchOption.read(arg);
+    if (parsed == null) continue;
+    final value = parsed.value;
+    switch (parsed.option) {
+      case LaunchOption.authToken:
+        token = value;
+      case LaunchOption.requireAuth:
+        requireAuth = true;
+      case LaunchOption.allowUnauthenticated:
+        allowUnauthenticated = true;
+      case LaunchOption.allowUnauthenticatedLan:
+        allowUnauthenticatedLan = true;
+      case LaunchOption.viewToken:
+        _addScopedToken(scopedTokens, value!, HeadlessTokenScope.view);
+      case LaunchOption.controlToken:
+        _addScopedToken(scopedTokens, value!, HeadlessTokenScope.control);
+      case LaunchOption.scopedToken:
+        _addFineGrainedToken(fineGrainedTokens, value!);
+      case LaunchOption.port:
+        port = int.tryParse(value!) ?? port;
+      case LaunchOption.corsOrigin:
+        final origin = value!.trim();
+        if (origin.isNotEmpty) {
+          corsAllowedOrigins.add(origin);
+        }
+      case LaunchOption.pairingPrintCodes:
+        pairingPrintCodes = true;
+      case LaunchOption.tls:
+        tlsEnabled = true;
+      case LaunchOption.tlsCert:
+        tlsCertPath = trimToNull(value);
+      case LaunchOption.tlsKey:
+        tlsKeyPath = trimToNull(value);
+      default:
+        break;
     }
   }
 

@@ -27,6 +27,8 @@ pub mod expressions;
 pub mod flat_wizard;
 // Measuring a focuser's mechanical backlash instead of asking the operator
 // for a figure the app has never been able to work out for itself.
+#[cfg(test)]
+mod autofocus_config_fixture_tests;
 pub mod focuser_calibration;
 mod frame_naming;
 #[cfg(test)]
@@ -1284,19 +1286,19 @@ impl TargetSchedulerConfig {
 }
 
 fn default_scheduler_altitude_weight() -> f64 {
-    0.25
+    crate::scheduling::ScoringWeights::default().altitude_weight
 }
 fn default_scheduler_moon_distance_weight() -> f64 {
-    0.25
+    crate::scheduling::ScoringWeights::default().moon_distance_weight
 }
 fn default_scheduler_transit_proximity_weight() -> f64 {
-    0.20
+    crate::scheduling::ScoringWeights::default().transit_proximity_weight
 }
 fn default_scheduler_darkness_weight() -> f64 {
-    0.15
+    crate::scheduling::ScoringWeights::default().darkness_weight
 }
 fn default_scheduler_airmass_weight() -> f64 {
-    0.15
+    crate::scheduling::ScoringWeights::default().airmass_weight
 }
 fn default_scheduler_min_score_to_run() -> f64 {
     30.0
@@ -1716,8 +1718,7 @@ pub struct FlatWizardConfig {
 }
 
 /// Default for the "Exposure calibration attempts" flat setting. Twilight
-/// skies and dim panels need well over the 3 to 10 tries the paths used to
-/// hard-code.
+/// skies and dim panels need many tries.
 pub const DEFAULT_FLAT_CALIBRATION_ATTEMPTS: u32 = 20;
 
 /// Ceiling on that setting.
@@ -1921,6 +1922,25 @@ pub struct CenterConfig {
     pub sync_mount: bool,
 }
 
+impl CenterConfig {
+    /// How a run centers its target again by itself: after a mount fault,
+    /// after a weather hold and when the drift trigger fires. Three attempts
+    /// of 5 s frames at the operator's centering tolerance; `sync_mount` says
+    /// whether each correction syncs.
+    pub fn run_recenter(sync_mount: bool) -> Self {
+        Self {
+            use_target_coords: true,
+            custom_ra: None,
+            custom_dec: None,
+            accuracy_arcsec: None,
+            max_attempts: 3,
+            exposure_duration: 5.0,
+            filter: None,
+            sync_mount,
+        }
+    }
+}
+
 impl Default for CenterConfig {
     fn default() -> Self {
         Self {
@@ -1986,96 +2006,7 @@ pub struct ExposureConfig {
     pub frame_type: FrameType,
 }
 
-/// What a captured frame is, as its FITS `IMAGETYP` names it.
-///
-/// A Snapshot is a frame of the sky the operator wants to look at now (a
-/// framing or focus check, a test of the exposure), not part of the night's
-/// data: it is taken, analyzed and guided like a light, but it does not wait
-/// for darkness and is not stacked.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum FrameType {
-    #[default]
-    Light,
-    Dark,
-    Flat,
-    Bias,
-    DarkFlat,
-    Snapshot,
-}
-
-impl FrameType {
-    const ALL: [Self; 6] = [
-        Self::Light,
-        Self::Dark,
-        Self::Flat,
-        Self::Bias,
-        Self::DarkFlat,
-        Self::Snapshot,
-    ];
-
-    /// The `IMAGETYP` spelling, which is also the wire spelling.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Light => "Light",
-            Self::Dark => "Dark",
-            Self::Flat => "Flat",
-            Self::Bias => "Bias",
-            Self::DarkFlat => "DarkFlat",
-            Self::Snapshot => "Snapshot",
-        }
-    }
-
-    /// The frame type its `IMAGETYP` spelling names.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|frame_type| frame_type.as_str() == name)
-    }
-
-    /// A frame of the sky through the open telescope: its stars are measured
-    /// and graded, it is dithered and guided for, it counts toward the
-    /// autofocus and dither cadence, and it waits out a meridian flip that
-    /// would ruin it.
-    pub fn is_sky_frame(self) -> bool {
-        matches!(self, Self::Light | Self::Snapshot)
-    }
-
-    /// Part of the night's data: it waits for darkness, its filters are the
-    /// night's light filters, and it is stacked.
-    pub fn is_science(self) -> bool {
-        self == Self::Light
-    }
-
-    /// Taken with the shutter closed or on a flat light source; where the
-    /// telescope points does not matter.
-    pub fn is_calibration(self) -> bool {
-        !self.is_sky_frame()
-    }
-
-    /// Matched to lights by the sensor temperature it was taken at, so it is
-    /// taken only with the sensor at the cooler's set-point.
-    pub fn is_matched_by_sensor_temperature(self) -> bool {
-        matches!(self, Self::Dark | Self::Bias | Self::DarkFlat)
-    }
-}
-
-impl Serialize for FrameType {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-impl<'de> Deserialize<'de> for FrameType {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let name = String::deserialize(deserializer)?;
-        Self::from_name(&name).ok_or_else(|| {
-            serde::de::Error::custom(format!(
-                "unknown frame type `{name}`; expected one of Light, Dark, Flat, Bias, \
-                 DarkFlat, Snapshot"
-            ))
-        })
-    }
-}
+pub use skotiq_frame::FrameType;
 
 impl Default for ExposureConfig {
     fn default() -> Self {

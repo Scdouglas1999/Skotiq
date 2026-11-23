@@ -12,13 +12,16 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../router/app_routes.dart';
+import '../../../router/sequencer_route.dart';
 import '../sequencer_screen.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../sequence_mutator_helper.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../../utils/count_label.dart';
+import '../../../utils/open_in_editor.dart';
 import '../../../utils/exported_file_reveal.dart';
 import '../widgets/save_sequence.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 part 'sequence_library_tab/library_toolbar.dart';
 part 'sequence_library_tab/sequence_row.dart';

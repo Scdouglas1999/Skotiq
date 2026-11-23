@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
+import 'package:skotiq_astro/filters.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/errors.dart';
@@ -580,7 +581,7 @@ class _Legend extends StatelessWidget {
       for (final n in target.nights)
         for (final f in n.filters) f,
     }.toList()
-      ..sort(compareDarkroomFilters);
+      ..sort(compareFilterNames);
     final hasPause = target.nights.any((n) => n.pauses.isNotEmpty);
     final hasDim = target.nights.any((n) => n.rejected > 0 || n.offTarget > 0);
     return Wrap(
@@ -754,27 +755,34 @@ class _MasterRow extends StatelessWidget {
 /// and hours, the filters that failed, and where the files are.
 String describeBuiltMasters(DarkroomBuildJob job) {
   final report = job.report;
-  final results = <Map>[
+  final results = <DarkroomFilterBuild>[
     if (report?['results'] case final List list)
       for (final r in list)
-        if (r is Map) r else ...job.filterResults,
+        if (r is Map)
+          DarkroomFilterBuild.fromJson(r)
+        else
+          for (final brief in job.filterResults)
+            DarkroomFilterBuild.fromJson(brief),
   ];
   final parts = <String>[];
   if (results.isNotEmpty) {
     var subs = 0;
     var seconds = 0.0;
     for (final r in results) {
-      if (r['frameCount'] case final num n) subs += n.toInt();
-      if (r['totalIntegrationSec'] case final num s) seconds += s.toDouble();
+      if (r.frameCount case final n?) subs += n;
+      if (r.totalIntegrationSec case final s?) seconds += s;
     }
-    final filters = [for (final r in results) '${r['filter']}']
-      ..sort(compareDarkroomFilters);
+    final filters = [for (final r in results) r.filter]
+      ..sort(compareFilterNames);
     parts.add('${joinWords(filters)} from $subs subs, '
         '${_darkroomSpan(seconds)}.');
   }
   if (report?['failures'] case final List failures) {
     for (final f in failures) {
-      if (f is Map) parts.add('${f['filter']} failed: ${f['error']}.');
+      if (f is Map) {
+        final failed = DarkroomFilterBuild.fromJson(f);
+        parts.add('${failed.filter} failed: ${failed.error}.');
+      }
     }
   }
   parts.addAll(job.warnings);

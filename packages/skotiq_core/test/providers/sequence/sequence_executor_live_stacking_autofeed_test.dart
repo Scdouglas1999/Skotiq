@@ -1,4 +1,4 @@
-// 2026-06-04 follow-up — live-stacking auto-feed during sequencer runs.
+// Live-stacking auto-feed during sequencer runs.
 //
 // Before this wiring, the Rust LiveStacking instruction node armed a
 // broadcast session but nothing on the Dart side ever fed accepted frames
@@ -46,7 +46,7 @@ class _TestBackendNotifier extends BackendNotifier {
 }
 
 class _DeactivateFails extends LiveStackingBroadcastService {
-  _DeactivateFails(super.ref);
+  _DeactivateFails(super.logger);
 
   @override
   void deactivate() {
@@ -60,6 +60,9 @@ class _DeactivateFails extends LiveStackingBroadcastService {
 /// (via addFrameFromFile). Returns a deterministic synthetic stack so the
 /// notifier's preview (and therefore the broadcast publish) has real data.
 class _FakeLiveStackingService implements LiveStackingService {
+  @override
+  bool get readsHost => false;
+
   final List<String> startedFrom = [];
   final List<String> addedFrames = [];
   bool stopped = false;
@@ -76,10 +79,6 @@ class _FakeLiveStackingService implements LiveStackingService {
     required List<int> data,
     int channels = 1,
   }) => Uint8List(width * height * 4);
-
-  @override
-  Future<LiveStackingMasterSave> saveMaster({required String filePath}) =>
-      throw UnimplementedError('saveMaster is not part of the autofeed flow');
 
   List<int> _syntheticStack() {
     final out = Uint16List(_w * _h);
@@ -102,36 +101,6 @@ class _FakeLiveStackingService implements LiveStackingService {
   );
 
   @override
-  Future<LiveStackingStats> startFromFile({
-    required String referenceImagePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) async {
-    startedFrom.add(referenceImagePath);
-    _frames = 1;
-    return _stats;
-  }
-
-  @override
-  Future<LiveStackingStats> startFromFileForFilter({
-    required String filterKey,
-    required String referenceImagePath,
-    LiveStackingConfig config = const LiveStackingConfig(),
-  }) => startFromFile(referenceImagePath: referenceImagePath, config: config);
-
-  @override
-  Future<LiveStackingResult> addFrameFromFileForFilter(
-    String imagePath, {
-    required String filterKey,
-  }) => addFrameFromFile(imagePath);
-
-  @override
-  Future<LiveStackingResult> getCurrentResultForFilter(String filterKey) =>
-      getCurrentResult();
-
-  @override
-  Future<LiveStackingStats> getStatsForFilter(String filterKey) => getStats();
-
-  @override
   Future<void> updateLiveConfig(
     LiveStackingConfig config, {
     String? filterKey,
@@ -141,10 +110,57 @@ class _FakeLiveStackingService implements LiveStackingService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  Future<LiveStackingStats> startArmed({
+  bool get isActive => _frames > 0;
+
+  @override
+  int get frameCount => _frames;
+
+  @override
+  Future<LiveStackingMasterSave> saveMaster({
+    required String filePath,
+    String? filterKey,
+  }) => throw UnimplementedError('saveMaster is not part of the autofeed flow');
+
+  @override
+  Future<LiveStackingStats> start({
+    String? referenceImagePath,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
-    // Remote-only arm path; not exercised by the local autofeed executor test.
+    if (filterKey != null) {
+      return start(referenceImagePath: referenceImagePath, config: config);
+    }
+    startedFrom.add(referenceImagePath!);
+    _frames = 1;
+    return _stats;
+  }
+
+  @override
+  Future<LiveStackingResult> addFrameFromFile(
+    String imagePath, {
+    String? filterKey,
+  }) async {
+    if (filterKey != null) {
+      return addFrameFromFile(imagePath);
+    }
+    addedFrames.add(imagePath);
+    _frames += 1;
+    return _result;
+  }
+
+  @override
+  Future<LiveStackingResult> getCurrentResult({String? filterKey}) async {
+    if (filterKey != null) {
+      return getCurrentResult();
+    }
+    return _result;
+  }
+
+  @override
+  Future<LiveStackingStats> getStats({String? filterKey}) async {
+    if (filterKey != null) {
+      return getStats();
+    }
     return _stats;
   }
 
@@ -153,18 +169,12 @@ class _FakeLiveStackingService implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
     LiveStackingConfig config = const LiveStackingConfig(),
+    String? filterKey,
   }) async {
     _frames = 1;
     return _stats;
-  }
-
-  @override
-  Future<LiveStackingResult> addFrameFromFile(String imagePath) async {
-    addedFrames.add(imagePath);
-    _frames += 1;
-    return _result;
   }
 
   @override
@@ -172,34 +182,23 @@ class _FakeLiveStackingService implements LiveStackingService {
     required int width,
     required int height,
     required List<int> data,
-    required double pedestal,
+    double pedestal = 0.0,
+    String? filterKey,
   }) async {
     _frames += 1;
     return _result;
   }
 
   @override
-  Future<LiveStackingResult> getCurrentResult() async => _result;
-
-  @override
-  Future<LiveStackingStats> getStats() async => _stats;
-
-  @override
-  Future<void> reset() async {
+  Future<void> reset({String? filterKey}) async {
     _frames = 0;
   }
 
   @override
-  Future<void> stop() async {
+  Future<void> stop({String? filterKey}) async {
     stopped = true;
     _frames = 0;
   }
-
-  @override
-  bool get isActive => _frames > 0;
-
-  @override
-  int get frameCount => _frames;
 }
 
 /// Build a runnable sequence: a root containing an enabled LiveStacking
@@ -585,7 +584,9 @@ void main() {
           ),
           liveStackingServiceProvider.overrideWithValue(fakeStacker),
           liveStackingBroadcastServiceProvider.overrideWith((ref) {
-            final svc = _DeactivateFails(ref);
+            final svc = _DeactivateFails(
+              () => ref.read(loggingServiceProvider),
+            );
             ref.onDispose(svc.dispose);
             return svc;
           }),

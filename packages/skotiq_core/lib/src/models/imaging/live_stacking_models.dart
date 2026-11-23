@@ -196,6 +196,29 @@ class LiveStackingConfig {
     demosaicQuality: demosaicQuality,
   );
 
+  /// The settings as the `config` object of the host's stacking routes: the
+  /// engine's, and the feeder's ([separateByFilter], [autoFeedEnabled], and
+  /// the [maxHfrPx] / [minStarCount] gates, null when off), which the host's
+  /// feeder applies to the frames of its run.
+  Map<String, Object?> toWireJson() => {
+    'sigmaClipEnabled': sigmaClipEnabled,
+    'sigmaClipThreshold': sigmaClipThreshold,
+    'maxMatchStars': maxMatchStars,
+    'matchRadiusPx': matchRadiusPx,
+    'matchFluxTolerance': matchFluxTolerance,
+    'minMatchedPairs': minMatchedPairs,
+    'maxAlignmentResidualPx': maxAlignmentResidualPx,
+    'starDetectionSigma': starDetectionSigma,
+    'starDetectionMinSnr': starDetectionMinSnr,
+    'sensorMode': sensorMode,
+    if (bayerPattern != null) 'bayerPattern': bayerPattern,
+    'demosaicQuality': demosaicQuality,
+    'separateByFilter': separateByFilter,
+    'autoFeedEnabled': autoFeedEnabled,
+    'maxHfrPx': maxHfrPx,
+    'minStarCount': minStarCount,
+  };
+
   LiveStackingConfig copyWith({
     bool? sigmaClipEnabled,
     double? sigmaClipThreshold,
@@ -340,6 +363,99 @@ class LiveStackingStats {
       otherFilterFrames = s.otherFilterFrames,
       lastOtherFilter = s.lastOtherFilter;
 
+  /// The JSON form the host's stacking routes and its runtime channel send.
+  Map<String, Object?> toJson() => {
+    'stackedFrameCount': stackedFrameCount,
+    'totalFramesAttempted': totalFramesAttempted,
+    'rejectedAlignmentFailures': rejectedAlignmentFailures,
+    'avgMatchedPairs': avgMatchedPairs,
+    'avgAlignmentResidual': avgAlignmentResidual,
+    'totalSigmaRejectedPixels': totalSigmaRejectedPixels,
+    'totalIntegrationSecs': totalIntegrationSecs,
+    'filter': filter,
+    'otherFilterFrames': otherFilterFrames,
+    'lastOtherFilter': lastOtherFilter,
+  };
+
+  /// Reads [toJson], from the stacking routes and the liveStack channel
+  /// alike. The four counts must be whole and non-negative and the two
+  /// averages finite and non-negative; a missing or malformed one throws
+  /// [FormatException] naming [source]. The integration time and the filter
+  /// fields are newer than the routes: missing or malformed, they read as
+  /// none.
+  factory LiveStackingStats.fromJson(
+    Map<String, dynamic> json, {
+    String source = 'Live stack stats',
+  }) {
+    int count(String key) {
+      final value = json[key];
+      if (value is int) {
+        if (value < 0) {
+          throw FormatException(
+            '$source field `$key` must be >= 0, got $value',
+          );
+        }
+        return value;
+      }
+      if (value is double) {
+        if (!value.isFinite || value != value.roundToDouble()) {
+          throw FormatException(
+            '$source field `$key` must be an integer, got $value',
+          );
+        }
+        final asInt = value.toInt();
+        if (asInt < 0) {
+          throw FormatException(
+            '$source field `$key` must be >= 0, got $asInt',
+          );
+        }
+        return asInt;
+      }
+      throw FormatException(
+        '$source field `$key` must be an integer, got ${value.runtimeType}',
+      );
+    }
+
+    double average(String key) {
+      final value = json[key];
+      if (value is! num) {
+        throw FormatException(
+          '$source field `$key` must be a number, got ${value.runtimeType}',
+        );
+      }
+      final asDouble = value.toDouble();
+      if (!asDouble.isFinite || asDouble < 0) {
+        throw FormatException(
+          '$source field `$key` must be a finite, non-negative number, got '
+          '$asDouble',
+        );
+      }
+      return asDouble;
+    }
+
+    String? filterName(Object? value) =>
+        value is String && value.trim().isNotEmpty ? value : null;
+
+    return LiveStackingStats(
+      stackedFrameCount: count('stackedFrameCount'),
+      totalFramesAttempted: count('totalFramesAttempted'),
+      rejectedAlignmentFailures: count('rejectedAlignmentFailures'),
+      avgMatchedPairs: average('avgMatchedPairs'),
+      avgAlignmentResidual: average('avgAlignmentResidual'),
+      totalSigmaRejectedPixels: count('totalSigmaRejectedPixels'),
+      totalIntegrationSecs: switch (json['totalIntegrationSecs']) {
+        final num secs when secs.isFinite && secs >= 0 => secs.toDouble(),
+        _ => 0.0,
+      },
+      filter: filterName(json['filter']),
+      otherFilterFrames: switch (json['otherFilterFrames']) {
+        final int count when count > 0 => count,
+        _ => 0,
+      },
+      lastOtherFilter: filterName(json['lastOtherFilter']),
+    );
+  }
+
   /// Why frames were left out of the stack for their filter and what to do
   /// about it; null when none were.
   String? get otherFilterNote {
@@ -446,6 +562,61 @@ class LiveStackFilterSummary {
       stats = LiveStackingStats.fromBridge(s.stats);
 }
 
+/// Why the live stacker left a frame out, by kind, with the engine's
+/// sentence.
+class LiveStackRefusal {
+  const LiveStackRefusal(this.kind, this.message);
+
+  final LiveStackRefusalKind kind;
+  final String message;
+
+  /// The text the refusal carried before it had a kind, which the GUI shows
+  /// and the host's published bodies hold in `reason`.
+  String get legacyText => 'SkotiqError.imageError(field0: $message)';
+}
+
+/// A live stack that did not start because its reference frame holds fewer
+/// stars than alignment needs, with both counts.
+class LiveStackReferenceRefusal {
+  const LiveStackReferenceRefusal({
+    required this.detectedStars,
+    required this.requiredStars,
+    required this.message,
+  });
+
+  /// The counts in the native refusal's [message], whose form a Rust test
+  /// writes to `test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json`.
+  /// Null when the message holds no counts.
+  static LiveStackReferenceRefusal? fromMessage(String message) {
+    final counts = _counts.firstMatch(message);
+    if (counts == null) return null;
+    return LiveStackReferenceRefusal(
+      detectedStars: int.parse(counts.group(1)!),
+      requiredStars: int.parse(counts.group(2)!),
+      message: message,
+    );
+  }
+
+  static final _counts = RegExp(r'has only (\d+) stars, need at least (\d+)');
+
+  final int detectedStars;
+  final int requiredStars;
+
+  /// The engine's sentence.
+  final String message;
+}
+
+enum LiveStackRefusalKind {
+  /// The frame did not align to the reference.
+  misaligned,
+
+  /// Taken through another filter than the stack's.
+  otherFilter,
+
+  /// The frame file could not be read.
+  unreadable,
+}
+
 /// Thrown when the stacker refuses the frame it was handed.
 ///
 /// A refusal is a *counted event*: the engine increments
@@ -464,7 +635,14 @@ class LiveStackingFrameRejected implements Exception {
   /// Stacker statistics AFTER the refusal was counted.
   final LiveStackingStats stats;
 
-  const LiveStackingFrameRejected({required this.reason, required this.stats});
+  /// Why the engine left the frame out, when it said by kind.
+  final LiveStackRefusal? refusal;
+
+  const LiveStackingFrameRejected({
+    required this.reason,
+    required this.stats,
+    this.refusal,
+  });
 
   /// Renders as the engine's reason so existing user-facing messages that
   /// interpolate the caught error are unchanged.

@@ -6,6 +6,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
+import 'package:skotiq_core/src/models/rig_activity.dart';
+import 'package:skotiq_core/src/providers/rig_activity.dart';
 
 import '../harness/in_memory_database.dart';
 import '../mocks/mock_backend.dart';
@@ -66,6 +68,193 @@ void main() {
       container.read(flipCurrentStepProvider)!.displayName,
       'Turning tracking on',
     );
+  });
+
+  // P10 left: a native Failed set the state and the error and left the step
+  // and percent, so a flip refused before it started (a configuration error
+  // is reported before Starting) read "Failed, attempt 1, 100%" from the flip
+  // before it.
+  group('a flip that ends', () {
+    late ProviderContainer container;
+    late StreamController<SkotiqEvent> events;
+
+    setUp(() {
+      final backend = MockBackend();
+      events = StreamController<SkotiqEvent>.broadcast();
+      when(() => backend.eventStream).thenAnswer((_) => events.stream);
+      container = ProviderContainer(
+        overrides: [
+          inMemoryDatabaseOverride(),
+          backendProvider.overrideWith((ref) => _Backend(ref, backend)),
+        ],
+      );
+      container.listen(meridianFlipTelemetryProvider, (_, __) {});
+    });
+
+    tearDown(() async {
+      container.dispose();
+      await events.close();
+    });
+
+    Future<void> send(List<String> details) async {
+      for (final detail in details) {
+        events.add(_progress(detail));
+      }
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    FlipMonitorProgress shown() => FlipMonitorProgress(
+      state: container.read(flipExecutionStateProvider),
+      attempt: container.read(flipCurrentAttemptProvider),
+      step: container.read(flipCurrentStepProvider),
+      percent: container.read(flipProgressProvider),
+      error: container.read(flipLastErrorProvider),
+    );
+
+    const completedFlip = [
+      '{"Starting":{"target_name":"M31","from_pier_side":"East","hour_angle":0.25}}',
+      '{"StepStarted":{"step":"SlewingToTarget","step_index":2,"total_steps":9}}',
+      '{"Progress":{"percent":40}}',
+      '{"Completed":{"new_pier_side":"West","duration_secs":185.0}}',
+    ];
+
+    test('before it started shows no step or progress of the flip before '
+        'it', () async {
+      await send(completedFlip);
+      await send([
+        '{"Failed":{"error":"retry delays missing","action_taken":"parked"}}',
+      ]);
+
+      expect(shown().toJson(), {
+        'state': 'failed',
+        'attempt': 0,
+        'step': null,
+        'progress': 0,
+        'error': 'retry delays missing',
+      });
+    });
+
+    test('aborted before it started shows none either', () async {
+      await send(completedFlip);
+      await send(['{"Aborted":{"reason":"a sequence owns the mount"}}']);
+
+      expect(shown().toJson(), {
+        'state': 'aborted',
+        'attempt': 0,
+        'step': null,
+        'progress': 0,
+        'error': 'a sequence owns the mount',
+      });
+    });
+
+    test('mid-way keeps the step, attempt and progress it reached', () async {
+      await send([
+        completedFlip[0],
+        completedFlip[1],
+        completedFlip[2],
+        '{"StepFailed":{"step":"SlewingToTarget","error":"slew timed out"}}',
+        '{"Failed":{"error":"pier side did not change","action_taken":"parked"}}',
+      ]);
+
+      expect(shown().toJson(), {
+        'state': 'failed',
+        'attempt': 1,
+        'step': 'slewingToTarget',
+        'progress': 40,
+        'error': 'pier side did not change',
+      });
+    });
+
+    // A run whose flip never reported its end (the run stopped mid-flip and
+    // the native side dropped the flip without an event) left the flip
+    // executing, which holds the rig for flats, a manual capture and the
+    // next run until a restart.
+    group('when the run that flipped ends', () {
+      void lifecycle(SequenceExecutionState next) =>
+          container.read(runRecordProvider.notifier).setLifecycle(next);
+
+      test('a flip still executing ends as aborted', () async {
+        lifecycle(SequenceExecutionState.running);
+        await send(completedFlip.sublist(0, 3));
+        expect(container.read(isFlipInProgressProvider), isTrue);
+
+        lifecycle(SequenceExecutionState.stopping);
+        expect(container.read(isFlipInProgressProvider), isTrue);
+        lifecycle(SequenceExecutionState.idle);
+
+        expect(shown().toJson(), {
+          'state': 'aborted',
+          'attempt': 1,
+          'step': 'slewingToTarget',
+          'progress': 40,
+          'error': 'The run ended during the meridian flip',
+        });
+        expect(rigHeldBy(container.read, starting: RigActivity.flats), isNull);
+      });
+
+      test('a flip that reported its end keeps it', () async {
+        lifecycle(SequenceExecutionState.running);
+        await send(completedFlip);
+        lifecycle(SequenceExecutionState.finalizing);
+        lifecycle(SequenceExecutionState.completed);
+
+        expect(shown().state, FlipExecutionState.completed);
+        expect(shown().error, isNull);
+      });
+
+      test('the flip monitor\'s own flip is left to end itself', () async {
+        lifecycle(SequenceExecutionState.stopping);
+        container.read(standaloneFlipInFlightProvider.notifier).state = true;
+        await send(completedFlip.sublist(0, 3));
+        lifecycle(SequenceExecutionState.idle);
+
+        expect(shown().state, FlipExecutionState.executing);
+        expect(container.read(isFlipInProgressProvider), isTrue);
+      });
+
+      test(
+        'a native abort after the run end keeps what the flip reached',
+        () async {
+          lifecycle(SequenceExecutionState.running);
+          await send(completedFlip.sublist(0, 3));
+          lifecycle(SequenceExecutionState.finalizing);
+          await send(['{"Aborted":{"reason":"User requested abort"}}']);
+
+          expect(shown().toJson(), {
+            'state': 'aborted',
+            'attempt': 1,
+            'step': 'slewingToTarget',
+            'progress': 40,
+            'error': 'User requested abort',
+          });
+        },
+      );
+
+      test('a refusal after that reads none of the ended flip', () async {
+        lifecycle(SequenceExecutionState.running);
+        await send(completedFlip.sublist(0, 3));
+        lifecycle(SequenceExecutionState.idle);
+        await send(['{"Aborted":{"reason":"User requested abort"}}']);
+        await send(['{"Aborted":{"reason":"a sequence owns the mount"}}']);
+
+        expect(shown().toJson(), {
+          'state': 'aborted',
+          'attempt': 0,
+          'step': null,
+          'progress': 0,
+          'error': 'a sequence owns the mount',
+        });
+      });
+
+      test('a flip outcome that arrives after the run end is shown', () async {
+        lifecycle(SequenceExecutionState.running);
+        await send(completedFlip.sublist(0, 3));
+        lifecycle(SequenceExecutionState.finalizing);
+        await send([completedFlip[3]]);
+
+        expect(shown().state, FlipExecutionState.completed);
+      });
+    });
   });
 }
 

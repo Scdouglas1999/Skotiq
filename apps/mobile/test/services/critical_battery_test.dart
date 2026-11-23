@@ -7,9 +7,8 @@ import 'package:skotiq_mobile/services/mobile_sequence_hooks.dart';
 import 'package:skotiq_mobile/services/notification_service.dart';
 
 /// Owner decision 2026-10-06: only a risk to the hardware pauses or ends a
-/// run by itself. The phone's own battery running low is not one: at 10% the
-/// phone paused the run, including a desktop host's run it was only watching
-/// over the network. It now tells the operator and leaves the run alone.
+/// run by itself. The phone's own battery running low is not one: the phone
+/// tells the operator and leaves the run alone.
 void main() {
   test('a critical phone battery never pauses the run', () async {
     final backend = _PauseRecordingBackend();

@@ -131,7 +131,7 @@ impl IndiCamera {
     /// camera.
     fn frame_type(kind: FrameType) -> CcdFrameType {
         match kind {
-            FrameType::Light => CcdFrameType::Light,
+            FrameType::Light | FrameType::Snapshot => CcdFrameType::Light,
             FrameType::Dark | FrameType::DarkFlat => CcdFrameType::Dark,
             FrameType::Flat => CcdFrameType::Flat,
             FrameType::Bias => CcdFrameType::Bias,
@@ -221,8 +221,8 @@ impl CameraDriver for IndiCamera {
                 cooler_power,
                 target_temp: None,
                 cooler_on,
-                gain: gain.map_or(0, |v| v as i32),
-                offset: offset.map_or(0, |v| v as i32),
+                gain: Some(gain.map_or(0, |v| v as i32)),
+                offset: Some(offset.map_or(0, |v| v as i32)),
                 bin_x: bin_x as i32,
                 bin_y: bin_y as i32,
                 exposure_remaining: None,

@@ -858,11 +858,11 @@
     } catch (e) {
       // Map the server's error codes to actionable text.
       let msg = e.message || 'Pairing failed';
-      if (msg.includes('invalid_pairing_code')) {
+      if (msg.includes(WIRE_ERROR_CODES.invalidPairingCode)) {
         msg = 'Pairing code is not recognised. Check the code on the desktop console.';
-      } else if (msg.includes('pairing_code_expired')) {
+      } else if (msg.includes(WIRE_ERROR_CODES.pairingCodeExpired)) {
         msg = 'Pairing code expired. Click Pair again to request a new one.';
-      } else if (msg.includes('pairing_code_already_used')) {
+      } else if (msg.includes(WIRE_ERROR_CODES.pairingCodeAlreadyUsed)) {
         msg = 'That code has already been claimed. Click Pair to start over.';
       } else if (e.kind === 'rate_limited' || msg.includes('429') ||
                  msg.includes('temporarily locked')) {
@@ -1479,11 +1479,7 @@
     // backend: a green "running" for a rig that may have been off for an hour.
     const seqStatus = document.getElementById('seq-status');
     if (seqStatus) renderBadge(seqStatus, 'unknown', 'badge-error');
-    // The percentage is the same assertion in another shape, and it outlived
-    // the badge: measured after a SIGKILL at wire progress 0.250, the badge
-    // went "unknown" and the banner said every value might be wrong while
-    // "25%" stayed on screen, the bar stayed 94.75px wide and the bar's
-    // aria-valuenow kept announcing 25 for the next 47 s. A figure whose
+    // The percentage is the same assertion in another shape. A figure whose
     // source is gone is not a smaller truth than a state whose source is gone.
     markProgressUnknown(
       'seq-progress-bar', 'seq-progress-bar-container', 'seq-progress-text');
@@ -1592,10 +1588,6 @@
   }
 
   /// Paint one panel's stale line from the shared verdict.
-  ///
-  /// The `wsHealthy` early-return that used to live here is gone: it hid the
-  /// line whenever the event socket was alive, which is exactly the state a
-  /// single failing REST route leaves the page in.
   function renderStaleIndicator(panelKey, view) {
     const el = document.getElementById('stale-' + panelKey);
     if (!el) return;
@@ -1701,11 +1693,8 @@
   /// A panel may only render a positive empty state — "No devices connected",
   /// "No captured images yet." — when the server SAID empty, which on this API
   /// means an answer carrying `field: []`. An answer with no such field said
-  /// nothing about the inventory at all, and `payload.field || []` turned that
-  /// silence into a stated fact: measured against the release bundle, a
-  /// content-free 200 on /api/devices/connected described a rig with four
-  /// connected devices as having none, with nothing anywhere on the page
-  /// saying the read had failed.
+  /// nothing about the inventory at all, and `payload.field || []` would turn
+  /// that silence into a stated fact.
   ///
   /// The refusal is the same `unusable_answer` the API client raises for an
   /// empty body, so every caller's existing catch — the stale line, the log
@@ -2705,7 +2694,7 @@
     } catch (e) {
       const body = seqErrorBody(e);
       if (e && e.status === 409 && body &&
-          (body.error === 'sequencer_not_running' ||
+          (body.error === WIRE_ERROR_CODES.sequencerNotRunning ||
            body.wasRunning === false)) {
         addLogEntry('sequencer', verb + ' ignored: no sequence was running');
         showToast(
@@ -4037,7 +4026,7 @@
   /// live, fired a request, and surfaced an error toast; in the dark on a
   /// phone that reads as "the rig is broken", not "wrong button".
   function updateSequencerButtons(stateStr) {
-    const s = String(stateStr || 'idle').toLowerCase().replace(/[_\s]/g, '');
+    const phase = RUN_STATE.view(stateStr || 'idle').phase;
     const set = (id, enabled) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -4052,12 +4041,11 @@
       }
       el.disabled = !enabled;
     };
-    const running = s === 'running' || s === 'executing';
-    const paused = s === 'paused';
-    const transitional = s === 'stopping' || s === 'finalizing';
-    const recovering = s === 'recovering';
-    const stopRetry = s === 'stopfailed' || s === 'cleanupfailed';
-    set('btn-seq-start', !running && !paused && !transitional && !recovering && !stopRetry);
+    const running = phase === 'running';
+    const paused = phase === 'paused';
+    const recovering = phase === 'recovering';
+    const stopRetry = phase === 'stopRetry';
+    set('btn-seq-start', phase === 'idle' || phase === 'ended');
     set('btn-seq-pause', running);
     set('btn-seq-resume', paused);
     set('btn-seq-stop', running || paused || recovering || stopRetry);
@@ -4108,10 +4096,10 @@
   // bar that does not look like a run that has done nothing yet.
   //
   // An empty bar is a claim: it says "0% complete". That claim is true on a
-  // rig that has just started and false on one whose backend died at 25%, and
-  // both used to render identically down to the pixel. The `unknown` class
-  // gives the track its own hatched fill, so an operator can tell "nothing has
-  // happened" from "we have no idea" without reading the number.
+  // rig that has just started and false on one whose backend died at 25%. The
+  // `unknown` class gives the track its own hatched fill, so an operator can
+  // tell "nothing has happened" from "we have no idea" without reading the
+  // number.
   //
   // aria-valuenow is REMOVED rather than zeroed: a progressbar with no value is
   // announced as indeterminate, which is the truth, while aria-valuenow="0"
@@ -4188,8 +4176,8 @@
     updateSequencerButtons(runState);
 
     if (statusEl) {
-      const badgeClass = getSequencerBadgeClass(runState);
-      renderBadge(statusEl, runState, badgeClass);
+      const view = RUN_STATE.view(runState, s.pausedIdle);
+      renderBadge(statusEl, view.label, view.badge);
     }
 
     if (nodeEl) nodeEl.textContent = s.currentNodeName || '--';
@@ -4221,16 +4209,6 @@
     renderOpsSequencerLoadPanel();
   }
 
-  function getSequencerBadgeClass(stateStr) {
-    if (!stateStr) return 'badge-idle';
-    const s = stateStr.toLowerCase();
-    if (s === 'running' || s === 'executing') return 'badge-running';
-    if (s === 'paused') return 'badge-paused';
-    if (s === 'error' || s === 'failed') return 'badge-error';
-    if (s === 'completed' || s === 'done') return 'badge-completed';
-    return 'badge-idle';
-  }
-
   // =========================================================================
   // Rendering: Guiding Panel
   // =========================================================================
@@ -4254,7 +4232,7 @@
 
     if (statusEl) {
       const guidingState = g.state || g.appState || 'unknown';
-      const isGuiding = String(guidingState).toLowerCase().includes('guid');
+      const isGuiding = String(guidingState).toLowerCase() === 'guiding';
       const badgeClass = isGuiding ? 'badge-running' : 'badge-idle';
       renderBadge(statusEl, guidingState, badgeClass);
     }
@@ -4287,12 +4265,17 @@
       if (el) el.disabled = !enabled;
     };
     const disconnected = s === 'disconnected' || s === 'unknown';
-    const guiding = s.includes('guid') && !s.includes('stop');
+    const guiding = s === 'guiding';
+    // Calibration moves the mount for minutes; PHD2 settles after every dither
+    // and may lose the star. Guiding is switched on in all three, so Stop must
+    // stay reachable.
+    const calibrating = s === 'calibrating';
+    const guidingOn = guiding || calibrating || s === 'settling' || s === 'lostlock';
     const paused = s === 'paused';
     set('btn-guide-connect', disconnected);
-    set('btn-guide-start', !disconnected && !guiding);
+    set('btn-guide-start', !disconnected && !guiding && !calibrating);
     set('btn-guide-pause', guiding && !paused);
-    set('btn-guide-stop', guiding || paused);
+    set('btn-guide-stop', guidingOn || paused);
     set('btn-guide-dither', guiding && !paused);
   }
 
@@ -6231,10 +6214,9 @@
     const errEl = document.getElementById('pa-total-error');
     if (phaseEl) phaseEl.textContent = state.polarAlignment.phase || 'idle';
     if (errEl) {
-      // `isFinite` coerces, so a string error figure passed the guard and then
-      // threw on `.toFixed`, leaving the whole panel — phase included —
-      // unpainted. The colour class keys off the same gated value, so an
-      // unreadable error can no longer render green.
+      // `isFinite` coerces, so a string error figure would pass it and then throw
+      // on `.toFixed`. The colour class keys off the same gated value, so an
+      // unreadable error cannot render green.
       const v = wireNumber(state.polarAlignment.totalErrorArcmin);
       errEl.textContent = v != null ? v.toFixed(2) + "'" : '--';
       errEl.className = 'status-value' + (v != null
@@ -7573,11 +7555,7 @@
     const id = String(item.id ?? item.imageId ?? '');
     if (!id) return;
     const meta = document.getElementById('gallery-modal-meta');
-    // The verdict travels with the frame into the preview. Opening a reject
-    // full-size used to show the same header line as a keeper — "L · 8/18/2026,
-    // 7:51:35 AM / Download original / Close" — so the one place an operator
-    // goes to judge a frame was the one place the grader's judgement was
-    // missing.
+    // The verdict travels with the frame into the preview.
     if (meta) meta.textContent = galleryModalMeta(item);
     const generation = ++gallery.modalLoadGeneration;
     if (gallery.modalPreviewUrl) {
@@ -7986,12 +7964,8 @@
       statusEl.textContent = 'Signing in...';
       statusEl.className = 'login-status';
     }
-    // The overlay stays up until the connection is known good. Hiding it here
-    // dismissed the only surface that can fix a credential: measured against
-    // the release bundle, a rejected bearer left the dashboard "Disconnected"
-    // with `#login-status` reading "Signing in..." forty seconds later, and
-    // both fallback controls (#btn-apply-token, #btn-pair) zero-size inside a
-    // collapsed <details>.
+    // The overlay stays up until the connection is known good: it is the only
+    // surface that can fix a credential.
     const outcome = await handleConnect();
     if (!outcome || !outcome.ok) {
       reportLoginFailure(outcome);

@@ -3,38 +3,12 @@
 part of '../smart_night_dialog.dart';
 
 extension _SmartNightPlanHelpers on _SmartNightDialogState {
-  /// Translate the snake_case strategy id stored in app_settings back
-  /// into a [SmartNightStrategy]; `auto` and an unknown id are null, each
-  /// target's own filters.
-  SmartNightStrategy? _strategyFromPersistedName(String name) => switch (name) {
-        'auto_lrgb' => SmartNightStrategy.autoLrgb,
-        // LRGB with equal time, which every LRGB plan now is.
-        'mono_lrgb' => SmartNightStrategy.autoLrgb,
-        'ha_lrgb' => SmartNightStrategy.haLrgb,
-        'narrowband_ha' => SmartNightStrategy.narrowbandHa,
-        'narrowband_hoo' => SmartNightStrategy.narrowbandHoo,
-        'narrowband_sho' => SmartNightStrategy.narrowbandSho,
-        'osc_one_shot' => SmartNightStrategy.oscOneShot,
-        'rgb' => SmartNightStrategy.rgb,
-        'luminance' => SmartNightStrategy.luminance,
-        'narrowband_oiii' => SmartNightStrategy.narrowbandOiii,
-        'narrowband_sii' => SmartNightStrategy.narrowbandSii,
-        _ => null,
-      };
+  /// The stored strategy id back as a set; `auto` and an unknown id are
+  /// null, each target's own filters.
+  SmartNightStrategy? _strategyFromPersistedName(String name) =>
+      SmartNightStrategy.fromId(name);
 
-  String _persistedNameForStrategy(SmartNightStrategy? s) => switch (s) {
-        null => 'auto',
-        SmartNightStrategy.autoLrgb => 'auto_lrgb',
-        SmartNightStrategy.haLrgb => 'ha_lrgb',
-        SmartNightStrategy.narrowbandHa => 'narrowband_ha',
-        SmartNightStrategy.narrowbandHoo => 'narrowband_hoo',
-        SmartNightStrategy.narrowbandSho => 'narrowband_sho',
-        SmartNightStrategy.oscOneShot => 'osc_one_shot',
-        SmartNightStrategy.rgb => 'rgb',
-        SmartNightStrategy.luminance => 'luminance',
-        SmartNightStrategy.narrowbandOiii => 'narrowband_oiii',
-        SmartNightStrategy.narrowbandSii => 'narrowband_sii',
-      };
+  String _persistedNameForStrategy(SmartNightStrategy? s) => s?.id ?? 'auto';
 
   /// Best-effort writeback of the wizard's working [_settings] +
   /// [_strategy] into [AppSettingsState]. Called whenever the user
@@ -229,7 +203,7 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     try {
       await ref
           .read(filterSetPreferencesProvider.notifier)
-          .choose(target, set, recommended: choice.recommended);
+          .pick(target, set, choice);
       await _buildPreview();
     } catch (e) {
       if (mounted) {
@@ -272,68 +246,11 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     final plan = _preview;
     if (plan == null) return;
 
-    // Capture-time delta in seconds for this single edit. Wall-clock is
-    // capture time plus a fixed per-target/per-filter overhead model the
-    // builder applies; that overhead does not change when only a frame count
-    // changes, so we can adjust wall-clock by the same capture delta rather
-    // than re-running the (heavy) builder for every tap.
-    var wallClockDeltaSecs = 0.0;
-
-    final newPlannedTargets = <SmartNightPlannedTarget>[];
-    for (final p in plan.plannedTargets) {
-      if (p == target) {
-        final updatedFilters = <SmartNightFilterPlan>[];
-        for (var i = 0; i < p.filterPlans.length; i++) {
-          if (i == filterIndex) {
-            final fp = p.filterPlans[i];
-            final newCount = (fp.count + delta).clamp(1, 999).toInt();
-            wallClockDeltaSecs += (newCount - fp.count) * fp.durationSecs;
-            updatedFilters.add(SmartNightFilterPlan(
-              filterName: fp.filterName,
-              count: newCount,
-              durationSecs: fp.durationSecs,
-              recommendation: fp.recommendation,
-            ));
-          } else {
-            updatedFilters.add(p.filterPlans[i]);
-          }
-        }
-        final newIntegration = updatedFilters.fold<double>(
-          0,
-          (s, fp) => s + fp.integrationSecs,
-        );
-        newPlannedTargets.add(SmartNightPlannedTarget(
-          suggestion: p.suggestion,
-          windowStart: p.windowStart,
-          windowEnd: p.windowEnd,
-          filterPlans: updatedFilters,
-          integrationSecs: newIntegration,
-          rationale: p.rationale,
-          filterReason: p.filterReason,
-        ));
-      } else {
-        newPlannedTargets.add(p);
-      }
-    }
-
-    // Patch the existing plan's sequence in place — no full rebuild. The
-    // SmartExposureNode counts/integration are overwritten directly, and we
-    // recompute totals + wall-clock locally so the preview is internally
-    // consistent (no longer borrowing wall-clock from a rebuild that used the
-    // un-tweaked counts).
-    final patched = SmartNightPlan(
-      sequence: _patchSequenceCounts(plan.sequence, newPlannedTargets),
-      plannedTargets: newPlannedTargets,
-      totalIntegrationSecs: newPlannedTargets.fold<double>(
-        0,
-        (s, p) => s + p.integrationSecs,
-      ),
-      estimatedWallClockSecs: (plan.estimatedWallClockSecs + wallClockDeltaSecs)
-          .clamp(0, double.infinity),
-      warnings: plan.warnings,
-      strategy: plan.strategy,
-      settings: plan.settings,
-      context: plan.context,
+    final patched = smartNightPlanWithCountChange(
+      plan,
+      target,
+      filterIndex,
+      delta,
     );
 
     setState(() => _preview = patched);
@@ -362,72 +279,6 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
     });
   }
 
-  /// Walk every capture node in `seq` and overwrite its per-filter counts
-  /// with the user-tweaked values. We match by filter name within the same
-  /// TargetHeader. A wheel-less target emits a single unfiltered
-  /// [ExposureNode] instead of a [SmartExposureNode]; its count is patched
-  /// from the target's one filter plan.
-  Sequence _patchSequenceCounts(
-    Sequence seq,
-    List<SmartNightPlannedTarget> targets,
-  ) {
-    final byTargetName = <String, SmartNightPlannedTarget>{
-      for (final t in targets) t.suggestion.targetName: t,
-    };
-    final newNodes = <String, SequenceNode>{...seq.nodes};
-
-    String? targetNameFor(SequenceNode node) {
-      String? parentId = node.parentId;
-      while (parentId != null) {
-        final parent = seq.nodes[parentId];
-        if (parent is TargetHeaderNode) return parent.targetName;
-        parentId = parent?.parentId;
-      }
-      return null;
-    }
-
-    for (final entry in seq.nodes.entries) {
-      final node = entry.value;
-      if (node is ExposureNode && node.frameType == FrameType.light) {
-        final targetName = targetNameFor(node);
-        if (targetName == null) continue;
-        final tweaked = byTargetName[targetName];
-        if (tweaked == null || !tweaked.isUnfiltered) continue;
-        final plan = tweaked.filterPlans.single;
-        newNodes[node.id] = node.copyWith(
-          count: plan.count,
-          durationSecs: plan.durationSecs,
-        );
-        continue;
-      }
-      if (node is! SmartExposureNode) continue;
-      final targetName = targetNameFor(node);
-      if (targetName == null) continue;
-      final tweaked = byTargetName[targetName];
-      if (tweaked == null) continue;
-      final newPlans = <FilterPlan>[];
-      for (final plan in node.plans) {
-        final matchingTweak = tweaked.filterPlans.firstWhere(
-          (fp) => fp.filterName == plan.filterName,
-          orElse: () => SmartNightFilterPlan(
-            filterName: plan.filterName,
-            count: plan.count,
-            durationSecs: plan.durationSecs,
-          ),
-        );
-        newPlans.add(plan.copyWith(
-          count: matchingTweak.count,
-          durationSecs: matchingTweak.durationSecs,
-        ));
-      }
-      newNodes[node.id] = node.copyWith(
-        plans: newPlans,
-        integrationBudgetSecs: tweaked.integrationSecs,
-      );
-    }
-    return seq.copyWith(nodes: newNodes);
-  }
-
   Future<void> _startPlan() async {
     if (_isStarting) return;
     final plan = _preview;
@@ -438,7 +289,10 @@ extension _SmartNightPlanHelpers on _SmartNightDialogState {
         read: ref.read,
         plan: plan,
         draftId: _previewDraftId,
+        confirm: () => confirmPreflight(context),
       );
+    } on PlanStartCanceled {
+      return;
     } catch (e) {
       if (mounted) {
         context.showErrorSnackBar(

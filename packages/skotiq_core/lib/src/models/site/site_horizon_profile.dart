@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import '../../utils/unreadable_stored_data.dart';
 import 'horizon_profile.dart' as scheduler;
 import 'learned_obstruction.dart';
 
@@ -119,9 +120,14 @@ class SiteHorizonProfile {
         }
       }
       return SiteHorizonProfile(altitudes, samples: samples);
-    } catch (_) {
-      // Return flat horizon on parse failure - this is a data error,
-      // not something we should silently swallow. Log it.
+    } catch (error) {
+      reportUnreadableStoredData(
+        'site horizon',
+        json,
+        error,
+        fallback: 'a flat horizon',
+        source: 'SiteHorizonProfile',
+      );
       return SiteHorizonProfile._default();
     }
   }
@@ -159,7 +165,6 @@ class SiteHorizonProfile {
 
     if (_samples.length >= 2) return _interpolateSamples(az);
 
-    // Find which two compass points we're between
     const segmentSize = 360.0 / 8.0; // 45 degrees per segment
     final segmentIndex = (az / segmentSize).floor() % 8;
     final nextIndex = (segmentIndex + 1) % 8;
@@ -254,6 +259,17 @@ class SiteHorizonProfile {
     return '{${parts.join(',')}}';
   }
 
+  /// Whether a stored horizon blob reads as the JSON it should be. When it
+  /// does not, [SiteHorizonProfile.fromJson] falls back to the compass values
+  /// it can find, or a flat horizon, which lowers every plan's altitude floor.
+  static bool storedJsonIsReadable(String json) {
+    try {
+      return jsonDecode(json) is Map<String, dynamic>;
+    } on FormatException {
+      return false;
+    }
+  }
+
   /// Decode the stored blob. Uses a real JSON parser because the profile now
   /// carries a nested `samples` array; [_parseSimpleJson] only ever handled
   /// flat `string -> number` maps and silently dropped anything else, which
@@ -262,10 +278,16 @@ class SiteHorizonProfile {
     try {
       final decoded = jsonDecode(json);
       if (decoded is Map<String, dynamic>) return decoded;
-    } catch (_) {
-      // Fall through to the tolerant parser below: a hand-edited or
-      // truncated blob should still yield whatever compass values it has
-      // rather than resetting the operator's mask to flat.
+    } catch (error) {
+      // A hand-edited or truncated blob still yields whatever compass values
+      // it has rather than resetting the operator's mask to flat.
+      reportUnreadableStoredData(
+        'site horizon',
+        json,
+        error,
+        fallback: 'the compass values that could be read from it',
+        source: 'SiteHorizonProfile',
+      );
     }
     return _parseSimpleJson(json);
   }

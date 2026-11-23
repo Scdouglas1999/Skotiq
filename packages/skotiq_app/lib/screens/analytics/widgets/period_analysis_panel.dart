@@ -489,14 +489,7 @@ class _PeriodAnalysisPanelState extends ConsumerState<PeriodAnalysisPanel> {
     final tooFew = pointCount < 10;
     return AdaptiveChartContainer.fixed(
       // The guidance body needs more vertical room than the ready-to-run
-      // prompt. At 120px the compact empty state had only 94px after padding
-      // and border, so its icon, wrapped title, and body overflowed in valid
-      // early-session layouts.
-      //
-      // Raised again for the Observatory `EmptyState`: its title is
-      // `sectionTitle` (15) where the old one was `h6` (14), and at this width
-      // that one point takes both of these titles onto an extra line — 21px in
-      // the tall branch, 11px in the short one, both measured.
+      // prompt.
       height: tooFew ? 215 : 140,
       well: false,
       child: Container(

@@ -150,7 +150,7 @@ class _DesktopLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final panelWidth = clampPanelWidth(
+    final panelWidth = panelWidthFromFraction(
       maxWidth,
       fraction: 0.32,
       min: 280,

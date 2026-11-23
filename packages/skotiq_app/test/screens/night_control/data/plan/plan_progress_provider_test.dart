@@ -405,8 +405,9 @@ void main() {
       sequence: TwoTargetPlan().sequence,
     );
     addTearDown(ready.dispose);
-    ready.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
+    ready
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.executing));
     final blocked = ready.read(nightHeaderProvider);
     expect(blocked.startNow!.enabled, isFalse);
     expect(
@@ -421,14 +422,16 @@ void main() {
       armedStartAt: bostonTime(2026, 10, 19, 19, 48),
     );
     addTearDown(armed.dispose);
-    armed.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.executing;
+    armed
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.executing));
     final header = armed.read(nightHeaderProvider);
     expect(header.startNow!.enabled, isFalse);
     expect(header.startAtDark!.enabled, isTrue);
 
-    ready.read(flipExecutionStateProvider.notifier).state =
-        FlipExecutionState.idle;
+    ready
+        .read(flipMonitorProgressProvider.notifier)
+        .update((p) => p.copyWith(state: FlipExecutionState.idle));
     expect(ready.read(nightHeaderProvider).startNow!.enabled, isTrue);
   });
 }

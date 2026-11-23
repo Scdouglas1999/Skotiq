@@ -13,10 +13,6 @@ Future<File> resolveDefaultDatabaseFile({
   Map<String, String>? environment,
   Future<Directory> Function()? documentsDirectoryProvider,
 }) async {
-  // [skotiqProcessEnvironment], not `Platform.environment`: apps/desktop
-  // writes its resolved SKOTIQ_DATA_DIR back into the process environment
-  // for the Rust side, and reading that back would move an ordinary install's
-  // `skotiq.db` off `~/Documents`.
   final env = environment ?? skotiqProcessEnvironment;
   final overrideDir = env[skotiqDatabaseDirEnv]?.trim();
   if (overrideDir != null && overrideDir.isNotEmpty) {

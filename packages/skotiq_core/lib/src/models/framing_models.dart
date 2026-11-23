@@ -227,9 +227,7 @@ class FramingMosaicConfig {
 
   int get totalPanels => columns * rows;
 
-  /// Effective FOV multiplier accounting for overlap
-  double get effectiveWidthMultiplier =>
-      columns - (columns - 1) * (overlapPercent / 100);
-  double get effectiveHeightMultiplier =>
-      rows - (rows - 1) * (overlapPercent / 100);
+  /// The grid's shape: columns, rows and overlap.
+  MosaicGrid get grid =>
+      MosaicGrid(columns: columns, rows: rows, overlapPercent: overlapPercent);
 }

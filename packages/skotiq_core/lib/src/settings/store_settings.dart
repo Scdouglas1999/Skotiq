@@ -505,6 +505,16 @@ abstract final class StoreSettings {
     unreadableIsFallback: true,
     sync: SettingSync.hostStore,
   );
+
+  /// The flat for a light is picked from the flat library by the light's
+  /// filter; off uses [calibrationMasterFlatPath] for every light.
+  static const calibrationAutoFlatFromLibrary = BoolSetting(
+    'calibrationAutoFlatFromLibrary',
+    'calibration.auto_flat_from_library',
+    true,
+    unreadableIsFallback: true,
+    sync: SettingSync.hostStore,
+  );
   static const calibrationMasterFlatPath = OptionalTextSetting(
     'calibrationMasterFlatPath',
     'calibration.master_flat_path',
@@ -1037,6 +1047,7 @@ abstract final class StoreSettings {
     learnedHorizonPoints,
     calibrationAutoCalibrate,
     calibrationAutoDarkFromLibrary,
+    calibrationAutoFlatFromLibrary,
     calibrationMasterFlatPath,
     calibrationMasterBiasPath,
     calibrationManualDarkPath,

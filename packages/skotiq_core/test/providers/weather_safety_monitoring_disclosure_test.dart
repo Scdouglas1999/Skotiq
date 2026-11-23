@@ -7,10 +7,11 @@ import 'package:skotiq_core/src/models/weather/weather_models.dart';
 import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
-import 'package:skotiq_core/src/services/safe_rig_service.dart';
+import 'package:skotiq_core/src/providers/safe_rig_service.dart';
 
 import '../mocks/mock_backend.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 class _FakeAppSettingsNotifier extends AppSettingsNotifier {
   _FakeAppSettingsNotifier(this._initial);
@@ -46,7 +47,7 @@ class _NoopSafeRigService extends SafeRigService {
 }
 
 void main() {
-  // Audit 2026-07-29: with "Enable weather safety" OFF the Weather screen showed
+  // With "Enable weather safety" OFF the Weather screen showed
   // a green shield, "Conditions safe for imaging" and "Auto-Park: Enabled" —
   // pixel-identical to the monitoring-on state. The provider short-circuits to
   // `safe` when nothing is evaluated, so the state has to carry the distinction

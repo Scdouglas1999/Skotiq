@@ -43,24 +43,19 @@ String _phaseWireKey(RecoveryPhase p) {
   }
 }
 
-RecoveryPhase _phaseFromWire(dynamic raw) {
-  // Rust serde emits unit variants as JSON strings. Anything else is a
-  // protocol contract violation: throwing keeps a mis-shaped payload from
-  // resolving to a default phase the recovery UI would then report as real.
-  final s = raw is String ? raw : raw.toString();
-  switch (s) {
-    case 'Waiting':
-      return RecoveryPhase.waiting;
-    case 'Attempting':
-      return RecoveryPhase.attempting;
-    case 'Recovered':
-      return RecoveryPhase.recovered;
-    case 'GaveUp':
-      return RecoveryPhase.gaveUp;
-    default:
-      throw FormatException('Unknown RecoveryPhase wire value: $s');
-  }
-}
+RecoveryPhase _phaseFromWire(dynamic raw) =>
+    recoveryPhaseFromWire(raw is String ? raw : raw.toString());
+
+/// The [RecoveryPhase] a Rust `RecoveryPhase` wire word names. Anything else
+/// is a protocol contract violation: throwing keeps a mis-shaped payload from
+/// resolving to a default phase the recovery UI would then report as real.
+RecoveryPhase recoveryPhaseFromWire(String wire) => switch (wire) {
+  'Waiting' => RecoveryPhase.waiting,
+  'Attempting' => RecoveryPhase.attempting,
+  'Recovered' => RecoveryPhase.recovered,
+  'GaveUp' => RecoveryPhase.gaveUp,
+  _ => throw FormatException('Unknown RecoveryPhase wire value: $wire'),
+};
 
 /// Stable string keys for the [RecoveryCause] discriminant. Matches the
 /// Rust `serde` representation for unit variants. The [RecoveryCause.custom]
@@ -92,6 +87,13 @@ class RecoveryCause extends Equatable {
       const RecoveryCause._('DeviceDisconnected', null);
   factory RecoveryCause.custom(String label) =>
       RecoveryCause._('Custom', label);
+
+  /// The cause a typed bridge event names by [kind]. A kind this app does
+  /// not know is kept as it came, as [RecoveryCause.fromJson] keeps one, and
+  /// [displayLabel] names it as unknown, so a cause the sequencer gained
+  /// before this app has a label still shows its recovery.
+  factory RecoveryCause.fromKind(String kind, String? customLabel) =>
+      RecoveryCause._(kind, kind == 'Custom' ? customLabel : null);
 
   /// Human-readable label. Mirrors `RecoveryCause::display_label` on the
   /// Rust side so the dashboard banner shows the same string the

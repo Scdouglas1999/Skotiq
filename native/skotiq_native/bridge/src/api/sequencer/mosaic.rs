@@ -11,7 +11,6 @@ pub fn api_calculate_altitude(
 ) -> f64 {
     use chrono::{TimeZone, Utc};
 
-    // Convert Unix milliseconds to DateTime<Utc>
     let time = Utc
         .timestamp_millis_opt(time_unix_millis)
         .single()

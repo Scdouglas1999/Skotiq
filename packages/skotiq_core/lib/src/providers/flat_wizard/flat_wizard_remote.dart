@@ -24,27 +24,15 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
   }
 
   /// Copy a host run onto this client without moving its tabs or panels.
-  void applyHostSnapshot(Map<String, dynamic> snapshot) {
+  void applyHostSnapshot(FlatRunSnapshot snapshot) {
     if (!mounted) return;
-    final raw = snapshot['state'];
-    if (raw is! Map) {
-      throw const FormatException('Flat wizard snapshot has no state');
-    }
-    final FlatWizardState incoming;
-    try {
-      incoming = FlatWizardState.fromJson(Map<String, dynamic>.from(raw));
-    } on Object catch (error) {
-      throw FormatException('Flat wizard snapshot state is not usable: $error');
-    }
-    final output = _flatRunOutputFromSnapshot(snapshot['output']);
+    final incoming = snapshot.state;
     _hostSnapshotRevision++;
-    _remoteBusy = snapshot['busy'] == true || incoming.isCapturing;
+    _remoteBusy = snapshot.busy || incoming.isCapturing;
     if (!_remoteBusy && _pendingHostStart == null) _cancelToken = null;
     _settingsRevision++;
     _filterRevision++;
-    final key = snapshot['previewKey'] is String
-        ? snapshot['previewKey'] as String
-        : null;
+    final key = snapshot.previewKey;
     final keepPreview = key != null && key == _remotePreviewKey;
     // The mode, twilight phase and which panels are open belong to this
     // screen. The host snapshot must not move them.
@@ -60,7 +48,7 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
     );
     ref.read(flatRunOutputProvider.notifier).state = FlatRunOutput(
       remote: true,
-      filters: output,
+      filters: snapshot.output,
     );
     if (key == _remotePreviewKey) return;
     _remotePreviewKey = key;
@@ -80,7 +68,9 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
         flatWizardStateWire(state),
       );
       if (!mounted || !identical(_pendingHostStart, request)) return;
-      if (_hostSnapshotRevision == revision) applyHostSnapshot(snapshot);
+      if (_hostSnapshotRevision == revision) {
+        applyHostSnapshot(FlatRunSnapshot.fromJson(snapshot));
+      }
       if (_remoteBusy && cancelRequested) await _cancelLinkedRun(host);
     } catch (error, stack) {
       Log.error(
@@ -145,46 +135,4 @@ extension FlatWizardRemoteOps on FlatWizardNotifier {
       );
     }
   }
-}
-
-Map<String, FlatRunFilterOutput> _flatRunOutputFromSnapshot(Object? raw) {
-  if (raw == null) return const {};
-  if (raw is! Map) {
-    throw const FormatException('Flat run output is not an object');
-  }
-  final filters = <String, FlatRunFilterOutput>{};
-  for (final entry in raw.entries) {
-    final key = entry.key;
-    final value = entry.value;
-    if (key is! String || value is! Map) {
-      throw const FormatException('Flat run output entry is not an object');
-    }
-    final map = Map<String, dynamic>.from(value);
-    final filter = map['filter'];
-    final exposure = map['exposureSeconds'];
-    final paths = map['paths'];
-    final binX = map['binX'];
-    final binY = map['binY'];
-    if (filter is! String ||
-        exposure is! num ||
-        !exposure.isFinite ||
-        paths is! List ||
-        paths.any((path) => path is! String) ||
-        binX is! int ||
-        binX < 1 ||
-        binY is! int ||
-        binY < 1) {
-      throw FormatException('Flat run output for $key is incomplete');
-    }
-    filters[key] = FlatRunFilterOutput(
-      filter: filter,
-      exposureSeconds: exposure.toDouble(),
-      paths: List<String>.from(paths),
-      gain: map['gain'] as int?,
-      offset: map['offset'] as int?,
-      binX: binX,
-      binY: binY,
-    );
-  }
-  return filters;
 }

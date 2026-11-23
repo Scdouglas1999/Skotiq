@@ -62,6 +62,13 @@ enum CalibrationApi implements ApiEndpoint {
       rate: ApiRateTier.control,
     ),
   ),
+  matchFlat(
+    ApiRoute.post(
+      '/api/calibration/match-flat',
+      resource: ApiResource.calibration,
+      rate: ApiRateTier.control,
+    ),
+  ),
   listDarks(
     ApiRoute.get('/api/calibration/darks', resource: ApiResource.calibration),
   ),

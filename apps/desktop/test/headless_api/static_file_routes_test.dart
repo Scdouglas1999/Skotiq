@@ -3,17 +3,17 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
 import 'package:skotiq_desktop/headless_api/route_table.dart';
+import 'package:skotiq_desktop/headless_api/run_state_script.dart';
 import 'package:shelf/shelf.dart';
+import 'package:skotiq_remote_protocol/wire.dart' show ApiErrorCodes;
 import 'package:skotiq_core/utils.dart';
 
-/// D4W-4 — the run-watch SPA must have exactly one address.
+/// The run-watch SPA must have exactly one address.
 ///
 /// The service worker registers with scope `/run-watch/`, so a document served
-/// at `/run-watch` is outside it and nothing controls the page. Measured
-/// against the release bundle: with the daemon killed, `/run-watch` rendered
-/// Chrome's ERR_CONNECTION_REFUSED interstitial while `/run-watch/` loaded the
-/// cached offline shell in the same browser, the same second. Both spellings
-/// answered 200 and neither redirected.
+/// at `/run-watch` is outside it and nothing controls the page: with the
+/// daemon down, the browser shows its own connection-refused interstitial
+/// instead of the cached offline shell.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -59,6 +59,62 @@ void main() {
       );
     },
   );
+
+  test('both pages read the error codes from the host\'s table', () async {
+    for (final page in ['dashboard', 'run-watch']) {
+      final response = await router(
+        Request('GET', Uri.parse('http://localhost/$page/js/wire-errors.js')),
+      );
+      expect(response.statusCode, HttpStatus.ok, reason: page);
+      expect(
+        response.headers['content-type'],
+        startsWith('application/javascript'),
+      );
+      final script = await response.readAsString();
+      expect(script, ApiErrorCodes.javaScript());
+      for (final MapEntry(:key, :value) in ApiErrorCodes.all.entries) {
+        expect(script, contains('  $key: "$value",'));
+      }
+    }
+  });
+
+  test('both pages read the run state from the host\'s table', () async {
+    for (final page in ['dashboard', 'run-watch']) {
+      final response = await router(
+        Request('GET', Uri.parse('http://localhost/$page/js/run-state.js')),
+      );
+      expect(response.statusCode, HttpStatus.ok, reason: page);
+      expect(
+        response.headers['content-type'],
+        startsWith('application/javascript'),
+      );
+      expect(await response.readAsString(), RunStateScript.javaScript());
+    }
+  });
+
+  // The pages also have kinds of their own ('version_mismatch' for a refusal
+  // they classified); only a comparison against a body field reads a code.
+  test('the pages compare body codes against the table', () {
+    for (final path in [
+      'web_dashboard/js/api.js',
+      'web_dashboard/js/app.js',
+      'web_run_watch/js/run-watch.js',
+    ]) {
+      final source = File(path).readAsStringSync();
+      for (final code in ApiErrorCodes.all.values) {
+        for (final quote in ["'", '"']) {
+          expect(
+            RegExp(
+              r'(?:(?:\.code|\.error)\s*(?:===|!==)|includes\()\s*'
+              '$quote$code$quote',
+            ).hasMatch(source),
+            isFalse,
+            reason: '$path compares against a spelled-out $code',
+          );
+        }
+      }
+    }
+  });
 
   test('GET /run-watch redirects permanently to the canonical URL', () async {
     final response = await router(
@@ -115,21 +171,13 @@ void main() {
   });
 
   // -------------------------------------------------------------------------
-  // D4-02 — the public prefix carries only what the pages need.
+  // The public prefix carries only what the pages need.
   //
   // `/dashboard` and `/run-watch` are whole-subtree exemptions from the bearer
-  // middleware (auth/public_paths.dart), so every file the bundler copied into
-  // the SPA directory was readable with no credential. Measured against the
-  // release bundle:
-  //   curl -o /dev/null -w '%{http_code} %{size_download}'  \
-  //     http://127.0.0.1:8212/dashboard/README.md    ->  200 16038
-  // 16KB of internal developer documentation describing the sessionStorage
-  // bearer path, the `GET /api/auth/csrf` cookie resume, the pairing
-  // endpoints, the bearer-to-HttpOnly-cookie upgrade and its 30-day Max-Age,
-  // the single-use WS ticket and its `?token=` fallback, the bearer-in-a-
-  // query-string SSE log tail, the per-token rate budget, and the
-  // `SKOTIQ_REQUIRE_AUTH=false` escape hatch. The SPA loads index.html,
-  // css/dashboard.css, js/api.js and js/app.js and never asks for the README.
+  // middleware (auth/public_paths.dart), so any other file the bundler copied
+  // into the SPA directory (a README describing the auth paths, for one)
+  // would be readable with no credential. The SPA loads index.html,
+  // css/dashboard.css, js/api.js and js/app.js.
   // -------------------------------------------------------------------------
 
   test('an unauthenticated fetch cannot read the developer README', () async {

@@ -24,8 +24,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
+import 'package:skotiq_core/settings.dart' show PortRange;
 
-import '../../../widgets/accessible_dropdown.dart';
 import 'admin_only.dart';
 import 'settings_widgets.dart';
 import '../../../utils/snackbar_helper.dart';
@@ -56,13 +56,11 @@ class NotificationRoutingSettings extends ConsumerWidget {
             title: 'Where alerts go',
             children: [
               SettingRow(
-                icon: LucideIcons.server,
                 title: 'Set up on the imaging computer',
                 subtitle: 'The computer that runs the rig sends the alerts, '
                     'so email, webhook, Pushover, Telegram, Discord and MQTT '
                     'are set up there.',
                 trailing: SizedBox.shrink(),
-                isLast: true,
               ),
             ],
           ),
@@ -132,7 +130,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
           title: 'Where alerts go',
           children: [
             SettingRow(
-              icon: LucideIcons.share2,
               title: 'Send alerts',
               subtitle: 'Off, no alert goes anywhere: not to the app, phones, '
                   'email or chat. Each event below says where it goes.',
@@ -144,7 +141,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
                       .setEnabled(v);
                 },
               ),
-              isLast: true,
             ),
           ],
         ),
@@ -158,7 +154,6 @@ class NotificationRoutingSettings extends ConsumerWidget {
                 NotificationCategory.values[i],
                 matrix,
                 configured,
-                isLast: i == NotificationCategory.values.length - 1,
               ),
           ],
         ),
@@ -172,16 +167,14 @@ class NotificationRoutingSettings extends ConsumerWidget {
     WidgetRef ref,
     NotificationCategory category,
     NotificationRoutingMatrix matrix,
-    Set<NotificationTransportKind> configured, {
-    required bool isLast,
-  }) {
+    Set<NotificationTransportKind> configured,
+  ) {
     final rule = matrix.ruleFor(category);
     final summary = rule.enabled && rule.transports.isNotEmpty
         ? rule.transports.map((t) => _transportLabel(t, configured)).join(', ')
         : 'Not sent';
 
     return SettingRow(
-      icon: _iconFor(category),
       title: category.label,
       subtitle: summary,
       trailing: SkotiqButton(
@@ -204,68 +197,7 @@ class NotificationRoutingSettings extends ConsumerWidget {
           );
         },
       ),
-      isLast: isLast,
     );
-  }
-
-  IconData _iconFor(NotificationCategory category) {
-    switch (category) {
-      case NotificationCategory.sequenceStarted:
-      case NotificationCategory.sequenceResumed:
-        return LucideIcons.play;
-      case NotificationCategory.sequenceCompleted:
-        return LucideIcons.checkCircle;
-      case NotificationCategory.sequenceFailed:
-        return LucideIcons.alertOctagon;
-      case NotificationCategory.sequencePaused:
-        return LucideIcons.pause;
-      case NotificationCategory.sequenceStopped:
-        return LucideIcons.square;
-      case NotificationCategory.targetStarted:
-      case NotificationCategory.targetCompleted:
-        return LucideIcons.crosshair;
-      case NotificationCategory.meridianFlipPerformed:
-        return LucideIcons.rotateCw;
-      case NotificationCategory.autofocusCompleted:
-      case NotificationCategory.autofocusContinued:
-      case NotificationCategory.autofocusFailed:
-        return LucideIcons.focus;
-      case NotificationCategory.frameCaptured:
-        return LucideIcons.camera;
-      case NotificationCategory.frameRejected:
-        return LucideIcons.cameraOff;
-      case NotificationCategory.problemNoticed:
-        return LucideIcons.alertCircle;
-      case NotificationCategory.exposureFailed:
-        return LucideIcons.alertTriangle;
-      case NotificationCategory.recoveryStarted:
-      case NotificationCategory.recoveryRecovered:
-      case NotificationCategory.recoveryGaveUp:
-        return LucideIcons.lifeBuoy;
-      case NotificationCategory.guidingLost:
-      case NotificationCategory.guidingRecovered:
-        return LucideIcons.target;
-      case NotificationCategory.weatherUnsafe:
-      case NotificationCategory.weatherSafeAgain:
-        return LucideIcons.cloudRain;
-      case NotificationCategory.mountFault:
-        return LucideIcons.octagon;
-      case NotificationCategory.cloudArriving:
-      case NotificationCategory.cloudOpening:
-        return LucideIcons.cloud;
-      case NotificationCategory.diskSpaceLow:
-        return LucideIcons.hardDrive;
-      case NotificationCategory.equipmentDisconnected:
-        return LucideIcons.unplug;
-      case NotificationCategory.triggerFired:
-        return LucideIcons.zap;
-      case NotificationCategory.transientDiscovered:
-        return LucideIcons.sparkles;
-      case NotificationCategory.darkroomDraftReady:
-        return LucideIcons.image;
-      case NotificationCategory.custom:
-        return LucideIcons.bell;
-    }
   }
 }
 

@@ -41,8 +41,7 @@ void main() {
       ).thenAnswer((_) => const Stream<SkotiqEvent>.empty());
       when(
         () => backend.saveProfileFields(any(), fields: any(named: 'fields')),
-      ).thenAnswer((_) async {});
-      when(() => backend.lastSavedProfileId).thenReturn('42');
+      ).thenAnswer((_) async => 42);
       when(() => backend.getProfiles()).thenAnswer(
         (_) async => [
           const EquipmentProfile(id: '42', name: 'Remote Rig', isActive: true),
@@ -107,7 +106,7 @@ void main() {
       () async {
         final hostA = _MockNetworkBackend();
         final hostB = _MockNetworkBackend();
-        final save = Completer<void>();
+        final save = Completer<int>();
         for (final backend in [hostA, hostB]) {
           when(
             () => backend.eventStream,
@@ -115,7 +114,6 @@ void main() {
           when(() => backend.getProfiles()).thenAnswer((_) async => []);
           when(() => backend.getActiveProfile()).thenAnswer((_) async => null);
         }
-        when(() => hostA.lastSavedProfileId).thenReturn('42');
         when(
           () => hostA.saveProfileFields(any(), fields: any(named: 'fields')),
         ).thenAnswer((_) => save.future);
@@ -142,7 +140,7 @@ void main() {
           () => hostA.saveProfileFields(any(), fields: any(named: 'fields')),
         );
         backendNotifier.switchTo(hostB);
-        save.complete();
+        save.complete(42);
 
         await expectLater(creating, throwsStateError);
         expect(container.read(backendProvider), same(hostB));

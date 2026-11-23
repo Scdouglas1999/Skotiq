@@ -9,6 +9,14 @@ Engineering cross-references in the form `(§N.M)` point at the
 `docs/plans/2026-05-09-v250-audit-fixes.md` v2.5.0 pre-release audit and are
 intended for code reviewers rather than end users.
 
+## [9.2.0] — 2026-11-23
+
+Night-run recovery for every frame, reconnects that keep equipment as it was with a read-only check of what each device reports, observing nights anchored to the site, and calibration, Smart Night and linked-client corrections. Upgrade the host and linked clients together. See the [release notes](release/v9.2.0.md).
+
+## [9.1.0] — 2026-11-21
+
+Host-owned flat capture, live stacking, and sequence and equipment changes. See the [release notes](release/v9.1.0.md).
+
 ## [9.0.0] — 2026-11-14
 
 Shared host and companion run state; sequencer, camera, mosaic and image-reading corrections; bounded startup location detection; NWS local cloud forecasts; and reduced histogram and request-log stalls during capture. Windows/Linux x64 and production-signed Android packages are distributed with checksums and signed OTA manifests. Upgrade the host and linked clients together and back up before the schema-70 migration.

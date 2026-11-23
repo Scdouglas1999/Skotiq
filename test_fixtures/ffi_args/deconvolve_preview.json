@@ -1,0 +1,16 @@
+{
+  "config": {
+    "iterations": "number",
+    "regularization": "number",
+    "starProtect": "bool"
+  },
+  "estimatePsf": "bool",
+  "inputFits": "string",
+  "outputFits": "string",
+  "psf": {
+    "beta": "number",
+    "fwhm": "number",
+    "kind": "string",
+    "size": "number"
+  }
+}

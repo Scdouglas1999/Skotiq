@@ -11,7 +11,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 skotiq_device = { path = "../device" }
-skotiq_cfa = { path = "../cfa" }
+skotiq_frame = { path = "../frame" }
 tokio.workspace = true
 async-trait.workspace = true
 futures.workspace = true

@@ -705,15 +705,19 @@ void main() {
       expect(sessionService.currentStats, isNull);
     });
 
-    test('service can be disposed safely', () {
-      expect(() => sessionService.dispose(), returnsNormally);
+    test('dispose closes the status stream', () async {
+      final done = expectLater(sessionService.statusStream, emitsDone);
+      sessionService.dispose();
+      await done;
     });
 
-    test('service can be disposed with active session', () async {
+    test('dispose with an active session closes the status stream', () async {
       await sessionService.startSession(name: 'Test Session');
       expect(sessionService.hasActiveSession, isTrue);
 
-      expect(() => sessionService.dispose(), returnsNormally);
+      final done = expectLater(sessionService.statusStream, emitsDone);
+      sessionService.dispose();
+      await done;
     });
   });
 

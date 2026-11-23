@@ -1,0 +1,252 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_astro/skotiq_astro.dart';
+import 'package:skotiq_planetarium/skotiq_planetarium.dart';
+
+const _iss = OrbitalElements(
+  catalogNumber: 25544,
+  name: 'ISS',
+  epochYear: 26,
+  epochDay: 196,
+  bstar: 0.0001,
+  inclination: 51.6,
+  raan: 120,
+  eccentricity: 0.0005,
+  argumentOfPerigee: 80,
+  meanAnomaly: 280,
+  meanMotion: 15.5,
+);
+
+/// The planetarium's clock set to [when] and held there until [scrubTo].
+class _HeldClock extends ObservationTimeNotifier {
+  _HeldClock(DateTime when) {
+    scrubTo(when);
+  }
+
+  void scrubTo(DateTime when) {
+    state = ObservationTimeState(
+      time: when,
+      isRealTime: false,
+      speedMultiplier: 0,
+    );
+  }
+}
+
+SatellitePass _passEndingAt(DateTime set) => SatellitePass(
+  elements: _iss,
+  riseTime: set.subtract(const Duration(minutes: 10)),
+  riseAzimuth: 0,
+  maxElevationTime: set.subtract(const Duration(minutes: 5)),
+  maxElevation: 45,
+  maxElevationAzimuth: 90,
+  setTime: set,
+  setAzimuth: 180,
+);
+
+/// Satellite passes follow the planetarium's clock, as satellite positions
+/// do: with the clock set to another night, the passes are that night's.
+void main() {
+  // A night well away from the wall clock, in either direction.
+  final observed = DateTime.utc(2031, 3, 4, 2);
+
+  test('passes are predicted from the observation time', () async {
+    DateTime? predictedFrom;
+    final container = ProviderContainer(
+      overrides: [
+        observationTimeProvider.overrideWith((ref) => _HeldClock(observed)),
+        satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+        passPredictionComputerProvider.overrideWithValue(({
+          required elements,
+          required latitude,
+          required longitude,
+          required startTime,
+          required predictionWindow,
+        }) async {
+          predictedFrom = startTime;
+          return const <SatellitePass>[];
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(observerLocationProvider.notifier)
+        .setLocation(latitude: 40, longitude: -74);
+    container.read(passPredictionProvider);
+    container.read(showSatellitesProvider.notifier).state = true;
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(predictedFrom, observed);
+  });
+
+  test(
+    'upcoming passes are those still to end at the observation time',
+    () async {
+      final ended = _passEndingAt(observed.subtract(const Duration(hours: 1)));
+      final ahead = _passEndingAt(observed.add(const Duration(hours: 1)));
+      final container = ProviderContainer(
+        overrides: [
+          observationTimeProvider.overrideWith((ref) => _HeldClock(observed)),
+          satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+          passPredictionComputerProvider.overrideWithValue(
+            ({
+              required elements,
+              required latitude,
+              required longitude,
+              required startTime,
+              required predictionWindow,
+            }) async => [ended, ahead],
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container
+          .read(observerLocationProvider.notifier)
+          .setLocation(latitude: 40, longitude: -74);
+      container.listen(upcomingPassesProvider, (_, __) {});
+      container.read(showSatellitesProvider.notifier).state = true;
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(container.read(passPredictionProvider).passes, hasLength(2));
+      expect(container.read(upcomingPassesProvider), [ahead]);
+    },
+  );
+
+  group('scrubbing the clock out of the predicted window', () {
+    late List<DateTime> predictedFrom;
+    late ProviderContainer container;
+    late _HeldClock clock;
+
+    setUp(() async {
+      predictedFrom = [];
+      container = ProviderContainer(
+        overrides: [
+          observationTimeProvider.overrideWith(
+            (ref) => clock = _HeldClock(observed),
+          ),
+          satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+          passPredictionComputerProvider.overrideWithValue(({
+            required elements,
+            required latitude,
+            required longitude,
+            required startTime,
+            required predictionWindow,
+          }) async {
+            predictedFrom.add(startTime);
+            return [_passEndingAt(startTime.add(const Duration(hours: 1)))];
+          }),
+        ],
+      );
+      container
+          .read(observerLocationProvider.notifier)
+          .setLocation(latitude: 40, longitude: -74);
+      container.listen(upcomingPassesProvider, (_, __) {});
+      container.read(showSatellitesProvider.notifier).state = true;
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(predictedFrom, [observed]);
+    });
+
+    tearDown(() => container.dispose());
+
+    Future<void> scrub(DateTime to) async {
+      clock.scrubTo(to);
+      container.read(upcomingPassesProvider);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    test('three days ahead predicts from the new time', () async {
+      final later = observed.add(const Duration(days: 3));
+      await scrub(later);
+
+      expect(predictedFrom, [observed, later]);
+      expect(container.read(upcomingPassesProvider), hasLength(1));
+    });
+
+    test('back an hour predicts from the new time', () async {
+      final earlier = observed.subtract(const Duration(hours: 1));
+      await scrub(earlier);
+
+      expect(predictedFrom, [observed, earlier]);
+      expect(
+        container.read(upcomingPassesProvider).single.setTime,
+        earlier.add(const Duration(hours: 1)),
+      );
+    });
+
+    test('within the window keeps the prediction', () async {
+      await scrub(observed.add(const Duration(hours: 20)));
+
+      expect(predictedFrom, [observed]);
+    });
+
+    test('with satellites off predicts nothing', () async {
+      container.read(showSatellitesProvider.notifier).state = false;
+      await scrub(observed.add(const Duration(days: 3)));
+
+      expect(predictedFrom, [observed]);
+    });
+  });
+
+  // Playing the clock backward moves it out of the window every minute: one
+  // prediction runs at a time, and the last position is predicted after it.
+  test('a clock moving back while predicting starts one more', () async {
+    final calls = <(DateTime, Completer<List<SatellitePass>>)>[];
+    late _HeldClock clock;
+    final container = ProviderContainer(
+      overrides: [
+        observationTimeProvider.overrideWith(
+          (ref) => clock = _HeldClock(observed),
+        ),
+        satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+        passPredictionComputerProvider.overrideWithValue(({
+          required elements,
+          required latitude,
+          required longitude,
+          required startTime,
+          required predictionWindow,
+        }) {
+          final reply = Completer<List<SatellitePass>>();
+          calls.add((startTime, reply));
+          return reply.future;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    Future<void> settle() async {
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    container
+        .read(observerLocationProvider.notifier)
+        .setLocation(latitude: 40, longitude: -74);
+    container.listen(upcomingPassesProvider, (_, __) {});
+    container.read(showSatellitesProvider.notifier).state = true;
+    await settle();
+    calls.single.$2.complete(const []);
+    await settle();
+
+    for (var minutes = 1; minutes <= 3; minutes++) {
+      clock.scrubTo(observed.subtract(Duration(minutes: minutes)));
+      container.read(upcomingPassesProvider);
+      await settle();
+    }
+    expect(calls.map((c) => c.$1), [
+      observed,
+      observed.subtract(const Duration(minutes: 1)),
+    ]);
+
+    calls.last.$2.complete(const []);
+    await settle();
+    expect(calls.map((c) => c.$1), [
+      observed,
+      observed.subtract(const Duration(minutes: 1)),
+      observed.subtract(const Duration(minutes: 3)),
+    ]);
+  });
+}

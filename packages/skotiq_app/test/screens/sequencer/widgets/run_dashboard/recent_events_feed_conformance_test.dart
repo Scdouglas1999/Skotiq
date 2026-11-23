@@ -216,7 +216,8 @@ void main() {
         .addEvent(_started(20, firstStop.add(const Duration(minutes: 1))));
     pressStop(c, base: 30, at: _t0);
 
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     expect(
       recent.where((e) => e.title == 'Sequence stopped').length,
       2,
@@ -230,7 +231,8 @@ void main() {
     pressStop(c, base: 1, at: _t0.subtract(const Duration(minutes: 5)));
     pressStop(c, base: 30, at: _t0);
 
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     expect(
       recent.map((e) => '${e.title} x${e.repeatCount}').toList(),
       ['Sequence stopped x1', 'Sequence stopped x1'],
@@ -243,7 +245,8 @@ void main() {
   test('D1 one press of Stop is one row (baseline)', () {
     final c = makeContainer();
     pressStop(c, base: 1);
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     expect(recent, hasLength(1));
     expect(recent.single.title, 'Sequence stopped');
     expect(recent.single.message, kSequenceStoppedByRequestMessage);
@@ -260,7 +263,8 @@ void main() {
             _t0.add(const Duration(seconds: 3)),
           ),
         );
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     expect(
       recent.any((e) => e.message.contains('limit switch')),
       isTrue,
@@ -279,7 +283,8 @@ void main() {
           ),
         );
     pressStop(c, base: 1);
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     expect(recent.any((e) => e.message.contains('Guide star lost')), isTrue);
     expect(recent.where((e) => e.title == 'Sequence stopped'), hasLength(1));
   });
@@ -302,7 +307,8 @@ void main() {
     );
     h.addEvent(_stopped(5, _t0.add(const Duration(seconds: 4))));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     expect(
       recent.any((e) => e.message.contains('Dome shutter')),
       isTrue,
@@ -328,7 +334,8 @@ void main() {
         );
     abortStop(c, base: 1, at: _t0.add(const Duration(seconds: 1)));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(stopRows, hasLength(1));
@@ -352,7 +359,8 @@ void main() {
         at: _t0.add(Duration(seconds: 3 * i)),
       );
     }
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     expect(
       recent.where((e) => e.title == 'Sequence stopped').length,
       4,
@@ -374,7 +382,8 @@ void main() {
     h.addEvent(_stopped(4, _t0));
     h.addEvent(_stopped(5, _t0.add(const Duration(seconds: 20))));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(
@@ -409,7 +418,8 @@ void main() {
     );
     h.addEvent(_stopped(6, _t0.add(const Duration(seconds: 6))));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     for (var i = 0; i + 1 < recent.length; i++) {
       expect(
         recent[i].time.isBefore(recent[i + 1].time),
@@ -432,7 +442,8 @@ void main() {
     h.addEvent(_started(3, _t0.add(const Duration(seconds: 1))));
     pressStop(c, base: 10, at: _t0.add(const Duration(seconds: 4)));
 
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(
@@ -456,7 +467,8 @@ void main() {
     h.addEvent(_stopped(1, _t0.subtract(const Duration(minutes: 40))));
     pressStop(c, base: 10, at: _t0);
 
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(
@@ -480,7 +492,8 @@ void main() {
     h.addEvent(_stopped(2, _t0));
     h.addEvent(_stopped(3, _t0));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(stopRows, hasLength(1));
@@ -497,7 +510,8 @@ void main() {
     h.addEvent(_started(2, _t0.add(const Duration(seconds: 1))));
     pressStop(c, base: 10, at: _t0.add(const Duration(seconds: 4)));
 
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     expect(
       recent.where((e) => e.title == 'Sequence stopped'),
       hasLength(2),
@@ -520,7 +534,8 @@ void main() {
     );
     h.addEvent(_stopped(6, _t0.add(const Duration(seconds: 14))));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     expect(
       recent.where((e) => e.title == 'Sequence stopped'),
       hasLength(1),
@@ -544,7 +559,8 @@ void main() {
     h.addEvent(_manualStop(12, press));
     h.addEvent(_stopped(13, press, runId: 15));
 
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(
@@ -569,7 +585,8 @@ void main() {
     h.addEvent(_stopped(4, _t0, runId: 15));
     h.addEvent(_stopped(5, _t0.add(const Duration(minutes: 5)), runId: 15));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(
@@ -594,7 +611,8 @@ void main() {
     h.addEvent(_stopped(4, _t0, runId: 15));
     h.addEvent(_stopped(5, _t0, runId: 15));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(
@@ -617,7 +635,8 @@ void main() {
     for (var i = 0; i < 6; i++) {
       h.addEvent(_stopped(1 + i, _t0.add(Duration(seconds: 110 * i))));
     }
-    final recent = c.read(runDashboardRecentEventsProvider(10));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(10).toList();
     expect(
       recent.where((e) => e.title == 'Sequence stopped').length,
       3,
@@ -639,7 +658,8 @@ void main() {
     h.addEvent(_cancellationRow(2, _t0));
     h.addEvent(_stopped(3, _t0, runId: 15));
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final stopRows =
         recent.where((e) => e.title == 'Sequence stopped').toList();
     expect(stopRows, hasLength(1));
@@ -672,7 +692,8 @@ void main() {
       ),
     );
 
-    final recent = c.read(runDashboardRecentEventsProvider(5));
+    final recent =
+        runDashboardFeedRows(c.read(eventHistoryProvider)).take(5).toList();
     final rows = recent.where((e) => e.title == 'Sequence complete').toList();
     expect(rows, hasLength(1));
     expect(rows.single.repeatCount, 1);

@@ -5,9 +5,8 @@ import 'package:skotiq_astro/skotiq_astro.dart';
 
 /// `calculateTwilightTimes(date:)` describes a dusk-tonight → dawn-tomorrow
 /// window. Anchoring the dashboard on the calendar date therefore describes the
-/// *next* night once local midnight passes: observed live at 01:04 with the sun
-/// 30.6° below the horizon, the header read "Dark in 21h 7m" while the observer
-/// was standing in the middle of astronomical night.
+/// *next* night once local midnight passes (at 01:04, in the middle of
+/// astronomical night, the header would read "Dark in 21h 7m").
 ///
 /// [twilightTimesProvider] picks the previous evening's window while its dawn is
 /// still ahead. That choice is a date-boundary rule with no other coverage, and
@@ -50,7 +49,7 @@ void main() {
 
   TwilightTimes windowFor(DateTime date) =>
       AstronomyCalculations.calculateTwilightTimes(
-        date: date,
+        date: NightDate.ofCalendarDay(date),
         latitudeDeg: lat,
         longitudeDeg: lon,
       );

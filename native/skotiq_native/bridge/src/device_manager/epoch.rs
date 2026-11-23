@@ -17,7 +17,7 @@
 //!
 //! Direction policy: only coordinates SENT to the mount (slew / sync) are
 //! converted. Coordinates READ from the mount stay in the mount's native
-//! frame, exactly as before — the trigger monitor's hour-angle math
+//! frame — the trigger monitor's hour-angle math
 //! (HA = LST − RA_of_date) is only correct with of-date RA, and the
 //! conversion of inputs alone keeps the mount's internal pointing model in
 //! a single consistent frame.
@@ -117,7 +117,7 @@ pub fn jnow_to_j2000(ra_hours: f64, dec_deg: f64) -> (f64, f64) {
 /// a J2000 target with an of-date read-back, and no simulator run could show it.
 ///
 /// So the simulator is a JNow mount by default. `SKOTIQ_SIM_MOUNT_FRAME=j2000`
-/// restores the old behaviour for a run that needs catalog numbers to
+/// keeps raw J2000 for a run that needs catalog numbers to
 /// round-trip through the mount unchanged.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SimMountFrame {

@@ -19,10 +19,8 @@ pub fn calculate_meridian_crossing(
     let lst = local_sidereal_time(jd, longitude);
 
     // Target crosses meridian when LST = RA
-    // Calculate time difference
     let mut time_to_crossing = ra_hours - lst;
 
-    // Normalize to 0-24 hour range
     if time_to_crossing < 0.0 {
         time_to_crossing += 24.0;
     }
@@ -152,7 +150,14 @@ pub fn calculate_alt_az(
 ) -> (f64, f64) {
     let jd = julian_day(&time);
     let lst = local_sidereal_time(jd, longitude);
-    let ha_rad = (hour_angle(ra_hours, lst) * 15.0).to_radians();
+    alt_az_from_hour_angle(hour_angle(ra_hours, lst), dec_degrees, latitude)
+}
+
+/// Altitude and azimuth (degrees, azimuth from north through east in
+/// `[0, 360)`) of a position at hour angle `ha_hours` and Dec `dec_degrees`,
+/// seen from `latitude`.
+pub fn alt_az_from_hour_angle(ha_hours: f64, dec_degrees: f64, latitude: f64) -> (f64, f64) {
+    let ha_rad = (ha_hours * 15.0).to_radians();
     let dec_rad = dec_degrees.to_radians();
     let lat_rad = latitude.to_radians();
 
@@ -224,7 +229,6 @@ pub fn julian_day(dt: &DateTime<Utc>) -> f64 {
     let a = (f64::from(y) / 100.0).floor();
     let b = 2.0 - a + (a / 4.0).floor();
 
-    // Why: same i32 → f64 exact widening as `a` above.
     (365.25 * (f64::from(y) + 4716.0)).floor()
         + (30.6001 * (f64::from(m) + 1.0)).floor()
         + day
@@ -244,8 +248,6 @@ pub fn local_sidereal_time(jd: f64, longitude: f64) -> f64 {
 
     // Add longitude to get Local Sidereal Time
     let lst = (gmst + longitude) % 360.0;
-
-    // Convert to hours and normalize
 
     if lst < 0.0 {
         (lst + 360.0) / 15.0
@@ -310,7 +312,6 @@ mod tests {
         let test_time = Utc.with_ymd_and_hms(2025, 3, 15, 0, 0, 0).unwrap();
 
         // For a target at RA = 12h, longitude = -75.0 (Eastern US)
-        // Calculate LST at this time
         let jd = julian_day(&test_time);
         let lst = local_sidereal_time(jd, -75.0);
 
@@ -341,7 +342,6 @@ mod tests {
     fn test_flip_time_calculation() {
         let test_time = Utc.with_ymd_and_hms(2025, 3, 15, 12, 0, 0).unwrap();
 
-        // Calculate flip time for 5 minutes past meridian
         let crossing = calculate_meridian_crossing(10.0, -75.0, test_time);
         let flip_time = calculate_flip_time(10.0, -75.0, test_time, 5.0);
 

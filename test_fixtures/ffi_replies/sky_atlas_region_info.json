@@ -1,0 +1,14 @@
+{
+  "contributors": [
+    "rig-nyx",
+    "friend-1"
+  ],
+  "integrationSeconds": 7560.0,
+  "lastFoldIso": "2026-11-21T04:30:00Z",
+  "maxCoverage": 14.0,
+  "meanCoverage": 6.5,
+  "ok": true,
+  "tilesInRegion": 9,
+  "tilesWithData": 4,
+  "totalFrames": 42
+}

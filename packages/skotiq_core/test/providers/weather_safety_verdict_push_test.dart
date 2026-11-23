@@ -9,11 +9,12 @@ import 'package:skotiq_core/src/providers/settings_provider.dart';
 import 'package:skotiq_core/src/providers/weather_providers.dart';
 import 'package:skotiq_core/src/providers/backend_provider.dart';
 import 'package:skotiq_core/src/providers/equipment/weather_state_provider.dart';
-import 'package:skotiq_core/src/services/safe_rig_service.dart';
+import 'package:skotiq_core/src/providers/safe_rig_service.dart';
 
 import '../mocks/mock_backend.dart';
 import '../harness/in_memory_database.dart';
 import 'package:skotiq_core/src/settings/app_settings_state.g.dart';
+import 'package:skotiq_core/src/models/weather/weather_safety_state.dart';
 
 /// AppSettings fake that resolves immediately so `appSettingsProvider.future`
 /// completes without touching the database.
@@ -55,7 +56,7 @@ class _NoopSafeRigService extends SafeRigService {
 }
 
 void main() {
-  // Full-night audit 2026-06-04 (defense-in-depth): the weather-safety provider
+  // The weather-safety provider
   // must forward its overall verdict to the Rust executor on every evaluation
   // so the in-sequencer `WeatherUnsafe` trigger reacts even on a rig with no
   // hardware safety device. This pins that push wiring.
@@ -143,7 +144,7 @@ void main() {
     );
 
     test('ABSTAINS (pushes None) when weather safety is disabled', () async {
-      // Architecture-unification 2026-06-05 (Subsystem 2 step 1): a disabled
+      // A disabled
       // weather toggle is the operator opting out of weather-driven aborts, but
       // it MUST NOT assert SAFE to the executor. Pushing `false` (SAFE) was only
       // harmless because Rust ORs it; if a future refactor ever made Rust trust

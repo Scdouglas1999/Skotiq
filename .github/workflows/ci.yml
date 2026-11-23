@@ -10,6 +10,12 @@ on:
   schedule:
     - cron: '0 4 * * *'
 
+# Every check below is a stage of tools/production/gate.dart (`melos run gate`
+# runs them all); the Rust jobs call scripts/rust_checks.sh, which the gate
+# also runs. docs/ci-gates.md lists what each check enforces.
+env:
+  FLUTTER_VERSION: '3.44.1'
+
 jobs:
   rust-license-audit:
     name: Rust License Audit
@@ -37,26 +43,17 @@ jobs:
       - name: Setup Flutter (provides pinned Dart SDK)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
-      - name: Resolve hub dependencies
-        working-directory: server/skotiq_hub
-        run: dart pub get
-
-      - name: Analyze hub
-        working-directory: server/skotiq_hub
-        run: dart analyze --fatal-infos
-
-      - name: Test hub
-        working-directory: server/skotiq_hub
-        run: dart test
+      - name: Resolve, analyze and test the hub
+        run: dart run tools/production/gate.dart --stage hub
 
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -64,7 +61,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -74,35 +71,11 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
-      - name: UI design token audit
-        run: |
-          python3 docs/design/overhaul/tools/audit_ui_tokens.py
-          python3 -m unittest discover -s docs/design/overhaul/tools -p 'test_audit_ui_tokens.py'
-
-      # The nebula light table's matching rule, its source readers, and that
-      # the shipped table is what the committed sources build.
-      - name: Nebula light table build tests
-        run: python3 tools/catalog_prep/nebula_light/test_build_nebula_light.py
-
-      - name: Dependency Hygiene Gate
-        run: dart run tools/production/dependency_hygiene.dart
-
-      # BUILD-001: a released OTA package, the artifact filename, and the
-      # binary-reported version must all denote the same release. This gate
-      # fails closed when version.yaml, the desktop pubspec, and the mobile
-      # pubspec disagree on version/build, or when the OTA package builder
-      # stops deriving its version from version.yaml. The self-test validates
-      # both the passing and failing paths.
-      - name: Version Consistency Gate
-        run: melos run audit:version-consistency
-
-      - name: Version Consistency Audit Self-Test
-        run: melos run audit:version-consistency:self-test
-
-      - name: Analyze code (production gate)
-        # Zero analyzer errors and critical warnings in production code
-        # (docs/production-readiness/analyzer-policy.yaml).
-        run: melos run analyze:production
+      - name: Analyze gate
+        # Token audit, release-script and catalog tests, dependency hygiene,
+        # version consistency, the production analyzer gate and a whole-tree
+        # dart analyze.
+        run: melos run gate -- --stage analyze
 
   launch-gate:
     name: Launch Gate
@@ -115,7 +88,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -125,55 +98,20 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
-      # The runtime audit gates. Each runs once, through its melos script, so
-      # CI and the documented developer command are the same command. What
-      # they scan is defined in docs/production-readiness/audit-scope.yaml;
-      # a package or crate that falls out of that scope fails the gate, so
-      # there is no file-count floor to maintain here. How to reconcile them
-      # after moving or deleting code: docs/ci-gates.md.
-      - name: Runtime Placeholder Gate
-        run: melos run audit:placeholders
-
-      - name: Runtime Behavioral Gate
-        run: melos run audit:behavioral
-
-      - name: Fail-Closed Policy Gate
-        run: melos run audit:fail-closed
-
-      - name: Audit Gate Self-Tests
-        run: melos run audit:gates:self-test
-
-      # skotiq_core is the only Dart package that may import
-      # package:skotiq_bridge. The audit fails closed (exit 1) on any
-      # un-whitelisted importer; the self-test validates its exemption,
-      # whitelist, and violation-detection logic.
-      - name: Bridge Boundary Gate
-        run: melos run audit:bridge-boundary
-
-      - name: Bridge Boundary Audit Self-Test
-        run: melos run audit:bridge-boundary:self-test
-
-      # Dependency direction, layer barrels, shared folders importing no
-      # screen, and the node table as the only per-node-type dispatch.
-      - name: Architecture Rules Gate
-        run: melos run audit:architecture
-
-      - name: Architecture Rules Audit Self-Test
-        run: melos run audit:architecture:self-test
-
-      - name: Headless API Contract Gate
-        run: melos run audit:headless-api-contract
-
-      - name: Headless Route Policy Gate
-        run: melos run audit:headless-route-policy
+      # The runtime audit gates and their self-tests. What they scan is
+      # defined in docs/production-readiness/audit-scope.yaml; how to
+      # reconcile them after moving or deleting code: docs/ci-gates.md.
+      - name: Audit gates
+        run: melos run gate -- --stage audits
 
   test-dart:
     name: Dart Tests
     runs-on: ubuntu-latest
-    # The serialized 9.1 suite was still completing UI tests at 60 minutes
-    # on a hosted runner. Leave time for the remaining packages, relay and
-    # production migration probe on a slower runner.
-    timeout-minutes: 90
+    # The serialized suite, instrumented for coverage (one run gives both the
+    # results and the report), reached 75 minutes on a hosted runner. Leave
+    # time for the remaining packages, relay and production migration probe
+    # on a slower runner.
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -181,7 +119,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -192,10 +130,49 @@ jobs:
         run: melos bootstrap
 
       - name: Run Dart tests
-        # Same command as `melos run test`, plus a JSON record per package so
-        # a failure the console reporter does not attribute to a test can be
-        # named (the step below prints it).
-        run: dart run melos exec --concurrency=1 --flutter -- flutter test --exclude-tags golden --file-reporter json:test-results.json
+        # Every flutter package (with a JSON record per package, so a failure
+        # the console reporter does not attribute to a test can be named), the
+        # pure Dart packages, and the v4.3.0 database migration to the current
+        # schema. Each runs even when an earlier one failed.
+        run: melos run gate -- --stage dart-tests --coverage
+
+      - name: Merge per-package coverage reports
+        # The gate's --coverage writes coverage/lcov.info into each Flutter
+        # package; rebase each file's SF: paths from package-relative to
+        # repo-relative and concatenate.
+        run: |
+          rm -f coverage.lcov
+          found=0
+          for f in packages/*/coverage/lcov.info apps/*/coverage/lcov.info tools/*/coverage/lcov.info; do
+            [ -f "$f" ] || continue
+            found=1
+            pkg_dir=$(dirname "$(dirname "$f")")
+            sed "s|^SF:|SF:$pkg_dir/|" "$f" >> coverage.lcov
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "No per-package lcov.info files found" >&2
+            exit 1
+          fi
+          echo "Merged $(grep -c '^SF:' coverage.lcov) source-file records"
+
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v7
+        with:
+          name: lcov-coverage
+          path: coverage.lcov
+
+      - name: Upload coverage to Codecov
+        # Best-effort until a CODECOV_TOKEN repo secret is provisioned
+        # (none exists today, so a hard-fail here would keep CI red on a
+        # missing credential rather than a code problem). The merged lcov
+        # is always archived as a build artifact above; flip
+        # fail_ci_if_error to true once the token is added.
+        uses: codecov/codecov-action@v7
+        with:
+          files: coverage.lcov
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
 
       - name: Name the failed Dart tests
         if: failure()
@@ -213,20 +190,6 @@ jobs:
           name: dart-test-results
           path: '**/test-results.json'
           retention-days: 14
-
-      # The next two run even when a test above failed, so one red package
-      # does not hide the pure-Dart packages or the migration from an old
-      # database. The job still fails when any of them does.
-      - name: Run pure Dart package tests
-        if: success() || failure()
-        run: melos run test:dart
-
-      - name: Verify v4.3.0 database migration to current schema
-        if: success() || failure()
-        working-directory: packages/skotiq_core
-        env:
-          SKOTIQ_OLD_DATABASE: ${{ github.workspace }}/packages/skotiq_core/test/fixtures/skotiq-v4.3.0-profile.db
-        run: flutter test tool/production_migration_probe.dart --dart-define=REQUIRE_MIGRATION_ARTIFACT=true
 
   test-rust:
     # Linux Rust runs on every PR + push for fast feedback.
@@ -259,28 +222,10 @@ jobs:
           workspaces: native/skotiq_native
 
       - name: Run Rust clippy (workspace, deny warnings + high-value lints)
-        working-directory: native/skotiq_native
-        # High-value lint promotions (clippy debt):
-        #   - result_unit_err: forbids `Result<(), ()>` (use a real error type)
-        #   - await_holding_lock: catches the FFI deadlock pattern of
-        #     locks held across `.await`.
-        #   - undocumented_unsafe_blocks: every unsafe block must carry a
-        #     specific `// SAFETY:` comment. Promoted from -W to -D after the
-        #     residual sweep closed the last non-vendor hits. See
-        #     docs/ci-gates.md.
-        # We intentionally do NOT promote `clippy::pedantic` — too noisy
-        # (7,140 warnings) and would block all PRs.
-        run: cargo clippy --locked --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks
+        run: bash scripts/rust_checks.sh clippy
 
       - name: Run Rust tests
-        working-directory: native/skotiq_native
-        # --no-fail-fast: one failing test binary must not keep the crates
-        # after it from running. Light optimization keeps debug assertions and
-        # overflow checks but runs the image and autofocus tests several times
-        # faster; unoptimized, the suite ran past the job's time limit.
-        env:
-          CARGO_PROFILE_TEST_OPT_LEVEL: "1"
-        run: cargo test --locked --all-features --workspace --no-fail-fast
+        run: bash scripts/rust_checks.sh test
 
   test-rust-windows:
     # Windows runs on:
@@ -316,20 +261,14 @@ jobs:
           workspaces: native/skotiq_native
 
       - name: Run Rust clippy (workspace, deny warnings + high-value lints)
-        working-directory: native/skotiq_native
-        # See the Linux job for the rationale on each `-D` lint. Windows is
-        # especially important because the ascom/ crate is Windows-only and most of its
-        # unsafe COM-calling lives there.
-        run: cargo clippy --locked --all-features --workspace --all-targets -- -D warnings -D clippy::result_unit_err -D clippy::await_holding_lock -D clippy::undocumented_unsafe_blocks
+        # The ascom/ crate is Windows-only and holds most of the unsafe
+        # COM-calling code.
+        shell: bash
+        run: bash scripts/rust_checks.sh clippy
 
       - name: Run Rust tests
-        working-directory: native/skotiq_native
-        # --workspace so the ascom/ crate (Windows-only) gets exercised here
-        # in addition to the bridge/imaging/sequencer crates that already
-        # build on Linux; --no-fail-fast and light optimization as on Linux.
-        env:
-          CARGO_PROFILE_TEST_OPT_LEVEL: "1"
-        run: cargo test --locked --all-features --workspace --no-fail-fast
+        shell: bash
+        run: bash scripts/rust_checks.sh test
 
   cargo-duplicates:
     # Keep the resolved multi-version dependency set reviewable. Existing
@@ -351,18 +290,7 @@ jobs:
           workspaces: native/skotiq_native
 
       - name: Detect duplicate crate versions
-        working-directory: native/skotiq_native
-        run: |
-          set -euo pipefail
-          current="$(mktemp)"
-          cargo metadata --locked --format-version 1 --all-features \
-            | jq -r '.packages | sort_by(.name, .version) | group_by(.name)[] | select(map(.version) | unique | length > 1) | .[] | "\(.name) \(.version)"' \
-            | sort -u > "$current"
-          if ! diff -u duplicate-versions-baseline.txt "$current"; then
-            echo "::error::The resolved duplicate-version set changed. Review the graph and update duplicate-versions-baseline.txt intentionally."
-            exit 1
-          fi
-          echo "Duplicate-version baseline matches ($(wc -l < "$current") package-version entries)."
+        run: bash scripts/rust_checks.sh duplicates
 
   format-check:
     name: Format Check
@@ -375,9 +303,14 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       - name: Install Melos
         run: dart pub global activate melos
@@ -385,17 +318,8 @@ jobs:
       - name: Bootstrap workspace
         run: melos bootstrap
 
-      - name: Check Dart formatting
-        run: melos run format -- --set-exit-if-changed
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: Check Rust formatting
-        working-directory: native/skotiq_native
-        run: cargo fmt --all -- --check
+      - name: Check Dart and Rust formatting
+        run: melos run gate -- --stage format
 
   build-test:
     name: Build Test (Desktop)
@@ -422,7 +346,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.1'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: 'stable'
           cache: true
 
@@ -477,73 +401,3 @@ jobs:
 
       - name: Test build Flutter app
         run: dart scripts/build.dart flutter ${{ matrix.platform }} --debug
-
-  coverage:
-    name: Code Coverage
-    runs-on: ubuntu-latest
-    # Coverage instruments the same serialized workspace suite. Hosted runs
-    # reached the old 75-minute limit before producing the merged report.
-    timeout-minutes: 120
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.1'
-          channel: 'stable'
-          cache: true
-
-      - name: Install Melos
-        run: dart pub global activate melos
-
-      - name: Bootstrap workspace
-        run: melos bootstrap
-
-      - name: Install coverage tools
-        run: dart pub global activate coverage
-
-      - name: Run tests with coverage
-        run: melos run test -- --coverage
-
-      - name: Merge per-package coverage reports
-        # `melos run test -- --coverage` writes coverage/lcov.info into EACH
-        # package directory; the old step ran format_coverage against a
-        # nonexistent repo-root coverage/ dir and the job had never passed.
-        # flutter test --coverage already emits lcov, so no format step is
-        # needed — just rebase each file's SF: paths from package-relative
-        # to repo-relative and concatenate.
-        run: |
-          rm -f coverage.lcov
-          found=0
-          for f in packages/*/coverage/lcov.info apps/*/coverage/lcov.info; do
-            [ -f "$f" ] || continue
-            found=1
-            pkg_dir=$(dirname "$(dirname "$f")")
-            sed "s|^SF:|SF:$pkg_dir/|" "$f" >> coverage.lcov
-          done
-          if [ "$found" -eq 0 ]; then
-            echo "No per-package lcov.info files found" >&2
-            exit 1
-          fi
-          echo "Merged $(grep -c '^SF:' coverage.lcov) source-file records"
-
-      - name: Archive coverage report
-        uses: actions/upload-artifact@v7
-        with:
-          name: lcov-coverage
-          path: coverage.lcov
-
-      - name: Upload coverage to Codecov
-        # Best-effort until a CODECOV_TOKEN repo secret is provisioned
-        # (none exists today, so a hard-fail here would keep CI red on a
-        # missing credential rather than a code problem). The merged lcov
-        # is always archived as a build artifact above; flip
-        # fail_ci_if_error to true once the token is added.
-        uses: codecov/codecov-action@v7
-        with:
-          files: coverage.lcov
-          fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
-        continue-on-error: true

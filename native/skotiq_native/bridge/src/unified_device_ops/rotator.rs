@@ -1,4 +1,4 @@
-use super::{device_error, UnifiedDeviceOps};
+use super::{sequencer_error, UnifiedDeviceOps};
 use crate::device_manager::get_device_manager;
 use async_trait::async_trait;
 use skotiq_sequencer::{DeviceResult, RotatorOps};
@@ -13,7 +13,7 @@ impl RotatorOps for UnifiedDeviceOps {
         get_device_manager()
             .rotator_move_absolute(rotator_id, angle)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 
     async fn rotator_move_relative(&self, rotator_id: &str, delta: f64) -> DeviceResult<()> {
@@ -22,14 +22,14 @@ impl RotatorOps for UnifiedDeviceOps {
         get_device_manager()
             .rotator_move_relative(rotator_id, delta)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 
     async fn rotator_get_angle(&self, rotator_id: &str) -> DeviceResult<f64> {
         get_device_manager()
             .rotator_get_position(rotator_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 
     async fn rotator_halt(&self, rotator_id: &str) -> DeviceResult<()> {
@@ -38,6 +38,6 @@ impl RotatorOps for UnifiedDeviceOps {
         get_device_manager()
             .rotator_halt(rotator_id)
             .await
-            .map_err(device_error(skotiq_sequencer::DeviceKind::Rotator))
+            .map_err(sequencer_error(skotiq_sequencer::DeviceKind::Rotator))
     }
 }

@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/database.dart';
+import 'package:skotiq_core/errors.dart' show DeviceConnectException;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
@@ -17,6 +18,7 @@ import 'package:skotiq_desktop/headless_api/validation.dart';
 import 'package:shelf/shelf.dart';
 
 import 'handler_test_helpers.dart';
+import 'package:skotiq_desktop/headless_api/job_manager.dart';
 
 class _CancelledExposureBackend implements DeviceBackend {
   @override
@@ -97,18 +99,22 @@ DeviceInfo _registryFocuser(String id) => DeviceInfo(
   driverVersion: '1.0',
 );
 
+/// What the bridge raises for a driver that refuses a move because the
+/// focuser is moving (ASCOM "Move Failure").
 class _BusyFocuserBackend implements DeviceBackend {
   @override
   Future<void> focuserMoveTo(String deviceId, int position) async {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to call method Move: Move Failure',
+    throw bridge.SkotiqError.deviceBusy(
+      deviceId: deviceId,
+      currentOperation: 'Failed to call method Move: Move Failure',
     );
   }
 
   @override
   Future<void> focuserMoveRelative(String deviceId, int delta) async {
-    throw const bridge.SkotiqError.operationFailed(
-      'Failed to call method Move: Move Failure',
+    throw bridge.SkotiqError.deviceBusy(
+      deviceId: deviceId,
+      currentOperation: 'Failed to call method Move: Move Failure',
     );
   }
 
@@ -120,6 +126,7 @@ class _BusyFocuserBackend implements DeviceBackend {
 class _RecordingDeviceService implements DeviceService {
   final List<(DeviceType, String)> connects = [];
   final List<String> guideCameraConnects = [];
+  Object? connectError;
 
   @override
   Future<void> connect(
@@ -127,7 +134,10 @@ class _RecordingDeviceService implements DeviceService {
     String deviceId, {
     String? host,
     int? port,
-  }) async => connects.add((type, deviceId));
+  }) async {
+    if (connectError case final error?) throw error;
+    connects.add((type, deviceId));
+  }
 
   @override
   Future<void> connectGuideCamera(String deviceId) async =>
@@ -187,7 +197,10 @@ void main() {
           databaseProvider.overrideWithValue(db),
         ],
       );
-      handlers = DeviceHandlers(container);
+      handlers = DeviceHandlers(
+        container,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
     });
 
     tearDown(() async {
@@ -288,7 +301,10 @@ void main() {
         ],
       );
       addTearDown(busyContainer.dispose);
-      final busyHandlers = DeviceHandlers(busyContainer);
+      final busyHandlers = DeviceHandlers(
+        busyContainer,
+        jobManager: JobManager(emitEvent: (_) {}),
+      );
 
       for (final request in [
         Request(
@@ -325,7 +341,10 @@ void main() {
             ),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
 
         final response = await translateHandlerErrors(
           handlers.handleCameraExpose(
@@ -352,8 +371,8 @@ void main() {
     group("a client's connect of the profile's guide camera", () {
       late _RecordingDeviceService service;
 
-      Future<Response> connectCamera(String deviceId) async {
-        service = _RecordingDeviceService();
+      Future<Response> connectCamera(String deviceId, {Object? fail}) async {
+        service = _RecordingDeviceService()..connectError = fail;
         container.dispose();
         container = ProviderContainer(
           overrides: [
@@ -374,7 +393,10 @@ void main() {
               ),
             );
         await container.read(equipmentProfilesProvider.future);
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         return translateHandlerErrors(
           handlers.handleConnectDevice(
             Request(
@@ -401,6 +423,31 @@ void main() {
         expect(service.connects, [(DeviceType.camera, 'sim_camera_1')]);
         expect(service.guideCameraConnects, isEmpty);
       });
+
+      // A driver that cannot find its device refused the connect like any
+      // other driver refusal; the words "not found" in its reason do not make
+      // the requested device unknown to the host.
+      test(
+        'a driver\'s "device not found" answers as a refused connect',
+        () async {
+          final response = await connectCamera(
+            'indi:Missing CCD',
+            fail: DeviceConnectException(
+              'indi:Missing CCD',
+              const bridge.SkotiqError.connectionFailed(
+                deviceId: 'indi:Missing CCD',
+                reason: 'INDI device not found: Missing CCD',
+              ),
+              reason: 'INDI device not found: Missing CCD',
+            ),
+          );
+
+          expect(response.statusCode, HttpStatus.conflict);
+          final body = jsonDecode(await response.readAsString()) as Map;
+          expect(body['error'], 'device_connect_failed');
+          expect(body['message'], 'INDI device not found: Missing CCD');
+        },
+      );
     });
 
     group('disconnect falls back to the driver registry', () {
@@ -417,7 +464,10 @@ void main() {
             deviceBackendProvider.overrideWithValue(backend),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         final response = await translateHandlerErrors(
           handlers.handleDisconnectDevice(
             Request(
@@ -470,7 +520,10 @@ void main() {
             deviceBackendProvider.overrideWithValue(backend),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         // Equipment state tracks `tracked`, so `orphan` mismatches it.
         container.read(focuserStateProvider.notifier).setConnecting(tracked);
         container.read(focuserStateProvider.notifier).setConnected();
@@ -628,7 +681,10 @@ void main() {
             ),
           ],
         );
-        handlers = DeviceHandlers(container);
+        handlers = DeviceHandlers(
+          container,
+          jobManager: JobManager(emitEvent: (_) {}),
+        );
         final translated = errorTranslationMiddleware(
           logError: (_, {fields}) {},
           requestIdFor: (_) => 'test-request-id',

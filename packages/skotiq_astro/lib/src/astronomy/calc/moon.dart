@@ -25,8 +25,6 @@ part of '../astronomy_calculations.dart';
   var mSun = 357.5291092 + 35999.0502909 * t;
   mSun = mSun % 360;
 
-  // Convert to radians
-  // Note: lRad not needed for simplified calculation
   final mRad = m * _deg2rad;
   final dRad = d * _deg2rad;
   final fRad = f * _deg2rad;
@@ -137,8 +135,9 @@ MoonTimes _calculateMoonTimes({
 }) {
   // Similar algorithm to Sun but accounting for Moon's faster motion
   final localNoon = DateTime(date.year, date.month, date.day, 12);
-  final searchStart = localNoon.subtract(const Duration(hours: 12));
-  final searchEnd = localNoon.add(const Duration(hours: 36));
+  final nightStart = _nightStartOf(date, longitudeDeg);
+  final searchStart = nightStart.subtract(const Duration(hours: 12));
+  final searchEnd = nightStart.add(const Duration(hours: 36));
 
   DateTime? moonrise;
   DateTime? moonset;

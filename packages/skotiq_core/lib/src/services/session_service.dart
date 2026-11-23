@@ -229,7 +229,6 @@ class SessionService {
     // the way the boot sweep closes one, not silently overwritten.
     await _resolveStrandedSessions();
 
-    // Create database session record with 'active' status
     final sessionId = await _records.startSession(
       name: name,
       profileId: profileId,
@@ -305,17 +304,6 @@ class SessionService {
   /// [stats] is complete on arrival — the caller folds the frame in before
   /// calling — so the session row advances frame by frame, and every reader of
   /// `imaging_sessions` sees what the night has actually earned.
-  ///
-  /// It used to persist only after five images (or five minutes), and the row
-  /// is what `GET /api/sessions/active` serves. So a healthy run published
-  /// `successfulExposures: 0` and `totalIntegrationSecs: 0.0` beside the live
-  /// accepted/rejected pair the same endpoint counts off `captured_images`:
-  /// the dashboard's session card read "Frames returned 0" next to "4
-  /// accepted" for the first four frames of every night, then trailed by up to
-  /// four frames for the rest of it. The counters are cheap — one single-row
-  /// UPDATE per frame, beside the `captured_images` INSERT the same frame
-  /// already performs — and a threshold bought nothing worth a card that
-  /// contradicts itself.
   Future<void> updateSessionProgress(SessionStats stats) async {
     if (_currentSessionId == null) {
       _logger.debug('No active session to update', source: 'SessionService');
@@ -515,8 +503,7 @@ class SessionService {
         // night would take tonight's frames into that night. Both stay in
         // History as interrupted; offering them put the same "Incomplete
         // Sessions Found" dialog up on every launch, for runs that had ended
-        // hours or days before (rig, 2026-11-03: two 0-exposure test runs and
-        // a QA plan from Nov 1).
+        // hours or days before.
         final captured = hasFrames || session.totalExposures > 0;
         if (!captured || observingNightOf(lastActivity) != tonight) {
           _logger.debug(

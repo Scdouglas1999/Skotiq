@@ -11,8 +11,8 @@
 // neither the router's classification nor its content dedupe can reach it —
 // the check has to be asked for here, as the other producers ask it.
 //
-// The counter-input is the REAL wire shape, taken from the FFI mapper
-// (`backend/ffi_backend/event_mapping.dart:490` — `SequencerEvent_Error` maps to
+// The counter-input is the REAL wire shape, taken from the event codec
+// (`skotiq_bridge` `encodeSequencerEventError`: `SequencerEvent_Error` maps to
 // eventType 'Error' with `{'message': …}`) at the severity the bridge stamps
 // (`bridge/src/api/sequencer/event_bridge.rs:374` — `EventSeverity::Error`).
 import 'dart:async';

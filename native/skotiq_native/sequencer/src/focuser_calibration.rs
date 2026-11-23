@@ -60,11 +60,7 @@
 //! confidence as possibly a floor rather than the value.
 //!
 //! All of this was established by simulating a gear train of known width
-//! against the real routine (`instructions::tests::focuser_backlash`). An
-//! earlier version of this module reasoned from the isolated single approach,
-//! concluded the rule was `k >= b`, and would have refused a perfectly good
-//! measurement of the owner's 105 steps taken with a 40-step run-up — which
-//! the simulation recovers as 102 at R² 0.995.
+//! against the real routine (`instructions::tests::focuser_backlash`).
 //!
 //! One thing the model rules out entirely: a NEGATIVE difference. `d` is
 //! confined to `[0, b]`, so the from-below optimum can never sit below the

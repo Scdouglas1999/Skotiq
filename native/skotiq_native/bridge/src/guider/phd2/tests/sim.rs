@@ -14,6 +14,7 @@ use crate::event::system::SystemEvent;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::sync::Mutex as StdMutex;
 use std::time::Instant as StdInstant;
 
@@ -755,7 +756,7 @@ async fn asked(sim: &Sim, method: &str, times: usize) -> bool {
 
 /// The rig, 2026-11-15: PHD2's mount link went stale and every pulse
 /// failed until its equipment was reconnected by hand. The sustained run of
-/// unanswered steps now reconnects PHD2's camera and mount itself.
+/// unanswered steps reconnects PHD2's camera and mount itself.
 #[tokio::test]
 async fn guide_pulses_that_never_reach_the_mount_reconnect_phd2s_equipment() {
     let _slot = sim_singleton_test_lock().lock().await;

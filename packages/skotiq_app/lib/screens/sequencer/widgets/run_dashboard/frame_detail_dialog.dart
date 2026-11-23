@@ -271,7 +271,8 @@ class _ImagePreview extends ConsumerWidget {
   }
 
   Widget _localOrFallbackPreview(BuildContext context, WidgetRef ref) {
-    if (ref.watch(isRemoteModeProvider)) {
+    final local = ref.watch(hostPathsProvider).local(rejectPath);
+    if (local == null) {
       return _PathFallback(
         path: rejectPath,
         colors: colors,
@@ -280,7 +281,7 @@ class _ImagePreview extends ConsumerWidget {
       );
     }
 
-    final file = File(rejectPath);
+    final file = File(local);
     final exists = _safeExists(file);
     if (!exists) {
       return _PathFallback(path: rejectPath, colors: colors);
@@ -288,7 +289,7 @@ class _ImagePreview extends ConsumerWidget {
     // The reject FITS itself isn't directly viewable as an Image; the
     // thumbnail strip typically writes a sidecar PNG. Look for it
     // alongside the FITS.
-    final preview = _resolvePreviewFile(rejectPath);
+    final preview = _resolvePreviewFile(local);
     if (preview != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),

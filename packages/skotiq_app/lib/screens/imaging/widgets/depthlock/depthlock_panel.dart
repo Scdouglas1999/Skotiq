@@ -127,11 +127,11 @@ class _GoalList extends ConsumerWidget {
             const SizedBox(height: SidePanel.sectionGap),
           ],
           if (status != null && status.available && status.dropped > 0) ...[
-            SkotiqInlineBanner(
-              message: '${status.dropped} frames were not analyzed because the '
+            SkotiqBanner(
+              title: '${status.dropped} frames were not analyzed because the '
                   'analysis queue was full. They are still on disk. Offer '
                   'them to a goal with "Add frames".',
-              severity: SkotiqAlertSeverity.warning,
+              tone: BannerTone.warning,
             ),
             const SizedBox(height: SidePanel.sectionGap),
           ],
@@ -347,15 +347,15 @@ class _SelectionCard extends ConsumerWidget {
           ),
           if (selection.blocker != null) ...<Widget>[
             const SizedBox(height: SkotiqTokens.spaceMd),
-            SkotiqInlineBanner(
-              message: selection.blocker!,
-              severity: SkotiqAlertSeverity.warning,
+            SkotiqBanner(
+              title: selection.blocker!,
+              tone: BannerTone.warning,
             ),
           ] else if (selection.advisory != null) ...<Widget>[
             const SizedBox(height: SkotiqTokens.spaceMd),
-            SkotiqInlineBanner(
-              message: selection.advisory!,
-              severity: SkotiqAlertSeverity.info,
+            SkotiqBanner(
+              title: selection.advisory!,
+              tone: BannerTone.info,
             ),
           ],
           const SizedBox(height: SkotiqTokens.spaceMd),
@@ -690,12 +690,11 @@ class _DepthLockGoalDetailState extends ConsumerState<DepthLockGoalDetail> {
           ],
           if (goal.lastIssue != null && goal.lastIssue!.isNotEmpty) ...<Widget>[
             const SizedBox(height: SkotiqTokens.spaceSm),
-            SkotiqInlineBanner(
-              // Verbatim: this is the ingestion layer explaining why the
-              // newest frame was refused, and it is the only explanation
-              // there is.
-              message: goal.lastIssue!,
-              severity: SkotiqAlertSeverity.warning,
+            // Verbatim: this is the ingestion layer explaining why the newest
+            // frame was refused, and it is the only explanation there is.
+            SkotiqBanner(
+              title: goal.lastIssue!,
+              tone: BannerTone.warning,
             ),
           ],
           const SizedBox(height: SkotiqTokens.spaceMd),

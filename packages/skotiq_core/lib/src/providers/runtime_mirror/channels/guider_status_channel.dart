@@ -3,6 +3,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../backend/bridge_event_codec.dart';
+import '../../../backend/bridge_events.dart';
 import '../../../backend/remote_host.dart';
 import '../../../backend/skotiq_backend.dart';
 import '../../../models/equipment/equipment_models.dart';
@@ -15,24 +17,30 @@ import '../runtime_mirror_codec.dart';
 import '../../../models/backend/backend_types.dart';
 import '../../logging_service_provider.dart';
 
-/// Guiding events after which the guider's own status says something new.
-/// Guide steps are not among them: the graph they build is published with
-/// the status, on its own timer, rather than by re-reading the guider.
-const _statusChangingEvents = <String>{
-  'Connected',
-  'Disconnected',
-  'AppState',
-  'GuidingStarted',
-  'GuidingStopped',
-  'Paused',
-  'Resumed',
-  'StarLost',
-  'Settling',
-  'SettleDone',
-  'LoopingExposures',
-  'Calibrating',
-  'CalibrationComplete',
-  'StopReason',
+/// Whether the guider's own status says something new after [event]. Guide
+/// steps are not among them: the graph they build is published with the
+/// status, on its own timer, rather than by re-reading the guider.
+bool _changesGuiderStatus(GuidingEvent event) => switch (event) {
+  GuidingEvent_Connected() ||
+  GuidingEvent_Disconnected() ||
+  GuidingEvent_AppState() ||
+  GuidingEvent_GuidingStarted() ||
+  GuidingEvent_GuidingStopped() ||
+  GuidingEvent_Paused() ||
+  GuidingEvent_Resumed() ||
+  GuidingEvent_LostStar() ||
+  GuidingEvent_Settling() ||
+  GuidingEvent_Settled() ||
+  GuidingEvent_Looping() ||
+  GuidingEvent_Calibrating() ||
+  GuidingEvent_CalibrationComplete() ||
+  GuidingEvent_StopReason() => true,
+  GuidingEvent_SettleTimedOut() ||
+  GuidingEvent_DitherStarted() ||
+  GuidingEvent_DitherCompleted() ||
+  GuidingEvent_Correction() ||
+  GuidingEvent_StarSelected() ||
+  GuidingEvent_GuideStats() => false,
 };
 
 /// How long after the last guiding event of a burst the status is read again.
@@ -81,8 +89,9 @@ class HostGuiderStatusNotifier extends StateNotifier<HostGuiderStatus?> {
       return;
     }
     _events = backend.eventStream.listen((event) {
-      if (event.category != EventCategory.guiding) return;
-      final after = phd2StateAfterEvent(event.eventType, event.data);
+      final guiding = guidingEventOf(event);
+      if (guiding == null) return;
+      final after = phd2StateAfterEvent(guiding);
       final known = state;
       if (after != null) {
         _eventState = after;
@@ -94,7 +103,7 @@ class HostGuiderStatusNotifier extends StateNotifier<HostGuiderStatus?> {
           );
         }
       }
-      if (_statusChangingEvents.contains(event.eventType)) _request();
+      if (_changesGuiderStatus(guiding)) _request();
     });
     unawaited(_read());
   }
@@ -149,15 +158,6 @@ final hostGuiderStatusProvider =
     StateNotifierProvider<HostGuiderStatusNotifier, HostGuiderStatus?>(
       HostGuiderStatusNotifier.new,
     );
-
-/// The guider state a status names, for a guider no event has spoken for
-/// yet. A status also says `Connected` for an idle guider and `Settling`,
-/// which no AppState event does.
-Phd2State? _stateOf(String? status) => switch (status) {
-  'Connected' => Phd2State.stopped,
-  'Settling' => Phd2State.settling,
-  _ => phd2StateFromAppState(status),
-};
 
 /// The state the host's guider reports: guiding, stopped, calibrating and
 /// the rest, why it is held, its RMS, and the guide graph a late joiner
@@ -226,7 +226,7 @@ class GuiderStatusChannel extends RuntimeMirrorChannel<HostGuiderStatus?> {
     final lost = container.read(starLostEventProvider);
     return {
       'deviceId': value.deviceId,
-      'state': (value.state ?? _stateOf(status.state))?.name,
+      'state': (value.state ?? phd2StateFromGuiderWord(status.state))?.name,
       'stopReason': status.stopReason,
       'rmsRa': finiteOrNull(status.rmsRa),
       'rmsDec': finiteOrNull(status.rmsDec),

@@ -140,9 +140,7 @@ Map<String, String> _sectionWidgets(String catalogSource, String idsSource) {
 /// The library, not the file, is the unit a settings page is written in.
 /// Equipment Profiles renders all of its rows from six `part` files hanging off
 /// `equipment_profiles_screen.dart` (and from an `extension` inside one of
-/// them), which is why its index used to hold nothing but two error strings —
-/// "Could not load profiles" and "Select a profile" — while every heading a
-/// user can actually see on that page was unsearchable.
+/// them).
 class _Library {
   _Library(this.path, this.source);
 
@@ -450,10 +448,7 @@ List<String> _titles(
   // the visible name of an installable catalogue was unsearchable.
   //
   // The Observatory scale renamed these: h1..h6 became pageTitle /
-  // sectionTitle / bodyStrong / eyebrow / display. Matching only the old names
-  // silently SHRANK this index as each screen migrated — the Catalogs page lost
-  // GLADE+, Download Catalogs and Minor Planets the moment its headings were
-  // renamed, and the search stopped finding text that was still on screen.
+  // sectionTitle / bodyStrong / eyebrow / display.
   addRowTitle(
     RegExp(
       r"Text\(\s*'((?:[^'\\]|\\.)*)'\s*,\s*(?:\w+:\s*[^,]*,\s*)*"

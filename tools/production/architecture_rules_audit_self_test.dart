@@ -495,6 +495,42 @@ Future<void> main() async {
   );
 
   await check(
+    'a service importing Riverpod fails without a baseline entry',
+    (root) => _write(
+      root,
+      'packages/skotiq_core/lib/src/services/night/night_service.dart',
+      "import 'package:flutter_riverpod/flutter_riverpod.dart';\n",
+    ),
+    exitCode: 1,
+    stderrHas: [
+      '[core-services-riverpod]',
+      'night_service.dart:1: imports package:flutter_riverpod/flutter_riverpod.dart',
+    ],
+  );
+
+  await check(
+    'a listed Riverpod service passes; providers and other packages pass',
+    (root) async {
+      await _baseline(
+        root,
+        coreServicesRiverpod: {'services/night_service.dart': 1},
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/services/night/night_service.dart',
+        "import 'package:flutter_riverpod/flutter_riverpod.dart';\n"
+            "import 'package:meta/meta.dart';\n",
+      );
+      await _write(
+        root,
+        'packages/skotiq_core/lib/src/providers/night_provider.dart',
+        "import 'package:riverpod/riverpod.dart';\n",
+      );
+    },
+    exitCode: 0,
+  );
+
+  await check(
     'a listed service passes up to its count and fails above it',
     (root) async {
       await _baseline(root, coreLayers: {'services/night_service.dart': 1});
@@ -557,6 +593,30 @@ Future<void> main() async {
       'capture_controller.dart:1: imports '
           'screens/imaging/widgets/capture_bar.dart',
       'is used by two or more features and imports no screen',
+    ],
+  );
+
+  await check(
+    'the host importing a screen fails, in lib and in test',
+    (root) async {
+      await _write(
+        root,
+        'apps/desktop/lib/headless_api/handlers/night_handlers.dart',
+        "import 'package:skotiq_app/screens/night_control/actions/x.dart';\n"
+            "import 'package:skotiq_app/services/night_actions/y.dart';\n",
+      );
+      await _write(
+        root,
+        'apps/desktop/test/host/host_test.dart',
+        "import 'package:skotiq_app/screens/night_control/data/z.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[host-screens]',
+      'night_handlers.dart:1: imports screens/night_control/actions/x.dart',
+      'host_test.dart:1: imports screens/night_control/data/z.dart',
+      'out of screens/ into services/',
     ],
   );
 
@@ -871,6 +931,105 @@ Future<void> main() async {
     },
   );
 
+  await check(
+    'a logger named outside skotiq. fails',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_astro/lib/src/catalog.dart',
+        "final _log = Logger('CatalogManager');\n"
+            'final _quiet = Logger.detached(\'skotiq.Quiet\');\n'
+            'final _built = Logger(\n'
+            "  ['skotiq', id].join('.'),\n"
+            ');\n'
+            "final _prefixed = logging.Logger('Catalog');\n",
+      );
+      await _write(
+        root,
+        'apps/desktop/lib/host.dart',
+        'final _log = Logger("Host");\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[leaf-logger]',
+      'catalog.dart:1: names a logger outside skotiq.',
+      'catalog.dart:2: builds a detached logger',
+      'catalog.dart:3: names a logger outside skotiq.',
+      'catalog.dart:6: names a logger outside skotiq.',
+      'host.dart:1: names a logger outside skotiq.',
+      "Where it goes instead: Name it Logger('skotiq.<Name>')",
+    ],
+  );
+
+  await check('skotiq. loggers, tests and other Logger names pass', (
+    root,
+  ) async {
+    await _write(
+      root,
+      'packages/skotiq_astro/lib/src/catalog.dart',
+      "final _log = Logger('skotiq.CatalogManager');\n"
+          'final _wrapped = Logger(\n'
+          '  "skotiq.Plugin.\${id}",\n'
+          ');\n'
+          "final _prefixed = logging.Logger('skotiq.Catalog');\n"
+          'final root = logging.Logger.root;\n'
+          'Logger _pluginLogger(String id) => _log;\n'
+          'final c = ConsolePluginLogger(id);\n'
+          "// Logger('Example') in a comment.\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_astro/test/catalog_test.dart',
+      "final _log = Logger('CatalogTest');\n",
+    );
+  }, exitCode: 0);
+
+  await check(
+    'an app main that does not start with Log.listen() fails',
+    (root) async {
+      await _write(
+        root,
+        'apps/mobile/lib/main.dart',
+        'void main() async {\n'
+            "  Log.info('Starting', source: 'Main');\n"
+            '  Log.listen();\n'
+            '}\n',
+      );
+      await _write(
+        root,
+        'apps/desktop/lib/main_headless.dart',
+        'void main(List<String> args) async {\n'
+            '  WidgetsFlutterBinding.ensureInitialized();\n'
+            '}\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[leaf-logger]',
+      'apps/mobile/lib/main.dart:1: main does not start with Log.listen()',
+      'main_headless.dart:1: main does not start with Log.listen()',
+      'Where it goes instead: Make Log.listen(); the first statement of main.',
+    ],
+  );
+
+  await check('an app main that starts with Log.listen() passes', (root) async {
+    await _write(
+      root,
+      'apps/mobile/lib/main.dart',
+      'void main() async {\n'
+          '  // Before anything can log.\n'
+          '  Log.listen();\n'
+          "  Log.info('Starting', source: 'Main');\n"
+          '}\n',
+    );
+    await _write(
+      root,
+      'apps/desktop/lib/main_parts/helpers.dart',
+      'void main() {}\n',
+    );
+  }, exitCode: 0);
+
   if (failures > 0) {
     stderr.writeln('$failures architecture rules self-test case(s) failed.');
     exit(1);
@@ -952,6 +1111,7 @@ Future<void> _baseline(
   Map<String, int> srcImport = const {},
   Map<String, int> nodeDispatch = const {},
   Map<String, int> coreLayers = const {},
+  Map<String, int> coreServicesRiverpod = const {},
 }) => _write(
   root,
   'tools/production/architecture_rules_baseline.json',
@@ -967,6 +1127,12 @@ Future<void> _baseline(
     'coreLayers': {
       'allowed': {
         for (final e in coreLayers.entries)
+          e.key: {'count': e.value, 'reason': 'self-test'},
+      },
+    },
+    'coreServicesRiverpod': {
+      'allowed': {
+        for (final e in coreServicesRiverpod.entries)
           e.key: {'count': e.value, 'reason': 'self-test'},
       },
     },

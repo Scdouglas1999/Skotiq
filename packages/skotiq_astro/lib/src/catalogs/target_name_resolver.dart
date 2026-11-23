@@ -178,11 +178,7 @@ class _Query {
   static _Query? parse(String raw) {
     final name = normalizeTargetName(raw);
     if (name.isEmpty) return null;
-    var designation = CatalogDesignation.parse(raw);
-    final alias = designation == null
-        ? null
-        : kDesignationAliases[designation.key];
-    if (alias != null) designation = CatalogDesignation.parse(alias);
+    final designation = CatalogDesignation.parseCataloged(raw);
     final aliasKeys = <String>{
       for (final id in kWellKnownDsoNames[name] ?? const <String>[])
         if (CatalogDesignation.parse(id) case final d?) d.key,

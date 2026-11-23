@@ -16,8 +16,6 @@ dependencies:
     path: ../skotiq_astro
   skotiq_core:
     path: ../skotiq_core
-  skotiq_bridge:
-    path: ../skotiq_bridge
   skotiq_ui:
     path: ../skotiq_ui
   skotiq_remote_protocol:
@@ -79,6 +77,10 @@ dev_dependencies:
   # signatures. Matches the version pinned in skotiq_core.
   mocktail: ^1.0.4
   fake_async: ^1.3.1
+  # Tests build bridge values (FitsReadResult, SkotiqEvent) for fake backend
+  # replies; lib/ reaches the bridge only through skotiq_core.
+  skotiq_bridge:
+    path: ../skotiq_bridge
 
 flutter:
   uses-material-design: true

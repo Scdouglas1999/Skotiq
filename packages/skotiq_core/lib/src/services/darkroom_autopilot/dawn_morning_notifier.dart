@@ -20,14 +20,12 @@
 /// to a recipe that does not exist is worse than no link.
 library;
 
+import 'package:skotiq_remote_protocol/wire.dart' show NotificationPayloadType;
+
 import '../../models/notification/notification_categories.dart';
 import '../../settings/app_settings_state.g.dart';
 import '../notification_service.dart';
 import 'dawn_job_report.dart';
-
-/// The payload prefix the phone routes a Darkroom draft tap by. Shared with
-/// the mobile route table's `darkroom_draft` arm, which is the only consumer.
-const String kDarkroomDraftPayloadType = 'darkroom_draft';
 
 /// The tap payload for [report]'s draft, or null when the night produced none.
 ///
@@ -46,13 +44,13 @@ String? draftDeepLinkFor(DawnJobReport report) {
   for (final composite in report.composites) {
     final recipeId = composite.recipeId;
     if (recipeId != null && composite.hasDraft) {
-      return '$kDarkroomDraftPayloadType:$recipeId';
+      return NotificationPayloadType.darkroomDraft.payload(recipeId);
     }
   }
   for (final master in report.masters) {
     final recipeId = master.recipeId;
     if (recipeId != null && master.hasDraft) {
-      return '$kDarkroomDraftPayloadType:$recipeId';
+      return NotificationPayloadType.darkroomDraft.payload(recipeId);
     }
   }
   return null;

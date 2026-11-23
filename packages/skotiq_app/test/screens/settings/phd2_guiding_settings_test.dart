@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/settings/widgets/phd2_guiding_settings.dart';
+import 'package:skotiq_app/services/host_folders.dart';
+import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 
@@ -10,6 +14,15 @@ Finder get _phd2BrowseButton => find.descendant(
       of: find.byKey(const ValueKey('phd2_executable_path')),
       matching: find.byType(GestureDetector),
     );
+
+class _MockHostFiles extends Mock implements HostFiles {}
+
+/// The pickers of a linked host, with the settings saved on this computer.
+List<Override> _linkedHost() => [
+      isRemoteModeProvider.overrideWithValue(true),
+      hostFoldersProvider
+          .overrideWithValue(LinkedHostFolders(_MockHostFiles())),
+    ];
 
 class _StubAppSettingsNotifier extends AppSettingsNotifier {
   _StubAppSettingsNotifier(this._initial);
@@ -60,7 +73,7 @@ void main() {
           appSettingsProvider.overrideWith(
             () => _StubAppSettingsNotifier(const AppSettingsState()),
           ),
-          isRemoteModeProvider.overrideWithValue(true),
+          ..._linkedHost(),
         ],
       );
 
@@ -100,7 +113,7 @@ void main() {
         appSettingsProvider.overrideWith(
           () => _StubAppSettingsNotifier(initial),
         ),
-        isRemoteModeProvider.overrideWithValue(true),
+        ..._linkedHost(),
       ],
     );
 

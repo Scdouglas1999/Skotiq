@@ -24,6 +24,10 @@
 
 import 'dart:async';
 
+import '../../backend/bridge_event_codec.dart' show systemEventOf;
+import '../../backend/bridge_events.dart' as typed show SequencerEvent_Started;
+import '../../backend/bridge_events.dart' show SystemEvent_Notification;
+import '../../backend/sequencer_run_events.dart' show sequencerEventOf;
 import '../../models/backend/event_types.dart';
 import '../../models/notification/notification_categories.dart';
 import '../../models/sequence/run_stop_classification.dart';
@@ -125,7 +129,6 @@ class NotificationRouter {
   /// windows and the rendered clock time deterministically.
   final DateTime Function() _now;
 
-  /// Event stream subscription.
   StreamSubscription<SkotiqEvent>? _subscription;
 
   /// Decides the ONE phone push a stop episode is allowed, and whether the
@@ -247,6 +250,25 @@ class NotificationRouter {
     for (final transport in eligible) {
       _dispatch(transport, message);
     }
+  }
+
+  /// Whether a [category] notice at [severity] reaches the phone push under
+  /// the operator's rules: notifications and the category's rule are on, the
+  /// severity clears the rule's floor, the rule names the phone push and the
+  /// push transport is set up. Debounce, rate limits and duplicates are not
+  /// asked; they quiet a notice the operator wants, they do not decline it.
+  bool wouldPush(
+    NotificationCategory category, {
+    EventSeverity severity = EventSeverity.critical,
+  }) {
+    if (!_matrix.enabled) return false;
+    final rule = _ruleFor(category);
+    if (!rule.enabled || severity.index < rule.minSeverity.index) return false;
+    if (!rule.transports.contains(NotificationTransportKind.systemPush)) {
+      return false;
+    }
+    return _transports[NotificationTransportKind.systemPush]?.isConfigured ??
+        false;
   }
 
   /// A classified event is presented at its category's severity; [severity]
@@ -539,20 +561,17 @@ class NotificationRouter {
       return;
     }
 
-    // NotificationNode emits a sequencer event of type
-    // `Notification` whose data carries title/message/level/transports.
-    // It bypasses the auto-classifier because the user's chosen
-    // explicit_transports must override the matrix's `custom` rule.
-    if (event.category == EventCategory.sequencer &&
-        event.eventType == 'Notification') {
-      final title = (event.data['title'] as String?) ?? '';
-      final body = (event.data['message'] as String?) ?? '';
-      final transports = _parseExplicitTransportsFromEvent(event.data);
+    // A sequence Notification node that names its own transports publishes
+    // a system notification carrying them; those transports override the
+    // matrix's `custom` rule. A system notification without its own list
+    // (a node with none, the database health notice) is not routed.
+    if (systemEventOf(event) case final SystemEvent_Notification notification
+        when nodeNotificationTransports(notification) != null) {
       routeNotificationNode(
-        title: title,
-        body: body,
+        title: notification.title,
+        body: notification.message,
         severity: event.severity,
-        explicitTransports: transports,
+        explicitTransports: nodeNotificationTransports(notification),
       );
       return;
     }
@@ -599,8 +618,7 @@ class NotificationRouter {
       );
       return;
     }
-    if (event.category == EventCategory.sequencer &&
-        event.eventType == 'Started') {
+    if (sequencerEventOf(event) is typed.SequencerEvent_Started) {
       // Run boundary: nothing published from here belongs to the previous
       // run's stop episode.
       _stopPushArbiter.noteRunBoundary();
@@ -616,24 +634,6 @@ class NotificationRouter {
     if (classified == null) return;
     final context = _buildContext(event, classified.context);
     route(classified.category, context, severity: classified.severity);
-  }
-
-  /// Pull `explicit_transports` out of a NotificationNode Rust event
-  /// payload. Returns null if the field is missing or empty (which means
-  /// "inherit the matrix's `custom` rule transports").
-  List<NotificationTransportKind>? _parseExplicitTransportsFromEvent(
-    Map<String, dynamic> data,
-  ) {
-    final raw = data['explicit_transports'];
-    if (raw is! List) return null;
-    final out = <NotificationTransportKind>[];
-    for (final entry in raw) {
-      if (entry is String) {
-        final t = NotificationTransportKind.fromStorageKey(entry);
-        if (t != null) out.add(t);
-      }
-    }
-    return out.isEmpty ? null : out;
   }
 
   Map<String, String> _buildContext(
@@ -698,10 +698,6 @@ class NotificationRouter {
   /// Hand one message to one transport. Returns false when the dedupe window
   /// swallowed it, which is the seventh way a routed message can send nothing.
   bool _dispatch(NotificationTransport transport, NotificationMessage message) {
-    // Cross-producer de-duplication. Several converging inputs describe one
-    // physical happening (see [_recentSignatures]); the operator must be told
-    // once. The signature is per transport kind, so an external alert is never
-    // swallowed because the UI already said it.
     if (_isDuplicate(transport.kind, message.title, message.body)) return false;
 
     // Fire and forget — the transport's own timeout caps the wait. We
@@ -809,4 +805,18 @@ class _RateWindow {
       _hits.removeAt(0);
     }
   }
+}
+
+/// The transports a sequence Notification node named for [notification],
+/// the ones of them this build knows; null when it names none. A
+/// notification that names some is the notification router's to send, on
+/// exactly those transports.
+List<NotificationTransportKind>? nodeNotificationTransports(
+  SystemEvent_Notification notification,
+) {
+  final kinds = [
+    for (final name in notification.explicitTransports ?? const <String>[])
+      if (NotificationTransportKind.fromStorageKey(name) case final kind?) kind,
+  ];
+  return kinds.isEmpty ? null : kinds;
 }

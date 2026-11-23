@@ -9,6 +9,7 @@ import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' show SequencerNightEnd;
 
 import '../../mocks/mock_backend.dart';
 import 'eon_service_test.dart' show FakeRig;
@@ -39,6 +40,7 @@ void main() {
         classifyRunEnd(
           runStatus: SequenceRunStatus.stopped,
           stopOrigin: 'dawn_approaching',
+          nightEnd: SequencerNightEnd.dawn,
           nightEnding: false,
         ),
         EonEndReason.dawn,
@@ -52,6 +54,7 @@ void main() {
         classifyRunEnd(
           runStatus: SequenceRunStatus.aborted,
           stopOrigin: 'dawn_approaching',
+          nightEnd: SequencerNightEnd.dawn,
           nightEnding: true,
         ),
         EonEndReason.dawn,
@@ -61,11 +64,15 @@ void main() {
     test(
       'a failed run ends the night only after a confirmed night-end park',
       () {
-        for (final origin in ['dawn_approaching', 'obstruction']) {
+        for (final (origin, nightEnd) in [
+          ('dawn_approaching', SequencerNightEnd.dawn),
+          ('obstruction', SequencerNightEnd.obstruction),
+        ]) {
           expect(
             classifyRunEnd(
               runStatus: SequenceRunStatus.failed,
               stopOrigin: origin,
+              nightEnd: nightEnd,
               nightEnding: true,
               parked: true,
             ),
@@ -75,6 +82,7 @@ void main() {
             classifyRunEnd(
               runStatus: SequenceRunStatus.failed,
               stopOrigin: origin,
+              nightEnd: nightEnd,
               nightEnding: true,
               parked: false,
             ),
@@ -102,6 +110,7 @@ void main() {
           classifyRunEnd(
             runStatus: status,
             stopOrigin: 'obstruction',
+            nightEnd: SequencerNightEnd.obstruction,
             nightEnding: false,
           ),
           EonEndReason.obstruction,
@@ -321,6 +330,7 @@ void main() {
               SequenceStopAuthor.system,
               origin: 'dawn_approaching',
               parked: true,
+              nightEnd: SequencerNightEnd.dawn,
             ),
           );
       finishRun(2, 9, SequenceRunStatus.stopped);
@@ -338,6 +348,7 @@ void main() {
               SequenceStopAuthor.system,
               origin: 'dawn_approaching',
               parked: true,
+              nightEnd: SequencerNightEnd.dawn,
             ),
           );
       container.read(mountStateProvider.notifier).setConnecting('mount');
@@ -371,6 +382,7 @@ void main() {
                 triggerId: 'dawn_approaching',
                 triggerName: 'Dawn Approaching',
                 action: SequencerTriggerAction.parkAndAbort,
+                nightEnd: SequencerNightEnd.dawn,
               ),
             );
         container.read(mountStateProvider.notifier).setConnecting('mount');

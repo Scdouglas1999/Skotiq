@@ -64,10 +64,8 @@ impl ProfileStorage {
     pub fn save_profile(&self, profile: &EquipmentProfile) -> Result<(), String> {
         let mut profiles = self.load_profiles()?;
 
-        // Remove existing profile with same ID if exists
         profiles.retain(|p| p.id != profile.id);
 
-        // Add the new/updated profile
         profiles.push(profile.clone());
 
         self.save_profiles(&profiles)
@@ -305,7 +303,6 @@ mod tests {
             telescope_aperture: 200.0,
         };
 
-        // Save and delete
         storage.save_profile(&profile).unwrap();
         storage.delete_profile("test-profile").unwrap();
 

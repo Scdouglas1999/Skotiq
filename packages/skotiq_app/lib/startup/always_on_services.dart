@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
-import 'package:skotiq_core/services.dart';
 
 import '../screens/imaging/widgets/depthlock/depthlock_hint.dart';
 import '../screens/night_control/data/plan/scheduler_provider.dart';
@@ -81,6 +80,14 @@ final List<AlwaysOnService> alwaysOnServices = [
     pushNotificationServiceProvider,
     _everyRole,
     'the queue the remote access server delivers to paired phones',
+  ),
+  AlwaysOnService(
+    'plugin events',
+    pluginHostEventsProvider,
+    // Plugins run where the hardware is.
+    _hosts,
+    'weather readings and focuser moves reach the plugins that listen for '
+        'them (the Weather Logger, when it is turned on)',
   ),
   AlwaysOnService(
     'error toasts',
@@ -168,6 +175,12 @@ final List<AlwaysOnService> alwaysOnServices = [
     _everyRole,
     'the disconnect count in session diagnostics, equipment health and '
         "Tonight's session numbers",
+  ),
+  AlwaysOnService(
+    'connect check marks',
+    unverifiedDeviceFieldsProvider,
+    _everyRole,
+    'the device cards marking what the connect check could not verify',
   ),
   AlwaysOnService(
     'hotplug discovery refresh',
@@ -362,26 +375,13 @@ final List<AlwaysOnService> alwaysOnServices = [
     // A daemon's linked clients read the site from the native store, so it
     // must follow the stored settings there too.
     _everyRole,
-    "the planetarium and the host's native site following the site in "
-        'Settings',
+    "the host's native site following the site in Settings",
   ),
   AlwaysOnService(
     'weather notices',
     weatherNoticesProvider,
     _hosts,
     'unsafe weather, its end, and clouds coming and clearing told once each',
-  ),
-  AlwaysOnService(
-    'planetarium altitude floor',
-    planetariumAltitudeFloorSyncProvider,
-    _everyRole,
-    "the planetarium's rise and set times using the site's altitude floor",
-  ),
-  AlwaysOnService(
-    'planetarium target scorer',
-    planetariumNightScorerSyncProvider,
-    _everyRole,
-    "the planetarium's Best Targets ranked by the app's one target scorer",
   ),
 ];
 

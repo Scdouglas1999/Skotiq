@@ -122,10 +122,7 @@ pub(super) async fn run_recovery_driver(
         // 2. Freeze node tree.
         is_paused.store(true, Ordering::Relaxed);
 
-        // 3. Optionally stop tracking, but never under a moving mount. On the
-        // rig (2026-10-07) a guide-star loss caused by the run's own slew
-        // stopped tracking 40 ms into that slew, and the Center after it
-        // solved trailed frames.
+        // 3. Optionally stop tracking, but never under a moving mount.
         // Everything after this reads `stop_tracking` as "tracking was
         // stopped", so a moving mount clears it.
         let stop_tracking = stop_tracking
@@ -815,16 +812,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
                 exit.is_cancelled.clone(),
             )
         };
-        let config = crate::CenterConfig {
-            use_target_coords: true,
-            custom_ra: None,
-            custom_dec: None,
-            accuracy_arcsec: None,
-            max_attempts: 3,
-            exposure_duration: 5.0,
-            filter: None,
-            sync_mount: true,
-        };
+        let config = ctx.run.recenter_config();
         let result = crate::instructions::execute_center(&config, &ctx, None).await;
         claim.release().await;
         if result.status != NodeStatus::Success {
@@ -862,10 +850,7 @@ async fn prepare_imaging_after_weather_hold(exit: WeatherHoldExit<'_>) {
         crate::GuidingStopReason::MountMove,
     )
     .await;
-    let mut ts = state.write().await;
-    ts.set_guiding_enabled(false);
-    ts.set_guide_star_lost(false);
-    ts.guiding.set_resume_pending(true);
+    state.write().await.guiding.guiding_stopped_by_motion();
 }
 
 struct UnguidedContinuation<'a> {
@@ -1434,8 +1419,7 @@ mod tests {
         );
     }
 
-    /// On 2026-10-22/23 a guide-star recovery ran 133 attempts against a
-    /// mount that had stopped tracking. A stopped mount is handed to the
+    /// A stopped mount is handed to the
     /// tracking-loss recovery, which restores tracking, and no guide-star
     /// attempt is spent on it.
     #[tokio::test]
@@ -1535,7 +1519,7 @@ mod tests {
         assert!(!history[0].recovered);
     }
 
-    /// 2026-11-17: the operator paused while a frame was retrying; the
+    /// The operator paused while a frame was retrying; the
     /// camera's reconnect then ran as a recovery, which took the run from
     /// Paused to Recovering and, on success, back to Running, so the next
     /// exposure started under the operator's pause. A pause placed before a

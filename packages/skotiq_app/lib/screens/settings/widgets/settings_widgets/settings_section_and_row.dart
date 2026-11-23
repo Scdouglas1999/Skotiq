@@ -66,12 +66,10 @@ class SettingsSection extends StatelessWidget {
 
   /// The rows with a hairline BETWEEN each pair and none at either end.
   ///
-  /// The separator is drawn by the section, not by the row, because
-  /// [SettingRow.isLast] is a fact about a list that only the list knows: every
-  /// section that added a row without updating the previous row's flag grew a
-  /// hairline sitting on the panel's bottom edge. Owning it here also means a
-  /// conditional row (`if (!isRemoteMode) SettingRow(...)`) cannot leave a
-  /// dangling rule behind it.
+  /// The separator is drawn by the section, not by the row: where a row sits
+  /// is a fact about the list that only the list knows, and a conditional row
+  /// (`if (!isRemoteMode) SettingRow(...)`) cannot leave a dangling rule
+  /// behind it.
   List<Widget> _separated(SkotiqColors colors) {
     final result = <Widget>[];
     for (var i = 0; i < children.length; i++) {
@@ -185,25 +183,13 @@ class _HighlightedRowState extends State<_HighlightedRow> {
 /// 12 / 16 padding, title in `bodyMedium`, description in `caption`
 /// `textSecondary`. The row draws no rule of its own — [SettingsSection] owns
 /// the hairlines between its rows.
+/// A settings row is title + control: no icon column.
 class SettingRow extends StatelessWidget {
-  /// Ignored. A settings row is title + control: the mockup has no icon column
-  /// and the old 36 px icon square was the "card" look the panel replaced. The
-  /// parameter stays so the ~300 call sites keep compiling; wave 4 removes it.
-  final IconData icon;
-
-  /// Ignored, with [icon].
-  final Color? iconColor;
-
   final String title;
 
   final String? subtitle;
 
   final Widget trailing;
-
-  /// Ignored. [SettingsSection] draws the hairlines between its rows, so a row
-  /// no longer needs to know where it sits in the list. Kept for call sites;
-  /// wave 4 removes it.
-  final bool isLast;
 
   /// Put the control below the title in the narrow layout
   /// ([SettingsFormScope.narrow]) instead of beside it.
@@ -225,12 +211,9 @@ class SettingRow extends StatelessWidget {
 
   const SettingRow({
     super.key,
-    required this.icon,
-    this.iconColor,
     required this.title,
     this.subtitle,
     required this.trailing,
-    this.isLast = false,
     this.stackWhenNarrow = false,
     this.helpId,
     this.controlFlex = 1,

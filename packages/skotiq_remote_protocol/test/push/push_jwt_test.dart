@@ -1,4 +1,4 @@
-// Verifies the JWT signing shapes used by cellular push (Phase D):
+// Verifies the JWT signing shapes used by cellular push:
 //   - FCM OAuth2 assertion (RS256 / RSASSA-PKCS1-v1_5 + SHA-256)
 //   - APNs provider token (ES256 / ECDSA P-256 + SHA-256, JOSE r||s form)
 //

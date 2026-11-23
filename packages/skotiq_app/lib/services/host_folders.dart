@@ -11,6 +11,7 @@ import 'package:skotiq_core/providers.dart';
 
 import '../utils/snackbar_helper.dart';
 import '../widgets/remote_directory_picker_dialog.dart';
+import '../widgets/remote_host_path_dialog.dart';
 
 /// What a check of a folder found.
 sealed class FolderCheck {
@@ -51,6 +52,43 @@ final class FolderUnchecked extends FolderCheck {
 /// A folder chosen in a picker and what its check found.
 typedef PickedFolder = ({String path, FolderCheck verdict});
 
+/// One path a screen asks for on the machine that owns the data, as each side
+/// asks for it: this computer's system picker, or the dialog a linked client
+/// types a host path into (the host's files cannot be browsed from here).
+class HostPathRequest {
+  const HostPathRequest({
+    required this.hostTitle,
+    this.hostHint,
+    this.hostSubmitLabel = 'Use path',
+    this.hostClearLabel,
+    this.folder = false,
+    this.typeLabel,
+    this.extensions,
+    this.confirmLabel,
+    this.initialDirectory,
+  });
+
+  /// The linked host's dialog: its title, the example path, the submit
+  /// label, and the label of the button that clears the path (none when
+  /// null).
+  final String hostTitle;
+  final String? hostHint;
+  final String hostSubmitLabel;
+  final String? hostClearLabel;
+
+  /// This computer's picker chooses a folder, not a file.
+  final bool folder;
+
+  /// The file kind this computer's picker offers, by [typeLabel] and
+  /// [extensions] (any file when null).
+  final String? typeLabel;
+  final List<String>? extensions;
+
+  /// This computer's picker: its confirm button and the folder it opens in.
+  final String? confirmLabel;
+  final String? initialDirectory;
+}
+
 /// The folders the imaging host writes into (captures, flats), for every
 /// screen that asks for one: on this computer when it is the host, on the
 /// linked host otherwise ([hostFoldersProvider] picks the side). One rule for
@@ -65,6 +103,15 @@ abstract class HostFolders {
     required String title,
     String? initialPath,
     String confirmLabel = 'Select',
+  });
+
+  /// One file or folder on the side these folders are on, as [request]
+  /// describes it. A linked host's dialog starts from [currentPath] and
+  /// answers `''` when its clear button is pressed.
+  Future<String?> pickPath(
+    BuildContext context,
+    HostPathRequest request, {
+    String? currentPath,
   });
 
   /// Whether [path] can take files.
@@ -138,6 +185,31 @@ class LocalFolders extends HostFolders {
       confirmButtonText: confirmLabel,
       initialDirectory: start == null || start.isEmpty ? null : start,
     );
+  }
+
+  @override
+  Future<String?> pickPath(
+    BuildContext context,
+    HostPathRequest request, {
+    String? currentPath,
+  }) async {
+    if (request.folder) {
+      return file_selector.getDirectoryPath(
+        initialDirectory: request.initialDirectory,
+        confirmButtonText: request.confirmLabel,
+      );
+    }
+    final file = await file_selector.openFile(
+      acceptedTypeGroups: [
+        file_selector.XTypeGroup(
+          label: request.typeLabel,
+          extensions: request.extensions,
+        ),
+      ],
+      initialDirectory: request.initialDirectory,
+      confirmButtonText: request.confirmLabel,
+    );
+    return file?.path;
   }
 
   @override
@@ -220,6 +292,21 @@ class LinkedHostFolders extends HostFolders {
         context,
         title: title,
         initialPath: initialPath,
+      );
+
+  @override
+  Future<String?> pickPath(
+    BuildContext context,
+    HostPathRequest request, {
+    String? currentPath,
+  }) =>
+      RemoteHostPathDialog.show(
+        context,
+        title: request.hostTitle,
+        initialPath: currentPath,
+        hintText: request.hostHint,
+        submitLabel: request.hostSubmitLabel,
+        clearLabel: request.hostClearLabel,
       );
 
   /// The host's folder browser checks a folder before it closes.

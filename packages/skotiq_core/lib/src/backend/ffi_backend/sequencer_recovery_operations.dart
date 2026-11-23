@@ -3,14 +3,6 @@ part of '../ffi_backend.dart';
 mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
   @override
   Future<void> sequencerStart() async {
-    bridge.NativeBridge.requireNative('sequencerStart');
-    if (!_NativeProcessState.sequencerEventsSubscribed) {
-      await _native(
-        'sequencerSubscribeEvents',
-        () => bridge.apiSequencerSubscribeEvents(),
-      );
-      _NativeProcessState.sequencerEventsSubscribed = true;
-    }
     await _native('sequencerStart', () => bridge.apiSequencerStart());
   }
 
@@ -238,8 +230,6 @@ mixin _FfiSequencerRecoveryOperations on _FfiBackendBase {
 
   @override
   Future<void> sequencerUpdateSkyBrightness({required double? mag}) async {
-    // Push the live SkyBrightnessTracker reading to the
-    // executor.
     await bridge.apiSequencerUpdateSkyBrightness(mag: mag);
   }
 

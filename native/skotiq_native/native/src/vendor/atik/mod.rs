@@ -5,13 +5,13 @@
 
 use crate::camera_core::{image_dimension, unpack_samples, CameraCore, SampleLayout, SdkHandle};
 use async_trait::async_trait;
-use skotiq_cfa::BayerPattern;
 use skotiq_device::camera::{
     CameraCapabilities, CameraState, CameraStatus, ExposureParams, ImageData, ReadoutMode,
     SensorInfo, SubFrame, VendorFeatures,
 };
 use skotiq_device::Vendor;
 use skotiq_device::{CameraDriver, DeviceDriver, DriverError, FilterWheelDriver};
+use skotiq_frame::BayerPattern;
 use std::collections::HashMap;
 use std::ffi::{c_char, c_float, c_int, c_void};
 use std::sync::{Mutex, OnceLock};

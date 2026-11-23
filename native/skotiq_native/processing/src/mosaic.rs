@@ -27,6 +27,7 @@ use skotiq_imaging::mosaic_stitch::{
     self, MosaicBlend, MosaicError, MosaicPanel, MosaicStitchConfig,
 };
 use skotiq_imaging::registration::Interpolator;
+use skotiq_imaging::ProductCards;
 use skotiq_imaging::{read_frame, write_fits, FitsHeader, SipWcs};
 use std::path::Path;
 
@@ -181,9 +182,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
     let master_path = Path::new(&args.output.mosaic_fits_path);
     ensure_parent_dir(master_path)?;
     let mut header = FitsHeader::new();
-    header.set_string("IMAGETYP", "MASTER_LIGHT");
-    header.set_string("FRAMETYP", "MASTER");
-    header.set_string("CALSTAT", "Skotiq mosaic stitch");
+    ProductCards::master("MASTER_LIGHT", "Skotiq mosaic stitch").write_to(&mut header);
     header.set_int("NPANELS", output.stats.panels as i64);
     header.set_int("OVRLPPRS", output.stats.overlap_pairs as i64);
     header.set_float("MOSGAIN", output.stats.mean_panel_gain);
@@ -198,7 +197,7 @@ fn stitch_mosaic_impl(args: StitchMosaicArgs) -> Result<StitchMosaicResult, Stri
             let path = Path::new(p);
             ensure_parent_dir(path)?;
             let mut h = FitsHeader::new();
-            h.set_string("IMAGETYP", "COVERAGE_MAP");
+            ProductCards::image_type("COVERAGE_MAP").write_to(&mut h);
             output.wcs.write_to_header(&mut h);
             h.add_history("Skotiq mosaic per-pixel contributing-weight (coverage) plane");
             write_fits(path, &output.coverage, &h)
@@ -292,9 +291,11 @@ fn describe_error(e: &MosaicError) -> String {
     }
 }
 
-/// The linear part of the WCS a FITS header carries.
+/// The WCS a FITS header carries, its SIP distortion included: the panel's
+/// distortion is defined over the panel, so its edges land where the solve
+/// says.
 fn wcs_from_header(header: &FitsHeader) -> Option<SipWcs> {
-    SipWcs::from_header(header).map(|wcs| wcs.cd_only())
+    SipWcs::from_header(header)
 }
 
 #[cfg(test)]
@@ -428,6 +429,52 @@ mod tests {
         );
     }
 
+    /// A star near a panel's edge lands on the mosaic where the panel's SIP
+    /// solution puts it on the sky, not where its linear part alone would.
+    #[test]
+    fn a_panel_is_placed_by_its_sip_solution() {
+        let (w, h) = (64u32, 64u32);
+        let wcs = make_wcs(120.0, 10.0, 4.0, w, h);
+        let mut header = FitsHeader::new();
+        wcs.write_to_header(&mut header);
+        header.set_int("A_ORDER", 2);
+        header.set_float("A_2_0", 3e-3);
+        header.set_int("B_ORDER", 2);
+        header.set_float("B_0_2", 3e-3);
+        let (star_x, star_y) = (3usize, 32usize);
+        let mut data = vec![100.0f32; (w * h) as usize];
+        data[star_y * w as usize + star_x] = 10_000.0;
+        let dir = temp_dir("a_panel_is_placed_by_its_sip_solution");
+        let panel = dir.join("panel.fits");
+        write_fits(&panel, &ImageData::from_f32(w, h, 1, &data), &header).unwrap();
+        let master_out = dir.join("master.fits");
+        let args = serde_json::json!({
+            "panels": [ { "fitsPath": panel.to_string_lossy() } ],
+            "config": { "normalize": false, "resampler": "bilinear" },
+            "output": { "mosaicFitsPath": master_out.to_string_lossy() }
+        })
+        .to_string();
+        stitch_mosaic(args).expect("stitch");
+
+        let (master, master_header) = read_frame(&master_out).unwrap();
+        let canvas = SipWcs::from_header(&master_header).unwrap();
+        let solve = SipWcs::from_header(&header).unwrap();
+        let (ra, dec) = solve.pixel_to_world(star_x as f64, star_y as f64);
+        let (want_x, want_y) = canvas.world_to_pixel(ra, dec).unwrap();
+        let samples = master.samples_f64();
+        let brightest = (0..samples.len())
+            .max_by(|&a, &b| samples[a].total_cmp(&samples[b]))
+            .unwrap();
+        let (got_x, got_y) = (
+            (brightest % master.width as usize) as f64,
+            (brightest / master.width as usize) as f64,
+        );
+        assert!(
+            (got_x - want_x).abs() <= 1.0 && (got_y - want_y).abs() <= 1.0,
+            "star at ({got_x}, {got_y}), the solve puts it at ({want_x:.1}, {want_y:.1})"
+        );
+    }
+
     #[test]
     fn missing_wcs_errors() {
         // A panel FITS with no WCS keywords at all.
@@ -514,5 +561,36 @@ mod tests {
         assert!((wcs.cd1_1 - (-0.001)).abs() < 1e-12);
         assert!((wcs.cd2_2 - 0.001).abs() < 1e-12);
         assert_eq!(wcs.crval1, 30.0);
+    }
+}
+
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+    use crate::reply_fixtures::check_or_write;
+
+    #[test]
+    fn stitch_mosaic_reply_fixture() {
+        check_or_write(
+            "stitch_mosaic",
+            &StitchMosaicResult {
+                output_path: "/out/M31_mosaic.fits".to_string(),
+                coverage_path: Some("/out/M31_mosaic_coverage.fits".to_string()),
+                preview_png_path: Some("/out/M31_mosaic.png".to_string()),
+                out_width: 11800,
+                out_height: 7600,
+                overlap_pairs: 3,
+                mean_panel_gain: 1.07,
+            },
+        );
+    }
+}
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::StitchMosaicArgs>("stitch_mosaic");
     }
 }

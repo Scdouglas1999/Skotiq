@@ -6,26 +6,13 @@ extension _SequencerSecondaryRig on SequencerHandlers {
   // Lets a remote dashboard observe and drive the secondary capture loop. The
   // dither coordination is enforced natively (the primary's dither call sites
   // gate on the shared barrier), so these endpoints are thin wrappers over the
-  // FRB bindings.
+  // host's secondary-rig drive.
 
   /// GET /api/sequencer/secondary-rig — live status snapshot of the secondary
   /// rig (or `{armed: false}` when none is running).
   Future<Response> _handleSecondaryRigStatus(Request request) async {
-    final s = await bridge_api.apiSecondaryRigGetStatus();
-    return jsonOk({
-      'armed': s.armed,
-      'running': s.running,
-      'cameraId': s.cameraId,
-      'rigLabel': s.rigLabel,
-      'framesCaptured': s.framesCaptured,
-      'framesAborted': s.framesAborted,
-      'plannedFrames': s.plannedFrames,
-      'waitingForDither': s.waitingForDither,
-      'exposing': s.exposing,
-      'ditherPending': s.ditherPending,
-      'forcedProceeds': s.forcedProceeds,
-      'lastError': s.lastError,
-    });
+    final status = await container.read(secondaryRigDriveProvider).status();
+    return jsonOk(status.toJson());
   }
 
   /// POST /api/sequencer/secondary-rig/start — arm + start the secondary loop.
@@ -100,41 +87,37 @@ extension _SequencerSecondaryRig on SequencerHandlers {
     final commandId = commandCorrelator?.beginCommand(
       operation: 'sequencer.secondaryRig.start',
     );
-    await bridge_api.apiSecondaryRigStart(
-      config: bridge_api.SecondaryRigConfigApi(
-        cameraId: cameraId,
-        exposureSecs: exposure,
-        gain: gain,
-        offset: offset,
-        binX: binX,
-        binY: binY,
-        frameCount: frameCount,
-        filterName: decoded['filterName'] as String?,
-        targetTempC: optionalDouble(decoded, 'targetTempC'),
-        rigLabel: rigLabel,
-        ditherMaxWaitSecs: ditherMaxWait,
-        inFlightPolicy: inFlightPolicy,
-        saveBasePath: saveBasePath,
-        saveTo: ImagingService.runFrameSaveTemplate(
-          container.read(namingPatternProvider).pattern,
-          NamingStep.secondaryRig(
-            rigLabel: rigLabel,
+    await container
+        .read(secondaryRigDriveProvider)
+        .start(
+          SecondaryRigConfig(
+            cameraId: cameraId,
+            exposureSecs: exposure,
             gain: gain,
             offset: offset,
             binX: binX,
             binY: binY,
-            session: container.read(clockProvider).nowUtc(),
+            frameCount: frameCount,
+            filterName: decoded['filterName'] as String?,
+            targetTempC: optionalDouble(decoded, 'targetTempC'),
+            rigLabel: rigLabel,
+            ditherMaxWaitSecs: ditherMaxWait,
+            ditherPolicy: inFlightPolicy == 'abort_immediately'
+                ? SecondaryDitherPolicy.abortImmediately
+                : SecondaryDitherPolicy.completeIfShort,
           ),
-        ),
-        targetName: decoded['targetName'] as String?,
-        targetRaHours: optionalDouble(decoded, 'targetRaHours'),
-        targetDecDegrees: optionalDouble(decoded, 'targetDecDegrees'),
-        observerName: decoded['observerName'] as String?,
-        siteLatitudeDeg: optionalDouble(decoded, 'siteLatitudeDeg'),
-        siteLongitudeDeg: optionalDouble(decoded, 'siteLongitudeDeg'),
-        siteElevationM: optionalDouble(decoded, 'siteElevationM'),
-      ),
-    );
+          SecondaryRigStartContext(
+            saveBasePath: saveBasePath,
+            targetName: decoded['targetName'] as String?,
+            targetRaHours: optionalDouble(decoded, 'targetRaHours'),
+            targetDecDegrees: optionalDouble(decoded, 'targetDecDegrees'),
+            observerName: decoded['observerName'] as String?,
+            siteLatitudeDeg: optionalDouble(decoded, 'siteLatitudeDeg'),
+            siteLongitudeDeg: optionalDouble(decoded, 'siteLongitudeDeg'),
+            siteElevationM: optionalDouble(decoded, 'siteElevationM'),
+          ),
+          saveBasePath,
+        );
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'started',
@@ -147,7 +130,7 @@ extension _SequencerSecondaryRig on SequencerHandlers {
     final commandId = commandCorrelator?.beginCommand(
       operation: 'sequencer.secondaryRig.stop',
     );
-    await bridge_api.apiSecondaryRigStop();
+    await container.read(secondaryRigDriveProvider).stop();
     return jsonOk({
       if (commandId != null) 'commandId': commandId,
       'status': 'stopped',

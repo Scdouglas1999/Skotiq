@@ -1,11 +1,8 @@
 // The Weather screen must not claim the sky is being watched when it is not.
 //
-// Audit 2026-07-29: with "Enable weather safety" OFF the screen showed a green
-// shield, "Safety Status — Conditions safe for imaging", and a Current Settings
-// panel reading "Auto-Park: Enabled" — pixel-identical to the monitoring-on
-// state. The provider reports `safe` when nothing was evaluated (there is no
-// verdict to act on), so the copy has to be derived from the monitoring/armed
-// flags instead of from the status alone.
+// The provider reports `safe` when nothing was evaluated (there is no verdict
+// to act on), so the copy has to be derived from the monitoring/armed flags
+// instead of from the status alone.
 //
 // These test the copy decisions directly. The flags they consume are covered by
 // skotiq_core/test/providers/weather_safety_monitoring_disclosure_test.dart;
@@ -17,7 +14,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_app/screens/weather/weather_screen.dart';
 import 'package:skotiq_core/models.dart';
-import 'package:skotiq_core/providers.dart';
 
 void main() {
   group('weatherNoDataRuleText', () {

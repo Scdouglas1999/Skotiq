@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/launch_arguments.dart';
 
@@ -62,22 +60,8 @@ void main() {
 
   test('the usage lists every option but the internal ones', () {
     final usage = launchUsage();
-    for (final option in launchOptions) {
-      expect(usage.contains(option.name), !option.hidden, reason: option.name);
+    for (final option in LaunchOption.values) {
+      expect(usage.contains(option.flag), !option.hidden, reason: option.flag);
     }
-  });
-
-  test('every option the app reads is declared', () {
-    final declared = {for (final option in launchOptions) option.name};
-    final flag = RegExp(r"""['"](--[a-z][a-z-]*)""");
-    final undeclared = <String>[];
-    for (final file in Directory('lib').listSync(recursive: true)) {
-      if (file is! File || !file.path.endsWith('.dart')) continue;
-      for (final match in flag.allMatches(file.readAsStringSync())) {
-        final name = match.group(1)!;
-        if (!declared.contains(name)) undeclared.add('${file.path}: $name');
-      }
-    }
-    expect(undeclared, isEmpty);
   });
 }

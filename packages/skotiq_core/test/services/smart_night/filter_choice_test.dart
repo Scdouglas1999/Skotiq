@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'package:skotiq_core/models.dart';
@@ -486,16 +484,70 @@ void main() {
     expect(targetLight(null), TargetLight.broadband);
   });
 
-  test(
-    'the filter rule names no object: the class comes from catalog data',
-    () {
-      final source = File(
-        'lib/src/services/smart_night_models/filter_choice.dart',
-      ).readAsStringSync();
-      final designation = RegExp(
-        r'\b(M|NGC|IC|C|Sh2-|LBN|RCW|vdB|Ced|Abell)\s?\d+',
+  // Owner rule: the class comes from catalog data, never from the object's
+  // name. Well-known names handed the opposite catalog type must follow the
+  // type.
+  test('the filter class follows the catalog type, never the name', () {
+    const emissionNames = [
+      'M1',
+      'M8',
+      'M16',
+      'M17',
+      'M20',
+      'M27',
+      'M42',
+      'M43',
+      'M57',
+      'M76',
+      'M97',
+      'NGC7000',
+      'NGC6960',
+      'NGC6992',
+      'NGC2237',
+      'NGC281',
+      'IC1396',
+      'IC1805',
+      'IC434',
+      'IC5070',
+      'Sh2-155',
+      'Sh2-129',
+      'C49',
+      'LBN 438',
+    ];
+    const broadbandNames = [
+      'M31',
+      'M33',
+      'M45',
+      'M51',
+      'M81',
+      'M101',
+      'M13',
+      'NGC891',
+      'NGC7331',
+      'IC342',
+      'C14',
+      'vdB 152',
+      'Ced 214',
+      'Abell 2151',
+    ];
+    for (final name in emissionNames) {
+      final choice = _choose(_target(name, 'Galaxy'));
+      expect(
+        choice.strategy,
+        SmartNightStrategy.autoLrgb,
+        reason: '$name typed as a galaxy',
       );
-      expect(designation.allMatches(source).map((m) => m.group(0)), isEmpty);
-    },
-  );
+      expect(choice.filters, ['L', 'R', 'G', 'B'], reason: name);
+      expect(choice.suggestion, isNull, reason: name);
+    }
+    for (final name in broadbandNames) {
+      final choice = _choose(_target(name, 'HII Region'));
+      expect(
+        choice.strategy,
+        SmartNightStrategy.narrowbandSho,
+        reason: '$name typed as an HII region',
+      );
+      expect(choice.filters, ['Ha', 'OIII', 'SII'], reason: name);
+    }
+  });
 }

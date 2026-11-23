@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/screens/sequencer/smart_night_plan_launcher.dart';
+import 'package:skotiq_app/services/sequence_action_service.dart';
 import 'package:skotiq_core/database.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -51,6 +52,51 @@ void main() {
       settingsDao: db.settingsDao,
     ).loadById(draft.id);
     expect(updated?.status, SmartNightDraftStatus.started);
+  });
+
+  test('closing the pre-flight starts nothing and leaves the draft pending',
+      () async {
+    final db = SkotiqDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    final executor = _MockSequenceExecutor();
+    when(executor.start).thenAnswer((_) async {});
+
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        sequenceExecutorProvider.overrideWithValue(executor),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    final plan = _plan('M101');
+    final draft = await SmartNightDraftService(
+      settingsDao: db.settingsDao,
+    ).savePending(
+      profileId: 'profile-1',
+      astronomicalDay: DateTime(2026, 5, 22),
+      plan: plan,
+    );
+
+    await expectLater(
+      const SmartNightPlanLauncher().launch(
+        read: container.read,
+        plan: plan,
+        draftId: draft.id,
+        confirm: () async => false,
+      ),
+      throwsA(isA<PlanStartCanceled>()),
+    );
+
+    verifyNever(executor.start);
+    // The editor was empty, so the plan stays loaded for the operator, no
+    // longer owned by Smart Night.
+    expect(container.read(activePlanOwnerProvider), ActivePlanOwner.manual);
+    final updated = await SmartNightDraftService(
+      settingsDao: db.settingsDao,
+    ).loadById(draft.id);
+    expect(updated?.status, SmartNightDraftStatus.pending);
   });
 
   test('launch leaves draft pending when executor start fails', () async {

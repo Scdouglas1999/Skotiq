@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'package:logging/logging.dart' as logging;
+import 'package:meta/meta.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
 import 'skotiq_data_directory.dart';
+import 'retryable_once.dart';
 
 enum LogLevel {
   debug,
@@ -14,7 +17,7 @@ enum LogLevel {
   error,
   critical;
 
-  /// The level `dart:developer` and `package:logging` print for this one.
+  /// The level `dart:developer` prints for this one.
   int get developerLevel => switch (this) {
     LogLevel.debug => 300,
     LogLevel.info => 500,
@@ -33,6 +36,16 @@ enum LogLevel {
   }
 }
 
+/// Takes one log entry.
+typedef LogSink =
+    void Function(
+      LogLevel level,
+      String message, {
+      required String source,
+      Object? error,
+      StackTrace? stackTrace,
+    });
+
 /// The process's log, for code that holds no provider `Ref` and for code that
 /// logs while its container is shutting down.
 ///
@@ -45,7 +58,64 @@ abstract final class Log {
   /// Stack frames kept on an entry.
   static const int _stackFrames = 16;
 
-  static void attach(LoggingService service) => _service = service;
+  /// Leaf packages, which cannot import this class, log through
+  /// `package:logging` under a name that starts with this. [attach] forwards
+  /// those records here; other `package:logging` users stay out of the log.
+  static const String leafLoggerPrefix = 'skotiq.';
+
+  static StreamSubscription<logging.LogRecord>? _leafRecords;
+
+  static void attach(LoggingService service) {
+    _service = service;
+    listen();
+  }
+
+  /// Starts forwarding the leaf packages' records, once for the life of the
+  /// process. A record logged before anything listens is lost.
+  static void listen() {
+    _leafRecords ??= _forwardLeafRecords();
+  }
+
+  /// Where an entry goes while no service is attached.
+  static LogSink _unattached = _toDeveloper;
+
+  /// Replaces where entries go while no service is attached; null restores
+  /// `dart:developer`.
+  @visibleForTesting
+  static set unattachedSinkForTest(LogSink? sink) =>
+      _unattached = sink ?? _toDeveloper;
+
+  static void _toDeveloper(
+    LogLevel level,
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => developer.log(
+    message,
+    name: source,
+    level: level.developerLevel,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  /// Subscribes once for the life of the process, so a second container
+  /// cannot forward a record twice. While no service is attached the records
+  /// go to `dart:developer` like every other [write].
+  static StreamSubscription<logging.LogRecord> _forwardLeafRecords() {
+    logging.Logger.root.level = logging.Level.ALL;
+    return logging.Logger.root.onRecord.listen((record) {
+      final name = record.loggerName;
+      if (!name.startsWith(leafLoggerPrefix)) return;
+      write(
+        LogLevel.fromDeveloperLevel(record.level.value),
+        record.message,
+        source: name.substring(leafLoggerPrefix.length),
+        error: record.error,
+        stackTrace: record.stackTrace,
+      );
+    });
+  }
 
   static void detach(LoggingService service) {
     if (identical(_service, service)) _service = null;
@@ -128,10 +198,10 @@ abstract final class Log {
   }) {
     final service = _service;
     if (service == null) {
-      developer.log(
+      _unattached(
+        level,
         message,
-        name: source,
-        level: level.developerLevel,
+        source: source,
         error: error,
         stackTrace: stackTrace,
       );
@@ -308,6 +378,7 @@ class LoggingService {
   final Map<String, String>? _environment;
   final void Function({String? logDirectory}) _nativeInitWithLogging;
   final void Function() _nativeInit;
+  final bool Function() _nativeLoggingStarted;
   final String? Function() _currentLogFileProvider;
   final Future<void> Function(File file, String line) _appendRequestLine;
   Future<void> _requestWrites = Future<void>.value();
@@ -316,7 +387,9 @@ class LoggingService {
 
   String? _logDirectory;
   bool _initialized = false;
-  Future<void>? _initializationFuture;
+  late final RetryableOnce<void> _initialization = RetryableOnce(
+    _initializeImpl,
+  );
   final List<LogEntry> _recentLogs = [];
   static const int _maxRecentLogs = 1000;
 
@@ -353,6 +426,7 @@ class LoggingService {
     Map<String, String>? environment,
     void Function({String? logDirectory})? nativeInitWithLogging,
     void Function()? nativeInit,
+    bool Function()? nativeLoggingStarted,
     String? Function()? currentLogFileProvider,
     Future<void> Function(File file, String line)? appendRequestLine,
   }) : _applicationSupportDirectoryProvider =
@@ -361,6 +435,9 @@ class LoggingService {
        _nativeInitWithLogging =
            nativeInitWithLogging ?? bridge_api.apiInitWithLogging,
        _nativeInit = nativeInit ?? bridge_api.apiInit,
+       _nativeLoggingStarted =
+           nativeLoggingStarted ??
+           (() => bridge_api.NativeBridge.hostInitialized),
        _currentLogFileProvider =
            currentLogFileProvider ?? bridge_api.apiGetCurrentLogFile,
        _appendRequestLine = appendRequestLine ?? _writeRequestLine;
@@ -376,15 +453,7 @@ class LoggingService {
 
   /// Ensure initialization is started exactly once.
   Future<void> ensureInitialized() async {
-    final future = _initializationFuture ??= _initializeImpl();
-    try {
-      await future;
-    } catch (_) {
-      if (identical(_initializationFuture, future)) {
-        _initializationFuture = null;
-      }
-      rethrow;
-    }
+    await _initialization();
   }
 
   Future<void> _initializeImpl() async {
@@ -408,7 +477,11 @@ class LoggingService {
         await logsDir.create(recursive: true);
       }
 
-      _nativeInitWithLogging(logDirectory: _logDirectory);
+      // A host started the native side and its file log in `api_init_host`;
+      // a second start would log, publish and listen for hotplug again.
+      if (!_nativeLoggingStarted()) {
+        _nativeInitWithLogging(logDirectory: _logDirectory);
+      }
 
       _initialized = true;
       log(
@@ -424,7 +497,7 @@ class LoggingService {
     } catch (e) {
       // Fall back to console-only logging
       try {
-        _nativeInit();
+        if (!_nativeLoggingStarted()) _nativeInit();
       } catch (bridgeError) {
         // Why: the LoggingService runs in test harnesses where the Rust
         // bridge is not loaded — `_nativeInit` then throws because the FFI

@@ -303,10 +303,8 @@ for f in $(Q "SELECT file_path FROM delivery_journal WHERE state='delivered';");
   hits=$(find "$DROP" -maxdepth 1 -type f -name "*${bn}" | wc -l)
   dropfile=$(find "$DROP" -maxdepth 1 -type f -name "*${bn}" | head -1)
   if [ "$hits" = "1" ] && [ -f "$dropfile" ]; then
-    # EVERY delivered file, the night report included. The report used to be
-    # exempted here: it was written once before delivery and again after, at
-    # one name, so its source no longer held the bytes that left. It is now
-    # written once per pass under that pass's own name and never rewritten, so
+    # EVERY delivered file, the night report included.
+    # The report is written once per pass under that pass's own name and never rewritten, so
     # the source is still what landed — which is also what lets a retry re-read
     # it and a re-run verify it as already-there.
     A=$(sha256sum "$f" | cut -d' ' -f1); Bc=$(sha256sum "$dropfile" | cut -d' ' -f1)
@@ -339,8 +337,7 @@ say "=== phase 7b: the operator's grading thresholds reach the executor ==="
 # defect this phase exists for — a headless `load -> start` that skipped the
 # runtime-config seed, leaving `Enable image grading` and every threshold under
 # it inert for the whole night while the app read them back happily over
-# `GET /api/settings`. Measured before the fix: star floor 100000 in settings,
-# 43-star frames, twelve of twelve accepted, `Reject/` empty.
+# `GET /api/settings`.
 #
 # One impossible threshold, one two-frame sequence through the SAME load->start
 # path, and the frames must be REJECTED. Runs last so the session it opens

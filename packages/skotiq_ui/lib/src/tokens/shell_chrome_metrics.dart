@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../theme/skotiq_tokens.dart';
+import 'package:skotiq_design/skotiq_design.dart';
 import '../utils/responsive_utils.dart';
 
 /// Layout metrics for app shell chrome (title bar, status bar, bottom nav).

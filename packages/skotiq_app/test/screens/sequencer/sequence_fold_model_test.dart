@@ -384,17 +384,6 @@ void main() {
     });
   });
 
-  group('foldedMemberIds', () {
-    test('collects every folded member id', () {
-      final ha = _exp('Ha');
-      final oiii = _exp('OIII');
-      final delay = DelayNode(seconds: 5);
-      final sequence = _sequenceOf([ha, oiii, delay]);
-      final entries = _fold(sequence);
-      expect(foldedMemberIds(entries), {ha.id, oiii.id});
-    });
-  });
-
   group('applyFoldsToVisibleOrder', () {
     test('drops hidden members and keeps depth', () {
       // The folded run sits at depth 2 inside a container; the first member

@@ -146,8 +146,6 @@ async fn disconnect_phd2_via_generic_route_calls_phd2_disconnect() {
 //      `Connected`.
 #[tokio::test]
 async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
-    use crate::device_manager::connection::RECONNECT_CANCELED_MSG;
-
     let manager = build_device_manager();
     let device_id = "simulator:test-reconnect-cancel";
     let info = DeviceInfo {
@@ -219,7 +217,7 @@ async fn manual_disconnect_trips_in_flight_reconnect_cancel_token() {
     // device's state back to Connected.
     let result = manager.connect_device_internal(&info).await;
     match result {
-        Err(e) if e == RECONNECT_CANCELED_MSG => {}
+        Err(crate::device_manager::connection::ConnectError::Canceled) => {}
         other => panic!(
             "connect_device_internal with tripped token must return \
                  RECONNECT_CANCELED_MSG, got {:?}",
@@ -295,7 +293,7 @@ async fn disconnect_during_requested_connect_still_cancels_it() {
     use crate::simulator::faults::{self, Effect, FaultSpec, Trigger};
 
     let _guard = super::simulator_singleton_test_lock().lock().await;
-    let manager = std::sync::Arc::new(build_device_manager());
+    let manager = build_device_manager();
     let device_id = "sim_mount_1";
     let info = DeviceInfo {
         id: device_id.to_string(),
@@ -359,7 +357,7 @@ async fn failing_mount_status_reads_are_recorded_for_the_heartbeat() {
     let reason = manager
         .failing_status_reads(device_id)
         .expect("three failed reads must count");
-    assert!(reason.contains("0x80040401"), "{reason}");
+    assert!(reason.to_string().contains("0x80040401"), "{reason}");
 
     faults::clear_all();
     manager.mount_get_status(device_id).await.unwrap();

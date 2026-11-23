@@ -36,6 +36,9 @@ import '../../router/planner_route.dart';
 import '../../router/settings_sections.dart';
 import '../../router/app_routes.dart';
 import '../../services/observing_site.dart';
+import '../../services/sequence_action_service.dart';
+import '../sequencer/widgets/preflight_validation_dialog.dart'
+    show confirmPreflight;
 import '../../utils/snackbar_helper.dart';
 
 export '../../router/planner_route.dart' show PlannerTab, DiscoverView;
@@ -64,12 +67,10 @@ const int _kPlannerPageSize = 25;
 /// Without a site nothing can be scored, so Best tonight is then one empty
 /// state with no filters above it, and the header leaves out the night chips.
 ///
-/// (0, 0) counts as unset, which is also what [appObserverLocationProvider]
-/// answers null for. Stating it here as well means a caller holding a raw
-/// settings row — rather than that provider's already-folded answer — gets the
-/// same reading, and the two cannot drift apart.
+/// A null [location] and the [siteLocationIsSet] sentinel both read as unset.
 bool plannerSiteUnset(LocationSettings? location) =>
-    location == null || (location.latitude == 0.0 && location.longitude == 0.0);
+    location == null ||
+    !siteLocationIsSet(location.latitude, location.longitude);
 
 class PlannerSiteUnsetError implements Exception {
   const PlannerSiteUnsetError();

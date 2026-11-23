@@ -19,10 +19,14 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/src/backend/skotiq_backend.dart';
 import 'package:skotiq_core/src/models/imaging/imaging_models.dart';
 import 'package:skotiq_core/src/services/flat_wizard_service.dart';
 import 'package:skotiq_core/src/models/backend/backend_types.dart';
+
+import '../harness/event_wire.dart';
+import '../harness/imaging_event_rows.dart';
 
 /// Let queued microtasks/timers drain so an in-flight `exposeAndAwait` reaches
 /// its wait state before the test emits an event or cancels.
@@ -120,6 +124,73 @@ void main() {
         expect(result.adu, isNull);
       },
     );
+  });
+
+  // Which events end a flat's wait and how, over both transports, and with
+  // the camera named in the data (ours or another's). Pinned on the
+  // classifier that compared event names.
+  test('the events that end a flat exposure wait', () async {
+    Future<String> outcomeOf(SkotiqEvent event) async {
+      final backend = _ManualBackend();
+      addTearDown(backend.dispose);
+      final token = FlatCancelToken();
+      final future = FlatWizardService(backend).exposeAndAwait(
+        deviceId: cam,
+        exposureTime: 5.0,
+        gain: 0,
+        offset: 0,
+        cancelToken: token,
+      );
+      await _pump();
+      backend.emit(event);
+      await _pump();
+      String? settled;
+      unawaited(future.then((r) => settled ??= r.outcome.name));
+      await _pump();
+      final shown = settled ?? 'waiting';
+      token.cancel();
+      await future;
+      return shown;
+    }
+
+    final table = <String, String>{};
+    for (final row in imagingEventRows.entries) {
+      final ffi = await outcomeOf(ffiWireEvent(row.value));
+      final network = await outcomeOf(networkWireEvent(row.value));
+      expect(network, ffi, reason: '${row.key}: the transports disagree');
+      final ours = await outcomeOf(
+        cameraTaggedWireEvent(row.value, deviceId: cam),
+      );
+      final theirs = await outcomeOf(
+        cameraTaggedWireEvent(
+          row.value,
+          deviceId: 'native:qhy:1',
+          key: 'camera_id',
+        ),
+      );
+      table[row.key] = '$ffi ours=$ours theirs=$theirs';
+    }
+    expect(table, {
+      'exposureStarted': 'waiting ours=waiting theirs=waiting',
+      'exposureStartedWithFrame': 'waiting ours=waiting theirs=waiting',
+      'exposureProgress': 'waiting ours=waiting theirs=waiting',
+      'exposureCompleted': 'completed ours=completed theirs=waiting',
+      'exposureCompletedWithFrame': 'completed ours=completed theirs=waiting',
+      'exposureFailed': 'failed ours=failed theirs=waiting',
+      'exposureFailedOld': 'failed ours=failed theirs=waiting',
+      'exposureCancelled': 'cancelled ours=cancelled theirs=waiting',
+      'downloadStarted': 'waiting ours=waiting theirs=waiting',
+      'downloadCompleted': 'waiting ours=waiting theirs=waiting',
+      'imageReady': 'waiting ours=waiting theirs=waiting',
+      'imageSaved': 'waiting ours=waiting theirs=waiting',
+      'integrationProgress': 'waiting ours=waiting theirs=waiting',
+      'integrationTelemetry': 'waiting ours=waiting theirs=waiting',
+      'temperatureChanged': 'waiting ours=waiting theirs=waiting',
+      'exposureComplete ok': 'completed ours=completed theirs=waiting',
+      'exposureComplete failed': 'failed ours=failed theirs=waiting',
+      'depthLock goalChanged': 'waiting ours=waiting theirs=waiting',
+      'sequencer ExposureCompleted': 'waiting ours=waiting theirs=waiting',
+    });
   });
 
   group('exposeAndAwait: cooperative cancel', () {
@@ -279,26 +350,36 @@ class _ManualBackend extends Mock implements SkotiqBackend {
   @override
   Stream<SkotiqEvent> get eventStream => _events.stream;
 
-  SkotiqEvent _event(String type, String deviceId) {
-    _seq++;
-    return SkotiqEvent(
-      timestamp: _seq,
-      severity: EventSeverity.info,
-      category: EventCategory.imaging,
-      eventType: type,
-      data: <String, dynamic>{'deviceId': deviceId},
-    );
+  SkotiqEvent _event(bridge.ImagingEvent event, String deviceId) =>
+      cameraTaggedWireEvent(
+        bridge.EventPayload.imaging(event),
+        deviceId: deviceId,
+        timestamp: ++_seq,
+      );
+
+  void emit(SkotiqEvent event) {
+    if (!_events.isClosed) _events.add(event);
   }
 
   void emitCompleted(String deviceId, {double? mean}) {
     if (_events.isClosed) return;
     _lastMean = mean ?? imageMean;
-    _events.add(_event('ExposureCompleted', deviceId));
+    _events.add(
+      _event(
+        const bridge.ImagingEvent.exposureCompleted(hfr: 2, starsDetected: 0),
+        deviceId,
+      ),
+    );
   }
 
   void emitFailed(String deviceId) {
     if (_events.isClosed) return;
-    _events.add(_event('ExposureFailed', deviceId));
+    _events.add(
+      _event(
+        const bridge.ImagingEvent.exposureFailed(error: 'failed'),
+        deviceId,
+      ),
+    );
   }
 
   double? _lastMean;
@@ -327,7 +408,9 @@ class _ManualBackend extends Mock implements SkotiqBackend {
     // Real drivers emit a cancellation event once the abort takes effect.
     scheduleMicrotask(() {
       if (_events.isClosed) return;
-      _events.add(_event('ExposureCancelled', deviceId));
+      _events.add(
+        _event(const bridge.ImagingEvent.exposureCancelled(), deviceId),
+      );
     });
   }
 

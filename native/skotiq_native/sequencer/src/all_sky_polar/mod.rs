@@ -336,17 +336,17 @@ where
 
         (self.status_callback)(status_msg.to_string(), None);
 
-        let image_data = ctx
-            .run
-            .device_ops
-            .camera_start_exposure(
-                crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
-                    .gain(self.config.gain)
-                    .offset(self.config.offset)
-                    .binning(self.binning, self.binning),
-            )
-            .await
-            .map_err(|e| PolarAlignError::DeviceError(format!("Camera capture failed: {}", e)))?;
+        let image_data = crate::instructions::take_frame(
+            ctx,
+            crate::instructions::CaptureSite::AllSkyPolar,
+            crate::device_ops::ExposureRequest::new(&self.camera_id, self.config.exposure_time)
+                .gain(self.config.gain)
+                .offset(self.config.offset)
+                .binning(self.binning, self.binning),
+            "on the all-sky polar frame",
+        )
+        .await
+        .map_err(|e| PolarAlignError::DeviceError(format!("Camera capture failed: {}", e)))?;
 
         if ctx.cancellation_token.load(Ordering::Relaxed) {
             return Err(PolarAlignError::Cancelled);

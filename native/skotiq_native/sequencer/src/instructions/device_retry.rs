@@ -1,11 +1,6 @@
 //! Retrying a camera exposure or a filter-wheel move through a transient fault.
 //!
-//! One failed download or one failed wheel move used to end the whole run. The
-//! simulator night soak showed it directly: a single injected download error
-//! (`camera.download=every(40):delaythenerror(30000)`, the INDI BLOB timeout
-//! shape) or a single wheel error (`filterwheel.set_position=every(9):error`)
-//! failed a night that the next attempt would have carried on with. Real gear
-//! produces exactly these one-off faults: a USB stall on a shared hub, a vendor
+//! Real gear produces one-off faults: a USB stall on a shared hub, a vendor
 //! SDK that reports "not ready" once, an ASCOM call that throws and then works.
 //!
 //! The operator sets how many retries each device kind gets ("Camera retries",
@@ -26,8 +21,8 @@
 //! * The wait between attempts honours Stop: it returns as soon as the run is
 //!   cancelled.
 //!
-//! When the retries are used up the failure is reported as it always was, with
-//! the number of retries added to the message.
+//! When the retries are used up the failure is reported with the number of
+//! retries added to the message.
 
 use super::*;
 
@@ -173,7 +168,9 @@ pub(crate) fn classify_device_fault(error: &DeviceError) -> DeviceFault {
         | DeviceError::Unsupported(_)
         | DeviceError::Rejected(_)
         | DeviceError::InvalidFrame(_) => DeviceFault::Refused,
-        DeviceError::Timeout(_) | DeviceError::Failed(_) => DeviceFault::Transient,
+        DeviceError::Timeout(_) | DeviceError::Failed(_) | DeviceError::SessionLost(_) => {
+            DeviceFault::Transient
+        }
     }
 }
 
@@ -206,6 +203,15 @@ impl std::fmt::Display for DeviceFailure {
     }
 }
 
+/// What a retry needs of the run it belongs to: the retry budget, the warning
+/// feed and the device layer, and the stop that ends the wait between
+/// attempts.
+#[derive(Clone, Copy)]
+pub(crate) struct RetryScope<'a> {
+    pub(crate) run: &'a RunShared,
+    pub(crate) stop: &'a (dyn Fn() -> Option<FrameStop> + Sync),
+}
+
 /// What the caller does after a failed attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum RetryOutcome {
@@ -229,7 +235,12 @@ pub(crate) async fn after_failed_attempt(
     error: DeviceError,
     what: &str,
 ) -> RetryOutcome {
-    match retry_or_stop(ctx, device, retries_done, error) {
+    let stop = || cancel_of(&ctx.cancellation_token);
+    let scope = RetryScope {
+        run: &ctx.run,
+        stop: &stop,
+    };
+    match retry_or_stop(scope, device, retries_done, error) {
         Ok(error) => {
             let budget = device.budget(ctx.run.device_retry.get());
             let retry = retries_done + 1;
@@ -240,7 +251,7 @@ pub(crate) async fn after_failed_attempt(
                 retry,
                 budget
             );
-            announce_and_wait(ctx, device, &error, what, &next, delay).await
+            announce_and_wait(scope, device, &error, what, &next, delay).await
         }
         Err(outcome) => outcome,
     }
@@ -249,15 +260,15 @@ pub(crate) async fn after_failed_attempt(
 /// The error back when the failed attempt is to be retried, or the outcome
 /// that ends the operation.
 fn retry_or_stop(
-    ctx: &InstructionContext,
+    scope: RetryScope<'_>,
     device: RetriedDevice,
     retries_done: u32,
     error: DeviceError,
 ) -> Result<DeviceError, RetryOutcome> {
-    if ctx.cancellation_token.load(Ordering::Relaxed) {
+    if (scope.stop)().is_some() {
         return Err(RetryOutcome::Cancelled);
     }
-    let budget = device.budget(ctx.run.device_retry.get());
+    let budget = device.budget(scope.run.device_retry.get());
     let fault = classify_device_fault(&error);
     if fault == DeviceFault::Cancelled {
         return Err(RetryOutcome::Cancelled);
@@ -274,7 +285,7 @@ fn retry_or_stop(
 /// Log and send the retry as a run warning (`next` says what happens next),
 /// then wait out `delay`.
 async fn announce_and_wait(
-    ctx: &InstructionContext,
+    scope: RetryScope<'_>,
     device: RetriedDevice,
     error: &DeviceError,
     what: &str,
@@ -283,13 +294,13 @@ async fn announce_and_wait(
 ) -> RetryOutcome {
     let message = format!("{} failed {}: {}. {}", device.label(), what, error, next);
     tracing::warn!("[RETRY] {}", message);
-    if let Some(event_tx) = &ctx.run.event_tx {
+    if let Some(event_tx) = &scope.run.event_tx {
         let _ = event_tx.send(crate::executor::ExecutorEvent::Warning { message });
     }
 
     tokio::select! {
         biased;
-        _ = wait_for_cancellation(ctx.cancellation_token.clone()) => RetryOutcome::Cancelled,
+        _ = wait_for_stop(scope.stop) => RetryOutcome::Cancelled,
         _ = sleep(delay) => RetryOutcome::Retry,
     }
 }
@@ -338,15 +349,15 @@ impl<'a> CameraRetries<'a> {
     /// [`after_failed_attempt`] for the camera, with the reopen above.
     pub(crate) async fn after_failure(
         &mut self,
-        ctx: &InstructionContext,
+        scope: RetryScope<'_>,
         error: DeviceError,
         what: &str,
     ) -> RetryOutcome {
-        let error = match retry_or_stop(ctx, RetriedDevice::Camera, self.done, error) {
+        let error = match retry_or_stop(scope, RetriedDevice::Camera, self.done, error) {
             Ok(error) => error,
             Err(outcome) => return outcome,
         };
-        let reopened = match ctx
+        let reopened = match scope
             .run
             .device_ops
             .reopen_camera_after(self.camera_id, &error)
@@ -376,7 +387,7 @@ impl<'a> CameraRetries<'a> {
             self.reopened = true;
         }
         let free = reopened && self.reopens <= FREE_REOPENS_PER_OPERATION;
-        let budget = RetriedDevice::Camera.budget(ctx.run.device_retry.get());
+        let budget = RetriedDevice::Camera.budget(scope.run.device_retry.get());
         let next = if free {
             format!(
                 "Reopened the camera; retrying in {} s (reopen {} of {} that do not count \
@@ -400,7 +411,7 @@ impl<'a> CameraRetries<'a> {
             }
         };
         let outcome =
-            announce_and_wait(ctx, RetriedDevice::Camera, &error, what, &next, delay).await;
+            announce_and_wait(scope, RetriedDevice::Camera, &error, what, &next, delay).await;
         if outcome == RetryOutcome::Retry && !free {
             self.done += 1;
         }
