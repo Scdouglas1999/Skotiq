@@ -12,15 +12,17 @@ impl ConnectionOps for UnifiedDeviceOps {
     // return `Err("not supported")`, so the
     // `DeviceDisconnected` recovery loop fails instantly on every driver and a
     // USB/comms blip aborts the night. They delegate straight to the
-    // `DeviceManager` primitives.
+    // `DeviceManager` primitives, at the id the device is at now
+    // (`DeviceManager::current_id`).
 
     async fn device_answers(&self, device_id: &str) -> DeviceResult<bool> {
-        Ok(get_device_manager().answers_now(device_id).await)
+        let mgr = get_device_manager();
+        Ok(mgr.answers_now(&mgr.current_id(device_id)).await)
     }
 
     async fn connect_device(&self, device_id: &str) -> DeviceResult<()> {
-        get_device_manager()
-            .connect_device_automatically(device_id)
+        let mgr = get_device_manager();
+        mgr.connect_device_automatically(&mgr.current_id(device_id))
             .await
             .map_err(Into::into)
     }
@@ -30,15 +32,15 @@ impl ConnectionOps for UnifiedDeviceOps {
         camera_id: &str,
         error: &DeviceError,
     ) -> DeviceResult<bool> {
-        get_device_manager()
-            .reopen_after(
-                camera_id,
-                &crate::device_manager::failure::DeviceFailure::from(error),
-            )
-            .await
-            .map_err(|message| DeviceError::NotConnected {
-                device: DeviceKind::Camera,
-                message,
-            })
+        let mgr = get_device_manager();
+        mgr.reopen_after(
+            &mgr.current_id(camera_id),
+            &crate::device_manager::failure::DeviceFailure::from(error),
+        )
+        .await
+        .map_err(|message| DeviceError::NotConnected {
+            device: DeviceKind::Camera,
+            message,
+        })
     }
 }

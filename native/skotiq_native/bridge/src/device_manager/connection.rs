@@ -818,6 +818,7 @@ impl DeviceManager {
             .write()
             .await
             .insert(info.id.clone(), observed.clone());
+        self.forget_moves_at(&info.id, &observed);
 
         // Replace the placeholder identity that `device_info_from_id` derived
         // from the id string with what the driver reported.
@@ -1164,6 +1165,8 @@ impl DeviceManager {
     pub async fn unregister_device(&self, device_id: &str) {
         let mut devices = self.devices.write().await;
         devices.remove(device_id);
+        drop(devices);
+        self.forget_moves_of(device_id);
     }
 }
 

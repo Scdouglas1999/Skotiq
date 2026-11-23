@@ -63,6 +63,8 @@ pub(crate) use frame_store::measure_light_frame;
 mod frame_tests;
 mod guider;
 mod mount;
+#[cfg(test)]
+mod moved_camera_tests;
 mod operator;
 mod plate_solve;
 pub(crate) mod pointing;

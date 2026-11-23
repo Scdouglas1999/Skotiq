@@ -4,14 +4,24 @@ use crate::unified_device_ops::pointing::connected_camera_label;
 use async_trait::async_trait;
 use skotiq_sequencer::{CameraOps, DeviceResult, ExposureRequest, ImageData};
 
+/// Each call goes to the id the run's camera is at now
+/// ([`crate::device_manager::DeviceManager::current_id`]): a camera that came
+/// back at another id is followed there.
 #[async_trait]
 impl CameraOps for UnifiedDeviceOps {
     /// One frame, through [`crate::device_manager::DeviceManager::capture`].
     async fn camera_start_exposure(&self, request: ExposureRequest<'_>) -> DeviceResult<ImageData> {
-        get_device_manager().capture(request).await
+        let mgr = get_device_manager();
+        let camera_id = mgr.current_id(request.camera_id);
+        mgr.capture(ExposureRequest {
+            camera_id: &camera_id,
+            ..request
+        })
+        .await
     }
 
     async fn camera_abort_exposure(&self, camera_id: &str) -> DeviceResult<()> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         tracing::info!("Aborting exposure on camera {}", camera_id);
 
         get_device_manager()
@@ -26,6 +36,7 @@ impl CameraOps for UnifiedDeviceOps {
         enabled: bool,
         target_temp: f64,
     ) -> DeviceResult<()> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         tracing::info!(
             "Camera {} cooler: enabled={}, target={}°C",
             camera_id,
@@ -41,6 +52,7 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_temperature(&self, camera_id: &str) -> DeviceResult<f64> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         let status = get_device_manager()
             .camera_get_status(camera_id)
             .await
@@ -52,6 +64,7 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_power(&self, camera_id: &str) -> DeviceResult<f64> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         let status = get_device_manager()
             .camera_get_status(camera_id)
             .await
@@ -63,6 +76,7 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_on(&self, camera_id: &str) -> DeviceResult<Option<bool>> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         let status = get_device_manager()
             .camera_get_status(camera_id)
             .await
@@ -71,6 +85,7 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_cooler_setpoint(&self, camera_id: &str) -> DeviceResult<Option<f64>> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         let status = get_device_manager()
             .camera_get_status(camera_id)
             .await
@@ -81,6 +96,7 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_pixel_size_um(&self, camera_id: &str) -> DeviceResult<Option<(f64, f64)>> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         let status = get_device_manager()
             .camera_get_status(camera_id)
             .await
@@ -95,10 +111,12 @@ impl CameraOps for UnifiedDeviceOps {
     }
 
     async fn camera_get_model(&self, camera_id: &str) -> DeviceResult<Option<String>> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         Ok(connected_camera_label(camera_id).await)
     }
 
     async fn camera_get_iso_speeds(&self, camera_id: &str) -> DeviceResult<Vec<i32>> {
+        let camera_id = &get_device_manager().current_id(camera_id);
         match crate::device_capabilities::get_device_capabilities(camera_id).await {
             Ok(crate::device_capabilities::types::DeviceCapabilities::Camera(caps)) => {
                 Ok(caps.iso_speeds)
