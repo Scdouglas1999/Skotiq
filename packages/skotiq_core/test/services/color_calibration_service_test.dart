@@ -36,7 +36,7 @@ class _FakeSeam implements PostSessionSeam {
     lastMatchedStars = matchedStars;
     // The seam builds the request around this list; each match is the
     // service's own.
-    expectNativeReadsEveryKey(
+    expectNativeReadsEveryKeyAtEnd(
       {'matchedStars': matchedStars},
       ['color_calibrate'],
     );

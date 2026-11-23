@@ -28,7 +28,7 @@ class FakeDarkroomNative {
 
   Future<Map<String, dynamic>> call(Map<String, dynamic> args) async {
     requests.add(jsonDecode(jsonEncode(args)) as Map<String, dynamic>);
-    expectNativeReadsEveryKey(args, [
+    expectNativeReadsEveryKeyAtEnd(args, [
       'master_accumulate_op',
       _argsFixtures[args['op']]!,
     ], notRead: _passedBack(args));

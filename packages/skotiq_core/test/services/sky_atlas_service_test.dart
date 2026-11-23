@@ -39,7 +39,7 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
     dispatched.add(args);
     final action = _atlasActionFixtures[args['action']];
     if (action != null) {
-      expectNativeReadsEveryKey(args, [
+      expectNativeReadsEveryKeyAtEnd(args, [
         'sky_atlas_action',
         action,
       ], notRead: args['action'] == 'coverage' ? _overlayNotRead : const {});
@@ -57,7 +57,7 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
 
   @override
   Future<Map<String, dynamic>> queryCutout(Map<String, dynamic> args) async {
-    expectNativeReadsEveryKey(args, [
+    expectNativeReadsEveryKeyAtEnd(args, [
       'sky_atlas_query_cutout',
     ], notRead: _overlayNotRead);
     if (cutoutReply != null) return cutoutReply!;
@@ -73,13 +73,13 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
 
   @override
   Future<Map<String, dynamic>> regionInfo(Map<String, dynamic> args) async {
-    expectNativeReadsEveryKey(args, ['sky_atlas_region_info']);
+    expectNativeReadsEveryKeyAtEnd(args, ['sky_atlas_region_info']);
     return {'ok': true, 'tilesWithData': 1};
   }
 
   @override
   Future<Map<String, dynamic>> growth(Map<String, dynamic> args) async {
-    expectNativeReadsEveryKey(args, ['sky_atlas_growth']);
+    expectNativeReadsEveryKeyAtEnd(args, ['sky_atlas_growth']);
     return {'ok': true, 'points': const [], 'totalFrames': 0};
   }
 
@@ -88,7 +88,7 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
   @override
   Future<Map<String, dynamic>> mergeDelta(Map<String, dynamic> args) async {
     merged.add(args);
-    expectNativeReadsEveryKey(args, ['sky_atlas_merge_delta']);
+    expectNativeReadsEveryKeyAtEnd(args, ['sky_atlas_merge_delta']);
     if (mergeReply != null) return mergeReply!;
     return {
       'ok': true,

@@ -52,6 +52,18 @@ void expectNativeReadsEveryKey(
   );
 }
 
+/// [expectNativeReadsEveryKey] for a fake seam the code under test calls
+/// inside a `try`: a failure thrown from the fake would be caught there and
+/// read as a failed step, so the keys are checked when the test ends.
+void expectNativeReadsEveryKeyAtEnd(
+  Map<String, dynamic> args,
+  List<String> names, {
+  Set<String> notRead = const {},
+}) {
+  final sent = jsonDecode(jsonEncode(args)) as Map<String, dynamic>;
+  addTearDown(() => expectNativeReadsEveryKey(sent, names, notRead: notRead));
+}
+
 void _walk(Object? value, Object? schema, String path, Set<String> unread) {
   if (schema == 'any' || schema == null) return;
   if (value is Map && schema is Map) {
