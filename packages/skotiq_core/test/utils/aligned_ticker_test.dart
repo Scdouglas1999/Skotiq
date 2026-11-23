@@ -135,6 +135,28 @@ void main() {
       });
     });
 
+    // A timer can fire while the wall clock still reads a moment before the
+    // boundary it was set for: fake time in widget tests always does. Each
+    // tick must still aim at the next period, not at that same boundary again.
+    test(
+      'a timer that fires before the clock reaches its boundary ticks once',
+      () {
+        fakeAsync((async) {
+          final stalled = DateTime.utc(2026, 9, 1, 12, 0, 59, 900);
+          var ticks = 0;
+          final ticker = AlignedTicker(
+            const Duration(minutes: 1),
+            () => ticks++,
+            now: () => stalled,
+          );
+
+          async.elapse(const Duration(seconds: 10));
+          expect(ticks, 1);
+          ticker.cancel();
+        });
+      },
+    );
+
     test('cancel stops the ticks and is safe to repeat', () {
       fakeAsync((async) {
         final epoch = DateTime.utc(2026, 9, 1, 12, 0, 0, 120);

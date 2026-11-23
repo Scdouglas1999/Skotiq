@@ -61,6 +61,7 @@ class AlignedTicker {
   final DateTime Function() _now;
 
   Timer? _timer;
+  DateTime? _due;
   bool _cancelled = false;
 
   /// Whether ticks are still being delivered.
@@ -70,7 +71,17 @@ class AlignedTicker {
     if (_cancelled) {
       return;
     }
-    _timer = Timer(delayToNextBoundary(period, now: _now()), () {
+    final now = _now();
+    // A timer may fire while the clock still reads a moment before the
+    // boundary it was set for (always so under fake time), so the next tick
+    // aims one period past the boundary just served. A ticker that fell
+    // behind, as after a sleep, realigns to the next boundary from now.
+    var due = _due?.add(period);
+    if (due == null || !due.isAfter(now)) {
+      due = now.add(delayToNextBoundary(period, now: now));
+    }
+    _due = due;
+    _timer = Timer(due.difference(now), () {
       if (_cancelled) {
         return;
       }
