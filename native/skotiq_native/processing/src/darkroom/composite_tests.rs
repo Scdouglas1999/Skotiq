@@ -224,6 +224,9 @@ fn darkroom_composite_reply_fixture() {
     let (_, paths) = lrgb_masters(dir.path());
     let reply = draft_composite(&paths);
     assert_eq!(reply["composite"]["combined"], true, "{reply}");
+    let temp = dir.path().to_string_lossy().to_string();
+    let reply: Value = serde_json::from_str(&reply.to_string().replace(&temp, "/masters"))
+        .expect("the reply with fixed paths");
     crate::reply_fixtures::check_or_write_shape("darkroom_composite", &reply);
 }
 

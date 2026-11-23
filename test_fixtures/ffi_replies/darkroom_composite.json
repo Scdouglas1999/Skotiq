@@ -72,7 +72,7 @@
         "filter": "Red",
         "fitRmsPx": 0.014561536241301012,
         "model": "similarity",
-        "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Red_master.fits",
+        "path": "/masters/Red_master.fits",
         "role": "red",
         "rotationDeg": 0.0006792794656309235,
         "scale": 0.9999957818477456,
@@ -95,7 +95,7 @@
         "filter": "Green",
         "fitRmsPx": 0.01647183888158871,
         "model": "similarity",
-        "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Green_master.fits",
+        "path": "/masters/Green_master.fits",
         "role": "green",
         "rotationDeg": 0.0003311916046376567,
         "scale": 0.999998522843376,
@@ -118,7 +118,7 @@
         "filter": "Blue",
         "fitRmsPx": 0.01604070393473664,
         "model": "similarity",
-        "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Blue_master.fits",
+        "path": "/masters/Blue_master.fits",
         "role": "blue",
         "rotationDeg": -0.0004135767264294306,
         "scale": 1.0000045892426033,
@@ -135,7 +135,7 @@
     "reason": "LRGB from L, R, G and B; the conventional choice for these filters (also possible: RGB)",
     "reference": {
       "filter": "Luminance",
-      "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Luminance_master.fits",
+      "path": "/masters/Luminance_master.fits",
       "role": "luminance"
     },
     "referenceSize": {
@@ -199,7 +199,7 @@
       }
     ],
     "recipe": {
-      "baseMasterRef": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Luminance_master.fits",
+      "baseMasterRef": "/masters/Luminance_master.fits",
       "createdBy": "autopilot",
       "id": "composite-test",
       "schemaVersion": 1,
@@ -283,7 +283,7 @@
               {
                 "filter": "Luminance",
                 "height": 384,
-                "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Luminance_master.fits",
+                "path": "/masters/Luminance_master.fits",
                 "reference": true,
                 "role": "luminance",
                 "width": 512
@@ -291,7 +291,7 @@
               {
                 "filter": "Red",
                 "height": 384,
-                "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Red_master.fits",
+                "path": "/masters/Red_master.fits",
                 "role": "red",
                 "transform": [
                   0.9999957817774676,
@@ -306,7 +306,7 @@
               {
                 "filter": "Green",
                 "height": 384,
-                "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Green_master.fits",
+                "path": "/masters/Green_master.fits",
                 "role": "green",
                 "transform": [
                   0.9999985228266696,
@@ -321,7 +321,7 @@
               {
                 "filter": "Blue",
                 "height": 384,
-                "path": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Blue_master.fits",
+                "path": "/masters/Blue_master.fits",
                 "role": "blue",
                 "transform": [
                   1.0000045892165514,
@@ -405,7 +405,7 @@
       ]
     }
   },
-  "masterPath": "/home/scdouglas/.cache/ns-tests/.tmppV0LtD/Luminance_master.fits",
+  "masterPath": "/masters/Luminance_master.fits",
   "ops": [
     {
       "defaults": {
