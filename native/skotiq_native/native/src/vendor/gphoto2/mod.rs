@@ -68,8 +68,10 @@ mod utils;
 pub use camera::*;
 pub use discovery::*;
 use ffi::*;
+pub use ffi::{GP_ERROR_DIRECTORY_NOT_FOUND, GP_ERROR_FILE_NOT_FOUND, GP_ERROR_UNKNOWN_PORT};
 // libgphoto2's file handle; the device layer's `CameraFile` is named by path.
 use ffi::CameraFile;
+pub use sdk::gp_error;
 use sdk::*;
 use settings::*;
 pub use utils::*;

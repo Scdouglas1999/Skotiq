@@ -143,7 +143,7 @@ pub(crate) fn check_gp_error(code: c_int, operation: &str) -> Result<(), DriverE
 }
 
 /// What a failed libgphoto2 call means, in words a camera owner can act on.
-pub(crate) fn gp_error(code: c_int, operation: &str) -> DriverError {
+pub fn gp_error(code: c_int, operation: &str) -> DriverError {
     let sdk = |what: &str| DriverError::SdkError(format!("gPhoto2 {operation}: {what}"));
     match code {
         GP_ERROR_NOT_SUPPORTED => DriverError::NotSupported,

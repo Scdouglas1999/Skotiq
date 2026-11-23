@@ -30,9 +30,9 @@ pub(crate) fn sequencer_error<E: Into<DeviceOpError>>(
             | DeviceOpError::InvalidParameter { .. }
             | DeviceOpError::InvalidState { .. } => DeviceError::Rejected(message),
             DeviceOpError::SessionLost { .. } => DeviceError::SessionLost(message),
-            DeviceOpError::Hardware { .. } | DeviceOpError::Message(_) => {
-                DeviceError::Failed(message)
-            }
+            DeviceOpError::Hardware { .. }
+            | DeviceOpError::FileGone { .. }
+            | DeviceOpError::Message(_) => DeviceError::Failed(message),
         }
     }
 }

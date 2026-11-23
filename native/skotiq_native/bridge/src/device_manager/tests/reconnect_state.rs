@@ -189,7 +189,7 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
             .retained
             .iter()
             .position(|(kept, _)| kept.location == location)
-            .ok_or_else(|| skotiq_device::DriverError::SdkError(format!("{location} not found")))?;
+            .ok_or_else(|| skotiq_device::DriverError::FileGone(format!("{location} not found")))?;
         let (kept, bytes) = self.retained.remove(index);
         Ok(skotiq_device::CameraFile {
             file_name: kept.location.rsplit('/').next().unwrap().to_string(),

@@ -27,6 +27,11 @@ pub enum DriverError {
     #[error("SDK error: {0}")]
     SessionLost(String),
 
+    /// The file asked for is not on the device (a camera whose memory was
+    /// cleared). Worded as an SDK error.
+    #[error("SDK error: {0}")]
+    FileGone(String),
+
     #[error("SDK not loaded")]
     SdkNotLoaded,
 
