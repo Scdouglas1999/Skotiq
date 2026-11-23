@@ -38,10 +38,7 @@ void main() {
         const GuidingEvent.settled(rms: 0.4),
         SchedulerTriggerEvent.guidingRecovered,
       ),
-      'dither started': (
-        const GuidingEvent.ditherStarted(pixels: 5),
-        null,
-      ),
+      'dither started': (const GuidingEvent.ditherStarted(pixels: 5), null),
       'stop reason run_stopped': (
         const GuidingEvent.stopReason(reason: 'run_stopped'),
         null,

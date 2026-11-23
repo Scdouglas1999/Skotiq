@@ -97,10 +97,17 @@ class FakePostSessionSeam implements PostSessionSeam {
     accumulateCalls.add(args);
     final op = args['op'] as String;
     if (_accumulateOps.contains(op)) {
-      expectNativeReadsEveryKey(args, [
-        'master_accumulate_op',
-        'master_accumulate_$op',
-      ]);
+      // An add carries the whole integration settings block; as for
+      // integrateSession, the native side does not read its finishing knobs.
+      final settings = args['settings'];
+      expectNativeReadsEveryKey(
+        args,
+        ['master_accumulate_op', 'master_accumulate_$op'],
+        notRead: {
+          if (settings is Map && settings.containsKey('finishing'))
+            'settings.finishing',
+        },
+      );
     }
     final queue = scriptedAccumulate[op];
     if (queue != null && queue.isNotEmpty) {

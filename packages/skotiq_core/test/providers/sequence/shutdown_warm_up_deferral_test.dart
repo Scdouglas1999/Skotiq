@@ -65,9 +65,9 @@ String _nativeDeferKey() =>
         as String;
 
 void main() {
-  test('the deferral is asked for under the key the sequencer reads', () {
+  test('the deferral is asked for under the key the sequencer reads', () async {
     expect(
-      _wire(defer: true)['metadata'],
+      (await _wire(defer: true))['metadata'],
       containsPair(_nativeDeferKey(), 'true'),
     );
   });
