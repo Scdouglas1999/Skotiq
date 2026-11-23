@@ -188,7 +188,12 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
         location: &str,
     ) -> Result<skotiq_device::CameraFile, skotiq_device::DriverError> {
         if let Some(error) = self.retrieve_error {
-            return Err(error());
+            let error = error();
+            if matches!(error, skotiq_device::DriverError::FileGone(_)) {
+                self.retained
+                    .retain(|(kept, _)| !(kept.location == location && kept.in_camera_memory));
+            }
+            return Err(error);
         }
         let index = self
             .retained
@@ -533,6 +538,12 @@ async fn a_memory_capture_the_camera_no_longer_has_leaves_the_list() {
     );
     assert!(manager.camera_retained_captures().is_empty());
     assert_eq!(retained_counts_published(&mut events), [0]);
+
+    // The next frame's report does not bring it back.
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+    assert!(manager.camera_retained_captures().is_empty());
+    assert!(retained_counts_published(&mut events).is_empty());
 }
 
 /// A capture on the camera's card stays listed when a retrieve cannot find

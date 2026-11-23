@@ -1046,6 +1046,41 @@ async fn an_undecodable_ram_capture_is_kept_in_hand_and_handed_over() {
     std::fs::remove_dir_all(root).unwrap();
 }
 
+/// A capture kept in the camera's memory that the camera no longer has (the
+/// memory was cleared) fails its retrieve as gone and leaves the driver's
+/// list, so it is not reported again. Directory Browse stands in for the
+/// camera; no USB device is opened.
+#[tokio::test]
+#[ignore = "needs the installed libgphoto2; uses only a disk: camera"]
+async fn a_memory_capture_the_camera_no_longer_has_leaves_the_driver_list() {
+    let root = std::env::temp_dir().join(format!("skotiq-gphoto2-gone-{}", std::process::id()));
+    std::fs::create_dir_all(root.join("DCIM")).unwrap();
+    let port = format!("disk:{}", root.display());
+    let sdk = GPhoto2Sdk::lock().await.expect("libgphoto2 is installed");
+    let (handle, context) = open_camera(&sdk, "Directory Browse", &port).unwrap();
+    let mut camera = GPhoto2Camera::new(0, "Directory Browse", &port);
+    camera.gp_camera = handle;
+    camera.gp_context = context;
+    camera.core.connected = true;
+    camera.facts.capture_target = Some("Internal RAM".into());
+    drop(sdk);
+    let path = GPhoto2Camera::file_at("/DCIM/capt0000.cr2").unwrap();
+    camera.retain_capture(&path, None, DriverError::SdkError("download failed".into()));
+    assert_eq!(camera.retained_captures().len(), 1);
+
+    let error = camera
+        .retrieve_capture("/DCIM/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert!(matches!(error, DriverError::FileGone(_)), "{error:?}");
+    assert!(camera.retained_captures().is_empty());
+    let sdk = GPhoto2Sdk::lock().await.unwrap();
+    camera.close(&sdk);
+    drop(sdk);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
 /// A capture whose download failed is recorded where it is, and neither the
 /// next exposure nor a reconnect waits for it.
 #[test]
