@@ -287,6 +287,9 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
     if (profile == null) {
       return _MissingProfileCard(colors: colors);
     }
+    // The plan takes panel flats with a bound calibrator, so the switch
+    // shows it on and cannot turn it off.
+    final calibratorBound = SmartNightInputs.hasCoverCalibrator(profile);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,18 +377,19 @@ extension _SmartNightDialogStepViews on _SmartNightDialogState {
             label: 'Has flat panel',
             colors: colors,
             child: SkotiqSwitch(
-              value: _settings.hasCoverCalibrator,
-              onChanged: (v) => _update(
-                  () => _settings = _settings.copyWith(hasCoverCalibrator: v)),
+              value: calibratorBound || _settings.hasCoverCalibrator,
+              onChanged: calibratorBound
+                  ? null
+                  : (v) => _update(() =>
+                      _settings = _settings.copyWith(hasCoverCalibrator: v)),
             ),
           ),
-          if (profile.coverCalibratorId != null &&
-              !_settings.hasCoverCalibrator)
+          if (calibratorBound)
             Padding(
               padding: const EdgeInsets.only(left: 14, top: 6),
               child: Text(
-                'A cover calibrator is bound to this profile. Toggle '
-                'this on to schedule auto-flats at session end.',
+                'A cover calibrator is bound to this profile; the plan uses '
+                'it for flats.',
                 style: TextStyle(
                   color: colors.textSecondary,
                   fontSize: SkotiqTypography.fontSize11,

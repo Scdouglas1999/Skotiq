@@ -297,6 +297,67 @@ void main() {
     expect(tester.widget<SmartNightNumberField>(coolTo.first).initial, -5);
   });
 
+  group('the "Has flat panel" switch', () {
+    Future<void> openEquipment(
+        WidgetTester tester, String? calibratorId) async {
+      await _pumpDialog(
+        tester,
+        overrides: [
+          appObserverLocationProvider.overrideWithValue(
+            const LocationSettings(latitude: 40, longitude: -75),
+          ),
+          activeEquipmentProfileProvider.overrideWithValue(
+            EquipmentProfileModel(
+              name: 'Panel rig',
+              focalLength: 600,
+              aperture: 120,
+              filterNames: const ['L'],
+              coverCalibratorId: calibratorId,
+            ),
+          ),
+        ],
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+    }
+
+    SkotiqSwitch panelSwitch(WidgetTester tester) => tester.widget(
+          find.descendant(
+            of: find.ancestor(
+              of: find.text('Has flat panel'),
+              matching: find.byType(Row),
+            ),
+            matching: find.byType(SkotiqSwitch),
+          ),
+        );
+
+    // The plan takes panel flats with a bound calibrator whatever the switch
+    // says, so the switch says so and cannot be turned off.
+    testWidgets('is on and fixed with a calibrator bound', (tester) async {
+      await openEquipment(tester, 'cover-1');
+      final toggle = panelSwitch(tester);
+      expect(toggle.value, isTrue);
+      expect(toggle.onChanged, isNull);
+      expect(find.textContaining('Toggle this on'), findsNothing);
+    });
+
+    testWidgets('a blank calibrator id is no calibrator', (tester) async {
+      await openEquipment(tester, '  ');
+      final toggle = panelSwitch(tester);
+      expect(toggle.value, isFalse);
+      expect(toggle.onChanged, isNotNull);
+      expect(find.textContaining('cover calibrator is bound'), findsNothing);
+    });
+
+    testWidgets('is the operator\'s to set with none bound', (tester) async {
+      await openEquipment(tester, null);
+      final toggle = panelSwitch(tester);
+      expect(toggle.value, isFalse);
+      expect(toggle.onChanged, isNotNull);
+    });
+  });
+
   testWidgets('SmartNightDialog blocks equipment step when aperture is missing',
       (tester) async {
     await _pumpDialog(
