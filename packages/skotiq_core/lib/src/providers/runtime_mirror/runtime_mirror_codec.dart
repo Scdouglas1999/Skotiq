@@ -8,6 +8,18 @@ double? finiteOrNull(num? value) {
   return d.isFinite ? d : null;
 }
 
+/// [map] with every non-finite number, at any depth, written as null.
+Map<String, dynamic> finiteJson(Map<String, Object?> map) => {
+  for (final MapEntry(:key, :value) in map.entries) key: _finite(value),
+};
+
+Object? _finite(Object? value) => switch (value) {
+  final double d => d.isFinite ? d : null,
+  final Map<String, Object?> m => finiteJson(m),
+  final List<Object?> l => [for (final v in l) _finite(v)],
+  _ => value,
+};
+
 double? jsonDouble(Object? value) => value is num ? value.toDouble() : null;
 
 /// A field every value of a channel carries. A missing or mistyped one means

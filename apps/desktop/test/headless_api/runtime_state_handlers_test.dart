@@ -108,7 +108,11 @@ void main() {
       _post({
         'channel': 'centeringResult',
         'origin': 'linux-client',
-        'value': {'success': false, 'iterations': 5, 'error': 'gave up'},
+        'value': CenteringResult.failure(
+          errorMessage: 'gave up',
+          iterations: 5,
+          iterationHistory: const [],
+        ).toJson(),
       }),
     );
 
