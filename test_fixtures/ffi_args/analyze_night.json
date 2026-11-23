@@ -1,0 +1,22 @@
+{
+  "exposuresS": [
+    "number"
+  ],
+  "optimizer": {
+    "aggressiveness": "number",
+    "minKeep": "number"
+  },
+  "qualities": [
+    {
+      "background": "number",
+      "eccentricity": "number",
+      "fwhm": "number",
+      "noise": "number",
+      "snr": "number",
+      "starCount": "number"
+    }
+  ],
+  "weights": [
+    "number"
+  ]
+}

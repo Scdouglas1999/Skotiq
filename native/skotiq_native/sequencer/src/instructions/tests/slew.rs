@@ -272,7 +272,7 @@ mod slew_arrival {
 
     #[tokio::test(start_paused = true)]
     async fn a_mount_that_never_moves_fails_the_slew() {
-        let (result, _) = slew_with(
+        let (result, ops) = slew_with(
             ScriptedDomeRotatorOps::new()
                 .with_scripted_mount_coordinates(TARGET_JNOW.0 + 0.2, TARGET_JNOW.1)
                 .with_scripted_readback_frame(Ok(TARGET_JNOW)),
@@ -282,6 +282,16 @@ mod slew_arrival {
         assert_eq!(result.status, NodeStatus::Failure);
         let message = result.message.unwrap_or_default();
         assert!(message.contains("didn't move"), "{message}");
+        // A mount that took the slew and stayed put is taken for one stuck at
+        // an axis limit: the slew tries to free it.
+        let notifications = ops.notifications.lock().unwrap();
+        assert!(
+            notifications
+                .iter()
+                .any(|(_, title, message)| title == "Mount at its limit"
+                    && message.starts_with("The mount accepted the slew but did not move")),
+            "{notifications:?}"
+        );
     }
 
     #[tokio::test]

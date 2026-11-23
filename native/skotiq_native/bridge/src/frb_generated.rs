@@ -7711,6 +7711,7 @@ impl CstDecode<crate::error::Refusal> for i32 {
             9 => crate::error::Refusal::LiveStackMisaligned,
             10 => crate::error::Refusal::LiveStackOtherFilter,
             11 => crate::error::Refusal::LiveStackUnreadable,
+            12 => crate::error::Refusal::LiveStackTooFewReferenceStars,
             _ => unreachable!("Invalid variant for Refusal: {}", self),
         }
     }
@@ -12194,6 +12195,7 @@ impl SseDecode for crate::error::Refusal {
             9 => crate::error::Refusal::LiveStackMisaligned,
             10 => crate::error::Refusal::LiveStackOtherFilter,
             11 => crate::error::Refusal::LiveStackUnreadable,
+            12 => crate::error::Refusal::LiveStackTooFewReferenceStars,
             _ => unreachable!("Invalid variant for Refusal: {}", inner),
         };
     }
@@ -17331,6 +17333,7 @@ impl flutter_rust_bridge::IntoDart for crate::error::Refusal {
             Self::LiveStackMisaligned => 9.into_dart(),
             Self::LiveStackOtherFilter => 10.into_dart(),
             Self::LiveStackUnreadable => 11.into_dart(),
+            Self::LiveStackTooFewReferenceStars => 12.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -22153,6 +22156,7 @@ impl SseEncode for crate::error::Refusal {
                 crate::error::Refusal::LiveStackMisaligned => 9,
                 crate::error::Refusal::LiveStackOtherFilter => 10,
                 crate::error::Refusal::LiveStackUnreadable => 11,
+                crate::error::Refusal::LiveStackTooFewReferenceStars => 12,
                 _ => {
                     unimplemented!("");
                 }

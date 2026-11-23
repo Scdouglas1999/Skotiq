@@ -347,7 +347,7 @@ RecoveryStatus _rebuildRecoveryStatus({
 }) {
   return RecoveryStatus(
     startedAt: DateTime.parse(startedAtIso),
-    cause: _causeFromTyped(causeKind, causeCustomLabel),
+    cause: RecoveryCause.fromKind(causeKind, causeCustomLabel),
     lastAttemptAt: lastAttemptAtIso == null
         ? null
         : DateTime.parse(lastAttemptAtIso),
@@ -355,56 +355,9 @@ RecoveryStatus _rebuildRecoveryStatus({
     maxAttempts: maxAttempts,
     retryIntervalSecs: retryIntervalSecs,
     maxDurationSecs: maxDurationSecs,
-    phase: _phaseFromTyped(phase),
+    phase: recoveryPhaseFromWire(phase),
     lastError: lastError,
   );
-}
-
-RecoveryCause _causeFromTyped(String kind, String? customLabel) {
-  switch (kind) {
-    case 'GuideStarLost':
-      return RecoveryCause.guideStarLost();
-    case 'SlewFailed':
-      return RecoveryCause.slewFailed();
-    case 'PlateSolveFailed':
-      return RecoveryCause.plateSolveFailed();
-    case 'WeatherUnsafe':
-      return RecoveryCause.weatherUnsafe();
-    case 'MountTrackingLost':
-      return RecoveryCause.mountTrackingLost();
-    case 'FocusDriftCritical':
-      return RecoveryCause.focusDriftCritical();
-    case 'ConsecutiveRejectsExceeded':
-      return RecoveryCause.consecutiveRejectsExceeded();
-    case 'DeviceDisconnected':
-      return RecoveryCause.deviceDisconnected();
-    case 'Custom':
-      return RecoveryCause.custom(customLabel ?? '');
-    default:
-      // An unknown discriminant means the Rust enum grew a variant this
-      // switch does not cover. Throwing surfaces that; a fallback would
-      // report a wrong recovery cause as if it were the real one.
-      throw FormatException(
-        'Unknown RecoveryCause kind from typed bridge event: $kind',
-      );
-  }
-}
-
-RecoveryPhase _phaseFromTyped(String phase) {
-  switch (phase) {
-    case 'Waiting':
-      return RecoveryPhase.waiting;
-    case 'Attempting':
-      return RecoveryPhase.attempting;
-    case 'Recovered':
-      return RecoveryPhase.recovered;
-    case 'GaveUp':
-      return RecoveryPhase.gaveUp;
-    default:
-      throw FormatException(
-        'Unknown RecoveryPhase wire value from typed bridge event: $phase',
-      );
-  }
 }
 
 void _applyRecoveryEvent(Ref ref, RecoveryEventEnvelope envelope) {

@@ -1,0 +1,17 @@
+{
+  "channels": "number",
+  "f32Data": [
+    "number"
+  ],
+  "filter": "string",
+  "frameCount": "number",
+  "height": "number",
+  "object": "string",
+  "outputPath": "string",
+  "pixelType": "string",
+  "totalIntegrationSec": "number",
+  "u16Data": [
+    "number"
+  ],
+  "width": "number"
+}

@@ -1,0 +1,5 @@
+{
+  "atlasRoot": "string",
+  "order": "number",
+  "tileId": "number"
+}

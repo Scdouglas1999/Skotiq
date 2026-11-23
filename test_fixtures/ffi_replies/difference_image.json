@@ -1,0 +1,61 @@
+{
+  "candidates": [
+    {
+      "catalogMatch": null,
+      "dec": -5.3911,
+      "deltaMag": null,
+      "eccentricity": 0.21,
+      "fwhm": 3.125,
+      "kind": "newSource",
+      "positionAngleDeg": 47.5,
+      "ra": 83.8221,
+      "residualFlux": 5120.75,
+      "snr": 23.5,
+      "tileId": 1234567,
+      "tileX": 412.5,
+      "tileY": 87.25
+    },
+    {
+      "catalogMatch": null,
+      "dec": -5.3911,
+      "deltaMag": -1.25,
+      "eccentricity": 0.21,
+      "fwhm": 3.125,
+      "kind": "pointBrightening",
+      "positionAngleDeg": 47.5,
+      "ra": 83.8221,
+      "residualFlux": 5120.75,
+      "snr": 23.5,
+      "tileId": 1234567,
+      "tileX": 412.5,
+      "tileY": 87.25
+    }
+  ],
+  "ok": true,
+  "rejected": {
+    "brightStar": 4,
+    "dipole": 5,
+    "edge": 1,
+    "elongated": 6,
+    "inconsistentScale": 11,
+    "insignificant": 7,
+    "misregistered": 10,
+    "saturated": 2,
+    "sharp": 3,
+    "smallChange": 8,
+    "unmeasuredPsf": 9
+  },
+  "tilesChecked": [
+    1234567,
+    1234568
+  ],
+  "tilesNoTemplate": [
+    1234570
+  ],
+  "tilesSkippedThin": [
+    1234569
+  ],
+  "tilesUnnormalized": [
+    1234571
+  ]
+}

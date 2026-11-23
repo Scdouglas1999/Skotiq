@@ -1,6 +1,8 @@
 // The connect check's "unverified" report marks a device until it connects
 // again or disconnects, over both transports.
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +26,22 @@ bridge.EventPayload _equipment(bridge.EquipmentEvent e) =>
     bridge.EventPayload.equipment(e);
 
 void main() {
+  test('the property and field words are the connect check\'s', () {
+    final words =
+        jsonDecode(
+              File(
+                '../../test_fixtures/wire_words/connect_check.json',
+              ).readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    expect(unverifiedDeviceProperty, words['property']);
+    // The fields this file's events name are ones the check reports.
+    expect(
+      words['fields'] as List,
+      containsAll(<String>['pier side', 'clock', 'position']),
+    );
+  });
+
   for (final path in EventPath.values) {
     test('a device stays marked until it connects again ($path)', () async {
       final events = StreamController<SkotiqEvent>.broadcast();

@@ -6,6 +6,8 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/services.dart';
 
+import '../harness/reply_fixture.dart';
+
 void main() {
   const sentence = 'Alignment residual too high: 24.34px (max 10.00px)';
 
@@ -59,6 +61,35 @@ void main() {
         ),
       ),
       same(counted),
+    );
+  });
+
+  test('a reference with too few stars reads with both counts the native '
+      'refusal carries', () {
+    final sample = replyFixtureObject('live_stack_too_few_reference_stars');
+    final refusal = liveStackReferenceRefusalOf(
+      bridge.SkotiqError.refused(
+        kind: bridge.Refusal.liveStackTooFewReferenceStars,
+        message: sample['message'] as String,
+      ),
+    );
+    expect(refusal?.detectedStars, sample['detectedStars']);
+    expect(refusal?.requiredStars, sample['requiredStars']);
+    expect(refusal?.message, sample['message']);
+    expect(
+      liveStackRefusalOf(
+        bridge.SkotiqError.refused(
+          kind: bridge.Refusal.liveStackTooFewReferenceStars,
+          message: sample['message'] as String,
+        ),
+      ),
+      isNull,
+    );
+    expect(
+      liveStackReferenceRefusalOf(
+        bridge.SkotiqError.imageError(sample['message'] as String),
+      ),
+      isNull,
     );
   });
 }

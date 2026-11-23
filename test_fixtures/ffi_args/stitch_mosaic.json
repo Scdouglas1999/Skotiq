@@ -1,0 +1,29 @@
+{
+  "config": {
+    "blend": "string",
+    "featherPx": "number",
+    "normalize": "bool",
+    "outputPixelScaleArcsec": "number",
+    "resampler": "string"
+  },
+  "output": {
+    "coverageFitsPath": "string",
+    "mosaicFitsPath": "string",
+    "previewPngPath": "string"
+  },
+  "panels": [
+    {
+      "fitsPath": "string",
+      "wcs": {
+        "cd1_1": "number",
+        "cd1_2": "number",
+        "cd2_1": "number",
+        "cd2_2": "number",
+        "crpix1": "number",
+        "crpix2": "number",
+        "crval1": "number",
+        "crval2": "number"
+      }
+    }
+  ]
+}

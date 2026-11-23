@@ -1188,3 +1188,26 @@ pub(crate) fn save_fits_master_impl(
         pixel_type: pt.to_string(),
     })
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::BuildMasterFlatArgs>(
+            "build_master_flat",
+        );
+        crate::args_fixtures::check_or_write_args::<super::SaveFitsMasterArgs>("save_fits_master");
+        crate::args_fixtures::check_or_write_args::<super::MasterCreateArgs>(
+            "master_accumulate_create",
+        );
+        crate::args_fixtures::check_or_write_args::<super::MasterAddArgs>("master_accumulate_add");
+        crate::args_fixtures::check_or_write_args::<super::MasterFinalizeArgs>(
+            "master_accumulate_finalize",
+        );
+        crate::args_fixtures::check_or_write_args::<super::MasterInfoArgs>(
+            "master_accumulate_info",
+        );
+        crate::args_fixtures::check_or_write_args::<super::MasterOp>("master_accumulate_op");
+    }
+}

@@ -1,0 +1,188 @@
+{
+  "measured": {
+    "calibration": {
+      "above": {
+        "approach": "from_above",
+        "method": "Quadratic",
+        "optimum_position": 6515,
+        "points": [
+          {
+            "fwhm": null,
+            "hfr": 7.690225177596963,
+            "position": 6690,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 5.927256812015862,
+            "position": 6660,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 4.491300757988513,
+            "position": 6630,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 3.3587379614475275,
+            "position": 6600,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.5915107370690387,
+            "position": 6570,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.182234711715471,
+            "position": 6540,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.0576419209306285,
+            "position": 6510,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.2977916537088316,
+            "position": 6480,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.7931654868585314,
+            "position": 6450,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 3.692752164230995,
+            "position": 6420,
+            "star_count": 4
+          }
+        ],
+        "r_squared": 0.9999140971234729
+      },
+      "below": {
+        "approach": "from_below",
+        "method": "Quadratic",
+        "optimum_position": 6620,
+        "points": [
+          {
+            "fwhm": null,
+            "hfr": 9.468289119251535,
+            "position": 6420,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 7.379000948777606,
+            "position": 6450,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 5.646547225368107,
+            "position": 6480,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 4.270390951293888,
+            "position": 6510,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 3.2297754419449056,
+            "position": 6540,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.4976381476244573,
+            "position": 6570,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.136642490077016,
+            "position": 6600,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.0737279829088258,
+            "position": 6630,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.3607109659502807,
+            "position": 6660,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 2.95176741377277,
+            "position": 6690,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 3.8946014833520466,
+            "position": 6720,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 5.176277542955054,
+            "position": 6750,
+            "star_count": 4
+          },
+          {
+            "fwhm": null,
+            "hfr": 6.758232280794946,
+            "position": 6780,
+            "star_count": 4
+          }
+        ],
+        "r_squared": 0.9999568260583748
+      },
+      "clearance_steps": 400,
+      "confidence": "high",
+      "confidence_reason": "Both directions fitted well (poorer of the two R² 1.000) and the 105 steps between their optima is 7.0x what these scans can resolve.",
+      "context": {
+        "app_version": "7.0.0+28-test",
+        "focuser_device_id": "sim-focuser",
+        "taken_at": "2026-11-23T00:24:28.759054611Z",
+        "temperature_celsius": 11.5
+      },
+      "measurable": true,
+      "measured_at_position": 6620,
+      "resolution_limit_steps": 15.0,
+      "reversal_budget_at_vertex_steps": 550,
+      "reversal_budget_steps": 760,
+      "steps": 105,
+      "vertex_difference": 105
+    },
+    "outcome": "measured"
+  },
+  "refused": {
+    "message": "The from above scan reached the fit with only 4 usable points; 7 are needed to describe a curve",
+    "outcome": "refused",
+    "refusal": {
+      "code": "not_enough_points",
+      "direction": "from_above",
+      "points": 4,
+      "required": 7
+    },
+    "remedy": "Widen the scan or lengthen the exposure so more points return a usable star measurement."
+  }
+}

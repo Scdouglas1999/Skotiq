@@ -515,7 +515,8 @@ void main() {
           ),
           bridge.Refusal.liveStackMisaligned ||
           bridge.Refusal.liveStackOtherFilter ||
-          bridge.Refusal.liveStackUnreadable =>
+          bridge.Refusal.liveStackUnreadable ||
+          bridge.Refusal.liveStackTooFewReferenceStars =>
             const bridge.SkotiqError.imageError(words),
           _ => const bridge.SkotiqError.operationFailed(words),
         };

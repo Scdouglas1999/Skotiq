@@ -1,0 +1,26 @@
+{
+  "catalogStars": [
+    {
+      "bMinusV": "number",
+      "decDeg": "number",
+      "raDeg": "number",
+      "vMag": "number"
+    }
+  ],
+  "masterPath": "string",
+  "outputs": [
+    {
+      "format": "string",
+      "path": "string",
+      "quality": "number"
+    }
+  ],
+  "renderId": "string",
+  "screenTransfer": "bool",
+  "sidecarPath": "string",
+  "stage": {
+    "index": "number",
+    "kind": "string"
+  },
+  "writeSidecar": "bool"
+}

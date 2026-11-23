@@ -1,0 +1,11 @@
+{
+  "masters": [
+    {
+      "filter": "string",
+      "path": "string"
+    }
+  ],
+  "outputDir": "string",
+  "referenceFilter": "string",
+  "target": "string"
+}

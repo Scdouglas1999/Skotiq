@@ -19,7 +19,7 @@ use skotiq_imaging::recipe::OpImage;
 use skotiq_imaging::stack_master::{write_stack_master, FrameProvenance};
 use skotiq_imaging::stacking::{
     debayer_cfa_to_rgb, FrameRefusal, FrameRefusalKind, FrameTelemetry, LiveStackConfig,
-    LiveStacker, SensorMode, StackingStats,
+    LiveStacker, SensorMode, StackerStartError, StackingStats,
 };
 use skotiq_imaging::{
     read_image, BayerPattern, ColorFilterArray, DebayerAlgorithm, ImageData, StarDetectionConfig,
@@ -581,7 +581,7 @@ pub fn api_stacking_start_for_filter(
     let height = reference.height;
     let channels = reference.channels;
     let mut stacker = LiveStacker::new_with_provenance(&reference, native, &provenance)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to initialize stacker: {}", e)))?;
+        .map_err(stack_not_started)?;
     if filter_key.is_some() && resolved_filter != DEFAULT_FILTER_KEY {
         stacker.set_filter(Some(&resolved_filter));
     }
@@ -597,6 +597,19 @@ pub fn api_stacking_start_for_filter(
         source_label,
         provenance.exposure_secs,
     ))
+}
+
+/// A reference the stacker could not start from, as the bridge raises it: a
+/// refusal by kind for a reference with too few stars, which the host answers
+/// with both counts, or an image error.
+fn stack_not_started(error: StackerStartError) -> SkotiqError {
+    let message = format!("Failed to initialize stacker: {error}");
+    match error {
+        StackerStartError::TooFewReferenceStars { .. } => {
+            SkotiqError::refused(Refusal::LiveStackTooFewReferenceStars, message)
+        }
+        StackerStartError::Unusable(_) => SkotiqError::ImageError(message),
+    }
 }
 
 /// Start live stacking with a reference image file; every later frame is
@@ -660,7 +673,7 @@ pub fn api_stacking_start_from_data_for_filter(
         ..FrameProvenance::unknown()
     };
     let stacker = LiveStacker::new_with_provenance(&reference, native, &provenance)
-        .map_err(|e| SkotiqError::ImageError(format!("Failed to initialize stacker: {}", e)))?;
+        .map_err(stack_not_started)?;
     Ok(install_slot(
         resolved_filter,
         stacker,

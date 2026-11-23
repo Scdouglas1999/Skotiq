@@ -895,3 +895,14 @@ mod reply_fixture_tests {
         );
     }
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::DrizzleIntegrateArgs>(
+            "drizzle_integrate",
+        );
+    }
+}

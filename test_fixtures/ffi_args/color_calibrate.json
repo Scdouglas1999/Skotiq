@@ -1,0 +1,14 @@
+{
+  "channels": "number",
+  "inputFits": "string",
+  "matchedStars": [
+    {
+      "catalogBv": "number",
+      "channelFlux": [
+        "number"
+      ]
+    }
+  ],
+  "outputFits": "string",
+  "whiteRefBv": "number"
+}

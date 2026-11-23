@@ -1,0 +1,58 @@
+[
+  {
+    "cause": "GuideStarLost",
+    "kind": "GuideStarLost",
+    "label": "Guide star lost",
+    "wireKey": "guide_star_lost"
+  },
+  {
+    "cause": "SlewFailed",
+    "kind": "SlewFailed",
+    "label": "Slew failed",
+    "wireKey": "slew_failed"
+  },
+  {
+    "cause": "PlateSolveFailed",
+    "kind": "PlateSolveFailed",
+    "label": "Plate-solve failed",
+    "wireKey": "plate_solve_failed"
+  },
+  {
+    "cause": "WeatherUnsafe",
+    "kind": "WeatherUnsafe",
+    "label": "Weather unsafe",
+    "wireKey": "weather_unsafe"
+  },
+  {
+    "cause": "MountTrackingLost",
+    "kind": "MountTrackingLost",
+    "label": "Mount tracking lost",
+    "wireKey": "mount_tracking_lost"
+  },
+  {
+    "cause": "FocusDriftCritical",
+    "kind": "FocusDriftCritical",
+    "label": "Critical focus drift",
+    "wireKey": "focus_drift_critical"
+  },
+  {
+    "cause": "ConsecutiveRejectsExceeded",
+    "kind": "ConsecutiveRejectsExceeded",
+    "label": "Consecutive rejects",
+    "wireKey": "consecutive_rejects_exceeded"
+  },
+  {
+    "cause": "DeviceDisconnected",
+    "kind": "DeviceDisconnected",
+    "label": "Device disconnected",
+    "wireKey": "device_disconnected"
+  },
+  {
+    "cause": {
+      "Custom": "Roof sensor tripped"
+    },
+    "kind": "Custom",
+    "label": "Roof sensor tripped",
+    "wireKey": "custom"
+  }
+]

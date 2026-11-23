@@ -10,6 +10,9 @@ pub enum Setback {
     Disconnected,
     /// The mount is parked and did not unpark for the slew.
     MountParked,
+    /// The mount took the slew and stayed where it was, as one stopped at an
+    /// axis limit does.
+    DidNotMove,
     /// The slew finished, but outside the tolerance around the target.
     OffTarget,
     /// The slew finished, but the mount's position could not be read back.

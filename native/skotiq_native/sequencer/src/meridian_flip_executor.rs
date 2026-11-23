@@ -1654,7 +1654,10 @@ impl MeridianFlipExecutor {
                             e
                         );
                     }
-                    return Err("Centering slew timed out after 5 minutes".to_string());
+                    return Err(format!(
+                        "Centering slew timed out after {} minutes",
+                        FLIP_CENTERING_SLEW.complete.as_secs() / 60
+                    ));
                 }
                 crate::instructions::SlewWait::NeverStarted { abort } => {
                     if let Err(e) = abort {
@@ -1673,10 +1676,13 @@ impl MeridianFlipExecutor {
                 crate::instructions::SlewWait::ReadFailed(error) => return Err(error.into()),
             }
         }
+        let tries = policy.max_attempts;
         if last_failure.is_empty() {
-            Err("Post-flip centering did not converge after three solves".into())
+            Err(format!(
+                "Post-flip centering did not converge after {tries} solves"
+            ))
         } else {
-            Err(format!("{last_failure} (three frames tried)"))
+            Err(format!("{last_failure} ({tries} frames tried)"))
         }
     }
 
@@ -5691,7 +5697,7 @@ mod tests {
             if !case.centered {
                 assert_eq!(
                     result.unwrap_err(),
-                    "Post-flip centering did not converge after three solves"
+                    "Post-flip centering did not converge after 3 solves"
                 );
             }
             assert_eq!(
@@ -5810,7 +5816,7 @@ mod tests {
         let result = executor.plate_solve_and_center(&make_ctx(&state)).await;
         assert_eq!(
             result.unwrap_err(),
-            "Plate solve failed: no solution; target centering is unverified (three frames tried)"
+            "Plate solve failed: no solution; target centering is unverified (3 frames tried)"
         );
         assert_eq!(state.plate_solve_calls.load(Ordering::Relaxed), 3);
         assert_eq!(state.sync_calls.load(Ordering::Relaxed), 0);

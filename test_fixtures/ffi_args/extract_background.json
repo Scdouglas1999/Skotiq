@@ -1,0 +1,12 @@
+{
+  "config": {
+    "grid": "number",
+    "polyDegree": "number",
+    "preserveMean": "bool",
+    "sampleBox": "number",
+    "sigmaHigh": "number",
+    "sigmaLow": "number"
+  },
+  "inputFits": "string",
+  "outputFits": "string"
+}

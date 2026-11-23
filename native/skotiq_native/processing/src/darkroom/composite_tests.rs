@@ -214,6 +214,22 @@ fn an_lrgb_set_drafts_a_registered_color_composite() {
         .any(|n| n["opId"] == "background_extract" && n["outcome"] == "omitted"));
 }
 
+/// `test_fixtures/ffi_replies/darkroom_composite.json`: the registry's reply
+/// to a composite request for an LRGB set, which the app's combine plan
+/// decoder reads (see [`crate::reply_fixtures`]). The paths are temporary, so
+/// the committed sample is held to its shape.
+#[test]
+fn darkroom_composite_reply_fixture() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let (_, paths) = lrgb_masters(dir.path());
+    let reply = draft_composite(&paths);
+    assert_eq!(reply["composite"]["combined"], true, "{reply}");
+    let temp = dir.path().to_string_lossy().to_string();
+    let reply: Value = serde_json::from_str(&reply.to_string().replace(&temp, "/masters"))
+        .expect("the reply with fixed paths");
+    crate::reply_fixtures::check_or_write_shape("darkroom_composite", &reply);
+}
+
 #[test]
 fn the_composite_renders_in_color_and_exports_its_master() {
     let dir = tempfile::tempdir().expect("temp dir");

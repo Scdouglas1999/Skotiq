@@ -498,6 +498,70 @@ async fn the_result_payload_carries_every_field_dart_requires() {
     assert_eq!(calibration["above"]["approach"], "from_above");
 }
 
+const BACKLASH_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../test_fixtures/ffi_replies/focuser_backlash_outcomes.json"
+);
+
+/// The JSON kinds and keys of `value`, without its numbers, for a sample
+/// taken from a run whose fitted figures may differ in the last bits.
+fn json_shape(value: &serde_json::Value) -> serde_json::Value {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) => Value::Object(
+            map.iter()
+                .map(|(key, value)| (key.clone(), json_shape(value)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(json_shape).collect()),
+        Value::Number(_) => Value::String("number".into()),
+        Value::String(_) => Value::String("string".into()),
+        other => other.clone(),
+    }
+}
+
+/// `test_fixtures/ffi_replies/focuser_backlash_outcomes.json`: a measured
+/// outcome from the simulated run and a refusal, as the app's decoder reads
+/// them. Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p
+/// skotiq_sequencer focuser_backlash_outcomes_fixture`.
+#[tokio::test(flavor = "multi_thread")]
+async fn focuser_backlash_outcomes_fixture() {
+    let _serial = AF_GATE_TEST_LOCK.lock().await;
+    let ops = Arc::new(BacklashFocuserOps::new(
+        SIMULATED_BACKLASH,
+        STARTING_POSITION,
+    ));
+    let ctx = calibration_context(ops).await;
+    let measured = run_calibration(&test_config(400), &ctx)
+        .await
+        .expect("the calibration must run to a conclusion");
+    let refusal = crate::focuser_calibration::CalibrationRefusal::NotEnoughPoints {
+        direction: crate::focuser_calibration::ApproachDirection::FromAbove,
+        points: 4,
+        required: 7,
+    };
+    let refused = BacklashCalibrationOutcome::Refused {
+        message: refusal.to_string(),
+        remedy: refusal.remedy(),
+        refusal,
+    };
+    let value = serde_json::json!({ "measured": measured, "refused": refused });
+    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+        let mut text = serde_json::to_string_pretty(&value).expect("pretty");
+        text.push('\n');
+        std::fs::write(BACKLASH_FIXTURE, text).expect("write fixture");
+        return;
+    }
+    let committed: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(BACKLASH_FIXTURE).expect("fixture"))
+            .expect("JSON");
+    assert_eq!(
+        json_shape(&committed),
+        json_shape(&value),
+        "the backlash outcome changed; regenerate the fixture and update the app's decoder"
+    );
+}
+
 /// The plan payload, same reasoning: Dart parses every field as required so it
 /// can state the run's cost before the operator agrees to it.
 #[test]

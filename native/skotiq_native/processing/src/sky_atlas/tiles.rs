@@ -301,3 +301,17 @@ pub(crate) fn info_impl(args: InfoArgs) -> Result<InfoResult, String> {
         coverage_mean: tile.coverage_mean(),
     })
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::TilePngArgs>("sky_atlas_tile_png");
+        crate::args_fixtures::check_or_write_args::<super::CoverageArgs>("sky_atlas_coverage");
+        crate::args_fixtures::check_or_write_args::<super::ExportDeltaArgs>(
+            "sky_atlas_export_delta",
+        );
+        crate::args_fixtures::check_or_write_args::<super::InfoArgs>("sky_atlas_info");
+    }
+}

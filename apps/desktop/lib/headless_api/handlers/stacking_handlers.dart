@@ -111,18 +111,16 @@ class StackingHandlers implements RouteSource {
           : normalizeLiveStackFilterKey(filterKey);
       return state.filterStacks[slot]?.stats ?? state.stats;
     } catch (error, stackTrace) {
-      final match = RegExp(
-        r'Reference frame has only (\d+) stars, need at least (\d+)',
-      ).firstMatch(error.toString());
-      if (match != null) {
+      final refusal = liveStackReferenceRefusalOf(error);
+      if (refusal != null) {
         throw HandlerFailure(
           code: 'stacking_reference_rejected',
           message:
               'Reference frame does not contain enough stars for live-stack alignment.',
           statusCode: HttpStatus.unprocessableEntity,
           details: {
-            'detectedStars': int.parse(match.group(1)!),
-            'requiredStars': int.parse(match.group(2)!),
+            'detectedStars': refusal.detectedStars,
+            'requiredStars': refusal.requiredStars,
           },
           cause: error,
           stackTrace: stackTrace,

@@ -239,7 +239,8 @@ _BridgeErrorTexts _bridgeErrorTexts(bridge.SkotiqError error) {
     refused: (kind, message) => switch (kind) {
       bridge.Refusal.liveStackMisaligned ||
       bridge.Refusal.liveStackOtherFilter ||
-      bridge.Refusal.liveStackUnreadable => payloadOnly(
+      bridge.Refusal.liveStackUnreadable ||
+      bridge.Refusal.liveStackTooFewReferenceStars => payloadOnly(
         SkotiqError(
           category: imaging,
           message: 'Image error: $message',

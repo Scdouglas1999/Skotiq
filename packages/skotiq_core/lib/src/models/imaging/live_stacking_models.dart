@@ -575,6 +575,37 @@ class LiveStackRefusal {
   String get legacyText => 'SkotiqError.imageError(field0: $message)';
 }
 
+/// A live stack that did not start because its reference frame holds fewer
+/// stars than alignment needs, with both counts.
+class LiveStackReferenceRefusal {
+  const LiveStackReferenceRefusal({
+    required this.detectedStars,
+    required this.requiredStars,
+    required this.message,
+  });
+
+  /// The counts in the native refusal's [message], whose form a Rust test
+  /// writes to `test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json`.
+  /// Null when the message holds no counts.
+  static LiveStackReferenceRefusal? fromMessage(String message) {
+    final counts = _counts.firstMatch(message);
+    if (counts == null) return null;
+    return LiveStackReferenceRefusal(
+      detectedStars: int.parse(counts.group(1)!),
+      requiredStars: int.parse(counts.group(2)!),
+      message: message,
+    );
+  }
+
+  static final _counts = RegExp(r'has only (\d+) stars, need at least (\d+)');
+
+  final int detectedStars;
+  final int requiredStars;
+
+  /// The engine's sentence.
+  final String message;
+}
+
 enum LiveStackRefusalKind {
   /// The frame did not align to the reference.
   misaligned,

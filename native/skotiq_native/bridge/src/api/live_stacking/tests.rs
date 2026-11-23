@@ -938,3 +938,69 @@ fn a_frame_file_that_cannot_be_read_is_raised_as_unreadable() {
         .to_string()
         .starts_with("Image error: Failed to read frame image: "));
 }
+
+const TOO_FEW_STARS_FIXTURE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../../test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json"
+);
+
+/// `test_fixtures/ffi_replies/live_stack_too_few_reference_stars.json`: the
+/// refusal a reference with too few stars is raised as, with the counts its
+/// message carries. The app reads the counts back from the message, held to
+/// this sample. Regenerate with `SKOTIQ_WRITE_FIXTURES=1 cargo test -p
+/// skotiq_bridge too_few_reference_stars`.
+#[test]
+fn a_reference_with_too_few_stars_is_refused_with_both_counts() {
+    let error = stack_not_started(StackerStartError::TooFewReferenceStars {
+        detected: 3,
+        required: 8,
+    });
+    let SkotiqError::Refused {
+        kind: Refusal::LiveStackTooFewReferenceStars,
+        message,
+    } = &error
+    else {
+        panic!("{error:?}");
+    };
+    let sample = serde_json::json!({
+        "message": message,
+        "detectedStars": 3,
+        "requiredStars": 8,
+    });
+    if std::env::var_os("SKOTIQ_WRITE_FIXTURES").is_some() {
+        let mut text = serde_json::to_string_pretty(&sample).expect("pretty");
+        text.push('\n');
+        std::fs::write(TOO_FEW_STARS_FIXTURE, text).expect("write fixture");
+        return;
+    }
+    let committed: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(TOO_FEW_STARS_FIXTURE).expect("fixture"))
+            .expect("JSON");
+    assert_eq!(
+        committed, sample,
+        "the too-few-stars refusal changed; regenerate the fixture and update the app's reader"
+    );
+    assert_eq!(
+        error.to_string(),
+        "Image error: Failed to initialize stacker: Reference frame has only 3 stars, need at \
+         least 8 for alignment"
+    );
+}
+
+#[test]
+fn a_starless_reference_does_not_start_the_stack() {
+    let _guard = singleton_guard();
+    let blank = vec![1000u16; (IMG_W * IMG_H) as usize];
+    let error =
+        api_stacking_start_from_data(IMG_W, IMG_H, blank, 0.0, config()).expect_err("no stars");
+    assert!(
+        matches!(&error, SkotiqError::Refused { kind: Refusal::LiveStackTooFewReferenceStars, message }
+            if message == "Failed to initialize stacker: Reference frame has only 0 stars, need \
+                           at least 5 for alignment"),
+        "{error:?}"
+    );
+    assert!(matches!(
+        stack_not_started(StackerStartError::Unusable("Reference frame is empty".into())),
+        SkotiqError::ImageError(m) if m == "Failed to initialize stacker: Reference frame is empty"
+    ));
+}

@@ -31,6 +31,18 @@ use crate::device_manager::ops::state_events::property;
 use crate::device_manager::DeviceManager;
 use verdicts::TrackingVerdict;
 
+/// The field words the `Unverified` property names, comma-separated.
+pub(crate) mod field {
+    pub(crate) const POSITION: &str = "position";
+    pub(crate) const COOLER: &str = "cooler";
+    pub(crate) const TRACKING: &str = "tracking";
+    pub(crate) const PIER_SIDE: &str = "pier side";
+    pub(crate) const CLOCK: &str = "clock";
+    pub(crate) const SITE: &str = "site";
+    #[cfg(test)]
+    pub(crate) const ALL: [&str; 6] = [POSITION, COOLER, TRACKING, PIER_SIDE, CLOCK, SITE];
+}
+
 /// One thing a check found: the field and the sentence naming both sources.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Disagreement {
@@ -93,7 +105,7 @@ impl DeviceManager {
                 self.report_unverified(
                     info,
                     &[Disagreement {
-                        field: "position",
+                        field: field::POSITION,
                         said,
                     }],
                 );
@@ -115,7 +127,7 @@ impl DeviceManager {
             self.report_unverified(
                 info,
                 &[Disagreement {
-                    field: "cooler",
+                    field: field::COOLER,
                     said,
                 }],
             );
@@ -167,7 +179,7 @@ impl DeviceManager {
             }
             match verdict {
                 TrackingVerdict::Disagrees(said) => found.push(Disagreement {
-                    field: "tracking",
+                    field: field::TRACKING,
                     said,
                 }),
                 TrackingVerdict::Skip(why) => tracing::debug!("{id}: tracking not checked: {why}"),
@@ -185,7 +197,7 @@ impl DeviceManager {
         };
         if let Some(said) = verdicts::pier_side(&status) {
             found.push(Disagreement {
-                field: "pier side",
+                field: field::PIER_SIDE,
                 said,
             });
         }
@@ -202,7 +214,7 @@ impl DeviceManager {
                 Ok(time) => {
                     if let Some(said) = verdicts::clock(&time, chrono::Utc::now().timestamp()) {
                         found.push(Disagreement {
-                            field: "clock",
+                            field: field::CLOCK,
                             said,
                         });
                     }
@@ -221,7 +233,7 @@ impl DeviceManager {
                         verdicts::site(&site, skotiq_site.latitude, skotiq_site.longitude)
                     {
                         found.push(Disagreement {
-                            field: "site",
+                            field: field::SITE,
                             said,
                         });
                     }
