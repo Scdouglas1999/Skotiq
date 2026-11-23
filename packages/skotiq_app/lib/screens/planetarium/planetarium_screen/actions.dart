@@ -358,7 +358,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
         targetName: objectName,
         dialogTitle: objectName,
         isCurrent: () => mounted,
-        checksFirst: false,
         beforeDialog: _dismissPopup,
       );
 
@@ -374,7 +373,6 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
         targetName: objectName,
         dialogTitle: objectName,
         isCurrent: () => mounted,
-        checksFirst: false,
         beforeDialog: _dismissPopup,
         rotation: () => ref.read(equipmentFOVProvider).rotation,
         rotationSkipped: (_) => 'Centering failed - rotation skipped',

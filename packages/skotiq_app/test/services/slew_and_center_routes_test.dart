@@ -246,5 +246,28 @@ void main() {
       expect(_sent(handle), 0);
       await unmount(tester, handle);
     });
+
+    testWidgets('no camera: the mount does not move', (tester) async {
+      final (handle, asked) =
+          await press(tester, dec: _alwaysUpDec, camera: _Camera.missing);
+      expect(_sent(handle), 0);
+      expect(asked.questions, isEmpty);
+      expect(_centeringDialog, findsNothing);
+      expect(
+        find.text('Connect an imaging camera before using Slew & Center.'),
+        findsOneWidget,
+      );
+      await unmount(tester, handle);
+    });
+
+    testWidgets('no plate solver: the mount does not move', (tester) async {
+      final (handle, asked) =
+          await press(tester, dec: _alwaysUpDec, solver: _Solver.missing);
+      expect(_sent(handle), 0);
+      expect(asked.questions, isEmpty);
+      expect(_centeringDialog, findsNothing);
+      expect(find.text('No plate solver is installed.'), findsOneWidget);
+      await unmount(tester, handle);
+    });
   });
 }

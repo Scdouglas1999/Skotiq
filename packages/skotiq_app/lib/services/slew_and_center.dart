@@ -43,8 +43,8 @@ Future<CommandActionResult?> slewAndCenterRefusal(WidgetRef ref) async {
   }
 }
 
-/// Slew & center from a menu: the checks of [slewAndCenterRefusal] when
-/// [checksFirst], the GoTo through [MountCommandService.slewTo] (which asks
+/// Slew & center from a menu: the checks of [slewAndCenterRefusal] before
+/// anything moves, the GoTo through [MountCommandService.slewTo] (which asks
 /// about a target below the horizon or the site's floor), then the centering
 /// dialog on the target.
 ///
@@ -63,16 +63,13 @@ Future<CenteringResult?> slewAndCenter(
   required String? targetName,
   required String dialogTitle,
   required bool Function() isCurrent,
-  bool checksFirst = true,
   VoidCallback? beforeDialog,
 }) async {
-  if (checksFirst) {
-    final refused = await slewAndCenterRefusal(ref);
-    if (!isCurrent()) return null;
-    if (refused != null) {
-      if (context.mounted) context.showCommandActionResult(refused);
-      return null;
-    }
+  final refused = await slewAndCenterRefusal(ref);
+  if (!isCurrent()) return null;
+  if (refused != null) {
+    if (context.mounted) context.showCommandActionResult(refused);
+    return null;
   }
 
   final slewed = await ref.read(mountCommandServiceProvider).slewTo(
@@ -115,7 +112,6 @@ Future<void> slewCenterAndRotate(
   required double? Function() rotation,
   required String Function(CenteringResult failed) rotationSkipped,
   String? centeredWithoutRotator,
-  bool checksFirst = true,
   VoidCallback? beforeDialog,
 }) async {
   final centered = await slewAndCenter(
@@ -126,7 +122,6 @@ Future<void> slewCenterAndRotate(
     targetName: targetName,
     dialogTitle: dialogTitle,
     isCurrent: isCurrent,
-    checksFirst: checksFirst,
     beforeDialog: beforeDialog,
   );
   if (!isCurrent() || !context.mounted || centered == null) return;
