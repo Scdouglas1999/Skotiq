@@ -9,6 +9,10 @@ skill). It says which file owns each kind of fact, gives a recipe for each commo
 the owner's product rules, and says which checks prove a change. `melos run audit:architecture`
 checks the structural rules and names where a change goes when it fails.
 
+## Before pushing for CI or a release
+
+Read [the CI failure patterns](docs/agents/ci-failure-patterns.md). A CI run takes about 1h45m, and it lists the mistakes that have repeatedly failed one on GitHub after passing locally: slow-runner races, UTC and wall-clock tests, Windows paths, the unpinned Rust toolchain, and audit baselines left unsynced.
+
 ## Codebase navigation
 
 This project keeps a knowledge graph at `graphify-out/` (see also `CLAUDE.md`).

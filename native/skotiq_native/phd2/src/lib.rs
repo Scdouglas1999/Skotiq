@@ -2592,6 +2592,9 @@ mod tests {
             while Instant::now() < deadline {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // On Windows an accepted socket inherits the listener's
+                        // non-blocking mode, and a read timeout does not undo it.
+                        stream.set_nonblocking(false).unwrap();
                         stream
                             .set_read_timeout(Some(Duration::from_secs(3)))
                             .unwrap();

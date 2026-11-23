@@ -8,6 +8,8 @@
 >
 > Origin: this file makes the audit gates required rather than advisory.
 
+For the failures that recur on GitHub after a local pass, and how to read a failed run, see [CI failure patterns](agents/ci-failure-patterns.md).
+
 ---
 
 ## Required gates (block merge on red)
