@@ -134,7 +134,7 @@ void main(List<String> args) async {
       'application/javascript',
     );
 
-    await _expectWebSocketPong(baseUri, _viewToken);
+    await expectEventsPong(baseUri, _viewToken);
 
     if (options.logPath != null) {
       await _writeSmokeLog(
@@ -323,27 +323,6 @@ Future<void> _expectTextAsset(
   }
   if (body.isEmpty) {
     throw StateError('$path returned an empty body');
-  }
-}
-
-Future<void> _expectWebSocketPong(Uri baseUri, String token) async {
-  final socket = await WebSocket.connect(
-    hostEventsUri(baseUri, token).toString(),
-  );
-  try {
-    socket.add(jsonEncode({'type': 'ping'}));
-    final deadline = DateTime.now().add(const Duration(seconds: 10));
-    await for (final message in socket) {
-      final data = jsonDecode(message as String) as Map<String, dynamic>;
-      if (data['type'] == 'pong') {
-        return;
-      }
-      if (DateTime.now().isAfter(deadline)) {
-        throw TimeoutException('Timed out waiting for WebSocket pong');
-      }
-    }
-  } finally {
-    await socket.close();
   }
 }
 
