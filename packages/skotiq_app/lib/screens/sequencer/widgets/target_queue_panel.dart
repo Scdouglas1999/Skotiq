@@ -690,7 +690,8 @@ class _Dropdown<T> extends StatelessWidget {
 /// in the tree and the library preview cannot disagree about the same target.
 /// The honesty rules are the walk's own: an open-ended Smart Exposure has no
 /// fixed count and is described as looping rather than as zero frames, and a
-/// non-`count` loop makes the counted figure one pass rather than the night.
+/// loop with no fixed passes makes the counted figure one pass rather than the
+/// night.
 String targetPlanSummary(PlannedCapture planned) {
   if (planned.isEmpty) return 'No exposures yet';
 

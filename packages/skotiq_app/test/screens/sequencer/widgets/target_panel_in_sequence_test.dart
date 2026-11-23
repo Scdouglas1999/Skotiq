@@ -159,6 +159,38 @@ void main() {
       expect(targetPlanSummary(planned), '4 frames · 4m per pass');
     });
 
+    test('an integration-time loop counts every pass it needs', () {
+      final exposure = ExposureNode(
+        id: 'e',
+        parentId: 'loop',
+        count: 2,
+        durationSecs: 300,
+      );
+      final loop = LoopNode(
+        id: 'loop',
+        parentId: 't',
+        childIds: const ['e'],
+        conditionType: LoopConditionType.integrationTime,
+        integrationTimeTarget: 3600,
+      );
+      final target = TargetHeaderNode(
+        id: 't',
+        targetName: 'M31',
+        raHours: 0.7,
+        decDegrees: 41.3,
+        childIds: const ['loop'],
+      );
+      final sequence = Sequence.create(
+        name: 'night',
+        rootNodeId: 't',
+        nodes: {target.id: target, loop.id: loop, exposure.id: exposure},
+      );
+      expect(
+        targetPlanSummary(plannedCaptureUnder(sequence, 't')),
+        '12 frames · 1h',
+      );
+    });
+
     test('an open-ended loop is described, never counted as zero', () {
       const planned = PlannedCapture(
         frames: 0,
