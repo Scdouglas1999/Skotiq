@@ -703,22 +703,17 @@ mod executor_site_tests {
             children: vec![],
         });
         sequence.root_node_id = Some("wait".to_string());
-        crate::api::sequencer::event_bridge::wait_for_no_event_listeners().await;
-        let mut run_events = {
+        {
             let mut executor = skotiq_sequencer::get_executor().write().await;
             executor.set_device_ops(std::sync::Arc::new(
                 skotiq_sequencer::device_ops::NullDeviceOps,
             ));
             executor.load_sequence(sequence).expect("sequence loads");
-            executor.handle().subscribe()
-        };
-        let bridge = tokio::spawn(async move {
-            crate::api::sequencer::event_bridge::run_sequencer_event_loop(
-                &mut run_events,
-                get_state(),
-            )
-            .await;
-        });
+        }
+        // The process's one pair of event bridges, as the host starts them:
+        // a test-local loop beside them would deliver every event twice.
+        crate::api::sequencer::event_bridge::start_sequencer_event_bridges()
+            .expect("the event bridges start");
         let mut events = get_state().event_bus.subscribe();
 
         api_sequencer_start().await.expect("run starts");
@@ -749,7 +744,6 @@ mod executor_site_tests {
                 Ok(Err(_)) | Err(_) => break,
             }
         }
-        bridge.abort();
         assert_eq!(stopped, 1, "one stop is one Stopped on the wire");
     }
 
