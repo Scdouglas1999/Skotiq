@@ -127,7 +127,7 @@ fn sky_atlas_compact_reply_fixture() {
     let reply = super::sky_atlas(
         serde_json::json!({"action": "compact", "atlasRoot": root.to_string_lossy()}).to_string(),
     );
-    std::fs::remove_dir_all(&root).ok();
+    std::fs::remove_dir_all(&root).expect("remove the scratch atlas");
     let reply: serde_json::Value = serde_json::from_str(&reply.expect("compact")).expect("JSON");
     check_or_write("sky_atlas_compact", &reply);
 }
