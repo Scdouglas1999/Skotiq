@@ -858,9 +858,11 @@ class UpdateController {
     } catch (e) {
       // A stop the operator asked for is not a failure: no failure event, and
       // the offer or the staged update stays. Any other error is a failure,
-      // whatever its text says.
+      // whatever its text says, and bytes that failed verification always are.
+      final badBytes = e is UpdateException && e.isVerificationFailure;
       final stoppedByOperator =
-          e is DownloadCancelledException || gen != _opGeneration;
+          e is DownloadCancelledException ||
+          (gen != _opGeneration && !badBytes);
       if (stoppedByOperator) {
         final manifest = _lastManifest;
         _updateStatus(

@@ -130,4 +130,25 @@ void main() {
     expect(controller.status.state, UpdateLifecycleState.available);
     expect(events.whereType<UpdateFailedEvent>(), isEmpty);
   });
+
+  test(
+    'bytes that fail verification are a failure even after an abort',
+    () async {
+      final release = Completer<void>();
+      downloadAnswers(() async {
+        await release.future;
+        throw UpdateException('hash mismatch', isVerificationFailure: true);
+      });
+
+      final download = controller.downloadAndStage(jobId: 'job-1');
+      await pumpEventQueue();
+      controller.abortInFlight();
+      release.complete();
+      await expectLater(download, throwsA(isA<UpdateException>()));
+      await pumpEventQueue();
+
+      expect(controller.status.state, UpdateLifecycleState.failed);
+      expect(events.whereType<UpdateVerificationFailedEvent>(), hasLength(1));
+    },
+  );
 }
