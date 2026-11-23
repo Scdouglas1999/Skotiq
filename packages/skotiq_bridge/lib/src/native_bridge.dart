@@ -7,12 +7,12 @@
 library;
 
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart'
     show ExternalLibrary;
-import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import 'api_barrel.dart' as gen_api;
@@ -65,10 +65,10 @@ abstract final class NativeBridge {
       if (host == null) gen_api.apiInit();
 
       final version = gen_api.apiGetVersion();
-      _log('Native bridge v$version ready', level: Level.INFO);
+      _log('Native bridge v$version ready', level: 800);
       _nativeAvailable = true;
     } catch (e) {
-      _log('RustLib initialization failed: $e', level: Level.SEVERE);
+      _log('RustLib initialization failed: $e', level: 1000);
       _nativeAvailable = false;
     }
 
@@ -87,7 +87,7 @@ abstract final class NativeBridge {
       // will refuse, and operators must be able to spot that in logs.
       _log(
         'Native bridge unavailable; hardware operations will fail closed',
-        level: Level.WARNING,
+        level: 900,
       );
     }
   }
@@ -101,7 +101,7 @@ abstract final class NativeBridge {
     try {
       return await call();
     } catch (e) {
-      _log('Error in $operation: $e', level: Level.SEVERE);
+      _log('Error in $operation: $e', level: 1000);
       rethrow;
     }
   }
@@ -114,10 +114,8 @@ abstract final class NativeBridge {
     );
   }
 
-  static final Logger _logger = Logger('skotiq.NativeBridge');
-
-  static void _log(String message, {required Level level}) {
-    _logger.log(level, '[Bridge] $message');
+  static void _log(String message, {required int level}) {
+    developer.log('[Bridge] $message', name: 'NativeBridge', level: level);
   }
 
   static Future<String?> _findNativeLibrary() async {
@@ -195,20 +193,17 @@ abstract final class NativeBridge {
           DynamicLibrary.open(candidate);
           return path.normalize(candidate);
         } catch (e) {
-          _log(
-            'Failed to load native library at $candidate: $e',
-            level: Level.WARNING,
-          );
+          _log('Failed to load native library at $candidate: $e', level: 900);
         }
       }
 
       _log(
         'Native library not found. Native-only operations will fail closed.',
-        level: Level.WARNING,
+        level: 900,
       );
       return null;
     } catch (e) {
-      _log('Error loading native library: $e', level: Level.SEVERE);
+      _log('Error loading native library: $e', level: 1000);
       return null;
     }
   }

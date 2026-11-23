@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:logging/logging.dart';
@@ -13,7 +14,6 @@ import 'dso_designations.dart';
 import 'nebula_light.dart';
 
 final _catalogLog = Logger('skotiq.Catalog');
-final _openNgcCatalogLog = Logger('skotiq.OpenNgcCatalog');
 
 typedef _DsoRow = ({DeepSkyObject dso, List<String> names});
 typedef _DsoLoad = ({List<DeepSkyObject> objects, CatalogNameKeys nameKeys});
@@ -135,9 +135,13 @@ class OpenNgcDsoCatalog {
         if (row != null) rows.add(row);
       } catch (e) {
         // One malformed line (truncated export, missing field) must not abort
-        // the load of the other 14k. FINE keeps a systemic format change
-        // visible without spamming the user-facing pipeline.
-        _openNgcCatalogLog.fine('OpenNGC line parse failed; skipping: $e');
+        // the load of the other 14k. This runs in a worker isolate, which has
+        // no app-log listener.
+        developer.log(
+          'OpenNGC line parse failed; skipping: $e',
+          name: 'OpenNgcCatalog',
+          level: 500,
+        );
       }
     }
 

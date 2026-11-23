@@ -8,8 +8,6 @@ environment:
   flutter: ">=3.0.0"
 
 dependencies:
-  # Records reach the app log through core's forwarder (Log).
-  logging: ^1.3.0
   flutter:
     sdk: flutter
   flutter_rust_bridge: 2.11.1 # must equal the bridge crate's =2.11.1 (native/skotiq_native/bridge/Cargo.toml)

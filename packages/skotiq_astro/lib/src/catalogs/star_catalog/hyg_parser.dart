@@ -1,7 +1,5 @@
 part of '../star_catalog.dart';
 
-final _hygStarCatalogLog = Logger('skotiq.HygStarCatalog');
-
 typedef _StarLoad = ({List<Star> stars, CatalogNameKeys nameKeys});
 
 Future<_StarLoad> _loadStarsInIsolate(String path) async {
@@ -23,9 +21,13 @@ Future<_StarLoad> _loadStarsInIsolate(String path) async {
     } catch (e) {
       // HYG CSV contains ~120k rows; a single malformed line (truncated
       // export, encoding glitch, unexpected NaN in a numeric column) must not
-      // abort the whole load. FINE surfaces a systemic format change (e.g. an
-      // upstream column reorder) without spamming the user.
-      _hygStarCatalogLog.fine('HYG line parse failed; skipping: $e');
+      // abort the whole load. This runs in a worker isolate, which has no
+      // app-log listener.
+      developer.log(
+        'HYG line parse failed; skipping: $e',
+        name: 'HygStarCatalog',
+        level: 500,
+      );
     }
   }
 
