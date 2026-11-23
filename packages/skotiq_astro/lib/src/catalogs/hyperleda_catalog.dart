@@ -162,18 +162,24 @@ class HyperLedaCatalogLoader {
     final lines = await file.readAsLines();
     final galaxies = <HyperLedaData>[];
 
+    // HyperLEDA carries malformed rows from upstream exports; a bad line must
+    // not abort the load. One line states them, so a systemic format change
+    // is visible without a line per row.
+    var malformed = 0;
+    Object? firstError;
     // Skip header line
     for (var i = 1; i < lines.length; i++) {
       try {
         galaxies.add(HyperLedaData.fromCsvLine(lines[i]));
       } catch (e) {
-        // HyperLEDA carries malformed rows from upstream exports; a single
-        // bad line must not abort the load. FINE surfaces a systemic format
-        // change in the dev console.
-        _hyperLedaCatalogLog.fine(
-          'HyperLEDA line $i parse failed; skipping: $e',
-        );
+        malformed++;
+        firstError ??= 'line $i: $e';
       }
+    }
+    if (malformed > 0) {
+      _hyperLedaCatalogLog.fine(
+        'HyperLEDA skipped $malformed malformed line(s); first $firstError',
+      );
     }
 
     _cachedData = galaxies;

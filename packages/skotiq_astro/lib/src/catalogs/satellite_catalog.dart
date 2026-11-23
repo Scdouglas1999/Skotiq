@@ -158,6 +158,7 @@ class TleParser {
         .where((l) => l.isNotEmpty)
         .toList();
     final elements = <OrbitalElements>[];
+    final tally = _TleTally();
 
     int i = 0;
     while (i < lines.length) {
@@ -166,27 +167,20 @@ class TleParser {
           _isLine1(lines[i + 1]) &&
           _isLine2(lines[i + 2])) {
         // Three-line format: name + line1 + line2
-        final parsed = _parseThreeLines(lines[i], lines[i + 1], lines[i + 2]);
-        if (parsed != null) {
-          elements.add(parsed);
-        } else {
-          _satelliteCatalogLog.warning(
-            '[TLE] Failed to parse: ${lines[i].trim()}',
-          );
-        }
+        final parsed = _parseThreeLines(
+          lines[i],
+          lines[i + 1],
+          lines[i + 2],
+          tally,
+        );
+        if (parsed != null) elements.add(parsed);
         i += 3;
       } else if (i + 1 < lines.length &&
           _isLine1(lines[i]) &&
           _isLine2(lines[i + 1])) {
         // Two-line format: line1 + line2 (no name line)
-        final parsed = _parseTwoLines(lines[i], lines[i + 1]);
-        if (parsed != null) {
-          elements.add(parsed);
-        } else {
-          _satelliteCatalogLog.warning(
-            '[TLE] Failed to parse 2-line at index $i',
-          );
-        }
+        final parsed = _parseTwoLines(lines[i], lines[i + 1], tally);
+        if (parsed != null) elements.add(parsed);
         i += 2;
       } else {
         // Skip unrecognized line
@@ -194,6 +188,7 @@ class TleParser {
       }
     }
 
+    tally.report();
     return elements;
   }
 
@@ -209,25 +204,31 @@ class TleParser {
     String name,
     String line1,
     String line2,
+    _TleTally tally,
   ) {
     final cleanName = name.trim();
-    return _parseTwoLinesWithName(cleanName, line1, line2);
+    return _parseTwoLinesWithName(cleanName, line1, line2, tally);
   }
 
-  static OrbitalElements? _parseTwoLines(String line1, String line2) {
+  static OrbitalElements? _parseTwoLines(
+    String line1,
+    String line2,
+    _TleTally tally,
+  ) {
     final catStr = line1.substring(2, 7).trim();
-    return _parseTwoLinesWithName('SAT $catStr', line1, line2);
+    return _parseTwoLinesWithName('SAT $catStr', line1, line2, tally);
   }
 
   static OrbitalElements? _parseTwoLinesWithName(
     String name,
     String line1,
     String line2,
+    _TleTally tally,
   ) {
     try {
       if (!_verifyChecksum(line1) || !_verifyChecksum(line2)) {
-        _satelliteCatalogLog.warning('[TLE] Checksum mismatch for $name');
-        // Continue anyway - some sources have bad checksums
+        // Kept anyway: some sources publish bad checksums.
+        tally.checksumMismatches.add(name);
       }
 
       final catalogNumber = int.parse(line1.substring(2, 7).trim());
@@ -273,7 +274,7 @@ class TleParser {
         revolutionNumber: revolutionNumber,
       );
     } catch (e) {
-      _satelliteCatalogLog.warning('[TLE] Parse error for "$name": $e', e);
+      tally.failures.add('"$name": $e');
       return null;
     }
   }
@@ -661,4 +662,30 @@ class SatelliteCatalog {
 
     return results;
   }
+}
+
+/// What one TLE file got wrong, stated once per file rather than once per
+/// element set: a source with thousands of sets would otherwise fill the log.
+class _TleTally {
+  final checksumMismatches = <String>[];
+  final failures = <String>[];
+
+  void report() {
+    if (checksumMismatches.isNotEmpty) {
+      _satelliteCatalogLog.warning(
+        '[TLE] Checksum mismatch in ${checksumMismatches.length} element '
+        'set(s), kept: ${_examples(checksumMismatches)}',
+      );
+    }
+    if (failures.isNotEmpty) {
+      _satelliteCatalogLog.warning(
+        '[TLE] ${failures.length} element set(s) could not be parsed and were '
+        'skipped: ${_examples(failures)}',
+      );
+    }
+  }
+
+  static String _examples(List<String> items) => items.length <= 3
+      ? items.join(', ')
+      : '${items.take(3).join(', ')} and ${items.length - 3} more';
 }
