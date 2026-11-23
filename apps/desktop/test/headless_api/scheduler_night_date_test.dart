@@ -111,6 +111,8 @@ void main() {
 
   for (final now in [
     DateTime.utc(2026, 11, 22, 2), // 21:00 at the site
+    DateTime.utc(2026, 11, 22, 6, 30), // 01:30 at the site
+    DateTime.utc(2026, 11, 22, 10), // 05:00 at the site
   ]) {
     test('twilight-times asked at $now names the night under way', () async {
       final body = await askTwilight(now);
