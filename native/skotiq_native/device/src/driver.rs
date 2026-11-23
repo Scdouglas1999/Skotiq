@@ -95,7 +95,9 @@ pub trait CameraDriver: DeviceDriver {
 
     /// Read the file at `location` on the camera (or hand over the bytes the
     /// driver holds for it), for a capture that was retained. A file read
-    /// from the camera's memory is removed from it once it is read.
+    /// from the camera's memory is removed from it once it is read. A file
+    /// in the camera's memory that the camera no longer has fails with
+    /// [`DriverError::FileGone`] and leaves [`CameraDriver::retained_captures`].
     async fn retrieve_capture(&mut self, location: &str) -> Result<CameraFile, DriverError> {
         let _ = location;
         Err(DriverError::NotSupported)

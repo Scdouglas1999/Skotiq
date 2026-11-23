@@ -111,6 +111,13 @@ pub enum DeviceOpError {
         detail: String,
     },
 
+    /// The file asked for is not on the device. Otherwise a hardware failure.
+    #[error("{detail}")]
+    FileGone {
+        device_id: Option<String>,
+        detail: String,
+    },
+
     /// The device did not finish in the time allowed. Retrying can work.
     #[error("{detail}")]
     Timeout {
@@ -203,6 +210,7 @@ impl DeviceOpError {
             N::InvalidParameter(_) => DeviceOpError::InvalidParameter { detail },
             N::InvalidDevice(_) | N::NotEnumerated(_) => DeviceOpError::InvalidDeviceId { detail },
             N::SessionLost(_) => DeviceOpError::SessionLost { device_id, detail },
+            N::FileGone(_) => DeviceOpError::FileGone { device_id, detail },
             N::DeviceNotFound(id) => DeviceOpError::DeviceNotFound(id),
             N::Timeout(_) => DeviceOpError::Timeout { device_id, detail },
             // An SDK that failed or is missing, an I/O fault, an unknown
@@ -255,6 +263,10 @@ impl DeviceOpError {
                 detail,
             },
             DeviceOpError::SessionLost { device_id: own, .. } => DeviceOpError::SessionLost {
+                device_id: device_id.or(own),
+                detail,
+            },
+            DeviceOpError::FileGone { device_id: own, .. } => DeviceOpError::FileGone {
                 device_id: device_id.or(own),
                 detail,
             },

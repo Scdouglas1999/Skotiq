@@ -143,7 +143,7 @@ pub(crate) fn check_gp_error(code: c_int, operation: &str) -> Result<(), DriverE
 }
 
 /// What a failed libgphoto2 call means, in words a camera owner can act on.
-pub(crate) fn gp_error(code: c_int, operation: &str) -> DriverError {
+pub fn gp_error(code: c_int, operation: &str) -> DriverError {
     let sdk = |what: &str| DriverError::SdkError(format!("gPhoto2 {operation}: {what}"));
     match code {
         GP_ERROR_NOT_SUPPORTED => DriverError::NotSupported,
@@ -165,9 +165,9 @@ pub(crate) fn gp_error(code: c_int, operation: &str) -> DriverError {
              is not showing a menu.",
         ),
         GP_ERROR_NO_SPACE => sdk("the camera's memory card is full."),
-        GP_ERROR_FILE_NOT_FOUND | GP_ERROR_DIRECTORY_NOT_FOUND => {
-            sdk("the camera no longer has the file.")
-        }
+        GP_ERROR_FILE_NOT_FOUND | GP_ERROR_DIRECTORY_NOT_FOUND => DriverError::FileGone(format!(
+            "gPhoto2 {operation}: the camera no longer has the file."
+        )),
         GP_ERROR_MODEL_NOT_FOUND => DriverError::DeviceNotFound(format!(
             "gPhoto2 {operation}: the installed libgphoto2 does not know this camera model"
         )),

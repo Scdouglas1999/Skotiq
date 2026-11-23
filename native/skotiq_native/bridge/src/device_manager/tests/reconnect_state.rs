@@ -151,6 +151,8 @@ struct RecordingCoolerCamera {
     /// Captures the camera kept, with the bytes a retrieve hands over.
     retained: Vec<(skotiq_device::RetainedCapture, Vec<u8>)>,
     notices: Vec<skotiq_device::DriverNotice>,
+    /// What a retrieve fails with instead of handing over the file.
+    retrieve_error: Option<fn() -> skotiq_device::DriverError>,
 }
 
 #[async_trait::async_trait]
@@ -189,11 +191,19 @@ impl skotiq_device::CameraDriver for RecordingCoolerCamera {
         &mut self,
         location: &str,
     ) -> Result<skotiq_device::CameraFile, skotiq_device::DriverError> {
+        if let Some(error) = self.retrieve_error {
+            let error = error();
+            if matches!(error, skotiq_device::DriverError::FileGone(_)) {
+                self.retained
+                    .retain(|(kept, _)| !(kept.location == location && kept.in_camera_memory));
+            }
+            return Err(error);
+        }
         let index = self
             .retained
             .iter()
             .position(|(kept, _)| kept.location == location)
-            .ok_or_else(|| skotiq_device::DriverError::SdkError(format!("{location} not found")))?;
+            .ok_or_else(|| skotiq_device::DriverError::FileGone(format!("{location} not found")))?;
         let (kept, bytes) = self.retained.remove(index);
         Ok(skotiq_device::CameraFile {
             file_name: kept.location.rsplit('/').next().unwrap().to_string(),
@@ -454,6 +464,134 @@ async fn a_capture_kept_on_the_camera_is_listed_blocks_no_reconnect_and_is_retri
     assert_eq!(std::fs::read(&saved).unwrap(), raw);
     std::fs::remove_file(&saved).unwrap();
     assert!(manager.camera_retained_captures().is_empty());
+}
+
+/// A camera holding one capture it could not download, whose retrieve fails
+/// with `error`, and the record the device manager keeps of it.
+async fn manager_keeping_a_capture(
+    id: &str,
+    in_camera_memory: bool,
+    error: fn() -> skotiq_device::DriverError,
+) -> Arc<DeviceManager> {
+    let manager = build_device_manager();
+    manager
+        .register_connected_device(build_native_camera_info(id))
+        .await;
+    manager.hold_vendor_camera(
+        id,
+        Box::new(RecordingCoolerCamera {
+            retained: vec![(
+                skotiq_device::RetainedCapture {
+                    location: "/store_00010001/capt0000.cr2".to_string(),
+                    in_camera_memory,
+                    in_hand: false,
+                    reason: "the download failed".to_string(),
+                },
+                Vec::new(),
+            )],
+            retrieve_error: Some(error),
+            ..Default::default()
+        }),
+    );
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+    manager
+}
+
+fn retained_counts_published(
+    events: &mut tokio::sync::broadcast::Receiver<crate::event::bus::SkotiqEvent>,
+) -> Vec<u32> {
+    let mut counts = Vec::new();
+    while let Ok(event) = events.try_recv() {
+        if let crate::event::bus::EventPayload::Equipment(
+            crate::event::equipment::EquipmentEvent::CameraRetainedCapturesChanged {
+                count, ..
+            },
+        ) = event.payload
+        {
+            counts.push(count);
+        }
+    }
+    counts
+}
+
+/// A capture in the camera's memory that the camera no longer has (the
+/// memory was cleared) leaves the list when a retrieve finds it gone, with
+/// the error gPhoto2 raises for a missing file.
+#[tokio::test]
+async fn a_memory_capture_the_camera_no_longer_has_leaves_the_list() {
+    let id = "native:test:retained_gone";
+    let manager = manager_keeping_a_capture(id, true, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_FILE_NOT_FOUND,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+    let mut events = manager.app_state.event_bus.subscribe();
+
+    let error = manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert!(
+        error.to_string().contains("no longer has the file"),
+        "{error}"
+    );
+    assert!(manager.camera_retained_captures().is_empty());
+    assert_eq!(retained_counts_published(&mut events), [0]);
+
+    // The next frame's report does not bring it back.
+    let camera = manager.camera(id).await.unwrap();
+    manager.relay_camera_reports(id, camera.as_ref()).await;
+    assert!(manager.camera_retained_captures().is_empty());
+    assert!(retained_counts_published(&mut events).is_empty());
+}
+
+/// A capture on the camera's card stays listed when a retrieve cannot find
+/// it: the card may be out of the camera and back later.
+#[tokio::test]
+async fn a_card_capture_stays_listed_when_a_retrieve_cannot_find_it() {
+    let id = "native:test:retained_card";
+    let manager = manager_keeping_a_capture(id, false, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_FILE_NOT_FOUND,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+
+    manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert_eq!(manager.camera_retained_captures().len(), 1);
+}
+
+/// A memory capture stays listed when its retrieve fails because the
+/// camera's USB port went away: the camera is gone, not the file, and a
+/// retrieve after the camera is back says whether the file is still there.
+#[tokio::test]
+async fn a_memory_capture_stays_listed_when_the_camera_port_is_gone() {
+    let id = "native:test:retained_port_gone";
+    let manager = manager_keeping_a_capture(id, true, || {
+        skotiq_native::vendor::gphoto2::gp_error(
+            skotiq_native::vendor::gphoto2::GP_ERROR_UNKNOWN_PORT,
+            "reading /store_00010001/capt0000.cr2",
+        )
+    })
+    .await;
+
+    let error = manager
+        .camera_retrieve_retained_capture(id, "/store_00010001/capt0000.cr2")
+        .await
+        .unwrap_err();
+
+    assert!(error.to_string().contains("USB port is gone"), "{error}");
+    assert_eq!(manager.camera_retained_captures().len(), 1);
 }
 
 /// A raw file that was read and could not be decoded is saved as the camera
