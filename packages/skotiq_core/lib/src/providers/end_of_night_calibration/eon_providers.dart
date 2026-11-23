@@ -28,6 +28,7 @@ import '../ui_notification_provider.dart';
 import '../../models/calibration/calibration_library_models.dart';
 import '../../services/calibration/calibration_frame_groups.dart';
 import '../../services/calibration_backlog_service.dart';
+import '../calibration_backlog_service_provider.dart';
 import '../../services/calibration_master_builder.dart';
 import '../../services/frame_header.dart';
 import '../../services/camera_warmup_controller.dart' show CameraWarmupOutcome;

@@ -21,7 +21,7 @@ extension _ProfileServiceBackends on ProfileService {
       return null;
     }
 
-    final dao = _ref.read(equipmentProfilesDaoProvider);
+    final dao = _profilesDao();
     final profile = await dao.getProfileById(profileId);
     _requireAuthority(operation);
     return profile?.toModel();
@@ -38,13 +38,13 @@ extension _ProfileServiceBackends on ProfileService {
       return active != null ? equipmentProfileFromRemote(active) : null;
     }
 
-    final cached = _ref.read(activeEquipmentProfileProvider);
+    final cached = _activeProfile();
     if (cached != null) {
       _requireAuthority(operation);
       return cached;
     }
 
-    final dao = _ref.read(equipmentProfilesDaoProvider);
+    final dao = _profilesDao();
     final profile = await dao.getActiveProfile();
     _requireAuthority(operation);
     return profile?.toModel();
@@ -72,7 +72,7 @@ extension _ProfileServiceBackends on ProfileService {
       return chosen == null ? null : equipmentProfileFromRemote(chosen);
     }
 
-    final dao = _ref.read(equipmentProfilesDaoProvider);
+    final dao = _profilesDao();
     final profile =
         await dao.getDefaultProfile() ?? await dao.getActiveProfile();
     _requireAuthority(operation);
@@ -86,7 +86,7 @@ extension _ProfileServiceBackends on ProfileService {
   }) async {
     final operation = authority ?? _authority;
     _requireAuthority(operation);
-    await _ref.read(equipmentProfilesProvider.notifier).saveProfile(profile);
+    await _profiles().saveProfile(profile);
     _requireAuthority(operation);
   }
 
@@ -101,9 +101,10 @@ extension _ProfileServiceBackends on ProfileService {
     EquipmentProfileModel profile, {
     String progressSource = 'Profile connect',
   }) async {
-    final sweep = await _ref
-        .read(deviceServiceProvider)
-        .connectProfile(profile, source: progressSource);
+    final sweep = await _deviceService().connectProfile(
+      profile,
+      source: progressSource,
+    );
     final failures = [
       for (final failure in sweep.failures)
         (
@@ -126,10 +127,10 @@ extension _ProfileServiceBackends on ProfileService {
   String _deviceCalled(EquipmentProfileModel profile, String label) {
     final (String kind, String? name) = label == guideCameraLabel
         ? ('Guide camera', profile.guideCameraName)
-        : switch (deviceSlots.where((slot) => slot.noun == label)) {
-            final slots when slots.isNotEmpty => (
-              slots.first.type.displayName,
-              profile.deviceNameFor(slots.first.type),
+        : switch (DeviceType.values.where((type) => type.noun == label)) {
+            final types when types.isNotEmpty => (
+              types.first.displayName,
+              profile.deviceNameFor(types.first),
             ),
             _ => (label, null),
           };
@@ -145,13 +146,7 @@ extension _ProfileServiceBackends on ProfileService {
     final host = _hostProfiles;
     final takenNames = host != null
         ? [for (final p in await host.getProfiles()) p.name]
-        : [
-            for (final p
-                in await _ref
-                    .read(equipmentProfilesDaoProvider)
-                    .getAllProfiles())
-              p.name,
-          ];
+        : [for (final p in await _profilesDao().getAllProfiles()) p.name];
     _requireAuthority(authority);
     var name = data.name;
     var suffix = 1;
@@ -164,15 +159,13 @@ extension _ProfileServiceBackends on ProfileService {
     if (host != null) {
       final savedId = await host.saveProfile(model.toRemoteProfile());
       _requireAuthority(authority);
-      _ref.invalidate(equipmentProfilesProvider);
+      _onHostProfilesChanged();
       return savedId;
     }
 
-    final id = await _ref
-        .read(equipmentProfilesDaoProvider)
-        .createProfile(
-          model.toCompanion().copyWith(updatedAt: const Value.absent()),
-        );
+    final id = await _profilesDao().createProfile(
+      model.toCompanion().copyWith(updatedAt: const Value.absent()),
+    );
     _requireAuthority(authority);
     return id;
   }

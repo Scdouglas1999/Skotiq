@@ -11,6 +11,7 @@ import 'backend_provider.dart';
 import 'database_provider.dart';
 import 'host_reread.dart';
 import '../errors/server_error.dart';
+import '../utils/async_scope.dart';
 
 const _observingListNotProvided = Object();
 

@@ -20,7 +20,8 @@ class _SwitchingBackendNotifier extends BackendNotifier {
 }
 
 class _ControlledDefectMapService extends DefectMapService {
-  _ControlledDefectMapService(super.ref);
+  _ControlledDefectMapService(Ref ref)
+    : super(() => ref.read(linkedHostCalibrationToolsProvider));
 
   final buildGates = <Completer<DefectMapStatus>>[];
   final calls = <String>[];

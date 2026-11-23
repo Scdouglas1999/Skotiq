@@ -1,12 +1,10 @@
 import '../../database/rows/frame_type_record.dart';
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 
 import '../../models/darkroom/darkroom_links.dart';
 import '../../models/notification/notification_categories.dart';
-import '../../providers/database_provider.dart';
 import '../darkroom_autopilot/guided_build_delivery.dart';
 import '../darkroom_build_jobs.dart';
 import '../catalog_target_types.dart';
@@ -15,14 +13,12 @@ import '../../utils/logging_service.dart';
 import '../notification_service.dart';
 import 'night_end_run.dart';
 import 'night_end_settings.dart';
-import '../../providers/calibration_backlog_service_provider.dart';
-import '../../providers/darkroom_autopilot/guided_build_delivery_provider.dart';
-import '../../providers/darkroom_build_jobs_provider.dart';
-import '../../providers/darkroom_build_service_provider.dart';
-import '../../providers/darkroom_state_store_provider.dart';
-import '../../providers/logging_service_provider.dart';
-import '../../providers/notification_service_provider.dart';
+import '../../database/daos/images_dao.dart';
+import '../../database/daos/settings_dao.dart';
+import '../../database/database.dart';
 import '../../models/calibration/eon_status.dart';
+import '../darkroom_build_service.dart';
+import '../darkroom_state_store.dart';
 import '../../utils/retryable_once.dart';
 
 /// Where the night-end runs are saved.
@@ -31,18 +27,6 @@ const String nightEndRunsStateKey = 'night_end_runs.v1';
 /// How many night-end runs the history keeps.
 const int nightEndRunsKept = 30;
 
-/// The saved night-end runs, newest first.
-class NightEndRuns extends Notifier<List<NightEndRun>> {
-  @override
-  List<NightEndRun> build() => const [];
-
-  void _set(List<NightEndRun> runs) => state = List.unmodifiable(runs);
-}
-
-final nightEndRunsProvider = NotifierProvider<NightEndRuns, List<NightEndRun>>(
-  NightEndRuns.new,
-);
-
 /// Runs the end of a night with the operator asleep: record the calibration
 /// step, build every imaged target's masters from all its nights (a new
 /// night folds into the target's existing build), deliver them, and send one
@@ -50,24 +34,75 @@ final nightEndRunsProvider = NotifierProvider<NightEndRuns, List<NightEndRun>>(
 /// goes, so the Activity tab shows it and a run cut short by a restart
 /// carries on at the next launch.
 class NightEndRunner {
-  NightEndRunner(this._ref) {
-    _ref.onDispose(() {
-      _disposed = true;
-      _finished?.cancel();
-      _finished = null;
-    });
-  }
+  /// Every collaborator is asked for when a step needs it, so a switch edited
+  /// in Settings applies from the next step. [runs] and [setRuns] are the
+  /// saved runs the Activity tab shows; [prepareFlats] builds the operator's
+  /// selected flats for a target's lights and names them by setup. The owner
+  /// calls [dispose] when the runner goes away.
+  NightEndRunner({
+    required DarkroomBuildJobs Function() jobs,
+    required DarkroomBuildJob? Function() currentBuild,
+    required List<DarkroomBuildJob> Function() recentBuilds,
+    required List<NightEndRun> Function() runs,
+    required void Function(List<NightEndRun> runs) setRuns,
+    required DarkroomStateStore Function() stateStore,
+    required LoggingService Function() log,
+    required SettingsDao Function() settingsDao,
+    required ImagesDao Function() imagesDao,
+    required SkotiqDatabase Function() database,
+    required Future<Map<String, String>> Function(List<DbCapturedImage> lights)
+    prepareFlats,
+    required DarkroomBuildService Function() buildService,
+    required GuidedBuildDelivery Function() delivery,
+    required NotificationService Function() notifications,
+  }) : _jobsOf = jobs,
+       _currentBuild = currentBuild,
+       _recentBuilds = recentBuilds,
+       _runsOf = runs,
+       _setRuns = setRuns,
+       _stateStore = stateStore,
+       _logOf = log,
+       _settingsDao = settingsDao,
+       _imagesDao = imagesDao,
+       _database = database,
+       _prepareFlats = prepareFlats,
+       _buildService = buildService,
+       _delivery = delivery,
+       _notifications = notifications;
 
-  final Ref _ref;
+  final DarkroomBuildJobs Function() _jobsOf;
+  final DarkroomBuildJob? Function() _currentBuild;
+  final List<DarkroomBuildJob> Function() _recentBuilds;
+  final List<NightEndRun> Function() _runsOf;
+  final void Function(List<NightEndRun> runs) _setRuns;
+  final DarkroomStateStore Function() _stateStore;
+  final LoggingService Function() _logOf;
+  final SettingsDao Function() _settingsDao;
+  final ImagesDao Function() _imagesDao;
+  final SkotiqDatabase Function() _database;
+  final Future<Map<String, String>> Function(List<DbCapturedImage> lights)
+  _prepareFlats;
+  final DarkroomBuildService Function() _buildService;
+  final GuidedBuildDelivery Function() _delivery;
+  final NotificationService Function() _notifications;
+
   bool _disposed = false;
   late final RetryableOnce<void> _restored = RetryableOnce(_start);
   Future<void> _saving = Future<void>.value();
   Future<void> _queue = Future<void>.value();
   StreamSubscription<DarkroomBuildJob>? _finished;
 
-  DarkroomBuildJobs get _jobs => _ref.read(darkroomBuildJobsProvider.notifier);
+  DarkroomBuildJobs get _jobs => _jobsOf();
 
-  List<NightEndRun> get _runs => _ref.read(nightEndRunsProvider);
+  List<NightEndRun> get _runs => _runsOf();
+
+  /// Stop following builds; queued work that is still running stops at its
+  /// next check.
+  void dispose() {
+    _disposed = true;
+    _finished?.cancel();
+    _finished = null;
+  }
 
   /// Read the saved runs and the saved builds back, follow builds that end,
   /// and carry on any run a restart cut short.
@@ -79,15 +114,13 @@ class NightEndRunner {
     await _jobs.restore();
     if (_disposed) return;
     try {
-      final saved = await _ref
-          .read(darkroomStateStoreProvider)
-          .read(nightEndRunsStateKey);
+      final saved = await _stateStore().read(nightEndRunsStateKey);
       if (_disposed) return;
       final runs = <NightEndRun>[
         for (final r in saved?['runs'] as List? ?? const [])
           if (r is Map) NightEndRun.fromJson(Map<String, dynamic>.from(r)),
       ];
-      if (_runs.isEmpty) _ref.read(nightEndRunsProvider.notifier)._set(runs);
+      if (_runs.isEmpty) _setRuns(runs);
     } catch (e) {
       if (_disposed) return;
       _log.warning(
@@ -97,17 +130,14 @@ class NightEndRunner {
     }
     if (_disposed) return;
     _finished ??= _jobs.finished.listen(_onBuildFinished);
-    final builds = [
-      ?_ref.read(darkroomBuildJobsProvider),
-      ..._ref.read(darkroomRecentBuildsProvider),
-    ];
+    final builds = [?_currentBuild(), ..._recentBuilds()];
     _enqueue(() async => _settleCalibrationHolds(builds));
     for (final run in _runs.where((r) => !r.finished).toList()) {
       _enqueue(() => _carryOn(run.id));
     }
   }
 
-  LoggingService get _log => _ref.read(loggingServiceProvider);
+  LoggingService get _log => _logOf();
 
   /// Wait for the work queued so far.
   Future<void> idle() async {
@@ -137,13 +167,11 @@ class NightEndRunner {
       for (final r in _runs)
         if (r.id != run.id) r,
     ]..sort((a, b) => b.startedAt.compareTo(a.startedAt));
-    _ref
-        .read(nightEndRunsProvider.notifier)
-        ._set(runs.take(nightEndRunsKept).toList());
+    _setRuns(runs.take(nightEndRunsKept).toList());
     final snapshot = {
-      'runs': [for (final r in _ref.read(nightEndRunsProvider)) r.toJson()],
+      'runs': [for (final r in _runs) r.toJson()],
     };
-    final store = _ref.read(darkroomStateStoreProvider);
+    final store = _stateStore();
     _saving = _saving.then((_) async {
       try {
         await store.write(nightEndRunsStateKey, snapshot);
@@ -162,19 +190,15 @@ class NightEndRunner {
     EonReport? calibration,
   }) async {
     await start();
-    final settings = await NightEndAutomationSettings.load(
-      _ref.read(settingsDaoProvider),
-    );
-    final images = await _ref
-        .read(imagesDaoProvider)
-        .getImagesForSession(sessionId);
+    final settings = await NightEndAutomationSettings.load(_settingsDao());
+    final images = await _imagesDao().getImagesForSession(sessionId);
     final lightIds = {
       for (final image in images)
         if (image.isAcceptedLight) image.id,
     };
     if (lightIds.isEmpty) return null;
     final targets = await loadDarkroomTargets(
-      _ref.read(databaseProvider),
+      _database(),
       await installedDsoDesignations(_log),
     );
     final names = [
@@ -284,14 +308,12 @@ class NightEndRunner {
 
   /// Do whatever [id] still owes: builds, deliveries, the morning message.
   Future<void> _carryOn(String id) async {
-    final settings = await NightEndAutomationSettings.load(
-      _ref.read(settingsDaoProvider),
-    );
+    final settings = await NightEndAutomationSettings.load(_settingsDao());
     var run = _run(id);
     if (run == null || run.finished) return;
     final jobs = <String, DarkroomBuildJob>{};
     final framesByTarget = await loadDarkroomTargets(
-      _ref.read(databaseProvider),
+      _database(),
       await installedDsoDesignations(_log),
     );
     for (final target in run.targets) {
@@ -312,13 +334,12 @@ class NightEndRunner {
       // the operator's selected flats now, before the library is matched.
       try {
         final frames = framesByTarget[target.target] ?? [];
-        selectedFlats = await _ref
-            .read(calibrationBacklogProvider.notifier)
-            .prepareForLights(frames);
+        selectedFlats = await _prepareFlats(frames);
         if (!settings.allowIncompleteCalibration) {
-          await _ref
-              .read(darkroomBuildServiceProvider)
-              .requireCompleteCalibration(frames, selectedFlats: selectedFlats);
+          await _buildService().requireCompleteCalibration(
+            frames,
+            selectedFlats: selectedFlats,
+          );
         }
       } catch (e) {
         _put(
@@ -368,9 +389,9 @@ class NightEndRunner {
         // still holds every filter and the export, so this only reads them.
         await _jobs.whenIdle();
         try {
-          final selectedFlats = await _ref
-              .read(calibrationBacklogProvider.notifier)
-              .prepareForLights(framesByTarget[target.target] ?? []);
+          final selectedFlats = await _prepareFlats(
+            framesByTarget[target.target] ?? [],
+          );
           job = await _jobs.startUnattended(
             target.target,
             announce: false,
@@ -495,9 +516,7 @@ class NightEndRunner {
       );
     }
     try {
-      final outcome = await _ref
-          .read(guidedBuildDeliveryProvider)
-          .deliver(job, announce: false);
+      final outcome = await _delivery().deliver(job, announce: false);
       final delivered = outcome.delivery;
       final line = delivered == null || delivered.destinations.isEmpty
           ? 'No delivery destination is set up; the files are in '
@@ -593,15 +612,13 @@ class NightEndRunner {
       deepLink = kDarkroomActivityPayloadType;
     }
     try {
-      final dispatch = await _ref
-          .read(notificationServiceProvider)
-          .notify(
-            event: NotificationEvent.sequenceComplete,
-            title: title,
-            message: lines.join(' '),
-            routeAs: NotificationCategory.darkroomDraftReady,
-            deepLink: deepLink,
-          );
+      final dispatch = await _notifications().notify(
+        event: NotificationEvent.sequenceComplete,
+        title: title,
+        message: lines.join(' '),
+        routeAs: NotificationCategory.darkroomDraftReady,
+        deepLink: deepLink,
+      );
       return dispatch.anyDelivered
           ? NightEndStep(NightEndStepState.done, title)
           : NightEndStep(
@@ -679,9 +696,7 @@ class NightEndRunner {
       return;
     }
     _enqueue(() async {
-      final settings = await NightEndAutomationSettings.load(
-        _ref.read(settingsDaoProvider),
-      );
+      final settings = await NightEndAutomationSettings.load(_settingsDao());
       var updated = _afterBuild(target, job, settings);
       if (job.stage == DarkroomJobStage.done && settings.deliver) {
         updated = updated.copyWith(deliver: await _deliver(job, settings));
@@ -690,20 +705,18 @@ class NightEndRunner {
       if (!settings.morningMessage) return;
       final done = job.stage == DarkroomJobStage.done;
       try {
-        await _ref
-            .read(notificationServiceProvider)
-            .notify(
-              event: NotificationEvent.sequenceComplete,
-              title: done
-                  ? 'Masters ready: ${job.target}'
-                  : 'Master build ${job.stage == DarkroomJobStage.stopped ? 'stopped' : 'failed'}: ${job.target}',
-              message: [
-                updated.build.detail,
-                updated.deliver.detail,
-              ].whereType<String>().join(' '),
-              routeAs: NotificationCategory.darkroomDraftReady,
-              deepLink: darkroomTargetPayload(job.target),
-            );
+        await _notifications().notify(
+          event: NotificationEvent.sequenceComplete,
+          title: done
+              ? 'Masters ready: ${job.target}'
+              : 'Master build ${job.stage == DarkroomJobStage.stopped ? 'stopped' : 'failed'}: ${job.target}',
+          message: [
+            updated.build.detail,
+            updated.deliver.detail,
+          ].whereType<String>().join(' '),
+          routeAs: NotificationCategory.darkroomDraftReady,
+          deepLink: darkroomTargetPayload(job.target),
+        );
       } catch (e) {
         _log.warning('Build message not sent: $e', source: 'NightEnd');
       }

@@ -49,7 +49,7 @@ extension _StackFrameIo on StackAndShareService {
   /// The run's shared calibration inputs: the dark-match tolerances and the
   /// Settings master flat / bias, checked to exist once per run.
   _CalibrationContext _buildCalibrationContext() {
-    final settings = _ref.read(calibrationSettingsProvider);
+    final settings = _calibrationSettings();
     String? existing(String? path, String label) {
       if (path == null || path.isEmpty) return null;
       if (!File(path).existsSync()) {
@@ -59,7 +59,7 @@ extension _StackFrameIo on StackAndShareService {
     }
 
     return _CalibrationContext(
-      tolerances: _ref.read(darkLibraryMatchTolerancesProvider),
+      tolerances: _darkMatchTolerances(),
       flatPath: existing(settings.masterFlatPath, 'flat'),
       biasPath: existing(settings.masterBiasPath, 'bias'),
     );
@@ -72,9 +72,9 @@ extension _StackFrameIo on StackAndShareService {
   Future<String?> _discoverBayerPattern(StackedFrameSelection reference) async {
     // Live path: the connected camera's capabilities. An OSC camera advertises
     // `isColor` plus its `bayerPattern`; a mono camera advertises neither.
-    final cameraId = _ref.read(connectedCameraIdProvider);
+    final cameraId = _connectedCameraId();
     if (cameraId != null && cameraId.isNotEmpty) {
-      final caps = await _ref.read(cameraCapabilitiesProvider(cameraId).future);
+      final caps = await _cameraCapabilities(cameraId);
       _ensureSameHost();
       final pattern = caps?.bayerPattern?.trim();
       if (caps != null &&

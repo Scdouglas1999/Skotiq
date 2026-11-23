@@ -29,8 +29,8 @@ class _FixedBackendNotifier extends BackendNotifier {
   }
 }
 
-class _RecordingProfileService extends ProfileService {
-  _RecordingProfileService(super.ref, {this.error});
+class _RecordingProfileService extends Mock implements ProfileService {
+  _RecordingProfileService({this.error});
 
   final Object? error;
   int calls = 0;
@@ -76,7 +76,7 @@ void main() {
           (ref) => _FixedBackendNotifier(ref, backend),
         ),
         profileServiceProvider.overrideWith(
-          (ref) => _RecordingProfileService(ref, error: autoConnectError),
+          (ref) => _RecordingProfileService(error: autoConnectError),
         ),
       ],
     );

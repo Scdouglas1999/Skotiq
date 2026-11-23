@@ -53,6 +53,7 @@ import '../providers/capture_preview_loader_provider.dart';
 import '../providers/logging_service_provider.dart';
 import '../providers/notification_service_provider.dart';
 import '../providers/science/science_processing_service_provider.dart';
+import '../utils/async_scope.dart';
 part 'imaging_service/file_paths.dart';
 part 'imaging_service/persistence.dart';
 part 'imaging_service/quality_processing.dart';

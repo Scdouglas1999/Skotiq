@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import '../../../utils/authority_bound_dialog.dart';
 import '../../../utils/count_label.dart';
 import '../../../utils/snackbar_helper.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// Save the open plan into the sequence library: Ctrl+S and the builder's
 /// Save button.

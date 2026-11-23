@@ -14,7 +14,7 @@ import '../safe_rig_service.dart';
 import '../../services/end_of_night_calibration/eon_deferral.dart';
 import '../../utils/logging_service.dart';
 import '../backend_provider.dart';
-import '../database_provider.dart' show targetsDaoProvider;
+import '../database_provider.dart' show settingsDaoProvider, targetsDaoProvider;
 import '../disk_space_provider.dart';
 import '../notification_router_provider.dart';
 import '../../models/notification/notification_categories.dart';
@@ -995,8 +995,9 @@ class SequenceExecutor {
     // With end-of-night calibration to follow, the plan's closing warm-up
     // waits for it so the camera stays at the darks' set-point.
     final deferWarmUp = await endOfNightCalibrationFollows(
-      _ref,
       _ref.read(currentSequenceProvider.notifier).activeOwner,
+      isRemote: () => _ref.read(isRemoteModeProvider),
+      settingsDao: () => _ref.read(settingsDaoProvider),
     );
     _ref.read(shutdownWarmUpDeferredProvider.notifier).state = deferWarmUp;
     await _backend.sequencerLoadJson(

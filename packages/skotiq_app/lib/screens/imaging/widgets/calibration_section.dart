@@ -15,6 +15,7 @@ import '../../../utils/snackbar_helper.dart';
 import '../../../widgets/remote_directory_picker_dialog.dart';
 import 'panel_widgets.dart';
 import '../../../router/app_routes.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 part 'calibration_section_parts/_status_blocks.dart';
 part 'calibration_section_parts/_build_controls.dart';

@@ -2,6 +2,23 @@ part of '../profile_service.dart';
 
 typedef _BackendAuthority = AsyncScope<SkotiqBackend>;
 
+/// The one writer of equipment profiles and of which one is active and
+/// default. [ProfileService] activates, saves, copies and deletes through it,
+/// so it never becomes a second, unsynchronized writer.
+abstract interface class ProfileWriter {
+  Future<int> saveProfile(EquipmentProfileModel profile);
+
+  Future<void> deleteProfile(int profileId);
+
+  Future<void> setActiveProfile(int profileId);
+
+  Future<void> setActiveProfileStrict(int profileId);
+
+  Future<void> setDefaultProfile(int? profileId, {bool makeActive = true});
+
+  Future<int> duplicateProfile(int sourceId, String newName);
+}
+
 /// Raised when startup auto-connect finishes activating a profile but one or
 /// more of its devices failed to connect. Startup deliberately attempts EVERY
 /// configured device (a single offline focuser must not strand the mount and

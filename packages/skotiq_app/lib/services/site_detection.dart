@@ -9,6 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import '../widgets/geolocation_consent.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// Resolves this machine's position through the positioning tiers: the
 /// platform's location service, a Wi-Fi scan resolved by a positioning

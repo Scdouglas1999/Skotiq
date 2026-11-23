@@ -9,6 +9,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../services/host_folders.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 typedef OnboardingCaptureDirectoryWriter = Future<void> Function(String path);
 

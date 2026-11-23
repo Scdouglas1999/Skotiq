@@ -12,6 +12,7 @@ import '../providers/async_scope.dart';
 import '../providers/profiles_provider.dart' show opticalConfigProvider;
 import '../providers/settings_provider.dart';
 import '../providers/logging_service_provider.dart';
+import '../utils/async_scope.dart';
 
 final _kEmptyCoeffs = Float64List(0);
 

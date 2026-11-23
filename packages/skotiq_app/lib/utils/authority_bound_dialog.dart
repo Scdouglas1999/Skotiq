@@ -6,6 +6,7 @@ import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/providers.dart';
 
 import 'snackbar_helper.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// Closes the dialog route owning [context] after its backing authority
 /// changes.

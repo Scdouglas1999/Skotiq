@@ -21,6 +21,7 @@ import 'package:skotiq_core/src/models/equipment_profile.dart'
     as remote_profile;
 import 'package:skotiq_core/src/models/equipment_profile_model.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/providers/profile_service_provider.dart';
 import 'package:skotiq_core/src/services/profile_service.dart';
 
 import '../harness/in_memory_database.dart';
@@ -247,7 +248,7 @@ ProviderContainer _localContainer() {
   return container;
 }
 
-final _localService = Provider<ProfileService>((ref) => ProfileService(ref));
+final _localService = Provider<ProfileService>((ref) => profileServiceFor(ref));
 
 Future<void> _insertRows(ProviderContainer container) async {
   final database = container.read(databaseProvider);
@@ -424,7 +425,7 @@ Future<Map<String, Object?>> _snapshot() async {
     addTearDown(container.dispose);
     final service = container.read(
       Provider<ProfileService>(
-        (ref) => ProfileService(ref, hostProfiles: host),
+        (ref) => profileServiceFor(ref, hostProfiles: host),
       ),
     );
     await service.importAllProfilesFromJson(document);

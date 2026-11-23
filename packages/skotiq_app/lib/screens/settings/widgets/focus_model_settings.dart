@@ -11,6 +11,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 import '../../../utils/confirm_dialog.dart';
 import '../../../utils/snackbar_helper.dart';
 import 'settings_widgets.dart';
+import 'package:skotiq_core/utils.dart' show AsyncScope;
 
 /// View the connected appliance's temperature-compensation focus model.
 ///
