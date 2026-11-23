@@ -985,6 +985,51 @@ Future<void> main() async {
     );
   }, exitCode: 0);
 
+  await check(
+    'an app main that does not start with Log.listen() fails',
+    (root) async {
+      await _write(
+        root,
+        'apps/mobile/lib/main.dart',
+        'void main() async {\n'
+            "  Log.info('Starting', source: 'Main');\n"
+            '  Log.listen();\n'
+            '}\n',
+      );
+      await _write(
+        root,
+        'apps/desktop/lib/main_headless.dart',
+        'void main(List<String> args) async {\n'
+            '  WidgetsFlutterBinding.ensureInitialized();\n'
+            '}\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[leaf-logger]',
+      'apps/mobile/lib/main.dart:1: main does not start with Log.listen()',
+      'main_headless.dart:1: main does not start with Log.listen()',
+      'Where it goes instead: Make Log.listen(); the first statement of main.',
+    ],
+  );
+
+  await check('an app main that starts with Log.listen() passes', (root) async {
+    await _write(
+      root,
+      'apps/mobile/lib/main.dart',
+      'void main() async {\n'
+          '  // Before anything can log.\n'
+          '  Log.listen();\n'
+          "  Log.info('Starting', source: 'Main');\n"
+          '}\n',
+    );
+    await _write(
+      root,
+      'apps/desktop/lib/main_parts/helpers.dart',
+      'void main() {}\n',
+    );
+  }, exitCode: 0);
+
   if (failures > 0) {
     stderr.writeln('$failures architecture rules self-test case(s) failed.');
     exit(1);

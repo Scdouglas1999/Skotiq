@@ -43,7 +43,9 @@ import 'src/audit_scope.dart';
 ///                       shows a failure as an info snackbar.
 ///   leaf-logger         A `package:logging` logger in library code is
 ///                       built as `Logger('skotiq.<Name>')`: the app log
-///                       takes only records under `skotiq.`.
+///                       takes only records under `skotiq.`. An app's
+///                       `main` starts with `Log.listen();`, so records
+///                       logged before the logging service exists are kept.
 ///
 /// Sites that existed when a rule was introduced are listed, by count, in the
 /// baseline file (`tools/production/architecture_rules_baseline.json`). A key
@@ -390,6 +392,11 @@ const _leafLoggerInstead =
     'isolate has no forwarder: log there with dart:developer, or send the '
     'message back to the main isolate.';
 
+const _mainListensInstead =
+    'Make Log.listen(); the first statement of main. Leaf records logged '
+    'before the logging service exists (catalogs opening, network set-up) '
+    'are lost unless the forwarder is already listening.';
+
 void main(List<String> args) {
   final scope = AuditScope.fromArgs(args);
   final baselinePath = argValue(args, '--baseline') ?? _defaultBaselinePath;
@@ -418,6 +425,7 @@ void main(List<String> args) {
   violations.addAll(_checkHostScreens(dartFiles));
   violations.addAll(_checkAppFeedback(dartFiles));
   violations.addAll(_checkLeafLogger(dartFiles));
+  violations.addAll(_checkMainListens(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
   final srcImportSites = _srcImportSites(dartPackages, dartFiles);
@@ -599,7 +607,7 @@ enum _Rule {
   ),
   leafLogger(
     'leaf-logger',
-    'A package:logging logger is named skotiq.<Name>.',
+    'Leaf package log records reach the app log.',
     _leafLoggerInstead,
   );
 
@@ -1192,6 +1200,33 @@ final _loggerConstruction = RegExp(
 );
 
 final _libraryCode = RegExp(r'^(?:packages|apps)/[^/]+/lib/');
+
+final _appMain = RegExp(r'^apps/[^/]+/lib/main[^/]*\.dart$');
+final _mainDeclaration = RegExp(r'^(?:Future<void>|void)\s+main\s*\(');
+
+List<_Violation> _checkMainListens(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!_appMain.hasMatch(path)) continue;
+    final lines = _readLines(path);
+    final start = lines.indexWhere(_mainDeclaration.hasMatch);
+    if (start < 0) continue;
+    final first = lines
+        .skip(start + 1)
+        .map((line) => line.split('//').first.trim())
+        .firstWhere((code) => code.isNotEmpty, orElse: () => '');
+    if (first == 'Log.listen();') continue;
+    out.add(
+      _Violation(
+        _Rule.leafLogger,
+        '$path:${start + 1}',
+        'main does not start with Log.listen()',
+        _mainListensInstead,
+      ),
+    );
+  }
+  return out;
+}
 
 List<_Violation> _checkLeafLogger(List<String> files) {
   final out = <_Violation>[];
