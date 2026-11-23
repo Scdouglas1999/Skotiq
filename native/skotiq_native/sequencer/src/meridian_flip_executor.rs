@@ -276,6 +276,17 @@ pub(crate) const POST_FLIP_GUIDING_LOCK: crate::instructions::GuidingLockRule =
         poll: std::time::Duration::from_secs(2),
     };
 
+/// `n` in words up to ten, for a sentence; in digits above.
+fn count_in_words(n: u32) -> String {
+    const WORDS: [&str; 11] = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    ];
+    usize::try_from(n)
+        .ok()
+        .and_then(|i| WORDS.get(i))
+        .map_or_else(|| n.to_string(), |word| (*word).to_string())
+}
+
 /// A post-flip centering correction: a short move that must report moving
 /// within 5 s, as a Center step's does, and finish within 5 min.
 pub(crate) const FLIP_CENTERING_SLEW: crate::instructions::SlewWaitBounds =
@@ -1654,7 +1665,10 @@ impl MeridianFlipExecutor {
                             e
                         );
                     }
-                    return Err("Centering slew timed out after 5 minutes".to_string());
+                    return Err(format!(
+                        "Centering slew timed out after {} minutes",
+                        FLIP_CENTERING_SLEW.complete.as_secs() / 60
+                    ));
                 }
                 crate::instructions::SlewWait::NeverStarted { abort } => {
                     if let Err(e) = abort {
@@ -1673,10 +1687,13 @@ impl MeridianFlipExecutor {
                 crate::instructions::SlewWait::ReadFailed(error) => return Err(error.into()),
             }
         }
+        let attempts = count_in_words(policy.max_attempts);
         if last_failure.is_empty() {
-            Err("Post-flip centering did not converge after three solves".into())
+            Err(format!(
+                "Post-flip centering did not converge after {attempts} solves"
+            ))
         } else {
-            Err(format!("{last_failure} (three frames tried)"))
+            Err(format!("{last_failure} ({attempts} frames tried)"))
         }
     }
 
