@@ -1,0 +1,25 @@
+{
+  "centerDec": 41.269,
+  "centerRa": 10.6847,
+  "channels": 3,
+  "coverageMean": 11.25,
+  "ok": true,
+  "provenance": {
+    "contributors": [
+      "rig-nyx",
+      "friend-1"
+    ],
+    "folds": [
+      {
+        "contributor": "rig-nyx",
+        "frames_added": 3,
+        "integration_seconds_added": 540.0,
+        "label": "2026-11-21",
+        "rejected": 17,
+        "weight_added": 2.75
+      }
+    ],
+    "total_frames": 42,
+    "total_integration_seconds": 7560.0
+  }
+}

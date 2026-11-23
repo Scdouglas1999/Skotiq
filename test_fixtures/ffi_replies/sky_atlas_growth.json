@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "points": [
+    {
+      "contributor": "rig-nyx",
+      "cumulativeFrames": 42,
+      "cumulativeSeconds": 7560.0,
+      "framesAdded": 3,
+      "label": "2026-11-21",
+      "secondsAdded": 540.0
+    }
+  ],
+  "totalFrames": 42,
+  "totalSeconds": 7560.0
+}

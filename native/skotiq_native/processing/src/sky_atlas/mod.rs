@@ -36,6 +36,8 @@ mod fold;
 pub mod frames;
 pub mod regions;
 #[cfg(test)]
+mod reply_fixture_tests;
+#[cfg(test)]
 mod tests;
 mod tiles;
 
