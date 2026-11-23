@@ -1,42 +1,34 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import 'plugin_api.dart';
 
-/// Implementation of PluginLogger that writes to console and developer log
+final _pluginStorageLog = Logger('skotiq.PluginStorage');
+
+/// The [PluginLogger] a plugin gets unless the app supplies its own: records
+/// go to `package:logging` as `skotiq.Plugin.<id>`, which the app log
+/// receives.
 class ConsolePluginLogger implements PluginLogger {
-  final String _pluginId;
+  final Logger _log;
 
-  ConsolePluginLogger(this._pluginId);
-
-  @override
-  void info(String message) {
-    developer.log(message, name: 'Plugin.$_pluginId', level: 800);
-  }
+  ConsolePluginLogger(String pluginId)
+    : _log = Logger('skotiq.Plugin.$pluginId');
 
   @override
-  void debug(String message) {
-    developer.log(message, name: 'Plugin.$_pluginId', level: 500);
-  }
+  void info(String message) => _log.info(message);
 
   @override
-  void warning(String message) {
-    developer.log(message, name: 'Plugin.$_pluginId', level: 900);
-  }
+  void debug(String message) => _log.fine(message);
 
   @override
-  void error(String message, [Object? error, StackTrace? stackTrace]) {
-    developer.log(
-      message,
-      name: 'Plugin.$_pluginId',
-      level: 1000,
-      error: error,
-      stackTrace: stackTrace,
-    );
-  }
+  void warning(String message) => _log.warning(message);
+
+  @override
+  void error(String message, [Object? error, StackTrace? stackTrace]) =>
+      _log.severe(message, error, stackTrace);
 }
 
 /// In-memory implementation of PluginStorage
@@ -192,12 +184,10 @@ class FilePluginStorage implements PluginStorage {
         throw const FormatException('Plugin storage root must be an object');
       }
     } catch (e, stackTrace) {
-      developer.log(
+      Logger('skotiq.Plugin.$_pluginId').severe(
         'Failed to load plugin storage for $_pluginId, resetting storage',
-        name: 'Plugin.$_pluginId',
-        level: 1000,
-        error: e,
-        stackTrace: stackTrace,
+        e,
+        stackTrace,
       );
       return <String, dynamic>{};
     }
@@ -266,10 +256,8 @@ class FilePluginStorage implements PluginStorage {
           // The real write error (if any) already propagated; this only
           // reports the orphan left behind, which would otherwise accumulate
           // in the plugin storage directory with nothing explaining it.
-          developer.log(
+          _pluginStorageLog.warning(
             'Could not remove plugin storage temp file ${tempFile.path}: $e',
-            name: 'PluginStorage',
-            level: 900,
           );
         }
       }
@@ -512,6 +500,7 @@ class PluginContextFactory {
   final StreamPluginEventBus _eventBus = StreamPluginEventBus();
   final PluginSandboxPolicy _policy;
   final PluginStorage Function(String pluginId) _storageFactory;
+  final PluginLogger Function(String pluginId) _loggerFactory;
 
   /// Creates a factory.
   ///
@@ -521,12 +510,17 @@ class PluginContextFactory {
   /// plugin lifecycle (`onLoad`/`onEnable`, which read persisted config) does
   /// not block on `path_provider` — a platform channel that never answers under
   /// the widget-test binding, which would otherwise hang the test indefinitely.
+  ///
+  /// [loggerFactory] builds each plugin's [PluginLogger]; it defaults to
+  /// [ConsolePluginLogger], whose records reach the app log.
   PluginContextFactory({
     PluginSandboxPolicy policy = const PluginSandboxPolicy(),
     PluginStorage Function(String pluginId)? storageFactory,
+    PluginLogger Function(String pluginId)? loggerFactory,
   }) : _policy = policy,
        _storageFactory =
-           storageFactory ?? ((pluginId) => FilePluginStorage(pluginId));
+           storageFactory ?? ((pluginId) => FilePluginStorage(pluginId)),
+       _loggerFactory = loggerFactory ?? ConsolePluginLogger.new;
 
   /// Publishes [eventName] from the app to every plugin listening on the
   /// shared bus ("weather.updated", "focuser.moved").
@@ -535,7 +529,7 @@ class PluginContextFactory {
 
   PluginContext createContext(String pluginId) {
     return PluginContext(
-      logger: ConsolePluginLogger(pluginId),
+      logger: _loggerFactory(pluginId),
       storage: _storageFactory(pluginId),
       eventBus: SandboxedPluginEventBus(pluginId, _eventBus, policy: _policy),
     );

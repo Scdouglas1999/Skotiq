@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 import '../astronomy/astronomy_calculations.dart';
 import '../astronomy/sgp4.dart';
 import 'catalog_manager.dart';
+
+final _satelliteCatalogLog = Logger('skotiq.SatelliteCatalog');
 
 /// Satellite data with current computed position.
 class SatelliteData {
@@ -168,10 +170,8 @@ class TleParser {
         if (parsed != null) {
           elements.add(parsed);
         } else {
-          developer.log(
+          _satelliteCatalogLog.warning(
             '[TLE] Failed to parse: ${lines[i].trim()}',
-            name: 'SatelliteCatalog',
-            level: 900,
           );
         }
         i += 3;
@@ -183,10 +183,8 @@ class TleParser {
         if (parsed != null) {
           elements.add(parsed);
         } else {
-          developer.log(
+          _satelliteCatalogLog.warning(
             '[TLE] Failed to parse 2-line at index $i',
-            name: 'SatelliteCatalog',
-            level: 900,
           );
         }
         i += 2;
@@ -228,11 +226,7 @@ class TleParser {
   ) {
     try {
       if (!_verifyChecksum(line1) || !_verifyChecksum(line2)) {
-        developer.log(
-          '[TLE] Checksum mismatch for $name',
-          name: 'SatelliteCatalog',
-          level: 900,
-        );
+        _satelliteCatalogLog.warning('[TLE] Checksum mismatch for $name');
         // Continue anyway - some sources have bad checksums
       }
 
@@ -279,12 +273,7 @@ class TleParser {
         revolutionNumber: revolutionNumber,
       );
     } catch (e) {
-      developer.log(
-        '[TLE] Parse error for "$name": $e',
-        name: 'SatelliteCatalog',
-        level: 900,
-        error: e,
-      );
+      _satelliteCatalogLog.warning('[TLE] Parse error for "$name": $e', e);
       return null;
     }
   }
@@ -411,19 +400,15 @@ class SatelliteCatalog {
           if (elements.isNotEmpty) {
             _cachedGroups[source.name] = elements;
             _lastDownloadTime = stat.modified;
-            developer.log(
+            _satelliteCatalogLog.info(
               '[Satellite] Loaded ${elements.length} TLEs from cache for ${source.name}',
-              name: 'SatelliteCatalog',
-              level: 800,
             );
             return elements;
           }
         } catch (e) {
-          developer.log(
+          _satelliteCatalogLog.warning(
             '[Satellite] Cache read error for ${source.name}: $e',
-            name: 'SatelliteCatalog',
-            level: 900,
-            error: e,
+            e,
           );
         }
       }
@@ -447,20 +432,16 @@ class SatelliteCatalog {
         }
         await cacheFile.writeAsString(text);
       } catch (e) {
-        developer.log(
+        _satelliteCatalogLog.warning(
           '[Satellite] Cache write error for ${source.name}: $e',
-          name: 'SatelliteCatalog',
-          level: 900,
-          error: e,
+          e,
         );
       }
 
       _cachedGroups[source.name] = elements;
       _lastDownloadTime = DateTime.now();
-      developer.log(
+      _satelliteCatalogLog.info(
         '[Satellite] Downloaded ${elements.length} TLEs for ${source.name}',
-        name: 'SatelliteCatalog',
-        level: 800,
       );
       return elements;
     } catch (e) {
@@ -471,10 +452,8 @@ class SatelliteCatalog {
           final elements = TleParser.parse(text);
           if (elements.isNotEmpty) {
             _cachedGroups[source.name] = elements;
-            developer.log(
+            _satelliteCatalogLog.warning(
               '[Satellite] Using stale cache for ${source.name} (${elements.length} TLEs)',
-              name: 'SatelliteCatalog',
-              level: 900,
             );
             return elements;
           }
@@ -484,11 +463,9 @@ class SatelliteCatalog {
           // the `rethrow` below so the original download error reaches the
           // caller (which is the actionable one). Logging here surfaces the
           // cache corruption distinctly from the network failure.
-          developer.log(
+          _satelliteCatalogLog.severe(
             '[Satellite] Stale-cache fallback failed for ${source.name}: $e',
-            name: 'SatelliteCatalog',
-            level: 1000,
-            error: e,
+            e,
           );
         }
       }
@@ -513,11 +490,9 @@ class SatelliteCatalog {
           }
         }
       } catch (e) {
-        developer.log(
+        _satelliteCatalogLog.warning(
           '[Satellite] Failed to load ${source.name}: $e',
-          name: 'SatelliteCatalog',
-          level: 900,
-          error: e,
+          e,
         );
       }
     }

@@ -1,7 +1,8 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:convert';
 import 'dart:math' as math;
+
+import 'package:logging/logging.dart';
 import '../astronomy/astronomy_calculations.dart';
 import '../util/csv_line.dart';
 import '../util/isolate_run.dart';
@@ -13,6 +14,8 @@ import 'constellation_names.dart';
 part 'star_catalog/hyg_parser.dart';
 part 'star_catalog/constellation_genitives.dart';
 part 'star_catalog/fallback_bright_stars.dart';
+
+final _starCatalogLog = Logger('skotiq.StarCatalog');
 
 /// How the last [HygStarCatalog.loadObjects] resolved.
 ///
@@ -112,12 +115,7 @@ class HygStarCatalog {
       // A catalog file that will not parse is a broken install, not an empty
       // sky: serve the built-in list, record why, and cache it so the failing
       // parse is not re-run on every rebuild.
-      developer.log(
-        '[Catalog] Error loading stars in isolate: $e',
-        name: 'StarCatalog',
-        level: 1000,
-        error: e,
-      );
+      _starCatalogLog.severe('[Catalog] Error loading stars in isolate: $e', e);
       _outcome = StarCatalogLoadOutcome.parseFailed;
       _loadError = e;
       return _stars = _fallbackBrightStars;

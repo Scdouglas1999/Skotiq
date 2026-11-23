@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
+
+import 'package:logging/logging.dart';
 
 import '../astronomy/astronomy_calculations.dart';
 import '../celestial_object.dart';
@@ -10,6 +11,9 @@ import 'catalog_name_search.dart';
 import 'constellation_names.dart';
 import 'dso_designations.dart';
 import 'nebula_light.dart';
+
+final _catalogLog = Logger('skotiq.Catalog');
+final _openNgcCatalogLog = Logger('skotiq.OpenNgcCatalog');
 
 typedef _DsoRow = ({DeepSkyObject dso, List<String> names});
 typedef _DsoLoad = ({List<DeepSkyObject> objects, CatalogNameKeys nameKeys});
@@ -64,10 +68,8 @@ class OpenNgcDsoCatalog {
       );
     }
     if (!await File(path).exists()) {
-      developer.log(
+      _catalogLog.warning(
         '[Catalog] DSO catalog not found at $path. Download the catalog in Settings > Catalogs.',
-        name: 'Catalog',
-        level: 900,
       );
       // Not cached: a catalog copied into place later is picked up by the
       // next load.
@@ -135,11 +137,7 @@ class OpenNgcDsoCatalog {
         // One malformed line (truncated export, missing field) must not abort
         // the load of the other 14k. FINE keeps a systemic format change
         // visible without spamming the user-facing pipeline.
-        developer.log(
-          'OpenNGC line parse failed; skipping: $e',
-          name: 'OpenNgcCatalog',
-          level: 500,
-        );
+        _openNgcCatalogLog.fine('OpenNGC line parse failed; skipping: $e');
       }
     }
 

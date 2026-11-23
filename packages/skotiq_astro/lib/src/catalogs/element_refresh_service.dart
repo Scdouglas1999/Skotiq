@@ -1,13 +1,16 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as path;
 
 import 'catalog_manager.dart';
 import 'minor_planet_catalog.dart';
 import 'mpcorb.dart';
+
+final _elementRefreshServiceLog = Logger('skotiq.ElementRefreshService');
+final _planetariumLog = Logger('skotiq.planetarium');
 
 /// Refresh cadence for live orbital-element data.
 enum ElementRefreshSchedule {
@@ -390,9 +393,8 @@ class ElementRefreshService {
     } catch (e) {
       // A corrupt meta file only loses the "last refreshed" bookkeeping; the
       // next save rewrites it. Log so repeated parse failures are visible.
-      developer.log(
+      _planetariumLog.fine(
         'ElementRefreshService: failed to read refresh metadata: $e',
-        name: 'skotiq.planetarium',
       );
     }
     return {};
@@ -430,11 +432,9 @@ class ElementRefreshService {
     try {
       config = await loadConfig();
     } catch (e) {
-      developer.log(
+      _elementRefreshServiceLog.warning(
         '[ElementRefresh] config unreadable; using default parse threshold '
         'for cached elements: $e',
-        name: 'ElementRefreshService',
-        level: 900,
       );
       config = const ElementRefreshConfig();
     }
@@ -453,11 +453,9 @@ class ElementRefreshService {
             (await file.stat()).modified;
         return (parsed, fetched);
       } catch (e) {
-        developer.log(
+        _elementRefreshServiceLog.warning(
           '[ElementRefresh] cache read error ($filePath): $e',
-          name: 'ElementRefreshService',
-          level: 900,
-          error: e,
+          e,
         );
         return (const <MinorBodyElements>[], null);
       }
@@ -536,11 +534,9 @@ class ElementRefreshService {
         meta['asteroidsCount'] = parsed.length;
       } catch (e) {
         asteroidError = e;
-        developer.log(
+        _elementRefreshServiceLog.warning(
           '[ElementRefresh] asteroid refresh failed: $e',
-          name: 'ElementRefreshService',
-          level: 900,
-          error: e,
+          e,
         );
       }
 
@@ -561,11 +557,9 @@ class ElementRefreshService {
         meta['cometsCount'] = parsed.length;
       } catch (e) {
         cometError = e;
-        developer.log(
+        _elementRefreshServiceLog.warning(
           '[ElementRefresh] comet refresh failed: $e',
-          name: 'ElementRefreshService',
-          level: 900,
-          error: e,
+          e,
         );
       }
     } finally {

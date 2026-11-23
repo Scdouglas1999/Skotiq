@@ -8,6 +8,8 @@ environment:
   flutter: ">=3.10.0"
 
 dependencies:
+  # Records reach the app log through core's forwarder (Log).
+  logging: ^1.3.0
   flutter:
     sdk: flutter
   flutter_riverpod: ^2.5.1

@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nsd/nsd.dart';
 
@@ -17,6 +17,8 @@ import 'link_version.dart';
 import 'rig_discovery.dart' show skotiqMdnsServiceType;
 import 'tailnet_detector.dart';
 import 'wire/routes/system_api.dart';
+
+final _enhancedDiscoveryLog = Logger('skotiq.EnhancedDiscovery');
 
 /// SharedPreferences keys for server persistence.
 ///
@@ -79,9 +81,8 @@ Future<void> _migrateAuthTokenIfNeeded(SharedPreferences prefs) async {
   }
   await prefs.remove(_DiscoveryPrefs.lastServerAuthToken);
   await prefs.setBool(_DiscoveryPrefs.authTokenMigrated, true);
-  developer.log(
+  _enhancedDiscoveryLog.fine(
     'Migrated auth token from SharedPreferences to secure storage',
-    name: 'EnhancedDiscovery',
   );
 }
 
@@ -512,9 +513,8 @@ class EnhancedSkotiqDiscovery {
     } else {
       await _secureStorage.delete(key: _secureAuthTokenKey);
     }
-    developer.log(
+    _enhancedDiscoveryLog.fine(
       'Saved server: ${server.name} at ${server.host}',
-      name: 'EnhancedDiscovery',
     );
   }
 
@@ -573,7 +573,7 @@ class EnhancedSkotiqDiscovery {
     // in case the user wiped storage out from under us.
     await prefs.remove(_DiscoveryPrefs.lastServerAuthToken);
     await _secureStorage.delete(key: _secureAuthTokenKey);
-    developer.log('Cleared saved server', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('Cleared saved server');
   }
 
   static Map<String, String> _authHeaders(String? authToken) =>
@@ -644,11 +644,9 @@ class EnhancedSkotiqDiscovery {
       case HostInfoAnswer(:final info):
         return ServerRead(_mergeServerInfo(server, info), read.problem);
       case HostInfoFailure(:final problem):
-        developer.log(
+        _enhancedDiscoveryLog.warning(
           'No Skotiq host at ${server.host}:${server.webPort}: '
           '${problem.kind.name}',
-          name: 'EnhancedDiscovery',
-          level: 900,
         );
         return ServerRead(server, problem);
     }
@@ -761,10 +759,8 @@ class EnhancedSkotiqDiscovery {
       // failure, timeout, TLS error) is by definition "not reachable" and
       // the caller treats it accordingly. Log so an operator chasing
       // "why doesn't my server show up" can see the actual cause.
-      developer.log(
+      _enhancedDiscoveryLog.warning(
         'probeServer failed for $host:$port: $e\n$stackTrace',
-        name: 'EnhancedDiscovery',
-        level: 900,
       );
       return ServerProbeOutcome.unreachable;
     }
@@ -795,13 +791,12 @@ class EnhancedSkotiqDiscovery {
     onStatus?.call('Checking last server...');
     final server = await loadLastServer();
     if (server == null) {
-      developer.log('No saved server found', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('No saved server found');
       return null;
     }
 
-    developer.log(
+    _enhancedDiscoveryLog.fine(
       'Testing saved server: ${server.host}:${server.webPort}',
-      name: 'EnhancedDiscovery',
     );
     final isReachable = await testServerConnection(
       server.host,
@@ -812,11 +807,11 @@ class EnhancedSkotiqDiscovery {
     );
 
     if (isReachable) {
-      developer.log('Saved server is reachable', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('Saved server is reachable');
       return (await readServer(server, timeout: timeout)).server;
     }
 
-    developer.log('Saved server not reachable', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('Saved server not reachable');
     return null;
   }
 
@@ -827,7 +822,7 @@ class EnhancedSkotiqDiscovery {
     DiscoveryStatusCallback? onStatus,
   }) async {
     onStatus?.call('Searching via Bonjour...');
-    developer.log('mDNS discovery starting...', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('mDNS discovery starting...');
 
     final List<DiscoveredServer> servers = [];
 
@@ -878,10 +873,8 @@ class EnhancedSkotiqDiscovery {
             // must not abort the whole sweep — another service in the same
             // broadcast may still resolve cleanly. Log at fine level so a
             // systemic Bonjour failure is visible in the dev console.
-            developer.log(
+            _enhancedDiscoveryLog.fine(
               'mDNS service resolution failed; skipping: $e\n$stackTrace',
-              name: 'EnhancedDiscovery',
-              level: 500,
             );
           }
         }
@@ -909,10 +902,8 @@ class EnhancedSkotiqDiscovery {
           // completed (or timed out); failing to close the mDNS handle is
           // non-fatal but should not propagate and mask the real outcome.
           // Log so a leaking handle pattern would be visible.
-          developer.log(
+          _enhancedDiscoveryLog.fine(
             'stopDiscovery cleanup failed: $e\n$stackTrace',
-            name: 'EnhancedDiscovery',
-            level: 500,
           );
         }
       }
@@ -967,7 +958,7 @@ class EnhancedSkotiqDiscovery {
   static Future<DiscoveredServer?> discoverWithFallback({
     DiscoveryStatusCallback? onStatus,
   }) async {
-    developer.log('Starting cascading discovery...', name: 'EnhancedDiscovery');
+    _enhancedDiscoveryLog.fine('Starting cascading discovery...');
 
     // 1. Try last saved server (2s timeout)
     onStatus?.call('Reconnecting to last server...');
@@ -976,7 +967,7 @@ class EnhancedSkotiqDiscovery {
       onStatus: onStatus,
     );
     if (lastServer != null) {
-      developer.log('Connected via saved server', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('Connected via saved server');
       return lastServer;
     }
 
@@ -987,7 +978,7 @@ class EnhancedSkotiqDiscovery {
       onStatus: onStatus,
     );
     if (mdnsServers.isNotEmpty) {
-      developer.log('Found server via mDNS', name: 'EnhancedDiscovery');
+      _enhancedDiscoveryLog.fine('Found server via mDNS');
       return firstLinkableServer(mdnsServers);
     }
 
@@ -998,19 +989,12 @@ class EnhancedSkotiqDiscovery {
       onStatus: onStatus,
     );
     if (udpServers.isNotEmpty) {
-      developer.log(
-        'Found server via UDP broadcast',
-        name: 'EnhancedDiscovery',
-      );
+      _enhancedDiscoveryLog.fine('Found server via UDP broadcast');
       return firstLinkableServer(udpServers);
     }
 
     // 4. No server found
-    developer.log(
-      'No server found via any method',
-      name: 'EnhancedDiscovery',
-      level: 900,
-    );
+    _enhancedDiscoveryLog.warning('No server found via any method');
     onStatus?.call('No server found');
     return null;
   }

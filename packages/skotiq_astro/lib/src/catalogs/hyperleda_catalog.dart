@@ -1,10 +1,13 @@
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:math' as math;
 
+import 'package:logging/logging.dart';
+
 import '../util/csv_line.dart';
 import 'catalog_region_scan.dart';
+
+final _hyperLedaCatalogLog = Logger('skotiq.HyperLedaCatalog');
 
 /// HyperLEDA catalog data for deep galaxy annotation
 /// Contains ~3 million galaxies down to magnitude 20+
@@ -167,10 +170,8 @@ class HyperLedaCatalogLoader {
         // HyperLEDA carries malformed rows from upstream exports; a single
         // bad line must not abort the load. FINE surfaces a systemic format
         // change in the dev console.
-        developer.log(
+        _hyperLedaCatalogLog.fine(
           'HyperLEDA line $i parse failed; skipping: $e',
-          name: 'HyperLedaCatalog',
-          level: 500,
         );
       }
     }

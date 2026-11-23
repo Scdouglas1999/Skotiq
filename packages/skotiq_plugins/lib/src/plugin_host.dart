@@ -1,9 +1,11 @@
-import 'dart:developer' as developer;
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'plugin_api.dart';
 import 'plugin_context.dart';
 import 'plugin_node_registry.dart';
+
+final _pluginHostLog = Logger('skotiq.PluginHost');
 
 class LoadedPlugin {
   final SkotiqPlugin plugin;
@@ -434,11 +436,7 @@ class PluginHost {
         await unregisterPlugin(pluginId);
       } catch (e) {
         // Log but continue disposing other plugins
-        developer.log(
-          'Error disposing plugin $pluginId: $e',
-          name: 'PluginHost',
-          level: 1000,
-        );
+        _pluginHostLog.severe('Error disposing plugin $pluginId: $e');
       }
     }
 

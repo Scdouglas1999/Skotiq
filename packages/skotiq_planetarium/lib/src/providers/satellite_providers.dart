@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import 'planetarium_providers.dart';
+
+final _satelliteProvidersLog = Logger('skotiq.SatelliteProviders');
 
 /// Whether satellite overlay is enabled
 final showSatellitesProvider = StateProvider<bool>((ref) => false);
@@ -22,12 +24,7 @@ final satelliteTleProvider = FutureProvider<List<OrbitalElements>>((ref) async {
   try {
     return await catalog.loadBrightSatellites();
   } catch (e) {
-    developer.log(
-      '[Satellite] Failed to load TLE data: $e',
-      name: 'SatelliteProviders',
-      level: 1000,
-      error: e,
-    );
+    _satelliteProvidersLog.severe('[Satellite] Failed to load TLE data: $e', e);
     rethrow;
   }
 });

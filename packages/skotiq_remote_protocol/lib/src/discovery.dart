@@ -1,12 +1,16 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:convert';
+
+import 'package:logging/logging.dart';
 
 import 'host_advert.dart';
 import 'link_version.dart';
 import 'network_uri.dart';
 import 'ports.dart';
+
+final _skotiqDiscoveryLog = Logger('skotiq.SkotiqDiscovery');
+final _updatePushDiscoveryLog = Logger('skotiq.UpdatePushDiscovery');
 
 class DiscoveredServer {
   final String host;
@@ -264,19 +268,15 @@ class DiscoveryPortMux {
             try {
               if (lease._handler(message, datagram, socket)) return;
             } catch (e, stackTrace) {
-              developer.log(
+              _skotiqDiscoveryLog.warning(
                 'Discovery responder failed: $e\n$stackTrace',
-                name: 'SkotiqDiscovery',
-                level: 900,
               );
             }
           }
         },
         onError: (Object error, StackTrace stackTrace) {
-          developer.log(
+          _skotiqDiscoveryLog.severe(
             'Discovery port socket error: $error\n$stackTrace',
-            name: 'SkotiqDiscovery',
-            level: 1000,
           );
         },
       );
@@ -427,10 +427,8 @@ class SkotiqDiscovery {
     try {
       task();
     } catch (e, stackTrace) {
-      developer.log(
+      _skotiqDiscoveryLog.severe(
         'Supervised task "$name" failed: $e\n$stackTrace',
-        name: 'SkotiqDiscovery',
-        level: 1000,
       );
     }
   }
@@ -449,9 +447,8 @@ class SkotiqDiscovery {
     RawDatagramSocket? socket;
 
     try {
-      developer.log(
+      _skotiqDiscoveryLog.fine(
         'Creating UDP socket for discovery (ephemeral port)...',
-        name: 'SkotiqDiscovery',
       );
       socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
@@ -459,10 +456,9 @@ class SkotiqDiscovery {
         reuseAddress: true,
       );
       socket.broadcastEnabled = true;
-      developer.log(
+      _skotiqDiscoveryLog.fine(
         'Client socket bound to ephemeral port ${socket.port}; '
         'targeting server port $_serverPort',
-        name: 'SkotiqDiscovery',
       );
 
       socket.listen(
@@ -482,27 +478,17 @@ class SkotiqDiscovery {
             if (seen.contains(key)) return;
             seen.add(key);
             servers.add(server);
-            developer.log(
+            _skotiqDiscoveryLog.info(
               'Found server: ${servers.last.name} at $host',
-              name: 'SkotiqDiscovery',
-              level: 800,
             );
           } catch (e) {
-            developer.log(
-              'Error parsing packet: $e',
-              name: 'SkotiqDiscovery',
-              level: 1000,
-            );
+            _skotiqDiscoveryLog.severe('Error parsing packet: $e');
           }
         },
         onError: (Object e) {
           // A probe that cannot be sent (no route on this interface) is reported
           // here, not thrown by send().
-          developer.log(
-            'Discovery socket error: $e',
-            name: 'SkotiqDiscovery',
-            level: 900,
-          );
+          _skotiqDiscoveryLog.warning('Discovery socket error: $e');
         },
       );
 
@@ -521,17 +507,12 @@ class SkotiqDiscovery {
       }
 
       await Future.delayed(timeout);
-      developer.log(
+      _skotiqDiscoveryLog.fine(
         'Discovery timeout reached, found ${servers.length} servers',
-        name: 'SkotiqDiscovery',
       );
       return servers;
     } catch (e) {
-      developer.log(
-        'Discovery error: $e',
-        name: 'SkotiqDiscovery',
-        level: 1000,
-      );
+      _skotiqDiscoveryLog.severe('Discovery error: $e');
       return servers;
     } finally {
       socket?.close();
@@ -670,10 +651,7 @@ class UpdatePushDiscovery {
     final seen = <String>{};
 
     try {
-      developer.log(
-        'Creating UDP socket for discovery...',
-        name: 'UpdatePushDiscovery',
-      );
+      _updatePushDiscoveryLog.fine('Creating UDP socket for discovery...');
       final socket = await RawDatagramSocket.bind(
         InternetAddress.anyIPv4,
         _discoveryPort,
@@ -705,28 +683,17 @@ class UpdatePushDiscovery {
                     isReceiving: info['isReceiving'] as bool? ?? false,
                   );
                   targets.add(target);
-                  developer.log(
-                    'Found target: $target',
-                    name: 'UpdatePushDiscovery',
-                    level: 800,
-                  );
+                  _updatePushDiscoveryLog.info('Found target: $target');
                 }
               }
             } catch (e) {
-              developer.log(
-                'Error parsing packet: $e',
-                name: 'UpdatePushDiscovery',
-                level: 1000,
-              );
+              _updatePushDiscoveryLog.severe('Error parsing packet: $e');
             }
           }
         }
       });
 
-      developer.log(
-        'Sending discovery broadcast...',
-        name: 'UpdatePushDiscovery',
-      );
+      _updatePushDiscoveryLog.fine('Sending discovery broadcast...');
       final discoveryData = utf8.encode(_updatePushMessage);
       socket.send(
         discoveryData,
@@ -735,19 +702,14 @@ class UpdatePushDiscovery {
       );
 
       await Future.delayed(timeout);
-      developer.log(
+      _updatePushDiscoveryLog.fine(
         'Discovery complete, found ${targets.length} targets',
-        name: 'UpdatePushDiscovery',
       );
       socket.close();
 
       return targets;
     } catch (e) {
-      developer.log(
-        'Discovery error: $e',
-        name: 'UpdatePushDiscovery',
-        level: 1000,
-      );
+      _updatePushDiscoveryLog.severe('Discovery error: $e');
       return targets;
     }
   }
@@ -775,18 +737,15 @@ class UpdatePushDiscovery {
         };
         final response = '$_updateResponsePrefix${jsonEncode(info)}';
         socket.send(utf8.encode(response), datagram.address, datagram.port);
-        developer.log(
+        _updatePushDiscoveryLog.fine(
           'Responded to discovery from ${datagram.address.address}',
-          name: 'UpdatePushDiscovery',
         );
         return true;
       },
     );
 
-    developer.log(
+    _updatePushDiscoveryLog.info(
       'Listening for update push discovery on port $_discoveryPort',
-      name: 'UpdatePushDiscovery',
-      level: 800,
     );
     return lease;
   }

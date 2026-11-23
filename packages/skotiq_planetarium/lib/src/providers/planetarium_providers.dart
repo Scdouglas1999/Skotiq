@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:logging/logging.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../rendering/sky_renderer.dart';
 import '../rendering/render_quality.dart';

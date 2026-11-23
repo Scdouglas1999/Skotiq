@@ -16,9 +16,12 @@
 library;
 
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
+
+import 'package:logging/logging.dart';
+
+final _catalogRegionScanLog = Logger('skotiq.CatalogRegionScan');
 
 /// Cone-and-magnitude test for one streaming catalog scan.
 ///
@@ -277,18 +280,14 @@ Future<CatalogRegionScan<T>> scanCatalogRegion<T>({
   });
 
   if (malformedRows > 0) {
-    developer.log(
+    _catalogRegionScanLog.fine(
       '$catalogName region scan skipped $malformedRows malformed rows',
-      name: 'CatalogRegionScan',
-      level: 500,
     );
   }
   if (truncated) {
-    developer.log(
+    _catalogRegionScanLog.warning(
       '$catalogName region scan stopped at ${filter.maxResults} matches for a '
       '${filter.radiusDegrees}deg cone; the answer is truncated',
-      name: 'CatalogRegionScan',
-      level: 900,
     );
   }
 

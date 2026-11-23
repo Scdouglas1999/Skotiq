@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:logging/logging.dart';
 import 'package:nsd/nsd.dart';
+
+final _mdnsRegistrationLog = Logger('skotiq.MdnsRegistration');
+final _mdnsServiceRegistrationLog = Logger('skotiq.MdnsServiceRegistration');
 
 /// mDNS / Bonjour / DNS-SD advertisement for a Skotiq headless server.
 ///
@@ -122,10 +125,8 @@ class MdnsServiceRegistration {
 
     try {
       _registration = await register(service);
-      developer.log(
+      _mdnsServiceRegistrationLog.info(
         'Registered mDNS service "$name" on port $port',
-        name: 'MdnsServiceRegistration',
-        level: 800,
       );
     } on NsdError catch (e, stackTrace) {
       // Why distinguished: NsdError carries an ErrorCause we can include in
@@ -138,10 +139,8 @@ class MdnsServiceRegistration {
         'falling back to UDP broadcast / manual entry. mDNS will be retried '
         'on next server restart.',
       );
-      developer.log(
+      _mdnsServiceRegistrationLog.severe(
         'NsdError during register: $e\n$stackTrace',
-        name: 'MdnsServiceRegistration',
-        level: 1000,
       );
       _registration = null;
     } catch (e, stackTrace) {
@@ -149,10 +148,8 @@ class MdnsServiceRegistration {
         'mDNS registration failed with unexpected error: $e — '
         'falling back to UDP broadcast / manual entry.',
       );
-      developer.log(
+      _mdnsServiceRegistrationLog.severe(
         'Unexpected exception during register: $e\n$stackTrace',
-        name: 'MdnsServiceRegistration',
-        level: 1000,
       );
       _registration = null;
     }
@@ -169,10 +166,8 @@ class MdnsServiceRegistration {
         await publisher.stdin.close();
       } catch (e) {
         // The publisher may already have exited; kill() below still runs.
-        developer.log(
+        _mdnsRegistrationLog.fine(
           'closing the avahi publisher stdin failed: $e',
-          name: 'MdnsRegistration',
-          level: 500,
         );
       }
       publisher.kill();
@@ -187,25 +182,17 @@ class MdnsServiceRegistration {
     }
     try {
       await unregister(reg);
-      developer.log(
-        'Unregistered mDNS service',
-        name: 'MdnsServiceRegistration',
-        level: 800,
-      );
+      _mdnsServiceRegistrationLog.info('Unregistered mDNS service');
     } on NsdError catch (e, stackTrace) {
       // Why: shutdown path. The operator already issued SIGINT / closed the
       // GUI; surfacing an unregister failure to the exit code would mask the
       // intended outcome. Log loudly so a leak-pattern bug is still visible.
-      developer.log(
+      _mdnsServiceRegistrationLog.severe(
         'NsdError during unregister: $e\n$stackTrace',
-        name: 'MdnsServiceRegistration',
-        level: 1000,
       );
     } catch (e, stackTrace) {
-      developer.log(
+      _mdnsServiceRegistrationLog.severe(
         'Unexpected exception during unregister: $e\n$stackTrace',
-        name: 'MdnsServiceRegistration',
-        level: 1000,
       );
     } finally {
       _started = false;
@@ -257,10 +244,8 @@ class MdnsServiceRegistration {
         return;
       }
       _avahiPublisher = process;
-      developer.log(
+      _mdnsServiceRegistrationLog.info(
         'Advertising "$name" on port $port through avahi',
-        name: 'MdnsServiceRegistration',
-        level: 800,
       );
     } catch (e) {
       _emitWarning('mDNS: could not start avahi-publish-service: $e');
@@ -275,7 +260,7 @@ class MdnsServiceRegistration {
     if (sink != null) {
       sink(message);
     } else {
-      developer.log(message, name: 'MdnsServiceRegistration', level: 900);
+      _mdnsServiceRegistrationLog.warning(message);
     }
   }
 
