@@ -16,18 +16,17 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../../localization/skotiq_localizations.dart';
-import '../../../services/run_dashboard_providers.dart'
-    show runDashboardActiveTargetProvider;
-import '../data/plan/night_flip_provider.dart';
-import '../night_control_contracts.dart';
+import '../../localization/skotiq_localizations.dart';
+import '../run_dashboard_providers.dart' show runDashboardActiveTargetProvider;
+import '../night_session/night_flip.dart';
+import 'night_action_api.dart';
+import 'night_text.dart';
 import 'armed_start_provider.dart';
 import 'manual_action_gating.dart';
 import 'night_rig_ops.dart';
 import 'run_pause_guard.dart';
-import '../data/session/before_you_start_provider.dart'
-    show nightSolverStatusProvider;
-import '../data/session/camera_exposure_provider.dart';
+import 'night_solver_status.dart';
+import '../night_session/night_camera_exposure.dart';
 import 'solve_and_sync.dart';
 import 'package:skotiq_core/utils.dart';
 

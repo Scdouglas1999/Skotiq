@@ -1,5 +1,31 @@
-// The manual-action contract.
-part of '../night_control_contracts.dart';
+// The manual-action contract: what Tonight's action bar shows and the API
+// that runs the actions.
+
+import 'package:flutter/foundation.dart';
+
+import 'night_text.dart';
+
+/// The manual actions: the center action bar's buttons, and [solve], the
+/// Solve tab's own button.
+///
+/// [tracking] and [cooler] appear only when no run is active (the Ready
+/// board); [dither] and [flip] only while a run is loaded. [solve] is never
+/// on the action bar.
+enum ManualActionId {
+  snapshot,
+  loop,
+  autofocus,
+
+  /// Solves the frame on screen without syncing; touches no device, so it
+  /// never pauses the run.
+  solve,
+  solveSync,
+  center,
+  dither,
+  flip,
+  tracking,
+  cooler,
+}
 
 /// One action-bar button.
 @immutable

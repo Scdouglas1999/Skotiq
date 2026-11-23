@@ -8,8 +8,9 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
+import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
+import 'package:skotiq_app/services/night_session/night_flip.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_plan_inputs.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
+import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
 import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_app/screens/night_control/panel/guide/night_guide_tab.dart';
 import 'package:skotiq_core/models.dart';

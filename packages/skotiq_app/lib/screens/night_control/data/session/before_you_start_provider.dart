@@ -12,13 +12,13 @@
 //  * on, with a site: 30 minutes before astronomical dawn a running run is
 //    parked; a mount with nothing running only has its tracking turned off.
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
+import '../../../../services/night_actions/night_solver_status.dart';
 import '../../night_control_contracts.dart';
 import '../plan/night_plan_inputs.dart';
 import 'conditions_provider.dart';
@@ -33,36 +33,6 @@ final String _folderRoute = AppRoutes.settings(SettingsSectionId.filesStorage);
 final String _solverRoute = AppRoute.plateSolvingSettings.path;
 final String _weatherRoute =
     AppRoutes.settings(SettingsSectionId.weatherSafety);
-
-/// The plate solver the operator picked, and whether it is installed.
-@immutable
-class NightSolverStatus {
-  const NightSolverStatus({required this.ready, this.name});
-
-  final bool ready;
-
-  /// "ASTAP" or "Astrometry.net"; null when none is installed.
-  final String? name;
-}
-
-/// Null while detection runs: a solver still being looked for is not a
-/// missing solver.
-final nightSolverStatusProvider = Provider<NightSolverStatus?>((ref) {
-  final detection = ref.watch(plateSolverDetectionProvider).valueOrNull;
-  final preference = ref.watch(plateSolverPreferenceProvider).valueOrNull;
-  if (detection == null || preference == null) return null;
-  final ready = detection.supports(preference.choice);
-  final name = switch (preference.choice) {
-    PlateSolverChoice.astap => 'ASTAP',
-    PlateSolverChoice.astrometry => 'Astrometry.net',
-    PlateSolverChoice.auto => detection.astapReady
-        ? 'ASTAP'
-        : detection.astrometryPath != null
-            ? 'Astrometry.net'
-            : null,
-  };
-  return NightSolverStatus(ready: ready, name: ready ? name : null);
-});
 
 /// The loaded plan's disk projection; null without a plan or while it runs.
 final nightDiskProjectionProvider = Provider<DiskSpaceProjection?>((ref) {

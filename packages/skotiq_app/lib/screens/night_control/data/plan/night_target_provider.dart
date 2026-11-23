@@ -12,7 +12,7 @@ import '../tonight_night.dart';
 import '../../../../services/run_dashboard_providers.dart';
 import '../../night_control_contracts.dart';
 import '../../../../services/night_session/night_session_events.dart';
-import 'night_flip_provider.dart';
+import '../../../../services/night_session/night_flip.dart';
 import 'night_plan_inputs.dart';
 import 'night_run_phase_provider.dart';
 

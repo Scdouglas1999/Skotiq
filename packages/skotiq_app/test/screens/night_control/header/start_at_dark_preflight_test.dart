@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
+import 'package:skotiq_app/services/night_actions/armed_start_provider.dart';
 import 'package:skotiq_app/screens/night_control/header/night_header_bar.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/models.dart';

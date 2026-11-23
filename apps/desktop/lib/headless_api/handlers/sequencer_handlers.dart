@@ -12,7 +12,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
+import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
 import 'package:shelf/shelf.dart';
 
 import '../../host/host_checkpoint_directory.dart';

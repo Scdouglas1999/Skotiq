@@ -15,8 +15,8 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../../services/command_action_result.dart';
-import '../data/session/camera_exposure_provider.dart';
+import '../command_action_result.dart';
+import '../night_session/night_camera_exposure.dart';
 
 /// Query the host before touching equipment, including when the exposure
 /// started before this screen subscribed to camera events.

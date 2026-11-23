@@ -2,7 +2,7 @@
 // nothing invented without a site.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skotiq_app/screens/night_control/data/plan/night_flip_provider.dart';
+import 'package:skotiq_app/services/night_session/night_flip.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_run_phase_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/plan/night_target_provider.dart';
 import 'package:skotiq_app/services/night_session/night_session_events.dart';
