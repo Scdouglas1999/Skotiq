@@ -2,23 +2,17 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../backend/skotiq_backend.dart';
 import '../models/equipment/equipment_models.dart';
 import '../models/equipment_profile.dart' as remote_profile;
 import '../models/equipment_profile_validation.dart';
-import '../providers/database_provider.dart';
-import '../providers/equipment_provider.dart';
-import '../providers/profiles_provider.dart';
 import '../models/equipment_profile_model.dart';
-import '../providers/settings_provider.dart';
 import 'device_service.dart';
 import '../models/optical_train_limits.dart';
 import '../backend/network_backend.dart';
 import '../models/backend/backend_types.dart';
-import '../providers/device_service_providers.dart';
-import '../providers/async_scope.dart';
 import '../utils/logging_service.dart';
+import '../database/daos/equipment_profiles_dao.dart';
 import '../database/rows/equipment_profile_rows.dart';
 import '../utils/async_scope.dart';
 
@@ -27,21 +21,46 @@ part 'profile_service/profile_service_types.dart';
 part 'profile_service/profile_backends.dart';
 
 class ProfileService {
-  final Ref _ref;
+  /// [hostProfiles] is the linked host's profiles, or null where the profiles
+  /// are in this process's database. [beginAuthority] scopes one operation to
+  /// the backend that is current when it starts; it must not read through the
+  /// provider that built this service, since a continuation can outlive a
+  /// backend swap. The other collaborators are asked for at each call.
+  /// [onHostProfilesChanged] runs after an import saves a profile on the
+  /// linked host, so the profile list re-reads.
+  ProfileService({
+    HostProfiles? hostProfiles,
+    required AsyncScope<SkotiqBackend> Function() beginAuthority,
+    required ProfileWriter Function() profiles,
+    required void Function() onHostProfilesChanged,
+    required EquipmentProfilesDao Function() profilesDao,
+    required EquipmentProfileModel? Function() activeProfile,
+    required Future<bool> Function() autoConnectOnStartup,
+    required FilterWheelState Function() filterWheel,
+    required DeviceService Function() deviceService,
+  }) : _hostProfiles = hostProfiles,
+       _beginAuthority = beginAuthority,
+       _profiles = profiles,
+       _onHostProfilesChanged = onHostProfilesChanged,
+       _profilesDao = profilesDao,
+       _activeProfile = activeProfile,
+       _autoConnectOnStartup = autoConnectOnStartup,
+       _filterWheel = filterWheel,
+       _deviceService = deviceService;
 
-  /// The linked host's profiles, or null where the profiles are in this
-  /// process's database.
   final HostProfiles? _hostProfiles;
+  final _BackendAuthority Function() _beginAuthority;
+  final ProfileWriter Function() _profiles;
+  final void Function() _onHostProfilesChanged;
+  final EquipmentProfilesDao Function() _profilesDao;
+  final EquipmentProfileModel? Function() _activeProfile;
+  final Future<bool> Function() _autoConnectOnStartup;
+  final FilterWheelState Function() _filterWheel;
+  final DeviceService Function() _deviceService;
 
-  ProfileService(this._ref, {HostProfiles? hostProfiles})
-    : _hostProfiles = hostProfiles;
+  _BackendAuthority get _authority => _beginAuthority();
 
-  /// Read through the container: a continuation that outlives a backend swap
-  /// must not touch this service's own `Ref`.
-  _BackendAuthority get _authority => _ref.container.backendScopes().begin();
-
-  EquipmentProfilesNotifier get _profilesNotifier =>
-      _ref.read(equipmentProfilesProvider.notifier);
+  ProfileWriter get _profilesNotifier => _profiles();
 
   /// Load and activate a profile, optionally connecting devices
   Future<void> loadProfile(int profileId, {bool autoConnect = false}) async {
@@ -106,7 +125,7 @@ class ProfileService {
   /// the host load endpoint + host-side device connects.
   Future<void> autoConnectOnStartup() async {
     final authority = _authority;
-    final autoConnect = await _ref.read(autoConnectSettingsProvider.future);
+    final autoConnect = await _autoConnectOnStartup();
     _requireAuthority(authority);
     if (!autoConnect) return;
 
@@ -163,7 +182,7 @@ class ProfileService {
           )
           .toList();
     } else {
-      final dao = _ref.read(equipmentProfilesDaoProvider);
+      final dao = _profilesDao();
       final profiles = await dao.getAllProfiles();
       _requireAuthority(authority);
       exportData = profiles
@@ -371,7 +390,7 @@ class ProfileService {
       return false;
     }
 
-    final filterWheelState = _ref.read(filterWheelStateProvider);
+    final filterWheelState = _filterWheel();
 
     if (filterWheelState.connectionState != DeviceConnectionState.connected) {
       Log.warning(
@@ -423,7 +442,7 @@ class ProfileService {
       throw Exception('Profile not found');
     }
 
-    final filterWheelState = _ref.read(filterWheelStateProvider);
+    final filterWheelState = _filterWheel();
 
     if (filterWheelState.connectionState != DeviceConnectionState.connected) {
       return false;

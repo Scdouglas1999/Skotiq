@@ -9,11 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_core/src/database/database.dart' as db;
 import 'package:skotiq_core/src/database/rows/equipment_profile_rows.dart';
 import 'package:skotiq_core/src/providers/database_provider.dart';
+import 'package:skotiq_core/src/providers/profile_service_provider.dart';
 import 'package:skotiq_core/src/services/profile_service.dart';
 
 import '../harness/in_memory_database.dart';
 
-final _service = Provider<ProfileService>((ref) => ProfileService(ref));
+final _service = Provider<ProfileService>((ref) => profileServiceFor(ref));
 
 ProviderContainer _container() {
   final container = ProviderContainer(overrides: [inMemoryDatabaseOverride()]);

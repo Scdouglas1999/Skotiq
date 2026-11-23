@@ -129,10 +129,6 @@
         "count": 4,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, loggingServiceProvider, opticalConfigProvider; scopes host work with AsyncScope (Riverpod). Remains: Other services import it (annotation_service.dart, default_science_backend.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/profile_service.dart": {
-        "count": 6,
-        "reason": "Holds a Riverpod Ref; reads autoConnectSettingsProvider, backendProvider, equipmentProfilesDaoProvider, equipmentProfilesProvider, filterWheelStateProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/quick_start_service.dart": {
         "count": 4,
         "reason": "Its part file quick_start_service/quick_start_providers.dart declares the Quick Start providers (Ref, DAO providers, sequenceCheckpointsDaoProvider). Remains: move those declarations to providers/ next."
@@ -145,21 +141,9 @@
         "count": 10,
         "reason": "Holds a Riverpod Ref; reads imagingRecordsRepositoryProvider, loggingServiceProvider, scienceBackendProvider, scienceDaoProvider, scienceProcessingStatusTrackerProvider. Remains: Reads 15 providers, among them scienceSettingsProvider whose ScienceSettings type is declared in providers/science_provider/settings.dart; that type has to move down before the service can take readers."
       },
-      "services/stack_and_share_service.dart": {
-        "count": 9,
-        "reason": "Holds a Riverpod Ref; reads calibrationServiceProvider, darkLibraryServiceProvider, imagesDaoProvider, liveStackingServiceProvider, loggingServiceProvider, sessionsDaoProvider, stackLightSelectorProvider, stackedResultsDaoProvider; scopes host work with AsyncScope (Riverpod). Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
-      "services/stack_share_export_service.dart": {
-        "count": 3,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, applicationSupportDirectoryProvider, loggingServiceProvider, stackedResultsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/switch_channel_service.dart": {
         "count": 4,
         "reason": "Holds a Riverpod Ref; reads backendProvider, errorServiceProvider, loggingServiceProvider, switchStateProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/target_library_service.dart": {
-        "count": 3,
-        "reason": "Holds a Riverpod Ref; reads allDbTargetsProvider, favoriteDbTargetsProvider, loggingServiceProvider, targetsDaoProvider; scopes host work with AsyncScope (Riverpod). Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       }
     }
   },
@@ -246,10 +230,6 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref and declares the providers its own code reads; reads appSettingsProvider, loggingServiceProvider, opticalConfigProvider; scopes host work with AsyncScope (Riverpod). Remains: Other services import it (annotation_service.dart, default_science_backend.dart), so it stays in services/; its provider reads become arguments in a later round."
       },
-      "services/profile_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads autoConnectSettingsProvider, backendProvider, equipmentProfilesDaoProvider, equipmentProfilesProvider, filterWheelStateProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/quick_start_service.dart": {
         "count": 1,
         "reason": "Its part file quick_start_service/quick_start_providers.dart declares the Quick Start providers (Ref, DAO providers, sequenceCheckpointsDaoProvider). Remains: move those declarations to providers/ next."
@@ -262,21 +242,9 @@
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads imagingRecordsRepositoryProvider, loggingServiceProvider, scienceBackendProvider, scienceDaoProvider, scienceProcessingStatusTrackerProvider. Remains: Reads 15 providers, among them scienceSettingsProvider whose ScienceSettings type is declared in providers/science_provider/settings.dart; that type has to move down before the service can take readers."
       },
-      "services/stack_and_share_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads calibrationServiceProvider, darkLibraryServiceProvider, imagesDaoProvider, liveStackingServiceProvider, loggingServiceProvider, sessionsDaoProvider, stackLightSelectorProvider, stackedResultsDaoProvider; scopes host work with AsyncScope (Riverpod). Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
-      "services/stack_share_export_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads activeEquipmentProfileProvider, applicationSupportDirectoryProvider, loggingServiceProvider, stackedResultsDaoProvider. Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
-      },
       "services/switch_channel_service.dart": {
         "count": 1,
         "reason": "Holds a Riverpod Ref; reads backendProvider, errorServiceProvider, loggingServiceProvider, switchStateProvider. Remains: Other services import it (device_service.dart), so it stays in services/; its provider reads become arguments in a later round."
-      },
-      "services/target_library_service.dart": {
-        "count": 1,
-        "reason": "Holds a Riverpod Ref; reads allDbTargetsProvider, favoriteDbTargetsProvider, loggingServiceProvider, targetsDaoProvider; scopes host work with AsyncScope (Riverpod). Remains: A leaf that holds a Ref; next step: take its reads as arguments, or move it to providers/ if it only wires providers."
       }
     }
   },

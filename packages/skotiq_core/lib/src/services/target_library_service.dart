@@ -1,28 +1,38 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../backend/skotiq_backend.dart';
+import '../database/daos/targets_dao.dart';
 import '../database/database.dart' as db;
-import '../providers/async_scope.dart';
-import '../providers/database_provider.dart';
 import 'catalog_target_resolver.dart';
 import 'catalog_target_types.dart';
 import '../backend/network_backend.dart';
-import '../providers/logging_service_provider.dart';
 import '../utils/async_scope.dart';
+import '../utils/logging_service.dart';
 
 /// Host-aware targets-library CRUD for planetarium and transient flows.
 class TargetLibraryService {
   /// [hostRecords] is the linked host's library, or null where the library
-  /// is this process's database.
-  TargetLibraryService(Ref ref, {HostImagingRecords? hostRecords})
-    : _ref = ref,
-      _host = ref.providerBackendScope(),
-      _hostRecords = hostRecords;
+  /// is this process's database. [host] is the backend the service was built
+  /// for; work refuses to continue once it is stale. [targetsDao] and [logger]
+  /// are asked for at each call, and [onLibraryChanged] runs after each write
+  /// so the library's watchers re-read.
+  TargetLibraryService({
+    required AsyncScope<SkotiqBackend> host,
+    HostImagingRecords? hostRecords,
+    required TargetsDao Function() targetsDao,
+    required LoggingService Function() logger,
+    required void Function() onLibraryChanged,
+  }) : _host = host,
+       _hostRecords = hostRecords,
+       _targetsDao = targetsDao,
+       _logger = logger,
+       _onLibraryChanged = onLibraryChanged;
 
-  final Ref _ref;
   final AsyncScope<SkotiqBackend> _host;
   final HostImagingRecords? _hostRecords;
+  final TargetsDao Function() _targetsDao;
+  final LoggingService Function() _logger;
+  final void Function() _onLibraryChanged;
 
   void _ensureSameHost() =>
       _host.ensureCurrent('the target library was being updated');
@@ -67,7 +77,7 @@ class TargetLibraryService {
       return id;
     }
 
-    final targetsDao = _ref.read(targetsDaoProvider);
+    final targetsDao = _targetsDao();
     final id = await targetsDao.createTarget(
       db.TargetsCompanion.insert(
         name: name,
@@ -168,12 +178,9 @@ class TargetLibraryService {
       final json = await host.searchTargets(query);
       rows = json.map(db.DbTarget.fromJson).toList();
     } else {
-      rows = await _ref.read(targetsDaoProvider).searchTargets(query);
+      rows = await _targetsDao().searchTargets(query);
     }
-    final typed = await withCatalogObjectTypes(
-      rows,
-      _ref.read(loggingServiceProvider),
-    );
+    final typed = await withCatalogObjectTypes(rows, _logger());
     _ensureSameHost();
     return typed;
   }
@@ -192,17 +199,15 @@ class TargetLibraryService {
         try {
           targets.add(_targetFromRemoteJson(row));
         } on FormatException catch (e) {
-          _ref
-              .read(loggingServiceProvider)
-              .warning(
-                'Skipping a target from the imaging host: $e',
-                source: 'TargetLibraryService',
-              );
+          _logger().warning(
+            'Skipping a target from the imaging host: $e',
+            source: 'TargetLibraryService',
+          );
         }
       }
       return List<db.DbTarget>.unmodifiable(targets);
     }
-    final dao = _ref.read(targetsDaoProvider);
+    final dao = _targetsDao();
     return dao.getAllTargets();
   }
 
@@ -256,8 +261,5 @@ class TargetLibraryService {
     );
   }
 
-  void _invalidateCatalog() {
-    _ref.invalidate(allDbTargetsProvider);
-    _ref.invalidate(favoriteDbTargetsProvider);
-  }
+  void _invalidateCatalog() => _onLibraryChanged();
 }

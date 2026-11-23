@@ -52,6 +52,7 @@ import 'package:skotiq_core/src/models/backend/backend_types.dart';
 import 'package:skotiq_core/src/providers/live_stacking_service_provider.dart';
 import 'package:skotiq_core/src/providers/stack_light_selector_provider.dart';
 import 'package:skotiq_core/src/providers/calibration_service_providers.dart';
+import 'package:skotiq_core/src/providers/stack_and_share_service_provider.dart';
 import 'package:skotiq_core/src/services/calibration_service.dart';
 import 'package:skotiq_core/src/models/imaging/live_stacking_models.dart';
 
@@ -466,7 +467,7 @@ void main() {
           ),
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -509,7 +510,7 @@ void main() {
         );
         addTearDown(c.dispose);
         final engine = _FakeStackingEngine();
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -565,7 +566,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -639,7 +640,7 @@ void main() {
         ),
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -669,7 +670,7 @@ void main() {
       addTearDown(c.dispose);
       Uint8List? persistedRgba;
       final progress = <StackAndShareProgress>[];
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
         persistPreview: ({required result, required rgba}) async {
@@ -713,7 +714,7 @@ void main() {
           ),
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
           persistPreview: ({required result, required rgba}) async {
@@ -757,7 +758,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -812,7 +813,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -856,7 +857,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -918,7 +919,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -946,7 +947,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -991,7 +992,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1031,7 +1032,10 @@ void main() {
           liveStacking: failing,
         );
         addTearDown(c1.dispose);
-        final s1 = StackAndShareService(c1.read(_refProvider), engine: engine);
+        final s1 = stackAndShareServiceFor(
+          c1.read(_refProvider),
+          engine: engine,
+        );
         await expectLater(
           s1.run(
             sessionId: sessionId,
@@ -1054,7 +1058,10 @@ void main() {
           liveStacking: live2,
         );
         addTearDown(c2.dispose);
-        final s2 = StackAndShareService(c2.read(_refProvider), engine: engine);
+        final s2 = stackAndShareServiceFor(
+          c2.read(_refProvider),
+          engine: engine,
+        );
         final result = await s2.run(
           sessionId: sessionId,
           config: const StackAndShareConfig(applyCalibration: false),
@@ -1089,7 +1096,7 @@ void main() {
           ],
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1146,7 +1153,7 @@ void main() {
       await c.read(allSettingsProvider.future);
       expect(c.read(calibrationSettingsProvider).masterFlatPath, flat.path);
 
-      await StackAndShareService(c.read(_refProvider), engine: engine).run(
+      await stackAndShareServiceFor(c.read(_refProvider), engine: engine).run(
         sessionId: sessionId,
         config: const StackAndShareConfig(
           applyCalibration: true,
@@ -1179,7 +1186,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1222,7 +1229,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1289,7 +1296,7 @@ void main() {
         ],
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1324,7 +1331,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1360,7 +1367,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1397,7 +1404,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );
@@ -1440,7 +1447,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1479,7 +1486,7 @@ void main() {
         liveStacking: live,
       );
       addTearDown(c.dispose);
-      final service = StackAndShareService(
+      final service = stackAndShareServiceFor(
         c.read(_refProvider),
         engine: engine,
       );
@@ -1518,7 +1525,7 @@ void main() {
           liveStacking: live,
         );
         addTearDown(c.dispose);
-        final service = StackAndShareService(
+        final service = stackAndShareServiceFor(
           c.read(_refProvider),
           engine: engine,
         );

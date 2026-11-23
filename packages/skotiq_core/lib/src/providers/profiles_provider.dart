@@ -21,6 +21,7 @@ import 'database_provider.dart';
 import 'equipment_provider.dart';
 import 'host_mutation_event_provider.dart';
 import '../services/host_mutation_event_hub.dart' show HostMutationEventHub;
+import '../services/profile_service.dart' show ProfileWriter;
 import '../utils/logging_service.dart';
 import 'profile_activation_writethrough.dart';
 import 'logging_service_provider.dart';
