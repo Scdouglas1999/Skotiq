@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
-import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_recent_solves.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
@@ -271,6 +273,61 @@ void main() {
     expect(history.guideSamples.single.decPx, -0.3);
     expect(history.events.autofocusRuns, isEmpty);
     expect(history.solves, isEmpty);
+  });
+
+  // The night-history body clients read (`/api/runtime/night-history`); a
+  // client of the same release decodes it with NightHistory.fromJson.
+  test('the night-history body keeps its shape', () {
+    final t = DateTime.utc(2026, 11, 3, 18, 22);
+    final ms = t.millisecondsSinceEpoch;
+    final body = encodeNightHistory(
+      guideSamples: [NightGuideSample(t, 0.4, -0.3)],
+      events: NightSessionEvents(
+        autofocusRuns: [
+          NightAutofocusRun(
+            at: t,
+            position: 6620,
+            hfr: 2.94,
+            duration: const Duration(seconds: 95),
+          ),
+        ],
+        dithers: [NightDither(at: t, pixels: 5.0)],
+        flips: [t],
+        starLost: [t],
+      ),
+      solves: [
+        NightSolveRecord(
+          at: t,
+          kind: NightSolveKind.center,
+          success: true,
+          raDegrees: 83.8,
+          decDegrees: -5.4,
+          offsetArcsec: 12.5,
+          iterations: 2,
+          duration: const Duration(seconds: 40),
+          byRun: true,
+        ),
+      ],
+      cooler: [
+        TemperaturePoint(
+          temperature: -10.0,
+          targetTemp: -10.0,
+          coolerPower: 42.0,
+          time: t,
+        ),
+      ],
+    );
+    expect(
+      jsonEncode(body),
+      '{"guideSamples":[[$ms,0.4,-0.3]],'
+      '"autofocusRuns":[{"at":$ms,"position":6620,"hfr":2.94,"durationMs":95000}],'
+      '"dithers":[{"at":$ms,"pixels":5.0}],'
+      '"flips":[$ms],"starLost":[$ms],'
+      '"cooler":[[$ms,-10.0,-10.0,42.0]],'
+      '"solves":[{"at":$ms,"kind":"center","success":true,"raDegrees":83.8,'
+      '"decDegrees":-5.4,"offsetArcsec":12.5,"iterations":2,'
+      '"durationMs":40000,"byRun":true}]}',
+    );
   });
 
   test(

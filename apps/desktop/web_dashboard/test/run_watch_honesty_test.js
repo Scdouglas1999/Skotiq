@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 require('./load_wire_errors');
+require('./load_run_state');
 
 const { makeDocument } = require('./dom_shim');
 
@@ -2491,4 +2492,69 @@ test('a paused run reads as pausing until its step has finished', () => {
   // An older host sends no pausedIdle: the badge says what it always said.
   api.applySnapshot(paused(undefined));
   assert.equal(badge.textContent, 'paused');
+});
+
+// ---------------------------------------------------------------------------
+// Run state: the badge and the run controls for every state a host reports
+// (run_state_pins.js; dashboard_honesty_test.js pins the other page).
+// ---------------------------------------------------------------------------
+
+const { CASES: RUN_STATE_CASES, reading } = require('./run_state_pins');
+
+function runWatchRunState(c) {
+  const { doc, api } = loadRunWatch();
+  api.noteLinkOk();
+  const snap = runningSnapshot();
+  snap.sequencer = Object.assign({}, snap.sequencer, {
+    state: c.state,
+    progress: Object.assign({}, snap.sequencer.progress, {
+      state: 'executor' in c ? c.executor : c.state,
+    }),
+  });
+  if ('pausedIdle' in c) snap.sequencer.pausedIdle = c.pausedIdle;
+  api.applySnapshot(snap);
+  const badge = doc.getElementById('state-badge');
+  const enabled = {};
+  for (const key of ['pause', 'resume', 'skip', 'stop']) {
+    enabled[key] = !doc.getElementById('btn-' + key).disabled;
+  }
+  return reading(badge.textContent, badge.className, enabled);
+}
+
+const RUN_WATCH_RUN_STATE = {
+  'idle': ['idle', 'badge-idle'],
+  'running': ['running', 'badge-running', 'pause', 'skip', 'stop'],
+  'paused': ['paused', 'badge-paused', 'resume', 'skip', 'stop'],
+  'paused, step finishing': ['pausing: step finishing', 'badge-paused', 'resume', 'skip', 'stop'],
+  'paused, step finished': ['paused', 'badge-paused', 'resume', 'skip', 'stop'],
+  'stopping': ['stopping', 'badge-idle'],
+  'cancelled': ['cancelled', 'badge-idle'],
+  'completed': ['completed', 'badge-completed'],
+  'failed': ['failed', 'badge-error'],
+  'recovering': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
+  'stopFailed': ['stopfailed', 'badge-idle', 'stop'],
+  'cleanupFailed': ['cleanupfailed', 'badge-idle', 'stop'],
+  'finalizing': ['finalizing', 'badge-idle'],
+  'executing': ['executing', 'badge-running', 'pause', 'skip', 'stop'],
+  'done': ['done', 'badge-completed'],
+  'error': ['error', 'badge-error'],
+  'stopped': ['stopped', 'badge-idle'],
+  'no state': ['unknown', 'badge-error'],
+  'cancelled over an idle executor': ['cancelled', 'badge-idle'],
+  'completed over a running executor': ['completed', 'badge-completed'],
+  'recovering executor over a running status': ['recovering', 'badge-recovering', 'pause', 'skip', 'stop'],
+};
+
+test('run-watch shows each run state with its badge and controls', () => {
+  const seen = {};
+  for (const c of RUN_STATE_CASES) seen[c.name] = runWatchRunState(c);
+  assert.deepEqual(seen, RUN_WATCH_RUN_STATE);
+});
+
+// The two pages badge a finished run alike: a completed run is not an idle
+// rig, and style.css styles the class.
+test('a completed run wears the completed badge on run-watch too', () => {
+  assert.equal(runWatchRunState({ state: 'completed' })[1], 'badge-completed');
+  const css = fs.readFileSync(path.join(RUN_WATCH, 'css', 'style.css'), 'utf8');
+  assert.match(css, /\.badge-completed\s*\{[^}]*background:/);
 });

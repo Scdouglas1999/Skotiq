@@ -7,8 +7,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
-import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
+import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
+import 'package:skotiq_app/services/night_actions/night_action_api.dart';
+import 'package:skotiq_app/services/night_actions/night_text.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_desktop/headless_api/handlers/sequencer_handlers.dart';
 

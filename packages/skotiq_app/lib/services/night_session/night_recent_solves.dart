@@ -12,7 +12,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../data/session/night_history_sync.dart';
+import 'night_history_sync.dart';
 
 enum NightSolveKind { solve, center }
 

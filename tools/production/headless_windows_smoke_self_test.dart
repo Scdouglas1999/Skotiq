@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'headless_windows_smoke.dart' as smoke;
+import 'src/host_client.dart';
 
 Future<void> main() async {
   await _webSocketCase('pong', (socket) {
@@ -55,6 +56,13 @@ Future<void> main() async {
     }
   }
 
+  await _hostHeadersCase();
+  _expect(
+    hostEventsUri(Uri.parse('http://10.0.0.5:7624/api'), 'tok').toString() ==
+        'ws://10.0.0.5:7624/events?token=tok&version=$skotiqRelease',
+    'event socket URI: ${hostEventsUri(Uri.parse('http://10.0.0.5:7624'), 'tok')}',
+  );
+
   final good = _fits();
   smoke.validateSmokeFits(good);
   for (final bad in [
@@ -67,7 +75,8 @@ Future<void> main() async {
   }
   stdout.writeln(
     'Windows smoke protocol self-tests passed: '
-    'pong, premature close, silent peer, stalled headers/body, '
+    'pong, premature close, silent peer, host headers, event socket URI, '
+    'stalled headers/body, '
     'FITS dimensions/metadata/payload. No native Windows runtime was tested.',
   );
 }
@@ -86,7 +95,7 @@ Future<void> _webSocketCase(
   });
   final timer = Stopwatch()..start();
   try {
-    final result = smoke.expectSmokeWebSocketPong(
+    final result = expectEventsPong(
       _uri(server),
       'test-token',
       timeout: const Duration(milliseconds: 150),
@@ -103,6 +112,36 @@ Future<void> _webSocketCase(
     );
   } finally {
     await socket?.close().timeout(const Duration(seconds: 1));
+    await server.close(force: true);
+  }
+}
+
+/// What a host sees of a request the smoke tools make.
+Future<void> _hostHeadersCase() async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  final seen = <String, String?>{};
+  server.listen((request) async {
+    for (final name in ['x-skotiq-version', 'content-type', 'authorization']) {
+      seen[name] = request.headers.value(name);
+    }
+    await request.response.close();
+  });
+  final client = HttpClient();
+  try {
+    for (final token in ['test-token', null]) {
+      seen.clear();
+      final request = await client.openUrl('GET', _uri(server));
+      setHostHeaders(request, token: token);
+      await (await request.close()).drain<void>();
+      _expect(
+        seen['x-skotiq-version'] == skotiqRelease &&
+            seen['content-type'] == 'application/json; charset=utf-8' &&
+            seen['authorization'] == (token == null ? null : 'Bearer $token'),
+        'host headers: $seen',
+      );
+    }
+  } finally {
+    client.close(force: true);
     await server.close(force: true);
   }
 }

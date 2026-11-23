@@ -11,13 +11,14 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
-import '../../actions/night_action_controller.dart';
-import '../../actions/solve_and_sync.dart' show solveFrameSettings;
+import '../../../../services/night_actions/night_action_controller.dart';
+import '../../../../services/night_actions/solve_and_sync.dart'
+    show solveFrameSettings;
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/plan/plan_steps_provider.dart' show nightActiveStepProvider;
 import '../panel_widgets.dart';
 import 'night_solve_tab.dart';
-import 'recent_solves_provider.dart';
+import '../../../../services/night_session/night_recent_solves.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
 import '../../../../router/settings_sections.dart';
 import '../../../../router/app_routes.dart';

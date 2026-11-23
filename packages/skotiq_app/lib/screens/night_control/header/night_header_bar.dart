@@ -19,9 +19,10 @@ import '../../../services/command_action_result.dart';
 import '../../../services/sequence_action_service.dart';
 import '../../../utils/snackbar_helper.dart';
 import '../../sequencer/widgets/preflight_validation_dialog.dart';
-import '../actions/armed_start_provider.dart';
-import '../actions/manual_action_gating.dart' show manualActionKey;
-import '../actions/night_action_controller.dart';
+import '../../../services/night_actions/armed_start_provider.dart';
+import '../../../services/night_actions/manual_action_gating.dart'
+    show manualActionKey;
+import '../../../services/night_actions/night_action_controller.dart';
 import '../data/plan/night_header_provider.dart';
 import '../data/plan/night_plan_inputs.dart' show NightClockTimes;
 import '../data/plan/night_run_phase_provider.dart';

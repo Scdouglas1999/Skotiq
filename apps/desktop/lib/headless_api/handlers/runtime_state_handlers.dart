@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shelf/shelf.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
-import 'package:skotiq_app/screens/night_control/data/session/night_history_sync.dart';
-import 'package:skotiq_app/screens/night_control/data/session/session_events_provider.dart';
-import 'package:skotiq_app/screens/night_control/panel/solve/recent_solves_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
+import 'package:skotiq_app/services/night_session/night_history_sync.dart';
+import 'package:skotiq_app/services/night_session/night_session_events.dart';
+import 'package:skotiq_app/services/night_session/night_recent_solves.dart';
 import 'package:skotiq_app/services/manual_capture_controller.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';

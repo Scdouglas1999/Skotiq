@@ -6,11 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/services/command_action_result.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
-import 'package:skotiq_app/screens/night_control/actions/armed_start_provider.dart';
-import 'package:skotiq_app/screens/night_control/actions/manual_action_gating.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
-import 'package:skotiq_app/screens/night_control/data/session/before_you_start_provider.dart'
-    show NightSolverStatus;
+import 'package:skotiq_app/services/night_actions/armed_start_provider.dart';
+import 'package:skotiq_app/services/night_actions/manual_action_gating.dart';
+import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
+import 'package:skotiq_app/services/night_actions/night_solver_status.dart';
 import 'package:skotiq_app/screens/night_control/night_control_contracts.dart';
 import 'package:skotiq_core/backend.dart';
 import 'package:skotiq_core/models.dart';
@@ -18,7 +17,7 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
 import 'night_action_test_support.dart';
-import 'package:skotiq_app/screens/night_control/actions/run_pause_guard.dart';
+import 'package:skotiq_app/services/night_actions/run_pause_guard.dart';
 import '../../../harness/mock_backend.dart';
 import '../../../harness/pump_app_screen.dart' show TestBackendNotifier;
 

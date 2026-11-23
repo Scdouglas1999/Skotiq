@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_desktop/headless_api/handlers/static_file_handlers.dart';
 import 'package:skotiq_desktop/headless_api/route_table.dart';
+import 'package:skotiq_desktop/headless_api/run_state_script.dart';
 import 'package:shelf/shelf.dart';
 import 'package:skotiq_remote_protocol/wire.dart' show ApiErrorCodes;
 import 'package:skotiq_core/utils.dart';
@@ -74,6 +75,20 @@ void main() {
       for (final MapEntry(:key, :value) in ApiErrorCodes.all.entries) {
         expect(script, contains('  $key: "$value",'));
       }
+    }
+  });
+
+  test('both pages read the run state from the host\'s table', () async {
+    for (final page in ['dashboard', 'run-watch']) {
+      final response = await router(
+        Request('GET', Uri.parse('http://localhost/$page/js/run-state.js')),
+      );
+      expect(response.statusCode, HttpStatus.ok, reason: page);
+      expect(
+        response.headers['content-type'],
+        startsWith('application/javascript'),
+      );
+      expect(await response.readAsString(), RunStateScript.javaScript());
     }
   });
 

@@ -649,6 +649,7 @@ body {
 .badge-running { background: var(--tint-success); color: var(--accent-green); border-color: var(--accent-green); }
 .badge-paused  { background: var(--tint-warning); color: var(--accent-orange); border-color: var(--accent-orange); }
 .badge-error   { background: var(--tint-error); color: var(--accent-red); border-color: var(--accent-red); }
+.badge-completed { background: var(--tint-primary); color: var(--accent-blue); border-color: var(--accent-blue); }
 .badge-idle    { /* default */ }
 .badge-recovering {
   background: var(--tint-warning);

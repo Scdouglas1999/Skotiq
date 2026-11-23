@@ -10,7 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/sequence_action_service.dart';
 import '../../utils/snackbar_helper.dart';
-import 'actions/night_action_controller.dart';
+import '../../services/night_actions/night_action_controller.dart';
 import 'data/plan/night_header_provider.dart';
 import 'night_control_contracts.dart';
 

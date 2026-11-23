@@ -13,7 +13,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/services.dart';
 
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 
 /// Now, as a true instant (UTC), on Tonight's shared 30 s tick.

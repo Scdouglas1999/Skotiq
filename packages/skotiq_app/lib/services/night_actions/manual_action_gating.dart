@@ -7,7 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/models.dart';
 
-import '../night_control_contracts.dart';
+import 'night_action_api.dart';
+import 'night_text.dart';
 
 /// The rig facts the action bar depends on.
 @immutable

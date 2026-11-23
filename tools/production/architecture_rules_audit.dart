@@ -33,6 +33,9 @@ import 'src/audit_scope.dart';
 ///                       utils/, tours/, localization/ and the route table
 ///                       in router/) import no screen and none of the files
 ///                       that put the app together.
+///   host-screens        apps/desktop (the host, its headless API and their
+///                       tests) imports no skotiq_app screen: what the host
+///                       serves cannot change when a screen folder moves.
 ///   app-feedback        A transient notice is a snackbar shown through
 ///                       skotiq_app's utils/snackbar_helper.dart, which places
 ///                       it clear of the shell's bottom chrome; no other
@@ -360,6 +363,11 @@ const _appSharedInstead =
     'something a screen declares, move that declaration down beside it (a '
     'route or tab enum goes in router/), or pass the value in.';
 
+const _hostScreensInstead =
+    'The host reads state and APIs that live in skotiq_app/services or '
+    'skotiq_core. Move the declaration the host needs out of screens/ into '
+    'services/ (a screen keeps its view models and imports it from there).';
+
 const _snackbarHelper = '${_appLib}utils/snackbar_helper.dart';
 
 const _appFeedbackInstead =
@@ -395,6 +403,7 @@ void main(List<String> args) {
   violations.addAll(_checkRustDirection());
   violations.addAll(_checkCoreBarrels(dartFiles));
   violations.addAll(_checkAppShared(dartFiles));
+  violations.addAll(_checkHostScreens(dartFiles));
   violations.addAll(_checkAppFeedback(dartFiles));
 
   final backendSites = _backendClassSites(runtimeDart);
@@ -564,6 +573,11 @@ enum _Rule {
     'app-shared',
     'A shared folder of skotiq_app imports no screen.',
     _appSharedInstead,
+  ),
+  hostScreens(
+    'host-screens',
+    'The host imports no skotiq_app screen.',
+    _hostScreensInstead,
   ),
   appFeedback(
     'app-feedback',
@@ -1208,6 +1222,32 @@ String? _appTarget(String from, String uri) {
   }
   final path = segments.join('/');
   return path.startsWith(_appLib) ? path : null;
+}
+
+// ---------------------------------------------------------------------------
+// host-screens
+
+List<_Violation> _checkHostScreens(List<String> files) {
+  final out = <_Violation>[];
+  for (final path in files) {
+    if (!path.startsWith('apps/desktop/')) continue;
+    final lines = _readLines(path);
+    for (var i = 0; i < lines.length; i++) {
+      final m = _appDirectiveUri.firstMatch(lines[i]);
+      if (m == null) continue;
+      final uri = m.group(1)!;
+      if (!uri.startsWith('package:skotiq_app/screens/')) continue;
+      out.add(
+        _Violation(
+          _Rule.hostScreens,
+          '$path:${i + 1}',
+          'imports ${uri.substring('package:skotiq_app/'.length)}',
+          _hostScreensInstead,
+        ),
+      );
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------

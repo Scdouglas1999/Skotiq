@@ -52,13 +52,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../localization/skotiq_localizations.dart';
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone, SeriesChartTone;
 
+import '../../services/night_actions/night_action_api.dart';
+import '../../services/night_actions/night_text.dart';
+
+export '../../services/night_actions/night_action_api.dart';
+export '../../services/night_actions/night_text.dart';
+
 part 'contracts/plan_models.dart';
 part 'contracts/session_models.dart';
-part 'contracts/action_models.dart';
 
 /// The right panel's tabs, in display order.
 enum NightPanelTab { overview, camera, focus, mount, guide, solve }
@@ -101,28 +105,6 @@ enum NightRunPhase {
   finished,
 }
 
-/// The manual actions: the center action bar's buttons, and [solve], the
-/// Solve tab's own button.
-///
-/// [tracking] and [cooler] appear only when no run is active (the Ready
-/// board); [dither] and [flip] only while a run is loaded. [solve] is never
-/// on the action bar.
-enum ManualActionId {
-  snapshot,
-  loop,
-  autofocus,
-
-  /// Solves the frame on screen without syncing; touches no device, so it
-  /// never pauses the run.
-  solve,
-  solveSync,
-  center,
-  dither,
-  flip,
-  tracking,
-  cooler,
-}
-
 /// The panel tab an action-bar button selects when pressed.
 /// Automatic events never switch tabs.
 extension ManualActionPanelTab on ManualActionId {
@@ -153,53 +135,6 @@ final nightPanelRevealProvider = StateProvider<int>((ref) => 0);
 void nightOpenPanelTab(WidgetRef ref, NightPanelTab tab) {
   ref.read(nightPanelTabProvider.notifier).state = tab;
   ref.read(nightPanelRevealProvider.notifier).state++;
-}
-
-/// Copy produced away from a BuildContext.
-///
-/// Either a translations.dart key with `{name}` parameters, or a literal that
-/// is already final (a target name, a filter, a device name, a number with
-/// its unit).
-@immutable
-class NightText {
-  const NightText(this.key, {this.params = const <String, String>{}})
-      : literal = null;
-
-  const NightText.literal(String text)
-      : key = '',
-        literal = text,
-        params = const <String, String>{};
-
-  /// The translations.dart key. Empty for a literal.
-  final String key;
-
-  /// The text itself, when it needs no translation.
-  final String? literal;
-
-  /// Values substituted for `{name}` in the translated string.
-  final Map<String, String> params;
-
-  String resolve(SkotiqLocalizations l10n) =>
-      literal ?? l10n.text(key, params: params);
-
-  @override
-  bool operator ==(Object other) =>
-      other is NightText &&
-      other.key == key &&
-      other.literal == literal &&
-      mapEquals(other.params, params);
-
-  @override
-  int get hashCode => Object.hash(
-        key,
-        literal,
-        Object.hashAllUnordered(
-          params.entries.map((e) => Object.hash(e.key, e.value)),
-        ),
-      );
-
-  @override
-  String toString() => literal ?? 'NightText($key, $params)';
 }
 
 bool _nullableListEquals<T>(List<T>? a, List<T>? b) =>

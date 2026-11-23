@@ -12,7 +12,7 @@ import 'package:skotiq_core/models.dart'
     as remote_profile
     show EquipmentProfile;
 import 'package:skotiq_desktop/headless/headless_auth_config.dart';
-import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_desktop/host/host_startup.dart';
 import 'package:skotiq_desktop/host/host_steps.dart';
 import 'package:skotiq_core/utils.dart';

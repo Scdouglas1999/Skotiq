@@ -4026,7 +4026,7 @@
   /// live, fired a request, and surfaced an error toast; in the dark on a
   /// phone that reads as "the rig is broken", not "wrong button".
   function updateSequencerButtons(stateStr) {
-    const s = String(stateStr || 'idle').toLowerCase().replace(/[_\s]/g, '');
+    const phase = RUN_STATE.view(stateStr || 'idle').phase;
     const set = (id, enabled) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -4041,12 +4041,11 @@
       }
       el.disabled = !enabled;
     };
-    const running = s === 'running' || s === 'executing';
-    const paused = s === 'paused';
-    const transitional = s === 'stopping' || s === 'finalizing';
-    const recovering = s === 'recovering';
-    const stopRetry = s === 'stopfailed' || s === 'cleanupfailed';
-    set('btn-seq-start', !running && !paused && !transitional && !recovering && !stopRetry);
+    const running = phase === 'running';
+    const paused = phase === 'paused';
+    const recovering = phase === 'recovering';
+    const stopRetry = phase === 'stopRetry';
+    set('btn-seq-start', phase === 'idle' || phase === 'ended');
     set('btn-seq-pause', running);
     set('btn-seq-resume', paused);
     set('btn-seq-stop', running || paused || recovering || stopRetry);
@@ -4177,8 +4176,8 @@
     updateSequencerButtons(runState);
 
     if (statusEl) {
-      const badgeClass = getSequencerBadgeClass(runState);
-      renderBadge(statusEl, runState, badgeClass);
+      const view = RUN_STATE.view(runState, s.pausedIdle);
+      renderBadge(statusEl, view.label, view.badge);
     }
 
     if (nodeEl) nodeEl.textContent = s.currentNodeName || '--';
@@ -4210,16 +4209,6 @@
     renderOpsSequencerLoadPanel();
   }
 
-  function getSequencerBadgeClass(stateStr) {
-    if (!stateStr) return 'badge-idle';
-    const s = stateStr.toLowerCase();
-    if (s === 'running' || s === 'executing') return 'badge-running';
-    if (s === 'paused') return 'badge-paused';
-    if (s === 'error' || s === 'failed') return 'badge-error';
-    if (s === 'completed' || s === 'done') return 'badge-completed';
-    return 'badge-idle';
-  }
-
   // =========================================================================
   // Rendering: Guiding Panel
   // =========================================================================
@@ -4243,7 +4232,7 @@
 
     if (statusEl) {
       const guidingState = g.state || g.appState || 'unknown';
-      const isGuiding = String(guidingState).toLowerCase().includes('guid');
+      const isGuiding = String(guidingState).toLowerCase() === 'guiding';
       const badgeClass = isGuiding ? 'badge-running' : 'badge-idle';
       renderBadge(statusEl, guidingState, badgeClass);
     }
@@ -4276,12 +4265,15 @@
       if (el) el.disabled = !enabled;
     };
     const disconnected = s === 'disconnected' || s === 'unknown';
-    const guiding = s.includes('guid') && !s.includes('stop');
+    const guiding = s === 'guiding';
+    // PHD2 settles after every dither and may lose the star; guiding is still
+    // switched on in both, so Stop must stay reachable.
+    const guidingOn = guiding || s === 'settling' || s === 'lostlock';
     const paused = s === 'paused';
     set('btn-guide-connect', disconnected);
     set('btn-guide-start', !disconnected && !guiding);
     set('btn-guide-pause', guiding && !paused);
-    set('btn-guide-stop', guiding || paused);
+    set('btn-guide-stop', guidingOn || paused);
     set('btn-guide-dither', guiding && !paused);
   }
 

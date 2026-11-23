@@ -4,7 +4,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../../../services/observing_site.dart';
+import '../observing_site.dart';
 
 /// Tonight's astronomical dark (end of evening twilight) as a UTC instant;
 /// null without a site or when the sun never gets that low.

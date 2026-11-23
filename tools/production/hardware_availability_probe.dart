@@ -2,12 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-/// The release this tree builds. Every API request names it in
-/// `x-skotiq-version`; a host refuses a request that does not.
-final String _skotiqRelease = RegExp(
-  r'^version:\s*"([^"]+)"',
-  multiLine: true,
-).firstMatch(File('version.yaml').readAsStringSync())!.group(1)!;
+import 'src/host_client.dart';
 
 const _adminToken = 'skotiq-hardware-probe-admin-token';
 const _jsonOutputPath =
@@ -241,11 +236,7 @@ Future<_HttpResponseBody> _request(
   String method = 'GET',
 }) async {
   final request = await client.openUrl(method, baseUri.resolve(path));
-  request.headers.contentType = ContentType.json;
-  request.headers.set('x-skotiq-version', _skotiqRelease);
-  if (token != null) {
-    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
-  }
+  setHostHeaders(request, token: token);
   final response = await request.close();
   final text = await response.transform(utf8.decoder).join();
   final json = text.isEmpty

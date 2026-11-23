@@ -11,9 +11,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_core/providers.dart';
 
-import '../../panel/solve/recent_solves_provider.dart';
-import 'guide_series_provider.dart';
-import 'session_events_provider.dart';
+import 'night_guide_samples.dart';
+import 'night_recent_solves.dart';
+import 'night_session_events.dart';
 
 /// What a host's Tonight gathered tonight, as `GET /api/runtime/night-history`
 /// serves it. Times are milliseconds since the epoch.

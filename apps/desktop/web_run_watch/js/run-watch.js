@@ -1086,11 +1086,6 @@ function noteFrameEvent(evt) {
   }, FRAME_SNAPSHOT_COALESCE_MS);
 }
 
-/// Wire states in which the run is OVER. `sequencer.state` is the only field
-/// that can say so — `SequenceExecutionState` has no member for any of them.
-const TERMINAL_WIRE_STATES = new Set(
-  ['completed', 'failed', 'cancelled', 'stopped', 'error']);
-
 /// The state the snapshot actually reports.
 ///
 /// `progress.state` is the executor's own `SequenceExecutionState`, an enum
@@ -1107,7 +1102,7 @@ const TERMINAL_WIRE_STATES = new Set(
 function reportedSequencerState(progress, sequencer) {
   const executing = String((progress && progress.state) || '').toLowerCase();
   const reported = String((sequencer && sequencer.state) || '').toLowerCase();
-  if (TERMINAL_WIRE_STATES.has(reported)) return reported;
+  if (RUN_STATE.view(reported).phase === 'ended') return reported;
   if (executing && executing !== 'idle') return executing;
   if (reported) return reported;
   // An executor that says idle with nothing to contradict it is idle. A
@@ -1169,7 +1164,7 @@ function clearControlRefusals() {
 }
 
 function updateRunControls(state) {
-  const s = String(state || '').toLowerCase().replace(/[_\s]/g, '');
+  const phase = RUN_STATE.view(state || '').phase;
   const set = (id, enabled) => {
     const el = $(id);
     if (!el) return;
@@ -1183,10 +1178,10 @@ function updateRunControls(state) {
     }
     el.disabled = !enabled;
   };
-  const running = s === 'running' || s === 'executing';
-  const paused = s === 'paused';
-  const recovering = s === 'recovering';
-  const stopRetry = s === 'stopfailed' || s === 'cleanupfailed';
+  const running = phase === 'running';
+  const paused = phase === 'paused';
+  const recovering = phase === 'recovering';
+  const stopRetry = phase === 'stopRetry';
   set('btn-pause', running || recovering);
   set('btn-resume', paused);
   set('btn-skip', running || paused || recovering);
@@ -1290,18 +1285,9 @@ function renderSnapshot(data) {
   const state = reportedSequencerState(progress, sequencer);
   const unknown = state === 'unknown';
   const badge = $('state-badge');
-  // A paused run whose step is still finishing (an exposure, a slew, a
-  // focuser move) is not yet free to act on: say so until the host reports
-  // it idle.
-  const stepFinishing = state === 'paused' && sequencer.pausedIdle === false;
-  badge.textContent = stepFinishing ? 'pausing: step finishing' : state;
-  badge.className = 'badge';
-  if (state === 'running') badge.classList.add('badge-running');
-  else if (state === 'paused') badge.classList.add('badge-paused');
-  else if (state === 'recovering') badge.classList.add('badge-recovering');
-  else if (state === 'error' || state === 'failed') badge.classList.add('badge-error');
-  else if (unknown) badge.classList.add('badge-error');
-  else badge.classList.add('badge-idle');
+  const view = RUN_STATE.view(state, sequencer.pausedIdle);
+  badge.textContent = view.label;
+  badge.className = 'badge ' + (unknown ? 'badge-error' : view.badge);
   lastKnownState = state;
   updateRunControls(state);
 

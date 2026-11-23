@@ -10,6 +10,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 require('./load_wire_errors');
+require('./load_run_state');
 const vm = require('node:vm');
 
 const { makeDocument } = require('./dom_shim');
@@ -711,7 +712,7 @@ test('the sequencer badge asserts nothing before the first status', () => {
   ]);
   const render = build(
     ['document', 'state', 'renderBadge', 'updateSequencerButtons',
-      'getSequencerBadgeClass', 'sequencerProgressPercent',
+      'sequencerProgressPercent',
       'renderOpsSequencerLoadPanel', 'runDataIsStale', 'paintRunUnknown'],
     [fn('markProgressUnknown'), fn('markProgressKnown'),
       fn('renderSequencerPanel')],
@@ -721,7 +722,6 @@ test('the sequencer badge asserts nothing before the first status', () => {
     { sequencerStatus: null },
     (el, label, cls) => { el.textContent = label; el.className = cls; },
     () => {},
-    () => 'badge-idle',
     () => 0,
     () => {},
     // A healthy link with a fresh sequencer route: this test is about the
@@ -1722,7 +1722,7 @@ function sequencerPanel(sequencerStatus, { stale = false } = {}) {
   const render = build(
     ['document', 'state', 'renderBadge', 'updateSequencerButtons',
       'renderOpsSequencerLoadPanel', 'runDataIsStale'],
-    [fn('sequencerStateOf'), fn('getSequencerBadgeClass'),
+    [fn('sequencerStateOf'),
       fn('sequencerProgressPercent'), fn('markProgressUnknown'),
       fn('markProgressKnown'), fn('paintRunUnknown'),
       fn('renderSequencerPanel')],
@@ -3250,4 +3250,161 @@ test('a finished exposure shows the gallery NEW badge', () => {
   dispatch({ category: 'imaging', eventType: 'ExposureComplete', data: {} });
   assert.ok(!badge.classList.contains('hidden-inline'));
   assert.equal(badge.textContent, 'NEW');
+});
+
+// ---------------------------------------------------------------------------
+// Run state: the badge and the run controls for every state a host reports
+// (run_state_pins.js; run_watch_honesty_test.js pins the other page).
+// ---------------------------------------------------------------------------
+
+const { CASES: RUN_STATE_CASES, reading } = require('./run_state_pins');
+
+const SEQ_BUTTONS = {
+  start: 'btn-seq-start', pause: 'btn-seq-pause', resume: 'btn-seq-resume',
+  stop: 'btn-seq-stop',
+};
+
+function dashboardRunState(c) {
+  const doc = makeDocument([
+    'seq-status', 'seq-node', 'seq-message', 'seq-progress-bar',
+    'seq-progress-bar-container', 'seq-progress-text',
+    ...Object.values(SEQ_BUTTONS),
+  ]);
+  const status = { state: c.state, currentNodeName: 'Exposure L', progress: 0.5 };
+  if ('pausedIdle' in c) status.pausedIdle = c.pausedIdle;
+  build(
+    ['document', 'state', 'refusedControls', 'renderOpsSequencerLoadPanel',
+      'runDataIsStale', 'clearElement'],
+    [fn('sequencerStateOf'),
+      fn('sequencerProgressPercent'), fn('markProgressUnknown'),
+      fn('markProgressKnown'), fn('paintRunUnknown'), fn('renderBadge'),
+      fn('updateSequencerButtons'), fn('renderSequencerPanel')],
+    'renderSequencerPanel',
+  )(
+    doc, { sequencerStatus: status }, new Map(), () => {}, () => false,
+    (el) => { el.children.length = 0; },
+  )();
+  const badge = doc.getElementById('seq-status').children[0];
+  const enabled = {};
+  for (const [key, id] of Object.entries(SEQ_BUTTONS)) {
+    enabled[key] = !doc.getElementById(id).disabled;
+  }
+  return reading(badge.textContent, badge.className, enabled);
+}
+
+const DASHBOARD_RUN_STATE = {
+  'idle': ['idle', 'badge-idle', 'start'],
+  'running': ['running', 'badge-running', 'pause', 'stop'],
+  'paused': ['paused', 'badge-paused', 'resume', 'stop'],
+  'paused, step finishing': ['pausing: step finishing', 'badge-paused', 'resume', 'stop'],
+  'paused, step finished': ['paused', 'badge-paused', 'resume', 'stop'],
+  'stopping': ['stopping', 'badge-idle'],
+  'cancelled': ['cancelled', 'badge-idle', 'start'],
+  'completed': ['completed', 'badge-completed', 'start'],
+  'failed': ['failed', 'badge-error', 'start'],
+  'recovering': ['recovering', 'badge-recovering', 'stop'],
+  'stopFailed': ['stopFailed', 'badge-idle', 'stop'],
+  'cleanupFailed': ['cleanupFailed', 'badge-idle', 'stop'],
+  'finalizing': ['finalizing', 'badge-idle'],
+  'executing': ['executing', 'badge-running', 'pause', 'stop'],
+  'done': ['done', 'badge-completed', 'start'],
+  'error': ['error', 'badge-error', 'start'],
+  'stopped': ['stopped', 'badge-idle', 'start'],
+  'no state': ['unknown', 'badge-error', 'start'],
+  'cancelled over an idle executor': ['cancelled', 'badge-idle', 'start'],
+  'completed over a running executor': ['completed', 'badge-completed', 'start'],
+  'recovering executor over a running status': ['running', 'badge-running', 'pause', 'stop'],
+};
+
+test('the dashboard shows each run state with its badge and controls', () => {
+  const seen = {};
+  for (const c of RUN_STATE_CASES) seen[c.name] = dashboardRunState(c);
+  assert.deepEqual(seen, DASHBOARD_RUN_STATE);
+});
+
+// ---------------------------------------------------------------------------
+// Guider state: the badge and the guiding controls for every word
+// GET /api/guider/status names (test_fixtures/guider_state/words.json, plus a
+// word PHD2 has that the bridge does not know).
+// ---------------------------------------------------------------------------
+
+const GUIDE_BUTTONS = {
+  connect: 'btn-guide-connect', start: 'btn-guide-start',
+  pause: 'btn-guide-pause', stop: 'btn-guide-stop',
+  dither: 'btn-guide-dither',
+};
+
+function dashboardGuiderState(word) {
+  const doc = makeDocument([
+    'guide-status', 'guide-ra-rms', 'guide-dec-rms', 'guide-total-rms',
+    ...Object.values(GUIDE_BUTTONS),
+  ]);
+  build(
+    ['document', 'state', 'clearElement'],
+    [fn('renderBadge'), fn('updateGuidingButtons'), fn('renderGuidingPanel')],
+    'renderGuidingPanel',
+  )(
+    doc,
+    { guidingStatus: { state: word, connected: word !== 'Disconnected' } },
+    (el) => { el.children.length = 0; },
+  )();
+  const badge = doc.getElementById('guide-status').children[0];
+  const enabled = {};
+  for (const [key, id] of Object.entries(GUIDE_BUTTONS)) {
+    enabled[key] = !doc.getElementById(id).disabled;
+  }
+  return reading(badge.textContent, badge.className, enabled);
+}
+
+const DASHBOARD_GUIDER_STATE = {
+  'Disconnected': ['Disconnected', 'badge-idle', 'connect'],
+  'Connected': ['Connected', 'badge-idle', 'start'],
+  'Stopped': ['Stopped', 'badge-idle', 'start'],
+  'Calibrating': ['Calibrating', 'badge-idle', 'start'],
+  'Guiding': ['Guiding', 'badge-running', 'pause', 'stop', 'dither'],
+  'Looping': ['Looping', 'badge-idle', 'start'],
+  'Paused': ['Paused', 'badge-idle', 'start', 'stop'],
+  'Settling': ['Settling', 'badge-idle', 'start', 'stop'],
+  'LostLock': ['LostLock', 'badge-idle', 'start', 'stop'],
+  'Selected': ['Selected', 'badge-idle', 'start'],
+};
+
+test('the dashboard shows each guider state with its badge and controls', () => {
+  const seen = {};
+  for (const word of ['Disconnected', 'Connected', 'Stopped', 'Calibrating',
+    'Guiding', 'Looping', 'Paused', 'Settling', 'LostLock', 'Selected']) {
+    seen[word] = dashboardGuiderState(word);
+  }
+  assert.deepEqual(seen, DASHBOARD_GUIDER_STATE);
+});
+
+// A paused run whose step is still finishing (an exposure, a slew, a focuser
+// move) is not yet free to act on; the host says so with `pausedIdle`, and
+// run-watch and the app already read it.
+test('a paused run reads as pausing on the dashboard until its step has finished', () => {
+  const label = (pausedIdle) => dashboardRunState(
+    { state: 'paused', pausedIdle })[0];
+  assert.equal(label(false), 'pausing: step finishing');
+  assert.equal(label(true), 'paused');
+  // An older host sends no pausedIdle: the badge says what it always said.
+  assert.equal(dashboardRunState({ state: 'paused' })[0], 'paused');
+});
+
+// A run inside a recovery (a lost guide star, a failed slew, unsafe weather)
+// is a live run waiting on the rig, not a parked one: it must not wear the
+// idle badge. dashboard.css styles the class.
+test('a recovering run is not painted idle on the dashboard', () => {
+  const [label, badge] = dashboardRunState({ state: 'recovering' });
+  assert.equal(label, 'recovering');
+  assert.equal(badge, 'badge-recovering');
+  const css = fs.readFileSync(path.join(ROOT, 'css', 'dashboard.css'), 'utf8');
+  assert.match(css, /\.badge-recovering\s*\{[^}]*background:/);
+});
+
+// PHD2 settles after every dither and loses the star now and then. Guiding is
+// still on in both, and Stop is how the operator turns it off from here.
+test('Stop stays enabled while guiding settles or has lost the star', () => {
+  for (const word of ['Settling', 'LostLock']) {
+    assert.ok(dashboardGuiderState(word).includes('stop'), word);
+  }
 });

@@ -13,7 +13,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_ui/skotiq_ui.dart' show MetricGridTone;
 
-import '../session/session_events_provider.dart';
+import '../../../../services/night_session/night_session_events.dart';
 import '../tonight_night.dart';
 import '../../night_control_contracts.dart';
 import 'night_plan_inputs.dart';

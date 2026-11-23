@@ -15,8 +15,8 @@ import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:skotiq_app/localization/skotiq_localizations.dart';
 import 'package:skotiq_app/router/app_routes.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_action_controller.dart';
-import 'package:skotiq_app/screens/night_control/actions/night_rig_ops.dart';
+import 'package:skotiq_app/services/night_actions/night_action_controller.dart';
+import 'package:skotiq_app/services/night_actions/night_rig_ops.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_stage.dart';
 import 'package:skotiq_app/screens/night_control/center/frame_strip.dart';
 import 'package:skotiq_app/screens/night_control/center/session_charts_row.dart';
@@ -33,6 +33,7 @@ import 'package:skotiq_app/screens/night_control/panel/overview/after_run_sectio
 import 'package:skotiq_app/screens/night_control/data/session/conditions_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/equipment_summary_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/guide_series_provider.dart';
+import 'package:skotiq_app/services/night_session/night_guide_samples.dart';
 import 'package:skotiq_app/screens/night_control/data/session/last_frame_metrics_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/night_log_provider.dart';
 import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';

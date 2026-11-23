@@ -14,7 +14,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../../localization/skotiq_localizations.dart';
 import '../../../../widgets/sensitivity_field.dart';
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../night_control_contracts.dart';
 import '../panel_ops.dart';
 import '../panel_widgets.dart';

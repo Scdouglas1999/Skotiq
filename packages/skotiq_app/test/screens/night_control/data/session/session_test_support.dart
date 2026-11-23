@@ -11,7 +11,7 @@ import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_core/bridge_events.dart' as sk_events;
 import 'package:skotiq_core/database.dart' as drift_db;
 
-import 'package:skotiq_app/screens/night_control/data/session/session_frames_provider.dart';
+import 'package:skotiq_app/services/night_session/night_session_id.dart';
 
 import '../../../../harness/mock_backend.dart';
 import '../../../../harness/mock_database.dart';

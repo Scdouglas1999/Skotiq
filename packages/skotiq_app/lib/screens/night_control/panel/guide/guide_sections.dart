@@ -17,12 +17,12 @@ import '../../../../utils/confirm_dialog.dart';
 import '../../../../utils/guide_distance.dart';
 import '../../../../utils/snackbar_helper.dart';
 import '../../../../localization/skotiq_localizations.dart';
-import '../../actions/night_action_controller.dart';
+import '../../../../services/night_actions/night_action_controller.dart';
 import '../../data/plan/night_plan_inputs.dart';
 import '../../data/session/equipment_summary_provider.dart'
     show nightGuideStopReason;
 import '../../data/session/guide_series_provider.dart';
-import '../../data/session/session_events_provider.dart';
+import '../../../../services/night_session/night_session_events.dart';
 import '../../../../widgets/guide_star_view.dart';
 import '../panel_widgets.dart';
 import 'guide_metrics.dart';
