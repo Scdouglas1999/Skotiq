@@ -12,6 +12,7 @@ import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
 
 import '../harness/args_fixture.dart';
+import '../harness/reply_fixture.dart';
 
 /// The swarm overlay flag the service sends; the native cutout and coverage
 /// do not read it yet, and nothing in the app sets it.
@@ -48,11 +49,18 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
     return {'ok': true};
   }
 
+  /// When set, the cutout answers with this instead of echoing its paths.
+  Map<String, dynamic>? cutoutReply;
+
+  /// When set, a merge answers with this instead of the canned totals.
+  Map<String, dynamic>? mergeReply;
+
   @override
   Future<Map<String, dynamic>> queryCutout(Map<String, dynamic> args) async {
     expectNativeReadsEveryKey(args, [
       'sky_atlas_query_cutout',
     ], notRead: _overlayNotRead);
+    if (cutoutReply != null) return cutoutReply!;
     return {
       'ok': true,
       // Echo the paths the service handed in (the native side writes here),
@@ -81,6 +89,7 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
   Future<Map<String, dynamic>> mergeDelta(Map<String, dynamic> args) async {
     merged.add(args);
     expectNativeReadsEveryKey(args, ['sky_atlas_merge_delta']);
+    if (mergeReply != null) return mergeReply!;
     return {
       'ok': true,
       'tileId': args['tileId'] ?? 0,
@@ -669,6 +678,65 @@ void main() {
       expect(after.swarmOverlayFrames, 42);
     },
   );
+
+  // The replies below are the Rust-written samples
+  // (test_fixtures/ffi_replies/sky_atlas_<action>.json); every value in them
+  // differs from the default the service falls back to, so a key renamed in
+  // Rust reads as that default and fails here.
+  group('native reply samples', () {
+    test('a tile render answers with the path the native side wrote', () async {
+      final reply = replyFixtureObject('sky_atlas_tile_png');
+      seam.onDispatch = (_) => reply;
+      expect(await service.finalizeTilePng(99), reply['outPath']);
+    });
+
+    test('a delta export carries the native delta tally', () async {
+      final reply = replyFixtureObject('sky_atlas_export_delta');
+      seam.onDispatch = (_) => reply;
+      final export = await service.exportDelta(
+        99,
+        since: DateTime.utc(2026, 11, 1),
+      );
+      expect(export.path, reply['outPath']);
+      expect(export.framesInDelta, reply['framesInDelta']);
+      expect(export.integrationSeconds, reply['integrationSeconds']);
+    });
+
+    test('a merged swarm delta records the native overlay totals', () async {
+      final merge = replyFixtureObject('sky_atlas_merge_delta');
+      final info = replyFixtureObject('sky_atlas_info');
+      seam
+        ..mergeReply = merge
+        ..onDispatch = (args) => args['action'] == 'info' ? info : {'ok': true};
+      final frames = await service.mergeSwarmDelta(
+        tileId: 99,
+        deltaPath: '/tmp/atlas/swarm/9/tile_99_9.skt',
+      );
+      expect(frames, merge['totalFramesAfter']);
+      final tile = await dao.getTile(99, healpixOrder: 9);
+      expect(
+        tile!.swarmOverlayIntegrationSeconds,
+        merge['integrationSecondsAfter'],
+      );
+      expect(tile.channels, info['channels']);
+      expect(tile.centerRaDeg, info['centerRa']);
+      expect(tile.coverageMean, info['coverageMean']);
+    });
+
+    test('a region cutout exports the files the native side wrote', () async {
+      final reply = replyFixtureObject('sky_atlas_query_cutout');
+      seam.cutoutReply = reply;
+      final id = await service.ensureRegion(
+        name: 'M31',
+        centerRaDeg: 10.68,
+        centerDecDeg: 41.27,
+        radiusDeg: 1.5,
+      );
+      final export = await service.exportRegionCutout(id);
+      expect(export!.fitsPath, reply['fitsPath']);
+      expect(export.pngPath, reply['pngPath']);
+    });
+  });
 
   test(
     'single-flight chain serializes concurrent folds with no lost frames',
