@@ -317,3 +317,14 @@ pub(crate) fn merge_delta_impl(args: MergeDeltaArgs) -> Result<MergeDeltaResult,
         contributors_after: base.provenance.contributors.len(),
     })
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::RegionInfoArgs>("sky_atlas_region_info");
+        crate::args_fixtures::check_or_write_args::<super::GrowthArgs>("sky_atlas_growth");
+        crate::args_fixtures::check_or_write_args::<super::MergeDeltaArgs>("sky_atlas_merge_delta");
+    }
+}

@@ -1,0 +1,12 @@
+{
+  "atlasRoot": "string",
+  "centerDec": "number",
+  "centerRa": "number",
+  "channels": "number",
+  "fitsPath": "string",
+  "interp": "string",
+  "order": "number",
+  "outPixels": "number",
+  "pngPath": "string",
+  "radiusDeg": "number"
+}

@@ -14,6 +14,8 @@
 //! * [`sky_atlas`]: the all-sky accumulator; [`difference_image`] compares a new
 //!   frame against it.
 
+#[cfg(test)]
+mod args_fixtures;
 pub mod darkroom;
 pub mod difference_image;
 pub mod finishing;

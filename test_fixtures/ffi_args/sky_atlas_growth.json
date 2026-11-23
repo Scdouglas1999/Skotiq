@@ -1,0 +1,7 @@
+{
+  "atlasRoot": "string",
+  "centerDec": "number",
+  "centerRa": "number",
+  "order": "number",
+  "radiusDeg": "number"
+}

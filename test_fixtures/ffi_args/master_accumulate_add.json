@@ -1,0 +1,57 @@
+{
+  "calibration": {
+    "bias": "string",
+    "cosmeticCorrection": "bool",
+    "dark": "string",
+    "flat": "string",
+    "scaleDark": "bool"
+  },
+  "exposuresSec": [
+    "number"
+  ],
+  "label": "string",
+  "lightPaths": [
+    "string"
+  ],
+  "runId": "string",
+  "settings": {
+    "align": {
+      "detection": {
+        "detectionSigma": "number",
+        "maxEccentricity": "number",
+        "maxSharpness": "number",
+        "minArea": "number",
+        "minHfr": "number",
+        "minSnr": "number"
+      },
+      "maxRefStars": "number",
+      "model": "string",
+      "ransacThresholdPx": "number",
+      "resampler": "string"
+    },
+    "integration": {
+      "combine": "string",
+      "generateRejectionMap": "bool",
+      "minMaxHigh": "number",
+      "minMaxLow": "number",
+      "outputBitDepth": "string",
+      "reject": "string",
+      "rejectHigh": "number",
+      "rejectLow": "number"
+    },
+    "normalization": {
+      "enabled": "bool",
+      "localCols": "number",
+      "localRows": "number",
+      "mode": "string"
+    },
+    "weighting": {
+      "eccPow": "number",
+      "enabled": "bool",
+      "formula": "string",
+      "fwhmPow": "number",
+      "snrPow": "number"
+    }
+  },
+  "sidecarPath": "string"
+}

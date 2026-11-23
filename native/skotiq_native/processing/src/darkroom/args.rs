@@ -288,3 +288,18 @@ pub(crate) fn empty_report_json(level: u32) -> Value {
         "steps": [],
     })
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::DarkroomRegistryArgs>(
+            "darkroom_registry",
+        );
+        crate::args_fixtures::check_or_write_args::<super::DarkroomCancelArgs>("darkroom_cancel");
+        crate::args_fixtures::check_or_write_args::<super::DarkroomExportArgs>(
+            "darkroom_render_export",
+        );
+    }
+}

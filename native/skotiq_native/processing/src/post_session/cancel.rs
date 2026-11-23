@@ -118,3 +118,14 @@ pub(crate) fn cancel_op(args: PostSessionCancelArgs) -> Result<PostSessionCancel
         cancel_requested: state.cancel_requested,
     })
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::PostSessionCancelArgs>(
+            "post_session_cancel",
+        );
+    }
+}

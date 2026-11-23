@@ -280,3 +280,13 @@ pub(crate) fn finalize_impl(args: FinalizeArgs) -> Result<FinalizeResult, String
         channels: image.channels,
     })
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::FoldArgs>("sky_atlas_fold");
+        crate::args_fixtures::check_or_write_args::<super::FinalizeArgs>("sky_atlas_finalize");
+    }
+}

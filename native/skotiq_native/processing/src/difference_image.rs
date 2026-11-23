@@ -946,3 +946,68 @@ mod tests {
         assert!(parsed["ra"].as_f64().unwrap() >= 0.0);
     }
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::DifferenceArgs>("difference_image");
+        crate::args_fixtures::check_or_write_args::<super::TileCenterArgs>(
+            "difference_tile_center",
+        );
+    }
+}
+
+/// The difference reply, as a sample the app's decoders are held to
+/// (`test_fixtures/ffi_replies/`; see [`crate::reply_fixtures`]).
+#[cfg(test)]
+mod reply_fixture_tests {
+    use super::*;
+
+    #[test]
+    fn difference_image_reply_fixture() {
+        let candidate = |kind: &str, delta_mag: Option<f64>| CandidateJson {
+            ra: 83.8221,
+            dec: -5.3911,
+            tile_id: 1_234_567,
+            tile_x: 412.5,
+            tile_y: 87.25,
+            residual_flux: 5120.75,
+            delta_mag,
+            snr: 23.5,
+            fwhm: 3.125,
+            eccentricity: 0.21,
+            position_angle_deg: 47.5,
+            kind: kind.to_string(),
+            catalog_match: None,
+        };
+        crate::reply_fixtures::check_or_write(
+            "difference_image",
+            &DifferenceResultJson {
+                ok: true,
+                candidates: vec![
+                    candidate("newSource", None),
+                    candidate("pointBrightening", Some(-1.25)),
+                ],
+                tiles_checked: vec![1_234_567, 1_234_568],
+                tiles_skipped_thin: vec![1_234_569],
+                tiles_no_template: vec![1_234_570],
+                tiles_unnormalized: vec![1_234_571],
+                rejected: RejectionsJson {
+                    edge: 1,
+                    saturated: 2,
+                    sharp: 3,
+                    bright_star: 4,
+                    dipole: 5,
+                    elongated: 6,
+                    insignificant: 7,
+                    small_change: 8,
+                    unmeasured_psf: 9,
+                    misregistered: 10,
+                    inconsistent_scale: 11,
+                },
+            },
+        );
+    }
+}

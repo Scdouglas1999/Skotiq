@@ -1,0 +1,9 @@
+{
+  "config": {
+    "maskDilate": "number",
+    "method": "string",
+    "strength": "number"
+  },
+  "inputFits": "string",
+  "outputFits": "string"
+}

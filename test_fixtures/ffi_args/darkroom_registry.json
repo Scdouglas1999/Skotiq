@@ -1,0 +1,17 @@
+{
+  "baseMasterRef": "string",
+  "composite": {
+    "inputs": [
+      {
+        "filter": "string",
+        "integrationSeconds": "number",
+        "path": "string"
+      }
+    ],
+    "mix": "any",
+    "palette": "string"
+  },
+  "liveStackKey": "string",
+  "masterPath": "string",
+  "recipeId": "string"
+}

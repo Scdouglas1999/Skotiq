@@ -1054,3 +1054,20 @@ mod reply_fixture_tests {
         );
     }
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::ExtractBackgroundArgs>(
+            "extract_background",
+        );
+        crate::args_fixtures::check_or_write_args::<super::DeconvolvePreviewArgs>(
+            "deconvolve_preview",
+        );
+        crate::args_fixtures::check_or_write_args::<super::ReduceStarsPreviewArgs>(
+            "reduce_stars_preview",
+        );
+    }
+}

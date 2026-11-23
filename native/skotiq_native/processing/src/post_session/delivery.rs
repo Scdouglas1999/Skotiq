@@ -482,3 +482,14 @@ fn sanitize_name(name: &str) -> String {
         cleaned
     }
 }
+
+/// The request keys this module reads (see [`crate::args_fixtures`]).
+#[cfg(test)]
+mod args_fixture_tests {
+    #[test]
+    fn args_fixture() {
+        crate::args_fixtures::check_or_write_args::<super::MasterDeliverArgs>(
+            "master_accumulate_deliver",
+        );
+    }
+}

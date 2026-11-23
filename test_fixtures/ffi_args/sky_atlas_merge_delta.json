@@ -1,0 +1,7 @@
+{
+  "basePath": "string",
+  "deltaPath": "string",
+  "outPath": "string",
+  "subtract": "bool",
+  "trust": "number"
+}

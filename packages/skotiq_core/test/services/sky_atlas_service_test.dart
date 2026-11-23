@@ -11,6 +11,22 @@ import 'package:path/path.dart' as p;
 import 'package:skotiq_core/models.dart';
 import 'package:skotiq_core/utils.dart';
 
+import '../harness/args_fixture.dart';
+
+/// The swarm overlay flag the service sends; the native cutout and coverage
+/// do not read it yet, and nothing in the app sets it.
+const _overlayNotRead = {'includeOverlay'};
+
+/// The native request each atlas action is read as.
+const _atlasActionFixtures = {
+  'fold': 'sky_atlas_fold',
+  'finalize': 'sky_atlas_finalize',
+  'tilePng': 'sky_atlas_tile_png',
+  'coverage': 'sky_atlas_coverage',
+  'exportDelta': 'sky_atlas_export_delta',
+  'info': 'sky_atlas_info',
+};
+
 /// A recording fake [SkyAtlasSeam] that returns canned bridge results so the
 /// service body (fold persistence, region bookkeeping) runs without native code.
 class _FakeSkyAtlasSeam implements SkyAtlasSeam {
@@ -20,39 +36,51 @@ class _FakeSkyAtlasSeam implements SkyAtlasSeam {
   @override
   Future<Map<String, dynamic>> dispatch(Map<String, dynamic> args) async {
     dispatched.add(args);
+    final action = _atlasActionFixtures[args['action']];
+    if (action != null) {
+      expectNativeReadsEveryKey(args, [
+        'sky_atlas_action',
+        action,
+      ], notRead: args['action'] == 'coverage' ? _overlayNotRead : const {});
+    }
     final handler = onDispatch;
     if (handler != null) return handler(args);
     return {'ok': true};
   }
 
   @override
-  Future<Map<String, dynamic>> queryCutout(Map<String, dynamic> args) async => {
-    'ok': true,
-    // Echo the paths the service handed in (the native side writes here),
-    // mirroring the real bridge's contract.
-    'fitsPath': args['fitsPath'] ?? '/tmp/cutout.fits',
-    'pngPath': '/tmp/cutout.png',
-    'coveredFraction': 0.9,
-  };
+  Future<Map<String, dynamic>> queryCutout(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKey(args, [
+      'sky_atlas_query_cutout',
+    ], notRead: _overlayNotRead);
+    return {
+      'ok': true,
+      // Echo the paths the service handed in (the native side writes here),
+      // mirroring the real bridge's contract.
+      'fitsPath': args['fitsPath'] ?? '/tmp/cutout.fits',
+      'pngPath': '/tmp/cutout.png',
+      'coveredFraction': 0.9,
+    };
+  }
 
   @override
-  Future<Map<String, dynamic>> regionInfo(Map<String, dynamic> args) async => {
-    'ok': true,
-    'tilesWithData': 1,
-  };
+  Future<Map<String, dynamic>> regionInfo(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKey(args, ['sky_atlas_region_info']);
+    return {'ok': true, 'tilesWithData': 1};
+  }
 
   @override
-  Future<Map<String, dynamic>> growth(Map<String, dynamic> args) async => {
-    'ok': true,
-    'points': const [],
-    'totalFrames': 0,
-  };
+  Future<Map<String, dynamic>> growth(Map<String, dynamic> args) async {
+    expectNativeReadsEveryKey(args, ['sky_atlas_growth']);
+    return {'ok': true, 'points': const [], 'totalFrames': 0};
+  }
 
   final List<Map<String, dynamic>> merged = [];
 
   @override
   Future<Map<String, dynamic>> mergeDelta(Map<String, dynamic> args) async {
     merged.add(args);
+    expectNativeReadsEveryKey(args, ['sky_atlas_merge_delta']);
     return {
       'ok': true,
       'tileId': args['tileId'] ?? 0,
