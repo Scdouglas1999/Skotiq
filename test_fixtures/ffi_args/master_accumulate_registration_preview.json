@@ -1,0 +1,67 @@
+{
+  "gridReference": {
+    "path": "string"
+  },
+  "gridSize": [
+    "number",
+    "number"
+  ],
+  "groups": [
+    {
+      "label": "string",
+      "lights": [
+        {
+          "known": {
+            "corners": [
+              [
+                "number",
+                "number"
+              ],
+              [
+                "number",
+                "number"
+              ],
+              [
+                "number",
+                "number"
+              ],
+              [
+                "number",
+                "number"
+              ]
+            ],
+            "failure": "string",
+            "rmsPx": "number",
+            "rotationDeg": "number",
+            "shiftPx": [
+              "number",
+              "number"
+            ],
+            "starsMatched": "number"
+          },
+          "path": "string",
+          "side": "string"
+        }
+      ]
+    }
+  ],
+  "minOverlap": "number",
+  "minRetainedArea": "number",
+  "runId": "string",
+  "settings": {
+    "align": {
+      "detection": {
+        "detectionSigma": "number",
+        "maxEccentricity": "number",
+        "maxSharpness": "number",
+        "minArea": "number",
+        "minHfr": "number",
+        "minSnr": "number"
+      },
+      "maxRefStars": "number",
+      "model": "string",
+      "ransacThresholdPx": "number",
+      "resampler": "string"
+    }
+  }
+}
