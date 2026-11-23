@@ -19,12 +19,14 @@ class _LineRecorder implements Canvas {
 }
 
 /// After local midnight the target's altitude track still describes the
-/// night under way: its "now" marker and its transit tick are drawn.
+/// night under way: its "now" marker and its transit tick are drawn, and
+/// the twilight gauge's now tick sits inside the night.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   const transitTick = 0xFFFFB74D;
   final nowMarker = Colors.white.withValues(alpha: 0.55).toARGB32();
+  final gaugeTick = Colors.white.withValues(alpha: 0.85).toARGB32();
 
   List<(Offset, Offset, Color)> trackLinesAt(DateTime observationTime) {
     // A site whose solar time is the computer's clock time, so the instant is
@@ -66,6 +68,10 @@ void main() {
         hasLength(1),
         reason: 'the transit tick falls inside the night shown',
       );
+      // The twilight gauge spans x 16..166 from the site's solar noon to the
+      // next; 01:00 is 13 hours in, not pinned to the gauge's left edge.
+      final gaugeNow = lines.singleWhere((l) => l.$3.toARGB32() == gaugeTick);
+      expect(gaugeNow.$1.dx, closeTo(16 + 150 * 13 / 24, 2));
     },
   );
 
