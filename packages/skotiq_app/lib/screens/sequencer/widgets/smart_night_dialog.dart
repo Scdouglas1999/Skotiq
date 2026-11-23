@@ -481,8 +481,11 @@ class _SmartNightDialogState extends ConsumerState<SmartNightDialog>
           ref.read(lastPolarAlignmentProvider(activeProfile.id)).valueOrNull;
       int? daysSinceLastPolar;
       if (lastPolarAlign != null) {
-        daysSinceLastPolar =
-            DateTime.now().difference(lastPolarAlign.completedAt).inDays;
+        daysSinceLastPolar = ref
+            .read(clockProvider)
+            .nowUtc()
+            .difference(lastPolarAlign.completedAt)
+            .inDays;
       }
 
       final effectiveSettings = _settings.copyWith(

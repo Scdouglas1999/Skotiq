@@ -76,6 +76,15 @@ class CatalogDesignation {
     return CatalogDesignation(catalog, number, match.group(3)!);
   }
 
+  /// [text] as the designation the catalogs file the object under: one they
+  /// file under another designation ([kDesignationAliases], M102 is NGC 5866)
+  /// is that one. Null when [text] is not a designation, as [parse].
+  static CatalogDesignation? parseCataloged(String text) {
+    final parsed = parse(text);
+    final alias = parsed == null ? null : kDesignationAliases[parsed.key];
+    return alias == null ? parsed : parse(alias);
+  }
+
   /// Lower-case, space-free key: `m42`, `ngc891`, `sh2129`.
   String get key => '${catalog.toLowerCase()}$number$suffix';
 

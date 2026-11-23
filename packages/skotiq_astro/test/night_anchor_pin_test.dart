@@ -175,7 +175,7 @@ _Case _caseFromInput(_Site site, Map<String, Object?> input) {
       case 'twilight':
         return _twilightJson(
           AstronomyCalculations.calculateTwilightTimes(
-            date: date,
+            date: NightDate.ofCalendarDay(date),
             latitudeDeg: site.lat,
             longitudeDeg: site.lon,
           ),
@@ -211,7 +211,7 @@ _Case _caseFromInput(_Site site, Map<String, Object?> input) {
           AstronomyCalculations.calculateObjectVisibility(
             raDeg: (input['ra']! as int).toDouble(),
             decDeg: (input['dec']! as int).toDouble(),
-            date: date,
+            date: NightDate.ofCalendarDay(date),
             latitudeDeg: site.lat,
             longitudeDeg: site.lon,
           ),
@@ -257,7 +257,10 @@ _Case _caseFromInput(_Site site, Map<String, Object?> input) {
 /// The middle of the night of [date], as the callers that center a search on
 /// it build it.
 DateTime _nightMiddle(DateTime date, _Site site) =>
-    AstronomyCalculations.nightMiddleOf(date, longitudeDeg: site.lon);
+    AstronomyCalculations.nightMiddleOf(
+      NightDate.ofCalendarDay(date),
+      longitudeDeg: site.lon,
+    );
 
 Map<String, Object?> _twilightJson(TwilightTimes t) => {
   'sunsetMs': t.sunset?.millisecondsSinceEpoch,

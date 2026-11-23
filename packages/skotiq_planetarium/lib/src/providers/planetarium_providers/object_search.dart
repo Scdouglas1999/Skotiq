@@ -126,10 +126,15 @@ bool _hasWhitespace(String text) {
 class _SearchQuery {
   factory _SearchQuery(String query) {
     final lower = query.toLowerCase();
+    // The designation the catalogs file the object under: "M102" asks for
+    // NGC 5866.
+    final cataloged = CatalogDesignation.parseCataloged(lower);
     return _SearchQuery._(
       lower,
       lower.replaceAll(_whitespaceRun, ''),
-      _splitDesignation(lower),
+      cataloged != null && cataloged.suffix.isEmpty
+          ? (prefix: cataloged.catalog.toLowerCase(), number: cataloged.number)
+          : _splitDesignation(lower),
     );
   }
 

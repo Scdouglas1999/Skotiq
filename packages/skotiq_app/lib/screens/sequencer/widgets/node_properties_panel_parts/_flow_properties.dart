@@ -127,7 +127,7 @@ class _LoopProperties extends ConsumerWidget {
 
                         var twilight =
                             AstronomyCalculations.calculateTwilightTimes(
-                          date: now,
+                          date: NightDate.ofCalendarDay(now),
                           latitudeDeg: site.latitude,
                           longitudeDeg: site.longitude,
                         );
@@ -138,7 +138,8 @@ class _LoopProperties extends ConsumerWidget {
                         if (target == null || target.isBefore(now)) {
                           twilight =
                               AstronomyCalculations.calculateTwilightTimes(
-                            date: now.add(const Duration(days: 1)),
+                            date: NightDate.ofCalendarDay(
+                                now.add(const Duration(days: 1))),
                             latitudeDeg: site.latitude,
                             longitudeDeg: site.longitude,
                           );
@@ -165,7 +166,7 @@ class _LoopProperties extends ConsumerWidget {
 
                         var twilight =
                             AstronomyCalculations.calculateTwilightTimes(
-                          date: now,
+                          date: NightDate.ofCalendarDay(now),
                           latitudeDeg: site.latitude,
                           longitudeDeg: site.longitude,
                         );
@@ -176,7 +177,8 @@ class _LoopProperties extends ConsumerWidget {
                         if (target == null || target.isBefore(now)) {
                           twilight =
                               AstronomyCalculations.calculateTwilightTimes(
-                            date: now.add(const Duration(days: 1)),
+                            date: NightDate.ofCalendarDay(
+                                now.add(const Duration(days: 1))),
                             latitudeDeg: site.latitude,
                             longitudeDeg: site.longitude,
                           );

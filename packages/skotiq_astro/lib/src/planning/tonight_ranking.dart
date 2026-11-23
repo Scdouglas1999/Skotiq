@@ -141,7 +141,7 @@ Future<List<TonightRanking>> rankTonightTargets({
   required List<double> decDeg,
   required double latitudeDeg,
   required double longitudeDeg,
-  required DateTime nightDate,
+  required NightDate nightDate,
   required AltitudeFloorSamples floor,
   required NightScorer scorer,
   int limit = kTonightRankingLimit,

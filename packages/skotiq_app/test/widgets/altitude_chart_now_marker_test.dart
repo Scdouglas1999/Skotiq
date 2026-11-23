@@ -38,7 +38,7 @@ class _SiteSettingsNotifier extends AppSettingsNotifier {
 /// astronomy the widget uses so the test is timezone-independent.
 ({DateTime start, DateTime end}) windowFor(DateTime date) {
   final twilight = AstronomyCalculations.calculateTwilightTimes(
-    date: date,
+    date: NightDate.ofCalendarDay(date),
     latitudeDeg: _latitude,
     longitudeDeg: _longitude,
   );

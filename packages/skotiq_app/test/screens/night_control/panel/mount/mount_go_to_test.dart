@@ -56,7 +56,11 @@ class _CenterRecorder extends CenteringRun {
     bool Function()? isCurrent,
   }) async {
     runs++;
-    return null;
+    return const CenteringResult(
+      success: true,
+      iterations: 1,
+      iterationHistory: [],
+    );
   }
 }
 
@@ -136,8 +140,9 @@ void main() {
 
   group('below the horizon', () {
     Future<(HarnessHandle, List<GoToAltitudeQuestion>)> pumpSite(
-      WidgetTester tester,
-    ) async {
+      WidgetTester tester, {
+      bool answer = false,
+    }) async {
       final asked = <GoToAltitudeQuestion>[];
       final handle = await pumpPanelTab(
         tester,
@@ -149,7 +154,7 @@ void main() {
           centeringRunProvider.overrideWith(_CenterRecorder.new),
           goToAltitudeAskProvider.overrideWithValue((question) async {
             asked.add(question);
-            return false;
+            return answer;
           }),
         ],
       );
@@ -181,6 +186,38 @@ void main() {
       expect(
         (handle.container.read(centeringRunProvider) as _CenterRecorder).runs,
         0,
+      );
+    });
+
+    testWidgets('Slew & center asks once and centers once on a yes',
+        (tester) async {
+      final (handle, asked) = await pumpSite(tester, answer: true);
+
+      await tester.tap(find.byKey(_slewCenter));
+      await tester.pumpAndSettle();
+
+      expect(asked, hasLength(1));
+      expect(
+        (handle.container.read(centeringRunProvider) as _CenterRecorder).runs,
+        1,
+      );
+      expect(commands(handle).slews, isEmpty,
+          reason: 'the centering run makes the GoTo itself');
+    });
+
+    testWidgets('Slew & center on a target that is up asks nothing',
+        (tester) async {
+      final (handle, asked) = await pumpSite(tester);
+      await tester.enterText(find.byKey(_dec), '+85 00 00');
+      await tester.pump();
+
+      await tester.tap(find.byKey(_slewCenter));
+      await tester.pumpAndSettle();
+
+      expect(asked, isEmpty);
+      expect(
+        (handle.container.read(centeringRunProvider) as _CenterRecorder).runs,
+        1,
       );
     });
 

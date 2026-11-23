@@ -64,12 +64,17 @@ final nightPlanProgressProvider = Provider<NightPlanVm?>((ref) {
   final done = <String, int>{for (final key in planned.keys) key: 0};
   if (phase.isRunLive || phase == NightRunPhase.finished) {
     final terminal = ref.watch(shownTerminalRunResultProvider);
-    // A linked client and a calibration run count the session's light rows.
-    // A local light run counts the same rows, including a rejected light the
-    // in-memory kept list has already dropped, but only those taken since
-    // this launch. Frames the checkpoint took before it are added below.
-    final sessionRows =
-        terminal?.isCalibration == true || ref.watch(isRemoteModeProvider);
+    // A calibration run counts the session's light rows. A light run counts
+    // the same rows, including a rejected light the in-memory kept list has
+    // already dropped, but only those taken since it started, because the
+    // frames its checkpoint took before it are added below and a run
+    // continued in the interrupted night's session has them as rows too. A
+    // linked client that did not continue a checkpoint itself counts every
+    // row of the session: it may have joined after the run started.
+    final continuesCheckpoint =
+        ref.watch(framesDoneBeforeRunProvider).isNotEmpty;
+    final sessionRows = terminal?.isCalibration == true ||
+        (ref.watch(isRemoteModeProvider) && !continuesCheckpoint);
     final startedAt = sessionRows ? null : ref.watch(runStartedAtProvider);
     for (final row in ref.watch(nightRunLightRowsProvider)) {
       if (startedAt != null && row.capturedAt.isBefore(startedAt)) continue;

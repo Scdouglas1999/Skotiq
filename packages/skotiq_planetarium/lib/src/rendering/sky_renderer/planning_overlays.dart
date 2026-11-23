@@ -34,17 +34,17 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     final raDeg = target.ra * 15;
     final decDeg = target.dec;
 
-    // Tonight's rise/transit/set, computed with the accurate body-aware
-    // astronomy (feature 1). Catalog targets are fixed, so positionAt is null.
+    // The night under way at the site: after local midnight it is the one
+    // that began the evening before.
+    final night = AstronomyCalculations.nightDateOf(
+      observationTime,
+      longitudeDeg: longitude,
+    );
+    // Catalog targets are fixed, so positionAt is null.
     final visibility = AstronomyCalculations.calculateObjectVisibility(
       raDeg: raDeg,
       decDeg: decDeg,
-      // The night containing the clock, not its calendar day: after local
-      // midnight those differ and the overlay would describe tomorrow night.
-      date: AstronomyCalculations.nightDateOf(
-        observationTime,
-        longitudeDeg: longitude,
-      ),
+      date: night,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
@@ -52,7 +52,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // Sample apparent altitude across the site's night (solar noon to solar
     // noon), the same 24h span the twilight gauge uses.
     final nightStart = AstronomyCalculations.nightStartOf(
-      observationTime,
+      night,
       longitudeDeg: longitude,
     );
     const samples = 48; // every 30 minutes
@@ -219,12 +219,16 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
   void _drawTwilightIndicator(Canvas canvas, Size size) {
     // Memoized on (day, site) — see [_PlanningAstronomyCache]. This overlay is
     // on the animated layer, and the solve is iterative.
+    final night = AstronomyCalculations.nightDateOf(
+      observationTime,
+      longitudeDeg: longitude,
+    );
     final twilight = _planningAstronomyCache.twilight(
-      date: observationTime,
+      night: night,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
       compute: () => AstronomyCalculations.calculateTwilightTimes(
-        date: observationTime,
+        date: night,
         latitudeDeg: latitude,
         longitudeDeg: longitude,
       ),
@@ -238,7 +242,7 @@ extension _SkyCanvasPainterPlanningOverlays on SkyCanvasPainter {
     // twilight times are read from, so "now" and the band map consistently
     // with the altitude track.
     final nightStart = AstronomyCalculations.nightStartOf(
-      observationTime,
+      night,
       longitudeDeg: longitude,
     );
     const windowMinutes = 24 * 60;

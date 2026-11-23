@@ -140,7 +140,7 @@ final _currentDateProvider = Provider<DateTime>((ref) {
 /// transit / set on the calendar date describes the FOLLOWING night and puts
 /// every time one sidereal day (~4 min) out. Cheap to watch: the value only
 /// changes at the site's solar noon.
-final _currentNightDateProvider = Provider.family<DateTime, double>((
+final _currentNightDateProvider = Provider.family<NightDate, double>((
   ref,
   longitudeDeg,
 ) {
@@ -191,7 +191,7 @@ final observationMinuteProvider = Provider<DateTime>((ref) {
 typedef ObjectVisibilityKey = ({
   double raDeg,
   double decDeg,
-  DateTime nightDate,
+  NightDate nightDate,
   double latitudeDeg,
   double longitudeDeg,
 

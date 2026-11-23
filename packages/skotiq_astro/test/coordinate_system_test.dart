@@ -160,7 +160,7 @@ void main() {
     group('Twilight edge cases', () {
       test('polar summer does not fabricate astronomical dusk or dawn', () {
         final twilight = AstronomyCalculations.calculateTwilightTimes(
-          date: DateTime(2026, 6, 21),
+          date: NightDate.ofCalendarDay(DateTime(2026, 6, 21)),
           latitudeDeg: 69.0,
           longitudeDeg: 0.0,
         );

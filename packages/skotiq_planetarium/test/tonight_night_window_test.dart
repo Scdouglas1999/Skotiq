@@ -38,28 +38,26 @@ void main() {
     // UTC so the answers hold on a computer in any zone.
     DateTime atSolar(int day, int hour, int minute) =>
         DateTime.utc(2026, 8, day, hour + 7, minute).toLocal();
-    DateTime nightOf(DateTime instant) =>
+    NightDate nightOf(DateTime instant) =>
         AstronomyCalculations.nightDateOf(instant, longitudeDeg: _lon);
 
     test('an evening instant names its own day', () {
-      expect(nightOf(atSolar(2, 21, 30)), DateTime(2026, 8, 2));
+      expect(nightOf(atSolar(2, 21, 30)), const NightDate(2026, 8, 2));
     });
 
     test('an instant past midnight names the day the night STARTED', () {
-      expect(nightOf(atSolar(3, 0, 1)), DateTime(2026, 8, 2));
-      expect(nightOf(atSolar(3, 4, 30)), DateTime(2026, 8, 2));
+      expect(nightOf(atSolar(3, 0, 1)), const NightDate(2026, 8, 2));
+      expect(nightOf(atSolar(3, 4, 30)), const NightDate(2026, 8, 2));
     });
 
-    test(
-      'the site\'s solar noon is the boundary, and UTC-ness is preserved',
-      () {
-        expect(nightOf(atSolar(3, 11, 59)), DateTime(2026, 8, 2));
-        expect(nightOf(atSolar(3, 12, 0)), DateTime(2026, 8, 3));
-        final utc = nightOf(DateTime.utc(2026, 8, 3, 20, 0));
-        expect(utc.isUtc, isTrue);
-        expect(utc, DateTime.utc(2026, 8, 3));
-      },
-    );
+    test('the site\'s solar noon is the boundary, for a UTC instant too', () {
+      expect(nightOf(atSolar(3, 11, 59)), const NightDate(2026, 8, 2));
+      expect(nightOf(atSolar(3, 12, 0)), const NightDate(2026, 8, 3));
+      expect(
+        nightOf(DateTime.utc(2026, 8, 3, 20, 0)),
+        const NightDate(2026, 8, 3),
+      );
+    });
   });
 
   test('the selected-object readout describes the night in progress', () {
@@ -74,7 +72,7 @@ void main() {
     final expected = AstronomyCalculations.calculateObjectVisibility(
       raDeg: _ngc6685.raDegrees,
       decDeg: _ngc6685.dec,
-      date: DateTime(2026, 8, 2),
+      date: NightDate.ofCalendarDay(DateTime(2026, 8, 2)),
       latitudeDeg: _lat,
       longitudeDeg: _lon,
     );
@@ -85,7 +83,7 @@ void main() {
     final nextNight = AstronomyCalculations.calculateObjectVisibility(
       raDeg: _ngc6685.raDegrees,
       decDeg: _ngc6685.dec,
-      date: DateTime(2026, 8, 3),
+      date: NightDate.ofCalendarDay(DateTime(2026, 8, 3)),
       latitudeDeg: _lat,
       longitudeDeg: _lon,
     );

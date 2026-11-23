@@ -347,82 +347,37 @@ extension _PlanetariumScreenActions on _PlanetariumScreenState {
   }
 
   Future<void> _handleSlewAndCenter(
-      CelestialCoordinate coords, String objectName) async {
-    // First slew to approximate position
-    final mountService = ref.read(mountCommandServiceProvider);
-    final result = await mountService.slewTo(
-      coords.ra,
-      coords.dec,
-      showFeedback: false,
-      targetName: objectName,
-    );
-
-    if (!result.isSuccess) {
-      if (mounted) {
-        context.showCommandActionResult(result);
-      }
-      return;
-    }
-
-    _dismissPopup();
-
-    if (mounted) {
-      await showCenteringDialog(
-        context: context,
-        targetRa: coords.ra,
-        targetDec: coords.dec,
+    CelestialCoordinate coords,
+    String objectName,
+  ) =>
+      slewAndCenter(
+        ref,
+        context,
+        ra: coords.ra,
+        dec: coords.dec,
         targetName: objectName,
+        dialogTitle: objectName,
+        isCurrent: () => mounted,
+        beforeDialog: _dismissPopup,
       );
-    }
-  }
 
   Future<void> _handleSlewCenterRotate(
-      CelestialCoordinate coords, String objectName) async {
-    // First slew to approximate position
-    final mountService = ref.read(mountCommandServiceProvider);
-    final slewResult = await mountService.slewTo(
-      coords.ra,
-      coords.dec,
-      showFeedback: false,
-      targetName: objectName,
-    );
-
-    if (!slewResult.isSuccess) {
-      if (mounted) {
-        context.showCommandActionResult(slewResult);
-      }
-      return;
-    }
-
-    _dismissPopup();
-    if (!mounted) return;
-
-    // The rotation follows the centering run as soon as it ends; the dialog
-    // stays open on its result.
-    final centeringResult = await showCenteringDialog(
-      context: context,
-      targetRa: coords.ra,
-      targetDec: coords.dec,
-      targetName: objectName,
-    );
-
-    if (centeringResult == null || !centeringResult.success) {
-      if (mounted && centeringResult != null) {
-        context.showWarningSnackBar('Centering failed - rotation skipped');
-      }
-      return;
-    }
-
-    // Rotate to the planned camera angle if a rotator is connected.
-    final rotated = await rotateAfterCentering(
-        ref, ref.read(equipmentFOVProvider).rotation);
-    if (!mounted) return;
-    if (rotated != null) {
-      context.showCommandActionResult(rotated);
-    } else {
-      context.showInfoSnackBar('Centered on $objectName');
-    }
-  }
+    CelestialCoordinate coords,
+    String objectName,
+  ) =>
+      slewCenterAndRotate(
+        ref,
+        context,
+        ra: coords.ra,
+        dec: coords.dec,
+        targetName: objectName,
+        dialogTitle: objectName,
+        isCurrent: () => mounted,
+        beforeDialog: _dismissPopup,
+        rotation: () => ref.read(equipmentFOVProvider).rotation,
+        rotationSkipped: (_) => 'Centering failed - rotation skipped',
+        centeredWithoutRotator: 'Centered on $objectName',
+      );
 
   Future<void> _handleSlewToCoordinates(CelestialCoordinate coords,
       {String? objectName}) async {

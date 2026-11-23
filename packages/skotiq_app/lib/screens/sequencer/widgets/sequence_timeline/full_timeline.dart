@@ -126,7 +126,7 @@ class _FullTimelineState extends ConsumerState<_FullTimeline>
     }
 
     _twilightTimes = AstronomyCalculations.calculateTwilightTimes(
-      date: date,
+      date: NightDate.ofCalendarDay(date),
       latitudeDeg: lat,
       longitudeDeg: lon,
     );

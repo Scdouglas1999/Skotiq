@@ -274,7 +274,7 @@ class PassPredictionNotifier extends StateNotifier<PassPredictionState> {
         elements: elements,
         latitude: site.latitude,
         longitude: site.longitude,
-        startTime: DateTime.now().toUtc(),
+        startTime: _ref.read(observationTimeProvider).time.toUtc(),
         predictionWindow: predictionWindow,
       );
 
@@ -335,9 +335,9 @@ final passPredictionProvider =
       return PassPredictionNotifier(ref);
     });
 
-/// Provider for upcoming passes (future only).
+/// The passes still to end at the planetarium's clock, to the minute.
 final upcomingPassesProvider = Provider<List<SatellitePass>>((ref) {
   final state = ref.watch(passPredictionProvider);
-  final now = DateTime.now();
+  final now = ref.watch(observationMinuteProvider);
   return state.passes.where((p) => p.setTime.isAfter(now)).toList();
 });

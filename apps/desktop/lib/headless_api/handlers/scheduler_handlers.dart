@@ -404,7 +404,7 @@ class SchedulerHandlers implements RouteSource {
 
   /// The night the site is in now (it runs from the site's solar noon to the
   /// next), which a route that names no date answers for.
-  DateTime _nightUnderWay(double longitude) =>
+  NightDate _nightUnderWay(double longitude) =>
       AstronomyCalculations.nightDateOf(_now(), longitudeDeg: longitude);
 
   /// The floor a visibility answer is measured against: the altitude the
@@ -764,7 +764,7 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final twilight = AstronomyCalculations.calculateTwilightTimes(
-      date: date,
+      date: NightDate.ofCalendarDay(date),
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );

@@ -3,8 +3,10 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'night_date.dart';
 import 'visibility_models.dart';
 
+export 'night_date.dart';
 export 'visibility_models.dart';
 
 part 'calc/time_and_frames.dart';
@@ -285,18 +287,15 @@ class AstronomyCalculations {
   static const double nauticalTwilightAngle = -12.0;
   static const double astronomicalTwilightAngle = -18.0;
 
-  /// Twilight times for the night that follows the site's solar noon on the
-  /// calendar day of [date].
-  ///
-  /// Only the calendar day of [date] is read, so an instant past local
-  /// midnight selects the NEXT night; use [twilightTimesNear] when all you
-  /// hold is an instant. Events are returned in the host's local time.
+  /// Twilight times for the night of [date]: the night that follows the
+  /// site's solar noon on that day. Use [twilightTimesNear] when all you hold
+  /// is an instant. Events are returned in the host's local time.
   static TwilightTimes calculateTwilightTimes({
-    required DateTime date,
+    required NightDate date,
     required double latitudeDeg,
     required double longitudeDeg,
   }) => _twilightTimesFromSolarNoon(
-    siteSolarNoon: _siteSolarNoonOfDate(date, longitudeDeg),
+    siteSolarNoon: _siteSolarNoonOfDate(date.calendarDay, longitudeDeg),
     latitudeDeg: latitudeDeg,
     longitudeDeg: longitudeDeg,
   );
@@ -451,42 +450,36 @@ class AstronomyCalculations {
     longitudeDeg: longitudeDeg,
   );
 
-  /// The date of the night at a site at [longitudeDeg] that CONTAINS
-  /// [instant]: the value to pass as `date` to [calculateObjectVisibility],
-  /// [nightStartOf] or [nightMiddleOf] when all you hold is a timestamp.
+  /// The night at a site at [longitudeDeg] that CONTAINS [instant].
   ///
   /// The night runs from the site's solar noon to the next, so anything before
-  /// that noon belongs to the night that started the previous day. Handing
-  /// `date` a raw instant that has crossed midnight describes the FOLLOWING
-  /// night, a whole sidereal day (~4 min) of error in every rise/transit/set
-  /// time. The date is the site's, not the computer's: a computer in another
-  /// zone gets the same night. UTC in, UTC out.
-  static DateTime nightDateOf(
+  /// that noon belongs to the night that started the previous day. The date
+  /// is the site's, not the computer's: a computer in another zone gets the
+  /// same night.
+  static NightDate nightDateOf(
     DateTime instant, {
     required double longitudeDeg,
-  }) => _nightDateOf(instant, longitudeDeg);
+  }) => NightDate.ofCalendarDay(_nightDateOf(instant, longitudeDeg));
 
   /// The instant the night of [date] opens at a site at [longitudeDeg]: the
-  /// start of the window [calculateObjectVisibility] scans. Only the calendar
-  /// day of [date] is read.
-  static DateTime nightStartOf(DateTime date, {required double longitudeDeg}) =>
-      _nightStartOf(date, longitudeDeg);
+  /// start of the window [calculateObjectVisibility] scans.
+  static DateTime nightStartOf(
+    NightDate date, {
+    required double longitudeDeg,
+  }) => _nightStartOf(date.calendarDay, longitudeDeg);
 
   /// The middle of the night of [date] at a site at [longitudeDeg], halfway
   /// through the window [nightStartOf] opens. Pass it as the `center` of a
   /// search that spans the night of [date].
   static DateTime nightMiddleOf(
-    DateTime date, {
+    NightDate date, {
     required double longitudeDeg,
-  }) => _nightMiddleOf(date, longitudeDeg);
+  }) => _nightMiddleOf(date.calendarDay, longitudeDeg);
 
   /// Calculate rise, transit, and set times for an object.
   ///
   /// The window scanned is the night of [date] at the site, from its solar
-  /// noon ([nightStartOf]) to the next. [date] is therefore the DATE of the
-  /// night, not an instant within it: only its calendar day is read, and a
-  /// timestamp past midnight selects the NEXT night. Convert an instant with
-  /// [nightDateOf].
+  /// noon ([nightStartOf]) to the next.
   ///
   /// The three times describe ONE pass of the sky: rise < transit < set, and
   /// the rise may fall before the window when the body is already up as it
@@ -504,7 +497,7 @@ class AstronomyCalculations {
   static ObjectVisibility calculateObjectVisibility({
     required double raDeg,
     required double decDeg,
-    required DateTime date,
+    required NightDate date,
     required double latitudeDeg,
     required double longitudeDeg,
     double minAltitude = 0,
@@ -513,7 +506,7 @@ class AstronomyCalculations {
   }) => _calculateObjectVisibility(
     raDeg: raDeg,
     decDeg: decDeg,
-    date: date,
+    date: date.calendarDay,
     latitudeDeg: latitudeDeg,
     longitudeDeg: longitudeDeg,
     minAltitude: minAltitude,

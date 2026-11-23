@@ -53,7 +53,7 @@ void main() {
 
   // The night of 2026-11-21 at the site: site solar noon to site solar noon.
   final nightStart = AstronomyCalculations.nightStartOf(
-    DateTime.utc(2026, 11, 21),
+    NightDate.ofCalendarDay(DateTime.utc(2026, 11, 21)),
     longitudeDeg: _longitude,
   );
   final nightEnd = nightStart.add(const Duration(days: 1));
