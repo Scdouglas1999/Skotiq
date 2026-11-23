@@ -931,6 +931,105 @@ Future<void> main() async {
     },
   );
 
+  await check(
+    'a logger named outside skotiq. fails',
+    (root) async {
+      await _write(
+        root,
+        'packages/skotiq_astro/lib/src/catalog.dart',
+        "final _log = Logger('CatalogManager');\n"
+            'final _quiet = Logger.detached(\'skotiq.Quiet\');\n'
+            'final _built = Logger(\n'
+            "  ['skotiq', id].join('.'),\n"
+            ');\n'
+            "final _prefixed = logging.Logger('Catalog');\n",
+      );
+      await _write(
+        root,
+        'apps/desktop/lib/host.dart',
+        'final _log = Logger("Host");\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[leaf-logger]',
+      'catalog.dart:1: names a logger outside skotiq.',
+      'catalog.dart:2: builds a detached logger',
+      'catalog.dart:3: names a logger outside skotiq.',
+      'catalog.dart:6: names a logger outside skotiq.',
+      'host.dart:1: names a logger outside skotiq.',
+      "Where it goes instead: Name it Logger('skotiq.<Name>')",
+    ],
+  );
+
+  await check('skotiq. loggers, tests and other Logger names pass', (
+    root,
+  ) async {
+    await _write(
+      root,
+      'packages/skotiq_astro/lib/src/catalog.dart',
+      "final _log = Logger('skotiq.CatalogManager');\n"
+          'final _wrapped = Logger(\n'
+          '  "skotiq.Plugin.\${id}",\n'
+          ');\n'
+          "final _prefixed = logging.Logger('skotiq.Catalog');\n"
+          'final root = logging.Logger.root;\n'
+          'Logger _pluginLogger(String id) => _log;\n'
+          'final c = ConsolePluginLogger(id);\n'
+          "// Logger('Example') in a comment.\n",
+    );
+    await _write(
+      root,
+      'packages/skotiq_astro/test/catalog_test.dart',
+      "final _log = Logger('CatalogTest');\n",
+    );
+  }, exitCode: 0);
+
+  await check(
+    'an app main that does not start with Log.listen() fails',
+    (root) async {
+      await _write(
+        root,
+        'apps/mobile/lib/main.dart',
+        'void main() async {\n'
+            "  Log.info('Starting', source: 'Main');\n"
+            '  Log.listen();\n'
+            '}\n',
+      );
+      await _write(
+        root,
+        'apps/desktop/lib/main_headless.dart',
+        'void main(List<String> args) async {\n'
+            '  WidgetsFlutterBinding.ensureInitialized();\n'
+            '}\n',
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[leaf-logger]',
+      'apps/mobile/lib/main.dart:1: main does not start with Log.listen()',
+      'main_headless.dart:1: main does not start with Log.listen()',
+      'Where it goes instead: Make Log.listen(); the first statement of main.',
+    ],
+  );
+
+  await check('an app main that starts with Log.listen() passes', (root) async {
+    await _write(
+      root,
+      'apps/mobile/lib/main.dart',
+      'void main() async {\n'
+          '  // Before anything can log.\n'
+          '  Log.listen();\n'
+          "  Log.info('Starting', source: 'Main');\n"
+          '}\n',
+    );
+    await _write(
+      root,
+      'apps/desktop/lib/main_parts/helpers.dart',
+      'void main() {}\n',
+    );
+  }, exitCode: 0);
+
   if (failures > 0) {
     stderr.writeln('$failures architecture rules self-test case(s) failed.');
     exit(1);

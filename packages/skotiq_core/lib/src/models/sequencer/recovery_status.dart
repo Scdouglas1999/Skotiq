@@ -88,25 +88,12 @@ class RecoveryCause extends Equatable {
   factory RecoveryCause.custom(String label) =>
       RecoveryCause._('Custom', label);
 
-  /// The cause a typed bridge event names by [kind]. Throws on a kind this
-  /// app does not know: a fallback would report a wrong recovery cause as if
-  /// it were the real one.
-  factory RecoveryCause.fromKind(String kind, String? customLabel) {
-    if (kind == 'Custom') return RecoveryCause._(kind, customLabel);
-    if (_unitKinds.contains(kind)) return RecoveryCause._(kind, null);
-    throw FormatException('Unknown RecoveryCause kind: $kind');
-  }
-
-  static const _unitKinds = {
-    'GuideStarLost',
-    'SlewFailed',
-    'PlateSolveFailed',
-    'WeatherUnsafe',
-    'MountTrackingLost',
-    'FocusDriftCritical',
-    'ConsecutiveRejectsExceeded',
-    'DeviceDisconnected',
-  };
+  /// The cause a typed bridge event names by [kind]. A kind this app does
+  /// not know is kept as it came, as [RecoveryCause.fromJson] keeps one, and
+  /// [displayLabel] names it as unknown, so a cause the sequencer gained
+  /// before this app has a label still shows its recovery.
+  factory RecoveryCause.fromKind(String kind, String? customLabel) =>
+      RecoveryCause._(kind, kind == 'Custom' ? customLabel : null);
 
   /// Human-readable label. Mirrors `RecoveryCause::display_label` on the
   /// Rust side so the dashboard banner shows the same string the

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skotiq_astro/skotiq_astro.dart';
@@ -17,9 +19,13 @@ const _iss = OrbitalElements(
   meanMotion: 15.5,
 );
 
-/// The planetarium's clock set to [when] and held there.
+/// The planetarium's clock set to [when] and held there until [scrubTo].
 class _HeldClock extends ObservationTimeNotifier {
   _HeldClock(DateTime when) {
+    scrubTo(when);
+  }
+
+  void scrubTo(DateTime when) {
     state = ObservationTimeState(
       time: when,
       isRealTime: false,
@@ -108,4 +114,139 @@ void main() {
       expect(container.read(upcomingPassesProvider), [ahead]);
     },
   );
+
+  group('scrubbing the clock out of the predicted window', () {
+    late List<DateTime> predictedFrom;
+    late ProviderContainer container;
+    late _HeldClock clock;
+
+    setUp(() async {
+      predictedFrom = [];
+      container = ProviderContainer(
+        overrides: [
+          observationTimeProvider.overrideWith(
+            (ref) => clock = _HeldClock(observed),
+          ),
+          satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+          passPredictionComputerProvider.overrideWithValue(({
+            required elements,
+            required latitude,
+            required longitude,
+            required startTime,
+            required predictionWindow,
+          }) async {
+            predictedFrom.add(startTime);
+            return [_passEndingAt(startTime.add(const Duration(hours: 1)))];
+          }),
+        ],
+      );
+      container
+          .read(observerLocationProvider.notifier)
+          .setLocation(latitude: 40, longitude: -74);
+      container.listen(upcomingPassesProvider, (_, __) {});
+      container.read(showSatellitesProvider.notifier).state = true;
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(predictedFrom, [observed]);
+    });
+
+    tearDown(() => container.dispose());
+
+    Future<void> scrub(DateTime to) async {
+      clock.scrubTo(to);
+      container.read(upcomingPassesProvider);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    test('three days ahead predicts from the new time', () async {
+      final later = observed.add(const Duration(days: 3));
+      await scrub(later);
+
+      expect(predictedFrom, [observed, later]);
+      expect(container.read(upcomingPassesProvider), hasLength(1));
+    });
+
+    test('back an hour predicts from the new time', () async {
+      final earlier = observed.subtract(const Duration(hours: 1));
+      await scrub(earlier);
+
+      expect(predictedFrom, [observed, earlier]);
+      expect(
+        container.read(upcomingPassesProvider).single.setTime,
+        earlier.add(const Duration(hours: 1)),
+      );
+    });
+
+    test('within the window keeps the prediction', () async {
+      await scrub(observed.add(const Duration(hours: 20)));
+
+      expect(predictedFrom, [observed]);
+    });
+
+    test('with satellites off predicts nothing', () async {
+      container.read(showSatellitesProvider.notifier).state = false;
+      await scrub(observed.add(const Duration(days: 3)));
+
+      expect(predictedFrom, [observed]);
+    });
+  });
+
+  // Playing the clock backward moves it out of the window every minute: one
+  // prediction runs at a time, and the last position is predicted after it.
+  test('a clock moving back while predicting starts one more', () async {
+    final calls = <(DateTime, Completer<List<SatellitePass>>)>[];
+    late _HeldClock clock;
+    final container = ProviderContainer(
+      overrides: [
+        observationTimeProvider.overrideWith(
+          (ref) => clock = _HeldClock(observed),
+        ),
+        satelliteTleProvider.overrideWith((ref) async => const [_iss]),
+        passPredictionComputerProvider.overrideWithValue(({
+          required elements,
+          required latitude,
+          required longitude,
+          required startTime,
+          required predictionWindow,
+        }) {
+          final reply = Completer<List<SatellitePass>>();
+          calls.add((startTime, reply));
+          return reply.future;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    Future<void> settle() async {
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    container
+        .read(observerLocationProvider.notifier)
+        .setLocation(latitude: 40, longitude: -74);
+    container.listen(upcomingPassesProvider, (_, __) {});
+    container.read(showSatellitesProvider.notifier).state = true;
+    await settle();
+    calls.single.$2.complete(const []);
+    await settle();
+
+    for (var minutes = 1; minutes <= 3; minutes++) {
+      clock.scrubTo(observed.subtract(Duration(minutes: minutes)));
+      container.read(upcomingPassesProvider);
+      await settle();
+    }
+    expect(calls.map((c) => c.$1), [
+      observed,
+      observed.subtract(const Duration(minutes: 1)),
+    ]);
+
+    calls.last.$2.complete(const []);
+    await settle();
+    expect(calls.map((c) => c.$1), [
+      observed,
+      observed.subtract(const Duration(minutes: 1)),
+      observed.subtract(const Duration(minutes: 3)),
+    ]);
+  });
 }

@@ -752,25 +752,28 @@ class SchedulerHandlers implements RouteSource {
     }
 
     final dateParam = request.url.queryParameters['date'];
-    DateTime date;
+    final NightDate night;
     if (dateParam != null) {
       final parsed = DateTime.tryParse(dateParam);
       if (parsed == null) {
         return jsonBadRequest({'error': 'Invalid date format. Use ISO8601.'});
       }
-      date = parsed;
+      night = NightDate.ofCalendarDay(parsed);
     } else {
-      date = _now();
+      night = AstronomyCalculations.nightDateOf(
+        _now(),
+        longitudeDeg: longitude,
+      );
     }
 
     final twilight = AstronomyCalculations.calculateTwilightTimes(
-      date: NightDate.ofCalendarDay(date),
+      date: night,
       latitudeDeg: latitude,
       longitudeDeg: longitude,
     );
 
     return jsonOk({
-      'date': date.toIso8601String().split('T')[0],
+      'date': '$night',
       'sunset': twilight.sunset?.toWireTime(),
       'sunsetEpoch': twilight.sunset?.millisecondsSinceEpoch,
       'civilDusk': twilight.civilDusk?.toWireTime(),

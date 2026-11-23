@@ -73,6 +73,56 @@ void main() {
     );
   }
 
+  Future<Map<String, Object?>> askTwilight(DateTime now, {String? date}) async {
+    final handlers = SchedulerHandlers(container, now: () => now.toLocal());
+    final request = Request(
+      'GET',
+      Uri.parse(
+        'http://localhost/api/scheduler/twilight-times'
+        '${date == null ? '' : '?date=$date'}',
+      ),
+    );
+    final response = await translateHandlerErrors(
+      handlers.handleGetTwilightTimes(request),
+    );
+    return jsonDecode(await response.readAsString()) as Map<String, Object?>;
+  }
+
+  const twilightKeys = [
+    'sunsetEpoch',
+    'civilDuskEpoch',
+    'nauticalDuskEpoch',
+    'astronomicalDuskEpoch',
+    'astronomicalDawnEpoch',
+    'nauticalDawnEpoch',
+    'civilDawnEpoch',
+    'sunriseEpoch',
+  ];
+
+  test('twilight-times for ?date= names that calendar night', () async {
+    // Asked in the small hours of a later day: the date in the query wins.
+    final now = DateTime.utc(2026, 11, 25, 6, 30);
+    final body = await askTwilight(now, date: '2026-11-21');
+    expect(body['date'], '2026-11-21');
+    for (final key in twilightKeys) {
+      expectInTheNight(body[key], key, now);
+    }
+  });
+
+  for (final now in [
+    DateTime.utc(2026, 11, 22, 2), // 21:00 at the site
+    DateTime.utc(2026, 11, 22, 6, 30), // 01:30 at the site
+    DateTime.utc(2026, 11, 22, 10), // 05:00 at the site
+  ]) {
+    test('twilight-times asked at $now names the night under way', () async {
+      final body = await askTwilight(now);
+      expect(body['date'], '2026-11-21');
+      for (final key in twilightKeys) {
+        expectInTheNight(body[key], key, now);
+      }
+    });
+  }
+
   for (final now in [
     DateTime.utc(2026, 11, 22, 2), // 21:00 at the site
     DateTime.utc(2026, 11, 22, 6, 30), // 01:30 at the site

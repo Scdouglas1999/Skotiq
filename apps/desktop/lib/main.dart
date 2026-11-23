@@ -108,6 +108,7 @@ _RemoteClientTarget? _parseRemoteTarget(List<String> args) {
 }
 
 void main(List<String> args) async {
+  Log.listen();
   startupTimeline.mark('main');
   WidgetsFlutterBinding.ensureInitialized();
   final isHeadless =

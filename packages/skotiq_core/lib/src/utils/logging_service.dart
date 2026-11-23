@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:logging/logging.dart' as logging;
+import 'package:meta/meta.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge_api;
 
@@ -35,6 +36,16 @@ enum LogLevel {
   }
 }
 
+/// Takes one log entry.
+typedef LogSink =
+    void Function(
+      LogLevel level,
+      String message, {
+      required String source,
+      Object? error,
+      StackTrace? stackTrace,
+    });
+
 /// The process's log, for code that holds no provider `Ref` and for code that
 /// logs while its container is shutting down.
 ///
@@ -56,8 +67,37 @@ abstract final class Log {
 
   static void attach(LoggingService service) {
     _service = service;
+    listen();
+  }
+
+  /// Starts forwarding the leaf packages' records, once for the life of the
+  /// process. A record logged before anything listens is lost.
+  static void listen() {
     _leafRecords ??= _forwardLeafRecords();
   }
+
+  /// Where an entry goes while no service is attached.
+  static LogSink _unattached = _toDeveloper;
+
+  /// Replaces where entries go while no service is attached; null restores
+  /// `dart:developer`.
+  @visibleForTesting
+  static set unattachedSinkForTest(LogSink? sink) =>
+      _unattached = sink ?? _toDeveloper;
+
+  static void _toDeveloper(
+    LogLevel level,
+    String message, {
+    required String source,
+    Object? error,
+    StackTrace? stackTrace,
+  }) => developer.log(
+    message,
+    name: source,
+    level: level.developerLevel,
+    error: error,
+    stackTrace: stackTrace,
+  );
 
   /// Subscribes once for the life of the process, so a second container
   /// cannot forward a record twice. While no service is attached the records
@@ -158,10 +198,10 @@ abstract final class Log {
   }) {
     final service = _service;
     if (service == null) {
-      developer.log(
+      _unattached(
+        level,
         message,
-        name: source,
-        level: level.developerLevel,
+        source: source,
         error: error,
         stackTrace: stackTrace,
       );

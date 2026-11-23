@@ -8,7 +8,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import 'package:skotiq_core/models.dart';
+import 'package:skotiq_core/providers.dart';
 
 void main() {
   final rows =
@@ -32,8 +34,42 @@ void main() {
       expect(cause.displayLabel, row['label']);
       expect(cause.wireKey, row['wireKey']);
       expect(cause.toJson(), row['cause']);
+      // The live typed event carries the kind and the custom label apart.
+      expect(RecoveryCause.fromKind(row['kind'], cause.customLabel), cause);
     });
   }
+
+  // A cause the sequencer gains before this app has a label for it: the
+  // banner names it as unknown, and the event is not dropped.
+  test('a cause kind this app does not know still decodes', () {
+    final cause = RecoveryCause.fromKind('DomeShutterStuck', null);
+    expect(cause.kind, 'DomeShutterStuck');
+    expect(cause.displayLabel, 'Unknown (DomeShutterStuck)');
+    expect(cause, RecoveryCause.fromJson('DomeShutterStuck'));
+  });
+
+  test('a live recovery event with an unknown cause kind is applied', () {
+    final envelope = recoveryEnvelopeFromBridgeForTest(
+      bridge.SkotiqEvent(
+        eventId: BigInt.one,
+        timestamp: 0,
+        severity: bridge.EventSeverity.critical,
+        category: bridge.EventCategory.sequencer,
+        payload: const bridge.EventPayload.sequencer(
+          bridge.SequencerEvent.recoveryStarted(
+            startedAtIso: '2026-11-22T03:14:15.000Z',
+            causeKind: 'DomeShutterStuck',
+            attemptCount: 1,
+            maxAttempts: 5,
+            retryIntervalSecs: 60,
+            maxDurationSecs: 1800,
+            phase: 'Waiting',
+          ),
+        ),
+      ),
+    );
+    expect(envelope!.context.cause.displayLabel, 'Unknown (DomeShutterStuck)');
+  });
 
   test('a saved entry with the kind only reads with the label', () {
     for (final row in rows) {
