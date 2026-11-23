@@ -49,24 +49,18 @@ void main() {
     expect(_unread('sky_atlas_growth', AtlasGrowthCurve.fromJson), _ok);
   });
 
-  test('the tile provenance reads the native keys except the provenance '
-      'counts, which the native side writes in snake case', () {
-    // Drift, recorded and not fixed here: the native TileProvenance and
-    // TileFoldRecord have no camelCase rename, so `info` answers
-    // `total_frames`, `frames_added` and so on, while TileProvenanceView reads
-    // `totalFrames`, `framesAdded`. The region provenance trail shows zero
-    // frames and seconds for every fold. The list only shrinks: a fix on
-    // either side fails this test until it is updated.
+  test('the tile provenance reads every key the native info reply writes, '
+      'its snake-case provenance counts included', () {
     expect(
       _unread('sky_atlas_info', (json) => TileProvenanceView.fromJson(1, json)),
-      {
-        ..._ok,
-        'provenance.total_frames',
-        'provenance.total_integration_seconds',
-        'provenance.folds[].frames_added',
-        'provenance.folds[].weight_added',
-        'provenance.folds[].integration_seconds_added',
-      },
+      _ok,
     );
+    final view = TileProvenanceView.fromJson(
+      1,
+      replyFixtureObject('sky_atlas_info')! as Map<String, dynamic>,
+    );
+    expect(view.totalFrames, 42);
+    expect(view.totalIntegrationSeconds, 7560.0);
+    expect(view.folds.map((f) => f.framesAdded), [3]);
   });
 }
