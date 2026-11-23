@@ -597,6 +597,30 @@ Future<void> main() async {
   );
 
   await check(
+    'the host importing a screen fails, in lib and in test',
+    (root) async {
+      await _write(
+        root,
+        'apps/desktop/lib/headless_api/handlers/night_handlers.dart',
+        "import 'package:skotiq_app/screens/night_control/actions/x.dart';\n"
+            "import 'package:skotiq_app/services/night_actions/y.dart';\n",
+      );
+      await _write(
+        root,
+        'apps/desktop/test/host/host_test.dart',
+        "import 'package:skotiq_app/screens/night_control/data/z.dart';\n",
+      );
+    },
+    exitCode: 1,
+    stderrHas: [
+      '[host-screens]',
+      'night_handlers.dart:1: imports screens/night_control/actions/x.dart',
+      'host_test.dart:1: imports screens/night_control/data/z.dart',
+      'out of screens/ into services/',
+    ],
+  );
+
+  await check(
     'the route table, a tour and a shared library with a part in a screen '
     'folder fail when they reach up',
     (root) async {
