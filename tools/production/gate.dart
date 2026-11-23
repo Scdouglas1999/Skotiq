@@ -395,6 +395,9 @@ Future<void> main(List<String> args) async {
         check,
   ];
 
+  // One scratch data folder for every Dart test check of this run.
+  Directory? testDataHome;
+
   if (args.contains('--list')) {
     for (final check in checks) {
       stdout.writeln(
@@ -426,6 +429,12 @@ Future<void> main(List<String> args) async {
     final environment = {
       for (final entry in check.pathEnvironment.entries)
         entry.key: '$root/${entry.value}',
+      // Code that resolves the user's data folder from the environment (the
+      // plugin file store) must not reach the real one from a test.
+      if (check.stage == 'dart-tests')
+        'XDG_DATA_HOME': (testDataHome ??= Directory.systemTemp.createTempSync(
+          'skotiq-gate-data-',
+        )).path,
     };
     final logFile = outDir == null
         ? null
