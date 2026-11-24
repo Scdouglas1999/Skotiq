@@ -251,26 +251,25 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 actions: [
                   if (MediaQuery.sizeOf(context).width >= 1000)
                     const _PlanNightChips(),
-                  SkotiqButton(
-                    label: MediaQuery.sizeOf(context).width < 1000
-                        ? 'Camera'
-                        : 'Camera / cooling',
-                    icon: SkotiqIcons.frost,
-                    variant: ButtonVariant.secondary,
-                    onPressed: () => showDialog<void>(
-                        context: context,
-                        builder: (context) => SkotiqDialog(
-                              title: 'Camera / cooling',
-                              width: SkotiqDialog.widthConfirm,
-                              actions: [
-                                SkotiqButton(
-                                    label: 'Done',
-                                    onPressed: () => Navigator.pop(context))
-                              ],
-                              child: CameraPanel(
-                                  colors: colors, scrollable: false),
-                            )),
-                  ),
+                  // A phone's header is one row: the action is an icon
+                  // there, where a labeled button overflows the header.
+                  if (MediaQuery.sizeOf(context).width <
+                      ShellChromeMetrics.shellLayoutBreakpoint)
+                    SkotiqIconButton(
+                      icon: SkotiqIcons.frost,
+                      tooltip: 'Camera / cooling',
+                      tooltipPosition: SkotiqTooltipPosition.bottom,
+                      onPressed: () => _showCameraPanel(context, colors),
+                    )
+                  else
+                    SkotiqButton(
+                      label: MediaQuery.sizeOf(context).width < 1000
+                          ? 'Camera'
+                          : 'Camera / cooling',
+                      icon: SkotiqIcons.frost,
+                      variant: ButtonVariant.secondary,
+                      onPressed: () => _showCameraPanel(context, colors),
+                    ),
                 ],
               ),
             Expanded(
@@ -286,6 +285,20 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
         ),
       ),
     );
+  }
+
+  void _showCameraPanel(BuildContext context, SkotiqColors colors) {
+    showDialog<void>(
+        context: context,
+        builder: (context) => SkotiqDialog(
+              title: 'Camera / cooling',
+              width: SkotiqDialog.widthConfirm,
+              actions: [
+                SkotiqButton(
+                    label: 'Done', onPressed: () => Navigator.pop(context))
+              ],
+              child: CameraPanel(colors: colors, scrollable: false),
+            ));
   }
 
   /// Each tab carries an icon so [AdaptiveTabBar] can collapse to icon-only
