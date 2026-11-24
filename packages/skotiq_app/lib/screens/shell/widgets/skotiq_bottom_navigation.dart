@@ -4,6 +4,7 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../../localization/skotiq_localizations.dart';
 import '../../../tours/tour_target.dart';
+import '../shell_chrome.dart';
 import '../shell_navigation.dart';
 
 /// The narrow shell's navigation (04-shell §3.3).
@@ -117,33 +118,40 @@ class SkotiqBottomNavigation extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 for (final dest in ShellNavigation.moreSheet)
-                  Builder(
-                    builder: (context) {
-                      final isCurrent =
-                          ShellNavigation.hosts(dest, currentRoute);
-                      return ListTile(
-                        leading: Icon(
-                          dest.icon,
-                          color:
-                              isCurrent ? colors.primary : colors.textSecondary,
-                        ),
-                        title: Text(
-                          dest.label!.of(l10n),
-                          style: SkotiqTypography.body.copyWith(
-                            color:
-                                isCurrent ? colors.primary : colors.textPrimary,
-                            fontWeight:
-                                isCurrent ? FontWeight.w600 : FontWeight.w500,
+                  // A phone is always a client of the imaging computer, and
+                  // the Darkroom edits only there: on a phone its entry led
+                  // to a page saying so.
+                  if (!(ShellChrome.isNativeMobile &&
+                      dest == AppRoute.darkroom))
+                    Builder(
+                      builder: (context) {
+                        final isCurrent =
+                            ShellNavigation.hosts(dest, currentRoute);
+                        return ListTile(
+                          leading: Icon(
+                            dest.icon,
+                            color: isCurrent
+                                ? colors.primary
+                                : colors.textSecondary,
                           ),
-                        ),
-                        selected: isCurrent,
-                        onTap: () {
-                          Navigator.of(sheetContext).pop();
-                          onRouteSelected(dest);
-                        },
-                      );
-                    },
-                  ),
+                          title: Text(
+                            dest.label!.of(l10n),
+                            style: SkotiqTypography.body.copyWith(
+                              color: isCurrent
+                                  ? colors.primary
+                                  : colors.textPrimary,
+                              fontWeight:
+                                  isCurrent ? FontWeight.w600 : FontWeight.w500,
+                            ),
+                          ),
+                          selected: isCurrent,
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            onRouteSelected(dest);
+                          },
+                        );
+                      },
+                    ),
               ],
             ),
           ),
