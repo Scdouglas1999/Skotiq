@@ -73,6 +73,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     String scheme = 'http',
     String? pinnedFingerprint,
     String? initialCode,
+    String? serverName,
   }) async {
     final uiContext = _connectionUiContext;
     if (uiContext == null || !uiContext.mounted) {
@@ -92,8 +93,12 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     // assertions as the connection MaterialApp is swapped for the main shell.
     final pairingInput = await showDialog<PairingDialogResult>(
       context: uiContext,
-      builder: (ctx) =>
-          PairingCodeDialog(host: host, port: port, initialCode: initialCode),
+      builder: (ctx) => PairingCodeDialog(
+        host: host,
+        port: port,
+        serverName: serverName,
+        initialCode: initialCode,
+      ),
     );
 
     if (pairingInput != null && pairingInput.scan && mounted) {
@@ -503,6 +508,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
         server.pairingSupported) {
       final paired = await _pairWithServer(
         host: host,
+        serverName: server.name,
         port: port,
         // Use the scheme + identity the enriched /api/info reported so a
         // TLS-fronted host pairs over https and the pre-flight pins the
@@ -676,11 +682,16 @@ class PairingCodeDialog extends StatefulWidget {
   final int port;
   final String? initialCode;
 
+  /// The name the computer announced, shown so a phone near two rigs knows
+  /// which one it is pairing with.
+  final String? serverName;
+
   const PairingCodeDialog({
     super.key,
     required this.host,
     required this.port,
     this.initialCode,
+    this.serverName,
   });
 
   @override
@@ -742,6 +753,27 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              Icon(LucideIcons.monitor, size: 16, color: colors.textSecondary),
+              const SizedBox(width: SkotiqTokens.spaceSm),
+              Expanded(
+                child: Text(
+                  [
+                    if (widget.serverName case final name? when name.isNotEmpty)
+                      name,
+                    widget.host,
+                  ].join(' · '),
+                  style: SkotiqTypography.labelStrongSm.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(
             'On the imaging computer, open Settings → Remote access and '
             'press Start pairing. Scan the QR code it shows, or type the code.',

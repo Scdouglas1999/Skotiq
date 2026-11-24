@@ -198,4 +198,31 @@ void main() {
       expect(popped?.admin, isFalse);
     });
   });
+
+  testWidgets('names the computer it is pairing with', (tester) async {
+    late BuildContext ctx;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Builder(
+          builder: (context) {
+            ctx = context;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    unawaited(
+      showDialog<PairingDialogResult>(
+        context: ctx,
+        builder: (_) => const PairingCodeDialog(
+          host: '192.168.1.32',
+          port: 8080,
+          serverName: 'Observatory PC',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Observatory PC · 192.168.1.32'), findsOneWidget);
+  });
 }

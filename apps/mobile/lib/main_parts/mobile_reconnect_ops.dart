@@ -366,6 +366,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
         if (authToken == null || authToken.isEmpty) {
           final pairedToken = await _pairWithServer(
             host: enrichedServer.host,
+            serverName: enrichedServer.name,
             port: enrichedServer.webPort,
             scheme: enrichedServer.scheme,
             // Pin the server identity (when known from /api/info) so the

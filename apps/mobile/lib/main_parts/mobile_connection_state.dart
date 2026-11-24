@@ -136,6 +136,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     required int port,
     String scheme = 'http',
     String? pinnedFingerprint,
+    String? serverName,
   });
 
   void _stopConnectionMonitor() {
