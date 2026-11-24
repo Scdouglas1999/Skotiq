@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skotiq_app/router/app_routes.dart';
 import 'package:skotiq_app/utils/darkroom_navigation.dart'
     show darkroomEditLocation;
-import 'package:skotiq_core/models.dart' show darkroomRouteForPayload;
+import 'package:skotiq_core/models.dart'
+    show NotificationCategory, darkroomRouteForPayload;
 import 'package:skotiq_remote_protocol/wire.dart' show NotificationPayloadType;
 
 import 'mobile_preferences.dart';
@@ -816,10 +817,20 @@ class MobileNotificationService implements MobileNotificationSink {
         androidPriority = Priority.high;
     }
 
-    final id = _nextPushNotificationId++;
-    // Wrap around to avoid overflow, keeping it above the reserved IDs
-    if (_nextPushNotificationId > 9999) {
-      _nextPushNotificationId = 200;
+    // The phone tells a finished or failed run itself, under a fixed id. The
+    // host's push for the same run takes that id, so the two replace each
+    // other instead of showing the run twice.
+    final int id;
+    if (eventType == NotificationCategory.sequenceCompleted.storageKey) {
+      id = _sequenceCompleteId;
+    } else if (eventType == NotificationCategory.sequenceFailed.storageKey) {
+      id = _sequenceFailedId;
+    } else {
+      id = _nextPushNotificationId++;
+      // Wrap around to avoid overflow, keeping it above the reserved IDs
+      if (_nextPushNotificationId > 9999) {
+        _nextPushNotificationId = 200;
+      }
     }
 
     await _notifications.show(
