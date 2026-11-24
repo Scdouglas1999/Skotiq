@@ -608,11 +608,13 @@ class _NoSolverQuickStart extends StatelessWidget {
           const SizedBox(height: 14),
           _QuickStartStep(
             stepNumber: 1,
-            title: linked
-                ? 'Install ASTAP on the imaging computer'
-                : 'Install ASTAP',
-            body: 'ASTAP is fast, free, and works fully offline. Click '
-                'below to open the download page.',
+            title: 'Install ASTAP',
+            body: linked
+                ? 'Install it on the imaging computer, not this device. '
+                    'ASTAP is fast, free, and works fully offline. The page '
+                    'below has it.'
+                : 'ASTAP is fast, free, and works fully offline. Click '
+                    'below to open the download page.',
             icon: LucideIcons.download,
             action: SkotiqButton(
               label: 'Open ASTAP download page',
