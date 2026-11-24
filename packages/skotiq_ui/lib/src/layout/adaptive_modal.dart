@@ -37,8 +37,17 @@ Future<T?> showAdaptiveModal<T>({
   if (Responsive.isPhone(context)) {
     switch (phoneMode) {
       case PhoneModalMode.fullScreen:
+        // A route is a bare page: it needs its own Material (text styles,
+        // ink) and must keep its content out of the status and navigation
+        // bars, which a pushed route draws under.
         return Navigator.of(context, rootNavigator: useRootNavigator).push<T>(
-          MaterialPageRoute<T>(fullscreenDialog: true, builder: builder),
+          MaterialPageRoute<T>(
+            fullscreenDialog: true,
+            builder: (routeContext) => Material(
+              color: routeContext.skotiqColors.surface,
+              child: SafeArea(child: builder(routeContext)),
+            ),
+          ),
         );
       case PhoneModalMode.bottomSheet:
         final colors = context.skotiqColors;
