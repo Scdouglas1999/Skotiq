@@ -57,7 +57,7 @@ class SavedFrameView extends ConsumerWidget {
             panOffset: panOffset,
             onPan: onPan,
             semanticsLabel: semanticsLabel,
-            stars: showStars
+            stars: showStars && localPath.isNotEmpty
                 ? ref
                     .watch(savedFrameStarsProvider(localPath))
                     .valueOrNull

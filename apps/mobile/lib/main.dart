@@ -188,6 +188,8 @@ void main() async {
       overrides: [
         ...appProviderOverrides(appVersion),
         phoneBarStatusProvider.overrideWithValue(const PhoneBatteryIndicator()),
+        // No native library on a phone: saved frames are drawn by the host.
+        savedFrameDecodesOnDeviceProvider.overrideWithValue(false),
         androidNotificationsRequestProvider.overrideWithValue(
           Platform.isAndroid
               ? MobileNotificationService().requestAndroidNotificationPermission
