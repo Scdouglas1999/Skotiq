@@ -736,6 +736,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMountParkedUnparks': 'parked · the run unparks it',
     'nightSessionCheckMountTracking': 'unparked · tracking',
     'nightSessionCheckSite': 'Site',
+    'nightSessionCheckAlerts': 'Alerts',
+    'nightSessionCheckAlertsOff':
+        'off on this phone · it will not say if the run stops',
+    'nightSessionActionTurnOn': 'Turn on',
     'nightSessionCheckSiteMissing': 'no observing site set',
     'nightSessionCheckSolver': 'Solver',
     'nightSessionCheckSolverMissing':
@@ -2399,6 +2403,10 @@ final Map<String, Map<String, String>> _localizedValues = {
     'nightSessionCheckMountParkedUnparks': 'aparcada · la sesión la desaparca',
     'nightSessionCheckMountTracking': 'desaparcada · siguiendo',
     'nightSessionCheckSite': 'Lugar',
+    'nightSessionCheckAlerts': 'Avisos',
+    'nightSessionCheckAlertsOff':
+        'desactivados en este teléfono · no avisará si la sesión se detiene',
+    'nightSessionActionTurnOn': 'Activar',
     'nightSessionCheckSiteMissing': 'no hay lugar de observación fijado',
     'nightSessionCheckSolver': 'Resolución',
     'nightSessionCheckSolverMissing':

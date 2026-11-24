@@ -504,6 +504,9 @@ enum ChecklistItemId {
   weather,
   dawn,
   site,
+
+  /// This phone cannot post notifications: nothing would say the run stopped.
+  alerts,
 }
 
 enum ChecklistItemState {

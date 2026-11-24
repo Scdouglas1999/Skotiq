@@ -4,6 +4,8 @@
 // (TonightReady.dc.html). During a run the current operation leads.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../shell/widgets/android_notifications_banner.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skotiq_core/models.dart' show TargetHeaderNode;
 import 'package:skotiq_core/providers.dart'
@@ -138,6 +140,13 @@ class NightOverviewTab extends ConsumerWidget {
       GoRouter.maybeOf(context)?.go(AppRoute.equipment.path);
       return;
     }
+    if (item.id == ChecklistItemId.alerts) {
+      final request = ref.read(androidNotificationsRequestProvider);
+      if (request == null) return;
+      final granted = await request();
+      ref.read(androidNotificationsAuthorizedProvider.notifier).state = granted;
+      return;
+    }
     final route = item.route;
     if (route != null) {
       GoRouter.maybeOf(context)?.go(route);
@@ -154,7 +163,8 @@ class NightOverviewTab extends ConsumerWidget {
       ChecklistItemId.disk ||
       ChecklistItemId.weather ||
       ChecklistItemId.dawn ||
-      ChecklistItemId.site =>
+      ChecklistItemId.site ||
+      ChecklistItemId.alerts =>
         null,
     };
     if (item.id == ChecklistItemId.guider) {
