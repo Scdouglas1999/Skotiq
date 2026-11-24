@@ -145,7 +145,7 @@ pub(crate) async fn resolve_unbinned_guide_pixel_scale(
 ) -> Result<f64, SkotiqError> {
     let profile = get_state().get_profile().await.ok_or_else(|| {
         SkotiqError::OperationFailed(
-            "Built-in guider requires an active profile with a guide focal length".to_string(),
+            "Built-in guider requires an active equipment profile".to_string(),
         )
     })?;
     let focal_length_mm = guide_focal_length_mm(&profile);
