@@ -14,7 +14,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:skotiq_app/skotiq_app.dart' show SkotiqSplashGate;
+import 'package:skotiq_app/router/app_routes.dart' show AppRoutes;
+import 'package:skotiq_app/router/equipment_route.dart' show EquipmentTab;
+import 'package:skotiq_app/skotiq_app.dart'
+    show SkotiqSplashGate, appRouterProvider;
 import 'package:skotiq_app/widgets/remote_directory_picker_dialog.dart';
 import 'package:skotiq_astro/format.dart';
 import 'package:skotiq_core/errors.dart';
@@ -180,6 +183,16 @@ class _FirstRunSetupGateState extends ConsumerState<FirstRunSetupGate> {
       FirstRunSetupScreen(
         needs: needs,
         onCompleted: () => setState(() => _passed = true),
+        // Setup ends in the app's Equipment, Profiles tab, once the shell
+        // and its router are up.
+        onSetUpEquipment: () {
+          setState(() => _passed = true);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref
+                .read(appRouterProvider)
+                .go(AppRoutes.equipment(tab: EquipmentTab.profiles));
+          });
+        },
       ),
     );
   }
@@ -190,12 +203,18 @@ class _FirstRunSetupGateState extends ConsumerState<FirstRunSetupGate> {
 /// The wizard opens on the first step the host still needs.
 class FirstRunSetupScreen extends ConsumerStatefulWidget {
   final FirstRunSetupNeeds needs;
+
+  /// Finishes setup and opens the app's Equipment to make a profile from
+  /// this phone. Null hides the option.
+  final VoidCallback? onSetUpEquipment;
+
   final VoidCallback onCompleted;
 
   const FirstRunSetupScreen({
     super.key,
     required this.needs,
     required this.onCompleted,
+    this.onSetUpEquipment,
   });
 
   @override
@@ -452,7 +471,9 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
     });
   }
 
-  Future<void> _finish() async {
+  /// Marks setup done and leaves it: through [then] when given, else
+  /// through [FirstRunSetupScreen.onCompleted].
+  Future<void> _finish({VoidCallback? then}) async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
@@ -460,7 +481,7 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       await prefs.setFirstRunCompleted(true);
       ref.invalidate(shouldRunFirstRunSetupProvider);
       if (!mounted) return;
-      widget.onCompleted();
+      (then ?? widget.onCompleted)();
     } catch (e) {
       if (!mounted) return;
       setState(() => _busy = false);
@@ -775,14 +796,25 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
       children: [
         _stepText(
           colors,
-          'The rig has no equipment profile yet. Make one on the imaging '
-          'computer, under Equipment; this phone uses it as soon as it '
-          'exists. You can finish now.',
+          'The rig has no equipment profile yet. A profile names your '
+          'camera, mount and the rest, so a run knows what to drive. Make '
+          'one here on the phone, or later on the imaging computer.',
         ),
         const SizedBox(height: SkotiqTokens.spaceLg),
+        if (widget.onSetUpEquipment case final setUp?) ...[
+          SkotiqButton(
+            onPressed: _busy ? null : () => _finish(then: setUp),
+            icon: SkotiqIcons.layers,
+            label: 'Set up equipment',
+          ),
+          const SizedBox(height: SkotiqTokens.spaceSm),
+        ],
         SkotiqButton(
           onPressed: _busy ? null : _finish,
           label: 'Finish without a profile',
+          variant: widget.onSetUpEquipment == null
+              ? ButtonVariant.primary
+              : ButtonVariant.ghost,
         ),
       ],
     );

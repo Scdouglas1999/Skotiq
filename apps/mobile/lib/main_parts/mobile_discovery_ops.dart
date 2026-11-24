@@ -15,7 +15,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     setState(() {
       _isDiscovering = true;
       _error = null;
-      _statusMessage = 'Starting discovery...';
+      _statusMessage = 'Looking for it on this Wi-Fi…';
     });
 
     try {
@@ -24,7 +24,7 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
       final server = await EnhancedSkotiqDiscovery.discoverWithFallback(
         onStatus: (status) {
           if (mounted) {
-            setState(() => _statusMessage = status);
+            setState(() => _statusMessage = _discoveryStatusText(status));
           }
         },
       );
@@ -43,14 +43,11 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
           _isDiscovering = false;
           _statusMessage = '';
           _error =
-              'No Skotiq server found on this network.\n\n'
-              'If you are away from the observatory, use "Connect over '
-              'Tailscale" to reach it by its MagicDNS name — local discovery '
-              'only works on the same WiFi.\n\n'
-              'On the same network, try:\n'
-              '- Scanning the QR code from the desktop\n'
-              '- Entering the host address manually\n'
-              '- Allowing UDP 45679 and HTTP 8080 through the firewall';
+              'No imaging computer answered on this Wi-Fi. Check that '
+              'Skotiq is open on it and that both are on the same network, '
+              'then scan its QR code or enter its address. Away from home, '
+              'use Tailscale or a relay below. If it still is not found, '
+              'its firewall may be blocking UDP 45679 and TCP 8080.';
         });
       }
     } catch (e, stackTrace) {
@@ -733,9 +730,9 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
               });
               return;
             }
-            Navigator.of(context).pop(
-              (code: trimmed, admin: _requestAdmin, scan: false),
-            );
+            Navigator.of(
+              context,
+            ).pop((code: trimmed, admin: _requestAdmin, scan: false));
           },
           label: 'Pair',
           size: ButtonSize.small,
@@ -779,7 +776,8 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           const SizedBox(height: 12),
           SkotiqSwitchRow(
             label: 'Full control of the imaging computer',
-            subtitle: 'Lets this phone choose capture folders and manage '
+            subtitle:
+                'Lets this phone choose capture folders and manage '
                 'backups too. Turn it off for a phone you lend to someone.',
             value: _requestAdmin,
             onChanged: (value) => setState(() => _requestAdmin = value),
@@ -798,4 +796,16 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
       ),
     );
   }
+}
+
+/// The discovery's progress in the phone's words: the methods it tries are
+/// its business, where it is looking is the operator's.
+String _discoveryStatusText(String status) {
+  if (status.startsWith('Checking last server')) {
+    return 'Trying the computer this phone used last…';
+  }
+  if (status.contains('broadcast') || status.contains('mDNS')) {
+    return 'Looking for it on this Wi-Fi…';
+  }
+  return status;
 }

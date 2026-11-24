@@ -450,6 +450,42 @@ void main() {
     });
   });
 
+  testWidgets('with no profile, Set up equipment ends setup into Equipment', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final backend = _PathValidationBackend(validationResult: const {});
+    var completed = false;
+    var setUp = false;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          backendProvider.overrideWith(
+            (ref) => _TestBackendNotifier(ref, backend),
+          ),
+        ],
+        child: MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: FirstRunSetupScreen(
+            needs: const FirstRunSetupNeeds(
+              missingImageOutputPath: false,
+              missingProfiles: true,
+              missingCatalogs: false,
+            ),
+            onCompleted: () => completed = true,
+            onSetUpEquipment: () => setUp = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Finish without a profile'), findsOneWidget);
+    await tester.tap(find.text('Set up equipment'));
+    await tester.pumpAndSettle();
+    expect(setUp, isTrue);
+    expect(completed, isFalse);
+  });
+
   group('FirstRunSetupScreen without admin access', () {
     Future<void> pumpScreen(WidgetTester tester, SkotiqBackend backend) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
