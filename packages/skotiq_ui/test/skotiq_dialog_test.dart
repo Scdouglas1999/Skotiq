@@ -232,4 +232,52 @@ void main() {
 
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
+
+  group('on a phone', () {
+    Future<Rect> surfaceRect(WidgetTester tester, {double? height}) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Scaffold(
+            body: SkotiqDialog(
+              title: 'Pre-flight check',
+              width: SkotiqDialog.widthForm,
+              height: height,
+              actions: [
+                SkotiqButton(label: 'Cancel', onPressed: () {}),
+                SkotiqButton(label: 'Re-check', onPressed: () {}),
+                SkotiqButton(label: 'Start anyway', onPressed: () {}),
+              ],
+              child: const Text('body'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      return tester.getRect(find.byType(SkotiqDialogSurface));
+    }
+
+    testWidgets(
+      'a form dialog takes the screen',
+      (tester) async {
+        final rect = await surfaceRect(tester, height: 600);
+        expect(rect.height, greaterThan(800));
+        expect(rect.width, greaterThan(370));
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+
+    testWidgets(
+      'a dialog without a design height still fits its content',
+      (tester) async {
+        final rect = await surfaceRect(tester);
+        expect(rect.height, lessThan(400));
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.android),
+    );
+  });
 }
