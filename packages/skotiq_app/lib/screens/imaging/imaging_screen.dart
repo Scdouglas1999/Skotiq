@@ -305,10 +305,6 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   /// sheet (matching the rule the pre-Observatory layout used).
   static const double _shortViewportHeight = 500;
 
-  /// The frame shape a phone sizes its viewer for before the first frame: a
-  /// typical 3:2 astronomy sensor.
-  static const double _defaultFrameAspect = 1.5;
-
   /// The widest the controls column gets beside the frame on a phone held
   /// on its side.
   static const double _landscapeSheetMaxWidth = 360;
@@ -428,22 +424,25 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
       // so no letterbox band is spent above and below it, but never so much
       // that the sheet loses its section strip, a form row and the capture
       // buttons; and never under 35% of the column.
+      // Before the first frame there is nothing to show at frame size: the
+      // viewer keeps its least share and the controls get the room.
       final aspect = ref.watch(
-            currentImageProvider.select(
-              (image) => image == null || image.height == 0
-                  ? null
-                  : image.width / image.height,
-            ),
-          ) ??
-          _defaultFrameAspect;
+        currentImageProvider.select(
+          (image) => image == null || image.height == 0
+              ? null
+              : image.width / image.height,
+        ),
+      );
       return LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
           final height = constraints.maxHeight;
           final roomLeft = height - _ControlsSheet.minUsefulHeight;
-          final viewerHeight = math.max(
-            height * 0.35,
-            math.min(constraints.maxWidth / aspect, roomLeft),
-          );
+          final viewerHeight = aspect == null
+              ? height * 0.35
+              : math.max(
+                  height * 0.35,
+                  math.min(constraints.maxWidth / aspect, roomLeft),
+                );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
