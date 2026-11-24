@@ -204,12 +204,8 @@ class EditableFragment extends SummaryFragment {
 /// gain the way the connected camera takes it ("gain 100", "ISO 800").
 /// An exposure length as the chip shows it: seconds to one decimal, and
 /// milliseconds below a tenth of a second, where seconds would read "0s".
-String exposureDurationLabel(double seconds) {
-  if (seconds > 0 && seconds < 0.1) {
-    return '${QuantityFormat.trimmed(seconds * 1000)} ms';
-  }
-  return '${QuantityFormat.trimmed(seconds)}s';
-}
+String exposureDurationLabel(double seconds) =>
+    QuantityFormat.exposure(seconds, space: false);
 
 List<SummaryFragment> nodeSummary(
   SequenceNode node, {

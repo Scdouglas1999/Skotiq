@@ -5,6 +5,14 @@ library;
 abstract final class QuantityFormat {
   /// [value] with up to [maxDecimals] places and no trailing zeros: `30`,
   /// `2.5`, `0.25`. `-0` reads `0`.
+  /// An exposure length: seconds to one decimal ("2.5 s"), and milliseconds
+  /// below a tenth of a second ("5 ms"), where seconds would read "0 s".
+  /// [space] puts a space before "s" ("2.5 s") or not ("2.5s").
+  static String exposure(double seconds, {bool space = true}) {
+    if (seconds > 0 && seconds < 0.1) return '${trimmed(seconds * 1000)} ms';
+    return '${trimmed(seconds)}${space ? ' ' : ''}s';
+  }
+
   static String trimmed(double value, {int maxDecimals = 1}) {
     var text = value.toStringAsFixed(maxDecimals);
     if (text.contains('.')) {
