@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'adaptive_tab_bar.dart';
+
 import 'package:skotiq_design/skotiq_design.dart';
 import '../tokens/shell_chrome_metrics.dart';
 import '../utils/touch_target.dart';
@@ -148,7 +150,7 @@ class PageHeader extends StatelessWidget {
                 bottom: BorderSide(color: colors.border, width: 1),
               ),
             ),
-            child: tabs,
+            child: TabStripInset(inset: SkotiqTokens.spaceLg, child: tabs!),
           ),
         if (bottom != null) bottom!,
       ],

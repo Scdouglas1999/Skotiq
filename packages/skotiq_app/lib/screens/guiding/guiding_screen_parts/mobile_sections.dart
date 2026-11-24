@@ -68,7 +68,8 @@ mixin _GuidingMobileSections
 
   Widget _buildNarrowTabs() {
     return AdaptiveTabBar(
-      horizontalPadding: 0,
+      // Its own edge-to-edge row: keep the first tab off the screen edge.
+      horizontalPadding: SkotiqTokens.spaceLg,
       selectedIndex: _tabController.index,
       onSelected: (i) {
         _tabController.index = i;

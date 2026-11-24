@@ -58,6 +58,25 @@ Future<void> _pumpAt(WidgetTester tester, Size size) async {
 
 void main() {
   _NoTabs.register();
+
+  testWidgets('on a phone the stacked strip keeps its first tab off the edge', (
+    tester,
+  ) async {
+    await _pumpAt(tester, const Size(411, 860));
+    final first = tester.getTopLeft(find.byIcon(Icons.nightlight)).dx;
+    expect(first, greaterThanOrEqualTo(SkotiqTokens.spaceLg));
+  });
+
+  testWidgets('on a wide header the strip stays flush with the title block', (
+    tester,
+  ) async {
+    await _pumpAt(tester, const Size(1600, 900));
+    // The header's own gutter only: no second inset inside the strip.
+    final title = tester.getTopRight(find.text('Plan')).dx;
+    final first = tester.getTopLeft(find.byIcon(Icons.nightlight)).dx;
+    expect(first - title, lessThan(SkotiqTokens.space2xl * 3));
+  });
+
   testWidgets('at 1600px every tab label is rendered and nothing overflows', (
     tester,
   ) async {
