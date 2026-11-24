@@ -109,9 +109,19 @@ mixin _GuidingMobileSections
           }
           final isLandscape = constraints.maxWidth > constraints.maxHeight;
 
+          // The page is titled Guiding already, so the phone's graph panel
+          // carries no head of its own and gives that row to the plot.
           Widget graphPane(double gutter) => Padding(
                 padding: EdgeInsets.all(gutter),
-                child: _buildGraphPanel(colors, guideStats),
+                child: LayoutBuilder(
+                  builder: (context, pane) => _buildGraphPanelBody(
+                    colors,
+                    guideStats,
+                    showHead: false,
+                    compact: pane.maxHeight <
+                        _GuidingDesktopSections._graphCompactPaneHeight,
+                  ),
+                ),
               );
 
           // Landscape with enough width: graph beside the body. TwoPane keeps
