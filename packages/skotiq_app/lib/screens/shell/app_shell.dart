@@ -477,6 +477,22 @@ class _AppShellState extends ConsumerState<AppShell> {
         // status and settings at its end (ShellHeaderTrailing). A narrow
         // desktop window keeps its strip, which holds the window controls.
         final phoneChrome = useBottomNav && !ShellChrome.isDesktopWindow;
+        // A phone on its side moves the bar to a rail down the left edge:
+        // width it has to spare, height it does not.
+        final phoneRail =
+            phoneChrome && constraints.maxWidth > constraints.maxHeight;
+        void goToRoute(AppRoute route) {
+          try {
+            context.go(route.path);
+          } catch (e, stack) {
+            Log.warning(
+              '[AppShell] Bottom nav could not navigate to $route: $e',
+              source: 'AppShell',
+              error: e,
+              stackTrace: stack,
+            );
+          }
+        }
 
         // The splash wraps the shell's content rather than the Navigator so
         // routes pushed during startup — checkpoint recovery, onboarding,
@@ -539,6 +555,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   // The sidebar (desktop only) — a
                                   // full-height pane of the slate: chrome
                                   // header, destinations, Rig card.
+                                  if (phoneRail)
+                                    SkotiqBottomNavigation(
+                                      vertical: true,
+                                      currentRoute: currentLocation,
+                                      onRouteSelected: goToRoute,
+                                    ),
                                   if (!useBottomNav)
                                     FocusTraversalOrder(
                                       order: const NumericFocusOrder(0),
@@ -618,12 +640,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                         _ContentSemanticsBoundary(
                                                       child: HostLinkStaleScope(
                                                         child: phoneChrome
-                                                            ? ShellHeaderTrailing(
-                                                                trailing:
-                                                                    const _PhoneHeaderTrailing(),
+                                                            ? _PhoneScreen(
                                                                 child: widget
-                                                                    .child,
-                                                              )
+                                                                    .child)
                                                             : widget.child,
                                                       ),
                                                     ),
@@ -686,22 +705,10 @@ class _AppShellState extends ConsumerState<AppShell> {
                             // does NOT hide: below 768px the nav IS the
                             // navigation, and an affordance that takes it
                             // away is one an operator can only lose by.
-                            if (useBottomNav && !keyboardVisible)
+                            if (useBottomNav && !phoneRail && !keyboardVisible)
                               SkotiqBottomNavigation(
                                 currentRoute: currentLocation,
-                                onRouteSelected: (route) {
-                                  try {
-                                    context.go(route.path);
-                                  } catch (e, stack) {
-                                    Log.warning(
-                                      '[AppShell] Bottom nav could not '
-                                      'navigate to $route: $e',
-                                      source: 'AppShell',
-                                      error: e,
-                                      stackTrace: stack,
-                                    );
-                                  }
-                                },
+                                onRouteSelected: goToRoute,
                               ),
                           ],
                         ),

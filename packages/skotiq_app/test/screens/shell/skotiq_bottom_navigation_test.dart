@@ -216,4 +216,42 @@ void main() {
     expect(await _selectedLabels(tester, '/analytics?tab=history&night=12'),
         ['More']);
   });
+
+  testWidgets('the rail lists the same destinations down the left edge', (
+    tester,
+  ) async {
+    final selected = <AppRoute>[];
+    tester.view.physicalSize = const Size(900, 411);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SkotiqTheme.dark,
+        home: Scaffold(
+          body: Row(
+            children: [
+              SkotiqBottomNavigation(
+                vertical: true,
+                currentRoute: '/imaging',
+                onRouteSelected: selected.add,
+              ),
+              const Expanded(child: SizedBox()),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    final rail = tester.getRect(find.byType(SkotiqBottomNavigation));
+    expect(rail.width, SkotiqBottomNavigation.railWidth);
+    expect(rail.height, 411);
+    // Five slots stacked vertically, each tappable.
+    final imaging = tester.getCenter(find.text('Imaging'));
+    final more = tester.getCenter(find.text('More'));
+    expect(more.dy, greaterThan(imaging.dy));
+    expect((more.dx - imaging.dx).abs(), lessThan(1));
+    await tester.tap(find.text('Imaging'));
+    expect(selected, [AppRoute.imaging]);
+  });
 }

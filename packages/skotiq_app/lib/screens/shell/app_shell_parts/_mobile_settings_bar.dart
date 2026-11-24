@@ -91,3 +91,25 @@ class _PhoneHeaderTrailing extends ConsumerWidget {
     );
   }
 }
+
+/// A routed screen on a phone: its header carries the shell's trailing item,
+/// and it reserves no bottom inset, which the bottom bar under it owns. Built
+/// inside the shell's SafeArea, so the MediaQuery it trims has the top and
+/// side insets already taken out.
+class _PhoneScreen extends StatelessWidget {
+  final Widget child;
+
+  const _PhoneScreen({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return ShellHeaderTrailing(
+      trailing: const _PhoneHeaderTrailing(),
+      child: MediaQuery.removePadding(
+        context: context,
+        removeBottom: true,
+        child: child,
+      ),
+    );
+  }
+}

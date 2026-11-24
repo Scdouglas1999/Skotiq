@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -195,13 +197,21 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
                 },
               ),
               actions: <Widget>[
-                SkotiqButton(
-                  label: 'Immersive',
-                  icon: SkotiqIcons.expand,
-                  size: ButtonSize.small,
-                  variant: ButtonVariant.ghost,
-                  onPressed: _openImmersive,
-                ),
+                if (narrow)
+                  SkotiqIconButton(
+                    icon: SkotiqIcons.expand,
+                    tooltip: 'Immersive',
+                    tooltipPosition: SkotiqTooltipPosition.bottom,
+                    onPressed: _openImmersive,
+                  )
+                else
+                  SkotiqButton(
+                    label: 'Immersive',
+                    icon: SkotiqIcons.expand,
+                    size: ButtonSize.small,
+                    variant: ButtonVariant.ghost,
+                    onPressed: _openImmersive,
+                  ),
                 SkotiqIconButton(
                   icon: LucideIcons.panelRight,
                   tooltip: _sidePanelCollapsed
@@ -299,6 +309,15 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   /// typical 3:2 astronomy sensor.
   static const double _defaultFrameAspect = 1.5;
 
+  /// The widest the controls column gets beside the frame on a phone held
+  /// on its side.
+  static const double _landscapeSheetMaxWidth = 360;
+
+  static bool _isLandscape(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    return size.width > size.height;
+  }
+
   Widget _liveViewFor(
     SkotiqColors colors,
     int selectedSection,
@@ -388,22 +407,27 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
           children: <Widget>[Expanded(child: viewer), sheet],
         );
       }
-      if (short) {
-        // A short viewport (a phone in landscape, or any window with the
-        // keyboard up) splits 1:1: a 150 px sheet cannot show a form row, and
-        // the operator is looking at the controls, not the sky. The sheet is
-        // BOUNDED, so it shrinks its scrolling body instead of overflowing.
-        return Column(
+      if (short && _isLandscape(context)) {
+        // A phone on its side: the frame on the left at the full height,
+        // the controls in a column beside it.
+        return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Expanded(child: viewer),
-            Flexible(child: sheet),
+            SizedBox(
+              width: math.min(
+                _landscapeSheetMaxWidth,
+                MediaQuery.sizeOf(context).width * 0.42,
+              ),
+              child: sheet,
+            ),
           ],
         );
       }
       // A tall phone gives the viewer the frame's own height at full width,
-      // so no letterbox band is spent above and below it, between 35% and
-      // 60% of the column; the controls take the rest.
+      // so no letterbox band is spent above and below it, but never so much
+      // that the sheet loses its section strip, a form row and the capture
+      // buttons; and never under 35% of the column.
       final aspect = ref.watch(
             currentImageProvider.select(
               (image) => image == null || image.height == 0
@@ -414,9 +438,11 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
           _defaultFrameAspect;
       return LayoutBuilder(
         builder: (BuildContext context, BoxConstraints constraints) {
-          final viewerHeight = (constraints.maxWidth / aspect).clamp(
-            constraints.maxHeight * 0.35,
-            constraints.maxHeight * 0.6,
+          final height = constraints.maxHeight;
+          final roomLeft = height - _ControlsSheet.minUsefulHeight;
+          final viewerHeight = math.max(
+            height * 0.35,
+            math.min(constraints.maxWidth / aspect, roomLeft),
           );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -532,6 +558,10 @@ class _ControlsSheet extends StatelessWidget {
   /// False while the header's panel button has the sections hidden: the sheet
   /// is then only the two capture buttons.
   final bool showSections;
+
+  /// The least a phone's sheet keeps: the section strip, one form row and
+  /// the two capture buttons.
+  static const double minUsefulHeight = 220;
 
   /// Below this the section chip strip stands down: 40 px of navigation in a
   /// sheet this short is 40 px the field being typed into does not have.
