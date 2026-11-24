@@ -32,6 +32,7 @@ void showSequencerPropertiesSheet(BuildContext context, SkotiqColors colors) {
     builder: (sheetContext) => NodePropertiesPanel(
       colors: colors,
       isMobileSheet: true,
+      showDragHandle: false,
       onClose: () => Navigator.of(sheetContext).pop(),
     ),
   );

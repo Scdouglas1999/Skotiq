@@ -70,6 +70,10 @@ class NodePropertiesPanel extends ConsumerWidget {
   final SkotiqColors colors;
   final ScrollController? scrollController;
   final bool isMobileSheet;
+
+  /// Draw the sheet's drag handle; off when the panel fills a full-screen
+  /// route, which has nothing to drag.
+  final bool showDragHandle;
   final VoidCallback? onClose;
   final VoidCallback? onCollapse;
 
@@ -78,6 +82,7 @@ class NodePropertiesPanel extends ConsumerWidget {
     required this.colors,
     this.scrollController,
     this.isMobileSheet = false,
+    this.showDragHandle = true,
     this.onClose,
     this.onCollapse,
   });
@@ -101,17 +106,18 @@ class NodePropertiesPanel extends ConsumerWidget {
       BuildContext context, WidgetRef ref, SequenceNode? selectedNode) {
     return Column(
       children: [
-        Center(
-          child: Container(
-            margin: const EdgeInsets.only(top: 12, bottom: 8),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: colors.border,
-              borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
+        if (showDragHandle)
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.border,
+                borderRadius: BorderRadius.circular(SkotiqTokens.radiusInline2),
+              ),
             ),
           ),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: SkotiqTokens.spaceLg,
