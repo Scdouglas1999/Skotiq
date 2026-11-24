@@ -93,11 +93,20 @@ mixin _MobileDiscoveryOps on _MobileConnectionState {
     // TextField rebuild during the route's exit animation, and the build
     // exception cascades into duplicate-GlobalKey / '_dependents.isEmpty'
     // assertions as the connection MaterialApp is swapped for the main shell.
-    final pairingInput = await showDialog<({String code, bool admin})>(
+    final pairingInput = await showDialog<PairingDialogResult>(
       context: uiContext,
       builder: (ctx) =>
           PairingCodeDialog(host: host, port: port, initialCode: initialCode),
     );
+
+    if (pairingInput != null && pairingInput.scan && mounted) {
+      setState(() {
+        _isDiscovering = false;
+        _statusMessage = '';
+      });
+      await _scanQrCode();
+      return null;
+    }
 
     if (pairingInput == null || pairingInput.code.isEmpty || !mounted) {
       if (mounted) {
@@ -653,6 +662,10 @@ class _RelayConnectDialogState extends State<RelayConnectDialog> {
   }
 }
 
+/// What [PairingCodeDialog] pops: a typed [code], or [scan] when the operator
+/// chose to scan the QR code instead. [admin] asks the host for full control.
+typedef PairingDialogResult = ({String code, bool admin, bool scan});
+
 /// Code-pairing dialog. A real StatefulWidget (not a StatefulBuilder over
 /// method-locals) so the [TextEditingController] is disposed by the
 /// framework when the dialog element unmounts — after the route's exit
@@ -679,7 +692,7 @@ class PairingCodeDialog extends StatefulWidget {
 
 class _PairingCodeDialogState extends State<PairingCodeDialog> {
   late final TextEditingController _codeController;
-  bool _requestAdmin = false;
+  bool _requestAdmin = true;
 
   /// Inline validation message for the code field. An empty code must say why
   /// rather than no-op behind an enabled-looking "Pair" button.
@@ -720,7 +733,9 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
               });
               return;
             }
-            Navigator.of(context).pop((code: trimmed, admin: _requestAdmin));
+            Navigator.of(context).pop(
+              (code: trimmed, admin: _requestAdmin, scan: false),
+            );
           },
           label: 'Pair',
           size: ButtonSize.small,
@@ -731,14 +746,21 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Enter the pairing code shown on the appliance. Read it '
-            'from the pairing page in a browser — open '
-            'http://${widget.host}:${widget.port}/pair — or from the '
-            "desktop's Remote Access screen.",
+            'On the imaging computer, open Settings → Remote access and '
+            'press Start pairing. Scan the QR code it shows, or type the code.',
             style: TextStyle(
-              fontSize: SkotiqTypography.fontSize13,
-              color: colors.textSecondary,
+              fontSize: SkotiqTypography.fontSize14,
+              color: colors.textPrimary,
             ),
+          ),
+          const SizedBox(height: 12),
+          SkotiqButton(
+            onPressed: () => Navigator.of(
+              context,
+            ).pop((code: '', admin: _requestAdmin, scan: true)),
+            label: 'Scan QR code',
+            icon: LucideIcons.scanLine,
+            variant: ButtonVariant.secondary,
           ),
           const SizedBox(height: 12),
           TextField(
@@ -754,24 +776,22 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
               if (_codeError != null) setState(() => _codeError = null);
             },
           ),
-          // Own Material: SkotiqDialog paints its surface with a
-          // DecoratedBox, which sits between this tile and the nearest
-          // Material ancestor. Flutter asserts on that arrangement because the
-          // tile's background and tap ripple are painted on that Material and
-          // would be hidden — the admin toggle gave no touch feedback at all.
-          Material(
-            type: MaterialType.transparency,
-            child: CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Grant full admin access'),
-              subtitle: const Text(
-                'Off by default. Enable only if this device should '
-                'manage backups and filesystem paths.',
-              ),
-              value: _requestAdmin,
-              onChanged: (value) {
-                setState(() => _requestAdmin = value ?? false);
-              },
+          const SizedBox(height: 12),
+          SkotiqSwitchRow(
+            label: 'Full control of the imaging computer',
+            subtitle: 'Lets this phone choose capture folders and manage '
+                'backups too. Turn it off for a phone you lend to someone.',
+            value: _requestAdmin,
+            onChanged: (value) => setState(() => _requestAdmin = value),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No screen on the imaging computer? Open '
+            'http://${widget.host}:${widget.port}/pair in a browser to see '
+            'the code.',
+            style: TextStyle(
+              fontSize: SkotiqTypography.fontSize13,
+              color: colors.textSecondary,
             ),
           ),
         ],

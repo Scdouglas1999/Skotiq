@@ -18,8 +18,8 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Pumps the dialog inside a route so `Navigator.pop` has somewhere to go, and
 /// captures whatever the dialog pops.
-Future<({String code, bool admin})?> _pumpDialog(WidgetTester tester) async {
-  ({String code, bool admin})? popped;
+Future<PairingDialogResult?> _pumpDialog(WidgetTester tester) async {
+  PairingDialogResult? popped;
   late BuildContext ctx;
 
   await tester.pumpWidget(
@@ -35,7 +35,7 @@ Future<({String code, bool admin})?> _pumpDialog(WidgetTester tester) async {
   );
 
   unawaited(
-    showDialog<({String code, bool admin})>(
+    showDialog<PairingDialogResult>(
       context: ctx,
       builder: (_) => const PairingCodeDialog(host: '192.168.1.20', port: 8080),
     ).then((value) => popped = value),
@@ -101,7 +101,7 @@ void main() {
     });
 
     testWidgets('a real code still pops the trimmed value', (tester) async {
-      ({String code, bool admin})? popped;
+      PairingDialogResult? popped;
       late BuildContext ctx;
 
       await tester.pumpWidget(
@@ -117,7 +117,7 @@ void main() {
       );
 
       unawaited(
-        showDialog<({String code, bool admin})>(
+        showDialog<PairingDialogResult>(
           context: ctx,
           builder: (_) =>
               const PairingCodeDialog(host: '192.168.1.20', port: 8080),
@@ -132,7 +132,70 @@ void main() {
 
       expect(find.byType(PairingCodeDialog), findsNothing);
       expect(popped?.code, 'MOON-PLUTO-7005');
-      expect(popped?.admin, isFalse, reason: 'admin scope is opt-in');
+      expect(
+        popped?.admin,
+        isTrue,
+        reason: 'a phone pairs with full control unless switched off',
+      );
+      expect(popped?.scan, isFalse);
+    });
+  });
+
+  group('PairingCodeDialog choices', () {
+    Future<PairingDialogResult?> open(WidgetTester tester) async {
+      PairingDialogResult? popped;
+      late BuildContext ctx;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SkotiqTheme.dark,
+          home: Builder(
+            builder: (context) {
+              ctx = context;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      unawaited(
+        showDialog<PairingDialogResult>(
+          context: ctx,
+          builder: (_) =>
+              const PairingCodeDialog(host: '192.168.1.20', port: 8080),
+        ).then((value) => popped = value),
+      );
+      await tester.pumpAndSettle();
+      return popped;
+    }
+
+    testWidgets('Scan QR code hands off to the scanner', (tester) async {
+      PairingDialogResult? popped;
+      await open(tester);
+      final route = ModalRoute.of(
+        tester.element(find.byType(PairingCodeDialog)),
+      )!;
+      unawaited(route.popped.then((v) => popped = v as PairingDialogResult?));
+      await tester.tap(find.widgetWithText(SkotiqButton, 'Scan QR code'));
+      await tester.pumpAndSettle();
+      expect(find.byType(PairingCodeDialog), findsNothing);
+      expect(popped?.scan, isTrue);
+    });
+
+    testWidgets('switching full control off pairs with control only', (
+      tester,
+    ) async {
+      PairingDialogResult? popped;
+      await open(tester);
+      final route = ModalRoute.of(
+        tester.element(find.byType(PairingCodeDialog)),
+      )!;
+      unawaited(route.popped.then((v) => popped = v as PairingDialogResult?));
+      await tester.tap(find.byType(SkotiqSwitch));
+      await tester.enterText(find.byType(TextField), 'MOON-PLUTO-7005');
+      await tester.pumpAndSettle();
+      await tester.tap(_pairButton());
+      await tester.pumpAndSettle();
+      expect(popped?.code, 'MOON-PLUTO-7005');
+      expect(popped?.admin, isFalse);
     });
   });
 }
