@@ -64,7 +64,11 @@ class SessionChartsRow extends ConsumerWidget {
           children: <Widget>[
             for (final cell in cells)
               Container(
-                height: NightControlLayout.singleColumnChartHeight,
+                // Charts get a phone's reading height once frames come in;
+                // the idle cards before a run are a line and a button.
+                height: before
+                    ? NightControlLayout.chartRowHeight
+                    : NightControlLayout.singleColumnChartHeight,
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: colors.border)),
                 ),
