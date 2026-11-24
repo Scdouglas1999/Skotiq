@@ -227,10 +227,10 @@ class _RemoteConnectionIndicatorState
     final pulsing = status == RemoteConnectionStatus.connecting ||
         status == RemoteConnectionStatus.reconnecting ||
         status == RemoteConnectionStatus.notAnswering;
-    // A generous transparent hit area around a small visible dot so it stays
-    // tappable without claiming visual space.
+    // A transparent hit area around a small visible dot: a full touch-target
+    // height, so it stays tappable in a phone header without claiming width.
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 19),
       child: Container(
         width: 10,
         height: 10,

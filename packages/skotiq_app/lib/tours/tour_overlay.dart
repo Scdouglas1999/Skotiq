@@ -46,11 +46,11 @@ RenderBox? _paintedBox(TourTarget target) {
 }
 
 /// The box a step about [target] spotlights. On a phone the rail's
-/// destinations sit behind the bar's More button, so a step about one of
-/// them points there.
+/// destinations and Settings sit behind the bar's More button, so a step
+/// about one of them points there.
 RenderBox? _spotlightBox(TourTarget target) =>
     _paintedBox(target) ??
-    (target.isRailDestination ? _paintedBox(TourTarget.navMore) : null);
+    (target.isBehindMoreOnPhone ? _paintedBox(TourTarget.navMore) : null);
 
 /// Whether a step about [target] has something on screen to point at.
 bool tourTargetIsOnShow(TourTarget target) => _spotlightBox(target) != null;

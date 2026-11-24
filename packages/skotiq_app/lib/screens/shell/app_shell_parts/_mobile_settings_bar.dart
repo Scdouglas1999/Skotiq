@@ -71,3 +71,23 @@ class _MobileSettingsBar extends ConsumerWidget {
     return WindowDragArea(child: bar);
   }
 }
+
+/// The shell's item on a phone, carried at the end of each screen's header:
+/// the link to the imaging host and the phone's own status. Settings is in
+/// the More sheet, so a header never shows the shell's gear beside a screen's
+/// own.
+class _PhoneHeaderTrailing extends ConsumerWidget {
+  const _PhoneHeaderTrailing();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final status = ref.watch(phoneBarStatusProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (status != null) status,
+        const RemoteConnectionIndicator(dot: true),
+      ],
+    );
+  }
+}

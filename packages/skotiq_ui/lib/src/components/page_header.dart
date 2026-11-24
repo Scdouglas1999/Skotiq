@@ -122,6 +122,12 @@ class PageHeader extends StatelessWidget {
               if (i > 0) const SizedBox(width: SkotiqTokens.spaceSm),
               actions[i],
             ],
+            if (ShellHeaderTrailing.maybeOf(buildContext)
+                case final trailing?) ...[
+              if (actions.isNotEmpty)
+                const SizedBox(width: SkotiqTokens.spaceSm),
+              trailing,
+            ],
           ],
         ),
       ),
@@ -214,4 +220,31 @@ class PageHeader extends StatelessWidget {
 
   /// Room the title keeps for its first letters before the icon gives way.
   static const double _minTitleWidth = 24;
+}
+
+/// Chrome the app shell asks every page header to carry at its trailing edge.
+///
+/// On a phone the shell has no bar of its own: the screen's header is the one
+/// top bar, and the shell's items (link status, settings) ride at its end so
+/// they cost no extra row. Absent everywhere else, so desktop headers are
+/// unchanged.
+class ShellHeaderTrailing extends InheritedWidget {
+  const ShellHeaderTrailing({
+    super.key,
+    required this.trailing,
+    required super.child,
+  });
+
+  /// The widget each header appends after its own actions.
+  final Widget trailing;
+
+  /// The trailing chrome for headers under [context], or null when the shell
+  /// keeps its own bar.
+  static Widget? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ShellHeaderTrailing>()
+      ?.trailing;
+
+  @override
+  bool updateShouldNotify(ShellHeaderTrailing oldWidget) =>
+      trailing != oldWidget.trailing;
 }
