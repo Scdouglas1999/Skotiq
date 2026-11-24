@@ -52,7 +52,11 @@ class _Probe extends StatelessWidget {
   }
 }
 
-Future<NightControlDensity> _pump(WidgetTester tester, Size size) async {
+Future<NightControlDensity> _pump(
+  WidgetTester tester,
+  Size size, {
+  bool planFirst = false,
+}) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -64,6 +68,7 @@ Future<NightControlDensity> _pump(WidgetTester tester, Size size) async {
       supportedLocales: SkotiqLocalizations.supportedLocales,
       home: Scaffold(
         body: NightControlLayout(
+          planFirst: planFirst,
           header: KeyedSubtree(
             key: _header,
             child: _Probe((d) => density = d),
@@ -209,6 +214,29 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('390x844 before a run: the plan and the panel come first', (
+    tester,
+  ) async {
+    await _pump(tester, const Size(390, 844), planFirst: true);
+    final header = _rect(tester, _header);
+    final left = _rect(tester, _left);
+    final panel = _rect(tester, _panel);
+    final center = _rect(tester, _center);
+    expect(header.top, lessThan(left.top));
+    expect(left.top, lessThan(panel.top));
+    expect(panel.top, lessThan(center.top));
+  });
+
+  testWidgets('the column modes ignore planFirst', (tester) async {
+    await _pump(tester, const Size(1480, 806), planFirst: true);
+    expect(
+      _rect(tester, _left).left,
+      lessThan(_rect(tester, _center).left),
+    );
+    expect(_rect(tester, _header).bottom,
+        lessThanOrEqualTo(_rect(tester, _center).top));
+  });
 
   test('the board fixtures build and compare by value', () {
     for (final build in <NightBoard Function()>[

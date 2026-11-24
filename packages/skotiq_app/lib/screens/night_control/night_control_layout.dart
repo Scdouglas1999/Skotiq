@@ -110,6 +110,7 @@ class NightControlLayout extends StatefulWidget {
     required this.center,
     required this.panel,
     this.notices,
+    this.planFirst = false,
   });
 
   /// Title, run pill, timeline and run controls. At least [headerHeight]
@@ -130,6 +131,10 @@ class NightControlLayout extends StatefulWidget {
   /// header is the phone's top bar.
   final Widget? notices;
 
+  /// In the single column, put the plan and the readiness panel above the
+  /// frame: before a run they are what the operator came to see.
+  final bool planFirst;
+
   static const double threeColumnMinWidth = 1180;
   static const double drawerMinWidth = 900;
   static const double leftWidth = 272;
@@ -147,6 +152,10 @@ class NightControlLayout extends StatefulWidget {
   static const double actionSubLabelMinWidth = 820;
   static const double chartRowHeight = 120;
   static const double compactChartRowHeight = 96;
+
+  /// A chart's height when the single column stacks them at full width: tall
+  /// enough to read a trend on a phone.
+  static const double singleColumnChartHeight = 160;
 
   /// The frame never gets shorter than this in the column modes; the chart
   /// row folds into a toggle first.
@@ -348,6 +357,20 @@ class _NightControlLayoutState extends State<NightControlLayout> {
 
   Widget _singleColumn(SkotiqColors colors) {
     final divider = BorderSide(color: colors.border);
+    final panelSlot = DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: _slot(widget.panel),
+    );
+    final planSlot = DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.well,
+        border: Border(top: BorderSide(color: colors.border)),
+      ),
+      child: _slot(widget.left),
+    );
     return SingleChildScrollView(
       primary: false,
       child: Column(
@@ -358,21 +381,15 @@ class _NightControlLayoutState extends State<NightControlLayout> {
             child: _slot(widget.header),
           ),
           if (widget.notices case final notices?) notices,
-          _slot(widget.center),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.surface,
-              border: Border(top: divider),
-            ),
-            child: _slot(widget.panel),
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colors.well,
-              border: Border(top: divider),
-            ),
-            child: _slot(widget.left),
-          ),
+          if (widget.planFirst) ...<Widget>[
+            planSlot,
+            panelSlot,
+            _slot(widget.center),
+          ] else ...<Widget>[
+            _slot(widget.center),
+            panelSlot,
+            planSlot,
+          ],
         ],
       ),
     );

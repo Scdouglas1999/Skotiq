@@ -64,7 +64,7 @@ class SessionChartsRow extends ConsumerWidget {
           children: <Widget>[
             for (final cell in cells)
               Container(
-                height: height,
+                height: NightControlLayout.singleColumnChartHeight,
                 decoration: BoxDecoration(
                   border: Border(top: BorderSide(color: colors.border)),
                 ),

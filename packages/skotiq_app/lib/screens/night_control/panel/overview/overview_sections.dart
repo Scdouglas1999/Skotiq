@@ -690,12 +690,21 @@ class _ChecklistAction extends StatelessWidget {
             padding: const EdgeInsets.symmetric(
               horizontal: SkotiqTokens.spaceXs,
             ),
-            child: Center(
+            // On the row's first line, beside the detail it acts on; the
+            // rest of a phone's taller touch target extends below it.
+            child: Align(
+              alignment: Alignment.topCenter,
               widthFactor: 1,
-              child: Text(
-                label,
-                style: SkotiqTypography.labelSm.copyWith(
-                  color: colors.primary,
+              child: SizedBox(
+                height: NightChecklistSection._captionLine,
+                child: Center(
+                  widthFactor: 1,
+                  child: Text(
+                    label,
+                    style: SkotiqTypography.labelSm.copyWith(
+                      color: colors.primary,
+                    ),
+                  ),
                 ),
               ),
             ),
