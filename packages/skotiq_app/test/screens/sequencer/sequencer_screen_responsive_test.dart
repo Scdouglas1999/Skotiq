@@ -102,6 +102,20 @@ void main() {
   for (final (label, portrait) in phones) {
     final landscape = Size(portrait.height, portrait.width);
 
+    testWidgets('$label landscape, running: one progress bar, no overflow',
+        (tester) async {
+      await pumpAppScreen(
+        tester,
+        const SequencerScreen(),
+        size: landscape,
+        extraOverrides: [..._overrides(), _running()],
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(tester.takeException(), isNull);
+      expect(find.byType(SequenceProgressBar), findsOneWidget);
+    });
+
     testWidgets('$label portrait, running: one progress bar, no overflow',
         (tester) async {
       await pumpAppScreen(

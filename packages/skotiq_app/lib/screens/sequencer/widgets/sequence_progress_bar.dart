@@ -190,331 +190,405 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
         repeating: !isPaused,
         child: AnimatedBuilder(
           animation: _pulseController,
-          builder: (context, child) {
-            // Recomputed inside the pulse builder, not in `build`: `build` only
-            // reruns when a provider changes, and a stalled run by definition
-            // changes nothing. The pulse ticks every frame, which is what lets the
-            // silence be noticed at all.
-            final stalledFor = _stalledFor(
-              progress,
-              isRunning: executionState == SequenceExecutionState.running,
-            );
-            final backgroundColor = isPaused
-                ? widget.colors.warning
-                    .withValues(alpha: _kPausedBackgroundAlpha)
-                : widget.colors.primary.withValues(
-                    alpha: 0.05 + _pulseController.value * 0.03,
-                  );
+          builder: (context, child) => LayoutBuilder(
+            builder: (context, constraints) {
+              // Recomputed inside the pulse builder, not in `build`: `build` only
+              // reruns when a provider changes, and a stalled run by definition
+              // changes nothing. The pulse ticks every frame, which is what lets the
+              // silence be noticed at all.
+              final stalledFor = _stalledFor(
+                progress,
+                isRunning: executionState == SequenceExecutionState.running,
+              );
+              final backgroundColor = isPaused
+                  ? widget.colors.warning
+                      .withValues(alpha: _kPausedBackgroundAlpha)
+                  : widget.colors.primary.withValues(
+                      alpha: 0.05 + _pulseController.value * 0.03,
+                    );
 
-            final Widget status = Row(
-              children: [
-                if (isPaused)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    margin: const EdgeInsets.only(right: 12),
-                    decoration: SkotiqDecorations.statusChip(
-                      widget.colors.warning,
-                      borderRadius:
-                          BorderRadius.circular(SkotiqTokens.radiusInline4),
-                      bordered: false,
-                    ),
-                    child: Row(
+              final Widget status = Row(
+                children: [
+                  if (isPaused)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: SkotiqDecorations.statusChip(
+                        widget.colors.warning,
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline4),
+                        bordered: false,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.pause,
+                            size: 12,
+                            color: widget.colors.warning,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'PAUSED',
+                            style: TextStyle(
+                              fontSize: SkotiqTypography.fontSize10,
+                              fontWeight: FontWeight.w700,
+                              color: widget.colors.warning,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    _PulsingIndicator(colors: widget.colors),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          LucideIcons.pause,
-                          size: 12,
-                          color: widget.colors.warning,
-                        ),
-                        const SizedBox(width: 4),
                         Text(
-                          'PAUSED',
-                          style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize10,
-                            fontWeight: FontWeight.w700,
-                            color: widget.colors.warning,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  _PulsingIndicator(colors: widget.colors),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        progress.currentNodeName ??
-                            (isPaused
-                                ? 'Paused: no active node'
-                                : 'Starting...'),
-                        style: SkotiqTypography.labelStrong
-                            .copyWith(color: widget.colors.textPrimary),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (progress.message != null)
-                        Text(
-                          progress.message!,
-                          style: TextStyle(
-                            fontSize: SkotiqTypography.fontSize11,
-                            color: widget.colors.textMuted,
-                          ),
+                          progress.currentNodeName ??
+                              (isPaused
+                                  ? 'Paused: no active node'
+                                  : 'Starting...'),
+                          style: SkotiqTypography.labelStrong
+                              .copyWith(color: widget.colors.textPrimary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-            final Widget countValue = Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  // No total for a run that loops until its
-                  // window closes: count what it has taken.
-                  progress.totalExposures > 0
-                      ? '${progress.completedExposures}/${progress.totalExposures}'
-                      : '${progress.completedExposures} taken',
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize10,
-                    fontWeight: FontWeight.w600,
-                    color: widget.colors.textSecondary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-                if (progress.totalExposures > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: SkotiqDecorations.statusChip(
-                      widget.colors.primary,
-                      borderRadius:
-                          BorderRadius.circular(SkotiqTokens.radiusInline4),
-                      bordered: false,
-                    ),
-                    child: Text(
-                      '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
-                      style: TextStyle(
-                        fontSize: SkotiqTypography.fontSize10,
-                        fontWeight: FontWeight.w700,
-                        color: widget.colors.primary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                        if (progress.message != null)
+                          Text(
+                            progress.message!,
+                            style: TextStyle(
+                              fontSize: SkotiqTypography.fontSize11,
+                              color: widget.colors.textMuted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
                 ],
-              ],
-            );
-            final Widget counts = Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Progress',
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize10,
-                    color: widget.colors.textMuted,
+              );
+              final Widget countValue = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    // No total for a run that loops until its
+                    // window closes: count what it has taken.
+                    progress.totalExposures > 0
+                        ? '${progress.completedExposures}/${progress.totalExposures}'
+                        : '${progress.completedExposures} taken',
+                    style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize10,
+                      fontWeight: FontWeight.w600,
+                      color: widget.colors.textSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
-                ),
-                countValue,
-              ],
-            );
-            final Widget bar = Stack(
-              children: [
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: widget.colors.surfaceAlt,
-                    borderRadius:
-                        BorderRadius.circular(SkotiqTokens.radiusInline4),
+                  if (progress.totalExposures > 0) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: SkotiqDecorations.statusChip(
+                        widget.colors.primary,
+                        borderRadius:
+                            BorderRadius.circular(SkotiqTokens.radiusInline4),
+                        bordered: false,
+                      ),
+                      child: Text(
+                        '${(progress.progressPercent * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(
+                          fontSize: SkotiqTypography.fontSize10,
+                          fontWeight: FontWeight.w700,
+                          color: widget.colors.primary,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+              final Widget counts = Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Progress',
+                    style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize10,
+                      color: widget.colors.textMuted,
+                    ),
                   ),
-                ),
-                FractionallySizedBox(
-                  widthFactor: progress.progressPercent.clamp(0.0, 1.0),
-                  child: Container(
+                  countValue,
+                ],
+              );
+              final Widget bar = Stack(
+                children: [
+                  Container(
                     height: 8,
                     decoration: BoxDecoration(
-                      color: widget.colors.primary,
+                      color: widget.colors.surfaceAlt,
                       borderRadius:
                           BorderRadius.circular(SkotiqTokens.radiusInline4),
                     ),
                   ),
-                ),
-                if (progress.totalIntegrationSecs > 0)
                   FractionallySizedBox(
-                    widthFactor: (progress.completedIntegrationSecs /
-                            progress.totalIntegrationSecs)
-                        .clamp(0.0, 1.0),
+                    widthFactor: progress.progressPercent.clamp(0.0, 1.0),
                     child: Container(
                       height: 8,
                       decoration: BoxDecoration(
-                        // absolute: lightening sheen over the filled progress bar
-                        color: ImageOverlayColors.foreground
-                            .withValues(alpha: 0.1),
+                        color: widget.colors.primary,
                         borderRadius:
                             BorderRadius.circular(SkotiqTokens.radiusInline4),
                       ),
                     ),
                   ),
-              ],
-            );
-            final Widget elapsed = Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  LucideIcons.timer,
-                  size: 12,
-                  color: widget.colors.textMuted,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  DurationFormat.seconds(progress.elapsedSecs,
-                      rounding: DurationRounding.truncate),
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize11,
-                    color: widget.colors.textSecondary,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            );
-            final Widget? remaining = stalledFor != null
-                ?
-                // The run has not moved for longer than its own frame
-                // cadence allows, so it has no finish time to offer. Say
-                // what is true — how long it has been silent — and let the
-                // run's own message (the flip retry, the wait, the failed
-                // step) explain it on the left half of this bar.
-                Tooltip(
-                    message: 'No frame has completed for longer than this '
-                        "run's own frame cadence, so its finish time is not "
-                        'shown. The current step is on the left.',
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          LucideIcons.alertTriangle,
-                          size: 12,
-                          color: widget.colors.warning,
+                  if (progress.totalIntegrationSecs > 0)
+                    FractionallySizedBox(
+                      widthFactor: (progress.completedIntegrationSecs /
+                              progress.totalIntegrationSecs)
+                          .clamp(0.0, 1.0),
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          // absolute: lightening sheen over the filled progress bar
+                          color: ImageOverlayColors.foreground
+                              .withValues(alpha: 0.1),
+                          borderRadius:
+                              BorderRadius.circular(SkotiqTokens.radiusInline4),
                         ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            'no progress for '
-                            '${DurationFormat.seconds(stalledFor.inSeconds.toDouble(), rounding: DurationRounding.truncate)}',
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize11,
-                              color: widget.colors.warning,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  )
-                : progress.estimatedRemainingSecs != null
-                    ? Tooltip(
-                        // The estimate is planned integration only — it does
-                        // not include pending autofocus / dither / meridian-flip
-                        // overhead, so the finish time is a floor, not a promise.
-                        message: 'Integration time only: excludes pending '
-                            'autofocus, dither, and meridian-flip overhead.',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              LucideIcons.hourglass,
-                              size: 12,
-                              color: widget.colors.textMuted,
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                '~${DurationFormat.seconds(progress.estimatedRemainingSecs!, rounding: DurationRounding.truncate)}'
-                                ' · done ~${ClockFormat.hms(ref.watch(clockProvider).now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
-                                style: TextStyle(
-                                  fontSize: SkotiqTypography.fontSize11,
-                                  color: widget.colors.textMuted,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures()
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                ],
+              );
+              final Widget elapsed = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.timer,
+                    size: 12,
+                    color: widget.colors.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    DurationFormat.seconds(progress.elapsedSecs,
+                        rounding: DurationRounding.truncate),
+                    style: TextStyle(
+                      fontSize: SkotiqTypography.fontSize11,
+                      color: widget.colors.textSecondary,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ],
+              );
+              final Widget? remaining = stalledFor != null
+                  ?
+                  // The run has not moved for longer than its own frame
+                  // cadence allows, so it has no finish time to offer. Say
+                  // what is true — how long it has been silent — and let the
+                  // run's own message (the flip retry, the wait, the failed
+                  // step) explain it on the left half of this bar.
+                  Tooltip(
+                      message: 'No frame has completed for longer than this '
+                          "run's own frame cadence, so its finish time is not "
+                          'shown. The current step is on the left.',
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            LucideIcons.alertTriangle,
+                            size: 12,
+                            color: widget.colors.warning,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'no progress for '
+                              '${DurationFormat.seconds(stalledFor.inSeconds.toDouble(), rounding: DurationRounding.truncate)}',
+                              style: TextStyle(
+                                fontSize: SkotiqTypography.fontSize11,
+                                color: widget.colors.warning,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures()
+                                ],
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
-                      )
-                    : null;
-            // A phone column: what is running and the counts on one line, the
-            // bar across the width, then elapsed and remaining. The wide row's
-            // fixed 220 px bar and dividers overflowed it.
-            final compact = MediaQuery.sizeOf(context).width < 600;
-            if (compact) {
+                          ),
+                        ],
+                      ),
+                    )
+                  : progress.estimatedRemainingSecs != null
+                      ? Tooltip(
+                          // The estimate is planned integration only — it does
+                          // not include pending autofocus / dither / meridian-flip
+                          // overhead, so the finish time is a floor, not a promise.
+                          message: 'Integration time only: excludes pending '
+                              'autofocus, dither, and meridian-flip overhead.',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                LucideIcons.hourglass,
+                                size: 12,
+                                color: widget.colors.textMuted,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  '~${DurationFormat.seconds(progress.estimatedRemainingSecs!, rounding: DurationRounding.truncate)}'
+                                  ' · done ~${ClockFormat.hms(ref.watch(clockProvider).now().add(Duration(seconds: progress.estimatedRemainingSecs!.round())))}',
+                                  style: TextStyle(
+                                    fontSize: SkotiqTypography.fontSize11,
+                                    color: widget.colors.textMuted,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures()
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : null;
+              // A phone column: what is running and the counts on one line, the
+              // bar across the width, then elapsed and remaining. The wide row's
+              // fixed 220 px bar and dividers overflowed it.
+              // The width the bar is given, not the window's: a phone on its
+              // side is wider than a phone column but far narrower than the
+              // wide row needs.
+              final compact = constraints.maxWidth <
+                  ShellChromeMetrics.shellLayoutBreakpoint;
+              if (compact) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: SkotiqTokens.spaceLg,
+                    vertical: SkotiqTokens.spaceSm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    border: Border(
+                      bottom: BorderSide(color: widget.colors.border),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: status),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          countValue,
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      bar,
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          elapsed,
+                          const Spacer(),
+                          if (remaining != null) Flexible(child: remaining),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }
               return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SkotiqTokens.spaceLg,
-                  vertical: SkotiqTokens.spaceSm,
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 decoration: BoxDecoration(
                   color: backgroundColor,
                   border: Border(
                     bottom: BorderSide(color: widget.colors.border),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(child: status),
-                        const SizedBox(width: SkotiqTokens.spaceSm),
-                        countValue,
-                      ],
+                    Expanded(
+                      flex: 2,
+                      child: status,
                     ),
-                    const SizedBox(height: 6),
-                    bar,
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        elapsed,
-                        const Spacer(),
-                        if (remaining != null) Flexible(child: remaining),
-                      ],
+                    if (progress.currentTarget != null ||
+                        progress.currentFilter != null) ...[
+                      Container(
+                        width: 1,
+                        height: 30,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        color: widget.colors.border,
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (progress.currentTarget != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  LucideIcons.target,
+                                  size: 12,
+                                  color: widget.colors.textMuted,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  progress.currentTarget!,
+                                  style: TextStyle(
+                                    fontSize: SkotiqTypography.fontSize11,
+                                    color: widget.colors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          if (progress.currentFilter != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  LucideIcons.circle,
+                                  size: 12,
+                                  color: widget.colors.textMuted,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  progress.currentFilter!,
+                                  style: TextStyle(
+                                    fontSize: SkotiqTypography.fontSize11,
+                                    color: widget.colors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ],
+                    Container(
+                      width: 1,
+                      height: 30,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      color: widget.colors.border,
                     ),
-                  ],
-                ),
-              );
-            }
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                border: Border(
-                  bottom: BorderSide(color: widget.colors.border),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: status,
-                  ),
-                  if (progress.currentTarget != null ||
-                      progress.currentFilter != null) ...[
+                    SizedBox(
+                      width: 220,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          counts,
+                          const SizedBox(height: 6),
+                          bar,
+                        ],
+                      ),
+                    ),
                     Container(
                       width: 1,
                       height: 30,
@@ -522,85 +596,18 @@ class SequenceProgressBarState extends ConsumerState<SequenceProgressBar>
                       color: widget.colors.border,
                     ),
                     Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (progress.currentTarget != null)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                LucideIcons.target,
-                                size: 12,
-                                color: widget.colors.textMuted,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                progress.currentTarget!,
-                                style: TextStyle(
-                                  fontSize: SkotiqTypography.fontSize11,
-                                  color: widget.colors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        if (progress.currentFilter != null)
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                LucideIcons.circle,
-                                size: 12,
-                                color: widget.colors.textMuted,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                progress.currentFilter!,
-                                style: TextStyle(
-                                  fontSize: SkotiqTypography.fontSize11,
-                                  color: widget.colors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
+                        elapsed,
+                        if (remaining != null) remaining,
                       ],
                     ),
                   ],
-                  Container(
-                    width: 1,
-                    height: 30,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    color: widget.colors.border,
-                  ),
-                  SizedBox(
-                    width: 220,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        counts,
-                        const SizedBox(height: 6),
-                        bar,
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 30,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    color: widget.colors.border,
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      elapsed,
-                      if (remaining != null) remaining,
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
