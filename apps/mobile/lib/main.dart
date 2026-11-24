@@ -526,346 +526,305 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
             theme.textTheme.bodyMedium?.color ??
             theme.colorScheme.onSurfaceVariant;
         final borderColor = colors?.border ?? theme.colorScheme.outlineVariant;
-        final primaryColor = colors?.primary ?? theme.colorScheme.primary;
         final errorColor = colors?.error ?? theme.colorScheme.error;
 
-        return Scaffold(
-          backgroundColor: bgColor,
-          appBar: AppBar(
-            backgroundColor: surfaceColor,
-            title: Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: SkotiqDecorations.iconChip(
-                    primaryColor,
-                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusSm),
-                  ),
-                  child: Icon(
-                    Icons.auto_awesome,
-                    size: 16,
-                    color: primaryColor,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Skotiq',
-                  style: TextStyle(
-                    fontSize: SkotiqTypography.fontSize18,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                ),
-              ],
+        final showChoices = !_isDiscovering && !_showManualEntry;
+
+        Widget awayRow({
+          required IconData icon,
+          required String label,
+          required String detail,
+          required VoidCallback onTap,
+        }) => InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(SkotiqTokens.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: SkotiqTokens.spaceMd,
+              horizontal: SkotiqTokens.spaceSm,
             ),
-          ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            child: Row(
               children: [
-                // Status card
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: surfaceColor,
-                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-                    border: Border.all(color: borderColor),
-                  ),
+                Icon(icon, size: 20, color: textSecondary),
+                const SizedBox(width: SkotiqTokens.spaceMd),
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Text(
+                        label,
+                        style: SkotiqTypography.bodyMedium.copyWith(
+                          color: textColor,
+                        ),
+                      ),
+                      Text(
+                        detail,
+                        style: SkotiqTypography.caption.copyWith(
+                          color: textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(LucideIcons.chevronRight, size: 18, color: textSecondary),
+              ],
+            ),
+          ),
+        );
+
+        return Scaffold(
+          backgroundColor: bgColor,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: SkotiqLockup(markSize: 20),
+                  ),
+                  const SizedBox(height: 32),
+                  Text(
+                    'Connect to your imaging computer',
+                    style: SkotiqTypography.h3.copyWith(color: textColor),
+                  ),
+                  const SizedBox(height: SkotiqTokens.spaceSm),
+                  Text(
+                    'This phone runs the rig through Skotiq on the computer '
+                    'at the telescope. Keep Skotiq open there and both on the '
+                    'same Wi-Fi.',
+                    style: SkotiqTypography.body.copyWith(color: textSecondary),
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (_isDiscovering)
+                    Container(
+                      padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusLg,
+                        ),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
                         children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              color: textSecondary,
-                              shape: BoxShape.circle,
-                            ),
+                          SkotiqMark(
+                            motion: SkotiqMarkMotion.loading,
+                            size: 24,
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.text('mobileNotConnected'),
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize14,
-                              fontWeight: FontWeight.w500,
-                              color: textColor,
+                          const SizedBox(width: SkotiqTokens.spaceMd),
+                          Expanded(
+                            child: Text(
+                              _statusMessage.isNotEmpty
+                                  ? _statusMessage
+                                  : 'Looking for it on this Wi-Fi…',
+                              style: SkotiqTypography.body.copyWith(
+                                color: textColor,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      if (_error != null) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: SkotiqDecorations.emphasisSurface(
-                            errorColor,
-                          ),
-                          child: Text(
-                            _error!,
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize12,
-                              color: errorColor,
-                            ),
+                    ),
+
+                  if (_error != null) ...[
+                    if (_isDiscovering) const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: SkotiqDecorations.statusChip(
+                        errorColor,
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusMd,
+                        ),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          fontSize: SkotiqTypography.fontSize13,
+                          color: errorColor,
+                        ),
+                      ),
+                    ),
+                    if (_mismatchedHost?.linkMismatch case final mismatch?
+                        when mismatch.message == _error)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: LinkMismatchActions(
+                          host: _mismatchedHost!,
+                          mismatch: mismatch,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  if (showChoices) ...[
+                    SkotiqButton(
+                      onPressed: _scanQrCode,
+                      icon: LucideIcons.scanLine,
+                      label: l10n.text('mobileScanQr'),
+                      size: ButtonSize.large,
+                    ),
+                    const SizedBox(height: SkotiqTokens.spaceSm),
+                    Text(
+                      'On the imaging computer: Settings → Remote access → '
+                      'Start pairing.',
+                      textAlign: TextAlign.center,
+                      style: SkotiqTypography.caption.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SkotiqButton(
+                            onPressed: _autoConnect,
+                            icon: LucideIcons.search,
+                            label: 'Search again',
+                            variant: ButtonVariant.secondary,
                           ),
                         ),
-                        if (_mismatchedHost?.linkMismatch case final mismatch?
-                            when mismatch.message == _error)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: LinkMismatchActions(
-                              host: _mismatchedHost!,
-                              mismatch: mismatch,
-                            ),
+                        const SizedBox(width: SkotiqTokens.spaceSm),
+                        Expanded(
+                          child: SkotiqButton(
+                            onPressed: () {
+                              setState(() {
+                                _showManualEntry = true;
+                                _error = null;
+                              });
+                            },
+                            icon: LucideIcons.keyboard,
+                            label: 'Enter address',
+                            variant: ButtonVariant.secondary,
                           ),
+                        ),
                       ],
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Connection options (Manual IP, QR scan, Tailscale)
-                if (!_isDiscovering && !_showManualEntry) ...[
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SkotiqButton(
-                        onPressed: () {
-                          setState(() {
-                            _showManualEntry = true;
-                            _error = null;
-                          });
-                        },
-                        icon: Icons.edit_location_alt,
-                        label: l10n.text('mobileEnterIp'),
-                        variant: ButtonVariant.ghost,
-                        size: ButtonSize.small,
-                      ),
-                      const SizedBox(width: 8),
-                      SkotiqButton(
-                        onPressed: _scanQrCode,
-                        icon: Icons.qr_code_scanner,
-                        label: l10n.text('mobileScanQr'),
-                        variant: ButtonVariant.ghost,
-                        size: ButtonSize.small,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  // Off-site path: reach a remote rig over the tailnet. Kept
-                  // distinct from QR/manual because it carries its own guided
-                  // setup (install Tailscale, find the MagicDNS name, etc.).
-                  Center(
-                    child: SkotiqButton(
-                      onPressed: _connectViaTailscale,
-                      icon: LucideIcons.radioTower,
-                      label: l10n.text('tailscaleConnect'),
-                      variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  // v4 couch-grade remote: reach a rig from anywhere through a
-                  // self-hosted relay (no VPN / port-forwarding). Collects the
-                  // relay URL + appliance id, then tunnels via _connectViaRelay.
-                  Center(
-                    child: SkotiqButton(
-                      onPressed: _showRelayConnectDialog,
-                      icon: LucideIcons.globe,
-                      label: l10n.text('relayConnect'),
-                      variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Saved Servers entry point on the DEFAULT connection screen.
-                  // Lets an operator who manages multiple rigs roam between
-                  // previously-paired hosts without re-discovering.
-                  Center(
-                    child: SkotiqButton(
+                    const SizedBox(height: SkotiqTokens.spaceSm),
+                    SkotiqButton(
                       onPressed: _openSavedServers,
                       icon: LucideIcons.server,
                       label: l10n.text('savedServersTitle'),
                       variant: ButtonVariant.ghost,
-                      size: ButtonSize.small,
                     ),
-                  ),
-                ],
+                  ],
 
-                if (_showManualEntry) ...[
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _ipController,
-                    decoration: InputDecoration(
-                      labelText: l10n.text('mobileServerIpAddress'),
-                      hintText: 'skotiq.local:8080',
-                      prefixIcon: const Icon(Icons.computer),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          SkotiqTokens.radiusLg,
+                  if (_showManualEntry) ...[
+                    TextField(
+                      controller: _ipController,
+                      decoration: InputDecoration(
+                        labelText: l10n.text('mobileServerIpAddress'),
+                        hintText: 'skotiq.local:8080',
+                        prefixIcon: const Icon(Icons.computer),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            SkotiqTokens.radiusLg,
+                          ),
                         ),
+                        filled: true,
+                        fillColor: surfaceColor,
                       ),
-                      filled: true,
-                      fillColor: surfaceColor,
+                      keyboardType: TextInputType.url,
+                      autocorrect: false,
+                      enableSuggestions: false,
                     ),
-                    keyboardType: TextInputType.url,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _accessTokenController,
-                    obscureText: !_accessTokenVisible,
-                    decoration: InputDecoration(
-                      labelText: 'Access Token',
-                      hintText: 'Optional for paired or protected hosts',
-                      prefixIcon: const Icon(Icons.vpn_key),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _accessTokenVisible
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        tooltip: _accessTokenVisible
-                            ? 'Hide access token'
-                            : 'Show access token',
-                        onPressed: () {
-                          setState(() {
-                            _accessTokenVisible = !_accessTokenVisible;
-                          });
-                        },
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          SkotiqTokens.radiusLg,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: surfaceColor,
-                    ),
-                    autocorrect: false,
-                    enableSuggestions: false,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SkotiqButton(
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: _accessTokenController,
+                      obscureText: !_accessTokenVisible,
+                      decoration: InputDecoration(
+                        labelText: 'Access token (optional)',
+                        hintText: 'Only for a host that asks for one',
+                        prefixIcon: const Icon(Icons.vpn_key),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _accessTokenVisible
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          tooltip: _accessTokenVisible
+                              ? 'Hide access token'
+                              : 'Show access token',
                           onPressed: () {
                             setState(() {
-                              _showManualEntry = false;
+                              _accessTokenVisible = !_accessTokenVisible;
                             });
                           },
-                          label: l10n.text('cancel'),
-                          variant: ButtonVariant.outline,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            SkotiqTokens.radiusLg,
+                          ),
+                        ),
+                        filled: true,
+                        fillColor: surfaceColor,
+                      ),
+                      autocorrect: false,
+                      enableSuggestions: false,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SkotiqButton(
+                            onPressed: () {
+                              setState(() {
+                                _showManualEntry = false;
+                              });
+                            },
+                            label: l10n.text('cancel'),
+                            variant: ButtonVariant.secondary,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SkotiqButton(
+                            onPressed: _connectManually,
+                            label: l10n.text('connect'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+
+                  if (showChoices) ...[
+                    const SizedBox(height: 28),
+                    Text(
+                      'AWAY FROM HOME',
+                      style: SkotiqTypography.overline.copyWith(
+                        color: textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: SkotiqTokens.spaceXs),
+                    // Off-site paths, each with its own guided setup.
+                    awayRow(
+                      icon: LucideIcons.radioTower,
+                      label: l10n.text('tailscaleConnect'),
+                      detail: 'Your own private network across the internet',
+                      onTap: _connectViaTailscale,
+                    ),
+                    awayRow(
+                      icon: LucideIcons.globe,
+                      label: l10n.text('relayConnect'),
+                      detail:
+                          'Through a relay server, no VPN or port forwarding',
+                      onTap: _showRelayConnectDialog,
+                    ),
+                    const SizedBox(height: 20),
+                    Center(
+                      child: TextButton(
+                        onPressed: _skipConnection,
+                        child: Text(
+                          'Look around without a rig',
+                          style: TextStyle(color: textSecondary),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: SkotiqButton(
-                          onPressed: _connectManually,
-                          label: l10n.text('connect'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                    ),
+                  ],
                 ],
-
-                // Action buttons
-                if (_isDiscovering)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        children: [
-                          SkotiqMark(
-                            motion: SkotiqMarkMotion.loading,
-                            size: 36,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _statusMessage.isNotEmpty
-                                ? _statusMessage
-                                : l10n.text('mobileSearchingForServer'),
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize14,
-                              color: textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (!_showManualEntry)
-                  SizedBox(
-                    width: double.infinity,
-                    child: SkotiqButton(
-                      onPressed: _autoConnect,
-                      icon: Icons.search,
-                      label: l10n.text('searchForServer'),
-                      size: ButtonSize.large,
-                    ),
-                  ),
-
-                if (!_isDiscovering && !_showManualEntry) ...[
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _skipConnection,
-                    child: Text(
-                      l10n.text('mobileSkipConnection'),
-                      style: TextStyle(color: textSecondary),
-                    ),
-                  ),
-                ],
-
-                const SizedBox(height: 24),
-
-                // Instructions
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: surfaceColor.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 20,
-                            color: textSecondary,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            l10n.text('mobileHowToConnect'),
-                            style: TextStyle(
-                              fontSize: SkotiqTypography.fontSize14,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        l10n.text('mobileHowToConnectSteps'),
-                        style: TextStyle(
-                          fontSize: SkotiqTypography.fontSize12,
-                          color: textSecondary,
-                          height: 1.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );
