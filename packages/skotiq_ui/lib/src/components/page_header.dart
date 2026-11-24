@@ -4,6 +4,7 @@ import 'adaptive_tab_bar.dart';
 
 import 'package:skotiq_design/skotiq_design.dart';
 import '../tokens/shell_chrome_metrics.dart';
+import '../utils/text_measure.dart';
 import '../utils/touch_target.dart';
 
 /// The 56 px row every routed screen starts with (04-shell §4).
@@ -175,13 +176,23 @@ class PageHeader extends StatelessWidget {
       // On a phone whose actions leave the title less room than its icon, the
       // icon goes and the title ellipsizes, rather than the row overflowing.
       child: LayoutBuilder(
-        builder: (_, constraints) => Row(
+        builder: (layoutContext, constraints) => Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // The icon is decoration; the title is the screen's name. When
+            // both do not fit, the icon gives way first.
             if (icon != null &&
                 constraints.maxWidth >=
-                    _iconSize + _iconGap + _minTitleWidth) ...[
+                    _iconSize +
+                        _iconGap +
+                        (context == null
+                            ? measureTextWidth(
+                                layoutContext,
+                                text: title,
+                                style: SkotiqTypography.pageTitle,
+                              )
+                            : _minTitleWidth)) ...[
               Icon(icon, size: _iconSize, color: colors.textSecondary),
               const SizedBox(width: _iconGap),
             ],
