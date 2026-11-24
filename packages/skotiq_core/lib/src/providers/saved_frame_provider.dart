@@ -18,11 +18,11 @@ import 'package:skotiq_bridge/skotiq_bridge.dart' as bridge;
 import '../errors/error_text.dart';
 import '../models/backend/image_result.dart';
 import '../models/imaging/imaging_models.dart';
-import '../backend/network_backend.dart' show NetworkBackend;
 import '../services/capture_preview_loader.dart'
     show capturedImageDataFromResult, imageStatsFromResult;
 import '../utils/logging_service.dart';
 import 'backend_provider.dart';
+import 'linked_host.dart' show linkedHostImagingRecordsProvider;
 import 'current_frame_analysis_provider.dart';
 import '../models/imaging/saved_frame.dart';
 
@@ -116,11 +116,11 @@ class SavedFrameLoader
 
   Future<void> _loadDrawnByHost(SavedFrameRef frame) async {
     try {
-      final backend = ref.read(backendProvider);
-      if (backend is! NetworkBackend) {
+      final records = ref.read(linkedHostImagingRecordsProvider);
+      if (records == null) {
         throw StateError('Not linked to an imaging host.');
       }
-      final drawn = await backend.getSavedFrameJpeg(
+      final drawn = await records.getSavedFrameJpeg(
         frame.imageId,
         maxWidth: hostDrawnFrameMaxEdge,
       );

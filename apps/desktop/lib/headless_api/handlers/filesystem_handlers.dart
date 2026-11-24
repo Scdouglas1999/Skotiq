@@ -252,7 +252,7 @@ class FileSystemHandlers implements RouteSource {
     final path = optionalString(payload, 'path', allowEmpty: true) ?? '';
     final mustExist = optionalBool(payload, 'mustExist') ?? false;
     final mustBeWritable = optionalBool(payload, 'mustBeWritable') ?? false;
-    final create = optionalBool(payload, 'create') ?? false;
+    final create = optionalBool(payload, 'create') == true;
     final verdict = await checkHostDirectory(
       path,
       mustExist: mustExist,

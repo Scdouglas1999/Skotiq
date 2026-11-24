@@ -21,13 +21,6 @@ class _MockImagingBackend extends Mock implements ImagingBackend {}
 
 class _MockNetworkBackend extends Mock implements NetworkBackend {}
 
-class _PinnedBackend extends BackendNotifier {
-  _PinnedBackend(super.ref, SkotiqBackend backend) {
-    // ignore: invalid_use_of_protected_member
-    state = backend;
-  }
-}
-
 bridge.FitsReadResult _decoded(int width, int height) => bridge.FitsReadResult(
   width: width,
   height: height,
@@ -279,7 +272,7 @@ void main() {
           imagingBackendProvider.overrideWithValue(backend),
           isRemoteModeProvider.overrideWithValue(true),
           savedFrameDecodesOnDeviceProvider.overrideWithValue(false),
-          backendProvider.overrideWith((ref) => _PinnedBackend(ref, network)),
+          linkedHostImagingRecordsProvider.overrideWithValue(network),
           frameFileDecoderProvider.overrideWithValue((path) async {
             decoded.add(path);
             return _decoded(1, 1);

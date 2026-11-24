@@ -623,8 +623,10 @@ class TabStripInset extends InheritedWidget {
 
   final double inset;
 
-  static double of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<TabStripInset>()?.inset ?? 0;
+  static double of(BuildContext context) {
+    final found = context.dependOnInheritedWidgetOfExactType<TabStripInset>();
+    return found == null ? 0 : found.inset;
+  }
 
   @override
   bool updateShouldNotify(TabStripInset oldWidget) => inset != oldWidget.inset;

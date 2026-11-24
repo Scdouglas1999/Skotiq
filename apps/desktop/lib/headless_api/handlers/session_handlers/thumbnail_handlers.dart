@@ -93,8 +93,13 @@ extension SessionThumbnailHandlers on SessionHandlers {
         'error': 'Image file not found: ${dbImage.filePath}',
       });
     }
-    final maxWidth =
-        int.tryParse(request.url.queryParameters['maxWidth'] ?? '') ?? 0;
+    final maxWidthParam = request.url.queryParameters['maxWidth'];
+    final requestedMax = maxWidthParam == null
+        ? null
+        : int.tryParse(maxWidthParam);
+    final maxWidth = requestedMax != null && requestedMax > 0
+        ? requestedMax
+        : 0;
     final decoded = await container
         .read(imagingBackendProvider)
         .readFitsFile(filePath: dbImage.filePath);
