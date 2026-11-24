@@ -53,11 +53,15 @@ final equipmentStatusRailCollapsedProvider =
 final dismissedMismatchSignatureProvider =
     StateProvider<String?>((ref) => null);
 
-/// Body gutters, from the mockup: 20 px top/bottom, 24 px sides.
-const EdgeInsets _bodyPadding = EdgeInsets.symmetric(
-  horizontal: SkotiqTokens.space2xl,
-  vertical: SkotiqTokens.spaceXl,
-);
+/// Body gutters, from the mockup: 20 px top/bottom, 24 px sides; 12 px on a
+/// narrow screen, where those gutters were a sixth of a phone's width.
+EdgeInsets _bodyPadding(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < ShellChromeMetrics.shellLayoutBreakpoint
+        ? const EdgeInsets.all(SkotiqTokens.spaceMd)
+        : const EdgeInsets.symmetric(
+            horizontal: SkotiqTokens.space2xl,
+            vertical: SkotiqTokens.spaceXl,
+          );
 
 class EquipmentScreen extends ConsumerStatefulWidget {
   const EquipmentScreen({super.key, this.requestedTab});

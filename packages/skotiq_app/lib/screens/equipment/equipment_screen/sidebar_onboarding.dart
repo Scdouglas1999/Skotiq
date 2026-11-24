@@ -23,7 +23,7 @@ class _FirstTimeOnboarding extends StatelessWidget {
     return SafeArea(
       child: Center(
         child: SingleChildScrollView(
-          padding: _bodyPadding,
+          padding: _bodyPadding(context),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: columnWidth),
             child: Column(

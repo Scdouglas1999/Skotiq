@@ -372,7 +372,7 @@ class _DeviceDashboard extends ConsumerWidget {
         children: [
           if (header != null) header!,
           Padding(
-            padding: _bodyPadding,
+            padding: _bodyPadding(context),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -609,14 +609,14 @@ class _EquipmentEmptyState extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: _bodyPadding,
+                padding: _bodyPadding(context),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     // The header has already consumed part of the viewport, so
                     // only the REMAINDER should be reserved for centring —
                     // otherwise the empty state pushes itself off the bottom.
                     minHeight: constraints.hasBoundedHeight && header == null
-                        ? constraints.maxHeight - _bodyPadding.vertical
+                        ? constraints.maxHeight - _bodyPadding(context).vertical
                         : 0,
                   ),
                   child: Center(child: child),
