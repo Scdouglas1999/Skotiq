@@ -322,8 +322,9 @@ class _ImageThumbnailState extends ConsumerState<_ImageThumbnail> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          DurationFormat.seconds(
+                          QuantityFormat.exposure(
                             widget.image.exposureDuration,
+                            space: false,
                           ),
                           style: SkotiqTypography.caption
                               .copyWith(color: colors.textSecondary),

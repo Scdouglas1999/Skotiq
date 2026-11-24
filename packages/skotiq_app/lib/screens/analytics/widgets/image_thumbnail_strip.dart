@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:skotiq_astro/format.dart'
-    show ClockFormat, DurationFormat, QuantityFormat;
+import 'package:skotiq_astro/format.dart' show ClockFormat, QuantityFormat;
 import 'package:skotiq_core/backend.dart' show ImagingBackend;
 import 'package:skotiq_core/database.dart'
     show DbCapturedImage, FramePhotometricCalibrationRow;
