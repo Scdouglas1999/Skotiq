@@ -718,6 +718,19 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
     super.dispose();
   }
 
+  void _submit() {
+    final trimmed = _codeController.text.trim();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _codeError = 'Enter the pairing code before tapping Pair.';
+      });
+      return;
+    }
+    Navigator.of(
+      context,
+    ).pop((code: trimmed, admin: _requestAdmin, scan: false));
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = SkotiqColors.of(context);
@@ -732,22 +745,7 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
           variant: ButtonVariant.ghost,
           size: ButtonSize.small,
         ),
-        SkotiqButton(
-          onPressed: () {
-            final trimmed = _codeController.text.trim();
-            if (trimmed.isEmpty) {
-              setState(() {
-                _codeError = 'Enter the pairing code before tapping Pair.';
-              });
-              return;
-            }
-            Navigator.of(
-              context,
-            ).pop((code: trimmed, admin: _requestAdmin, scan: false));
-          },
-          label: 'Pair',
-          size: ButtonSize.small,
-        ),
+        SkotiqButton(onPressed: _submit, label: 'Pair', size: ButtonSize.small),
       ],
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -801,6 +799,10 @@ class _PairingCodeDialogState extends State<PairingCodeDialog> {
             ),
             textCapitalization: TextCapitalization.characters,
             autocorrect: false,
+            enableSuggestions: false,
+            keyboardType: TextInputType.visiblePassword,
+            textInputAction: TextInputAction.go,
+            onSubmitted: (_) => _submit(),
             onChanged: (_) {
               if (_codeError != null) setState(() => _codeError = null);
             },

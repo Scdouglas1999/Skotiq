@@ -669,12 +669,76 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                     const SizedBox(height: 16),
                   ],
 
+                  if (_unpairedHost case final found? when showChoices) ...[
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(
+                        SkotiqTokens.spaceLg,
+                        SkotiqTokens.spaceMd,
+                        SkotiqTokens.spaceMd,
+                        SkotiqTokens.spaceMd,
+                      ),
+                      decoration: BoxDecoration(
+                        color: surfaceColor,
+                        borderRadius: BorderRadius.circular(
+                          SkotiqTokens.radiusLg,
+                        ),
+                        border: Border.all(color: borderColor),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.monitor,
+                            size: 20,
+                            color: textSecondary,
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceMd),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  l10n.text(
+                                    'mobileFoundHost',
+                                    params: {'name': found.name},
+                                  ),
+                                  style: SkotiqTypography.bodyMedium.copyWith(
+                                    color: textColor,
+                                  ),
+                                ),
+                                Text(
+                                  l10n.text(
+                                    'mobileFoundHostDetail',
+                                    params: {'host': found.host},
+                                  ),
+                                  style: SkotiqTypography.caption.copyWith(
+                                    color: textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: SkotiqTokens.spaceSm),
+                          SkotiqButton(
+                            onPressed: () => unawaited(connectToRig(found)),
+                            label: l10n.text('mobilePair'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: SkotiqTokens.spaceLg),
+                  ],
+
                   if (showChoices) ...[
                     SkotiqButton(
                       onPressed: _scanQrCode,
                       icon: LucideIcons.scanLine,
                       label: l10n.text('mobileScanQr'),
                       size: ButtonSize.large,
+                      // A found computer's Pair is the step; its dialog
+                      // offers the scan too.
+                      variant: _unpairedHost == null
+                          ? ButtonVariant.primary
+                          : ButtonVariant.secondary,
                     ),
                     const SizedBox(height: SkotiqTokens.spaceSm),
                     Text(

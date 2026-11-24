@@ -37,6 +37,10 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   /// The host the last connect attempt reached but cannot link to because it
   /// runs another Skotiq release; the connect card offers to update one side.
   DiscoveredServer? _mismatchedHost;
+
+  /// The computer the last connect found but did not pair with because the
+  /// pairing dialog was closed; the connect screen offers it again.
+  DiscoveredServer? _unpairedHost;
   String _statusMessage = '';
   final TextEditingController _ipController = TextEditingController(text: '');
   final TextEditingController _accessTokenController = TextEditingController(

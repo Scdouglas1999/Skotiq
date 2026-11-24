@@ -42,6 +42,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'mobileQrWhere':
         'On the imaging computer: Settings \u2192 Remote access \u2192 Start pairing.',
     'mobileSearchAgain': 'Search again',
+    'mobileFoundHost': 'Found {name}',
+    'mobileFoundHostDetail': '{host} · not paired yet',
+    'mobilePair': 'Pair',
     'mobileEnterAddress': 'Enter address',
     'mobileAwayFromHome': 'Away from home',
     'mobileLookAround': 'Look around without a rig',
@@ -1701,6 +1704,9 @@ final Map<String, Map<String, String>> _localizedValues = {
     'mobileQrWhere':
         'En el PC de captura: Ajustes \u2192 Acceso remoto \u2192 Iniciar emparejamiento.',
     'mobileSearchAgain': 'Buscar de nuevo',
+    'mobileFoundHost': 'Encontrado: {name}',
+    'mobileFoundHostDetail': '{host} · aún sin vincular',
+    'mobilePair': 'Vincular',
     'mobileEnterAddress': 'Introducir direcci\u00F3n',
     'mobileAwayFromHome': 'Fuera de casa',
     'mobileLookAround': 'Explorar sin un equipo',

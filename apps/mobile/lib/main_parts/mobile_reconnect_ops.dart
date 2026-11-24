@@ -275,6 +275,7 @@ mixin _MobileReconnectOps on _MobileConnectionState {
       _statusMessage = 'Connecting to ${server.name}...';
       _error = null;
       _mismatchedHost = null;
+      _unpairedHost = null;
     });
 
     try {
@@ -377,6 +378,13 @@ mixin _MobileReconnectOps on _MobileConnectionState {
           );
           if (!_isCurrentConnectionOperation(operationGeneration)) return false;
           if (pairedToken == null) {
+            if (mounted) {
+              setState(() {
+                _isDiscovering = false;
+                _statusMessage = '';
+                _unpairedHost = enrichedServer;
+              });
+            }
             return false;
           }
           authToken = pairedToken;
