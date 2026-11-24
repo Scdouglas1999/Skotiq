@@ -200,40 +200,66 @@ class _NightControlLayoutState extends State<NightControlLayout> {
     return ColoredBox(
       color: colors.background,
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final mode = NightControlLayout.modeFor(width);
-          final drawerMode = mode == NightControlMode.planDrawer;
-          // Leaving the drawer width forgets the drawer, so narrowing the
-          // window again does not throw it open over the frame.
-          if (!drawerMode) _drawerOpen = false;
-          final drawerOpen = _drawerOpen;
-          final bodyHeight = constraints.hasBoundedHeight
-              ? constraints.maxHeight - NightControlLayout.headerHeight
-              : null;
-          final centerWidth = switch (mode) {
-            NightControlMode.threeColumn => width -
-                NightControlLayout.leftWidth -
-                NightControlLayout.panelWidthFor(width),
-            NightControlMode.planDrawer =>
-              width - NightControlLayout.panelWidthFor(width),
-            NightControlMode.singleColumn => width,
-          };
-          return NightControlDensity(
-            mode: mode,
-            centerWidth: centerWidth,
-            compactHeight: bodyHeight != null &&
-                bodyHeight < NightControlLayout.compactBodyHeight,
-            planDrawerOpen: drawerOpen,
-            openPlanDrawer: drawerMode ? _openDrawer : null,
-            closePlanDrawer: drawerMode ? _closeDrawer : null,
-            child: switch (mode) {
-              NightControlMode.singleColumn => _singleColumn(colors),
-              _ => _columns(colors, mode, drawerOpen, width),
-            },
+        builder: (context, outer) {
+          final mode = NightControlLayout.modeFor(outer.maxWidth);
+          final notices = widget.notices;
+          // In the column modes the notices stand above the board and the
+          // board measures only what they leave, so a banner shortens the
+          // body the density sees. The single column scrolls and carries its
+          // notices under the header itself.
+          if (mode == NightControlMode.singleColumn || notices == null) {
+            return _board(colors, outer, mode);
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              notices,
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, inner) => _board(colors, inner, mode),
+                ),
+              ),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _board(
+    SkotiqColors colors,
+    BoxConstraints constraints,
+    NightControlMode mode,
+  ) {
+    final width = constraints.maxWidth;
+    final drawerMode = mode == NightControlMode.planDrawer;
+    // Leaving the drawer width forgets the drawer, so narrowing the window
+    // again does not throw it open over the frame.
+    if (!drawerMode) _drawerOpen = false;
+    final drawerOpen = _drawerOpen;
+    final bodyHeight = constraints.hasBoundedHeight
+        ? constraints.maxHeight - NightControlLayout.headerHeight
+        : null;
+    final centerWidth = switch (mode) {
+      NightControlMode.threeColumn => width -
+          NightControlLayout.leftWidth -
+          NightControlLayout.panelWidthFor(width),
+      NightControlMode.planDrawer =>
+        width - NightControlLayout.panelWidthFor(width),
+      NightControlMode.singleColumn => width,
+    };
+    return NightControlDensity(
+      mode: mode,
+      centerWidth: centerWidth,
+      compactHeight: bodyHeight != null &&
+          bodyHeight < NightControlLayout.compactBodyHeight,
+      planDrawerOpen: drawerOpen,
+      openPlanDrawer: drawerMode ? _openDrawer : null,
+      closePlanDrawer: drawerMode ? _closeDrawer : null,
+      child: switch (mode) {
+        NightControlMode.singleColumn => _singleColumn(colors),
+        _ => _columns(colors, mode, drawerOpen, width),
+      },
     );
   }
 
@@ -248,7 +274,6 @@ class _NightControlLayoutState extends State<NightControlLayout> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        if (widget.notices case final notices?) notices,
         ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: NightControlLayout.headerHeight,

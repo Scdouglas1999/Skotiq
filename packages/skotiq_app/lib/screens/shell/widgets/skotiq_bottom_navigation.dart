@@ -66,12 +66,17 @@ class SkotiqBottomNavigation extends StatelessWidget {
           color: colors.surface,
           border: Border(right: BorderSide(color: colors.border, width: 1)),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (final item in items)
-              SizedBox(height: BottomNavMetrics.barHeight, child: item),
-          ],
+        // Scrolls rather than overflows in a window shorter than five slots.
+        child: Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final item in items)
+                  SizedBox(height: BottomNavMetrics.barHeight, child: item),
+              ],
+            ),
+          ),
         ),
       );
     }

@@ -533,7 +533,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                         top: phoneChrome,
                         left: phoneChrome,
                         right: phoneChrome,
-                        bottom: false,
+                        // With a rail there is no bottom bar to own the
+                        // system navigation inset, so the shell keeps it.
+                        bottom: phoneRail,
                         child: Column(
                           children: [
                             // Mobile gear strip. Settings left the bottom bar
@@ -555,7 +557,9 @@ class _AppShellState extends ConsumerState<AppShell> {
                                   // The sidebar (desktop only) — a
                                   // full-height pane of the slate: chrome
                                   // header, destinations, Rig card.
-                                  if (phoneRail)
+                                  // Gives way to the keyboard, as the
+                                  // bottom bar does.
+                                  if (phoneRail && !keyboardVisible)
                                     SkotiqBottomNavigation(
                                       vertical: true,
                                       currentRoute: currentLocation,
