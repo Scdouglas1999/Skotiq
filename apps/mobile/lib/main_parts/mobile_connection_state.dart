@@ -312,7 +312,9 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     final hostLink = ref.read(linkedHostLinkProvider);
     _graceExpiredInBackground = false;
     if (hostLink != null &&
-        hostLink.connectionState != BackendConnectionState.connected) {
+        hostLink.connectionState != BackendConnectionState.connected &&
+        // A terminal failure (a version mismatch) gets no grace and no redial.
+        hostLink.connectionState != BackendConnectionState.error) {
       // The socket dropped while the heartbeat was paused. Dial now rather
       // than after the backend's backoff, and time the grace from here: a
       // timer that came due in the background must not tear the session
