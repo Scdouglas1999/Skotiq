@@ -295,6 +295,10 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
   /// sheet (matching the rule the pre-Observatory layout used).
   static const double _shortViewportHeight = 500;
 
+  /// The frame shape a phone sizes its viewer for before the first frame: a
+  /// typical 3:2 astronomy sensor.
+  static const double _defaultFrameAspect = 1.5;
+
   Widget _liveViewFor(
     SkotiqColors colors,
     int selectedSection,
@@ -361,34 +365,67 @@ class _ImagingScreenState extends ConsumerState<ImagingScreen> {
     if (narrow) {
       // Narrow: the canvas keeps the top of the screen and the controls become
       // a sheet with a horizontal section strip and two full-width buttons.
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          // 3:2 on a tall phone — the sky keeps the larger share. On a SHORT
-          // viewport (a phone in landscape, or any window with the keyboard
-          // up) it is 1:1, because a 150 px sheet cannot show a form row and
-          // the operator is looking at the controls, not the sky. Either way
-          // the sheet is BOUNDED, so it shrinks its scrolling body instead of
-          // overflowing the column.
-          Expanded(flex: short ? 1 : 3, child: viewer),
-          Flexible(
-            flex: short ? 1 : 2,
-            child: MeasuredBottomInsetReporter(
-              onHeight: _setCaptureBarHeight,
-              child: _ControlsSheet(
-                colors: colors,
-                selectedSection: selectedSection,
-                onSectionSelected: _selectSection,
-                isLooping: _isLooping,
-                isSingleCapture: _isSingleCapture,
-                isSavingCapture: _isSavingCapture,
-                isStoppingCapture: _isStoppingCapture,
-                onSnapshot: _takeSnapshot,
-                onToggleLoop: _toggleLoop,
-              ),
+      final sheet = MeasuredBottomInsetReporter(
+        onHeight: _setCaptureBarHeight,
+        child: _ControlsSheet(
+          colors: colors,
+          selectedSection: selectedSection,
+          onSectionSelected: _selectSection,
+          isLooping: _isLooping,
+          isSingleCapture: _isSingleCapture,
+          isSavingCapture: _isSavingCapture,
+          isStoppingCapture: _isStoppingCapture,
+          onSnapshot: _takeSnapshot,
+          onToggleLoop: _toggleLoop,
+          showSections: !_sidePanelCollapsed,
+        ),
+      );
+      // The header's panel button hides the sections: the frame takes the
+      // height and the sheet keeps only Snapshot and Loop.
+      if (_sidePanelCollapsed) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[Expanded(child: viewer), sheet],
+        );
+      }
+      if (short) {
+        // A short viewport (a phone in landscape, or any window with the
+        // keyboard up) splits 1:1: a 150 px sheet cannot show a form row, and
+        // the operator is looking at the controls, not the sky. The sheet is
+        // BOUNDED, so it shrinks its scrolling body instead of overflowing.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Expanded(child: viewer),
+            Flexible(child: sheet),
+          ],
+        );
+      }
+      // A tall phone gives the viewer the frame's own height at full width,
+      // so no letterbox band is spent above and below it, between 35% and
+      // 60% of the column; the controls take the rest.
+      final aspect = ref.watch(
+            currentImageProvider.select(
+              (image) => image == null || image.height == 0
+                  ? null
+                  : image.width / image.height,
             ),
-          ),
-        ],
+          ) ??
+          _defaultFrameAspect;
+      return LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final viewerHeight = (constraints.maxWidth / aspect).clamp(
+            constraints.maxHeight * 0.35,
+            constraints.maxHeight * 0.6,
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              SizedBox(height: viewerHeight, child: viewer),
+              Expanded(child: sheet),
+            ],
+          );
+        },
       );
     }
 
@@ -479,6 +516,7 @@ class _ControlsSheet extends StatelessWidget {
     required this.isStoppingCapture,
     required this.onSnapshot,
     required this.onToggleLoop,
+    this.showSections = true,
   });
 
   final SkotiqColors colors;
@@ -490,6 +528,10 @@ class _ControlsSheet extends StatelessWidget {
   final bool isStoppingCapture;
   final VoidCallback onSnapshot;
   final VoidCallback onToggleLoop;
+
+  /// False while the header's panel button has the sections hidden: the sheet
+  /// is then only the two capture buttons.
+  final bool showSections;
 
   /// Below this the section chip strip stands down: 40 px of navigation in a
   /// sheet this short is 40 px the field being typed into does not have.
@@ -513,7 +555,8 @@ class _ControlsSheet extends StatelessWidget {
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final height = constraints.maxHeight;
-            final showStrip = !height.isFinite || height >= _stripFloor;
+            final showStrip =
+                showSections && (!height.isFinite || height >= _stripFloor);
             final showButtons = !height.isFinite || height >= _buttonsFloor;
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -551,23 +594,24 @@ class _ControlsSheet extends StatelessWidget {
                 // WINDOW, which is a different number the moment a keyboard is
                 // up. Each section scrolls internally, so this can shrink to
                 // nothing without overflowing.
-                Flexible(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: SkotiqTokens.spaceLg,
-                      vertical: SkotiqTokens.spaceSm,
-                    ),
-                    child: ImagingSectionBody(
-                      colors: colors,
-                      section: selectedSection,
+                if (showSections)
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: SkotiqTokens.spaceLg,
+                        vertical: SkotiqTokens.spaceSm,
+                      ),
+                      child: ImagingSectionBody(
+                        colors: colors,
+                        section: selectedSection,
+                      ),
                     ),
                   ),
-                ),
                 if (showButtons)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(
+                    padding: EdgeInsets.fromLTRB(
                       SkotiqTokens.spaceLg,
-                      0,
+                      showSections ? 0 : SkotiqTokens.spaceMd,
                       SkotiqTokens.spaceLg,
                       SkotiqTokens.spaceMd,
                     ),
