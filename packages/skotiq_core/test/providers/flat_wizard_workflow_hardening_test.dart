@@ -246,6 +246,7 @@ class _ThrowingHistoryBackend extends Mock implements NetworkBackend {
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
+    bool create = false,
   }) async => {'valid': true, 'normalizedPath': path};
 
   @override

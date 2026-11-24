@@ -378,4 +378,102 @@ void main() {
     expect(results, ['/data/normalized']);
     expect(find.byType(AlertDialog), findsNothing);
   });
+
+  testWidgets('a tap opens a folder, and the folder on screen is the one used',
+      (tester) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.browseRemoteDirectories(path: null)).thenAnswer(
+      (_) async => _listing(
+        directories: const [
+          RemoteDirectoryEntry(name: 'Documents', path: '/home/me/Documents'),
+        ],
+      ),
+    );
+    when(() => backend.browseRemoteDirectories(path: '/home/me/Documents'))
+        .thenAnswer((_) async => _listing(currentPath: '/home/me/Documents'));
+    when(() => backend.validateRemoteDirectory(
+          any(),
+          mustExist: any(named: 'mustExist'),
+          mustBeWritable: any(named: 'mustBeWritable'),
+        )).thenAnswer(
+      (inv) async => {
+        'valid': true,
+        'normalizedPath': inv.positionalArguments.first,
+      },
+    );
+
+    final results = <String?>[];
+    await pumpHost(tester, backend, resultSink: results);
+    await openDialog(tester);
+
+    // The host's top-level folders are places, not a folder to use.
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Use this folder'),
+          )
+          .onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.text('Documents'));
+    await tester.pump();
+    await tester.pump();
+
+    // An empty folder says so, and offers the way back to the top level.
+    expect(find.textContaining('No folders inside this one'), findsOneWidget);
+    expect(find.text('All folders'), findsOneWidget);
+
+    await tester.tap(find.text('Use this folder'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(results, ['/home/me/Documents']);
+  });
+
+  testWidgets('New folder has the host make it, then opens it', (tester) async {
+    final backend = _MockNetworkBackend();
+    when(() => backend.browseRemoteDirectories(path: '/data')).thenAnswer(
+      (_) async => _listing(currentPath: '/data', parentPath: '/'),
+    );
+    when(() => backend.browseRemoteDirectories(path: '/data/Captures'))
+        .thenAnswer(
+      (_) async => _listing(currentPath: '/data/Captures', parentPath: '/data'),
+    );
+    when(() => backend.validateRemoteDirectory(
+          '/data/Captures',
+          mustExist: true,
+          mustBeWritable: true,
+          create: true,
+        )).thenAnswer(
+      (_) async => {'valid': true, 'normalizedPath': '/data/Captures'},
+    );
+
+    final results = <String?>[];
+    await pumpHost(tester, backend, initialPath: '/data', resultSink: results);
+    await openDialog(tester);
+
+    await tester.tap(find.text('New folder'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // A path is not a name.
+    await tester.enterText(find.byType(TextField), '../etc');
+    await tester.tap(find.text('Create'));
+    await tester.pump();
+    expect(find.textContaining('cannot contain'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Captures');
+    await tester.tap(find.text('Create'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump();
+
+    verify(() => backend.validateRemoteDirectory(
+          '/data/Captures',
+          mustExist: true,
+          mustBeWritable: true,
+          create: true,
+        )).called(1);
+    expect(find.text('/data/Captures'), findsOneWidget);
+  });
 }

@@ -102,7 +102,9 @@ class _RemoteDirectoryPickerDialogState
       if (scope.isStale) return;
       setState(() {
         _listing = listing;
-        _selectedPath = listing.currentPath ?? path;
+        // The folder on screen is the one "Use this folder" takes; the host
+        // roots are a list of places, not a folder.
+        _selectedPath = listing.currentPath;
         _loading = false;
       });
     } catch (error) {
@@ -178,6 +180,67 @@ class _RemoteDirectoryPickerDialogState
     });
   }
 
+  /// Asks for a name and has the host make that folder inside the one on
+  /// screen, then opens it.
+  Future<void> _createFolder() async {
+    final parent = _listing?.currentPath;
+    final hostFiles = ref.read(linkedHostFilesProvider);
+    if (parent == null || hostFiles == null || _validating) return;
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => const _NewFolderNameDialog(),
+    );
+    if (name == null || !mounted) return;
+    final scope = _hostScopes.begin();
+    // The host's own separator: a Windows host is browsed from a phone too.
+    final separator =
+        parent.contains('\\') && !parent.contains('/') ? '\\' : '/';
+    final path =
+        parent.endsWith(separator) ? '$parent$name' : '$parent$separator$name';
+    setState(() {
+      _validating = true;
+      _validationError = null;
+    });
+    try {
+      final result = await hostFiles.validateRemoteDirectory(
+        path,
+        mustExist: true,
+        mustBeWritable: true,
+        create: true,
+      );
+      if (scope.isStale) return;
+      setState(() => _validating = false);
+      if (result['valid'] == true) {
+        final normalized = result['normalizedPath'];
+        await _load(normalized is String ? normalized : path);
+        return;
+      }
+      final error = result['error'];
+      setState(() {
+        _validationError = error is String && error.trim().isNotEmpty
+            ? error.trim()
+            : 'The imaging host could not create that folder.';
+      });
+    } catch (error) {
+      if (scope.isStale) return;
+      setState(() {
+        _validating = false;
+        _validationError = isAccessLevelRefusal(error)
+            ? _needsAdminAccess
+            : 'Could not create the folder. '
+                'Check the connection to the imaging host and try again.';
+      });
+    }
+  }
+
+  /// The end of a long path: the folder's own name is the part that tells
+  /// folders apart, so the shared start gives way.
+  static String? _tail(String? path) {
+    const max = 40;
+    if (path == null || path.length <= max) return path;
+    return '…${path.substring(path.length - max + 1)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<SkotiqBackend>(backendProvider, (previous, next) {
@@ -214,16 +277,33 @@ class _RemoteDirectoryPickerDialogState
           children: [
             if (_listing != null)
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
+                constraints: const BoxConstraints(minHeight: 44),
                 decoration: BoxDecoration(
-                  color: colors.surfaceAlt,
+                  color: colors.well,
                   borderRadius: BorderRadius.circular(SkotiqTokens.radiusLg),
                 ),
-                child: Text(
-                  _listing?.currentPath ?? 'Host roots',
-                  style: const TextStyle(fontSize: SkotiqTypography.fontSize12),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _tail(_listing?.currentPath) ??
+                            'Folders on the imaging host',
+                        style: const TextStyle(
+                          fontSize: SkotiqTypography.fontSize12,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_listing?.currentPath != null)
+                      TextButton.icon(
+                        onPressed:
+                            _loading || _validating ? null : _createFolder,
+                        icon: const Icon(LucideIcons.folderPlus, size: 16),
+                        label: const Text('New folder'),
+                      ),
+                  ],
                 ),
               ),
             if (_validationError != null) ...[
@@ -294,37 +374,50 @@ class _RemoteDirectoryPickerDialogState
       children: [
         if (listing.parentPath != null)
           ListTile(
-            leading: const Icon(LucideIcons.arrowUp),
-            title: const Text('Parent folder'),
+            dense: true,
+            leading: const Icon(LucideIcons.arrowUp, size: 20),
+            title: const Text('Up one folder'),
             onTap: () => _load(listing.parentPath),
           ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: listing.directories.length,
-            itemBuilder: (context, index) {
-              final directory = listing.directories[index];
-              final isSelected = _selectedPath == directory.path;
-              return ListTile(
-                selected: isSelected,
-                leading: const Icon(LucideIcons.folder),
-                title: Text(directory.name),
-                subtitle: Text(
-                  directory.path,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                onTap: () {
-                  setState(() {
-                    _selectedPath = directory.path;
-                  });
-                },
-                onLongPress: () => _load(directory.path),
-                trailing: IconButton(
-                  icon: const Icon(LucideIcons.chevronRight),
-                  onPressed: () => _load(directory.path),
-                ),
-              );
-            },
+        // A top-level folder has no parent the host will list; go back to
+        // the list of them instead.
+        if (listing.parentPath == null && listing.currentPath != null)
+          ListTile(
+            dense: true,
+            leading: const Icon(LucideIcons.arrowUp, size: 20),
+            title: const Text('All folders'),
+            onTap: () => _load(null),
           ),
+        Expanded(
+          child: listing.directories.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(SkotiqTokens.spaceLg),
+                    child: Text(
+                      listing.currentPath == null
+                          ? 'The imaging host offers no folders to this link.'
+                          : 'No folders inside this one. Use it, or make a '
+                              'new folder here.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: colors.textSecondary),
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  itemCount: listing.directories.length,
+                  itemBuilder: (context, index) {
+                    final directory = listing.directories[index];
+                    // A tap opens the folder, as in any file browser; the
+                    // folder on screen is the one used.
+                    return ListTile(
+                      dense: true,
+                      leading: const Icon(LucideIcons.folder, size: 20),
+                      title: Text(directory.name),
+                      onTap: () => _load(directory.path),
+                      trailing: const Icon(LucideIcons.chevronRight, size: 18),
+                    );
+                  },
+                ),
         ),
       ],
     );
@@ -359,6 +452,71 @@ class _ValidationBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Asks for the new folder's name. A name, not a path: no separators and
+/// nothing that climbs out of the folder on screen.
+class _NewFolderNameDialog extends StatefulWidget {
+  const _NewFolderNameDialog();
+
+  @override
+  State<_NewFolderNameDialog> createState() => _NewFolderNameDialogState();
+}
+
+class _NewFolderNameDialogState extends State<_NewFolderNameDialog> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final name = _controller.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Type a name for the folder.');
+      return;
+    }
+    if (name.contains('/') ||
+        name.contains('\\') ||
+        name == '.' ||
+        name == '..') {
+      setState(() => _error = 'A folder name cannot contain / or \\.');
+      return;
+    }
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('New folder'),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        autocorrect: false,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: 'Folder name',
+          hintText: 'Captures',
+          errorText: _error,
+        ),
+        onChanged: (_) {
+          if (_error != null) setState(() => _error = null);
+        },
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(onPressed: _submit, child: const Text('Create')),
+      ],
     );
   }
 }

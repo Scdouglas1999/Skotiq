@@ -676,6 +676,7 @@ class _PathValidationBackend extends NetworkBackend {
     String path, {
     bool mustExist = false,
     bool mustBeWritable = false,
+    bool create = false,
   }) async {
     validatedPath = path;
     requiredExistingDirectory = mustExist;

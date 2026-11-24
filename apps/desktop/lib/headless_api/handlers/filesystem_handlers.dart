@@ -155,6 +155,7 @@ class FileSystemHandlers implements RouteSource {
     String path, {
     required bool mustExist,
     required bool mustBeWritable,
+    bool create = false,
   }) async {
     if (path.trim().isEmpty) {
       return (
@@ -209,6 +210,25 @@ class FileSystemHandlers implements RouteSource {
       );
     }
 
+    // A linked phone has no other way to make the folder it picks: create it
+    // here, inside the same allow-listed roots, when asked.
+    if (create && !await directory.exists()) {
+      try {
+        await directory.create(recursive: true);
+      } catch (e) {
+        _logError('[API] Validate could not create $canonicalRequested: $e');
+        return (
+          statusCode: 200,
+          body: {
+            'valid': false,
+            'exists': false,
+            'writable': false,
+            'error': 'The imaging host could not create that folder.',
+          },
+        );
+      }
+    }
+
     final exists = await directory.exists();
     final writable =
         exists && (!mustBeWritable || await _isWritable(directory));
@@ -232,10 +252,12 @@ class FileSystemHandlers implements RouteSource {
     final path = optionalString(payload, 'path', allowEmpty: true) ?? '';
     final mustExist = optionalBool(payload, 'mustExist') ?? false;
     final mustBeWritable = optionalBool(payload, 'mustBeWritable') ?? false;
+    final create = optionalBool(payload, 'create') ?? false;
     final verdict = await checkHostDirectory(
       path,
       mustExist: mustExist,
       mustBeWritable: mustBeWritable,
+      create: create,
     );
     if (verdict.statusCode == 403) return jsonForbidden(verdict.body);
     return jsonOk(verdict.body);

@@ -610,7 +610,8 @@ class _FirstRunSetupScreenState extends ConsumerState<FirstRunSetupScreen> {
         _stepText(
           colors,
           'Where should the rig save its frames? The folder is on the imaging '
-          'computer, not this phone, and must already exist.',
+          'computer, not this phone. Browse the rig to pick one or make a '
+          'new one.',
         ),
         const SizedBox(height: SkotiqTokens.spaceMd),
         SkotiqTextField(
