@@ -65,10 +65,6 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   /// purpose, so a dropped socket is expected and not a lost session.
   bool _appInBackground = false;
 
-  /// The disconnect grace ran out while the app was in the background; the
-  /// return to the foreground starts a fresh one instead of a teardown.
-  bool _graceExpiredInBackground = false;
-
   /// Re-arms [_autoConnect] after the grace period has declared a session
   /// dead, so a phone that blips off the network overnight is reconnected by
   /// morning instead of sitting on "Please reconnect" until relaunched. Null
@@ -230,8 +226,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   Future<void> _onDisconnectGraceExpired(HostLink hostLink) async {
     _disconnectGraceTimer = null;
     if (_appInBackground) {
-      // Not lost: paused. Judge it again once the user is looking.
-      _graceExpiredInBackground = true;
+      // Not lost: paused. The return to the foreground starts a fresh grace.
       return;
     }
     if (!mounted) return;
@@ -310,7 +305,6 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     _appInBackground = false;
     _setNetworkHeartbeatPaused(false);
     final hostLink = ref.read(linkedHostLinkProvider);
-    _graceExpiredInBackground = false;
     if (hostLink != null &&
         hostLink.connectionState != BackendConnectionState.connected &&
         // A terminal failure (a version mismatch) gets no grace and no redial.
@@ -418,6 +412,10 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
           _disconnectGraceTimer = null;
           if (_connectionStale) {
             _connectionStale = false;
+            // Back after a drop: the host may have restarted inside the
+            // grace and left a run it can continue. Look again (the check
+            // does not offer it while a run is going).
+            _checkpointChecked = false;
             ref.read(connectionStaleProvider.notifier).state = false;
             setState(() {
               _statusMessage = '';
