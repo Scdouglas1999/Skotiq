@@ -324,6 +324,9 @@ class _SettingsValueFieldState<T> extends State<SettingsValueField<T>> {
     );
 
     if (widget.flexible) return input;
+    if (_StackedControl.of(context)) {
+      return SizedBox(width: double.infinity, child: input);
+    }
     return SizedBox(width: dialogMaxWidth(context, designWidth), child: input);
   }
 }

@@ -124,6 +124,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
       data: (settings) {
         final authority = ref.watch(backendProvider);
         final isRemoteMode = ref.watch(isRemoteModeProvider);
+        // A phone is the device that stands at the rig and has a GPS, so its
+        // Detect is the quickest way to a site and says so.
+        final onPhone = Platform.isAndroid || Platform.isIOS;
         final storedGoogleKey = ref.watch(googleGeolocationKeyProvider).value;
         if (storedGoogleKey != null) _seedGoogleKey(storedGoogleKey);
         final horizonProfile =
@@ -171,9 +174,10 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   ),
                 SettingRow(
                   title: 'Search place',
-                  subtitle:
-                      'Town or observatory by name. Accurate on a desktop '
-                      'with no GPS',
+                  subtitle: onPhone
+                      ? 'Town or observatory by name'
+                      : 'Town or observatory by name. Accurate on a desktop '
+                          'with no GPS',
                   trailing: SettingsControlBox(
                     width: 240,
                     narrowWidth: 180,
@@ -331,18 +335,23 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                 SettingRow(
                   // Not "GPS": the same click walks all three tiers, and the
                   // subtitle names the one that actually gets you a yard.
-                  title: isRemoteMode
-                      ? 'Detect this computer\'s location'
-                      : 'Detect location',
+                  title: onPhone
+                      ? 'Use this phone\'s location'
+                      : isRemoteMode
+                          ? 'Detect this computer\'s location'
+                          : 'Detect location',
                   // On a linked client the fix comes from this computer and
                   // becomes the imaging host's site, so the row says both.
-                  subtitle: isRemoteMode
-                      ? 'Finds where this computer is (Wi-Fi, GPS or internet '
-                          'address) and saves it as the imaging host\'s site. '
-                          'Use it only when this computer is at the rig.'
-                      : 'Nearby Wi-Fi networks place you to within '
-                          'about 100 m. Falls back to this machine’s GPS or '
-                          'your internet address.',
+                  subtitle: onPhone
+                      ? 'Stand at the rig and tap Detect: the phone\'s GPS '
+                          'becomes the imaging host\'s site.'
+                      : isRemoteMode
+                          ? 'Finds where this computer is (Wi-Fi, GPS or internet '
+                              'address) and saves it as the imaging host\'s site. '
+                              'Use it only when this computer is at the rig.'
+                          : 'Nearby Wi-Fi networks place you to within '
+                              'about 100 m. Falls back to this machine’s GPS or '
+                              'your internet address.',
                   // A labeled button: a bare red crosshair read as a status
                   // glyph, not as the action this row offers.
                   trailing: SkotiqButton(
@@ -372,34 +381,38 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                   ),
               ],
             ),
-            SettingsSection(
-              title: 'Advanced',
-              children: [
-                SettingRow(
-                  title: 'Google Geolocation API key',
-                  subtitle: 'Optional. beaconDB, the key-free service Detect '
-                      'location uses, is mapped by volunteers and has no '
-                      'coverage in plenty of places; with a key from Google '
-                      'Cloud’s Geolocation API the same list of nearby '
-                      'networks goes to a far larger map first. The key is '
-                      'stored on this machine and sent only to Google.',
-                  trailing: SettingsControlBox(
-                    width: 240,
-                    narrowWidth: 180,
-                    child: SkotiqTextField(
-                      controller: _googleKeyController,
-                      focusNode: _googleKeyFocus,
-                      hint: 'Paste a key, or leave empty',
-                      obscureText: true,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      onSubmitted: (value) => unawaited(_saveGoogleKey(value)),
+            // A phone's Detect is its own GPS; the key tunes the Wi-Fi lookup
+            // a computer without one falls back to.
+            if (!onPhone)
+              SettingsSection(
+                title: 'Advanced',
+                children: [
+                  SettingRow(
+                    title: 'Google Geolocation API key',
+                    subtitle: 'Optional. beaconDB, the key-free service Detect '
+                        'location uses, is mapped by volunteers and has no '
+                        'coverage in plenty of places; with a key from Google '
+                        'Cloud’s Geolocation API the same list of nearby '
+                        'networks goes to a far larger map first. The key is '
+                        'stored on this machine and sent only to Google.',
+                    trailing: SettingsControlBox(
+                      width: 240,
+                      narrowWidth: 180,
+                      child: SkotiqTextField(
+                        controller: _googleKeyController,
+                        focusNode: _googleKeyFocus,
+                        hint: 'Paste a key, or leave empty',
+                        obscureText: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        onSubmitted: (value) =>
+                            unawaited(_saveGoogleKey(value)),
+                      ),
                     ),
+                    controlFlex: 2,
                   ),
-                  controlFlex: 2,
-                ),
-              ],
-            ),
+                ],
+              ),
             SettingsSection(
               title: 'Observing environment',
               children: [

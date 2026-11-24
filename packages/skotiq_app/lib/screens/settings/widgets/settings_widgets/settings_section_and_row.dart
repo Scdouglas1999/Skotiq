@@ -270,7 +270,9 @@ class SettingRow extends StatelessWidget {
     final colors = SkotiqColors.of(context);
     final narrow = SettingsFormScope.narrowOf(context);
 
-    final shouldStack = narrow && stackWhenNarrow;
+    // A phone stacks a row whose control is a field, a dropdown or a slider:
+    // beside the title it gets a third of a 360 px row and cuts its own value.
+    final shouldStack = narrow && (stackWhenNarrow || _isWideControl(trailing));
 
     // The row's title and its trailing control are ONE thing to a screen
     // reader.
@@ -339,10 +341,31 @@ class SettingRow extends StatelessWidget {
       children: [
         _label(context, colors),
         const SizedBox(height: SkotiqTokens.spaceMd),
-        trailing,
+        _StackedControl(child: trailing),
       ],
     );
   }
+
+  static bool _isWideControl(Widget control) =>
+      control is SettingsTextInput ||
+      control is SettingsNumberInput ||
+      control is SettingsValueField ||
+      control is SettingsPathInput ||
+      control is SettingsDropdown ||
+      control is SettingsCompactSlider ||
+      control is SettingsControlBox;
+}
+
+/// Marks a control laid out under its title, where a field takes the row's
+/// full width instead of its side-by-side design width.
+class _StackedControl extends InheritedWidget {
+  const _StackedControl({required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_StackedControl>() != null;
+
+  @override
+  bool updateShouldNotify(_StackedControl oldWidget) => false;
 }
 
 /// A hand-laid item inside a [SettingsSection] panel, for content a

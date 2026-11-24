@@ -49,7 +49,11 @@ class SettingsControlBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: SettingsFormScope.narrowOf(context) ? narrowWidth : width,
+      width: _StackedControl.of(context)
+          ? double.infinity
+          : SettingsFormScope.narrowOf(context)
+              ? narrowWidth
+              : width,
       height: height,
       child: child,
     );
