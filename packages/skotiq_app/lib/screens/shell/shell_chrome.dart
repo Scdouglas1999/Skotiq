@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:skotiq_ui/skotiq_ui.dart';
 
 /// Shell chrome (side nav vs bottom nav) decisions.
@@ -14,7 +14,12 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 abstract final class ShellChrome {
   ShellChrome._();
 
+  /// Makes the test host (Linux) take the phone's shell branches.
+  @visibleForTesting
+  static bool? debugNativeMobileOverride;
+
   static bool get isNativeMobile {
+    if (debugNativeMobileOverride != null) return debugNativeMobileOverride!;
     if (kIsWeb) return false;
     return Platform.isAndroid || Platform.isIOS;
   }
@@ -28,6 +33,7 @@ abstract final class ShellChrome {
   /// is left with no mouse-reachable way to close, minimize or move the app.
   /// False when [usesSystemDecorations] hands the frame to the desktop.
   static bool get isDesktopWindow {
+    if (debugNativeMobileOverride != null) return !debugNativeMobileOverride!;
     if (kIsWeb) return false;
     if (usesSystemDecorations) return false;
     return Platform.isWindows || Platform.isLinux || Platform.isMacOS;
