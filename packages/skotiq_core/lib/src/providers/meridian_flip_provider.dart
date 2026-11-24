@@ -110,8 +110,6 @@ class GlobalMeridianFlipSettingsNotifier
   }) : _database = database,
        _remote = remote,
        super(const MeridianFlipSettings()) {
-    _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
-        const AsyncLoading();
     if (hostEvents != null) {
       _remoteEventSubscription = hostEvents().listen(
         (event) {
@@ -134,7 +132,10 @@ class GlobalMeridianFlipSettingsNotifier
         },
       );
     }
-    _loadFuture = _loadSettings(showLoading: true);
+    // Started a microtask later: the load says "loading" to another provider
+    // first, and a provider may not write another while it is being built
+    // (this one is rebuilt whenever the host link drops or returns).
+    _loadFuture = Future.microtask(() => _loadSettings(showLoading: true));
   }
 
   /// Wait until the authoritative settings snapshot has loaded.
@@ -158,6 +159,7 @@ class GlobalMeridianFlipSettingsNotifier
   /// Load settings from the imaging host in network mode, or the local DB on
   /// the host/desktop path.
   Future<void> _loadSettings({required bool showLoading}) async {
+    if (!mounted) return;
     if (showLoading) {
       _ref.read(globalMeridianFlipSettingsLoadStateProvider.notifier).state =
           const AsyncLoading();

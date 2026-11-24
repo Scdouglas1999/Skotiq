@@ -321,7 +321,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
-      _setNetworkHeartbeatPaused(false);
+      _onAppResumed();
       // Alerts may have been turned on in Android's settings meanwhile.
       unawaited(
         ref
@@ -334,7 +334,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      _setNetworkHeartbeatPaused(true);
+      _onAppBackgrounded();
     }
   }
 

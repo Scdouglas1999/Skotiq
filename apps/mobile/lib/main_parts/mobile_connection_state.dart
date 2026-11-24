@@ -61,6 +61,14 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
   Timer? _disconnectGraceTimer;
   bool _connectionStale = false;
 
+  /// The app is not in the foreground. Its heartbeat is paused there on
+  /// purpose, so a dropped socket is expected and not a lost session.
+  bool _appInBackground = false;
+
+  /// The disconnect grace ran out while the app was in the background; the
+  /// return to the foreground starts a fresh one instead of a teardown.
+  bool _graceExpiredInBackground = false;
+
   /// Re-arms [_autoConnect] after the grace period has declared a session
   /// dead, so a phone that blips off the network overnight is reconnected by
   /// morning instead of sitting on "Please reconnect" until relaunched. Null
@@ -179,6 +187,12 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
     _lostSessionRetryTimer = Timer(delay, () async {
       _lostSessionRetryTimer = null;
       if (!mounted) return;
+      // A dial from the background tends to fail and leaves "No answer" on
+      // screen; the return to the foreground dials at once instead.
+      if (_appInBackground) {
+        _scheduleLostSessionRetry();
+        return;
+      }
       // Never fight the operator: if they already reconnected, opened manual
       // entry, chose to browse the UI offline, or a connect is in flight, sit
       // this round out and look again later.
@@ -202,6 +216,142 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
         _scheduleLostSessionRetry();
       }
     });
+  }
+
+  /// Give the backend [_connectionGracePeriod] to reconnect on its own before
+  /// the session is declared lost.
+  void _armDisconnectGrace(HostLink hostLink) {
+    _disconnectGraceTimer ??= Timer(
+      _connectionGracePeriod,
+      () => _onDisconnectGraceExpired(hostLink),
+    );
+  }
+
+  Future<void> _onDisconnectGraceExpired(HostLink hostLink) async {
+    _disconnectGraceTimer = null;
+    if (_appInBackground) {
+      // Not lost: paused. Judge it again once the user is looking.
+      _graceExpiredInBackground = true;
+      return;
+    }
+    if (!mounted) return;
+    if (!ref.read(isRemoteModeProvider) ||
+        hostLink.connectionState == BackendConnectionState.connected) {
+      return;
+    }
+    Log.error(
+      'WebSocket disconnected for ${_connectionGracePeriod.inSeconds}s — declaring connection lost',
+      source: 'Connection',
+    );
+    _stopConnectionMonitor();
+    // Remember who we were talking to, so the retries below re-dial
+    // that exact endpoint and token instead of re-running discovery.
+    //
+    // This MUST happen before the `disconnect()` below: that swaps in a
+    // DisconnectedBackend, and the `backendProvider` listener in the
+    // build method clears `_connectedServer` the moment it sees one. A
+    // capture placed after the await therefore reads null, and every
+    // retry silently falls back to discovery — which on an emulator
+    // resolves the same host by a different address (10.0.2.2 rather
+    // than the paired 192.168.1.20) and re-prompts an already-paired
+    // user for a pairing code.
+    _lostSessionServer = _connectedServer ?? _lostSessionServer;
+    // Drop cached APNs registration state: the next connect may land on
+    // a different desktop, and APNs hands back the same token across
+    // servers. Without this the target-keyed gate in the service is the
+    // only thing forcing a re-POST; resetting here is belt-and-braces
+    // so a re-pair can never be assumed already-registered.
+    _pushRegistration?.reset();
+    try {
+      await ref.read(backendProvider.notifier).disconnect();
+    } catch (e, stackTrace) {
+      Log.error(
+        'Could not detach the lost backend session: $e',
+        source: 'Connection',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      if (mounted) {
+        setState(() {
+          _error =
+              'Connection was lost, but local sequence startup '
+              'is still settling. Wait a moment, then disconnect.';
+        });
+      }
+      return;
+    }
+    // v4 relay: the session is dead — drop the loopback tunnel too.
+    unawaited(_closeActiveRelayTunnel());
+    ref.read(connectionStaleProvider.notifier).state = false;
+    // Audit reset the once-per-lifetime checkpoint flag so
+    // a future reconnect re-runs the resume dialog if the server
+    // now has a fresh interrupted sequence to recover. Without
+    // this, dropping mid-session and reconnecting in the same
+    // app lifecycle would silently skip the recovery prompt.
+    _checkpointChecked = false;
+    setState(() {
+      _connectedServer = null;
+      _isDiscovering = false;
+      _connectionStale = false;
+      _error =
+          'Connection to server lost. Retrying automatically — '
+          'or reconnect below.';
+      _statusMessage = '';
+    });
+    // Keep trying on our own. Without this the app parked on this
+    // screen forever: restoring WiFi four minutes later left it still
+    // showing "Please reconnect" even though the saved server and
+    // token were both still valid.
+    _scheduleLostSessionRetry();
+  }
+
+  /// The app is back in the foreground.
+  void _onAppResumed() {
+    _appInBackground = false;
+    _setNetworkHeartbeatPaused(false);
+    final hostLink = ref.read(linkedHostLinkProvider);
+    _graceExpiredInBackground = false;
+    if (hostLink != null &&
+        hostLink.connectionState != BackendConnectionState.connected) {
+      // The socket dropped while the heartbeat was paused. Dial now rather
+      // than after the backend's backoff, and time the grace from here: a
+      // timer that came due in the background must not tear the session
+      // down the moment the user looks.
+      _disconnectGraceTimer?.cancel();
+      _disconnectGraceTimer = null;
+      unawaited(hostLink.reconnectNow());
+      _armDisconnectGrace(hostLink);
+    }
+    // A session already given up on: try now rather than after the backoff,
+    // and say that is what is happening.
+    final lost = _lostSessionServer;
+    if (lost != null &&
+        _connectedServer == null &&
+        _lostSessionRetryTimer != null &&
+        !_isDiscovering &&
+        !_showManualEntry &&
+        !_skippedConnection) {
+      _lostSessionRetryTimer?.cancel();
+      _lostSessionRetryTimer = null;
+      _lostSessionRetryAttempt = 0;
+      setState(() {
+        _isDiscovering = true;
+        _error = null;
+      });
+      unawaited(() async {
+        await connectToRig(lost);
+        if (!mounted) return;
+        if (_connectedServer == null && !_skippedConnection) {
+          setState(() => _isDiscovering = false);
+          _scheduleLostSessionRetry();
+        }
+      }());
+    }
+  }
+
+  void _onAppBackgrounded() {
+    _appInBackground = true;
+    _setNetworkHeartbeatPaused(true);
   }
 
   void _setNetworkHeartbeatPaused(bool paused) {
@@ -302,77 +452,7 @@ mixin _MobileConnectionState on ConsumerState<SkotiqMobileApp> {
             _connectionStale = true;
             ref.read(connectionStaleProvider.notifier).state = true;
           }
-          _disconnectGraceTimer ??= Timer(_connectionGracePeriod, () async {
-            if (!mounted) return;
-            if (!ref.read(isRemoteModeProvider) ||
-                hostLink.connectionState == BackendConnectionState.connected) {
-              return;
-            }
-            Log.error(
-              'WebSocket disconnected for ${_connectionGracePeriod.inSeconds}s — declaring connection lost',
-              source: 'Connection',
-            );
-            _stopConnectionMonitor();
-            // Remember who we were talking to, so the retries below re-dial
-            // that exact endpoint and token instead of re-running discovery.
-            //
-            // This MUST happen before the `disconnect()` below: that swaps in a
-            // DisconnectedBackend, and the `backendProvider` listener in the
-            // build method clears `_connectedServer` the moment it sees one. A
-            // capture placed after the await therefore reads null, and every
-            // retry silently falls back to discovery — which on an emulator
-            // resolves the same host by a different address (10.0.2.2 rather
-            // than the paired 192.168.1.20) and re-prompts an already-paired
-            // user for a pairing code.
-            _lostSessionServer = _connectedServer ?? _lostSessionServer;
-            // Drop cached APNs registration state: the next connect may land on
-            // a different desktop, and APNs hands back the same token across
-            // servers. Without this the target-keyed gate in the service is the
-            // only thing forcing a re-POST; resetting here is belt-and-braces
-            // so a re-pair can never be assumed already-registered.
-            _pushRegistration?.reset();
-            try {
-              await ref.read(backendProvider.notifier).disconnect();
-            } catch (e, stackTrace) {
-              Log.error(
-                'Could not detach the lost backend session: $e',
-                source: 'Connection',
-                error: e,
-                stackTrace: stackTrace,
-              );
-              if (mounted) {
-                setState(() {
-                  _error =
-                      'Connection was lost, but local sequence startup '
-                      'is still settling. Wait a moment, then disconnect.';
-                });
-              }
-              return;
-            }
-            // v4 relay: the session is dead — drop the loopback tunnel too.
-            unawaited(_closeActiveRelayTunnel());
-            ref.read(connectionStaleProvider.notifier).state = false;
-            // Audit reset the once-per-lifetime checkpoint flag so
-            // a future reconnect re-runs the resume dialog if the server
-            // now has a fresh interrupted sequence to recover. Without
-            // this, dropping mid-session and reconnecting in the same
-            // app lifecycle would silently skip the recovery prompt.
-            _checkpointChecked = false;
-            setState(() {
-              _connectedServer = null;
-              _isDiscovering = false;
-              _connectionStale = false;
-              _error =
-                  'Connection to server lost. Retrying automatically — '
-                  'or reconnect below.';
-              _statusMessage = '';
-            });
-            // Keep trying on our own. Without this the app parked on this
-            // screen forever: restoring WiFi four minutes later left it still
-            // showing "Please reconnect" even though the saved server and
-            // token were both still valid.
-            _scheduleLostSessionRetry();
-          });
+          _armDisconnectGrace(hostLink);
           break;
       }
     });
