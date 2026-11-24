@@ -586,14 +586,12 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   ),
                   const SizedBox(height: 32),
                   Text(
-                    'Connect to your imaging computer',
+                    l10n.text('mobileConnectTitle'),
                     style: SkotiqTypography.h3.copyWith(color: textColor),
                   ),
                   const SizedBox(height: SkotiqTokens.spaceSm),
                   Text(
-                    'This phone runs the rig through Skotiq on the computer '
-                    'at the telescope. Keep Skotiq open there and both on the '
-                    'same Wi-Fi.',
+                    l10n.text('mobileConnectBody'),
                     style: SkotiqTypography.body.copyWith(color: textSecondary),
                   ),
                   const SizedBox(height: 20),
@@ -619,7 +617,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                             child: Text(
                               _statusMessage.isNotEmpty
                                   ? _statusMessage
-                                  : 'Looking for it on this Wi-Fi…',
+                                  : l10n.text('mobileLookingOnWifi'),
                               style: SkotiqTypography.body.copyWith(
                                 color: textColor,
                               ),
@@ -668,8 +666,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                     ),
                     const SizedBox(height: SkotiqTokens.spaceSm),
                     Text(
-                      'On the imaging computer: Settings → Remote access → '
-                      'Start pairing.',
+                      l10n.text('mobileQrWhere'),
                       textAlign: TextAlign.center,
                       style: SkotiqTypography.caption.copyWith(
                         color: textSecondary,
@@ -682,7 +679,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                           child: SkotiqButton(
                             onPressed: _autoConnect,
                             icon: LucideIcons.search,
-                            label: 'Search again',
+                            label: l10n.text('mobileSearchAgain'),
                             variant: ButtonVariant.secondary,
                           ),
                         ),
@@ -696,7 +693,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                               });
                             },
                             icon: LucideIcons.keyboard,
-                            label: 'Enter address',
+                            label: l10n.text('mobileEnterAddress'),
                             variant: ButtonVariant.secondary,
                           ),
                         ),
@@ -792,7 +789,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                   if (showChoices) ...[
                     const SizedBox(height: 28),
                     Text(
-                      'AWAY FROM HOME',
+                      l10n.text('mobileAwayFromHome').toUpperCase(),
                       style: SkotiqTypography.overline.copyWith(
                         color: textSecondary,
                       ),
@@ -802,14 +799,13 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                     awayRow(
                       icon: LucideIcons.radioTower,
                       label: l10n.text('tailscaleConnect'),
-                      detail: 'Your own private network across the internet',
+                      detail: l10n.text('tailscaleConnectDetail'),
                       onTap: _connectViaTailscale,
                     ),
                     awayRow(
                       icon: LucideIcons.globe,
                       label: l10n.text('relayConnect'),
-                      detail:
-                          'Through a relay server, no VPN or port forwarding',
+                      detail: l10n.text('relayConnectDetail'),
                       onTap: _showRelayConnectDialog,
                     ),
                     const SizedBox(height: 20),
@@ -817,7 +813,7 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
                       child: TextButton(
                         onPressed: _skipConnection,
                         child: Text(
-                          'Look around without a rig',
+                          l10n.text('mobileLookAround'),
                           style: TextStyle(color: textSecondary),
                         ),
                       ),

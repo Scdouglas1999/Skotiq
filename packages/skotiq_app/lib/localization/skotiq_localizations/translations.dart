@@ -35,17 +35,22 @@ final Map<String, Map<String, String>> _localizedValues = {
     'generalTitle': 'General',
     'languageEnglish': 'English',
     'languageSpanish': 'Spanish',
-    'mobileEnterIp': 'Enter IP',
+    'mobileConnectTitle': 'Connect to your imaging computer',
+    'mobileConnectBody':
+        'This phone runs the rig through Skotiq on the computer at the telescope. Keep Skotiq open there and both on the same Wi-Fi.',
+    'mobileLookingOnWifi': 'Looking for it on this Wi-Fi\u2026',
+    'mobileQrWhere':
+        'On the imaging computer: Settings \u2192 Remote access \u2192 Start pairing.',
+    'mobileSearchAgain': 'Search again',
+    'mobileEnterAddress': 'Enter address',
+    'mobileAwayFromHome': 'Away from home',
+    'mobileLookAround': 'Look around without a rig',
+    'tailscaleConnectDetail': 'Your own private network across the internet',
+    'relayConnectDetail': 'Through a relay server, no VPN or port forwarding',
     'mobileErrorLoadingApp': 'Error Loading App',
-    'mobileHowToConnect': 'How to Connect',
-    'mobileHowToConnectSteps':
-        '1. Make sure Skotiq is running on your imaging PC (desktop or headless server)\n2. Ensure both devices are on the same network\n3. Discovery starts automatically; if nothing is found, tap "Search for Server" to scan again or enter the address manually\n4. After connecting, the full Skotiq app opens with the same screens as desktop',
-    'mobileNotConnected': 'Not connected',
     'mobileRetry': 'Retry',
     'mobileScanQr': 'Scan QR',
-    'mobileSearchingForServer': 'Searching for server...',
     'mobileServerIpAddress': 'Server address',
-    'mobileSkipConnection': 'Skip Connection (View UI Only)',
     // Tailscale connect (setup sheet + connection-screen button).
     'tailscaleConnect': 'Connect over Tailscale',
     // v4 couch-grade remote: self-hosted relay connect (connection-screen).
@@ -146,7 +151,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navGuidingShort': 'Guiding',
     'navMore': 'More',
     'save': 'Save',
-    'searchForServer': 'Search for Server',
     'settingsAbout': 'About',
     'settingsAnnotations': 'Annotations',
     'settingsAppearance': 'Appearance',
@@ -1690,17 +1694,23 @@ final Map<String, Map<String, String>> _localizedValues = {
     'generalTitle': 'General',
     'languageEnglish': 'Ingl\u00E9s',
     'languageSpanish': 'Espa\u00F1ol',
-    'mobileEnterIp': 'Ingresar IP',
+    'mobileConnectTitle': 'Con\u00E9ctate a tu PC de captura',
+    'mobileConnectBody':
+        'Este tel\u00E9fono controla el equipo a trav\u00E9s de Skotiq en el PC del telescopio. Mant\u00E9n Skotiq abierto all\u00ED y ambos en la misma red Wi-Fi.',
+    'mobileLookingOnWifi': 'Busc\u00E1ndolo en esta red Wi-Fi\u2026',
+    'mobileQrWhere':
+        'En el PC de captura: Ajustes \u2192 Acceso remoto \u2192 Iniciar emparejamiento.',
+    'mobileSearchAgain': 'Buscar de nuevo',
+    'mobileEnterAddress': 'Introducir direcci\u00F3n',
+    'mobileAwayFromHome': 'Fuera de casa',
+    'mobileLookAround': 'Explorar sin un equipo',
+    'tailscaleConnectDetail': 'Tu propia red privada a trav\u00E9s de internet',
+    'relayConnectDetail':
+        'A trav\u00E9s de un servidor de retransmisi\u00F3n, sin VPN ni redirecci\u00F3n de puertos',
     'mobileErrorLoadingApp': 'Error al cargar la aplicaci\u00F3n',
-    'mobileHowToConnect': 'C\u00F3mo conectar',
-    'mobileHowToConnectSteps':
-        '1. Aseg\u00FArate de que Skotiq est\u00E9 ejecut\u00E1ndose en tu PC de captura (escritorio o servidor headless)\n2. Verifica que ambos dispositivos est\u00E9n en la misma red\n3. El descubrimiento comienza autom\u00E1ticamente; si no se encuentra nada, toca "Buscar servidor" para buscar de nuevo o introduce la direcci\u00F3n manualmente\n4. Tras conectar, se abre la app completa de Skotiq con las mismas pantallas que en escritorio',
-    'mobileNotConnected': 'Sin conexi\u00F3n',
     'mobileRetry': 'Reintentar',
     'mobileScanQr': 'Escanear QR',
-    'mobileSearchingForServer': 'Buscando servidor...',
     'mobileServerIpAddress': 'Direcci\u00F3n del servidor',
-    'mobileSkipConnection': 'Omitir conexi\u00F3n (solo ver la interfaz)',
     // Conexi\u00F3n por Tailscale.
     'tailscaleConnect': 'Conectar por Tailscale',
     // Conexi\u00F3n mediante rel\u00E9 autoalojado (v4).
@@ -1800,7 +1810,6 @@ final Map<String, Map<String, String>> _localizedValues = {
     'navGuidingShort': 'Guiado',
     'navMore': 'Mas',
     'save': 'Guardar',
-    'searchForServer': 'Buscar servidor',
     'settingsAbout': 'Acerca de',
     'settingsAnnotations': 'Anotaciones',
     'settingsAppearance': 'Apariencia',
