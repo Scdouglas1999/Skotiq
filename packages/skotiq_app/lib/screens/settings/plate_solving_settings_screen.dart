@@ -334,6 +334,7 @@ class _PlateSolvingSettingsState extends ConsumerState<PlateSolvingSettings> {
           _NoSolverQuickStart(
             onRescan: uiState.rescanning ? null : _rescan,
             isRescanning: uiState.rescanning,
+            linked: ref.watch(isRemoteModeProvider),
           ),
         ],
         const SizedBox(height: 16),
@@ -553,9 +554,14 @@ class _NoSolverQuickStart extends StatelessWidget {
   final VoidCallback? onRescan;
   final bool isRescanning;
 
+  /// This app is linked to an imaging computer, which is where the solver
+  /// has to be installed: the pages open here only to be read.
+  final bool linked;
+
   const _NoSolverQuickStart({
     required this.onRescan,
     required this.isRescanning,
+    this.linked = false,
   });
 
   Future<void> _openUrl(BuildContext context, String url) async {
@@ -588,9 +594,13 @@ class _NoSolverQuickStart extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Skotiq needs a plate solver to center targets, verify '
-            'framing, and run polar alignment. Follow these steps, then '
-            'click Re-scan to detect the install.',
+            linked
+                ? 'Skotiq needs a plate solver on the imaging computer to '
+                    'center targets, verify framing, and run polar alignment. '
+                    'Install it there, not on this device, then Re-scan.'
+                : 'Skotiq needs a plate solver to center targets, verify '
+                    'framing, and run polar alignment. Follow these steps, '
+                    'then click Re-scan to detect the install.',
             style: SkotiqTypography.caption.copyWith(
               color: colors.textSecondary,
             ),
@@ -598,7 +608,9 @@ class _NoSolverQuickStart extends StatelessWidget {
           const SizedBox(height: 14),
           _QuickStartStep(
             stepNumber: 1,
-            title: 'Install ASTAP',
+            title: linked
+                ? 'Install ASTAP on the imaging computer'
+                : 'Install ASTAP',
             body: 'ASTAP is fast, free, and works fully offline. Click '
                 'below to open the download page.',
             icon: LucideIcons.download,

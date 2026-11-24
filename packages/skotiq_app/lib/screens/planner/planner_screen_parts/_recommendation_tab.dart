@@ -76,7 +76,9 @@ class _RecommendationTabState extends ConsumerState<_RecommendationTab> {
     final detection = await readHeld(ref, plateSolverDetectionProvider);
     final preference = await readHeld(ref, plateSolverPreferenceProvider);
     if (detection.supports(preference.choice)) return null;
-    final rig = ref.read(remoteLaunchTargetProvider)?.name;
+    // A phone has no launch target; its rig is still another computer.
+    final rig = ref.read(remoteLaunchTargetProvider)?.name ??
+        (ref.read(isRemoteModeProvider) ? 'the imaging computer' : null);
     return 'Image tonight centers the target by plate solving, and no plate '
         'solver is set up ${rig == null ? 'on this computer' : 'on $rig'}. '
         'Set one up in Settings > Plate solving'
