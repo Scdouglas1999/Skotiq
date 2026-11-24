@@ -12,8 +12,11 @@ import 'package:skotiq_ui/skotiq_ui.dart';
 
 import '../../harness/mock_database.dart' show inMemoryDatabaseOverride;
 
-Future<ProviderContainer> _pumpNewProfile(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(1024, 900);
+Future<ProviderContainer> _pumpNewProfile(
+  WidgetTester tester, {
+  Size size = const Size(1024, 900),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(() {
     tester.view.resetPhysicalSize();
@@ -101,6 +104,50 @@ void main() {
       find.bySemanticsLabel(RegExp('^Camera display name')),
     );
     expect(picker.width, greaterThan(name.width));
+
+    await _closeEditor(tester);
+  });
+
+  testWidgets('on a phone an empty slot shows only its picker', (tester) async {
+    await _pumpNewProfile(tester, size: const Size(411, 4000));
+
+    final picker = find.bySemanticsLabel(RegExp('Camera: choose a device'));
+    await tester.ensureVisible(picker);
+    // No device chosen: no name field to fill for it.
+    expect(find.bySemanticsLabel(RegExp('Camera display name')), findsNothing);
+
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Simulated Camera').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.bySemanticsLabel(RegExp('Camera display name')),
+      findsOneWidget,
+    );
+
+    await _closeEditor(tester);
+  });
+
+  testWidgets('choosing a device does not hand focus back to a text field',
+      (tester) async {
+    await _pumpNewProfile(tester, size: const Size(411, 4000));
+
+    // The operator typed the profile's name, then went to the devices.
+    final nameField = find.byType(EditableText).first;
+    await tester.tap(nameField);
+    await tester.pump();
+    expect(tester.widget<EditableText>(nameField).focusNode.hasFocus, isTrue);
+
+    final picker = find.bySemanticsLabel(RegExp('Focuser: choose a device'));
+    await tester.ensureVisible(picker);
+    await tester.tap(picker);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Simulated Focuser'));
+    await tester.pumpAndSettle();
+
+    // On a phone a focused field brings the keyboard up and scrolls the form.
+    expect(tester.widget<EditableText>(nameField).focusNode.hasFocus, isFalse);
 
     await _closeEditor(tester);
   });
