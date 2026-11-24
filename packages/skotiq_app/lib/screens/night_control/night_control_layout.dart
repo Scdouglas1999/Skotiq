@@ -109,6 +109,7 @@ class NightControlLayout extends StatefulWidget {
     required this.left,
     required this.center,
     required this.panel,
+    this.notices,
   });
 
   /// Title, run pill, timeline and run controls. At least [headerHeight]
@@ -123,6 +124,11 @@ class NightControlLayout extends StatefulWidget {
 
   /// The tabbed right panel.
   final Widget panel;
+
+  /// Banners about the run (mount guard, warnings, recovery). Above the
+  /// header in the column modes; under it in the single column, where the
+  /// header is the phone's top bar.
+  final Widget? notices;
 
   static const double threeColumnMinWidth = 1180;
   static const double drawerMinWidth = 900;
@@ -233,6 +239,7 @@ class _NightControlLayoutState extends State<NightControlLayout> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
+        if (widget.notices case final notices?) notices,
         ConstrainedBox(
           constraints: const BoxConstraints(
             minHeight: NightControlLayout.headerHeight,
@@ -350,6 +357,7 @@ class _NightControlLayoutState extends State<NightControlLayout> {
             decoration: BoxDecoration(border: Border(bottom: divider)),
             child: _slot(widget.header),
           ),
+          if (widget.notices case final notices?) notices,
           _slot(widget.center),
           DecoratedBox(
             decoration: BoxDecoration(

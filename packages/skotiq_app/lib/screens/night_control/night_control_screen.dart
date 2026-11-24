@@ -39,29 +39,28 @@ class NightControlScreen extends ConsumerWidget {
     // A run's solves are gathered while Tonight is up, whichever tab shows.
     ref.watch(nightRecentSolvesProvider);
 
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        MountGuardBanner(),
-        EndOfNightCapBanner(),
-        RunDashboardRecoveryBanner(),
-        RunDashboardCriticalBanner(),
-        NightRunWarningsBanner(),
-        Expanded(
-          child: NightControlShortcuts(
-            child: NightControlLayout(
-              header: NightHeaderBar(),
-              left: NightLeftColumn(),
-              center: NightCenter(),
-              panel: NightRightPanel(
-                mountTab: NightMountTab(),
-                guideTab: NightGuideTab(),
-                solveTab: NightSolveTab(),
-              ),
-            ),
-          ),
+    return const NightControlShortcuts(
+      child: NightControlLayout(
+        notices: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            MountGuardBanner(),
+            EndOfNightCapBanner(),
+            RunDashboardRecoveryBanner(),
+            RunDashboardCriticalBanner(),
+            NightRunWarningsBanner(),
+          ],
         ),
-      ],
+        header: NightHeaderBar(),
+        left: NightLeftColumn(),
+        center: NightCenter(),
+        panel: NightRightPanel(
+          mountTab: NightMountTab(),
+          guideTab: NightGuideTab(),
+          solveTab: NightSolveTab(),
+        ),
+      ),
     );
   }
 }

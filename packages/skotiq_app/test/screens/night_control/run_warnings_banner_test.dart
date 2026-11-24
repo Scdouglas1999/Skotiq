@@ -148,11 +148,20 @@ void main() {
     expect(find.textContaining('run warning'), findsNothing);
   });
 
-  testWidgets('fits a phone width', (tester) async {
+  testWidgets('fits a phone width in one line that opens on a tap', (
+    tester,
+  ) async {
     await _pump(tester, _stats(const [_center, _limit, _early]), width: 390);
     expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Show all'));
+    // One line: the newest warning and how many more there are.
+    expect(find.text(_early), findsOneWidget);
+    expect(find.text('+2'), findsOneWidget);
+    expect(find.text(_center), findsNothing);
+    await tester.tap(find.bySemanticsLabel(RegExp('Show all')));
     await tester.pump();
     expect(tester.takeException(), isNull);
+    for (final warning in const [_center, _limit, _early]) {
+      expect(find.text(warning), findsOneWidget);
+    }
   });
 }
