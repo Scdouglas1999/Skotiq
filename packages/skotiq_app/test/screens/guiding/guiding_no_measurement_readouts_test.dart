@@ -165,7 +165,7 @@ void main() {
 
     expect(find.text('Waiting for image...'), findsNothing);
     expect(
-      find.text('Press Loop Exposures or Start to acquire a guide star'),
+      find.text('Press Start or Loop to acquire a guide star'),
       findsOneWidget,
     );
   });

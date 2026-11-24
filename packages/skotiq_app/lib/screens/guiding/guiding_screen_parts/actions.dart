@@ -29,7 +29,11 @@ mixin _GuidingActions on ConsumerState<GuidingScreen>, _GuidingStateFields {
         DeviceConnectionState.connected) {
       return 'Connect a guider to acquire a guide star';
     }
-    return 'Press Loop Exposures or Start to acquire a guide star';
+    // A narrow screen keeps the buttons on the Controls tab, not beside
+    // this view.
+    return _isNarrowViewport(context)
+        ? 'Press Start or Loop on the Controls tab to acquire a guide star'
+        : 'Press Start or Loop to acquire a guide star';
   }
 
   /// SNR / star-mass readouts share the "positive means measured" rule: the

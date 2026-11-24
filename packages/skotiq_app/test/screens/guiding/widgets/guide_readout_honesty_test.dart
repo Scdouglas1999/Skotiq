@@ -88,8 +88,7 @@ void main() {
         await tester.pumpWidget(
           _host(
             const GuideStarView(
-              statusMessage:
-                  'Press Loop Exposures or Start to acquire a guide star',
+              statusMessage: 'Press Start or Loop to acquire a guide star',
             ),
           ),
         );
@@ -117,7 +116,7 @@ void main() {
           isNot(colors.error.withValues(alpha: 0.5).toARGB32()),
         );
         expect(
-          find.text('Press Loop Exposures or Start to acquire a guide star'),
+          find.text('Press Start or Loop to acquire a guide star'),
           findsOneWidget,
         );
       },
