@@ -97,6 +97,40 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
             'and resuming.',
     ];
 
+    final actions = Wrap(
+      spacing: SkotiqTokens.spaceSm,
+      runSpacing: SkotiqTokens.spaceSm,
+      children: [
+        if (fault != null && lost == null)
+          SkotiqButton(
+            label: 'Mount checked',
+            icon: LucideIcons.check,
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.small,
+            isLoading: _busy,
+            semanticsHint:
+                'Say the mount has stopped and its position is right',
+            onPressed: stillMoving || _busy ? null : _acknowledge,
+          ),
+        SkotiqButton(
+          label: 'Recover position',
+          icon: LucideIcons.crosshair,
+          variant: ButtonVariant.primary,
+          size: ButtonSize.small,
+          onPressed: stillMoving
+              ? null
+              : () => showDialog<void>(
+                    context: context,
+                    builder: (_) =>
+                        MountGuardRecoveryDialog(deviceId: entry.deviceId),
+                  ),
+        ),
+      ],
+    );
+    // Beside the text on a wide screen; under it on a phone, where a column
+    // of buttons beside the text squeezed it to one word per line.
+    final narrow = MediaQuery.sizeOf(context).width < 600;
+
     return Semantics(
       container: true,
       liveRegion: true,
@@ -162,40 +196,17 @@ class _EntryCardState extends ConsumerState<_EntryCard> {
                         ),
                       ),
                     ),
+                  if (narrow) ...[
+                    const SizedBox(height: SkotiqTokens.spaceMd),
+                    actions,
+                  ],
                 ],
               ),
             ),
-            const SizedBox(width: SkotiqTokens.spaceMd),
-            Wrap(
-              spacing: SkotiqTokens.spaceSm,
-              runSpacing: SkotiqTokens.spaceSm,
-              children: [
-                if (fault != null && lost == null)
-                  SkotiqButton(
-                    label: 'Mount checked',
-                    icon: LucideIcons.check,
-                    variant: ButtonVariant.secondary,
-                    size: ButtonSize.small,
-                    isLoading: _busy,
-                    semanticsHint:
-                        'Say the mount has stopped and its position is right',
-                    onPressed: stillMoving || _busy ? null : _acknowledge,
-                  ),
-                SkotiqButton(
-                  label: 'Recover position',
-                  icon: LucideIcons.crosshair,
-                  variant: ButtonVariant.primary,
-                  size: ButtonSize.small,
-                  onPressed: stillMoving
-                      ? null
-                      : () => showDialog<void>(
-                            context: context,
-                            builder: (_) => MountGuardRecoveryDialog(
-                                deviceId: entry.deviceId),
-                          ),
-                ),
-              ],
-            ),
+            if (!narrow) ...[
+              const SizedBox(width: SkotiqTokens.spaceMd),
+              actions,
+            ],
           ],
         ),
       ),
