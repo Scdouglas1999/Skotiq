@@ -50,6 +50,22 @@ class _AutofocusProgressOverlayState
   static const double _minimizedWidth = 200.0;
   static const double _minimizedHeight = 40.0;
 
+  /// On a phone the window starts as the minimized pill, because expanded it
+  /// covers most of whatever screen is open; this is whether the operator
+  /// has opened it since.
+  bool _phoneExpanded = false;
+
+  bool _minimized(BuildContext context, AutofocusOverlayState overlay) =>
+      Responsive.isPhone(context) ? !_phoneExpanded : overlay.isMinimized;
+
+  void _toggleMinimized() {
+    if (Responsive.isPhone(context)) {
+      setState(() => _phoneExpanded = !_phoneExpanded);
+    } else {
+      ref.read(autofocusOverlayProvider.notifier).toggleMinimized();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -108,7 +124,7 @@ class _AutofocusProgressOverlayState
     }
 
     final colors = SkotiqColors.of(context);
-    final isMinimized = overlayState.isMinimized;
+    final isMinimized = _minimized(context, overlayState);
 
     final screenWidth = MediaQuery.sizeOf(context).width;
     final maxWidth = math.max(0.0, screenWidth - 16);
@@ -182,8 +198,7 @@ class _AutofocusProgressOverlayState
           button: true,
           enabled: true,
           child: InkWell(
-            onTap: () =>
-                ref.read(autofocusOverlayProvider.notifier).toggleMinimized(),
+            onTap: _toggleMinimized,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
@@ -375,8 +390,7 @@ class _AutofocusProgressOverlayState
           _buildIconButton(
             icon: LucideIcons.minus,
             tooltip: 'Minimize',
-            onPressed: () =>
-                ref.read(autofocusOverlayProvider.notifier).toggleMinimized(),
+            onPressed: _toggleMinimized,
             colors: colors,
           ),
           const SizedBox(width: 2),
