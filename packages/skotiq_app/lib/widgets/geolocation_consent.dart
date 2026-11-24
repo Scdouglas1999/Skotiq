@@ -5,6 +5,8 @@ import 'package:skotiq_core/providers.dart';
 import 'package:skotiq_core/settings.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
+import '../screens/shell/shell_chrome.dart';
+
 /// What the operator has already agreed may leave the machine.
 ///
 /// Consent is per TIER, not a single flag, because the tiers send different
@@ -147,6 +149,7 @@ Future<bool> confirmGeolocationLookup(
                 includeWifiScan: includeWifiScan,
                 includeIpFallback: includeIpFallback,
                 googleKeyPresent: googleKeyPresent,
+                onPhone: ShellChrome.isNativeMobile,
               ),
             ),
           ),
@@ -181,7 +184,33 @@ String geolocationConsentBody({
   required bool includeWifiScan,
   required bool includeIpFallback,
   bool googleKeyPresent = false,
+  bool onPhone = false,
 }) {
+  // A phone almost always has a GPS fix, which sends nothing anywhere; the
+  // fallbacks are still named, in a phone-sized paragraph.
+  if (onPhone) {
+    final fallbacks = <String>[
+      if (includeWifiScan)
+        googleKeyPresent
+            ? 'nearby Wi-Fi network names, sent once to Google (your key) '
+                'or beaconDB'
+            : 'nearby Wi-Fi network names, sent once to beaconDB (an open '
+                'positioning service)',
+      if (includeIpFallback)
+        'your public IP address, sent to ipinfo.io (city level only)',
+    ];
+    final buffer = StringBuffer(
+      'Skotiq asks this phone’s GPS first. Nothing leaves the phone.',
+    );
+    if (fallbacks.isNotEmpty) {
+      buffer.write(
+        '\n\nWithout a GPS fix it falls back to ${fallbacks.join(', then ')}.',
+      );
+    }
+    buffer.write('\n\n$outcome');
+    return buffer.toString();
+  }
+
   final steps = <String>[
     'This device’s own location service, if it has one. Nothing leaves the '
         'machine.',

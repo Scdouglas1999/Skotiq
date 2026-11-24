@@ -97,4 +97,26 @@ void main() {
       expect(granted.covers(wifiScan: false, ip: true), isTrue);
     });
   });
+
+  test('a phone names its GPS first, then each fallback it may use', () {
+    final body = geolocationConsentBody(
+      outcome: 'OUTCOME',
+      includeWifiScan: true,
+      includeIpFallback: true,
+      onPhone: true,
+    );
+    expect(body, startsWith('Skotiq asks this phone’s GPS first.'));
+    expect(body, contains('beaconDB'));
+    expect(body, contains('ipinfo.io'));
+    expect(body, endsWith('OUTCOME'));
+
+    final gpsOnly = geolocationConsentBody(
+      outcome: 'OUTCOME',
+      includeWifiScan: false,
+      includeIpFallback: false,
+      onPhone: true,
+    );
+    expect(gpsOnly, isNot(contains('beaconDB')));
+    expect(gpsOnly, isNot(contains('ipinfo.io')));
+  });
 }

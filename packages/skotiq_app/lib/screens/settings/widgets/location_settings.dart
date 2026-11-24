@@ -133,6 +133,38 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
             SiteHorizonProfile.fromJson(settings.horizonProfileJson);
         _migrateLegacyTimezone(settings);
 
+        final detectRow = SettingRow(
+          // Not "GPS": the same click walks all three tiers, and the
+          // subtitle names the one that actually gets you a yard.
+          title: onPhone
+              ? 'Use this phone\'s location'
+              : isRemoteMode
+                  ? 'Detect this computer\'s location'
+                  : 'Detect location',
+          // On a linked client the fix comes from this computer and
+          // becomes the imaging host's site, so the row says both.
+          subtitle: onPhone
+              ? 'Stand at the rig and tap Detect: the phone\'s GPS '
+                  'becomes the imaging host\'s site.'
+              : isRemoteMode
+                  ? 'Finds where this computer is (Wi-Fi, GPS or internet '
+                      'address) and saves it as the imaging host\'s site. '
+                      'Use it only when this computer is at the rig.'
+                  : 'Nearby Wi-Fi networks place you to within '
+                      'about 100 m. Falls back to this machine’s GPS or '
+                      'your internet address.',
+          // A labeled button: a bare red crosshair read as a status
+          // glyph, not as the action this row offers.
+          trailing: SkotiqButton(
+            icon: LucideIcons.locate,
+            label: 'Detect',
+            variant: ButtonVariant.secondary,
+            size: ButtonSize.small,
+            isLoading: _detecting,
+            onPressed: _detecting ? null : () => _detectLocation(),
+          ),
+        );
+
         return SettingsPage(
           key: TourTarget.settingsLocation.key,
           title: 'Location',
@@ -172,6 +204,9 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                           'location, to set a site.',
                     ),
                   ),
+                // A phone stands at the rig with a GPS: its one tap comes
+                // before typing coordinates.
+                if (onPhone) detectRow,
                 SettingRow(
                   title: 'Search place',
                   subtitle: onPhone
@@ -332,37 +367,7 @@ class _LocationSettingsState extends ConsumerState<LocationSettingsPage> {
                       },
                     ),
                   ),
-                SettingRow(
-                  // Not "GPS": the same click walks all three tiers, and the
-                  // subtitle names the one that actually gets you a yard.
-                  title: onPhone
-                      ? 'Use this phone\'s location'
-                      : isRemoteMode
-                          ? 'Detect this computer\'s location'
-                          : 'Detect location',
-                  // On a linked client the fix comes from this computer and
-                  // becomes the imaging host's site, so the row says both.
-                  subtitle: onPhone
-                      ? 'Stand at the rig and tap Detect: the phone\'s GPS '
-                          'becomes the imaging host\'s site.'
-                      : isRemoteMode
-                          ? 'Finds where this computer is (Wi-Fi, GPS or internet '
-                              'address) and saves it as the imaging host\'s site. '
-                              'Use it only when this computer is at the rig.'
-                          : 'Nearby Wi-Fi networks place you to within '
-                              'about 100 m. Falls back to this machine’s GPS or '
-                              'your internet address.',
-                  // A labeled button: a bare red crosshair read as a status
-                  // glyph, not as the action this row offers.
-                  trailing: SkotiqButton(
-                    icon: LucideIcons.locate,
-                    label: 'Detect',
-                    variant: ButtonVariant.secondary,
-                    size: ButtonSize.small,
-                    isLoading: _detecting,
-                    onPressed: _detecting ? null : () => _detectLocation(),
-                  ),
-                ),
+                if (!onPhone) detectRow,
                 if (_wifiRadioOffersPrecision)
                   SettingRow(
                     title: 'Turn Wi-Fi on for a precise fix',
