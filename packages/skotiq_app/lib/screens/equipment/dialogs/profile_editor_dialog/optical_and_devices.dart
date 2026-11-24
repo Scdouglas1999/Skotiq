@@ -208,6 +208,11 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
   String? get _guideCameraToSave =>
       _usesBuiltinGuider && _guideCameraId != _cameraId ? _guideCameraId : null;
 
+  bool get _hasTelescopeFocalLength {
+    final value = double.tryParse(_focalLengthController.text.trim());
+    return value != null && value.isFinite && value > 0;
+  }
+
   /// The guide scope focal length a save writes, in millimeters; null for an
   /// off-axis guider.
   double? get _guideFocalLengthToSave {
@@ -389,8 +394,14 @@ extension _ProfileEditorOpticalAndDevices on _ProfileEditorDialogState {
               label: 'Guide scope focal length',
               help: _guideCameraId == _cameraId && _guideCameraId != null
                   ? 'The guide camera must not be the imaging camera.'
-                  : 'Leave empty for an off-axis guider, which shares the '
-                      "telescope's focal length.",
+                  : _guideFocalLengthToSave == null && !_hasTelescopeFocalLength
+                      // Neither is set: the guider cannot work out its
+                      // pixel scale and refuses to connect.
+                      ? 'The built-in guider needs a focal length: the guide '
+                          "scope's here, or the telescope's above for an "
+                          'off-axis guider.'
+                      : 'Leave empty for an off-axis guider, which shares the '
+                          "telescope's focal length.",
               child: SkotiqTextField(
                 controller: _guideFocalLengthController,
                 hint: 'e.g., 240',
