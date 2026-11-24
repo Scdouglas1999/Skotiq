@@ -2,63 +2,69 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skotiq_ui/skotiq_ui.dart';
 
-/// True after the mobile app has finished requesting Android notification
-/// permissions and confirmed they are granted.
+/// Whether Android lets Skotiq post notifications (`POST_NOTIFICATIONS`,
+/// a runtime permission from Android 13).
 ///
-/// Defaults to `true` because a freshly constructed provider has no decision
-/// yet and the banner is only useful as a POST-DENIAL nag. Mobile code flips it
-/// off when `requestNotificationsPermission()` returns false on Android 13+.
+/// Defaults to `true` so nothing shows until the mobile app has read the
+/// real state.
 final androidNotificationsAuthorizedProvider = StateProvider<bool>((_) => true);
 
-/// Persistent advisory shown across all screens on Android when
-/// `POST_NOTIFICATIONS` (Android 13+ runtime permission) is *not* granted.
+/// Asks Android for the permission, or opens the app's notification settings
+/// once Android no longer shows the prompt. Returns whether it is granted.
+/// The mobile app supplies it; null elsewhere.
+final androidNotificationsRequestProvider =
+    Provider<Future<bool> Function()?>((_) => null);
+
+/// Set when the operator closes the banner; it stays closed until the app
+/// starts again.
+final androidNotificationsBannerDismissedProvider = StateProvider<bool>(
+  (_) => false,
+);
+
+/// The offer to turn on alerts, shown once the phone is linked to a rig.
 ///
-/// Without that permission, `flutter_local_notifications` and
-/// `flutter_foreground_task` silently produce nothing — no exception, no
-/// log. That means sequence-failure, guiding-loss, weather-unsafe, and
-/// equipment-disconnect alerts are dropped on the floor during overnight
-/// sessions, and the foreground service notification that keeps the
-/// process alive may also not render. This banner surfaces the gap so
-/// the operator can grant the permission in system settings before
-/// starting a sequence.
+/// The app does not ask at launch: a permission prompt before the app has
+/// shown anything gives no reason to say yes. Without the permission the
+/// run-failed, guiding-lost and weather alerts are dropped silently, so the
+/// shell offers it here, with the reason, until it is granted or closed.
 class AndroidNotificationsBanner extends ConsumerWidget {
   const AndroidNotificationsBanner({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authorized = ref.watch(androidNotificationsAuthorizedProvider);
-    if (authorized) return const SizedBox.shrink();
+    final dismissed = ref.watch(androidNotificationsBannerDismissedProvider);
+    if (authorized || dismissed) return const SizedBox.shrink();
+    final request = ref.watch(androidNotificationsRequestProvider);
 
-    final colors = SkotiqColors.of(context);
-    final warningColor = colors.warning;
-    final onWarning = colors.background;
-
-    return SafeArea(
-      bottom: false,
-      child: Material(
-        color: warningColor,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Icon(Icons.notifications_off, size: 18, color: onWarning),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Notifications are disabled. Sequence failures, guiding '
-                  'loss, and safety alerts will not wake you. Enable '
-                  'notifications for Skotiq in System Settings → Apps '
-                  '→ Skotiq → Notifications.',
-                  style: TextStyle(
-                    color: onWarning,
-                    fontSize: SkotiqTypography.fontSize12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        SkotiqTokens.spaceSm,
+        SkotiqTokens.spaceXs,
+        SkotiqTokens.spaceSm,
+        0,
+      ),
+      child: SkotiqBanner(
+        tone: BannerTone.warning,
+        icon: Icons.notifications_off_outlined,
+        title: 'Alerts are off.',
+        message: 'Turn them on to hear if the run stops, guiding is lost or '
+            'clouds arrive.',
+        action: request == null
+            ? null
+            : SkotiqButton(
+                label: 'Turn on',
+                size: ButtonSize.small,
+                onPressed: () async {
+                  final granted = await request();
+                  ref
+                      .read(androidNotificationsAuthorizedProvider.notifier)
+                      .state = granted;
+                },
               ),
-            ],
-          ),
-        ),
+        onDismiss: () => ref
+            .read(androidNotificationsBannerDismissedProvider.notifier)
+            .state = true,
       ),
     );
   }

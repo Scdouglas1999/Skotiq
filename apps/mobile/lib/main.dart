@@ -33,6 +33,7 @@ import 'services/manual_server_endpoint.dart';
 import 'services/mobile_pairing_service.dart';
 import 'services/mobile_platform_services.dart';
 import 'services/mobile_preferences.dart';
+import 'services/mobile_sequence_hooks.dart';
 import 'services/battery_service.dart';
 import 'services/network_service.dart';
 import 'services/notification_service.dart';
@@ -134,10 +135,10 @@ void main() async {
     );
   }
 
-  // Request POST_NOTIFICATIONS once before the connection screen. Both
-  // plugins read the same Android permission; asking again after a denial
-  // displays a second prompt. The notification service retains the decision
-  // for the banner; configure the foreground plugin without re-prompting.
+  // Set up notifications without asking for POST_NOTIFICATIONS: the linked
+  // shell offers it with the reason (AndroidNotificationsBanner). Both
+  // plugins read the same Android permission, so the foreground plugin is
+  // configured without prompting either.
   if (Platform.isAndroid || Platform.isIOS) {
     try {
       await MobileNotificationService().initialize();
@@ -187,6 +188,11 @@ void main() async {
       overrides: [
         ...appProviderOverrides(appVersion),
         phoneBarStatusProvider.overrideWithValue(const PhoneBatteryIndicator()),
+        androidNotificationsRequestProvider.overrideWithValue(
+          Platform.isAndroid
+              ? MobileNotificationService().requestAndroidNotificationPermission
+              : null,
+        ),
       ],
       child: const SkotiqMobileApp(),
     ),
@@ -316,6 +322,12 @@ class _SkotiqMobileAppState extends ConsumerState<SkotiqMobileApp>
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       _setNetworkHeartbeatPaused(false);
+      // Alerts may have been turned on in Android's settings meanwhile.
+      unawaited(
+        ref
+            .read(mobileSequenceHooksProvider)
+            .refreshAndroidNotificationsAuthorization(),
+      );
       return;
     }
     if (state == AppLifecycleState.inactive ||
