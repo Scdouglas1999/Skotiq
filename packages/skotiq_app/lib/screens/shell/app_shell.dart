@@ -21,7 +21,6 @@ import '../../utils/startup_surface_queue.dart';
 import 'command_palette/command_palette.dart';
 import '../../tours/tour_overlay.dart';
 import '../../tours/tour_target.dart';
-import 'widgets/mobile_sequence_overlay.dart';
 import 'widgets/running_sequence_mini_bar.dart';
 import 'widgets/notification_toast_overlay.dart';
 import 'widgets/autofocus_progress_overlay.dart';
@@ -651,12 +650,6 @@ class _AppShellState extends ConsumerState<AppShell> {
                                                       ),
                                                     ),
                                                   ),
-                                                  // The phone sequencer's
-                                                  // run controls.
-                                                  if (useBottomNav &&
-                                                      currentRoute ==
-                                                          AppRoute.sequencer)
-                                                    const MobileSequenceOverlay(),
                                                   if (!shownByScreen.contains(
                                                     ShellOverlay.autofocus,
                                                   ))

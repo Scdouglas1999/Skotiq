@@ -100,9 +100,8 @@ class _MobileBuilderLayout extends ConsumerWidget {
               // dense readout reflows instead of overflowing a phone column.
               if (isRunning) _MobileTelemetryStrip(colors: colors),
 
-              if (isRunning)
-                SequenceProgressBar(
-                    key: TourTarget.sequencerProgressBar.key, colors: colors),
+              // The run's progress bar is the screen's own, under the tabs, so
+              // it shows on every tab; a second one here shared its key.
 
               // Tree (portrait: full width; landscape: split with properties).
               Expanded(
