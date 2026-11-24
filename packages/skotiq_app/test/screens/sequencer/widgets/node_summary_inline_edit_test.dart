@@ -140,7 +140,7 @@ void main() {
   );
 
   testWidgets(
-    'tapping the count chip and pressing + increments ExposureNode.count',
+    'tapping the count chip and typing a count round-trips through updateNode',
     (tester) async {
       final container = _container();
 
@@ -152,9 +152,6 @@ void main() {
 
       expect(_exposureFrom(container).count, 5);
 
-      // The count chip carries Semantics(label: 'exposure count'); its value
-      // text ('5') is wrapped by the tappable InkWell. Tap the value text so we
-      // land squarely on the chip's tap target.
       final countChip = find.ancestor(
         of: find.text('5'),
         matching: find.byType(InkWell),
@@ -163,26 +160,23 @@ void main() {
       await tester.tap(countChip.first);
       await tester.pumpAndSettle();
 
-      // The stepper exposes its plus button as Semantics(label: 'Increase').
-      final plus = find.bySemanticsLabel('Increase');
-      expect(plus, findsOneWidget);
-      await tester.tap(plus);
+      // Typed, not stepped: a count of hundreds was 100+ taps on a phone.
+      expect(find.text('Exposure count'), findsOneWidget);
+      final field = find.byType(TextField);
+      expect(field, findsOneWidget);
+      await tester.enterText(field, '300');
       await tester.pump();
-      // Advance past the re-armed live-validation debounce timer.
+      await tester.pump(kNumberInputCommitDebounce);
       await tester.pump(const Duration(milliseconds: 600));
 
-      expect(_exposureFrom(container).count, 6);
+      expect(_exposureFrom(container).count, 300);
     },
   );
 
   testWidgets(
-    'the count stepper keeps incrementing on repeated + taps',
+    'a second typed count replaces the first, not the count the editor '
+    'opened on',
     (tester) async {
-      // Building the popup from the node SNAPSHOT captured when the chip was
-      // tapped makes every '+' recompute `snapshot.count + 1`: a stepper opened
-      // on 4 goes 4 -> 5 and then eight more '+' taps change nothing while the
-      // popup still reads '4'. One tap cannot catch this, which is why the test
-      // above does not.
       final container = _container();
 
       await _pumpTreeWithNode(
@@ -198,15 +192,14 @@ void main() {
       await tester.tap(countChip.first);
       await tester.pumpAndSettle();
 
-      for (var i = 0; i < 3; i++) {
-        await tester.tap(find.bySemanticsLabel('Increase'));
+      for (final typed in ['12', '40']) {
+        await tester.enterText(find.byType(TextField), typed);
         await tester.pump();
+        await tester.pump(kNumberInputCommitDebounce);
         await tester.pump(const Duration(milliseconds: 600));
       }
 
-      expect(_exposureFrom(container).count, 8);
-      // The popup must also SHOW the value it committed, not the stale one.
-      expect(find.text('8'), findsWidgets);
+      expect(_exposureFrom(container).count, 40);
     },
   );
 

@@ -340,18 +340,19 @@ class _ExposureCountEditor extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _EditorSection(
+    // Typed, not stepped: counts run to hundreds, and a phone had no way to
+    // reach 300 frames but 100 taps of +.
+    return _NumericFieldEditor(
       title: 'Exposure count',
       icon: LucideIcons.camera,
-      child: SkotiqStepper(
-        value: node.count,
-        min: ExposureFieldLimits.frameCount.min,
-        max: ExposureFieldLimits.frameCount.max,
-        semanticLabel: 'Exposure count',
-        onChanged: (count) {
-          ref.commitExposureEdit(node.copyWith(count: count), count: count);
-        },
-      ),
+      initialValue: node.count.toDouble(),
+      min: ExposureFieldLimits.frameCount.min.toDouble(),
+      max: ExposureFieldLimits.frameCount.max.toDouble(),
+      decimals: 0,
+      onCommit: (value) {
+        final count = value.round();
+        ref.commitExposureEdit(node.copyWith(count: count), count: count);
+      },
     );
   }
 }
